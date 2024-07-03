@@ -4,6 +4,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:lexeapp/address_format.dart' as address_format;
+import 'package:lexeapp/app_rs/ffi/ffi.dart'
+    show
+        ConfirmationPriority,
+        FeeEstimate,
+        PaymentKind,
+        PreflightPayOnchainResponse;
+import 'package:lexeapp/app_rs/ffi/ffi.ext.dart';
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
@@ -21,13 +28,6 @@ import 'package:lexeapp/components.dart'
         baseInputDecoration;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
-import 'package:lexeapp/ffi/ffi_generated_api.dart'
-    show
-        ConfirmationPriority,
-        FeeEstimate,
-        PaymentKind,
-        PreflightPayOnchainResponse;
-import 'package:lexeapp/ffi/ffi_generated_api_ext.dart';
 import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
@@ -338,8 +338,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     if (amount > balanceSats) {
       final kind = this.widget.sendCtx.paymentMethod.kind();
       final kindLabel = switch (kind) {
-        PaymentKind.Onchain => "on-chain",
-        PaymentKind.Invoice || PaymentKind.Spontaneous => "lightning",
+        PaymentKind.onchain => "on-chain",
+        PaymentKind.invoice || PaymentKind.spontaneous => "lightning",
       };
       final balanceStr =
           currency_format.formatSatsAmount(balanceSats, satsSuffix: true);
@@ -445,7 +445,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
   // TODO(phlip9): save/load this from/to user preferences?
   final ValueNotifier<ConfirmationPriority> confPriority =
-      ValueNotifier(ConfirmationPriority.Normal);
+      ValueNotifier(ConfirmationPriority.normal);
 
   @override
   void dispose() {
@@ -515,9 +515,9 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
         PreflightedPayment_Onchain(:final preflight) => switch (
               this.confPriority.value) {
             // invariant: High can not be selected if there are insufficient funds
-            ConfirmationPriority.High => preflight.high!.amountSats,
-            ConfirmationPriority.Normal => preflight.normal.amountSats,
-            ConfirmationPriority.Background => preflight.background.amountSats,
+            ConfirmationPriority.high => preflight.high!.amountSats,
+            ConfirmationPriority.normal => preflight.normal.amountSats,
+            ConfirmationPriority.background => preflight.background.amountSats,
           },
         PreflightedPayment_Invoice(:final preflight) => preflight.feesSats,
         PreflightedPayment_Offer() =>
@@ -557,9 +557,9 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
     final paymentKind = this.widget.sendCtx.preflightedPayment.kind();
     final subheading = switch (paymentKind) {
-      PaymentKind.Onchain => "Sending bitcoin on-chain",
-      PaymentKind.Invoice => "Sending bitcoin via lightning invoice",
-      PaymentKind.Spontaneous =>
+      PaymentKind.onchain => "Sending bitcoin on-chain",
+      PaymentKind.invoice => "Sending bitcoin via lightning invoice",
+      PaymentKind.spontaneous =>
         "Sending bitcoin via lightning spontaneous payment",
     };
 
@@ -806,18 +806,18 @@ class ChooseOnchainFeeDialog extends StatelessWidget {
         if (feeEstimatesHigh != null)
           ChooseFeeDialogOption(
             feeEstimate: feeEstimatesHigh,
-            priority: ConfirmationPriority.High,
-            isSelected: this.selected == ConfirmationPriority.High,
+            priority: ConfirmationPriority.high,
+            isSelected: this.selected == ConfirmationPriority.high,
           ),
         ChooseFeeDialogOption(
           feeEstimate: this.feeEstimates.normal,
-          priority: ConfirmationPriority.Normal,
-          isSelected: this.selected == ConfirmationPriority.Normal,
+          priority: ConfirmationPriority.normal,
+          isSelected: this.selected == ConfirmationPriority.normal,
         ),
         ChooseFeeDialogOption(
           feeEstimate: this.feeEstimates.background,
-          priority: ConfirmationPriority.Background,
-          isSelected: this.selected == ConfirmationPriority.Background,
+          priority: ConfirmationPriority.background,
+          isSelected: this.selected == ConfirmationPriority.background,
         ),
       ],
     );
@@ -844,9 +844,9 @@ class ChooseFeeDialogOption extends StatelessWidget {
     // The target block height (offset from the current chain tip) that we want
     // our txn confirmed.
     final confBlockTarget = switch (this.priority) {
-      ConfirmationPriority.High => 1,
-      ConfirmationPriority.Normal => 3,
-      ConfirmationPriority.Background => 72,
+      ConfirmationPriority.high => 1,
+      ConfirmationPriority.normal => 3,
+      ConfirmationPriority.background => 72,
     };
     final confDuration = Duration(minutes: 10 * confBlockTarget);
     final confDurationStr = date_format.formatDurationCompact(

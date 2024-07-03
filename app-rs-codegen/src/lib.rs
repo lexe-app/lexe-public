@@ -57,76 +57,93 @@ impl Args {
         })?;
         let app_dir = app_rs_dir.parent().unwrap().join("app");
 
-        let ffi_rs = app_rs_dir.join("src/ffi/ffi.rs");
         let ffi_generated_rs = app_rs_dir.join("src/ffi/ffi_generated.rs");
-        let ffi_generated_dart = app_dir.join("lib/ffi/ffi_generated.dart");
-        let ffi_generated_api_dart =
-            app_dir.join("lib/ffi/ffi_generated_api.dart");
+        let ffi_generated_dart = app_dir.join("lib/app_rs");
         let ios_ffi_generated_h = app_dir.join("ios/Runner/ffi_generated.h");
-        let macos_path = app_dir.join("macos/Runner/");
         let macos_ffi_generated_h =
             app_dir.join("macos/Runner/ffi_generated.h");
 
         // flutter_rust_bridge options
-        let configs = frb::config_parse(frb::RawOpts {
-            verbose: true,
+        // Docs: [`GenerateCommandArgsPrimary`](https://github.com/fzyzcjy/flutter_rust_bridge/blob/master/frb_codegen/src/binary/commands.rs#L52)
+        let config = frb::codegen::Config {
+            // verbose: true,
+            // dump: Some(vec![frb::codegen::ConfigDumpContent::Config]),
+            // dump_all: Some(true),
 
-            // Path of input Rust code
-            rust_input: vec![path_to_string(&ffi_rs)?],
+            // The Rust crate root dir.
+            rust_root: Some(path_to_string(app_rs_dir)?),
+            // The Dart package root dir.
+            dart_root: Some(path_to_string(app_dir)?),
+
+            // The comma-separated list of input Rust modules to generate Dart
+            // interfaces for.
+            //
+            // TODO(phlip9): apparently this now accepts third-party crates?
+            // Will have to experiment.
+            rust_input: Some(["crate::ffi::ffi"].join(",")),
+
             // Path to output generated Rust code.
-            rust_output: Some(vec![path_to_string(&ffi_generated_rs)?]),
+            rust_output: Some(path_to_string(&ffi_generated_rs)?),
 
             // Path to output generated Dart code impls.
-            dart_output: vec![path_to_string(&ffi_generated_dart)?],
-            // Path to output generated Dart API declarations (decls only, no
-            // impls) so you can easily read what APIs are available
-            // from the Dart side.
-            dart_decl_output: Some(path_to_string(&ffi_generated_api_dart)?),
+            dart_output: Some(path_to_string(&ffi_generated_dart)?),
+
+            // // Path to output generated Dart API declarations (decls only, no
+            // // impls) so you can easily read what APIs are available
+            // // from the Dart side.
+            // dart_decl_output: Some(path_to_string(&ffi_generated_api_dart)?),
 
             // These steps dump headers with all the emitted ffi symbols. We
             // also reference these symbols from a dummy method so
             // they don't get stripped by the over-aggressive
             // iOS/macOS symbol stripper.
-            c_output: Some(vec![path_to_string(&ios_ffi_generated_h)?]),
-            extra_c_output_path: Some(vec![path_to_string(macos_path)?]),
+            c_output: Some(path_to_string(&ios_ffi_generated_h)?),
+            duplicated_c_output: Some(vec![path_to_string(
+                &macos_ffi_generated_h,
+            )?]),
+
+            // The class name of the main entrypoint to the Rust API.
+            // Defaults to "RustLib".
+            dart_entrypoint_class_name: Some("AppRs".to_owned()),
+            // Disable some lints in the generated code
+            dart_preamble: Some(r#"
+
+//
+// From: `dart_preamble` in `app-rs-codegen/src/lib.rs`
+// ignore_for_file: invalid_internal_annotation, always_use_package_imports, directives_ordering, prefer_const_constructors, sort_unnamed_constructors_first
+//
+
+"#.to_owned()),
 
             // Other options
-            dart3: true,
-            dart_format_line_length: 80,
-            inline_rust: true,
-            skip_add_mod_to_lib: true,
-            wasm: false,
+            dart3: Some(true),
+            dart_format_line_length: Some(80),
+            full_dep: Some(false), // What does this do?
+            add_mod_to_lib: Some(false),
+            web: Some(false),
+            enable_lifetime: Some(false),
+            type_64bit_int: Some(true),
             ..Default::default()
-        });
+        };
+        let meta_config = frb::codegen::MetaConfig { watch: false };
 
-        // read Rust symbols from `src/ffi/ffi.rs`.
-        let all_symbols = frb::get_symbols_if_no_duplicates(&configs)
-            .with_context(|| {
-                format!(
-                    "flutter_rust_bridge: failed to read Rust symbols from '{}'",
-                    ffi_rs.display(),
-                )
-            })?;
-        // actually generate dart and rust ffi bindings.
-        for config in configs.iter() {
-            frb::frb_codegen(config, &all_symbols).context(
-                "flutter_rust_bridge: failed to generate Rust+Dart ffi bindings",
-            )?;
-        }
+        // generate dart and rust ffi bindings
+        frb::codegen::generate(config, meta_config).context(
+            "flutter_rust_bridge: failed to generate Rust+Dart ffi bindings ",
+        ).unwrap();
 
         // run `git diff --exit-code <maybe-changed-files>` to see if any files
         // changed
         if self.check {
             let mut cmd = Command::new("git");
             cmd.args(["diff", "--exit-code"]).args([
+                // TODO(phlip9): update
                 &ffi_generated_rs,
                 &ffi_generated_dart,
-                &ffi_generated_api_dart,
+                // &ffi_generated_api_dart,
                 &ios_ffi_generated_h,
                 &macos_ffi_generated_h,
             ]);
-
-            // dbg!(&cmd);
 
             let status = cmd.status().context(
                 "Failed to run `git diff` on generated ffi bindings",

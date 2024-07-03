@@ -53,7 +53,7 @@ dependencies:
   # flutter_markdown: ^0.7.1
 
   # The high-level memory safe interface for generated Rust<->dart ffi bindings.
-  flutter_rust_bridge: 1.82.6
+  flutter_rust_bridge: 2.0.0
 
   # QR code scanning
   # NOTE: I tried `mobile_scanner`, but that adds a ton of closed source, MLKit

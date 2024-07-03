@@ -5,10 +5,14 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'package:lexeapp/app_rs/ffi/ffi.dart'
+    show
+        AppHandle,
+        Config,
+        debugDeleteLatestProvisioned,
+        debugDeleteSecretStore;
 import 'package:lexeapp/components.dart'
     show HeadingText, LxCloseButton, ScrollableSinglePageBody, SubheadingText;
-import 'package:lexeapp/ffi/ffi.dart' show api;
-import 'package:lexeapp/ffi/ffi_generated_api.dart' show AppHandle, Config;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/style.dart' show LxColors, Space;
@@ -33,13 +37,13 @@ class DebugPage extends StatelessWidget {
   void doDeleteSecretStore() {
     info("Deleting SecretStore");
 
-    Result.tryFfi(() => api.debugDeleteSecretStore(config: this.config))
+    Result.tryFfi(() => debugDeleteSecretStore(config: this.config))
         .inspectErr((err) => error(err.message));
   }
 
   void doDeleteLatestProvisionedFile() {
     info("Deleting latest_provisioned file");
-    Result.tryFfi(() => api.debugDeleteLatestProvisioned(config: this.config))
+    Result.tryFfi(() => debugDeleteLatestProvisioned(config: this.config))
         .inspectErr((err) => error(err.message));
   }
 

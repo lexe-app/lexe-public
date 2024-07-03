@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart' show expect, test;
 
+import 'package:lexeapp/app_rs/ffi/ffi.dart' show PaymentDirection;
 import 'package:lexeapp/currency_format.dart' as currency_format;
-import 'package:lexeapp/ffi/ffi_generated_api.dart' show PaymentDirection;
 
 void assertApproxEq(double actual, double expected, {double eps = 1e-9}) {
   final absDiff = (actual - expected).abs();
@@ -49,7 +49,7 @@ void main() {
     expect(
       currency_format.formatSatsAmount(
         73000,
-        direction: PaymentDirection.Inbound,
+        direction: PaymentDirection.inbound,
         satsSuffix: false,
         locale: "en_US",
       ),
@@ -58,7 +58,7 @@ void main() {
     expect(
       currency_format.formatSatsAmount(
         73000,
-        direction: PaymentDirection.Inbound,
+        direction: PaymentDirection.inbound,
         satsSuffix: false,
         locale: "da_DK",
       ),
@@ -67,7 +67,7 @@ void main() {
     expect(
       currency_format.formatSatsAmount(
         73000,
-        direction: PaymentDirection.Inbound,
+        direction: PaymentDirection.inbound,
         satsSuffix: false,
         locale: "fr_FR",
       ),

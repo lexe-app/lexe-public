@@ -1,9 +1,7 @@
 /// Extension methods on Dart/Rust FFI types.
 library;
 
-import 'package:lexeapp/ffi/ffi.dart' show api;
-
-import 'package:lexeapp/ffi/ffi_generated_api.dart'
+import 'package:lexeapp/app_rs/ffi/ffi.dart'
     show
         Balance,
         ClientPaymentId,
@@ -17,7 +15,8 @@ import 'package:lexeapp/ffi/ffi_generated_api.dart'
         PaymentMethod_Offer,
         PaymentMethod_Onchain,
         PaymentStatus,
-        ShortPayment;
+        ShortPayment,
+        genClientPaymentId;
 
 //
 // PaymentIndex
@@ -80,17 +79,17 @@ extension PaymentExt on Payment {
         finalizedAt: finalizedAt ?? this.finalizedAt,
       );
 
-  bool isPending() => this.status == PaymentStatus.Pending;
+  bool isPending() => this.status == PaymentStatus.pending;
   bool isPendingNotJunk() => this.isPending() && !this.isJunk();
-  bool isFinalized() => this.status != PaymentStatus.Pending;
+  bool isFinalized() => this.status != PaymentStatus.pending;
   bool isFinalizedNotJunk() => this.isFinalized() && !this.isJunk();
 
   // Keep in sync with [`BasicPayment::is_junk()`] in `common/src/ln/payments.rs`.
   bool isJunk() =>
       // junk amountless invoice
-      this.status != PaymentStatus.Completed &&
-      this.kind == PaymentKind.Invoice &&
-      this.direction == PaymentDirection.Inbound &&
+      this.status != PaymentStatus.completed &&
+      this.kind == PaymentKind.invoice &&
+      this.direction == PaymentDirection.inbound &&
       (this.amountSat == null || this.note == null);
 }
 
@@ -99,7 +98,7 @@ extension PaymentExt on Payment {
 //
 
 extension ClientPaymentIdExt on ClientPaymentId {
-  static ClientPaymentId generate() => api.genClientPaymentId();
+  static ClientPaymentId generate() => genClientPaymentId();
 }
 
 //
@@ -116,8 +115,8 @@ extension PaymentMethodExt on PaymentMethod {
       };
 
   PaymentKind kind() => switch (this) {
-        PaymentMethod_Onchain() => PaymentKind.Onchain,
-        PaymentMethod_Invoice() => PaymentKind.Invoice,
+        PaymentMethod_Onchain() => PaymentKind.onchain,
+        PaymentMethod_Invoice() => PaymentKind.invoice,
         // TODO(phlip9): impl BOLT12 offers
         PaymentMethod_Offer() => throw UnimplementedError(),
       };
@@ -129,8 +128,8 @@ extension PaymentMethodExt on PaymentMethod {
 
 extension BalanceExt on Balance {
   int balanceByKind(final PaymentKind kind) => switch (kind) {
-        PaymentKind.Onchain => this.onchainSats,
-        PaymentKind.Invoice => this.lightningSats,
-        PaymentKind.Spontaneous => this.lightningSats,
+        PaymentKind.onchain => this.onchainSats,
+        PaymentKind.invoice => this.lightningSats,
+        PaymentKind.spontaneous => this.lightningSats,
       };
 }

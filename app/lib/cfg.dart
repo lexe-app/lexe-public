@@ -11,9 +11,8 @@
 import 'dart:io' show Directory, Platform;
 
 import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
-import 'package:lexeapp/ffi/ffi.dart' show api;
-import 'package:lexeapp/ffi/ffi_generated_api.dart'
-    show Config, DeployEnv, Network;
+import 'package:lexeapp/app_rs/ffi/ffi.dart'
+    show Config, DeployEnv, Network, deployEnvFromStr, networkFromStr;
 import 'package:path_provider/path_provider.dart' as path_provider;
 
 /// `true` when the flutter app is built in debug mode with debugging info and
@@ -89,16 +88,16 @@ Future<Config> build() async {
   final baseAppDataDir = await path_provider.getApplicationSupportDirectory();
 
   // These calls should never fail after the compile-time checks above.
-  final deployEnv = api.deployEnvFromStr(s: _deployEnvStr);
-  final network = api.networkFromStr(s: _networkStr);
+  final deployEnv = deployEnvFromStr(s: _deployEnvStr);
+  final network = networkFromStr(s: _networkStr);
 
   final gatewayUrl = switch (deployEnv) {
-    DeployEnv.Prod => "http://api.lexe.app",
-    DeployEnv.Staging => "http://api.staging.lexe.app",
+    DeployEnv.prod => "http://api.lexe.app",
+    DeployEnv.staging => "http://api.staging.lexe.app",
     // Use the build-time env $DEV_GATEWAY_URL in local dev.
     // We can't hard code this since deploying to a real mobile device in dev
     // requires connecting to the dev machine over the local LAN.
-    DeployEnv.Dev => _devGatewayUrlStr,
+    DeployEnv.dev => _devGatewayUrlStr,
   };
 
   return Config(
@@ -117,8 +116,8 @@ Future<Config> buildTest() async {
   final baseAppDataDir = await Directory.systemTemp.createTemp("lexeapp");
 
   return Config(
-    deployEnv: DeployEnv.Dev,
-    network: Network.Regtest,
+    deployEnv: DeployEnv.dev,
+    network: Network.regtest,
     gatewayUrl: "<no-dev-gateway-url>",
     useSgx: false,
     baseAppDataDir: baseAppDataDir.path,

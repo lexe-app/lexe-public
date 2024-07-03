@@ -40,15 +40,15 @@
 //! * Normal looking pub functions, like `pub fn x() -> u32 { 123 }` look like
 //!   async fn's on the Dart side and are run on a separate small threadpool on
 //!   the Rust side to avoid blocking the main Flutter UI isolate.
-//! * Functions that return `SyncReturn<_>` do block the calling Dart isolate
-//!   and are run in-place on that isolate.
-//! * `SyncReturn` has ~10x less overhead. Think a few 50-100 ns vs a few µs
+//! * Functions with `#[frb(sync)]` do block the calling Dart isolate and are
+//!   run in-place on that isolate.
+//! * `#[frb(sync)]` has ~10x less overhead. Think a few 50-100 ns vs a few µs
 //!   overhead per call.
 //! * We have to be careful about blocking the main UI isolate, since we only
 //!   have 16 ms frame budget to compute and render the UI to maintain a smooth
 //!   60 fps. Any ffi that runs for longer than maybe 1 ms should definitely run
 //!   as a separate task on the threadpool. Just reading a value out of some
-//!   in-memory state is probably cheaper overall to use `SyncReturn`.
+//!   in-memory state is probably cheaper overall to use `#[frb(sync)]`.
 
 use std::{future::Future, str::FromStr};
 
@@ -89,66 +89,81 @@ use common::{
     },
     password,
     rng::SysRng,
-    Apply,
 };
 use flutter_rust_bridge::{
+    // handler::{ReportDartErrorHandler, ThreadPoolExecutor},
+    // RustOpaque, StreamSink,
     frb,
-    handler::{ReportDartErrorHandler, ThreadPoolExecutor},
-    RustOpaque, StreamSink, SyncReturn,
+    RustOpaqueNom,
 };
-use lazy_lock::LazyLock;
+// use lazy_lock::LazyLock;
 use secrecy::Zeroize;
 
-pub use crate::app::App;
+pub(crate) use crate::app::App;
 use crate::{
-    app::AppConfig, dart_task_handler::LxHandler, ffs::FlatFileFs, form,
-    logger, secret_store::SecretStore, storage,
+    app::AppConfig,
+    // dart_task_handler::LxHandler,
+    ffi::ffi_generated::StreamSink,
+    ffs::FlatFileFs,
+    form,
+    // logger,
+    secret_store::SecretStore,
+    storage,
 };
 
-// TODO(phlip9): land real async support in flutter_rust_bridge
-// As a temporary unblock to support async fn's, we'll just `RUNTIME.block_on`
-// with a global tokio runtime in each worker thread.
-//
-// flutter_rust_bridge defaults to 4 worker threads in its threadpool.
-// Consequently, at most 4 top-level tasks will run concurrently before the
-// 5'th task needs to wait for an frb worker thread to open up.
-//
-// Ex:
-//
-// ```dart
-// unawaited(app.node_info());
-// unawaited(app.node_info());
-// unawaited(app.node_info());
-// unawaited(app.node_info());
-// unawaited(app.node_info()); // << this request will only start once one of
-//                             //    the previous four requests finishes.
-// ```
-static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        // We only need one background worker. `RUNTIME.block_on` will run the
-        // task on the calling worker thread, while `tokio::spawn` will spawn
-        // the task on this one background worker thread.
-        .worker_threads(1)
-        .build()
-        .expect("Failed to build tokio Runtime")
-});
+#[rustfmt::skip]
+// // TODO(phlip9): land real async support in flutter_rust_bridge
+// // As a temporary unblock to support async fn's, we'll just `RUNTIME.block_on`
+// // with a global tokio runtime in each worker thread.
+// //
+// // flutter_rust_bridge defaults to 4 worker threads in its threadpool.
+// // Consequently, at most 4 top-level tasks will run concurrently before the
+// // 5'th task needs to wait for an frb worker thread to open up.
+// //
+// // Ex:
+// //
+// // ```dart
+// // unawaited(app.node_info());
+// // unawaited(app.node_info());
+// // unawaited(app.node_info());
+// // unawaited(app.node_info());
+// // unawaited(app.node_info()); // << this request will only start once one of
+// //                             //    the previous four requests finishes.
+// // ```
+// static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
+//     tokio::runtime::Builder::new_multi_thread()
+//         .enable_all()
+//         // We only need one background worker. `RUNTIME.block_on` will run the
+//         // task on the calling worker thread, while `tokio::spawn` will spawn
+//         // the task on this one background worker thread.
+//         .worker_threads(1)
+//         .build()
+//         .expect("Failed to build tokio Runtime")
+// });
+// 
+// pub(crate) static FLUTTER_RUST_BRIDGE_HANDLER: LazyLock<LxHandler> =
+//     LazyLock::new(|| {
+//         // TODO(phlip9): Get backtraces symbolizing correctly on mobile. I'm at
+//         // a bit of a loss as to why I can't get this working...
+// 
+//         // std::env::set_var("RUST_BACKTRACE", "1");
+// 
+//         // TODO(phlip9): If we want backtraces from panics, we'll need to set a
+//         // custom panic handler here that formats the backtrace into the panic
+//         // message string instead of printing it out to stderr (since mobile
+//         // doesn't show stdout/stderr...)
+// 
+//         let error_handler = ReportDartErrorHandler;
+//         LxHandler::new(ThreadPoolExecutor::new(error_handler), error_handler)
+//     });
 
-pub(crate) static FLUTTER_RUST_BRIDGE_HANDLER: LazyLock<LxHandler> =
-    LazyLock::new(|| {
-        // TODO(phlip9): Get backtraces symbolizing correctly on mobile. I'm at
-        // a bit of a loss as to why I can't get this working...
-
-        // std::env::set_var("RUST_BACKTRACE", "1");
-
-        // TODO(phlip9): If we want backtraces from panics, we'll need to set a
-        // custom panic handler here that formats the backtrace into the panic
-        // message string instead of printing it out to stderr (since mobile
-        // doesn't show stdout/stderr...)
-
-        let error_handler = ReportDartErrorHandler;
-        LxHandler::new(ThreadPoolExecutor::new(error_handler), error_handler)
-    });
+// #[frb(init)]
+// pub fn init_app_rs() {
+//     // When is this called?
+//     // setup backtrace
+//     // setup log
+//     // flutter_rust_bridge::Handler
+// }
 
 #[frb(dart_metadata=("freezed"))]
 pub struct NodeInfo {
@@ -259,10 +274,9 @@ impl From<DeployEnv> for DeployEnvRs {
 // gen'd "enhanced" enums, then I could use an associated fn.
 //
 // "enhanced" enums: <https://dart.dev/language/enums#declaring-enhanced-enums>
-pub fn deploy_env_from_str(s: String) -> anyhow::Result<SyncReturn<DeployEnv>> {
-    DeployEnvRs::from_str(&s)
-        .map(DeployEnv::from)
-        .map(SyncReturn)
+#[frb(sync)]
+pub fn deploy_env_from_str(s: String) -> anyhow::Result<DeployEnv> {
+    DeployEnvRs::from_str(&s).map(DeployEnv::from)
 }
 
 /// See [`common::cli::Network`]
@@ -296,10 +310,9 @@ impl TryFrom<NetworkRs> for Network {
     }
 }
 
-pub fn network_from_str(s: String) -> anyhow::Result<SyncReturn<Network>> {
-    NetworkRs::from_str(&s)
-        .and_then(Network::try_from)
-        .map(SyncReturn)
+#[frb(sync)]
+pub fn network_from_str(s: String) -> anyhow::Result<Network> {
+    NetworkRs::from_str(&s).and_then(Network::try_from)
 }
 
 /// Dart-serializable configuration we get from the flutter side.
@@ -570,10 +583,11 @@ pub struct ClientPaymentId {
     pub id: [u8; 32],
 }
 
-pub fn gen_client_payment_id() -> SyncReturn<ClientPaymentId> {
-    SyncReturn(ClientPaymentId {
+#[frb(sync)]
+pub fn gen_client_payment_id() -> ClientPaymentId {
+    ClientPaymentId {
         id: ClientPaymentIdRs::from_rng(&mut SysRng::new()).0,
-    })
+    }
 }
 
 impl From<ClientPaymentId> for ClientPaymentIdRs {
@@ -591,18 +605,19 @@ impl From<ClientPaymentId> for ClientPaymentIdRs {
 /// `address_str` is valid, while `Some(msg)` means it is not (with given
 /// error message). We return in this format to better match the flutter
 /// `FormField` validator API.
+#[frb(sync)]
 pub fn form_validate_bitcoin_address(
     address_str: String,
     current_network: Network,
-) -> SyncReturn<Option<String>> {
+) -> Option<String> {
     let result = form::validate_bitcoin_address(
         &address_str,
         NetworkRs::from(current_network),
     );
-    SyncReturn(match result {
+    match result {
         Ok(()) => None,
         Err(msg) => Some(msg),
-    })
+    }
 }
 
 /// Validate whether `password` has an appropriate length.
@@ -611,15 +626,14 @@ pub fn form_validate_bitcoin_address(
 /// `address_str` is valid, while `Some(msg)` means it is not (with given
 /// error message). We return in this format to better match the flutter
 /// `FormField` validator API.
-pub fn form_validate_password(
-    mut password: String,
-) -> SyncReturn<Option<String>> {
+#[frb(sync)]
+pub fn form_validate_password(mut password: String) -> Option<String> {
     let result = password::validate_password_len(&password);
     password.zeroize();
-    SyncReturn(match result {
+    match result {
         Ok(()) => None,
         Err(err) => Some(err.to_string()),
-    })
+    }
 }
 
 pub enum ConfirmationPriority {
@@ -946,28 +960,30 @@ pub fn payment_uri_resolve_best(
 ///
 /// `rust_log`: since env vars don't work well on mobile, we need to ship the
 /// equivalent of `$RUST_LOG` configured at build-time through here.
-pub fn init_rust_log_stream(rust_log_tx: StreamSink<String>, rust_log: String) {
-    logger::init(rust_log_tx, &rust_log);
+pub fn init_rust_log_stream(
+    _rust_log_tx: StreamSink<String>,
+    _rust_log: String,
+) {
+    // TODO(phlip9): fixup
+    // logger::init(rust_log_tx, &rust_log);
 }
 
 /// Delete the local persisted `SecretStore` and `RootSeed`.
 ///
 /// WARNING: you will need a backup recovery to use the account afterwards.
-pub fn debug_delete_secret_store(
-    config: Config,
-) -> anyhow::Result<SyncReturn<()>> {
-    SecretStore::new(&config.into()).delete().map(SyncReturn)
+#[frb(sync)]
+pub fn debug_delete_secret_store(config: Config) -> anyhow::Result<()> {
+    SecretStore::new(&config.into()).delete()
 }
 
 /// Delete the local latest_release file.
-pub fn debug_delete_latest_provisioned(
-    config: Config,
-) -> anyhow::Result<SyncReturn<()>> {
+#[frb(sync)]
+pub fn debug_delete_latest_provisioned(config: Config) -> anyhow::Result<()> {
     let app_config = AppConfig::from(config);
     let app_data_ffs = FlatFileFs::create_dir_all(app_config.app_data_dir)
         .context("Could not create app data ffs")?;
     storage::delete_latest_provisioned(&app_data_ffs)?;
-    Ok(SyncReturn(()))
+    Ok(())
 }
 
 /// Unconditionally panic (for testing).
@@ -980,22 +996,24 @@ pub fn debug_unconditional_error() -> anyhow::Result<()> {
     Err(anyhow::format_err!("Error inside app-rs"))
 }
 
-fn block_on<T, Fut>(future: Fut) -> T
+fn block_on<T, Fut>(_future: Fut) -> T
 where
     Fut: Future<Output = T>,
 {
-    RUNTIME.block_on(future)
+    // TODO(phlip9): unfuck
+    todo!()
+    // RUNTIME.block_on(future)
 }
 
 /// The `AppHandle` is a Dart representation of an [`App`] instance.
 pub struct AppHandle {
-    pub inner: RustOpaque<App>,
+    pub inner: RustOpaqueNom<App>,
 }
 
 impl AppHandle {
     fn new(app: App) -> Self {
         Self {
-            inner: RustOpaque::new(app),
+            inner: RustOpaqueNom::new(app),
         }
     }
 
@@ -1133,37 +1151,34 @@ impl AppHandle {
         db_lock.state().get_vec_idx_by_payment_index(&payment_index)
     }
 
-    pub fn get_payment_by_vec_idx(
-        &self,
-        vec_idx: usize,
-    ) -> SyncReturn<Option<Payment>> {
+    #[frb(sync)]
+    pub fn get_payment_by_vec_idx(&self, vec_idx: usize) -> Option<Payment> {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock
             .state()
             .get_payment_by_vec_idx(vec_idx)
             .map(Payment::from)
-            .apply(SyncReturn)
     }
 
+    #[frb(sync)]
     pub fn get_short_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> SyncReturn<Option<ShortPaymentAndIndex>> {
+    ) -> Option<ShortPaymentAndIndex> {
         let db_lock = self.inner.payment_db().lock().unwrap();
-        db_lock
-            .state()
-            .get_payment_by_scroll_idx(scroll_idx)
-            .map(|(vec_idx, payment)| ShortPaymentAndIndex {
+        db_lock.state().get_payment_by_scroll_idx(scroll_idx).map(
+            |(vec_idx, payment)| ShortPaymentAndIndex {
                 vec_idx,
                 payment: ShortPayment::from(payment),
-            })
-            .apply(SyncReturn)
+            },
+        )
     }
 
+    #[frb(sync)]
     pub fn get_pending_short_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> SyncReturn<Option<ShortPaymentAndIndex>> {
+    ) -> Option<ShortPaymentAndIndex> {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock
             .state()
@@ -1172,13 +1187,13 @@ impl AppHandle {
                 vec_idx,
                 payment: ShortPayment::from(payment),
             })
-            .apply(SyncReturn)
     }
 
+    #[frb(sync)]
     pub fn get_finalized_short_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> SyncReturn<Option<ShortPaymentAndIndex>> {
+    ) -> Option<ShortPaymentAndIndex> {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock
             .state()
@@ -1187,13 +1202,13 @@ impl AppHandle {
                 vec_idx,
                 payment: ShortPayment::from(payment),
             })
-            .apply(SyncReturn)
     }
 
+    #[frb(sync)]
     pub fn get_pending_not_junk_short_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> SyncReturn<Option<ShortPaymentAndIndex>> {
+    ) -> Option<ShortPaymentAndIndex> {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock
             .state()
@@ -1202,13 +1217,13 @@ impl AppHandle {
                 vec_idx,
                 payment: ShortPayment::from(payment),
             })
-            .apply(SyncReturn)
     }
 
+    #[frb(sync)]
     pub fn get_finalized_not_junk_short_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> SyncReturn<Option<ShortPaymentAndIndex>> {
+    ) -> Option<ShortPaymentAndIndex> {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock
             .state()
@@ -1217,32 +1232,36 @@ impl AppHandle {
                 vec_idx,
                 payment: ShortPayment::from(payment),
             })
-            .apply(SyncReturn)
     }
 
-    pub fn get_num_payments(&self) -> SyncReturn<usize> {
+    #[frb(sync)]
+    pub fn get_num_payments(&self) -> usize {
         let db_lock = self.inner.payment_db().lock().unwrap();
-        db_lock.state().num_payments().apply(SyncReturn)
+        db_lock.state().num_payments()
     }
 
-    pub fn get_num_pending_payments(&self) -> SyncReturn<usize> {
+    #[frb(sync)]
+    pub fn get_num_pending_payments(&self) -> usize {
         let db_lock = self.inner.payment_db().lock().unwrap();
-        db_lock.state().num_pending().apply(SyncReturn)
+        db_lock.state().num_pending()
     }
 
-    pub fn get_num_finalized_payments(&self) -> SyncReturn<usize> {
+    #[frb(sync)]
+    pub fn get_num_finalized_payments(&self) -> usize {
         let db_lock = self.inner.payment_db().lock().unwrap();
-        db_lock.state().num_finalized().apply(SyncReturn)
+        db_lock.state().num_finalized()
     }
 
-    pub fn get_num_pending_not_junk_payments(&self) -> SyncReturn<usize> {
+    #[frb(sync)]
+    pub fn get_num_pending_not_junk_payments(&self) -> usize {
         let db_lock = self.inner.payment_db().lock().unwrap();
-        db_lock.state().num_pending_not_junk().apply(SyncReturn)
+        db_lock.state().num_pending_not_junk()
     }
 
-    pub fn get_num_finalized_not_junk_payments(&self) -> SyncReturn<usize> {
+    #[frb(sync)]
+    pub fn get_num_finalized_not_junk_payments(&self) -> usize {
         let db_lock = self.inner.payment_db().lock().unwrap();
-        db_lock.state().num_finalized_not_junk().apply(SyncReturn)
+        db_lock.state().num_finalized_not_junk()
     }
 
     pub fn update_payment_note(

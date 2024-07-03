@@ -2,6 +2,17 @@ import 'dart:async' show Timer, unawaited;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
+import 'package:lexeapp/app_rs/ffi/ffi.dart'
+    show
+        AppHandle,
+        FiatRate,
+        Payment,
+        PaymentDirection,
+        PaymentIndex,
+        PaymentKind,
+        PaymentStatus,
+        UpdatePaymentNote;
+import 'package:lexeapp/app_rs/ffi/ffi.ext.dart';
 import 'package:lexeapp/components.dart'
     show
         FilledPlaceholder,
@@ -16,17 +27,6 @@ import 'package:lexeapp/components.dart'
         ValueStreamBuilder;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
-import 'package:lexeapp/ffi/ffi_generated_api.dart'
-    show
-        AppHandle,
-        FiatRate,
-        Payment,
-        PaymentDirection,
-        PaymentIndex,
-        PaymentKind,
-        PaymentStatus,
-        UpdatePaymentNote;
-import 'package:lexeapp/ffi/ffi_generated_api_ext.dart';
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/stream_ext.dart';
@@ -231,7 +231,7 @@ class PaymentDetailPageInner extends StatelessWidget {
               // TODO(phlip9): LN invoice "expires in X min" goes here?
               // If pending or failed, show a card with more info on the current
               // status.
-              if (status != PaymentStatus.Completed)
+              if (status != PaymentStatus.completed)
                 Padding(
                   // padding: const EdgeInsets.only(top: Space.s200, bottom: Space.s200),
                   padding: const EdgeInsets.symmetric(
@@ -333,7 +333,7 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                 final kind = payment.kind;
                 final status = payment.status;
                 final direction = payment.direction;
-                final directionLabel = (direction == PaymentDirection.Inbound)
+                final directionLabel = (direction == PaymentDirection.inbound)
                     ? "received"
                     : "sent";
 
@@ -349,7 +349,7 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                   isUtc: true,
                 );
                 final expiresAt =
-                    (invoice != null && status != PaymentStatus.Completed)
+                    (invoice != null && status != PaymentStatus.completed)
                         ? DateTime.fromMillisecondsSinceEpoch(invoice.expiresAt,
                             isUtc: true)
                         : null;
@@ -361,10 +361,10 @@ class PaymentDetailBottomSheet extends StatelessWidget {
 
                 // Label should be kept in sync with "common::ln::payments::LxPaymentId"
                 final paymentIdxLabel = switch ((kind, direction)) {
-                  (PaymentKind.Invoice, _) => "Payment hash",
-                  (PaymentKind.Spontaneous, _) => "Payment hash",
-                  (PaymentKind.Onchain, PaymentDirection.Inbound) => "Txid",
-                  (PaymentKind.Onchain, PaymentDirection.Outbound) =>
+                  (PaymentKind.invoice, _) => "Payment hash",
+                  (PaymentKind.spontaneous, _) => "Payment hash",
+                  (PaymentKind.onchain, PaymentDirection.inbound) => "Txid",
+                  (PaymentKind.onchain, PaymentDirection.outbound) =>
                     "Client payment id",
                 };
                 final paymentIdxBody = this.paymentIdxBody();
@@ -479,8 +479,8 @@ class PaymentDetailIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLightning = switch (this.kind) {
-      PaymentKind.Invoice || PaymentKind.Spontaneous => true,
-      PaymentKind.Onchain => false,
+      PaymentKind.invoice || PaymentKind.spontaneous => true,
+      PaymentKind.onchain => false,
     };
 
     const size = Space.s700;
@@ -510,13 +510,13 @@ class PaymentDetailIcon extends StatelessWidget {
     );
 
     return switch (this.status) {
-      PaymentStatus.Completed => PaymentDetailIconBadge(
+      PaymentStatus.completed => PaymentDetailIconBadge(
           icon: LxIcons.completedBadge,
           color: LxColors.background,
           backgroundColor: LxColors.moneyGoUp,
           child: icon,
         ),
-      PaymentStatus.Pending => PaymentDetailIconBadge(
+      PaymentStatus.pending => PaymentDetailIconBadge(
           icon: LxIcons.pendingBadge,
           color: LxColors.background,
           // Use "green" also for pending. Assume payments will generally be
@@ -525,7 +525,7 @@ class PaymentDetailIcon extends StatelessWidget {
           backgroundColor: LxColors.moneyGoUp,
           child: icon,
         ),
-      PaymentStatus.Failed => PaymentDetailIconBadge(
+      PaymentStatus.failed => PaymentDetailIconBadge(
           icon: LxIcons.failedBadge,
           color: LxColors.background,
           backgroundColor: LxColors.errorText,
@@ -579,12 +579,12 @@ class PaymentDetailDirectionTime extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final directionLabel = switch ((status, direction)) {
-      ((PaymentStatus.Pending, PaymentDirection.Inbound)) => "Receiving",
-      ((PaymentStatus.Pending, PaymentDirection.Outbound)) => "Sending",
-      ((PaymentStatus.Completed, PaymentDirection.Inbound)) => "Received",
-      ((PaymentStatus.Completed, PaymentDirection.Outbound)) => "Sent",
-      ((PaymentStatus.Failed, PaymentDirection.Inbound)) => "Failed to receive",
-      ((PaymentStatus.Failed, PaymentDirection.Outbound)) => "Failed to send",
+      ((PaymentStatus.pending, PaymentDirection.inbound)) => "Receiving",
+      ((PaymentStatus.pending, PaymentDirection.outbound)) => "Sending",
+      ((PaymentStatus.completed, PaymentDirection.inbound)) => "Received",
+      ((PaymentStatus.completed, PaymentDirection.outbound)) => "Sent",
+      ((PaymentStatus.failed, PaymentDirection.inbound)) => "Failed to receive",
+      ((PaymentStatus.failed, PaymentDirection.outbound)) => "Failed to send",
     };
 
     final createdAtStr = date_format.formatDate(then: createdAt, now: now);
@@ -615,7 +615,7 @@ class PaymentDetailDirectionTime extends StatelessWidget {
 class PaymentDetailStatusCard extends StatelessWidget {
   const PaymentDetailStatusCard(
       {super.key, required this.status, required this.statusStr})
-      : assert(status != PaymentStatus.Completed);
+      : assert(status != PaymentStatus.completed);
 
   final PaymentStatus status;
   final String statusStr;
@@ -634,7 +634,7 @@ class PaymentDetailStatusCard extends StatelessWidget {
             Expanded(
               flex: 2,
               child: Text(
-                (this.status == PaymentStatus.Pending) ? "pending" : "failed",
+                (this.status == PaymentStatus.pending) ? "pending" : "failed",
                 style: Fonts.fontBody.copyWith(
                   fontSize: Fonts.size300,
                   color: LxColors.foreground,
@@ -698,9 +698,9 @@ class PaymentDetailPrimaryAmount extends StatelessWidget {
     final maybeAmountFiatStr = this.maybeAmountFiatStr();
 
     final amountColor = switch ((this.status, this.direction)) {
-      ((PaymentStatus.Failed, _)) => LxColors.fgTertiary,
-      ((_, PaymentDirection.Inbound)) => LxColors.moneyGoUp,
-      ((_, PaymentDirection.Outbound)) => LxColors.fgSecondary,
+      ((PaymentStatus.failed, _)) => LxColors.fgTertiary,
+      ((_, PaymentDirection.inbound)) => LxColors.moneyGoUp,
+      ((_, PaymentDirection.outbound)) => LxColors.fgSecondary,
     };
 
     return Column(

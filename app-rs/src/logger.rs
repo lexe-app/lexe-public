@@ -11,7 +11,6 @@ use std::{
 
 use arc_swap::ArcSwapOption;
 use common::{api::trace, define_trace_id_fns};
-use flutter_rust_bridge::StreamSink;
 use tracing::{field, span, Event, Level, Subscriber};
 use tracing_subscriber::{
     filter::{Filtered, Targets},
@@ -21,10 +20,16 @@ use tracing_subscriber::{
     Registry,
 };
 
+pub(crate) enum DartLogSink {}
+
+impl DartLogSink {
+    // TODO(phlip9): impl
+    fn log(&self, _message: String) {}
+}
+
 /// A channel to dart. Formatted rust log messages are sent across this channel
 /// for printing on the dart side.
-static RUST_LOG_TX: ArcSwapOption<StreamSink<String>> =
-    ArcSwapOption::const_empty();
+static RUST_LOG_TX: ArcSwapOption<DartLogSink> = ArcSwapOption::const_empty();
 
 struct DartLogLayer;
 
@@ -34,7 +39,7 @@ struct FormattedSpanFields {
 }
 
 /// See [`crate::bindings::init_rust_log_stream`].
-pub(crate) fn init(rust_log_tx: StreamSink<String>, rust_log: &str) {
+pub(crate) fn init(rust_log_tx: DartLogSink, rust_log: &str) {
     RUST_LOG_TX.store(Some(Arc::new(rust_log_tx)));
 
     let subscriber = subscriber(rust_log);
@@ -96,7 +101,9 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for DartLogLayer {
         let mut message = String::new();
         fmt_event(&mut message, event, ctx).expect("Failed to format");
 
-        RUST_LOG_TX.load().as_ref().map(|tx| tx.add(message));
+        if let Some(tx) = RUST_LOG_TX.load().as_ref() {
+            tx.log(message);
+        }
     }
 }
 
@@ -213,18 +220,18 @@ fn fmt_span_fields<S: Subscriber + for<'a> LookupSpan<'a>>(
     Ok(())
 }
 
-#[cfg(test)]
-mod test {
-    use common::api::trace::TraceId;
-    use flutter_rust_bridge::rust2dart::Rust2Dart;
-
-    use super::*;
-
-    #[test]
-    fn get_and_insert_trace_ids() {
-        let rust_log_tx = StreamSink::new(Rust2Dart::new(6969));
-        let rust_log = "INFO";
-        init(rust_log_tx, rust_log);
-        TraceId::get_and_insert_test_impl();
-    }
-}
+// #[cfg(test)]
+// mod test {
+//     use common::api::trace::TraceId;
+//     use flutter_rust_bridge::rust2dart::Rust2Dart;
+//
+//     use super::*;
+//
+//     #[test]
+//     fn get_and_insert_trace_ids() {
+//         let rust_log_tx = StreamSink::new(Rust2Dart::new(6969));
+//         let rust_log = "INFO";
+//         init(rust_log_tx, rust_log);
+//         TraceId::get_and_insert_test_impl();
+//     }
+// }
