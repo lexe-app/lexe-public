@@ -7,13 +7,16 @@ import 'dart:math' show max;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MaxLengthEnforcement;
-import 'package:lexeapp/ffi/ffi_generated.dart' show MAX_PAYMENT_NOTE_BYTES;
 import 'package:lexeapp/input_formatter.dart'
     show IntInputFormatter, MaxUtf8BytesInputFormatter;
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxBreakpoints, LxColors, LxIcons, LxRadius, Space;
 import 'package:rxdart_ext/rxdart_ext.dart';
+
+// TODO(phlip9): frb no longer exposing consts?
+// ignore: constant_identifier_names
+const int MAX_PAYMENT_NOTE_BYTES = 512;
 
 typedef VoidContextCallback = void Function(BuildContext);
 

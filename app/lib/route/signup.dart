@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:lexeapp/app_rs/ffi/ffi.dart'
+    show AppHandle, Config, formValidatePassword;
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
@@ -14,8 +16,6 @@ import 'package:lexeapp/components.dart'
         ScrollableSinglePageBody,
         SubheadingText,
         baseInputDecoration;
-import 'package:lexeapp/ffi/ffi.dart' show api;
-import 'package:lexeapp/ffi/ffi_generated_api.dart' show AppHandle, Config;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
@@ -42,7 +42,6 @@ class _ProdSignupApi implements SignupApi {
     required String password,
   }) =>
       Result.tryFfiAsync(() => AppHandle.signup(
-            bridge: api,
             config: config,
             googleAuthCode: googleAuthCode,
             password: password,
@@ -179,7 +178,7 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
 
     // TODO(phlip9): this API should return a bare error enum and flutter should
     // convert that to a human-readable error message (for translations).
-    final maybeErrMsg = api.formValidatePassword(password: password);
+    final maybeErrMsg = formValidatePassword(password: password);
     if (maybeErrMsg == null) {
       return Ok(password);
     } else {

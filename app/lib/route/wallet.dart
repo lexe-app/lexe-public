@@ -11,17 +11,7 @@ import 'dart:async'
 import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' show freezed;
 import 'package:intl/intl.dart' show NumberFormat;
-import 'package:lexeapp/components.dart'
-    show
-        FilledPlaceholder,
-        LxOutlinedButton,
-        LxRefreshButton,
-        MultistepFlow,
-        StateStreamBuilder,
-        showModalAsyncFlow;
-import 'package:lexeapp/currency_format.dart' as currency_format;
-import 'package:lexeapp/date_format.dart' as date_format;
-import 'package:lexeapp/ffi/ffi_generated_api.dart'
+import 'package:lexeapp/app_rs/ffi/ffi.dart'
     show
         AppHandle,
         Config,
@@ -34,7 +24,17 @@ import 'package:lexeapp/ffi/ffi_generated_api.dart'
         PaymentStatus,
         ShortPayment,
         ShortPaymentAndIndex;
-import 'package:lexeapp/ffi/ffi_generated_api_ext.dart' show ClientPaymentIdExt;
+import 'package:lexeapp/app_rs/ffi/ffi.ext.dart' show ClientPaymentIdExt;
+import 'package:lexeapp/components.dart'
+    show
+        FilledPlaceholder,
+        LxOutlinedButton,
+        LxRefreshButton,
+        MultistepFlow,
+        StateStreamBuilder,
+        showModalAsyncFlow;
+import 'package:lexeapp/currency_format.dart' as currency_format;
+import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/debug.dart' show DebugPage;
@@ -513,9 +513,9 @@ class WalletPageState extends State<WalletPage> {
     // Lightning payments actually have a chance to finalize in the next few
     // seconds, so start a burst refresh.
     switch (flowResult.kind) {
-      case PaymentKind.Invoice || PaymentKind.Spontaneous:
+      case PaymentKind.invoice || PaymentKind.spontaneous:
         this.triggerBurstRefresh();
-      case PaymentKind.Onchain:
+      case PaymentKind.onchain:
       // do nothing.
     }
 
@@ -699,8 +699,8 @@ class WalletDrawer extends StatelessWidget {
             ),
 
             // Don't show debugging menu in prod
-            if (config.deployEnv == DeployEnv.Dev ||
-                config.deployEnv == DeployEnv.Staging)
+            if (config.deployEnv == DeployEnv.dev ||
+                config.deployEnv == DeployEnv.staging)
               DrawerListItem(
                 title: "Debug",
                 icon: LxIcons.debug,
@@ -1132,14 +1132,14 @@ class PaymentsListEntry extends StatelessWidget {
 
     // TODO(phlip9): figure out a heuristic to get the counterparty name.
     final String primaryStr;
-    if (status == PaymentStatus.Pending) {
-      if (direction == PaymentDirection.Inbound) {
+    if (status == PaymentStatus.pending) {
+      if (direction == PaymentDirection.inbound) {
         primaryStr = "Receiving payment";
       } else {
         primaryStr = "Sending payment";
       }
     } else {
-      if (direction == PaymentDirection.Inbound) {
+      if (direction == PaymentDirection.inbound) {
         primaryStr = "You received";
       } else {
         primaryStr = "You sent";
@@ -1166,8 +1166,8 @@ class PaymentsListEntry extends StatelessWidget {
     // "+₿0.00001230",
 
     final Color primaryValueColor;
-    if (direction == PaymentDirection.Inbound &&
-        status != PaymentStatus.Failed) {
+    if (direction == PaymentDirection.inbound &&
+        status != PaymentStatus.failed) {
       primaryValueColor = LxColors.moneyGoUp;
     } else {
       primaryValueColor = LxColors.fgSecondary;
@@ -1199,7 +1199,7 @@ class PaymentsListEntry extends StatelessWidget {
         text: null,
         children: <TextSpan>[
           // prefix with "Failed" to indicate problem w/ payment.
-          if (status == PaymentStatus.Failed)
+          if (status == PaymentStatus.failed)
             const TextSpan(
               text: "Failed",
               style: TextStyle(
@@ -1208,7 +1208,7 @@ class PaymentsListEntry extends StatelessWidget {
               ),
             ),
           // separator should only show if both sides are present
-          if (status == PaymentStatus.Failed && note != null)
+          if (status == PaymentStatus.failed && note != null)
             const TextSpan(text: " · "),
           if (note != null) TextSpan(text: note)
         ],
@@ -1309,8 +1309,8 @@ class PaymentListIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isLightning = switch (this.kind) {
-      PaymentKind.Invoice || PaymentKind.Spontaneous => true,
-      PaymentKind.Onchain => false,
+      PaymentKind.invoice || PaymentKind.spontaneous => true,
+      PaymentKind.onchain => false,
     };
 
     const size = Space.s500;

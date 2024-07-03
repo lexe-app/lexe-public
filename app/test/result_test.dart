@@ -5,7 +5,10 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
     show PanicException;
 import 'package:flutter_test/flutter_test.dart' show expect, test;
 
-import 'package:lexeapp/ffi/ffi.dart' show api;
+import 'package:lexeapp/app_rs/ffi/ffi.dart'
+    show debugUnconditionalError, debugUnconditionalPanic;
+import 'package:lexeapp/app_rs/frb_generated.dart';
+import 'package:lexeapp/app_rs/load.dart';
 import 'package:lexeapp/result.dart';
 
 int conjure3() => 3;
@@ -30,7 +33,9 @@ void expectFirstLineEq(final String? actual, final String? expected) {
   expect(actual?.split('\n').firstOrNull, expected);
 }
 
-void main() {
+Future<void> main() async {
+  await AppRs.init(externalLibrary: appRsLib);
+
   test("result : operator == and hashCode", () {
     const Result<int, void> ok1 = Ok(5);
     final int three = conjure3();
@@ -67,7 +72,7 @@ void main() {
     final res2 = await Result.tryFfiAsync(fakeApiAsync2);
     expectFirstLineEq(res2.err?.message, "Error");
 
-    final res3 = await Result.tryFfiAsync(api.debugUnconditionalError);
+    final res3 = await Result.tryFfiAsync(debugUnconditionalError);
     expectFirstLineEq(res3.err?.message, "Error inside app-rs");
   });
 
@@ -77,10 +82,10 @@ void main() {
   test("result : tryFfiAsync (panic)",
       skip: "panics always dump to stdout, cluttering test output", () async {
     try {
-      final res1 = await Result.tryFfiAsync(api.debugUnconditionalPanic);
+      final res1 = await Result.tryFfiAsync(debugUnconditionalPanic);
       throw Exception("Panics should NOT be caught, res: $res1");
     } on PanicException catch (err) {
-      expectFirstLineEq(err.error, "Panic inside app-rs");
+      expectFirstLineEq(err.message, "Panic inside app-rs");
     }
   });
 }

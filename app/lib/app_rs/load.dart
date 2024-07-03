@@ -3,21 +3,26 @@
 // * The Rust API is defined in `app-rs/src/ffi/ffi.rs`.
 //
 // * From the Dart side, see the available APIs in
-//   `app/lib/ffi/ffi_generated_api.dart`.
+//   `app/lib/app_rs/ffi/ffi.dart`.
 
-import 'dart:ffi' as ffi;
 import 'dart:io' as io;
 
+import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
+    show ExternalLibrary;
 import 'package:lexeapp/cfg.dart' as cfg;
-import 'package:lexeapp/ffi/ffi_generated.dart' show AppRsImpl;
 
 /// Android only supports ffi via dynamically linked libraries.
 /// I couldn't figure out how to statically link against our lib on Linux.
 /// Prefer to statically link our ffi library for all platforms.
-ffi.DynamicLibrary _loadLibraryNormal() {
+ExternalLibrary _loadLibraryNormal() {
   final lib = (io.Platform.isAndroid || io.Platform.isLinux)
-      ? ffi.DynamicLibrary.open("libapp_rs.so")
-      : ffi.DynamicLibrary.process();
+      ? ExternalLibrary.open("libapp_rs.so")
+      : ExternalLibrary.process(
+          // If we ever have other external dart dependencies that also use
+          // flutter_rust_bridge, we'll have to make sure we load them as *.so
+          // dynamic libraries (the default).
+          iKnowHowToUseIt: true,
+        );
   return lib;
 }
 
@@ -26,18 +31,18 @@ ffi.DynamicLibrary _loadLibraryNormal() {
 /// build hooks or letting us link our library, so we have to load the dynamic
 /// library out of the cargo target dir. Assumes we've just run
 /// `cargo build -p app-rs` just before.
-ffi.DynamicLibrary _loadLibraryUnitTest() {
+ExternalLibrary _loadLibraryUnitTest() {
   if (io.Platform.isMacOS) {
-    return ffi.DynamicLibrary.open("../target/debug/libapp_rs.dylib");
+    return ExternalLibrary.open("../target/debug/libapp_rs.dylib");
   } else if (io.Platform.isLinux) {
-    return ffi.DynamicLibrary.open("../target/debug/libapp_rs.so");
+    return ExternalLibrary.open("../target/debug/libapp_rs.so");
   } else {
     throw UnsupportedError("Unsupported unit test platform");
   }
 }
 
 /// Load the app-rs Rust FFI library.
-ffi.DynamicLibrary _loadLibrary() {
+ExternalLibrary _loadLibrary() {
   if (cfg.debug && cfg.test) {
     return _loadLibraryUnitTest();
   } else {
@@ -45,5 +50,6 @@ ffi.DynamicLibrary _loadLibrary() {
   }
 }
 
-// The instantiated Rust API. Use it like `api.hello()`.
-final AppRsImpl api = AppRsImpl(_loadLibrary());
+/// `app-rs` needs to be loaded either  as a shared library or already
+/// statically linked depending on the platform.
+final ExternalLibrary appRsLib = _loadLibrary();

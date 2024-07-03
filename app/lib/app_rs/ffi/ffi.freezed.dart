@@ -3,7 +3,7 @@
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
-part of 'ffi_generated_api.dart';
+part of 'ffi.dart';
 
 // **************************************************************************
 // FreezedGenerator
@@ -1042,8 +1042,8 @@ mixin _$PaymentMethod {}
 
 /// @nodoc
 
-class _$PaymentMethod_OnchainImpl implements PaymentMethod_Onchain {
-  const _$PaymentMethod_OnchainImpl(this.field0);
+class _$PaymentMethod_OnchainImpl extends PaymentMethod_Onchain {
+  const _$PaymentMethod_OnchainImpl(this.field0) : super._();
 
   @override
   final Onchain field0;
@@ -1065,17 +1065,18 @@ class _$PaymentMethod_OnchainImpl implements PaymentMethod_Onchain {
   int get hashCode => Object.hash(runtimeType, field0);
 }
 
-abstract class PaymentMethod_Onchain implements PaymentMethod {
+abstract class PaymentMethod_Onchain extends PaymentMethod {
   const factory PaymentMethod_Onchain(final Onchain field0) =
       _$PaymentMethod_OnchainImpl;
+  const PaymentMethod_Onchain._() : super._();
 
   Onchain get field0;
 }
 
 /// @nodoc
 
-class _$PaymentMethod_InvoiceImpl implements PaymentMethod_Invoice {
-  const _$PaymentMethod_InvoiceImpl(this.field0);
+class _$PaymentMethod_InvoiceImpl extends PaymentMethod_Invoice {
+  const _$PaymentMethod_InvoiceImpl(this.field0) : super._();
 
   @override
   final Invoice field0;
@@ -1097,17 +1098,18 @@ class _$PaymentMethod_InvoiceImpl implements PaymentMethod_Invoice {
   int get hashCode => Object.hash(runtimeType, field0);
 }
 
-abstract class PaymentMethod_Invoice implements PaymentMethod {
+abstract class PaymentMethod_Invoice extends PaymentMethod {
   const factory PaymentMethod_Invoice(final Invoice field0) =
       _$PaymentMethod_InvoiceImpl;
+  const PaymentMethod_Invoice._() : super._();
 
   Invoice get field0;
 }
 
 /// @nodoc
 
-class _$PaymentMethod_OfferImpl implements PaymentMethod_Offer {
-  const _$PaymentMethod_OfferImpl();
+class _$PaymentMethod_OfferImpl extends PaymentMethod_Offer {
+  const _$PaymentMethod_OfferImpl() : super._();
 
   @override
   String toString() {
@@ -1125,8 +1127,9 @@ class _$PaymentMethod_OfferImpl implements PaymentMethod_Offer {
   int get hashCode => runtimeType.hashCode;
 }
 
-abstract class PaymentMethod_Offer implements PaymentMethod {
+abstract class PaymentMethod_Offer extends PaymentMethod {
   const factory PaymentMethod_Offer() = _$PaymentMethod_OfferImpl;
+  const PaymentMethod_Offer._() : super._();
 }
 
 /// @nodoc

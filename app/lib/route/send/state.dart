@@ -4,8 +4,7 @@
 
 import 'package:flutter/material.dart' show immutable;
 import 'package:lexeapp/address_format.dart' as address_format;
-import 'package:lexeapp/ffi/ffi.dart' show api;
-import 'package:lexeapp/ffi/ffi_generated_api.dart'
+import 'package:lexeapp/app_rs/ffi/ffi.dart'
     show
         AppHandle,
         Balance,
@@ -25,8 +24,9 @@ import 'package:lexeapp/ffi/ffi_generated_api.dart'
         PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse,
         PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse;
-import 'package:lexeapp/ffi/ffi_generated_api_ext.dart';
+        PreflightPayOnchainResponse,
+        paymentUriResolveBest;
+import 'package:lexeapp/app_rs/ffi/ffi.ext.dart';
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
 
@@ -72,7 +72,7 @@ class SendState_NeedUri implements SendState {
     // TODO(phlip9): this API should return a bare error enum and flutter should
     // convert that to a human-readable error message (for translations).
     final result = await Result.tryFfiAsync(() async =>
-        api.paymentUriResolveBest(network: this.configNetwork, uriStr: uriStr));
+        paymentUriResolveBest(network: this.configNetwork, uriStr: uriStr));
 
     // Check if resolving was successful.
     final PaymentMethod paymentMethod;
@@ -265,7 +265,7 @@ class SendState_Preflighted implements SendState {
 
     return (await Result.tryFfiAsync(() async => this.app.payOnchain(req: req)))
         .map((resp) => SendFlowResult(
-              kind: PaymentKind.Onchain,
+              kind: PaymentKind.onchain,
               index: resp.index,
             ));
   }
@@ -284,7 +284,7 @@ class SendState_Preflighted implements SendState {
 
     return (await Result.tryFfiAsync(() async => this.app.payInvoice(req: req)))
         .map((resp) => SendFlowResult(
-              kind: PaymentKind.Invoice,
+              kind: PaymentKind.invoice,
               index: resp.index,
             ));
   }
@@ -313,7 +313,7 @@ class PreflightedPayment_Invoice implements PreflightedPayment {
   final PreflightPayInvoiceResponse preflight;
 
   @override
-  PaymentKind kind() => PaymentKind.Invoice;
+  PaymentKind kind() => PaymentKind.invoice;
 }
 
 @immutable
@@ -329,7 +329,7 @@ class PreflightedPayment_Onchain implements PreflightedPayment {
   final PreflightPayOnchainResponse preflight;
 
   @override
-  PaymentKind kind() => PaymentKind.Onchain;
+  PaymentKind kind() => PaymentKind.onchain;
 }
 
 // TODO(phlip9): impl BOLT12 offer

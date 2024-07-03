@@ -3,7 +3,7 @@
 // ignore_for_file: nullable_type_in_catch_clause, only_throw_errors
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
-    show FrbAnyhowException;
+    show AnyhowException;
 import 'package:meta/meta.dart' show immutable;
 
 /// [Result]s from the Rust FFI layer.
@@ -53,13 +53,13 @@ sealed class Result<T, E> {
 
   /// Convenience for `Result.try_` but specialized for calling the Rust ffi.
   static FfiResult<T> tryFfi<T>(final T Function() fn) =>
-      Result<T, FrbAnyhowException>.try_(fn).mapErr(FfiError.fromFfi);
+      Result<T, AnyhowException>.try_(fn).mapErr(FfiError.fromFfi);
 
   /// Convenience for `Result.tryAsync` but specialized for calling the Rust
   /// ffi.
   static Future<FfiResult<T>> tryFfiAsync<T>(
       final Future<T> Function() fn) async {
-    final res = await Result.tryAsync<T, FrbAnyhowException>(fn);
+    final res = await Result.tryAsync<T, AnyhowException>(fn);
     return res.mapErr(FfiError.fromFfi);
   }
 }
@@ -190,9 +190,9 @@ final class Err<T, E> extends Result<T, E> {
 final class FfiError implements Exception {
   const FfiError(this.message);
 
-  FfiError.fromFfi(final FrbAnyhowException err) : this(err.anyhow);
+  FfiError.fromFfi(final AnyhowException err) : this(err.message);
 
-  FrbAnyhowException toFfi() => FrbAnyhowException(this.message);
+  AnyhowException toFfi() => AnyhowException(this.message);
 
   final String message;
 

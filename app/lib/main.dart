@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl_standalone.dart' as intl_standalone;
+import 'package:lexeapp/app_rs/ffi/ffi.dart' show AppHandle, Config, DeployEnv;
+import 'package:lexeapp/app_rs/frb_generated.dart' show AppRs;
+import 'package:lexeapp/app_rs/load.dart' show appRsLib;
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/date_format.dart' as date_format;
-import 'package:lexeapp/ffi/ffi.dart' show api;
-import 'package:lexeapp/ffi/ffi_generated_api.dart'
-    show AppHandle, Config, DeployEnv;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/route/landing.dart' show LandingPage;
@@ -21,6 +21,9 @@ Future<void> main() async {
 
   WidgetsFlutterBinding.ensureInitialized();
 
+  // TODO(phlip9): do we have to init frb here?
+  await AppRs.init(externalLibrary: appRsLib);
+
   // TODO(phlip9): allow overriding default locale in preferences.
   // Intl.defaultLocale = settings.getUserPreferredLocale();
 
@@ -36,7 +39,7 @@ Future<void> main() async {
   final Config config = await cfg.build();
   info("Build config: $config");
 
-  final maybeApp = await AppHandle.load(bridge: api, config: config);
+  final maybeApp = await AppHandle.load(config: config);
 
   final uriEvents = await UriEvents.prod();
 
@@ -51,8 +54,8 @@ Future<void> main() async {
   } else {
     // Skip GDrive auth in local dev.
     final gdriveAuth = switch (config.deployEnv) {
-      DeployEnv.Dev => GDriveAuth.mock,
-      DeployEnv.Prod || DeployEnv.Staging => GDriveAuth.prod,
+      DeployEnv.dev => GDriveAuth.mock,
+      DeployEnv.prod || DeployEnv.staging => GDriveAuth.prod,
     };
 
     // no wallet persisted => first run -> show landing

@@ -2,8 +2,8 @@ import 'dart:async' show Stream;
 
 import 'package:flutter/foundation.dart' show debugPrint;
 
+import 'package:lexeapp/app_rs/ffi/ffi.dart' show initRustLogStream;
 import 'package:lexeapp/cfg.dart' as cfg;
-import 'package:lexeapp/ffi/ffi.dart' show api;
 import 'package:lexeapp/result.dart';
 
 const int _levelTrace = 0;
@@ -48,7 +48,7 @@ class Logger {
     // Register a stream of log entries from Rust -> Dart.
     final Stream<String> rustLogRx;
 
-    switch (Result.tryFfi(() => api.initRustLogStream(rustLog: rustLog))) {
+    switch (Result.tryFfi(() => initRustLogStream(rustLog: rustLog))) {
       case Ok(:final ok):
         rustLogRx = ok;
       case Err():

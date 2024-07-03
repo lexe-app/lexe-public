@@ -10,27 +10,12 @@ import 'dart:typed_data' show Uint8List;
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 // import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
+// import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:intl/intl.dart' show Intl;
-import 'package:lexeapp/cfg.dart' as cfg;
-import 'package:lexeapp/components.dart'
-    show
-        HeadingText,
-        LoadingSpinnerModal,
-        LxBackButton,
-        LxFilledButton,
-        LxOutlinedButton,
-        MultistepFlow,
-        ScrollableSinglePageBody,
-        SubheadingText,
-        showModalAsyncFlow;
-import 'package:lexeapp/date_format.dart' as date_format;
-import 'package:lexeapp/ffi/ffi.dart' show api;
-import 'package:lexeapp/ffi/ffi_generated_api.dart'
+import 'package:lexeapp/app_rs/ffi/ffi.dart'
     show
         App,
         AppHandle,
-        AppRs,
         Balance,
         ClientPaymentId,
         Config,
@@ -59,7 +44,22 @@ import 'package:lexeapp/ffi/ffi_generated_api.dart'
         ShortPaymentAndIndex,
         U8Array32,
         UpdatePaymentNote;
-import 'package:lexeapp/ffi/ffi_generated_api_ext.dart' show PaymentExt;
+import 'package:lexeapp/app_rs/ffi/ffi.ext.dart' show PaymentExt;
+import 'package:lexeapp/app_rs/frb_generated.dart' show AppRs;
+import 'package:lexeapp/app_rs/load.dart' show appRsLib;
+import 'package:lexeapp/cfg.dart' as cfg;
+import 'package:lexeapp/components.dart'
+    show
+        HeadingText,
+        LoadingSpinnerModal,
+        LxBackButton,
+        LxFilledButton,
+        LxOutlinedButton,
+        MultistepFlow,
+        ScrollableSinglePageBody,
+        SubheadingText,
+        showModalAsyncFlow;
+import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
@@ -88,6 +88,9 @@ import 'package:rxdart_ext/rxdart_ext.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // TODO(phlip9): need to init here?
+  await AppRs.init(externalLibrary: appRsLib);
 
   // Initialize date formatting locale data for ALL locales.
   await date_format.initializeDateLocaleData();
@@ -167,7 +170,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
     unawaited(Future.delayed(const Duration(seconds: 4), () {
       final p = notifier.value;
       notifier.value = p.copyWith(
-        status: PaymentStatus.Completed,
+        status: PaymentStatus.completed,
         statusStr: "completed",
         finalizedAt: DateTime.now().millisecondsSinceEpoch,
       );
@@ -178,7 +181,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
 
   @override
   Widget build(BuildContext context) {
-    final mockApp = MockAppHandle(bridge: api);
+    final mockApp = MockAppHandle();
     const mockGDriveAuth = GDriveAuth.mock;
     final mockSignupApi = MockSignupApi(app: mockApp);
 
@@ -301,7 +304,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "ReceivePaymentPage",
               subtitle: "fetch invoice error",
               (context) => ReceivePaymentPage(
-                app: MockAppHandleErroring(bridge: api),
+                app: MockAppHandleErroring(),
                 fiatRate: this.makeFiatRateStream(),
               ),
             ),
@@ -403,15 +406,23 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
   }
 }
 
+// TODO(phlip9): unhack
 // TODO(phlip9): add a `App::mock` constructor?
 class MockApp extends App {
   // This makes a fake `RustOpaque<App>` w/ a null pointer. Super hacky, but frb
   // will at least panic if we accidentally call a native method.
-  MockApp(AppRs bridge) : super.fromRaw(0x0, 0, bridge);
+  MockApp();
+
+  @override
+  void dispose() {}
+
+  @override
+  bool get isDisposed => false;
 }
 
+// TODO(phlip9): unhack
 class MockAppHandle extends AppHandle {
-  MockAppHandle({required super.bridge}) : super(inner: MockApp(bridge));
+  MockAppHandle() : super(inner: MockApp());
 
   // New user has no payments
   // List<Payment> payments = [];
@@ -645,7 +656,7 @@ class MockAppHandle extends AppHandle {
 
 /// An [AppHandle] that usually errors first.
 class MockAppHandleErroring extends MockAppHandle {
-  MockAppHandleErroring({required super.bridge});
+  MockAppHandleErroring();
 
   @override
   Future<CreateInvoiceResponse> createInvoice(
@@ -714,11 +725,11 @@ const Payment dummyOnchainInboundPending01 = Payment(
   index: PaymentIndex(
       field0:
           "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68"),
-  kind: PaymentKind.Onchain,
-  direction: PaymentDirection.Inbound,
+  kind: PaymentKind.onchain,
+  direction: PaymentDirection.inbound,
   amountSat: 1469,
   feesSat: 0,
-  status: PaymentStatus.Pending,
+  status: PaymentStatus.pending,
   statusStr: "partially confirmed (1-5 confirmations)",
   note: null,
   createdAt: 1687309696000,
@@ -730,11 +741,11 @@ const Payment dummyOnchainInboundCompleted01 = Payment(
   index: PaymentIndex(
       field0:
           "0000001670090492000-bc_551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66"),
-  kind: PaymentKind.Onchain,
-  direction: PaymentDirection.Inbound,
+  kind: PaymentKind.onchain,
+  direction: PaymentDirection.inbound,
   amountSat: 20000,
   feesSat: 0,
-  status: PaymentStatus.Completed,
+  status: PaymentStatus.completed,
   statusStr: "fully confirmed (6+ confirmations)",
   note: "Brunch w/ friends",
   createdAt: 1670090492000,
@@ -746,11 +757,11 @@ const Payment dummyOnchainOutboundCompleted01 = Payment(
   index: PaymentIndex(
       field0:
           "0000001687385080000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68"),
-  kind: PaymentKind.Onchain,
-  direction: PaymentDirection.Outbound,
+  kind: PaymentKind.onchain,
+  direction: PaymentDirection.outbound,
   amountSat: 77000,
   feesSat: 2881,
-  status: PaymentStatus.Completed,
+  status: PaymentStatus.completed,
   statusStr: "fully confirmed (6+ confirmations)",
   note: "Funding exchange",
   createdAt: 1687385080000,
@@ -761,11 +772,11 @@ const Payment dummyOnchainOutboundFailed01 = Payment(
   index: PaymentIndex(
       field0:
           "0000001671818392000-bc_46e52089b60b00de067c84ce58d34a75ffd71a106f720855bc099f20da11700c"),
-  kind: PaymentKind.Onchain,
-  direction: PaymentDirection.Outbound,
+  kind: PaymentKind.onchain,
+  direction: PaymentDirection.outbound,
   amountSat: 95000000,
   feesSat: 5433,
-  status: PaymentStatus.Failed,
+  status: PaymentStatus.failed,
   statusStr: "dropped from mempool",
   note: "Sweep from Muun",
   createdAt: 1671818392000,
@@ -777,11 +788,11 @@ const Payment dummySpontaneousOutboundPending01 = Payment(
   index: PaymentIndex(
       field0:
           "0000001686938392000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0"),
-  kind: PaymentKind.Spontaneous,
-  direction: PaymentDirection.Outbound,
+  kind: PaymentKind.spontaneous,
+  direction: PaymentDirection.outbound,
   amountSat: 123000,
   feesSat: 615,
-  status: PaymentStatus.Pending,
+  status: PaymentStatus.pending,
   statusStr: "pending",
   note: "🍑🍑🍑🍆🍆🍆😂😂😂",
   createdAt: 1686938392000,
@@ -791,8 +802,8 @@ const Payment dummyInvoiceOutboundPending01 = Payment(
   index: PaymentIndex(
       field0:
           "0000001686744442000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0"),
-  kind: PaymentKind.Invoice,
-  direction: PaymentDirection.Outbound,
+  kind: PaymentKind.invoice,
+  direction: PaymentDirection.outbound,
   invoice: Invoice(
     string:
         "lnbcrt4693500n1pjgld4pxq8pjglhd3pp5h038tqal0m3xjwrmht2gcj8u4cgwg9fh6d0ynv2ds8x8xph5sm9ssp5d4jx76ttd4ek76tnv3hkv6tpdfekgenvdfkx76t2wdskg6nxda5s9qrsgqdp4wdhk6efqdehhgefqw35x2grfdemx76trv5sxxun9v96x7u3qwdjhgcqpcnp4qgywe59xssrqj004k24477svqtgynw4am39hz06hk4dlu4l0ssk8w2rpkgvpsusjrwde5qym0t9g42px0dahyh7jz9lvn5umk9gzqxtc8r0rdplu9psdewwqnw6t7uvdqtvn6heqfgxvn9a76kkl760cy4rqpewlfe6",
@@ -805,7 +816,7 @@ const Payment dummyInvoiceOutboundPending01 = Payment(
   ),
   amountSat: 55000,
   feesSat: 150,
-  status: PaymentStatus.Pending,
+  status: PaymentStatus.pending,
   statusStr: "pending",
   note: null,
   createdAt: 1686744442000,
@@ -815,8 +826,8 @@ const Payment dummyInvoiceInboundPending01 = Payment(
   index: PaymentIndex(
       field0:
           "0000001687140003000-ln_bbe27583bf7ee269387bbad48c48fcae10e41537d35e49b14d81cc7306f486cb"),
-  kind: PaymentKind.Invoice,
-  direction: PaymentDirection.Inbound,
+  kind: PaymentKind.invoice,
+  direction: PaymentDirection.inbound,
   invoice: Invoice(
     string:
         "lnbcrt4693500n1pjgld4pxq8pjglhd3pp5h038tqal0m3xjwrmht2gcj8u4cgwg9fh6d0ynv2ds8x8xph5sm9ssp5d4jx76ttd4ek76tnv3hkv6tpdfekgenvdfkx76t2wdskg6nxda5s9qrsgqdp4wdhk6efqdehhgefqw35x2grfdemx76trv5sxxun9v96x7u3qwdjhgcqpcnp4qgywe59xssrqj004k24477svqtgynw4am39hz06hk4dlu4l0ssk8w2rpkgvpsusjrwde5qym0t9g42px0dahyh7jz9lvn5umk9gzqxtc8r0rdplu9psdewwqnw6t7uvdqtvn6heqfgxvn9a76kkl760cy4rqpewlfe6",
@@ -829,7 +840,7 @@ const Payment dummyInvoiceInboundPending01 = Payment(
   ),
   amountSat: 469350,
   feesSat: 2350,
-  status: PaymentStatus.Pending,
+  status: PaymentStatus.pending,
   statusStr: "claiming",
   note:
       "My super long note that really is too long it just keeps going and going",
@@ -841,8 +852,8 @@ const Payment dummyInvoiceInboundPending02 = Payment(
   index: PaymentIndex(
       field0:
           "0000001714432815000-ln_c6e5e46c59267114f91d64df0e069b0dae176f9a134656820bba1e6164318980"),
-  kind: PaymentKind.Invoice,
-  direction: PaymentDirection.Inbound,
+  kind: PaymentKind.invoice,
+  direction: PaymentDirection.inbound,
   invoice: Invoice(
     string:
         "lnbcrt1pnrq2e0xq8pnrqvaepp5cmj7gmzeyec3f7gavn0sup5mpkhpwmu6zdr9dqsthg0xzep33xqqsp5dfhkjumxv3hkj6npwdhkgenfdfshxmmfv3nx5mmfwdskg6nxda5s9qrsgqdqqcqpcnp4qwla7nx7p5e5nau5k2hh2gxf736rhw0naslthr3jmyu5jqk8gjx7v62qr2p6rh6v38kclflj2yk5x90jsshpe77tjzngc4enn2muxwhu54haacvyef60y5xz2xslezykrvfqlj9yfe4d0tdjrdtx44jusr8sqtehvp3",
@@ -855,7 +866,7 @@ const Payment dummyInvoiceInboundPending02 = Payment(
   ),
   amountSat: null,
   feesSat: 0,
-  status: PaymentStatus.Pending,
+  status: PaymentStatus.pending,
   statusStr: "claiming",
   note: null,
   createdAt: 1714432815000,
@@ -865,8 +876,8 @@ const Payment dummyInvoiceInboundCompleted01 = Payment(
   index: PaymentIndex(
       field0:
           "0000001687100002000-ln_801ffce9fbe74fecc7ec6fa72716d7de6167cc5607635062b24797b54f9ba4be"),
-  kind: PaymentKind.Invoice,
-  direction: PaymentDirection.Inbound,
+  kind: PaymentKind.invoice,
+  direction: PaymentDirection.inbound,
   invoice: Invoice(
     string:
         "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r",
@@ -879,7 +890,7 @@ const Payment dummyInvoiceInboundCompleted01 = Payment(
   ),
   amountSat: 223466,
   feesSat: 0,
-  status: PaymentStatus.Completed,
+  status: PaymentStatus.completed,
   statusStr: "completed",
   note: null,
   createdAt: 1687100002000,
@@ -891,8 +902,8 @@ const Payment dummyInvoiceInboundFailed01 = Payment(
   index: PaymentIndex(
       field0:
           "0000001700222815000-ln_034a21eee2bea4288ec9582b10a4abd6bfdca83855b25257279e67dd02f77d43"),
-  kind: PaymentKind.Invoice,
-  direction: PaymentDirection.Inbound,
+  kind: PaymentKind.invoice,
+  direction: PaymentDirection.inbound,
   invoice: Invoice(
     string:
         "lnbcrt1pj4w46lxq8pj4whlfpp5qd9zrmhzh6jz3rkftq43pf9t66lae2pc2ke9y4e8nena6qhh04pssp5v9k8xerxdfhkj6n0d9ekg6nxda5hxer2vekxk6npd3skk6nnve5s9qrsgqdqqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jsc5p3dhdl25x88ndth9qzc4ms2wm5xwa9xfw56dapyaj5n84vv7djsgul2gyjdvk9xzu2pjqv59lfssmft95x43gqqqq5g05r93epkpqpq8a02n",
@@ -905,7 +916,7 @@ const Payment dummyInvoiceInboundFailed01 = Payment(
   ),
   amountSat: null,
   feesSat: 0,
-  status: PaymentStatus.Failed,
+  status: PaymentStatus.failed,
   statusStr: "expired",
   note: null,
   createdAt: 1700222815000,

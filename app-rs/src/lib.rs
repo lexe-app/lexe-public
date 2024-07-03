@@ -13,9 +13,9 @@
 
 /// The top-level App state
 pub mod app;
-/// The low-level handler `flutter_rust_bridge` calls to run dart tasks from the
-/// ffi bridge.
-mod dart_task_handler;
+// /// The low-level handler `flutter_rust_bridge` calls to run dart tasks from
+// the /// ffi bridge.
+// mod dart_task_handler;
 /// The flutter/rust FFI bindings.
 mod ffi;
 /// `FlatFileFs` and `Ffs`.

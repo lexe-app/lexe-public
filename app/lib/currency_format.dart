@@ -2,14 +2,14 @@
 
 import 'package:intl/intl.dart' show NumberFormat;
 
-import 'package:lexeapp/ffi/ffi_generated_api.dart' show PaymentDirection;
+import 'package:lexeapp/app_rs/ffi/ffi.dart' show PaymentDirection;
 
 const int satsPerBtc = 100000000; // 1e8, 100 million sats
 
 double satsToBtc(int sats) => sats * 1e-8;
 
 String directionToSign(PaymentDirection direction) =>
-    (direction == PaymentDirection.Inbound) ? "+" : "-";
+    (direction == PaymentDirection.inbound) ? "+" : "-";
 
 (int, int) divRem(int numerator, int denominator) =>
     (numerator ~/ denominator, numerator.remainder(denominator));
