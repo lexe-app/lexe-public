@@ -78,10 +78,6 @@ $ cat result/bin/node.measurement
 
 <!-- TODO(phlip9): flesh this out more once the app provisioning UI flow is more functional. -->
 
-If you're an engineer running `nix build` frequently and want faster incremental
-cargo builds in `nix`, consider following
-[these setup instructions](#fast-incremental-cargo-builds-in-nix).
-
 ## Dev Setup (manual)
 
 Install `rustup`
@@ -187,9 +183,8 @@ See `RunArgs`/`ProvisionArgs` contained in `common::cli::node` for full options.
 
 ## OrbStack linux-builder setup
 
-Follow these instructions if you're running on macOS and want to setup fast incremental cargo builds in `nix`
-[OrbStack](https://orbstack.dev/) x86_64 linux-builder VM.
-
+Follow these instructions if you're running on macOS and want to reproduce the
+user node.
 
 Download OrbStack. Either follow <https://orbstack.dev/download> or just install
 with homebrew:
@@ -220,111 +215,15 @@ nixos-rebuild switch
 EOF
 ```
 
-After rebuilding, we'll add its newly generated signing public key to our host
-nix config:
+Now, you can shell into the VM and build:
 
 ```bash
-$ VM_PUB_KEY=$(cat ~/OrbStack/linux-builder/etc/nix/store-signing-key.pub)
-$ cat <<EOF | sudo tee -a /etc/nix/nix.conf
-builders-use-substitutes = true
-extra-trusted-public-keys = ${VM_PUB_KEY}
-EOF
-```
-
-Add the VM as a remote builder:
-
-```bash
-$ cat <<EOF | sudo tee -a /etc/nix/machines
-ssh-ng://linux-builder@orb aarch64-linux,x86_64-linux - 8 - benchmark,big-parallel,gccarch-armv8-a,kvm,nixos-test - -
-EOF
-```
-
-For seamless remote builds to work, we'll also want to add the orbstack ssh
-config system-wide:
-
-```bash
-$ sudo mkdir -p /etc/ssh/ssh_config.d/
-$ cat ~/.orbstack/ssh/config | sed "s|~/|$HOME/|g" \
-    | sudo tee /etc/ssh/ssh_config.d/100-orb-linux-builder
-```
-
-Then restart the host's nix daemon so the changes take effect:
-
-```bash
-$ sudo launchctl kickstart -k system/org.nixos.nix-daemon
-```
-
-Now, you can either run everything on the builder VM, or use nix's built-in
-support for remote builds:
-
-```bash
-# (Option 1): either use the built-in nix remote build feature, from the macOS machine
-
-$ nix build \
-    --store ssh-ng://linux-builder@orb --eval-store auto --json \
-    .#packages.x86_64-linux.node-release-sgx \
-    | jq -r '.[].outputs.out'
-/nix/store/gqzb5vpprdmf8b7pw1c6ppiyqb90jab4-node-0.1.0
-
-# you can just read the node measurement from the VM nix store
-$ cat ~/OrbStack/linux-builder/nix/store/gqzb5vpprdmf8b7pw1c6ppiyqb90jab4-node-0.1.0/bin/node.measurement
-bdd9eec1fbd625eec3b2a9e2a6072f60240c930b0867b47199730b320c148e8c
-
-# or copy it to the host nix store and then read it
-$ nix copy \
-    --from ssh-ng://linux-builder@orb \
-    /nix/store/gqzb5vpprdmf8b7pw1c6ppiyqb90jab4-node-0.1.0
-$ cat /nix/store/gqzb5vpprdmf8b7pw1c6ppiyqb90jab4-node-0.1.0/bin/node.measurement
-bdd9eec1fbd625eec3b2a9e2a6072f60240c930b0867b47199730b320c148e8c
-
-# (Option 2): or shell into the VM and build:
 
 $ orb shell -m linux-builder
 (linux-builder)$ nix build .#packages.x86_64-linux.node-release-sgx
 (linux-builder)$ cat ./result/bin/node.measurement
 bdd9eec1fbd625eec3b2a9e2a6072f60240c930b0867b47199730b320c148e8c
 ```
-
-## (Optional) Faster `nix` cargo rebuilds
-
-Follow these steps if:
-
-- You're an engineer working on the rust+nix build.
-- You're running `nix build` a lot and want faster incremental cargo builds.
-
-Once setup, [`buildRustSccache`](./nix/pkgs/buildRustSccache.nix) will make
-incremental Rust rebuilds faster. However, avoid using `buildRustSccache`
-for reproducibility-critical packages like the SGX enclaves.
-
-To get this working, we give the nix build sandbox access to a shared, global
-directory so that `sccache` can reuse already-built `rustc` compilation
-artifacts across different nix builds.
-
-If you're using the `linux-builder` VM, then skip this; it's already setup for
-you.
-
-```bash
-$ sudo install -m 0755           -d /var/cache
-$ sudo install -m 2770 -g nixbld -d /var/cache/lexe
-
-# (linux)
-$ sudo setfacl --default -m group:nixbld:rwx /var/cache/lexe
-$ echo "extra-sandbox-paths = /var/cache/lexe" | sudo tee -a /etc/nix/nix.conf
-$ sudo systemctl restart nix-daemon.service
-
-# (macOS)
-$ sudo /bin/chmod +a "group:nixbld allow read,write,execute,delete,list,search,add_file,add_subdirectory,delete_child,readattr,writeattr,readextattr,writeextattr,chown,file_inherit,directory_inherit" /var/cache/lexe
-$ echo "extra-sandbox-paths = /private/var/cache/lexe" | sudo tee -a /etc/nix/nix.conf
-$ sudo launchctl kickstart -k system/org.nixos.nix-daemon
-```
-
-Here we're creating a new `/var/cache/lexe` directory that's only accessible to
-members of the `nixbld` group. We also set some special file settings so that
-all new files and directories created in `/var/cache/lexe` are automatically
-read/write/exec by all `nixbld` group members.
-
-Finally we tell `nix` to include the `/var/cache/lexe` directory when building
-packages in the build sandbox.
 
 ## License
 
