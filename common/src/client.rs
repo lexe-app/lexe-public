@@ -6,11 +6,7 @@
 //! [`NodeClient`]: crate::client::NodeClient
 //! [`GatewayClient`]: crate::client::GatewayClient
 
-use std::{
-    panic::{RefUnwindSafe, UnwindSafe},
-    sync::Arc,
-    time::SystemTime,
-};
+use std::{sync::Arc, time::SystemTime};
 
 use anyhow::Context;
 use async_trait::async_trait;
@@ -87,9 +83,6 @@ pub struct NodeClient {
 
 // --- impl GatewayClient --- //
 
-impl UnwindSafe for GatewayClient {}
-impl RefUnwindSafe for GatewayClient {}
-
 impl GatewayClient {
     pub fn new(
         deploy_env: DeployEnv,
@@ -153,61 +146,6 @@ impl AppGatewayApi for GatewayClient {
 }
 
 // --- impl NodeClient --- //
-
-// Why are we manually impl'ing `UnwindSafe` and `RefUnwindSafe` for
-// `NodeClient`?
-//
-// ## Unwind Safety
-//
-// Technically, NodeClient is not 100% unwind safe, since `BearerAuthenticator`
-// contains a `tokio::sync::Mutex`, which doesn't impl lock poisoning [1].
-//
-// However, unwind safety feels pretty niche and doesn't seem worth the
-// inconvenience. We use panics for unrecoverable errors; our programs should
-// crash and burn on panic--maybe try to log and display an error message, but
-// not try to recover.
-//
-// ## Background
-//
-// A type is unwind safe if, after panicking and _then recovering from the
-// panic_ (using `std::panic::catch_unwind`), we can't observe any undefined
-// state in the type.
-//
-// Normally, we don't use `catch_unwind`, so a panic will drop each stack frame
-// as it unwinds and we can never observe any weird states (because the types
-// are dropped and gone).
-//
-// ## Our Situation
-//
-// The app FFI layer, provided by `flutter_rust_bridge`, does use
-// `catch_unwind`, since it's unsafe to panic across an FFI boundary:
-//
-// > Rust's unwinding strategy is not specified to be fundamentally compatible
-// > with any other language's unwinding. As such, unwinding into Rust from
-// > another language, or unwinding into another language from Rust is
-// > Undefined Behavior. You must absolutely catch any panics at the FFI
-// > boundary! What you do at that point is up to you, but something must be
-// > done. If you fail to do this, at best, your application will crash and
-// > burn. At worst, your application won't crash and burn, and will proceed
-// > with completely clobbered state.
-// >
-// > [The Rustonomicon > Unwinding](https://doc.rust-lang.org/nomicon/unwinding.html)
-//
-// When a panic occurs in the app's Rust code, we should ideally just log and
-// report the error+stacktrace to something like Sentry or Firebase and then
-// kill the app--MAYBE show a nice user-friendly alert box first.
-//
-// ## Refs
-//
-// [1]: https://docs.rs/tokio/1.21.1/tokio/sync/struct.Mutex.html
-//
-// > Note that in contrast to std::sync::Mutex, this implementation does not
-// > poison the mutex when a thread holding the MutexGuard panics. In such a
-// > case, the mutex will be unlocked. If the panic is caught, this might leave
-// > the data protected by the mutex in an inconsistent state.
-
-impl UnwindSafe for NodeClient {}
-impl RefUnwindSafe for NodeClient {}
 
 impl NodeClient {
     pub fn new(
