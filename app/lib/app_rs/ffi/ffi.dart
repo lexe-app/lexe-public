@@ -14,7 +14,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'ffi.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `block_on`, `from_cid_and_response`, `from_id_and_response`, `new`, `validate_note`
+// These functions are ignored because they are not marked as `pub`: `from_cid_and_response`, `from_id_and_response`, `new`, `validate_note`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
 DeployEnv deployEnvFromStr({required String s}) =>

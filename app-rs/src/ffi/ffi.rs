@@ -2,10 +2,12 @@
 //!
 //! ## TL;DR: REGENERATE THE BINDINGS
 //!
-//! If you update this file, re-run:
+//! If you update sources in this directory, re-run:
 //!
 //! ```bash
 //! $ just app-rs-codegen
+//! # (alias)
+//! $ j acg
 //! ```
 //!
 //! ## Overview
@@ -15,12 +17,13 @@
 //! representations in the generated Dart code.
 //!
 //! The generated Dart interface lives in
-//! `../../app/lib/bindings_generated.dart` (impls) and
-//! `../../app/lib/bindings_generated_api.dart` (definitions) and
-//! `../../app/lib/bindings_generated_api.freezed.dart` (dart `freezed` codegen)
+//! `../../app/lib/app_rs/frb_generated.dart` (all generated dart impls) and
+//! `../../app/lib/app_rs/ffi/ffi.dart` (this file's generated definitions) and
+//! `../../app/lib/app_rs/ffi/ffi.freezed.dart` (this file's dart `freezed`
+//! codegen).
 //!
 //! The low-level generated Rust C-ABI interface is in
-//! [`crate::bindings_generated`].
+//! [`crate::ffi::ffi_generated`].
 //!
 //! These FFI bindings are generated using the `app-rs-codegen` crate. Be sure
 //! to re-run the `app-rs-codegen` whenever this file changes.
@@ -34,23 +37,23 @@
 //! * For example strings are necessarily copied, as Rust uses utf-8 encoded
 //!   strings while Dart uses utf-16 encoded strings.
 //! * There are a few special cases where we can avoid copying, like returning a
-//!   `ZeroCopyBuffer<Vec<u8>>` from Rust, which becomes a `Uint8List` on the
-//!   Dart side without a copy, since Rust can prove there are no borrows to the
-//!   owned buffer when it's transferred.
+//!   `Vec<u8>` from Rust, which becomes a `Uint8List` on the Dart side without
+//!   a copy, since Rust can prove there are no borrows to the owned buffer when
+//!   it's transferred.
 //! * Normal looking pub functions, like `pub fn x() -> u32 { 123 }` look like
-//!   async fn's on the Dart side and are run on a separate small threadpool on
-//!   the Rust side to avoid blocking the main Flutter UI isolate.
+//!   async fn's on the Dart side and are run on a separate threadpool on the
+//!   Rust side to avoid blocking the main Flutter UI isolate.
 //! * Functions with `#[frb(sync)]` do block the calling Dart isolate and are
 //!   run in-place on that isolate.
-//! * `#[frb(sync)]` has ~10x less overhead. Think a few 50-100 ns vs a few µs
-//!   overhead per call.
-//! * We have to be careful about blocking the main UI isolate, since we only
-//!   have 16 ms frame budget to compute and render the UI to maintain a smooth
-//!   60 fps. Any ffi that runs for longer than maybe 1 ms should definitely run
-//!   as a separate task on the threadpool. Just reading a value out of some
+//! * `#[frb(sync)]` has ~10x less latency overhead. Think a few 50-100 ns vs a
+//!   few µs overhead per call.
+//! * However, we have to be careful about blocking the main UI isolate, since
+//!   we only have 16 ms frame budget to compute and render the UI without jank.
+//!   Any sync ffi that runs for longer than maybe 1 ms should definitely run as
+//!   a separate task on the threadpool. OTOH, just reading a value out of some
 //!   in-memory state is probably cheaper overall to use `#[frb(sync)]`.
 
-use std::{future::Future, str::FromStr};
+use std::str::FromStr;
 
 use anyhow::{anyhow, Context};
 use common::{
@@ -112,35 +115,6 @@ use crate::{
 };
 
 #[rustfmt::skip]
-// // TODO(phlip9): land real async support in flutter_rust_bridge
-// // As a temporary unblock to support async fn's, we'll just `RUNTIME.block_on`
-// // with a global tokio runtime in each worker thread.
-// //
-// // flutter_rust_bridge defaults to 4 worker threads in its threadpool.
-// // Consequently, at most 4 top-level tasks will run concurrently before the
-// // 5'th task needs to wait for an frb worker thread to open up.
-// //
-// // Ex:
-// //
-// // ```dart
-// // unawaited(app.node_info());
-// // unawaited(app.node_info());
-// // unawaited(app.node_info());
-// // unawaited(app.node_info());
-// // unawaited(app.node_info()); // << this request will only start once one of
-// //                             //    the previous four requests finishes.
-// // ```
-// static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
-//     tokio::runtime::Builder::new_multi_thread()
-//         .enable_all()
-//         // We only need one background worker. `RUNTIME.block_on` will run the
-//         // task on the calling worker thread, while `tokio::spawn` will spawn
-//         // the task on this one background worker thread.
-//         .worker_threads(1)
-//         .build()
-//         .expect("Failed to build tokio Runtime")
-// });
-// 
 // pub(crate) static FLUTTER_RUST_BRIDGE_HANDLER: LazyLock<LxHandler> =
 //     LazyLock::new(|| {
 //         // TODO(phlip9): Get backtraces symbolizing correctly on mobile. I'm at
@@ -996,15 +970,6 @@ pub fn debug_unconditional_error() -> anyhow::Result<()> {
     Err(anyhow::format_err!("Error inside app-rs"))
 }
 
-fn block_on<T, Fut>(_future: Fut) -> T
-where
-    Fut: Future<Output = T>,
-{
-    // TODO(phlip9): unfuck
-    todo!()
-    // RUNTIME.block_on(future)
-}
-
 /// The `AppHandle` is a Dart representation of an [`App`] instance.
 pub struct AppHandle {
     pub inner: RustOpaqueNom<App>,
@@ -1017,112 +982,130 @@ impl AppHandle {
         }
     }
 
-    pub fn load(config: Config) -> anyhow::Result<Option<AppHandle>> {
-        block_on(async move {
-            Ok(App::load(&mut SysRng::new(), config.into())
-                .await
-                .context("Failed to load saved App state")?
-                .map(AppHandle::new))
-        })
+    pub async fn load(config: Config) -> anyhow::Result<Option<AppHandle>> {
+        Ok(App::load(&mut SysRng::new(), config.into())
+            .await
+            .context("Failed to load saved App state")?
+            .map(AppHandle::new))
     }
 
-    pub fn restore(
+    pub async fn restore(
         config: Config,
         seed_phrase: String,
     ) -> anyhow::Result<AppHandle> {
-        block_on(async move {
-            App::restore(config.into(), seed_phrase)
-                .await
-                .context("Failed to restore from seed phrase")
-                .map(Self::new)
-        })
+        App::restore(config.into(), seed_phrase)
+            .await
+            .context("Failed to restore from seed phrase")
+            .map(Self::new)
     }
 
-    pub fn signup(
+    pub async fn signup(
         config: Config,
         google_auth_code: String,
         password: String,
     ) -> anyhow::Result<AppHandle> {
-        block_on(async move {
-            App::signup(
-                &mut SysRng::new(),
-                config.into(),
-                google_auth_code,
-                password,
-            )
-            .await
-            .context("Failed to generate and signup new wallet")
-            .map(Self::new)
-        })
+        App::signup(
+            &mut SysRng::new(),
+            config.into(),
+            google_auth_code,
+            password,
+        )
+        .await
+        .context("Failed to generate and signup new wallet")
+        .map(Self::new)
     }
 
-    pub fn node_info(&self) -> anyhow::Result<NodeInfo> {
-        block_on(self.inner.node_client().node_info())
+    pub async fn node_info(&self) -> anyhow::Result<NodeInfo> {
+        self.inner
+            .node_client()
+            .node_info()
+            .await
             .map(NodeInfo::from)
             .map_err(anyhow::Error::new)
     }
 
-    pub fn fiat_rates(&self) -> anyhow::Result<FiatRates> {
-        block_on(self.inner.gateway_client().get_fiat_rates())
+    pub async fn fiat_rates(&self) -> anyhow::Result<FiatRates> {
+        self.inner
+            .gateway_client()
+            .get_fiat_rates()
+            .await
             .map(FiatRates::from)
             .map_err(anyhow::Error::new)
     }
 
-    pub fn pay_onchain(
+    pub async fn pay_onchain(
         &self,
         req: PayOnchainRequest,
     ) -> anyhow::Result<PayOnchainResponse> {
         let req = PayOnchainRequestRs::try_from(req)?;
         let cid = req.cid;
-        block_on(self.inner.node_client().pay_onchain(req))
+        self.inner
+            .node_client()
+            .pay_onchain(req)
+            .await
             .map(|resp| PayOnchainResponse::from_cid_and_response(cid, resp))
             .map_err(anyhow::Error::new)
     }
 
-    pub fn preflight_pay_onchain(
+    pub async fn preflight_pay_onchain(
         &self,
         req: PreflightPayOnchainRequest,
     ) -> anyhow::Result<PreflightPayOnchainResponse> {
         let req = PreflightPayOnchainRequestRs::try_from(req)?;
-        block_on(self.inner.node_client().preflight_pay_onchain(req))
+        self.inner
+            .node_client()
+            .preflight_pay_onchain(req)
+            .await
             .map(PreflightPayOnchainResponse::from)
             .map_err(anyhow::Error::new)
     }
 
-    pub fn get_address(&self) -> anyhow::Result<String> {
-        block_on(self.inner.node_client().get_address())
+    pub async fn get_address(&self) -> anyhow::Result<String> {
+        self.inner
+            .node_client()
+            .get_address()
+            .await
             .map(|addr| addr.to_string())
             .map_err(anyhow::Error::new)
     }
 
-    pub fn create_invoice(
+    pub async fn create_invoice(
         &self,
         req: CreateInvoiceRequest,
     ) -> anyhow::Result<CreateInvoiceResponse> {
         let req = CreateInvoiceRequestRs::try_from(req)?;
-        block_on(self.inner.node_client().create_invoice(req))
+        self.inner
+            .node_client()
+            .create_invoice(req)
+            .await
             // TODO(phlip9): return new PaymentIndex
             .map(CreateInvoiceResponse::from)
             .map_err(anyhow::Error::new)
     }
 
-    pub fn preflight_pay_invoice(
+    pub async fn preflight_pay_invoice(
         &self,
         req: PreflightPayInvoiceRequest,
     ) -> anyhow::Result<PreflightPayInvoiceResponse> {
         let req = PreflightPayInvoiceRequestRs::try_from(req)?;
-        block_on(self.inner.node_client().preflight_pay_invoice(req))
+        self.inner
+            .node_client()
+            .preflight_pay_invoice(req)
+            .await
             .map(PreflightPayInvoiceResponse::from)
             .map_err(anyhow::Error::new)
     }
 
-    pub fn pay_invoice(
+    pub async fn pay_invoice(
         &self,
         req: PayInvoiceRequest,
     ) -> anyhow::Result<PayInvoiceResponse> {
         let req = PayInvoiceRequestRs::try_from(req)?;
         let id = req.invoice.payment_id();
-        block_on(self.inner.node_client().pay_invoice(req))
+        self.inner
+            .node_client()
+            .pay_invoice(req)
+            .await
             .map(|resp| PayInvoiceResponse::from_id_and_response(id, resp))
             .map_err(anyhow::Error::new)
     }
@@ -1137,8 +1120,10 @@ impl AppHandle {
     ///
     /// Returns `true` if any payment changed, so we know whether to reload the
     /// payment list UI.
-    pub fn sync_payments(&self) -> anyhow::Result<bool> {
-        block_on(self.inner.sync_payments())
+    pub async fn sync_payments(&self) -> anyhow::Result<bool> {
+        self.inner
+            .sync_payments()
+            .await
             .map(|summary| summary.any_changes())
     }
 
@@ -1264,13 +1249,16 @@ impl AppHandle {
         db_lock.state().num_finalized_not_junk()
     }
 
-    pub fn update_payment_note(
+    pub async fn update_payment_note(
         &self,
         req: UpdatePaymentNote,
     ) -> anyhow::Result<()> {
         let req = UpdatePaymentNoteRs::try_from(req)?;
         // Update remote store first
-        block_on(self.inner.node_client().update_payment_note(req.clone()))
+        self.inner
+            .node_client()
+            .update_payment_note(req.clone())
+            .await
             .map(|Empty {}| ())
             .map_err(anyhow::Error::new)?;
         // Update local store after

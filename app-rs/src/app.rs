@@ -42,9 +42,7 @@ pub struct App {
 
     /// We only want one task syncing payments at a time. Ideally the dart side
     /// shouldn't let this happen, but just to be safe let's add this in.
-    // ideally this could just be a tokio::sync::Mutex, but those aren't
-    // Unwind-safe, which flutter_rust_bridge requires, etc etc...
-    payment_sync_lock: Mutex<()>,
+    payment_sync_lock: tokio::sync::Mutex<()>,
 }
 
 impl App {
@@ -171,7 +169,7 @@ impl App {
             gateway_client,
             node_client,
             payment_db,
-            payment_sync_lock: Mutex::new(()),
+            payment_sync_lock: tokio::sync::Mutex::new(()),
         }))
     }
 
@@ -303,7 +301,7 @@ impl App {
             node_client,
             gateway_client,
             payment_db,
-            payment_sync_lock: Mutex::new(()),
+            payment_sync_lock: tokio::sync::Mutex::new(()),
         })
     }
 
