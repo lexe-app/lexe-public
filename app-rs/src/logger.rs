@@ -1,15 +1,12 @@
-//! Pipe `tracing` log messages from native Rust to Dart.
-
-#![allow(dead_code)]
+//! Pipe [`tracing`] log messages from native Rust to Dart.
 
 use std::{
     fmt::{self, Write},
     str::FromStr,
-    sync::Arc,
+    sync::atomic::Ordering,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use arc_swap::ArcSwapOption;
 use common::{api::trace, define_trace_id_fns};
 use tracing::{field, span, Event, Level, Subscriber};
 use tracing_subscriber::{
@@ -20,17 +17,20 @@ use tracing_subscriber::{
     Registry,
 };
 
-pub(crate) enum DartLogSink {}
+use crate::logger::atomic_log_ptr::{AtomicLogFnPtr, LogFnPtr};
 
-impl DartLogSink {
-    // TODO(phlip9): impl
-    fn log(&self, _message: String) {}
-}
+/// Just drop log messages until the logger is init'd.
+fn noop_log(_message: String) {}
 
-/// A channel to dart. Formatted rust log messages are sent across this channel
-/// for printing on the dart side.
-static RUST_LOG_TX: ArcSwapOption<DartLogSink> = ArcSwapOption::const_empty();
+/// A function/callback to log messages from rust. Formatted rust log messages
+/// are sent typically sent across a channel for printing on the dart side.
+///
+/// We use an `AtomicLogFnPtr` here because we need to be able to reset the fn
+/// after each flutter hot restart.
+static RUST_LOG_FN: AtomicLogFnPtr = AtomicLogFnPtr::new(noop_log);
 
+/// An impl of `tracing_subscriber::Layer` that formats log messages and
+/// forwards them into [`RUST_LOG_FN`].
 struct DartLogLayer;
 
 /// Span fields are formatted when an enabled span is first entered.
@@ -38,9 +38,10 @@ struct FormattedSpanFields {
     buf: String,
 }
 
-/// See [`crate::bindings::init_rust_log_stream`].
-pub(crate) fn init(rust_log_tx: DartLogSink, rust_log: &str) {
-    RUST_LOG_TX.store(Some(Arc::new(rust_log_tx)));
+#[allow(dead_code)]
+/// See [`crate::ffi::ffi::init_rust_log_stream`].
+pub(crate) fn init(log_fn: LogFnPtr, rust_log: &str) {
+    RUST_LOG_FN.store(log_fn, Ordering::Relaxed);
 
     let subscriber = subscriber(rust_log);
 
@@ -101,9 +102,8 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for DartLogLayer {
         let mut message = String::new();
         fmt_event(&mut message, event, ctx).expect("Failed to format");
 
-        if let Some(tx) = RUST_LOG_TX.load().as_ref() {
-            tx.log(message);
-        }
+        let log_fn = RUST_LOG_FN.load(Ordering::Relaxed);
+        log_fn(message);
     }
 }
 
@@ -218,6 +218,57 @@ fn fmt_span_fields<S: Subscriber + for<'a> LookupSpan<'a>>(
     }
 
     Ok(())
+}
+
+/// An `AtomicPtr` specialized to store `fn(...)` pointer safely. Sadly Rust
+/// traits aren't powerful enough yet to do this generically.
+///
+/// Let's stick this inside it's own module to prevent accidental misuse.
+mod atomic_log_ptr {
+    use std::{
+        mem,
+        sync::atomic::{AtomicPtr, Ordering},
+    };
+
+    use const_utils::const_assert_usize_eq;
+
+    pub(crate) type LogFnPtr = fn(message: String);
+
+    // Sanity check the current platform. Ensure that its function pointers look
+    // like pointers.
+    const_assert_usize_eq!(
+        mem::size_of::<LogFnPtr>(),
+        mem::size_of::<*mut ()>(),
+    );
+    const_assert_usize_eq!(
+        mem::align_of::<LogFnPtr>(),
+        mem::align_of::<*mut ()>(),
+    );
+
+    #[repr(transparent)]
+    pub(crate) struct AtomicLogFnPtr {
+        inner: AtomicPtr<()>,
+    }
+
+    impl AtomicLogFnPtr {
+        pub(crate) const fn new(fn_ptr: LogFnPtr) -> Self {
+            Self {
+                inner: AtomicPtr::new(fn_ptr as *mut ()),
+            }
+        }
+
+        pub(crate) fn store(&self, fn_ptr: LogFnPtr, order: Ordering) {
+            self.inner.store(fn_ptr as *mut (), order)
+        }
+
+        pub(crate) fn load(&self, order: Ordering) -> LogFnPtr {
+            let fn_ptr_raw: *mut () = self.inner.load(order);
+            // SAFETY: we ensure that we only put real function pointers in via
+            // Self::new and Self::store, so this cannot be null or mismatched.
+            let fn_ptr: LogFnPtr = unsafe { std::mem::transmute(fn_ptr_raw) };
+            fn_ptr
+        }
+    }
 }
 
 // #[cfg(test)]

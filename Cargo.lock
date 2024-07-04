@@ -158,6 +158,7 @@ dependencies = [
  "bitcoin",
  "cfg-if 1.0.0",
  "common",
+ "const-utils",
  "flutter_rust_bridge",
  "hex 0.1.0",
  "keyring",
