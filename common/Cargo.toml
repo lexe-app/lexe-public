@@ -63,7 +63,7 @@ rand.workspace = true
 rand_core.workspace = true
 rcgen.workspace = true
 ref-cast.workspace = true
-reqwest = { workspace = true, features = ["http2", "json", "rustls-tls-manual-roots"] }
+reqwest = { workspace = true, features = ["json"] }
 rustls.workspace = true
 ring.workspace = true
 rust_decimal.workspace = true
