@@ -53,7 +53,7 @@ axum = { version = "0.7", default-features = false, features = [
     "macros" # Exposes `#[debug_handler]` and other useful macros
 ] }
 # Converting to/from base 64.
-base64 = "0.13"
+base64 = "0.22"
 # rust-bitcoin suite of libraries
 bitcoin = "0.29"
 bitcoin-bech32 = "0.12"
