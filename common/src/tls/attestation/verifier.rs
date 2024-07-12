@@ -769,8 +769,7 @@ mod test {
 
     use super::*;
 
-    /// These two consts can be regenerated (in SGX) using [`dump_attest_cert`].
-    /// Be sure to update [`SERVER_MRENCLAVE`] too, o.w. the test will fail.
+    // These two consts can be regenerated (in SGX) using [`dump_attest_cert`].
     const SGX_SERVER_CERT_PEM: &str =
         include_str!("../../../test_data/attest_cert.pem");
     const SERVER_MRENCLAVE: Measurement = Measurement::new(hex::decode_const(
@@ -882,6 +881,8 @@ mod test {
     #[cfg(target_env = "sgx")]
     #[ignore]
     fn dump_attest_cert() {
+        use base64::Engine;
+
         use crate::{
             enclave, rng::WeakRng, tls::attestation::cert::AttestationCert,
         };
@@ -898,10 +899,12 @@ mod test {
         println!("Set `SERVER_MRENCLAVE` to this value.");
 
         let cert_der = attest_cert.serialize_der_self_signed().unwrap();
+        let cert_base64 = base64::engine::general_purpose::STANDARD
+            .encode(cert_der.as_slice());
 
         println!("attestation certificate:");
         println!("-----BEGIN CERTIFICATE-----");
-        println!("{}", base64::encode(cert_der.as_slice()));
+        println!("{cert_base64}");
         println!("-----END CERTIFICATE-----");
     }
 }

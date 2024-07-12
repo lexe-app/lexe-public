@@ -5,6 +5,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use base64::Engine;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -228,8 +229,8 @@ impl ed25519::Signable for BearerAuthRequest {
 impl BearerAuthToken {
     /// base64 serialize a bearer auth token from the internal raw bytes.
     pub fn encode_from_raw_bytes(signed_token_bytes: &[u8]) -> Self {
-        let b64_token =
-            base64::encode_config(signed_token_bytes, base64::URL_SAFE_NO_PAD);
+        let b64_token = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(signed_token_bytes);
         Self(ByteStr::from(b64_token))
     }
 
@@ -240,7 +241,8 @@ impl BearerAuthToken {
 
     /// base64 decode a string bearer auth token into the internal raw bytes.
     pub fn decode_inner_into_raw_bytes(bytes: &[u8]) -> Result<Vec<u8>, Error> {
-        base64::decode_config(bytes, base64::URL_SAFE_NO_PAD)
+        base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .decode(bytes)
             .map_err(|_| Error::Base64Decode)
     }
 }
