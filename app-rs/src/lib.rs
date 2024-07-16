@@ -11,6 +11,8 @@
 // #[cfg(target_os = "android")]
 // pub(crate) mod android;
 
+pub use flutter_rust_bridge as frb;
+
 /// The top-level App state
 pub mod app;
 // /// The low-level handler `flutter_rust_bridge` calls to run dart tasks from

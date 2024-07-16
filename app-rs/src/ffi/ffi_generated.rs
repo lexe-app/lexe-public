@@ -553,10 +553,10 @@ fn wire__crate__ffi__ffi__init_rust_log_stream_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "init_rust_log_stream", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api__rust_log_tx = <StreamSink<String,flutter_rust_bridge::for_generated::SseCodec>>::sse_decode(&mut deserializer);
-let api__rust_log = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
+            let api_rust_log_tx = <StreamSink<String,flutter_rust_bridge::for_generated::SseCodec>>::sse_decode(&mut deserializer);
+let api_rust_log = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
                     transform_result_sse::<_, ()>((move ||  {
-                         let output_ok = Result::<_,()>::Ok({ crate::ffi::ffi::init_rust_log_stream(api__rust_log_tx, api__rust_log); })?;  Ok(output_ok)
+                         let output_ok = Result::<_,()>::Ok({ crate::ffi::ffi::init_rust_log_stream(api_rust_log_tx, api_rust_log); })?;  Ok(output_ok)
                     })())
                 } })
 }
