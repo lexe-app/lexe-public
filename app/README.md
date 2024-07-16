@@ -563,26 +563,3 @@ The current build process looks like this:
 * Unfortunately, the hot-reload and hot-restart features for `flutter run` don't
   support reloading native libraries. If you've changed `app-rs` and want to see
   the effects, you'll need to full-restart `flutter run`.
-
-* Xcode has fairly aggressive `strip` settings; without any mitigations, all our
-  exported symbols from the Rust ffi will get stripped out at build-time, since
-  they're only indirectly referenced via the Dart code (which `strip` doesn't
-  seem to detect).
-
-  If we try to run the app without mitigations, we get a "symbol not found"
-  exception as soon as we call any Rust ffi function.
-
-  To get around this issue, the generated
-  [`ios/Runner/ffi_generated.h`](ios/Runner/ffi_generated.h) and
-  [`macos/Runner/ffi_generated.h`](macos/Runner/ffi_generated.h) have
-  a `dummy_method_to_enforce_bundling()` function which does something a bit
-  silly: it just returns the xor of all the ffi function pointers.
-
-  The flutter Swift launchers in
-  [`ios/Runner/AppDelegate.swift`](ios/Runner/AppDelegate.swift) and
-  [`macos/Runner/AppDelegate.swift`](macos/Runner/AppDelegate.swift) then
-  `print(dummy_method_to_enforce_bundling())` to ensure this dummy operation
-  doesn't get optimized out.
-
-  Now that `strip` believes all the symbols are in use, it won't strip them out
-  and the app works as expected!

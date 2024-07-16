@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0B2F579B29837FB10028D9B8 /* libapp-rs_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0B2F579929837DE70028D9B8 /* libapp-rs_static.a */; };
+		0BE0ADD72C4714AD006ABC29 /* app_rs.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 0BE0ADD62C4714AA006ABC29 /* app_rs.dylib */; };
 		14370571ED88CAB48F0E078F /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6E447CE9CB6F162D5A52C62C /* Pods_Runner.framework */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
@@ -18,12 +18,12 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		0B2F579829837DE70028D9B8 /* PBXContainerItemProxy */ = {
+		0BE0ADD52C4714AA006ABC29 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0B2F579429837DE70028D9B8 /* app-rs.xcodeproj */;
 			proxyType = 2;
-			remoteGlobalIDString = CA6012375F18B1DAD1C1CE8B;
-			remoteInfo = "app-rs-staticlib";
+			remoteGlobalIDString = CA0082136D7663966679D83A;
+			remoteInfo = "app_rs.dylib (cdylib)";
 		};
 /* End PBXContainerItemProxy section */
 
@@ -69,7 +69,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0B2F579B29837FB10028D9B8 /* libapp-rs_static.a in Frameworks */,
+				0BE0ADD72C4714AD006ABC29 /* app_rs.dylib in Frameworks */,
 				14370571ED88CAB48F0E078F /* Pods_Runner.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -93,7 +93,7 @@
 		0B2F579529837DE70028D9B8 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				0B2F579929837DE70028D9B8 /* libapp-rs_static.a */,
+				0BE0ADD62C4714AA006ABC29 /* app_rs.dylib */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -218,11 +218,11 @@
 /* End PBXProject section */
 
 /* Begin PBXReferenceProxy section */
-		0B2F579929837DE70028D9B8 /* libapp-rs_static.a */ = {
+		0BE0ADD62C4714AA006ABC29 /* app_rs.dylib */ = {
 			isa = PBXReferenceProxy;
-			fileType = archive.ar;
-			path = "libapp-rs_static.a";
-			remoteRef = 0B2F579829837DE70028D9B8 /* PBXContainerItemProxy */;
+			fileType = "compiled.mach-o.dylib";
+			path = app_rs.dylib;
+			remoteRef = 0BE0ADD52C4714AA006ABC29 /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 /* End PBXReferenceProxy section */

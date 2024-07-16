@@ -5,17 +5,13 @@ edition.workspace = true
 license.workspace = true
 version.workspace = true
 
-# TODO(phlip9): it seems like this option enables _all_ library output types for
-#               all targets, even though e.g. iOS doesn't need a dynlib and
-#               Android doesn't need a static lib.
-#               should figure out the right cargo incantation to avoid this...
+# TODO(phlip9): use `cargo rustc --crate-type=cdylib` in various app builders so
+# we _only_ build the `cdylib` and don't waste time building the `lib`.
 [lib]
 crate-type = [
-    # Rust tests
+    # Needed for Rust unit tests
     "lib",
-    # Static linking for most targets
-    "staticlib",
-    # Android requires dynamically linked native libs
+    # Build dynamic lib to load in flutter app
     "cdylib",
 ]
 

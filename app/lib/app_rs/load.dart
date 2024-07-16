@@ -11,19 +11,20 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
     show ExternalLibrary;
 import 'package:lexeapp/cfg.dart' as cfg;
 
-/// Android only supports ffi via dynamically linked libraries.
-/// I couldn't figure out how to statically link against our lib on Linux.
-/// Prefer to statically link our ffi library for all platforms.
+/// I'd really prefer to statically link `app-rs` everywhere, but
+/// flutter_rust_bridge 2.0 currently makes this very difficult, since it no
+/// longer dumps the actually-used symbols for anti-stripping mitigation.
+///
+/// So for now we're going dynamically linked everywhere...
 ExternalLibrary _loadLibraryNormal() {
-  final lib = (io.Platform.isAndroid || io.Platform.isLinux)
-      ? ExternalLibrary.open("libapp_rs.so")
-      : ExternalLibrary.process(
-          // If we ever have other external dart dependencies that also use
-          // flutter_rust_bridge, we'll have to make sure we load them as *.so
-          // dynamic libraries (the default).
-          iKnowHowToUseIt: true,
-        );
-  return lib;
+  if (io.Platform.isAndroid || io.Platform.isLinux) {
+    return ExternalLibrary.open("libapp_rs.so");
+  } else if (io.Platform.isIOS || io.Platform.isMacOS) {
+    return ExternalLibrary.open("app_rs.dylib");
+  } else {
+    throw UnsupportedError(
+        "Unsupported platform. Don't know how to load app-rs shared library.");
+  }
 }
 
 /// Unit tests are run on the host and `flutter test` (with unit test only)
@@ -33,6 +34,8 @@ ExternalLibrary _loadLibraryNormal() {
 /// `cargo build -p app-rs` just before.
 ExternalLibrary _loadLibraryUnitTest() {
   if (io.Platform.isMacOS) {
+    // cargo outputs `libapp_rs.dylib` by default. It's cargo-xcode + lipo that
+    // renames it to `app_rs.dylib`.
     return ExternalLibrary.open("../target/debug/libapp_rs.dylib");
   } else if (io.Platform.isLinux) {
     return ExternalLibrary.open("../target/debug/libapp_rs.so");

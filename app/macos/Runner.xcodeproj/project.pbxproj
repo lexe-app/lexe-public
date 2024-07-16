@@ -21,7 +21,7 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
-		0B7569CA2983885900C72DBD /* libapp-rs_static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0B7569C92983884200C72DBD /* libapp-rs_static.a */; };
+		0B8D7FA72C4714280045A0AF /* app_rs.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 0B8D7FA62C4714210045A0AF /* app_rs.dylib */; };
 		335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */; };
 		33CC10F12044A3C60003C045 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC10F02044A3C60003C045 /* AppDelegate.swift */; };
 		33CC10F32044A3C60003C045 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F22044A3C60003C045 /* Assets.xcassets */; };
@@ -31,12 +31,12 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		0B7569C82983884200C72DBD /* PBXContainerItemProxy */ = {
+		0B8D7FA52C4714210045A0AF /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0B7569C42983884200C72DBD /* app-rs.xcodeproj */;
 			proxyType = 2;
-			remoteGlobalIDString = CA6012375F18B1DAD1C1CE8B;
-			remoteInfo = "app-rs-staticlib";
+			remoteGlobalIDString = CA0082136D7663966679D83A;
+			remoteInfo = "app_rs.dylib (cdylib)";
 		};
 		33CC111F2044C79F0003C045 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -92,7 +92,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0B7569CA2983885900C72DBD /* libapp-rs_static.a in Frameworks */,
+				0B8D7FA72C4714280045A0AF /* app_rs.dylib in Frameworks */,
 				B30A140CD32CFB5815AE16A5 /* Pods_Runner.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -103,7 +103,7 @@
 		0B7569C52983884200C72DBD /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				0B7569C92983884200C72DBD /* libapp-rs_static.a */,
+				0B8D7FA62C4714210045A0AF /* app_rs.dylib */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -272,11 +272,11 @@
 /* End PBXProject section */
 
 /* Begin PBXReferenceProxy section */
-		0B7569C92983884200C72DBD /* libapp-rs_static.a */ = {
+		0B8D7FA62C4714210045A0AF /* app_rs.dylib */ = {
 			isa = PBXReferenceProxy;
-			fileType = archive.ar;
-			path = "libapp-rs_static.a";
-			remoteRef = 0B7569C82983884200C72DBD /* PBXContainerItemProxy */;
+			fileType = "compiled.mach-o.dylib";
+			path = app_rs.dylib;
+			remoteRef = 0B8D7FA52C4714210045A0AF /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 /* End PBXReferenceProxy section */
@@ -499,7 +499,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = app.lexe.lexeapp.design;
 				PRODUCT_NAME = "Lexe Design";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_OBJC_BRIDGING_HEADER = Runner/ffi_generated.h;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
@@ -581,7 +580,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = app.lexe.lexeapp.design;
 				PRODUCT_NAME = "Lexe Design";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_OBJC_BRIDGING_HEADER = Runner/ffi_generated.h;
 				SWIFT_VERSION = 5.0;
 			};
 			name = "Release-design";
@@ -662,7 +660,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = app.lexe.lexeapp.design;
 				PRODUCT_NAME = "Lexe Design";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_OBJC_BRIDGING_HEADER = Runner/ffi_generated.h;
 				SWIFT_VERSION = 5.0;
 			};
 			name = "Profile-design";
@@ -740,7 +737,6 @@
 					"@executable_path/../Frameworks",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_OBJC_BRIDGING_HEADER = Runner/ffi_generated.h;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Profile;
@@ -871,7 +867,6 @@
 					"@executable_path/../Frameworks",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_OBJC_BRIDGING_HEADER = Runner/ffi_generated.h;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
@@ -896,7 +891,6 @@
 					"@executable_path/../Frameworks",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_OBJC_BRIDGING_HEADER = Runner/ffi_generated.h;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
