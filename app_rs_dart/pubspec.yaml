@@ -8,16 +8,35 @@ environment:
   flutter: '>=3.3.0'
 
 dependencies:
+  # flutter SDK
   flutter:
     sdk: flutter
+
+  # Immutable record types and Rust-style enums in Dart
+  flutter_rust_bridge: 2.0.0
+  freezed_annotation: ^2.4.1
+
+  # Required as a `plugin_ffi` project
   plugin_platform_interface: ^2.0.2
 
 dev_dependencies:
+  # Used by freezed for codegen. app-rs-codegen runs this after generating the
+  # flutter_rust_bridge bindings.
+  build_runner: ^2.4.7
+
+  # TODO(phlip9): remove?
   ffi: ^2.1.0
+
+  # Used by flutter_rust_bridge to generate the dart ffi bingings at build-time.
   ffigen: ^11.0.0
+
   flutter_test:
     sdk: flutter
+
   flutter_lints: ^3.0.0
+
+  # Codegen for immutable record types and Rust-style enums in Dart.
+  freezed: ^2.4.5
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

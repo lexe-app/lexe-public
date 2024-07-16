@@ -19,7 +19,7 @@ use crate::ffi::ffi::*;
 flutter_rust_bridge::frb_generated_boilerplate_io!();
 
 #[no_mangle]
-pub extern "C" fn frbgen_lexeapp_rust_arc_increment_strong_count_RustOpaque_App(
+pub extern "C" fn frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_App(
     ptr: *const std::ffi::c_void,
 ) {
     unsafe {
@@ -28,7 +28,7 @@ pub extern "C" fn frbgen_lexeapp_rust_arc_increment_strong_count_RustOpaque_App(
 }
 
 #[no_mangle]
-pub extern "C" fn frbgen_lexeapp_rust_arc_decrement_strong_count_RustOpaque_App(
+pub extern "C" fn frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_App(
     ptr: *const std::ffi::c_void,
 ) {
     unsafe {

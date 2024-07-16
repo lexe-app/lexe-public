@@ -787,7 +787,7 @@ class AppRsWire implements BaseWire {
 
   late final _rust_arc_increment_strong_count_RustOpaque_AppPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_lexeapp_rust_arc_increment_strong_count_RustOpaque_App');
+          'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_App');
   late final _rust_arc_increment_strong_count_RustOpaque_App =
       _rust_arc_increment_strong_count_RustOpaque_AppPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
@@ -802,7 +802,7 @@ class AppRsWire implements BaseWire {
 
   late final _rust_arc_decrement_strong_count_RustOpaque_AppPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_lexeapp_rust_arc_decrement_strong_count_RustOpaque_App');
+          'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_App');
   late final _rust_arc_decrement_strong_count_RustOpaque_App =
       _rust_arc_decrement_strong_count_RustOpaque_AppPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
