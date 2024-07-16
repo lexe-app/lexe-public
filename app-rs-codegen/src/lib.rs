@@ -115,14 +115,20 @@ impl Args {
 
 "#.to_owned()),
 
+            // Setting this to `true` appears to make frb generate code similar
+            // to v1? It works better with static linking, so I'll keep this set
+            full_dep: Some(false),
+            // When `false`, appears to box u64, i64 and usize, as they're not
+            // representable in dart.
+            // `type_64bit_int=true` looks broken when used with `full_dep=true`
+            type_64bit_int: Some(true),
+
             // Other options
             dart3: Some(true),
             dart_format_line_length: Some(80),
-            full_dep: Some(false), // What does this do?
             add_mod_to_lib: Some(false),
             web: Some(false),
             enable_lifetime: Some(false),
-            type_64bit_int: Some(true),
             ..Default::default()
         };
         let meta_config = frb::codegen::MetaConfig { watch: false };
@@ -131,6 +137,22 @@ impl Args {
         frb::codegen::generate(config, meta_config).context(
             "flutter_rust_bridge: failed to generate Rust+Dart ffi bindings ",
         ).unwrap();
+
+        // TODO(phlip9): Generate anti-stripping symbols:
+        // ```bash
+        // rust-nm --format=darwin --defined-only --extern-only --no-llvm-bc \
+        //   public/app/build/macos/Build/Intermediates.noindex/app-rs.build/cargo_target/aarch64-apple-darwin/release/libapp_rs.a \
+        //   | rg -o -r '$1' '\(__TEXT,__text\) external _([^_]\w*)' \
+        //   | rg -v 'rustsecp256k1'
+        // ```
+        //
+        // More portable but less robust
+        // ```bash
+        // rust-nm --format=posix --defined-only --extern-only --no-llvm-bc \
+        //   public/app/build/macos/Build/Intermediates.noindex/app-rs.build/cargo_target/aarch64-apple-darwin/release/libapp_rs.a \
+        //   | rg '^_[^_]\w+ T ' \
+        //   | rg -v '(_atomic_|_ring_core_|_rustsecp256k1_|_GFp_|_gfp_|_LIMBS_|_LIMB_|_bssl|_rust_)'
+        // ```
 
         // run `git diff --exit-code <maybe-changed-files>` to see if any files
         // changed
