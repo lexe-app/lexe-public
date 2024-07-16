@@ -59,9 +59,6 @@ impl Args {
 
         let ffi_generated_rs = app_rs_dir.join("src/ffi/ffi_generated.rs");
         let ffi_generated_dart = app_dir.join("lib/app_rs");
-        let ios_ffi_generated_h = app_dir.join("ios/Runner/ffi_generated.h");
-        let macos_ffi_generated_h =
-            app_dir.join("macos/Runner/ffi_generated.h");
 
         // flutter_rust_bridge options
         // Docs: [`GenerateCommandArgsPrimary`](https://github.com/fzyzcjy/flutter_rust_bridge/blob/master/frb_codegen/src/binary/commands.rs#L52)
@@ -92,15 +89,6 @@ impl Args {
             // // impls) so you can easily read what APIs are available
             // // from the Dart side.
             // dart_decl_output: Some(path_to_string(&ffi_generated_api_dart)?),
-
-            // These steps dump headers with all the emitted ffi symbols. We
-            // also reference these symbols from a dummy method so
-            // they don't get stripped by the over-aggressive
-            // iOS/macOS symbol stripper.
-            c_output: Some(path_to_string(&ios_ffi_generated_h)?),
-            duplicated_c_output: Some(vec![path_to_string(
-                &macos_ffi_generated_h,
-            )?]),
 
             // The class name of the main entrypoint to the Rust API.
             // Defaults to "RustLib".
@@ -163,8 +151,6 @@ impl Args {
                 &ffi_generated_rs,
                 &ffi_generated_dart,
                 // &ffi_generated_api_dart,
-                &ios_ffi_generated_h,
-                &macos_ffi_generated_h,
             ]);
 
             let status = cmd.status().context(
