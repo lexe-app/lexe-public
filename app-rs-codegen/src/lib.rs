@@ -55,10 +55,10 @@ impl Args {
                  directory of the repo."
             )
         })?;
-        let app_dir = app_rs_dir.parent().unwrap().join("app");
+        let app_dir = app_rs_dir.parent().unwrap().join("app_rs_dart");
 
         let ffi_generated_rs = app_rs_dir.join("src/ffi/ffi_generated.rs");
-        let ffi_generated_dart = app_dir.join("lib/app_rs");
+        let ffi_generated_dart = app_dir.join("lib");
 
         // flutter_rust_bridge options
         // Docs: [`GenerateCommandArgsPrimary`](https://github.com/fzyzcjy/flutter_rust_bridge/blob/master/frb_codegen/src/binary/commands.rs#L52)
@@ -84,11 +84,6 @@ impl Args {
 
             // Path to output generated Dart code impls.
             dart_output: Some(path_to_string(&ffi_generated_dart)?),
-
-            // // Path to output generated Dart API declarations (decls only, no
-            // // impls) so you can easily read what APIs are available
-            // // from the Dart side.
-            // dart_decl_output: Some(path_to_string(&ffi_generated_api_dart)?),
 
             // The class name of the main entrypoint to the Rust API.
             // Defaults to "RustLib".
@@ -125,22 +120,6 @@ impl Args {
         frb::codegen::generate(config, meta_config).context(
             "flutter_rust_bridge: failed to generate Rust+Dart ffi bindings ",
         ).unwrap();
-
-        // TODO(phlip9): Generate anti-stripping symbols:
-        // ```bash
-        // rust-nm --format=darwin --defined-only --extern-only --no-llvm-bc \
-        //   public/app/build/macos/Build/Intermediates.noindex/app-rs.build/cargo_target/aarch64-apple-darwin/release/libapp_rs.a \
-        //   | rg -o -r '$1' '\(__TEXT,__text\) external _([^_]\w*)' \
-        //   | rg -v 'rustsecp256k1'
-        // ```
-        //
-        // More portable but less robust
-        // ```bash
-        // rust-nm --format=posix --defined-only --extern-only --no-llvm-bc \
-        //   public/app/build/macos/Build/Intermediates.noindex/app-rs.build/cargo_target/aarch64-apple-darwin/release/libapp_rs.a \
-        //   | rg '^_[^_]\w+ T ' \
-        //   | rg -v '(_atomic_|_ring_core_|_rustsecp256k1_|_GFp_|_gfp_|_LIMBS_|_LIMB_|_bssl|_rust_)'
-        // ```
 
         // run `git diff --exit-code <maybe-changed-files>` to see if any files
         // changed
