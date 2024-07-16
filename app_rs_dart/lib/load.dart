@@ -3,13 +3,24 @@
 // * The Rust API is defined in `app-rs/src/ffi/ffi.rs`.
 //
 // * From the Dart side, see the available APIs in
-//   `app/lib/app_rs/ffi/ffi.dart`.
+//   `app_rs_dart/lib/ffi/ffi.dart`.
 
 import 'dart:io' as io;
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
     show ExternalLibrary;
-import 'package:lexeapp/cfg.dart' as cfg;
+
+/// `true` when the flutter app is built in debug mode with debugging info and
+/// debug symbols built-in (i.e., not profile or release mode).
+///
+/// Since this is a constant, the dart compiler can eliminate unreachable,
+/// debug-only blocks.
+const bool _cfgDebug = kDebugMode;
+
+/// `true` only in unit tests. This env var is set by the flutter test runner.
+/// `false` in integration tests and run mode.
+final bool _cfgTest = io.Platform.environment.containsKey("FLUTTER_TEST");
 
 /// I'd really prefer to statically link `app-rs` everywhere, but
 /// flutter_rust_bridge 2.0 currently makes this very difficult, since it no
@@ -18,12 +29,13 @@ import 'package:lexeapp/cfg.dart' as cfg;
 /// So for now we're going dynamically linked everywhere...
 ExternalLibrary _loadLibraryNormal() {
   if (io.Platform.isAndroid || io.Platform.isLinux) {
-    return ExternalLibrary.open("libapp_rs.so");
+    return ExternalLibrary.open("libapp_rs_dart.so");
   } else if (io.Platform.isIOS || io.Platform.isMacOS) {
-    return ExternalLibrary.open("app_rs.dylib");
+    return ExternalLibrary.open("app_rs_dart.framework/app_rs_dart");
+  } else if (io.Platform.isWindows) {
+    return ExternalLibrary.open("app_rs_dart.dll");
   } else {
-    throw UnsupportedError(
-        "Unsupported platform. Don't know how to load app-rs shared library.");
+    throw UnsupportedError('Unknown platform: ${io.Platform.operatingSystem}');
   }
 }
 
@@ -34,11 +46,10 @@ ExternalLibrary _loadLibraryNormal() {
 /// `cargo build -p app-rs` just before.
 ExternalLibrary _loadLibraryUnitTest() {
   if (io.Platform.isMacOS) {
-    // cargo outputs `libapp_rs.dylib` by default. It's cargo-xcode + lipo that
-    // renames it to `app_rs.dylib`.
-    return ExternalLibrary.open("../target/debug/libapp_rs.dylib");
+    // cargo outputs `libapp_rs_dart.dylib` by default
+    return ExternalLibrary.open("../target/debug/libapp_rs_dart.dylib");
   } else if (io.Platform.isLinux) {
-    return ExternalLibrary.open("../target/debug/libapp_rs.so");
+    return ExternalLibrary.open("../target/debug/libapp_rs_dart.so");
   } else {
     throw UnsupportedError("Unsupported unit test platform");
   }
@@ -46,13 +57,12 @@ ExternalLibrary _loadLibraryUnitTest() {
 
 /// Load the app-rs Rust FFI library.
 ExternalLibrary _loadLibrary() {
-  if (cfg.debug && cfg.test) {
+  if (_cfgDebug && _cfgTest) {
     return _loadLibraryUnitTest();
   } else {
     return _loadLibraryNormal();
   }
 }
 
-/// `app-rs` needs to be loaded either  as a shared library or already
-/// statically linked depending on the platform.
+/// `app-rs` needs to be loaded as a shared library at runtime.
 final ExternalLibrary appRsLib = _loadLibrary();
