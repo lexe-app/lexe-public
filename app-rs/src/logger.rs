@@ -39,7 +39,7 @@ struct FormattedSpanFields {
 }
 
 #[allow(dead_code)]
-/// See [`crate::ffi::ffi::init_rust_log_stream`].
+/// See `crate::ffi::ffi::init_rust_log_stream`.
 pub(crate) fn init(log_fn: LogFnPtr, rust_log: &str) {
     RUST_LOG_FN.store(log_fn, Ordering::Relaxed);
 

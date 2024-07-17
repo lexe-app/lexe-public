@@ -1,17 +1,15 @@
 #
-# To learn more about a Podspec see http://guides.cocoapods.org/syntax/podspec.html.
+# To learn more about a Podspec see https://guides.cocoapods.org/syntax/podspec.html.
 # Run `pod lib lint app_rs_dart.podspec` to validate before publishing.
 #
 Pod::Spec.new do |s|
   s.name             = 'app_rs_dart'
   s.version          = '0.0.1'
-  s.summary          = 'A new Flutter FFI plugin project.'
-  s.description      = <<-DESC
-A new Flutter FFI plugin project.
-                       DESC
-  s.homepage         = 'http://example.com'
-  s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.summary          = 'Lexe app flutter/dart FFI'
+  s.description      = 'Lexe app flutter/dart FFI'
+  s.homepage         = 'https://lexe.app/'
+  s.license          = { :type => 'PolyForm Noncommercial License 1.0.0', :file => '../../LICENSE.md' }
+  s.author           = { 'Lexe Corporation' => 'noreply@lexe.app' }
 
   # This will ensure the source files in Classes/ are included in the native
   # builds of apps using this FFI plugin. Podspec does not support relative
@@ -21,7 +19,19 @@ A new Flutter FFI plugin project.
   s.source_files     = 'Classes/**/*'
   s.dependency 'FlutterMacOS'
 
-  s.platform = :osx, '10.11'
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
+  s.platform = :osx, '11.0'
+  s.pod_target_xcconfig = {
+    'DEFINES_MODULE' => 'YES',
+    # Don't build Intel binaries to reduce build time.
+    'EXCLUDED_ARCHS[sdk=macos*]' => 'x86_64',
+  }
   s.swift_version = '5.0'
+
+  # Builds the `app_rs_dart.framework` shared library unconditionally on every
+  # build.
+  s.script_phase = {
+    :name => 'Build app_rs_dart shared library',
+    :script => '${PODS_TARGET_SRCROOT}/../build_ios_macos.sh macos',
+    :execution_position => :before_compile,
+  }
 end
