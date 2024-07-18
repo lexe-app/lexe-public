@@ -8,10 +8,7 @@ import 'dart:async'
         Timer,
         unawaited;
 
-import 'package:flutter/material.dart';
-import 'package:freezed_annotation/freezed_annotation.dart' show freezed;
-import 'package:intl/intl.dart' show NumberFormat;
-import 'package:lexeapp/app_rs/ffi/ffi.dart'
+import 'package:app_rs_dart/ffi/ffi.dart'
     show
         AppHandle,
         Config,
@@ -24,7 +21,10 @@ import 'package:lexeapp/app_rs/ffi/ffi.dart'
         PaymentStatus,
         ShortPayment,
         ShortPaymentAndIndex;
-import 'package:lexeapp/app_rs/ffi/ffi.ext.dart' show ClientPaymentIdExt;
+import 'package:app_rs_dart/ffi/ffi.ext.dart' show ClientPaymentIdExt;
+import 'package:flutter/material.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' show freezed;
+import 'package:intl/intl.dart' show NumberFormat;
 import 'package:lexeapp/components.dart'
     show
         FilledPlaceholder,

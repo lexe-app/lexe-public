@@ -3,14 +3,13 @@
 /// A page for manipulating app internals during development.
 library;
 
-import 'package:flutter/material.dart';
-
-import 'package:lexeapp/app_rs/ffi/ffi.dart'
+import 'package:app_rs_dart/ffi/ffi.dart'
     show
         AppHandle,
         Config,
         debugDeleteLatestProvisioned,
         debugDeleteSecretStore;
+import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
     show HeadingText, LxCloseButton, ScrollableSinglePageBody, SubheadingText;
 import 'package:lexeapp/logger.dart' show error, info;

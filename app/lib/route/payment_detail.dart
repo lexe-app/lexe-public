@@ -1,8 +1,6 @@
 import 'dart:async' show Timer, unawaited;
 
-import 'package:flutter/foundation.dart' show ValueListenable;
-import 'package:flutter/material.dart';
-import 'package:lexeapp/app_rs/ffi/ffi.dart'
+import 'package:app_rs_dart/ffi/ffi.dart'
     show
         AppHandle,
         FiatRate,
@@ -12,7 +10,9 @@ import 'package:lexeapp/app_rs/ffi/ffi.dart'
         PaymentKind,
         PaymentStatus,
         UpdatePaymentNote;
-import 'package:lexeapp/app_rs/ffi/ffi.ext.dart';
+import 'package:app_rs_dart/ffi/ffi.ext.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
     show
         FilledPlaceholder,

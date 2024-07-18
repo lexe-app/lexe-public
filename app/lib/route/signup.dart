@@ -1,9 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
-
-import 'package:lexeapp/app_rs/ffi/ffi.dart'
+import 'package:app_rs_dart/ffi/ffi.dart'
     show AppHandle, Config, formValidatePassword;
+import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,

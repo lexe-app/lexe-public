@@ -1,7 +1,7 @@
+import 'package:app_rs_dart/ffi/ffi.dart' show AppHandle, Config;
+import 'package:app_rs_dart/frb_generated.dart';
+import 'package:app_rs_dart/load.dart';
 import 'package:flutter_test/flutter_test.dart' show expect, test;
-import 'package:lexeapp/app_rs/ffi/ffi.dart' show AppHandle, Config;
-import 'package:lexeapp/app_rs/frb_generated.dart';
-import 'package:lexeapp/app_rs/load.dart';
 import 'package:lexeapp/cfg.dart' as cfg;
 
 Future<void> main() async {

@@ -32,6 +32,10 @@ dependencies:
   # Register Lexe to handle payment URIs ("bitcoin:", "lightning:", ...)
   app_links: ^6.1.1
 
+  # Lexe `app_rs` Rust<->dart ffi bindings.
+  app_rs_dart:
+    path: ../app_rs_dart
+
   # Used by the generated flutter_rust_bridge FFI bindings.
   collection: ^1.18.0
 

@@ -1,11 +1,11 @@
 import 'dart:async' show unawaited;
 import 'dart:math' show max;
 
+import 'package:app_rs_dart/ffi/ffi.dart'
+    show AppHandle, CreateInvoiceRequest, FiatRate, Invoice;
 import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/address_format.dart' as address_format;
-import 'package:lexeapp/app_rs/ffi/ffi.dart'
-    show AppHandle, CreateInvoiceRequest, FiatRate, Invoice;
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show

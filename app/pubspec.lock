@@ -25,6 +25,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.1.1"
+  app_rs_dart:
+    dependency: "direct main"
+    description:
+      path: "../app_rs_dart"
+      relative: true
+    source: path
+    version: "0.0.1"
   archive:
     dependency: transitive
     description:
@@ -1111,5 +1118,5 @@ packages:
     source: hosted
     version: "2.2.1"
 sdks:
-  dart: ">=3.4.1 <4.0.0"
+  dart: ">=3.4.3 <4.0.0"
   flutter: ">=3.22.1"

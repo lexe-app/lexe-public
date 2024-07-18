@@ -1,8 +1,8 @@
+import 'package:app_rs_dart/ffi/ffi.dart' show AppHandle, Config, DeployEnv;
+import 'package:app_rs_dart/frb_generated.dart' show AppRs;
+import 'package:app_rs_dart/load.dart' show appRsLib;
 import 'package:flutter/material.dart';
 import 'package:intl/intl_standalone.dart' as intl_standalone;
-import 'package:lexeapp/app_rs/ffi/ffi.dart' show AppHandle, Config, DeployEnv;
-import 'package:lexeapp/app_rs/frb_generated.dart' show AppRs;
-import 'package:lexeapp/app_rs/load.dart' show appRsLib;
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
