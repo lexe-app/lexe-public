@@ -17,13 +17,14 @@ Pod::Spec.new do |s|
   # `../src/*` so that the C sources can be shared among all target platforms.
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
+
   s.dependency 'Flutter'
   s.platform = :ios, '12.0'
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     # Don't build Intel binaries to reduce build time.
-    'EXCLUDED_ARCHS[sdk=iphone*]' => 'i386',
-    'EXCLUDED_ARCHS[sdk=iphone*]' => 'x86_64',
+    'EXCLUDED_ARCHS[sdk=iphone*]' => 'i386 x86_64',
+    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libapp_rs.a',
   }
   s.swift_version = '5.0'
 
@@ -33,5 +34,6 @@ Pod::Spec.new do |s|
     :name => 'Build app_rs_dart shared library',
     :script => '${PODS_TARGET_SRCROOT}/../build_ios_macos.sh ios',
     :execution_position => :before_compile,
+    :output_files => ['${BUILT_PRODUCTS_DIR}/libapp_rs.a'],
   }
 end

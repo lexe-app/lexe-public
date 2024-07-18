@@ -24,6 +24,7 @@ Pod::Spec.new do |s|
     'DEFINES_MODULE' => 'YES',
     # Don't build Intel binaries to reduce build time.
     'EXCLUDED_ARCHS[sdk=macos*]' => 'x86_64',
+    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libapp_rs.a',
   }
   s.swift_version = '5.0'
 
@@ -33,5 +34,6 @@ Pod::Spec.new do |s|
     :name => 'Build app_rs_dart shared library',
     :script => '${PODS_TARGET_SRCROOT}/../build_ios_macos.sh macos',
     :execution_position => :before_compile,
+    :output_files => ['${BUILT_PRODUCTS_DIR}/libapp_rs.a'],
   }
 end
