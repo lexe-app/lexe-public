@@ -1,14 +1,13 @@
 // Ignore this lint as flutter_rust_bridge ffi errors don't impl Error/Exception...
 // ignore_for_file: only_throw_errors
 
+import 'package:app_rs_dart/ffi/ffi.dart'
+    show debugUnconditionalError, debugUnconditionalPanic;
+import 'package:app_rs_dart/frb_generated.dart';
+import 'package:app_rs_dart/load.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
     show PanicException;
 import 'package:flutter_test/flutter_test.dart' show expect, test;
-
-import 'package:lexeapp/app_rs/ffi/ffi.dart'
-    show debugUnconditionalError, debugUnconditionalPanic;
-import 'package:lexeapp/app_rs/frb_generated.dart';
-import 'package:lexeapp/app_rs/load.dart';
 import 'package:lexeapp/result.dart';
 
 int conjure3() => 3;

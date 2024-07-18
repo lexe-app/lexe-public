@@ -2,15 +2,15 @@
 
 // ignore_for_file: camel_case_types
 
-import 'package:flutter/material.dart';
-import 'package:lexeapp/address_format.dart' as address_format;
-import 'package:lexeapp/app_rs/ffi/ffi.dart'
+import 'package:app_rs_dart/ffi/ffi.dart'
     show
         ConfirmationPriority,
         FeeEstimate,
         PaymentKind,
         PreflightPayOnchainResponse;
-import 'package:lexeapp/app_rs/ffi/ffi.ext.dart';
+import 'package:app_rs_dart/ffi/ffi.ext.dart';
+import 'package:flutter/material.dart';
+import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,

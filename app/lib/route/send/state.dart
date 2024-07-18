@@ -2,9 +2,7 @@
 
 // ignore_for_file: camel_case_types
 
-import 'package:flutter/material.dart' show immutable;
-import 'package:lexeapp/address_format.dart' as address_format;
-import 'package:lexeapp/app_rs/ffi/ffi.dart'
+import 'package:app_rs_dart/ffi/ffi.dart'
     show
         AppHandle,
         Balance,
@@ -26,7 +24,9 @@ import 'package:lexeapp/app_rs/ffi/ffi.dart'
         PreflightPayOnchainRequest,
         PreflightPayOnchainResponse,
         paymentUriResolveBest;
-import 'package:lexeapp/app_rs/ffi/ffi.ext.dart';
+import 'package:app_rs_dart/ffi/ffi.ext.dart';
+import 'package:flutter/material.dart' show immutable;
+import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
 

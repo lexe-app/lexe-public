@@ -2,11 +2,11 @@ import 'dart:async' show unawaited;
 import 'dart:math' show max;
 import 'dart:ui' as ui;
 
+import 'package:app_rs_dart/ffi/ffi.dart' show AppHandle, Config;
 import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
-import 'package:lexeapp/app_rs/ffi/ffi.dart' show AppHandle, Config;
 import 'package:lexeapp/components.dart'
     show CarouselIndicatorsAndButtons, LxFilledButton, LxOutlinedButton;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;

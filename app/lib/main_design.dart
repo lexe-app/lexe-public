@@ -7,12 +7,7 @@
 import 'dart:async';
 import 'dart:typed_data' show Uint8List;
 
-import 'package:collection/collection.dart';
-import 'package:flutter/material.dart';
-// import 'package:flutter_markdown/flutter_markdown.dart';
-// import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
-import 'package:intl/intl.dart' show Intl;
-import 'package:lexeapp/app_rs/ffi/ffi.dart'
+import 'package:app_rs_dart/ffi/ffi.dart'
     show
         App,
         AppHandle,
@@ -44,9 +39,14 @@ import 'package:lexeapp/app_rs/ffi/ffi.dart'
         ShortPaymentAndIndex,
         U8Array32,
         UpdatePaymentNote;
-import 'package:lexeapp/app_rs/ffi/ffi.ext.dart' show PaymentExt;
-import 'package:lexeapp/app_rs/frb_generated.dart' show AppRs;
-import 'package:lexeapp/app_rs/load.dart' show appRsLib;
+import 'package:app_rs_dart/ffi/ffi.ext.dart' show PaymentExt;
+import 'package:app_rs_dart/frb_generated.dart' show AppRs;
+import 'package:app_rs_dart/load.dart' show appRsLib;
+import 'package:collection/collection.dart';
+import 'package:flutter/material.dart';
+// import 'package:flutter_markdown/flutter_markdown.dart';
+// import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
+import 'package:intl/intl.dart' show Intl;
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/components.dart'
     show

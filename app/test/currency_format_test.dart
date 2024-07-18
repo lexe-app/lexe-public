@@ -1,6 +1,5 @@
+import 'package:app_rs_dart/ffi/ffi.dart' show PaymentDirection;
 import 'package:flutter_test/flutter_test.dart' show expect, test;
-
-import 'package:lexeapp/app_rs/ffi/ffi.dart' show PaymentDirection;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 
 void assertApproxEq(double actual, double expected, {double eps = 1e-9}) {

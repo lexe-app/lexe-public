@@ -10,9 +10,9 @@
 
 import 'dart:io' show Directory, Platform;
 
-import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
-import 'package:lexeapp/app_rs/ffi/ffi.dart'
+import 'package:app_rs_dart/ffi/ffi.dart'
     show Config, DeployEnv, Network, deployEnvFromStr, networkFromStr;
+import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
 import 'package:path_provider/path_provider.dart' as path_provider;
 
 /// `true` when the flutter app is built in debug mode with debugging info and
