@@ -1,6 +1,8 @@
 PODS:
   - app_links (1.0.0):
     - FlutterMacOS
+  - app_rs_dart (0.0.1):
+    - FlutterMacOS
   - AppAuth (1.7.5):
     - AppAuth/Core (= 1.7.5)
     - AppAuth/ExternalUserAgent (= 1.7.5)
@@ -40,6 +42,7 @@ PODS:
 
 DEPENDENCIES:
   - app_links (from `Flutter/ephemeral/.symlinks/plugins/app_links/macos`)
+  - app_rs_dart (from `Flutter/ephemeral/.symlinks/plugins/app_rs_dart/macos`)
   - file_selector_macos (from `Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos`)
   - flutter_zxing (from `Flutter/ephemeral/.symlinks/plugins/flutter_zxing/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
@@ -58,6 +61,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   app_links:
     :path: Flutter/ephemeral/.symlinks/plugins/app_links/macos
+  app_rs_dart:
+    :path: Flutter/ephemeral/.symlinks/plugins/app_rs_dart/macos
   file_selector_macos:
     :path: Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos
   flutter_zxing:
@@ -75,6 +80,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   app_links: 10e0a0ab602ffaf34d142cd4862f29d34b303b2a
+  app_rs_dart: c93ef26337ec95ee84c86291cd39e0aa04b297d0
   AppAuth: 501c04eda8a8d11f179dbe8637b7a91bb7e5d2fa
   file_selector_macos: 54fdab7caa3ac3fc43c9fac4d7d8d231277f8cf2
   flutter_zxing: ea030278aa2a051cd81a5b0053be9d0569d11c9a
