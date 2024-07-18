@@ -7,7 +7,7 @@ use crate::enclave::Measurement;
 use crate::test_utils::arbitrary;
 
 /// The semver version and measurement of a node release.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct NodeRelease {
     /// e.g. "0.1.0", "0.0.0-dev.1"
