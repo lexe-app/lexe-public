@@ -35,7 +35,7 @@ ExternalLibrary _loadLibraryNormal() {
   } else if (io.Platform.isWindows) {
     return ExternalLibrary.open("app_rs_dart.dll");
   } else {
-    throw UnsupportedError('Unknown platform: ${io.Platform.operatingSystem}');
+    throw UnsupportedError("Unknown platform: ${io.Platform.operatingSystem}");
   }
 }
 
@@ -46,12 +46,15 @@ ExternalLibrary _loadLibraryNormal() {
 /// `cargo build -p app-rs` just before.
 ExternalLibrary _loadLibraryUnitTest() {
   if (io.Platform.isMacOS) {
-    // cargo outputs `libapp_rs_dart.dylib` by default
-    return ExternalLibrary.open("../target/debug/libapp_rs_dart.dylib");
+    return ExternalLibrary.open("../target/debug/libapp_rs.dylib");
   } else if (io.Platform.isLinux) {
-    return ExternalLibrary.open("../target/debug/libapp_rs_dart.so");
+    return ExternalLibrary.open("../target/debug/libapp_rs.so");
+  } else if (io.Platform.isWindows) {
+    // phlip9: untested
+    return ExternalLibrary.open("../target/debug/libapp_rs.dll");
   } else {
-    throw UnsupportedError("Unsupported unit test platform");
+    throw UnsupportedError(
+        "Unsupported unit test platform: ${io.Platform.operatingSystem}");
   }
 }
 
