@@ -9,46 +9,49 @@
 # ```bash
 # $ pod lib lint app_rs_dart/macos/app_rs_dart.podspec --verbose
 # ```
+#
+# How this script integrates with the .podspec:
+#
+# 1. The podspec `script_phase` runs this script.
+# 2. This script `cargo build`'s a separate `libapp_rs.a` for each `$ARCHS`.
+# 3. This script `lipo`'s the separate libs into a single unified `libapp_rs.a`,
+#    in `$BUILT_PRODUCTS_DIR/libapp_rs.a`.
+# 4. After this script, the podspec compiles a tiny
+#    `app_rs_dart/{ios|macos}/Classes/app_rs_dart.c` -> `app_rs_dart.o`,
+#    which contains a few symbols that Flutter injects.
+# 5. The podspec links `app_rs_dart.o` and the unified `libapp_rs.a` into the
+#    final `$BUILT_PRODUCTS_DIR/app_rs_dart.framework/app_rs_dart`
+#    (magic apple shared library bundle thing).
+# 6. codesigning, dead code elimination, stripping, postprocessing, etc...
+#
 
 set -euo pipefail
 set -x
 
-# Print out original env/cwd/script path
-
-env | sort
-
-echo "==========="
-echo "==========="
-echo "==========="
+# # Print out original env/cwd/script path
+# env | sort
 
 # Important envs from Xcode/CocoaPods:
 #
 # ACTION (ex: "build", "clean")
 # ARCHS (ex: space separated list of "arm64", "armv7", "x86_64")
+# BUILT_PRODUCTS_DIR (the build output directory)
 # CONFIGURATION (ex: "Debug", "Release")
 # LD_DYLIB_INSTALL_NAME (ex: "@rpath/app_rs_dart.framework/Versions/A/app_rs_dart")
 # PLATFORM_NAME (ex: "macosx", "iphoneos", "iphonesimulator")
-# PODS_CONFIGURATION_BUILD_DIR (the build output directory)
-# PODS_TARGET_SRCROOT (ex: "app_rs_dart/macos" or "app_rs_dart/ios")
+# PODS_TARGET_SRCROOT (ex: "app_rs_dart/macos" or "app_rs_dart/ios" in the repo)
 # PRODUCT_NAME (ex: "app_rs_dart")
 # SDK_NAMES (ex: "macosx14.4")
-# SRCROOT (???)
 
-printenv ACTION
-printenv ARCHS
-printenv CONFIGURATION
-printenv LD_DYLIB_INSTALL_NAME
-printenv PLATFORM_NAME
-printenv PODS_CONFIGURATION_BUILD_DIR
-printenv PODS_TARGET_SRCROOT
-printenv PRODUCT_NAME
-printenv SDK_NAMES
-printenv SRCROOT
-printenv TARGET_TEMP_DIR
-
-echo "==========="
-echo "==========="
-echo "==========="
+# printenv ACTION || true
+# printenv ARCHS || true
+# printenv BUILT_PRODUCTS_DIR || true
+# printenv CONFIGURATION || true
+# printenv LD_DYLIB_INSTALL_NAME || true
+# printenv PLATFORM_NAME || true
+# printenv PODS_TARGET_SRCROOT || true
+# printenv PRODUCT_NAME || true
+# printenv SDK_NAMES || true
 
 #
 # Reading input from Xcode/CocoaPods envs
@@ -60,12 +63,9 @@ ARCHS="${ARCHS:-arm64}"
 CONFIGURATION="${CONFIGURATION:-Debug}"
 PLATFORM_NAME="${PLATFORM_NAME:-macosx}"
 PRODUCT_NAME="${PRODUCT_NAME:-app_rs_dart}"
-LD_DYLIB_INSTALL_NAME="${LD_DYLIB_INSTALL_NAME:-@rpath/$PRODUCT_NAME.framework/Versions/A/$PRODUCT_NAME}"
+# LD_DYLIB_INSTALL_NAME="${LD_DYLIB_INSTALL_NAME:-@rpath/$PRODUCT_NAME.framework/Versions/A/$PRODUCT_NAME}"
 
 export NO_COLOR=1
-
-# Place Rust toolchain first.
-export PATH="$HOME/.cargo/bin:$PATH";
 
 # app_rs_dart/ directory
 APP_RS__APP_RS_DART_DIR="$(dirname "$0")"
@@ -86,19 +86,13 @@ case "$1" in
     ;;
 esac
 
-# The final lipo'd output shared libs
+# The lipo'd output shared libs
 APP_RS__OUT=""
-if [[ -n "$PODS_CONFIGURATION_BUILD_DIR" ]]; then
-  APP_RS__OUT="$PODS_CONFIGURATION_BUILD_DIR/$PRODUCT_NAME/$PRODUCT_NAME.framework/$PRODUCT_NAME"
+if [[ -n "$BUILT_PRODUCTS_DIR" ]]; then
+  APP_RS__OUT="$BUILT_PRODUCTS_DIR/libapp_rs.a"
 else
-  APP_RS__OUT="$(mktemp)"
+  APP_RS__OUT="$(mktemp).a"
   trap 'rm -rf $APP_RS__OUT' EXIT
-fi
-
-# Don't use ios/watchos linker for build scripts and proc macros
-if [[ "$APP_RS__POD_TARGET" == "ios" ]]; then
-  export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=/usr/bin/ld
-  export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=/usr/bin/ld
 fi
 
 # Xcode PLATFORM_NAME -> rust target_os 
@@ -133,14 +127,16 @@ esac
 
 # Xcode ARCHS -> rust target triples
 APP_RS__TARGET_TRIPLES=""
-# All built libapp_rs.dylib files in target/ directory
+# All built libapp_rs.a files in target/ directory
 APP_RS__TARGET_DIR_LIBS=""
 for arch in $ARCHS; do
+  os="$APP_RS__TARGET_OS"
   if [[ "$arch" == "arm64" ]]; then arch=aarch64; fi
-  if [[ "$arch" == "i386" && "$APP_RS__TARGET_OS" != "ios" ]]; then arch=i686; fi
-  target="${arch}-apple-$APP_RS__TARGET_OS"
+  if [[ "$arch" == "i386" && "$os" != "ios" ]]; then arch=i686; fi
+  if [[ "$arch" == "x86_64" && "$os" == "ios-sim" ]]; then os="ios"; fi
+  target="${arch}-apple-${os}"
   APP_RS__TARGET_TRIPLES+=" $target"
-  APP_RS__TARGET_DIR_LIBS+=" $APP_RS__TARGET_DIR/$target/$APP_RS__CARGO_PROFILE/libapp_rs.dylib"
+  APP_RS__TARGET_DIR_LIBS+=" $APP_RS__TARGET_DIR/$target/$APP_RS__CARGO_PROFILE/libapp_rs.a"
 done
 
 #
@@ -179,27 +175,32 @@ if [[ "$ACTION" == "clean" ]]; then
   exit 0
 fi
 
+# TODO(phlip9): do I still need this?
+# # Don't use ios/watchos linker for build scripts and proc macros
+# if [[ "$APP_RS__POD_TARGET" == "ios" ]]; then
+#   export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=/usr/bin/ld
+#   export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=/usr/bin/ld
+# fi
+
 # Xcode build -> 'cargo build' for each target
 for target in $APP_RS__TARGET_TRIPLES; do
-  cargo rustc -p app-rs \
-    --lib --crate-type=cdylib \
-    --target=$target \
-    $APP_RS__CARGO_PROFILE_ARG
+  # clear envs
+  env --ignore-environment \
+    PATH="$HOME/.cargo/bin:$PATH" HOME="$HOME" LC_ALL="$LC_ALL" \
+    cargo rustc -p app-rs \
+      --lib --crate-type=staticlib \
+      --target=$target \
+      $APP_RS__CARGO_PROFILE_ARG
 done
 
 popd
 
 #
-# Use lipo to merge all the separate per-target .dylib's into one universal
-# dylib, dumping it into the final output location.
+# Use lipo to merge all the separate per-target libapp_rs.a's into one universal
+# libapp_rs.a and dump it into the final output location.
 #
 
 lipo -create -output "$APP_RS__OUT" $APP_RS__TARGET_DIR_LIBS
-
-install_name_tool -id "$LD_DYLIB_INSTALL_NAME" "$APP_RS__OUT"
-
-ls -lah $APP_RS__OUT
-file $APP_RS__OUT
 
 #
 # TODO(phlip9): hook into Xcode's dependency tracking, so we don't have to rerun
