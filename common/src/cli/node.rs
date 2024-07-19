@@ -75,27 +75,6 @@ pub struct RunArgs {
     pub untrusted_deploy_env: DeployEnv,
 }
 
-#[cfg(any(test, feature = "test-utils"))]
-impl Default for RunArgs {
-    fn default() -> Self {
-        use crate::test_utils::{
-            DUMMY_BACKEND_URL, DUMMY_ESPLORA_URL, DUMMY_RUNNER_URL,
-        };
-        Self {
-            user_pk: UserPk::from_u64(1), // Test user
-            network: Network::REGTEST,
-            shutdown_after_sync: false,
-            inactivity_timer_sec: 3600,
-            backend_url: Some(DUMMY_BACKEND_URL.to_owned()),
-            runner_url: Some(DUMMY_RUNNER_URL.to_owned()),
-            esplora_urls: vec![DUMMY_ESPLORA_URL.to_owned()],
-            lsp: LspInfo::dummy(),
-            allow_mock: false,
-            untrusted_deploy_env: DeployEnv::Dev,
-        }
-    }
-}
-
 impl ToCommand for RunArgs {
     fn append_args(&self, cmd: &mut Command) {
         cmd.arg("run").arg(&self.to_string());
@@ -141,20 +120,6 @@ pub struct ProvisionArgs {
     /// The current deploy network passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.
     pub untrusted_network: Network,
-}
-
-#[cfg(any(test, feature = "test-utils"))]
-impl Default for ProvisionArgs {
-    fn default() -> Self {
-        use crate::test_utils::{DUMMY_BACKEND_URL, DUMMY_RUNNER_URL};
-        Self {
-            backend_url: DUMMY_BACKEND_URL.to_owned(),
-            runner_url: DUMMY_RUNNER_URL.to_owned(),
-            oauth: None,
-            untrusted_deploy_env: DeployEnv::Dev,
-            untrusted_network: Network::REGTEST,
-        }
-    }
 }
 
 impl ToCommand for ProvisionArgs {
