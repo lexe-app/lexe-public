@@ -1,11 +1,10 @@
 // Ignore this lint as flutter_rust_bridge ffi errors don't impl Error/Exception...
 // ignore_for_file: only_throw_errors
 
+import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
 import 'package:app_rs_dart/ffi/ffi.dart'
     show debugUnconditionalError, debugUnconditionalPanic;
 import 'package:app_rs_dart/frb.dart' show PanicException;
-import 'package:app_rs_dart/frb_generated.dart';
-import 'package:app_rs_dart/load.dart';
 import 'package:flutter_test/flutter_test.dart' show expect, test;
 import 'package:lexeapp/result.dart';
 
@@ -32,7 +31,7 @@ void expectFirstLineEq(final String? actual, final String? expected) {
 }
 
 Future<void> main() async {
-  await AppRs.init(externalLibrary: appRsLib);
+  await app_rs_dart.init();
 
   test("result : operator == and hashCode", () {
     const Result<int, void> ok1 = Ok(5);

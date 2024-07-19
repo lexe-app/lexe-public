@@ -1,6 +1,5 @@
+import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
 import 'package:app_rs_dart/ffi/ffi.dart' show AppHandle, Config, DeployEnv;
-import 'package:app_rs_dart/frb_generated.dart' show AppRs;
-import 'package:app_rs_dart/load.dart' show appRsLib;
 import 'package:flutter/material.dart';
 import 'package:intl/intl_standalone.dart' as intl_standalone;
 import 'package:lexeapp/cfg.dart' as cfg;
@@ -21,8 +20,8 @@ Future<void> main() async {
 
   WidgetsFlutterBinding.ensureInitialized();
 
-  // TODO(phlip9): do we have to init frb here?
-  await AppRs.init(externalLibrary: appRsLib);
+  // Init native Rust ffi bindings.
+  await app_rs_dart.init();
 
   // TODO(phlip9): allow overriding default locale in preferences.
   // Intl.defaultLocale = settings.getUserPreferredLocale();
