@@ -1,6 +1,6 @@
 // The Android Gradle Plugin builds the native code with the Android NDK.
 
-group = "com.example.app_rs_dart"
+group = "app.lexe.app_rs_dart"
 version = "1.0"
 
 buildscript {
@@ -26,7 +26,7 @@ apply plugin: "com.android.library"
 
 android {
     if (project.android.hasProperty("namespace")) {
-        namespace = "com.example.app_rs_dart"
+        namespace = "app.lexe.app_rs_dart"
     }
 
     // Bumping the plugin compileSdk version requires all clients of this plugin
@@ -37,22 +37,11 @@ android {
     // declared in /android/app/build.gradle file of the Flutter project.
     // Replace it with a version number if this plugin requires a specific NDK version.
     // (e.g. ndkVersion "23.1.7779620")
-    ndkVersion = android.ndkVersion
 
-    // Invoke the shared CMake build with the Android Gradle Plugin.
-    externalNativeBuild {
-        cmake {
-            path = "../src/CMakeLists.txt"
-
-            // The default CMake version for the Android Gradle Plugin is 3.10.2.
-            // https://developer.android.com/studio/projects/install-ndk#vanilla_cmake
-            //
-            // The Flutter tooling requires that developers have CMake 3.10 or later
-            // installed. You should not increase this version, as doing so will cause
-            // the plugin to fail to compile for some customers of the plugin.
-            // version "3.10.2"
-        }
-    }
+    // Need more recent NDK version or lib fails to link
+    // Needs to match the value in `app/android/app/build.gradle`.
+    ndkVersion = "27.0.11902837"
+    // ndkVersion = android.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
@@ -61,5 +50,90 @@ android {
 
     defaultConfig {
         minSdk = 21
+    }
+}
+
+//
+// Custom gradle build hook
+//
+// Runs `cargo ndk build -p app-rs` to get the native shared library and tells
+// gradle to include it in the built package.
+//
+
+// Dump gradle values
+//
+// [`android`](https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:build-system/gradle-core/src/main/java/com/android/build/gradle/BaseExtension.kt)
+//
+// // ex: "android-34"
+// println "app_rs_dart: android.compileSdkVersion: ${project.android.compileSdkVersion}"
+// // ex: 21
+// println "app_rs_dart: android.minSdkVersion.apiLevel: ${project.android.defaultConfig.minSdkVersion.apiLevel}"
+// // ex: "/Users/phlip9/.local/android"
+// println "app_rs_dart: android.sdkDirectory: '${project.android.sdkDirectory}'"
+// // ex: "/Users/phlip9/.local/android/ndk/23.1.7779620"
+// println "app_rs_dart: android.ndkDirectory: '${project.android.ndkDirectory}'"
+// // ex: "/Users/phlip9/dev/lexe/public/app/build/app_rs_dart"
+// println "app_rs_dart: project.buildDir: '${project.buildDir}'"
+
+// TODO(phlip9): gradle can tell us which targets to build
+//
+// for (project in rootProject.childProjects) {
+//     for (plugin in project.value.getPlugins()) {
+//         println "app_rs_dart: plugin.class.name: ${plugin.class.name}"
+//         if (plugin.class.name == "FlutterPlugin") {
+//             println "app_rs_dart: FlutterPlugin: $plugin"
+//             println "app_rs_dart: target platforms: ${plugin.getTargetPlatforms().collect()}"
+//         }
+//     }
+// }
+
+// project: [`Project`](https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.api/-project/index.html)
+project.android.buildTypes.all { buildType ->
+    def profileName = buildType.name.capitalize()
+    def profileArg = buildType.isDebuggable() ? null : '--release'
+    def hookTaskName = "merge${profileName}NativeLibs"
+
+    def outDir = "${project.buildDir}/jniLibs/${buildType.name}"
+    def jniLibs = project.android.sourceSets.maybeCreate(buildType.name).jniLibs;
+    jniLibs.srcDir(new File(outDir))
+
+    // println "app_rs_dart: android.buildTypes -> $profileName"
+
+    // Register a new task that runs `cargo ndk build` with the right debug vs
+    // release build profile. We don't currently build the native Rust lib
+    // differently for different `productFlavors`.
+    // 
+    // tasks: [`TaskCollection`](https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.api.tasks/-task-collection/index.html)
+    // [`Exec`](https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.api.tasks/-exec/index.html)
+    def cargoBuildTask = project.tasks.register("cargoBuild$profileName", Exec) {
+        workingDir = ".."
+        commandLine "./build_rust_android.sh"
+
+        if (profileArg != null) {
+            args profileArg
+        }
+
+        // Set some environment variables
+        // `cargo ndk` will use this to pick the right Android NDK toolchain
+        environment ANDROID_NDK_HOME: project.android.ndkDirectory
+        // Where we're supposed to dump the `libapp_rs.so` shared libs.
+        environment APP_RS__OUT_DIR: outDir
+        // "android-34" -> "34"
+        environment APP_RS__COMPILE_SDK_VERSION: project.android.compileSdkVersion.substring(8)
+    }
+
+    // println "app_rs_dart: registered: $cargoBuildTask"
+
+    // Run cargo build (with the right profile) before of these tasks:
+    //   `mergeDebugNativeLibs`
+    //   `mergeProfileNativeLibs`
+    //   `mergeReleaseNativeLibs`
+    //
+    // task: [`Task`](https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.api/-task/depends-on.html)
+    project.tasks.whenTaskAdded { task ->
+        if (task.name == hookTaskName) {
+            // println "app_rs_dart: $task --dependsOn-> $cargoBuildTask"
+            task.dependsOn cargoBuildTask
+        }
     }
 }
