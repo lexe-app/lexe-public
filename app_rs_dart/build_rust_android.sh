@@ -68,7 +68,7 @@ fi
 if ! rustup target list --installed | grep -Eq "^$TARGET$"; then
   echo "info: Installing missing Rust toolchain for target: $TARGET"
   if ! rustup target add "$TARGET"; then
-    echo >&2 "error: failed to install missing rust toolchain with 'rustup target add $target'"
+    echo >&2 "error: failed to install missing rust toolchain with 'rustup target add $TARGET'"
     exit 1
   fi
 fi
@@ -95,7 +95,7 @@ done
 # Run `cargo ndk build` in a clean env
 env --ignore-environment "${clean_envs[@]}" \
   cargo ndk \
-    --target="$TARGET" \
-    --output-dir="$APP_RS__OUT_DIR" \
-    --platform="$APP_RS__COMPILE_SDK_VERSION" \
-    -- rustc --lib --crate-type=cdylib -p app-rs "$@"
+  --target="$TARGET" \
+  --output-dir="$APP_RS__OUT_DIR" \
+  --platform="$APP_RS__COMPILE_SDK_VERSION" \
+  -- rustc --lib --crate-type=cdylib -p app-rs "$@"
