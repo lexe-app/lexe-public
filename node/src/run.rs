@@ -35,11 +35,10 @@ use lexe_ln::{
     },
     background_processor::LexeBackgroundProcessor,
     channel_monitor,
-    esplora::LexeEsplora,
+    esplora::{self, LexeEsplora},
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
-    p2p,
-    p2p::ChannelPeerUpdate,
+    p2p::{self, ChannelPeerUpdate},
     payments::manager::PaymentsManager,
     sync, test_event,
     traits::LexeInnerPersister,
@@ -226,9 +225,10 @@ impl UserNode {
         // Validate esplora url
         let esplora_url = &args.esplora_url;
         info!(%esplora_url);
-        network
-            .validate_esplora_url(esplora_url)
-            .context("Invalid esplora url")?;
+        ensure!(
+            esplora::url_is_whitelisted(esplora_url, network),
+            "Esplora url is not in whitelist: {esplora_url}"
+        );
 
         // Init LDK transaction sync; share LexeEsplora's connection pool
         // XXX(max): The esplora url passed to LDK is security-critical and thus

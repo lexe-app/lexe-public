@@ -12,8 +12,8 @@ use anyhow::{anyhow, Context};
 use bdk::FeeRate;
 use bitcoin::{blockdata::transaction::Transaction, OutPoint};
 use common::{
-    constants, ln::hashes::LxTxid, shutdown::ShutdownChannel, task::LxTask,
-    test_event::TestEvent, Apply,
+    cli::Network, constants, ln::hashes::LxTxid, shutdown::ShutdownChannel,
+    task::LxTask, test_event::TestEvent, Apply,
 };
 use esplora_client::{api::OutputStatus, AsyncClient};
 use lightning::chain::chaininterface::{
@@ -48,6 +48,20 @@ const ALL_CONF_TARGETS: [ConfirmationTarget; 4] = [
     ConfirmationTarget::Background,
     ConfirmationTarget::MempoolMinimum,
 ];
+
+/// Whether this esplora url is contained in the whitelist for this network.
+#[must_use]
+pub fn url_is_whitelisted(esplora_url: &str, network: Network) -> bool {
+    match network {
+        Network::MAINNET =>
+            constants::MAINNET_ESPLORA_WHITELIST.contains(&esplora_url),
+        Network::TESTNET =>
+            constants::TESTNET_ESPLORA_WHITELIST.contains(&esplora_url),
+        Network::SIGNET => todo!("Don't have a signet esplora whitelist yet"),
+        // Regtest can use whatever
+        Network::REGTEST => true,
+    }
+}
 
 /// The minimum information about a [`bitcoin::Transaction`] required to query
 /// Esplora for if the transaction has been confirmed or replaced.
