@@ -59,9 +59,13 @@ pub struct RunArgs {
     )]
     pub runner_url: Option<String>,
 
-    /// protocol://host:port of Lexe's Esplora server.
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
-    pub esplora_url: String,
+    /// Esplora urls which someone in Lexe's infra says we should use.
+    /// We'll only use urls contained in our whitelist.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_vec_simple_string()")
+    )]
+    pub esplora_urls: Vec<String>,
 
     /// info relating to Lexe's LSP.
     pub lsp: LspInfo,
@@ -84,7 +88,7 @@ impl Default for RunArgs {
             inactivity_timer_sec: 3600,
             backend_url: Some(DUMMY_BACKEND_URL.to_owned()),
             runner_url: Some(DUMMY_RUNNER_URL.to_owned()),
-            esplora_url: DUMMY_ESPLORA_URL.to_owned(),
+            esplora_urls: vec![DUMMY_ESPLORA_URL.to_owned()],
             lsp: LspInfo::dummy(),
             allow_mock: false,
             untrusted_deploy_env: DeployEnv::Dev,

@@ -168,10 +168,23 @@ impl UserNode {
         // Collect all handles to spawned tasks
         let mut tasks = Vec::with_capacity(10);
 
+        // Validate esplora url. Note that `network` is not validated yet.
+        // TODO(max): Randomize ordering and try urls in order
+        let esplora_url = &args
+            .esplora_urls
+            .first()
+            .cloned()
+            .context("No esplora url was provided")?;
+        info!(%esplora_url);
+        ensure!(
+            esplora::url_is_whitelisted(esplora_url, args.network),
+            "Esplora url is not in whitelist: {esplora_url}"
+        );
+
         // Initialize esplora while fetching provisioned secrets
         let (try_esplora, try_fetch) = tokio::join!(
             LexeEsplora::init(
-                args.esplora_url.clone(),
+                esplora_url.clone(),
                 test_event_tx.clone(),
                 shutdown.clone()
             ),
@@ -221,14 +234,6 @@ impl UserNode {
             node_mode,
             args.lsp.url.clone(),
         )?;
-
-        // Validate esplora url
-        let esplora_url = &args.esplora_url;
-        info!(%esplora_url);
-        ensure!(
-            esplora::url_is_whitelisted(esplora_url, network),
-            "Esplora url is not in whitelist: {esplora_url}"
-        );
 
         // Init LDK transaction sync; share LexeEsplora's connection pool
         // XXX(max): The esplora url passed to LDK is security-critical and thus
