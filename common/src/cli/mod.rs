@@ -1,6 +1,6 @@
 use std::{fmt, fmt::Display, path::Path, process::Command, str::FromStr};
 
-use anyhow::{bail, ensure, Context};
+use anyhow::Context;
 use bitcoin::{
     blockdata::constants::{self, ChainHash},
     hash_types::BlockHash,
@@ -16,7 +16,6 @@ use serde::{Deserialize, Serialize};
 use crate::test_utils::arbitrary;
 use crate::{
     api::{NodePk, Scid},
-    constants::{MAINNET_ESPLORA_WHITELIST, TESTNET_ESPLORA_WHITELIST},
     ln::{addr::LxSocketAddress, peer::ChannelPeer},
 };
 
@@ -125,28 +124,6 @@ impl Network {
     #[inline]
     pub fn genesis_chain_hash(self) -> ChainHash {
         constants::ChainHash::using_genesis_block(self.to_inner())
-    }
-
-    /// Validates the given esplora url against this network. Use this to check
-    /// that an esplora url is contained in the appropriate whitelist.
-    pub fn validate_esplora_url(
-        &self,
-        esplora_url: &str,
-    ) -> anyhow::Result<()> {
-        match *self {
-            Self::MAINNET => ensure!(
-                MAINNET_ESPLORA_WHITELIST.contains(&esplora_url),
-                "Esplora url not contained in mainnet whitelist",
-            ),
-            Self::TESTNET => ensure!(
-                TESTNET_ESPLORA_WHITELIST.contains(&esplora_url),
-                "Esplora url not contained in testnet whitelist",
-            ),
-            Self::SIGNET => bail!("Missing signet esplora whitelist"),
-            // Regtest can use whatever
-            Self::REGTEST => (),
-        }
-        Ok(())
     }
 }
 
