@@ -3,10 +3,9 @@
 
 import 'package:app_rs_dart/ffi/ffi.dart'
     show debugUnconditionalError, debugUnconditionalPanic;
+import 'package:app_rs_dart/frb.dart' show PanicException;
 import 'package:app_rs_dart/frb_generated.dart';
 import 'package:app_rs_dart/load.dart';
-import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
-    show PanicException;
 import 'package:flutter_test/flutter_test.dart' show expect, test;
 import 'package:lexeapp/result.dart';
 

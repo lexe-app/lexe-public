@@ -358,7 +358,7 @@ packages:
     source: hosted
     version: "2.0.20"
   flutter_rust_bridge:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: flutter_rust_bridge
       sha256: f703c4b50e253e53efc604d50281bbaefe82d615856f8ae1e7625518ae252e98
