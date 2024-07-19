@@ -5,16 +5,6 @@ edition.workspace = true
 license.workspace = true
 version.workspace = true
 
-# TODO(phlip9): use `cargo rustc --crate-type=cdylib` in various app builders so
-# we _only_ build the `cdylib` and don't waste time building the `lib`.
-[lib]
-crate-type = [
-    # Needed for Rust unit tests
-    "lib",
-    # Build dynamic lib to load in flutter app
-    "cdylib",
-]
-
 [dependencies]
 # --- LEXE --- #
 
