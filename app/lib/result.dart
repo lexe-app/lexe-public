@@ -2,8 +2,7 @@
 
 // ignore_for_file: nullable_type_in_catch_clause, only_throw_errors
 
-import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
-    show AnyhowException;
+import 'package:app_rs_dart/frb.dart' show AnyhowException;
 import 'package:meta/meta.dart' show immutable;
 
 /// [Result]s from the Rust FFI layer.
