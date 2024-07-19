@@ -160,11 +160,11 @@ done
 # Build app-rs in the cargo workspace
 #
 
-# Envs to propagate to `cargo build` 
+# Envs to propagate to `cargo build`
 clean_envs=("PATH=$HOME/.cargo/bin:$PATH" "HOME=$HOME" "LC_ALL=$LC_ALL")
 
 # Don't use ios/watchos linker for build scripts and proc macros
-if [[ "$APP_RS__POD_TARGET" == "ios" ]]; then
+if [[ $APP_RS__POD_TARGET == "ios" ]]; then
   clean_envs+=(
     "CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=/usr/bin/ld"
     "CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=/usr/bin/ld"
