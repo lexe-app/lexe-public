@@ -106,14 +106,14 @@ impl LexeEsplora {
         let google_ca_cert = reqwest11::Certificate::from_der(
             constants::GTS_ROOT_R1_CA_CERT_DER,
         )
-        .context("Invalid Google CA der cert")?;
-        let letsencrypt_ca_cert = reqwest11::Certificate::from_der(
+        .context("Invalid Google CA cert der")?;
+        let amazon_ca_cert = reqwest11::Certificate::from_der(
             constants::AMAZON_ROOT_CA_1_CERT_DER,
         )
-        .context("Invalid Google CA der cert")?;
+        .context("Invalid Amazon Root CA cert der")?;
         let reqwest_client = reqwest11::ClientBuilder::new()
             .add_root_certificate(google_ca_cert)
-            .add_root_certificate(letsencrypt_ca_cert)
+            .add_root_certificate(amazon_ca_cert)
             .timeout(ESPLORA_CLIENT_TIMEOUT)
             .build()
             .context("Failed to build reqwest client")?;
@@ -137,11 +137,12 @@ impl LexeEsplora {
             mempool_minimum_fees,
         });
 
-        // Do initial refresh of all fee estimates
+        // Do initial refresh of all fee estimates.
+        // This also checks if our Esplora API works.
         esplora
             .refresh_all_fee_estimates()
             .await
-            .context("Could not initial fee estimates")?;
+            .context("Initial fee estimates refresh failed")?;
 
         // Spawn refresh fees task
         let task = Self::spawn_refresh_fees_task(esplora.clone(), shutdown);
