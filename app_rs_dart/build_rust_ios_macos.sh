@@ -29,6 +29,8 @@ set -e
 set -o pipefail
 set -x
 
+export NO_COLOR=1
+
 # Important envs passed to us from Xcode/CocoaPods:
 #
 # ACTION (ex: "build", "clean")
@@ -42,7 +44,7 @@ set -x
 # SDK_NAMES (ex: "macosx14.4")
 
 #
-# Reading input from Xcode/CocoaPods envs
+# Read input from Xcode/CocoaPods envs
 #
 
 # Set some useful defaults so we can also run this script free-standing.
@@ -52,13 +54,18 @@ CONFIGURATION="${CONFIGURATION:-Debug}"
 PLATFORM_NAME="${PLATFORM_NAME:-macosx}"
 PRODUCT_NAME="${PRODUCT_NAME:-app_rs_dart}"
 
-export NO_COLOR=1
+#
+# Ensure we always build from workspace directory
+#
 
 # app_rs_dart/ directory
-APP_RS__APP_RS_DART_DIR="$(dirname "$0")"
+APP_RS__APP_RS_DART_DIR="$(realpath "$(dirname "$0")")"
 # workspace directory
-APP_RS__WORKSPACE_DIR="$APP_RS__APP_RS_DART_DIR/.."
+APP_RS__WORKSPACE_DIR="$(dirname "$APP_RS__APP_RS_DART_DIR")"
 APP_RS__TARGET_DIR="$APP_RS__WORKSPACE_DIR/target"
+
+# Enter workspace directory for duration of script
+pushd "$APP_RS__WORKSPACE_DIR"
 
 # Read the first arg, so we know which *.podspec is building us (or default to
 # macos)
@@ -157,7 +164,8 @@ for target in "${APP_RS__TARGET_TRIPLES[@]}"; do
 done
 
 #
-# Build app-rs in the cargo workspace
+# Build app-rs as a static library.
+# It gets linked into a libapp_rs.so shared library by `xcodebuild` later.
 #
 
 # Envs to propagate to `cargo build`
@@ -170,9 +178,6 @@ if [[ $APP_RS__POD_TARGET == "ios" ]]; then
     "CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=/usr/bin/ld"
   )
 fi
-
-# Build in cargo workspace
-pushd "$APP_RS__WORKSPACE_DIR"
 
 # Xcode clean -> cargo clean
 if [[ $ACTION == "clean" ]]; then
@@ -196,8 +201,6 @@ for target in "${APP_RS__TARGET_TRIPLES[@]}"; do
     --target="$target" \
     "${APP_RS__CARGO_PROFILE_ARG[@]}"
 done
-
-popd
 
 #
 # Use lipo to merge all the separate per-target libapp_rs.a's into one universal
@@ -224,3 +227,6 @@ lipo -create -output "$APP_RS__OUT" "${APP_RS__TARGET_DIR_LIBS[@]}"
 #  echo >> "$DEP_FILE_DST" "${SCRIPT_OUTPUT_FILE_0/ /\\\\ /}: ${BUILT_SRC/ /\\\\ /}"
 # done
 # cat "$DEP_FILE_DST"
+
+# Restore cwd
+popd
