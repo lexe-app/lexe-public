@@ -108,7 +108,7 @@ impl LexeEsplora {
         )
         .context("Invalid Google CA der cert")?;
         let letsencrypt_ca_cert = reqwest11::Certificate::from_der(
-            constants::LETSENCRYPT_ROOT_CA_CERT_DER,
+            constants::AMAZON_ROOT_CA_1_CERT_DER,
         )
         .context("Invalid Google CA der cert")?;
         let reqwest_client = reqwest11::ClientBuilder::new()

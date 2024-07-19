@@ -45,11 +45,13 @@ pub const MAINNET_ESPLORA_WHITELIST: [&str; 2] =
     [MAINNET_BLOCKSTREAM_ESPLORA, MAINNET_KUUTAMO_ESPLORA];
 
 // Testnet Esplora urls
+// Quickly test these by appending /fee-estimates and opening in browser,
+// e.g. "https://testnet.ltbl.io/api/fee-estimates"
 pub const TESTNET_BLOCKSTREAM_ESPLORA: &str =
     "https://blockstream.info/testnet/api";
 pub const TESTNET_KUUTAMO_ESPLORA: &str =
     "https://esplora.testnet.kuutamo.cloud";
-pub const TESTNET_LTBL_ESPLORA: &str = "https://testnet-electrs.ltbl.io:3004";
+pub const TESTNET_LTBL_ESPLORA: &str = "https://testnet.ltbl.io/api";
 pub const TESTNET_LEXE_ESPLORA: &str = "http://testnet.esplora.lexe.app:3001";
 pub const TESTNET_ESPLORA_WHITELIST: [&str; 4] = [
     TESTNET_BLOCKSTREAM_ESPLORA,
@@ -117,11 +119,11 @@ pub const GTS_ROOT_R4_CA_CERT_DER: &[u8] =
     include_bytes!("../data/google-trust-services-root-r4-ca-cert.der");
 
 /// The root CA cert for Amazon's Root CA 1, used by `ltbl.io`.
-// Serial Number=82:10:cf:b0:d2:40:e3:59:44:63:e0:bb:63:82:8b:00
-// Not Valid Before=Thursday, June 4, 2015 at 7:04:38 PM China Standard Time
-// Not Valid After=Monday, June 4, 2035 at 7:04:38 PM China Standard Time
-pub const LETSENCRYPT_ROOT_CA_CERT_DER: &[u8] =
-    include_bytes!("../data/letsencrypt-isrg-root-x1-cert.der");
+// Serial Number=06 6C 9F CF 99 BF 8C 0A 39 E2 F0 78 8A 43 E6 96 36 5B CA
+// Not Before=Monday, May 25, 2015 at 5:00:00 PM Pacific Daylight Time
+// Not After=Saturday, January 16, 2038 at 4:00:00 PM Pacific Standard Time
+pub const AMAZON_ROOT_CA_1_CERT_DER: &[u8] =
+    include_bytes!("../data/amazon-root-ca-1-cert.der");
 
 #[cfg(test)]
 mod test {
@@ -133,6 +135,6 @@ mod test {
     fn test_parse_ca_certs() {
         Certificate::from_der(LEXE_STAGING_CA_CERT_DER).unwrap();
         Certificate::from_der(GTS_ROOT_R1_CA_CERT_DER).unwrap();
-        Certificate::from_der(LETSENCRYPT_ROOT_CA_CERT_DER).unwrap();
+        Certificate::from_der(AMAZON_ROOT_CA_1_CERT_DER).unwrap();
     }
 }
