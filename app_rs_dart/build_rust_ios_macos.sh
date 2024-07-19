@@ -25,7 +25,8 @@
 # 6. codesigning, dead code elimination, stripping, postprocessing, etc...
 #
 
-set -eo pipefail
+set -e
+set -o pipefail
 set -x
 
 # Important envs passed to us from Xcode/CocoaPods:
@@ -131,7 +132,15 @@ done
 #
 # Install any missing rustup target toolchains
 #
+#
 
+# Ensure cargo is installed
+if ! command -v cargo &> /dev/null; then
+  echo >&2 "error: need to install cargo. See README.md"
+  exit 1
+fi
+
+# Ensure rustup is installed
 if ! command -v rustup &> /dev/null; then
   echo >&2 "error: need to install rustup. See README.md"
   exit 1
@@ -151,6 +160,18 @@ done
 # Build app-rs in the cargo workspace
 #
 
+# Envs to propagate to `cargo build` 
+clean_envs=("PATH=$HOME/.cargo/bin:$PATH" "HOME=$HOME" "LC_ALL=$LC_ALL")
+
+# Don't use ios/watchos linker for build scripts and proc macros
+if [[ "$APP_RS__POD_TARGET" == "ios" ]]; then
+  clean_envs+=(
+    "CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=/usr/bin/ld"
+    "CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=/usr/bin/ld"
+  )
+fi
+
+# Build in cargo workspace
 pushd "$APP_RS__WORKSPACE_DIR"
 
 # Xcode clean -> cargo clean
@@ -161,24 +182,15 @@ if [[ $ACTION == "clean" ]]; then
   done
 
   # clear envs
-  env --ignore-environment \
-    PATH="$HOME/.cargo/bin:$PATH" HOME="$HOME" LC_ALL="$LC_ALL" \
+  env --ignore-environment "${clean_envs[@]}" \
     cargo clean -p app-rs "${APP_RS__CARGO_TARGET_ARGS[@]}"
   exit 0
 fi
 
-# TODO(phlip9): do I still need this?
-# # Don't use ios/watchos linker for build scripts and proc macros
-# if [[ "$APP_RS__POD_TARGET" == "ios" ]]; then
-#   export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=/usr/bin/ld
-#   export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=/usr/bin/ld
-# fi
-
 # Xcode build -> 'cargo build' for each target
 for target in "${APP_RS__TARGET_TRIPLES[@]}"; do
   # clear envs
-  env --ignore-environment \
-    PATH="$HOME/.cargo/bin:$PATH" HOME="$HOME" LC_ALL="$LC_ALL" \
+  env --ignore-environment "${clean_envs[@]}" \
     cargo rustc -p app-rs \
     --lib --crate-type=staticlib \
     --target="$target" \

@@ -7,7 +7,7 @@ Pod::Spec.new do |s|
   s.version          = '0.0.1'
   s.summary          = 'Lexe app flutter/dart FFI'
   s.description      = 'Lexe app flutter/dart FFI'
-  s.homepage         = 'https://lexe.app/'
+  s.homepage         = 'https://github.com/lexe-app/lexe-public/tree/master/app_rs_dart'
   s.license          = { :type => 'PolyForm Noncommercial License 1.0.0', :file => '../../LICENSE.md' }
   s.author           = { 'Lexe Corporation' => 'noreply@lexe.app' }
   s.source           = { :path => '.' }
@@ -40,7 +40,7 @@ Pod::Spec.new do |s|
   # Run this script unconditionally on every build.
   s.script_phase = {
     :name => 'Build libapp_rs.a unified static library',
-    :script => '${PODS_TARGET_SRCROOT}/../build_ios_macos.sh macos',
+    :script => '${PODS_TARGET_SRCROOT}/../build_rust_ios_macos.sh macos',
     :execution_position => :before_compile,
     :output_files => ['${BUILT_PRODUCTS_DIR}/libapp_rs.a'],
   }
