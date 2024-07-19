@@ -7,6 +7,7 @@
 import 'dart:async';
 import 'dart:typed_data' show Uint8List;
 
+import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
 import 'package:app_rs_dart/ffi/ffi.dart'
     show
         App,
@@ -40,8 +41,6 @@ import 'package:app_rs_dart/ffi/ffi.dart'
         U8Array32,
         UpdatePaymentNote;
 import 'package:app_rs_dart/ffi/ffi.ext.dart' show PaymentExt;
-import 'package:app_rs_dart/frb_generated.dart' show AppRs;
-import 'package:app_rs_dart/load.dart' show appRsLib;
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 // import 'package:flutter_markdown/flutter_markdown.dart';
@@ -89,8 +88,8 @@ import 'package:rxdart_ext/rxdart_ext.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // TODO(phlip9): need to init here?
-  await AppRs.init(externalLibrary: appRsLib);
+  // Init native Rust ffi bindings.
+  await app_rs_dart.init();
 
   // Initialize date formatting locale data for ALL locales.
   await date_format.initializeDateLocaleData();
