@@ -40,8 +40,7 @@ fn find_app_rs_dir() -> Option<&'static Path> {
     None
 }
 
-fn path_to_string<P: AsRef<Path>>(path: P) -> anyhow::Result<String> {
-    let path = path.as_ref();
+fn path_to_string(path: &Path) -> anyhow::Result<String> {
     path.to_str().map(str::to_owned).ok_or_else(|| {
         format_err!("path is not valid UTF-8: '{}'", path.display())
     })
@@ -55,10 +54,11 @@ impl Args {
                  directory of the repo."
             )
         })?;
-        let app_dir = app_rs_dir.parent().unwrap().join("app_rs_dart");
+        let app_rs_dart_dir = app_rs_dir.parent().unwrap().join("app_rs_dart");
+        let workspace_dir = app_rs_dir.parent().unwrap();
 
         let ffi_generated_rs = app_rs_dir.join("src/ffi/ffi_generated.rs");
-        let ffi_generated_dart = app_dir.join("lib");
+        let ffi_generated_dart = app_rs_dart_dir.join("lib");
 
         // flutter_rust_bridge options
         // Docs: [`GenerateCommandArgsPrimary`](https://github.com/fzyzcjy/flutter_rust_bridge/blob/master/frb_codegen/src/binary/commands.rs#L52)
@@ -70,7 +70,7 @@ impl Args {
             // The Rust crate root dir.
             rust_root: Some(path_to_string(app_rs_dir)?),
             // The Dart package root dir.
-            dart_root: Some(path_to_string(app_dir)?),
+            dart_root: Some(path_to_string(&app_rs_dart_dir)?),
 
             // The comma-separated list of input Rust modules to generate Dart
             // interfaces for.
@@ -121,20 +121,16 @@ impl Args {
             "flutter_rust_bridge: failed to generate Rust+Dart ffi bindings ",
         ).unwrap();
 
-        // run `git diff --exit-code <maybe-changed-files>` to see if any files
+        // run `git diff --exit-code` to see if any files
         // changed
         if self.check {
-            let mut cmd = Command::new("git");
-            cmd.args(["diff", "--exit-code"]).args([
-                // TODO(phlip9): update
-                &ffi_generated_rs,
-                &ffi_generated_dart,
-                // &ffi_generated_api_dart,
-            ]);
-
-            let status = cmd.status().context(
-                "Failed to run `git diff` on generated ffi bindings",
-            )?;
+            let status = Command::new("git")
+                .args(["diff", "--exit-code"])
+                .current_dir(workspace_dir)
+                .status()
+                .context(
+                    "Failed to run `git diff` on generated ffi bindings",
+                )?;
 
             if !status.success() {
                 return Err(format_err!(
