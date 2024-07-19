@@ -67,5 +67,5 @@ ExternalLibrary _loadLibrary() {
   }
 }
 
-/// `app-rs` needs to be loaded as a shared library at runtime.
+/// The `app-rs` shared library that needs to be loaded at runtime.
 final ExternalLibrary appRsLib = _loadLibrary();

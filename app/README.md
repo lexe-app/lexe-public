@@ -186,7 +186,9 @@ extras;google;google_play_services
 # .. this goes on for a while
 ```
 
-Install these. You may need to update the version #'s.
+Install these. You may need to update the version #'s. They should generally
+match the values in [`app/android/app/build.gradle`](./android/app/build.gradle)
+and [`app_rs_dart/android/build.gradle`](../app_rs_dart/android/build.gradle).
 
 ```bash
 $ sdkmanager --install \
@@ -512,7 +514,7 @@ us to share code between our backend services, lightning nodes, and mobile apps.
 
 The native code is made available to the Flutter app via
 [`flutter_rust_bridge`](https://github.com/fzyzcjy/flutter_rust_bridge) in
-[`app/lib/ffi/ffi.dart`](lib/ffi/ffi.dart)
+[`app_rs_dart/lib/ffi/ffi.dart`](../app_rs_dart/lib/ffi/ffi.dart)
 
 [`app-rs`](../app-rs/README.md) is the Rust crate which contains the shared
 interface and code.
@@ -530,10 +532,11 @@ $ cargo run -p app-rs-codegen
 
 The current build process looks like this:
 
-1. A dev or CI instance runs `flutter run` or `flutter build`.
+1. A dev or CI instance runs `just flutter run` or `just flutter build`, which
+   builds the top-level `app` application.
 
-2. Flutter will build our `app_rs_dart` dart package, which contains the
-   dart-side ffi bindings and build system integrations. The top-level `app`
+2. Eventually, flutter will build the `app_rs_dart` dart package, which contains
+   the dart-side ffi bindings and build system integrations. The top-level `app`
    package depends on this package.
 
 2. While building `app_rs_dart`, `flutter` delegates to `gradle` (Android),
