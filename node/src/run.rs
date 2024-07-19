@@ -74,6 +74,7 @@ use crate::{
 #[allow(dead_code)] // Many unread fields are used as type annotations
 pub struct UserNode {
     // --- General --- //
+    // TODO(max): Can avoid some cloning by removing this field
     args: RunArgs,
     deploy_env: DeployEnv,
     ports: Ports,
@@ -168,23 +169,29 @@ impl UserNode {
         // Collect all handles to spawned tasks
         let mut tasks = Vec::with_capacity(10);
 
-        // Validate esplora url. Note that `network` is not validated yet.
-        // TODO(max): Randomize ordering and try urls in order
-        let esplora_url = &args
+        // Only accept esplora urls whitelisted in the given `network`.
+        // - Note that seeing a non-whitelisted url does not necessary mean we
+        //   are under attack; the URL may have been whitelisted in a newer node
+        //   version.
+        // - Note that `network` has not been validated yet, but we still
+        //   (pre-)initialize the Esplora client to reduce startup time.
+        let filtered_esplora_urls = args
             .esplora_urls
-            .first()
+            .iter()
+            .filter(|url| esplora::url_is_whitelisted(url, args.network))
             .cloned()
-            .context("No esplora url was provided")?;
-        info!(%esplora_url);
+            .collect::<Vec<String>>();
         ensure!(
-            esplora::url_is_whitelisted(esplora_url, args.network),
-            "Esplora url is not in whitelist: {esplora_url}"
+            !filtered_esplora_urls.is_empty(),
+            "None of the provided esplora urls were in whitelist: {urls:?}",
+            urls = &args.esplora_urls,
         );
 
-        // Initialize esplora while fetching provisioned secrets
+        // Concurrently initialize esplora while fetching provisioned secrets
         let (try_esplora, try_fetch) = tokio::join!(
-            LexeEsplora::init(
-                esplora_url.clone(),
+            LexeEsplora::init_any(
+                rng,
+                filtered_esplora_urls,
                 test_event_tx.clone(),
                 shutdown.clone()
             ),
@@ -195,11 +202,12 @@ impl UserNode {
                 machine_id,
             ),
         );
-        let (esplora, refresh_fees_task) =
+        let (esplora, refresh_fees_task, esplora_url) =
             try_esplora.context("Failed to init esplora")?;
         tasks.push(refresh_fees_task);
         let (user, root_seed, deploy_env, network, user_key_pair) =
             try_fetch.context("Failed to fetch provisioned secrets")?;
+        info!(%esplora_url);
 
         // Validate deploy env and network
         if deploy_env.is_staging_or_prod() && cfg!(feature = "test-utils") {

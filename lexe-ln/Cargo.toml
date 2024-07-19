@@ -32,6 +32,7 @@ lightning.workspace = true
 lightning-invoice.workspace = true
 lightning-net-tokio.workspace = true
 lightning-transaction-sync.workspace = true
+rand.workspace = true
 # TODO(max): Remove once esplora-client no longer needs it
 reqwest11 = { workspace = true, features = ["rustls-tls-manual-roots"] }
 rust_decimal.workspace = true
