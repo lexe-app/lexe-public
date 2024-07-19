@@ -1,13 +1,16 @@
 name: app_rs_dart
 description: "A new Flutter FFI plugin project."
 version: 0.0.1
-homepage:
+homepage: "https://github.com/lexe-app/lexe-public/tree/master/app_rs_dart"
 
 environment:
   sdk: '>=3.4.3 <4.0.0'
   flutter: '>=3.3.0'
 
 dependencies:
+  # Used by the generated flutter_rust_bridge FFI bindings.
+  collection: ^1.18.0
+
   # flutter SDK
   flutter:
     sdk: flutter
@@ -26,16 +29,13 @@ dev_dependencies:
   # flutter_rust_bridge bindings.
   build_runner: ^2.4.7
 
-  # TODO(phlip9): remove?
-  ffi: ^2.1.0
-
   # Used by flutter_rust_bridge to generate the dart ffi bingings at build-time.
   ffigen: ^11.0.0
 
+  flutter_lints: ^3.0.0
+
   flutter_test:
     sdk: flutter
-
-  flutter_lints: ^3.0.0
 
   # Codegen for immutable record types and Rust-style enums in Dart.
   freezed: ^2.4.5
