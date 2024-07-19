@@ -29,7 +29,7 @@ final bool _cfgTest = io.Platform.environment.containsKey("FLUTTER_TEST");
 /// So for now we're going dynamically linked everywhere...
 ExternalLibrary _loadLibraryNormal() {
   if (io.Platform.isAndroid || io.Platform.isLinux) {
-    return ExternalLibrary.open("libapp_rs_dart.so");
+    return ExternalLibrary.open("libapp_rs.so");
   } else if (io.Platform.isIOS || io.Platform.isMacOS) {
     return ExternalLibrary.open("app_rs_dart.framework/app_rs_dart");
   } else if (io.Platform.isWindows) {
