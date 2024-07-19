@@ -8,7 +8,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, ensure, Context};
 use bdk::FeeRate;
 use bitcoin::{blockdata::transaction::Transaction, OutPoint};
 use common::{
@@ -20,6 +20,7 @@ use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
     FEERATE_FLOOR_SATS_PER_KW,
 };
+use rand::{seq::SliceRandom, RngCore};
 use tokio::time;
 use tracing::{debug, error, info, instrument, warn};
 
@@ -112,6 +113,54 @@ pub struct LexeEsplora {
 }
 
 impl LexeEsplora {
+    /// Try initializing a [`LexeEsplora`] from *any* of the given Esplora urls,
+    /// trying all of the URLs until one succeeds or all fail. If successful,
+    /// returns the client, the fee refresher task, and the chosen esplora url.
+    pub async fn init_any(
+        rng: &mut impl RngCore,
+        mut esplora_urls: Vec<String>,
+        test_event_tx: TestEventSender,
+        shutdown: ShutdownChannel,
+    ) -> anyhow::Result<(Arc<Self>, LxTask<()>, String)> {
+        // Randomize the URL ordering for some basic load balancing
+        esplora_urls.shuffle(rng);
+
+        ensure!(!esplora_urls.is_empty(), "No urls provided");
+
+        let mut err_msgs = Vec::new();
+        for url in esplora_urls {
+            info!("Initializing Esplora from url: {url}");
+            let init_result = Self::init(
+                url.clone(),
+                test_event_tx.clone(),
+                shutdown.clone(),
+            )
+            .await;
+
+            match init_result {
+                Ok((client, task)) => {
+                    if !err_msgs.is_empty() {
+                        let joined = err_msgs.join(", ");
+                        warn!("At least one esplora init failed: [{joined}]");
+                    }
+                    return Ok((client, task, url));
+                }
+                Err(e) => err_msgs.push(format!("({url}, {e:#})")),
+            }
+        }
+
+        let joined = err_msgs.join("; ");
+        Err(anyhow!("LexeEsplora::init_any failed: [{joined}]"))
+    }
+
+    /// Initialize a [`LexeEsplora`] client.
+    // NOTE: This makes a call to `/fee-estimates` both as a means to
+    //
+    // 1) Get the initial fee estimates.
+    // 2) Check that the Esplora client is configured correctly.
+    //
+    // [`LexeEsplora::init_any`] relies on (2) to gracefully recover from 'bad'
+    // Esplora URLs (which have likely been fixed in a later version).
     pub async fn init(
         esplora_url: String,
         test_event_tx: TestEventSender,
