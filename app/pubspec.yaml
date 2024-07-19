@@ -124,10 +124,9 @@ dev_dependencies:
   # Codegen for immutable record types and Rust-style enums in Dart.
   freezed: ^2.4.5
 
-  # NOTE(phlip9): disabled until we upgrade to flutter_rust_bridge v2.0
-  #
-  # integration_test:
-  #   sdk: flutter
+  # on-device flutter integration tests
+  integration_test:
+    sdk: flutter
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

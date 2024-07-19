@@ -21,14 +21,21 @@ set -e
 set -o pipefail
 set -x
 
+export NO_COLOR=1
+
+CARGO_NDK_VERSION="3.5.4"
+TARGET="aarch64-linux-android"
+
 # Important envs passed to us from gradle:
 #
 # ANDROID_NDK_HOME (ex: "/Users/phlip9/.local/android/ndk/23.1.7779620")
 # APP_RS__OUT_DIR (ex: "/Users/phlip9/dev/lexe/public/app/build/app_rs_dart/jniLibs/release")
 # APP_RS__COMPILE_SDK_VERSION (ex: "34")
 
-CARGO_NDK_VERSION="3.5.4"
-TARGET="aarch64-linux-android"
+#
+# Read input from gradle
+#
+
 APP_RS__COMPILE_SDK_VERSION="${APP_RS__COMPILE_SDK_VERSION:-34}"
 
 # If we run this script standalone, just dump the output in a tempdir.
@@ -36,6 +43,22 @@ if [[ -z $APP_RS__OUT_DIR ]]; then
   APP_RS__OUT_DIR="$(mktemp -d)"
   trap 'rm -rf $APP_RS__OUT_DIR' EXIT
 fi
+
+#
+# Ensure we always build from workspace directory
+#
+
+# app_rs_dart/ directory
+APP_RS__APP_RS_DART_DIR="$(realpath "$(dirname "$0")")"
+# workspace directory
+APP_RS__WORKSPACE_DIR="$(dirname "$APP_RS__APP_RS_DART_DIR")"
+
+# Enter workspace directory for duration of script
+pushd "$APP_RS__WORKSPACE_DIR"
+
+#
+# Ensure toolchains are installed
+#
 
 # Ensure cargo is installed
 if ! command -v cargo &> /dev/null; then
@@ -73,6 +96,10 @@ if ! rustup target list --installed | grep -Eq "^$TARGET$"; then
   fi
 fi
 
+#
+# `cargo ndk build` the libapp_rs.so shared library
+#
+
 # Envs to propagate to `cargo ndk build`
 clean_envs=("PATH=$PATH" "HOME=$HOME" LC_ALL="$LC_ALL")
 
@@ -89,9 +116,6 @@ for env in "${conditional_envs[@]}"; do
   fi
 done
 
-# TODO(phlip9): get backtraces working...
-# --no-strip
-
 # Run `cargo ndk build` in a clean env
 env --ignore-environment "${clean_envs[@]}" \
   cargo ndk \
@@ -99,3 +123,6 @@ env --ignore-environment "${clean_envs[@]}" \
   --output-dir="$APP_RS__OUT_DIR" \
   --platform="$APP_RS__COMPILE_SDK_VERSION" \
   -- rustc --lib --crate-type=cdylib -p app-rs "$@"
+
+# Restore cwd
+popd
