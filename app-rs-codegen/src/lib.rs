@@ -12,7 +12,10 @@
 //! currently in-flux. See [dart-lang/sdk - vm/ffi: native assets feature #50565](https://github.com/dart-lang/sdk/issues/50565)
 //! for the current status/roadmap for this feature.
 
-use std::{path::Path, process::Command};
+use std::{
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use anyhow::{format_err, Context};
 use argh::FromArgs;
@@ -28,12 +31,13 @@ pub struct Args {
     pub check: bool,
 }
 
-fn find_app_rs_dir() -> Option<&'static Path> {
+fn find_app_rs_dir() -> Option<PathBuf> {
     let candidates = ["app-rs/Cargo.toml", "public/app-rs/Cargo.toml"];
     for candidate in candidates {
         let path = Path::new(candidate);
         if path.is_file() {
-            return path.parent();
+            // Get the absolute path of the parent
+            return path.parent()?.canonicalize().ok();
         }
     }
 
@@ -54,8 +58,8 @@ impl Args {
                  directory of the repo."
             )
         })?;
-        let app_rs_dart_dir = app_rs_dir.parent().unwrap().join("app_rs_dart");
         let workspace_dir = app_rs_dir.parent().unwrap();
+        let app_rs_dart_dir = workspace_dir.join("app_rs_dart");
 
         let ffi_generated_rs = app_rs_dir.join("src/ffi/ffi_generated.rs");
         let ffi_generated_dart = app_rs_dart_dir.join("lib");
@@ -68,7 +72,7 @@ impl Args {
             // dump_all: Some(true),
 
             // The Rust crate root dir.
-            rust_root: Some(path_to_string(app_rs_dir)?),
+            rust_root: Some(path_to_string(&app_rs_dir)?),
             // The Dart package root dir.
             dart_root: Some(path_to_string(&app_rs_dart_dir)?),
 
