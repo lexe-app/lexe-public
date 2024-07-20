@@ -82,7 +82,7 @@ pub fn any_simple_string() -> impl Strategy<Value = String> {
 
     let any_alphanum_char = proptest::char::ranges(RANGES.into());
 
-    proptest::collection::vec(any_alphanum_char, 0..256)
+    proptest::collection::vec(any_alphanum_char, 0..=256)
         .prop_map(String::from_iter)
 }
 
@@ -111,7 +111,7 @@ pub fn any_hostname() -> impl Strategy<Value = Hostname> {
 
     let any_valid_char = proptest::char::ranges(RANGES.into());
 
-    proptest::collection::vec(any_valid_char, 1..256)
+    proptest::collection::vec(any_valid_char, 1..=255)
         .prop_map(String::from_iter)
         .prop_map(|s| Hostname::try_from(s).unwrap())
 }
