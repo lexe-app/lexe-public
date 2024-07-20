@@ -810,7 +810,10 @@ impl From<serde_json::Error> for CommonApiError {
 
 impl From<reqwest::Error> for CommonApiError {
     fn from(err: reqwest::Error) -> Self {
-        let msg = format!("{err:#}");
+        // NOTE: The `reqwest::Error` `Display` impl is totally useless!!
+        // We've had tons of problems with it swallowing TLS errors.
+        // You have to use the `Debug` impl to get any info about the source.
+        let msg = format!("{err:?}");
         // Be more granular than just returning a general reqwest::Error
         let kind = if err.is_builder() {
             CommonErrorKind::Building
