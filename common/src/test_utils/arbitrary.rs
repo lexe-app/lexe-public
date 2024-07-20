@@ -23,7 +23,6 @@ use lightning::{
 use lightning_invoice::Fallback;
 use proptest::{
     arbitrary::any,
-    collection::vec,
     prop_oneof,
     strategy::{Just, Strategy, ValueTree},
     test_runner::{Config, RngAlgorithm, TestRng, TestRunner},
@@ -54,7 +53,8 @@ use crate::{
 /// ```
 pub fn any_string() -> impl Strategy<Value = String> {
     // Maximum length = 256
-    vec(any::<char>(), 0..256).prop_map(String::from_iter)
+    proptest::collection::vec(any::<char>(), 0..=256)
+        .prop_map(String::from_iter)
 }
 
 /// An [`Option`] version of [`any_string`].
@@ -91,6 +91,11 @@ pub fn any_simple_string() -> impl Strategy<Value = String> {
 /// The option has a 50% probability of being [`Some`].
 pub fn any_option_simple_string() -> impl Strategy<Value = Option<String>> {
     proptest::option::of(any_simple_string())
+}
+
+/// A [`Vec`] version of [`any_simple_string`]. Contains 0-8 strings.
+pub fn any_vec_simple_string() -> impl Strategy<Value = Vec<String>> {
+    proptest::collection::vec(any_simple_string(), 0..=8)
 }
 
 /// An `Arbitrary`-like [`Strategy`] for LDK's [`Hostname`] type. `Hostname` is
@@ -217,7 +222,7 @@ pub fn any_script() -> impl Strategy<Value = Script> {
     }
 
     // Limit Vec<u8>s to 8 bytes
-    let any_vec_u8 = vec(any::<u8>(), 0..=8);
+    let any_vec_u8 = proptest::collection::vec(any::<u8>(), 0..=8);
 
     let any_push_op = prop_oneof![
         any::<i64>().prop_map(PushOp::Int),
@@ -230,7 +235,7 @@ pub fn any_script() -> impl Strategy<Value = Script> {
     ];
 
     // Include anywhere from 0 to 8 instructions in the script
-    vec(any_push_op, 0..=8).prop_map(|vec_of_push_ops| {
+    proptest::collection::vec(any_push_op, 0..=8).prop_map(|vec_of_push_ops| {
         let mut builder = script::Builder::new();
         for push_op in vec_of_push_ops {
             builder = push_op.do_push(builder);
@@ -243,8 +248,8 @@ pub fn any_script() -> impl Strategy<Value = Script> {
 pub fn any_witness() -> impl Strategy<Value = Witness> {
     // The `Vec<Vec<u8>>`s from any::<Vec<u8>>() are too big,
     // so we limit to 8x8 = 64 bytes.
-    let any_vec_u8 = vec(any::<u8>(), 0..=8);
-    let any_vec_vec_u8 = vec(any_vec_u8, 0..=8);
+    let any_vec_u8 = proptest::collection::vec(any::<u8>(), 0..=8);
+    let any_vec_vec_u8 = proptest::collection::vec(any_vec_u8, 0..=8);
     any_vec_vec_u8.prop_map(Witness::from_vec)
 }
 
@@ -277,8 +282,8 @@ pub fn any_txout() -> impl Strategy<Value = TxOut> {
 pub fn any_raw_tx() -> impl Strategy<Value = Transaction> {
     let any_lock_time = any::<u32>().prop_map(PackedLockTime);
     // Txns include anywhere from 1 to 2 inputs / outputs
-    let any_vec_of_txins = vec(any_txin(), 1..=2);
-    let any_vec_of_txouts = vec(any_txout(), 1..=2);
+    let any_vec_of_txins = proptest::collection::vec(any_txin(), 1..=2);
+    let any_vec_of_txouts = proptest::collection::vec(any_txout(), 1..=2);
     (any_lock_time, any_vec_of_txins, any_vec_of_txouts).prop_map(
         |(lock_time, input, output)| Transaction {
             version: 1,
@@ -386,7 +391,8 @@ pub fn any_onchain_fallback() -> impl Strategy<Value = Fallback> {
 /// An `Arbitrary`-like [`Strategy`] for a lightning invoice [`RouteHint`].
 /// Invoice [`RouteHint`]s don't include HTLC min/max msat amounts.
 pub fn any_invoice_route_hint() -> impl Strategy<Value = RouteHint> {
-    vec(any_invoice_route_hint_hop(), 0..=2).prop_map(RouteHint)
+    proptest::collection::vec(any_invoice_route_hint_hop(), 0..=2)
+        .prop_map(RouteHint)
 }
 
 /// An `Arbitrary`-like [`Strategy`] for a lightning invoice [`RouteHintHop`].
