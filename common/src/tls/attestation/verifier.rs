@@ -167,16 +167,16 @@ impl AttestationCertVerifier {
         let evidence = AttestEvidence::parse_cert_der(end_entity)?;
 
         // 3. verify Quote
-        let enclave_report = if !self.expect_dummy_quote {
+        let enclave_report = if self.expect_dummy_quote {
+            sgx_isa::Report::try_copy_from(evidence.cert_ext.quote.as_ref())
+                .ok_or_else(|| rustls_err("Could not copy Report"))?
+        } else {
             let quote_verifier = SgxQuoteVerifier;
             quote_verifier
                 .verify(&evidence.cert_ext.quote, now)
                 .map_err(|err| {
                     rustls_err(format!("invalid SGX Quote: {err:#}"))
                 })?
-        } else {
-            sgx_isa::Report::try_copy_from(evidence.cert_ext.quote.as_ref())
-                .ok_or_else(|| rustls_err("Could not copy Report"))?
         };
 
         // 4. check that this enclave satisfies our enclave policy
