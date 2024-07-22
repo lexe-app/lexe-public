@@ -16,6 +16,7 @@ use common::{
     ed25519,
     enclave::{self, MachineId, Measurement, MinCpusvn},
     env::DeployEnv,
+    ln::channel::LxOutPoint,
     net, notify,
     rng::{Crng, SysRng},
     root_seed::RootSeed,
@@ -453,7 +454,40 @@ impl UserNode {
         // the chain for closing transactions, fraudulent transactions, etc.
         for (_blockhash, monitor) in channel_monitors {
             let (funding_txo, _script) = monitor.get_funding_txo();
-            chain_monitor.watch_channel(funding_txo, monitor);
+            let counterparty_node_id = monitor
+                .get_counterparty_node_id()
+                .expect("Launched after v0.0.110");
+
+            // Method docs indicate that if this `Err`s, we should immediately
+            // force close without broadcasting the funding txn.
+            // No one else seems to do this though...
+            if let Err(()) = chain_monitor.watch_channel(funding_txo, monitor) {
+                let channel_id = funding_txo.to_channel_id();
+                warn!(
+                    %channel_id, ?funding_txo,
+                    "`ChainMonitor::watch_channel` failed; force closing..."
+                );
+
+                channel_manager
+                    .force_close_without_broadcasting_txn(
+                        &channel_id,
+                        &counterparty_node_id,
+                    )
+                    .inspect(|()| {
+                        info!(
+                            %channel_id, ?funding_txo,
+                            "Successfully force closed"
+                        )
+                    })
+                    .map_err(|e| {
+                        let funding_txo = LxOutPoint::from(funding_txo);
+                        anyhow!(
+                            "Couldn't force close bad monitor: {e:?} \
+                             channel_id='{channel_id}', \
+                             funding_txo='{funding_txo:?}'"
+                        )
+                    })?;
+            }
         }
 
         // Init onion messenger

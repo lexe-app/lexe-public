@@ -5,7 +5,7 @@ use common::{
     api::{command::CloseChannelRequest, Empty, NodePk},
     ln::{amount::Amount, peer::ChannelPeer},
 };
-use lightning::util::config::UserConfig;
+use lightning::{ln::ChannelId, util::config::UserConfig};
 use tokio::sync::mpsc;
 use tracing::{info, instrument};
 
@@ -149,14 +149,15 @@ where
             channel_manager
                 .list_channels()
                 .into_iter()
-                .find(|c| c.channel_id == channel_id.0)
+                .find(|c| c.channel_id.0 == channel_id.0)
                 .map(|c| NodePk(c.counterparty.node_id))
         })
         .with_context(|| format!("No channel exists with id {channel_id}"))?;
 
+    let channel_id = ChannelId::from(channel_id);
     if force_close {
         channel_manager
-            .force_close_broadcasting_latest_txn(&channel_id.0, &counterparty.0)
+            .force_close_broadcasting_latest_txn(&channel_id, &counterparty.0)
             .map_err(|e| anyhow!("(Force close) LDK returned error: {e:?}"))?;
     } else {
         ensure!(
@@ -165,7 +166,7 @@ where
         );
 
         channel_manager
-            .close_channel(&channel_id.0, &counterparty.0)
+            .close_channel(&channel_id, &counterparty.0)
             .map_err(|e| anyhow!("(Co-op close) LDK returned error: {e:?}"))?;
     }
 

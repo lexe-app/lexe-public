@@ -7,10 +7,7 @@ use bitcoin::{
         transaction::{Transaction, TxOut},
     },
     secp256k1::{
-        ecdh::SharedSecret,
-        ecdsa::{RecoverableSignature, Signature},
-        scalar::Scalar,
-        PublicKey, Secp256k1, Signing,
+        ecdh, ecdsa, scalar::Scalar, schnorr, PublicKey, Secp256k1, Signing,
     },
     util::address::{Address, Payload},
 };
@@ -23,6 +20,9 @@ use lightning::{
     ln::{
         msgs::{DecodeError, UnsignedGossipMessage},
         script::ShutdownScript,
+    },
+    offers::{
+        invoice::UnsignedBolt12Invoice, invoice_request::UnsignedInvoiceRequest,
     },
     sign::{
         EntropySource, InMemorySigner, KeyMaterial, KeysManager, NodeSigner,
@@ -233,7 +233,7 @@ impl NodeSigner for LexeKeysManager {
         recipient: Recipient,
         other_key: &PublicKey,
         tweak: Option<&Scalar>,
-    ) -> Result<SharedSecret, ()> {
+    ) -> Result<ecdh::SharedSecret, ()> {
         self.inner.ecdh(recipient, other_key, tweak)
     }
 
@@ -242,14 +242,28 @@ impl NodeSigner for LexeKeysManager {
         hrp_bytes: &[u8],
         invoice_data: &[u5],
         recipient: Recipient,
-    ) -> Result<RecoverableSignature, ()> {
+    ) -> Result<ecdsa::RecoverableSignature, ()> {
         self.inner.sign_invoice(hrp_bytes, invoice_data, recipient)
+    }
+
+    fn sign_bolt12_invoice_request(
+        &self,
+        invoice_request: &UnsignedInvoiceRequest,
+    ) -> Result<schnorr::Signature, ()> {
+        self.inner.sign_bolt12_invoice_request(invoice_request)
+    }
+
+    fn sign_bolt12_invoice(
+        &self,
+        invoice: &UnsignedBolt12Invoice,
+    ) -> Result<schnorr::Signature, ()> {
+        self.inner.sign_bolt12_invoice(invoice)
     }
 
     fn sign_gossip_message(
         &self,
         msg: UnsignedGossipMessage<'_>,
-    ) -> Result<Signature, ()> {
+    ) -> Result<ecdsa::Signature, ()> {
         self.inner.sign_gossip_message(msg)
     }
 }
