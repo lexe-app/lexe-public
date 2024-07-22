@@ -12,6 +12,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'ffi/ffi.dart';
+import 'ffi/settings.dart';
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 
@@ -94,6 +95,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   PreflightPayOnchainRequest
       dco_decode_box_autoadd_preflight_pay_onchain_request(dynamic raw);
+
+  @protected
+  Settings dco_decode_box_autoadd_settings(dynamic raw);
 
   @protected
   ShortPaymentAndIndex dco_decode_box_autoadd_short_payment_and_index(
@@ -231,6 +235,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       dynamic raw);
 
   @protected
+  Settings dco_decode_settings(dynamic raw);
+
+  @protected
   ShortPayment dco_decode_short_payment(dynamic raw);
 
   @protected
@@ -331,6 +338,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PreflightPayOnchainRequest
       sse_decode_box_autoadd_preflight_pay_onchain_request(
           SseDeserializer deserializer);
+
+  @protected
+  Settings sse_decode_box_autoadd_settings(SseDeserializer deserializer);
 
   @protected
   ShortPaymentAndIndex sse_decode_box_autoadd_short_payment_and_index(
@@ -478,6 +488,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       SseDeserializer deserializer);
 
   @protected
+  Settings sse_decode_settings(SseDeserializer deserializer);
+
+  @protected
   ShortPayment sse_decode_short_payment(SseDeserializer deserializer);
 
   @protected
@@ -581,6 +594,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_box_autoadd_preflight_pay_onchain_request(
       PreflightPayOnchainRequest self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_settings(Settings self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_short_payment_and_index(
@@ -732,6 +748,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_preflight_pay_onchain_response(
       PreflightPayOnchainResponse self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_settings(Settings self, SseSerializer serializer);
 
   @protected
   void sse_encode_short_payment(ShortPayment self, SseSerializer serializer);

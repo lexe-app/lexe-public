@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.1.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -536604633;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -740724882;
 
 // Section: executor
 
@@ -586,6 +586,21 @@ fn wire__crate__ffi__ffi__payment_uri_resolve_best_impl(
 let api_uri_str = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move ||  {
                          let output_ok = crate::ffi::ffi::payment_uri_resolve_best(api_network, api_uri_str)?;   Ok(output_ok)
+                    })())
+                } })
+}
+fn wire__crate__ffi__settings__save_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "save", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_settings = <crate::ffi::settings::Settings>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
+                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move ||  {
+                         let output_ok = crate::ffi::settings::save(api_settings)?;   Ok(output_ok)
                     })())
                 } })
 }
@@ -1308,6 +1323,20 @@ impl SseDecode for crate::ffi::ffi::PreflightPayOnchainResponse {
     }
 }
 
+impl SseDecode for crate::ffi::settings::Settings {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_locale = <Option<String>>::sse_decode(deserializer);
+        let mut var_fiatCurrency = <Option<String>>::sse_decode(deserializer);
+        return crate::ffi::settings::Settings {
+            locale: var_locale,
+            fiat_currency: var_fiatCurrency,
+        };
+    }
+}
+
 impl SseDecode for crate::ffi::ffi::ShortPayment {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -1539,6 +1568,12 @@ fn pde_ffi_dispatcher_primary_impl(
             data_len,
         ),
         37 => wire__crate__ffi__ffi__payment_uri_resolve_best_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        38 => wire__crate__ffi__settings__save_impl(
             port,
             ptr,
             rust_vec_len,
@@ -2218,6 +2253,27 @@ impl
     > for crate::ffi::ffi::PreflightPayOnchainResponse
 {
     fn into_into_dart(self) -> crate::ffi::ffi::PreflightPayOnchainResponse {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::settings::Settings {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.locale.into_into_dart().into_dart(),
+            self.fiat_currency.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::settings::Settings
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::settings::Settings>
+    for crate::ffi::settings::Settings
+{
+    fn into_into_dart(self) -> crate::ffi::settings::Settings {
         self
     }
 }
@@ -2936,6 +2992,17 @@ impl SseEncode for crate::ffi::ffi::PreflightPayOnchainResponse {
         );
         <crate::ffi::ffi::FeeEstimate>::sse_encode(self.normal, serializer);
         <crate::ffi::ffi::FeeEstimate>::sse_encode(self.background, serializer);
+    }
+}
+
+impl SseEncode for crate::ffi::settings::Settings {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <Option<String>>::sse_encode(self.locale, serializer);
+        <Option<String>>::sse_encode(self.fiat_currency, serializer);
     }
 }
 

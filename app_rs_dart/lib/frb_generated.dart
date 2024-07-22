@@ -11,6 +11,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'ffi/ffi.dart';
+import 'ffi/settings.dart';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
@@ -61,7 +62,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.1.0';
 
   @override
-  int get rustContentHash => -536604633;
+  int get rustContentHash => -740724882;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -168,6 +169,8 @@ abstract class AppRsApi extends BaseApi {
 
   Future<PaymentMethod> crateFfiFfiPaymentUriResolveBest(
       {required Network network, required String uriStr});
+
+  Future<Settings> crateFfiSettingsSave({required Settings settings});
 
   RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_App;
 
@@ -1141,6 +1144,30 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         argNames: ["network", "uriStr"],
       );
 
+  @override
+  Future<Settings> crateFfiSettingsSave({required Settings settings}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_box_autoadd_settings(settings, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 38, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_settings,
+        decodeErrorData: sse_decode_AnyhowException,
+      ),
+      constMeta: kCrateFfiSettingsSaveConstMeta,
+      argValues: [settings],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateFfiSettingsSaveConstMeta => const TaskConstMeta(
+        debugName: "save",
+        argNames: ["settings"],
+      );
+
   RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_App =>
       wire.rust_arc_increment_strong_count_RustOpaque_App;
 
@@ -1295,6 +1322,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       dco_decode_box_autoadd_preflight_pay_onchain_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_preflight_pay_onchain_request(raw);
+  }
+
+  @protected
+  Settings dco_decode_box_autoadd_settings(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_settings(raw);
   }
 
   @protected
@@ -1720,6 +1753,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  Settings dco_decode_settings(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return Settings(
+      locale: dco_decode_opt_String(arr[0]),
+      fiatCurrency: dco_decode_opt_String(arr[1]),
+    );
+  }
+
+  @protected
   ShortPayment dco_decode_short_payment(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -1949,6 +1994,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_preflight_pay_onchain_request(deserializer));
+  }
+
+  @protected
+  Settings sse_decode_box_autoadd_settings(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_settings(deserializer));
   }
 
   @protected
@@ -2409,6 +2460,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  Settings sse_decode_settings(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_locale = sse_decode_opt_String(deserializer);
+    var var_fiatCurrency = sse_decode_opt_String(deserializer);
+    return Settings(locale: var_locale, fiatCurrency: var_fiatCurrency);
+  }
+
+  @protected
   ShortPayment sse_decode_short_payment(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_index = sse_decode_payment_index(deserializer);
@@ -2631,6 +2690,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       PreflightPayOnchainRequest self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_preflight_pay_onchain_request(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_settings(
+      Settings self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_settings(self, serializer);
   }
 
   @protected
@@ -3008,6 +3074,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_opt_box_autoadd_fee_estimate(self.high, serializer);
     sse_encode_fee_estimate(self.normal, serializer);
     sse_encode_fee_estimate(self.background, serializer);
+  }
+
+  @protected
+  void sse_encode_settings(Settings self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.locale, serializer);
+    sse_encode_opt_String(self.fiatCurrency, serializer);
   }
 
   @protected
