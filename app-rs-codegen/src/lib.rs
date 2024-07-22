@@ -61,8 +61,8 @@ impl Args {
         let workspace_dir = app_rs_dir.parent().unwrap();
         let app_rs_dart_dir = workspace_dir.join("app_rs_dart");
 
-        let ffi_generated_rs = app_rs_dir.join("src/ffi/ffi_generated.rs");
-        let ffi_generated_dart = app_rs_dart_dir.join("lib");
+        let frb_generated_rs = app_rs_dir.join("src/frb_generated.rs");
+        let app_rs_dart_lib_dir = app_rs_dart_dir.join("lib");
 
         // flutter_rust_bridge options
         // Docs: [`GenerateCommandArgsPrimary`](https://github.com/fzyzcjy/flutter_rust_bridge/blob/master/frb_codegen/src/binary/commands.rs#L52)
@@ -81,13 +81,17 @@ impl Args {
             //
             // TODO(phlip9): apparently this now accepts third-party crates?
             // Will have to experiment.
-            rust_input: Some(["crate::ffi::ffi"].join(",")),
+            rust_input: Some([
+                // Generate Dart interfaces for all Rust modules in the
+                // `app-rs/src/ffi` subdir.
+                "crate::ffi",
+            ].join(",")),
 
             // Path to output generated Rust code.
-            rust_output: Some(path_to_string(&ffi_generated_rs)?),
+            rust_output: Some(path_to_string(&frb_generated_rs)?),
 
             // Path to output generated Dart code impls.
-            dart_output: Some(path_to_string(&ffi_generated_dart)?),
+            dart_output: Some(path_to_string(&app_rs_dart_lib_dir)?),
 
             // The class name of the main entrypoint to the Rust API.
             // Defaults to "RustLib".

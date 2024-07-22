@@ -15,15 +15,14 @@ pub use flutter_rust_bridge as frb;
 
 /// The top-level App state
 pub mod app;
-// /// The low-level handler `flutter_rust_bridge` calls to run dart tasks from
-// the /// ffi bridge.
-// mod dart_task_handler;
 /// The flutter/rust FFI bindings.
-mod ffi;
+pub(crate) mod ffi;
 /// `FlatFileFs` and `Ffs`.
 mod ffs;
 /// UI form input helpers.
 mod form;
+/// Flutter/rust ffi bindings generated from `ffi` by `just app-rs-codegen`.
+pub(crate) mod frb_generated;
 /// Pipe `tracing` log messages from native Rust to Dart.
 mod logger;
 /// App-local payment db and payment sync from node.
