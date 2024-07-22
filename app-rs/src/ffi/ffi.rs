@@ -76,36 +76,33 @@ use common::{
         qs::UpdatePaymentNote as UpdatePaymentNoteRs,
         Empty,
     },
-    cli::Network as NetworkRs,
-    env::DeployEnv as DeployEnvRs,
     ln::{
         amount::Amount,
         invoice::LxInvoice,
         payments::{
-            BasicPayment as BasicPaymentRs,
             ClientPaymentId as ClientPaymentIdRs, LxPaymentId as LxPaymentIdRs,
-            PaymentDirection as PaymentDirectionRs,
-            PaymentIndex as PaymentIndexRs, PaymentKind as PaymentKindRs,
-            PaymentStatus as PaymentStatusRs,
+            PaymentIndex as PaymentIndexRs,
         },
-        ConfirmationPriority as ConfirmationPriorityRs,
     },
     password,
     rng::SysRng,
 };
-use flutter_rust_bridge::{
-    // handler::{ReportDartErrorHandler, ThreadPoolExecutor},
-    // RustOpaque, StreamSink,
-    frb,
-    RustOpaqueNom,
-};
-// use lazy_lock::LazyLock;
+use flutter_rust_bridge::{frb, RustOpaqueNom};
 use secrecy::Zeroize;
 
 pub(crate) use crate::app::App;
 use crate::{
-    app::AppConfig, ffs::FlatFileFs, form, frb_generated::StreamSink,
-    secret_store::SecretStore, storage,
+    app::AppConfig,
+    ffi::types::{
+        ClientPaymentId, Config, ConfirmationPriority, Invoice, Network,
+        Payment, PaymentIndex, PaymentMethod, ShortPayment,
+        ShortPaymentAndIndex,
+    },
+    ffs::FlatFileFs,
+    form,
+    frb_generated::StreamSink,
+    secret_store::SecretStore,
+    storage,
 };
 
 #[rustfmt::skip]
@@ -209,361 +206,6 @@ impl From<FiatRatesRs> for FiatRates {
     }
 }
 
-/// See [`common::env::DeployEnv`]
-#[frb(dart_metadata=("freezed"))]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum DeployEnv {
-    Dev,
-    Staging,
-    Prod,
-}
-
-impl From<DeployEnvRs> for DeployEnv {
-    fn from(env: DeployEnvRs) -> Self {
-        match env {
-            DeployEnvRs::Dev => Self::Dev,
-            DeployEnvRs::Staging => Self::Staging,
-            DeployEnvRs::Prod => Self::Prod,
-        }
-    }
-}
-
-impl From<DeployEnv> for DeployEnvRs {
-    fn from(env: DeployEnv) -> Self {
-        match env {
-            DeployEnv::Dev => Self::Dev,
-            DeployEnv::Staging => Self::Staging,
-            DeployEnv::Prod => Self::Prod,
-        }
-    }
-}
-
-// TODO(phlip9): ffs dart doesn't allow methods on plain enums... if FRB always
-// gen'd "enhanced" enums, then I could use an associated fn.
-//
-// "enhanced" enums: <https://dart.dev/language/enums#declaring-enhanced-enums>
-#[frb(sync)]
-pub fn deploy_env_from_str(s: String) -> anyhow::Result<DeployEnv> {
-    DeployEnvRs::from_str(&s).map(DeployEnv::from)
-}
-
-/// See [`common::cli::Network`]
-#[derive(Copy, Clone, Debug)]
-pub enum Network {
-    Mainnet,
-    Testnet,
-    Regtest,
-}
-
-impl From<Network> for NetworkRs {
-    fn from(network: Network) -> Self {
-        match network {
-            Network::Mainnet => NetworkRs::MAINNET,
-            Network::Testnet => NetworkRs::TESTNET,
-            Network::Regtest => NetworkRs::REGTEST,
-        }
-    }
-}
-
-impl TryFrom<NetworkRs> for Network {
-    type Error = anyhow::Error;
-
-    fn try_from(network: NetworkRs) -> anyhow::Result<Self> {
-        match network {
-            NetworkRs::MAINNET => Ok(Self::Mainnet),
-            NetworkRs::TESTNET => Ok(Self::Testnet),
-            NetworkRs::REGTEST => Ok(Self::Regtest),
-            _ => Err(anyhow!("unsupported NETWORK: '{network}'")),
-        }
-    }
-}
-
-#[frb(sync)]
-pub fn network_from_str(s: String) -> anyhow::Result<Network> {
-    NetworkRs::from_str(&s).and_then(Network::try_from)
-}
-
-/// Dart-serializable configuration we get from the flutter side.
-#[frb(dart_metadata=("freezed"))]
-pub struct Config {
-    pub deploy_env: DeployEnv,
-    pub network: Network,
-    pub gateway_url: String,
-    pub use_sgx: bool,
-    pub base_app_data_dir: String,
-    pub use_mock_secret_store: bool,
-}
-
-impl From<Config> for AppConfig {
-    fn from(c: Config) -> Self {
-        AppConfig::from_dart_config(
-            DeployEnvRs::from(c.deploy_env),
-            NetworkRs::from(c.network),
-            c.gateway_url,
-            c.use_sgx,
-            c.base_app_data_dir,
-            c.use_mock_secret_store,
-        )
-    }
-}
-
-pub enum PaymentDirection {
-    Inbound,
-    Outbound,
-}
-
-impl From<PaymentDirectionRs> for PaymentDirection {
-    fn from(value: PaymentDirectionRs) -> Self {
-        match value {
-            PaymentDirectionRs::Inbound => Self::Inbound,
-            PaymentDirectionRs::Outbound => Self::Outbound,
-        }
-    }
-}
-
-pub enum PaymentStatus {
-    Pending,
-    Completed,
-    Failed,
-}
-
-impl From<PaymentStatusRs> for PaymentStatus {
-    fn from(value: PaymentStatusRs) -> Self {
-        match value {
-            PaymentStatusRs::Pending => Self::Pending,
-            PaymentStatusRs::Completed => Self::Completed,
-            PaymentStatusRs::Failed => Self::Failed,
-        }
-    }
-}
-
-pub enum PaymentKind {
-    Onchain,
-    Invoice,
-    Spontaneous,
-}
-
-impl From<PaymentKindRs> for PaymentKind {
-    fn from(value: PaymentKindRs) -> Self {
-        match value {
-            PaymentKindRs::Onchain => Self::Onchain,
-            PaymentKindRs::Invoice => Self::Invoice,
-            PaymentKindRs::Spontaneous => Self::Spontaneous,
-        }
-    }
-}
-
-/// See [`common::ln::payments::PaymentIndex`].
-#[frb(dart_metadata=("freezed"))]
-pub struct PaymentIndex(pub String);
-
-impl From<PaymentIndexRs> for PaymentIndex {
-    fn from(value: PaymentIndexRs) -> Self {
-        Self(value.to_string())
-    }
-}
-
-impl TryFrom<PaymentIndex> for PaymentIndexRs {
-    type Error = anyhow::Error;
-    fn try_from(value: PaymentIndex) -> Result<Self, Self::Error> {
-        PaymentIndexRs::from_str(&value.0)
-    }
-}
-
-/// Just the info we need to display an entry in the payments list UI.
-#[frb(dart_metadata=("freezed"))]
-pub struct ShortPayment {
-    pub index: PaymentIndex,
-
-    pub kind: PaymentKind,
-    pub direction: PaymentDirection,
-
-    pub amount_sat: Option<u64>,
-
-    pub status: PaymentStatus,
-
-    pub note: Option<String>,
-
-    pub created_at: i64,
-}
-
-impl From<&BasicPaymentRs> for ShortPayment {
-    fn from(payment: &BasicPaymentRs) -> Self {
-        Self {
-            index: PaymentIndex::from(*payment.index()),
-
-            kind: PaymentKind::from(payment.kind),
-            direction: PaymentDirection::from(payment.direction),
-
-            amount_sat: payment.amount.map(|amt| amt.sats_u64()),
-
-            status: PaymentStatus::from(payment.status),
-
-            note: payment.note_or_description().map(String::from),
-
-            created_at: payment.created_at().as_i64(),
-        }
-    }
-}
-
-/// Just a `(usize, ShortPayment)`, but packaged in a struct until
-/// `flutter_rust_bridge` stops breaking on tuples.
-// TODO(phlip9): remove this after updating frb
-pub struct ShortPaymentAndIndex {
-    pub vec_idx: usize,
-    pub payment: ShortPayment,
-}
-
-/// The complete payment info, used in the payment detail page. Mirrors the
-/// [`BasicPaymentRs`] type.
-#[frb(dart_metadata=("freezed"))]
-pub struct Payment {
-    pub index: PaymentIndex,
-
-    pub kind: PaymentKind,
-    pub direction: PaymentDirection,
-
-    pub invoice: Option<Invoice>,
-
-    pub replacement: Option<String>,
-
-    pub amount_sat: Option<u64>,
-    pub fees_sat: u64,
-
-    pub status: PaymentStatus,
-    pub status_str: String,
-
-    pub note: Option<String>,
-
-    pub created_at: i64,
-    pub finalized_at: Option<i64>,
-}
-
-impl From<&BasicPaymentRs> for Payment {
-    fn from(payment: &BasicPaymentRs) -> Self {
-        Self {
-            index: PaymentIndex::from(*payment.index()),
-
-            kind: PaymentKind::from(payment.kind),
-            direction: PaymentDirection::from(payment.direction),
-
-            invoice: payment.invoice.as_ref().map(Invoice::from),
-
-            replacement: payment.replacement.map(|txid| txid.to_string()),
-
-            amount_sat: payment.amount.map(|amt| amt.sats_u64()),
-            fees_sat: payment.fees.sats_u64(),
-
-            status: PaymentStatus::from(payment.status),
-            status_str: payment.status_str.clone(),
-
-            note: payment.note_or_description().map(String::from),
-
-            created_at: payment.created_at().as_i64(),
-            finalized_at: payment.finalized_at.map(|t| t.as_i64()),
-        }
-    }
-}
-
-/// A potential scanned/pasted payment.
-pub enum PaymentMethod {
-    Onchain(Onchain),
-    Invoice(Invoice),
-    Offer, // TODO(phlip9): support BOLT12 offers
-}
-
-impl From<payment_uri::PaymentMethod> for PaymentMethod {
-    fn from(value: payment_uri::PaymentMethod) -> Self {
-        match value {
-            payment_uri::PaymentMethod::Onchain(x) =>
-                Self::Onchain(Onchain::from(x)),
-            payment_uri::PaymentMethod::Invoice(x) =>
-                Self::Invoice(Invoice::from(x)),
-            payment_uri::PaymentMethod::Offer(_) => Self::Offer,
-        }
-    }
-}
-
-/// A potential onchain Bitcoin payment.
-#[frb(dart_metadata=("freezed"))]
-pub struct Onchain {
-    pub address: String,
-    pub amount_sats: Option<u64>,
-    pub label: Option<String>,
-    pub message: Option<String>,
-}
-
-impl From<payment_uri::Onchain> for Onchain {
-    fn from(value: payment_uri::Onchain) -> Self {
-        Self {
-            address: value.address.to_string(),
-            amount_sats: value.amount.map(|amt| amt.sats_u64()),
-            label: value.label,
-            message: value.message,
-        }
-    }
-}
-
-/// A lightning invoice with useful fields parsed out for the flutter frontend.
-/// Mirrors the [`LxInvoice`] type.
-#[frb(dart_metadata=("freezed"))]
-pub struct Invoice {
-    pub string: String,
-
-    pub description: Option<String>,
-
-    pub created_at: i64,
-    pub expires_at: i64,
-
-    pub amount_sats: Option<u64>,
-
-    pub payee_pubkey: String,
-}
-
-impl From<&LxInvoice> for Invoice {
-    fn from(invoice: &LxInvoice) -> Self {
-        Self {
-            string: invoice.to_string(),
-
-            description: invoice.description_str().map(String::from),
-
-            created_at: invoice.saturating_created_at().as_i64(),
-            expires_at: invoice.saturating_expires_at().as_i64(),
-
-            amount_sats: invoice.amount_sats(),
-
-            payee_pubkey: invoice.payee_node_pk().to_string(),
-        }
-    }
-}
-
-impl From<LxInvoice> for Invoice {
-    #[inline]
-    fn from(value: LxInvoice) -> Self {
-        Self::from(&value)
-    }
-}
-
-/// A unique, client-generated id for payment types (onchain send,
-/// ln spontaneous send) that need an extra id for idempotency.
-#[frb(dart_metadata=("freezed"))]
-pub struct ClientPaymentId {
-    pub id: [u8; 32],
-}
-
-#[frb(sync)]
-pub fn gen_client_payment_id() -> ClientPaymentId {
-    ClientPaymentId {
-        id: ClientPaymentIdRs::from_rng(&mut SysRng::new()).0,
-    }
-}
-
-impl From<ClientPaymentId> for ClientPaymentIdRs {
-    fn from(value: ClientPaymentId) -> ClientPaymentIdRs {
-        ClientPaymentIdRs(value.id)
-    }
-}
-
 // TODO(phlip9): error messages need to be internationalized
 
 /// Validate whether `address_str` is a properly formatted bitcoin address. Also
@@ -578,10 +220,8 @@ pub fn form_validate_bitcoin_address(
     address_str: String,
     current_network: Network,
 ) -> Option<String> {
-    let result = form::validate_bitcoin_address(
-        &address_str,
-        NetworkRs::from(current_network),
-    );
+    let result =
+        form::validate_bitcoin_address(&address_str, current_network.into());
     match result {
         Ok(()) => None,
         Err(msg) => Some(msg),
@@ -601,22 +241,6 @@ pub fn form_validate_password(mut password: String) -> Option<String> {
     match result {
         Ok(()) => None,
         Err(err) => Some(err.to_string()),
-    }
-}
-
-pub enum ConfirmationPriority {
-    High,
-    Normal,
-    Background,
-}
-
-impl From<ConfirmationPriority> for ConfirmationPriorityRs {
-    fn from(value: ConfirmationPriority) -> Self {
-        match value {
-            ConfirmationPriority::High => Self::High,
-            ConfirmationPriority::Normal => Self::Normal,
-            ConfirmationPriority::Background => Self::Background,
-        }
     }
 }
 

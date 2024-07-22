@@ -6,25 +6,28 @@ import 'package:app_rs_dart/ffi/ffi.dart'
     show
         AppHandle,
         Balance,
-        ClientPaymentId,
-        ConfirmationPriority,
-        Invoice,
-        Network,
-        Onchain,
         PayInvoiceRequest,
         PayOnchainRequest,
-        PaymentIndex,
-        PaymentKind,
-        PaymentMethod,
-        PaymentMethod_Invoice,
-        PaymentMethod_Offer,
-        PaymentMethod_Onchain,
         PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse,
         PreflightPayOnchainRequest,
         PreflightPayOnchainResponse,
         paymentUriResolveBest;
 import 'package:app_rs_dart/ffi/ffi.ext.dart';
+import 'package:app_rs_dart/ffi/types.dart'
+    show
+        ClientPaymentId,
+        ConfirmationPriority,
+        Invoice,
+        Network,
+        Onchain,
+        PaymentIndex,
+        PaymentKind,
+        PaymentMethod,
+        PaymentMethod_Invoice,
+        PaymentMethod_Offer,
+        PaymentMethod_Onchain;
+import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:flutter/material.dart' show immutable;
 import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/logger.dart' show error, info;

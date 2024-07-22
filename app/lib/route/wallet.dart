@@ -9,19 +9,17 @@ import 'dart:async'
         unawaited;
 
 import 'package:app_rs_dart/ffi/ffi.dart'
+    show AppHandle, FiatRate, FiatRates, NodeInfo;
+import 'package:app_rs_dart/ffi/types.dart'
     show
-        AppHandle,
         Config,
         DeployEnv,
-        FiatRate,
-        FiatRates,
-        NodeInfo,
         PaymentDirection,
         PaymentKind,
         PaymentStatus,
         ShortPayment,
         ShortPaymentAndIndex;
-import 'package:app_rs_dart/ffi/ffi.ext.dart' show ClientPaymentIdExt;
+import 'package:app_rs_dart/ffi/types.ext.dart' show ClientPaymentIdExt;
 import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' show freezed;
 import 'package:intl/intl.dart' show NumberFormat;

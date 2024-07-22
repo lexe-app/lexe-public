@@ -3,3 +3,5 @@
 pub mod ffi;
 /// Dart interface for app settings.
 pub mod settings;
+/// Data types to expose to Dart.
+pub mod types;

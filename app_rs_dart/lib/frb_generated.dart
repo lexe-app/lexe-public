@@ -12,6 +12,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'ffi/ffi.dart';
 import 'ffi/settings.dart';
+import 'ffi/types.dart';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
@@ -62,7 +63,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.1.0';
 
   @override
-  int get rustContentHash => -740724882;
+  int get rustContentHash => 1831663784;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -154,23 +155,23 @@ abstract class AppRsApi extends BaseApi {
 
   Future<void> crateFfiFfiDebugUnconditionalPanic();
 
-  DeployEnv crateFfiFfiDeployEnvFromStr({required String s});
-
   String? crateFfiFfiFormValidateBitcoinAddress(
       {required String addressStr, required Network currentNetwork});
 
   String? crateFfiFfiFormValidatePassword({required String password});
 
-  ClientPaymentId crateFfiFfiGenClientPaymentId();
-
   Stream<String> crateFfiFfiInitRustLogStream({required String rustLog});
-
-  Network crateFfiFfiNetworkFromStr({required String s});
 
   Future<PaymentMethod> crateFfiFfiPaymentUriResolveBest(
       {required Network network, required String uriStr});
 
   Future<Settings> crateFfiSettingsSave({required Settings settings});
+
+  DeployEnv crateFfiTypesDeployEnvFromStr({required String s});
+
+  ClientPaymentId crateFfiTypesGenClientPaymentId();
+
+  Network crateFfiTypesNetworkFromStr({required String s});
 
   RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_App;
 
@@ -970,30 +971,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  DeployEnv crateFfiFfiDeployEnvFromStr({required String s}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_String(s, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 31)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_deploy_env,
-        decodeErrorData: sse_decode_AnyhowException,
-      ),
-      constMeta: kCrateFfiFfiDeployEnvFromStrConstMeta,
-      argValues: [s],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateFfiFfiDeployEnvFromStrConstMeta =>
-      const TaskConstMeta(
-        debugName: "deploy_env_from_str",
-        argNames: ["s"],
-      );
-
-  @override
   String? crateFfiFfiFormValidateBitcoinAddress(
       {required String addressStr, required Network currentNetwork}) {
     return handler.executeSync(SyncTask(
@@ -1001,7 +978,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(addressStr, serializer);
         sse_encode_network(currentNetwork, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 32)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 31)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_opt_String,
@@ -1025,7 +1002,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(password, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 33)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 32)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_opt_String,
@@ -1044,29 +1021,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  ClientPaymentId crateFfiFfiGenClientPaymentId() {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 34)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_client_payment_id,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateFfiFfiGenClientPaymentIdConstMeta,
-      argValues: [],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateFfiFfiGenClientPaymentIdConstMeta =>
-      const TaskConstMeta(
-        debugName: "gen_client_payment_id",
-        argNames: [],
-      );
-
-  @override
   Stream<String> crateFfiFfiInitRustLogStream({required String rustLog}) {
     final rustLogTx = RustStreamSink<String>();
     unawaited(handler.executeNormal(NormalTask(
@@ -1075,7 +1029,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         sse_encode_StreamSink_String_Sse(rustLogTx, serializer);
         sse_encode_String(rustLog, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 35, port: port_);
+            funcId: 33, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1095,29 +1049,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Network crateFfiFfiNetworkFromStr({required String s}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_String(s, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_network,
-        decodeErrorData: sse_decode_AnyhowException,
-      ),
-      constMeta: kCrateFfiFfiNetworkFromStrConstMeta,
-      argValues: [s],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateFfiFfiNetworkFromStrConstMeta => const TaskConstMeta(
-        debugName: "network_from_str",
-        argNames: ["s"],
-      );
-
-  @override
   Future<PaymentMethod> crateFfiFfiPaymentUriResolveBest(
       {required Network network, required String uriStr}) {
     return handler.executeNormal(NormalTask(
@@ -1126,7 +1057,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         sse_encode_network(network, serializer);
         sse_encode_String(uriStr, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 37, port: port_);
+            funcId: 34, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_payment_method,
@@ -1151,7 +1082,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_settings(settings, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 38, port: port_);
+            funcId: 35, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_settings,
@@ -1166,6 +1097,77 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   TaskConstMeta get kCrateFfiSettingsSaveConstMeta => const TaskConstMeta(
         debugName: "save",
         argNames: ["settings"],
+      );
+
+  @override
+  DeployEnv crateFfiTypesDeployEnvFromStr({required String s}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(s, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_deploy_env,
+        decodeErrorData: sse_decode_AnyhowException,
+      ),
+      constMeta: kCrateFfiTypesDeployEnvFromStrConstMeta,
+      argValues: [s],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateFfiTypesDeployEnvFromStrConstMeta =>
+      const TaskConstMeta(
+        debugName: "deploy_env_from_str",
+        argNames: ["s"],
+      );
+
+  @override
+  ClientPaymentId crateFfiTypesGenClientPaymentId() {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_client_payment_id,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateFfiTypesGenClientPaymentIdConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateFfiTypesGenClientPaymentIdConstMeta =>
+      const TaskConstMeta(
+        debugName: "gen_client_payment_id",
+        argNames: [],
+      );
+
+  @override
+  Network crateFfiTypesNetworkFromStr({required String s}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(s, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 38)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_network,
+        decodeErrorData: sse_decode_AnyhowException,
+      ),
+      constMeta: kCrateFfiTypesNetworkFromStrConstMeta,
+      argValues: [s],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateFfiTypesNetworkFromStrConstMeta =>
+      const TaskConstMeta(
+        debugName: "network_from_str",
+        argNames: ["s"],
       );
 
   RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_App =>

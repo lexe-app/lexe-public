@@ -1,6 +1,6 @@
 // Currency formatting utilities
 
-import 'package:app_rs_dart/ffi/ffi.dart' show PaymentDirection;
+import 'package:app_rs_dart/ffi/types.dart' show PaymentDirection;
 import 'package:intl/intl.dart' show NumberFormat;
 
 const int satsPerBtc = 100000000; // 1e8, 100 million sats

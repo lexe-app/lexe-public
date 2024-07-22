@@ -12,19 +12,11 @@ import '../frb_generated.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+import 'types.dart';
 part 'ffi.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_cid_and_response`, `from_id_and_response`, `new`, `validate_note`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
-
-DeployEnv deployEnvFromStr({required String s}) =>
-    AppRs.instance.api.crateFfiFfiDeployEnvFromStr(s: s);
-
-Network networkFromStr({required String s}) =>
-    AppRs.instance.api.crateFfiFfiNetworkFromStr(s: s);
-
-ClientPaymentId genClientPaymentId() =>
-    AppRs.instance.api.crateFfiFfiGenClientPaymentId();
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
 /// Validate whether `address_str` is a properly formatted bitcoin address. Also
 /// checks that it's valid for the configured bitcoin network.
@@ -255,35 +247,6 @@ class Balance with _$Balance {
   }) = _Balance;
 }
 
-/// A unique, client-generated id for payment types (onchain send,
-/// ln spontaneous send) that need an extra id for idempotency.
-@freezed
-class ClientPaymentId with _$ClientPaymentId {
-  const factory ClientPaymentId({
-    required U8Array32 id,
-  }) = _ClientPaymentId;
-}
-
-/// Dart-serializable configuration we get from the flutter side.
-@freezed
-class Config with _$Config {
-  const factory Config({
-    required DeployEnv deployEnv,
-    required Network network,
-    required String gatewayUrl,
-    required bool useSgx,
-    required String baseAppDataDir,
-    required bool useMockSecretStore,
-  }) = _Config;
-}
-
-enum ConfirmationPriority {
-  high,
-  normal,
-  background,
-  ;
-}
-
 /// See [`common::api::command::CreateInvoiceRequest`].
 @freezed
 class CreateInvoiceRequest with _$CreateInvoiceRequest {
@@ -300,14 +263,6 @@ class CreateInvoiceResponse with _$CreateInvoiceResponse {
   const factory CreateInvoiceResponse({
     required Invoice invoice,
   }) = _CreateInvoiceResponse;
-}
-
-/// See [`common::env::DeployEnv`]
-enum DeployEnv {
-  dev,
-  staging,
-  prod,
-  ;
 }
 
 /// See [`common::api::command::FeeEstimate`].
@@ -334,28 +289,6 @@ class FiatRates with _$FiatRates {
   }) = _FiatRates;
 }
 
-/// A lightning invoice with useful fields parsed out for the flutter frontend.
-/// Mirrors the [`LxInvoice`] type.
-@freezed
-class Invoice with _$Invoice {
-  const factory Invoice({
-    required String string,
-    String? description,
-    required int createdAt,
-    required int expiresAt,
-    int? amountSats,
-    required String payeePubkey,
-  }) = _Invoice;
-}
-
-/// See [`common::cli::Network`]
-enum Network {
-  mainnet,
-  testnet,
-  regtest,
-  ;
-}
-
 @freezed
 class NodeInfo with _$NodeInfo {
   const factory NodeInfo({
@@ -364,17 +297,6 @@ class NodeInfo with _$NodeInfo {
     required String measurement,
     required Balance balance,
   }) = _NodeInfo;
-}
-
-/// A potential onchain Bitcoin payment.
-@freezed
-class Onchain with _$Onchain {
-  const factory Onchain({
-    required String address,
-    int? amountSats,
-    String? label,
-    String? message,
-  }) = _Onchain;
 }
 
 /// Mirrors the [`common::api::command::PayInvoiceRequest`] type.
@@ -417,67 +339,6 @@ class PayOnchainResponse with _$PayOnchainResponse {
   }) = _PayOnchainResponse;
 }
 
-/// The complete payment info, used in the payment detail page. Mirrors the
-/// [`BasicPaymentRs`] type.
-@freezed
-class Payment with _$Payment {
-  const factory Payment({
-    required PaymentIndex index,
-    required PaymentKind kind,
-    required PaymentDirection direction,
-    Invoice? invoice,
-    String? replacement,
-    int? amountSat,
-    required int feesSat,
-    required PaymentStatus status,
-    required String statusStr,
-    String? note,
-    required int createdAt,
-    int? finalizedAt,
-  }) = _Payment;
-}
-
-enum PaymentDirection {
-  inbound,
-  outbound,
-  ;
-}
-
-/// See [`common::ln::payments::PaymentIndex`].
-@freezed
-class PaymentIndex with _$PaymentIndex {
-  const factory PaymentIndex({
-    required String field0,
-  }) = _PaymentIndex;
-}
-
-enum PaymentKind {
-  onchain,
-  invoice,
-  spontaneous,
-  ;
-}
-
-@freezed
-sealed class PaymentMethod with _$PaymentMethod {
-  const PaymentMethod._();
-
-  const factory PaymentMethod.onchain(
-    Onchain field0,
-  ) = PaymentMethod_Onchain;
-  const factory PaymentMethod.invoice(
-    Invoice field0,
-  ) = PaymentMethod_Invoice;
-  const factory PaymentMethod.offer() = PaymentMethod_Offer;
-}
-
-enum PaymentStatus {
-  pending,
-  completed,
-  failed,
-  ;
-}
-
 /// See [`common::api::command::PreflightPayInvoiceRequest`].
 @freezed
 class PreflightPayInvoiceRequest with _$PreflightPayInvoiceRequest {
@@ -513,43 +374,6 @@ class PreflightPayOnchainResponse with _$PreflightPayOnchainResponse {
     required FeeEstimate normal,
     required FeeEstimate background,
   }) = _PreflightPayOnchainResponse;
-}
-
-/// Just the info we need to display an entry in the payments list UI.
-@freezed
-class ShortPayment with _$ShortPayment {
-  const factory ShortPayment({
-    required PaymentIndex index,
-    required PaymentKind kind,
-    required PaymentDirection direction,
-    int? amountSat,
-    required PaymentStatus status,
-    String? note,
-    required int createdAt,
-  }) = _ShortPayment;
-}
-
-/// Just a `(usize, ShortPayment)`, but packaged in a struct until
-/// `flutter_rust_bridge` stops breaking on tuples.
-class ShortPaymentAndIndex {
-  final int vecIdx;
-  final ShortPayment payment;
-
-  const ShortPaymentAndIndex({
-    required this.vecIdx,
-    required this.payment,
-  });
-
-  @override
-  int get hashCode => vecIdx.hashCode ^ payment.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ShortPaymentAndIndex &&
-          runtimeType == other.runtimeType &&
-          vecIdx == other.vecIdx &&
-          payment == other.payment;
 }
 
 class U8Array32 extends NonGrowableListView<int> {

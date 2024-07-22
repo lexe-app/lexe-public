@@ -3,12 +3,10 @@
 // ignore_for_file: camel_case_types
 
 import 'package:app_rs_dart/ffi/ffi.dart'
-    show
-        ConfirmationPriority,
-        FeeEstimate,
-        PaymentKind,
-        PreflightPayOnchainResponse;
-import 'package:app_rs_dart/ffi/ffi.ext.dart';
+    show FeeEstimate, PreflightPayOnchainResponse;
+import 'package:app_rs_dart/ffi/types.dart'
+    show ConfirmationPriority, PaymentKind;
+import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:flutter/material.dart';
 import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/components.dart'

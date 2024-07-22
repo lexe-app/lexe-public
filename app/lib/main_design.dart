@@ -13,34 +13,36 @@ import 'package:app_rs_dart/ffi/ffi.dart'
         App,
         AppHandle,
         Balance,
-        ClientPaymentId,
-        Config,
         CreateInvoiceRequest,
         CreateInvoiceResponse,
         FeeEstimate,
         FiatRate,
         FiatRates,
-        Invoice,
         NodeInfo,
-        Onchain,
         PayInvoiceRequest,
         PayInvoiceResponse,
         PayOnchainRequest,
         PayOnchainResponse,
+        PreflightPayInvoiceRequest,
+        PreflightPayInvoiceResponse,
+        PreflightPayOnchainRequest,
+        PreflightPayOnchainResponse,
+        U8Array32,
+        UpdatePaymentNote;
+import 'package:app_rs_dart/ffi/types.dart'
+    show
+        ClientPaymentId,
+        Config,
+        Invoice,
+        Onchain,
         Payment,
         PaymentDirection,
         PaymentIndex,
         PaymentKind,
         PaymentMethod,
         PaymentStatus,
-        PreflightPayInvoiceRequest,
-        PreflightPayInvoiceResponse,
-        PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse,
-        ShortPaymentAndIndex,
-        U8Array32,
-        UpdatePaymentNote;
-import 'package:app_rs_dart/ffi/ffi.ext.dart' show PaymentExt;
+        ShortPaymentAndIndex;
+import 'package:app_rs_dart/ffi/types.ext.dart' show PaymentExt;
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 // import 'package:flutter_markdown/flutter_markdown.dart';

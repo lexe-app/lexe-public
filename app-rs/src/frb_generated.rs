@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.1.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -740724882;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1831663784;
 
 // Section: executor
 
@@ -271,7 +271,7 @@ fn wire__crate__ffi__ffi__app_handle_get_vec_idx_by_payment_index_impl(
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
-let api_payment_index = <crate::ffi::ffi::PaymentIndex>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
+let api_payment_index = <crate::ffi::types::PaymentIndex>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
                     transform_result_sse::<_, ()>((move ||  {
                          let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::AppHandle::get_vec_idx_by_payment_index(&api_that, api_payment_index))?;   Ok(output_ok)
                     })())
@@ -286,7 +286,7 @@ fn wire__crate__ffi__ffi__app_handle_load_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_load", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_config = <crate::ffi::ffi::Config>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            let api_config = <crate::ffi::types::Config>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
                          let output_ok = crate::ffi::ffi::AppHandle::load(api_config).await?;   Ok(output_ok)
                     })().await)
@@ -380,7 +380,7 @@ fn wire__crate__ffi__ffi__app_handle_restore_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_restore", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_config = <crate::ffi::ffi::Config>::sse_decode(&mut deserializer);
+            let api_config = <crate::ffi::types::Config>::sse_decode(&mut deserializer);
 let api_seed_phrase = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
                          let output_ok = crate::ffi::ffi::AppHandle::restore(api_config, api_seed_phrase).await?;   Ok(output_ok)
@@ -396,7 +396,7 @@ fn wire__crate__ffi__ffi__app_handle_signup_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_signup", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_config = <crate::ffi::ffi::Config>::sse_decode(&mut deserializer);
+            let api_config = <crate::ffi::types::Config>::sse_decode(&mut deserializer);
 let api_google_auth_code = <String>::sse_decode(&mut deserializer);
 let api_password = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
@@ -443,7 +443,7 @@ fn wire__crate__ffi__ffi__debug_delete_latest_provisioned_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "debug_delete_latest_provisioned", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_config = <crate::ffi::ffi::Config>::sse_decode(&mut deserializer);deserializer.end();
+            let api_config = <crate::ffi::types::Config>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || {
                      let output_ok = crate::ffi::ffi::debug_delete_latest_provisioned(api_config)?;   Ok(output_ok)
                 })()) })
@@ -456,7 +456,7 @@ fn wire__crate__ffi__ffi__debug_delete_secret_store_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "debug_delete_secret_store", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_config = <crate::ffi::ffi::Config>::sse_decode(&mut deserializer);deserializer.end();
+            let api_config = <crate::ffi::types::Config>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || {
                      let output_ok = crate::ffi::ffi::debug_delete_secret_store(api_config)?;   Ok(output_ok)
                 })()) })
@@ -491,19 +491,6 @@ fn wire__crate__ffi__ffi__debug_unconditional_panic_impl(
                     })())
                 } })
 }
-fn wire__crate__ffi__ffi__deploy_env_from_str_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "deploy_env_from_str", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
-            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
-            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_s = <String>::sse_decode(&mut deserializer);deserializer.end();
-                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || {
-                     let output_ok = crate::ffi::ffi::deploy_env_from_str(api_s)?;   Ok(output_ok)
-                })()) })
-}
 fn wire__crate__ffi__ffi__form_validate_bitcoin_address_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -513,7 +500,7 @@ fn wire__crate__ffi__ffi__form_validate_bitcoin_address_impl(
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_address_str = <String>::sse_decode(&mut deserializer);
-let api_current_network = <crate::ffi::ffi::Network>::sse_decode(&mut deserializer);deserializer.end();
+let api_current_network = <crate::ffi::types::Network>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
                      let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::form_validate_bitcoin_address(api_address_str, api_current_network))?;   Ok(output_ok)
                 })()) })
@@ -529,19 +516,6 @@ fn wire__crate__ffi__ffi__form_validate_password_impl(
             let api_password = <String>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
                      let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::form_validate_password(api_password))?;   Ok(output_ok)
-                })()) })
-}
-fn wire__crate__ffi__ffi__gen_client_payment_id_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "gen_client_payment_id", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
-            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
-            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            deserializer.end();
-                transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::gen_client_payment_id())?;   Ok(output_ok)
                 })()) })
 }
 fn wire__crate__ffi__ffi__init_rust_log_stream_impl(
@@ -560,19 +534,6 @@ let api_rust_log = <String>::sse_decode(&mut deserializer);deserializer.end(); m
                     })())
                 } })
 }
-fn wire__crate__ffi__ffi__network_from_str_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "network_from_str", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
-            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
-            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_s = <String>::sse_decode(&mut deserializer);deserializer.end();
-                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || {
-                     let output_ok = crate::ffi::ffi::network_from_str(api_s)?;   Ok(output_ok)
-                })()) })
-}
 fn wire__crate__ffi__ffi__payment_uri_resolve_best_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -582,7 +543,7 @@ fn wire__crate__ffi__ffi__payment_uri_resolve_best_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "payment_uri_resolve_best", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_network = <crate::ffi::ffi::Network>::sse_decode(&mut deserializer);
+            let api_network = <crate::ffi::types::Network>::sse_decode(&mut deserializer);
 let api_uri_str = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move ||  {
                          let output_ok = crate::ffi::ffi::payment_uri_resolve_best(api_network, api_uri_str)?;   Ok(output_ok)
@@ -603,6 +564,45 @@ fn wire__crate__ffi__settings__save_impl(
                          let output_ok = crate::ffi::settings::save(api_settings)?;   Ok(output_ok)
                     })())
                 } })
+}
+fn wire__crate__ffi__types__deploy_env_from_str_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "deploy_env_from_str", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_s = <String>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || {
+                     let output_ok = crate::ffi::types::deploy_env_from_str(api_s)?;   Ok(output_ok)
+                })()) })
+}
+fn wire__crate__ffi__types__gen_client_payment_id_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "gen_client_payment_id", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+                transform_result_sse::<_, ()>((move || {
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::types::gen_client_payment_id())?;   Ok(output_ok)
+                })()) })
+}
+fn wire__crate__ffi__types__network_from_str_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "network_from_str", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_s = <String>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || {
+                     let output_ok = crate::ffi::types::network_from_str(api_s)?;   Ok(output_ok)
+                })()) })
 }
 
 // Section: dart2rust
@@ -686,30 +686,30 @@ impl SseDecode for bool {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::ClientPaymentId {
+impl SseDecode for crate::ffi::types::ClientPaymentId {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_id = <[u8; 32]>::sse_decode(deserializer);
-        return crate::ffi::ffi::ClientPaymentId { id: var_id };
+        return crate::ffi::types::ClientPaymentId { id: var_id };
     }
 }
 
-impl SseDecode for crate::ffi::ffi::Config {
+impl SseDecode for crate::ffi::types::Config {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_deployEnv =
-            <crate::ffi::ffi::DeployEnv>::sse_decode(deserializer);
+            <crate::ffi::types::DeployEnv>::sse_decode(deserializer);
         let mut var_network =
-            <crate::ffi::ffi::Network>::sse_decode(deserializer);
+            <crate::ffi::types::Network>::sse_decode(deserializer);
         let mut var_gatewayUrl = <String>::sse_decode(deserializer);
         let mut var_useSgx = <bool>::sse_decode(deserializer);
         let mut var_baseAppDataDir = <String>::sse_decode(deserializer);
         let mut var_useMockSecretStore = <bool>::sse_decode(deserializer);
-        return crate::ffi::ffi::Config {
+        return crate::ffi::types::Config {
             deploy_env: var_deployEnv,
             network: var_network,
             gateway_url: var_gatewayUrl,
@@ -720,16 +720,16 @@ impl SseDecode for crate::ffi::ffi::Config {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::ConfirmationPriority {
+impl SseDecode for crate::ffi::types::ConfirmationPriority {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
-            0 => crate::ffi::ffi::ConfirmationPriority::High,
-            1 => crate::ffi::ffi::ConfirmationPriority::Normal,
-            2 => crate::ffi::ffi::ConfirmationPriority::Background,
+            0 => crate::ffi::types::ConfirmationPriority::High,
+            1 => crate::ffi::types::ConfirmationPriority::Normal,
+            2 => crate::ffi::types::ConfirmationPriority::Background,
             _ => unreachable!(
                 "Invalid variant for ConfirmationPriority: {}",
                 inner
@@ -760,23 +760,23 @@ impl SseDecode for crate::ffi::ffi::CreateInvoiceResponse {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_invoice =
-            <crate::ffi::ffi::Invoice>::sse_decode(deserializer);
+            <crate::ffi::types::Invoice>::sse_decode(deserializer);
         return crate::ffi::ffi::CreateInvoiceResponse {
             invoice: var_invoice,
         };
     }
 }
 
-impl SseDecode for crate::ffi::ffi::DeployEnv {
+impl SseDecode for crate::ffi::types::DeployEnv {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
-            0 => crate::ffi::ffi::DeployEnv::Dev,
-            1 => crate::ffi::ffi::DeployEnv::Staging,
-            2 => crate::ffi::ffi::DeployEnv::Prod,
+            0 => crate::ffi::types::DeployEnv::Dev,
+            1 => crate::ffi::types::DeployEnv::Staging,
+            2 => crate::ffi::types::DeployEnv::Prod,
             _ => unreachable!("Invalid variant for DeployEnv: {}", inner),
         };
     }
@@ -850,7 +850,7 @@ impl SseDecode for i64 {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::Invoice {
+impl SseDecode for crate::ffi::types::Invoice {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -861,7 +861,7 @@ impl SseDecode for crate::ffi::ffi::Invoice {
         let mut var_expiresAt = <i64>::sse_decode(deserializer);
         let mut var_amountSats = <Option<u64>>::sse_decode(deserializer);
         let mut var_payeePubkey = <String>::sse_decode(deserializer);
-        return crate::ffi::ffi::Invoice {
+        return crate::ffi::types::Invoice {
             string: var_string,
             description: var_description,
             created_at: var_createdAt,
@@ -900,16 +900,16 @@ impl SseDecode for Vec<u8> {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::Network {
+impl SseDecode for crate::ffi::types::Network {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
-            0 => crate::ffi::ffi::Network::Mainnet,
-            1 => crate::ffi::ffi::Network::Testnet,
-            2 => crate::ffi::ffi::Network::Regtest,
+            0 => crate::ffi::types::Network::Mainnet,
+            1 => crate::ffi::types::Network::Testnet,
+            2 => crate::ffi::types::Network::Regtest,
             _ => unreachable!("Invalid variant for Network: {}", inner),
         };
     }
@@ -934,7 +934,7 @@ impl SseDecode for crate::ffi::ffi::NodeInfo {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::Onchain {
+impl SseDecode for crate::ffi::types::Onchain {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -943,7 +943,7 @@ impl SseDecode for crate::ffi::ffi::Onchain {
         let mut var_amountSats = <Option<u64>>::sse_decode(deserializer);
         let mut var_label = <Option<String>>::sse_decode(deserializer);
         let mut var_message = <Option<String>>::sse_decode(deserializer);
-        return crate::ffi::ffi::Onchain {
+        return crate::ffi::types::Onchain {
             address: var_address,
             amount_sats: var_amountSats,
             label: var_label,
@@ -1034,41 +1034,47 @@ impl SseDecode for Option<crate::ffi::ffi::FeeEstimate> {
     }
 }
 
-impl SseDecode for Option<crate::ffi::ffi::Invoice> {
+impl SseDecode for Option<crate::ffi::types::Invoice> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::ffi::ffi::Invoice>::sse_decode(deserializer));
-        } else {
-            return None;
-        }
-    }
-}
-
-impl SseDecode for Option<crate::ffi::ffi::Payment> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::ffi::ffi::Payment>::sse_decode(deserializer));
-        } else {
-            return None;
-        }
-    }
-}
-
-impl SseDecode for Option<crate::ffi::ffi::ShortPaymentAndIndex> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::ffi::ffi::ShortPaymentAndIndex>::sse_decode(
+            return Some(<crate::ffi::types::Invoice>::sse_decode(
                 deserializer,
             ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::ffi::types::Payment> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::ffi::types::Payment>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::ffi::types::ShortPaymentAndIndex> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::ffi::types::ShortPaymentAndIndex>::sse_decode(
+                    deserializer,
+                ),
+            );
         } else {
             return None;
         }
@@ -1098,7 +1104,7 @@ impl SseDecode for crate::ffi::ffi::PayInvoiceResponse {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_index =
-            <crate::ffi::ffi::PaymentIndex>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentIndex>::sse_decode(deserializer);
         return crate::ffi::ffi::PayInvoiceResponse { index: var_index };
     }
 }
@@ -1109,11 +1115,11 @@ impl SseDecode for crate::ffi::ffi::PayOnchainRequest {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_cid =
-            <crate::ffi::ffi::ClientPaymentId>::sse_decode(deserializer);
+            <crate::ffi::types::ClientPaymentId>::sse_decode(deserializer);
         let mut var_address = <String>::sse_decode(deserializer);
         let mut var_amountSats = <u64>::sse_decode(deserializer);
         let mut var_priority =
-            <crate::ffi::ffi::ConfirmationPriority>::sse_decode(deserializer);
+            <crate::ffi::types::ConfirmationPriority>::sse_decode(deserializer);
         let mut var_note = <Option<String>>::sse_decode(deserializer);
         return crate::ffi::ffi::PayOnchainRequest {
             cid: var_cid,
@@ -1131,7 +1137,7 @@ impl SseDecode for crate::ffi::ffi::PayOnchainResponse {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_index =
-            <crate::ffi::ffi::PaymentIndex>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentIndex>::sse_decode(deserializer);
         let mut var_txid = <String>::sse_decode(deserializer);
         return crate::ffi::ffi::PayOnchainResponse {
             index: var_index,
@@ -1140,29 +1146,29 @@ impl SseDecode for crate::ffi::ffi::PayOnchainResponse {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::Payment {
+impl SseDecode for crate::ffi::types::Payment {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_index =
-            <crate::ffi::ffi::PaymentIndex>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentIndex>::sse_decode(deserializer);
         let mut var_kind =
-            <crate::ffi::ffi::PaymentKind>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentKind>::sse_decode(deserializer);
         let mut var_direction =
-            <crate::ffi::ffi::PaymentDirection>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentDirection>::sse_decode(deserializer);
         let mut var_invoice =
-            <Option<crate::ffi::ffi::Invoice>>::sse_decode(deserializer);
+            <Option<crate::ffi::types::Invoice>>::sse_decode(deserializer);
         let mut var_replacement = <Option<String>>::sse_decode(deserializer);
         let mut var_amountSat = <Option<u64>>::sse_decode(deserializer);
         let mut var_feesSat = <u64>::sse_decode(deserializer);
         let mut var_status =
-            <crate::ffi::ffi::PaymentStatus>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentStatus>::sse_decode(deserializer);
         let mut var_statusStr = <String>::sse_decode(deserializer);
         let mut var_note = <Option<String>>::sse_decode(deserializer);
         let mut var_createdAt = <i64>::sse_decode(deserializer);
         let mut var_finalizedAt = <Option<i64>>::sse_decode(deserializer);
-        return crate::ffi::ffi::Payment {
+        return crate::ffi::types::Payment {
             index: var_index,
             kind: var_kind,
             direction: var_direction,
@@ -1179,47 +1185,47 @@ impl SseDecode for crate::ffi::ffi::Payment {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::PaymentDirection {
+impl SseDecode for crate::ffi::types::PaymentDirection {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
-            0 => crate::ffi::ffi::PaymentDirection::Inbound,
-            1 => crate::ffi::ffi::PaymentDirection::Outbound,
+            0 => crate::ffi::types::PaymentDirection::Inbound,
+            1 => crate::ffi::types::PaymentDirection::Outbound,
             _ =>
                 unreachable!("Invalid variant for PaymentDirection: {}", inner),
         };
     }
 }
 
-impl SseDecode for crate::ffi::ffi::PaymentIndex {
+impl SseDecode for crate::ffi::types::PaymentIndex {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_field0 = <String>::sse_decode(deserializer);
-        return crate::ffi::ffi::PaymentIndex(var_field0);
+        return crate::ffi::types::PaymentIndex(var_field0);
     }
 }
 
-impl SseDecode for crate::ffi::ffi::PaymentKind {
+impl SseDecode for crate::ffi::types::PaymentKind {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
-            0 => crate::ffi::ffi::PaymentKind::Onchain,
-            1 => crate::ffi::ffi::PaymentKind::Invoice,
-            2 => crate::ffi::ffi::PaymentKind::Spontaneous,
+            0 => crate::ffi::types::PaymentKind::Onchain,
+            1 => crate::ffi::types::PaymentKind::Invoice,
+            2 => crate::ffi::types::PaymentKind::Spontaneous,
             _ => unreachable!("Invalid variant for PaymentKind: {}", inner),
         };
     }
 }
 
-impl SseDecode for crate::ffi::ffi::PaymentMethod {
+impl SseDecode for crate::ffi::types::PaymentMethod {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -1228,16 +1234,16 @@ impl SseDecode for crate::ffi::ffi::PaymentMethod {
         match tag_ {
             0 => {
                 let mut var_field0 =
-                    <crate::ffi::ffi::Onchain>::sse_decode(deserializer);
-                return crate::ffi::ffi::PaymentMethod::Onchain(var_field0);
+                    <crate::ffi::types::Onchain>::sse_decode(deserializer);
+                return crate::ffi::types::PaymentMethod::Onchain(var_field0);
             }
             1 => {
                 let mut var_field0 =
-                    <crate::ffi::ffi::Invoice>::sse_decode(deserializer);
-                return crate::ffi::ffi::PaymentMethod::Invoice(var_field0);
+                    <crate::ffi::types::Invoice>::sse_decode(deserializer);
+                return crate::ffi::types::PaymentMethod::Invoice(var_field0);
             }
             2 => {
-                return crate::ffi::ffi::PaymentMethod::Offer;
+                return crate::ffi::types::PaymentMethod::Offer;
             }
             _ => {
                 unimplemented!("");
@@ -1246,16 +1252,16 @@ impl SseDecode for crate::ffi::ffi::PaymentMethod {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::PaymentStatus {
+impl SseDecode for crate::ffi::types::PaymentStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
-            0 => crate::ffi::ffi::PaymentStatus::Pending,
-            1 => crate::ffi::ffi::PaymentStatus::Completed,
-            2 => crate::ffi::ffi::PaymentStatus::Failed,
+            0 => crate::ffi::types::PaymentStatus::Pending,
+            1 => crate::ffi::types::PaymentStatus::Completed,
+            2 => crate::ffi::types::PaymentStatus::Failed,
             _ => unreachable!("Invalid variant for PaymentStatus: {}", inner),
         };
     }
@@ -1337,23 +1343,23 @@ impl SseDecode for crate::ffi::settings::Settings {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::ShortPayment {
+impl SseDecode for crate::ffi::types::ShortPayment {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_index =
-            <crate::ffi::ffi::PaymentIndex>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentIndex>::sse_decode(deserializer);
         let mut var_kind =
-            <crate::ffi::ffi::PaymentKind>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentKind>::sse_decode(deserializer);
         let mut var_direction =
-            <crate::ffi::ffi::PaymentDirection>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentDirection>::sse_decode(deserializer);
         let mut var_amountSat = <Option<u64>>::sse_decode(deserializer);
         let mut var_status =
-            <crate::ffi::ffi::PaymentStatus>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentStatus>::sse_decode(deserializer);
         let mut var_note = <Option<String>>::sse_decode(deserializer);
         let mut var_createdAt = <i64>::sse_decode(deserializer);
-        return crate::ffi::ffi::ShortPayment {
+        return crate::ffi::types::ShortPayment {
             index: var_index,
             kind: var_kind,
             direction: var_direction,
@@ -1365,15 +1371,15 @@ impl SseDecode for crate::ffi::ffi::ShortPayment {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::ShortPaymentAndIndex {
+impl SseDecode for crate::ffi::types::ShortPaymentAndIndex {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_vecIdx = <usize>::sse_decode(deserializer);
         let mut var_payment =
-            <crate::ffi::ffi::ShortPayment>::sse_decode(deserializer);
-        return crate::ffi::ffi::ShortPaymentAndIndex {
+            <crate::ffi::types::ShortPayment>::sse_decode(deserializer);
+        return crate::ffi::types::ShortPaymentAndIndex {
             vec_idx: var_vecIdx,
             payment: var_payment,
         };
@@ -1431,7 +1437,7 @@ impl SseDecode for crate::ffi::ffi::UpdatePaymentNote {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_index =
-            <crate::ffi::ffi::PaymentIndex>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentIndex>::sse_decode(deserializer);
         let mut var_note = <Option<String>>::sse_decode(deserializer);
         return crate::ffi::ffi::UpdatePaymentNote {
             index: var_index,
@@ -1561,19 +1567,19 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        35 => wire__crate__ffi__ffi__init_rust_log_stream_impl(
+        33 => wire__crate__ffi__ffi__init_rust_log_stream_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        37 => wire__crate__ffi__ffi__payment_uri_resolve_best_impl(
+        34 => wire__crate__ffi__ffi__payment_uri_resolve_best_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        38 => wire__crate__ffi__settings__save_impl(
+        35 => wire__crate__ffi__settings__save_impl(
             port,
             ptr,
             rust_vec_len,
@@ -1604,11 +1610,11 @@ fn pde_ffi_dispatcher_sync_impl(
 15 => wire__crate__ffi__ffi__app_handle_get_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
 27 => wire__crate__ffi__ffi__debug_delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
 28 => wire__crate__ffi__ffi__debug_delete_secret_store_impl(ptr, rust_vec_len, data_len),
-31 => wire__crate__ffi__ffi__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
-32 => wire__crate__ffi__ffi__form_validate_bitcoin_address_impl(ptr, rust_vec_len, data_len),
-33 => wire__crate__ffi__ffi__form_validate_password_impl(ptr, rust_vec_len, data_len),
-34 => wire__crate__ffi__ffi__gen_client_payment_id_impl(ptr, rust_vec_len, data_len),
-36 => wire__crate__ffi__ffi__network_from_str_impl(ptr, rust_vec_len, data_len),
+31 => wire__crate__ffi__ffi__form_validate_bitcoin_address_impl(ptr, rust_vec_len, data_len),
+32 => wire__crate__ffi__ffi__form_validate_password_impl(ptr, rust_vec_len, data_len),
+36 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
+37 => wire__crate__ffi__types__gen_client_payment_id_impl(ptr, rust_vec_len, data_len),
+38 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -1655,24 +1661,24 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::Balance>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::ClientPaymentId {
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::ClientPaymentId {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [self.id.into_into_dart().into_dart()].into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::ClientPaymentId
+    for crate::ffi::types::ClientPaymentId
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::ClientPaymentId>
-    for crate::ffi::ffi::ClientPaymentId
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::ClientPaymentId>
+    for crate::ffi::types::ClientPaymentId
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::ClientPaymentId {
+    fn into_into_dart(self) -> crate::ffi::types::ClientPaymentId {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::Config {
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::Config {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.deploy_env.into_into_dart().into_dart(),
@@ -1686,18 +1692,18 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::Config {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::Config
+    for crate::ffi::types::Config
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::Config>
-    for crate::ffi::ffi::Config
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Config>
+    for crate::ffi::types::Config
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::Config {
+    fn into_into_dart(self) -> crate::ffi::types::Config {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::ConfirmationPriority {
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::ConfirmationPriority {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             Self::High => 0.into_dart(),
@@ -1708,13 +1714,13 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::ConfirmationPriority {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::ConfirmationPriority
+    for crate::ffi::types::ConfirmationPriority
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::ConfirmationPriority>
-    for crate::ffi::ffi::ConfirmationPriority
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::ConfirmationPriority>
+    for crate::ffi::types::ConfirmationPriority
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::ConfirmationPriority {
+    fn into_into_dart(self) -> crate::ffi::types::ConfirmationPriority {
         self
     }
 }
@@ -1758,7 +1764,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::CreateInvoiceResponse>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::DeployEnv {
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::DeployEnv {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             Self::Dev => 0.into_dart(),
@@ -1769,13 +1775,13 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::DeployEnv {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::DeployEnv
+    for crate::ffi::types::DeployEnv
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::DeployEnv>
-    for crate::ffi::ffi::DeployEnv
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::DeployEnv>
+    for crate::ffi::types::DeployEnv
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::DeployEnv {
+    fn into_into_dart(self) -> crate::ffi::types::DeployEnv {
         self
     }
 }
@@ -1839,7 +1845,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::FiatRates>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::Invoice {
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::Invoice {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.string.into_into_dart().into_dart(),
@@ -1853,18 +1859,18 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::Invoice {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::Invoice
+    for crate::ffi::types::Invoice
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::Invoice>
-    for crate::ffi::ffi::Invoice
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Invoice>
+    for crate::ffi::types::Invoice
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::Invoice {
+    fn into_into_dart(self) -> crate::ffi::types::Invoice {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::Network {
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::Network {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             Self::Mainnet => 0.into_dart(),
@@ -1875,13 +1881,13 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::Network {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::Network
+    for crate::ffi::types::Network
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::Network>
-    for crate::ffi::ffi::Network
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Network>
+    for crate::ffi::types::Network
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::Network {
+    fn into_into_dart(self) -> crate::ffi::types::Network {
         self
     }
 }
@@ -1909,7 +1915,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::NodeInfo>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::Onchain {
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::Onchain {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.address.into_into_dart().into_dart(),
@@ -1921,13 +1927,13 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::Onchain {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::Onchain
+    for crate::ffi::types::Onchain
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::Onchain>
-    for crate::ffi::ffi::Onchain
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Onchain>
+    for crate::ffi::types::Onchain
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::Onchain {
+    fn into_into_dart(self) -> crate::ffi::types::Onchain {
         self
     }
 }
@@ -2016,7 +2022,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::PayOnchainResponse>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::Payment {
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::Payment {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.index.into_into_dart().into_dart(),
@@ -2036,18 +2042,18 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::Payment {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::Payment
+    for crate::ffi::types::Payment
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::Payment>
-    for crate::ffi::ffi::Payment
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Payment>
+    for crate::ffi::types::Payment
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::Payment {
+    fn into_into_dart(self) -> crate::ffi::types::Payment {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::PaymentDirection {
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentDirection {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             Self::Inbound => 0.into_dart(),
@@ -2057,35 +2063,35 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::PaymentDirection {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::PaymentDirection
+    for crate::ffi::types::PaymentDirection
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::PaymentDirection>
-    for crate::ffi::ffi::PaymentDirection
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::PaymentDirection>
+    for crate::ffi::types::PaymentDirection
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::PaymentDirection {
+    fn into_into_dart(self) -> crate::ffi::types::PaymentDirection {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::PaymentIndex {
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentIndex {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [self.0.into_into_dart().into_dart()].into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::PaymentIndex
+    for crate::ffi::types::PaymentIndex
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::PaymentIndex>
-    for crate::ffi::ffi::PaymentIndex
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::PaymentIndex>
+    for crate::ffi::types::PaymentIndex
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::PaymentIndex {
+    fn into_into_dart(self) -> crate::ffi::types::PaymentIndex {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::PaymentKind {
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentKind {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             Self::Onchain => 0.into_dart(),
@@ -2096,25 +2102,25 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::PaymentKind {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::PaymentKind
+    for crate::ffi::types::PaymentKind
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::PaymentKind>
-    for crate::ffi::ffi::PaymentKind
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::PaymentKind>
+    for crate::ffi::types::PaymentKind
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::PaymentKind {
+    fn into_into_dart(self) -> crate::ffi::types::PaymentKind {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::PaymentMethod {
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentMethod {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
-            crate::ffi::ffi::PaymentMethod::Onchain(field0) =>
+            crate::ffi::types::PaymentMethod::Onchain(field0) =>
                 [0.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::ffi::ffi::PaymentMethod::Invoice(field0) =>
+            crate::ffi::types::PaymentMethod::Invoice(field0) =>
                 [1.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::ffi::ffi::PaymentMethod::Offer =>
+            crate::ffi::types::PaymentMethod::Offer =>
                 [2.into_dart()].into_dart(),
             _ => {
                 unimplemented!("");
@@ -2123,18 +2129,18 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::PaymentMethod {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::PaymentMethod
+    for crate::ffi::types::PaymentMethod
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::PaymentMethod>
-    for crate::ffi::ffi::PaymentMethod
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::PaymentMethod>
+    for crate::ffi::types::PaymentMethod
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::PaymentMethod {
+    fn into_into_dart(self) -> crate::ffi::types::PaymentMethod {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::PaymentStatus {
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentStatus {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             Self::Pending => 0.into_dart(),
@@ -2145,13 +2151,13 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::PaymentStatus {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::PaymentStatus
+    for crate::ffi::types::PaymentStatus
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::PaymentStatus>
-    for crate::ffi::ffi::PaymentStatus
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::PaymentStatus>
+    for crate::ffi::types::PaymentStatus
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::PaymentStatus {
+    fn into_into_dart(self) -> crate::ffi::types::PaymentStatus {
         self
     }
 }
@@ -2278,7 +2284,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::settings::Settings>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::ShortPayment {
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::ShortPayment {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.index.into_into_dart().into_dart(),
@@ -2293,18 +2299,18 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::ShortPayment {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::ShortPayment
+    for crate::ffi::types::ShortPayment
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::ShortPayment>
-    for crate::ffi::ffi::ShortPayment
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::ShortPayment>
+    for crate::ffi::types::ShortPayment
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::ShortPayment {
+    fn into_into_dart(self) -> crate::ffi::types::ShortPayment {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::ShortPaymentAndIndex {
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::ShortPaymentAndIndex {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.vec_idx.into_into_dart().into_dart(),
@@ -2314,13 +2320,13 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::ShortPaymentAndIndex {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::ShortPaymentAndIndex
+    for crate::ffi::types::ShortPaymentAndIndex
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::ShortPaymentAndIndex>
-    for crate::ffi::ffi::ShortPaymentAndIndex
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::ShortPaymentAndIndex>
+    for crate::ffi::types::ShortPaymentAndIndex
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::ShortPaymentAndIndex {
+    fn into_into_dart(self) -> crate::ffi::types::ShortPaymentAndIndex {
         self
     }
 }
@@ -2422,7 +2428,7 @@ impl SseEncode for bool {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::ClientPaymentId {
+impl SseEncode for crate::ffi::types::ClientPaymentId {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2432,14 +2438,14 @@ impl SseEncode for crate::ffi::ffi::ClientPaymentId {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::Config {
+impl SseEncode for crate::ffi::types::Config {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::ffi::DeployEnv>::sse_encode(self.deploy_env, serializer);
-        <crate::ffi::ffi::Network>::sse_encode(self.network, serializer);
+        <crate::ffi::types::DeployEnv>::sse_encode(self.deploy_env, serializer);
+        <crate::ffi::types::Network>::sse_encode(self.network, serializer);
         <String>::sse_encode(self.gateway_url, serializer);
         <bool>::sse_encode(self.use_sgx, serializer);
         <String>::sse_encode(self.base_app_data_dir, serializer);
@@ -2447,7 +2453,7 @@ impl SseEncode for crate::ffi::ffi::Config {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::ConfirmationPriority {
+impl SseEncode for crate::ffi::types::ConfirmationPriority {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2455,9 +2461,9 @@ impl SseEncode for crate::ffi::ffi::ConfirmationPriority {
     ) {
         <i32>::sse_encode(
             match self {
-                crate::ffi::ffi::ConfirmationPriority::High => 0,
-                crate::ffi::ffi::ConfirmationPriority::Normal => 1,
-                crate::ffi::ffi::ConfirmationPriority::Background => 2,
+                crate::ffi::types::ConfirmationPriority::High => 0,
+                crate::ffi::types::ConfirmationPriority::Normal => 1,
+                crate::ffi::types::ConfirmationPriority::Background => 2,
                 _ => {
                     unimplemented!("");
                 }
@@ -2485,11 +2491,11 @@ impl SseEncode for crate::ffi::ffi::CreateInvoiceResponse {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::ffi::Invoice>::sse_encode(self.invoice, serializer);
+        <crate::ffi::types::Invoice>::sse_encode(self.invoice, serializer);
     }
 }
 
-impl SseEncode for crate::ffi::ffi::DeployEnv {
+impl SseEncode for crate::ffi::types::DeployEnv {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2497,9 +2503,9 @@ impl SseEncode for crate::ffi::ffi::DeployEnv {
     ) {
         <i32>::sse_encode(
             match self {
-                crate::ffi::ffi::DeployEnv::Dev => 0,
-                crate::ffi::ffi::DeployEnv::Staging => 1,
-                crate::ffi::ffi::DeployEnv::Prod => 2,
+                crate::ffi::types::DeployEnv::Dev => 0,
+                crate::ffi::types::DeployEnv::Staging => 1,
+                crate::ffi::types::DeployEnv::Prod => 2,
                 _ => {
                     unimplemented!("");
                 }
@@ -2571,7 +2577,7 @@ impl SseEncode for i64 {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::Invoice {
+impl SseEncode for crate::ffi::types::Invoice {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2612,7 +2618,7 @@ impl SseEncode for Vec<u8> {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::Network {
+impl SseEncode for crate::ffi::types::Network {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2620,9 +2626,9 @@ impl SseEncode for crate::ffi::ffi::Network {
     ) {
         <i32>::sse_encode(
             match self {
-                crate::ffi::ffi::Network::Mainnet => 0,
-                crate::ffi::ffi::Network::Testnet => 1,
-                crate::ffi::ffi::Network::Regtest => 2,
+                crate::ffi::types::Network::Mainnet => 0,
+                crate::ffi::types::Network::Testnet => 1,
+                crate::ffi::types::Network::Regtest => 2,
                 _ => {
                     unimplemented!("");
                 }
@@ -2645,7 +2651,7 @@ impl SseEncode for crate::ffi::ffi::NodeInfo {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::Onchain {
+impl SseEncode for crate::ffi::types::Onchain {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2736,7 +2742,7 @@ impl SseEncode for Option<crate::ffi::ffi::FeeEstimate> {
     }
 }
 
-impl SseEncode for Option<crate::ffi::ffi::Invoice> {
+impl SseEncode for Option<crate::ffi::types::Invoice> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2744,12 +2750,12 @@ impl SseEncode for Option<crate::ffi::ffi::Invoice> {
     ) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <crate::ffi::ffi::Invoice>::sse_encode(value, serializer);
+            <crate::ffi::types::Invoice>::sse_encode(value, serializer);
         }
     }
 }
 
-impl SseEncode for Option<crate::ffi::ffi::Payment> {
+impl SseEncode for Option<crate::ffi::types::Payment> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2757,12 +2763,12 @@ impl SseEncode for Option<crate::ffi::ffi::Payment> {
     ) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <crate::ffi::ffi::Payment>::sse_encode(value, serializer);
+            <crate::ffi::types::Payment>::sse_encode(value, serializer);
         }
     }
 }
 
-impl SseEncode for Option<crate::ffi::ffi::ShortPaymentAndIndex> {
+impl SseEncode for Option<crate::ffi::types::ShortPaymentAndIndex> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2770,7 +2776,7 @@ impl SseEncode for Option<crate::ffi::ffi::ShortPaymentAndIndex> {
     ) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <crate::ffi::ffi::ShortPaymentAndIndex>::sse_encode(
+            <crate::ffi::types::ShortPaymentAndIndex>::sse_encode(
                 value, serializer,
             );
         }
@@ -2795,7 +2801,7 @@ impl SseEncode for crate::ffi::ffi::PayInvoiceResponse {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::ffi::PaymentIndex>::sse_encode(self.index, serializer);
+        <crate::ffi::types::PaymentIndex>::sse_encode(self.index, serializer);
     }
 }
 
@@ -2805,10 +2811,10 @@ impl SseEncode for crate::ffi::ffi::PayOnchainRequest {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::ffi::ClientPaymentId>::sse_encode(self.cid, serializer);
+        <crate::ffi::types::ClientPaymentId>::sse_encode(self.cid, serializer);
         <String>::sse_encode(self.address, serializer);
         <u64>::sse_encode(self.amount_sats, serializer);
-        <crate::ffi::ffi::ConfirmationPriority>::sse_encode(
+        <crate::ffi::types::ConfirmationPriority>::sse_encode(
             self.priority,
             serializer,
         );
@@ -2822,31 +2828,31 @@ impl SseEncode for crate::ffi::ffi::PayOnchainResponse {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::ffi::PaymentIndex>::sse_encode(self.index, serializer);
+        <crate::ffi::types::PaymentIndex>::sse_encode(self.index, serializer);
         <String>::sse_encode(self.txid, serializer);
     }
 }
 
-impl SseEncode for crate::ffi::ffi::Payment {
+impl SseEncode for crate::ffi::types::Payment {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::ffi::PaymentIndex>::sse_encode(self.index, serializer);
-        <crate::ffi::ffi::PaymentKind>::sse_encode(self.kind, serializer);
-        <crate::ffi::ffi::PaymentDirection>::sse_encode(
+        <crate::ffi::types::PaymentIndex>::sse_encode(self.index, serializer);
+        <crate::ffi::types::PaymentKind>::sse_encode(self.kind, serializer);
+        <crate::ffi::types::PaymentDirection>::sse_encode(
             self.direction,
             serializer,
         );
-        <Option<crate::ffi::ffi::Invoice>>::sse_encode(
+        <Option<crate::ffi::types::Invoice>>::sse_encode(
             self.invoice,
             serializer,
         );
         <Option<String>>::sse_encode(self.replacement, serializer);
         <Option<u64>>::sse_encode(self.amount_sat, serializer);
         <u64>::sse_encode(self.fees_sat, serializer);
-        <crate::ffi::ffi::PaymentStatus>::sse_encode(self.status, serializer);
+        <crate::ffi::types::PaymentStatus>::sse_encode(self.status, serializer);
         <String>::sse_encode(self.status_str, serializer);
         <Option<String>>::sse_encode(self.note, serializer);
         <i64>::sse_encode(self.created_at, serializer);
@@ -2854,7 +2860,7 @@ impl SseEncode for crate::ffi::ffi::Payment {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::PaymentDirection {
+impl SseEncode for crate::ffi::types::PaymentDirection {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2862,8 +2868,8 @@ impl SseEncode for crate::ffi::ffi::PaymentDirection {
     ) {
         <i32>::sse_encode(
             match self {
-                crate::ffi::ffi::PaymentDirection::Inbound => 0,
-                crate::ffi::ffi::PaymentDirection::Outbound => 1,
+                crate::ffi::types::PaymentDirection::Inbound => 0,
+                crate::ffi::types::PaymentDirection::Outbound => 1,
                 _ => {
                     unimplemented!("");
                 }
@@ -2873,7 +2879,7 @@ impl SseEncode for crate::ffi::ffi::PaymentDirection {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::PaymentIndex {
+impl SseEncode for crate::ffi::types::PaymentIndex {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2883,7 +2889,7 @@ impl SseEncode for crate::ffi::ffi::PaymentIndex {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::PaymentKind {
+impl SseEncode for crate::ffi::types::PaymentKind {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2891,9 +2897,9 @@ impl SseEncode for crate::ffi::ffi::PaymentKind {
     ) {
         <i32>::sse_encode(
             match self {
-                crate::ffi::ffi::PaymentKind::Onchain => 0,
-                crate::ffi::ffi::PaymentKind::Invoice => 1,
-                crate::ffi::ffi::PaymentKind::Spontaneous => 2,
+                crate::ffi::types::PaymentKind::Onchain => 0,
+                crate::ffi::types::PaymentKind::Invoice => 1,
+                crate::ffi::types::PaymentKind::Spontaneous => 2,
                 _ => {
                     unimplemented!("");
                 }
@@ -2903,22 +2909,22 @@ impl SseEncode for crate::ffi::ffi::PaymentKind {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::PaymentMethod {
+impl SseEncode for crate::ffi::types::PaymentMethod {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         match self {
-            crate::ffi::ffi::PaymentMethod::Onchain(field0) => {
+            crate::ffi::types::PaymentMethod::Onchain(field0) => {
                 <i32>::sse_encode(0, serializer);
-                <crate::ffi::ffi::Onchain>::sse_encode(field0, serializer);
+                <crate::ffi::types::Onchain>::sse_encode(field0, serializer);
             }
-            crate::ffi::ffi::PaymentMethod::Invoice(field0) => {
+            crate::ffi::types::PaymentMethod::Invoice(field0) => {
                 <i32>::sse_encode(1, serializer);
-                <crate::ffi::ffi::Invoice>::sse_encode(field0, serializer);
+                <crate::ffi::types::Invoice>::sse_encode(field0, serializer);
             }
-            crate::ffi::ffi::PaymentMethod::Offer => {
+            crate::ffi::types::PaymentMethod::Offer => {
                 <i32>::sse_encode(2, serializer);
             }
             _ => {
@@ -2928,7 +2934,7 @@ impl SseEncode for crate::ffi::ffi::PaymentMethod {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::PaymentStatus {
+impl SseEncode for crate::ffi::types::PaymentStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2936,9 +2942,9 @@ impl SseEncode for crate::ffi::ffi::PaymentStatus {
     ) {
         <i32>::sse_encode(
             match self {
-                crate::ffi::ffi::PaymentStatus::Pending => 0,
-                crate::ffi::ffi::PaymentStatus::Completed => 1,
-                crate::ffi::ffi::PaymentStatus::Failed => 2,
+                crate::ffi::types::PaymentStatus::Pending => 0,
+                crate::ffi::types::PaymentStatus::Completed => 1,
+                crate::ffi::types::PaymentStatus::Failed => 2,
                 _ => {
                     unimplemented!("");
                 }
@@ -3006,33 +3012,33 @@ impl SseEncode for crate::ffi::settings::Settings {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::ShortPayment {
+impl SseEncode for crate::ffi::types::ShortPayment {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::ffi::PaymentIndex>::sse_encode(self.index, serializer);
-        <crate::ffi::ffi::PaymentKind>::sse_encode(self.kind, serializer);
-        <crate::ffi::ffi::PaymentDirection>::sse_encode(
+        <crate::ffi::types::PaymentIndex>::sse_encode(self.index, serializer);
+        <crate::ffi::types::PaymentKind>::sse_encode(self.kind, serializer);
+        <crate::ffi::types::PaymentDirection>::sse_encode(
             self.direction,
             serializer,
         );
         <Option<u64>>::sse_encode(self.amount_sat, serializer);
-        <crate::ffi::ffi::PaymentStatus>::sse_encode(self.status, serializer);
+        <crate::ffi::types::PaymentStatus>::sse_encode(self.status, serializer);
         <Option<String>>::sse_encode(self.note, serializer);
         <i64>::sse_encode(self.created_at, serializer);
     }
 }
 
-impl SseEncode for crate::ffi::ffi::ShortPaymentAndIndex {
+impl SseEncode for crate::ffi::types::ShortPaymentAndIndex {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         <usize>::sse_encode(self.vec_idx, serializer);
-        <crate::ffi::ffi::ShortPayment>::sse_encode(self.payment, serializer);
+        <crate::ffi::types::ShortPayment>::sse_encode(self.payment, serializer);
     }
 }
 
@@ -3097,7 +3103,7 @@ impl SseEncode for crate::ffi::ffi::UpdatePaymentNote {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::ffi::PaymentIndex>::sse_encode(self.index, serializer);
+        <crate::ffi::types::PaymentIndex>::sse_encode(self.index, serializer);
         <Option<String>>::sse_encode(self.note, serializer);
     }
 }
