@@ -2,18 +2,17 @@
 
 // ignore_for_file: camel_case_types
 
-import 'package:app_rs_dart/ffi/ffi.dart'
+import 'package:app_rs_dart/ffi/api.dart'
     show
-        AppHandle,
         Balance,
         PayInvoiceRequest,
         PayOnchainRequest,
         PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse,
         PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse,
-        paymentUriResolveBest;
-import 'package:app_rs_dart/ffi/ffi.ext.dart';
+        PreflightPayOnchainResponse;
+import 'package:app_rs_dart/ffi/api.ext.dart';
+import 'package:app_rs_dart/ffi/ffi.dart' show AppHandle, paymentUriResolveBest;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         ClientPaymentId,

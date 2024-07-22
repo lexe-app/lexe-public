@@ -10,6 +10,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'ffi/api.dart';
 import 'ffi/ffi.dart';
 import 'ffi/settings.dart';
 import 'ffi/types.dart';

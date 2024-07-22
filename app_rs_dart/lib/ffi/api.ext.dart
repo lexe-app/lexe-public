@@ -1,7 +1,7 @@
 /// Extension methods on Dart/Rust FFI types.
 library;
 
-import 'package:app_rs_dart/ffi/ffi.dart' show Balance;
+import 'package:app_rs_dart/ffi/api.dart' show Balance;
 import 'package:app_rs_dart/ffi/types.dart' show PaymentKind;
 
 //

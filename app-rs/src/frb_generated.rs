@@ -61,7 +61,7 @@ fn wire__crate__ffi__ffi__app_handle_create_invoice_impl(
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
-let api_req = <crate::ffi::ffi::CreateInvoiceRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+let api_req = <crate::ffi::api::CreateInvoiceRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
                          let output_ok = crate::ffi::ffi::AppHandle::create_invoice(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
@@ -317,7 +317,7 @@ fn wire__crate__ffi__ffi__app_handle_pay_invoice_impl(
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
-let api_req = <crate::ffi::ffi::PayInvoiceRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+let api_req = <crate::ffi::api::PayInvoiceRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
                          let output_ok = crate::ffi::ffi::AppHandle::pay_invoice(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
@@ -333,7 +333,7 @@ fn wire__crate__ffi__ffi__app_handle_pay_onchain_impl(
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
-let api_req = <crate::ffi::ffi::PayOnchainRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+let api_req = <crate::ffi::api::PayOnchainRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
                          let output_ok = crate::ffi::ffi::AppHandle::pay_onchain(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
@@ -349,7 +349,7 @@ fn wire__crate__ffi__ffi__app_handle_preflight_pay_invoice_impl(
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
-let api_req = <crate::ffi::ffi::PreflightPayInvoiceRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+let api_req = <crate::ffi::api::PreflightPayInvoiceRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
                          let output_ok = crate::ffi::ffi::AppHandle::preflight_pay_invoice(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
@@ -365,7 +365,7 @@ fn wire__crate__ffi__ffi__app_handle_preflight_pay_onchain_impl(
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
-let api_req = <crate::ffi::ffi::PreflightPayOnchainRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+let api_req = <crate::ffi::api::PreflightPayOnchainRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
                          let output_ok = crate::ffi::ffi::AppHandle::preflight_pay_onchain(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
@@ -429,7 +429,7 @@ fn wire__crate__ffi__ffi__app_handle_update_payment_note_impl(
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
-let api_req = <crate::ffi::ffi::UpdatePaymentNote>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+let api_req = <crate::ffi::api::UpdatePaymentNote>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
                          let output_ok = crate::ffi::ffi::AppHandle::update_payment_note(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
@@ -661,7 +661,7 @@ impl SseDecode for crate::ffi::ffi::AppHandle {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::Balance {
+impl SseDecode for crate::ffi::api::Balance {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -669,7 +669,7 @@ impl SseDecode for crate::ffi::ffi::Balance {
         let mut var_totalSats = <u64>::sse_decode(deserializer);
         let mut var_lightningSats = <u64>::sse_decode(deserializer);
         let mut var_onchainSats = <u64>::sse_decode(deserializer);
-        return crate::ffi::ffi::Balance {
+        return crate::ffi::api::Balance {
             total_sats: var_totalSats,
             lightning_sats: var_lightningSats,
             onchain_sats: var_onchainSats,
@@ -738,7 +738,7 @@ impl SseDecode for crate::ffi::types::ConfirmationPriority {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::CreateInvoiceRequest {
+impl SseDecode for crate::ffi::api::CreateInvoiceRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -746,7 +746,7 @@ impl SseDecode for crate::ffi::ffi::CreateInvoiceRequest {
         let mut var_expirySecs = <u32>::sse_decode(deserializer);
         let mut var_amountSats = <Option<u64>>::sse_decode(deserializer);
         let mut var_description = <Option<String>>::sse_decode(deserializer);
-        return crate::ffi::ffi::CreateInvoiceRequest {
+        return crate::ffi::api::CreateInvoiceRequest {
             expiry_secs: var_expirySecs,
             amount_sats: var_amountSats,
             description: var_description,
@@ -754,14 +754,14 @@ impl SseDecode for crate::ffi::ffi::CreateInvoiceRequest {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::CreateInvoiceResponse {
+impl SseDecode for crate::ffi::api::CreateInvoiceResponse {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_invoice =
             <crate::ffi::types::Invoice>::sse_decode(deserializer);
-        return crate::ffi::ffi::CreateInvoiceResponse {
+        return crate::ffi::api::CreateInvoiceResponse {
             invoice: var_invoice,
         };
     }
@@ -791,41 +791,41 @@ impl SseDecode for f64 {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::FeeEstimate {
+impl SseDecode for crate::ffi::api::FeeEstimate {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_amountSats = <u64>::sse_decode(deserializer);
-        return crate::ffi::ffi::FeeEstimate {
+        return crate::ffi::api::FeeEstimate {
             amount_sats: var_amountSats,
         };
     }
 }
 
-impl SseDecode for crate::ffi::ffi::FiatRate {
+impl SseDecode for crate::ffi::api::FiatRate {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_fiat = <String>::sse_decode(deserializer);
         let mut var_rate = <f64>::sse_decode(deserializer);
-        return crate::ffi::ffi::FiatRate {
+        return crate::ffi::api::FiatRate {
             fiat: var_fiat,
             rate: var_rate,
         };
     }
 }
 
-impl SseDecode for crate::ffi::ffi::FiatRates {
+impl SseDecode for crate::ffi::api::FiatRates {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_timestampMs = <i64>::sse_decode(deserializer);
         let mut var_rates =
-            <Vec<crate::ffi::ffi::FiatRate>>::sse_decode(deserializer);
-        return crate::ffi::ffi::FiatRates {
+            <Vec<crate::ffi::api::FiatRate>>::sse_decode(deserializer);
+        return crate::ffi::api::FiatRates {
             timestamp_ms: var_timestampMs,
             rates: var_rates,
         };
@@ -872,7 +872,7 @@ impl SseDecode for crate::ffi::types::Invoice {
     }
 }
 
-impl SseDecode for Vec<crate::ffi::ffi::FiatRate> {
+impl SseDecode for Vec<crate::ffi::api::FiatRate> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -880,7 +880,7 @@ impl SseDecode for Vec<crate::ffi::ffi::FiatRate> {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
-            ans_.push(<crate::ffi::ffi::FiatRate>::sse_decode(deserializer));
+            ans_.push(<crate::ffi::api::FiatRate>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -915,7 +915,7 @@ impl SseDecode for crate::ffi::types::Network {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::NodeInfo {
+impl SseDecode for crate::ffi::api::NodeInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -924,8 +924,8 @@ impl SseDecode for crate::ffi::ffi::NodeInfo {
         let mut var_version = <String>::sse_decode(deserializer);
         let mut var_measurement = <String>::sse_decode(deserializer);
         let mut var_balance =
-            <crate::ffi::ffi::Balance>::sse_decode(deserializer);
-        return crate::ffi::ffi::NodeInfo {
+            <crate::ffi::api::Balance>::sse_decode(deserializer);
+        return crate::ffi::api::NodeInfo {
             node_pk: var_nodePk,
             version: var_version,
             measurement: var_measurement,
@@ -1019,13 +1019,13 @@ impl SseDecode for Option<crate::ffi::ffi::AppHandle> {
     }
 }
 
-impl SseDecode for Option<crate::ffi::ffi::FeeEstimate> {
+impl SseDecode for Option<crate::ffi::api::FeeEstimate> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::ffi::ffi::FeeEstimate>::sse_decode(
+            return Some(<crate::ffi::api::FeeEstimate>::sse_decode(
                 deserializer,
             ));
         } else {
@@ -1081,7 +1081,7 @@ impl SseDecode for Option<crate::ffi::types::ShortPaymentAndIndex> {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::PayInvoiceRequest {
+impl SseDecode for crate::ffi::api::PayInvoiceRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -1090,7 +1090,7 @@ impl SseDecode for crate::ffi::ffi::PayInvoiceRequest {
         let mut var_fallbackAmountSats =
             <Option<u64>>::sse_decode(deserializer);
         let mut var_note = <Option<String>>::sse_decode(deserializer);
-        return crate::ffi::ffi::PayInvoiceRequest {
+        return crate::ffi::api::PayInvoiceRequest {
             invoice: var_invoice,
             fallback_amount_sats: var_fallbackAmountSats,
             note: var_note,
@@ -1098,18 +1098,18 @@ impl SseDecode for crate::ffi::ffi::PayInvoiceRequest {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::PayInvoiceResponse {
+impl SseDecode for crate::ffi::api::PayInvoiceResponse {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_index =
             <crate::ffi::types::PaymentIndex>::sse_decode(deserializer);
-        return crate::ffi::ffi::PayInvoiceResponse { index: var_index };
+        return crate::ffi::api::PayInvoiceResponse { index: var_index };
     }
 }
 
-impl SseDecode for crate::ffi::ffi::PayOnchainRequest {
+impl SseDecode for crate::ffi::api::PayOnchainRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -1121,7 +1121,7 @@ impl SseDecode for crate::ffi::ffi::PayOnchainRequest {
         let mut var_priority =
             <crate::ffi::types::ConfirmationPriority>::sse_decode(deserializer);
         let mut var_note = <Option<String>>::sse_decode(deserializer);
-        return crate::ffi::ffi::PayOnchainRequest {
+        return crate::ffi::api::PayOnchainRequest {
             cid: var_cid,
             address: var_address,
             amount_sats: var_amountSats,
@@ -1131,7 +1131,7 @@ impl SseDecode for crate::ffi::ffi::PayOnchainRequest {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::PayOnchainResponse {
+impl SseDecode for crate::ffi::api::PayOnchainResponse {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -1139,7 +1139,7 @@ impl SseDecode for crate::ffi::ffi::PayOnchainResponse {
         let mut var_index =
             <crate::ffi::types::PaymentIndex>::sse_decode(deserializer);
         let mut var_txid = <String>::sse_decode(deserializer);
-        return crate::ffi::ffi::PayOnchainResponse {
+        return crate::ffi::api::PayOnchainResponse {
             index: var_index,
             txid: var_txid,
         };
@@ -1267,7 +1267,7 @@ impl SseDecode for crate::ffi::types::PaymentStatus {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::PreflightPayInvoiceRequest {
+impl SseDecode for crate::ffi::api::PreflightPayInvoiceRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -1275,53 +1275,53 @@ impl SseDecode for crate::ffi::ffi::PreflightPayInvoiceRequest {
         let mut var_invoice = <String>::sse_decode(deserializer);
         let mut var_fallbackAmountSats =
             <Option<u64>>::sse_decode(deserializer);
-        return crate::ffi::ffi::PreflightPayInvoiceRequest {
+        return crate::ffi::api::PreflightPayInvoiceRequest {
             invoice: var_invoice,
             fallback_amount_sats: var_fallbackAmountSats,
         };
     }
 }
 
-impl SseDecode for crate::ffi::ffi::PreflightPayInvoiceResponse {
+impl SseDecode for crate::ffi::api::PreflightPayInvoiceResponse {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_amountSats = <u64>::sse_decode(deserializer);
         let mut var_feesSats = <u64>::sse_decode(deserializer);
-        return crate::ffi::ffi::PreflightPayInvoiceResponse {
+        return crate::ffi::api::PreflightPayInvoiceResponse {
             amount_sats: var_amountSats,
             fees_sats: var_feesSats,
         };
     }
 }
 
-impl SseDecode for crate::ffi::ffi::PreflightPayOnchainRequest {
+impl SseDecode for crate::ffi::api::PreflightPayOnchainRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_address = <String>::sse_decode(deserializer);
         let mut var_amountSats = <u64>::sse_decode(deserializer);
-        return crate::ffi::ffi::PreflightPayOnchainRequest {
+        return crate::ffi::api::PreflightPayOnchainRequest {
             address: var_address,
             amount_sats: var_amountSats,
         };
     }
 }
 
-impl SseDecode for crate::ffi::ffi::PreflightPayOnchainResponse {
+impl SseDecode for crate::ffi::api::PreflightPayOnchainResponse {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_high =
-            <Option<crate::ffi::ffi::FeeEstimate>>::sse_decode(deserializer);
+            <Option<crate::ffi::api::FeeEstimate>>::sse_decode(deserializer);
         let mut var_normal =
-            <crate::ffi::ffi::FeeEstimate>::sse_decode(deserializer);
+            <crate::ffi::api::FeeEstimate>::sse_decode(deserializer);
         let mut var_background =
-            <crate::ffi::ffi::FeeEstimate>::sse_decode(deserializer);
-        return crate::ffi::ffi::PreflightPayOnchainResponse {
+            <crate::ffi::api::FeeEstimate>::sse_decode(deserializer);
+        return crate::ffi::api::PreflightPayOnchainResponse {
             high: var_high,
             normal: var_normal,
             background: var_background,
@@ -1431,7 +1431,7 @@ impl SseDecode for () {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::UpdatePaymentNote {
+impl SseDecode for crate::ffi::api::UpdatePaymentNote {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -1439,7 +1439,7 @@ impl SseDecode for crate::ffi::ffi::UpdatePaymentNote {
         let mut var_index =
             <crate::ffi::types::PaymentIndex>::sse_decode(deserializer);
         let mut var_note = <Option<String>>::sse_decode(deserializer);
-        return crate::ffi::ffi::UpdatePaymentNote {
+        return crate::ffi::api::UpdatePaymentNote {
             index: var_index,
             note: var_note,
         };
@@ -1639,7 +1639,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::AppHandle>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::Balance {
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::Balance {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.total_sats.into_into_dart().into_dart(),
@@ -1650,13 +1650,13 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::Balance {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::Balance
+    for crate::ffi::api::Balance
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::Balance>
-    for crate::ffi::ffi::Balance
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::Balance>
+    for crate::ffi::api::Balance
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::Balance {
+    fn into_into_dart(self) -> crate::ffi::api::Balance {
         self
     }
 }
@@ -1725,7 +1725,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::ConfirmationPriority>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::CreateInvoiceRequest {
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::CreateInvoiceRequest {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.expiry_secs.into_into_dart().into_dart(),
@@ -1736,30 +1736,30 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::CreateInvoiceRequest {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::CreateInvoiceRequest
+    for crate::ffi::api::CreateInvoiceRequest
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::CreateInvoiceRequest>
-    for crate::ffi::ffi::CreateInvoiceRequest
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::CreateInvoiceRequest>
+    for crate::ffi::api::CreateInvoiceRequest
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::CreateInvoiceRequest {
+    fn into_into_dart(self) -> crate::ffi::api::CreateInvoiceRequest {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::CreateInvoiceResponse {
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::CreateInvoiceResponse {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [self.invoice.into_into_dart().into_dart()].into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::CreateInvoiceResponse
+    for crate::ffi::api::CreateInvoiceResponse
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::CreateInvoiceResponse>
-    for crate::ffi::ffi::CreateInvoiceResponse
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::CreateInvoiceResponse>
+    for crate::ffi::api::CreateInvoiceResponse
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::CreateInvoiceResponse {
+    fn into_into_dart(self) -> crate::ffi::api::CreateInvoiceResponse {
         self
     }
 }
@@ -1786,24 +1786,24 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::DeployEnv>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::FeeEstimate {
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::FeeEstimate {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [self.amount_sats.into_into_dart().into_dart()].into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::FeeEstimate
+    for crate::ffi::api::FeeEstimate
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::FeeEstimate>
-    for crate::ffi::ffi::FeeEstimate
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::FeeEstimate>
+    for crate::ffi::api::FeeEstimate
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::FeeEstimate {
+    fn into_into_dart(self) -> crate::ffi::api::FeeEstimate {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::FiatRate {
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::FiatRate {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.fiat.into_into_dart().into_dart(),
@@ -1813,18 +1813,18 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::FiatRate {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::FiatRate
+    for crate::ffi::api::FiatRate
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::FiatRate>
-    for crate::ffi::ffi::FiatRate
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::FiatRate>
+    for crate::ffi::api::FiatRate
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::FiatRate {
+    fn into_into_dart(self) -> crate::ffi::api::FiatRate {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::FiatRates {
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::FiatRates {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.timestamp_ms.into_into_dart().into_dart(),
@@ -1834,13 +1834,13 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::FiatRates {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::FiatRates
+    for crate::ffi::api::FiatRates
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::FiatRates>
-    for crate::ffi::ffi::FiatRates
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::FiatRates>
+    for crate::ffi::api::FiatRates
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::FiatRates {
+    fn into_into_dart(self) -> crate::ffi::api::FiatRates {
         self
     }
 }
@@ -1892,7 +1892,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Network>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::NodeInfo {
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::NodeInfo {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.node_pk.into_into_dart().into_dart(),
@@ -1904,13 +1904,13 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::NodeInfo {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::NodeInfo
+    for crate::ffi::api::NodeInfo
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::NodeInfo>
-    for crate::ffi::ffi::NodeInfo
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::NodeInfo>
+    for crate::ffi::api::NodeInfo
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::NodeInfo {
+    fn into_into_dart(self) -> crate::ffi::api::NodeInfo {
         self
     }
 }
@@ -1938,7 +1938,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Onchain>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::PayInvoiceRequest {
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::PayInvoiceRequest {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.invoice.into_into_dart().into_dart(),
@@ -1949,35 +1949,35 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::PayInvoiceRequest {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::PayInvoiceRequest
+    for crate::ffi::api::PayInvoiceRequest
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::PayInvoiceRequest>
-    for crate::ffi::ffi::PayInvoiceRequest
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::PayInvoiceRequest>
+    for crate::ffi::api::PayInvoiceRequest
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::PayInvoiceRequest {
+    fn into_into_dart(self) -> crate::ffi::api::PayInvoiceRequest {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::PayInvoiceResponse {
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::PayInvoiceResponse {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [self.index.into_into_dart().into_dart()].into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::PayInvoiceResponse
+    for crate::ffi::api::PayInvoiceResponse
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::PayInvoiceResponse>
-    for crate::ffi::ffi::PayInvoiceResponse
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::PayInvoiceResponse>
+    for crate::ffi::api::PayInvoiceResponse
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::PayInvoiceResponse {
+    fn into_into_dart(self) -> crate::ffi::api::PayInvoiceResponse {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::PayOnchainRequest {
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::PayOnchainRequest {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.cid.into_into_dart().into_dart(),
@@ -1990,18 +1990,18 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::PayOnchainRequest {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::PayOnchainRequest
+    for crate::ffi::api::PayOnchainRequest
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::PayOnchainRequest>
-    for crate::ffi::ffi::PayOnchainRequest
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::PayOnchainRequest>
+    for crate::ffi::api::PayOnchainRequest
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::PayOnchainRequest {
+    fn into_into_dart(self) -> crate::ffi::api::PayOnchainRequest {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::PayOnchainResponse {
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::PayOnchainResponse {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.index.into_into_dart().into_dart(),
@@ -2011,13 +2011,13 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::PayOnchainResponse {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::PayOnchainResponse
+    for crate::ffi::api::PayOnchainResponse
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::PayOnchainResponse>
-    for crate::ffi::ffi::PayOnchainResponse
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::PayOnchainResponse>
+    for crate::ffi::api::PayOnchainResponse
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::PayOnchainResponse {
+    fn into_into_dart(self) -> crate::ffi::api::PayOnchainResponse {
         self
     }
 }
@@ -2163,7 +2163,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::PaymentStatus>
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart
-    for crate::ffi::ffi::PreflightPayInvoiceRequest
+    for crate::ffi::api::PreflightPayInvoiceRequest
 {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -2174,21 +2174,21 @@ impl flutter_rust_bridge::IntoDart
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::PreflightPayInvoiceRequest
+    for crate::ffi::api::PreflightPayInvoiceRequest
 {
 }
 impl
     flutter_rust_bridge::IntoIntoDart<
-        crate::ffi::ffi::PreflightPayInvoiceRequest,
-    > for crate::ffi::ffi::PreflightPayInvoiceRequest
+        crate::ffi::api::PreflightPayInvoiceRequest,
+    > for crate::ffi::api::PreflightPayInvoiceRequest
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::PreflightPayInvoiceRequest {
+    fn into_into_dart(self) -> crate::ffi::api::PreflightPayInvoiceRequest {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart
-    for crate::ffi::ffi::PreflightPayInvoiceResponse
+    for crate::ffi::api::PreflightPayInvoiceResponse
 {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -2199,21 +2199,21 @@ impl flutter_rust_bridge::IntoDart
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::PreflightPayInvoiceResponse
+    for crate::ffi::api::PreflightPayInvoiceResponse
 {
 }
 impl
     flutter_rust_bridge::IntoIntoDart<
-        crate::ffi::ffi::PreflightPayInvoiceResponse,
-    > for crate::ffi::ffi::PreflightPayInvoiceResponse
+        crate::ffi::api::PreflightPayInvoiceResponse,
+    > for crate::ffi::api::PreflightPayInvoiceResponse
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::PreflightPayInvoiceResponse {
+    fn into_into_dart(self) -> crate::ffi::api::PreflightPayInvoiceResponse {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart
-    for crate::ffi::ffi::PreflightPayOnchainRequest
+    for crate::ffi::api::PreflightPayOnchainRequest
 {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -2224,21 +2224,21 @@ impl flutter_rust_bridge::IntoDart
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::PreflightPayOnchainRequest
+    for crate::ffi::api::PreflightPayOnchainRequest
 {
 }
 impl
     flutter_rust_bridge::IntoIntoDart<
-        crate::ffi::ffi::PreflightPayOnchainRequest,
-    > for crate::ffi::ffi::PreflightPayOnchainRequest
+        crate::ffi::api::PreflightPayOnchainRequest,
+    > for crate::ffi::api::PreflightPayOnchainRequest
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::PreflightPayOnchainRequest {
+    fn into_into_dart(self) -> crate::ffi::api::PreflightPayOnchainRequest {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart
-    for crate::ffi::ffi::PreflightPayOnchainResponse
+    for crate::ffi::api::PreflightPayOnchainResponse
 {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -2250,15 +2250,15 @@ impl flutter_rust_bridge::IntoDart
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::PreflightPayOnchainResponse
+    for crate::ffi::api::PreflightPayOnchainResponse
 {
 }
 impl
     flutter_rust_bridge::IntoIntoDart<
-        crate::ffi::ffi::PreflightPayOnchainResponse,
-    > for crate::ffi::ffi::PreflightPayOnchainResponse
+        crate::ffi::api::PreflightPayOnchainResponse,
+    > for crate::ffi::api::PreflightPayOnchainResponse
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::PreflightPayOnchainResponse {
+    fn into_into_dart(self) -> crate::ffi::api::PreflightPayOnchainResponse {
         self
     }
 }
@@ -2331,7 +2331,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::ShortPaymentAndIndex>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::UpdatePaymentNote {
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::UpdatePaymentNote {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.index.into_into_dart().into_dart(),
@@ -2341,13 +2341,13 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::UpdatePaymentNote {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::UpdatePaymentNote
+    for crate::ffi::api::UpdatePaymentNote
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::UpdatePaymentNote>
-    for crate::ffi::ffi::UpdatePaymentNote
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::UpdatePaymentNote>
+    for crate::ffi::api::UpdatePaymentNote
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::UpdatePaymentNote {
+    fn into_into_dart(self) -> crate::ffi::api::UpdatePaymentNote {
         self
     }
 }
@@ -2406,7 +2406,7 @@ impl SseEncode for crate::ffi::ffi::AppHandle {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::Balance {
+impl SseEncode for crate::ffi::api::Balance {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2473,7 +2473,7 @@ impl SseEncode for crate::ffi::types::ConfirmationPriority {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::CreateInvoiceRequest {
+impl SseEncode for crate::ffi::api::CreateInvoiceRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2485,7 +2485,7 @@ impl SseEncode for crate::ffi::ffi::CreateInvoiceRequest {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::CreateInvoiceResponse {
+impl SseEncode for crate::ffi::api::CreateInvoiceResponse {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2525,7 +2525,7 @@ impl SseEncode for f64 {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::FeeEstimate {
+impl SseEncode for crate::ffi::api::FeeEstimate {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2535,7 +2535,7 @@ impl SseEncode for crate::ffi::ffi::FeeEstimate {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::FiatRate {
+impl SseEncode for crate::ffi::api::FiatRate {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2546,14 +2546,14 @@ impl SseEncode for crate::ffi::ffi::FiatRate {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::FiatRates {
+impl SseEncode for crate::ffi::api::FiatRates {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         <i64>::sse_encode(self.timestamp_ms, serializer);
-        <Vec<crate::ffi::ffi::FiatRate>>::sse_encode(self.rates, serializer);
+        <Vec<crate::ffi::api::FiatRate>>::sse_encode(self.rates, serializer);
     }
 }
 
@@ -2592,7 +2592,7 @@ impl SseEncode for crate::ffi::types::Invoice {
     }
 }
 
-impl SseEncode for Vec<crate::ffi::ffi::FiatRate> {
+impl SseEncode for Vec<crate::ffi::api::FiatRate> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2600,7 +2600,7 @@ impl SseEncode for Vec<crate::ffi::ffi::FiatRate> {
     ) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::ffi::ffi::FiatRate>::sse_encode(item, serializer);
+            <crate::ffi::api::FiatRate>::sse_encode(item, serializer);
         }
     }
 }
@@ -2638,7 +2638,7 @@ impl SseEncode for crate::ffi::types::Network {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::NodeInfo {
+impl SseEncode for crate::ffi::api::NodeInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2647,7 +2647,7 @@ impl SseEncode for crate::ffi::ffi::NodeInfo {
         <String>::sse_encode(self.node_pk, serializer);
         <String>::sse_encode(self.version, serializer);
         <String>::sse_encode(self.measurement, serializer);
-        <crate::ffi::ffi::Balance>::sse_encode(self.balance, serializer);
+        <crate::ffi::api::Balance>::sse_encode(self.balance, serializer);
     }
 }
 
@@ -2729,7 +2729,7 @@ impl SseEncode for Option<crate::ffi::ffi::AppHandle> {
     }
 }
 
-impl SseEncode for Option<crate::ffi::ffi::FeeEstimate> {
+impl SseEncode for Option<crate::ffi::api::FeeEstimate> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2737,7 +2737,7 @@ impl SseEncode for Option<crate::ffi::ffi::FeeEstimate> {
     ) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <crate::ffi::ffi::FeeEstimate>::sse_encode(value, serializer);
+            <crate::ffi::api::FeeEstimate>::sse_encode(value, serializer);
         }
     }
 }
@@ -2783,7 +2783,7 @@ impl SseEncode for Option<crate::ffi::types::ShortPaymentAndIndex> {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::PayInvoiceRequest {
+impl SseEncode for crate::ffi::api::PayInvoiceRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2795,7 +2795,7 @@ impl SseEncode for crate::ffi::ffi::PayInvoiceRequest {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::PayInvoiceResponse {
+impl SseEncode for crate::ffi::api::PayInvoiceResponse {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2805,7 +2805,7 @@ impl SseEncode for crate::ffi::ffi::PayInvoiceResponse {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::PayOnchainRequest {
+impl SseEncode for crate::ffi::api::PayOnchainRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2822,7 +2822,7 @@ impl SseEncode for crate::ffi::ffi::PayOnchainRequest {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::PayOnchainResponse {
+impl SseEncode for crate::ffi::api::PayOnchainResponse {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2954,7 +2954,7 @@ impl SseEncode for crate::ffi::types::PaymentStatus {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::PreflightPayInvoiceRequest {
+impl SseEncode for crate::ffi::api::PreflightPayInvoiceRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2965,7 +2965,7 @@ impl SseEncode for crate::ffi::ffi::PreflightPayInvoiceRequest {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::PreflightPayInvoiceResponse {
+impl SseEncode for crate::ffi::api::PreflightPayInvoiceResponse {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2976,7 +2976,7 @@ impl SseEncode for crate::ffi::ffi::PreflightPayInvoiceResponse {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::PreflightPayOnchainRequest {
+impl SseEncode for crate::ffi::api::PreflightPayOnchainRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2987,17 +2987,17 @@ impl SseEncode for crate::ffi::ffi::PreflightPayOnchainRequest {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::PreflightPayOnchainResponse {
+impl SseEncode for crate::ffi::api::PreflightPayOnchainResponse {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <Option<crate::ffi::ffi::FeeEstimate>>::sse_encode(
+        <Option<crate::ffi::api::FeeEstimate>>::sse_encode(
             self.high, serializer,
         );
-        <crate::ffi::ffi::FeeEstimate>::sse_encode(self.normal, serializer);
-        <crate::ffi::ffi::FeeEstimate>::sse_encode(self.background, serializer);
+        <crate::ffi::api::FeeEstimate>::sse_encode(self.normal, serializer);
+        <crate::ffi::api::FeeEstimate>::sse_encode(self.background, serializer);
     }
 }
 
@@ -3097,7 +3097,7 @@ impl SseEncode for () {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::UpdatePaymentNote {
+impl SseEncode for crate::ffi::api::UpdatePaymentNote {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
