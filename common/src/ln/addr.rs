@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::{ensure, format_err, Context};
-use lightning::{ln::msgs::NetAddress, util::ser::Hostname};
+use lightning::{ln::msgs::SocketAddress, util::ser::Hostname};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
@@ -16,10 +16,10 @@ use crate::test_utils::arbitrary;
 /// `LxSocketAddress` represents an internet address of a remote lightning
 /// network peer.
 ///
-/// It's morally equivalent to [`lightning::ln::msgs::NetAddress`] (named
-/// `SocketAddress` on LDK master), but intentionally ignores all TOR-related
-/// addresses since we don't currently support TOR. It also has a well-defined
-/// human-readable serialization format, unlike the LDK type.
+/// It's morally equivalent to [`lightning::ln::msgs::SocketAddress`], but
+/// intentionally ignores all TOR-related addresses since we don't currently
+/// support TOR. It also has a well-defined human-readable serialization format,
+/// unlike the LDK type.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -87,14 +87,14 @@ impl TryFrom<SocketAddr> for LxSocketAddress {
     }
 }
 
-impl From<LxSocketAddress> for NetAddress {
+impl From<LxSocketAddress> for SocketAddress {
     fn from(value: LxSocketAddress) -> Self {
         match value {
-            LxSocketAddress::TcpIpv4 { ip, port } => Self::IPv4 {
+            LxSocketAddress::TcpIpv4 { ip, port } => Self::TcpIpV4 {
                 addr: ip.octets(),
                 port,
             },
-            LxSocketAddress::TcpIpv6 { ip, port } => Self::IPv6 {
+            LxSocketAddress::TcpIpv6 { ip, port } => Self::TcpIpV6 {
                 addr: ip.octets(),
                 port,
             },
@@ -104,21 +104,21 @@ impl From<LxSocketAddress> for NetAddress {
     }
 }
 
-impl TryFrom<NetAddress> for LxSocketAddress {
+impl TryFrom<SocketAddress> for LxSocketAddress {
     type Error = anyhow::Error;
-    fn try_from(value: NetAddress) -> Result<Self, Self::Error> {
+    fn try_from(value: SocketAddress) -> Result<Self, Self::Error> {
         match value {
-            NetAddress::IPv4 { addr, port } => Ok(Self::TcpIpv4 {
+            SocketAddress::TcpIpV4 { addr, port } => Ok(Self::TcpIpv4 {
                 ip: Ipv4Addr::from(addr),
                 port,
             }),
-            NetAddress::IPv6 { addr, port } => Ok(Self::TcpIpv6 {
+            SocketAddress::TcpIpV6 { addr, port } => Ok(Self::TcpIpv6 {
                 ip: Ipv6Addr::from(addr),
                 port,
             }),
-            NetAddress::Hostname { hostname, port } =>
+            SocketAddress::Hostname { hostname, port } =>
                 Ok(Self::TcpDns { hostname, port }),
-            NetAddress::OnionV2(..) | NetAddress::OnionV3 { .. } =>
+            SocketAddress::OnionV2(..) | SocketAddress::OnionV3 { .. } =>
                 Err(format_err!("TOR onion addresses are unsupported")),
         }
     }

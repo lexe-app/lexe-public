@@ -8,7 +8,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use common::{
-    api::NodePk, cli::LspInfo, ln::channel::ChannelId,
+    api::NodePk, cli::LspInfo, ln::channel::LxChannelId,
     shutdown::ShutdownChannel, task::LxTask, test_event::TestEvent,
 };
 use lexe_ln::{
@@ -20,10 +20,7 @@ use lexe_ln::{
     test_event::TestEventSender,
     wallet::LexeWallet,
 };
-use lightning::{
-    events::{Event, EventHandler, PaymentFailureReason},
-    routing::gossip::NodeId,
-};
+use lightning::events::{Event, EventHandler, PaymentFailureReason};
 use tracing::{error, info, warn};
 
 use crate::{
@@ -175,7 +172,8 @@ async fn handle_event_fallible(
     wallet: &LexeWallet,
     channel_manager: &NodeChannelManager,
     esplora: &LexeEsplora,
-    network_graph: &NetworkGraphType,
+    // TODO(max): Remove this?
+    _network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
     payments_manager: &NodePaymentsManagerType,
     test_event_tx: &TestEventSender,
@@ -293,10 +291,13 @@ async fn handle_event_fallible(
                 .map_err(EventHandleError::Fatal)?;
         }
         Event::PaymentClaimed {
+            receiver_node_id: _,
             payment_hash,
             amount_msat,
             purpose,
-            receiver_node_id: _,
+            htlcs: _,
+            // TODO(max): We probably want to use this to get JIT on-chain fees?
+            sender_intended_total_msat: _,
         } => {
             payments_manager
                 .payment_claimed(payment_hash.into(), amount_msat, purpose)
@@ -347,71 +348,19 @@ async fn handle_event_fallible(
             next_channel_id,
             fee_earned_msat,
             claim_from_onchain_tx,
-            // TODO(max): We should do something with this
-            outbound_amount_forwarded_msat: _,
+            outbound_amount_forwarded_msat,
         } => {
-            let read_only_network_graph = network_graph.read_only();
-            let nodes = read_only_network_graph.nodes();
-            let channels = channel_manager.list_channels();
+            let prev_channel_id =
+                prev_channel_id.expect("Launched after v0.0.107");
+            let next_channel_id =
+                next_channel_id.expect("Launched after v0.0.107");
 
-            let node_str = |channel_id: Option<[u8; 32]>| match channel_id {
-                None => String::new(),
-                Some(channel_id) => {
-                    match channels.iter().find(|c| c.channel_id == channel_id) {
-                        None => String::new(),
-                        Some(channel) => {
-                            match nodes.get(&NodeId::from_pubkey(
-                                &channel.counterparty.node_id,
-                            )) {
-                                None => " from private node".to_string(),
-                                Some(node) => match &node.announcement_info {
-                                    None => " from unnamed node".to_string(),
-                                    Some(announcement) => {
-                                        format!(
-                                            " from node {}",
-                                            announcement.alias
-                                        )
-                                    }
-                                },
-                            }
-                        }
-                    }
-                }
-            };
-            let channel_str = |channel_id: Option<[u8; 32]>| {
-                channel_id
-                    .map(|channel_id| {
-                        format!(" with channel {}", hex::display(&channel_id))
-                    })
-                    .unwrap_or_default()
-            };
-            let from_prev_str = format!(
-                "{}{}",
-                node_str(prev_channel_id),
-                channel_str(prev_channel_id)
+            // The user node doesn't forward payments
+            warn!(
+                %prev_channel_id, %next_channel_id, ?fee_earned_msat,
+                %claim_from_onchain_tx, ?outbound_amount_forwarded_msat,
+                "Somehow received a PaymentForwarded event??"
             );
-            let to_next_str = format!(
-                "{}{}",
-                node_str(next_channel_id),
-                channel_str(next_channel_id)
-            );
-
-            let from_onchain_str = if claim_from_onchain_tx {
-                "from onchain downstream claim"
-            } else {
-                "from HTLC fulfill message"
-            };
-            if let Some(fee_earned) = fee_earned_msat {
-                info!(
-                    "EVENT: Forwarded payment{}{}, earning {} msat {}",
-                    from_prev_str, to_next_str, fee_earned, from_onchain_str
-                );
-            } else {
-                info!(
-                    "EVENT: Forwarded payment{}{}, claiming onchain {}",
-                    from_prev_str, to_next_str, from_onchain_str
-                );
-            }
         }
         Event::HTLCIntercepted { .. } => {
             unreachable!("accept_intercept_htlcs in UserConfig is false")
@@ -427,7 +376,11 @@ async fn handle_event_fallible(
             })
             .detach();
         }
-        Event::SpendableOutputs { outputs } => {
+        Event::SpendableOutputs {
+            outputs,
+            channel_id,
+        } => {
+            let channel_id = channel_id.map(LxChannelId::from);
             event::handle_spendable_outputs(
                 channel_manager.clone(),
                 keys_manager,
@@ -437,17 +390,28 @@ async fn handle_event_fallible(
                 test_event_tx,
             )
             .await
+            .with_context(|| format!("{channel_id:?}"))
             .context("Error handling SpendableOutputs")
             // This is fatal because the outputs are lost if they aren't swept.
             .map_err(EventHandleError::Fatal)?;
         }
         Event::ChannelClosed {
             channel_id,
-            reason,
             user_channel_id: _,
+            reason,
+            counterparty_node_id,
+            channel_capacity_sats,
         } => {
-            let channel_id = ChannelId(channel_id);
-            info!(%channel_id, ?reason, "Channel is being closed");
+            let channel_id = LxChannelId::from(channel_id);
+            let counterparty_node_id =
+                counterparty_node_id.expect("Launched after v0.0.117");
+            let channel_capacity_sats =
+                channel_capacity_sats.expect("Launched after v0.0.117");
+            info!(
+                %channel_id, ?reason,
+                %counterparty_node_id, %channel_capacity_sats,
+                "Channel is being closed"
+            );
             test_event_tx.send(TestEvent::ChannelClosed);
         }
         Event::DiscardFunding { .. } => {

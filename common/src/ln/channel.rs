@@ -6,7 +6,8 @@ use std::{
 use anyhow::Context;
 use hex::FromHex;
 use lightning::{
-    chain::transaction::OutPoint, ln::channelmanager::ChannelDetails,
+    chain::transaction::OutPoint,
+    ln::{channelmanager::ChannelDetails, ChannelId},
 };
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
@@ -22,22 +23,31 @@ use crate::{
     Apply,
 };
 
-/// A newtype for [`ChannelDetails::channel_id`].
-///
-/// [`ChannelDetails::channel_id`]: lightning::ln::channelmanager::ChannelDetails::channel_id
+/// A newtype for [`lightning::ln::ChannelId`].
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
-pub struct ChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
+pub struct LxChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
-impl FromStr for ChannelId {
+impl FromStr for LxChannelId {
     type Err = hex::DecodeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         <[u8; 32]>::from_hex(s).map(Self)
     }
 }
 
-impl Display for ChannelId {
+impl Display for LxChannelId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", hex::display(&self.0))
+    }
+}
+
+impl From<ChannelId> for LxChannelId {
+    fn from(cid: ChannelId) -> Self {
+        Self(cid.0)
+    }
+}
+impl From<LxChannelId> for ChannelId {
+    fn from(cid: LxChannelId) -> Self {
+        Self(cid.0)
     }
 }
 
@@ -47,7 +57,7 @@ impl Display for ChannelId {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LxChannelDetails {
     // --- Basic info --- //
-    pub channel_id: ChannelId,
+    pub channel_id: LxChannelId,
     pub funding_txo: Option<LxOutPoint>,
     pub counterparty_node_id: NodePk,
     pub channel_value: Amount,
@@ -154,7 +164,7 @@ impl From<ChannelDetails> for LxChannelDetails {
             ..
         }: ChannelDetails,
     ) -> Self {
-        let channel_id = ChannelId(channel_id);
+        let channel_id = LxChannelId::from(channel_id);
         let funding_txo = funding_txo.map(LxOutPoint::from);
         let counterparty_node_id = NodePk(counterparty.node_id);
         let channel_value = u32::try_from(channel_value_satoshis)

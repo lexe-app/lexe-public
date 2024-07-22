@@ -13,6 +13,7 @@ use common::{
 use lightning::{
     chain::chaininterface::{ConfirmationTarget, FeeEstimator},
     events::Event,
+    ln::ChannelId,
     sign::SpendableOutputDescriptor,
 };
 use thiserror::Error;
@@ -69,7 +70,7 @@ pub async fn handle_funding_generation_ready<CM, PS>(
     channel_manager: CM,
     test_event_tx: &TestEventSender,
 
-    temporary_channel_id: [u8; 32],
+    temporary_channel_id: ChannelId,
     counterparty_node_id: secp256k1::PublicKey,
     channel_value_satoshis: u64,
     output_script: Script,

@@ -5,7 +5,7 @@ use crate::{
     api::NodePk,
     enclave::Measurement,
     ln::{
-        amount::Amount, balance::Balance, channel::ChannelId, hashes::LxTxid,
+        amount::Amount, balance::Balance, channel::LxChannelId, hashes::LxTxid,
         invoice::LxInvoice, payments::ClientPaymentId, ConfirmationPriority,
     },
     time::TimestampMs,
@@ -148,7 +148,7 @@ pub struct FeeEstimate {
 #[derive(Serialize, Deserialize)]
 pub struct CloseChannelRequest {
     /// The id of the channel we want to close.
-    pub channel_id: ChannelId,
+    pub channel_id: LxChannelId,
     /// Set to true if the channel should be force closed (unilateral).
     /// Set to false if the channel should be cooperatively closed (bilateral).
     pub force_close: bool,

@@ -12,9 +12,7 @@ use tokio::{
     sync::{mpsc, oneshot},
     time::{interval, interval_at, Instant},
 };
-use tracing::{
-    debug, error, info, info_span, instrument, trace, warn, Instrument,
-};
+use tracing::{debug, error, info, info_span, instrument, warn, Instrument};
 
 use crate::{
     alias::{LexeChainMonitorType, P2PGossipSyncType, ProbabilisticScorerType},
@@ -97,30 +95,28 @@ impl LexeBackgroundProcessor {
             let mut ps_timer = interval(PROB_SCORER_PERSIST_INTERVAL);
 
             loop {
-                trace!("Beginning BGP loop iteration");
+                debug!("Beginning BGP loop iteration");
 
-                // A future that completes whenever we need to reprocess events.
-                // Returns a bool indicating whether we also need to repersist
-                // the channel manager. NOTE: The "channel manager update"
-                // branch is intentionally included here because LDK's
-                // background processor always processes events just prior to
-                // any channel manager persist.
+                // A future that completes when any of the following applies:
+                //
+                // 1) We need to reprocess events
+                // 2) The channel manager got an update (event or repersist)
+                // 3) The chain monitor got an update
+                // 4) The background processor was explicitly triggered
                 let mut processed_txs = Vec::new();
                 let process_events_fut = async {
-                    let repersist_channel_manager = tokio::select! {
+                    tokio::select! {
                         biased;
-                        () = channel_manager.get_persistable_update_future() => {
-                            debug!("Channel manager got persistable update");
-                            true
-                        }
-                        _ = process_events_timer.tick() => {
-                            debug!("process_events_timer ticked");
-                            false
-                        }
+                        () = channel_manager
+                            .get_event_or_persistence_needed_future() =>
+                            debug!("Triggered: Channel manager update"),
+                        () = chain_monitor.get_update_future() =>
+                            debug!("Triggered: Chain monitor update"),
+                        _ = process_events_timer.tick() =>
+                            debug!("Triggered: process_events_timer ticked"),
                         Some(tx) = process_events_rx.recv() => {
-                            debug!("Triggered by process_events channel");
+                            debug!("Triggered: process_events channel");
                             processed_txs.push(tx);
-                            false
                         }
                     };
 
@@ -131,13 +127,13 @@ impl LexeBackgroundProcessor {
                     while let Ok(tx) = process_events_rx.try_recv() {
                         processed_txs.push(tx);
                     }
-
-                    repersist_channel_manager
                 };
+
+                // TODO(max): Implement network graph pruning. See LDK's BGP.
 
                 tokio::select! {
                     // --- Process events + channel manager repersist --- //
-                    repersist_channel_manager = process_events_fut => {
+                    () = process_events_fut => {
                         debug!("Processing pending events");
                         // TODO(max): These async blocks can be removed once we
                         // switch to async event handling.
@@ -168,7 +164,7 @@ impl LexeBackgroundProcessor {
                             let _ = tx.send(());
                         }
 
-                        if repersist_channel_manager {
+                        if channel_manager.get_and_clear_needs_persistence() {
                             let try_persist = persister
                                 .persist_manager(channel_manager.deref())
                                 .await;
@@ -192,8 +188,6 @@ impl LexeBackgroundProcessor {
                         debug!("Calling ChannelManager::timer_tick_occurred()");
                         channel_manager.timer_tick_occurred();
                     }
-
-                    // --- Persistence branches --- //
                     _ = ng_timer.tick() => {
                         debug!("Pruning and persisting network graph");
                         let network_graph = gossip_sync.network_graph();

@@ -146,10 +146,10 @@ enclave-runner = { version = "=0.6.0", default-features = false }
 # Hyper-related utilities
 hyper-util = { version = "=0.1.5", default-features = false, features = ["http2"] }
 # LDK (rust-lightning) libraries
-lightning = { version = "=0.0.116", features = ["max_level_trace"] }
-lightning-invoice = { version = "=0.24" }
-lightning-net-tokio = { version = "=0.0.116" }
-lightning-transaction-sync = { version = "=0.0.116", features = ["esplora-async"] }
+lightning = { version = "=0.0.117", features = ["max_level_trace"] }
+lightning-invoice = { version = "=0.25" }
+lightning-net-tokio = { version = "=0.0.117" }
+lightning-transaction-sync = { version = "=0.0.117", features = ["esplora-async"] }
 # Required by tokio
 mio = "=0.8.11"
 # High-level HTTP client

@@ -525,9 +525,12 @@ where
             .map_err(|()| anyhow!("(features) Wrong payment param kind"))?;
     }
 
+    // TODO(max): We may want to set a fee limit at some point
+    let max_total_routing_fee_msat = None;
     let route_params = RouteParameters {
         payment_params,
         final_value_msat: amount.msat(),
+        max_total_routing_fee_msat,
     };
 
     // Find a Route so we can estimate the fees to be paid. Modeled after
@@ -541,10 +544,7 @@ where
         .map_err(|e| anyhow!("Could not find route to recipient: {}", e.err))?;
 
     let payment_secret = invoice.payment_secret().into();
-    let recipient_fields = RecipientOnionFields {
-        payment_secret: Some(payment_secret),
-        payment_metadata: None,
-    };
+    let recipient_fields = RecipientOnionFields::secret_only(payment_secret);
 
     let payment = OutboundInvoicePayment::new(invoice, &route, req.note);
     Ok(PreflightedPayInvoice {
