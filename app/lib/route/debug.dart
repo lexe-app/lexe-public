@@ -4,11 +4,8 @@
 library;
 
 import 'package:app_rs_dart/ffi/ffi.dart'
-    show
-        AppHandle,
-        Config,
-        debugDeleteLatestProvisioned,
-        debugDeleteSecretStore;
+    show AppHandle, debugDeleteLatestProvisioned, debugDeleteSecretStore;
+import 'package:app_rs_dart/ffi/types.dart' show Config;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
     show HeadingText, LxCloseButton, ScrollableSinglePageBody, SubheadingText;

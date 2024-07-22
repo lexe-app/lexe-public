@@ -1,5 +1,6 @@
 import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
-import 'package:app_rs_dart/ffi/ffi.dart' show AppHandle, Config, DeployEnv;
+import 'package:app_rs_dart/ffi/ffi.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/types.dart' show Config, DeployEnv;
 import 'package:flutter/material.dart';
 import 'package:intl/intl_standalone.dart' as intl_standalone;
 import 'package:lexeapp/cfg.dart' as cfg;

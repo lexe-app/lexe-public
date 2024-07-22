@@ -1,4 +1,4 @@
-import 'package:app_rs_dart/ffi/ffi.dart' show PaymentDirection;
+import 'package:app_rs_dart/ffi/types.dart' show PaymentDirection;
 import 'package:flutter_test/flutter_test.dart' show expect, test;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 

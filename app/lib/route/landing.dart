@@ -2,7 +2,8 @@ import 'dart:async' show unawaited;
 import 'dart:math' show max;
 import 'dart:ui' as ui;
 
-import 'package:app_rs_dart/ffi/ffi.dart' show AppHandle, Config;
+import 'package:app_rs_dart/ffi/ffi.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/types.dart' show Config;
 import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';

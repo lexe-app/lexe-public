@@ -1,16 +1,10 @@
 import 'dart:async' show Timer, unawaited;
 
 import 'package:app_rs_dart/ffi/ffi.dart'
-    show
-        AppHandle,
-        FiatRate,
-        Payment,
-        PaymentDirection,
-        PaymentIndex,
-        PaymentKind,
-        PaymentStatus,
-        UpdatePaymentNote;
-import 'package:app_rs_dart/ffi/ffi.ext.dart';
+    show AppHandle, FiatRate, UpdatePaymentNote;
+import 'package:app_rs_dart/ffi/types.dart'
+    show Payment, PaymentDirection, PaymentIndex, PaymentKind, PaymentStatus;
+import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
