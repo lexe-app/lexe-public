@@ -2,7 +2,7 @@
 
 // ignore_for_file: camel_case_types
 
-import 'package:app_rs_dart/ffi/ffi.dart'
+import 'package:app_rs_dart/ffi/api.dart'
     show FeeEstimate, PreflightPayOnchainResponse;
 import 'package:app_rs_dart/ffi/types.dart'
     show ConfirmationPriority, PaymentKind;

@@ -8,10 +8,8 @@ import 'dart:async';
 import 'dart:typed_data' show Uint8List;
 
 import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
-import 'package:app_rs_dart/ffi/ffi.dart'
+import 'package:app_rs_dart/ffi/api.dart'
     show
-        App,
-        AppHandle,
         Balance,
         CreateInvoiceRequest,
         CreateInvoiceResponse,
@@ -27,8 +25,8 @@ import 'package:app_rs_dart/ffi/ffi.dart'
         PreflightPayInvoiceResponse,
         PreflightPayOnchainRequest,
         PreflightPayOnchainResponse,
-        U8Array32,
         UpdatePaymentNote;
+import 'package:app_rs_dart/ffi/ffi.dart' show App, AppHandle, U8Array32;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         ClientPaymentId,
