@@ -2583,16 +2583,17 @@ checksum = "4ec2a862134d2a7d32d7983ddcdd1c4923530833c9f2ea1a44fc5fa473989058"
 [[package]]
 name = "lightning"
 version = "0.0.116"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.116-2023_08_02#feeafceef7705a1be5e40497b066076dc25fd20d"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90a0f2155316f1570446a0447c993480673f840748c8ed25bbc59dfc442ac770"
 dependencies = [
  "bitcoin",
- "musig2",
 ]
 
 [[package]]
 name = "lightning-invoice"
 version = "0.24.0"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.116-2023_08_02#feeafceef7705a1be5e40497b066076dc25fd20d"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1788c0158526ec27a502043c2911ea6ea58fdc656bdf8749484942c07b790d23"
 dependencies = [
  "bech32 0.9.1",
  "bitcoin",
@@ -2605,18 +2606,19 @@ dependencies = [
 [[package]]
 name = "lightning-net-tokio"
 version = "0.0.116"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.116-2023_08_02#feeafceef7705a1be5e40497b066076dc25fd20d"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "366c0ae225736cbc03555bd5fb4b44b2e8fe2ca3c868ec53a4b325c38b2ab2bd"
 dependencies = [
  "bitcoin",
  "lightning",
  "tokio",
- "tracing",
 ]
 
 [[package]]
 name = "lightning-transaction-sync"
 version = "0.0.116"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.116-2023_08_02#feeafceef7705a1be5e40497b066076dc25fd20d"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb33ef6e6d043a21c69ee04e0fcb71794d245e64d8f4ff5e47e2236d6d7db27b"
 dependencies = [
  "bdk-macros",
  "bitcoin",
@@ -2769,14 +2771,6 @@ dependencies = [
  "log",
  "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "musig2"
-version = "0.1.0"
-source = "git+https://github.com/arik-so/rust-musig2?rev=27797d7#27797d78cf64e8974e38d7f31ebb11e455015a9e"
-dependencies = [
- "bitcoin",
 ]
 
 [[package]]

@@ -239,10 +239,11 @@ tokio = { git = "https://github.com/lexe-app/tokio",  branch = "lexe-v1.36.0-202
 miniscript = { git = "https://github.com/lexe-app/rust-miniscript", branch = "lexe-v0.9.1-infinite-recursion-fix" }
 
 # * lightning-net-tokio: Propagate tracing spans
-lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
-lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
-lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
-lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
+# TODO(max): Re-add "propagate tracing spans" patch once LDK is fully updated
+# lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
+# lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
+# lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
+# lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
 # lightning = { path = "../../ldk/lightning" }
 # lightning-invoice = { path = "../../ldk/lightning-invoice" }
 # lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }
