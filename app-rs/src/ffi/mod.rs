@@ -58,6 +58,8 @@ pub mod app;
 /// Misc. flutter/rust types and fns.
 #[allow(clippy::module_inception)]
 pub mod ffi;
+/// Form field validators.
+pub mod form;
 /// Dart interface for app settings.
 pub mod settings;
 /// Data types to expose to Dart.

@@ -13,6 +13,7 @@ import 'dart:convert';
 import 'ffi/api.dart';
 import 'ffi/app.dart';
 import 'ffi/ffi.dart';
+import 'ffi/form.dart';
 import 'ffi/settings.dart';
 import 'ffi/types.dart';
 import 'frb_generated.dart';
@@ -65,7 +66,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.1.0';
 
   @override
-  int get rustContentHash => -302908796;
+  int get rustContentHash => -1166993156;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -157,15 +158,12 @@ abstract class AppRsApi extends BaseApi {
 
   Future<void> crateFfiFfiDebugUnconditionalPanic();
 
-  String? crateFfiFfiFormValidateBitcoinAddress(
-      {required String addressStr, required Network currentNetwork});
-
-  String? crateFfiFfiFormValidatePassword({required String password});
-
   Stream<String> crateFfiFfiInitRustLogStream({required String rustLog});
 
   Future<PaymentMethod> crateFfiFfiPaymentUriResolveBest(
       {required Network network, required String uriStr});
+
+  String? crateFfiFormValidatePassword({required String password});
 
   Future<Settings> crateFfiSettingsSave({required Settings settings});
 
@@ -973,56 +971,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  String? crateFfiFfiFormValidateBitcoinAddress(
-      {required String addressStr, required Network currentNetwork}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_String(addressStr, serializer);
-        sse_encode_network(currentNetwork, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 31)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_opt_String,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateFfiFfiFormValidateBitcoinAddressConstMeta,
-      argValues: [addressStr, currentNetwork],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateFfiFfiFormValidateBitcoinAddressConstMeta =>
-      const TaskConstMeta(
-        debugName: "form_validate_bitcoin_address",
-        argNames: ["addressStr", "currentNetwork"],
-      );
-
-  @override
-  String? crateFfiFfiFormValidatePassword({required String password}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_String(password, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 32)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_opt_String,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateFfiFfiFormValidatePasswordConstMeta,
-      argValues: [password],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateFfiFfiFormValidatePasswordConstMeta =>
-      const TaskConstMeta(
-        debugName: "form_validate_password",
-        argNames: ["password"],
-      );
-
-  @override
   Stream<String> crateFfiFfiInitRustLogStream({required String rustLog}) {
     final rustLogTx = RustStreamSink<String>();
     unawaited(handler.executeNormal(NormalTask(
@@ -1031,7 +979,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         sse_encode_StreamSink_String_Sse(rustLogTx, serializer);
         sse_encode_String(rustLog, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 33, port: port_);
+            funcId: 31, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1059,7 +1007,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         sse_encode_network(network, serializer);
         sse_encode_String(uriStr, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 34, port: port_);
+            funcId: 32, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_payment_method,
@@ -1078,13 +1026,37 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
+  String? crateFfiFormValidatePassword({required String password}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(password, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 33)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_opt_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateFfiFormValidatePasswordConstMeta,
+      argValues: [password],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateFfiFormValidatePasswordConstMeta =>
+      const TaskConstMeta(
+        debugName: "validate_password",
+        argNames: ["password"],
+      );
+
+  @override
   Future<Settings> crateFfiSettingsSave({required Settings settings}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_settings(settings, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 35, port: port_);
+            funcId: 34, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_settings,
@@ -1106,7 +1078,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 35)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_client_payment_id,
@@ -1130,7 +1102,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(s, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_deploy_env,
@@ -1154,7 +1126,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(s, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 38)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_network,

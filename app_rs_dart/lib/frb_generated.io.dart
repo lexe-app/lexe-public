@@ -14,6 +14,7 @@ import 'dart:ffi' as ffi;
 import 'ffi/api.dart';
 import 'ffi/app.dart';
 import 'ffi/ffi.dart';
+import 'ffi/form.dart';
 import 'ffi/settings.dart';
 import 'ffi/types.dart';
 import 'frb_generated.dart';

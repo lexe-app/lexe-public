@@ -1,82 +1,18 @@
 //! Misc. flutter/rust types and fns.
 
 use anyhow::Context;
-use common::password;
 use flutter_rust_bridge::frb;
-use secrecy::Zeroize;
 
 use crate::{
     app::AppConfig,
     ffi::types::{Config, Network, PaymentMethod},
     ffs::FlatFileFs,
-    form,
     frb_generated::StreamSink,
     secret_store::SecretStore,
     storage,
 };
 
-#[rustfmt::skip]
-// pub(crate) static FLUTTER_RUST_BRIDGE_HANDLER: LazyLock<LxHandler> =
-//     LazyLock::new(|| {
-//         // TODO(phlip9): Get backtraces symbolizing correctly on mobile. I'm at
-//         // a bit of a loss as to why I can't get this working...
-// 
-//         // std::env::set_var("RUST_BACKTRACE", "1");
-// 
-//         // TODO(phlip9): If we want backtraces from panics, we'll need to set a
-//         // custom panic handler here that formats the backtrace into the panic
-//         // message string instead of printing it out to stderr (since mobile
-//         // doesn't show stdout/stderr...)
-// 
-//         let error_handler = ReportDartErrorHandler;
-//         LxHandler::new(ThreadPoolExecutor::new(error_handler), error_handler)
-//     });
-
-// #[frb(init)]
-// pub fn init_app_rs() {
-//     // When is this called?
-//     // setup backtrace
-//     // setup log
-//     // flutter_rust_bridge::Handler
-// }
-
 // TODO(phlip9): error messages need to be internationalized
-
-/// Validate whether `address_str` is a properly formatted bitcoin address. Also
-/// checks that it's valid for the configured bitcoin network.
-///
-/// The return type is a bit funky: `Option<String>`. `None` means
-/// `address_str` is valid, while `Some(msg)` means it is not (with given
-/// error message). We return in this format to better match the flutter
-/// `FormField` validator API.
-#[frb(sync)]
-pub fn form_validate_bitcoin_address(
-    address_str: String,
-    current_network: Network,
-) -> Option<String> {
-    let result =
-        form::validate_bitcoin_address(&address_str, current_network.into());
-    match result {
-        Ok(()) => None,
-        Err(msg) => Some(msg),
-    }
-}
-
-/// Validate whether `password` has an appropriate length.
-///
-/// The return type is a bit funky: `Option<String>`. `None` means
-/// `address_str` is valid, while `Some(msg)` means it is not (with given
-/// error message). We return in this format to better match the flutter
-/// `FormField` validator API.
-#[frb(sync)]
-pub fn form_validate_password(mut password: String) -> Option<String> {
-    let result = password::validate_password_len(&password);
-    password.zeroize();
-    match result {
-        Ok(()) => None,
-        Err(err) => Some(err.to_string()),
-    }
-}
 
 /// Resolve a (possible) [`PaymentUri`] string that we just
 /// scanned/pasted into the best [`PaymentMethod`] for us to pay.
