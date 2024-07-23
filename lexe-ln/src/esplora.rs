@@ -486,10 +486,28 @@ impl FeeEstimator for LexeEsplora {
     ) -> u32 {
         // Munge with units to get to sats per 1000 weight unit required by LDK
         let num_blocks = conf_target.to_num_blocks();
-        let bdk_feerate = self.num_blocks_to_bdk_feerate(num_blocks);
-        let feerate_sats_per_1000_weight = bdk_feerate.fee_wu(1000) as u32;
+        let feerate = self.num_blocks_to_bdk_feerate(num_blocks);
+
+        // LDK v0.0.118 introduced changes to `ConfirmationTarget` which require
+        // some post-estimation adjustments to the fee rates, which we do here.
+        // Our FeeEstimator implementation is based on ldk-node's. More info:
+        // https://github.com/lightningdevkit/rust-lightning/releases/tag/v0.0.118
+        let adjusted_fee_rate = match conf_target {
+            ConfirmationTarget::MaxAllowedNonAnchorChannelRemoteFee => {
+                let ten_times_satsvbyte = feerate.as_sat_per_vb() * 10.0;
+                bdk::FeeRate::from_sat_per_vb(ten_times_satsvbyte)
+            }
+            ConfirmationTarget::MinAllowedNonAnchorChannelRemoteFee => {
+                let sats_1000wu = feerate.fee_wu(1000);
+                let sats_1000wu_minus_250 = sats_1000wu.saturating_sub(250);
+                bdk::FeeRate::from_sat_per_kwu(sats_1000wu_minus_250 as f32)
+            }
+            _ => feerate,
+        };
 
         // Ensure we don't fall below the minimum feerate required by LDK.
+        let feerate_sats_per_1000_weight =
+            adjusted_fee_rate.fee_wu(1000) as u32;
         cmp::max(feerate_sats_per_1000_weight, FEERATE_FLOOR_SATS_PER_KW)
     }
 }

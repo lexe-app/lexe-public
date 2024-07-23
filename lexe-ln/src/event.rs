@@ -49,6 +49,7 @@ pub fn get_event_name(event: &Event) -> &'static str {
         Event::PaymentClaimable { .. } => "PaymentClaimable",
         Event::HTLCIntercepted { .. } => "HTLCIntercepted",
         Event::PaymentClaimed { .. } => "PaymentClaimed",
+        Event::InvoiceRequestFailed { .. } => "InvoiceRequestFailed",
         Event::PaymentSent { .. } => "PaymentSent",
         Event::PaymentFailed { .. } => "PaymentFailed",
         Event::PaymentPathSuccessful { .. } => "PaymentPathSuccessful",
@@ -133,8 +134,8 @@ where
     let spendable_output_descriptors = &outputs.iter().collect::<Vec<_>>();
     let destination_outputs = Vec::new();
     let destination_change_script = wallet.get_address().await?.script_pubkey();
-    let feerate_sat_per_1000_weight =
-        esplora.get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
+    let feerate_sat_per_1000_weight = esplora
+        .get_est_sat_per_1000_weight(ConfirmationTarget::NonAnchorChannelFee);
     let secp_ctx = SysRng::new().gen_secp256k1_ctx();
 
     // We set nLockTime to the current height to discourage fee sniping.
