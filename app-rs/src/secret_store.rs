@@ -41,7 +41,10 @@ pub struct SecretStore {
 }
 
 impl SecretStore {
-    #[cfg_attr(target_os = "android", allow(dead_code))]
+    #[cfg_attr(
+        any(target_os = "android", not(feature = "flutter")),
+        allow(dead_code)
+    )]
     fn service_name(build: BuildFlavor) -> String {
         format!("app.lexe.lexeapp.{build}")
     }
@@ -58,7 +61,7 @@ impl SecretStore {
         }
 
         cfg_if! {
-            if #[cfg(target_os = "android")] {
+            if #[cfg(any(target_os = "android", not(feature = "flutter")))] {
                 Self::file(&config.app_data_dir)
             } else {
                 Self::keychain(config.build_flavor())
@@ -67,14 +70,14 @@ impl SecretStore {
     }
 
     /// A secret store that uses the system keychain.
-    #[cfg(not(target_os = "android"))]
+    #[cfg(all(not(target_os = "android"), feature = "flutter"))]
     fn keychain(build: BuildFlavor) -> Self {
         let service = Self::service_name(build);
 
         Self::keychain_inner(&service)
     }
 
-    #[cfg(not(target_os = "android"))]
+    #[cfg(all(not(target_os = "android"), feature = "flutter"))]
     fn keychain_inner(service: &str) -> Self {
         let target = None;
         let user = "root_seed.hex";
@@ -100,7 +103,6 @@ impl SecretStore {
 
     /// A secret store that just dumps secrets into the app-specific data
     /// directory. Currently only used on Android.
-    #[cfg_attr(not(target_os = "android"), allow(dead_code))]
     fn file(app_data_dir: &Path) -> Self {
         Self {
             root_seed_cred: Box::new(FileCredential::new(
@@ -161,7 +163,6 @@ struct FileCredential {
 }
 
 impl FileCredential {
-    #[cfg_attr(not(target_os = "android"), allow(dead_code))]
     fn new(path: PathBuf) -> Self {
         Self { path }
     }
@@ -216,10 +217,16 @@ impl CredentialApi for FileCredential {
 /// a tokio `block_on` somewhere inside. Since we normally call the
 /// `SecretStore` from async code, this will panic without this. Running all
 /// keyring ops from inside their own temporary thread solves the issue.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[cfg_attr(
+    not(all(target_os = "linux", feature = "flutter")),
+    allow(dead_code)
+)]
 struct ThreadKeyringCredential(Box<dyn CredentialApi + Send + Sync>);
 
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[cfg_attr(
+    not(all(target_os = "linux", feature = "flutter")),
+    allow(dead_code)
+)]
 impl ThreadKeyringCredential {
     fn thread_op<F, R>(f: F) -> R
     where
@@ -231,7 +238,10 @@ impl ThreadKeyringCredential {
     }
 }
 
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[cfg_attr(
+    not(all(target_os = "linux", feature = "flutter")),
+    allow(dead_code)
+)]
 impl CredentialApi for ThreadKeyringCredential {
     fn set_password(&self, password: &str) -> keyring::Result<()> {
         Self::thread_op(|| self.0.set_password(password))
@@ -272,7 +282,11 @@ mod test {
     // ignore android: android only supports file_store
     // ignore linux: keyring_store only works with GUI and not headless,
     // e.g. our dev server
-    #[cfg(not(any(target_os = "android", target_os = "linux")))]
+    #[cfg(not(any(
+        target_os = "android",
+        target_os = "linux",
+        not(feature = "flutter")
+    )))]
     #[test]
     fn test_keyring_store() {
         use std::ffi::OsStr;
@@ -292,14 +306,14 @@ mod test {
     // `block_on` "under-the-hood" and running this test in an async block
     // ensures we can call it like we normally do (that is, inside an outer
     // `block_on`).
-    #[cfg(not(target_os = "android"))]
+    #[cfg(all(not(target_os = "android"), feature = "flutter"))]
     #[tokio::test]
     #[ignore]
     async fn test_keyring_store_linux() {
         test_keyring_secret_store_inner();
     }
 
-    #[cfg(not(target_os = "android"))]
+    #[cfg(all(not(target_os = "android"), feature = "flutter"))]
     fn test_keyring_secret_store_inner() {
         use common::rng::RngExt;
 
