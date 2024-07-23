@@ -4,8 +4,7 @@
 library;
 
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
-import 'package:app_rs_dart/ffi/ffi.dart'
-    show debugDeleteLatestProvisioned, debugDeleteSecretStore;
+import 'package:app_rs_dart/ffi/debug.dart' as debug;
 import 'package:app_rs_dart/ffi/types.dart' show Config;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
@@ -34,13 +33,13 @@ class DebugPage extends StatelessWidget {
   void doDeleteSecretStore() {
     info("Deleting SecretStore");
 
-    Result.tryFfi(() => debugDeleteSecretStore(config: this.config))
+    Result.tryFfi(() => debug.deleteSecretStore(config: this.config))
         .inspectErr((err) => error(err.message));
   }
 
   void doDeleteLatestProvisionedFile() {
     info("Deleting latest_provisioned file");
-    Result.tryFfi(() => debugDeleteLatestProvisioned(config: this.config))
+    Result.tryFfi(() => debug.deleteLatestProvisioned(config: this.config))
         .inspectErr((err) => error(err.message));
   }
 

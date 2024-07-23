@@ -12,6 +12,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'ffi/api.dart';
 import 'ffi/app.dart';
+import 'ffi/debug.dart';
 import 'ffi/ffi.dart';
 import 'ffi/form.dart';
 import 'ffi/settings.dart';
@@ -66,7 +67,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.1.0';
 
   @override
-  int get rustContentHash => -1166993156;
+  int get rustContentHash => 2138794803;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -150,13 +151,13 @@ abstract class AppRsApi extends BaseApi {
   Future<void> crateFfiAppAppHandleUpdatePaymentNote(
       {required AppHandle that, required UpdatePaymentNote req});
 
-  void crateFfiFfiDebugDeleteLatestProvisioned({required Config config});
+  void crateFfiDebugDeleteLatestProvisioned({required Config config});
 
-  void crateFfiFfiDebugDeleteSecretStore({required Config config});
+  void crateFfiDebugDeleteSecretStore({required Config config});
 
-  Future<void> crateFfiFfiDebugUnconditionalError();
+  Future<void> crateFfiDebugUnconditionalError();
 
-  Future<void> crateFfiFfiDebugUnconditionalPanic();
+  Future<void> crateFfiDebugUnconditionalPanic();
 
   Stream<String> crateFfiFfiInitRustLogStream({required String rustLog});
 
@@ -875,7 +876,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  void crateFfiFfiDebugDeleteLatestProvisioned({required Config config}) {
+  void crateFfiDebugDeleteLatestProvisioned({required Config config}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -886,20 +887,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_unit,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiDebugDeleteLatestProvisionedConstMeta,
+      constMeta: kCrateFfiDebugDeleteLatestProvisionedConstMeta,
       argValues: [config],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiDebugDeleteLatestProvisionedConstMeta =>
+  TaskConstMeta get kCrateFfiDebugDeleteLatestProvisionedConstMeta =>
       const TaskConstMeta(
-        debugName: "debug_delete_latest_provisioned",
+        debugName: "delete_latest_provisioned",
         argNames: ["config"],
       );
 
   @override
-  void crateFfiFfiDebugDeleteSecretStore({required Config config}) {
+  void crateFfiDebugDeleteSecretStore({required Config config}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -910,20 +911,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_unit,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiDebugDeleteSecretStoreConstMeta,
+      constMeta: kCrateFfiDebugDeleteSecretStoreConstMeta,
       argValues: [config],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiDebugDeleteSecretStoreConstMeta =>
+  TaskConstMeta get kCrateFfiDebugDeleteSecretStoreConstMeta =>
       const TaskConstMeta(
-        debugName: "debug_delete_secret_store",
+        debugName: "delete_secret_store",
         argNames: ["config"],
       );
 
   @override
-  Future<void> crateFfiFfiDebugUnconditionalError() {
+  Future<void> crateFfiDebugUnconditionalError() {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -934,20 +935,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_unit,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiDebugUnconditionalErrorConstMeta,
+      constMeta: kCrateFfiDebugUnconditionalErrorConstMeta,
       argValues: [],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiDebugUnconditionalErrorConstMeta =>
+  TaskConstMeta get kCrateFfiDebugUnconditionalErrorConstMeta =>
       const TaskConstMeta(
-        debugName: "debug_unconditional_error",
+        debugName: "unconditional_error",
         argNames: [],
       );
 
   @override
-  Future<void> crateFfiFfiDebugUnconditionalPanic() {
+  Future<void> crateFfiDebugUnconditionalPanic() {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -958,15 +959,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_unit,
         decodeErrorData: null,
       ),
-      constMeta: kCrateFfiFfiDebugUnconditionalPanicConstMeta,
+      constMeta: kCrateFfiDebugUnconditionalPanicConstMeta,
       argValues: [],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiDebugUnconditionalPanicConstMeta =>
+  TaskConstMeta get kCrateFfiDebugUnconditionalPanicConstMeta =>
       const TaskConstMeta(
-        debugName: "debug_unconditional_panic",
+        debugName: "unconditional_panic",
         argNames: [],
       );
 

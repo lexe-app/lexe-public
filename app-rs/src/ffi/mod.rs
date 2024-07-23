@@ -55,6 +55,8 @@
 pub mod api;
 /// The [`crate::app::App`] interface for top-level app state.
 pub mod app;
+/// Debug methods for use during development.
+pub mod debug;
 /// Misc. flutter/rust types and fns.
 #[allow(clippy::module_inception)]
 pub mod ffi;

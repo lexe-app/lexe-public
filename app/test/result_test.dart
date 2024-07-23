@@ -2,8 +2,8 @@
 // ignore_for_file: only_throw_errors
 
 import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
-import 'package:app_rs_dart/ffi/ffi.dart'
-    show debugUnconditionalError, debugUnconditionalPanic;
+import 'package:app_rs_dart/ffi/debug.dart'
+    show unconditionalError, unconditionalPanic;
 import 'package:app_rs_dart/frb.dart' show PanicException;
 import 'package:flutter_test/flutter_test.dart' show expect, test;
 import 'package:lexeapp/result.dart';
@@ -69,7 +69,7 @@ Future<void> main() async {
     final res2 = await Result.tryFfiAsync(fakeApiAsync2);
     expectFirstLineEq(res2.err?.message, "Error");
 
-    final res3 = await Result.tryFfiAsync(debugUnconditionalError);
+    final res3 = await Result.tryFfiAsync(unconditionalError);
     expectFirstLineEq(res3.err?.message, "Error inside app-rs");
   });
 
@@ -79,7 +79,7 @@ Future<void> main() async {
   test("result : tryFfiAsync (panic)",
       skip: "panics always dump to stdout, cluttering test output", () async {
     try {
-      final res1 = await Result.tryFfiAsync(debugUnconditionalPanic);
+      final res1 = await Result.tryFfiAsync(unconditionalPanic);
       throw Exception("Panics should NOT be caught, res: $res1");
     } on PanicException catch (err) {
       expectFirstLineEq(err.message, "Panic inside app-rs");

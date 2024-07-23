@@ -42,21 +42,3 @@ Future<PaymentMethod> paymentUriResolveBest(
 /// equivalent of `$RUST_LOG` configured at build-time through here.
 Stream<String> initRustLogStream({required String rustLog}) =>
     AppRs.instance.api.crateFfiFfiInitRustLogStream(rustLog: rustLog);
-
-/// Delete the local persisted `SecretStore` and `RootSeed`.
-///
-/// WARNING: you will need a backup recovery to use the account afterwards.
-void debugDeleteSecretStore({required Config config}) =>
-    AppRs.instance.api.crateFfiFfiDebugDeleteSecretStore(config: config);
-
-/// Delete the local latest_release file.
-void debugDeleteLatestProvisioned({required Config config}) =>
-    AppRs.instance.api.crateFfiFfiDebugDeleteLatestProvisioned(config: config);
-
-/// Unconditionally panic (for testing).
-Future<void> debugUnconditionalPanic() =>
-    AppRs.instance.api.crateFfiFfiDebugUnconditionalPanic();
-
-/// Unconditionally return Err (for testing).
-Future<void> debugUnconditionalError() =>
-    AppRs.instance.api.crateFfiFfiDebugUnconditionalError();
