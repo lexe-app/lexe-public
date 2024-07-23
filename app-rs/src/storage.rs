@@ -34,6 +34,7 @@ pub(crate) fn write_latest_provisioned(
 }
 
 /// Delete the latest provisioned [`NodeRelease`] file.
+#[cfg(feature = "flutter")]
 pub(crate) fn delete_latest_provisioned(
     app_data_ffs: &impl Ffs,
 ) -> anyhow::Result<()> {

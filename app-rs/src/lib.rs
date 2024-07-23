@@ -11,15 +11,15 @@
 // #[cfg(target_os = "android")]
 // pub(crate) mod android;
 
-pub use flutter_rust_bridge as frb;
-
 /// The top-level App state
 pub mod app;
 /// The flutter/rust FFI bindings.
+#[cfg(feature = "flutter")]
 pub(crate) mod ffi;
 /// `FlatFileFs` and `Ffs`.
 mod ffs;
 /// Flutter/rust ffi bindings generated from `ffi` by `just app-rs-codegen`.
+#[cfg(feature = "flutter")]
 pub(crate) mod frb_generated;
 /// Pipe `tracing` log messages from native Rust to Dart.
 mod logger;

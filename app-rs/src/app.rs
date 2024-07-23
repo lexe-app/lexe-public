@@ -417,6 +417,7 @@ impl AppConfig {
         }
     }
 
+    #[cfg(feature = "flutter")]
     pub(crate) fn from_dart_config(
         deploy_env: DeployEnv,
         network: Network,

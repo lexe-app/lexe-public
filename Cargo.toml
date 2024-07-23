@@ -72,13 +72,7 @@ chrono = { version = "0.4", default-features = false, features = [
 dotenvy = "0.15"
 # High-level memory-safe Rust<->Dart FFI bindings.
 # Keep this version in sync with `app_rs_dart/pubspec.yaml`.
-flutter_rust_bridge = { version = "=2.1.0", default-features = false, features = [
-    "anyhow",
-    "backtrace",
-    "dart-opaque",
-    "thread-pool",
-    "rust-async",
-] }
+flutter_rust_bridge = { version = "=2.1.0", default-features = false }
 # The Rust+Dart codegen for flutter_rust_bridge
 # Keep this version in sync with `app_rs_dart/pubspec.yaml`.
 flutter_rust_bridge_codegen = { version = "=2.1.0", default-features = false, features = [] }
