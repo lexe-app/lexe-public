@@ -16,6 +16,8 @@
 # 2. This script `cargo build`'s a separate `libapp_rs.a` for each `$ARCHS`.
 # 3. This script `lipo`'s the separate libs into a single unified `libapp_rs.a`,
 #    in `$BUILT_PRODUCTS_DIR/libapp_rs.a`.
+# 4. This script combines the cargo-generated .d source dependency files and
+#    puts it in `$DERIVED_FILE_DIR/libapp_rs.d`, so Xcode knows when to rebuild.
 # 4. After this script, the podspec compiles a tiny
 #    `app_rs_dart/{ios|macos}/Classes/app_rs_dart.c` -> `app_rs_dart.o`,
 #    which contains a few symbols that Flutter injects.
@@ -50,7 +52,7 @@ export NO_COLOR=1
 # Set some useful defaults so we can also run this script free-standing.
 ACTION="${ACTION:-build}"
 ARCHS="${ARCHS:-arm64}"
-CONFIGURATION="${CONFIGURATION:-Debug}"
+CONFIGURATION="${CONFIGURATION:-Release}"
 PLATFORM_NAME="${PLATFORM_NAME:-macosx}"
 PRODUCT_NAME="${PRODUCT_NAME:-app_rs_dart}"
 
@@ -83,13 +85,22 @@ case "${1:-macos}" in
   ;;
 esac
 
-# The lipo'd output shared libs
-APP_RS__OUT=""
+# The combined, lipo'd output static lib (.a)
+APP_RS__LIB_OUT=""
 if [[ -n $BUILT_PRODUCTS_DIR ]]; then
-  APP_RS__OUT="$BUILT_PRODUCTS_DIR/libapp_rs.a"
+  APP_RS__LIB_OUT="$BUILT_PRODUCTS_DIR/libapp_rs.a"
 else
-  APP_RS__OUT="$(mktemp).a"
-  trap 'rm -rf $APP_RS__OUT' EXIT
+  APP_RS__LIB_OUT="$(mktemp)"
+fi
+
+# The combined dep file (.d) that depends on each per-target dep file produced
+# by cargo.
+APP_RS__DEP_OUT=""
+if [[ -n $DERIVED_FILE_DIR ]]; then
+  mkdir -p "$DERIVED_FILE_DIR"
+  APP_RS__DEP_OUT="$DERIVED_FILE_DIR/libapp_rs.d"
+else
+  APP_RS__DEP_OUT="$(mktemp)"
 fi
 
 # Xcode PLATFORM_NAME -> rust target_os
@@ -124,16 +135,21 @@ esac
 
 # Xcode ARCHS -> rust target triples
 APP_RS__TARGET_TRIPLES=()
-# All built libapp_rs.a files in target/ directory
+# All built libapp_rs.a static libs in target/ directory
 APP_RS__TARGET_DIR_LIBS=()
+# All built libapp_rs.d dependency files in target/ directory
+APP_RS__TARGET_DIR_DEPS=()
 for arch in $ARCHS; do
   os="$APP_RS__TARGET_OS"
   if [[ $arch == "arm64" ]]; then arch=aarch64; fi
   if [[ $arch == "i386" && $os != "ios" ]]; then arch=i686; fi
   if [[ $arch == "x86_64" && $os == "ios-sim" ]]; then os="ios"; fi
   target="${arch}-apple-${os}"
+  targetDirLib="$APP_RS__TARGET_DIR/$target/$APP_RS__CARGO_PROFILE/libapp_rs.a"
   APP_RS__TARGET_TRIPLES+=("$target")
-  APP_RS__TARGET_DIR_LIBS+=("$APP_RS__TARGET_DIR/$target/$APP_RS__CARGO_PROFILE/libapp_rs.a")
+  APP_RS__TARGET_DIR_LIBS+=("$targetDirLib")
+  # `%.a` removes ".a" suffix
+  APP_RS__TARGET_DIR_DEPS+=("${targetDirLib%.a}.d")
 done
 
 #
@@ -207,26 +223,23 @@ done
 # libapp_rs.a and dump it into the final output location.
 #
 
-lipo -create -output "$APP_RS__OUT" "${APP_RS__TARGET_DIR_LIBS[@]}"
+lipo -create -output "$APP_RS__LIB_OUT" "${APP_RS__TARGET_DIR_LIBS[@]}"
 
 #
-# TODO(phlip9): hook into Xcode's dependency tracking, so we don't have to rerun
-# build script every time.
+# hook into Xcode's dependency tracking, so we don't have to rerun build script
+# every time.
 #
 
-# DEP_FILE_DST="$DERIVED_FILE_DIR/${ARCHS}-${EXECUTABLE_NAME}.d"
-# echo "" > "$DEP_FILE_DST"
-# for target in $APP_RS__TARGET_TRIPLES; do
-#   BUILT_SRC="$APP_RS__TARGET_DIR/$target/$APP_RS__CARGO_PROFILE/???"
+# Finally build the libapp_rs.d combined dep file.
 #
-#  # cargo generates a dep file, but for its own path, so append our rename to it
-#  DEP_FILE_SRC="$APP_RS__TARGET_DIR/$target/$APP_RS__CARGO_PROFILE/???"
-#  if [ -f "$DEP_FILE_SRC" ]; then
-#    cat "$DEP_FILE_SRC" >> "$DEP_FILE_DST"
-#  fi
-#  echo >> "$DEP_FILE_DST" "${SCRIPT_OUTPUT_FILE_0/ /\\\\ /}: ${BUILT_SRC/ /\\\\ /}"
-# done
-# cat "$DEP_FILE_DST"
+# Example: (`ARCHS="arm64 x86_64" PLATFORM_NAME=macosx CONFIGURATION=Release`)
+# ```
+# target/aarch64-apple-darwin/debug/libapp_rs.a: app-rs/src/app.rs app-rs/src/ffi/api.rs ...
+# target/x86_64-apple-darwin/debug/libapp_rs.a: app-rs/src/app.rs app-rs/src/ffi/api.rs ...
+# $BUILT_PRODUCTS_DIR/libapp_rs.a: target/aarch64-apple-darwin/debug/libapp_rs.a target/x86_64-apple-darwin/debug/libapp_rs.a
+# ```
+cat "${APP_RS__TARGET_DIR_DEPS[@]}" > "$APP_RS__DEP_OUT"
+echo "$APP_RS__LIB_OUT:" "${APP_RS__TARGET_DIR_LIBS[@]}" >> "$APP_RS__DEP_OUT"
 
 # Restore cwd
 popd

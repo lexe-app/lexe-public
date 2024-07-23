@@ -31,25 +31,6 @@ pub struct Args {
     pub check: bool,
 }
 
-fn find_app_rs_dir() -> Option<PathBuf> {
-    let candidates = ["app-rs/Cargo.toml", "public/app-rs/Cargo.toml"];
-    for candidate in candidates {
-        let path = Path::new(candidate);
-        if path.is_file() {
-            // Get the absolute path of the parent
-            return path.parent()?.canonicalize().ok();
-        }
-    }
-
-    None
-}
-
-fn path_to_string(path: &Path) -> anyhow::Result<String> {
-    path.to_str().map(str::to_owned).ok_or_else(|| {
-        format_err!("path is not valid UTF-8: '{}'", path.display())
-    })
-}
-
 impl Args {
     pub fn run(self) -> anyhow::Result<()> {
         let app_rs_dir = find_app_rs_dir().ok_or_else(|| {
@@ -129,6 +110,13 @@ impl Args {
             "flutter_rust_bridge: failed to generate Rust+Dart ffi bindings ",
         ).unwrap();
 
+        // Maybe update `app_rs_dart/build_rust_ios_macos.input.xcfilelist`.
+        // This file is used in `app_rs_dart`'s CocoaPods/Xcode integration.
+        let xcfilelist_path =
+            app_rs_dart_dir.join("build_rust_ios_macos.input.xcfilelist");
+        let xcfilelist = build_app_rs_xcfilelist(workspace_dir);
+        update_app_rs_xcfilelist_if_changed(&xcfilelist_path, xcfilelist);
+
         // run `git diff --exit-code` to see if any files
         // changed
         if self.check {
@@ -148,5 +136,70 @@ impl Args {
         }
 
         Ok(())
+    }
+}
+
+fn find_app_rs_dir() -> Option<PathBuf> {
+    let candidates = ["app-rs/Cargo.toml", "public/app-rs/Cargo.toml"];
+    for candidate in candidates {
+        let path = Path::new(candidate);
+        if path.is_file() {
+            // Get the absolute path of the parent
+            return path.parent()?.canonicalize().ok();
+        }
+    }
+
+    None
+}
+
+fn path_to_string(path: &Path) -> anyhow::Result<String> {
+    path.to_str().map(str::to_owned).ok_or_else(|| {
+        format_err!("path is not valid UTF-8: '{}'", path.display())
+    })
+}
+
+/// Generate workspace input xcfilelist for
+/// `app_rs_dart/{ios,macos}/app_rs_dart.podspec`. This is a list
+/// of all source file dependencies not covered by the
+/// cargo-generated libapp_rs.d dep file.
+fn build_app_rs_xcfilelist(workspace_dir: &Path) -> String {
+    let walk = ignore::WalkBuilder::new(workspace_dir)
+        .hidden(false)
+        .follow_links(false)
+        .max_depth(Some(2))
+        .build();
+    const PREFIX: &str = "${PODS_TARGET_SRCROOT}/../../";
+    let mut xcfilelist = walk
+        .filter_map(|entry| {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            let file_name = path.file_name()?.to_str()?;
+            if file_name.ends_with(".toml") {
+                let rel_path = path.strip_prefix(workspace_dir).unwrap();
+                let pod_rel_path = format!("{PREFIX}{}", rel_path.display());
+                Some(pod_rel_path)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    xcfilelist.push(format!("{PREFIX}Cargo.lock"));
+    xcfilelist.sort_unstable();
+
+    let mut buf = xcfilelist.join("\n");
+    buf.push('\n');
+    buf
+}
+
+/// Only write the new xcfilelist if it's actually changed. This avoids changing
+/// the file modified time if there are no changes.
+fn update_app_rs_xcfilelist_if_changed(
+    xcfilelist_path: &Path,
+    updated: String,
+) {
+    let existing = std::fs::read_to_string(xcfilelist_path).unwrap();
+    if updated != existing {
+        eprintln!("Updating '{}'", xcfilelist_path.display());
+        std::fs::write(xcfilelist_path, updated).unwrap();
     }
 }
