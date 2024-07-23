@@ -3,9 +3,8 @@ use std::{fmt, str::FromStr};
 use anyhow::{bail, ensure, Context};
 use bip39::{Language, Mnemonic};
 use bitcoin::{
-    secp256k1,
-    util::bip32::{ChildNumber, ExtendedPrivKey},
-    Network,
+    bip32::{ChildNumber, ExtendedPrivKey},
+    secp256k1, Network,
 };
 use secrecy::{zeroize::Zeroizing, ExposeSecret, Secret, SecretVec};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};

@@ -10,7 +10,7 @@ use std::{sync::Arc, time::SystemTime};
 
 use anyhow::Context;
 use async_trait::async_trait;
-use bitcoin::Address;
+use bitcoin::{address::NetworkUnchecked, Address};
 use reqwest::Url;
 
 use crate::{
@@ -403,7 +403,9 @@ impl AppNodeRunApi for NodeClient {
         self.run_rest.send(req).await
     }
 
-    async fn get_address(&self) -> Result<Address, NodeApiError> {
+    async fn get_address(
+        &self,
+    ) -> Result<Address<NetworkUnchecked>, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/get_address");

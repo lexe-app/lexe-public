@@ -397,6 +397,7 @@ where
 #[instrument(skip_all, name = "(pay-onchain)")]
 pub async fn pay_onchain<CM, PS>(
     req: PayOnchainRequest,
+    network: LxNetwork,
     wallet: LexeWallet,
     esplora: Arc<LexeEsplora>,
     payments_manager: PaymentsManager<CM, PS>,
@@ -407,7 +408,7 @@ where
 {
     // Create and sign the onchain send tx.
     let onchain_send = wallet
-        .create_onchain_send(req)
+        .create_onchain_send(req, network)
         .await
         .context("Error while creating outbound tx")?;
     let tx = onchain_send.tx.clone();
@@ -450,8 +451,9 @@ where
 pub async fn preflight_pay_onchain(
     req: PreflightPayOnchainRequest,
     wallet: LexeWallet,
+    network: LxNetwork,
 ) -> anyhow::Result<PreflightPayOnchainResponse> {
-    wallet.preflight_pay_onchain(req).await
+    wallet.preflight_pay_onchain(req, network).await
 }
 
 #[instrument(skip_all, name = "(get-address)")]

@@ -1,4 +1,4 @@
-use bitcoin::Address;
+use bitcoin::address::NetworkUnchecked;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -98,7 +98,7 @@ pub struct PayOnchainRequest {
     /// The identifier to use for this payment.
     pub cid: ClientPaymentId,
     /// The address we want to send funds to.
-    pub address: Address,
+    pub address: bitcoin::Address<NetworkUnchecked>,
     /// How much Bitcoin we want to send.
     pub amount: Amount,
     /// How quickly we want our transaction to be confirmed.
@@ -122,7 +122,7 @@ pub struct PayOnchainResponse {
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct PreflightPayOnchainRequest {
     /// The address we want to send funds to.
-    pub address: Address,
+    pub address: bitcoin::Address<NetworkUnchecked>,
     /// How much Bitcoin we want to send.
     pub amount: Amount,
 }
@@ -171,14 +171,14 @@ mod arbitrary {
     };
 
     use super::*;
-    use crate::test_utils::arbitrary::any_mainnet_address;
+    use crate::test_utils::arbitrary;
 
     impl Arbitrary for PreflightPayOnchainRequest {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any_mainnet_address(), any::<Amount>())
+            (arbitrary::any_mainnet_addr_unchecked(), any::<Amount>())
                 .prop_map(|(address, amount)| Self { address, amount })
                 .boxed()
         }

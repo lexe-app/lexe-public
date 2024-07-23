@@ -24,7 +24,7 @@ use bitcoin::{
 use super::*;
 
 pub fn test_script_pubkey<D: Database>(mut db: D) {
-    let script = Script::from(
+    let script = ScriptBuf::from(
         Vec::<u8>::from_hex(
             "76a91402306a7c23f3e8010de41e9e591348bb83f11daa88ac",
         )
@@ -48,7 +48,7 @@ pub fn test_script_pubkey<D: Database>(mut db: D) {
 pub fn test_batch_script_pubkey<D: BatchDatabase>(mut db: D) {
     let mut batch = db.begin_batch();
 
-    let script = Script::from(
+    let script = ScriptBuf::from(
         Vec::<u8>::from_hex(
             "76a91402306a7c23f3e8010de41e9e591348bb83f11daa88ac",
         )
@@ -78,7 +78,7 @@ pub fn test_batch_script_pubkey<D: BatchDatabase>(mut db: D) {
 }
 
 pub fn test_iter_script_pubkey<D: Database>(mut db: D) {
-    let script = Script::from(
+    let script = ScriptBuf::from(
         Vec::<u8>::from_hex(
             "76a91402306a7c23f3e8010de41e9e591348bb83f11daa88ac",
         )
@@ -93,7 +93,7 @@ pub fn test_iter_script_pubkey<D: Database>(mut db: D) {
 }
 
 pub fn test_del_script_pubkey<D: Database>(mut db: D) {
-    let script = Script::from(
+    let script = ScriptBuf::from(
         Vec::<u8>::from_hex(
             "76a91402306a7c23f3e8010de41e9e591348bb83f11daa88ac",
         )
@@ -114,7 +114,7 @@ pub fn test_utxo<D: Database>(mut db: D) {
         "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456:0",
     )
     .unwrap();
-    let script = Script::from(
+    let script = ScriptBuf::from(
         Vec::<u8>::from_hex(
             "76a91402306a7c23f3e8010de41e9e591348bb83f11daa88ac",
         )
@@ -293,7 +293,7 @@ pub fn test_iter_raw_txs<D: Database>(mut db: D) {
 pub fn test_del_path_from_script_pubkey<D: Database>(mut db: D) {
     let keychain = KeychainKind::External;
 
-    let script = Script::from(
+    let script = ScriptBuf::from(
         Vec::<u8>::from_hex(
             "76a91402306a7c23f3e8010de41e9e591348bb83f11daa88ac",
         )
@@ -321,7 +321,7 @@ pub fn test_iter_script_pubkeys<D: Database>(mut db: D) {
     let scripts = db.iter_script_pubkeys(Some(keychain)).unwrap();
     assert!(scripts.is_empty());
 
-    let first_script = Script::from(
+    let first_script = ScriptBuf::from(
         Vec::<u8>::from_hex(
             "76a91402306a7c23f3e8010de41e9e591348bb83f11daa88ac",
         )
@@ -331,7 +331,7 @@ pub fn test_iter_script_pubkeys<D: Database>(mut db: D) {
 
     db.set_script_pubkey(&first_script, keychain, path).unwrap();
 
-    let second_script = Script::from(
+    let second_script = ScriptBuf::from(
         Vec::<u8>::from_hex("00145c9a1816d38db5cbdd4b067b689dc19eb7d930e2")
             .unwrap(),
     );
@@ -351,7 +351,7 @@ pub fn test_del_utxo<D: Database>(mut db: D) {
         "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456:0",
     )
     .unwrap();
-    let script = Script::from(
+    let script = ScriptBuf::from(
         Vec::<u8>::from_hex(
             "76a91402306a7c23f3e8010de41e9e591348bb83f11daa88ac",
         )

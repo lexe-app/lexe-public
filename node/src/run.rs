@@ -464,7 +464,7 @@ impl UserNode {
             if let Err(()) = chain_monitor.watch_channel(funding_txo, monitor) {
                 let channel_id = funding_txo.to_channel_id();
                 warn!(
-                    %channel_id, ?funding_txo,
+                    %channel_id, %funding_txo,
                     "`ChainMonitor::watch_channel` failed; force closing..."
                 );
 
@@ -475,7 +475,7 @@ impl UserNode {
                     )
                     .inspect(|()| {
                         info!(
-                            %channel_id, ?funding_txo,
+                            %channel_id, %funding_txo,
                             "Successfully force closed"
                         )
                     })
@@ -484,18 +484,20 @@ impl UserNode {
                         anyhow!(
                             "Couldn't force close bad monitor: {e:?} \
                              channel_id='{channel_id}', \
-                             funding_txo='{funding_txo:?}'"
+                             funding_txo='{funding_txo}'"
                         )
                     })?;
             }
         }
 
         // Init onion messenger
+        let message_router =
+            Arc::new(DefaultMessageRouter::new(network_graph.clone()));
         let onion_messenger = Arc::new(OnionMessenger::new(
             keys_manager.clone(),
             keys_manager.clone(),
             logger.clone(),
-            Arc::new(DefaultMessageRouter {}),
+            message_router,
             IgnoringMessageHandler {},
             IgnoringMessageHandler {},
         ));

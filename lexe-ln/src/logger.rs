@@ -172,7 +172,7 @@ pub struct InnerTracingLogger;
 impl Logger for InnerTracingLogger {
     /// Convert LDK log records to [`tracing::Event`]s and then dispatch them
     /// to the current registered [`tracing::Subscriber`].
-    fn log(&self, record: &Record) {
+    fn log(&self, record: Record) {
         dispatcher::get_default(|dispatch| {
             // unfortunately, we can't just `tracing::event!()` here, since the
             // log-level isn't known at compile time (which tracing requires).

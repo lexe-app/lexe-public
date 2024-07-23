@@ -94,6 +94,7 @@ pub(super) async fn pay_onchain(
 ) -> Result<LxJson<PayOnchainResponse>, NodeApiError> {
     lexe_ln::command::pay_onchain(
         req,
+        state.network,
         state.wallet.clone(),
         state.esplora.clone(),
         state.payments_manager.clone(),
@@ -107,10 +108,14 @@ pub(super) async fn preflight_pay_onchain(
     State(state): State<Arc<AppRouterState>>,
     LxJson(req): LxJson<PreflightPayOnchainRequest>,
 ) -> Result<LxJson<PreflightPayOnchainResponse>, NodeApiError> {
-    lexe_ln::command::preflight_pay_onchain(req, state.wallet.clone())
-        .await
-        .map(LxJson)
-        .map_err(NodeApiError::command)
+    lexe_ln::command::preflight_pay_onchain(
+        req,
+        state.wallet.clone(),
+        state.network,
+    )
+    .await
+    .map(LxJson)
+    .map_err(NodeApiError::command)
 }
 
 pub(super) async fn get_address(

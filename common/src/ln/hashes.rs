@@ -5,6 +5,7 @@ use std::{
 };
 
 use bitcoin::Txid;
+use bitcoin_hashes::Hash;
 use serde::{Deserialize, Serialize};
 
 /// Almost exactly [`bitcoin::Txid`], but fixes the inconsistency between the
@@ -42,7 +43,11 @@ impl Ord for LxTxid {
         // significant byte (i.e. in reverse order), returning as soon as we
         // find a pair of bytes that are not equal, returning Ordering::Equal if
         // all of the bytes were equal.
-        self.0.iter().rev().cmp(other.0.iter().rev())
+        self.0
+            .as_byte_array()
+            .iter()
+            .rev()
+            .cmp(other.0.as_byte_array().iter().rev())
     }
 }
 
@@ -54,7 +59,6 @@ impl PartialOrd for LxTxid {
 
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
-    use bitcoin::hashes::Hash;
     use proptest::{
         arbitrary::{any, Arbitrary},
         strategy::{BoxedStrategy, Strategy},
@@ -68,8 +72,7 @@ mod arbitrary_impl {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             // Excluding .no_shrink() makes it easier to debug
             any::<[u8; 32]>()
-                .prop_map(bitcoin::hashes::sha256d::Hash::from_inner)
-                .prop_map(Txid::from_hash)
+                .prop_map(Txid::from_byte_array)
                 .prop_map(Self)
                 .boxed()
         }
