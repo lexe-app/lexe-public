@@ -19,8 +19,6 @@ pub mod app;
 pub(crate) mod ffi;
 /// `FlatFileFs` and `Ffs`.
 mod ffs;
-/// UI form input helpers.
-mod form;
 /// Flutter/rust ffi bindings generated from `ffi` by `just app-rs-codegen`.
 pub(crate) mod frb_generated;
 /// Pipe `tracing` log messages from native Rust to Dart.

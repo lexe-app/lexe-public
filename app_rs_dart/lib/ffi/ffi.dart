@@ -12,27 +12,6 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-/// Validate whether `address_str` is a properly formatted bitcoin address. Also
-/// checks that it's valid for the configured bitcoin network.
-///
-/// The return type is a bit funky: `Option<String>`. `None` means
-/// `address_str` is valid, while `Some(msg)` means it is not (with given
-/// error message). We return in this format to better match the flutter
-/// `FormField` validator API.
-String? formValidateBitcoinAddress(
-        {required String addressStr, required Network currentNetwork}) =>
-    AppRs.instance.api.crateFfiFfiFormValidateBitcoinAddress(
-        addressStr: addressStr, currentNetwork: currentNetwork);
-
-/// Validate whether `password` has an appropriate length.
-///
-/// The return type is a bit funky: `Option<String>`. `None` means
-/// `address_str` is valid, while `Some(msg)` means it is not (with given
-/// error message). We return in this format to better match the flutter
-/// `FormField` validator API.
-String? formValidatePassword({required String password}) =>
-    AppRs.instance.api.crateFfiFfiFormValidatePassword(password: password);
-
 /// Resolve a (possible) [`PaymentUri`] string that we just
 /// scanned/pasted into the best [`PaymentMethod`] for us to pay.
 ///

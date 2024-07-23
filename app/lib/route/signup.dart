@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
-import 'package:app_rs_dart/ffi/ffi.dart' show formValidatePassword;
+import 'package:app_rs_dart/ffi/form.dart' as form;
 import 'package:app_rs_dart/ffi/types.dart' show Config;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
@@ -178,7 +178,7 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
 
     // TODO(phlip9): this API should return a bare error enum and flutter should
     // convert that to a human-readable error message (for translations).
-    final maybeErrMsg = formValidatePassword(password: password);
+    final maybeErrMsg = form.validatePassword(password: password);
     if (maybeErrMsg == null) {
       return Ok(password);
     } else {

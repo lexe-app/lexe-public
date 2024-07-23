@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.1.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -302908796;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1166993156;
 
 // Section: executor
 
@@ -491,33 +491,6 @@ fn wire__crate__ffi__ffi__debug_unconditional_panic_impl(
                     })())
                 } })
 }
-fn wire__crate__ffi__ffi__form_validate_bitcoin_address_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "form_validate_bitcoin_address", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
-            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
-            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_address_str = <String>::sse_decode(&mut deserializer);
-let api_current_network = <crate::ffi::types::Network>::sse_decode(&mut deserializer);deserializer.end();
-                transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::form_validate_bitcoin_address(api_address_str, api_current_network))?;   Ok(output_ok)
-                })()) })
-}
-fn wire__crate__ffi__ffi__form_validate_password_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "form_validate_password", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
-            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
-            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_password = <String>::sse_decode(&mut deserializer);deserializer.end();
-                transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::form_validate_password(api_password))?;   Ok(output_ok)
-                })()) })
-}
 fn wire__crate__ffi__ffi__init_rust_log_stream_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -549,6 +522,19 @@ let api_uri_str = <String>::sse_decode(&mut deserializer);deserializer.end(); mo
                          let output_ok = crate::ffi::ffi::payment_uri_resolve_best(api_network, api_uri_str)?;   Ok(output_ok)
                     })())
                 } })
+}
+fn wire__crate__ffi__form__validate_password_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "validate_password", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_password = <String>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, ()>((move || {
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::form::validate_password(api_password))?;   Ok(output_ok)
+                })()) })
 }
 fn wire__crate__ffi__settings__save_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
@@ -1567,19 +1553,19 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        33 => wire__crate__ffi__ffi__init_rust_log_stream_impl(
+        31 => wire__crate__ffi__ffi__init_rust_log_stream_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        34 => wire__crate__ffi__ffi__payment_uri_resolve_best_impl(
+        32 => wire__crate__ffi__ffi__payment_uri_resolve_best_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        35 => wire__crate__ffi__settings__save_impl(
+        34 => wire__crate__ffi__settings__save_impl(
             port,
             ptr,
             rust_vec_len,
@@ -1610,11 +1596,10 @@ fn pde_ffi_dispatcher_sync_impl(
 15 => wire__crate__ffi__app__app_handle_get_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
 27 => wire__crate__ffi__ffi__debug_delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
 28 => wire__crate__ffi__ffi__debug_delete_secret_store_impl(ptr, rust_vec_len, data_len),
-31 => wire__crate__ffi__ffi__form_validate_bitcoin_address_impl(ptr, rust_vec_len, data_len),
-32 => wire__crate__ffi__ffi__form_validate_password_impl(ptr, rust_vec_len, data_len),
-36 => wire__crate__ffi__types__client_payment_id_gen_impl(ptr, rust_vec_len, data_len),
-37 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
-38 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
+33 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
+35 => wire__crate__ffi__types__client_payment_id_gen_impl(ptr, rust_vec_len, data_len),
+36 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
+37 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
