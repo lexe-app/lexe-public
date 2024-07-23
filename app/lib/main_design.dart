@@ -26,7 +26,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         PreflightPayOnchainRequest,
         PreflightPayOnchainResponse,
         UpdatePaymentNote;
-import 'package:app_rs_dart/ffi/ffi.dart' show App, AppHandle, U8Array32;
+import 'package:app_rs_dart/ffi/app.dart' show App, AppHandle, U8Array32;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         ClientPaymentId,

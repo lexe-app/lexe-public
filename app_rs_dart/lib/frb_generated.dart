@@ -11,6 +11,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'ffi/api.dart';
+import 'ffi/app.dart';
 import 'ffi/ffi.dart';
 import 'ffi/settings.dart';
 import 'ffi/types.dart';
@@ -64,7 +65,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.1.0';
 
   @override
-  int get rustContentHash => 1831663784;
+  int get rustContentHash => -437752765;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -75,77 +76,77 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
 }
 
 abstract class AppRsApi extends BaseApi {
-  Future<CreateInvoiceResponse> crateFfiFfiAppHandleCreateInvoice(
+  Future<CreateInvoiceResponse> crateFfiAppAppHandleCreateInvoice(
       {required AppHandle that, required CreateInvoiceRequest req});
 
-  Future<void> crateFfiFfiAppHandleDeletePaymentDb({required AppHandle that});
+  Future<void> crateFfiAppAppHandleDeletePaymentDb({required AppHandle that});
 
-  Future<FiatRates> crateFfiFfiAppHandleFiatRates({required AppHandle that});
+  Future<FiatRates> crateFfiAppAppHandleFiatRates({required AppHandle that});
 
-  Future<String> crateFfiFfiAppHandleGetAddress({required AppHandle that});
+  Future<String> crateFfiAppAppHandleGetAddress({required AppHandle that});
 
   ShortPaymentAndIndex?
-      crateFfiFfiAppHandleGetFinalizedNotJunkShortPaymentByScrollIdx(
+      crateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIdx(
           {required AppHandle that, required int scrollIdx});
 
-  ShortPaymentAndIndex? crateFfiFfiAppHandleGetFinalizedShortPaymentByScrollIdx(
+  ShortPaymentAndIndex? crateFfiAppAppHandleGetFinalizedShortPaymentByScrollIdx(
       {required AppHandle that, required int scrollIdx});
 
-  int crateFfiFfiAppHandleGetNumFinalizedNotJunkPayments(
+  int crateFfiAppAppHandleGetNumFinalizedNotJunkPayments(
       {required AppHandle that});
 
-  int crateFfiFfiAppHandleGetNumFinalizedPayments({required AppHandle that});
+  int crateFfiAppAppHandleGetNumFinalizedPayments({required AppHandle that});
 
-  int crateFfiFfiAppHandleGetNumPayments({required AppHandle that});
+  int crateFfiAppAppHandleGetNumPayments({required AppHandle that});
 
-  int crateFfiFfiAppHandleGetNumPendingNotJunkPayments(
+  int crateFfiAppAppHandleGetNumPendingNotJunkPayments(
       {required AppHandle that});
 
-  int crateFfiFfiAppHandleGetNumPendingPayments({required AppHandle that});
+  int crateFfiAppAppHandleGetNumPendingPayments({required AppHandle that});
 
-  Payment? crateFfiFfiAppHandleGetPaymentByVecIdx(
+  Payment? crateFfiAppAppHandleGetPaymentByVecIdx(
       {required AppHandle that, required int vecIdx});
 
   ShortPaymentAndIndex?
-      crateFfiFfiAppHandleGetPendingNotJunkShortPaymentByScrollIdx(
+      crateFfiAppAppHandleGetPendingNotJunkShortPaymentByScrollIdx(
           {required AppHandle that, required int scrollIdx});
 
-  ShortPaymentAndIndex? crateFfiFfiAppHandleGetPendingShortPaymentByScrollIdx(
+  ShortPaymentAndIndex? crateFfiAppAppHandleGetPendingShortPaymentByScrollIdx(
       {required AppHandle that, required int scrollIdx});
 
-  ShortPaymentAndIndex? crateFfiFfiAppHandleGetShortPaymentByScrollIdx(
+  ShortPaymentAndIndex? crateFfiAppAppHandleGetShortPaymentByScrollIdx(
       {required AppHandle that, required int scrollIdx});
 
-  Future<int?> crateFfiFfiAppHandleGetVecIdxByPaymentIndex(
+  Future<int?> crateFfiAppAppHandleGetVecIdxByPaymentIndex(
       {required AppHandle that, required PaymentIndex paymentIndex});
 
-  Future<AppHandle?> crateFfiFfiAppHandleLoad({required Config config});
+  Future<AppHandle?> crateFfiAppAppHandleLoad({required Config config});
 
-  Future<NodeInfo> crateFfiFfiAppHandleNodeInfo({required AppHandle that});
+  Future<NodeInfo> crateFfiAppAppHandleNodeInfo({required AppHandle that});
 
-  Future<PayInvoiceResponse> crateFfiFfiAppHandlePayInvoice(
+  Future<PayInvoiceResponse> crateFfiAppAppHandlePayInvoice(
       {required AppHandle that, required PayInvoiceRequest req});
 
-  Future<PayOnchainResponse> crateFfiFfiAppHandlePayOnchain(
+  Future<PayOnchainResponse> crateFfiAppAppHandlePayOnchain(
       {required AppHandle that, required PayOnchainRequest req});
 
-  Future<PreflightPayInvoiceResponse> crateFfiFfiAppHandlePreflightPayInvoice(
+  Future<PreflightPayInvoiceResponse> crateFfiAppAppHandlePreflightPayInvoice(
       {required AppHandle that, required PreflightPayInvoiceRequest req});
 
-  Future<PreflightPayOnchainResponse> crateFfiFfiAppHandlePreflightPayOnchain(
+  Future<PreflightPayOnchainResponse> crateFfiAppAppHandlePreflightPayOnchain(
       {required AppHandle that, required PreflightPayOnchainRequest req});
 
-  Future<AppHandle> crateFfiFfiAppHandleRestore(
+  Future<AppHandle> crateFfiAppAppHandleRestore(
       {required Config config, required String seedPhrase});
 
-  Future<AppHandle> crateFfiFfiAppHandleSignup(
+  Future<AppHandle> crateFfiAppAppHandleSignup(
       {required Config config,
       required String googleAuthCode,
       required String password});
 
-  Future<bool> crateFfiFfiAppHandleSyncPayments({required AppHandle that});
+  Future<bool> crateFfiAppAppHandleSyncPayments({required AppHandle that});
 
-  Future<void> crateFfiFfiAppHandleUpdatePaymentNote(
+  Future<void> crateFfiAppAppHandleUpdatePaymentNote(
       {required AppHandle that, required UpdatePaymentNote req});
 
   void crateFfiFfiDebugDeleteLatestProvisioned({required Config config});
@@ -190,7 +191,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   });
 
   @override
-  Future<CreateInvoiceResponse> crateFfiFfiAppHandleCreateInvoice(
+  Future<CreateInvoiceResponse> crateFfiAppAppHandleCreateInvoice(
       {required AppHandle that, required CreateInvoiceRequest req}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
@@ -204,20 +205,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_create_invoice_response,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiAppHandleCreateInvoiceConstMeta,
+      constMeta: kCrateFfiAppAppHandleCreateInvoiceConstMeta,
       argValues: [that, req],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandleCreateInvoiceConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandleCreateInvoiceConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_create_invoice",
         argNames: ["that", "req"],
       );
 
   @override
-  Future<void> crateFfiFfiAppHandleDeletePaymentDb({required AppHandle that}) {
+  Future<void> crateFfiAppAppHandleDeletePaymentDb({required AppHandle that}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -229,20 +230,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_unit,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiAppHandleDeletePaymentDbConstMeta,
+      constMeta: kCrateFfiAppAppHandleDeletePaymentDbConstMeta,
       argValues: [that],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandleDeletePaymentDbConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandleDeletePaymentDbConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_delete_payment_db",
         argNames: ["that"],
       );
 
   @override
-  Future<FiatRates> crateFfiFfiAppHandleFiatRates({required AppHandle that}) {
+  Future<FiatRates> crateFfiAppAppHandleFiatRates({required AppHandle that}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -254,20 +255,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_fiat_rates,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiAppHandleFiatRatesConstMeta,
+      constMeta: kCrateFfiAppAppHandleFiatRatesConstMeta,
       argValues: [that],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandleFiatRatesConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandleFiatRatesConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_fiat_rates",
         argNames: ["that"],
       );
 
   @override
-  Future<String> crateFfiFfiAppHandleGetAddress({required AppHandle that}) {
+  Future<String> crateFfiAppAppHandleGetAddress({required AppHandle that}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -279,13 +280,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_String,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiAppHandleGetAddressConstMeta,
+      constMeta: kCrateFfiAppAppHandleGetAddressConstMeta,
       argValues: [that],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandleGetAddressConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandleGetAddressConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_get_address",
         argNames: ["that"],
@@ -293,7 +294,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   ShortPaymentAndIndex?
-      crateFfiFfiAppHandleGetFinalizedNotJunkShortPaymentByScrollIdx(
+      crateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIdx(
           {required AppHandle that, required int scrollIdx}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
@@ -307,14 +308,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeErrorData: null,
       ),
       constMeta:
-          kCrateFfiFfiAppHandleGetFinalizedNotJunkShortPaymentByScrollIdxConstMeta,
+          kCrateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIdxConstMeta,
       argValues: [that, scrollIdx],
       apiImpl: this,
     ));
   }
 
   TaskConstMeta
-      get kCrateFfiFfiAppHandleGetFinalizedNotJunkShortPaymentByScrollIdxConstMeta =>
+      get kCrateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIdxConstMeta =>
           const TaskConstMeta(
             debugName:
                 "app_handle_get_finalized_not_junk_short_payment_by_scroll_idx",
@@ -322,7 +323,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           );
 
   @override
-  ShortPaymentAndIndex? crateFfiFfiAppHandleGetFinalizedShortPaymentByScrollIdx(
+  ShortPaymentAndIndex? crateFfiAppAppHandleGetFinalizedShortPaymentByScrollIdx(
       {required AppHandle that, required int scrollIdx}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
@@ -336,21 +337,21 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeErrorData: null,
       ),
       constMeta:
-          kCrateFfiFfiAppHandleGetFinalizedShortPaymentByScrollIdxConstMeta,
+          kCrateFfiAppAppHandleGetFinalizedShortPaymentByScrollIdxConstMeta,
       argValues: [that, scrollIdx],
       apiImpl: this,
     ));
   }
 
   TaskConstMeta
-      get kCrateFfiFfiAppHandleGetFinalizedShortPaymentByScrollIdxConstMeta =>
+      get kCrateFfiAppAppHandleGetFinalizedShortPaymentByScrollIdxConstMeta =>
           const TaskConstMeta(
             debugName: "app_handle_get_finalized_short_payment_by_scroll_idx",
             argNames: ["that", "scrollIdx"],
           );
 
   @override
-  int crateFfiFfiAppHandleGetNumFinalizedNotJunkPayments(
+  int crateFfiAppAppHandleGetNumFinalizedNotJunkPayments(
       {required AppHandle that}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
@@ -362,21 +363,21 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_CastedPrimitive_usize,
         decodeErrorData: null,
       ),
-      constMeta: kCrateFfiFfiAppHandleGetNumFinalizedNotJunkPaymentsConstMeta,
+      constMeta: kCrateFfiAppAppHandleGetNumFinalizedNotJunkPaymentsConstMeta,
       argValues: [that],
       apiImpl: this,
     ));
   }
 
   TaskConstMeta
-      get kCrateFfiFfiAppHandleGetNumFinalizedNotJunkPaymentsConstMeta =>
+      get kCrateFfiAppAppHandleGetNumFinalizedNotJunkPaymentsConstMeta =>
           const TaskConstMeta(
             debugName: "app_handle_get_num_finalized_not_junk_payments",
             argNames: ["that"],
           );
 
   @override
-  int crateFfiFfiAppHandleGetNumFinalizedPayments({required AppHandle that}) {
+  int crateFfiAppAppHandleGetNumFinalizedPayments({required AppHandle that}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -387,20 +388,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_CastedPrimitive_usize,
         decodeErrorData: null,
       ),
-      constMeta: kCrateFfiFfiAppHandleGetNumFinalizedPaymentsConstMeta,
+      constMeta: kCrateFfiAppAppHandleGetNumFinalizedPaymentsConstMeta,
       argValues: [that],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandleGetNumFinalizedPaymentsConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandleGetNumFinalizedPaymentsConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_get_num_finalized_payments",
         argNames: ["that"],
       );
 
   @override
-  int crateFfiFfiAppHandleGetNumPayments({required AppHandle that}) {
+  int crateFfiAppAppHandleGetNumPayments({required AppHandle that}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -411,20 +412,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_CastedPrimitive_usize,
         decodeErrorData: null,
       ),
-      constMeta: kCrateFfiFfiAppHandleGetNumPaymentsConstMeta,
+      constMeta: kCrateFfiAppAppHandleGetNumPaymentsConstMeta,
       argValues: [that],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandleGetNumPaymentsConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandleGetNumPaymentsConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_get_num_payments",
         argNames: ["that"],
       );
 
   @override
-  int crateFfiFfiAppHandleGetNumPendingNotJunkPayments(
+  int crateFfiAppAppHandleGetNumPendingNotJunkPayments(
       {required AppHandle that}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
@@ -436,21 +437,21 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_CastedPrimitive_usize,
         decodeErrorData: null,
       ),
-      constMeta: kCrateFfiFfiAppHandleGetNumPendingNotJunkPaymentsConstMeta,
+      constMeta: kCrateFfiAppAppHandleGetNumPendingNotJunkPaymentsConstMeta,
       argValues: [that],
       apiImpl: this,
     ));
   }
 
   TaskConstMeta
-      get kCrateFfiFfiAppHandleGetNumPendingNotJunkPaymentsConstMeta =>
+      get kCrateFfiAppAppHandleGetNumPendingNotJunkPaymentsConstMeta =>
           const TaskConstMeta(
             debugName: "app_handle_get_num_pending_not_junk_payments",
             argNames: ["that"],
           );
 
   @override
-  int crateFfiFfiAppHandleGetNumPendingPayments({required AppHandle that}) {
+  int crateFfiAppAppHandleGetNumPendingPayments({required AppHandle that}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -461,20 +462,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_CastedPrimitive_usize,
         decodeErrorData: null,
       ),
-      constMeta: kCrateFfiFfiAppHandleGetNumPendingPaymentsConstMeta,
+      constMeta: kCrateFfiAppAppHandleGetNumPendingPaymentsConstMeta,
       argValues: [that],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandleGetNumPendingPaymentsConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandleGetNumPendingPaymentsConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_get_num_pending_payments",
         argNames: ["that"],
       );
 
   @override
-  Payment? crateFfiFfiAppHandleGetPaymentByVecIdx(
+  Payment? crateFfiAppAppHandleGetPaymentByVecIdx(
       {required AppHandle that, required int vecIdx}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
@@ -487,13 +488,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_opt_box_autoadd_payment,
         decodeErrorData: null,
       ),
-      constMeta: kCrateFfiFfiAppHandleGetPaymentByVecIdxConstMeta,
+      constMeta: kCrateFfiAppAppHandleGetPaymentByVecIdxConstMeta,
       argValues: [that, vecIdx],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandleGetPaymentByVecIdxConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandleGetPaymentByVecIdxConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_get_payment_by_vec_idx",
         argNames: ["that", "vecIdx"],
@@ -501,7 +502,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   ShortPaymentAndIndex?
-      crateFfiFfiAppHandleGetPendingNotJunkShortPaymentByScrollIdx(
+      crateFfiAppAppHandleGetPendingNotJunkShortPaymentByScrollIdx(
           {required AppHandle that, required int scrollIdx}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
@@ -515,14 +516,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeErrorData: null,
       ),
       constMeta:
-          kCrateFfiFfiAppHandleGetPendingNotJunkShortPaymentByScrollIdxConstMeta,
+          kCrateFfiAppAppHandleGetPendingNotJunkShortPaymentByScrollIdxConstMeta,
       argValues: [that, scrollIdx],
       apiImpl: this,
     ));
   }
 
   TaskConstMeta
-      get kCrateFfiFfiAppHandleGetPendingNotJunkShortPaymentByScrollIdxConstMeta =>
+      get kCrateFfiAppAppHandleGetPendingNotJunkShortPaymentByScrollIdxConstMeta =>
           const TaskConstMeta(
             debugName:
                 "app_handle_get_pending_not_junk_short_payment_by_scroll_idx",
@@ -530,7 +531,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           );
 
   @override
-  ShortPaymentAndIndex? crateFfiFfiAppHandleGetPendingShortPaymentByScrollIdx(
+  ShortPaymentAndIndex? crateFfiAppAppHandleGetPendingShortPaymentByScrollIdx(
       {required AppHandle that, required int scrollIdx}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
@@ -544,21 +545,21 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeErrorData: null,
       ),
       constMeta:
-          kCrateFfiFfiAppHandleGetPendingShortPaymentByScrollIdxConstMeta,
+          kCrateFfiAppAppHandleGetPendingShortPaymentByScrollIdxConstMeta,
       argValues: [that, scrollIdx],
       apiImpl: this,
     ));
   }
 
   TaskConstMeta
-      get kCrateFfiFfiAppHandleGetPendingShortPaymentByScrollIdxConstMeta =>
+      get kCrateFfiAppAppHandleGetPendingShortPaymentByScrollIdxConstMeta =>
           const TaskConstMeta(
             debugName: "app_handle_get_pending_short_payment_by_scroll_idx",
             argNames: ["that", "scrollIdx"],
           );
 
   @override
-  ShortPaymentAndIndex? crateFfiFfiAppHandleGetShortPaymentByScrollIdx(
+  ShortPaymentAndIndex? crateFfiAppAppHandleGetShortPaymentByScrollIdx(
       {required AppHandle that, required int scrollIdx}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
@@ -571,20 +572,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_opt_box_autoadd_short_payment_and_index,
         decodeErrorData: null,
       ),
-      constMeta: kCrateFfiFfiAppHandleGetShortPaymentByScrollIdxConstMeta,
+      constMeta: kCrateFfiAppAppHandleGetShortPaymentByScrollIdxConstMeta,
       argValues: [that, scrollIdx],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandleGetShortPaymentByScrollIdxConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandleGetShortPaymentByScrollIdxConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_get_short_payment_by_scroll_idx",
         argNames: ["that", "scrollIdx"],
       );
 
   @override
-  Future<int?> crateFfiFfiAppHandleGetVecIdxByPaymentIndex(
+  Future<int?> crateFfiAppAppHandleGetVecIdxByPaymentIndex(
       {required AppHandle that, required PaymentIndex paymentIndex}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
@@ -598,20 +599,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_opt_CastedPrimitive_usize,
         decodeErrorData: null,
       ),
-      constMeta: kCrateFfiFfiAppHandleGetVecIdxByPaymentIndexConstMeta,
+      constMeta: kCrateFfiAppAppHandleGetVecIdxByPaymentIndexConstMeta,
       argValues: [that, paymentIndex],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandleGetVecIdxByPaymentIndexConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandleGetVecIdxByPaymentIndexConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_get_vec_idx_by_payment_index",
         argNames: ["that", "paymentIndex"],
       );
 
   @override
-  Future<AppHandle?> crateFfiFfiAppHandleLoad({required Config config}) {
+  Future<AppHandle?> crateFfiAppAppHandleLoad({required Config config}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -623,19 +624,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_opt_box_autoadd_app_handle,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiAppHandleLoadConstMeta,
+      constMeta: kCrateFfiAppAppHandleLoadConstMeta,
       argValues: [config],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandleLoadConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateFfiAppAppHandleLoadConstMeta => const TaskConstMeta(
         debugName: "app_handle_load",
         argNames: ["config"],
       );
 
   @override
-  Future<NodeInfo> crateFfiFfiAppHandleNodeInfo({required AppHandle that}) {
+  Future<NodeInfo> crateFfiAppAppHandleNodeInfo({required AppHandle that}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -647,20 +648,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_node_info,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiAppHandleNodeInfoConstMeta,
+      constMeta: kCrateFfiAppAppHandleNodeInfoConstMeta,
       argValues: [that],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandleNodeInfoConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandleNodeInfoConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_node_info",
         argNames: ["that"],
       );
 
   @override
-  Future<PayInvoiceResponse> crateFfiFfiAppHandlePayInvoice(
+  Future<PayInvoiceResponse> crateFfiAppAppHandlePayInvoice(
       {required AppHandle that, required PayInvoiceRequest req}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
@@ -674,20 +675,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_pay_invoice_response,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiAppHandlePayInvoiceConstMeta,
+      constMeta: kCrateFfiAppAppHandlePayInvoiceConstMeta,
       argValues: [that, req],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandlePayInvoiceConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandlePayInvoiceConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_pay_invoice",
         argNames: ["that", "req"],
       );
 
   @override
-  Future<PayOnchainResponse> crateFfiFfiAppHandlePayOnchain(
+  Future<PayOnchainResponse> crateFfiAppAppHandlePayOnchain(
       {required AppHandle that, required PayOnchainRequest req}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
@@ -701,20 +702,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_pay_onchain_response,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiAppHandlePayOnchainConstMeta,
+      constMeta: kCrateFfiAppAppHandlePayOnchainConstMeta,
       argValues: [that, req],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandlePayOnchainConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandlePayOnchainConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_pay_onchain",
         argNames: ["that", "req"],
       );
 
   @override
-  Future<PreflightPayInvoiceResponse> crateFfiFfiAppHandlePreflightPayInvoice(
+  Future<PreflightPayInvoiceResponse> crateFfiAppAppHandlePreflightPayInvoice(
       {required AppHandle that, required PreflightPayInvoiceRequest req}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
@@ -728,20 +729,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_preflight_pay_invoice_response,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiAppHandlePreflightPayInvoiceConstMeta,
+      constMeta: kCrateFfiAppAppHandlePreflightPayInvoiceConstMeta,
       argValues: [that, req],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandlePreflightPayInvoiceConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandlePreflightPayInvoiceConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_preflight_pay_invoice",
         argNames: ["that", "req"],
       );
 
   @override
-  Future<PreflightPayOnchainResponse> crateFfiFfiAppHandlePreflightPayOnchain(
+  Future<PreflightPayOnchainResponse> crateFfiAppAppHandlePreflightPayOnchain(
       {required AppHandle that, required PreflightPayOnchainRequest req}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
@@ -755,20 +756,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_preflight_pay_onchain_response,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiAppHandlePreflightPayOnchainConstMeta,
+      constMeta: kCrateFfiAppAppHandlePreflightPayOnchainConstMeta,
       argValues: [that, req],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandlePreflightPayOnchainConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandlePreflightPayOnchainConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_preflight_pay_onchain",
         argNames: ["that", "req"],
       );
 
   @override
-  Future<AppHandle> crateFfiFfiAppHandleRestore(
+  Future<AppHandle> crateFfiAppAppHandleRestore(
       {required Config config, required String seedPhrase}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
@@ -782,20 +783,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_app_handle,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiAppHandleRestoreConstMeta,
+      constMeta: kCrateFfiAppAppHandleRestoreConstMeta,
       argValues: [config, seedPhrase],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandleRestoreConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandleRestoreConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_restore",
         argNames: ["config", "seedPhrase"],
       );
 
   @override
-  Future<AppHandle> crateFfiFfiAppHandleSignup(
+  Future<AppHandle> crateFfiAppAppHandleSignup(
       {required Config config,
       required String googleAuthCode,
       required String password}) {
@@ -812,19 +813,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_app_handle,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiAppHandleSignupConstMeta,
+      constMeta: kCrateFfiAppAppHandleSignupConstMeta,
       argValues: [config, googleAuthCode, password],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandleSignupConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateFfiAppAppHandleSignupConstMeta => const TaskConstMeta(
         debugName: "app_handle_signup",
         argNames: ["config", "googleAuthCode", "password"],
       );
 
   @override
-  Future<bool> crateFfiFfiAppHandleSyncPayments({required AppHandle that}) {
+  Future<bool> crateFfiAppAppHandleSyncPayments({required AppHandle that}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -836,20 +837,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_bool,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiAppHandleSyncPaymentsConstMeta,
+      constMeta: kCrateFfiAppAppHandleSyncPaymentsConstMeta,
       argValues: [that],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandleSyncPaymentsConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandleSyncPaymentsConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_sync_payments",
         argNames: ["that"],
       );
 
   @override
-  Future<void> crateFfiFfiAppHandleUpdatePaymentNote(
+  Future<void> crateFfiAppAppHandleUpdatePaymentNote(
       {required AppHandle that, required UpdatePaymentNote req}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
@@ -863,13 +864,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_unit,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiFfiAppHandleUpdatePaymentNoteConstMeta,
+      constMeta: kCrateFfiAppAppHandleUpdatePaymentNoteConstMeta,
       argValues: [that, req],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiFfiAppHandleUpdatePaymentNoteConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandleUpdatePaymentNoteConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_update_payment_note",
         argNames: ["that", "req"],

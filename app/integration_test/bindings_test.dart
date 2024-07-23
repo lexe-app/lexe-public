@@ -1,5 +1,5 @@
 import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
-import 'package:app_rs_dart/ffi/ffi.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:flutter_test/flutter_test.dart' show expect, test;
 import 'package:integration_test/integration_test.dart'
     show IntegrationTestWidgetsFlutterBinding;

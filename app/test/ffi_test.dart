@@ -1,5 +1,5 @@
 import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
-import 'package:app_rs_dart/ffi/ffi.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart' show Config;
 import 'package:flutter_test/flutter_test.dart' show expect, test;
 import 'package:lexeapp/cfg.dart' as cfg;
