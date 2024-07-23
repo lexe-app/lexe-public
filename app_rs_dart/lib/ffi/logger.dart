@@ -10,16 +10,6 @@
 
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-import 'types.dart';
-
-/// Resolve a (possible) [`PaymentUri`] string that we just
-/// scanned/pasted into the best [`PaymentMethod`] for us to pay.
-///
-/// [`PaymentUri`]: payment_uri::PaymentUri
-Future<PaymentMethod> paymentUriResolveBest(
-        {required Network network, required String uriStr}) =>
-    AppRs.instance.api
-        .crateFfiFfiPaymentUriResolveBest(network: network, uriStr: uriStr);
 
 /// Init the Rust [`tracing`] logger. Also sets the current `RUST_LOG_TX`
 /// instance, which ships Rust logs over to the dart side for printing.
@@ -41,4 +31,4 @@ Future<PaymentMethod> paymentUriResolveBest(
 /// `rust_log`: since env vars don't work well on mobile, we need to ship the
 /// equivalent of `$RUST_LOG` configured at build-time through here.
 Stream<String> initRustLogStream({required String rustLog}) =>
-    AppRs.instance.api.crateFfiFfiInitRustLogStream(rustLog: rustLog);
+    AppRs.instance.api.crateFfiLoggerInitRustLogStream(rustLog: rustLog);

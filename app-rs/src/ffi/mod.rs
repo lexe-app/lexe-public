@@ -51,17 +51,20 @@
 //!   a separate task on the threadpool. OTOH, just reading a value out of some
 //!   in-memory state is probably cheaper overall to use `#[frb(sync)]`.
 
+// TODO(phlip9): error messages need to be internationalized
+
 /// API request and response types exposed to Dart.
 pub mod api;
 /// The [`crate::app::App`] interface for top-level app state.
 pub mod app;
 /// Debug methods for use during development.
 pub mod debug;
-/// Misc. flutter/rust types and fns.
-#[allow(clippy::module_inception)]
-pub mod ffi;
 /// Form field validators.
 pub mod form;
+/// Rust logger integration.
+pub mod logger;
+/// [`payment_uri`] interface
+pub mod payment_uri;
 /// Dart interface for app settings.
 pub mod settings;
 /// Data types to expose to Dart.
