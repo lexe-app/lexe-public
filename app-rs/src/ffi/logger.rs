@@ -1,27 +1,6 @@
-//! Misc. flutter/rust types and fns.
+//! Rust logger integration.
 
-use anyhow::Context;
-
-use crate::{
-    ffi::types::{Network, PaymentMethod},
-    frb_generated::StreamSink,
-};
-
-// TODO(phlip9): error messages need to be internationalized
-
-/// Resolve a (possible) [`PaymentUri`] string that we just
-/// scanned/pasted into the best [`PaymentMethod`] for us to pay.
-///
-/// [`PaymentUri`]: payment_uri::PaymentUri
-pub fn payment_uri_resolve_best(
-    network: Network,
-    uri_str: String,
-) -> anyhow::Result<PaymentMethod> {
-    payment_uri::PaymentUri::parse(&uri_str)
-        .context("Unrecognized payment code")?
-        .resolve_best(network.into())
-        .map(PaymentMethod::from)
-}
+use crate::frb_generated::StreamSink;
 
 /// Init the Rust [`tracing`] logger. Also sets the current `RUST_LOG_TX`
 /// instance, which ships Rust logs over to the dart side for printing.

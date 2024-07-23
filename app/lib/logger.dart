@@ -1,6 +1,6 @@
 import 'dart:async' show Stream;
 
-import 'package:app_rs_dart/ffi/ffi.dart' show initRustLogStream;
+import 'package:app_rs_dart/ffi/logger.dart' show initRustLogStream;
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/result.dart';

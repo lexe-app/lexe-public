@@ -13,7 +13,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         PreflightPayOnchainResponse;
 import 'package:app_rs_dart/ffi/api.ext.dart';
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
-import 'package:app_rs_dart/ffi/ffi.dart' show paymentUriResolveBest;
+import 'package:app_rs_dart/ffi/payment_uri.dart' as payment_uri;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         ClientPaymentId,
@@ -75,7 +75,7 @@ class SendState_NeedUri implements SendState {
     // TODO(phlip9): this API should return a bare error enum and flutter should
     // convert that to a human-readable error message (for translations).
     final result = await Result.tryFfiAsync(() async =>
-        paymentUriResolveBest(network: this.configNetwork, uriStr: uriStr));
+        payment_uri.resolveBest(network: this.configNetwork, uriStr: uriStr));
 
     // Check if resolving was successful.
     final PaymentMethod paymentMethod;

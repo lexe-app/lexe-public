@@ -13,8 +13,9 @@ import 'dart:convert';
 import 'ffi/api.dart';
 import 'ffi/app.dart';
 import 'ffi/debug.dart';
-import 'ffi/ffi.dart';
 import 'ffi/form.dart';
+import 'ffi/logger.dart';
+import 'ffi/payment_uri.dart';
 import 'ffi/settings.dart';
 import 'ffi/types.dart';
 import 'frb_generated.dart';
@@ -67,7 +68,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.1.0';
 
   @override
-  int get rustContentHash => 2138794803;
+  int get rustContentHash => -116466395;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -159,12 +160,12 @@ abstract class AppRsApi extends BaseApi {
 
   Future<void> crateFfiDebugUnconditionalPanic();
 
-  Stream<String> crateFfiFfiInitRustLogStream({required String rustLog});
-
-  Future<PaymentMethod> crateFfiFfiPaymentUriResolveBest(
-      {required Network network, required String uriStr});
-
   String? crateFfiFormValidatePassword({required String password});
+
+  Stream<String> crateFfiLoggerInitRustLogStream({required String rustLog});
+
+  Future<PaymentMethod> crateFfiPaymentUriResolveBest(
+      {required Network network, required String uriStr});
 
   Future<Settings> crateFfiSettingsSave({required Settings settings});
 
@@ -972,67 +973,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Stream<String> crateFfiFfiInitRustLogStream({required String rustLog}) {
-    final rustLogTx = RustStreamSink<String>();
-    unawaited(handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_StreamSink_String_Sse(rustLogTx, serializer);
-        sse_encode_String(rustLog, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 31, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateFfiFfiInitRustLogStreamConstMeta,
-      argValues: [rustLogTx, rustLog],
-      apiImpl: this,
-    )));
-    return rustLogTx.stream;
-  }
-
-  TaskConstMeta get kCrateFfiFfiInitRustLogStreamConstMeta =>
-      const TaskConstMeta(
-        debugName: "init_rust_log_stream",
-        argNames: ["rustLogTx", "rustLog"],
-      );
-
-  @override
-  Future<PaymentMethod> crateFfiFfiPaymentUriResolveBest(
-      {required Network network, required String uriStr}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_network(network, serializer);
-        sse_encode_String(uriStr, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 32, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_payment_method,
-        decodeErrorData: sse_decode_AnyhowException,
-      ),
-      constMeta: kCrateFfiFfiPaymentUriResolveBestConstMeta,
-      argValues: [network, uriStr],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateFfiFfiPaymentUriResolveBestConstMeta =>
-      const TaskConstMeta(
-        debugName: "payment_uri_resolve_best",
-        argNames: ["network", "uriStr"],
-      );
-
-  @override
   String? crateFfiFormValidatePassword({required String password}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(password, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 33)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 31)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_opt_String,
@@ -1048,6 +994,61 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       const TaskConstMeta(
         debugName: "validate_password",
         argNames: ["password"],
+      );
+
+  @override
+  Stream<String> crateFfiLoggerInitRustLogStream({required String rustLog}) {
+    final rustLogTx = RustStreamSink<String>();
+    unawaited(handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_StreamSink_String_Sse(rustLogTx, serializer);
+        sse_encode_String(rustLog, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 32, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateFfiLoggerInitRustLogStreamConstMeta,
+      argValues: [rustLogTx, rustLog],
+      apiImpl: this,
+    )));
+    return rustLogTx.stream;
+  }
+
+  TaskConstMeta get kCrateFfiLoggerInitRustLogStreamConstMeta =>
+      const TaskConstMeta(
+        debugName: "init_rust_log_stream",
+        argNames: ["rustLogTx", "rustLog"],
+      );
+
+  @override
+  Future<PaymentMethod> crateFfiPaymentUriResolveBest(
+      {required Network network, required String uriStr}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_network(network, serializer);
+        sse_encode_String(uriStr, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 33, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_payment_method,
+        decodeErrorData: sse_decode_AnyhowException,
+      ),
+      constMeta: kCrateFfiPaymentUriResolveBestConstMeta,
+      argValues: [network, uriStr],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateFfiPaymentUriResolveBestConstMeta =>
+      const TaskConstMeta(
+        debugName: "resolve_best",
+        argNames: ["network", "uriStr"],
       );
 
   @override
