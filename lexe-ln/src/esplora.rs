@@ -1,6 +1,7 @@
 use std::{
     cmp,
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
+    str::FromStr,
     sync::{
         atomic::{AtomicU32, Ordering},
         Arc,
@@ -251,11 +252,12 @@ impl LexeEsplora {
 
     /// Refreshes all current fee estimates.
     async fn refresh_all_fee_estimates(&self) -> anyhow::Result<()> {
-        // Why does this return `HashMap<String, _>`???
         let esplora_estimates = self
             .client
+            // Why does this return `HashMap<String, _>`???
             .get_fee_estimates()
             .await
+            .map(convert_fee_estimates)
             .context("Could not fetch esplora's fee estimates")?;
 
         for conf_target in ALL_CONF_TARGETS {
@@ -268,13 +270,13 @@ impl LexeEsplora {
         Ok(())
     }
 
-    /// Refreshes the current fee estimate for a [`ConfirmationTarget`] given a
-    /// `HashMap<String, f64>` returned by [`AsyncClient::get_fee_estimates`].
+    /// Refreshes the current fee estimate for a [`ConfirmationTarget`] given
+    /// a [`BTreeMap`] of fee estimates returned by Esplora.
     /// Returns the `u32` sats per 1000 weight that was stored in the cache.
     fn refresh_single_fee_estimate(
         &self,
         conf_target: ConfirmationTarget,
-        esplora_estimates: &HashMap<String, f64>,
+        esplora_estimates: &BTreeMap<usize, f64>,
     ) -> anyhow::Result<u32> {
         // Convert the conf target to a target number of blocks.
         let num_blocks_target = match conf_target {
@@ -286,8 +288,7 @@ impl LexeEsplora {
 
         // Munge with units to get to sats per 1000 weight unit required by LDK
         let feerate_satsvbyte =
-            convert_fee_rate(num_blocks_target, esplora_estimates)
-                .context("Could not convert feerate to sats/vbytes")?;
+            lookup_fee_rate(num_blocks_target, esplora_estimates);
         let bdk_feerate = FeeRate::from_sat_per_vb(feerate_satsvbyte);
         let feerate_sats_per_1000_weight = bdk_feerate.fee_wu(1000) as u32;
 
@@ -528,66 +529,73 @@ impl FeeEstimator for LexeEsplora {
     }
 }
 
-/// A version of [`esplora_client::convert_fee_rate`] which avoids cloning the
-/// entire HashMap when computing the feerate in sats/vbytes.
+/// Converts the [`HashMap<String, f64>`] returned by
+/// [`AsyncClient::get_fee_estimates`] into a parsed [`BTreeMap<usize, f64>`].
+fn convert_fee_estimates(
+    estimates: HashMap<String, f64>,
+) -> BTreeMap<usize, f64> {
+    estimates
+        .into_iter()
+        .filter_map(|(target_str, rate)| {
+            let target = usize::from_str(&target_str)
+                .inspect_err(|e| {
+                    warn!("Invalid pair: ({target_str}, {rate}) ({e})");
+                    debug_assert!(false);
+                })
+                .ok()?;
+            Some((target, rate))
+        })
+        .collect::<BTreeMap<usize, f64>>()
+}
+
+/// A version of [`esplora_client::convert_fee_rate`] which avoids an N * log(N)
+/// Vec sort (and `HashMap<String, f64>` clone) at every feerate lookup by
+/// leveraging a parsed [`BTreeMap<usize, f64>`].
 ///
 /// Functionality: Given a desired target number of blocks by which a tx is
-/// confirmed, and the return value of [`AsyncClient::get_fee_estimates`] which
-/// maps string-encoded (why?) [`usize`] conf targets (in number of blocks) to
-/// the [`f64`] estimated fee rates (in sats per vbyte), extracts the estimated
-/// feerate whose corresponding target is the largest of all targets less than
-/// or equal to our desired target, or defaults to 1 sat per vbyte if our
-/// desired target was lower than the smallest target with a fee estimate.
-fn convert_fee_rate(
-    target: usize,
-    esplora_estimates: &HashMap<String, f64>,
-) -> anyhow::Result<f32> {
-    let fee_val = {
-        let mut pairs = esplora_estimates
-            .iter()
-            .filter_map(|(k, v)| Some((k.parse::<usize>().ok()?, v)))
-            .collect::<Vec<_>>();
-        pairs.sort_unstable_by_key(|(k, _)| std::cmp::Reverse(*k));
-        pairs
-            .into_iter()
-            .find(|(k, _)| k <= &target)
-            .map(|(_, v)| v)
-            .unwrap_or(&1.0)
-    };
-
-    Ok(*fee_val as f32)
+/// confirmed, and the parsed return value of [`AsyncClient::get_fee_estimates`]
+/// which maps [`usize`] conf targets (in number of blocks) to the [`f64`]
+/// estimated fee rates (in sats per vbyte), extracts the estimated feerate
+/// whose corresponding target is the largest of all targets less than or equal
+/// to our desired target, or defaults to 1 sat per vbyte if our desired target
+/// was lower than the smallest target with a fee estimate.
+fn lookup_fee_rate(
+    num_blocks_target: usize,
+    esplora_estimates: &BTreeMap<usize, f64>,
+) -> f32 {
+    *esplora_estimates
+        .iter()
+        .rev()
+        .find(|(num_blocks, _)| *num_blocks <= &num_blocks_target)
+        .map(|(_, feerate)| feerate)
+        .unwrap_or(&1.0) as f32
 }
 
 #[cfg(all(test, not(target_env = "sgx")))]
 mod test {
-    use std::collections::HashMap;
-
     use proptest::{arbitrary::any, prop_assert_eq, proptest};
 
-    /// Check that our [`convert_fee_rate`] function is equivalent to
+    use super::*;
+
+    /// Check equivalence of our [`lookup_fee_rate`] implementation and
     /// [`esplora_client`]'s.
     #[test]
     fn convert_fee_rate_equiv() {
         proptest!(|(
-            parsed_estimates in any::<HashMap<usize, f64>>(),
+            estimates in any::<BTreeMap<usize, f64>>(),
             target in any::<usize>(),
         )| {
-            let estimates = parsed_estimates
-                .into_iter()
-                .map(|(k, v)| (k.to_string(), v))
+            let str_estimates = estimates
+                .iter()
+                .map(|(k, v)| (k.to_string(), *v))
                 .collect::<HashMap<String, f64>>();
 
-            let our_feerate_res = super::convert_fee_rate(target, &estimates);
+            let our_feerate_res = lookup_fee_rate(target, &estimates);
             let their_feerate_res =
-                esplora_client::convert_fee_rate(target, estimates);
+                esplora_client::convert_fee_rate(target, str_estimates)
+                    .expect("Their implementation is actually infallible");
 
-            match (our_feerate_res, their_feerate_res) {
-                (Err(_), Err(_)) => {
-                    // Both errored, good; don't compare the error types
-                }
-                (Ok(ours), Ok(theirs)) => prop_assert_eq!(ours, theirs),
-                _ => panic!("Results did not match"),
-            }
+            prop_assert_eq!(our_feerate_res, their_feerate_res);
         })
     }
 }
