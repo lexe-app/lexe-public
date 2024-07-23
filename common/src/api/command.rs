@@ -6,7 +6,8 @@ use crate::{
     enclave::Measurement,
     ln::{
         amount::Amount, balance::Balance, channel::LxChannelId, hashes::LxTxid,
-        invoice::LxInvoice, payments::ClientPaymentId, ConfirmationPriority,
+        invoice::LxInvoice, payments::ClientPaymentId,
+        priority::ConfirmationPriority,
     },
     time::TimestampMs,
 };
