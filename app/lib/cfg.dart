@@ -10,8 +10,7 @@
 
 import 'dart:io' show Directory, Platform;
 
-import 'package:app_rs_dart/ffi/types.dart'
-    show Config, DeployEnv, Network, deployEnvFromStr, networkFromStr;
+import 'package:app_rs_dart/ffi/types.dart' show Config, DeployEnv, Network;
 import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
 import 'package:path_provider/path_provider.dart' as path_provider;
 
@@ -88,8 +87,8 @@ Future<Config> build() async {
   final baseAppDataDir = await path_provider.getApplicationSupportDirectory();
 
   // These calls should never fail after the compile-time checks above.
-  final deployEnv = deployEnvFromStr(s: _deployEnvStr);
-  final network = networkFromStr(s: _networkStr);
+  final deployEnv = DeployEnv.fromStr(s: _deployEnvStr);
+  final network = Network.fromStr(s: _networkStr);
 
   final gatewayUrl = switch (deployEnv) {
     DeployEnv.prod => "http://api.lexe.app",

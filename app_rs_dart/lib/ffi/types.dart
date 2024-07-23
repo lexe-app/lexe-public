@@ -16,22 +16,16 @@ part 'types.freezed.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
-DeployEnv deployEnvFromStr({required String s}) =>
-    AppRs.instance.api.crateFfiTypesDeployEnvFromStr(s: s);
-
-Network networkFromStr({required String s}) =>
-    AppRs.instance.api.crateFfiTypesNetworkFromStr(s: s);
-
-ClientPaymentId genClientPaymentId() =>
-    AppRs.instance.api.crateFfiTypesGenClientPaymentId();
-
 /// A unique, client-generated id for payment types (onchain send,
 /// ln spontaneous send) that need an extra id for idempotency.
 @freezed
 class ClientPaymentId with _$ClientPaymentId {
+  const ClientPaymentId._();
   const factory ClientPaymentId({
     required U8Array32 id,
   }) = _ClientPaymentId;
+  static ClientPaymentId gen() =>
+      AppRs.instance.api.crateFfiTypesClientPaymentIdGen();
 }
 
 /// Dart-serializable configuration we get from the flutter side.
@@ -60,6 +54,9 @@ enum DeployEnv {
   staging,
   prod,
   ;
+
+  static DeployEnv fromStr({required String s}) =>
+      AppRs.instance.api.crateFfiTypesDeployEnvFromStr(s: s);
 }
 
 /// A lightning invoice with useful fields parsed out for the flutter frontend.
@@ -82,6 +79,9 @@ enum Network {
   testnet,
   regtest,
   ;
+
+  static Network fromStr({required String s}) =>
+      AppRs.instance.api.crateFfiTypesNetworkFromStr(s: s);
 }
 
 /// A potential onchain Bitcoin payment.

@@ -30,6 +30,13 @@ pub enum DeployEnv {
     Prod,
 }
 
+impl DeployEnv {
+    #[frb(sync)]
+    pub fn from_str(s: &str) -> anyhow::Result<Self> {
+        DeployEnvRs::from_str(s).map(DeployEnv::from)
+    }
+}
+
 impl From<DeployEnvRs> for DeployEnv {
     fn from(env: DeployEnvRs) -> Self {
         match env {
@@ -50,21 +57,19 @@ impl From<DeployEnv> for DeployEnvRs {
     }
 }
 
-// TODO(phlip9): ffs dart doesn't allow methods on plain enums... if FRB always
-// gen'd "enhanced" enums, then I could use an associated fn.
-//
-// "enhanced" enums: <https://dart.dev/language/enums#declaring-enhanced-enums>
-#[frb(sync)]
-pub fn deploy_env_from_str(s: String) -> anyhow::Result<DeployEnv> {
-    DeployEnvRs::from_str(&s).map(DeployEnv::from)
-}
-
 /// See [`common::cli::Network`]
 #[derive(Copy, Clone, Debug)]
 pub enum Network {
     Mainnet,
     Testnet,
     Regtest,
+}
+
+impl Network {
+    #[frb(sync)]
+    pub fn from_str(s: &str) -> anyhow::Result<Network> {
+        NetworkRs::from_str(s).and_then(Network::try_from)
+    }
 }
 
 impl From<Network> for NetworkRs {
@@ -88,11 +93,6 @@ impl TryFrom<NetworkRs> for Network {
             _ => Err(anyhow!("unsupported NETWORK: '{network}'")),
         }
     }
-}
-
-#[frb(sync)]
-pub fn network_from_str(s: String) -> anyhow::Result<Network> {
-    NetworkRs::from_str(&s).and_then(Network::try_from)
 }
 
 /// Dart-serializable configuration we get from the flutter side.
@@ -363,10 +363,12 @@ pub struct ClientPaymentId {
     pub id: [u8; 32],
 }
 
-#[frb(sync)]
-pub fn gen_client_payment_id() -> ClientPaymentId {
-    ClientPaymentId {
-        id: ClientPaymentIdRs::from_rng(&mut SysRng::new()).0,
+impl ClientPaymentId {
+    #[frb(sync)]
+    pub fn gen() -> Self {
+        ClientPaymentId {
+            id: ClientPaymentIdRs::from_rng(&mut SysRng::new()).0,
+        }
     }
 }
 

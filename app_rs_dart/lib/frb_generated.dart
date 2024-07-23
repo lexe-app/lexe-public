@@ -65,7 +65,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.1.0';
 
   @override
-  int get rustContentHash => -437752765;
+  int get rustContentHash => -302908796;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -169,9 +169,9 @@ abstract class AppRsApi extends BaseApi {
 
   Future<Settings> crateFfiSettingsSave({required Settings settings});
 
-  DeployEnv crateFfiTypesDeployEnvFromStr({required String s});
+  ClientPaymentId crateFfiTypesClientPaymentIdGen();
 
-  ClientPaymentId crateFfiTypesGenClientPaymentId();
+  DeployEnv crateFfiTypesDeployEnvFromStr({required String s});
 
   Network crateFfiTypesNetworkFromStr({required String s});
 
@@ -1102,12 +1102,35 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
+  ClientPaymentId crateFfiTypesClientPaymentIdGen() {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_client_payment_id,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateFfiTypesClientPaymentIdGenConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateFfiTypesClientPaymentIdGenConstMeta =>
+      const TaskConstMeta(
+        debugName: "client_payment_id_gen",
+        argNames: [],
+      );
+
+  @override
   DeployEnv crateFfiTypesDeployEnvFromStr({required String s}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(s, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_deploy_env,
@@ -1123,29 +1146,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       const TaskConstMeta(
         debugName: "deploy_env_from_str",
         argNames: ["s"],
-      );
-
-  @override
-  ClientPaymentId crateFfiTypesGenClientPaymentId() {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_client_payment_id,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateFfiTypesGenClientPaymentIdConstMeta,
-      argValues: [],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateFfiTypesGenClientPaymentIdConstMeta =>
-      const TaskConstMeta(
-        debugName: "gen_client_payment_id",
-        argNames: [],
       );
 
   @override
