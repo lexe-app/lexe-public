@@ -18,11 +18,15 @@ pub trait ToNumBlocks {
 
 impl ToNumBlocks for ConfirmationTarget {
     fn to_num_blocks(&self) -> usize {
+        // Based on ldk-node's FeeEstimator implementation.
         match self {
-            ConfirmationTarget::HighPriority => 1,
-            ConfirmationTarget::Normal => 3,
-            ConfirmationTarget::Background => 72,
-            ConfirmationTarget::MempoolMinimum => 1008,
+            ConfirmationTarget::OnChainSweep => 6,
+            ConfirmationTarget::MaxAllowedNonAnchorChannelRemoteFee => 1,
+            ConfirmationTarget::MinAllowedAnchorChannelRemoteFee => 1008,
+            ConfirmationTarget::MinAllowedNonAnchorChannelRemoteFee => 144,
+            ConfirmationTarget::AnchorChannelFee => 1008,
+            ConfirmationTarget::NonAnchorChannelFee => 12,
+            ConfirmationTarget::ChannelCloseMinimum => 144,
         }
     }
 }

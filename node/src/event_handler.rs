@@ -306,6 +306,10 @@ async fn handle_event_fallible(
                 // Don't want to end up with a 'hung' payment state
                 .map_err(EventHandleError::Fatal)?;
         }
+        Event::InvoiceRequestFailed { payment_id } => {
+            // TODO(max): Revisit once we implement BOLT 12
+            error!(%payment_id, "Invoice request failed");
+        }
         Event::PaymentSent {
             payment_id: _,
             payment_hash,
