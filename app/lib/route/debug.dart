@@ -3,8 +3,9 @@
 /// A page for manipulating app internals during development.
 library;
 
+import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/ffi.dart'
-    show AppHandle, debugDeleteLatestProvisioned, debugDeleteSecretStore;
+    show debugDeleteLatestProvisioned, debugDeleteSecretStore;
 import 'package:app_rs_dart/ffi/types.dart' show Config;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'

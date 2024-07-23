@@ -1,7 +1,7 @@
 import 'dart:async' show Timer, unawaited;
 
 import 'package:app_rs_dart/ffi/api.dart' show FiatRate, UpdatePaymentNote;
-import 'package:app_rs_dart/ffi/ffi.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
     show Payment, PaymentDirection, PaymentIndex, PaymentKind, PaymentStatus;
 import 'package:app_rs_dart/ffi/types.ext.dart';

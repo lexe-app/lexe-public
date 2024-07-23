@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:app_rs_dart/ffi/ffi.dart' show AppHandle, formValidatePassword;
+import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/ffi.dart' show formValidatePassword;
 import 'package:app_rs_dart/ffi/types.dart' show Config;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'

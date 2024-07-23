@@ -9,7 +9,7 @@ import 'dart:async'
         unawaited;
 
 import 'package:app_rs_dart/ffi/api.dart' show FiatRate, FiatRates, NodeInfo;
-import 'package:app_rs_dart/ffi/ffi.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         Config,

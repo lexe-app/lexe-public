@@ -12,7 +12,8 @@ import 'package:app_rs_dart/ffi/api.dart'
         PreflightPayOnchainRequest,
         PreflightPayOnchainResponse;
 import 'package:app_rs_dart/ffi/api.ext.dart';
-import 'package:app_rs_dart/ffi/ffi.dart' show AppHandle, paymentUriResolveBest;
+import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/ffi.dart' show paymentUriResolveBest;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         ClientPaymentId,

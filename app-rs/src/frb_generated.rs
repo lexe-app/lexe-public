@@ -33,7 +33,7 @@ use flutter_rust_bridge::{
     Handler, IntoIntoDart,
 };
 
-use crate::ffi::ffi::*;
+use crate::ffi::app::*;
 
 // Section: boilerplate
 
@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.1.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1831663784;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -437752765;
 
 // Section: executor
 
@@ -51,7 +51,7 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
-fn wire__crate__ffi__ffi__app_handle_create_invoice_impl(
+fn wire__crate__ffi__app__app_handle_create_invoice_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -60,14 +60,14 @@ fn wire__crate__ffi__ffi__app_handle_create_invoice_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_create_invoice", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
 let api_req = <crate::ffi::api::CreateInvoiceRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::ffi::AppHandle::create_invoice(&api_that, api_req).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::create_invoice(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
-fn wire__crate__ffi__ffi__app_handle_delete_payment_db_impl(
+fn wire__crate__ffi__app__app_handle_delete_payment_db_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -76,13 +76,13 @@ fn wire__crate__ffi__ffi__app_handle_delete_payment_db_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_delete_payment_db", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move ||  {
-                         let output_ok = crate::ffi::ffi::AppHandle::delete_payment_db(&api_that)?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::delete_payment_db(&api_that)?;   Ok(output_ok)
                     })())
                 } })
 }
-fn wire__crate__ffi__ffi__app_handle_fiat_rates_impl(
+fn wire__crate__ffi__app__app_handle_fiat_rates_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -91,13 +91,13 @@ fn wire__crate__ffi__ffi__app_handle_fiat_rates_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_fiat_rates", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::ffi::AppHandle::fiat_rates(&api_that).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::fiat_rates(&api_that).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
-fn wire__crate__ffi__ffi__app_handle_get_address_impl(
+fn wire__crate__ffi__app__app_handle_get_address_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -106,13 +106,13 @@ fn wire__crate__ffi__ffi__app_handle_get_address_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_address", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::ffi::AppHandle::get_address(&api_that).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::get_address(&api_that).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
-fn wire__crate__ffi__ffi__app_handle_get_finalized_not_junk_short_payment_by_scroll_idx_impl(
+fn wire__crate__ffi__app__app_handle_get_finalized_not_junk_short_payment_by_scroll_idx_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
@@ -120,13 +120,13 @@ fn wire__crate__ffi__ffi__app_handle_get_finalized_not_junk_short_payment_by_scr
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_finalized_not_junk_short_payment_by_scroll_idx", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
 let api_scroll_idx = <usize>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::AppHandle::get_finalized_not_junk_short_payment_by_scroll_idx(&api_that, api_scroll_idx))?;   Ok(output_ok)
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::get_finalized_not_junk_short_payment_by_scroll_idx(&api_that, api_scroll_idx))?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__ffi__app_handle_get_finalized_short_payment_by_scroll_idx_impl(
+fn wire__crate__ffi__app__app_handle_get_finalized_short_payment_by_scroll_idx_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
@@ -134,13 +134,13 @@ fn wire__crate__ffi__ffi__app_handle_get_finalized_short_payment_by_scroll_idx_i
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_finalized_short_payment_by_scroll_idx", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
 let api_scroll_idx = <usize>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::AppHandle::get_finalized_short_payment_by_scroll_idx(&api_that, api_scroll_idx))?;   Ok(output_ok)
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::get_finalized_short_payment_by_scroll_idx(&api_that, api_scroll_idx))?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__ffi__app_handle_get_num_finalized_not_junk_payments_impl(
+fn wire__crate__ffi__app__app_handle_get_num_finalized_not_junk_payments_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
@@ -148,12 +148,12 @@ fn wire__crate__ffi__ffi__app_handle_get_num_finalized_not_junk_payments_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_num_finalized_not_junk_payments", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);deserializer.end();
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::AppHandle::get_num_finalized_not_junk_payments(&api_that))?;   Ok(output_ok)
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::get_num_finalized_not_junk_payments(&api_that))?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__ffi__app_handle_get_num_finalized_payments_impl(
+fn wire__crate__ffi__app__app_handle_get_num_finalized_payments_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
@@ -161,12 +161,12 @@ fn wire__crate__ffi__ffi__app_handle_get_num_finalized_payments_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_num_finalized_payments", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);deserializer.end();
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::AppHandle::get_num_finalized_payments(&api_that))?;   Ok(output_ok)
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::get_num_finalized_payments(&api_that))?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__ffi__app_handle_get_num_payments_impl(
+fn wire__crate__ffi__app__app_handle_get_num_payments_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
@@ -174,12 +174,12 @@ fn wire__crate__ffi__ffi__app_handle_get_num_payments_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_num_payments", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);deserializer.end();
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::AppHandle::get_num_payments(&api_that))?;   Ok(output_ok)
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::get_num_payments(&api_that))?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__ffi__app_handle_get_num_pending_not_junk_payments_impl(
+fn wire__crate__ffi__app__app_handle_get_num_pending_not_junk_payments_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
@@ -187,12 +187,12 @@ fn wire__crate__ffi__ffi__app_handle_get_num_pending_not_junk_payments_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_num_pending_not_junk_payments", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);deserializer.end();
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::AppHandle::get_num_pending_not_junk_payments(&api_that))?;   Ok(output_ok)
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::get_num_pending_not_junk_payments(&api_that))?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__ffi__app_handle_get_num_pending_payments_impl(
+fn wire__crate__ffi__app__app_handle_get_num_pending_payments_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
@@ -200,12 +200,12 @@ fn wire__crate__ffi__ffi__app_handle_get_num_pending_payments_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_num_pending_payments", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);deserializer.end();
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::AppHandle::get_num_pending_payments(&api_that))?;   Ok(output_ok)
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::get_num_pending_payments(&api_that))?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__ffi__app_handle_get_payment_by_vec_idx_impl(
+fn wire__crate__ffi__app__app_handle_get_payment_by_vec_idx_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
@@ -213,13 +213,13 @@ fn wire__crate__ffi__ffi__app_handle_get_payment_by_vec_idx_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_payment_by_vec_idx", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
 let api_vec_idx = <usize>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::AppHandle::get_payment_by_vec_idx(&api_that, api_vec_idx))?;   Ok(output_ok)
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::get_payment_by_vec_idx(&api_that, api_vec_idx))?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__ffi__app_handle_get_pending_not_junk_short_payment_by_scroll_idx_impl(
+fn wire__crate__ffi__app__app_handle_get_pending_not_junk_short_payment_by_scroll_idx_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
@@ -227,13 +227,13 @@ fn wire__crate__ffi__ffi__app_handle_get_pending_not_junk_short_payment_by_scrol
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_pending_not_junk_short_payment_by_scroll_idx", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
 let api_scroll_idx = <usize>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::AppHandle::get_pending_not_junk_short_payment_by_scroll_idx(&api_that, api_scroll_idx))?;   Ok(output_ok)
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::get_pending_not_junk_short_payment_by_scroll_idx(&api_that, api_scroll_idx))?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__ffi__app_handle_get_pending_short_payment_by_scroll_idx_impl(
+fn wire__crate__ffi__app__app_handle_get_pending_short_payment_by_scroll_idx_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
@@ -241,13 +241,13 @@ fn wire__crate__ffi__ffi__app_handle_get_pending_short_payment_by_scroll_idx_imp
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_pending_short_payment_by_scroll_idx", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
 let api_scroll_idx = <usize>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::AppHandle::get_pending_short_payment_by_scroll_idx(&api_that, api_scroll_idx))?;   Ok(output_ok)
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::get_pending_short_payment_by_scroll_idx(&api_that, api_scroll_idx))?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__ffi__app_handle_get_short_payment_by_scroll_idx_impl(
+fn wire__crate__ffi__app__app_handle_get_short_payment_by_scroll_idx_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
@@ -255,13 +255,13 @@ fn wire__crate__ffi__ffi__app_handle_get_short_payment_by_scroll_idx_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_short_payment_by_scroll_idx", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
 let api_scroll_idx = <usize>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::AppHandle::get_short_payment_by_scroll_idx(&api_that, api_scroll_idx))?;   Ok(output_ok)
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::get_short_payment_by_scroll_idx(&api_that, api_scroll_idx))?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__ffi__app_handle_get_vec_idx_by_payment_index_impl(
+fn wire__crate__ffi__app__app_handle_get_vec_idx_by_payment_index_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -270,14 +270,14 @@ fn wire__crate__ffi__ffi__app_handle_get_vec_idx_by_payment_index_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_vec_idx_by_payment_index", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
 let api_payment_index = <crate::ffi::types::PaymentIndex>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
                     transform_result_sse::<_, ()>((move ||  {
-                         let output_ok = Result::<_,()>::Ok(crate::ffi::ffi::AppHandle::get_vec_idx_by_payment_index(&api_that, api_payment_index))?;   Ok(output_ok)
+                         let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::get_vec_idx_by_payment_index(&api_that, api_payment_index))?;   Ok(output_ok)
                     })())
                 } })
 }
-fn wire__crate__ffi__ffi__app_handle_load_impl(
+fn wire__crate__ffi__app__app_handle_load_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -288,11 +288,11 @@ fn wire__crate__ffi__ffi__app_handle_load_impl(
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_config = <crate::ffi::types::Config>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::ffi::AppHandle::load(api_config).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::load(api_config).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
-fn wire__crate__ffi__ffi__app_handle_node_info_impl(
+fn wire__crate__ffi__app__app_handle_node_info_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -301,13 +301,13 @@ fn wire__crate__ffi__ffi__app_handle_node_info_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_node_info", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::ffi::AppHandle::node_info(&api_that).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::node_info(&api_that).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
-fn wire__crate__ffi__ffi__app_handle_pay_invoice_impl(
+fn wire__crate__ffi__app__app_handle_pay_invoice_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -316,14 +316,14 @@ fn wire__crate__ffi__ffi__app_handle_pay_invoice_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_pay_invoice", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
 let api_req = <crate::ffi::api::PayInvoiceRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::ffi::AppHandle::pay_invoice(&api_that, api_req).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::pay_invoice(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
-fn wire__crate__ffi__ffi__app_handle_pay_onchain_impl(
+fn wire__crate__ffi__app__app_handle_pay_onchain_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -332,14 +332,14 @@ fn wire__crate__ffi__ffi__app_handle_pay_onchain_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_pay_onchain", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
 let api_req = <crate::ffi::api::PayOnchainRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::ffi::AppHandle::pay_onchain(&api_that, api_req).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::pay_onchain(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
-fn wire__crate__ffi__ffi__app_handle_preflight_pay_invoice_impl(
+fn wire__crate__ffi__app__app_handle_preflight_pay_invoice_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -348,14 +348,14 @@ fn wire__crate__ffi__ffi__app_handle_preflight_pay_invoice_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_preflight_pay_invoice", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
 let api_req = <crate::ffi::api::PreflightPayInvoiceRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::ffi::AppHandle::preflight_pay_invoice(&api_that, api_req).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::preflight_pay_invoice(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
-fn wire__crate__ffi__ffi__app_handle_preflight_pay_onchain_impl(
+fn wire__crate__ffi__app__app_handle_preflight_pay_onchain_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -364,14 +364,14 @@ fn wire__crate__ffi__ffi__app_handle_preflight_pay_onchain_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_preflight_pay_onchain", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
 let api_req = <crate::ffi::api::PreflightPayOnchainRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::ffi::AppHandle::preflight_pay_onchain(&api_that, api_req).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::preflight_pay_onchain(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
-fn wire__crate__ffi__ffi__app_handle_restore_impl(
+fn wire__crate__ffi__app__app_handle_restore_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -383,11 +383,11 @@ fn wire__crate__ffi__ffi__app_handle_restore_impl(
             let api_config = <crate::ffi::types::Config>::sse_decode(&mut deserializer);
 let api_seed_phrase = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::ffi::AppHandle::restore(api_config, api_seed_phrase).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::restore(api_config, api_seed_phrase).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
-fn wire__crate__ffi__ffi__app_handle_signup_impl(
+fn wire__crate__ffi__app__app_handle_signup_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -400,11 +400,11 @@ fn wire__crate__ffi__ffi__app_handle_signup_impl(
 let api_google_auth_code = <String>::sse_decode(&mut deserializer);
 let api_password = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::ffi::AppHandle::signup(api_config, api_google_auth_code, api_password).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::signup(api_config, api_google_auth_code, api_password).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
-fn wire__crate__ffi__ffi__app_handle_sync_payments_impl(
+fn wire__crate__ffi__app__app_handle_sync_payments_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -413,13 +413,13 @@ fn wire__crate__ffi__ffi__app_handle_sync_payments_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_sync_payments", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::ffi::AppHandle::sync_payments(&api_that).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::sync_payments(&api_that).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
-fn wire__crate__ffi__ffi__app_handle_update_payment_note_impl(
+fn wire__crate__ffi__app__app_handle_update_payment_note_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -428,10 +428,10 @@ fn wire__crate__ffi__ffi__app_handle_update_payment_note_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_update_payment_note", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::ffi::AppHandle>::sse_decode(&mut deserializer);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
 let api_req = <crate::ffi::api::UpdatePaymentNote>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::ffi::AppHandle::update_payment_note(&api_that, api_req).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::update_payment_note(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -651,13 +651,13 @@ impl SseDecode for String {
     }
 }
 
-impl SseDecode for crate::ffi::ffi::AppHandle {
+impl SseDecode for crate::ffi::app::AppHandle {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_inner = <RustOpaqueNom<App>>::sse_decode(deserializer);
-        return crate::ffi::ffi::AppHandle { inner: var_inner };
+        return crate::ffi::app::AppHandle { inner: var_inner };
     }
 }
 
@@ -1004,13 +1004,13 @@ impl SseDecode for Option<String> {
     }
 }
 
-impl SseDecode for Option<crate::ffi::ffi::AppHandle> {
+impl SseDecode for Option<crate::ffi::app::AppHandle> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::ffi::ffi::AppHandle>::sse_decode(
+            return Some(<crate::ffi::app::AppHandle>::sse_decode(
                 deserializer,
             ));
         } else {
@@ -1464,92 +1464,92 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        1 => wire__crate__ffi__ffi__app_handle_create_invoice_impl(
+        1 => wire__crate__ffi__app__app_handle_create_invoice_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        2 => wire__crate__ffi__ffi__app_handle_delete_payment_db_impl(
+        2 => wire__crate__ffi__app__app_handle_delete_payment_db_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        3 => wire__crate__ffi__ffi__app_handle_fiat_rates_impl(
+        3 => wire__crate__ffi__app__app_handle_fiat_rates_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        4 => wire__crate__ffi__ffi__app_handle_get_address_impl(
+        4 => wire__crate__ffi__app__app_handle_get_address_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
         16 =>
-            wire__crate__ffi__ffi__app_handle_get_vec_idx_by_payment_index_impl(
+            wire__crate__ffi__app__app_handle_get_vec_idx_by_payment_index_impl(
                 port,
                 ptr,
                 rust_vec_len,
                 data_len,
             ),
-        17 => wire__crate__ffi__ffi__app_handle_load_impl(
+        17 => wire__crate__ffi__app__app_handle_load_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        18 => wire__crate__ffi__ffi__app_handle_node_info_impl(
+        18 => wire__crate__ffi__app__app_handle_node_info_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        19 => wire__crate__ffi__ffi__app_handle_pay_invoice_impl(
+        19 => wire__crate__ffi__app__app_handle_pay_invoice_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        20 => wire__crate__ffi__ffi__app_handle_pay_onchain_impl(
+        20 => wire__crate__ffi__app__app_handle_pay_onchain_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        21 => wire__crate__ffi__ffi__app_handle_preflight_pay_invoice_impl(
+        21 => wire__crate__ffi__app__app_handle_preflight_pay_invoice_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        22 => wire__crate__ffi__ffi__app_handle_preflight_pay_onchain_impl(
+        22 => wire__crate__ffi__app__app_handle_preflight_pay_onchain_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        23 => wire__crate__ffi__ffi__app_handle_restore_impl(
+        23 => wire__crate__ffi__app__app_handle_restore_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        24 => wire__crate__ffi__ffi__app_handle_signup_impl(
+        24 => wire__crate__ffi__app__app_handle_signup_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        25 => wire__crate__ffi__ffi__app_handle_sync_payments_impl(
+        25 => wire__crate__ffi__app__app_handle_sync_payments_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        26 => wire__crate__ffi__ffi__app_handle_update_payment_note_impl(
+        26 => wire__crate__ffi__app__app_handle_update_payment_note_impl(
             port,
             ptr,
             rust_vec_len,
@@ -1597,17 +1597,17 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-                        5 => wire__crate__ffi__ffi__app_handle_get_finalized_not_junk_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
-6 => wire__crate__ffi__ffi__app_handle_get_finalized_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
-7 => wire__crate__ffi__ffi__app_handle_get_num_finalized_not_junk_payments_impl(ptr, rust_vec_len, data_len),
-8 => wire__crate__ffi__ffi__app_handle_get_num_finalized_payments_impl(ptr, rust_vec_len, data_len),
-9 => wire__crate__ffi__ffi__app_handle_get_num_payments_impl(ptr, rust_vec_len, data_len),
-10 => wire__crate__ffi__ffi__app_handle_get_num_pending_not_junk_payments_impl(ptr, rust_vec_len, data_len),
-11 => wire__crate__ffi__ffi__app_handle_get_num_pending_payments_impl(ptr, rust_vec_len, data_len),
-12 => wire__crate__ffi__ffi__app_handle_get_payment_by_vec_idx_impl(ptr, rust_vec_len, data_len),
-13 => wire__crate__ffi__ffi__app_handle_get_pending_not_junk_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
-14 => wire__crate__ffi__ffi__app_handle_get_pending_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
-15 => wire__crate__ffi__ffi__app_handle_get_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
+                        5 => wire__crate__ffi__app__app_handle_get_finalized_not_junk_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
+6 => wire__crate__ffi__app__app_handle_get_finalized_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
+7 => wire__crate__ffi__app__app_handle_get_num_finalized_not_junk_payments_impl(ptr, rust_vec_len, data_len),
+8 => wire__crate__ffi__app__app_handle_get_num_finalized_payments_impl(ptr, rust_vec_len, data_len),
+9 => wire__crate__ffi__app__app_handle_get_num_payments_impl(ptr, rust_vec_len, data_len),
+10 => wire__crate__ffi__app__app_handle_get_num_pending_not_junk_payments_impl(ptr, rust_vec_len, data_len),
+11 => wire__crate__ffi__app__app_handle_get_num_pending_payments_impl(ptr, rust_vec_len, data_len),
+12 => wire__crate__ffi__app__app_handle_get_payment_by_vec_idx_impl(ptr, rust_vec_len, data_len),
+13 => wire__crate__ffi__app__app_handle_get_pending_not_junk_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
+14 => wire__crate__ffi__app__app_handle_get_pending_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
+15 => wire__crate__ffi__app__app_handle_get_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
 27 => wire__crate__ffi__ffi__debug_delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
 28 => wire__crate__ffi__ffi__debug_delete_secret_store_impl(ptr, rust_vec_len, data_len),
 31 => wire__crate__ffi__ffi__form_validate_bitcoin_address_impl(ptr, rust_vec_len, data_len),
@@ -1622,19 +1622,19 @@ fn pde_ffi_dispatcher_sync_impl(
 // Section: rust2dart
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::ffi::AppHandle {
+impl flutter_rust_bridge::IntoDart for crate::ffi::app::AppHandle {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [self.inner.into_into_dart().into_dart()].into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::ffi::AppHandle
+    for crate::ffi::app::AppHandle
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::ffi::AppHandle>
-    for crate::ffi::ffi::AppHandle
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::app::AppHandle>
+    for crate::ffi::app::AppHandle
 {
-    fn into_into_dart(self) -> crate::ffi::ffi::AppHandle {
+    fn into_into_dart(self) -> crate::ffi::app::AppHandle {
         self
     }
 }
@@ -2396,7 +2396,7 @@ impl SseEncode for String {
     }
 }
 
-impl SseEncode for crate::ffi::ffi::AppHandle {
+impl SseEncode for crate::ffi::app::AppHandle {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2716,7 +2716,7 @@ impl SseEncode for Option<String> {
     }
 }
 
-impl SseEncode for Option<crate::ffi::ffi::AppHandle> {
+impl SseEncode for Option<crate::ffi::app::AppHandle> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2724,7 +2724,7 @@ impl SseEncode for Option<crate::ffi::ffi::AppHandle> {
     ) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <crate::ffi::ffi::AppHandle>::sse_encode(value, serializer);
+            <crate::ffi::app::AppHandle>::sse_encode(value, serializer);
         }
     }
 }
@@ -3137,7 +3137,7 @@ mod io {
     };
 
     use super::*;
-    use crate::ffi::ffi::*;
+    use crate::ffi::app::*;
 
     // Section: boilerplate
 
