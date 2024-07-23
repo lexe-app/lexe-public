@@ -2,19 +2,23 @@ use std::{
     cmp,
     collections::{BTreeMap, HashMap},
     str::FromStr,
-    sync::{
-        atomic::{AtomicU32, Ordering},
-        Arc,
-    },
+    sync::{Arc, RwLock},
     time::{Duration, SystemTime},
 };
 
 use anyhow::{anyhow, ensure, Context};
-use bdk::FeeRate;
 use bitcoin::{blockdata::transaction::Transaction, OutPoint};
 use common::{
-    cli::Network, constants, ln::hashes::LxTxid, shutdown::ShutdownChannel,
-    task::LxTask, test_event::TestEvent, Apply,
+    cli::Network,
+    constants,
+    ln::{
+        hashes::LxTxid,
+        priority::{ConfirmationPriority, ToNumBlocks},
+    },
+    shutdown::ShutdownChannel,
+    task::LxTask,
+    test_event::TestEvent,
+    Apply,
 };
 use esplora_client::{api::OutputStatus, AsyncClient};
 use lightning::chain::chaininterface::{
@@ -42,14 +46,6 @@ const ESPLORA_CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 /// which have reached this age should be considered to be dropped.
 const BITCOIN_CORE_MEMPOOL_EXPIRY: Duration =
     Duration::from_secs(60 * 60 * 24 * 14);
-
-/// Enumerates all [`ConfirmationTarget`]s.
-const ALL_CONF_TARGETS: [ConfirmationTarget; 4] = [
-    ConfirmationTarget::HighPriority,
-    ConfirmationTarget::Normal,
-    ConfirmationTarget::Background,
-    ConfirmationTarget::MempoolMinimum,
-];
 
 /// Whether this esplora url is contained in the whitelist for this network.
 #[must_use]
@@ -104,13 +100,10 @@ pub enum TxConfStatus {
 
 pub struct LexeEsplora {
     client: AsyncClient,
+    /// Cached map of conf targets (in number of blocks) to estimated feerates
+    /// (in sats per vbyte) returned by [`AsyncClient::get_fee_estimates`].
+    fee_estimates: RwLock<BTreeMap<usize, f64>>,
     test_event_tx: TestEventSender,
-
-    // --- Cached fee estimations --- //
-    high_prio_fees: AtomicU32,
-    normal_fees: AtomicU32,
-    background_fees: AtomicU32,
-    mempool_minimum_fees: AtomicU32,
 }
 
 impl LexeEsplora {
@@ -185,28 +178,20 @@ impl LexeEsplora {
         // Initialize inner esplora client
         let client = AsyncClient::from_client(esplora_url, reqwest_client);
 
-        // Initialize the fee rate estimates to some sane default values
-        let high_prio_fees = AtomicU32::new(13_000); // 13 sat/vB
-        let normal_fees = AtomicU32::new(6_000); // 6 sat/vB
-        let background_fees = AtomicU32::new(1_000); // 1 sat/vB
-        let mempool_minimum_fees = AtomicU32::new(FEERATE_FLOOR_SATS_PER_KW);
+        // Initial cached fee estimates
+        let fee_estimates = client
+            .get_fee_estimates()
+            .await
+            .map(convert_fee_estimates)
+            .map(RwLock::new)
+            .context("Could not fetch initial esplora fee estimates")?;
 
         // Instantiate
         let esplora = Arc::new(Self {
             client,
+            fee_estimates,
             test_event_tx,
-            high_prio_fees,
-            normal_fees,
-            background_fees,
-            mempool_minimum_fees,
         });
-
-        // Do initial refresh of all fee estimates.
-        // This also checks if our Esplora API works.
-        esplora
-            .refresh_all_fee_estimates()
-            .await
-            .context("Initial fee estimates refresh failed")?;
 
         // Spawn refresh fees task
         let task = Self::spawn_refresh_fees_task(esplora.clone(), shutdown);
@@ -214,7 +199,7 @@ impl LexeEsplora {
         Ok((esplora, task))
     }
 
-    /// Spawns a task that periodically calls `refresh_all_fee_estimates`.
+    /// Spawns a task that periodically calls [`Self::refresh_fee_estimates`].
     fn spawn_refresh_fees_task(
         esplora: Arc<LexeEsplora>,
         mut shutdown: ShutdownChannel,
@@ -231,12 +216,12 @@ impl LexeEsplora {
                 }
 
                 let try_refresh = tokio::select! {
-                    res = esplora.refresh_all_fee_estimates() => res,
+                    res = esplora.refresh_fee_estimates() => res,
                     () = shutdown.recv() => break,
                 };
 
                 match try_refresh {
-                    Ok(()) => debug!("Successfull refreshed feerates."),
+                    Ok(()) => debug!("Successfully refreshed feerates."),
                     Err(e) => warn!("Could not refresh feerates: {e:#}"),
                 }
             }
@@ -250,70 +235,50 @@ impl LexeEsplora {
         &self.client
     }
 
-    /// Refreshes all current fee estimates.
-    async fn refresh_all_fee_estimates(&self) -> anyhow::Result<()> {
-        let esplora_estimates = self
+    /// Refreshes our cached fee estimates.
+    async fn refresh_fee_estimates(&self) -> anyhow::Result<()> {
+        let fee_estimates = self
             .client
-            // Why does this return `HashMap<String, _>`???
             .get_fee_estimates()
             .await
             .map(convert_fee_estimates)
-            .context("Could not fetch esplora's fee estimates")?;
+            .context("Could not update cached Esplora fee estimates")?;
 
-        for conf_target in ALL_CONF_TARGETS {
-            self.refresh_single_fee_estimate(conf_target, &esplora_estimates)
-                .with_context(|| {
-                    format!("Could not refresh fees for {conf_target:?}")
-                })?;
-        }
+        let mut locked_estimates = self.fee_estimates.write().unwrap();
+        *locked_estimates = fee_estimates;
 
         Ok(())
     }
 
-    /// Refreshes the current fee estimate for a [`ConfirmationTarget`] given
-    /// a [`BTreeMap`] of fee estimates returned by Esplora.
-    /// Returns the `u32` sats per 1000 weight that was stored in the cache.
-    fn refresh_single_fee_estimate(
-        &self,
-        conf_target: ConfirmationTarget,
-        esplora_estimates: &BTreeMap<usize, f64>,
-    ) -> anyhow::Result<u32> {
-        // Convert the conf target to a target number of blocks.
-        let num_blocks_target = match conf_target {
-            ConfirmationTarget::HighPriority => 1,
-            ConfirmationTarget::Normal => 3,
-            ConfirmationTarget::Background => 72,
-            ConfirmationTarget::MempoolMinimum => 1008,
-        };
-
-        // Munge with units to get to sats per 1000 weight unit required by LDK
+    /// Convert a target # of blocks into a [`bdk::FeeRate`] via a cache lookup.
+    /// Since [`bdk::FeeRate`] is easily convertible to other units, this is the
+    /// core feerate function that others delegate to.
+    pub fn num_blocks_to_bdk_feerate(&self, num_blocks: usize) -> bdk::FeeRate {
+        let locked_fee_estimates = self.fee_estimates.read().unwrap();
         let feerate_satsvbyte =
-            lookup_fee_rate(num_blocks_target, esplora_estimates);
-        let bdk_feerate = FeeRate::from_sat_per_vb(feerate_satsvbyte);
-        let feerate_sats_per_1000_weight = bdk_feerate.fee_wu(1000) as u32;
-
-        // Ensure we don't fall below the minimum feerate required by LDK.
-        let feerate_sats_per_1000_weight =
-            cmp::max(feerate_sats_per_1000_weight, FEERATE_FLOOR_SATS_PER_KW);
-
-        // Get a reference to the AtomicU32 we need to store the result in
-        let ref_atomic_u32 = match conf_target {
-            ConfirmationTarget::HighPriority => &self.high_prio_fees,
-            ConfirmationTarget::Normal => &self.normal_fees,
-            ConfirmationTarget::Background => &self.background_fees,
-            ConfirmationTarget::MempoolMinimum => &self.mempool_minimum_fees,
-        };
-
-        // Store the result and return
-        ref_atomic_u32.store(feerate_sats_per_1000_weight, Ordering::Release);
-
-        Ok(feerate_sats_per_1000_weight)
+            lookup_fee_rate(num_blocks, &locked_fee_estimates);
+        bdk::FeeRate::from_sat_per_vb(feerate_satsvbyte as f32)
     }
 
-    pub fn get_bdk_feerate(&self, conf_target: ConfirmationTarget) -> FeeRate {
-        let feerate_sats_per_1000_weight =
+    /// Convert a [`ConfirmationPriority`] into a [`bdk::FeeRate`].
+    pub fn conf_prio_to_bdk_feerate(
+        &self,
+        conf_prio: ConfirmationPriority,
+    ) -> bdk::FeeRate {
+        let num_blocks = conf_prio.to_num_blocks();
+        self.num_blocks_to_bdk_feerate(num_blocks)
+    }
+
+    /// Convert a [`ConfirmationTarget`] into a [`bdk::FeeRate`].
+    /// This calls into the [`FeeEstimator`] impl, which as of LDK v0.0.118
+    /// requires some special post-estimation logic.
+    pub fn conf_target_to_bdk_feerate(
+        &self,
+        conf_target: ConfirmationTarget,
+    ) -> bdk::FeeRate {
+        let feerate_sats_1000_weight =
             self.get_est_sat_per_1000_weight(conf_target);
-        FeeRate::from_wu(feerate_sats_per_1000_weight as u64, 1000)
+        bdk::FeeRate::from_wu(u64::from(feerate_sats_1000_weight), 1000)
     }
 
     /// Broadcast a [`Transaction`].
@@ -519,13 +484,13 @@ impl FeeEstimator for LexeEsplora {
         &self,
         conf_target: ConfirmationTarget,
     ) -> u32 {
-        use ConfirmationTarget::*;
-        match conf_target {
-            HighPriority => self.high_prio_fees.load(Ordering::Acquire),
-            Normal => self.normal_fees.load(Ordering::Acquire),
-            Background => self.background_fees.load(Ordering::Acquire),
-            MempoolMinimum => self.mempool_minimum_fees.load(Ordering::Acquire),
-        }
+        // Munge with units to get to sats per 1000 weight unit required by LDK
+        let num_blocks = conf_target.to_num_blocks();
+        let bdk_feerate = self.num_blocks_to_bdk_feerate(num_blocks);
+        let feerate_sats_per_1000_weight = bdk_feerate.fee_wu(1000) as u32;
+
+        // Ensure we don't fall below the minimum feerate required by LDK.
+        cmp::max(feerate_sats_per_1000_weight, FEERATE_FLOOR_SATS_PER_KW)
     }
 }
 
@@ -562,13 +527,13 @@ fn convert_fee_estimates(
 fn lookup_fee_rate(
     num_blocks_target: usize,
     esplora_estimates: &BTreeMap<usize, f64>,
-) -> f32 {
+) -> f64 {
     *esplora_estimates
         .iter()
         .rev()
         .find(|(num_blocks, _)| *num_blocks <= &num_blocks_target)
         .map(|(_, feerate)| feerate)
-        .unwrap_or(&1.0) as f32
+        .unwrap_or(&1.0)
 }
 
 #[cfg(all(test, not(target_env = "sgx")))]
@@ -590,7 +555,7 @@ mod test {
                 .map(|(k, v)| (k.to_string(), *v))
                 .collect::<HashMap<String, f64>>();
 
-            let our_feerate_res = lookup_fee_rate(target, &estimates);
+            let our_feerate_res = lookup_fee_rate(target, &estimates) as f32;
             let their_feerate_res =
                 esplora_client::convert_fee_rate(target, str_estimates)
                     .expect("Their implementation is actually infallible");
