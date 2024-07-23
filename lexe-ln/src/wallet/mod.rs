@@ -28,7 +28,6 @@ use common::{
     shutdown::ShutdownChannel,
     task::LxTask,
 };
-use lightning::chain::chaininterface::ConfirmationTarget;
 use tokio::sync::mpsc;
 use tracing::{debug, info, instrument, warn};
 
@@ -212,12 +211,12 @@ impl LexeWallet {
         &self,
         output_script: Script,
         channel_value_satoshis: u64,
-        conf_target: ConfirmationTarget,
+        conf_prio: ConfirmationPriority,
     ) -> anyhow::Result<Transaction> {
         let locked_wallet = self.wallet.lock().await;
 
         // Build
-        let bdk_feerate = self.esplora.get_bdk_feerate(conf_target);
+        let bdk_feerate = self.esplora.conf_prio_to_bdk_feerate(conf_prio);
         let mut tx_builder =
             Self::default_tx_builder(&locked_wallet, bdk_feerate);
         tx_builder.add_recipient(output_script, channel_value_satoshis);
@@ -238,14 +237,12 @@ impl LexeWallet {
         &self,
         req: PayOnchainRequest,
     ) -> anyhow::Result<OnchainSend> {
-        // Get current fee rate for requested block confirmation target
-        let conf_target = ConfirmationTarget::from(req.priority);
-        let bdk_feerate = self.esplora.get_bdk_feerate(conf_target);
-
         let (tx, fees) = {
             let locked_wallet = self.wallet.lock().await;
 
             // Build unsigned tx
+            let bdk_feerate =
+                self.esplora.conf_prio_to_bdk_feerate(req.priority);
             let mut tx_builder =
                 Self::default_tx_builder(&locked_wallet, bdk_feerate);
             tx_builder.add_recipient(
@@ -283,15 +280,14 @@ impl LexeWallet {
         &self,
         req: PreflightPayOnchainRequest,
     ) -> anyhow::Result<PreflightPayOnchainResponse> {
-        let high_prio = ConfirmationTarget::from(ConfirmationPriority::High);
-        let normal_prio =
-            ConfirmationTarget::from(ConfirmationPriority::Normal);
-        let background_prio =
-            ConfirmationTarget::from(ConfirmationPriority::Background);
+        let high_prio = ConfirmationPriority::High;
+        let normal_prio = ConfirmationPriority::Normal;
+        let background_prio = ConfirmationPriority::Background;
 
-        let high_feerate = self.esplora.get_bdk_feerate(high_prio);
-        let normal_feerate = self.esplora.get_bdk_feerate(normal_prio);
-        let background_feerate = self.esplora.get_bdk_feerate(background_prio);
+        let high_feerate = self.esplora.conf_prio_to_bdk_feerate(high_prio);
+        let normal_feerate = self.esplora.conf_prio_to_bdk_feerate(normal_prio);
+        let background_feerate =
+            self.esplora.conf_prio_to_bdk_feerate(background_prio);
 
         let locked_wallet = self.wallet.lock().await;
 

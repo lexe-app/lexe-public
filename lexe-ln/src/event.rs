@@ -7,6 +7,7 @@ use bitcoin::{
     secp256k1,
 };
 use common::{
+    ln::priority::ConfirmationPriority,
     rng::{Crng, SysRng},
     test_event::TestEvent,
 };
@@ -79,12 +80,12 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
-    let conf_target = ConfirmationTarget::Normal;
+    let conf_prio = ConfirmationPriority::Normal;
     let signed_raw_funding_tx = wallet
         .create_and_sign_funding_tx(
             output_script,
             channel_value_satoshis,
-            conf_target,
+            conf_prio,
         )
         .await
         .context("Could not create and sign funding tx")
