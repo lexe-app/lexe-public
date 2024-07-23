@@ -8,7 +8,7 @@ use common::{
         amount::Amount,
         hashes::LxTxid,
         payments::{ClientPaymentId, LxPaymentId},
-        ConfirmationPriority,
+        priority::ConfirmationPriority,
     },
     time::TimestampMs,
 };

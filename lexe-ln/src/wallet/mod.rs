@@ -23,7 +23,7 @@ use common::{
     constants::{
         IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
     },
-    ln::{amount::Amount, balance::Balance, ConfirmationPriority},
+    ln::{amount::Amount, balance::Balance, priority::ConfirmationPriority},
     root_seed::RootSeed,
     shutdown::ShutdownChannel,
     task::LxTask,

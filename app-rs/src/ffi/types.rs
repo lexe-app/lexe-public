@@ -13,7 +13,7 @@ use common::{
             PaymentIndex as PaymentIndexRs, PaymentKind as PaymentKindRs,
             PaymentStatus as PaymentStatusRs,
         },
-        ConfirmationPriority as ConfirmationPriorityRs,
+        priority::ConfirmationPriority as ConfirmationPriorityRs,
     },
     rng::SysRng,
 };
