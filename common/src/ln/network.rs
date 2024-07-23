@@ -53,9 +53,7 @@ impl LxNetwork {
     /// Gets the [`BlockHash`] of the genesis block for this [`LxNetwork`].
     pub fn genesis_block_hash(self) -> BlockHash {
         let chain_hash = Self::genesis_chain_hash(self);
-        let hash =
-            bitcoin::hashes::sha256d::Hash::from_inner(chain_hash.into_bytes());
-        BlockHash::from_hash(hash)
+        BlockHash::from_byte_array(chain_hash.to_bytes())
     }
 
     /// Gets the block hash of the genesis block for this [`LxNetwork`], but
@@ -90,14 +88,23 @@ impl Display for LxNetwork {
 
 impl TryFrom<bitcoin::Network> for LxNetwork {
     type Error = anyhow::Error;
-    #[inline]
-    fn try_from(bitcoin: bitcoin::Network) -> Result<Self, Self::Error> {
-        match bitcoin {
-            bitcoin::Network::Bitcoin => Ok(Self::Mainnet),
-            bitcoin::Network::Testnet => Ok(Self::Testnet),
-            bitcoin::Network::Signet => Ok(Self::Signet),
-            bitcoin::Network::Regtest => Ok(Self::Regtest),
-        }
+
+    fn try_from(network: bitcoin::Network) -> Result<Self, Self::Error> {
+        let maybe_network = match network {
+            bitcoin::Network::Bitcoin => Some(Self::Mainnet),
+            bitcoin::Network::Testnet => Some(Self::Testnet),
+            bitcoin::Network::Signet => Some(Self::Signet),
+            bitcoin::Network::Regtest => Some(Self::Regtest),
+            _ => None,
+        };
+
+        debug_assert!(
+            maybe_network.is_some(),
+            "We're missing a bitcoin::Network variant"
+        );
+
+        maybe_network
+            .ok_or_else(|| anyhow!("Unknown `bitcoin::Network`: {network:?}"))
     }
 }
 

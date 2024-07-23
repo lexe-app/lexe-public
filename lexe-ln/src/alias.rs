@@ -1,3 +1,5 @@
+//! Type aliases which prevent unneeded LDK generics from infecting Lexe APIs.
+
 use std::sync::{Arc, Mutex};
 
 use lightning::{
@@ -69,7 +71,7 @@ pub type OnionMessengerType = OnionMessenger<
     Arc<LexeKeysManager>,
     Arc<LexeKeysManager>,
     LexeTracingLogger,
-    Arc<DefaultMessageRouter>,
+    Arc<DefaultMessageRouter<Arc<NetworkGraphType>, LexeTracingLogger>>,
     IgnoringMessageHandler,
     IgnoringMessageHandler,
 >;

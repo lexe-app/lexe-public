@@ -23,6 +23,7 @@
 #![deny(missing_docs)]
 
 use async_trait::async_trait;
+use bitcoin::{address::NetworkUnchecked, Address};
 
 use super::qs::GetPaymentsByIndexes;
 #[cfg(doc)]
@@ -388,7 +389,10 @@ pub trait AppNodeRunApi {
     ///
     /// Returns an address which can be used to receive funds. It is unused
     /// unless there is an incoming tx and BDK hasn't detected it yet.
-    async fn get_address(&self) -> Result<bitcoin::Address, NodeApiError>;
+    // TODO(max): Make backwards compatible
+    async fn get_address(
+        &self,
+    ) -> Result<Address<NetworkUnchecked>, NodeApiError>;
 
     /// POST /v1/payments/indexes [`GetPaymentsByIndexes`] -> [`Vec<DbPayment>`]
     ///

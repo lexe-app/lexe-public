@@ -55,9 +55,9 @@ axum = { version = "0.7", default-features = false, features = [
 # Converting to/from base 64.
 base64 = "0.22"
 # rust-bitcoin suite of libraries
-bitcoin = "0.29"
+bitcoin = { version = "0.30", features = ["serde"] }
 bitcoin-bech32 = "0.12"
-bitcoin_hashes = "0.11"
+bitcoin_hashes = "0.12"
 # Abstractions for working with bytes
 bytes = "1"
 # Write #[cfg(..)] if-else statements without repeating clauses
@@ -102,7 +102,8 @@ rust_decimal_macros = { version = "1", default-features = false }
 # TLS library
 rustls = { version = "0.22", default-features = false }
 # Rust bindings to libsecp256k1. Implements ECDSA and BIP 340 signatures.
-secp256k1 = "0.24"
+# Version should match that used by the `bitcoin` crate.
+secp256k1 = "0.27"
 # A wrapper type for carefully handling secrets
 secrecy = "0.8"
 # SemVer version newtype for parsing and precedence
@@ -146,10 +147,10 @@ enclave-runner = { version = "=0.6.0", default-features = false }
 # Hyper-related utilities
 hyper-util = { version = "=0.1.5", default-features = false, features = ["http2"] }
 # LDK (rust-lightning) libraries
-lightning = { version = "=0.0.118", features = ["max_level_trace"] }
-lightning-invoice = { version = "=0.26" }
-lightning-net-tokio = { version = "=0.0.118" }
-lightning-transaction-sync = { version = "=0.0.118", features = ["esplora-async"] }
+lightning = { version = "=0.0.119", features = ["max_level_trace"] }
+lightning-invoice = { version = "=0.27" }
+lightning-net-tokio = { version = "=0.0.119" }
+lightning-transaction-sync = { version = "=0.0.119", features = ["esplora-async"] }
 # Required by tokio
 mio = "=0.8.11"
 # High-level HTTP client
@@ -190,10 +191,9 @@ axum-server = { git = "https://github.com/lexe-app/axum-server", branch = "lexe-
 # * Replace RefCell with tokio::sync::RwLock 
 # * Wallet and EsploraBlockchain are thread-safe*+
 # * Reduce CACHE_ADDR_BATCH_SIZE from 100 -> 1
-# * chore: Update esplora-client 0.3->0.4
-bdk = { git = "https://github.com/lexe-app/bdk", branch = "lexe-v0.27.1-2023_07_07" }
-bdk-macros = { git = "https://github.com/lexe-app/bdk", branch = "lexe-v0.27.1-2023_07_07" }
-# bdk = { path = "../../bdk", default-features = false, features = ["async-interface", "use-esplora-async"] }
+bdk = { git = "https://github.com/lexe-app/bdk", branch = "lexe-v0.29.0-2024_07_24" }
+bdk-macros = { git = "https://github.com/lexe-app/bdk", branch = "lexe-v0.29.0-2024_07_24" }
+# bdk = { path = "../../bdk" }
 # bdk-macros = { path = "../../bdk/macros" }
 
 # * sgx: socket2 requires `client-legacy-socket2` cfg
@@ -226,24 +226,14 @@ ring16 = { package = "ring", git = "https://github.com/lexe-app/ring", branch = 
 # * net: add SGX `TcpStream::into_std` used by `lightning-net-tokio`
 tokio = { git = "https://github.com/lexe-app/tokio",  branch = "lexe-v1.36.0-2024_07_01" }
 
-# miniscript v0.9.1 nightly compiler backport fix
-#
-# * Without this fix, nightly fails to compile `miniscript` due to an infinite
-#   recursion.
-# * The fix is already landed in the latest `miniscript` v0.10.0+; this branch
-#   just backports the fix from
-#   <https://github.com/rust-bitcoin/rust-miniscript/pull/546>.
-#
-# REMOVE this when `bdk` goes 1.0 (which will presumably use the latest
-# `bitcoin` crate version).
-miniscript = { git = "https://github.com/lexe-app/rust-miniscript", branch = "lexe-v0.9.1-infinite-recursion-fix" }
-
+# * lightning-invoice: Add `Description::as_inner`
+#   - Upstream PR: https://github.com/lightningdevkit/rust-lightning/pull/3203
 # * lightning-net-tokio: Propagate tracing spans
 # TODO(max): Re-add "propagate tracing spans" patch once LDK is fully updated
-# lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
-# lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
-# lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
-# lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.119-2024_07_23" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.119-2024_07_23" }
+lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.119-2024_07_23" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.119-2024_07_23" }
 # lightning = { path = "../../ldk/lightning" }
 # lightning-invoice = { path = "../../ldk/lightning-invoice" }
 # lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }

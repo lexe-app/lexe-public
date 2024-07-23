@@ -1,11 +1,5 @@
 use anyhow::{anyhow, Context};
-use bitcoin::{
-    blockdata::{
-        locktime::{LockTime, PackedLockTime},
-        script::Script,
-    },
-    secp256k1,
-};
+use bitcoin::{absolute, secp256k1};
 use common::{
     ln::priority::ConfirmationPriority,
     rng::{Crng, SysRng},
@@ -49,6 +43,7 @@ pub fn get_event_name(event: &Event) -> &'static str {
         Event::PaymentClaimable { .. } => "PaymentClaimable",
         Event::HTLCIntercepted { .. } => "HTLCIntercepted",
         Event::PaymentClaimed { .. } => "PaymentClaimed",
+        Event::ConnectionNeeded { .. } => "ConnectionNeeded",
         Event::InvoiceRequestFailed { .. } => "InvoiceRequestFailed",
         Event::PaymentSent { .. } => "PaymentSent",
         Event::PaymentFailed { .. } => "PaymentFailed",
@@ -75,7 +70,7 @@ pub async fn handle_funding_generation_ready<CM, PS>(
     temporary_channel_id: ChannelId,
     counterparty_node_id: secp256k1::PublicKey,
     channel_value_satoshis: u64,
-    output_script: Script,
+    output_script: bitcoin::ScriptBuf,
 ) -> anyhow::Result<()>
 where
     CM: LexeChannelManager<PS>,
@@ -140,8 +135,7 @@ where
 
     // We set nLockTime to the current height to discourage fee sniping.
     let best_height = channel_manager.current_best_block().height();
-    let maybe_locktime = LockTime::from_height(best_height)
-        .map(PackedLockTime::from)
+    let maybe_locktime = absolute::LockTime::from_height(best_height)
         .inspect_err(|e| warn!(%best_height, "Invalid locktime height: {e:#}"))
         .ok();
 

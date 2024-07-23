@@ -937,7 +937,7 @@ mod test {
     use std::collections::BTreeMap;
 
     use async_trait::async_trait;
-    use bitcoin::Address;
+    use bitcoin::address::NetworkUnchecked;
     use common::{
         api::{
             command::{
@@ -1014,7 +1014,9 @@ mod test {
         ) -> Result<PreflightPayOnchainResponse, NodeApiError> {
             unimplemented!();
         }
-        async fn get_address(&self) -> Result<Address, NodeApiError> {
+        async fn get_address(
+            &self,
+        ) -> Result<bitcoin::Address<NetworkUnchecked>, NodeApiError> {
             unimplemented!()
         }
 

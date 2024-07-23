@@ -60,8 +60,8 @@ impl LxInvoice {
     pub fn description_str(&self) -> Option<&str> {
         match self.0.description() {
             Bolt11InvoiceDescription::Direct(description)
-                if !description.is_empty() =>
-                Some(description),
+                if !description.as_inner().0.is_empty() =>
+                Some(description.as_inner().0.as_str()),
             // Hash description is not useful to us yet
             _ => None,
         }
@@ -287,12 +287,12 @@ mod arbitrary_impl {
         let invoice = match description_or_hash {
             Ok(string) => invoice.description(string),
             Err(hash) =>
-                invoice.description_hash(sha256::Hash::from_inner(hash)),
+                invoice.description_hash(sha256::Hash::from_byte_array(hash)),
         };
 
         let mut invoice = invoice
             .duration_since_epoch(timestamp)
-            .payment_hash(sha256::Hash::from_inner(payment_hash))
+            .payment_hash(sha256::Hash::from_byte_array(payment_hash))
             .payment_secret(PaymentSecret(payment_secret))
             .basic_mpp()
             .min_final_cltv_expiry_delta(min_final_cltv_expiry_delta.into());

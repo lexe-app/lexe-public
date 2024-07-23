@@ -21,7 +21,6 @@ impl ToNumBlocks for ConfirmationTarget {
         // Based on ldk-node's FeeEstimator implementation.
         match self {
             ConfirmationTarget::OnChainSweep => 6,
-            ConfirmationTarget::MaxAllowedNonAnchorChannelRemoteFee => 1,
             ConfirmationTarget::MinAllowedAnchorChannelRemoteFee => 1008,
             ConfirmationTarget::MinAllowedNonAnchorChannelRemoteFee => 144,
             ConfirmationTarget::AnchorChannelFee => 1008,

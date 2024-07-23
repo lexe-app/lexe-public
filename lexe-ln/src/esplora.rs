@@ -47,6 +47,9 @@ const ESPLORA_CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 const BITCOIN_CORE_MEMPOOL_EXPIRY: Duration =
     Duration::from_secs(60 * 60 * 24 * 14);
 
+/// Shorthand for 1000 bitcoin weight units, i.e. one kwu.
+const R1000_WU: bitcoin::Weight = bitcoin::Weight::from_wu(1000);
+
 /// Whether this esplora url is contained in the whitelist for this network.
 #[must_use]
 pub fn url_is_whitelisted(esplora_url: &str, network: LxNetwork) -> bool {
@@ -276,9 +279,9 @@ impl LexeEsplora {
         &self,
         conf_target: ConfirmationTarget,
     ) -> bdk::FeeRate {
-        let feerate_sats_1000_weight =
-            self.get_est_sat_per_1000_weight(conf_target);
-        bdk::FeeRate::from_wu(u64::from(feerate_sats_1000_weight), 1000)
+        let fee_for_1000_wu =
+            self.get_est_sat_per_1000_weight(conf_target) as u64;
+        bdk::FeeRate::from_wu(fee_for_1000_wu, R1000_WU)
     }
 
     /// Broadcast a [`Transaction`].
@@ -375,11 +378,7 @@ impl LexeEsplora {
             .client
             .get_tx_status(&query.txid.0)
             .await
-            .context("Could not fetch tx status")?
-            // The extra Option<_> is an esplora_client bug; Esplora always
-            // returns Some for this endpoint.
-            // https://github.com/bitcoindevkit/rust-esplora-client/pull/46
-            .context("Txid somehow not found")?;
+            .context("Could not fetch tx status")?;
 
         // This is poorly documented, but the `GET /tx/:txid/status` handler in
         // Blockstream/electrs returns `Some(_)` if and only if (1) the tx has
@@ -493,21 +492,19 @@ impl FeeEstimator for LexeEsplora {
         // Our FeeEstimator implementation is based on ldk-node's. More info:
         // https://github.com/lightningdevkit/rust-lightning/releases/tag/v0.0.118
         let adjusted_fee_rate = match conf_target {
-            ConfirmationTarget::MaxAllowedNonAnchorChannelRemoteFee => {
-                let ten_times_satsvbyte = feerate.as_sat_per_vb() * 10.0;
-                bdk::FeeRate::from_sat_per_vb(ten_times_satsvbyte)
-            }
             ConfirmationTarget::MinAllowedNonAnchorChannelRemoteFee => {
-                let sats_1000wu = feerate.fee_wu(1000);
-                let sats_1000wu_minus_250 = sats_1000wu.saturating_sub(250);
-                bdk::FeeRate::from_sat_per_kwu(sats_1000wu_minus_250 as f32)
+                let sats_1000wu = feerate.fee_wu(R1000_WU);
+                let adjusted_sats_1000wu = sats_1000wu.saturating_sub(250);
+                bdk::FeeRate::from_sat_per_kwu(adjusted_sats_1000wu as f32)
             }
             _ => feerate,
         };
 
         // Ensure we don't fall below the minimum feerate required by LDK.
-        let feerate_sats_per_1000_weight =
-            adjusted_fee_rate.fee_wu(1000) as u32;
+        let feerate_sats_per_1000_weight = adjusted_fee_rate
+            .fee_wu(R1000_WU)
+            .try_into()
+            .expect("Overflow");
         cmp::max(feerate_sats_per_1000_weight, FEERATE_FLOOR_SATS_PER_KW)
     }
 }

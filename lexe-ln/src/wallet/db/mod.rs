@@ -12,7 +12,7 @@ use bdk::{
     database::{BatchDatabase, BatchOperations, Database, SyncTime},
     BlockTime, KeychainKind, LocalUtxo, TransactionDetails,
 };
-use bitcoin::{OutPoint, Script, Transaction, Txid};
+use bitcoin::{OutPoint, Script, ScriptBuf, Transaction, Txid};
 #[cfg(test)]
 use common::constants::SMALLER_CHANNEL_SIZE;
 use serde::{Deserialize, Serialize, Serializer};
@@ -50,11 +50,11 @@ pub struct DbData {
     // But upon deletion with `del_script_pubkey_from_path` /
     // `del_path_from_script_pubkey`, the same pair is not removed from the
     // other map. Because these two maps evolve independently, we cannot save
-    // space by serializing the two maps as just `Vec<(Path, Script)>`. We are
-    // awaiting clarification from BDK on this, and/or for this inconsistent
-    // scheme to be scrapped entirely.
-    path_to_script: BTreeMap<Path, Script>,
-    script_to_path: BTreeMap<Script, Path>,
+    // space by serializing the two maps as just `Vec<(Path, ScriptBuf)>`. We
+    // are awaiting clarification from BDK on this, and/or for this
+    // inconsistent scheme to be scrapped entirely.
+    path_to_script: BTreeMap<Path, ScriptBuf>,
+    script_to_path: BTreeMap<ScriptBuf, Path>,
     utxos: BTreeMap<OutPoint, LocalUtxo>,
     raw_txs: BTreeMap<Txid, Transaction>,
     tx_metas: BTreeMap<Txid, TransactionMetadata>,
@@ -121,9 +121,9 @@ pub struct DbBatch(Vec<DbOp>);
 #[derive(Clone, Debug)]
 enum DbOp {
     // -- BatchOperations methods -- //
-    SetPathScript { path: Path, script: Script },
+    SetPathScript { path: Path, script: ScriptBuf },
     DelByPath(Path),
-    DelByScript(Script),
+    DelByScript(ScriptBuf),
     SetUtxo(LocalUtxo),
     DelUtxo(OutPoint),
     SetRawTx(Transaction),
@@ -235,7 +235,7 @@ impl BatchOperations for DbBatch {
         child: u32,
     ) -> BdkResult<()> {
         let path = Path { keychain, child };
-        let script = script.clone();
+        let script = script.to_owned();
         self.0.push(DbOp::SetPathScript { path, script });
         Ok(())
     }
@@ -273,7 +273,7 @@ impl BatchOperations for DbBatch {
         &mut self,
         keychain: KeychainKind,
         child: u32,
-    ) -> BdkResult<Option<Script>> {
+    ) -> BdkResult<Option<ScriptBuf>> {
         self.0.push(DbOp::DelByPath(Path { keychain, child }));
         // Return None because BDK's keyvalue DB does
         Ok(None)
@@ -283,7 +283,7 @@ impl BatchOperations for DbBatch {
         &mut self,
         script: &Script,
     ) -> BdkResult<Option<(KeychainKind, u32)>> {
-        self.0.push(DbOp::DelByScript(script.clone()));
+        self.0.push(DbOp::DelByScript(script.to_owned()));
         // Return None because BDK's keyvalue DB does
         Ok(None)
     }
@@ -601,7 +601,7 @@ impl Database for WalletDb {
     fn iter_script_pubkeys(
         &self,
         maybe_filter_keychain: Option<KeychainKind>,
-    ) -> BdkResult<Vec<Script>> {
+    ) -> BdkResult<Vec<ScriptBuf>> {
         self.inner
             .lock()
             .unwrap()
@@ -627,7 +627,7 @@ impl Database for WalletDb {
         &self,
         keychain: KeychainKind,
         child: u32,
-    ) -> BdkResult<Option<Script>> {
+    ) -> BdkResult<Option<ScriptBuf>> {
         self.inner
             .lock()
             .unwrap()
@@ -718,7 +718,7 @@ impl BatchOperations for WalletDb {
         &mut self,
         keychain: KeychainKind,
         child: u32,
-    ) -> BdkResult<Option<Script>> {
+    ) -> BdkResult<Option<ScriptBuf>> {
         self.inner
             .lock()
             .unwrap()
@@ -880,7 +880,7 @@ impl Database for DbData {
     fn iter_script_pubkeys(
         &self,
         maybe_filter_keychain: Option<KeychainKind>,
-    ) -> BdkResult<Vec<Script>> {
+    ) -> BdkResult<Vec<ScriptBuf>> {
         let vec = match maybe_filter_keychain {
             Some(filter_keychain) => self
                 .path_to_script
@@ -931,7 +931,7 @@ impl Database for DbData {
         &self,
         keychain: KeychainKind,
         child: u32,
-    ) -> BdkResult<Option<Script>> {
+    ) -> BdkResult<Option<ScriptBuf>> {
         let path = Path { keychain, child };
         Ok(self.path_to_script.get(&path).cloned())
     }
@@ -1016,9 +1016,9 @@ impl BatchOperations for DbData {
         child: u32,
     ) -> BdkResult<()> {
         let new_path = Path { keychain, child };
-        self.path_to_script.insert(new_path, script.clone());
+        self.path_to_script.insert(new_path, script.to_owned());
         self.script_to_path
-            .insert(script.clone(), new_path)
+            .insert(script.to_owned(), new_path)
             .inspect(|old_path| {
                 if *old_path != new_path {
                     warn!(
@@ -1077,7 +1077,7 @@ impl BatchOperations for DbData {
         &mut self,
         keychain: KeychainKind,
         child: u32,
-    ) -> BdkResult<Option<Script>> {
+    ) -> BdkResult<Option<ScriptBuf>> {
         let path = Path { keychain, child };
 
         self.path_to_script
@@ -1358,9 +1358,9 @@ mod test {
         let mut wallet_db = WalletDb::new_test_db();
 
         // Populate the db
-        let script1 = Script::from(vec![1]);
-        let script2 = Script::from(vec![2]);
-        let script3 = Script::from(vec![3]);
+        let script1 = ScriptBuf::from(vec![1]);
+        let script2 = ScriptBuf::from(vec![2]);
+        let script3 = ScriptBuf::from(vec![3]);
         wallet_db.set_script_pubkey(&script1, External, 1).unwrap();
         wallet_db.set_script_pubkey(&script2, External, 2).unwrap();
         wallet_db.set_script_pubkey(&script3, Internal, 3).unwrap();
@@ -1486,7 +1486,7 @@ mod test {
         let keychain = KeychainKind::External;
         let path1 = Path { keychain, child: 0 };
         let path2 = Path { keychain, child: 1 };
-        let script = Script::new();
+        let script = ScriptBuf::new();
         let op1 = DbOp::SetPathScript {
             path: path1,
             script: script.clone(),
@@ -1693,7 +1693,7 @@ mod test {
         {
             let mut db = MemoryDatabase::new();
 
-            let script = Script::from(
+            let script = ScriptBuf::from(
                 Vec::<u8>::from_hex(
                     "76a91402306a7c23f3e8010de41e9e591348bb83f11daa88ac",
                 )
@@ -1719,7 +1719,7 @@ mod test {
         {
             let mut db = MemoryDatabase::new();
 
-            let script = Script::from(
+            let script = ScriptBuf::from(
                 Vec::<u8>::from_hex(
                     "76a91402306a7c23f3e8010de41e9e591348bb83f11daa88ac",
                 )

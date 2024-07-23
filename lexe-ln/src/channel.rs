@@ -106,12 +106,14 @@ where
 
     // Finally, create the channel.
     let push_msat = 0; // No need for this yet
+    let temporary_channel_id = None; // No need for this yet
     channel_manager
         .create_channel(
             responder_node_pk.0,
             channel_value.sats_u64(),
             push_msat,
             user_channel_id,
+            temporary_channel_id,
             Some(user_config),
         )
         .map_err(|e| anyhow!("Failed to create channel: {e:?}"))?;

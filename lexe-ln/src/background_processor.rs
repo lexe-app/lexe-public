@@ -22,6 +22,8 @@ use crate::{
     },
 };
 
+// TODO(max): Update comments below; the mentioned future has been released.
+//
 // Since the BGP relies on LDK's waker system which has historically been the
 // source for a lot of subtle and hard-to-debug bugs, we want to use a
 // relatively frequent `PROCESS_EVENTS_INTERVAL` of 3 seconds when running in
@@ -129,8 +131,6 @@ impl LexeBackgroundProcessor {
                     }
                 };
 
-                // TODO(max): Implement network graph pruning. See LDK's BGP.
-
                 tokio::select! {
                     // --- Process events + channel manager repersist --- //
                     () = process_events_fut => {
@@ -190,6 +190,8 @@ impl LexeBackgroundProcessor {
                     }
                     _ = ng_timer.tick() => {
                         debug!("Pruning and persisting network graph");
+                        // TODO(max): Don't prune during RGS. See LDK's BGP.
+                        // Relevant after we've implemented RGS.
                         let network_graph = gossip_sync.network_graph();
                         network_graph.remove_stale_channels_and_tracking();
                         let persist_res = persister

@@ -16,6 +16,7 @@
 use std::{borrow::Cow, fmt, str::FromStr};
 
 use anyhow::ensure;
+use bitcoin::address::{NetworkUnchecked, NetworkValidation};
 use common::ln::{
     amount::Amount, invoice::LxInvoice, network::LxNetwork, offer::LxOffer,
 };
@@ -36,16 +37,17 @@ use rust_decimal::Decimal;
 #[derive(Debug, Eq, PartialEq)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum PaymentUri {
-    /// A standalone onchain Bitcoin address.
+    /// An BIP21 URI, containing an onchain payment description, plus optional
+    /// BOLT11 invoice and/or BOLT12 offer.
     ///
-    /// ex: "bc1qfjeyfl..."
-    #[cfg_attr(
-        test,
-        proptest(
-            strategy = "arbitrary::any_mainnet_address().prop_map(Self::Address)"
-        )
-    )]
-    Address(bitcoin::Address),
+    /// ex: "bitcoin:bc1qfj..."
+    Bip21Uri(Bip21Uri),
+
+    /// A Lightning URI, containing a BOLT11 invoice or BOLT12 offer.
+    ///
+    /// ex: "lightning:lnbc1pvjlue..." or
+    ///     "lightning:lno1pqps7..."
+    LightningUri(LightningUri),
 
     /// A standalone BOLT11 Lightning invoice.
     ///
@@ -58,17 +60,16 @@ pub enum PaymentUri {
     // TODO(phlip9): BOLT12 refund
     Offer(LxOffer),
 
-    /// A Lightning URI, containing a BOLT11 invoice or BOLT12 offer.
+    /// A standalone onchain Bitcoin address.
     ///
-    /// ex: "lightning:lnbc1pvjlue..." or
-    ///     "lightning:lno1pqps7..."
-    LightningUri(LightningUri),
-
-    /// An BIP21 URI, containing an onchain payment description, plus optional
-    /// BOLT11 invoice and/or BOLT12 offer.
-    ///
-    /// ex: "bitcoin:bc1qfj..."
-    Bip21Uri(Bip21Uri),
+    /// ex: "bc1qfjeyfl..."
+    #[cfg_attr(
+        test,
+        proptest(
+            strategy = "arbitrary::any_mainnet_addr_unchecked().prop_map(Self::Address)"
+        )
+    )]
+    Address(bitcoin::Address<NetworkUnchecked>),
     //
     //
     // NOTE: adding support for a new URI scheme? Remember to add it in these
@@ -127,18 +128,6 @@ impl PaymentUri {
     pub fn flatten(self) -> Vec<PaymentMethod> {
         let mut out = Vec::new();
         match self {
-            Self::Address(address) =>
-                out.push(PaymentMethod::Onchain(Onchain::from(address))),
-            Self::Invoice(invoice) => flatten_invoice_into(invoice, &mut out),
-            Self::Offer(offer) => out.push(PaymentMethod::Offer(offer)),
-            Self::LightningUri(LightningUri { invoice, offer }) => {
-                if let Some(invoice) = invoice {
-                    flatten_invoice_into(invoice, &mut out);
-                }
-                if let Some(offer) = offer {
-                    out.push(PaymentMethod::Offer(offer));
-                }
-            }
             Self::Bip21Uri(Bip21Uri {
                 onchain,
                 invoice,
@@ -154,6 +143,18 @@ impl PaymentUri {
                     out.push(PaymentMethod::Offer(offer));
                 }
             }
+            Self::LightningUri(LightningUri { invoice, offer }) => {
+                if let Some(invoice) = invoice {
+                    flatten_invoice_into(invoice, &mut out);
+                }
+                if let Some(offer) = offer {
+                    out.push(PaymentMethod::Offer(offer));
+                }
+            }
+            Self::Invoice(invoice) => flatten_invoice_into(invoice, &mut out),
+            Self::Offer(offer) => out.push(PaymentMethod::Offer(offer)),
+            Self::Address(address) =>
+                out.push(PaymentMethod::Onchain(Onchain::from(address))),
         }
         out
     }
@@ -209,7 +210,9 @@ impl fmt::Display for PaymentUri {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use std::fmt::Display;
         match self {
-            Self::Address(address) => Display::fmt(address, f),
+            // TODO(max): Use `assume_checked_ref` once bitcoin@0.31.0
+            Self::Address(address) =>
+                Display::fmt(&address.clone().assume_checked(), f),
             Self::Invoice(invoice) => Display::fmt(invoice, f),
             Self::Offer(offer) => Display::fmt(offer, f),
             Self::LightningUri(ln_uri) => Display::fmt(ln_uri, f),
@@ -229,7 +232,8 @@ fn flatten_invoice_into(invoice: LxInvoice, out: &mut Vec<PaymentMethod>) {
         let description = invoice.description_str().map(str::to_owned);
         let amount = invoice.amount();
 
-        for address in onchain_fallback_addrs {
+        for addr in onchain_fallback_addrs {
+            let address = bitcoin::Address::new(addr.network, addr.payload);
             out.push(PaymentMethod::Onchain(Onchain {
                 address,
                 amount,
@@ -282,8 +286,11 @@ impl PaymentMethod {
 #[derive(Debug, Eq, PartialEq)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct Onchain {
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_mainnet_address()"))]
-    pub address: bitcoin::Address,
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_mainnet_addr_unchecked()")
+    )]
+    pub address: bitcoin::Address<NetworkUnchecked>,
 
     #[cfg_attr(
         test,
@@ -305,8 +312,9 @@ impl Onchain {
     }
 }
 
-impl From<bitcoin::Address> for Onchain {
-    fn from(address: bitcoin::Address) -> Self {
+impl<V: NetworkValidation> From<bitcoin::Address<V>> for Onchain {
+    fn from(addr: bitcoin::Address<V>) -> Self {
+        let address = bitcoin::Address::new(addr.network, addr.payload);
         Self {
             address,
             amount: None,
@@ -468,7 +476,9 @@ impl Bip21Uri {
 
         // BIP21 onchain portion
         if let Some(onchain) = &self.onchain {
-            out.body = Cow::Owned(onchain.address.to_string());
+            // TODO(max): Use `assume_checked_ref` once bitcoin@0.31.0
+            let address = onchain.address.clone().assume_checked();
+            out.body = Cow::Owned(address.to_string());
 
             if let Some(amount) = &onchain.amount {
                 out.params.push(UriParam {
@@ -758,8 +768,10 @@ impl<'a> UriParam<'a> {
 #[cfg(test)]
 mod test {
     use common::{
-        ln::network::LxNetwork, rng::WeakRng,
-        test_utils::arbitrary::any_mainnet_address, time::TimestampMs,
+        ln::network::LxNetwork,
+        rng::WeakRng,
+        test_utils::{arbitrary, arbitrary::any_mainnet_addr_unchecked},
+        time::TimestampMs,
     };
     use proptest::{arbitrary::any, prop_assert_eq, proptest, sample::Index};
 
@@ -935,7 +947,7 @@ mod test {
     // appending junk after the `<address>?` should be fine
     #[test]
     fn test_bip21_uri_prop_append_junk() {
-        proptest!(|(address in any_mainnet_address(), junk: String)| {
+        proptest!(|(address in any_mainnet_addr_unchecked(), junk: String)| {
             let uri = Bip21Uri {
                 onchain: Some(Onchain { address, amount: None, label: None, message: None }),
                 invoice: None,

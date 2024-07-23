@@ -122,7 +122,8 @@ impl AppHandle {
             .node_client()
             .get_address()
             .await
-            .map(|addr| addr.to_string())
+            // TODO(max): Use `assume_checked_ref` once bitcoin@0.31.0
+            .map(|addr| addr.assume_checked().to_string())
             .map_err(anyhow::Error::new)
     }
 

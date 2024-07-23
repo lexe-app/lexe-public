@@ -419,7 +419,7 @@ impl TryFrom<LxPaymentId> for LxPaymentHash {
 // Bitcoin -> Lexe
 impl From<sha256::Hash> for LxPaymentHash {
     fn from(hash: sha256::Hash) -> Self {
-        Self(hash.into_inner())
+        Self(hash.to_byte_array())
     }
 }
 

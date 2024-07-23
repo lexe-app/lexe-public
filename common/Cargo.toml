@@ -115,7 +115,7 @@ asn1-rs = { version = "0.5", default-features = false }
 # For constructing/parsing ASN.1 data in x509 certs
 yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
 
-# --- FEATURE-CONDITIONAL --- #
+# --- OPTIONAL --- #
 # These must have `optional = true` to prevent infecting production binaries.
 
 proptest = { optional = true, workspace = true, features = ["alloc"] }
@@ -142,7 +142,7 @@ cmac = { version = "0.7", features = ["std", "zeroize"] }
 # TODO(max): Upgrade to bitcoind 23_0 once flakiness is fixed:
 # https://github.com/RCasatta/bitcoind/issues/101
 # https://github.com/RCasatta/bitcoind/issues/85
-electrsd = { optional = true, version = "0.22", features = [ "bitcoind_22_0", "esplora_a33e97e1", "legacy" ] }
+electrsd = { optional = true, version = "0.24", features = ["bitcoind_22_0", "esplora_a33e97e1", "legacy"] }
 # Enable the `client-legacy-socket2` feature from our patch when outside of SGX.
 # This can be removed if our `client-legacy-socket2` patch is removed.
 # Include std impls when testing outside of SGX
@@ -174,6 +174,6 @@ sgx-panic-backtrace = "0.1"
 
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Bitcoind + electrum + esplora regtest
-electrsd = { version = "0.22", features = [ "bitcoind_22_0", "esplora_a33e97e1", "legacy" ] }
+electrsd = { version = "0.24", features = ["bitcoind_22_0", "esplora_a33e97e1", "legacy"] }
 # Include std impls when testing outside of SGX
 proptest = { workspace = true, features = ["std"] }

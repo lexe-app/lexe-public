@@ -308,7 +308,7 @@ pub struct Onchain {
 impl From<payment_uri::Onchain> for Onchain {
     fn from(value: payment_uri::Onchain) -> Self {
         Self {
-            address: value.address.to_string(),
+            address: value.address.assume_checked().to_string(),
             amount_sats: value.amount.map(|amt| amt.sats_u64()),
             label: value.label,
             message: value.message,

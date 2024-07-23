@@ -42,6 +42,7 @@ pub struct NodeEventHandler {
     pub(crate) shutdown: ShutdownChannel,
 }
 
+// TODO(max): Revisit with async handling in mind, docs likely out of date
 /// Event handling requirements are outlined in the doc comments for
 /// [`EventsProvider`], `ChannelManager::process_pending_events`, and
 /// `ChainMonitor::process_pending_events`, which we summarize and expand on
@@ -234,6 +235,7 @@ async fn handle_event_fallible(
                     .map_err(EventHandleError::Tolerable)?;
             }
         }
+
         Event::FundingGenerationReady {
             temporary_channel_id,
             counterparty_node_id,
@@ -254,6 +256,7 @@ async fn handle_event_fallible(
             .context("Failed to handle funding generation ready")
             .map_err(EventHandleError::Fatal)?;
         }
+
         Event::ChannelPending {
             channel_id: _,
             user_channel_id: _,
@@ -263,6 +266,7 @@ async fn handle_event_fallible(
         } => {
             test_event_tx.send(TestEvent::ChannelPending);
         }
+
         Event::ChannelReady {
             channel_id: _,
             user_channel_id: _,
@@ -271,6 +275,7 @@ async fn handle_event_fallible(
         } => {
             test_event_tx.send(TestEvent::ChannelReady);
         }
+
         Event::PaymentClaimable {
             payment_hash,
             amount_msat,
@@ -290,6 +295,7 @@ async fn handle_event_fallible(
                 // Want to ensure we always claim funds
                 .map_err(EventHandleError::Fatal)?;
         }
+
         Event::PaymentClaimed {
             receiver_node_id: _,
             payment_hash,
@@ -306,10 +312,24 @@ async fn handle_event_fallible(
                 // Don't want to end up with a 'hung' payment state
                 .map_err(EventHandleError::Fatal)?;
         }
+
+        Event::ConnectionNeeded { node_id, addresses } => {
+            // The only connection the user node should need is to the LSP.
+            // Ignore the event but log an error.
+            let node_pk = NodePk(node_id);
+            let addrs = addresses
+                .into_iter()
+                .map(|addr| format!("{addr}"))
+                .collect::<Vec<String>>();
+            error!(%node_pk, ?addrs, "Unexpected `ConnectionNeeded` event");
+            debug_assert!(false);
+        }
+
         Event::InvoiceRequestFailed { payment_id } => {
             // TODO(max): Revisit once we implement BOLT 12
             error!(%payment_id, "Invoice request failed");
         }
+
         Event::PaymentSent {
             payment_id: _,
             payment_hash,
@@ -327,6 +347,7 @@ async fn handle_event_fallible(
                 // Don't want to end up with a 'hung' payment state
                 .map_err(EventHandleError::Fatal)?;
         }
+
         Event::PaymentFailed {
             payment_id: _,
             reason,
@@ -343,10 +364,15 @@ async fn handle_event_fallible(
                 // Don't want to end up with a 'hung' payment state
                 .map_err(EventHandleError::Fatal)?;
         }
+
         Event::PaymentPathSuccessful { .. } => {}
+
         Event::PaymentPathFailed { .. } => {}
+
         Event::ProbeSuccessful { .. } => {}
+
         Event::ProbeFailed { .. } => {}
+
         Event::PaymentForwarded {
             prev_channel_id,
             next_channel_id,
@@ -365,11 +391,15 @@ async fn handle_event_fallible(
                 %claim_from_onchain_tx, ?outbound_amount_forwarded_msat,
                 "Somehow received a PaymentForwarded event??"
             );
+            debug_assert!(false);
         }
+
         Event::HTLCIntercepted { .. } => {
             unreachable!("accept_intercept_htlcs in UserConfig is false")
         }
+
         Event::HTLCHandlingFailed { .. } => {}
+
         Event::PendingHTLCsForwardable { time_forwardable } => {
             let forwarding_channel_manager = channel_manager.clone();
             let millis_to_sleep = time_forwardable.as_millis() as u64;
@@ -380,6 +410,7 @@ async fn handle_event_fallible(
             })
             .detach();
         }
+
         Event::SpendableOutputs {
             outputs,
             channel_id,
@@ -399,6 +430,7 @@ async fn handle_event_fallible(
             // This is fatal because the outputs are lost if they aren't swept.
             .map_err(EventHandleError::Fatal)?;
         }
+
         Event::ChannelClosed {
             channel_id,
             user_channel_id: _,
@@ -418,11 +450,13 @@ async fn handle_event_fallible(
             );
             test_event_tx.send(TestEvent::ChannelClosed);
         }
+
         Event::DiscardFunding { .. } => {
             // A "real" node should probably "lock" the UTXOs spent in funding
             // transactions until the funding transaction either confirms, or
             // this event is generated.
         }
+
         Event::BumpTransaction(_) => {
             // TODO(max): Implement this once we support anchor outputs
         }

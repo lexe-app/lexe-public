@@ -5,11 +5,12 @@ use std::{
 };
 
 use bitcoin::{
-    blockdata::{opcodes, script},
-    hashes::Hash,
-    secp256k1,
-    util::address::{self, Payload},
-    Address, Network, OutPoint, PackedLockTime, Script, ScriptHash, Sequence,
+    absolute,
+    address::{self, NetworkUnchecked, Payload},
+    blockdata::{opcodes, script, transaction},
+    hashes::{sha256d, Hash},
+    script::PushBytesBuf,
+    secp256k1, Address, Network, OutPoint, ScriptBuf, ScriptHash, Sequence,
     Transaction, TxIn, TxOut, Txid, Witness,
 };
 use chrono::Utc;
@@ -179,11 +180,12 @@ pub fn any_bitcoin_pubkey() -> impl Strategy<Value = bitcoin::PublicKey> {
         })
 }
 
-/// An `Arbitrary`-like [`Strategy`] for [`bitcoin::XOnlyPublicKey`]s.
-pub fn any_x_only_pubkey() -> impl Strategy<Value = bitcoin::XOnlyPublicKey> {
+/// An `Arbitrary`-like [`Strategy`] for [`bitcoin::key::XOnlyPublicKey`]s.
+pub fn any_x_only_pubkey() -> impl Strategy<Value = bitcoin::key::XOnlyPublicKey>
+{
     any::<NodePk>()
         .prop_map(secp256k1::PublicKey::from)
-        .prop_map(bitcoin::XOnlyPublicKey::from)
+        .prop_map(bitcoin::key::XOnlyPublicKey::from)
 }
 
 /// An `Arbitrary`-like [`Strategy`] for bitcoin [opcode]s.
@@ -193,52 +195,59 @@ pub fn any_opcode() -> impl Strategy<Value = opcodes::All> {
     any::<u8>().prop_map(opcodes::All::from)
 }
 
-/// An `Arbitrary`-like [`Strategy`] for Bitcoin [`Script`]s.
-pub fn any_script() -> impl Strategy<Value = Script> {
+/// An `Arbitrary`-like [`Strategy`] for Bitcoin [`ScriptBuf`]s.
+pub fn any_script() -> impl Strategy<Value = ScriptBuf> {
     #[derive(Clone, Debug)]
     enum PushOp {
         Int(i64),
-        ScriptInt(i64),
         Slice(Vec<u8>),
         Key(bitcoin::PublicKey),
-        XOnlyPublicKey(bitcoin::XOnlyPublicKey),
+        XOnlyPublicKey(bitcoin::key::XOnlyPublicKey),
         Opcode(opcodes::All),
         OpVerify,
+        LockTime(absolute::LockTime),
+        Sequence(transaction::Sequence),
     }
 
     impl PushOp {
-        fn do_push(&self, builder: script::Builder) -> script::Builder {
+        fn push_into(self, builder: script::Builder) -> script::Builder {
             match self {
-                Self::Int(i) => builder.push_int(*i),
-                Self::ScriptInt(i) => builder.push_scriptint(*i),
-                Self::Slice(data) => builder.push_slice(data.as_slice()),
-                Self::Key(pubkey) => builder.push_key(pubkey),
+                Self::Int(i) => builder.push_int(i),
+                Self::Slice(data) => builder.push_slice(
+                    PushBytesBuf::try_from(data)
+                        .expect("Vec contains more than 2^32 bytes?"),
+                ),
+                Self::Key(pubkey) => builder.push_key(&pubkey),
                 Self::XOnlyPublicKey(x_only_pubkey) =>
-                    builder.push_x_only_key(x_only_pubkey),
-                Self::Opcode(opcode) => builder.push_opcode(*opcode),
+                    builder.push_x_only_key(&x_only_pubkey),
+                Self::Opcode(opcode) => builder.push_opcode(opcode),
                 Self::OpVerify => builder.push_verify(),
+                Self::LockTime(locktime) => builder.push_lock_time(locktime),
+                Self::Sequence(sequence) => builder.push_sequence(sequence),
             }
         }
     }
 
-    // Limit Vec<u8>s to 8 bytes
-    let any_vec_u8 = proptest::collection::vec(any::<u8>(), 0..=8);
+    let any_slice = proptest::collection::vec(any::<u8>(), 0..=32);
 
     let any_push_op = prop_oneof![
         any::<i64>().prop_map(PushOp::Int),
-        any::<i64>().prop_map(PushOp::ScriptInt),
-        any_vec_u8.prop_map(PushOp::Slice),
+        any_slice.prop_map(PushOp::Slice),
         any_bitcoin_pubkey().prop_map(PushOp::Key),
         any_x_only_pubkey().prop_map(PushOp::XOnlyPublicKey),
         any_opcode().prop_map(PushOp::Opcode),
         Just(PushOp::OpVerify),
+        any_locktime().prop_map(PushOp::LockTime),
+        any::<u32>()
+            .prop_map(transaction::Sequence)
+            .prop_map(PushOp::Sequence),
     ];
 
     // Include anywhere from 0 to 8 instructions in the script
     proptest::collection::vec(any_push_op, 0..=8).prop_map(|vec_of_push_ops| {
         let mut builder = script::Builder::new();
         for push_op in vec_of_push_ops {
-            builder = push_op.do_push(builder);
+            builder = push_op.push_into(builder);
         }
         builder.into_script()
     })
@@ -250,12 +259,23 @@ pub fn any_witness() -> impl Strategy<Value = Witness> {
     // so we limit to 8x8 = 64 bytes.
     let any_vec_u8 = proptest::collection::vec(any::<u8>(), 0..=8);
     let any_vec_vec_u8 = proptest::collection::vec(any_vec_u8, 0..=8);
-    any_vec_vec_u8.prop_map(Witness::from_vec)
+    any_vec_vec_u8.prop_map(|vec_vec| Witness::from_slice(vec_vec.as_slice()))
 }
 
 /// An `Arbitrary`-like [`Strategy`] for a [`Sequence`].
 pub fn any_sequence() -> impl Strategy<Value = Sequence> {
     any::<u32>().prop_map(Sequence)
+}
+
+/// An `Arbitrary`-like [`Strategy`] for a [`absolute::LockTime`].
+pub fn any_locktime() -> impl Strategy<Value = absolute::LockTime> {
+    use bitcoin::absolute::{Height, LockTime, Time};
+    prop_oneof![
+        (Height::MIN.to_consensus_u32()..=Height::MAX.to_consensus_u32())
+            .prop_map(|n| LockTime::Blocks(Height::from_consensus(n).unwrap())),
+        (Time::MIN.to_consensus_u32()..=Time::MAX.to_consensus_u32())
+            .prop_map(|n| LockTime::Seconds(Time::from_consensus(n).unwrap()))
+    ]
 }
 
 /// An `Arbitrary`-like [`Strategy`] for a [`TxIn`].
@@ -280,7 +300,7 @@ pub fn any_txout() -> impl Strategy<Value = TxOut> {
 
 /// An `Arbitrary`-like [`Strategy`] for a raw [`Transaction`].
 pub fn any_raw_tx() -> impl Strategy<Value = Transaction> {
-    let any_lock_time = any::<u32>().prop_map(PackedLockTime);
+    let any_lock_time = any_locktime();
     // Txns include anywhere from 1 to 2 inputs / outputs
     let any_vec_of_txins = proptest::collection::vec(any_txin(), 1..=2);
     let any_vec_of_txouts = proptest::collection::vec(any_txout(), 1..=2);
@@ -310,8 +330,8 @@ pub fn any_txid() -> impl Strategy<Value = Txid> {
     // resistance, the generated txids do not correspond to any tx at all:
     // /*
     any::<[u8; 32]>()
-        .prop_map(bitcoin::hashes::sha256d::Hash::from_inner)
-        .prop_map(Txid::from_hash)
+        .prop_map(sha256d::Hash::from_byte_array)
+        .prop_map(Txid::from_raw_hash)
         .no_shrink()
     // */
 }
@@ -327,16 +347,15 @@ pub fn any_script_hash() -> impl Strategy<Value = ScriptHash> {
         .no_shrink()
 }
 
-pub fn any_mainnet_address() -> impl Strategy<Value = Address> {
+pub fn any_mainnet_addr() -> impl Strategy<Value = Address> {
     const NET: Network = Network::Bitcoin;
 
     prop_oneof![
         // P2PKH
         any_bitcoin_pubkey().prop_map(|pk| Address::p2pkh(&pk, NET)),
         // P2SH / P2WSH / P2SHWSH / P2SHWPKH
-        any_script_hash().prop_map(|sh| Address {
-            payload: address::Payload::ScriptHash(sh),
-            network: NET,
+        any_script_hash().prop_map(|sh| {
+            Address::new(NET, address::Payload::ScriptHash(sh))
         }),
         // P2WPKH
         any_bitcoin_pubkey().prop_map(|pk| Address::p2wpkh(&pk, NET).unwrap()),
@@ -344,6 +363,15 @@ pub fn any_mainnet_address() -> impl Strategy<Value = Address> {
         any_script().prop_map(|script| Address::p2wsh(&script, NET)),
         // TODO(phlip9): taproot
     ]
+}
+
+pub fn any_mainnet_addr_unchecked(
+) -> impl Strategy<Value = Address<NetworkUnchecked>> {
+    any_mainnet_addr().prop_map(
+        |Address {
+             payload, network, ..
+         }| Address::new(network, payload),
+    )
 }
 
 /// An `Arbitrary`-like [`Strategy`] for [`semver::Version`]s.
@@ -380,12 +408,24 @@ pub fn any_chrono_datetime() -> impl Strategy<Value = chrono::DateTime<Utc>> {
 /// An `Arbitrary`-like [`Strategy`] for a lightning invoice on-chain
 /// [`Fallback`] address.
 pub fn any_onchain_fallback() -> impl Strategy<Value = Fallback> {
-    any_mainnet_address().prop_map(|address| match address.payload {
-        Payload::WitnessProgram { version, program } =>
-            Fallback::SegWitProgram { version, program },
-        Payload::PubkeyHash(pkh) => Fallback::PubKeyHash(pkh),
-        Payload::ScriptHash(sh) => Fallback::ScriptHash(sh),
-    })
+    any_mainnet_addr().prop_filter_map(
+        "Missing bitcoin::address::Payload variant",
+        |address| match address.payload {
+            Payload::WitnessProgram(wp) => {
+                let version = wp.version();
+                // TODO(max): Ideally can just get the owned PushBytesBuf to
+                // avoid a Vec clone here, can probably contribute this upstream
+                let program_bytes_buf = wp.program().to_owned();
+                let program = Vec::<u8>::from(program_bytes_buf);
+                Some(Fallback::SegWitProgram { version, program })
+            }
+            Payload::PubkeyHash(pkh) => Some(Fallback::PubKeyHash(pkh)),
+            Payload::ScriptHash(sh) => Some(Fallback::ScriptHash(sh)),
+            // `bitcoin::address::Payload` is `#[non_exhaustive]`, so we have to
+            // `.prop_filter_map()`... But we should try to cover all cases.
+            _ => None,
+        },
+    )
 }
 
 /// An `Arbitrary`-like [`Strategy`] for a lightning invoice [`RouteHint`].

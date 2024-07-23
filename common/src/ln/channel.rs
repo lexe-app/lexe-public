@@ -144,24 +144,30 @@ impl From<ChannelDetails> for LxChannelDetails {
             channel_id,
             counterparty,
             funding_txo,
+            channel_type: _,
+            short_channel_id: _,
+            outbound_scid_alias: _,
+            inbound_scid_alias: _,
             channel_value_satoshis,
             unspendable_punishment_reserve,
-            inbound_htlc_minimum_msat,
-            inbound_htlc_maximum_msat,
-
+            user_channel_id: _,
+            feerate_sat_per_1000_weight: _,
             balance_msat,
             outbound_capacity_msat,
             next_outbound_htlc_limit_msat,
-
+            next_outbound_htlc_minimum_msat: _,
             inbound_capacity_msat,
-
+            confirmations_required: _,
+            confirmations: _,
             force_close_spend_delay,
-            is_public,
             is_outbound,
             is_channel_ready,
+            channel_shutdown_state: _,
             is_usable,
+            is_public,
+            inbound_htlc_minimum_msat,
+            inbound_htlc_maximum_msat,
             config,
-            ..
         }: ChannelDetails,
     ) -> Self {
         let channel_id = LxChannelId::from(channel_id);

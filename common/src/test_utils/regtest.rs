@@ -2,11 +2,8 @@ use std::{cmp, env, path::PathBuf, time::Duration};
 
 use anyhow::Context;
 use bitcoin::{
-    hash_types::PubkeyHash,
-    hashes::Hash,
-    network::constants::Network,
-    util::address::{Address, Payload},
-    BlockHash,
+    address::Payload, hash_types::PubkeyHash, hashes::Hash,
+    network::constants::Network, BlockHash,
 };
 use electrsd::{
     bitcoind::{self, bitcoincore_rpc::RpcApi, BitcoinD},
@@ -126,7 +123,10 @@ impl Regtest {
     /// coinbase output is mature by mining another 100 blocks on top.
     ///
     /// Note: BDK won't detect the mined funds until the wallet is `sync()`ed.
-    pub async fn fund_address(&self, addr: &Address) -> Vec<BlockHash> {
+    pub async fn fund_address(
+        &self,
+        addr: &bitcoin::Address,
+    ) -> Vec<BlockHash> {
         self.fund_addresses(&[addr]).await
     }
 
@@ -136,7 +136,7 @@ impl Regtest {
     /// Note: BDK won't detect the mined funds until the wallet is `sync()`ed.
     pub async fn fund_addresses(
         &self,
-        addresses: &[&Address],
+        addresses: &[&bitcoin::Address],
     ) -> Vec<BlockHash> {
         debug!("Funding addresses {addresses:?}");
         let mut hashes = Vec::with_capacity(addresses.len() + 100);
@@ -151,11 +151,11 @@ impl Regtest {
         hashes
     }
 
-    /// Mines the given number of blocks to the given [`Address`].
+    /// Mines the given number of blocks to the given [`bitcoin::Address`].
     async fn mine_n_blocks_to_address(
         &self,
         num_blocks: usize,
-        address: &Address,
+        address: &bitcoin::Address,
     ) -> Vec<BlockHash> {
         let pre_height = self
             .electrsd
@@ -235,12 +235,10 @@ impl Regtest {
     }
 }
 
-/// Helper to get a dummy [`Address`] which blocks can be mined to
-fn get_dummy_address() -> Address {
-    let hash = Hash::from_inner([0; 20]);
-    let pkh = PubkeyHash::from_hash(hash);
+/// Helper to get a dummy [`bitcoin::Address`] which blocks can be mined to
+fn get_dummy_address() -> bitcoin::Address {
+    let pkh = PubkeyHash::from_byte_array([0; 20]);
     let payload = Payload::PubkeyHash(pkh);
-
     let network = Network::Regtest;
-    Address { payload, network }
+    bitcoin::Address::new(network, payload)
 }

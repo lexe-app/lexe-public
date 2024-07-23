@@ -10,10 +10,7 @@ use bdk::{
     },
     FeeRate, KeychainKind, SyncOptions, TransactionDetails, TxBuilder,
 };
-use bitcoin::{
-    util::{address::Address, psbt::PartiallySignedTransaction},
-    Script, Transaction, Txid,
-};
+use bitcoin::{psbt::PartiallySignedTransaction, Transaction, Txid};
 use common::{
     api::command::{
         FeeEstimate, PayOnchainRequest, PreflightPayOnchainRequest,
@@ -170,7 +167,7 @@ impl LexeWallet {
     /// simply avoid this scenario in the first place).
     ///
     /// See [`AddressIndex`] for more details.
-    pub async fn get_address(&self) -> anyhow::Result<Address> {
+    pub async fn get_address(&self) -> anyhow::Result<bitcoin::Address> {
         self.wallet
             .lock()
             .await
@@ -211,7 +208,7 @@ impl LexeWallet {
     /// [`FundingGenerationReady`]: lightning::events::Event::FundingGenerationReady
     pub(crate) async fn create_and_sign_funding_tx(
         &self,
-        output_script: Script,
+        output_script: bitcoin::ScriptBuf,
         channel_value_satoshis: u64,
         conf_prio: ConfirmationPriority,
     ) -> anyhow::Result<Transaction> {
@@ -233,24 +230,29 @@ impl LexeWallet {
         Ok(psbt.extract_tx())
     }
 
-    /// Create and sign a transaction which sends an [`Amount`] to the given
-    /// [`Address`], packaging up all of this info in a new [`OnchainSend`].
+    /// Create and sign a transaction which sends the given amount to the given
+    /// address, packaging up all of this info in a new [`OnchainSend`].
     pub(crate) async fn create_onchain_send(
         &self,
         req: PayOnchainRequest,
+        network: LxNetwork,
     ) -> anyhow::Result<OnchainSend> {
         let (tx, fees) = {
             let locked_wallet = self.wallet.lock().await;
+
+            let address = req
+                .address
+                .clone()
+                .require_network(network.into())
+                .context("Invalid network")?;
 
             // Build unsigned tx
             let bdk_feerate =
                 self.esplora.conf_prio_to_bdk_feerate(req.priority);
             let mut tx_builder =
                 Self::default_tx_builder(&locked_wallet, bdk_feerate);
-            tx_builder.add_recipient(
-                req.address.script_pubkey(),
-                req.amount.sats_u64(),
-            );
+            tx_builder
+                .add_recipient(address.script_pubkey(), req.amount.sats_u64());
             let (mut psbt, tx_details) = tx_builder
                 .finish()
                 .context("Failed to build onchain send tx")?;
@@ -281,6 +283,7 @@ impl LexeWallet {
     pub(crate) async fn preflight_pay_onchain(
         &self,
         req: PreflightPayOnchainRequest,
+        network: LxNetwork,
     ) -> anyhow::Result<PreflightPayOnchainResponse> {
         let high_prio = ConfirmationPriority::High;
         let normal_prio = ConfirmationPriority::Normal;
@@ -294,15 +297,16 @@ impl LexeWallet {
         let locked_wallet = self.wallet.lock().await;
 
         // We _require_ a tx to at least be able to use normal fee rate.
+        let address = req.address.require_network(network.into())?;
         let normal_fee = Self::preflight_pay_onchain_inner(
             &locked_wallet,
-            &req.address,
+            &address,
             req.amount,
             normal_feerate,
         )?;
         let background_fee = Self::preflight_pay_onchain_inner(
             &locked_wallet,
-            &req.address,
+            &address,
             req.amount,
             background_feerate,
         )?;
@@ -310,7 +314,7 @@ impl LexeWallet {
         // The high fee rate tx is allowed to fail with insufficient balance.
         let high_fee = Self::preflight_pay_onchain_inner(
             &locked_wallet,
-            &req.address,
+            &address,
             req.amount,
             high_feerate,
         )
