@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.1.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1166993156;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2138794803;
 
 // Section: executor
 
@@ -435,59 +435,59 @@ let api_req = <crate::ffi::api::UpdatePaymentNote>::sse_decode(&mut deserializer
                     })().await)
                 } })
 }
-fn wire__crate__ffi__ffi__debug_delete_latest_provisioned_impl(
+fn wire__crate__ffi__debug__delete_latest_provisioned_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "debug_delete_latest_provisioned", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "delete_latest_provisioned", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_config = <crate::ffi::types::Config>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || {
-                     let output_ok = crate::ffi::ffi::debug_delete_latest_provisioned(api_config)?;   Ok(output_ok)
+                     let output_ok = crate::ffi::debug::delete_latest_provisioned(api_config)?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__ffi__debug_delete_secret_store_impl(
+fn wire__crate__ffi__debug__delete_secret_store_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "debug_delete_secret_store", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "delete_secret_store", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_config = <crate::ffi::types::Config>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || {
-                     let output_ok = crate::ffi::ffi::debug_delete_secret_store(api_config)?;   Ok(output_ok)
+                     let output_ok = crate::ffi::debug::delete_secret_store(api_config)?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__ffi__debug_unconditional_error_impl(
+fn wire__crate__ffi__debug__unconditional_error_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "debug_unconditional_error", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "unconditional_error", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             deserializer.end(); move |context|  {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move ||  {
-                         let output_ok = crate::ffi::ffi::debug_unconditional_error()?;   Ok(output_ok)
+                         let output_ok = crate::ffi::debug::unconditional_error()?;   Ok(output_ok)
                     })())
                 } })
 }
-fn wire__crate__ffi__ffi__debug_unconditional_panic_impl(
+fn wire__crate__ffi__debug__unconditional_panic_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "debug_unconditional_panic", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "unconditional_panic", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             deserializer.end(); move |context|  {
                     transform_result_sse::<_, ()>((move ||  {
-                         let output_ok = Result::<_,()>::Ok({ crate::ffi::ffi::debug_unconditional_panic(); })?;   Ok(output_ok)
+                         let output_ok = Result::<_,()>::Ok({ crate::ffi::debug::unconditional_panic(); })?;   Ok(output_ok)
                     })())
                 } })
 }
@@ -1541,13 +1541,13 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        29 => wire__crate__ffi__ffi__debug_unconditional_error_impl(
+        29 => wire__crate__ffi__debug__unconditional_error_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        30 => wire__crate__ffi__ffi__debug_unconditional_panic_impl(
+        30 => wire__crate__ffi__debug__unconditional_panic_impl(
             port,
             ptr,
             rust_vec_len,
@@ -1594,8 +1594,8 @@ fn pde_ffi_dispatcher_sync_impl(
 13 => wire__crate__ffi__app__app_handle_get_pending_not_junk_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
 14 => wire__crate__ffi__app__app_handle_get_pending_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
 15 => wire__crate__ffi__app__app_handle_get_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
-27 => wire__crate__ffi__ffi__debug_delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
-28 => wire__crate__ffi__ffi__debug_delete_secret_store_impl(ptr, rust_vec_len, data_len),
+27 => wire__crate__ffi__debug__delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
+28 => wire__crate__ffi__debug__delete_secret_store_impl(ptr, rust_vec_len, data_len),
 33 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
 35 => wire__crate__ffi__types__client_payment_id_gen_impl(ptr, rust_vec_len, data_len),
 36 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),

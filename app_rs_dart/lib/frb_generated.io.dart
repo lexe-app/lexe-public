@@ -13,6 +13,7 @@ import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'ffi/api.dart';
 import 'ffi/app.dart';
+import 'ffi/debug.dart';
 import 'ffi/ffi.dart';
 import 'ffi/form.dart';
 import 'ffi/settings.dart';
