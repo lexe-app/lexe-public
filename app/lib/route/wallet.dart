@@ -12,6 +12,7 @@ import 'package:app_rs_dart/ffi/api.dart' show FiatRate, FiatRates, NodeInfo;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
     show
+        ClientPaymentId,
         Config,
         DeployEnv,
         PaymentDirection,
@@ -19,7 +20,6 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentStatus,
         ShortPayment,
         ShortPaymentAndIndex;
-import 'package:app_rs_dart/ffi/types.ext.dart' show ClientPaymentIdExt;
 import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' show freezed;
 import 'package:intl/intl.dart' show NumberFormat;
@@ -472,7 +472,7 @@ class WalletPageState extends State<WalletPage> {
       app: this.widget.app,
       configNetwork: this.widget.config.network,
       balance: balance,
-      cid: ClientPaymentIdExt.generate(),
+      cid: ClientPaymentId.gen(),
     );
   }
 

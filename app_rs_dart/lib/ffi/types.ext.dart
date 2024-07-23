@@ -3,7 +3,6 @@ library;
 
 import 'package:app_rs_dart/ffi/types.dart'
     show
-        ClientPaymentId,
         Invoice,
         Payment,
         PaymentDirection,
@@ -14,8 +13,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentMethod_Offer,
         PaymentMethod_Onchain,
         PaymentStatus,
-        ShortPayment,
-        genClientPaymentId;
+        ShortPayment;
 
 //
 // PaymentIndex
@@ -90,14 +88,6 @@ extension PaymentExt on Payment {
       this.kind == PaymentKind.invoice &&
       this.direction == PaymentDirection.inbound &&
       (this.amountSat == null || this.note == null);
-}
-
-//
-// ClientPaymentId
-//
-
-extension ClientPaymentIdExt on ClientPaymentId {
-  static ClientPaymentId generate() => genClientPaymentId();
 }
 
 //

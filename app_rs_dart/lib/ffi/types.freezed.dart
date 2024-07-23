@@ -21,8 +21,8 @@ mixin _$ClientPaymentId {
 
 /// @nodoc
 
-class _$ClientPaymentIdImpl implements _ClientPaymentId {
-  const _$ClientPaymentIdImpl({required this.id});
+class _$ClientPaymentIdImpl extends _ClientPaymentId {
+  const _$ClientPaymentIdImpl({required this.id}) : super._();
 
   @override
   final U8Array32 id;
@@ -45,9 +45,10 @@ class _$ClientPaymentIdImpl implements _ClientPaymentId {
       Object.hash(runtimeType, const DeepCollectionEquality().hash(id));
 }
 
-abstract class _ClientPaymentId implements ClientPaymentId {
+abstract class _ClientPaymentId extends ClientPaymentId {
   const factory _ClientPaymentId({required final U8Array32 id}) =
       _$ClientPaymentIdImpl;
+  const _ClientPaymentId._() : super._();
 
   @override
   U8Array32 get id;
