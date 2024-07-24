@@ -9,7 +9,7 @@ use serde::Serialize;
 use serde_with::DeserializeFromStr;
 use strum::VariantArray;
 
-use crate::{cli::Network, Apply};
+use crate::{ln::network::LxNetwork, Apply};
 
 /// Represents a validated `DEPLOY_ENVIRONMENT` configuration.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -55,19 +55,19 @@ impl DeployEnv {
         }
     }
 
-    /// Validate the [`Network`] parameter for this deploy environment.
-    pub fn validate_network(&self, network: Network) -> anyhow::Result<()> {
+    /// Validate the [`LxNetwork`] parameter for this deploy environment.
+    pub fn validate_network(&self, network: LxNetwork) -> anyhow::Result<()> {
         match self {
             Self::Dev => ensure!(
-                matches!(network, Network::REGTEST | Network::TESTNET),
+                matches!(network, LxNetwork::Regtest | LxNetwork::Testnet),
                 "Dev environment can only be regtest or testnet!"
             ),
             Self::Staging => ensure!(
-                matches!(network, Network::TESTNET),
+                matches!(network, LxNetwork::Testnet),
                 "Staging environment can only be testnet!"
             ),
             Self::Prod => ensure!(
-                matches!(network, Network::MAINNET),
+                matches!(network, LxNetwork::Mainnet),
                 "Prod environment can only be mainnet!"
             ),
         }
@@ -82,20 +82,20 @@ impl DeployEnv {
         Ok(())
     }
 
-    /// A strategy for *valid* combinations of [`DeployEnv`] and [`Network`].
+    /// A strategy for *valid* combinations of [`DeployEnv`] and [`LxNetwork`].
     #[cfg(any(test, feature = "test-utils"))]
     pub fn any_valid_network_combo(
-    ) -> impl Strategy<Value = (DeployEnv, Network)> {
+    ) -> impl Strategy<Value = (DeployEnv, LxNetwork)> {
         use proptest::strategy::Just;
         // We *could* extract an associated const [(DeployEnv, Network); N]
         // enumerating all *valid* combos, then iterate over all *possible*
         // combos to test that `validate_network` is correct, but this
         // boilerplate adds very little value.
         proptest::prop_oneof![
-            Just((Self::Dev, Network::REGTEST)),
-            Just((Self::Dev, Network::TESTNET)),
-            Just((Self::Staging, Network::TESTNET)),
-            Just((Self::Prod, Network::MAINNET)),
+            Just((Self::Dev, LxNetwork::Regtest)),
+            Just((Self::Dev, LxNetwork::Testnet)),
+            Just((Self::Staging, LxNetwork::Testnet)),
+            Just((Self::Prod, LxNetwork::Mainnet)),
         ]
     }
 }

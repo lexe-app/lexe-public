@@ -17,10 +17,10 @@ use common::{
         provision::NodeProvisionRequest,
         NodePk, NodePkProof, UserPk,
     },
-    cli::Network,
     client::{GatewayClient, NodeClient},
     constants,
     env::DeployEnv,
+    ln::network::LxNetwork,
     rng::Crng,
     root_seed::RootSeed,
     Apply, Secret,
@@ -397,7 +397,7 @@ impl App {
 /// Pure-Rust configuration for a particular user app.
 pub struct AppConfig {
     pub deploy_env: DeployEnv,
-    pub network: common::cli::Network,
+    pub network: common::ln::network::LxNetwork,
     pub gateway_url: String,
     pub use_sgx: bool,
     pub app_data_dir: PathBuf,
@@ -420,7 +420,7 @@ impl AppConfig {
     #[cfg(feature = "flutter")]
     pub(crate) fn from_dart_config(
         deploy_env: DeployEnv,
-        network: Network,
+        network: LxNetwork,
         gateway_url: String,
         use_sgx: bool,
         base_app_data_dir: String,
@@ -444,10 +444,10 @@ impl AppConfig {
         {
             use DeployEnv::*;
             match (deploy_env, network, use_sgx, use_mock_secret_store) {
-                (Prod, Network::MAINNET, true, false) => (),
-                (Staging, Network::TESTNET, true, false) => (),
-                (Dev, Network::TESTNET, _, _)
-                | (Dev, Network::REGTEST, _, _) => (),
+                (Prod, LxNetwork::Mainnet, true, false) => (),
+                (Staging, LxNetwork::Testnet, true, false) => (),
+                (Dev, LxNetwork::Testnet, _, _)
+                | (Dev, LxNetwork::Regtest, _, _) => (),
                 _ => panic!("Unsupported app config combination: {build}"),
             }
         }
@@ -468,7 +468,7 @@ impl AppConfig {
 /// e.g. testnet vs regtest.
 #[derive(Copy, Clone)]
 pub struct BuildFlavor {
-    network: Network,
+    network: LxNetwork,
     deploy_env: DeployEnv,
     use_sgx: bool,
 }

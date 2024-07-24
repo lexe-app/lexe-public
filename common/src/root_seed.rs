@@ -411,7 +411,7 @@ mod test {
     };
 
     use super::*;
-    use crate::rng::WeakRng;
+    use crate::{ln::network::LxNetwork, rng::WeakRng};
 
     // simple implementations of some crypto functions for equivalence testing
 
@@ -584,21 +584,21 @@ mod test {
         });
     }
 
-    /// A series of tests that demonstrate when the [`Network`] affects the
+    /// A series of tests that demonstrate when the [`LxNetwork`] affects the
     /// partial equality of key material at various stages of derivation. This
     /// helps ensure that the APIs of our derivation methods are correct;
-    /// [`Network`] should be required when it is needed and set to a default
+    /// [`LxNetwork`] should be required when it is needed and set to a default
     /// when it is not.
     #[test]
     fn when_does_network_matter() {
         proptest!(|(
             mut rng in any::<WeakRng>(),
             root_seed in any::<RootSeed>(),
-            network1 in any::<crate::cli::Network>(),
-            network2 in any::<crate::cli::Network>(),
+            network1 in any::<LxNetwork>(),
+            network2 in any::<LxNetwork>(),
         )| {
-            let network1 = network1.to_inner();
-            let network2 = network2.to_inner();
+            let network1 = network1.to_bitcoin();
+            let network2 = network2.to_bitcoin();
             let secp_ctx = rng.gen_secp256k1_ctx();
 
             // Network DOES matter for master xprvs (and all xprvs in general).

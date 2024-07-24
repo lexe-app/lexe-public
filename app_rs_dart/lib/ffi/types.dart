@@ -73,7 +73,7 @@ class Invoice with _$Invoice {
   }) = _Invoice;
 }
 
-/// See [`common::cli::Network`]
+/// See [`common::ln::network::LxNetwork`]
 enum Network {
   mainnet,
   testnet,

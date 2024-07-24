@@ -10,12 +10,11 @@ use serde::{Deserialize, Serialize};
 use crate::test_utils::arbitrary;
 use crate::{
     api::UserPk,
-    array,
-    cli::Network,
-    ed25519,
+    array, ed25519,
     enclave::{self, MachineId, Measurement, Sealed},
     env::DeployEnv,
     hexstr_or_bytes, hexstr_or_bytes_opt,
+    ln::network::LxNetwork,
     rng::Crng,
     root_seed::RootSeed,
 };
@@ -29,8 +28,8 @@ pub struct NodeProvisionRequest {
     pub root_seed: RootSeed,
     /// The [`DeployEnv`] that this [`RootSeed`] should be bound to.
     pub deploy_env: DeployEnv,
-    /// The [`Network`] that this [`RootSeed`] should be bound to.
-    pub network: Network,
+    /// The [`LxNetwork`] that this [`RootSeed`] should be bound to.
+    pub network: LxNetwork,
     /// The auth `code` which can used to obtain a set of GDrive credentials.
     /// - Applicable only in staging/prod.
     /// - If provided, the provisioning node will acquire the full set of
@@ -101,9 +100,9 @@ pub struct SealedSeedId {
 /// untrusted and not-yet-validated.
 /// - To validate and convert a [`SealedSeed`] into a [`RootSeed`], use
 ///   [`unseal_and_validate`]. The returned [`RootSeed`] is bound to the
-///   returned [`DeployEnv`] and [`Network`], which can then be used to validate
-///   e.g. the [`Network`] supplied by the Lexe operators via CLI args.
-/// - To encrypt an existing [`RootSeed`] (and [`DeployEnv`] and [`Network`])
+///   returned [`DeployEnv`] and [`LxNetwork`], which can be used to validate
+///   e.g. the [`LxNetwork`] supplied by the Lexe operators via CLI args.
+/// - To encrypt an existing [`RootSeed`] (and [`DeployEnv`] and [`LxNetwork`])
 ///   into a [`SealedSeed`], use [`seal_from_root_seed`].
 ///
 /// See [`crate::enclave::seal`] for more implementation details.
@@ -120,10 +119,10 @@ pub struct SealedSeed {
 }
 
 /// The data that is actually sealed. This struct is serialized to JSON bytes
-/// before it is encrypted. By sealing the [`Network`] along with the
-/// [`RootSeed`], the root seed is bound to this [`Network`]. This allows us to
-/// validate the [`Network`] that Lexe passes in via CLI args, preventing any
-/// attacks that might be triggered by supplying the wrong network.
+/// before it is encrypted. By sealing the [`LxNetwork`] along with the
+/// [`RootSeed`], the root seed is bound to this [`LxNetwork`]. This allows us
+/// to validate the [`LxNetwork`] that Lexe passes in via CLI args, preventing
+/// any attacks that might be triggered by supplying the wrong network.
 #[derive(Serialize, Deserialize)]
 // Not safe to allow non-constant time comparisons outside of tests
 #[cfg_attr(test, derive(PartialEq))]
@@ -131,7 +130,7 @@ struct RootSeedWithMetadata<'a> {
     #[serde(with = "hexstr_or_bytes")]
     root_seed: Cow<'a, [u8]>,
     deploy_env: DeployEnv,
-    network: Network,
+    network: LxNetwork,
 }
 
 impl SealedSeed {
@@ -157,7 +156,7 @@ impl SealedSeed {
         rng: &mut R,
         root_seed: &RootSeed,
         deploy_env: DeployEnv,
-        network: Network,
+        network: LxNetwork,
         measurement: Measurement,
         machine_id: MachineId,
     ) -> anyhow::Result<Self> {
@@ -190,7 +189,7 @@ impl SealedSeed {
         self,
         expected_measurement: &Measurement,
         expected_machine_id: &MachineId,
-    ) -> anyhow::Result<(RootSeed, DeployEnv, Network)> {
+    ) -> anyhow::Result<(RootSeed, DeployEnv, LxNetwork)> {
         // Validate SGX fields
         ensure!(
             &self.id.measurement == expected_measurement,
@@ -277,7 +276,7 @@ mod test_impls {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<Vec<u8>>(), any::<DeployEnv>(), any::<Network>())
+            (any::<Vec<u8>>(), any::<DeployEnv>(), any::<LxNetwork>())
                 .prop_map(|(root_seed_vec, deploy_env, network)| {
                     RootSeedWithMetadata {
                         root_seed: Cow::from(root_seed_vec),
@@ -303,7 +302,7 @@ mod test {
         let req = NodeProvisionRequest {
             root_seed: RootSeed::from_rng(&mut rng),
             deploy_env: DeployEnv::Dev,
-            network: Network::REGTEST,
+            network: LxNetwork::Regtest,
             google_auth_code: Some("auth_code".to_owned()),
             allow_gvfs_access: false,
             encrypted_seed: None,

@@ -19,12 +19,12 @@ use common::{
         Scid, User,
     },
     backoff,
-    cli::Network,
     constants::{
         IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
     },
     ln::{
         channel::LxOutPoint,
+        network::LxNetwork,
         payments::{BasicPayment, DbPayment, LxPaymentId, PaymentIndex},
         peer::ChannelPeer,
     },
@@ -210,7 +210,7 @@ pub(crate) async fn read_gvfs_root(
 #[inline]
 pub(crate) async fn password_encrypted_root_seed_exists(
     google_vfs: &GoogleVfs,
-    network: Network,
+    network: LxNetwork,
 ) -> bool {
     // This fn barely does anything, but we want it close to the impl of
     // `persist_password_encrypted_root_seed` for ez inspection
@@ -227,7 +227,7 @@ pub(crate) async fn password_encrypted_root_seed_exists(
 /// [`RootSeed`]: common::root_seed::RootSeed
 pub(crate) async fn persist_password_encrypted_root_seed(
     google_vfs: &GoogleVfs,
-    network: Network,
+    network: LxNetwork,
     encrypted_seed: Vec<u8>,
 ) -> anyhow::Result<()> {
     // We include network in the filename as a safeguard against mixing seeds up
@@ -642,7 +642,7 @@ impl NodePersister {
 
     pub(crate) async fn read_network_graph(
         &self,
-        network: Network,
+        network: LxNetwork,
         logger: LexeTracingLogger,
     ) -> anyhow::Result<NetworkGraphType> {
         debug!("Reading network graph");
@@ -673,7 +673,7 @@ impl NodePersister {
                     .map_err(|e| anyhow!("{e:?}"))
                     .context("Failed to deserialize NetworkGraph")?
             }
-            None => NetworkGraph::new(network.0, logger),
+            None => NetworkGraph::new(network.to_bitcoin(), logger),
         };
 
         Ok(network_graph)

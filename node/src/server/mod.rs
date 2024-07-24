@@ -14,8 +14,9 @@ use axum::{
 };
 use common::{
     api::{Scid, UserPk},
-    cli::{LspInfo, Network},
+    cli::LspInfo,
     enclave::Measurement,
+    ln::network::LxNetwork,
     shutdown::ShutdownChannel,
 };
 use lexe_ln::{
@@ -51,7 +52,7 @@ pub(crate) struct AppRouterState {
     pub payments_manager: NodePaymentsManagerType,
     pub lsp_info: LspInfo,
     pub scid: Scid,
-    pub network: Network,
+    pub network: LxNetwork,
     pub measurement: Measurement,
     pub activity_tx: mpsc::Sender<()>,
 }

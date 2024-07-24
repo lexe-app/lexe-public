@@ -23,7 +23,7 @@
 //! See also the doc comments for `LEXE_DIR_NAME`.
 
 use anyhow::Context;
-use common::cli::Network;
+use common::ln::network::LxNetwork;
 use tracing::{debug, warn};
 
 use crate::{
@@ -164,7 +164,7 @@ async fn create_lexe_dir(client: &GDriveClient) -> anyhow::Result<GFile> {
 pub(crate) async fn get_or_create_gvfs_root(
     client: &GDriveClient,
     lexe_dir: &GFileId,
-    network: Network,
+    network: LxNetwork,
 ) -> anyhow::Result<GvfsRoot> {
     let network_str = network.to_string();
     let maybe_gvfs_root_gid = get_gvfs_root_gid(client, lexe_dir, &network_str)
@@ -224,7 +224,7 @@ mod test {
         let lexe_dir = get_or_create_lexe_dir(&client).await.unwrap();
         let lexe_dir_name = &lexe_dir.name;
         println!("Lexe dir: {lexe_dir_name}");
-        let network = Network::REGTEST;
+        let network = LxNetwork::Regtest;
         let lexe_dir_id = lexe_dir.id;
         let gvfs_root_gid =
             get_or_create_gvfs_root(&client, &lexe_dir_id, network)

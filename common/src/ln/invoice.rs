@@ -9,9 +9,9 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
     api::NodePk,
-    cli::Network,
     ln::{
         amount::Amount,
+        network::LxNetwork,
         payments::{LxPaymentHash, LxPaymentId, LxPaymentSecret},
     },
     time::{self, TimestampMs},
@@ -46,13 +46,13 @@ impl LxInvoice {
     }
 
     #[inline]
-    pub fn network(&self) -> Network {
-        Network(self.0.network())
+    pub fn network(&self) -> bitcoin::Network {
+        self.0.network()
     }
 
     #[inline]
-    pub fn supports_network(&self, network: Network) -> bool {
-        self.network() == network
+    pub fn supports_network(&self, network: LxNetwork) -> bool {
+        self.network() == network.to_bitcoin()
     }
 
     /// If the invoice contains a non-empty, inline description, then return
@@ -189,7 +189,7 @@ mod arbitrary_impl {
             let node_key_pair = any::<WeakRng>().prop_map(|mut rng| {
                 RootSeed::from_rng(&mut rng).derive_node_key_pair(&mut rng)
             });
-            let network = any::<Network>();
+            let network = any::<LxNetwork>();
             let description_or_hash =
                 result::maybe_ok(arbitrary::any_string(), bytes32);
             let timestamp = (0..MAX_TIMESTAMP).prop_map(Duration::from_secs);
@@ -264,7 +264,7 @@ mod arbitrary_impl {
     /// get in the way when generating via proptest. Only used during testing.
     pub(super) fn gen_invoice(
         node_key_pair: secp256k1::KeyPair,
-        network: Network,
+        network: LxNetwork,
         description_or_hash: Result<String, [u8; 32]>,
         timestamp: Duration,
         payment_secret: [u8; 32],
@@ -385,7 +385,7 @@ mod test {
         let node_key_pair = RootSeed::from_u64(12345)
             .derive_node_key_pair(&mut WeakRng::from_u64(123));
 
-        let network = Network::REGTEST;
+        let network = LxNetwork::Regtest;
         let amount =
             Some(Amount::from_msat(Amount::INVOICE_MAX_AMOUNT_MSATS_U64));
         let created_at = Duration::from_millis(1700222815000);
@@ -399,7 +399,7 @@ mod test {
         let fallback = None;
         let route_hint = RouteHint(vec![]);
 
-        dbg!(network.0);
+        dbg!(network);
         dbg!(amount);
         dbg!(created_at.as_millis());
         dbg!(expires_at.map(|x| x.as_millis()));

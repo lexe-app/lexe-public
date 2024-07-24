@@ -2,10 +2,10 @@ use std::str::FromStr;
 
 use anyhow::anyhow;
 use common::{
-    cli::Network as NetworkRs,
     env::DeployEnv as DeployEnvRs,
     ln::{
         invoice::LxInvoice,
+        network::LxNetwork as NetworkRs,
         payments::{
             BasicPayment as BasicPaymentRs,
             ClientPaymentId as ClientPaymentIdRs,
@@ -57,7 +57,7 @@ impl From<DeployEnv> for DeployEnvRs {
     }
 }
 
-/// See [`common::cli::Network`]
+/// See [`common::ln::network::LxNetwork`]
 #[derive(Copy, Clone, Debug)]
 pub enum Network {
     Mainnet,
@@ -75,9 +75,9 @@ impl Network {
 impl From<Network> for NetworkRs {
     fn from(network: Network) -> Self {
         match network {
-            Network::Mainnet => NetworkRs::MAINNET,
-            Network::Testnet => NetworkRs::TESTNET,
-            Network::Regtest => NetworkRs::REGTEST,
+            Network::Mainnet => NetworkRs::Mainnet,
+            Network::Testnet => NetworkRs::Testnet,
+            Network::Regtest => NetworkRs::Regtest,
         }
     }
 }
@@ -87,9 +87,9 @@ impl TryFrom<NetworkRs> for Network {
 
     fn try_from(network: NetworkRs) -> anyhow::Result<Self> {
         match network {
-            NetworkRs::MAINNET => Ok(Self::Mainnet),
-            NetworkRs::TESTNET => Ok(Self::Testnet),
-            NetworkRs::REGTEST => Ok(Self::Regtest),
+            NetworkRs::Mainnet => Ok(Self::Mainnet),
+            NetworkRs::Testnet => Ok(Self::Testnet),
+            NetworkRs::Regtest => Ok(Self::Regtest),
             _ => Err(anyhow!("unsupported NETWORK: '{network}'")),
         }
     }
