@@ -14,9 +14,12 @@ use common::{
         },
         Empty, NodePk, Scid,
     },
-    cli::{LspInfo, Network},
+    cli::LspInfo,
     enclave::Measurement,
-    ln::{amount::Amount, channel::LxChannelDetails, invoice::LxInvoice},
+    ln::{
+        amount::Amount, channel::LxChannelDetails, invoice::LxInvoice,
+        network::LxNetwork,
+    },
 };
 use lightning::{
     ln::{
@@ -167,7 +170,7 @@ pub async fn create_invoice<CM, PS>(
     keys_manager: Arc<LexeKeysManager>,
     payments_manager: PaymentsManager<CM, PS>,
     caller: CreateInvoiceCaller,
-    network: Network,
+    network: LxNetwork,
 ) -> anyhow::Result<CreateInvoiceResponse>
 where
     CM: LexeChannelManager<PS>,

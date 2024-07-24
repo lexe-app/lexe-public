@@ -11,12 +11,12 @@ use common::{
         auth::BearerAuthenticator, def::NodeRunnerApi, ports::Ports,
         provision::SealedSeedId, server::LayerConfig, User, UserPk,
     },
-    cli::{node::RunArgs, LspInfo, Network},
+    cli::{node::RunArgs, LspInfo},
     constants::{self, DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
     ed25519,
     enclave::{self, MachineId, Measurement, MinCpusvn},
     env::DeployEnv,
-    ln::channel::LxOutPoint,
+    ln::{channel::LxOutPoint, network::LxNetwork},
     net, notify,
     rng::{Crng, SysRng},
     root_seed::RootSeed,
@@ -815,7 +815,7 @@ async fn fetch_provisioned_secrets(
     user_pk: UserPk,
     measurement: Measurement,
     machine_id: MachineId,
-) -> anyhow::Result<(User, RootSeed, DeployEnv, Network, ed25519::KeyPair)> {
+) -> anyhow::Result<(User, RootSeed, DeployEnv, LxNetwork, ed25519::KeyPair)> {
     debug!(%user_pk, %measurement, %machine_id, "fetching provisioned secrets");
 
     let sealed_seed_id = SealedSeedId {
@@ -874,7 +874,7 @@ async fn init_google_vfs(
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
     authenticator: Arc<BearerAuthenticator>,
     vfs_master_key: Arc<AesMasterKey>,
-    network: Network,
+    network: LxNetwork,
     mut shutdown: ShutdownChannel,
 ) -> anyhow::Result<(GoogleVfs, LxTask<()>)> {
     // Fetch the encrypted GDriveCredentials and persisted GVFS root.

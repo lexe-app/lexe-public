@@ -16,9 +16,8 @@
 use std::{borrow::Cow, fmt, str::FromStr};
 
 use anyhow::ensure;
-use common::{
-    cli::Network,
-    ln::{amount::Amount, invoice::LxInvoice, offer::LxOffer},
+use common::ln::{
+    amount::Amount, invoice::LxInvoice, network::LxNetwork, offer::LxOffer,
 };
 #[cfg(test)]
 use common::{ln::amount, test_utils::arbitrary};
@@ -169,7 +168,7 @@ impl PaymentUri {
     // we'll need to fetch invoices from any LNURL endpoints we come across.
     pub fn resolve_best(
         self,
-        network: Network,
+        network: LxNetwork,
     ) -> anyhow::Result<PaymentMethod> {
         // A single scanned/opened PaymentUri can contain multiple different
         // payment methods (e.g., a LN BOLT11 invoice + an onchain fallback
@@ -269,7 +268,7 @@ impl PaymentMethod {
         matches!(self, Self::Offer(_))
     }
 
-    pub fn supports_network(&self, network: Network) -> bool {
+    pub fn supports_network(&self, network: LxNetwork) -> bool {
         match self {
             Self::Onchain(x) => x.supports_network(network),
             Self::Invoice(x) => x.supports_network(network),
@@ -301,8 +300,8 @@ pub struct Onchain {
 
 impl Onchain {
     #[inline]
-    pub fn supports_network(&self, network: Network) -> bool {
-        self.address.is_valid_for_network(network.to_inner())
+    pub fn supports_network(&self, network: LxNetwork) -> bool {
+        self.address.is_valid_for_network(network.to_bitcoin())
     }
 }
 
@@ -759,8 +758,8 @@ impl<'a> UriParam<'a> {
 #[cfg(test)]
 mod test {
     use common::{
-        cli::Network, rng::WeakRng, test_utils::arbitrary::any_mainnet_address,
-        time::TimestampMs,
+        ln::network::LxNetwork, rng::WeakRng,
+        test_utils::arbitrary::any_mainnet_address, time::TimestampMs,
     };
     use proptest::{arbitrary::any, prop_assert_eq, proptest, sample::Index};
 
@@ -998,7 +997,7 @@ mod test {
         assert_eq!(lightning_uri.offer, None);
         assert_eq!(invoice.amount(), None);
         assert_eq!(invoice.description_str(), None);
-        assert_eq!(invoice.network(), Network::MAINNET);
+        assert_eq!(invoice.network(), LxNetwork::Mainnet.to_bitcoin());
         assert_eq!(
             invoice.created_at().unwrap(),
             TimestampMs::try_from(9412556961000_i64).unwrap(),
@@ -1016,7 +1015,7 @@ mod test {
         assert_eq!(lightning_uri.offer, None);
         assert_eq!(invoice.amount(), None);
         assert_eq!(invoice.description_str().map(|s| s.len()), Some(444));
-        assert_eq!(invoice.network(), Network::MAINNET);
+        assert_eq!(invoice.network(), LxNetwork::Mainnet.to_bitcoin());
         assert_eq!(
             invoice.created_at().unwrap(),
             TimestampMs::try_from(17626927082000_i64).unwrap(),
@@ -1035,7 +1034,7 @@ mod test {
         let lightning_uri = LightningUri::parse(uri_str).unwrap();
         let offer = &lightning_uri.offer.unwrap();
         assert_eq!(lightning_uri.invoice, None);
-        assert!(offer.supports_network(Network::MAINNET));
+        assert!(offer.supports_network(LxNetwork::Mainnet));
         assert_eq!(offer.description(), None);
         assert_eq!(offer.amount(), None);
         assert_eq!(offer.fiat_amount(), None);
@@ -1049,7 +1048,7 @@ mod test {
         let lightning_uri = LightningUri::parse(uri_str).unwrap();
         let offer = &lightning_uri.offer.unwrap();
         assert_eq!(lightning_uri.invoice, None);
-        assert!(offer.supports_network(Network::MAINNET));
+        assert!(offer.supports_network(LxNetwork::Mainnet));
         assert_eq!(offer.description().map(|x| x.len()), Some(401));
         assert_eq!(offer.amount(), None);
         assert_eq!(offer.fiat_amount(), None);

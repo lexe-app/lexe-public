@@ -19,11 +19,13 @@ use common::{
         FeeEstimate, PayOnchainRequest, PreflightPayOnchainRequest,
         PreflightPayOnchainResponse,
     },
-    cli::Network,
     constants::{
         IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
     },
-    ln::{amount::Amount, balance::Balance, priority::ConfirmationPriority},
+    ln::{
+        amount::Amount, balance::Balance, network::LxNetwork,
+        priority::ConfirmationPriority,
+    },
     root_seed::RootSeed,
     shutdown::ShutdownChannel,
     task::LxTask,
@@ -80,11 +82,11 @@ impl LexeWallet {
     /// [BIP 44]: https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
     pub fn new(
         root_seed: &RootSeed,
-        network: Network,
+        network: LxNetwork,
         esplora: Arc<LexeEsplora>,
         wallet_db: WalletDb,
     ) -> anyhow::Result<Self> {
-        let network = network.to_inner();
+        let network = network.to_bitcoin();
         let master_xprv = root_seed.derive_bip32_master_xprv(network);
 
         // Descriptor for external (receive) addresses: `m/84h/{0,1}h/0h/0/*`

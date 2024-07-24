@@ -12,8 +12,9 @@ use serde::{Deserialize, Serialize};
 use crate::test_utils::arbitrary;
 use crate::{
     api::UserPk,
-    cli::{LspInfo, Network, OAuthConfig, ToCommand},
+    cli::{LspInfo, OAuthConfig, ToCommand},
     env::DeployEnv,
+    ln::network::LxNetwork,
 };
 
 /// Run a user node
@@ -24,7 +25,7 @@ pub struct RunArgs {
     pub user_pk: UserPk,
 
     /// bitcoin, testnet, regtest, or signet.
-    pub network: Network,
+    pub network: LxNetwork,
 
     /// whether the node should shut down after completing sync and other
     /// maintenance tasks. This only applies if no activity was detected prior
@@ -119,7 +120,7 @@ pub struct ProvisionArgs {
 
     /// The current deploy network passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.
-    pub untrusted_network: Network,
+    pub untrusted_network: LxNetwork,
 }
 
 impl ToCommand for ProvisionArgs {

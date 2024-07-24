@@ -10,8 +10,9 @@ use std::{collections::BTreeMap, str::FromStr};
 use anyhow::{anyhow, bail, ensure, Context};
 use common::{
     api::vfs::{VfsDirectory, VfsFile, VfsFileId},
-    cli::Network,
-    constants, Apply,
+    constants,
+    ln::network::LxNetwork,
+    Apply,
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::watch;
@@ -30,8 +31,8 @@ pub const NOT_FOUND_MSG: &str = "not found";
 /// persist this and resupply it the next time [`GoogleVfs`] is initialized.
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct GvfsRoot {
-    /// The [`Network`] that this GVFS is for.
-    pub(crate) network: Network,
+    /// The [`LxNetwork`] that this GVFS is for.
+    pub(crate) network: LxNetwork,
     /// The [`GFileId`] corresponding to the GVFS root dir in Google Drive.
     pub(crate) gid: GFileId,
 }
@@ -117,7 +118,7 @@ impl GoogleVfs {
     #[instrument(skip_all, name = "(gvfs-init)")]
     pub async fn init(
         credentials: GDriveCredentials,
-        network: Network,
+        network: LxNetwork,
         maybe_given_gvfs_root: Option<GvfsRoot>,
     ) -> anyhow::Result<(
         Self,
@@ -134,7 +135,7 @@ impl GoogleVfs {
     /// Extracting this helper saves some extra API calls in tests.
     async fn init_from_client(
         client: GDriveClient,
-        network: Network,
+        network: LxNetwork,
         maybe_given_gvfs_root: Option<GvfsRoot>,
     ) -> anyhow::Result<(Self, Option<GvfsRoot>)> {
         let using_given_root = maybe_given_gvfs_root.is_some();
@@ -458,7 +459,7 @@ mod test {
             None => return,
         };
 
-        let network_str = Network::REGTEST.to_string();
+        let network_str = LxNetwork::Regtest.to_string();
         let maybe_gvfs_root =
             lexe_dir::get_gvfs_root_gid(client, &lexe_dir.id, &network_str)
                 .await
@@ -492,7 +493,7 @@ mod test {
 
         delete_regtest_vfs_root(&client).await;
 
-        let network = Network::REGTEST;
+        let network = LxNetwork::Regtest;
         let gvfs_root = None;
         let (gvfs, created_root) =
             GoogleVfs::init_from_client(client, network, gvfs_root)
@@ -568,7 +569,7 @@ mod test {
 
         delete_regtest_vfs_root(&client).await;
 
-        let network = Network::REGTEST;
+        let network = LxNetwork::Regtest;
 
         // Some random gid I created during testing
         let deleted_gid =
@@ -625,7 +626,7 @@ mod test {
 
         delete_regtest_vfs_root(&client).await;
 
-        let network = Network::REGTEST;
+        let network = LxNetwork::Regtest;
 
         let bogus_gid = GFileId("t0tAlLy!!wrong-/\\[]} format 11 ".to_owned());
         let bogus_root = GvfsRoot {

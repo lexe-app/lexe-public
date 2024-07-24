@@ -6,7 +6,10 @@ use lightning::offers::{
 };
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-use crate::{api::NodePk, cli::Network, ln::amount::Amount};
+use crate::{
+    api::NodePk,
+    ln::{amount::Amount, network::LxNetwork},
+};
 
 /// A Lightning BOLT12 offer.
 ///
@@ -107,9 +110,9 @@ impl LxOffer {
         self.0.as_ref()
     }
 
-    /// Return `true` if this offer is payable on the given [`Network`], e.g.,
-    /// mainnet, testnet, etc...
-    pub fn supports_network(&self, network: Network) -> bool {
+    /// Return `true` if this offer is payable on the given [`LxNetwork`],
+    /// e.g., mainnet, testnet, etc...
+    pub fn supports_network(&self, network: LxNetwork) -> bool {
         self.0.supports_chain(network.genesis_chain_hash())
     }
 
@@ -223,7 +226,7 @@ mod arb {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             let rng = any::<WeakRng>();
-            let network = any::<Option<Network>>();
+            let network = any::<Option<LxNetwork>>();
             let is_blinded = any::<bool>();
             let description = arbitrary::any_option_string();
             let amount = any::<Option<Amount>>();
@@ -281,7 +284,7 @@ mod arb {
     /// get in the way when generating via proptest. Only used in testing.
     pub(super) fn gen_offer(
         mut rng: WeakRng,
-        network: Option<Network>,
+        network: Option<LxNetwork>,
         is_blinded: bool,
         description: Option<String>,
         amount: Option<Amount>,
@@ -297,7 +300,7 @@ mod arb {
         let expanded_key = ExpandedKey::new(&expanded_key_material);
         let secp_ctx = rng.gen_secp256k1_ctx();
 
-        let network = network.map(Network::to_inner);
+        let network = network.map(LxNetwork::to_bitcoin);
         let amount = amount.map(|x| x.msat());
         let path = if path_len >= 2 {
             let mut node_pks = Vec::new();
@@ -395,13 +398,13 @@ mod test {
             o.payee_node_pk(),
             NodePk::from_str("024900c3a10f2daa08d178a6edb10fc3caa7b53d0ea00346bce38ba90d085caae8").unwrap(),
         );
-        assert!(o.supports_network(Network::MAINNET));
+        assert!(o.supports_network(LxNetwork::Mainnet));
         assert_eq!(o.amount(), None);
         assert_eq!(o.fiat_amount(), None);
         assert_eq!(o.description(), None);
 
         let o = LxOffer::from_str("lno1pg257enxv4ezqcneype82um50ynhxgrwdajx293pqglnyxw6q0hzngfdusg8umzuxe8kquuz7pjl90ldj8wadwgs0xlmc").unwrap();
-        assert!(o.supports_network(Network::MAINNET));
+        assert!(o.supports_network(LxNetwork::Mainnet));
         assert_eq!(o.amount(), None);
         assert_eq!(o.fiat_amount(), None);
         assert_eq!(o.description(), Some("Offer by rusty's node"));
