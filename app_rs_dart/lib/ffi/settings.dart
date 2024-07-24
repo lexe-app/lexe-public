@@ -10,18 +10,50 @@
 
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
-part 'settings.freezed.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `try_from`
 
-Future<Settings> save({required Settings settings}) =>
-    AppRs.instance.api.crateFfiSettingsSave(settings: settings);
+// Rust type: RustOpaqueNom<SettingsDbRs>
+abstract class SettingsDbRs implements RustOpaqueInterface {}
 
-@freezed
-class Settings with _$Settings {
-  const factory Settings({
-    String? locale,
-    String? fiatCurrency,
-  }) = _Settings;
+class Settings {
+  final String? locale;
+  final String? fiatCurrency;
+
+  const Settings({
+    this.locale,
+    this.fiatCurrency,
+  });
+
+  @override
+  int get hashCode => locale.hashCode ^ fiatCurrency.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Settings &&
+          runtimeType == other.runtimeType &&
+          locale == other.locale &&
+          fiatCurrency == other.fiatCurrency;
+}
+
+class SettingsDb {
+  final SettingsDbRs inner;
+
+  const SettingsDb({
+    required this.inner,
+  });
+
+  Future<void> update({required Settings update}) => AppRs.instance.api
+      .crateFfiSettingsSettingsDbUpdate(that: this, update: update);
+
+  @override
+  int get hashCode => inner.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SettingsDb &&
+          runtimeType == other.runtimeType &&
+          inner == other.inner;
 }

@@ -33,6 +33,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_AppPtr =>
       wire._rust_arc_decrement_strong_count_RustOpaque_AppPtr;
 
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_SettingsDbRsPtr =>
+          wire._rust_arc_decrement_strong_count_RustOpaque_SettingsDbRsPtr;
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
 
@@ -47,6 +51,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   App dco_decode_RustOpaque_App(dynamic raw);
+
+  @protected
+  SettingsDbRs dco_decode_RustOpaque_SettingsDbRs(dynamic raw);
 
   @protected
   RustStreamSink<String> dco_decode_StreamSink_String_Sse(dynamic raw);
@@ -104,6 +111,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Settings dco_decode_box_autoadd_settings(dynamic raw);
+
+  @protected
+  SettingsDb dco_decode_box_autoadd_settings_db(dynamic raw);
 
   @protected
   ShortPaymentAndIndex dco_decode_box_autoadd_short_payment_and_index(
@@ -244,6 +254,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Settings dco_decode_settings(dynamic raw);
 
   @protected
+  SettingsDb dco_decode_settings_db(dynamic raw);
+
+  @protected
   ShortPayment dco_decode_short_payment(dynamic raw);
 
   @protected
@@ -284,6 +297,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   App sse_decode_RustOpaque_App(SseDeserializer deserializer);
+
+  @protected
+  SettingsDbRs sse_decode_RustOpaque_SettingsDbRs(SseDeserializer deserializer);
 
   @protected
   RustStreamSink<String> sse_decode_StreamSink_String_Sse(
@@ -347,6 +363,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Settings sse_decode_box_autoadd_settings(SseDeserializer deserializer);
+
+  @protected
+  SettingsDb sse_decode_box_autoadd_settings_db(SseDeserializer deserializer);
 
   @protected
   ShortPaymentAndIndex sse_decode_box_autoadd_short_payment_and_index(
@@ -497,6 +516,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Settings sse_decode_settings(SseDeserializer deserializer);
 
   @protected
+  SettingsDb sse_decode_settings_db(SseDeserializer deserializer);
+
+  @protected
   ShortPayment sse_decode_short_payment(SseDeserializer deserializer);
 
   @protected
@@ -540,6 +562,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_RustOpaque_App(App self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_RustOpaque_SettingsDbRs(
+      SettingsDbRs self, SseSerializer serializer);
 
   @protected
   void sse_encode_StreamSink_String_Sse(
@@ -603,6 +629,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_box_autoadd_settings(Settings self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_settings_db(
+      SettingsDb self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_short_payment_and_index(
@@ -759,6 +789,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_settings(Settings self, SseSerializer serializer);
 
   @protected
+  void sse_encode_settings_db(SettingsDb self, SseSerializer serializer);
+
+  @protected
   void sse_encode_short_payment(ShortPayment self, SseSerializer serializer);
 
   @protected
@@ -830,5 +863,35 @@ class AppRsWire implements BaseWire {
           'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_App');
   late final _rust_arc_decrement_strong_count_RustOpaque_App =
       _rust_arc_decrement_strong_count_RustOpaque_AppPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void rust_arc_increment_strong_count_RustOpaque_SettingsDbRs(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_SettingsDbRs(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_SettingsDbRsPtr = _lookup<
+          ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+      'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_SettingsDbRs');
+  late final _rust_arc_increment_strong_count_RustOpaque_SettingsDbRs =
+      _rust_arc_increment_strong_count_RustOpaque_SettingsDbRsPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_SettingsDbRsPtr = _lookup<
+          ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+      'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs');
+  late final _rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs =
+      _rust_arc_decrement_strong_count_RustOpaque_SettingsDbRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 }

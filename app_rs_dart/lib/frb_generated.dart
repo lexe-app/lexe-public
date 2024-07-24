@@ -68,7 +68,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.1.0';
 
   @override
-  int get rustContentHash => -116466395;
+  int get rustContentHash => -1148744648;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -167,7 +167,8 @@ abstract class AppRsApi extends BaseApi {
   Future<PaymentMethod> crateFfiPaymentUriResolveBest(
       {required Network network, required String uriStr});
 
-  Future<Settings> crateFfiSettingsSave({required Settings settings});
+  Future<void> crateFfiSettingsSettingsDbUpdate(
+      {required SettingsDb that, required Settings update});
 
   ClientPaymentId crateFfiTypesClientPaymentIdGen();
 
@@ -180,6 +181,14 @@ abstract class AppRsApi extends BaseApi {
   RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_App;
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_AppPtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_SettingsDbRs;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_SettingsDbRs;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SettingsDbRsPtr;
 }
 
 class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
@@ -1052,27 +1061,30 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<Settings> crateFfiSettingsSave({required Settings settings}) {
+  Future<void> crateFfiSettingsSettingsDbUpdate(
+      {required SettingsDb that, required Settings update}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_settings(settings, serializer);
+        sse_encode_box_autoadd_settings_db(that, serializer);
+        sse_encode_box_autoadd_settings(update, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 34, port: port_);
       },
       codec: SseCodec(
-        decodeSuccessData: sse_decode_settings,
+        decodeSuccessData: sse_decode_unit,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiSettingsSaveConstMeta,
-      argValues: [settings],
+      constMeta: kCrateFfiSettingsSettingsDbUpdateConstMeta,
+      argValues: [that, update],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiSettingsSaveConstMeta => const TaskConstMeta(
-        debugName: "save",
-        argNames: ["settings"],
+  TaskConstMeta get kCrateFfiSettingsSettingsDbUpdateConstMeta =>
+      const TaskConstMeta(
+        debugName: "settings_db_update",
+        argNames: ["that", "update"],
       );
 
   @override
@@ -1152,6 +1164,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_App =>
       wire.rust_arc_decrement_strong_count_RustOpaque_App;
 
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_SettingsDbRs =>
+          wire.rust_arc_increment_strong_count_RustOpaque_SettingsDbRs;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_SettingsDbRs =>
+          wire.rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs;
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -1183,6 +1203,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   App dco_decode_RustOpaque_App(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return AppImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  SettingsDbRs dco_decode_RustOpaque_SettingsDbRs(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SettingsDbRsImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -1306,6 +1332,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Settings dco_decode_box_autoadd_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_settings(raw);
+  }
+
+  @protected
+  SettingsDb dco_decode_box_autoadd_settings_db(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_settings_db(raw);
   }
 
   @protected
@@ -1743,6 +1775,17 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  SettingsDb dco_decode_settings_db(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return SettingsDb(
+      inner: dco_decode_RustOpaque_SettingsDbRs(arr[0]),
+    );
+  }
+
+  @protected
   ShortPayment dco_decode_short_payment(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -1851,6 +1894,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   App sse_decode_RustOpaque_App(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return AppImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  SettingsDbRs sse_decode_RustOpaque_SettingsDbRs(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return SettingsDbRsImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -1978,6 +2029,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Settings sse_decode_box_autoadd_settings(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_settings(deserializer));
+  }
+
+  @protected
+  SettingsDb sse_decode_box_autoadd_settings_db(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_settings_db(deserializer));
   }
 
   @protected
@@ -2446,6 +2503,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  SettingsDb sse_decode_settings_db(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_inner = sse_decode_RustOpaque_SettingsDbRs(deserializer);
+    return SettingsDb(inner: var_inner);
+  }
+
+  @protected
   ShortPayment sse_decode_short_payment(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_index = sse_decode_payment_index(deserializer);
@@ -2549,6 +2613,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
         (self as AppImpl).frbInternalSseEncode(move: null), serializer);
+  }
+
+  @protected
+  void sse_encode_RustOpaque_SettingsDbRs(
+      SettingsDbRs self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as SettingsDbRsImpl).frbInternalSseEncode(move: null),
+        serializer);
   }
 
   @protected
@@ -2675,6 +2748,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       Settings self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_settings(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_settings_db(
+      SettingsDb self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_settings_db(self, serializer);
   }
 
   @protected
@@ -3062,6 +3142,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_settings_db(SettingsDb self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_RustOpaque_SettingsDbRs(self.inner, serializer);
+  }
+
+  @protected
   void sse_encode_short_payment(ShortPayment self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_payment_index(self.index, serializer);
@@ -3142,5 +3228,25 @@ class AppImpl extends RustOpaque implements App {
         AppRs.instance.api.rust_arc_decrement_strong_count_App,
     rustArcDecrementStrongCountPtr:
         AppRs.instance.api.rust_arc_decrement_strong_count_AppPtr,
+  );
+}
+
+@sealed
+class SettingsDbRsImpl extends RustOpaque implements SettingsDbRs {
+  // Not to be used by end users
+  SettingsDbRsImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  SettingsDbRsImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        AppRs.instance.api.rust_arc_increment_strong_count_SettingsDbRs,
+    rustArcDecrementStrongCount:
+        AppRs.instance.api.rust_arc_decrement_strong_count_SettingsDbRs,
+    rustArcDecrementStrongCountPtr:
+        AppRs.instance.api.rust_arc_decrement_strong_count_SettingsDbRsPtr,
   );
 }
