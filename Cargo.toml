@@ -88,7 +88,7 @@ hyper_old = { version = "=0.14.28", package = "hyper", default-features = false,
 # Property-based testing
 proptest = { version = "1", default-features = false }
 # Arbitrary derive macro
-proptest-derive = "0.4"
+proptest-derive = "0.5"
 # Traits and utilities for generating randomness
 rand = { version = "0.8", default-features = false }
 rand_core = { version = "0.6", default-features = false, features = ["alloc"] }
