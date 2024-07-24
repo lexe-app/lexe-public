@@ -62,6 +62,7 @@ roaring = "0.10"
 
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }
+# logger = { path = "../logger" }
 
 async-trait.workspace = true
 proptest = { workspace = true, features = ["alloc"] }

@@ -43,6 +43,9 @@ pub struct App {
     /// We only want one task syncing payments at a time. Ideally the dart side
     /// shouldn't let this happen, but just to be safe let's add this in.
     payment_sync_lock: tokio::sync::Mutex<()>,
+    //
+    // /// App settings
+    // settings_db: Arc<SettingsDb<FlatFileFs>>,
 }
 
 impl App {

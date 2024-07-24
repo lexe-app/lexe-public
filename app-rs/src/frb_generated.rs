@@ -33,7 +33,7 @@ use flutter_rust_bridge::{
     Handler, IntoIntoDart,
 };
 
-use crate::ffi::app::*;
+use crate::ffi::{app::*, settings::*};
 
 // Section: boilerplate
 
@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.1.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -116466395;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1148744648;
 
 // Section: executor
 
@@ -536,18 +536,19 @@ let api_uri_str = <String>::sse_decode(&mut deserializer);deserializer.end(); mo
                     })())
                 } })
 }
-fn wire__crate__ffi__settings__save_impl(
+fn wire__crate__ffi__settings__settings_db_update_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "save", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "settings_db_update", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_settings = <crate::ffi::settings::Settings>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
+            let api_that = <crate::ffi::settings::SettingsDb>::sse_decode(&mut deserializer);
+let api_update = <crate::ffi::settings::Settings>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move ||  {
-                         let output_ok = crate::ffi::settings::save(api_settings)?;   Ok(output_ok)
+                         let output_ok = crate::ffi::settings::SettingsDb::update(&api_that, api_update)?;   Ok(output_ok)
                     })())
                 } })
 }
@@ -606,6 +607,16 @@ impl SseDecode for flutter_rust_bridge::for_generated::anyhow::Error {
 }
 
 impl SseDecode for RustOpaqueNom<App> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut inner = <usize>::sse_decode(deserializer);
+        return unsafe { decode_rust_opaque_nom(inner) };
+    }
+}
+
+impl SseDecode for RustOpaqueNom<SettingsDbRs> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -1329,6 +1340,17 @@ impl SseDecode for crate::ffi::settings::Settings {
     }
 }
 
+impl SseDecode for crate::ffi::settings::SettingsDb {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_inner =
+            <RustOpaqueNom<SettingsDbRs>>::sse_decode(deserializer);
+        return crate::ffi::settings::SettingsDb { inner: var_inner };
+    }
+}
+
 impl SseDecode for crate::ffi::types::ShortPayment {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -1565,7 +1587,7 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        34 => wire__crate__ffi__settings__save_impl(
+        34 => wire__crate__ffi__settings__settings_db_update_impl(
             port,
             ptr,
             rust_vec_len,
@@ -2269,6 +2291,23 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::settings::Settings>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::settings::SettingsDb {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.inner.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::settings::SettingsDb
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::settings::SettingsDb>
+    for crate::ffi::settings::SettingsDb
+{
+    fn into_into_dart(self) -> crate::ffi::settings::SettingsDb {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::types::ShortPayment {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -2348,6 +2387,18 @@ impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
 }
 
 impl SseEncode for RustOpaqueNom<App> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        let (ptr, size) = self.sse_encode_raw();
+        <usize>::sse_encode(ptr, serializer);
+        <i32>::sse_encode(size, serializer);
+    }
+}
+
+impl SseEncode for RustOpaqueNom<SettingsDbRs> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -2997,6 +3048,16 @@ impl SseEncode for crate::ffi::settings::Settings {
     }
 }
 
+impl SseEncode for crate::ffi::settings::SettingsDb {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <RustOpaqueNom<SettingsDbRs>>::sse_encode(self.inner, serializer);
+    }
+}
+
 impl SseEncode for crate::ffi::types::ShortPayment {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -3122,7 +3183,7 @@ mod io {
     };
 
     use super::*;
-    use crate::ffi::app::*;
+    use crate::ffi::{app::*, settings::*};
 
     // Section: boilerplate
 
@@ -3143,6 +3204,24 @@ mod io {
     ) {
         unsafe {
             StdArc::<App>::decrement_strong_count(ptr as _);
+        }
+    }
+
+    #[no_mangle]
+    pub extern "C" fn frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_SettingsDbRs(
+        ptr: *const std::ffi::c_void,
+    ) {
+        unsafe {
+            StdArc::<SettingsDbRs>::increment_strong_count(ptr as _);
+        }
+    }
+
+    #[no_mangle]
+    pub extern "C" fn frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs(
+        ptr: *const std::ffi::c_void,
+    ) {
+        unsafe {
+            StdArc::<SettingsDbRs>::decrement_strong_count(ptr as _);
         }
     }
 }
