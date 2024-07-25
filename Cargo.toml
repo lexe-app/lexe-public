@@ -282,20 +282,36 @@ debug = "line-tables-only"
 # https://doc.rust-lang.org/cargo/reference/profiles.html#split-debuginfo
 # split-debuginfo = "packed"
 
+#
 # optimize some hot crypto/low-level packages even in debug mode
+#
+
+# ring
 [profile.dev.package.ring]
 opt-level = 3
 [profile.dev.package.spin]
 opt-level = 3
 [profile.dev.package.untrusted]
 opt-level = 3
+
+# bitcoin
 [profile.dev.package.secp256k1]
 opt-level = 3
 [profile.dev.package.secp256k1-sys]
 opt-level = 3
 [profile.dev.package.bitcoin_hashes]
 opt-level = 3
+
+# misc encoding
 [profile.dev.package.base64]
 opt-level = 3
 [profile.dev.package.bytes]
+opt-level = 3
+
+# proptest
+[profile.dev.package.proptest]
+opt-level = 3
+[profile.dev.package.rand_chacha]
+opt-level = 3
+[profile.dev.package.rand_xorshift]
 opt-level = 3
