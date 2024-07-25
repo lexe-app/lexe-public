@@ -108,11 +108,10 @@ where
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
-    // SGX does name resolution outside the enclave, so we have to do this extra
-    // dance and avoid the natural solution of impl'ing `ToSocketAddrs` on
-    // `LxSocketAddress`.
-    let addr_str = channel_peer.addr.to_string();
     debug!("Connecting to channel peer {channel_peer}");
+
+    // TcpStream::connect takes a `String` in SGX.
+    let addr_str = channel_peer.addr.to_string();
     let stream = time::timeout(CONNECT_TIMEOUT, TcpStream::connect(addr_str))
         .await
         .context("Connect request timed out")?

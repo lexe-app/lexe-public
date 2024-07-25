@@ -54,6 +54,30 @@ pub enum LxSocketAddress {
     // We don't support TOR connections atm.
 }
 
+// There's no DNS resolution in SGX, so we can only impl for non SGX.
+// When building for SGX, `TcpStream::connect` takes a string,
+// and hostname resolution is done outside of the enclave.
+#[cfg(not(target_env = "sgx"))]
+impl std::net::ToSocketAddrs for LxSocketAddress {
+    type Iter = std::vec::IntoIter<SocketAddr>;
+
+    fn to_socket_addrs(&self) -> std::io::Result<Self::Iter> {
+        match self {
+            LxSocketAddress::TcpIpv4 { ip, port } => {
+                let addr = SocketAddr::V4(SocketAddrV4::new(*ip, *port));
+                Ok(vec![addr].into_iter())
+            }
+            LxSocketAddress::TcpIpv6 { ip, port } => {
+                let addr = SocketAddr::V6(SocketAddrV6::new(*ip, *port, 0, 0));
+                Ok(vec![addr].into_iter())
+            }
+            // This branch does hostname resolution
+            LxSocketAddress::TcpDns { hostname, port } =>
+                (hostname.as_str(), *port).to_socket_addrs(),
+        }
+    }
+}
+
 impl From<SocketAddrV4> for LxSocketAddress {
     fn from(value: SocketAddrV4) -> Self {
         Self::TcpIpv4 {
