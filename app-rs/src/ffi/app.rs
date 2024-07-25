@@ -14,7 +14,6 @@ use common::{
 };
 use flutter_rust_bridge::{frb, RustOpaqueNom};
 
-pub(crate) use crate::app::App;
 use crate::ffi::{
     api::{
         CreateInvoiceRequest, CreateInvoiceResponse, FiatRates, NodeInfo,
@@ -23,10 +22,12 @@ use crate::ffi::{
         PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
         PreflightPayOnchainResponse, UpdatePaymentNote,
     },
+    settings::SettingsDb,
     types::{
         Config, Payment, PaymentIndex, ShortPayment, ShortPaymentAndIndex,
     },
 };
+pub(crate) use crate::{app::App, settings::SettingsDb as SettingsDbRs};
 
 /// The `AppHandle` is a Dart representation of an [`App`] instance.
 pub struct AppHandle {
@@ -71,6 +72,11 @@ impl AppHandle {
         .await
         .context("Failed to generate and signup new wallet")
         .map(Self::new)
+    }
+
+    #[frb(sync)]
+    pub fn settings_db(&self) -> SettingsDb {
+        SettingsDb::new(self.inner.settings_db())
     }
 
     pub async fn node_info(&self) -> anyhow::Result<NodeInfo> {
