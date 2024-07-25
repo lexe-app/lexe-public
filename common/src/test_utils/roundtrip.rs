@@ -1,5 +1,5 @@
 use std::{
-    fmt::{Debug, Display, LowerHex},
+    fmt::{Debug, Display},
     str::FromStr,
 };
 
@@ -193,43 +193,6 @@ where
 {
     proptest!(config, |(value1 in strategy)| {
         let value2 = T::from_str(&value1.to_string()).unwrap();
-        prop_assert_eq!(value1, value2)
-    });
-}
-
-/// Quickly create a roundtrip proptest for a [`FromStr`] / [`LowerHex`] impl.
-///
-/// ```ignore
-/// fromstr_lowerhex_roundtrip_proptest::<NodePk>();
-/// ```
-pub fn fromstr_lowerhex_roundtrip_proptest<T>()
-where
-    T: Arbitrary + PartialEq + FromStr + LowerHex,
-    <T as FromStr>::Err: Debug,
-{
-    fromstr_lowerhex_custom(any::<T>(), Config::default());
-}
-
-/// Create a roundtrip proptest for a [`FromStr`] / [`LowerHex`] impl using a
-/// custom canonical strategy and custom proptest [`Config`]. Useful for testing
-/// foreign types for which we cannot implement [`Arbitrary`], or reducing the
-/// number of iterations on proptests that would otherwise take too long.
-///
-/// ```
-/// # use common::test_utils::{arbitrary, roundtrip};
-/// # use proptest::test_runner::Config;
-/// let config = Config::with_cases(1);
-/// roundtrip::fromstr_lowerhex_custom(arbitrary::any_script(), config);
-/// ```
-pub fn fromstr_lowerhex_custom<S, T>(strategy: S, config: Config)
-where
-    S: Strategy<Value = T>,
-    T: PartialEq + FromStr + LowerHex + Debug,
-    <T as FromStr>::Err: Debug,
-{
-    proptest!(config, |(value1 in strategy)| {
-        let hex = format!("{value1:x}");
-        let value2 = T::from_str(hex.as_str()).unwrap();
         prop_assert_eq!(value1, value2)
     });
 }
