@@ -7,6 +7,8 @@ use common::{
     api::fiat_rates::IsoCurrencyCode, notify, shutdown::ShutdownChannel,
     task::LxTask,
 };
+#[cfg(test)]
+use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
@@ -40,7 +42,7 @@ struct SettingsPersister<F> {
 
 /// In-memory app settings state.
 #[derive(Clone, PartialEq, Deserialize, Serialize)]
-#[cfg_attr(test, derive(Debug))]
+#[cfg_attr(test, derive(Debug, Arbitrary))]
 pub(crate) struct Settings {
     /// Settings schema version.
     pub schema: SchemaVersion,
@@ -92,6 +94,11 @@ impl SettingsDb {
             .await
             .context("settings persister failed to shutdown in time")?
             .context("settings persister panicked")
+    }
+
+    #[cfg(test)]
+    fn read(&self) -> Settings {
+        self.settings.lock().unwrap().clone()
     }
 
     #[allow(dead_code)] // TODO(phlip9): remove
@@ -260,51 +267,151 @@ impl<T> OptionExt for Option<T> {
     }
 }
 
-// #[cfg(test)]
-// mod arb {
-//     use proptest::{
-//         arbitrary::Arbitrary,
-//         strategy::{BoxedStrategy, Just, Strategy},
-//     };
-//
-//     use super::*;
-//
-//     impl Arbitrary for SchemaVersion {
-//         type Strategy = BoxedStrategy<Self>;
-//         type Parameters = ();
-//         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-//             proptest::prop_oneof![
-//                 10 => Just(Self::CURRENT),
-//                 1 => (0_u32..10).prop_map(Self),
-//             ]
-//             .boxed()
-//         }
-//     }
-// }
+#[cfg(test)]
+mod arb {
+    use proptest::{
+        arbitrary::Arbitrary,
+        strategy::{BoxedStrategy, Just, Strategy},
+    };
+
+    use super::*;
+
+    impl Arbitrary for SchemaVersion {
+        type Strategy = BoxedStrategy<Self>;
+        type Parameters = ();
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            proptest::prop_oneof![
+                10 => Just(Self::CURRENT),
+                1 => (0_u32..10).prop_map(Self),
+            ]
+            .boxed()
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
-    use std::ops::Deref;
+    use std::{ops::Deref, rc::Rc};
+
+    use proptest::{proptest, strategy::Strategy};
 
     use super::*;
-    use crate::ffs::FlatFileFs;
+    use crate::ffs::{test::MockFfs, FlatFileFs};
 
-    // struct ModelDb {
-    //     ffs: ffs::test::MockFfs,
-    //     settings: Settings,
-    // }
-    //
-    // enum Op {
-    //     Update(Settings),
-    //     Read,
-    //     Reload,
-    // }
+    #[test]
+    fn test_load_hardcoded() {
+        let settings_str = r#"
+        {
+            "schema": 1,
+            "fiat_currency": "USD"
+        }
+        "#;
+        let ffs = MockFfs::new();
+        ffs.write(SETTINGS_JSON, settings_str.as_bytes()).unwrap();
+        let settings = Settings::load(&ffs);
+        assert_eq!(settings.schema, SchemaVersion(1));
+        assert_eq!(settings.locale, None);
+        assert_eq!(settings.fiat_currency, Some(IsoCurrencyCode::USD));
+    }
+
+    /// A tiny model implementation of [`SettingsDb`].
+    struct ModelDb {
+        ffs: Rc<MockFfs>,
+        settings: Settings,
+    }
+
+    impl ModelDb {
+        fn load(ffs: Rc<MockFfs>) -> Self {
+            let settings = Settings::load(ffs.as_ref());
+            Self { ffs, settings }
+        }
+        fn update(&mut self, update: Settings) -> anyhow::Result<()> {
+            self.settings.update(update)?;
+            self.ffs
+                .write(SETTINGS_JSON, &self.settings.serialize_json()?)?;
+            Ok(())
+        }
+        fn read(&self) -> Settings {
+            self.settings.clone()
+        }
+    }
+
+    /// Operations we can perform against a [`SettingsDb`].
+    #[derive(Debug, Arbitrary)]
+    enum Op {
+        Update(Settings),
+        Read,
+        Reload,
+
+        /// Give background settings persister task time to do stuff. We use
+        /// this in a fake-time Runtime, so it doesn't consume realtime.
+        #[proptest(strategy = "Op::arb_short_sleep()")]
+        Sleep(Duration),
+    }
+
+    impl Op {
+        fn arb_short_sleep() -> impl Strategy<Value = Self> {
+            (0_u64..=10)
+                .prop_map(|x| Self::Sleep(Duration::from_millis(x * 100)))
+        }
+    }
+
+    // Proptest
+    #[test]
+    fn test_prop_model() {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            // Use fake time
+            .start_paused(true)
+            .build()
+            .unwrap();
+
+        let config = proptest::test_runner::Config::with_cases(3);
+        proptest!(config, |(ops: Vec<Op>)| {
+            rt.block_on(test_prop_model_inner(ops));
+        });
+    }
+
+    async fn test_prop_model_inner(ops: Vec<Op>) {
+        let model_ffs = Rc::new(MockFfs::new());
+        let mut model = ModelDb::load(model_ffs.clone());
+
+        let tmpdir = tempfile::tempdir().unwrap();
+        let ffs = FlatFileFs::create_dir_all(tmpdir.path().to_owned()).unwrap();
+        let mut real = SettingsDb::load(ffs.clone());
+
+        for op in ops {
+            match op {
+                Op::Update(update) => {
+                    let res1 = model.update(update.clone());
+                    let res2 = real.update(update);
+                    assert_eq!(res1.is_ok(), res2.is_ok());
+                }
+                Op::Read => {
+                    let s1 = model.read();
+                    let s2 = real.read();
+                    assert_eq!(s1, s2);
+                }
+                Op::Reload => {
+                    model = ModelDb::load(model_ffs.clone());
+
+                    real.shutdown().await.unwrap();
+                    real = SettingsDb::load(ffs.clone());
+                }
+                Op::Sleep(duration) => {
+                    tokio::time::sleep(duration).await;
+                }
+            }
+        }
+
+        real.shutdown().await.unwrap();
+    }
 
     #[tokio::test]
     async fn test_load_shutdown_load() {
         // logger::init_for_testing();
 
-        let tmpdir = tempfile::TempDir::new().unwrap();
+        let tmpdir = tempfile::tempdir().unwrap();
         let ffs = FlatFileFs::create_dir_all(tmpdir.path().to_owned()).unwrap();
         {
             let mut db = SettingsDb::load(ffs.clone());
@@ -357,10 +464,5 @@ mod test {
             );
             db.shutdown().await.unwrap();
         }
-
-        println!(
-            "{}",
-            String::from_utf8(ffs.read(SETTINGS_JSON).unwrap()).unwrap()
-        );
     }
 }
