@@ -32,6 +32,7 @@ use crate::{
     ffs::{Ffs, FlatFileFs},
     payments::{self, PaymentDb, PaymentSyncSummary},
     secret_store::SecretStore,
+    settings::SettingsDb,
     storage,
 };
 
@@ -43,9 +44,10 @@ pub struct App {
     /// We only want one task syncing payments at a time. Ideally the dart side
     /// shouldn't let this happen, but just to be safe let's add this in.
     payment_sync_lock: tokio::sync::Mutex<()>,
-    //
-    // /// App settings
-    // settings_db: Arc<SettingsDb<FlatFileFs>>,
+
+    /// App settings
+    #[allow(dead_code)] // TODO(phlip9): remove
+    settings_db: Arc<SettingsDb>,
 }
 
 impl App {
@@ -90,6 +92,13 @@ impl App {
         let app_data_ffs =
             FlatFileFs::create_dir_all(config.app_data_dir.clone())
                 .context("Could not create app data ffs")?;
+
+        // Load settings DB
+        let settings_ffs = FlatFileFs::create_dir_all(config.payment_db_dir())
+            .context("Could not create settings ffs")?;
+        let settings_db = Arc::new(SettingsDb::load(settings_ffs));
+
+        // Load payments DB
         let payments_ffs = FlatFileFs::create_dir_all(config.payment_db_dir())
             .context("Could not create payments ffs")?;
         let payment_db = PaymentDb::read(payments_ffs)
@@ -173,6 +182,7 @@ impl App {
             node_client,
             payment_db,
             payment_sync_lock: tokio::sync::Mutex::new(()),
+            settings_db,
         }))
     }
 
@@ -253,6 +263,14 @@ impl App {
         let app_data_ffs =
             FlatFileFs::create_dir_all(config.app_data_dir.clone())
                 .context("Could not create app data ffs")?;
+
+        // Create new settings DB
+        let settings_ffs =
+            FlatFileFs::create_clean_dir_all(config.payment_db_dir())
+                .context("Could not create settings ffs")?;
+        let settings_db = Arc::new(SettingsDb::load(settings_ffs));
+
+        // Create new payments DB
         let payments_ffs =
             FlatFileFs::create_clean_dir_all(config.payment_db_dir())
                 .context("Could not create payments ffs")?;
@@ -305,6 +323,7 @@ impl App {
             gateway_client,
             payment_db,
             payment_sync_lock: tokio::sync::Mutex::new(()),
+            settings_db,
         })
     }
 
@@ -314,6 +333,11 @@ impl App {
 
     pub fn gateway_client(&self) -> &GatewayClient {
         &self.gateway_client
+    }
+
+    #[allow(dead_code)] // TODO(phlip9): remove
+    pub(crate) fn settings_db(&self) -> Arc<SettingsDb> {
+        self.settings_db.clone()
     }
 
     // We have to hold the std Mutex lock past .await because of FRB
@@ -410,6 +434,10 @@ pub struct AppConfig {
 impl AppConfig {
     pub fn payment_db_dir(&self) -> PathBuf {
         self.app_data_dir.join("payment_db")
+    }
+
+    pub fn settings_db_dir(&self) -> PathBuf {
+        self.app_data_dir.join("settings_db")
     }
 
     pub fn build_flavor(&self) -> BuildFlavor {
