@@ -1,16 +1,17 @@
 use std::{collections::HashMap, time::Duration};
 
-use anyhow::{bail, Context};
+use anyhow::{bail, ensure, Context};
 use common::{
     api::{Empty, NodePk},
     backoff,
-    ln::peer::ChannelPeer,
+    ln::{addr::LxSocketAddress, peer::ChannelPeer},
     shutdown::ShutdownChannel,
     task::LxTask,
+    Apply,
 };
 use futures::future;
 use tokio::{net::TcpStream, sync::mpsc, time};
-use tracing::{debug, info, info_span, warn, Instrument};
+use tracing::{info, info_span, warn, Instrument};
 
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
@@ -52,28 +53,34 @@ where
         .any(|(pk, _maybe_addr)| node_pk.0 == pk)
 }
 
-/// Connects to a [`ChannelPeer`], returning early if we were already connected.
-pub async fn connect_channel_peer_if_necessary<CM, PM, PS>(
+/// Connects to a LN peer, returning early if we were already connected.
+/// Cycles through the given addresses until we run out of connect attempts.
+pub async fn connect_peer_if_necessary<CM, PM, PS>(
     peer_manager: PM,
-    channel_peer: ChannelPeer,
+    node_pk: &NodePk,
+    addrs: &[LxSocketAddress],
 ) -> anyhow::Result<Empty>
 where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
-    // Initial check to see if we are already connected.
-    if is_connected(peer_manager.clone(), &channel_peer.node_pk) {
+    ensure!(!addrs.is_empty(), "No addrs were provided");
+
+    if is_connected(peer_manager.clone(), node_pk) {
         return Ok(Empty {});
     }
 
-    // We retry a few times to work around an outbound connect race between
-    // the reconnector and open_channel which has occasionally been observed.
-    let retries = 3;
+    // Cycle the given addresses in order
+    let mut addrs = addrs.iter().cycle();
+
+    // Retry at least a couple times to mitigate an outbound connect race
+    // between the reconnector and open_channel which has been observed.
+    let retries = 5;
     for _ in 0..retries {
-        // Do the attempt.
-        match do_connect_peer(peer_manager.clone(), channel_peer.clone()).await
-        {
+        let addr = addrs.next().expect("Cycling through a non-empty slice");
+
+        match do_connect_peer(peer_manager.clone(), node_pk, addr).await {
             Ok(()) => return Ok(Empty {}),
             Err(e) => warn!("Failed to connect to peer: {e:#}"),
         }
@@ -86,13 +93,14 @@ where
 
         // Right before the next attempt, do another is_connected check in case
         // another task managed to connect while we were sleeping.
-        if is_connected(peer_manager.clone(), &channel_peer.node_pk) {
+        if is_connected(peer_manager.clone(), node_pk) {
             return Ok(Empty {});
         }
     }
 
     // Do the last attempt.
-    do_connect_peer(peer_manager, channel_peer)
+    let addr = addrs.next().expect("Cycling through a non-empty slice");
+    do_connect_peer(peer_manager, node_pk, addr)
         .await
         .context("Failed to connect to peer")?;
 
@@ -101,23 +109,25 @@ where
 
 async fn do_connect_peer<CM, PM, PS>(
     peer_manager: PM,
-    channel_peer: ChannelPeer,
+    node_pk: &NodePk,
+    addr: &LxSocketAddress,
 ) -> anyhow::Result<()>
 where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
-    debug!("Connecting to channel peer {channel_peer}");
+    info!(%node_pk, %addr, "Starting do_connect_peer");
 
     // TcpStream::connect takes a `String` in SGX.
-    let addr_str = channel_peer.addr.to_string();
-    let stream = time::timeout(CONNECT_TIMEOUT, TcpStream::connect(addr_str))
+    let addr_str = addr.to_string();
+    let stream = TcpStream::connect(addr_str)
+        .apply(|fut| time::timeout(CONNECT_TIMEOUT, fut))
         .await
         .context("Connect request timed out")?
         .context("TcpStream::connect() failed")?
         .into_std()
-        .context("Could not convert tokio TcpStream to std TcpStream")?;
+        .context("Couldn't convert to std TcpStream")?;
 
     // NOTE: `setup_outbound()` returns a future which completes when the
     // connection closes, which we do not need to poll because a task was
@@ -137,7 +147,7 @@ where
     // TODO: Rewrite / replace lightning-net-tokio entirely
     let connection_closed_fut = lightning_net_tokio::setup_outbound(
         peer_manager.clone(),
-        channel_peer.node_pk.0,
+        node_pk.0,
         stream,
     );
     let mut connection_closed_fut = Box::pin(connection_closed_fut);
@@ -155,9 +165,9 @@ where
         }
 
         // Check if the connection has been established.
-        if is_connected(peer_manager.clone(), &channel_peer.node_pk) {
+        if is_connected(peer_manager.clone(), node_pk) {
             // Connection confirmed, log and return Ok
-            debug!("Successfully connected to channel peer {channel_peer}");
+            info!(%node_pk, %addr, "Successfully connected to peer");
             return Ok(());
         }
 
@@ -240,7 +250,8 @@ where
                         let reconnect_fut = async move {
                             let res = do_connect_peer(
                                 peer_manager_clone,
-                                peer.clone(),
+                                &peer.node_pk,
+                                &peer.addr,
                             )
                             .await;
                             if let Err(e) = res {

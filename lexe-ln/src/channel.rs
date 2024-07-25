@@ -65,12 +65,10 @@ where
     use ChannelRelationship::*;
     match relationship {
         UserToLsp { lsp_channel_peer } => {
-            p2p::connect_channel_peer_if_necessary(
-                peer_manager,
-                lsp_channel_peer,
-            )
-            .await
-            .context("Could not connect to LSP")?;
+            let ChannelPeer { node_pk, addr } = lsp_channel_peer;
+            p2p::connect_peer_if_necessary(peer_manager, &node_pk, &[addr])
+                .await
+                .context("Could not connect to LSP")?;
         }
         LspToUser { user_node_pk } => ensure!(
             p2p::is_connected(peer_manager, &user_node_pk),
@@ -81,17 +79,18 @@ where
             persister,
             channel_peer_tx,
         } => {
-            p2p::connect_channel_peer_if_necessary(
-                peer_manager,
-                channel_peer.clone(),
-            )
-            .await
-            .context("Could not connect to external node")?;
+            let ChannelPeer { node_pk, addr } = channel_peer;
+            let addrs = [addr];
+            p2p::connect_peer_if_necessary(peer_manager, &node_pk, &addrs)
+                .await
+                .context("Could not connect to external node")?;
 
             // Before we actually create the channel, persist the ChannelPeer so
             // that there is no chance of having an open channel without the
             // associated ChannelPeer information.
             // TODO(max): This should be renamed to persist_external_peer
+            let [addr] = addrs;
+            let channel_peer = ChannelPeer { node_pk, addr };
             persister
                 .persist_channel_peer(channel_peer.clone())
                 .await
@@ -101,10 +100,7 @@ where
             // this channel peer if we disconnect for some reason.
             channel_peer_tx
                 .try_send(ChannelPeerUpdate::Add(channel_peer))
-                .map_err(|e| anyhow!("{e:#}"))
-                .context(
-                    "Couldn't update p2p reconnector of new channel peer: {e:#}",
-                )?;
+                .context("Couldn't tell p2p reconnector of new channel peer")?;
         }
     };
 
