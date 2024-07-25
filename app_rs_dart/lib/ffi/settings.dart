@@ -43,7 +43,11 @@ class SettingsDb {
     required this.inner,
   });
 
-  Future<void> update({required Settings update}) => AppRs.instance.api
+  Settings read() => AppRs.instance.api.crateFfiSettingsSettingsDbRead(
+        that: this,
+      );
+
+  void update({required Settings update}) => AppRs.instance.api
       .crateFfiSettingsSettingsDbUpdate(that: this, update: update);
 
   @override
