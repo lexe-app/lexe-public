@@ -14,6 +14,7 @@ import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/route/signup.dart' show SignupApi, SignupPage;
 import 'package:lexeapp/route/wallet.dart' show WalletPage;
+import 'package:lexeapp/settings.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
 import 'package:lexeapp/uri_events.dart' show UriEvents;
@@ -78,11 +79,14 @@ class _LandingPageState extends State<LandingPage> {
 
     info("successfully signed up!");
 
+    final app = flowResult;
+
     // ignore: use_build_context_synchronously
     unawaited(Navigator.of(this.context).pushReplacement(MaterialPageRoute(
       builder: (_) => WalletPage(
         config: this.widget.config,
-        app: flowResult,
+        app: app,
+        settings: LxSettings(app.settingsDb()),
         uriEvents: this.widget.uriEvents,
       ),
     )));

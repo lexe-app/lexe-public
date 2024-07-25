@@ -10,6 +10,7 @@ import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/route/landing.dart' show LandingPage;
 import 'package:lexeapp/route/signup.dart' show SignupApi;
 import 'package:lexeapp/route/wallet.dart' show WalletPage;
+import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/style.dart' show LxColors, LxTheme;
 import 'package:lexeapp/uri_events.dart' show UriEvents;
 
@@ -40,15 +41,17 @@ Future<void> main() async {
   info("Build config: $config");
 
   final maybeApp = await AppHandle.load(config: config);
-
   final uriEvents = await UriEvents.prod();
 
   final Widget child;
   if (maybeApp != null) {
+    final app = maybeApp;
+
     // wallet already exists => show wallet page
     child = WalletPage(
       config: config,
-      app: maybeApp,
+      app: app,
+      settings: LxSettings(app.settingsDb()),
       uriEvents: uriEvents,
     );
   } else {

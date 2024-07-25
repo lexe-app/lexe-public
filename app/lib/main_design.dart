@@ -26,7 +26,9 @@ import 'package:app_rs_dart/ffi/api.dart'
         PreflightPayOnchainRequest,
         PreflightPayOnchainResponse,
         UpdatePaymentNote;
-import 'package:app_rs_dart/ffi/app.dart' show App, AppHandle, U8Array32;
+import 'package:app_rs_dart/ffi/app.dart'
+    show App, AppHandle, SettingsDbRs, U8Array32;
+import 'package:app_rs_dart/ffi/settings.dart' show Settings, SettingsDb;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         ClientPaymentId,
@@ -79,6 +81,7 @@ import 'package:lexeapp/route/show_qr.dart' show ShowQrPage;
 import 'package:lexeapp/route/signup.dart'
     show SignupApi, SignupBackupPasswordPage, SignupPage;
 import 'package:lexeapp/route/wallet.dart' show WalletPage;
+import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/stream_ext.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
@@ -240,6 +243,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "WalletPage",
               (_) => WalletPage(
                 app: mockApp,
+                settings: LxSettings(mockApp.settingsDb()),
                 config: widget.config,
                 uriEvents: this.widget.uriEvents,
               ),
@@ -438,6 +442,9 @@ class MockAppHandle extends AppHandle {
     dummyInvoiceInboundFailed01,
     dummyOnchainOutboundCompleted01,
   ].sortedBy((payment) => payment.index.field0);
+
+  @override
+  SettingsDb settingsDb() => MockSettingsDb();
 
   @override
   Future<NodeInfo> nodeInfo({dynamic hint}) =>
@@ -667,6 +674,27 @@ class MockAppHandleErroring extends MockAppHandle {
           .toFfi(),
     );
   }
+}
+
+class MockSettingsDb extends SettingsDb {
+  MockSettingsDb() : super(inner: MockSettingsDbRs());
+
+  @override
+  Settings read() => const Settings();
+
+  @override
+  void update({required Settings update}) {}
+}
+
+// A fake `RustOpaque<SettingsDbRs>`
+class MockSettingsDbRs extends SettingsDbRs {
+  MockSettingsDbRs();
+
+  @override
+  void dispose() {}
+
+  @override
+  bool get isDisposed => false;
 }
 
 class Component extends StatelessWidget {

@@ -42,6 +42,7 @@ import 'package:lexeapp/route/scan.dart';
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
     show SendFlowResult, SendState, SendState_NeedUri;
+import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/stream_ext.dart';
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 import 'package:lexeapp/uri_events.dart' show UriEvents;
@@ -55,11 +56,13 @@ class WalletPage extends StatefulWidget {
     super.key,
     required this.config,
     required this.app,
+    required this.settings,
     required this.uriEvents,
   });
 
   final Config config;
   final AppHandle app;
+  final LxSettings settings;
   final UriEvents uriEvents;
 
   @override
