@@ -95,8 +95,8 @@ impl SettingsDb {
             .context("settings persister panicked")
     }
 
-    #[cfg(test)]
-    fn read(&self) -> Settings {
+    #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
+    pub(crate) fn read(&self) -> Settings {
         self.settings.lock().unwrap().clone()
     }
 
