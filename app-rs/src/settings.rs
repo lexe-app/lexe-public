@@ -61,7 +61,6 @@ pub(crate) struct SchemaVersion(pub u32);
 // --- impl SettingsDb --- //
 
 impl SettingsDb {
-    #[allow(dead_code)] // TODO(phlip9): remove
     pub(crate) fn load<F: Ffs + Send + 'static>(ffs: F) -> Self {
         let settings = Arc::new(std::sync::Mutex::new(Settings::load(&ffs)));
         let (persist_tx, persist_rx) = notify::channel();
@@ -101,7 +100,7 @@ impl SettingsDb {
         self.settings.lock().unwrap().clone()
     }
 
-    #[allow(dead_code)] // TODO(phlip9): remove
+    #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
     pub(crate) fn update(&self, update: Settings) -> anyhow::Result<()> {
         self.settings.lock().unwrap().update(update)?;
         self.persist_tx.send();
@@ -366,7 +365,7 @@ mod test {
             .build()
             .unwrap();
 
-        let config = proptest::test_runner::Config::with_cases(3);
+        let config = proptest::test_runner::Config::with_cases(50);
         proptest!(config, |(ops: Vec<Op>)| {
             rt.block_on(test_prop_model_inner(ops));
         });
