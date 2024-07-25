@@ -2,11 +2,12 @@ use std::{
     cmp,
     collections::{BTreeMap, HashMap},
     str::FromStr,
-    sync::{Arc, RwLock},
+    sync::Arc,
     time::{Duration, SystemTime},
 };
 
 use anyhow::{anyhow, ensure, Context};
+use arc_swap::ArcSwap;
 use bitcoin::{blockdata::transaction::Transaction, OutPoint};
 use common::{
     constants,
@@ -105,7 +106,7 @@ pub struct LexeEsplora {
     client: AsyncClient,
     /// Cached map of conf targets (in number of blocks) to estimated feerates
     /// (in sats per vbyte) returned by [`AsyncClient::get_fee_estimates`].
-    fee_estimates: RwLock<BTreeMap<usize, f64>>,
+    fee_estimates: ArcSwap<BTreeMap<usize, f64>>,
     test_event_tx: TestEventSender,
 }
 
@@ -186,7 +187,7 @@ impl LexeEsplora {
             .get_fee_estimates()
             .await
             .map(convert_fee_estimates)
-            .map(RwLock::new)
+            .map(ArcSwap::from_pointee)
             .context("Could not fetch initial esplora fee estimates")?;
 
         // Instantiate
@@ -247,8 +248,7 @@ impl LexeEsplora {
             .map(convert_fee_estimates)
             .context("Could not update cached Esplora fee estimates")?;
 
-        let mut locked_estimates = self.fee_estimates.write().unwrap();
-        *locked_estimates = fee_estimates;
+        self.fee_estimates.store(Arc::new(fee_estimates));
 
         Ok(())
     }
@@ -257,9 +257,9 @@ impl LexeEsplora {
     /// Since [`bdk::FeeRate`] is easily convertible to other units, this is the
     /// core feerate function that others delegate to.
     pub fn num_blocks_to_bdk_feerate(&self, num_blocks: usize) -> bdk::FeeRate {
-        let locked_fee_estimates = self.fee_estimates.read().unwrap();
+        let guarded_fee_estimates = self.fee_estimates.load();
         let feerate_satsvbyte =
-            lookup_fee_rate(num_blocks, &locked_fee_estimates);
+            lookup_fee_rate(num_blocks, &guarded_fee_estimates);
         bdk::FeeRate::from_sat_per_vb(feerate_satsvbyte as f32)
     }
 
