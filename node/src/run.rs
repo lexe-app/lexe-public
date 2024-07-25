@@ -979,9 +979,10 @@ async fn maybe_reconnect_to_lsp(
         );
 
         info!("Reconnecting to LSP");
-        p2p::connect_channel_peer_if_necessary(
+        p2p::connect_peer_if_necessary(
             peer_manager.clone(),
-            lsp.channel_peer(),
+            &lsp.node_pk,
+            &[lsp.addr.clone()],
         )
         .await
         .context("Could not connect to LSP")?;
