@@ -184,16 +184,17 @@ done
 # It gets linked into a libapp_rs.so shared library by `xcodebuild` later.
 #
 
-# Envs to propagate to `cargo build`
-clean_envs=("PATH=$HOME/.cargo/bin:$PATH" "HOME=$HOME" "LC_ALL=$LC_ALL")
-
-# Don't use ios/watchos linker for build scripts and proc macros
-if [[ $APP_RS__POD_TARGET == "ios" ]]; then
-  clean_envs+=(
-    "CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=/usr/bin/ld"
-    "CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=/usr/bin/ld"
-  )
-fi
+# TODO(phlip9): cleaning the env seems to break the build sometimes?
+# # Envs to propagate to `cargo build`
+# clean_envs=("PATH=$HOME/.cargo/bin:$PATH" "HOME=$HOME" "LC_ALL=$LC_ALL")
+#
+# # Don't use ios/watchos linker for build scripts and proc macros
+# if [[ $APP_RS__POD_TARGET == "ios" ]]; then
+#   clean_envs+=(
+#     "CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=/usr/bin/ld"
+#     "CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=/usr/bin/ld"
+#   )
+# fi
 
 # Xcode clean -> cargo clean
 if [[ $ACTION == "clean" ]]; then
@@ -202,17 +203,17 @@ if [[ $ACTION == "clean" ]]; then
     APP_RS__CARGO_TARGET_ARGS+=("--target=$target")
   done
 
-  # clear envs
-  env --ignore-environment "${clean_envs[@]}" \
-    cargo clean -p app-rs "${APP_RS__CARGO_TARGET_ARGS[@]}"
+  # # clear envs
+  # env --ignore-environment "${clean_envs[@]}"
+  cargo clean -p app-rs "${APP_RS__CARGO_TARGET_ARGS[@]}"
   exit 0
 fi
 
 # Xcode build -> 'cargo build' for each target
 for target in "${APP_RS__TARGET_TRIPLES[@]}"; do
-  # clear envs
-  env --ignore-environment "${clean_envs[@]}" \
-    cargo rustc -p app-rs \
+  # # clear envs
+  # env --ignore-environment "${clean_envs[@]}"
+  cargo rustc -p app-rs \
     --lib --crate-type=staticlib \
     --target="$target" \
     "${APP_RS__CARGO_PROFILE_ARG[@]}"
