@@ -21,6 +21,7 @@ lazy-lock = { path = "../lazy-lock" }
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
+arc-swap.workspace = true
 async-trait.workspace = true
 base64.workspace = true
 bitcoin.workspace = true
