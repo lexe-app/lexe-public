@@ -12,12 +12,16 @@ import '../frb_generated.dart';
 import 'api.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'settings.dart';
 import 'types.dart';
 
 // These functions are ignored because they are not marked as `pub`: `new`
 
 // Rust type: RustOpaqueNom<App>
 abstract class App implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueNom<SettingsDbRs>
+abstract class SettingsDbRs implements RustOpaqueInterface {}
 
 /// The `AppHandle` is a Dart representation of an [`App`] instance.
 class AppHandle {
@@ -134,6 +138,10 @@ class AppHandle {
           {required Config config, required String seedPhrase}) =>
       AppRs.instance.api
           .crateFfiAppAppHandleRestore(config: config, seedPhrase: seedPhrase);
+
+  SettingsDb settingsDb() => AppRs.instance.api.crateFfiAppAppHandleSettingsDb(
+        that: this,
+      );
 
   static Future<AppHandle> signup(
           {required Config config,

@@ -1,6 +1,6 @@
 //! Dart interface for app settings.
 
-use std::str::FromStr;
+use std::{str::FromStr, sync::Arc};
 
 use anyhow::Context;
 use common::api::fiat_rates::IsoCurrencyCode;
@@ -21,6 +21,12 @@ pub struct Settings {
 // --- impl SettingsDb --- //
 
 impl SettingsDb {
+    pub(crate) fn new(db: Arc<SettingsDbRs>) -> Self {
+        Self {
+            inner: RustOpaqueNom::from(db),
+        }
+    }
+
     pub fn update(&self, update: Settings) -> anyhow::Result<()> {
         let update_rs = SettingsRs::try_from(update)
             .context("Dart settings update is invalid")?;
