@@ -2,6 +2,7 @@ import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart' show Config, DeployEnv;
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' show Intl;
 import 'package:intl/intl_standalone.dart' as intl_standalone;
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/date_format.dart' as date_format;
@@ -25,16 +26,6 @@ Future<void> main() async {
   // Init native Rust ffi bindings.
   await app_rs_dart.init();
 
-  // TODO(phlip9): allow overriding default locale in preferences.
-  // Intl.defaultLocale = settings.getUserPreferredLocale();
-
-  // This fn determines the current system locale and sets `Intl.systemLocale`
-  // to it.
-  await intl_standalone.findSystemLocale();
-
-  // Initialize date formatting locale data for ALL locales.
-  await date_format.initializeDateLocaleData();
-
   Logger.init();
 
   final Config config = await cfg.build();
@@ -43,15 +34,29 @@ Future<void> main() async {
   final maybeApp = await AppHandle.load(config: config);
   final uriEvents = await UriEvents.prod();
 
+  // Determine the current system locale and set the global `Intl.systemLocale`.
+  await intl_standalone.findSystemLocale();
+
+  // Initialize date formatting locale data for ALL locales. Adds a few 100 KiB
+  // to binary size, but much simpler.
+  await date_format.initializeDateLocaleData();
+
   final Widget child;
   if (maybeApp != null) {
     final app = maybeApp;
+    final settings = LxSettings(app.settingsDb());
+
+    // If user has a locale preference set then use that over the system locale.
+    final locale = settings.locale.value;
+    if (locale != null) {
+      Intl.defaultLocale = settings.locale.value;
+    }
 
     // wallet already exists => show wallet page
     child = WalletPage(
       config: config,
       app: app,
-      settings: LxSettings(app.settingsDb()),
+      settings: settings,
       uriEvents: uriEvents,
     );
   } else {
