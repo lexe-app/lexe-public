@@ -11,6 +11,7 @@ import 'package:lexeapp/components.dart'
     show HeadingText, LxCloseButton, ScrollableSinglePageBody, SubheadingText;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
+import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/style.dart' show LxColors, Space;
 
 class DebugPage extends StatelessWidget {
@@ -18,10 +19,12 @@ class DebugPage extends StatelessWidget {
     super.key,
     required this.config,
     required this.app,
+    required this.settings,
   });
 
   final Config config;
   final AppHandle app;
+  final LxSettings settings;
 
   Future<void> doDeleteLocalPaymentDb() async {
     info("Deleting local PaymentDb");
@@ -41,6 +44,11 @@ class DebugPage extends StatelessWidget {
     info("Deleting latest_provisioned file");
     Result.tryFfi(() => debug.deleteLatestProvisioned(config: this.config))
         .inspectErr((err) => error(err.message));
+  }
+
+  void doResetSettingsDb() {
+    info("Resetting SettingsDb");
+    this.settings.reset();
   }
 
   @override
@@ -90,6 +98,17 @@ class DebugPage extends StatelessWidget {
                   style: TextStyle(color: LxColors.fgTertiary)),
             ])),
             onTap: this.doDeleteSecretStore,
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text("Reset SettingsDb"),
+            subtitle: const Text.rich(TextSpan(children: [
+              TextSpan(
+                  text:
+                      "Resets the SettingsDb and all settings to their default values.",
+                  style: TextStyle(color: LxColors.fgTertiary)),
+            ])),
+            onTap: this.doResetSettingsDb,
           ),
         ],
       ),
