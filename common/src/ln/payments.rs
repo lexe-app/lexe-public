@@ -337,20 +337,6 @@ impl ClientPaymentId {
     }
 }
 
-impl fmt::Debug for ClientPaymentId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::display(&self.0))
-    }
-}
-
-// --- impl LxPaymentHash --- //
-
-impl fmt::Debug for LxPaymentHash {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::display(&self.0))
-    }
-}
-
 // --- impl LxPaymentPreimage --- //
 
 impl LxPaymentPreimage {
@@ -361,15 +347,38 @@ impl LxPaymentPreimage {
     }
 }
 
+// --- Debug impls for bytes types --- //
+
+impl fmt::Debug for ClientPaymentId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::display(&self.0))
+    }
+}
+impl fmt::Debug for LxPaymentHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::display(&self.0))
+    }
+}
+
 // --- Redact secret information --- //
+// Prevent accidentally leaking secrets in logs
 
 impl fmt::Debug for LxPaymentPreimage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self}")
+    }
+}
+impl fmt::Debug for LxPaymentSecret {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self}")
+    }
+}
+impl Display for LxPaymentPreimage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("LxPaymentPreimage(..)")
     }
 }
-
-impl fmt::Debug for LxPaymentSecret {
+impl Display for LxPaymentSecret {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("LxPaymentSecret(..)")
     }
@@ -698,18 +707,7 @@ impl Display for LxPaymentHash {
         write!(f, "{hex_display}")
     }
 }
-impl Display for LxPaymentPreimage {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let hex_display = hex::display(&self.0);
-        write!(f, "{hex_display}")
-    }
-}
-impl Display for LxPaymentSecret {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let hex_display = hex::display(&self.0);
-        write!(f, "{hex_display}")
-    }
-}
+// `Display` for `LxPaymentPreimage` and `LxPaymentSecret` are redacted
 
 // --- impl Ord for LxPaymentId --- //
 
@@ -776,8 +774,9 @@ mod test {
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentIndex>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentId>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentHash>();
-        roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentPreimage>();
-        roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentSecret>();
+        // `Display` for `LxPaymentPreimage` and `LxPaymentSecret` are redacted
+        // roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentPreimage>();
+        // roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentSecret>();
     }
 
     #[test]
