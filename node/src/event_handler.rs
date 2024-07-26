@@ -437,15 +437,18 @@ async fn handle_event_fallible(
             reason,
             counterparty_node_id,
             channel_capacity_sats,
+            channel_funding_txo,
         } => {
             let channel_id = LxChannelId::from(channel_id);
             let counterparty_node_id =
                 counterparty_node_id.expect("Launched after v0.0.117");
             let channel_capacity_sats =
                 channel_capacity_sats.expect("Launched after v0.0.117");
+            let channel_funding_txo =
+                channel_funding_txo.expect("Launched after v0.0.119");
             info!(
-                %channel_id, ?reason,
-                %counterparty_node_id, %channel_capacity_sats,
+                %channel_id, ?reason, %counterparty_node_id,
+                %channel_capacity_sats, %channel_funding_txo,
                 "Channel is being closed"
             );
             test_event_tx.send(TestEvent::ChannelClosed);
