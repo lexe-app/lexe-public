@@ -9,6 +9,7 @@ import 'dart:async'
         unawaited;
 
 import 'package:app_rs_dart/ffi/api.dart' show FiatRate, FiatRates, NodeInfo;
+import 'package:app_rs_dart/ffi/api.ext.dart';
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
     show
@@ -97,20 +98,24 @@ class WalletPageState extends State<WalletPage> {
   /// A stream controller to notify when some payments are updated.
   final StreamController<Null> paymentsUpdated = StreamController.broadcast();
 
+  /// A stream of user perferred `fiatCurrency` updates.
+  late ValueListenableStream<String?> fiatCurrency;
+
   // BehaviorSubject: a StreamController that captures the latest item added
   // to the controller, and emits that as the first item to any new listener.
-  final BehaviorSubject<FiatRate?> fiatRate = BehaviorSubject.seeded(null);
-  final BehaviorSubject<NodeInfo?> nodeInfos = BehaviorSubject.seeded(null);
+  final BehaviorSubject<NodeInfo?> nodeInfo = BehaviorSubject.seeded(null);
+  final BehaviorSubject<FiatRates?> fiatRates = BehaviorSubject.seeded(null);
 
+  // Completes when the Rx.combine -> fiatRate completes
+  late Future fiatRateCombinerClosed;
+  final BehaviorSubject<FiatRate?> fiatRate = BehaviorSubject.seeded(null);
+
+  // Completes when the Rx.combine -> balanceStates completes
+  late Future balanceStatesCombinerClosed;
   // StateSubject: like BehaviorSubject but only notifies subscribers if the
   // new item is actually different.
-  final StateSubject<BalanceState> balanceStates =
+  final StateSubject<BalanceState> balanceState =
       StateSubject(BalanceState.placeholder);
-
-  /// The StreamSubscription for the Rx.combineLatest that feeds [balanceStates].
-  /// Need to manually cancel this because the `fiatCurrency` settings stream
-  /// never closes.
-  late StreamSubscription balanceStatesSub;
 
   /// The wallet page listens to URI events.
   late StreamSubscription<String> uriEventsListener;
@@ -151,19 +156,28 @@ class WalletPageState extends State<WalletPage> {
         .log(id: "burst refresh start")
         .listen(this.onBurstRefresh);
 
+    // We need to hold onto this stream so we can close it.
+    this.fiatCurrency = this.widget.settings.fiatCurrency.toValueStream();
+
+    // Combine the current `FiatRates` and user `fiatCurrency` preference into
+    // a single `FiatRate` for the preferred currency.
+    this.fiatRateCombinerClosed = Rx.combineLatest2(
+      this.fiatRates.stream,
+      this.fiatCurrency,
+      (fiatRates, fiatName) => fiatRates?.findByFiat(fiatName ?? "USD"),
+    ).log(id: "fiatRate").pipe(this.fiatRate.sink);
+
     // A stream of `BalanceState`s that gets updated when `nodeInfos` or
     // `fiatRate` are updated. Since it's fed into a `StateSubject`, it also
     // avoids widget rebuilds if new state == old state.
-    this.balanceStatesSub = Rx.combineLatest3(
-      this.nodeInfos.map((nodeInfo) => nodeInfo?.balance.totalSats),
-      this.fiatRate,
-      this.widget.settings.fiatCurrency.toValueStream(),
-      (balanceSats, fiatRate, fiatCurrency) => BalanceState(
-        balanceSats: balanceSats,
-        fiatName: fiatCurrency ?? "USD",
+    this.balanceStatesCombinerClosed = Rx.combineLatest2(
+      this.nodeInfo.stream,
+      this.fiatRate.stream,
+      (nodeInfo, fiatRate) => BalanceState(
+        balanceSats: nodeInfo?.balance.totalSats,
         fiatRate: fiatRate,
       ),
-    ).listen(this.balanceStates.addIfNotClosed);
+    ).log(id: "balanceState").pipe(this.balanceState.sink);
 
     // Listen to platform URI events (e.g., user taps a "lightning:" URI in
     // their browser).
@@ -173,19 +187,39 @@ class WalletPageState extends State<WalletPage> {
 
   @override
   void dispose() {
+    info("wallet: dispose");
+
+    // Cancel/dispose of all synchronous resources here
     this.backgroundRefresh?.cancel();
-    this.burstRefresh.close();
-    this.refresh.close();
-    this.onCompletedRefresh.close();
-    this.isRefreshing.dispose();
-    this.paymentsUpdated.close();
-    this.nodeInfos.close();
-    this.fiatRate.close();
-    this.balanceStatesSub.cancel();
-    this.balanceStates.close();
     this.uriEventsListener.cancel();
 
+    // Close async streams from inputs to outputs. While this is definitely more
+    // work than what we were doing previously (`addIfNotClosed` everywhere),
+    // it ensures we:
+    //
+    // (1) never pipe into a closed stream
+    // (2) don't have cycles
+    // (3) always gracefully shutdown cleanly
+    //
+    // Add a timeout here so a wrong shutdown order shows up as a big exception
+    this.closeStreams().timeout(const Duration(seconds: 2));
+
     super.dispose();
+  }
+
+  Future<void> closeStreams() async {
+    await this.burstRefresh.close();
+    await this.refresh.close();
+    await this.onCompletedRefresh.close();
+    this.isRefreshing.dispose();
+    await this.paymentsUpdated.close();
+    await this.fiatCurrency.close();
+    await this.nodeInfo.close();
+    await this.fiatRates.close();
+    await this.fiatRateCombinerClosed;
+    await this.fiatRate.close();
+    await this.balanceStatesCombinerClosed;
+    await this.balanceState.close();
   }
 
   /// User triggers a refresh (fetch balance, fiat rates, payment sync).
@@ -258,7 +292,7 @@ class WalletPageState extends State<WalletPage> {
     switch (res) {
       case Ok(:final ok):
         info("nodeInfo: $ok");
-        this.nodeInfos.addIfNotClosed(ok);
+        this.nodeInfo.addIfNotClosed(ok);
         return;
       case Err(:final err):
         error("Failed to fetch nodeInfo: $err");
@@ -272,27 +306,27 @@ class WalletPageState extends State<WalletPage> {
     final FiatRates fiatRates;
     switch (res) {
       case Ok(:final ok):
-        info("fiatRates: $ok");
         fiatRates = ok;
       case Err(:final err):
         error("Failed to fetch fiatRates: $err");
         return;
     }
 
-    // Select just fiat rate for user's current preferred fiat currency
-    final fiatPreference = this.widget.settings.fiatCurrency.value ?? "USD";
-    final FiatRate fiatRate;
-    try {
-      fiatRate =
-          fiatRates.rates.firstWhere((rate) => rate.fiat == fiatPreference);
-    } on StateError catch (_) {
-      error(
-          "fetchFiatRates: missing fiat rate for user preferred fiat: '$fiatPreference'");
-      return;
-    }
-    info("fiatRate: $fiatRate, timestampMs: ${fiatRates.timestampMs}");
+    // We aggressively cache the current fiat rates in the backend, so it's
+    // likely these haven't changed. Just ignore the update if it ain't fresher.
 
-    this.fiatRate.addIfNotClosed(fiatRate);
+    final prevTimestamp = this.fiatRates.value?.timestampMs ?? 0;
+    final newTimestamp = fiatRates.timestampMs;
+
+    if (newTimestamp > prevTimestamp) {
+      info("fiatRates: updated: new quote timestamp: $newTimestamp");
+      this.fiatRates.addIfNotClosed(fiatRates);
+    } else if (newTimestamp == prevTimestamp) {
+      info("fiatRates: fetched but not updated");
+    } else {
+      warn(
+          "fiatRates: fetched but somehow recvd older rates?? newTimestamp: $newTimestamp, prevTimestamp: $prevTimestamp");
+    }
   }
 
   Future<void> syncPayments() async {
@@ -394,10 +428,6 @@ class WalletPageState extends State<WalletPage> {
   /// Called when the "Receive" button is pressed. Pushes the receive payment
   /// page onto the navigation stack.
   Future<void> onReceivePressed() async {
-    // TODO(phlip9): remove this temporary hack once the recv UI gets build
-    final result = await Result.tryFfiAsync(() => this.widget.app.getAddress());
-    info("getAddress => $result");
-
     if (!this.mounted) return;
 
     unawaited(Navigator.of(this.context).push(
@@ -466,7 +496,7 @@ class WalletPageState extends State<WalletPage> {
       collectSendContext() async {
     final result = await Result.tryAsync<NodeInfo, TimeoutException>(
       () => this
-          .nodeInfos
+          .nodeInfo
           .stream
           .whereNotNull()
           .first
@@ -478,7 +508,7 @@ class WalletPageState extends State<WalletPage> {
   /// Collect up all the relevant context needed to support a new send payment
   /// flow.
   SendState_NeedUri? tryCollectSendContext() {
-    final maybeNodeInfo = this.nodeInfos.value;
+    final maybeNodeInfo = this.nodeInfo.value;
     // Ignore Send/Scan button press, we haven't fetched the node info yet.
     if (maybeNodeInfo == null) return null;
 
@@ -607,7 +637,7 @@ class WalletPageState extends State<WalletPage> {
               child: Column(children: [
             const SizedBox(height: Space.s1100),
             StateStreamBuilder(
-              stream: this.balanceStates,
+              stream: this.balanceState,
               builder: (context, balanceState) => BalanceWidget(balanceState),
             ),
             const SizedBox(height: Space.s700),
@@ -786,14 +816,13 @@ class DrawerListItem extends StatelessWidget {
 class BalanceState with _$BalanceState {
   const factory BalanceState({
     required int? balanceSats,
-    required String fiatName,
     required FiatRate? fiatRate,
   }) = _BalanceState;
 
   const BalanceState._();
 
   static BalanceState placeholder =
-      const BalanceState(balanceSats: null, fiatName: "USD", fiatRate: null);
+      const BalanceState(balanceSats: null, fiatRate: null);
 
   double? fiatBalance() => (this.balanceSats != null && this.fiatRate != null)
       ? currency_format.satsToBtc(this.balanceSats!) * this.fiatRate!.rate
