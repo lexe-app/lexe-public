@@ -21,6 +21,12 @@ class LxSettings {
   final ValueNotifier<String?> _fiatCurrency;
   ValueListenable<String?> get fiatCurrency => this._fiatCurrency;
 
+  void reset() {
+    this._db.reset();
+    this._locale.value = null;
+    this._fiatCurrency.value = null;
+  }
+
   FfiResult<void> update(final Settings update) {
     // Update Rust SettingsDb persistence layer.
     final result = Result.tryFfi(() => this._db.update(update: update));

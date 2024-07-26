@@ -683,6 +683,9 @@ class MockSettingsDb extends SettingsDb {
   Settings read() => const Settings();
 
   @override
+  void reset() {}
+
+  @override
   void update({required Settings update}) {}
 }
 
