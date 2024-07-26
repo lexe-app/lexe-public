@@ -206,7 +206,7 @@ impl fmt::Debug for UserPk {
 // --- impl NodePk --- //
 
 impl NodePk {
-    pub fn inner(&self) -> secp256k1::PublicKey {
+    pub fn inner(self) -> secp256k1::PublicKey {
         self.0
     }
 
