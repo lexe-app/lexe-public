@@ -1,8 +1,9 @@
 /// Extension methods on Dart/Rust FFI types.
 library;
 
-import 'package:app_rs_dart/ffi/api.dart' show Balance;
+import 'package:app_rs_dart/ffi/api.dart' show Balance, FiatRate, FiatRates;
 import 'package:app_rs_dart/ffi/types.dart' show PaymentKind;
+import 'package:collection/collection.dart';
 
 //
 // Balance
@@ -14,4 +15,13 @@ extension BalanceExt on Balance {
         PaymentKind.invoice => this.lightningSats,
         PaymentKind.spontaneous => this.lightningSats,
       };
+}
+
+//
+// FiatRates
+//
+
+extension FiatRatesExt on FiatRates {
+  FiatRate? findByFiat(String fiatName) =>
+      this.rates.firstWhereOrNull((rate) => rate.fiat == fiatName);
 }

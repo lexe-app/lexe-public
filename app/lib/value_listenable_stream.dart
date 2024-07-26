@@ -47,18 +47,20 @@ class ValueListenableStream<T> extends Stream<T> implements ValueStream<T> {
         );
   }
 
-  /// This callback is registered with `_valueListenable` and gets called
-  /// whenever it has a new value.
+  /// This callback is registered with the inner `_valueListenable` and gets
+  /// called whenever it has a new value.
   void _listener() {
     this._controller!.add(this._valueListenable.value);
   }
 
-  // Future close() async {
-  //   await this._controller?.close();
-  //   this._controller = null;
-  // }
+  /// Close the stream. A [ValueListenable] doesn't notify when it gets disposed
+  /// so this needs to be called manually.
+  Future close() async {
+    await this._controller?.close();
+    this._controller = null;
+  }
 
-  // These callbacks are registered with the `_controller`
+  // These callbacks are registered with the inner `_controller`
 
   void _onListen() {
     // Emit the initial value

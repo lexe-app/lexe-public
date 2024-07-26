@@ -17,29 +17,23 @@ final _privateConstructorUsedError = UnsupportedError(
 /// @nodoc
 mixin _$BalanceState {
   int? get balanceSats => throw _privateConstructorUsedError;
-  String get fiatName => throw _privateConstructorUsedError;
   FiatRate? get fiatRate => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
 
 class _$BalanceStateImpl extends _BalanceState {
-  const _$BalanceStateImpl(
-      {required this.balanceSats,
-      required this.fiatName,
-      required this.fiatRate})
+  const _$BalanceStateImpl({required this.balanceSats, required this.fiatRate})
       : super._();
 
   @override
   final int? balanceSats;
   @override
-  final String fiatName;
-  @override
   final FiatRate? fiatRate;
 
   @override
   String toString() {
-    return 'BalanceState(balanceSats: $balanceSats, fiatName: $fiatName, fiatRate: $fiatRate)';
+    return 'BalanceState(balanceSats: $balanceSats, fiatRate: $fiatRate)';
   }
 
   @override
@@ -49,27 +43,22 @@ class _$BalanceStateImpl extends _BalanceState {
             other is _$BalanceStateImpl &&
             (identical(other.balanceSats, balanceSats) ||
                 other.balanceSats == balanceSats) &&
-            (identical(other.fiatName, fiatName) ||
-                other.fiatName == fiatName) &&
             (identical(other.fiatRate, fiatRate) ||
                 other.fiatRate == fiatRate));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, balanceSats, fiatName, fiatRate);
+  int get hashCode => Object.hash(runtimeType, balanceSats, fiatRate);
 }
 
 abstract class _BalanceState extends BalanceState {
   const factory _BalanceState(
       {required final int? balanceSats,
-      required final String fiatName,
       required final FiatRate? fiatRate}) = _$BalanceStateImpl;
   const _BalanceState._() : super._();
 
   @override
   int? get balanceSats;
-  @override
-  String get fiatName;
   @override
   FiatRate? get fiatRate;
 }
