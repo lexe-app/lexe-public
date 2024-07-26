@@ -53,7 +53,9 @@ class SettingsDb {
         that: this,
       );
 
-  /// Update some settings.
+  /// Update the in-memory settings by merging in any non-null fields in
+  /// `update`. The settings will be persisted asynchronously, outside of this
+  /// call.
   void update({required Settings update}) => AppRs.instance.api
       .crateFfiSettingsSettingsDbUpdate(that: this, update: update);
 

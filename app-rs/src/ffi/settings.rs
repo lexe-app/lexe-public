@@ -39,7 +39,9 @@ impl SettingsDb {
         self.inner.reset();
     }
 
-    /// Update some settings.
+    /// Update the in-memory settings by merging in any non-null fields in
+    /// `update`. The settings will be persisted asynchronously, outside of this
+    /// call.
     #[frb(sync)]
     pub fn update(&self, update: Settings) -> anyhow::Result<()> {
         let update_rs = SettingsRs::try_from(update)
