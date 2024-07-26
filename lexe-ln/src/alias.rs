@@ -8,7 +8,7 @@ use lightning::{
         channelmanager::ChannelManager,
         peer_handler::{IgnoringMessageHandler, PeerManager},
     },
-    onion_message::{DefaultMessageRouter, OnionMessenger},
+    onion_message::messenger::{DefaultMessageRouter, OnionMessenger},
     routing::{
         gossip::{NetworkGraph, P2PGossipSync},
         router::DefaultRouter,

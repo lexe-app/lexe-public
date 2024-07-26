@@ -48,7 +48,7 @@ use lexe_ln::{
 use lightning::{
     chain::{chainmonitor::ChainMonitor, Watch},
     ln::peer_handler::IgnoringMessageHandler,
-    onion_message::{DefaultMessageRouter, OnionMessenger},
+    onion_message::messenger::{DefaultMessageRouter, OnionMessenger},
     routing::{
         gossip::P2PGossipSync, router::DefaultRouter,
         scoring::ProbabilisticScoringFeeParameters,

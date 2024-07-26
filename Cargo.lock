@@ -2611,8 +2611,8 @@ checksum = "4ec2a862134d2a7d32d7983ddcdd1c4923530833c9f2ea1a44fc5fa473989058"
 
 [[package]]
 name = "lightning"
-version = "0.0.119"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.119-2024_07_23#0b03bb87b5e661bc0af5ae651fff9266bea968c4"
+version = "0.0.120"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.120-2024_07_25#c629ffebbccb23439bc6b2fe227cfddaca35124e"
 dependencies = [
  "bitcoin",
  "hex-conservative",
@@ -2621,8 +2621,8 @@ dependencies = [
 
 [[package]]
 name = "lightning-invoice"
-version = "0.27.0"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.119-2024_07_23#0b03bb87b5e661bc0af5ae651fff9266bea968c4"
+version = "0.28.0"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.120-2024_07_25#c629ffebbccb23439bc6b2fe227cfddaca35124e"
 dependencies = [
  "bech32 0.9.1",
  "bitcoin",
@@ -2633,8 +2633,8 @@ dependencies = [
 
 [[package]]
 name = "lightning-net-tokio"
-version = "0.0.119"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.119-2024_07_23#0b03bb87b5e661bc0af5ae651fff9266bea968c4"
+version = "0.0.120"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.120-2024_07_25#c629ffebbccb23439bc6b2fe227cfddaca35124e"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -2643,8 +2643,8 @@ dependencies = [
 
 [[package]]
 name = "lightning-transaction-sync"
-version = "0.0.119"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.119-2024_07_23#0b03bb87b5e661bc0af5ae651fff9266bea968c4"
+version = "0.0.120"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.120-2024_07_25#c629ffebbccb23439bc6b2fe227cfddaca35124e"
 dependencies = [
  "bdk-macros",
  "bitcoin",
