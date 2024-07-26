@@ -43,10 +43,17 @@ class SettingsDb {
     required this.inner,
   });
 
+  /// Read all settings.
   Settings read() => AppRs.instance.api.crateFfiSettingsSettingsDbRead(
         that: this,
       );
 
+  /// Reset all settings to their defaults.
+  void reset() => AppRs.instance.api.crateFfiSettingsSettingsDbReset(
+        that: this,
+      );
+
+  /// Update some settings.
   void update({required Settings update}) => AppRs.instance.api
       .crateFfiSettingsSettingsDbUpdate(that: this, update: update);
 

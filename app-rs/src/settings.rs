@@ -101,6 +101,12 @@ impl SettingsDb {
     }
 
     #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
+    pub(crate) fn reset(&self) {
+        *self.settings.lock().unwrap() = Settings::default();
+        self.persist_tx.send();
+    }
+
+    #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
     pub(crate) fn update(&self, update: Settings) -> anyhow::Result<()> {
         self.settings.lock().unwrap().update(update)?;
         self.persist_tx.send();
@@ -324,14 +330,20 @@ mod test {
             let settings = Settings::load(ffs.as_ref());
             Self { ffs, settings }
         }
+        fn read(&self) -> Settings {
+            self.settings.clone()
+        }
+        fn reset(&mut self) {
+            self.settings = Settings::default();
+            self.ffs
+                .write(SETTINGS_JSON, &self.settings.serialize_json().unwrap())
+                .unwrap();
+        }
         fn update(&mut self, update: Settings) -> anyhow::Result<()> {
             self.settings.update(update)?;
             self.ffs
                 .write(SETTINGS_JSON, &self.settings.serialize_json()?)?;
             Ok(())
-        }
-        fn read(&self) -> Settings {
-            self.settings.clone()
         }
     }
 
@@ -340,6 +352,7 @@ mod test {
     enum Op {
         Update(Settings),
         Read,
+        Reset,
         Reload,
 
         /// Give background settings persister task time to do stuff. We use
@@ -390,6 +403,10 @@ mod test {
                     let s1 = model.read();
                     let s2 = real.read();
                     assert_eq!(s1, s2);
+                }
+                Op::Reset => {
+                    model.reset();
+                    real.reset();
                 }
                 Op::Reload => {
                     model = ModelDb::load(model_ffs.clone());

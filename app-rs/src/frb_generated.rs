@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.1.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -847901509;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -138757465;
 
 // Section: executor
 
@@ -560,6 +560,19 @@ fn wire__crate__ffi__settings__settings_db_read_impl(
             let api_that = <crate::ffi::settings::SettingsDb>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
                      let output_ok = Result::<_,()>::Ok(crate::ffi::settings::SettingsDb::read(&api_that))?;   Ok(output_ok)
+                })()) })
+}
+fn wire__crate__ffi__settings__settings_db_reset_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "settings_db_reset", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::settings::SettingsDb>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, ()>((move || {
+                     let output_ok = Result::<_,()>::Ok({ crate::ffi::settings::SettingsDb::reset(&api_that); })?;   Ok(output_ok)
                 })()) })
 }
 fn wire__crate__ffi__settings__settings_db_update_impl(
@@ -1639,10 +1652,11 @@ fn pde_ffi_dispatcher_sync_impl(
 29 => wire__crate__ffi__debug__delete_secret_store_impl(ptr, rust_vec_len, data_len),
 32 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
 35 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
-36 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-37 => wire__crate__ffi__types__client_payment_id_gen_impl(ptr, rust_vec_len, data_len),
-38 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
-39 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
+36 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
+37 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
+38 => wire__crate__ffi__types__client_payment_id_gen_impl(ptr, rust_vec_len, data_len),
+39 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
+40 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
