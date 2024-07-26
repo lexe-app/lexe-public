@@ -27,11 +27,19 @@ impl SettingsDb {
         }
     }
 
+    /// Read all settings.
     #[frb(sync)]
     pub fn read(&self) -> Settings {
         Settings::from(self.inner.read())
     }
 
+    /// Reset all settings to their defaults.
+    #[frb(sync)]
+    pub fn reset(&self) {
+        self.inner.reset();
+    }
+
+    /// Update some settings.
     #[frb(sync)]
     pub fn update(&self, update: Settings) -> anyhow::Result<()> {
         let update_rs = SettingsRs::try_from(update)
