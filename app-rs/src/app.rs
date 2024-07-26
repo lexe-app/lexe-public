@@ -46,7 +46,6 @@ pub struct App {
     payment_sync_lock: tokio::sync::Mutex<()>,
 
     /// App settings
-    #[allow(dead_code)] // TODO(phlip9): remove
     settings_db: Arc<SettingsDb>,
 }
 
@@ -335,7 +334,7 @@ impl App {
         &self.gateway_client
     }
 
-    #[allow(dead_code)] // TODO(phlip9): remove
+    #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
     pub(crate) fn settings_db(&self) -> Arc<SettingsDb> {
         self.settings_db.clone()
     }

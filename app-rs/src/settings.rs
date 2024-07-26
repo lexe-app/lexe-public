@@ -10,13 +10,18 @@ use common::{
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
-use tracing::{error, info};
+use tracing::info;
 
 use crate::ffs::Ffs;
 
 const SETTINGS_JSON: &str = "settings.json";
 
 /// The app settings DB. Responsible for managing access to the settings.
+///
+/// Persistence is currently done asynchronously out-of-band, so calling
+/// [`SettingsDb::update`] only modifies the in-memory state. The
+/// [`SettingsPersister`] will finish writing the settings to durable storage
+/// later (by at most 500ms).
 pub(crate) struct SettingsDb {
     /// The current in-memory settings.
     settings: Arc<std::sync::Mutex<Settings>>,
@@ -28,7 +33,7 @@ pub(crate) struct SettingsDb {
     shutdown: ShutdownChannel,
 }
 
-/// Persists settings asynchronously, out-of-band.
+/// Persists settings asynchronously when notified by the [`SettingsDb`].
 struct SettingsPersister<F> {
     /// Settings flat file store.
     ffs: F,
@@ -58,6 +63,20 @@ pub(crate) struct Settings {
 #[serde(transparent)]
 pub(crate) struct SchemaVersion(pub u32);
 
+// --- macro --- //
+
+/// `panic!(..)` when `cfg(debug_assertions)`.
+/// `tracing::error!(..)` otherwise.
+macro_rules! debug_panic_prod_log {
+    ($($arg:tt)*) => {
+        if core::cfg!(debug_assertions) {
+            core::panic!($($arg)*);
+        } else {
+            tracing::error!($($arg)*);
+        }
+    };
+}
+
 // --- impl SettingsDb --- //
 
 impl SettingsDb {
@@ -65,6 +84,9 @@ impl SettingsDb {
         let settings = Arc::new(std::sync::Mutex::new(Settings::load(&ffs)));
         let (persist_tx, persist_rx) = notify::channel();
         let shutdown = ShutdownChannel::new();
+
+        // spawn a task that we can notify to write settings updates to durable
+        // storage.
         let persister = SettingsPersister::new(
             ffs,
             settings.clone(),
@@ -73,6 +95,7 @@ impl SettingsDb {
         );
         let persist_task =
             Some(LxTask::spawn_named("settings_persist", persister.run()));
+
         Self {
             settings,
             persist_tx,
@@ -81,7 +104,10 @@ impl SettingsDb {
         }
     }
 
-    #[allow(dead_code)] // TODO(phlip9): remove
+    /// Shutdown the [`SettingsDb`]. Flushes any pending writes to disk.
+    // TODO(phlip9): remove `dead_code` when we can actually hook the applicaton
+    // lifecycle properly.
+    #[allow(dead_code)]
     pub(crate) async fn shutdown(&mut self) -> anyhow::Result<()> {
         // Trigger task to shutdown.
         self.shutdown.send();
@@ -95,17 +121,23 @@ impl SettingsDb {
             .context("settings persister panicked")
     }
 
+    /// Return a clone of the current in-memory [`Settings`].
     #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
     pub(crate) fn read(&self) -> Settings {
         self.settings.lock().unwrap().clone()
     }
 
+    /// Reset the in-memory [`Settings`] to its default value and notify the
+    /// [`SettingsPersister`].
     #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
     pub(crate) fn reset(&self) {
         *self.settings.lock().unwrap() = Settings::default();
         self.persist_tx.send();
     }
 
+    /// Update the in-memory [`Settings`] by merging in any `Some` fields in
+    /// `update`. Then notify the [`SettingsPersister`] that we need to save,
+    /// but don't wait for it to actually persist.
     #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
     pub(crate) fn update(&self, update: Settings) -> anyhow::Result<()> {
         self.settings.lock().unwrap().update(update)?;
@@ -167,8 +199,8 @@ where
 
     async fn do_persist(&mut self) {
         if let Err(err) = self.do_persist_inner().await {
-            // Just log the error
-            error!("Error persisting settings: {err:#}");
+            // prod: Just log the error
+            debug_panic_prod_log!("Error persisting settings: {err:#}");
         }
     }
 
@@ -195,7 +227,7 @@ impl Settings {
             Ok(Some(settings)) => settings,
             Ok(None) => Settings::default(),
             Err(err) => {
-                error!("settings: failed to load: {err:#}");
+                debug_panic_prod_log!("settings: failed to load: {err:#}");
                 Settings::default()
             }
         }
@@ -261,6 +293,7 @@ impl SchemaVersion {
 // --- Option<T>::update --- //
 
 trait OptionExt {
+    /// Replace `self` only if `update` is `Some(_)`.
     fn update(&mut self, update: Self);
 }
 
