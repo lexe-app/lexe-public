@@ -25,8 +25,7 @@ use common::{
         Empty, NodePk, Scid, User, UserPk,
     },
     byte_str::ByteStr,
-    constants::{self, SINGLETON_DIRECTORY},
-    ed25519,
+    constants, ed25519,
     enclave::{self, Measurement},
     env::DeployEnv,
     ln::{
@@ -40,7 +39,7 @@ use common::{
 use lazy_lock::LazyLock;
 use tokio::sync::mpsc;
 
-use crate::{api::BackendApiClient, persister};
+use crate::api::BackendApiClient;
 
 type FileName = String;
 type Data = Vec<u8>;
@@ -459,65 +458,54 @@ struct VirtualFileSystem {
 
 impl VirtualFileSystem {
     fn new() -> Self {
-        let mut inner = HashMap::new();
-
-        // For each user, insert all directories used by the persister
-        for _ in [*USER_PK1, *USER_PK2] {
-            let singleton_dir = VfsDirectory {
-                dirname: SINGLETON_DIRECTORY.into(),
-            };
-            let channel_monitors_dir = VfsDirectory {
-                dirname: persister::CHANNEL_MONITORS_DIRECTORY.into(),
-            };
-            inner.insert(singleton_dir, HashMap::new());
-            inner.insert(channel_monitors_dir, HashMap::new());
-        }
-
+        let inner = HashMap::new();
         Self { inner }
     }
 
-    fn get(&self, file_id: VfsFileId) -> Option<VfsFile> {
+    fn get(&mut self, file_id: VfsFileId) -> Option<VfsFile> {
+        let dirname = file_id.dir.dirname;
         let dir = VfsDirectory {
-            dirname: file_id.dir.dirname,
+            dirname: dirname.clone(),
         };
         self.inner
-            .get(&dir)
-            .expect("Missing directory")
+            .entry(dir)
+            .or_default()
             .get(&file_id.filename)
-            .map(|data| {
-                VfsFile::new(dir.dirname, file_id.filename, data.clone())
-            })
+            .map(|data| VfsFile::new(dirname, file_id.filename, data.clone()))
     }
 
     fn insert(&mut self, file: VfsFile) -> Option<VfsFile> {
+        let dirname = file.id.dir.dirname;
         let dir = VfsDirectory {
-            dirname: file.id.dir.dirname,
+            dirname: dirname.clone(),
         };
         self.inner
-            .get_mut(&dir)
-            .expect("Missing directory")
+            .entry(dir)
+            .or_default()
             .insert(file.id.filename.clone(), file.data)
-            .map(|data| VfsFile::new(dir.dirname, file.id.filename, data))
+            .map(|data| VfsFile::new(dirname, file.id.filename, data))
     }
 
     fn remove(&mut self, file_id: VfsFileId) -> Option<VfsFile> {
+        let dirname = file_id.dir.dirname;
         let dir = VfsDirectory {
-            dirname: file_id.dir.dirname,
+            dirname: dirname.clone(),
         };
         self.inner
-            .get_mut(&dir)
-            .expect("Missing directory")
+            .entry(dir)
+            .or_default()
             .remove(&file_id.filename)
-            .map(|data| VfsFile::new(dir.dirname, file_id.filename, data))
+            .map(|data| VfsFile::new(dirname, file_id.filename, data))
     }
 
-    fn get_dir(&self, dir: VfsDirectory) -> Vec<VfsFile> {
+    fn get_dir(&mut self, dir: VfsDirectory) -> Vec<VfsFile> {
+        let dirname = dir.dirname.clone();
         self.inner
-            .get(&dir)
-            .expect("Missing directory")
+            .entry(dir)
+            .or_default()
             .iter()
             .map(|(name, data)| {
-                VfsFile::new(dir.dirname.clone(), name.clone(), data.clone())
+                VfsFile::new(dirname.clone(), name.clone(), data.clone())
             })
             .collect()
     }
