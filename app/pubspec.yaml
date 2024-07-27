@@ -137,6 +137,11 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  # Default to this build flavor when a developer runs a "naked" `flutter run`,
+  # `flutter build`, ... without an explicit `--flavor XXX` arg.
+  # For a list of flavors, see: `app/android/app/build.gradle`.
+  # TODO(phlip9): change to `dev` when ios/macOS have those flavors.
+  default-flavor: design
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
