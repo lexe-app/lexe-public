@@ -23,6 +23,8 @@ use crate::{
 };
 
 pub const DEFAULT_USER_TOKEN_LIFETIME_SECS: u32 = 10 * 60; // 10 min
+/// The min remaining lifetime of a token before we'll proactively refresh.
+const EXPIRATION_BUFFER: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -121,9 +123,6 @@ pub struct BearerAuthResponse {
 pub struct BearerAuthToken(pub ByteStr);
 
 /// A [`BearerAuthToken`] and its expected expiration time
-///
-/// * we actually use "true expiration" minus a few seconds so we can re-auth
-///   before the token actually expires.
 #[derive(Clone)]
 pub struct TokenWithExpiration {
     pub expiration: SystemTime,
@@ -292,7 +291,8 @@ impl BearerAuthenticator {
         if let Some(cached_token) =
             self.cached_auth_token.lock().unwrap().as_ref()
         {
-            if cached_token.expiration > now {
+            // Buffer ensures we don't return immediately expiring tokens
+            if now + EXPIRATION_BUFFER < cached_token.expiration {
                 return Ok(cached_token.token.clone());
             }
         }
@@ -317,8 +317,7 @@ impl BearerAuthenticator {
         now: SystemTime,
     ) -> Result<TokenWithExpiration, BackendApiError> {
         let lifetime = DEFAULT_USER_TOKEN_LIFETIME_SECS;
-        let expiration = now + Duration::from_secs(lifetime as u64)
-            - Duration::from_secs(15);
+        let expiration = now + Duration::from_secs(lifetime as u64);
         let auth_req = BearerAuthRequest::new(now, lifetime);
         let (_, signed_req) = self
             .user_key_pair
