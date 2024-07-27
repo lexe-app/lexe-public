@@ -37,8 +37,6 @@ android {
 
     defaultConfig {
         applicationId "app.lexe.lexeapp"
-        // The app name. ex: displayed under the icon on the user's home screen.
-        resValue "string", "app_name", "Lexe"
 
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
@@ -66,10 +64,39 @@ android {
 
     flavorDimensions "flavor"
 
+    // We're now using different application "flavors" to differentiate
+    // prod/staging/dev/design instead of flutter `--dart-define` args.
+    //
+    // The key advantage is that each flavor gets its own separately installed
+    // app on-device. This way we can have multiple flavors installed
+    // simultaneously. The app variants then don't step on each other's toes.
     productFlavors {
-        // TODO(phlip9): add separate prod/staging/dev flavors?
+        // (Default) Local development against a local lexe backend.
+        dev {
+            dimension "flavor"
+            // The app name. ex: displayed under the icon on the user's home screen.
+            resValue "string", "app_name", "Lexe Dev"
+            applicationIdSuffix ".dev"
+            versionNameSuffix "-dev"
+        }
 
-        // Lexe design mode
+        // Lexe testnet/staging backend.
+        staging {
+            dimension "flavor"
+            // The app name. ex: displayed under the icon on the user's home screen.
+            resValue "string", "app_name", "Lexe Staging"
+            applicationIdSuffix ".staging"
+            versionNameSuffix "-staging"
+        }
+
+        // Lexe mainnet/production backend.
+        prod {
+            dimension "flavor"
+            // The app name. ex: displayed under the icon on the user's home screen.
+            resValue "string", "app_name", "Lexe"
+        }
+
+        // Lexe design mode.
         design {
             dimension "flavor"
             // The app name. ex: displayed under the icon on the user's home screen.
