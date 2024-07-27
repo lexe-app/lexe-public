@@ -10,6 +10,21 @@ project 'Runner', {
   'Profile' => :release,
   'Release' => :release,
 
+  # "dev" mode flavor (Default)
+  'Debug-dev' => :debug,
+  'Profile-dev' => :release,
+  'Release-dev' => :release,
+
+  # "staging" mode flavor
+  'Debug-staging' => :debug,
+  'Profile-staging' => :release,
+  'Release-staging' => :release,
+
+  # "prod" mode flavor
+  'Debug-prod' => :debug,
+  'Profile-prod' => :release,
+  'Release-prod' => :release,
+
   # "design" mode flavor
   'Debug-design' => :debug,
   'Profile-design' => :release,
