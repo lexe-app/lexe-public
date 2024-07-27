@@ -1,5 +1,4 @@
 use std::{
-    collections::{HashMap, HashSet},
     io::Cursor,
     ops::Deref,
     str::FromStr,
@@ -65,9 +64,10 @@ use lightning::{
     },
     util::ser::{ReadableArgs, Writeable},
 };
+use secrecy::{ExposeSecret, Secret};
 use serde::Serialize;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 use crate::{
     alias::{ChainMonitorType, ChannelManagerType},
@@ -75,6 +75,9 @@ use crate::{
     approved_versions::ApprovedVersions,
     channel_manager::USER_CONFIG,
 };
+
+/// Data discrepancy evaluation and resolution.
+mod discrepancy;
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
 const NETWORK_GRAPH_FILENAME: &str = "network_graph";
@@ -84,7 +87,7 @@ const GDRIVE_CREDENTIALS_FILENAME: &str = "gdrive_credentials";
 const GVFS_ROOT_FILENAME: &str = "gvfs_root";
 
 // Non-singleton objects use a fixed directory with dynamic filenames
-pub(crate) const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
+const CHANNEL_MONITORS_DIR: &str = "channel_monitors";
 
 pub struct NodePersister {
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
@@ -147,7 +150,7 @@ pub(crate) async fn read_gdrive_credentials(
         .context("Failed to fetch file")?
         .context(
             "No GDriveCredentials VFS file returned from DB; \
-                 perhaps it was never provisioned?",
+             perhaps it was never provisioned?",
         )?;
 
     let gdrive_credentials =
@@ -296,7 +299,7 @@ pub(crate) async fn persist_approved_versions(
 
 impl NodePersister {
     /// Initialize a [`NodePersister`].
-    /// `google_vfs` MUST be [`Some`] if we are running on testnet or mainnet.
+    /// `google_vfs` MUST be [`Some`] if we are running in staging or prod.
     pub(crate) fn new(
         backend_api: Arc<dyn BackendApiClient + Send + Sync>,
         authenticator: Arc<BearerAuthenticator>,
@@ -456,9 +459,12 @@ impl NodePersister {
                 let maybe_lexe_file = try_maybe_lexe_file
                     .context("Error fetching from Lexe (`Some` branch)")?;
 
-                self.decrypt_channel_manager_and_fix_errors(
-                    &file_id,
+                discrepancy::evaluate_and_resolve_channel_manager(
+                    &*self.backend_api,
+                    &self.authenticator,
+                    &self.vfs_master_key,
                     gvfs,
+                    &file_id,
                     maybe_google_file,
                     maybe_lexe_file,
                 )
@@ -479,6 +485,7 @@ impl NodePersister {
                             &file_id,
                             file,
                         )
+                        .map(Secret::new)
                         .context("Failed to decrypt file (`None` branch)")
                     })
                     .transpose()?
@@ -487,7 +494,7 @@ impl NodePersister {
 
         let maybe_manager = match maybe_chanman_bytes {
             Some(chanman_bytes) => {
-                let mut state_buf = Cursor::new(&chanman_bytes);
+                let mut state_buf = Cursor::new(chanman_bytes.expose_secret());
 
                 let mut channel_monitor_mut_refs = Vec::new();
                 for (_, channel_monitor) in channel_monitors.iter_mut() {
@@ -531,12 +538,12 @@ impl NodePersister {
     ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
         debug!("Reading channel monitors");
 
-        let dir = VfsDirectory::new(CHANNEL_MONITORS_DIRECTORY);
+        let dir = VfsDirectory::new(CHANNEL_MONITORS_DIR);
         let token = self.get_token().await?;
 
         let all_files = match self.google_vfs {
             Some(ref gvfs) => {
-                // We're running on testnet/mainnet.
+                // We're running on staging/prod
                 // Fetch from both Google Drive and Lexe's DB.
                 let (try_google_files, try_lexe_files) = tokio::join!(
                     gvfs.get_directory(&dir),
@@ -547,7 +554,9 @@ impl NodePersister {
                 let lexe_files = try_lexe_files
                     .context("Failed to fetch from Lexe (`Some` branch)")?;
 
-                self.compare_channel_monitors_and_fix_errors(
+                discrepancy::evaluate_and_resolve_all_monitors(
+                    &*self.backend_api,
+                    &self.authenticator,
                     gvfs,
                     google_files,
                     lexe_files,
@@ -677,223 +686,6 @@ impl NodePersister {
         };
 
         Ok(network_graph)
-    }
-
-    /// Given the [`Option<VfsFile>`]s for the channel manager returned to us by
-    /// both Google and Lexe, get the contained decrypted channel manager bytes.
-    ///
-    /// - If the files are the same, we decrypt either one and return the bytes.
-    /// - If the files are different, or one exists and the other doesn't, we'll
-    ///   reason about likely scenarios and resolve the discrepancy accordingly.
-    /// - If no files were returned, we return [`None`].
-    ///
-    /// This function must ONLY be called by [`read_channel_manager`], as its
-    /// reasoning is tightly coupled with assumptions relating to the channel
-    /// manager. It is extracted as a helper primarily so that the original
-    /// function body is easier to read.
-    ///
-    /// [`read_channel_manager`]: Self::read_channel_manager
-    async fn decrypt_channel_manager_and_fix_errors(
-        &self,
-        file_id: &VfsFileId,
-        gvfs: &GoogleVfs,
-        maybe_google_file: Option<VfsFile>,
-        maybe_lexe_file: Option<VfsFile>,
-    ) -> anyhow::Result<Option<Vec<u8>>> {
-        if maybe_google_file == maybe_lexe_file {
-            // Encrypted files match, therefore the contents match.
-            // Proceed to decrypt either one of them.
-            return maybe_google_file
-                .map(|file| {
-                    persister::decrypt_file(&self.vfs_master_key, file_id, file)
-                })
-                .transpose();
-        }
-        // Uh oh! There was a discrepancy between Google and Lexe.
-        // We'll have to do extra work to fix it.
-
-        // Decrypt the VFS files, thereby validating and authenticating them. We
-        // clone before decryption so that we don't have to re-encrypt the files
-        // later when we fix the discrepancy.
-        let maybe_google_bytes = maybe_google_file
-            .clone()
-            .map(|file| {
-                persister::decrypt_file(&self.vfs_master_key, file_id, file)
-                    .context("Failed to decrypt file from Google")
-            })
-            .transpose()?;
-        let maybe_lexe_bytes = maybe_lexe_file
-            .clone()
-            .map(|file| {
-                persister::decrypt_file(&self.vfs_master_key, file_id, file)
-                    .context("Failed to decrypt file from Lexe")
-            })
-            .transpose()?;
-
-        // Fix the discrepancy.
-        match (maybe_google_file, maybe_lexe_file) {
-            (Some(google_file), Some(_lexe_file)) => {
-                // The file was found in both GDrive and in Lexe's DB, but they
-                // were different. This could happen if a channel manager
-                // persist has a partial failure, updating one copy but not the
-                // other. GDrive offers rollback protection, so it is the
-                // primary source of truth. Update Lexe with the Google version.
-                warn!(
-                    "Data out of sync between Google and Lexe; \
-                      updating Lexe's version"
-                );
-                let token = self.get_token().await?;
-                self.backend_api
-                    .upsert_file(&google_file, token)
-                    .await
-                    .context("Failed to correct Lexe DB version")?;
-            }
-            (Some(ref google_file), None) => {
-                // The channel manager was found in GDrive but not in Lexe's DB.
-                // This should basically never happen unless (1) Lexe somehow
-                // lost their data or (2) the user requested to delete their
-                // account but somehow added the data back to their My Drive.
-                // Let's make some noise and copy the data into Lexe's DB.
-                error!(
-                    "Channel manager found in gdrive but not in Lexe's DB; /
-                    copying to Lexe's DB"
-                );
-                let token = self.get_token().await?;
-                self.backend_api
-                    .create_file(google_file, token)
-                    .await
-                    .context("Failed to correct Lexe DB version")?;
-            }
-            (None, Some(lexe_file)) => {
-                // Lexe has a valid channel manager in its DB, yet none was
-                // returned from a successful API call to Google.
-                // In other words, the user exists but they are missing
-                // *critical* information in their Google Drive.
-                //
-                // We assume that the user has lost their backup (by deleting
-                // the LexeData dir in My Drive despite all the "DO NOT DELETE"
-                // warnings to the contrary) and needs help with funds recovery.
-                // At this point, the user has no choice but to use the channel
-                // manager from Lexe's DB (which may have been rolled back).
-                //
-                // We'll make some noise then copy Lexe's channel manager back
-                // into the user's Google Drive.
-                error!(
-                    "Channel manager found in Lexe's DB but not in \
-                    Google Drive. The user appears to have lost their \
-                    backup. To prevent potential funds loss, we will \
-                    recover using the channel manager from Lexe's DB."
-                );
-                gvfs.create_file(lexe_file)
-                    .await
-                    .context("Failed to copy Lexe's data to GDrive")?;
-            }
-            (None, None) => unreachable!("Early exit checked for equality"),
-        }
-
-        // For security, the GDrive version always takes precedence.
-        Ok(maybe_google_bytes.or(maybe_lexe_bytes))
-    }
-
-    /// Compares the channel monitor files returned by both Google and Lexe,
-    /// returning a [`Vec<VfsFile>`] which we consider to be the "correct" set
-    /// of monitors.
-    ///
-    /// If Google and Lexe returned different results, we'll reason about likely
-    /// scenarios in each case and resolve the discrepancies accordingly.
-    ///
-    /// The logic is very similar to [`decrypt_channel_manager_and_fix_errors`],
-    /// but we should resist the urge to extract a function that abstracts over
-    /// both, since there are nuanced differences between them with important
-    /// security implications.
-    ///
-    /// [`decrypt_channel_manager_and_fix_errors`]: Self::decrypt_channel_manager_and_fix_errors
-    async fn compare_channel_monitors_and_fix_errors(
-        &self,
-        gvfs: &GoogleVfs,
-        mut google_files: Vec<VfsFile>,
-        mut lexe_files: Vec<VfsFile>,
-    ) -> anyhow::Result<Vec<VfsFile>> {
-        // Build a hashmap (&file_id -> &file) for both
-        let google_map = google_files
-            .iter()
-            .map(|file| (&file.id, file))
-            .collect::<HashMap<&VfsFileId, &VfsFile>>();
-        let lexe_map = lexe_files
-            .iter()
-            .map(|file| (&file.id, file))
-            .collect::<HashMap<&VfsFileId, &VfsFile>>();
-
-        // Early exit if Google and Lexe returned the same (encrypted) data.
-        if google_map == lexe_map {
-            return Ok(google_files);
-        }
-        // Uh oh! There was a discrepancy between Google's and Lexe's versions.
-        // Since GDrive has rollback protection it is the primary source
-        // of truth; fix any discrepancies by updating Lexe's version.
-
-        // A hashset of all `&VfsFileId`s.
-        let all_file_ids = google_map
-            .keys()
-            .chain(lexe_map.keys())
-            .copied()
-            .collect::<HashSet<&VfsFileId>>();
-
-        // Iterate through all known file ids and fix any discrepancies.
-        let mut to_append_to_google_files = Vec::<VfsFile>::new();
-        let mut to_append_to_lexe_files = Vec::<VfsFile>::new();
-        for file_id in all_file_ids {
-            match (google_map.get(&file_id), lexe_map.get(&file_id)) {
-                (Some(google_file), Some(lexe_file)) => {
-                    // Both Google and Lexe contained the file.
-                    if google_file != lexe_file {
-                        warn!("Found a monitor discrepancy: {file_id}");
-                        // Update Lexe's version.
-                        let token = self.get_token().await?;
-                        self.backend_api
-                            .upsert_file(google_file, token)
-                            .await
-                            .with_context(|| format!("{file_id}"))
-                            .context("Failed to fix Lexe's version")?;
-                    }
-                }
-                (Some(google_file), None) => {
-                    // Lexe didn't have the file. Copy it to Lexe.
-                    let token = self.get_token().await?;
-                    error!("Lexe DB is missing a monitor: {file_id}");
-                    self.backend_api
-                        .create_file(google_file, token)
-                        .await
-                        .with_context(|| format!("{file_id}"))
-                        .context("Failed to fix Lexe's version")?;
-                    to_append_to_lexe_files.push((*google_file).clone());
-                }
-                (None, Some(lexe_file)) => {
-                    // Google didn't have the file; restore from Lexe's version.
-                    // This case could be triggered by a deletion race where
-                    // deleting from Google succeeds but the node crashes before
-                    // it could be deleted from Lexe's DB. Since this is rare,
-                    // we should restore the monitor from Lexe's version in case
-                    // the deletion from Google was done on accident.
-                    // NOTE: if a malicious Lexe is intentionally trying to
-                    // resurface a previously-deleted monitor, that 'attack'
-                    // doesn't actually accomplish anything.
-                    error!("Restoring monitor from Lexe: {file_id}");
-                    gvfs.create_file((*lexe_file).clone())
-                        .await
-                        .with_context(|| format!("{file_id}"))
-                        .context("Failed to restore to Google")?;
-                    to_append_to_google_files.push((*lexe_file).clone());
-                }
-                (None, None) => unreachable!("HashSet was wrong"),
-            }
-        }
-
-        google_files.append(&mut to_append_to_google_files);
-        lexe_files.append(&mut to_append_to_lexe_files);
-
-        // All discrepancies have been fixed. Return the files.
-        Ok(google_files)
     }
 }
 
@@ -1127,7 +919,7 @@ impl Persist<SignerType> for NodePersister {
         info!("Persisting new channel {funding_txo}");
 
         let file = self.encrypt_ldk_writeable(
-            CHANNEL_MONITORS_DIRECTORY,
+            CHANNEL_MONITORS_DIR,
             funding_txo.to_string(),
             monitor,
         );
@@ -1188,7 +980,7 @@ impl Persist<SignerType> for NodePersister {
         info!("Updating persisted channel {funding_txo}");
 
         let file = self.encrypt_ldk_writeable(
-            CHANNEL_MONITORS_DIRECTORY,
+            CHANNEL_MONITORS_DIR,
             funding_txo.to_string(),
             monitor,
         );
