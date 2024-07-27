@@ -71,7 +71,7 @@ where
                 .context("Could not connect to LSP")?;
         }
         LspToUser { user_node_pk } => ensure!(
-            p2p::is_connected(peer_manager, &user_node_pk),
+            peer_manager.peer_by_node_id(&user_node_pk.0).is_some(),
             "LSP must be connected to user before opening channel",
         ),
         LspToExternal {
@@ -159,7 +159,7 @@ where
             .map_err(|e| anyhow!("(Force close) LDK returned error: {e:?}"))?;
     } else {
         ensure!(
-            p2p::is_connected(peer_manager, &counterparty),
+            peer_manager.peer_by_node_id(&counterparty.0).is_some(),
             "Cannot initiate cooperative close with disconnected peer"
         );
 

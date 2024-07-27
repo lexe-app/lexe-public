@@ -23,9 +23,7 @@ use lexe_ln::{
 use lightning::events::{Event, EventHandler, PaymentFailureReason};
 use tracing::{error, info, warn};
 
-use crate::{
-    alias::NodePaymentsManagerType, channel_manager::NodeChannelManager,
-};
+use crate::{alias::PaymentsManagerType, channel_manager::NodeChannelManager};
 
 // We pub(crate) all the fields to prevent having to specify each field two more
 // times in Self::new parameters and in struct init syntax.
@@ -36,7 +34,7 @@ pub struct NodeEventHandler {
     pub(crate) keys_manager: Arc<LexeKeysManager>,
     pub(crate) esplora: Arc<LexeEsplora>,
     pub(crate) network_graph: Arc<NetworkGraphType>,
-    pub(crate) payments_manager: NodePaymentsManagerType,
+    pub(crate) payments_manager: PaymentsManagerType,
     pub(crate) fatal_event: Arc<AtomicBool>,
     pub(crate) test_event_tx: TestEventSender,
     pub(crate) shutdown: ShutdownChannel,
@@ -133,7 +131,7 @@ pub(crate) async fn handle_event(
     esplora: &LexeEsplora,
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
-    payments_manager: &NodePaymentsManagerType,
+    payments_manager: &PaymentsManagerType,
     fatal_event: &AtomicBool,
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
@@ -176,7 +174,7 @@ async fn handle_event_fallible(
     // TODO(max): Remove this?
     _network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
-    payments_manager: &NodePaymentsManagerType,
+    payments_manager: &PaymentsManagerType,
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
     event: Event,
@@ -258,21 +256,33 @@ async fn handle_event_fallible(
         }
 
         Event::ChannelPending {
-            channel_id: _,
-            user_channel_id: _,
+            channel_id,
+            user_channel_id,
             former_temporary_channel_id: _,
-            counterparty_node_id: _,
-            funding_txo: _,
+            counterparty_node_id,
+            funding_txo,
+            channel_type,
         } => {
+            let channel_type = channel_type.expect("Launched after 0.0.122");
+            info!(
+                %channel_id, %user_channel_id, %counterparty_node_id,
+                %funding_txo, %channel_type,
+                "Channel pending",
+            );
             test_event_tx.send(TestEvent::ChannelPending);
         }
 
         Event::ChannelReady {
-            channel_id: _,
-            user_channel_id: _,
-            counterparty_node_id: _,
-            channel_type: _,
+            channel_id,
+            user_channel_id,
+            counterparty_node_id,
+            channel_type,
         } => {
+            info!(
+                %channel_id, %user_channel_id,
+                %counterparty_node_id, %channel_type,
+                "Channel ready",
+            );
             test_event_tx.send(TestEvent::ChannelReady);
         }
 
@@ -376,7 +386,10 @@ async fn handle_event_fallible(
         Event::PaymentForwarded {
             prev_channel_id,
             next_channel_id,
-            fee_earned_msat,
+            prev_user_channel_id,
+            next_user_channel_id,
+            total_fee_earned_msat,
+            skimmed_fee_msat,
             claim_from_onchain_tx,
             outbound_amount_forwarded_msat,
         } => {
@@ -384,10 +397,14 @@ async fn handle_event_fallible(
                 prev_channel_id.expect("Launched after v0.0.107");
             let next_channel_id =
                 next_channel_id.expect("Launched after v0.0.107");
+            let prev_user_channel_id =
+                prev_user_channel_id.expect("Launched after v0.0.122");
 
             // The user node doesn't forward payments
-            warn!(
-                %prev_channel_id, %next_channel_id, ?fee_earned_msat,
+            error!(
+                %prev_channel_id, %next_channel_id,
+                %prev_user_channel_id, ?next_user_channel_id,
+                ?total_fee_earned_msat, ?skimmed_fee_msat,
                 %claim_from_onchain_tx, ?outbound_amount_forwarded_msat,
                 "Somehow received a PaymentForwarded event??"
             );

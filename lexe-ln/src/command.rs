@@ -93,7 +93,7 @@ where
 
     let lightning_balance_msat = channels.iter().map(|c| c.balance_msat).sum();
     let lightning_balance = Amount::from_msat(lightning_balance_msat);
-    let num_peers = peer_manager.get_peer_node_ids().len();
+    let num_peers = peer_manager.list_peers().len();
 
     let onchain_balance = wallet.get_balance().await?;
 

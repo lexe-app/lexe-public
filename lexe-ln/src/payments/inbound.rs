@@ -9,11 +9,15 @@ use common::{
         invoice::LxInvoice,
         payments::{
             LxPaymentHash, LxPaymentId, LxPaymentPreimage, LxPaymentSecret,
+            PaymentKind,
         },
     },
     time::TimestampMs,
 };
-use lightning::events::PaymentPurpose;
+use lightning::{
+    blinded_path::payment::{Bolt12OfferContext, Bolt12RefundContext},
+    events::PaymentPurpose,
+};
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::{
     events::Event::{PaymentClaimable, PaymentClaimed},
@@ -30,17 +34,33 @@ use crate::payments::{manager::CheckedPayment, Payment};
 
 // --- LxPaymentPurpose --- //
 
-/// A newtype for [`PaymentPurpose`] which (1) gets rid of the repetitive
-/// `.context()?`s on the `InvoicePayment::payment_preimage` field via a
-/// [`TryFrom`] impl, (2) converts LDK payment types to Lexe payment types, and
-/// (3) exposes a [`preimage`] method to avoid yet another unnecessary match.
+/// A newtype for [`PaymentPurpose`] which
 ///
-/// [`preimage`]: Self::preimage
-#[derive(Copy, Clone)]
+/// 1) Changes the BOLT 11 [`payment_preimage`] field to be non-[`Option`] given
+///    we expect the field to always be [`Some`] (which is because we want LDK
+///    to handle preimages for us by using [`create_inbound_payment`] instead of
+///    [`create_inbound_payment_for_hash`]).
+/// 2) Converts LDK payment types to Lexe payment types.
+/// 3) Exposes a convenience method to get the contained [`LxPaymentPreimage`].
+///
+/// [`payment_preimage`]: lightning::events::PaymentPurpose::Bolt11InvoicePayment::payment_preimage
+/// [`create_inbound_payment`]: lightning::ln::channelmanager::ChannelManager::create_inbound_payment
+/// [`create_inbound_payment_for_hash`]: lightning::ln::channelmanager::ChannelManager::create_inbound_payment_for_hash
+#[derive(Clone)]
 pub enum LxPaymentPurpose {
-    Invoice {
+    Bolt11Invoice {
         preimage: LxPaymentPreimage,
         secret: LxPaymentSecret,
+    },
+    Bolt12Offer {
+        preimage: LxPaymentPreimage,
+        secret: LxPaymentSecret,
+        context: Bolt12OfferContext,
+    },
+    Bolt12Refund {
+        preimage: LxPaymentPreimage,
+        secret: LxPaymentSecret,
+        context: Bolt12RefundContext,
     },
     Spontaneous {
         preimage: LxPaymentPreimage,
@@ -50,8 +70,21 @@ pub enum LxPaymentPurpose {
 impl LxPaymentPurpose {
     pub fn preimage(&self) -> LxPaymentPreimage {
         match self {
-            Self::Invoice { preimage, .. } => *preimage,
+            Self::Bolt11Invoice { preimage, .. } => *preimage,
+            Self::Bolt12Offer { preimage, .. } => *preimage,
+            Self::Bolt12Refund { preimage, .. } => *preimage,
             Self::Spontaneous { preimage } => *preimage,
+        }
+    }
+
+    /// Get the [`PaymentKind`] which corresponds to this [`LxPaymentPurpose`].
+    pub fn kind(&self) -> PaymentKind {
+        // TODO(max): Implement for BOLT 12
+        match self {
+            Self::Bolt11Invoice { .. } => PaymentKind::Invoice,
+            Self::Bolt12Offer { .. } => todo!("Not sure of new variant yet"),
+            Self::Bolt12Refund { .. } => todo!("Not sure of new variant yet"),
+            Self::Spontaneous { .. } => PaymentKind::Spontaneous,
         }
     }
 }
@@ -59,24 +92,49 @@ impl LxPaymentPurpose {
 impl TryFrom<PaymentPurpose> for LxPaymentPurpose {
     type Error = anyhow::Error;
     fn try_from(purpose: PaymentPurpose) -> anyhow::Result<Self> {
+        let no_preimage_msg =
+            "We should always let LDK handle payment preimages for us by \
+             always using `ChannelManager::create_inbound_payment` instead of \
+             `ChannelManager::create_inbound_payment_for_hash`. \
+             Either we failed to do this, or there is a bug in LDK.";
+        let maybe_preimage = purpose.preimage().map(LxPaymentPreimage::from);
+        debug_assert!(maybe_preimage.is_some(), "{no_preimage_msg}");
+        let preimage = maybe_preimage.context(no_preimage_msg)?;
+
         match purpose {
-            PaymentPurpose::InvoicePayment {
-                payment_preimage,
+            PaymentPurpose::Bolt11InvoicePayment {
+                payment_preimage: _,
                 payment_secret,
             } => {
-                let preimage =
-                    payment_preimage.map(LxPaymentPreimage::from).context(
-                        "We previously generated this invoice using a method \
-                        other than `ChannelManager::create_inbound_payment`, \
-                        OR LDK failed to provide the preimage back to us.",
-                    )?;
                 let secret = LxPaymentSecret::from(payment_secret);
-                Ok(Self::Invoice { preimage, secret })
+                Ok(Self::Bolt11Invoice { preimage, secret })
             }
-            PaymentPurpose::SpontaneousPayment(payment_preimage) => {
-                let preimage = LxPaymentPreimage::from(payment_preimage);
-                Ok(Self::Spontaneous { preimage })
+            PaymentPurpose::Bolt12OfferPayment {
+                payment_preimage: _,
+                payment_secret,
+                payment_context: context,
+            } => {
+                let secret = LxPaymentSecret::from(payment_secret);
+                Ok(Self::Bolt12Offer {
+                    preimage,
+                    secret,
+                    context,
+                })
             }
+            PaymentPurpose::Bolt12RefundPayment {
+                payment_preimage: _,
+                payment_secret,
+                payment_context: context,
+            } => {
+                let secret = LxPaymentSecret::from(payment_secret);
+                Ok(Self::Bolt12Refund {
+                    preimage,
+                    secret,
+                    context,
+                })
+            }
+            PaymentPurpose::SpontaneousPayment(_payment_preimage) =>
+                Ok(Self::Spontaneous { preimage }),
         }
     }
 }
@@ -94,15 +152,51 @@ impl Payment {
         amount: Amount,
         purpose: LxPaymentPurpose,
     ) -> anyhow::Result<CheckedPayment> {
+        // TODO(max): Update this
+
+        ensure!(
+            purpose.kind() == self.kind(),
+            "Purpose kind doesn't match payment kind: {purkind} != {paykind}",
+            purkind = purpose.kind(),
+            paykind = self.kind(),
+        );
+
         match (self, purpose) {
             (
                 Self::InboundInvoice(iip),
-                LxPaymentPurpose::Invoice { preimage, secret },
+                LxPaymentPurpose::Bolt11Invoice { preimage, secret },
             ) => iip
                 .check_payment_claimable(hash, secret, preimage, amount)
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error claiming inbound invoice payment"),
+            // TODO(max): Implement for BOLT 12
+            // (
+            //     Self::Bolt12Offer(b12o),
+            //     LxPaymentPurpose::Bolt12Offer {
+            //         preimage,
+            //         secret,
+            //         context,
+            //     },
+            // ) => {
+            //     let _ = preimage;
+            //     let _ = secret;
+            //     let _ = context;
+            //     todo!();
+            // }
+            // (
+            //     Self::Bolt12Refund(b12r),
+            //     LxPaymentPurpose::Bolt12Refund {
+            //         preimage,
+            //         secret,
+            //         context,
+            //     },
+            // ) => {
+            //     let _ = preimage;
+            //     let _ = secret;
+            //     let _ = context;
+            //     todo!();
+            // }
             (
                 Self::InboundSpontaneous(isp),
                 LxPaymentPurpose::Spontaneous { preimage },

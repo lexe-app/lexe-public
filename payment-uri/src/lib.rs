@@ -1051,7 +1051,7 @@ mod test {
         assert_eq!(offer.amount(), None);
         assert_eq!(offer.fiat_amount(), None);
         assert_eq!(
-            offer.payee_node_pk().to_string(),
+            offer.payee_node_pk().unwrap().to_string(),
             "024900c3a10f2daa08d178a6edb10fc3caa7b53d0ea00346bce38ba90d085caae8",
         );
 

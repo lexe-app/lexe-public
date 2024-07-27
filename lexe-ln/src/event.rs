@@ -134,7 +134,7 @@ where
     let secp_ctx = SysRng::new().gen_secp256k1_ctx();
 
     // We set nLockTime to the current height to discourage fee sniping.
-    let best_height = channel_manager.current_best_block().height();
+    let best_height = channel_manager.current_best_block().height;
     let maybe_locktime = absolute::LockTime::from_height(best_height)
         .inspect_err(|e| warn!(%best_height, "Invalid locktime height: {e:#}"))
         .ok();

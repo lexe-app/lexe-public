@@ -29,6 +29,7 @@ use common::{
     },
     rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
+    task::LxTask,
     Apply,
 };
 use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
@@ -66,7 +67,7 @@ use lightning::{
 use secrecy::{ExposeSecret, Secret};
 use serde::Serialize;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     alias::{ChainMonitorType, ChannelManagerType},
@@ -87,6 +88,7 @@ const GVFS_ROOT_FILENAME: &str = "gvfs_root";
 
 // Non-singleton objects use a fixed directory with dynamic filenames
 const CHANNEL_MONITORS_DIR: &str = "channel_monitors";
+const CHANNEL_MONITORS_ARCHIVE_DIR: &str = "channel_monitors_archive";
 
 pub struct NodePersister {
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
@@ -1014,6 +1016,78 @@ impl Persist<SignerType> for NodePersister {
         // As documented in the `Persist` trait docs, return `InProgress`,
         // which freezes the channel until persistence succeeds.
         ChannelMonitorUpdateStatus::InProgress
+    }
+
+    fn archive_persisted_channel(&self, funding_txo: OutPoint) {
+        let backend_api = self.backend_api.clone();
+        let authenticator = self.authenticator.clone();
+        let vfs_master_key = self.vfs_master_key.clone();
+        let maybe_google_vfs = self.google_vfs.clone();
+
+        // LDK suggests that instead of deleting the monitor,
+        // we should archive the monitor to hedge against data loss.
+        let archive_future = async move {
+            let filename = funding_txo.to_string();
+            let source_file_id =
+                VfsFileId::new(CHANNEL_MONITORS_DIR, &filename);
+            let archive_file_id =
+                VfsFileId::new(CHANNEL_MONITORS_ARCHIVE_DIR, filename);
+
+            // 1) Read and decrypt the monitor from the regular monitors dir.
+            // We need to decrypt since the ciphertext is bound to its path,
+            // but we can avoid a needless deserialization + reserialization.
+            let source_plaintext = read_from_gdrive_and_lexe(
+                &*backend_api,
+                &authenticator,
+                &vfs_master_key,
+                maybe_google_vfs.as_deref(),
+                &source_file_id,
+            )
+            .await
+            .context("Couldn't read source monitor")?
+            .context("No source monitor exists")?;
+
+            // 2) Reencrypt the monitor for the monitor archive namespace.
+            let mut rng = SysRng::new();
+            let archive_file = persister::encrypt_plaintext_bytes(
+                &mut rng,
+                &vfs_master_key,
+                archive_file_id,
+                source_plaintext.expose_secret(),
+            );
+
+            // 3) Persist the monitor at the monitor archive namespace.
+            upsert_to_gdrive_and_lexe(
+                &*backend_api,
+                &authenticator,
+                maybe_google_vfs.as_deref(),
+                archive_file,
+            )
+            .await
+            .context("Failed to upsert archive file")?;
+
+            // 4) Finally, delete the monitor at the regular namespace.
+            delete_from_gdrive_and_lexe(
+                &*backend_api,
+                &authenticator,
+                maybe_google_vfs.as_deref(),
+                &source_file_id,
+            )
+            .await
+            .context("Couldn't delete archived channel monitor")?;
+
+            anyhow::Ok(())
+        };
+
+        LxTask::spawn_named("ephemeral monitor archive task", async move {
+            match archive_future.await {
+                Ok(()) =>
+                    info!(%funding_txo, "Success: archived channel monitor"),
+                Err(e) =>
+                    warn!(%funding_txo, "Couldn't archive monitor: {e:#}"),
+            }
+        })
+        .detach();
     }
 }
 

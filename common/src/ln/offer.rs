@@ -118,8 +118,8 @@ impl LxOffer {
 
     /// Returns the payee [`NodePk`]. May not be a real node id if the offer is
     /// blinded for recipient privacy.
-    pub fn payee_node_pk(&self) -> NodePk {
-        NodePk(self.0.signing_pubkey())
+    pub fn payee_node_pk(&self) -> Option<NodePk> {
+        self.0.signing_pubkey().map(NodePk)
     }
 
     /// Returns the Bitcoin-denominated [`Amount`], if any.
@@ -146,14 +146,7 @@ impl LxOffer {
 
     /// Returns the offer description, if any.
     pub fn description(&self) -> Option<&str> {
-        // TODO(phlip9): bolt spec master now allows no description; reflect
-        // that here after ldk updates.
-        let d = self.0.description().0;
-        if d.is_empty() {
-            None
-        } else {
-            Some(d)
-        }
+        self.0.description().map(|s| s.0).filter(|s| !s.is_empty())
     }
 }
 
@@ -317,14 +310,9 @@ mod arb {
             None
         };
 
-        // TODO(phlip9): bolt spec master now allows no description; reflect
-        // that here after ldk updates.
-        let description_str = description.unwrap_or_default();
-
         // each builder constructor returns a different type, hence the copying
         let offer = if is_blinded {
             let mut offer = OfferBuilder::deriving_signing_pubkey(
-                description_str,
                 node_pk.inner(),
                 &expanded_key,
                 &mut rng,
@@ -339,6 +327,9 @@ mod arb {
             if let Some(expiry) = expiry {
                 offer = offer.absolute_expiry(expiry);
             }
+            if let Some(description) = description {
+                offer = offer.description(description);
+            }
             if let Some(issuer) = issuer {
                 offer = offer.issuer(issuer);
             }
@@ -350,7 +341,7 @@ mod arb {
             }
             offer.build()
         } else {
-            let mut offer = OfferBuilder::new(description_str, node_pk.inner());
+            let mut offer = OfferBuilder::new(node_pk.inner());
             if let Some(network) = network {
                 offer = offer.chain(network);
             }
@@ -359,6 +350,9 @@ mod arb {
             }
             if let Some(expiry) = expiry {
                 offer = offer.absolute_expiry(expiry);
+            }
+            if let Some(description) = description {
+                offer = offer.description(description);
             }
             if let Some(issuer) = issuer {
                 offer = offer.issuer(issuer);
@@ -395,7 +389,7 @@ mod test {
         )
         .unwrap();
         assert_eq!(
-            o.payee_node_pk(),
+            o.payee_node_pk().unwrap(),
             NodePk::from_str("024900c3a10f2daa08d178a6edb10fc3caa7b53d0ea00346bce38ba90d085caae8").unwrap(),
         );
         assert!(o.supports_network(LxNetwork::Mainnet));
@@ -472,7 +466,7 @@ mod test {
         let offer_str = offer.to_string();
         let offer_len = offer_str.len();
         let offer_metadata_hex = offer.0.metadata().map(|x| hex::encode(x));
-        let node_pk = NodePk(offer.0.signing_pubkey());
+        let node_pk = NodePk(offer.0.signing_pubkey().unwrap());
 
         println!("---");
         dbg!(offer);
