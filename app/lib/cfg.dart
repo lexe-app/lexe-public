@@ -12,6 +12,7 @@ import 'dart:io' show Directory, Platform;
 
 import 'package:app_rs_dart/ffi/types.dart' show Config, DeployEnv, Network;
 import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
+import 'package:flutter/services.dart' show appFlavor;
 import 'package:path_provider/path_provider.dart' as path_provider;
 
 /// `true` when the flutter app is built in debug mode with debugging info and
@@ -31,23 +32,54 @@ final bool test = Platform.environment.containsKey("FLUTTER_TEST");
 // Environment variables that control the build variant.
 // NOTE: we need default values otherwise the dart LSP constantly complains...
 
+// env $DEPLOY_ENVIRONMENT
 const String _deployEnvStr =
     String.fromEnvironment("DEPLOY_ENVIRONMENT", defaultValue: "dev");
 
+// env $NETWORK
 const String _networkStr =
     String.fromEnvironment("NETWORK", defaultValue: "regtest");
 
+// env $SGX
 const String _useSgxStr = String.fromEnvironment("SGX", defaultValue: "false");
 const bool _useSgx = _useSgxStr == "true";
 
+// env $RUST_LOG
 const String _rustLogStr =
     String.fromEnvironment("RUST_LOG", defaultValue: "info");
 
 // TODO(phlip9): need a more production-ready way to configure this
 const String _devGatewayUrlStr = String.fromEnvironment(
   "DEV_GATEWAY_URL",
-  defaultValue: "http://127.0.0.1:4040",
+  defaultValue: "https://127.0.0.1:4040",
 );
+
+// build configuration values implied by the current `--flavor=<appFlavor>`
+
+// The expected `DeployEnv` value for a given `--flavor=<appFlavor>`.
+// We'll assert on this down below.
+const String _flavorDeployEnvStr =
+    (appFlavor == null || appFlavor == "dev" || appFlavor == "design")
+        ? "dev"
+        : ((appFlavor == "staging")
+            ? "staging"
+            : ((appFlavor == "prod") ? "prod" : "ERROR"));
+
+// The expected `Network` value for a given `--flavor=<appFlavor>`.
+// We'll assert on this down below.
+const String _flavorNetworkStr =
+    (appFlavor == null || appFlavor == "dev" || appFlavor == "design")
+        ? _networkStr
+        : ((appFlavor == "staging")
+            ? "testnet"
+            : ((appFlavor == "prod") ? "bitcoin" : "ERROR"));
+
+// The expected `useSgx` value for a given `--flavor=<appFlavor>`.
+// We'll assert on this down below.
+const bool _flavorUseSgx =
+    (appFlavor == null || appFlavor == "dev" || appFlavor == "design")
+        ? _useSgx
+        : ((appFlavor == "staging" || appFlavor == "prod") ? true : false);
 
 // Compile-time assertions so we can throw a compile error if these somehow get
 // misconfigured.
@@ -59,19 +91,43 @@ class _AssertDeployEnv {
 
 class _AssertNetworkEnv {
   const _AssertNetworkEnv(String s)
-      : assert(s == "mainnet" || s == "testnet" || s == "regtest");
+      : assert(s == "bitcoin" || s == "testnet" || s == "regtest");
 }
 
 class _AssertBoolEnv {
   const _AssertBoolEnv(String s) : assert(s == "true" || s == "false");
 }
 
-// ignore: unused_element
-const _ = _AssertDeployEnv(_deployEnvStr);
+class _AssertAppFlavor {
+  const _AssertAppFlavor(
+    String envDeployEnv,
+    String envNetwork,
+    bool envUseSgx,
+    String flavorDeployEnv,
+    String flavorNetwork,
+    bool flavorUseSgx,
+  ) : assert(
+          envDeployEnv == flavorDeployEnv &&
+              envNetwork == flavorNetwork &&
+              envUseSgx == flavorUseSgx,
+        );
+}
+
+// ignore: unused_element,  constant_identifier_names
+const _1 = _AssertDeployEnv(_deployEnvStr);
 // ignore: unused_element, constant_identifier_names
-const __ = _AssertNetworkEnv(_networkStr);
+const _2 = _AssertNetworkEnv(_networkStr);
 // ignore: unused_element, constant_identifier_names
-const ___ = _AssertBoolEnv(_useSgxStr);
+const _3 = _AssertBoolEnv(_useSgxStr);
+// ignore: unused_element, constant_identifier_names
+const _4 = _AssertAppFlavor(
+  _deployEnvStr,
+  _networkStr,
+  _useSgx,
+  _flavorDeployEnvStr,
+  _flavorNetworkStr,
+  _flavorUseSgx,
+);
 
 /// Build a [Config] that will actually talk to the lexe backend. That could be
 /// the real production backend or just a local development version.
@@ -91,8 +147,8 @@ Future<Config> build() async {
   final network = Network.fromStr(s: _networkStr);
 
   final gatewayUrl = switch (deployEnv) {
-    DeployEnv.prod => "http://api.lexe.app",
-    DeployEnv.staging => "http://api.staging.lexe.app",
+    DeployEnv.prod => "https://api.lexe.app",
+    DeployEnv.staging => "https://api.staging.lexe.app",
     // Use the build-time env $DEV_GATEWAY_URL in local dev.
     // We can't hard code this since deploying to a real mobile device in dev
     // requires connecting to the dev machine over the local LAN.
@@ -117,8 +173,8 @@ Future<Config> buildTest() async {
   return Config(
     deployEnv: DeployEnv.dev,
     network: Network.regtest,
-    gatewayUrl: "<no-dev-gateway-url>",
     useSgx: false,
+    gatewayUrl: "<no-dev-gateway-url>",
     baseAppDataDir: baseAppDataDir.path,
     useMockSecretStore: true,
   );
