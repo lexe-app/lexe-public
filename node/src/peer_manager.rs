@@ -6,14 +6,16 @@ use std::{
 
 use common::rng::{Crng, RngExt};
 use lexe_ln::{
-    alias::{OnionMessengerType, P2PGossipSyncType},
-    keys_manager::LexeKeysManager,
+    alias::P2PGossipSyncType, keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
 };
 use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
 use secrecy::zeroize::Zeroizing;
 
-use crate::{alias::PeerManagerType, channel_manager::NodeChannelManager};
+use crate::{
+    alias::{OnionMessengerType, PeerManagerType},
+    channel_manager::NodeChannelManager,
+};
 
 /// An Arc is held internally, so it is fine to clone directly.
 #[derive(Clone)]

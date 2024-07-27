@@ -23,7 +23,7 @@ use lightning::{
     },
     sign::{
         EntropySource, InMemorySigner, KeyMaterial, KeysManager, NodeSigner,
-        Recipient, SignerProvider, SpendableOutputDescriptor,
+        OutputSpender, Recipient, SignerProvider, SpendableOutputDescriptor,
     },
 };
 use secrecy::ExposeSecret;

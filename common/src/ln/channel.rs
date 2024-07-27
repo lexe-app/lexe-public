@@ -168,6 +168,8 @@ impl From<ChannelDetails> for LxChannelDetails {
             inbound_htlc_minimum_msat,
             inbound_htlc_maximum_msat,
             config,
+            pending_inbound_htlcs: _,
+            pending_outbound_htlcs: _,
         }: ChannelDetails,
     ) -> Self {
         let channel_id = LxChannelId::from(channel_id);

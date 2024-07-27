@@ -28,7 +28,7 @@ use tower::util::MapRequestLayer;
 use tracing::debug;
 
 use crate::{
-    alias::{ChainMonitorType, NodePaymentsManagerType},
+    alias::{ChainMonitorType, PaymentsManagerType},
     channel_manager::NodeChannelManager,
     peer_manager::NodePeerManager,
     persister::NodePersister,
@@ -49,7 +49,7 @@ pub(crate) struct AppRouterState {
     pub channel_manager: NodeChannelManager,
     pub peer_manager: NodePeerManager,
     pub keys_manager: Arc<LexeKeysManager>,
-    pub payments_manager: NodePaymentsManagerType,
+    pub payments_manager: PaymentsManagerType,
     pub lsp_info: LspInfo,
     pub scid: Scid,
     pub network: LxNetwork,

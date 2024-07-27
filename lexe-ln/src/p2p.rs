@@ -11,7 +11,7 @@ use common::{
 };
 use futures::future;
 use tokio::{net::TcpStream, sync::mpsc, time};
-use tracing::{info, info_span, warn, Instrument};
+use tracing::{debug, info, info_span, warn, Instrument};
 
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
@@ -35,24 +35,6 @@ pub enum ChannelPeerUpdate {
     Remove(ChannelPeer),
 }
 
-/// Shorthand to check whether our `PeerManager` registers that we're currently
-/// connected to the given [`NodePk`], meaning that we have an active connection
-/// and have finished exchanging noise / LN handshake messages. Note that this
-/// function is not very efficient; it allocates a `Vec` of all our peers and
-/// iterates over it in `O(n)` time.
-// We have to take an owned LexePeerManager otherwise there are type issues...
-pub fn is_connected<CM, PM, PS>(peer_manager: PM, node_pk: &NodePk) -> bool
-where
-    CM: LexeChannelManager<PS>,
-    PM: LexePeerManager<CM, PS>,
-    PS: LexePersister,
-{
-    peer_manager
-        .get_peer_node_ids()
-        .into_iter()
-        .any(|(pk, _maybe_addr)| node_pk.0 == pk)
-}
-
 /// Connects to a LN peer, returning early if we were already connected.
 /// Cycles through the given addresses until we run out of connect attempts.
 pub async fn connect_peer_if_necessary<CM, PM, PS>(
@@ -67,7 +49,8 @@ where
 {
     ensure!(!addrs.is_empty(), "No addrs were provided");
 
-    if is_connected(peer_manager.clone(), node_pk) {
+    // Early return if we're already connected
+    if peer_manager.peer_by_node_id(&node_pk.0).is_some() {
         return Ok(Empty {});
     }
 
@@ -91,9 +74,9 @@ where
         // connect races by failing the later attempt.
         tokio::time::sleep(Duration::from_millis(500)).await;
 
-        // Right before the next attempt, do another is_connected check in case
-        // another task managed to connect while we were sleeping.
-        if is_connected(peer_manager.clone(), node_pk) {
+        // Right before the next attempt, check again whether we're connected in
+        // case another task managed to connect while we were sleeping.
+        if peer_manager.peer_by_node_id(&node_pk.0).is_some() {
             return Ok(Empty {});
         }
     }
@@ -117,7 +100,7 @@ where
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
-    info!(%node_pk, %addr, "Starting do_connect_peer");
+    debug!(%node_pk, %addr, "Starting do_connect_peer");
 
     // TcpStream::connect takes a `String` in SGX.
     let addr_str = addr.to_string();
@@ -165,9 +148,9 @@ where
         }
 
         // Check if the connection has been established.
-        if is_connected(peer_manager.clone(), node_pk) {
+        if peer_manager.peer_by_node_id(&node_pk.0).is_some() {
             // Connection confirmed, log and return Ok
-            info!(%node_pk, %addr, "Successfully connected to peer");
+            debug!(%node_pk, %addr, "Successfully connected to peer");
             return Ok(());
         }
 
@@ -240,8 +223,10 @@ where
 
                 // Generate futures to reconnect to all disconnected peers.
                 let mut disconnected_peers = channel_peers.clone();
-                for (pk, _addr) in peer_manager.get_peer_node_ids() {
-                    disconnected_peers.remove(&NodePk(pk));
+                for details in peer_manager.list_peers() {
+                    let connected_peer_pk =
+                        NodePk(details.counterparty_node_id);
+                    disconnected_peers.remove(&connected_peer_pk);
                 }
                 let reconnect_futs = disconnected_peers
                     .into_values()

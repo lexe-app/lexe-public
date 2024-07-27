@@ -33,7 +33,7 @@ pub mod logger;
 pub mod p2p;
 /// Payments types.
 pub mod payments;
-/// Shared persisted logic.
+/// Shared persister logic.
 pub mod persister;
 /// Chain sync.
 pub mod sync;

@@ -41,6 +41,21 @@ pub fn encrypt_json(
     })
 }
 
+/// Encrypt some arbitrary plaintext bytes to a [`VfsFile`].
+///
+/// You should prefer [`encrypt_json`] and [`encrypt_ldk_writeable`] over this,
+/// since those fns avoid the need to write to an intermediate plaintext buffer.
+pub fn encrypt_plaintext_bytes(
+    rng: &mut impl Crng,
+    vfs_master_key: &AesMasterKey,
+    file_id: VfsFileId,
+    plaintext_bytes: &[u8],
+) -> VfsFile {
+    encrypt_file(rng, vfs_master_key, file_id, &|mut_vec_u8| {
+        mut_vec_u8.extend(plaintext_bytes)
+    })
+}
+
 fn encrypt_file(
     rng: &mut impl Crng,
     vfs_master_key: &AesMasterKey,
@@ -98,7 +113,7 @@ pub fn decrypt_file(
     let aad = &[dirname.as_bytes(), filename.as_bytes()];
     vfs_master_key
         .decrypt(aad, returned_file.data)
-        .with_context(|| format!("{dirname}/{filename}"))
+        .with_context(|| format!("{expected_file_id}"))
         .context("Failed to decrypt encrypted VFS file")
 }
 

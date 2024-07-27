@@ -31,8 +31,8 @@ use gdrive::GoogleVfs;
 use lexe_ln::{
     alias::{
         BroadcasterType, EsploraSyncClientType, FeeEstimatorType,
-        NetworkGraphType, OnionMessengerType, P2PGossipSyncType,
-        ProbabilisticScorerType, RouterType,
+        NetworkGraphType, P2PGossipSyncType, ProbabilisticScorerType,
+        RouterType,
     },
     background_processor::LexeBackgroundProcessor,
     channel_monitor,
@@ -47,20 +47,19 @@ use lexe_ln::{
 };
 use lightning::{
     chain::{chainmonitor::ChainMonitor, Watch},
-    ln::peer_handler::IgnoringMessageHandler,
+    ln::{peer_handler::IgnoringMessageHandler, ChannelId},
     onion_message::messenger::{DefaultMessageRouter, OnionMessenger},
     routing::{
         gossip::P2PGossipSync, router::DefaultRouter,
         scoring::ProbabilisticScoringFeeParameters,
     },
-    sign::EntropySource,
 };
 use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, info, info_span, warn};
 
 use crate::{
-    alias::{ChainMonitorType, NodePaymentsManagerType},
+    alias::{ChainMonitorType, OnionMessengerType, PaymentsManagerType},
     api::{self, BackendApiClient},
     channel_manager::NodeChannelManager,
     event_handler::NodeEventHandler,
@@ -100,7 +99,7 @@ pub struct UserNode {
     onion_messenger: Arc<OnionMessengerType>,
     peer_manager: NodePeerManager,
     inactivity_timer: InactivityTimer,
-    payments_manager: NodePaymentsManagerType,
+    payments_manager: PaymentsManagerType,
 
     // --- Contexts --- //
     sync: Option<SyncContext>,
@@ -418,7 +417,7 @@ impl UserNode {
         let router = Arc::new(DefaultRouter::new(
             network_graph.clone(),
             logger.clone(),
-            keys_manager.get_secure_random_bytes(),
+            keys_manager.clone(),
             scorer.clone(),
             scoring_fee_params,
         ));
@@ -462,7 +461,8 @@ impl UserNode {
             // force close without broadcasting the funding txn.
             // No one else seems to do this though...
             if let Err(()) = chain_monitor.watch_channel(funding_txo, monitor) {
-                let channel_id = funding_txo.to_channel_id();
+                let channel_id =
+                    ChannelId::v1_from_funding_outpoint(funding_txo);
                 warn!(
                     %channel_id, %funding_txo,
                     "`ChainMonitor::watch_channel` failed; force closing..."
@@ -491,12 +491,15 @@ impl UserNode {
         }
 
         // Init onion messenger
-        let message_router =
-            Arc::new(DefaultMessageRouter::new(network_graph.clone()));
+        let message_router = Arc::new(DefaultMessageRouter::new(
+            network_graph.clone(),
+            keys_manager.clone(),
+        ));
         let onion_messenger = Arc::new(OnionMessenger::new(
             keys_manager.clone(),
             keys_manager.clone(),
             logger.clone(),
+            channel_manager.clone(),
             message_router,
             IgnoringMessageHandler {},
             IgnoringMessageHandler {},

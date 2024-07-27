@@ -340,6 +340,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                     FailureCode::IncorrectOrUnknownPaymentDetails,
                 )
             })?;
+        let preimage = purpose.preimage();
 
         // Check
         let mut locked_data = self.data.lock().await;
@@ -379,7 +380,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Otherwise, we will have given the sender a proof-of-payment
         // when they did not fulfill the full expected payment.
         // Implement this once it becomes relevant.
-        self.channel_manager.claim_funds(purpose.preimage().into());
+        self.channel_manager.claim_funds(preimage.into());
 
         // Q: What about if we handle a `PaymentClaimable` event, call
         // claim_funds, handle a `PaymentClaimed` event, then crash before the
@@ -805,26 +806,30 @@ impl PaymentsData {
 
         let maybe_pending_payment = self.pending.get(&id);
 
-        let checked = match (maybe_pending_payment, purpose) {
-            (Some(pending_payment), purpose) => {
-                // Pending payment exists; update it
-                pending_payment
-                    .check_payment_claimable(hash, amount, purpose)?
-            }
-            (None, LxPaymentPurpose::Spontaneous { preimage }) => {
-                // We just got a new spontaneous payment!
-                // Create the new payment.
-                let isp =
-                    InboundSpontaneousPayment::new(hash, preimage, amount);
-                let payment = Payment::from(isp);
+        // TODO(max): Implement for BOLT 12
+        let checked = match maybe_pending_payment {
+            // Pending payment exists; update it
+            Some(pending_payment) => pending_payment
+                .check_payment_claimable(hash, amount, purpose)?,
+            None => match purpose {
+                LxPaymentPurpose::Bolt11Invoice { .. } =>
+                    bail!("Tried to claim non-existent invoice payment"),
+                LxPaymentPurpose::Bolt12Offer { .. } =>
+                    todo!("TODO(max): Revisit when implementing BOLT 12"),
+                LxPaymentPurpose::Bolt12Refund { .. } =>
+                    todo!("TODO(max): Revisit when implementing BOLT 12"),
+                LxPaymentPurpose::Spontaneous { preimage } => {
+                    // We just got a new spontaneous payment!
+                    // Create the new payment.
+                    let isp =
+                        InboundSpontaneousPayment::new(hash, preimage, amount);
+                    let payment = Payment::from(isp);
 
-                // Validate the new payment.
-                self.check_new_payment(payment)
-                    .context("Error creating new spontaneous payment")?
-            }
-            (None, LxPaymentPurpose::Invoice { .. }) => {
-                bail!("Tried to claim non-existent invoice payment")
-            }
+                    // Validate the new payment.
+                    self.check_new_payment(payment)
+                        .context("Error creating new spontaneous payment")?
+                }
+            },
         };
 
         Ok(checked)
@@ -851,7 +856,7 @@ impl PaymentsData {
         let checked = match (pending_payment, purpose) {
             (
                 Payment::InboundInvoice(iip),
-                LxPaymentPurpose::Invoice { preimage, secret },
+                LxPaymentPurpose::Bolt11Invoice { preimage, secret },
             ) => iip
                 .check_payment_claimed(hash, secret, preimage, amount)
                 .map(Payment::from)

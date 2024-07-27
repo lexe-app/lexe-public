@@ -147,10 +147,10 @@ enclave-runner = { version = "=0.6.0", default-features = false }
 # Hyper-related utilities
 hyper-util = { version = "=0.1.5", default-features = false, features = ["http2"] }
 # LDK (rust-lightning) libraries
-lightning = { version = "=0.0.122", features = ["max_level_trace"] }
-lightning-invoice = { version = "=0.30" }
-lightning-net-tokio = { version = "=0.0.122" }
-lightning-transaction-sync = { version = "=0.0.122", features = ["esplora-async"] }
+lightning = { version = "=0.0.123", features = ["max_level_trace"] }
+lightning-invoice = { version = "=0.31" }
+lightning-net-tokio = { version = "=0.0.123" }
+lightning-transaction-sync = { version = "=0.0.123", features = ["esplora-async"] }
 # Required by tokio
 mio = "=0.8.11"
 # High-level HTTP client
@@ -230,11 +230,10 @@ tokio = { git = "https://github.com/lexe-app/tokio",  branch = "lexe-v1.36.0-202
 #   - Upstream PR: https://github.com/lightningdevkit/rust-lightning/pull/3203
 #   - TODO(max): Remove once we update to LDK v0.0.124
 # * lightning-net-tokio: Propagate tracing spans
-# TODO(max): Re-add "propagate tracing spans" patch once LDK is fully updated
-lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.122-2024_07_25" }
-lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.122-2024_07_25" }
-lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.122-2024_07_25" }
-lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.122-2024_07_25" }
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.123-2024_07_25" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.123-2024_07_25" }
+lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.123-2024_07_25" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.123-2024_07_25" }
 # lightning = { path = "../../ldk/lightning" }
 # lightning-invoice = { path = "../../ldk/lightning-invoice" }
 # lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }

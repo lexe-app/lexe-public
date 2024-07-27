@@ -26,6 +26,7 @@ impl ToNumBlocks for ConfirmationTarget {
             ConfirmationTarget::AnchorChannelFee => 1008,
             ConfirmationTarget::NonAnchorChannelFee => 12,
             ConfirmationTarget::ChannelCloseMinimum => 144,
+            ConfirmationTarget::OutputSpendingFee => 12,
         }
     }
 }
