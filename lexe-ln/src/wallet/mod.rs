@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use anyhow::{ensure, Context};
+use bdk::{template::Bip84, KeychainKind};
 use bdk29::{
     blockchain::{EsploraBlockchain, Progress},
-    template::Bip84,
     wallet::{
         coin_selection::DefaultCoinSelectionAlgorithm, signer::SignOptions,
         tx_builder::CreateTx, AddressIndex,
     },
-    FeeRate, KeychainKind, SyncOptions, TransactionDetails, TxBuilder,
+    FeeRate, SyncOptions, TransactionDetails, TxBuilder,
 };
 use bitcoin::{psbt::PartiallySignedTransaction, Transaction, Txid};
 use common::{
@@ -55,7 +55,7 @@ const CHANNEL_FUNDING_CONF_PRIO: ConfirmationPriority =
 type TxBuilderType<'wallet, MODE> =
     TxBuilder<'wallet, WalletDb, DefaultCoinSelectionAlgorithm, MODE>;
 
-/// A newtype wrapper around [`bdk29::Wallet`]. Can be cloned and used directly.
+/// A newtype wrapper around [`bdk::Wallet`]. Can be cloned and used directly.
 // TODO(max): All LexeWallet methods currently use `lock().await` so that we can
 // avoid `try_lock()` which could cause random failures. What we really want,
 // however, is to make all of these methods non-async and switch back to the
@@ -77,6 +77,10 @@ pub struct LexeWallet {
     // - https://github.com/bitcoindevkit/bdk/commit/ddc84ca1916620d021bae8c467c53555b7c62467
     // TODO(max): Switch over everything to new wallet, then remove
     bdk29_wallet: Arc<tokio::sync::Mutex<bdk29::Wallet<WalletDb>>>,
+    // TODO(max): Implement wallet persistence
+    // TODO(max): Revisit wrapper type - do we need a Mutex?
+    #[allow(dead_code)] // TODO(max): Remove
+    wallet: Arc<bdk::Wallet<()>>,
 }
 
 impl LexeWallet {
@@ -95,24 +99,48 @@ impl LexeWallet {
         let network = network.to_bitcoin();
         let master_xprv = root_seed.derive_bip32_master_xprv(network);
 
+        let bdk29_wallet = {
+            use bdk29::{template::Bip84, KeychainKind};
+
+            // Descriptor for external (receive) addresses:
+            // `m/84h/{0,1}h/0h/0/*`
+            let external_descriptor =
+                Bip84(master_xprv, KeychainKind::External);
+            // Descriptor for internal (change) addresses: `m/84h/{0,1}h/0h/1/*`
+            let change_descriptor = Bip84(master_xprv, KeychainKind::Internal);
+
+            bdk29::Wallet::new(
+                external_descriptor,
+                Some(change_descriptor),
+                network,
+                wallet_db,
+            )
+            .map(tokio::sync::Mutex::new)
+            .map(Arc::new)
+            .context("bdk29::Wallet::new failed")?
+        };
+
+        // TODO(max): Use real persistence
+        let wallet_db = ();
+
         // Descriptor for external (receive) addresses: `m/84h/{0,1}h/0h/0/*`
         let external_descriptor = Bip84(master_xprv, KeychainKind::External);
         // Descriptor for internal (change) addresses: `m/84h/{0,1}h/0h/1/*`
         let change_descriptor = Bip84(master_xprv, KeychainKind::Internal);
 
-        let wallet = bdk29::Wallet::new(
+        let wallet = bdk::Wallet::new(
             external_descriptor,
             Some(change_descriptor),
-            network,
             wallet_db,
+            network,
         )
-        .map(tokio::sync::Mutex::new)
         .map(Arc::new)
-        .context("bdk29::Wallet::new failed")?;
+        .context("bdk::Wallet::new failed")?;
 
         Ok(Self {
             esplora,
-            bdk29_wallet: wallet,
+            bdk29_wallet,
+            wallet,
         })
     }
 
