@@ -253,35 +253,38 @@ impl LexeEsplora {
         Ok(())
     }
 
-    /// Convert a target # of blocks into a [`bdk::FeeRate`] via a cache lookup.
-    /// Since [`bdk::FeeRate`] is easily convertible to other units, this is the
-    /// core feerate function that others delegate to.
-    pub fn num_blocks_to_bdk_feerate(&self, num_blocks: usize) -> bdk::FeeRate {
+    /// Convert a target # of blocks into a [`bdk29::FeeRate`] via a cache
+    /// lookup. Since [`bdk29::FeeRate`] is easily convertible to other
+    /// units, this is the core feerate function that others delegate to.
+    pub fn num_blocks_to_bdk_feerate(
+        &self,
+        num_blocks: usize,
+    ) -> bdk29::FeeRate {
         let guarded_fee_estimates = self.fee_estimates.load();
         let feerate_satsvbyte =
             lookup_fee_rate(num_blocks, &guarded_fee_estimates);
-        bdk::FeeRate::from_sat_per_vb(feerate_satsvbyte as f32)
+        bdk29::FeeRate::from_sat_per_vb(feerate_satsvbyte as f32)
     }
 
-    /// Convert a [`ConfirmationPriority`] into a [`bdk::FeeRate`].
+    /// Convert a [`ConfirmationPriority`] into a [`bdk29::FeeRate`].
     pub fn conf_prio_to_bdk_feerate(
         &self,
         conf_prio: ConfirmationPriority,
-    ) -> bdk::FeeRate {
+    ) -> bdk29::FeeRate {
         let num_blocks = conf_prio.to_num_blocks();
         self.num_blocks_to_bdk_feerate(num_blocks)
     }
 
-    /// Convert a [`ConfirmationTarget`] into a [`bdk::FeeRate`].
+    /// Convert a [`ConfirmationTarget`] into a [`bdk29::FeeRate`].
     /// This calls into the [`FeeEstimator`] impl, which as of LDK v0.0.118
     /// requires some special post-estimation logic.
     pub fn conf_target_to_bdk_feerate(
         &self,
         conf_target: ConfirmationTarget,
-    ) -> bdk::FeeRate {
+    ) -> bdk29::FeeRate {
         let fee_for_1000_wu =
             self.get_est_sat_per_1000_weight(conf_target) as u64;
-        bdk::FeeRate::from_wu(fee_for_1000_wu, R1000_WU)
+        bdk29::FeeRate::from_wu(fee_for_1000_wu, R1000_WU)
     }
 
     /// Broadcast a [`Transaction`].
@@ -495,7 +498,7 @@ impl FeeEstimator for LexeEsplora {
             ConfirmationTarget::MinAllowedNonAnchorChannelRemoteFee => {
                 let sats_1000wu = feerate.fee_wu(R1000_WU);
                 let adjusted_sats_1000wu = sats_1000wu.saturating_sub(250);
-                bdk::FeeRate::from_sat_per_kwu(adjusted_sats_1000wu as f32)
+                bdk29::FeeRate::from_sat_per_kwu(adjusted_sats_1000wu as f32)
             }
             _ => feerate,
         };

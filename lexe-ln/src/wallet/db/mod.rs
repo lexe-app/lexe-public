@@ -8,7 +8,7 @@ use std::{
 };
 
 use anyhow::{bail, Context};
-use bdk::{
+use bdk29::{
     database::{BatchDatabase, BatchOperations, Database, SyncTime},
     BlockTime, KeychainKind, LocalUtxo, TransactionDetails,
 };
@@ -27,13 +27,13 @@ use tracing::{debug, error, warn};
 #[cfg(test)]
 mod bdk_test_suite;
 
-type BdkResult<T> = Result<T, bdk::Error>;
+type BdkResult<T> = Result<T, bdk29::Error>;
 
 /// Implements the DB traits required by BDK. Similar to [`MemoryDatabase`], but
 /// implements batching correctly and can be entirely serialized for persisting.
 /// Holds an [`Arc`] internally, so can be cloned and used directly.
 ///
-/// [`MemoryDatabase`]: bdk::database::memory::MemoryDatabase
+/// [`MemoryDatabase`]: bdk29::database::memory::MemoryDatabase
 #[derive(Clone, Debug)]
 pub struct WalletDb {
     inner: Arc<Mutex<DbData>>,
@@ -805,7 +805,7 @@ impl BatchDatabase for WalletDb {
             .inspect_err(|_| {
                 error!("Could not notify wallet db persister task")
             })
-            .map_err(|e| bdk::Error::Generic(format!("{e:#}")))?;
+            .map_err(|e| bdk29::Error::Generic(format!("{e:#}")))?;
 
         Ok(())
     }
@@ -873,7 +873,7 @@ impl Database for DbData {
         if saved_checksum.as_slice() == given_checksum.as_ref() {
             Ok(())
         } else {
-            Err(bdk::Error::ChecksumMismatch)
+            Err(bdk29::Error::ChecksumMismatch)
         }
     }
 
@@ -1683,7 +1683,7 @@ mod test {
     /// These bugs have been reported in [BDK#829]; awaiting clarification.
     ///
     /// [`BDK#829`]: https://github.com/bitcoindevkit/bdk/issues/829
-    /// [`MemoryDatabase`]: bdk::database::memory::MemoryDatabase
+    /// [`MemoryDatabase`]: bdk29::database::memory::MemoryDatabase
     #[test]
     fn bdk_bugs() {
         // use bitcoin::hashes::hex::FromHex;
