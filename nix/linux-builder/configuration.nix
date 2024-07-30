@@ -12,6 +12,9 @@
   #
   # ORBSTACK DEFAULT SETTINGS
   #
+  # Taken from `/etc/nixos/configuration.nix` in a freshly generated NixOS 24.05
+  # OrbStack VM.
+  #
 
   imports = [
     # Include the default lxd configuration.
@@ -26,11 +29,44 @@
     ./orbstack.nix
   ];
 
-  # The global useDHCP flag is deprecated, therefore explicitly set to false here.
-  # Per-interface useDHCP will be mandatory in the future, so this generated config
-  # replicates the default behaviour.
-  networking.useDHCP = false;
-  networking.interfaces.eth0.useDHCP = true;
+  # OrbStack now generates this `users` block in the `configuration.nix`. I've
+  # copied this over, but we'll have to `sed "s/{{ username }}/$USER/"` before
+  # activation for this to work.
+  users.users."{{ username }}" = {
+    uid = 501;
+    extraGroups = ["wheel"];
+
+    # simulate isNormalUser, but with an arbitrary UID
+    isSystemUser = true;
+    group = "users";
+    createHome = true;
+    home = "/home/{{ username }}";
+    homeMode = "700";
+    useDefaultShell = true;
+  };
+
+  security.sudo.wheelNeedsPassword = false;
+
+  # This being `true` leads to a few nasty bugs, change at your own risk!
+  users.mutableUsers = false;
+
+  networking = {
+    dhcpcd.enable = false;
+    useDHCP = false;
+    useHostResolvConf = false;
+  };
+
+  systemd.network = {
+    enable = true;
+    networks."50-eth0" = {
+      matchConfig.Name = "eth0";
+      networkConfig = {
+        DHCP = "ipv4";
+        IPv6AcceptRA = true;
+      };
+      linkConfig.RequiredForOnline = "routable";
+    };
+  };
 
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions
@@ -38,7 +74,7 @@
   # this value at the release version of the first install of this system.
   # Before changing this value read the documentation for this option
   # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
-  system.stateVersion = "23.11"; # Did you read the comment?
+  system.stateVersion = "24.05"; # Did you read the comment?
 
   # As this is intended as a stadalone image, undo some of the minimal profile stuff
   documentation = {
@@ -49,7 +85,7 @@
   environment.noXlibs = false;
 
   #
-  # CUSTOM LINUX-BUILDER CONFIG
+  # LEXE LINUX-BUILDER CONFIG
   #
 
   nix = {
@@ -113,12 +149,15 @@
     '';
   };
 
-  system.activationScripts.add-nix-var-cache-lexe-dir = {
-    text = ''
-      install -m 0755           -d /var/cache
-      install -m 2770 -g nixbld -d /var/cache/lexe
-      ${pkgs.acl.bin}/bin/setfacl --default -m group:nixbld:rwx /var/cache/lexe
-    '';
+  system.activationScripts = {
+    # setup the shared sccache Rust build cache
+    add-nix-var-cache-lexe-dir = {
+      text = ''
+        install -m 0755           -d /var/cache
+        install -m 2770 -g nixbld -d /var/cache/lexe
+        ${pkgs.acl.bin}/bin/setfacl --default -m group:nixbld:rwx /var/cache/lexe
+      '';
+    };
   };
 
   # enable fzf fuzzy finder
