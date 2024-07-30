@@ -17,10 +17,7 @@ use common::{
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Scid, User,
     },
-    backoff,
-    constants::{
-        IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
-    },
+    constants::{SINGLETON_DIRECTORY, WALLET_DB_FILENAME},
     ln::{
         channel::LxOutPoint,
         network::LxNetwork,
@@ -78,6 +75,8 @@ use crate::{
 
 /// Data discrepancy evaluation and resolution.
 mod discrepancy;
+/// Logic to conduct operations on multiple data backends at the same time.
+mod multi;
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
 const NETWORK_GRAPH_FILENAME: &str = "network_graph";
@@ -447,7 +446,7 @@ impl NodePersister {
             CHANNEL_MANAGER_FILENAME.to_owned(),
         );
 
-        let maybe_plaintext = read_from_gdrive_and_lexe(
+        let maybe_plaintext = multi::read(
             &*self.backend_api,
             &self.authenticator,
             &self.vfs_master_key,
@@ -713,14 +712,14 @@ impl LexeInnerPersister for NodePersister {
             channel_manager,
         );
 
-        upsert_to_gdrive_and_lexe(
+        multi::upsert(
             &*self.backend_api,
             &self.authenticator,
             self.google_vfs.as_deref(),
             file,
         )
         .await
-        .context("upsert_to_gdrive_and_lexe failed")
+        .context("multi::upsert failed")
     }
 
     async fn persist_graph(
@@ -916,7 +915,7 @@ impl Persist<SignerType> for NodePersister {
             let authenticator = self.authenticator.clone();
             let maybe_google_vfs = self.google_vfs.clone();
             async move {
-                upsert_to_gdrive_and_lexe(
+                multi::upsert(
                     &*backend_api,
                     &authenticator,
                     maybe_google_vfs.as_deref(),
@@ -979,7 +978,7 @@ impl Persist<SignerType> for NodePersister {
             let authenticator = self.authenticator.clone();
             let maybe_google_vfs = self.google_vfs.clone();
             async move {
-                upsert_to_gdrive_and_lexe(
+                multi::upsert(
                     &*backend_api,
                     &authenticator,
                     maybe_google_vfs.as_deref(),
@@ -1036,7 +1035,7 @@ impl Persist<SignerType> for NodePersister {
             // 1) Read and decrypt the monitor from the regular monitors dir.
             // We need to decrypt since the ciphertext is bound to its path,
             // but we can avoid a needless deserialization + reserialization.
-            let source_plaintext = read_from_gdrive_and_lexe(
+            let source_plaintext = multi::read(
                 &*backend_api,
                 &authenticator,
                 &vfs_master_key,
@@ -1057,7 +1056,7 @@ impl Persist<SignerType> for NodePersister {
             );
 
             // 3) Persist the monitor at the monitor archive namespace.
-            upsert_to_gdrive_and_lexe(
+            multi::upsert(
                 &*backend_api,
                 &authenticator,
                 maybe_google_vfs.as_deref(),
@@ -1067,7 +1066,7 @@ impl Persist<SignerType> for NodePersister {
             .context("Failed to upsert archive file")?;
 
             // 4) Finally, delete the monitor at the regular namespace.
-            delete_from_gdrive_and_lexe(
+            multi::delete(
                 &*backend_api,
                 &authenticator,
                 maybe_google_vfs.as_deref(),
@@ -1089,163 +1088,4 @@ impl Persist<SignerType> for NodePersister {
         })
         .detach();
     }
-}
-
-/// Helper to read a VFS from both Google Drive and Lexe's DB.
-/// The read from GDrive is skipped if `maybe_google_vfs` is [`None`].
-async fn read_from_gdrive_and_lexe(
-    backend_api: &(dyn BackendApiClient + Send + Sync),
-    authenticator: &BearerAuthenticator,
-    vfs_master_key: &AesMasterKey,
-    maybe_google_vfs: Option<&GoogleVfs>,
-    file_id: &VfsFileId,
-) -> anyhow::Result<Option<Secret<Vec<u8>>>> {
-    let read_from_lexe = async {
-        let token = authenticator
-            .get_token(backend_api, SystemTime::now())
-            .await
-            .context("Could not get token")?;
-        backend_api
-            .get_file(file_id, token)
-            .await
-            .with_context(|| format!("{file_id}"))
-            .context("Couldn't fetch from Lexe")
-    };
-
-    let maybe_plaintext = match maybe_google_vfs {
-        Some(gvfs) => {
-            let read_from_google = async {
-                gvfs.get_file(file_id)
-                    .await
-                    .with_context(|| format!("{file_id}"))
-                    .context("Couldn't fetch from Google")
-            };
-
-            let (try_maybe_google_file, try_maybe_lexe_file) =
-                tokio::join!(read_from_google, read_from_lexe);
-            let maybe_google_file = try_maybe_google_file?;
-            let maybe_lexe_file = try_maybe_lexe_file?;
-
-            discrepancy::evaluate_and_resolve(
-                backend_api,
-                authenticator,
-                vfs_master_key,
-                gvfs,
-                file_id,
-                maybe_google_file,
-                maybe_lexe_file,
-            )
-            .await
-            .context("Evaluation and resolution failed")?
-        }
-        None => {
-            let maybe_lexe_file = read_from_lexe.await?;
-            maybe_lexe_file
-                .map(|file| {
-                    persister::decrypt_file(vfs_master_key, file_id, file)
-                        .map(Secret::new)
-                        .context("Failed to decrypt file")
-                })
-                .transpose()?
-        }
-    };
-
-    Ok(maybe_plaintext)
-}
-
-/// Helper to upsert an important VFS file to both Google Drive and Lexe's DB.
-///
-/// - The upsert to GDrive is skipped if `maybe_google_vfs` is [`None`].
-/// - Up to [`IMPORTANT_PERSIST_RETRIES`] additional attempts will be made if
-///   the first attempt fails.
-async fn upsert_to_gdrive_and_lexe(
-    backend_api: &(dyn BackendApiClient + Send + Sync),
-    authenticator: &BearerAuthenticator,
-    maybe_google_vfs: Option<&GoogleVfs>,
-    file: VfsFile,
-) -> anyhow::Result<()> {
-    let google_upsert_future = async {
-        match maybe_google_vfs {
-            Some(gvfs) => {
-                let mut try_upsert = gvfs
-                    .upsert_file(file.clone())
-                    .await
-                    .context("(First attempt)");
-
-                let mut backoff_iter = backoff::get_backoff_iter();
-                for i in 0..IMPORTANT_PERSIST_RETRIES {
-                    if try_upsert.is_ok() {
-                        break;
-                    }
-
-                    tokio::time::sleep(backoff_iter.next().unwrap()).await;
-
-                    try_upsert = gvfs
-                        .upsert_file(file.clone())
-                        .await
-                        .with_context(|| format!("(Retry #{i})"));
-                }
-
-                try_upsert.context("Failed to upsert to GVFS")
-            }
-            None => Ok(()),
-        }
-    };
-    let lexe_upsert_future = async {
-        let token = authenticator
-            .get_token(backend_api, SystemTime::now())
-            .await
-            .context("Could not get token")?;
-        backend_api
-            .upsert_file_with_retries(&file, token, IMPORTANT_PERSIST_RETRIES)
-            .await
-            .map(|_| ())
-            .context("Failed to upsert to Lexe DB")
-    };
-
-    // Since Google is the source of truth (and upserting to Google is more
-    // likely to fail), do Google first. This introduces some latency but
-    // prevents us from having to roll back Lexe's state if it fails.
-    google_upsert_future.await?;
-    lexe_upsert_future.await?;
-
-    Ok(())
-}
-
-/// Helper to delete a VFS file from both Google Drive and Lexe's DB.
-/// The deletion from GDrive is skipped if `maybe_google_vfs` is [`None`].
-async fn delete_from_gdrive_and_lexe(
-    backend_api: &(dyn BackendApiClient + Send + Sync),
-    authenticator: &BearerAuthenticator,
-    maybe_google_vfs: Option<&GoogleVfs>,
-    file_id: &VfsFileId,
-) -> anyhow::Result<()> {
-    let delete_from_google = async {
-        match maybe_google_vfs {
-            Some(gvfs) => gvfs
-                .delete_file(file_id)
-                .await
-                .with_context(|| format!("{file_id}"))
-                .context("Couldn't delete from Google"),
-            None => Ok(()),
-        }
-    };
-    let delete_from_lexe = async {
-        let token = authenticator
-            .get_token(backend_api, SystemTime::now())
-            .await
-            .context("Could not get token")?;
-        backend_api
-            .delete_file(file_id, token)
-            .await
-            .with_context(|| format!("{file_id}"))
-            .context("Couldn't delete from Lexe")
-    };
-
-    let (try_delete_google_file, try_delete_lexe_file) =
-        tokio::join!(delete_from_google, delete_from_lexe);
-    try_delete_google_file?;
-    try_delete_lexe_file?;
-
-    Ok(())
 }
