@@ -193,7 +193,7 @@ with homebrew:
 $ brew install orbstack
 ```
 
-Create a new NixOS VM called `linux-builder`:
+Create a new NixOS VM @ v24.05 called `linux-builder`:
 
 NOTE: when orbstack runs, you don't need to install the privileged docker
 socket helper, since we don't require it.
@@ -209,8 +209,8 @@ features, and tell the VM to sign its store packages:
 ```bash
 $ orb push -m linux-builder ./nix/linux-builder/configuration.nix /tmp/configuration.nix
 $ orb run -m linux-builder --user root --shell <<EOF
-chown root:root /tmp/configuration.nix
-mv -f /tmp/configuration.nix /etc/nixos/configuration.nix
+sed "s/{{ username }}/$USER/" /tmp/configuration.nix > /etc/nixos/configuration.nix
+chown root:root /etc/nixos/configuration.nix
 nixos-rebuild switch
 EOF
 ```
