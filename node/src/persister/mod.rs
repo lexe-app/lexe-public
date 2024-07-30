@@ -31,7 +31,6 @@ use common::{
     shutdown::ShutdownChannel,
     Apply,
 };
-use futures::future::TryFutureExt;
 use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
 use lexe_ln::{
     alias::{
@@ -713,9 +712,9 @@ impl LexeInnerPersister for NodePersister {
         );
 
         upsert_to_gdrive_and_lexe(
-            self.backend_api.clone(),
-            self.authenticator.clone(),
-            self.google_vfs.clone(),
+            &*self.backend_api,
+            &self.authenticator,
+            self.google_vfs.as_deref(),
             file,
         )
         .await
@@ -910,14 +909,21 @@ impl Persist<SignerType> for NodePersister {
         // create due to an occasional race where a channel monitor persist
         // succeeds but the node shuts down before the channel manager is
         // repersisted, causing the create_file call to fail at the next boot.
-        let api_call_fut = upsert_to_gdrive_and_lexe(
-            self.backend_api.clone(),
-            self.authenticator.clone(),
-            self.google_vfs.clone(),
-            file,
-        )
-        .map_err(|e| e.context("Failed to persist new channel monitor"))
-        .apply(Box::pin);
+        let api_call_fut = Box::pin({
+            let backend_api = self.backend_api.clone();
+            let authenticator = self.authenticator.clone();
+            let maybe_google_vfs = self.google_vfs.clone();
+            async move {
+                upsert_to_gdrive_and_lexe(
+                    &*backend_api,
+                    &authenticator,
+                    maybe_google_vfs.as_deref(),
+                    file,
+                )
+                .await
+                .context("Failed to persist new channel monitor")
+            }
+        });
 
         let sequence_num = None;
         let kind = ChannelMonitorUpdateKind::New;
@@ -966,14 +972,21 @@ impl Persist<SignerType> for NodePersister {
 
         // Generate a future for making a few attempts to persist the channel
         // monitor. It will be executed by the channel monitor persistence task.
-        let api_call_fut = upsert_to_gdrive_and_lexe(
-            self.backend_api.clone(),
-            self.authenticator.clone(),
-            self.google_vfs.clone(),
-            file,
-        )
-        .map_err(|e| e.context("Failed to persist updated channel monitor"))
-        .apply(Box::pin);
+        let api_call_fut = Box::pin({
+            let backend_api = self.backend_api.clone();
+            let authenticator = self.authenticator.clone();
+            let maybe_google_vfs = self.google_vfs.clone();
+            async move {
+                upsert_to_gdrive_and_lexe(
+                    &*backend_api,
+                    &authenticator,
+                    maybe_google_vfs.as_deref(),
+                    file,
+                )
+                .await
+                .context("Failed to persist updated channel monitor")
+            }
+        });
 
         let sequence_num = update.as_ref().map(|u| u.update_id);
         let kind = ChannelMonitorUpdateKind::Updated;
@@ -1072,9 +1085,9 @@ async fn read_from_gdrive_and_lexe(
 /// - Up to [`IMPORTANT_PERSIST_RETRIES`] additional attempts will be made if
 ///   the first attempt fails.
 async fn upsert_to_gdrive_and_lexe(
-    backend_api: Arc<dyn BackendApiClient + Send + Sync>,
-    authenticator: Arc<BearerAuthenticator>,
-    maybe_google_vfs: Option<Arc<GoogleVfs>>,
+    backend_api: &(dyn BackendApiClient + Send + Sync),
+    authenticator: &BearerAuthenticator,
+    maybe_google_vfs: Option<&GoogleVfs>,
     file: VfsFile,
 ) -> anyhow::Result<()> {
     let google_upsert_future = async {
@@ -1106,7 +1119,7 @@ async fn upsert_to_gdrive_and_lexe(
     };
     let lexe_upsert_future = async {
         let token = authenticator
-            .get_token(backend_api.as_ref(), SystemTime::now())
+            .get_token(backend_api, SystemTime::now())
             .await
             .context("Could not get token")?;
         backend_api
@@ -1121,6 +1134,44 @@ async fn upsert_to_gdrive_and_lexe(
     // prevents us from having to roll back Lexe's state if it fails.
     google_upsert_future.await?;
     lexe_upsert_future.await?;
+
+    Ok(())
+}
+
+/// Helper to delete a VFS file from both Google Drive and Lexe's DB.
+/// The deletion from GDrive is skipped if `maybe_google_vfs` is [`None`].
+async fn delete_from_gdrive_and_lexe(
+    backend_api: &(dyn BackendApiClient + Send + Sync),
+    authenticator: &BearerAuthenticator,
+    maybe_google_vfs: Option<&GoogleVfs>,
+    file_id: &VfsFileId,
+) -> anyhow::Result<()> {
+    let delete_from_google = async {
+        match maybe_google_vfs {
+            Some(gvfs) => gvfs
+                .delete_file(file_id)
+                .await
+                .with_context(|| format!("{file_id}"))
+                .context("Couldn't delete from Google"),
+            None => Ok(()),
+        }
+    };
+    let delete_from_lexe = async {
+        let token = authenticator
+            .get_token(backend_api, SystemTime::now())
+            .await
+            .context("Could not get token")?;
+        backend_api
+            .delete_file(file_id, token)
+            .await
+            .with_context(|| format!("{file_id}"))
+            .context("Couldn't delete from Lexe")
+    };
+
+    let (try_delete_google_file, try_delete_lexe_file) =
+        tokio::join!(delete_from_google, delete_from_lexe);
+    try_delete_google_file?;
+    try_delete_lexe_file?;
 
     Ok(())
 }
