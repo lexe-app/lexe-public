@@ -1051,7 +1051,7 @@ async fn upsert_to_gdrive_and_lexe(
     maybe_google_vfs: Option<Arc<GoogleVfs>>,
     file: VfsFile,
 ) -> anyhow::Result<()> {
-    let do_google_upsert = async {
+    let google_upsert_future = async {
         match maybe_google_vfs {
             Some(gvfs) => {
                 let mut try_upsert = gvfs
@@ -1078,7 +1078,7 @@ async fn upsert_to_gdrive_and_lexe(
             None => Ok(()),
         }
     };
-    let do_lexe_upsert = async {
+    let lexe_upsert_future = async {
         let token = authenticator
             .get_token(backend_api.as_ref(), SystemTime::now())
             .await
@@ -1090,10 +1090,11 @@ async fn upsert_to_gdrive_and_lexe(
             .context("Failed to upsert to Lexe DB")
     };
 
-    let (try_google_upsert, try_lexe_upsert) =
-        tokio::join!(do_google_upsert, do_lexe_upsert,);
-    try_google_upsert?;
-    try_lexe_upsert?;
+    // Since Google is the source of truth (and upserting to Google is more
+    // likely to fail), do Google first. This introduces some latency but
+    // prevents us from having to roll back Lexe's state if it fails.
+    google_upsert_future.await?;
+    lexe_upsert_future.await?;
 
     Ok(())
 }
