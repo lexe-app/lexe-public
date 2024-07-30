@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::{bail, ensure, Context};
-use bdk::TransactionDetails;
+use bdk29::TransactionDetails;
 use common::{
     api::qs::UpdatePaymentNote,
     ln::{
@@ -658,7 +658,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         Ok(())
     }
 
-    /// Queries the [`bdk::Wallet`] to see if there are any onchain receives
+    /// Queries the [`bdk29::Wallet`] to see if there are any onchain receives
     /// that the [`PaymentsManager`] doesn't yet know about. If so, the
     /// [`OnchainReceive`] is constructed and registered with the
     /// [`PaymentsManager`].

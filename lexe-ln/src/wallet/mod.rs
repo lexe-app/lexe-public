@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use anyhow::{ensure, Context};
-use bdk::{
+use bdk29::{
     blockchain::{EsploraBlockchain, Progress},
     template::Bip84,
     wallet::{
         coin_selection::DefaultCoinSelectionAlgorithm, signer::SignOptions,
-        tx_builder::CreateTx, AddressIndex, Wallet,
+        tx_builder::CreateTx, AddressIndex,
     },
     FeeRate, KeychainKind, SyncOptions, TransactionDetails, TxBuilder,
 };
@@ -55,7 +55,7 @@ const CHANNEL_FUNDING_CONF_PRIO: ConfirmationPriority =
 type TxBuilderType<'wallet, MODE> =
     TxBuilder<'wallet, WalletDb, DefaultCoinSelectionAlgorithm, MODE>;
 
-/// A newtype wrapper around [`bdk::Wallet`]. Can be cloned and used directly.
+/// A newtype wrapper around [`bdk29::Wallet`]. Can be cloned and used directly.
 // TODO(max): All LexeWallet methods currently use `lock().await` so that we can
 // avoid `try_lock()` which could cause random failures. What we really want,
 // however, is to make all of these methods non-async and switch back to the
@@ -65,16 +65,18 @@ type TxBuilderType<'wallet, MODE> =
 pub struct LexeWallet {
     // TODO(max): Not security critical; should use Lexe's 'internal' Esplora.
     esplora: Arc<LexeEsplora>,
-    // The Mutex is needed because bdk::Wallet (without our patch) is not Send,
-    // and therefore does not guarantee that concurrent accesses will not panic
-    // on internal locking calls. Furthermore, since a lock to the bdk::Wallet
-    // needs to be held while awaiting on BDK wallet sync, the Mutex we use
-    // must be a Tokio mutex. See the patched commits for more details:
+    // The Mutex is needed because bdk29::Wallet (without our patch) is not
+    // Send, and therefore does not guarantee that concurrent accesses will
+    // not panic on internal locking calls. Furthermore, since a lock to
+    // the bdk29::Wallet needs to be held while awaiting on BDK wallet
+    // sync, the Mutex we use must be a Tokio mutex. See the patched
+    // commits for more details:
     //
     // - https://github.com/lexe-app/bdk/tree/max/thread-safe
     // - https://github.com/bitcoindevkit/bdk/commit/c5b2f5ac9ac152a7e0658ca99ccaf854b9063727
     // - https://github.com/bitcoindevkit/bdk/commit/ddc84ca1916620d021bae8c467c53555b7c62467
-    wallet: Arc<tokio::sync::Mutex<Wallet<WalletDb>>>,
+    // TODO(max): Switch over everything to new wallet, then remove
+    bdk29_wallet: Arc<tokio::sync::Mutex<bdk29::Wallet<WalletDb>>>,
 }
 
 impl LexeWallet {
@@ -98,7 +100,7 @@ impl LexeWallet {
         // Descriptor for internal (change) addresses: `m/84h/{0,1}h/0h/1/*`
         let change_descriptor = Bip84(master_xprv, KeychainKind::Internal);
 
-        let wallet = Wallet::new(
+        let wallet = bdk29::Wallet::new(
             external_descriptor,
             Some(change_descriptor),
             network,
@@ -106,15 +108,18 @@ impl LexeWallet {
         )
         .map(tokio::sync::Mutex::new)
         .map(Arc::new)
-        .context("bdk::Wallet::new failed")?;
+        .context("bdk29::Wallet::new failed")?;
 
-        Ok(Self { esplora, wallet })
+        Ok(Self {
+            esplora,
+            bdk29_wallet: wallet,
+        })
     }
 
-    /// Syncs the inner [`bdk::Wallet`] using the given Esplora server.
+    /// Syncs the inner [`bdk29::Wallet`] using the given Esplora server.
     ///
     /// NOTE: Beware deadlocks; this function holds a lock to the inner
-    /// [`bdk::Wallet`] during wallet sync. It is held across `.await`.
+    /// [`bdk29::Wallet`] during wallet sync. It is held across `.await`.
     #[instrument(skip_all, name = "(bdk-sync)")]
     pub async fn sync(&self) -> anyhow::Result<()> {
         let esplora_blockchain = EsploraBlockchain::from_client(
@@ -126,25 +131,25 @@ impl LexeWallet {
             Some(Box::new(ProgressLogger) as Box<(dyn Progress + 'static)>);
         let sync_options = SyncOptions { progress };
 
-        self.wallet
+        self.bdk29_wallet
             .lock()
             .await
             .sync(&esplora_blockchain, sync_options)
             .await
-            .context("bdk::Wallet::sync failed")
+            .context("bdk29::Wallet::sync failed")
     }
 
     /// Returns the current wallet balance. Note that newly received funds will
     /// not be detected unless the wallet has been `sync()`ed first.
     pub async fn get_balance(&self) -> anyhow::Result<Balance> {
-        self.wallet
+        self.bdk29_wallet
             .lock()
             .await
             .get_balance()
-            // Convert bdk::Balance to common::ln::balance::Balance.
+            // Convert bdk29::Balance to common::ln::balance::Balance.
             // Not using a From impl bc we don't want `common` to depend on BDK.
             .map(
-                |bdk::Balance {
+                |bdk29::Balance {
                      immature,
                      trusted_pending,
                      untrusted_pending,
@@ -175,7 +180,7 @@ impl LexeWallet {
     ///
     /// See [`AddressIndex`] for more details.
     pub async fn get_address(&self) -> anyhow::Result<bitcoin::Address> {
-        self.wallet
+        self.bdk29_wallet
             .lock()
             .await
             .get_address(AddressIndex::LastUnused)
@@ -183,25 +188,25 @@ impl LexeWallet {
             .context("Could not get new address")
     }
 
-    /// Calls [`bdk::Wallet::list_transactions`].
+    /// Calls [`bdk29::Wallet::list_transactions`].
     pub async fn list_transactions(
         &self,
         include_raw: bool,
     ) -> anyhow::Result<Vec<TransactionDetails>> {
-        self.wallet
+        self.bdk29_wallet
             .lock()
             .await
             .list_transactions(include_raw)
             .context("Could not list transactions")
     }
 
-    /// Calls [`bdk::Wallet::get_tx`].
+    /// Calls [`bdk29::Wallet::get_tx`].
     pub async fn get_tx(
         &self,
         txid: &Txid,
         include_raw: bool,
     ) -> anyhow::Result<Option<TransactionDetails>> {
-        self.wallet
+        self.bdk29_wallet
             .lock()
             .await
             .get_tx(txid, include_raw)
@@ -229,7 +234,7 @@ impl LexeWallet {
         // => len == 34 bytes
         let fake_output_script = bitcoin::ScriptBuf::from_bytes(vec![0x69; 34]);
 
-        let locked_wallet = self.wallet.lock().await;
+        let locked_wallet = self.bdk29_wallet.lock().await;
 
         // Build
         let conf_prio = CHANNEL_FUNDING_CONF_PRIO;
@@ -259,7 +264,7 @@ impl LexeWallet {
         output_script: bitcoin::ScriptBuf,
         channel_value_sats: u64,
     ) -> anyhow::Result<Transaction> {
-        let locked_wallet = self.wallet.lock().await;
+        let locked_wallet = self.bdk29_wallet.lock().await;
 
         // Build
         let conf_prio = CHANNEL_FUNDING_CONF_PRIO;
@@ -286,7 +291,7 @@ impl LexeWallet {
         network: LxNetwork,
     ) -> anyhow::Result<OnchainSend> {
         let (tx, fees) = {
-            let locked_wallet = self.wallet.lock().await;
+            let locked_wallet = self.bdk29_wallet.lock().await;
 
             let address = req
                 .address
@@ -342,7 +347,7 @@ impl LexeWallet {
         let background_feerate =
             self.esplora.conf_prio_to_bdk_feerate(background_prio);
 
-        let locked_wallet = self.wallet.lock().await;
+        let locked_wallet = self.bdk29_wallet.lock().await;
 
         // We _require_ a tx to at least be able to use normal fee rate.
         let address = req.address.require_network(network.into())?;
@@ -376,7 +381,7 @@ impl LexeWallet {
     }
 
     fn preflight_pay_onchain_inner(
-        wallet: &Wallet<WalletDb>,
+        wallet: &bdk29::Wallet<WalletDb>,
         address: &bitcoin::Address,
         amount: Amount,
         bdk_feerate: FeeRate,
@@ -410,7 +415,7 @@ impl LexeWallet {
     /// Note that this builder is specifically for *creating* transactions, not
     /// for e.g. bumping the fee of an existing transaction.
     fn default_tx_builder(
-        wallet: &Wallet<WalletDb>,
+        wallet: &bdk29::Wallet<WalletDb>,
         bdk_feerate: FeeRate,
     ) -> TxBuilderType<'_, CreateTx> {
         // Set the feerate and enable RBF by default
@@ -422,7 +427,7 @@ impl LexeWallet {
 
     /// Sign a [`PartiallySignedTransaction`] in the default way.
     fn default_sign_psbt(
-        wallet: &Wallet<WalletDb>,
+        wallet: &bdk29::Wallet<WalletDb>,
         psbt: &mut PartiallySignedTransaction,
     ) -> anyhow::Result<()> {
         let options = SignOptions::default();
@@ -492,7 +497,7 @@ impl Progress for ProgressLogger {
         &self,
         progress: f32,
         message: Option<String>,
-    ) -> Result<(), bdk::Error> {
+    ) -> Result<(), bdk29::Error> {
         match message {
             Some(msg) => info!("BDK sync progress: {progress}%, msg: {msg}"),
             None => info!("BDK sync progress: {progress}%"),

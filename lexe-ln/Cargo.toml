@@ -64,7 +64,7 @@ tracing-subscriber = { workspace = true, features = [
 # --- CRATE-SPECIFIC --- #
 
 # Descriptor-based Bitcoin wallet library
-bdk = { version = "0.29", default-features = false, features = ["std", "async-interface", "use-esplora-async"] }
+bdk29 = { package = "bdk", version = "0.29", default-features = false, features = ["std", "async-interface", "use-esplora-async"] }
 # Async Esplora client
 esplora-client = { version = "0.6", default-features = false, features = ["async"] }
 # Pieter Wuille's simpler alternative to Bitcoin Script
