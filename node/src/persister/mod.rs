@@ -459,7 +459,7 @@ impl NodePersister {
                 let maybe_lexe_file = try_maybe_lexe_file
                     .context("Error fetching from Lexe (`Some` branch)")?;
 
-                discrepancy::evaluate_and_resolve_channel_manager(
+                discrepancy::evaluate_and_resolve(
                     &*self.backend_api,
                     &self.authenticator,
                     &self.vfs_master_key,
@@ -541,7 +541,7 @@ impl NodePersister {
         let dir = VfsDirectory::new(CHANNEL_MONITORS_DIR);
         let token = self.get_token().await?;
 
-        let all_files = match self.google_vfs {
+        let plaintext_pairs = match self.google_vfs {
             Some(ref gvfs) => {
                 // We're running on staging/prod
                 // Fetch from both Google Drive and Lexe's DB.
@@ -554,51 +554,66 @@ impl NodePersister {
                 let lexe_files = try_lexe_files
                     .context("Failed to fetch from Lexe (`Some` branch)")?;
 
-                discrepancy::evaluate_and_resolve_all_monitors(
+                discrepancy::evaluate_and_resolve_all(
                     &*self.backend_api,
                     &self.authenticator,
+                    &self.vfs_master_key,
                     gvfs,
                     google_files,
                     lexe_files,
                 )
                 .await
-                .context("Monitor error resolution failed")?
+                .context("Monitor evaluation and resolution failed")?
             }
             // We're running in dev/test. Just fetch from Lexe's DB.
-            None => self
-                .backend_api
-                .get_directory(&dir, token)
-                .await
-                .context("Failed to fetch from Lexe (`None` branch)")?,
+            None => {
+                let files =
+                    self.backend_api
+                        .get_directory(&dir, token)
+                        .await
+                        .context("Failed to fetch from Lexe (`None` branch)")?;
+                files
+                    .into_iter()
+                    .map(|file| {
+                        let file_id = file.id.clone();
+                        let plaintext = persister::decrypt_file(
+                            &self.vfs_master_key,
+                            &file_id,
+                            file,
+                        )
+                        .map(Secret::new)?;
+                        anyhow::Ok((file_id, plaintext))
+                    })
+                    .collect::<anyhow::Result<Vec<_>>>()?
+            }
         };
 
         let mut result = Vec::new();
 
-        for file in all_files {
-            let given = LxOutPoint::from_str(&file.id.filename)
-                .context("Invalid funding txo string")?;
-
-            let file_id = VfsFileId {
-                dir: dir.clone(),
-                filename: file.id.filename.clone(),
-            };
-            let data =
-                persister::decrypt_file(&self.vfs_master_key, &file_id, file)?;
-            let mut state_buf = Cursor::new(&data);
+        for (file_id, plaintext) in plaintext_pairs {
+            let plaintext_bytes = plaintext.expose_secret();
+            let mut plaintext_reader = Cursor::new(plaintext_bytes);
 
             let (blockhash, channel_monitor) =
                 // This is ReadableArgs::read's foreign impl on the cmon tuple
                 <(BlockHash, ChannelMonitorType)>::read(
-                    &mut state_buf,
+                    &mut plaintext_reader,
                     (&*keys_manager, &*keys_manager),
                 )
-                // LDK DecodeError is Debug but doesn't impl std::error::Error
-                .map_err(|e| anyhow!("{:?}", e))
+                .map_err(|e| anyhow!("{e:?}"))
                 .context("Failed to deserialize Channel Monitor")?;
 
-            let (derived, _script) = channel_monitor.get_funding_txo();
-            ensure!(derived.txid == given.txid.0, "outpoint txid don' match");
-            ensure!(derived.index == given.index, "outpoint index don' match");
+            let expected_txo = LxOutPoint::from_str(&file_id.filename)
+                .context("Invalid funding txo string")?;
+            let derived_txo = channel_monitor
+                .get_funding_txo()
+                .apply(|(txo, _script)| LxOutPoint::from(txo));
+
+            ensure!(
+                derived_txo == expected_txo,
+                "Expected and derived txos don't match: \
+                 {expected_txo} != {derived_txo}"
+            );
 
             result.push((blockhash, channel_monitor));
         }
