@@ -445,54 +445,18 @@ impl NodePersister {
             SINGLETON_DIRECTORY.to_owned(),
             CHANNEL_MANAGER_FILENAME.to_owned(),
         );
-        let token = self.get_token().await?;
 
-        let maybe_chanman_bytes = match self.google_vfs {
-            Some(ref gvfs) => {
-                // Fetch the channel manager from Google *and* Lexe.
-                let (try_maybe_google_file, try_maybe_lexe_file) = tokio::join!(
-                    gvfs.get_file(&file_id),
-                    self.backend_api.get_file(&file_id, token),
-                );
-                let maybe_google_file = try_maybe_google_file
-                    .context("Error fetching from Google")?;
-                let maybe_lexe_file = try_maybe_lexe_file
-                    .context("Error fetching from Lexe (`Some` branch)")?;
+        let maybe_plaintext = read_from_gdrive_and_lexe(
+            &*self.backend_api,
+            &self.authenticator,
+            &self.vfs_master_key,
+            self.google_vfs.as_deref(),
+            &file_id,
+        )
+        .await
+        .context("Failed to read from GDrive and Lexe")?;
 
-                discrepancy::evaluate_and_resolve(
-                    &*self.backend_api,
-                    &self.authenticator,
-                    &self.vfs_master_key,
-                    gvfs,
-                    &file_id,
-                    maybe_google_file,
-                    maybe_lexe_file,
-                )
-                .await
-                .context("Chan man decryption or error resolution failed")?
-            }
-            // We're running in dev/test. Only fetch from Lexe's DB.
-            None => {
-                let maybe_file = self
-                    .backend_api
-                    .get_file(&file_id, token)
-                    .await
-                    .context("Error fetching from Lexe (`None` branch)")?;
-                maybe_file
-                    .map(|file| {
-                        persister::decrypt_file(
-                            &self.vfs_master_key,
-                            &file_id,
-                            file,
-                        )
-                        .map(Secret::new)
-                        .context("Failed to decrypt file (`None` branch)")
-                    })
-                    .transpose()?
-            }
-        };
-
-        let maybe_manager = match maybe_chanman_bytes {
+        let maybe_manager = match maybe_plaintext {
             Some(chanman_bytes) => {
                 let mut state_buf = Cursor::new(chanman_bytes.expose_secret());
 
@@ -1038,6 +1002,68 @@ impl Persist<SignerType> for NodePersister {
         // which freezes the channel until persistence succeeds.
         ChannelMonitorUpdateStatus::InProgress
     }
+}
+
+/// Helper to read a VFS from both Google Drive and Lexe's DB.
+/// The read from GDrive is skipped if `maybe_google_vfs` is [`None`].
+async fn read_from_gdrive_and_lexe(
+    backend_api: &(dyn BackendApiClient + Send + Sync),
+    authenticator: &BearerAuthenticator,
+    vfs_master_key: &AesMasterKey,
+    maybe_google_vfs: Option<&GoogleVfs>,
+    file_id: &VfsFileId,
+) -> anyhow::Result<Option<Secret<Vec<u8>>>> {
+    let read_from_lexe = async {
+        let token = authenticator
+            .get_token(backend_api, SystemTime::now())
+            .await
+            .context("Could not get token")?;
+        backend_api
+            .get_file(file_id, token)
+            .await
+            .with_context(|| format!("{file_id}"))
+            .context("Couldn't fetch from Lexe")
+    };
+
+    let maybe_plaintext = match maybe_google_vfs {
+        Some(gvfs) => {
+            let read_from_google = async {
+                gvfs.get_file(file_id)
+                    .await
+                    .with_context(|| format!("{file_id}"))
+                    .context("Couldn't fetch from Google")
+            };
+
+            let (try_maybe_google_file, try_maybe_lexe_file) =
+                tokio::join!(read_from_google, read_from_lexe);
+            let maybe_google_file = try_maybe_google_file?;
+            let maybe_lexe_file = try_maybe_lexe_file?;
+
+            discrepancy::evaluate_and_resolve(
+                backend_api,
+                authenticator,
+                vfs_master_key,
+                gvfs,
+                file_id,
+                maybe_google_file,
+                maybe_lexe_file,
+            )
+            .await
+            .context("Evaluation and resolution failed")?
+        }
+        None => {
+            let maybe_lexe_file = read_from_lexe.await?;
+            maybe_lexe_file
+                .map(|file| {
+                    persister::decrypt_file(vfs_master_key, file_id, file)
+                        .map(Secret::new)
+                        .context("Failed to decrypt file")
+                })
+                .transpose()?
+        }
+    };
+
+    Ok(maybe_plaintext)
 }
 
 /// Helper to upsert an important VFS file to both Google Drive and Lexe's DB.
