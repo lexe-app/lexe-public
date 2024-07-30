@@ -158,6 +158,14 @@
         ${pkgs.acl.bin}/bin/setfacl --default -m group:nixbld:rwx /var/cache/lexe
       '';
     };
+
+    # use azure credentials from host macOS
+    link-macos-azure-credentials = {
+      text = ''
+        ln -sfn "/mnt/mac/Users/{{ username }}/.azure" "/home/{{ username }}/.azure"
+        chown -hP {{ username }}:users "/home/{{ username }}/.azure"
+      '';
+    };
   };
 
   # enable fzf fuzzy finder
