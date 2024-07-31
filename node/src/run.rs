@@ -240,7 +240,7 @@ impl UserNode {
             args.allow_mock,
             deploy_env,
             node_mode,
-            args.lsp.url.clone(),
+            args.lsp.node_api_url.clone(),
         )?;
 
         // Init LDK transaction sync; share LexeEsplora's connection pool
@@ -978,8 +978,8 @@ async fn init_google_vfs(
 /// reconnector to continuously reconnect if we disconnect for some reason.
 ///
 /// If we are NOT on testnet/mainnet, we MAY skip reconnecting to the LSP.
-/// This will be done ONLY IF [`LspInfo::url`] is `None` AND we have set the
-/// `allow_mock` safeguard which helps prevent accidental mocking.
+/// This will be done ONLY IF [`LspInfo::node_api_url`] is `None` AND we have
+/// set the `allow_mock` safeguard which helps prevent accidental mocking.
 async fn maybe_reconnect_to_lsp(
     peer_manager: &NodePeerManager,
     deploy_env: DeployEnv,
@@ -987,7 +987,7 @@ async fn maybe_reconnect_to_lsp(
     lsp: &LspInfo,
     channel_peer_tx: &mpsc::Sender<ChannelPeerUpdate>,
 ) -> anyhow::Result<()> {
-    if deploy_env.is_staging_or_prod() || lsp.url.is_some() {
+    if deploy_env.is_staging_or_prod() || lsp.node_api_url.is_some() {
         // If --allow-mock was set, the caller may have made an error.
         ensure!(
             !allow_mock,
@@ -998,7 +998,7 @@ async fn maybe_reconnect_to_lsp(
         p2p::connect_peer_if_necessary(
             peer_manager.clone(),
             &lsp.node_pk,
-            &[lsp.addr.clone()],
+            &[lsp.private_p2p_addr.clone()],
         )
         .await
         .context("Could not connect to LSP")?;
