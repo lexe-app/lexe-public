@@ -38,12 +38,14 @@ pub struct LspInfo {
     /// The protocol://host:port of the LSP's HTTP server. The node will
     /// default to a mock client if not supplied, provided that
     /// `--allow-mock` is set and we are not in prod.
+    #[serde(rename = "url")] // Original name needed for forward compat
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
-    pub url: Option<String>,
+    pub node_api_url: Option<String>,
     // - ChannelPeer fields - //
     pub node_pk: NodePk,
     /// The socket on which the LSP accepts P2P LN connections from user nodes
-    pub addr: LxSocketAddress,
+    #[serde(rename = "addr")] // Original name needed for forward compat
+    pub private_p2p_addr: LxSocketAddress,
     // - RoutingFees fields - //
     pub base_msat: u32,
     pub proportional_millionths: u32,
@@ -72,7 +74,7 @@ impl LspInfo {
     pub fn channel_peer(&self) -> ChannelPeer {
         ChannelPeer {
             node_pk: self.node_pk,
-            addr: self.addr.clone(),
+            addr: self.private_p2p_addr.clone(),
         }
     }
 
@@ -105,9 +107,9 @@ impl LspInfo {
         };
 
         Self {
-            url: Some(test_utils::DUMMY_LSP_URL.to_owned()),
+            node_api_url: Some(test_utils::DUMMY_LSP_URL.to_owned()),
             node_pk,
-            addr,
+            private_p2p_addr: addr,
             base_msat: 0,
             proportional_millionths: 3000,
             cltv_expiry_delta: 72,
