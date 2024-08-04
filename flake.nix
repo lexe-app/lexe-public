@@ -2,15 +2,8 @@
   description = "Lexe public monorepo flake";
 
   inputs = {
-    # nixpkgs unstable
-    #
-    # We use unstable as `oxalica/rust-overlay` seems to require it.
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-
-    # We don't actually use these, but some dependencies do. Let's try to use the
-    # same versions.
-    flake-utils.url = "github:numtide/flake-utils";
-    flake-compat.url = "https://flakehub.com/f/edolstra/flake-compat/1.tar.gz";
+    # NixOS/nixpkgs - nixos-stable branch for the current release
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-24.05";
 
     # pure, reproducible, rust toolchain overlay. used to get toolchain from
     # our workspace `rust-toolchain.toml`.
@@ -21,7 +14,6 @@
       url = "github:oxalica/rust-overlay";
       inputs = {
         nixpkgs.follows = "nixpkgs"; # use our nixpkgs version
-        flake-utils.follows = "flake-utils";
       };
     };
 
