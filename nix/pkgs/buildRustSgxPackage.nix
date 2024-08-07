@@ -49,6 +49,7 @@ let
     version = crateVersion;
 
     src = srcRust;
+    cargoVendorDir = cargoVendorDir;
 
     # print cc full args list
     NIX_DEBUG = isVerbose;
