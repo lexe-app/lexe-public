@@ -54,7 +54,7 @@
   #
   # Get all updated output hashes:
   # ```
-  # $ nix build --keep-going -L .#cargoVendorDir
+  # $ nix build --keep-going -L .#_dbg.systemLexePubPkgs.x86_64-linux.cargoVendorDir
   # ```
   gitDepOutputHashes = {
     "git+https://github.com/arik-so/rust-musig2?rev=cff11e3#cff11e3b1af1691f721a120dc6acb921afa31f89" = "sha256-++1x7uHHR7KEhl8LF3VywooULiTzKeDu3e+0/c/8p9Y=";
