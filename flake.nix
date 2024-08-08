@@ -74,7 +74,6 @@
             (lexePubPkgs)
             bitcoind
             blockstream-electrs
-            cargoVendorDir
             ftxsgx-elf2sgxs
             node-debug-nosgx
             node-debug-sgx
