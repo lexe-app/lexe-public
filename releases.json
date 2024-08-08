@@ -1,11 +1,5 @@
 {
   "node": {
-    "0.3.0": {
-      "measurement": "57a1f24fbbd1d80268f3f1bceb417d363a6c459a987ebb399190541f0085e0a2",
-      "revision": "9e191db04147d0d74ff39ff4e72388b056789aaa",
-      "release-date": "2024-08-06",
-      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.3.0"
-    },
     "0.3.1": {
       "measurement": "f5f3b1725a74a02aed2a5e7090cd0d49bec8d745453b5b0789ed725fbfa2e493",
       "revision": "3e1d99238af90631a628c0d8be942aa524cbc6c8",
