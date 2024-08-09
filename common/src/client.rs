@@ -6,7 +6,10 @@
 //! [`NodeClient`]: crate::client::NodeClient
 //! [`GatewayClient`]: crate::client::GatewayClient
 
-use std::{sync::Arc, time::SystemTime};
+use std::{
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 use anyhow::Context;
 use async_trait::async_trait;
@@ -305,6 +308,8 @@ impl NodeClient {
         let reqwest_client = RestClient::client_builder(from)
             .proxy(proxy)
             .use_preconfigured_tls(tls_config)
+            // Provision can take longer than 5 sec. <3 gdrive : )
+            .timeout(Duration::from_secs(30))
             .build()
             .context("Failed to build client")?;
 
