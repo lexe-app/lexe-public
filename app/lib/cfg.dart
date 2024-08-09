@@ -148,7 +148,7 @@ Future<Config> build() async {
 
   final gatewayUrl = switch (deployEnv) {
     DeployEnv.prod => "https://api.lexe.app",
-    DeployEnv.staging => "https://api.staging.lexe.app",
+    DeployEnv.staging => "https://lexe-staging-sgx.uswest2.staging.lexe.app",
     // Use the build-time env $DEV_GATEWAY_URL in local dev.
     // We can't hard code this since deploying to a real mobile device in dev
     // requires connecting to the dev machine over the local LAN.
