@@ -100,28 +100,32 @@ pub const NODE_PROVISION_DNS_SUFFIX: &str = ".provision.lexe.app";
 // openssl x509 -inform der -in <certificate-name>.der -text -noout
 // ```
 
-/// The Lexe CA responsible for "staging.lexe.app".
-// Serial Number: 30:ef:fb:a0:ba:ca:82:0b:7f:49:9a:46:b7:8d:05:18:23:91:62:17
-// Not Before: Jun  7 20:37:57 2024 GMT
-// Not After : Jun 14 20:37:57 2034 GMT
+/// The Lexe CA responsible for `staging.lexe.app" and `staging.lx`.
+// Serial Number : 30:ef:fb:a0:ba:ca:82:0b:7f:49:9a:46:b7:8d:05:18:23:91:62:17
+//    Not Before : Jul 30 02:15:24 2024 GMT
+//     Not After : Aug  6 02:15:24 2034 GMT
 pub const LEXE_STAGING_CA_CERT_DER: &[u8] =
     include_bytes!("../data/lexe-staging-root-ca-cert.der");
 
-/// Google Trust Services Root R1, used by googleapis.com, blockstream.info,
-/// and kuutamo.cloud.
-// Serial Number=02:03:E5:93:6F:31:B0:13:49:88:6B:A2:17
-// Not Valid Before=Wednesday, June 22, 2016 at 8:00:00 AM China Standard Time
-// Not Valid After=Sunday, June 22, 2036 at 8:00:00 AM China Standard Time
+/// Google Trust Services Root R1, used by `googleapis.com`, `blockstream.info`,
+/// and `kuutamo.cloud`.
+// Serial Number : 02:03:E5:93:6F:31:B0:13:49:88:6B:A2:17
+//    Not Before : Jun 22 00:00:00 2016 GMT
+//     Not After : Jun 22 00:00:00 2036 GMT
 pub const GTS_ROOT_R1_CA_CERT_DER: &[u8] =
     include_bytes!("../data/google-trust-services-root-r1-ca-cert.der");
-/// Google Trust Services Root R4, used by coincap.io.
-pub const GTS_ROOT_R4_CA_CERT_DER: &[u8] =
-    include_bytes!("../data/google-trust-services-root-r4-ca-cert.der");
+
+/// ISRG Root X1, used by `coincap.io`.
+// Serial Number : 82:10:cf:b0:d2:40:e3:59:44:63:e0:bb:63:82:8b:00
+//    Not Before : Jun  4 11:04:38 2015 GMT
+//     Not After : Jun  4 11:04:38 2035 GMT
+pub const ISRG_ROOT_X1_CA_CERT_DER: &[u8] =
+    include_bytes!("../data/isrg-root-x1-ca-cert.der");
 
 /// The root CA cert for Amazon's Root CA 1, used by `ltbl.io`.
-// Serial Number=06 6C 9F CF 99 BF 8C 0A 39 E2 F0 78 8A 43 E6 96 36 5B CA
-// Not Before=Monday, May 25, 2015 at 5:00:00 PM Pacific Daylight Time
-// Not After=Saturday, January 16, 2038 at 4:00:00 PM Pacific Standard Time
+// Serial Number : 06:6c:9f:cf:99:bf:8c:0a:39:e2:f0:78:8a:43:e6:96:36:5b:ca
+//    Not Before : May 26 00:00:00 2015 GMT
+//     Not After : Jan 17 00:00:00 2038 GMT
 pub const AMAZON_ROOT_CA_1_CERT_DER: &[u8] =
     include_bytes!("../data/amazon-root-ca-1-cert.der");
 
