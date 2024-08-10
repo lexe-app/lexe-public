@@ -100,7 +100,7 @@ pub const NODE_PROVISION_DNS_SUFFIX: &str = ".provision.lexe.app";
 // openssl x509 -inform der -in <certificate-name>.der -text -noout
 // ```
 
-/// The Lexe CA responsible for `staging.lexe.app" and `staging.lx`.
+/// The Lexe CA responsible for `staging.lexe.app` and `staging.lx`.
 // Serial Number : 30:ef:fb:a0:ba:ca:82:0b:7f:49:9a:46:b7:8d:05:18:23:91:62:17
 //    Not Before : Jul 30 02:15:24 2024 GMT
 //     Not After : Aug  6 02:15:24 2034 GMT
