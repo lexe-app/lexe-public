@@ -69,37 +69,44 @@ impl App {
             Some(s) => s,
         };
 
-        // Init API clients
+        // Derive and add user_pk to config
         let user_key_pair = root_seed.derive_user_key_pair();
-        let user_pk = *user_key_pair.public_key();
+        let user_pk = UserPk::from(*user_key_pair.public_key());
+        let user_config = AppConfigWithUserPk::new(config, user_pk);
+
+        // Init API clients
         let bearer_authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
-        let gateway_client =
-            GatewayClient::new(config.deploy_env, config.gateway_url.clone())
-                .context("Failed to build GatewayClient")?;
+        let gateway_client = GatewayClient::new(
+            user_config.config.deploy_env,
+            user_config.config.gateway_url.clone(),
+        )
+        .context("Failed to build GatewayClient")?;
         let node_client = NodeClient::new(
             rng,
-            config.use_sgx,
+            user_config.config.use_sgx,
             &root_seed,
-            config.deploy_env,
+            user_config.config.deploy_env,
             bearer_authenticator,
             gateway_client.clone(),
         )
         .context("Failed to build NodeClient")?;
 
-        // Init local storage
-        let app_data_ffs =
-            FlatFileFs::create_dir_all(config.app_data_dir.clone())
-                .context("Could not create app data ffs")?;
+        // Load provision DB
+        let provision_ffs =
+            FlatFileFs::create_dir_all(user_config.provision_db_dir())
+                .context("Could not create provision ffs")?;
 
         // Load settings DB
-        let settings_ffs = FlatFileFs::create_dir_all(config.payment_db_dir())
-            .context("Could not create settings ffs")?;
+        let settings_ffs =
+            FlatFileFs::create_dir_all(user_config.settings_db_dir())
+                .context("Could not create settings ffs")?;
         let settings_db = Arc::new(SettingsDb::load(settings_ffs));
 
         // Load payments DB
-        let payments_ffs = FlatFileFs::create_dir_all(config.payment_db_dir())
-            .context("Could not create payments ffs")?;
+        let payments_ffs =
+            FlatFileFs::create_dir_all(user_config.payment_db_dir())
+                .context("Could not create payments ffs")?;
         let payment_db = PaymentDb::read(payments_ffs)
             .context("Failed to load payment db")?
             .apply(Mutex::new);
@@ -107,7 +114,7 @@ impl App {
         // See if there is a newer version we haven't provisioned to yet.
         // If so, re-provision to it and update the latest_provisioned file.
         let maybe_latest_provisioned =
-            storage::read_latest_provisioned(&app_data_ffs)
+            storage::read_latest_provisioned(&provision_ffs)
                 .context("Colud not read latest provisioned")?;
         match &maybe_latest_provisioned {
             Some(x) =>
@@ -149,9 +156,9 @@ impl App {
                 rng,
                 &node_client,
                 &latest_release,
-                &config,
+                &user_config,
                 &root_seed,
-                &app_data_ffs,
+                &provision_ffs,
                 google_auth_code,
                 password,
             )
@@ -234,6 +241,7 @@ impl App {
         let user_pk = UserPk::from(*user_key_pair.public_key());
         let node_key_pair = root_seed.derive_node_key_pair(rng);
         let node_pk = NodePk(node_key_pair.public_key());
+        let user_config = AppConfigWithUserPk::new(config, user_pk);
 
         // gen + sign the UserSignupRequest
         let node_pk_proof = NodePkProof::sign(rng, &node_key_pair);
@@ -245,33 +253,35 @@ impl App {
         // build NodeClient, GatewayClient
         let bearer_authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
-        let gateway_client =
-            GatewayClient::new(config.deploy_env, config.gateway_url.clone())
-                .context("Failed to build GatewayClient")?;
+        let gateway_client = GatewayClient::new(
+            user_config.config.deploy_env,
+            user_config.config.gateway_url.clone(),
+        )
+        .context("Failed to build GatewayClient")?;
         let node_client = NodeClient::new(
             rng,
-            config.use_sgx,
+            user_config.config.use_sgx,
             &root_seed,
-            config.deploy_env,
+            user_config.config.deploy_env,
             bearer_authenticator,
             gateway_client.clone(),
         )
         .context("Failed to build NodeClient")?;
 
-        // Init local storage
-        let app_data_ffs =
-            FlatFileFs::create_dir_all(config.app_data_dir.clone())
-                .context("Could not create app data ffs")?;
+        // Create new provision DB
+        let provision_ffs =
+            FlatFileFs::create_dir_all(user_config.provision_db_dir())
+                .context("Could not create provision ffs")?;
 
         // Create new settings DB
         let settings_ffs =
-            FlatFileFs::create_clean_dir_all(config.payment_db_dir())
+            FlatFileFs::create_clean_dir_all(user_config.settings_db_dir())
                 .context("Could not create settings ffs")?;
         let settings_db = Arc::new(SettingsDb::load(settings_ffs));
 
         // Create new payments DB
         let payments_ffs =
-            FlatFileFs::create_clean_dir_all(config.payment_db_dir())
+            FlatFileFs::create_clean_dir_all(user_config.payment_db_dir())
                 .context("Could not create payments ffs")?;
         let payment_db = Mutex::new(PaymentDb::empty(payments_ffs));
 
@@ -293,9 +303,9 @@ impl App {
             rng,
             &node_client,
             &latest_release,
-            &config,
+            &user_config,
             &root_seed,
-            &app_data_ffs,
+            &provision_ffs,
             google_auth_code,
             maybe_password.as_deref(),
         )
@@ -306,7 +316,7 @@ impl App {
 
         // we've successfully signed up and provisioned our node; we can finally
         // "commit" and persist our root seed
-        let secret_store = SecretStore::new(&config);
+        let secret_store = SecretStore::new(&user_config.config);
         secret_store
             .write_root_seed(&root_seed)
             .context("Failed to persist root seed")?;
@@ -382,7 +392,7 @@ impl App {
         rng: &mut impl Crng,
         node_client: &NodeClient,
         node_release: &NodeRelease,
-        config: &AppConfig,
+        user_config: &AppConfigWithUserPk,
         root_seed: &RootSeed,
         app_data_ffs: &impl Ffs,
         google_auth_code: Option<String>,
@@ -402,8 +412,8 @@ impl App {
 
         let provision_req = NodeProvisionRequest {
             root_seed: root_seed_clone,
-            deploy_env: config.deploy_env,
-            network: config.network,
+            deploy_env: user_config.config.deploy_env,
+            network: user_config.config.network,
             google_auth_code,
             allow_gvfs_access: true,
             encrypted_seed,
@@ -424,19 +434,21 @@ impl App {
 pub struct AppConfig {
     pub deploy_env: DeployEnv,
     pub network: common::ln::network::LxNetwork,
-    pub gateway_url: String,
     pub use_sgx: bool,
-    pub app_data_dir: PathBuf,
+    pub gateway_url: String,
+    pub base_app_data_dir: PathBuf,
     pub use_mock_secret_store: bool,
 }
 
 impl AppConfig {
-    pub fn payment_db_dir(&self) -> PathBuf {
-        self.app_data_dir.join("payment_db")
+    // `<base_app_data_dir>/<deploy_env>-<network>-<use_sgx>`
+    pub(crate) fn app_data_dir(&self) -> PathBuf {
+        self.base_app_data_dir.join(self.build_flavor().to_string())
     }
 
-    pub fn settings_db_dir(&self) -> PathBuf {
-        self.app_data_dir.join("settings_db")
+    // `<base_app_data_dir>/<deploy_env>-<network>-<use_sgx>/<user_pk>`
+    fn user_data_dir(&self, user_pk: &UserPk) -> PathBuf {
+        self.app_data_dir().join(user_pk.to_string())
     }
 
     pub fn build_flavor(&self) -> BuildFlavor {
@@ -465,11 +477,6 @@ impl AppConfig {
         // The base app data directory.
         // See: dart fn [`path_provider.getApplicationSupportDirectory()`](https://pub.dev/documentation/path_provider/latest/path_provider/getApplicationSupportDirectory.html)
         let base_app_data_dir = PathBuf::from(base_app_data_dir);
-        // To make development easier and avoid mixing state across
-        // environments, we'll shove everything into a disambiguated subdir for
-        // each environment/network pair, e.g., "prod-mainnet-sgx",
-        // "dev-regtest-dbg".
-        let app_data_dir = base_app_data_dir.join(build.to_string());
 
         {
             use DeployEnv::*;
@@ -487,9 +494,36 @@ impl AppConfig {
             network,
             gateway_url,
             use_sgx,
-            app_data_dir,
+            base_app_data_dir,
             use_mock_secret_store,
         }
+    }
+}
+
+struct AppConfigWithUserPk {
+    config: AppConfig,
+    user_data_dir: PathBuf,
+}
+
+impl AppConfigWithUserPk {
+    fn new(config: AppConfig, user_pk: UserPk) -> Self {
+        let user_data_dir = config.user_data_dir(&user_pk);
+        Self {
+            config,
+            user_data_dir,
+        }
+    }
+
+    fn provision_db_dir(&self) -> PathBuf {
+        self.user_data_dir.join("provision_db")
+    }
+
+    fn payment_db_dir(&self) -> PathBuf {
+        self.user_data_dir.join("payment_db")
+    }
+
+    fn settings_db_dir(&self) -> PathBuf {
+        self.user_data_dir.join("settings_db")
     }
 }
 
@@ -498,16 +532,16 @@ impl AppConfig {
 /// e.g. testnet vs regtest.
 #[derive(Copy, Clone)]
 pub struct BuildFlavor {
-    network: LxNetwork,
     deploy_env: DeployEnv,
+    network: LxNetwork,
     use_sgx: bool,
 }
 
 impl fmt::Display for BuildFlavor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let network = self.network;
-        let env = self.deploy_env.as_str();
+        let deploy_env = self.deploy_env.as_str();
+        let network = self.network.as_str();
         let sgx = if self.use_sgx { "sgx" } else { "dbg" };
-        write!(f, "{network}-{env}-{sgx}")
+        write!(f, "{deploy_env}-{network}-{sgx}")
     }
 }

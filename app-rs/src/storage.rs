@@ -33,14 +33,14 @@ pub(crate) fn write_latest_provisioned(
         .context("Ffs::write failed")
 }
 
-/// Delete the latest provisioned [`NodeRelease`] file.
-#[cfg(feature = "flutter")]
-pub(crate) fn delete_latest_provisioned(
-    app_data_ffs: &impl Ffs,
-) -> anyhow::Result<()> {
-    match app_data_ffs.delete(LATEST_PROVISIONED_FILENAME) {
-        Ok(()) => Ok(()),
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(anyhow!("Ffs::delete failed: {e:#}")),
-    }
-}
+// /// Delete the latest provisioned [`NodeRelease`] file.
+// #[cfg(feature = "flutter")]
+// pub(crate) fn delete_latest_provisioned(
+//     app_data_ffs: &impl Ffs,
+// ) -> anyhow::Result<()> {
+//     match app_data_ffs.delete(LATEST_PROVISIONED_FILENAME) {
+//         Ok(()) => Ok(()),
+//         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+//         Err(e) => Err(anyhow!("Ffs::delete failed: {e:#}")),
+//     }
+// }

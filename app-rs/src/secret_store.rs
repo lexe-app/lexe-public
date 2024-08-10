@@ -36,6 +36,9 @@ use secrecy::ExposeSecret;
 
 use crate::app::{AppConfig, BuildFlavor};
 
+// TODO(phlip9): support "multi-wallet", i.e., storing multiple root seeds for
+// the same target env. Would need UI to switch between wallets, a setting
+// for "preferred/default wallet", and graceful shutdown implemented.
 pub struct SecretStore {
     root_seed_cred: Box<dyn CredentialApi + Send + Sync>,
 }
@@ -57,12 +60,12 @@ impl SecretStore {
     pub fn new(config: &AppConfig) -> Self {
         if config.use_mock_secret_store {
             // Some tests rely on a persistent (tempdir) mock secret store
-            return Self::file(&config.app_data_dir);
+            return Self::file(&config.app_data_dir());
         }
 
         cfg_if! {
             if #[cfg(any(target_os = "android", not(feature = "flutter")))] {
-                Self::file(&config.app_data_dir)
+                Self::file(&config.app_data_dir())
             } else {
                 Self::keychain(config.build_flavor())
             }
