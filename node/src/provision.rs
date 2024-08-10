@@ -196,6 +196,7 @@ mod handlers {
         error::{BackendApiError, BackendErrorKind},
         server::{extract::LxQuery, LxJson},
     };
+    use gdrive::gvfs::GvfsRootName;
     use tracing::warn;
 
     use super::*;
@@ -356,10 +357,16 @@ mod handlers {
         .map_err(NodeApiError::provision)?;
 
         // Init the GVFS. This makes ~one API call to populate the cache.
+        let gvfs_root_name = GvfsRootName {
+            deploy_env: req.deploy_env,
+            network: req.network,
+            use_sgx: cfg!(target_env = "sgx"),
+            user_pk,
+        };
         let (google_vfs, maybe_new_gvfs_root, mut credentials_rx) =
             GoogleVfs::init(
                 credentials,
-                req.network,
+                gvfs_root_name,
                 maybe_persisted_gvfs_root,
             )
             .await

@@ -27,7 +27,7 @@ use common::{
 };
 use const_utils::const_assert;
 use futures::future::FutureExt;
-use gdrive::GoogleVfs;
+use gdrive::{gvfs::GvfsRootName, GoogleVfs};
 use lexe_ln::{
     alias::{
         BroadcasterType, EsploraSyncClientType, FeeEstimatorType,
@@ -259,12 +259,19 @@ impl UserNode {
         let authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
         let vfs_master_key = Arc::new(root_seed.derive_vfs_master_key());
+
         let maybe_google_vfs = if deploy_env.is_staging_or_prod() {
+            let gvfs_root_name = GvfsRootName {
+                deploy_env,
+                network,
+                use_sgx: cfg!(target_env = "sgx"),
+                user_pk,
+            };
             let (google_vfs, credentials_persister_task) = init_google_vfs(
                 backend_api.clone(),
                 authenticator.clone(),
                 vfs_master_key.clone(),
-                network,
+                gvfs_root_name,
                 shutdown.clone(),
             )
             .await
@@ -879,7 +886,7 @@ async fn init_google_vfs(
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
     authenticator: Arc<BearerAuthenticator>,
     vfs_master_key: Arc<AesMasterKey>,
-    network: LxNetwork,
+    gvfs_root_name: GvfsRootName,
     mut shutdown: ShutdownChannel,
 ) -> anyhow::Result<(GoogleVfs, LxTask<()>)> {
     // Fetch the encrypted GDriveCredentials and persisted GVFS root.
@@ -901,9 +908,13 @@ async fn init_google_vfs(
         try_persisted_gvfs_root.context("Could not read gvfs root")?;
 
     let (google_vfs, maybe_new_gvfs_root, mut credentials_rx) =
-        GoogleVfs::init(gdrive_credentials, network, persisted_gvfs_root)
-            .await
-            .context("Failed to init Google VFS")?;
+        GoogleVfs::init(
+            gdrive_credentials,
+            gvfs_root_name,
+            persisted_gvfs_root,
+        )
+        .await
+        .context("Failed to init Google VFS")?;
 
     // If we were given a new GVFS root to persist, persist it.
     // This should only happen once so it won't impact startup time.
