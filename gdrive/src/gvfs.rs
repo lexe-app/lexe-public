@@ -5,12 +5,16 @@
 // variable names to denote "Google" or "VFS" respectively. 'VFS' refers to the
 // VFS abstraction while 'GVFS' refers to the actual layout of files in GDrive.
 
-use std::{collections::BTreeMap, str::FromStr};
+use std::{collections::BTreeMap, fmt, str::FromStr};
 
 use anyhow::{anyhow, bail, ensure, Context};
 use common::{
-    api::vfs::{VfsDirectory, VfsFile, VfsFileId},
+    api::{
+        vfs::{VfsDirectory, VfsFile, VfsFileId},
+        UserPk,
+    },
     constants,
+    env::DeployEnv,
     ln::network::LxNetwork,
     Apply,
 };
@@ -27,12 +31,27 @@ use crate::{
 pub const CREATE_DUPE_MSG: &str = "Tried to create duplicate";
 pub const NOT_FOUND_MSG: &str = "not found";
 
+/// The name of the fully namespaced data dir inside `LEXE_DIR_NAME`
+/// that contains the actual channel_manager, etc...
+///
+/// This extra namespacing allows a single device to have Lexe wallets across
+/// (1) different (deploy_env, network, sgx), like staging-testnet-sgx vs
+/// prod-mainnet-sgx, and (2) different wallets within a (deploy_env, network,
+/// sgx), though this isn't fully supported yet.
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Debug, proptest_derive::Arbitrary))]
+pub struct GvfsRootName {
+    pub deploy_env: DeployEnv,
+    pub network: LxNetwork,
+    pub use_sgx: bool,
+    pub user_pk: UserPk,
+}
+
 /// Opaque object containing info about the GVFS root. Crate users should
 /// persist this and resupply it the next time [`GoogleVfs`] is initialized.
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct GvfsRoot {
-    /// The [`LxNetwork`] that this GVFS is for.
-    pub(crate) network: LxNetwork,
+    pub(crate) name: GvfsRootName,
     /// The [`GFileId`] corresponding to the GVFS root dir in Google Drive.
     pub(crate) gid: GFileId,
 }
@@ -118,7 +137,7 @@ impl GoogleVfs {
     #[instrument(skip_all, name = "(gvfs-init)")]
     pub async fn init(
         credentials: GDriveCredentials,
-        network: LxNetwork,
+        gvfs_root_name: GvfsRootName,
         maybe_given_gvfs_root: Option<GvfsRoot>,
     ) -> anyhow::Result<(
         Self,
@@ -126,16 +145,19 @@ impl GoogleVfs {
         watch::Receiver<GDriveCredentials>,
     )> {
         let (client, credentials_rx) = GDriveClient::new(credentials);
-        let (google_vfs, maybe_new_gvfs_root) =
-            Self::init_from_client(client, network, maybe_given_gvfs_root)
-                .await?;
+        let (google_vfs, maybe_new_gvfs_root) = Self::init_from_client(
+            client,
+            gvfs_root_name,
+            maybe_given_gvfs_root,
+        )
+        .await?;
         Ok((google_vfs, maybe_new_gvfs_root, credentials_rx))
     }
 
     /// Extracting this helper saves some extra API calls in tests.
     async fn init_from_client(
         client: GDriveClient,
-        network: LxNetwork,
+        gvfs_root_name: GvfsRootName,
         maybe_given_gvfs_root: Option<GvfsRoot>,
     ) -> anyhow::Result<(Self, Option<GvfsRoot>)> {
         let using_given_root = maybe_given_gvfs_root.is_some();
@@ -143,12 +165,12 @@ impl GoogleVfs {
 
         let mut gvfs_root = match maybe_given_gvfs_root {
             Some(given_gvfs_root) => {
-                let gvfs_network = given_gvfs_root.network;
-                // Sanity check in case the networks got mixed up somehow
+                // Sanity check in case the config got mixed up somehow
+                let given_gvfs_root_name = &given_gvfs_root.name;
                 ensure!(
-                    gvfs_network == network,
-                    "given_gvfs_root network doesn't match given network: \
-                    {gvfs_network}!={network}"
+                    given_gvfs_root_name == &gvfs_root_name,
+                    "persisted GvfsRoot's name doesn't match expected value: \
+                     {given_gvfs_root_name} != {gvfs_root_name}"
                 );
                 given_gvfs_root
             }
@@ -159,9 +181,13 @@ impl GoogleVfs {
                     .await
                     .context("get_or_create_lexe_dir 1")?
                     .id;
-                lexe_dir::get_or_create_gvfs_root(&client, &lexe_dir, network)
-                    .await
-                    .context("get_or_create_gvfs_root 1")?
+                lexe_dir::get_or_create_gvfs_root(
+                    &client,
+                    &lexe_dir,
+                    gvfs_root_name.clone(),
+                )
+                .await
+                .context("get_or_create_gvfs_root 1")?
             }
         };
 
@@ -190,10 +216,13 @@ impl GoogleVfs {
                 .await
                 .context("get_or_create_lexe_dir 2")?
                 .id;
-            let found_gvfs_root =
-                lexe_dir::get_or_create_gvfs_root(&client, &lexe_dir, network)
-                    .await
-                    .context("get_or_create_gvfs_root 2")?;
+            let found_gvfs_root = lexe_dir::get_or_create_gvfs_root(
+                &client,
+                &lexe_dir,
+                gvfs_root_name,
+            )
+            .await
+            .context("get_or_create_gvfs_root 2")?;
 
             if gvfs_root != found_gvfs_root {
                 warn!(
@@ -443,9 +472,39 @@ impl GoogleVfs {
     }
 }
 
+// --- impl GvfsRootName --- //
+
+impl fmt::Display for GvfsRootName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let deploy_env = self.deploy_env.as_str();
+        let network = self.network.as_str();
+        let sgx = if self.use_sgx { "sgx" } else { "dbg" };
+        let user_pk = self.user_pk;
+        write!(f, "lexe-{deploy_env}-{network}-{sgx}-{user_pk}")
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use common::test_utils::roundtrip;
+
     use super::*;
+
+    #[test]
+    fn test_gvfs_root_name_serde() {
+        let ex = GvfsRootName {
+            deploy_env: DeployEnv::Dev,
+            network: LxNetwork::Regtest,
+            use_sgx: false,
+            user_pk: UserPk::from_u64(6546565654654654),
+        };
+        assert_eq!("lexe-dev-regtest-dbg-be2e581811421700000000000000000000000000000000000000000000000000", ex.to_string());
+        let json_str = r#"{"deploy_env":"dev","network":"regtest","use_sgx":false,"user_pk":"be2e581811421700000000000000000000000000000000000000000000000000"}"#;
+        assert_eq!(json_str, serde_json::to_string(&ex).unwrap());
+        assert_eq!(ex, serde_json::from_str::<GvfsRootName>(json_str).unwrap());
+
+        roundtrip::json_value_roundtrip_proptest::<GvfsRootName>();
+    }
 
     /// Test utility to search for the Lexe dir and delete the regtest VFS root
     /// inside if it exists. We do NOT delete the entire Lexe dir in case there
@@ -493,10 +552,15 @@ mod test {
 
         delete_regtest_vfs_root(&client).await;
 
-        let network = LxNetwork::Regtest;
+        let gvfs_root_name = GvfsRootName {
+            deploy_env: DeployEnv::Dev,
+            network: LxNetwork::Regtest,
+            use_sgx: false,
+            user_pk: UserPk::from_u64(6549849),
+        };
         let gvfs_root = None;
         let (gvfs, created_root) =
-            GoogleVfs::init_from_client(client, network, gvfs_root)
+            GoogleVfs::init_from_client(client, gvfs_root_name, gvfs_root)
                 .await
                 .unwrap();
         created_root
@@ -569,13 +633,18 @@ mod test {
 
         delete_regtest_vfs_root(&client).await;
 
-        let network = LxNetwork::Regtest;
+        let gvfs_root_name = GvfsRootName {
+            deploy_env: DeployEnv::Dev,
+            network: LxNetwork::Regtest,
+            use_sgx: false,
+            user_pk: UserPk::from_u64(9849849),
+        };
 
         // Some random gid I created during testing
         let deleted_gid =
             GFileId("1kcQUtO1jMRw9MXJ-9ArWTgPa_elm2ikT".to_owned());
         let deleted_root = GvfsRoot {
-            network,
+            name: gvfs_root_name.clone(),
             gid: deleted_gid,
         };
 
@@ -587,10 +656,13 @@ mod test {
             .expect("This test expects a success response but with 0 results");
         assert!(all_files.is_empty(), "Test precondition not satisfied");
 
-        let (gvfs, updated_root) =
-            GoogleVfs::init_from_client(client, network, Some(deleted_root))
-                .await
-                .unwrap();
+        let (gvfs, updated_root) = GoogleVfs::init_from_client(
+            client,
+            gvfs_root_name,
+            Some(deleted_root),
+        )
+        .await
+        .unwrap();
         updated_root.expect("Should have been given an updated GVFS root");
 
         // Sanity check that the updated gvfs root is valid
@@ -626,11 +698,16 @@ mod test {
 
         delete_regtest_vfs_root(&client).await;
 
-        let network = LxNetwork::Regtest;
+        let gvfs_root_name = GvfsRootName {
+            deploy_env: DeployEnv::Dev,
+            network: LxNetwork::Regtest,
+            use_sgx: false,
+            user_pk: UserPk::from_u64(3385140),
+        };
 
         let bogus_gid = GFileId("t0tAlLy!!wrong-/\\[]} format 11 ".to_owned());
         let bogus_root = GvfsRoot {
-            network,
+            name: gvfs_root_name.clone(),
             gid: bogus_gid,
         };
 
@@ -642,10 +719,13 @@ mod test {
             .map(|_| ())
             .expect_err("Test precondition not satisfied: expected Err resp");
 
-        let (gvfs, updated_root) =
-            GoogleVfs::init_from_client(client, network, Some(bogus_root))
-                .await
-                .unwrap();
+        let (gvfs, updated_root) = GoogleVfs::init_from_client(
+            client,
+            gvfs_root_name,
+            Some(bogus_root),
+        )
+        .await
+        .unwrap();
         updated_root.expect("Should have been given an updated GVFS root");
 
         // Sanity check that the updated gvfs root is valid

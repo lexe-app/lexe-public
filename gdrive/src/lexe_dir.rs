@@ -23,13 +23,12 @@
 //! See also the doc comments for `LEXE_DIR_NAME`.
 
 use anyhow::Context;
-use common::ln::network::LxNetwork;
 use tracing::{debug, warn};
 
 use crate::{
     api,
     api::GDriveClient,
-    gvfs::GvfsRoot,
+    gvfs::{GvfsRoot, GvfsRootName},
     models::{GFile, GFileCow, GFileId, ListFiles},
 };
 
@@ -164,23 +163,24 @@ async fn create_lexe_dir(client: &GDriveClient) -> anyhow::Result<GFile> {
 pub(crate) async fn get_or_create_gvfs_root(
     client: &GDriveClient,
     lexe_dir: &GFileId,
-    network: LxNetwork,
+    gvfs_root_name: GvfsRootName,
 ) -> anyhow::Result<GvfsRoot> {
-    let network_str = network.to_string();
-    let maybe_gvfs_root_gid = get_gvfs_root_gid(client, lexe_dir, &network_str)
-        .await
-        .context("get_gvfs_root_gid")?;
+    let gvfs_root_name_str = gvfs_root_name.to_string();
+    let maybe_gvfs_root_gid =
+        get_gvfs_root_gid(client, lexe_dir, &gvfs_root_name_str)
+            .await
+            .context("get_gvfs_root_gid")?;
 
     let gvfs_root_gid = match maybe_gvfs_root_gid {
         Some(gid) => gid,
         None => client
-            .create_child_dir(lexe_dir.clone(), &network_str)
+            .create_child_dir(lexe_dir.clone(), &gvfs_root_name_str)
             .await
             .context("create_child_dir")?,
     };
 
     let gvfs_root = GvfsRoot {
-        network,
+        name: gvfs_root_name,
         gid: gvfs_root_gid,
     };
 
@@ -205,6 +205,8 @@ pub(crate) async fn get_gvfs_root_gid(
 
 #[cfg(test)]
 mod test {
+    use common::{api::UserPk, env::DeployEnv, ln::network::LxNetwork};
+
     use super::*;
     use crate::oauth2::GDriveCredentials;
 
@@ -224,10 +226,18 @@ mod test {
         let lexe_dir = get_or_create_lexe_dir(&client).await.unwrap();
         let lexe_dir_name = &lexe_dir.name;
         println!("Lexe dir: {lexe_dir_name}");
-        let network = LxNetwork::Regtest;
         let lexe_dir_id = lexe_dir.id;
+
+        let gvfs_root_name = GvfsRootName {
+            deploy_env: DeployEnv::Dev,
+            network: LxNetwork::Regtest,
+            use_sgx: false,
+            user_pk: UserPk::from_u64(123123),
+        };
+        println!("GvfsRootName: {gvfs_root_name}");
+
         let gvfs_root_gid =
-            get_or_create_gvfs_root(&client, &lexe_dir_id, network)
+            get_or_create_gvfs_root(&client, &lexe_dir_id, gvfs_root_name)
                 .await
                 .unwrap()
                 .gid;
