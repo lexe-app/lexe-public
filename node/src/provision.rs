@@ -393,11 +393,9 @@ mod handlers {
 
             // See if a root seed backup already exists. This does not check
             // whether the backup is well-formed, matches the current seed, etc.
-            let backup_exists = persister::password_encrypted_root_seed_exists(
-                &google_vfs,
-                req.network,
-            )
-            .await;
+            let backup_exists =
+                persister::password_encrypted_root_seed_exists(&google_vfs)
+                    .await;
 
             // If no backup exists in GDrive, we should create one, or error if
             // no pw-encrypted root seed was provided.
@@ -412,7 +410,6 @@ mod handlers {
 
                 persister::persist_password_encrypted_root_seed(
                     &google_vfs,
-                    req.network,
                     encrypted_seed,
                 )
                 .await
