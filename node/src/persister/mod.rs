@@ -79,11 +79,12 @@ mod discrepancy;
 mod multi;
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
-const NETWORK_GRAPH_FILENAME: &str = "network_graph";
 const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
-const SCORER_FILENAME: &str = "scorer";
 const GDRIVE_CREDENTIALS_FILENAME: &str = "gdrive_credentials";
 const GVFS_ROOT_FILENAME: &str = "gvfs_root";
+const NETWORK_GRAPH_FILENAME: &str = "network_graph";
+const PW_ENC_ROOT_SEED_FILENAME: &str = "password_encrypted_root_seed";
+const SCORER_FILENAME: &str = "scorer";
 
 // Non-singleton objects use a fixed directory with dynamic filenames
 const CHANNEL_MONITORS_DIR: &str = "channel_monitors";
@@ -213,12 +214,11 @@ pub(crate) async fn read_gvfs_root(
 #[inline]
 pub(crate) async fn password_encrypted_root_seed_exists(
     google_vfs: &GoogleVfs,
-    network: LxNetwork,
 ) -> bool {
     // This fn barely does anything, but we want it close to the impl of
     // `persist_password_encrypted_root_seed` for ez inspection
-    let filename = format!("{network}_root_seed");
-    let file_id = VfsFileId::new(SINGLETON_DIRECTORY, filename);
+    let file_id =
+        VfsFileId::new(SINGLETON_DIRECTORY, PW_ENC_ROOT_SEED_FILENAME);
     google_vfs.file_exists(&file_id).await
 }
 
@@ -230,18 +230,17 @@ pub(crate) async fn password_encrypted_root_seed_exists(
 /// [`RootSeed`]: common::root_seed::RootSeed
 pub(crate) async fn persist_password_encrypted_root_seed(
     google_vfs: &GoogleVfs,
-    network: LxNetwork,
     encrypted_seed: Vec<u8>,
 ) -> anyhow::Result<()> {
-    // We include network in the filename as a safeguard against mixing seeds up
-    let filename = format!("{network}_root_seed");
-    let file = VfsFile::new(SINGLETON_DIRECTORY, filename, encrypted_seed);
-
+    let file = VfsFile::new(
+        SINGLETON_DIRECTORY,
+        PW_ENC_ROOT_SEED_FILENAME,
+        encrypted_seed,
+    );
     google_vfs
         .create_file(file)
         .await
         .context("Failed to create root seed file")?;
-
     Ok(())
 }
 
