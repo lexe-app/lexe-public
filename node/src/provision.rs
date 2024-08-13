@@ -192,7 +192,10 @@ fn lexe_router(state: LexeRouterState) -> Router<()> {
 /// API handlers.
 mod handlers {
     use axum::extract::State;
-    use common::api::server::{extract::LxQuery, LxJson};
+    use common::api::{
+        server::{extract::LxQuery, LxJson},
+        UserPk,
+    };
 
     use super::*;
 
@@ -230,8 +233,12 @@ mod handlers {
         // TODO(phlip9): [perf] could get the user to pass us their auth token
         // in the provision request instead of reauthing here.
 
-        // authenticate as the user to the backend
+        // Authenticate as the user to the backend.
+        //
+        // We do this before gDrive provisioning to ensure the user is a real &
+        // valid Lexe user before taxing our gDrive API quotas.
         let user_key_pair = req.root_seed.derive_user_key_pair();
+        let user_pk = UserPk::new(user_key_pair.public_key().into_inner());
         let maybe_token = None;
         let authenticator =
             BearerAuthenticator::new(user_key_pair, maybe_token);
@@ -242,14 +249,6 @@ mod handlers {
                 kind: NodeErrorKind::BadAuth,
                 msg: format!("{err:#}"),
             })?;
-
-        // store the sealed seed and new node metadata in the backend
-        ctx.backend_client
-            .create_sealed_seed(&sealed_seed, token)
-            .await
-            .context("Could not persist sealed seed")
-            .map_err(NodeApiError::provision)?;
-        let user_pk = sealed_seed.id.user_pk;
 
         // If we're in staging/prod, we need to handle gDrive. We'll save the
         // gDrive credentials (so we can get access after the token expires)
@@ -287,6 +286,17 @@ mod handlers {
                 ));
             }
         }
+
+        // Finally, store the sealed seed and new node metadata in the backend.
+        //
+        // We do this last so that a new user signup where gdrive fails to
+        // provision (which seems to happen more often than I'd like) doesn't
+        // fill up our capacity with broken nodes that can't run.
+        ctx.backend_client
+            .create_sealed_seed(&sealed_seed, token)
+            .await
+            .context("Could not persist sealed seed")
+            .map_err(NodeApiError::provision)?;
 
         Ok(LxJson(Empty {}))
     }
