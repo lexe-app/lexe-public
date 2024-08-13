@@ -3,7 +3,8 @@
 import 'dart:async' show Stream, StreamController, StreamSubscription;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
-import 'package:rxdart/rxdart.dart' show ValueStream, ValueStreamError;
+import 'package:rxdart/rxdart.dart'
+    show StreamNotification, ValueStream, ValueStreamError;
 import 'package:rxdart_ext/rxdart_ext.dart';
 
 /// Convenience extension method on [ValueListenable] to convert it into a
@@ -57,7 +58,6 @@ class ValueListenableStream<T> extends Stream<T> implements ValueStream<T> {
   /// so this needs to be called manually.
   Future close() async {
     await this._controller?.close();
-    this._controller = null;
   }
 
   // These callbacks are registered with the inner `_controller`
@@ -103,4 +103,16 @@ class ValueListenableStream<T> extends Stream<T> implements ValueStream<T> {
 
   @override
   StackTrace? get stackTrace => null;
+
+  @override
+  StreamNotification<T>? get lastEventOrNull {
+    final _controller = this._controller;
+    if (_controller == null) {
+      return null;
+    } else if (_controller.isClosed) {
+      return StreamNotification<T>.done();
+    } else {
+      return StreamNotification<T>.data(this.value);
+    }
+  }
 }
