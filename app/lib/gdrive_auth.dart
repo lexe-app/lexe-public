@@ -23,6 +23,15 @@ final _googleSignIn = GoogleSignIn(
   //
   // <https://developers.google.com/drive/api/guides/api-specific-auth>
   scopes: ["https://www.googleapis.com/auth/drive.file"],
+  // Android-only
+  //
+  // First-time provisioning always needs to get a refresh_token. Setting this
+  // to true should fix an issue where (1) a user auths w/ gdrive, (2) they fail
+  // to complete provisioning (spurrious error, timeout, etc...), then (3) they
+  // retry but despite the infra healing, still can't complete provisioning
+  // until the serverAuthCode expires, as the provision node won't be able to
+  // get a refresh_token.
+  forceCodeForRefreshToken: true,
 );
 
 /// Returned from Google OAuth 2 after getting user consent.
