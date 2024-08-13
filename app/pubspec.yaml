@@ -100,12 +100,12 @@ dependencies:
   path_provider: ^2.1.1
 
   # Reactive primitives for asynchronous programming
-  rxdart: ^0.27.7
+  rxdart: ^0.28.0
   # rxdart extensions
-  rxdart_ext: ^0.2.9
+  rxdart_ext: ^0.3.0
 
   # Share button functionality.
-  share_plus: ^9.0.0
+  share_plus: ^10.0.0
 
   # Open URLs and custom URIs (e.g., "bitcoin:" and "lightning:" URIs)
   url_launcher: ^6.3.0

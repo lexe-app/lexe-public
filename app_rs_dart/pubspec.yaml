@@ -17,7 +17,7 @@ dependencies:
     sdk: flutter
 
   # The high-level memory safe interface for generated Rust<->dart ffi bindings.
-  flutter_rust_bridge: 2.1.0
+  flutter_rust_bridge: ^2.2.0
 
   # Immutable record types and Rust-style enums in Dart
   freezed_annotation: ^2.4.1
@@ -31,9 +31,9 @@ dev_dependencies:
   build_runner: ^2.4.7
 
   # Used by flutter_rust_bridge to generate the dart ffi bingings at build-time.
-  ffigen: ^11.0.0
+  ffigen: ^13.0.0
 
-  flutter_lints: ^3.0.0
+  flutter_lints: ^4.0.0
 
   flutter_test:
     sdk: flutter
