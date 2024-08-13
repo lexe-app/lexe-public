@@ -192,15 +192,9 @@ fn lexe_router(state: LexeRouterState) -> Router<()> {
 /// API handlers.
 mod handlers {
     use axum::extract::State;
-    use common::api::{
-        error::{BackendApiError, BackendErrorKind},
-        server::{extract::LxQuery, LxJson},
-    };
-    use gdrive::gvfs::GvfsRootName;
-    use tracing::warn;
+    use common::api::server::{extract::LxQuery, LxJson};
 
     use super::*;
-    use crate::approved_versions::ApprovedVersions;
 
     pub(super) async fn provision(
         State(mut ctx): State<RequestContext>,
@@ -238,10 +232,9 @@ mod handlers {
 
         // authenticate as the user to the backend
         let user_key_pair = req.root_seed.derive_user_key_pair();
-        let authenticator = BearerAuthenticator::new(
-            user_key_pair,
-            None, /* maybe_token */
-        );
+        let maybe_token = None;
+        let authenticator =
+            BearerAuthenticator::new(user_key_pair, maybe_token);
         let token = authenticator
             .get_token(ctx.backend_client.as_ref(), SystemTime::now())
             .await
@@ -258,20 +251,104 @@ mod handlers {
             .map_err(NodeApiError::provision)?;
         let user_pk = sealed_seed.id.user_pk;
 
-        if !req.deploy_env.is_staging_or_prod() {
-            // If we're not in staging/prod, provisioning is done.
-            return Ok(LxJson(Empty {}));
-        }
-        // We're in staging/prod. There's some more work to do.
+        // If we're in staging/prod, we need to handle gDrive. We'll save the
+        // gDrive credentials (so we can get access after the token expires)
+        // and potentially init the GVFS setup (make directories, etc...).
+        if req.deploy_env.is_staging_or_prod() {
+            // If we're given an auth_code, complete the OAuth2 flow and persist
+            // the gDrive credentials.
+            let vfs_master_key = req.root_seed.derive_vfs_master_key();
+            let credentials = helpers::provision_gdrive_credentials(
+                &mut ctx,
+                req.google_auth_code.as_deref(),
+                &authenticator,
+                &vfs_master_key,
+            )
+            .await?;
 
+            // If we're allowed to provision GVFS, init the GVFS structure if
+            // it's not already init'ed.
+            if req.allow_gvfs_access {
+                helpers::provision_gvfs(
+                    &mut ctx,
+                    &req,
+                    &authenticator,
+                    credentials,
+                    &vfs_master_key,
+                    &user_pk,
+                )
+                .await?;
+            } else if req.encrypted_seed.is_some() {
+                // It is a usage error if they also provided a pw-encrypted seed
+                // but we are not allowed to provision GVFS.
+                return Err(NodeApiError::provision(
+                    "A root seed backup was provided, but it cannot be \
+                     persisted because `allow_gvfs_access=false`",
+                ));
+            }
+        }
+
+        Ok(LxJson(Empty {}))
+    }
+
+    pub(super) async fn shutdown(
+        State(state): State<LexeRouterState>,
+        LxQuery(req): LxQuery<GetByMeasurement>,
+    ) -> Result<LxJson<Empty>, NodeApiError> {
+        let LexeRouterState {
+            measurement,
+            shutdown,
+        } = state;
+
+        // Sanity check that the caller did indeed intend to shut down this node
+        let given_measure = &req.measurement;
+        if given_measure != &measurement {
+            return Err(NodeApiError {
+                kind: NodeErrorKind::WrongMeasurement,
+                msg: format!("Given: {given_measure}, current: {measurement}"),
+            });
+        }
+
+        // Send a shutdown signal.
+        shutdown.send();
+
+        Ok(LxJson(Empty {}))
+    }
+}
+
+mod helpers {
+    use common::{
+        aes::AesMasterKey,
+        api::{
+            error::{BackendApiError, BackendErrorKind},
+            UserPk,
+        },
+    };
+    use gdrive::{gvfs::GvfsRootName, oauth2::GDriveCredentials};
+    use tracing::warn;
+
+    use super::*;
+    use crate::approved_versions::ApprovedVersions;
+
+    /// If we're given a gDrive auth_code (e.g., the user is signing up for the
+    /// first time), then we'll complete the OAuth2 flow to get an access_token
+    /// and refresh_token. We'll want to persist these credentials to Lexe infra
+    /// (encrypted ofc) so this node can get access_token's again in the future.
+    ///
+    /// Otherwise, we'll just sanity check the already persisted credentials.
+    pub(super) async fn provision_gdrive_credentials(
+        ctx: &mut RequestContext,
+        google_auth_code: Option<&str>,
+        authenticator: &BearerAuthenticator,
+        vfs_master_key: &AesMasterKey,
+    ) -> Result<GDriveCredentials, NodeApiError> {
         let oauth = ctx
             .args
             .oauth
             .clone()
             .context("Missing OAuthConfig from Lexe operators")
             .map_err(NodeApiError::provision)?;
-        let vfs_master_key = req.root_seed.derive_vfs_master_key();
-        let credentials = match req.google_auth_code {
+        let credentials = match google_auth_code {
             Some(code) => {
                 // We were given an auth code. Exchange for credentials and
                 // persist.
@@ -282,7 +359,7 @@ mod handlers {
                     oauth.client_id,
                     oauth.client_secret,
                     &oauth.redirect_uri,
-                    &code,
+                    code,
                 )
                 .await
                 .context("Couldn't get tokens using code")
@@ -291,12 +368,12 @@ mod handlers {
                 // Encrypt the GDriveCredentials and upsert into Lexe's DB.
                 let credentials_file = persister::encrypt_gdrive_credentials(
                     &mut ctx.rng,
-                    &vfs_master_key,
+                    vfs_master_key,
                     &credentials,
                 );
                 persister::persist_file(
                     ctx.backend_client.as_ref(),
-                    &authenticator,
+                    authenticator,
                     &credentials_file,
                 )
                 .await
@@ -310,8 +387,8 @@ mod handlers {
                 // exist.
                 let credentials = persister::read_gdrive_credentials(
                     ctx.backend_client.as_ref(),
-                    &authenticator,
-                    &vfs_master_key,
+                    authenticator,
+                    vfs_master_key,
                 )
                 .await
                 .context("GDriveCredentials invalid or missing")
@@ -332,25 +409,27 @@ mod handlers {
                 credentials
             }
         };
+        Ok(credentials)
+    }
 
-        // If we are not allowed to access the Google VFS, we are done.
-        if !req.allow_gvfs_access {
-            // It is a usage error if they also provided a pw-encrypted seed.
-            if req.encrypted_seed.is_some() {
-                return Err(NodeApiError::provision(
-                    "A root seed backup was provided, but it cannot be \
-                    persisted because `allow_gvfs_access=false`",
-                ));
-            }
-
-            return Ok(LxJson(Empty {}));
-        }
-
+    /// Set up the "Google VFS" in the user's GDrive.
+    ///
+    /// - Creates the GVFS file folder structure (if it didn't exist)
+    /// - Backup up the encrypted root seed (if it didn't exist)
+    /// - Updates the approved versions list for rollback protection
+    pub(super) async fn provision_gvfs(
+        ctx: &mut RequestContext,
+        req: &NodeProvisionRequest,
+        authenticator: &BearerAuthenticator,
+        credentials: GDriveCredentials,
+        vfs_master_key: &AesMasterKey,
+        user_pk: &UserPk,
+    ) -> Result<(), NodeApiError> {
         // See if we have a persisted gvfs root.
         let maybe_persisted_gvfs_root = persister::read_gvfs_root(
             &*ctx.backend_client,
-            &authenticator,
-            &vfs_master_key,
+            authenticator,
+            vfs_master_key,
         )
         .await
         .context("Failed to fetch persisted gvfs root")
@@ -361,7 +440,7 @@ mod handlers {
             deploy_env: req.deploy_env,
             network: req.network,
             use_sgx: cfg!(target_env = "sgx"),
-            user_pk,
+            user_pk: *user_pk,
         };
         let (google_vfs, maybe_new_gvfs_root, mut credentials_rx) =
             GoogleVfs::init(
@@ -382,8 +461,8 @@ mod handlers {
                 persister::persist_gvfs_root(
                     &mut ctx.rng,
                     &*ctx.backend_client,
-                    &authenticator,
-                    &vfs_master_key,
+                    authenticator,
+                    vfs_master_key,
                     &new_gvfs_root,
                 )
                 .await
@@ -402,6 +481,7 @@ mod handlers {
             if !backup_exists {
                 let encrypted_seed = req
                     .encrypted_seed
+                    .clone()
                     .context(
                         "Missing pw-encrypted root seed backup in GDrive; \
                         please provide one in another provision request",
@@ -419,7 +499,7 @@ mod handlers {
 
             // Fetch the approved versions list or create an empty one.
             let mut approved_versions =
-                persister::read_approved_versions(&google_vfs, &vfs_master_key)
+                persister::read_approved_versions(&google_vfs, vfs_master_key)
                     .await
                     .context("Couldn't read approved versions")
                     .map_err(NodeApiError::provision)?
@@ -427,7 +507,7 @@ mod handlers {
 
             // Approve the current version, revoke old/yanked versions, etc.
             let (updated, revoked) = approved_versions
-                .approve_and_revoke(&user_pk, ctx.measurement)
+                .approve_and_revoke(user_pk, ctx.measurement)
                 .context("Error updating approved versions")
                 .map_err(NodeApiError::provision)?;
 
@@ -436,7 +516,7 @@ mod handlers {
                 persister::persist_approved_versions(
                     &mut ctx.rng,
                     &google_vfs,
-                    &vfs_master_key,
+                    vfs_master_key,
                     &approved_versions,
                 )
                 .await
@@ -487,7 +567,7 @@ mod handlers {
                 }
             }
 
-            Ok::<_, NodeApiError>(())
+            Ok::<(), NodeApiError>(())
         };
         let try_gvfs_ops = do_gvfs_ops.await;
 
@@ -497,13 +577,13 @@ mod handlers {
             if matches!(credentials_rx.has_changed(), Ok(true)) {
                 let credentials_file = persister::encrypt_gdrive_credentials(
                     &mut ctx.rng,
-                    &vfs_master_key,
+                    vfs_master_key,
                     &credentials_rx.borrow_and_update(),
                 );
 
                 persister::persist_file(
                     ctx.backend_client.as_ref(),
-                    &authenticator,
+                    authenticator,
                     &credentials_file,
                 )
                 .await
@@ -513,33 +593,7 @@ mod handlers {
                 Ok(())
             };
 
-        // Finally done. Return the first of any errors, otherwise Ok(Empty {}).
-        try_gvfs_ops
-            .and(try_update_credentials)
-            .map(|()| LxJson(Empty {}))
-    }
-
-    pub(super) async fn shutdown(
-        State(state): State<LexeRouterState>,
-        LxQuery(req): LxQuery<GetByMeasurement>,
-    ) -> Result<LxJson<Empty>, NodeApiError> {
-        let LexeRouterState {
-            measurement,
-            shutdown,
-        } = state;
-
-        // Sanity check that the caller did indeed intend to shut down this node
-        let given_measure = &req.measurement;
-        if given_measure != &measurement {
-            return Err(NodeApiError {
-                kind: NodeErrorKind::WrongMeasurement,
-                msg: format!("Given: {given_measure}, current: {measurement}"),
-            });
-        }
-
-        // Send a shutdown signal.
-        shutdown.send();
-
-        Ok(LxJson(Empty {}))
+        // Finally done. Return the first of any errors.
+        try_gvfs_ops.and(try_update_credentials)
     }
 }
