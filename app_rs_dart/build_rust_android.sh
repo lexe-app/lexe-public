@@ -117,7 +117,8 @@ for env in "${conditional_envs[@]}"; do
 done
 
 # Run `cargo ndk build` in a clean env
-env --ignore-environment "${clean_envs[@]}" \
+# Short args (-i) ensure this works with non-coreutils /usr/bin/env on macOS.
+env -i "${clean_envs[@]}" \
   cargo ndk \
   --target="$TARGET" \
   --output-dir="$APP_RS__OUT_DIR" \
