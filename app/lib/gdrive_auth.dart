@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart'
     show GoogleSignIn, GoogleSignInAccount;
+import 'package:lexeapp/logger.dart';
 
 import 'package:lexeapp/result.dart';
 
@@ -76,6 +77,10 @@ class ProdGDriveAuth implements GDriveAuth {
 
   @override
   Future<Result<GDriveAuthInfo?, Exception>> tryAuth() async {
+    // Try to signOut first, to prevent "silent" signIn, which would prevent the
+    // user from choosing a different account.
+    await this.trySignOut();
+
     final result = await Result.tryAsync<GoogleSignInAccount?, Exception>(
         _googleSignIn.signIn);
 
@@ -96,6 +101,11 @@ class ProdGDriveAuth implements GDriveAuth {
     }
 
     return Ok(GDriveAuthInfo(authCode: serverAuthCode));
+  }
+
+  Future<void> trySignOut() async {
+    (await Result.tryAsync<void, Exception>(_googleSignIn.signOut))
+        .mapErr((err) => warn("Error trying to signOut from gDrive: $err"));
   }
 }
 
