@@ -8,8 +8,7 @@
     <item name="android:windowBackground">@color/background</item>
     <!-- Support new "Splash Screen" API in Android 12 -->
     <item name="android:windowSplashScreenBackground">@color/background</item>
-    <!-- TODO(phlip9): make the icon larger -->
-    <!-- <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item> -->
+    <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground_splash</item>
     </style>
 
   <!-- Theme applied to the Android Window as soon as the process has started.
@@ -19,9 +18,9 @@
 
        This Theme is only used starting with V2 of Flutter's Android embedding. -->
   <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
-    <!-- <item name="android:windowBackground">@color/background</item> -->
+    <item name="android:windowBackground">@color/background</item>
+    <!-- Support new "Splash Screen" API in Android 12 -->
     <item name="android:windowSplashScreenBackground">@color/background</item>
-    <!-- TODO(phlip9): make the icon larger -->
-    <!-- <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item> -->
+    <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground_splash</item>
     </style>
   </resources>
