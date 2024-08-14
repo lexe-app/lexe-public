@@ -1,0 +1,5 @@
+<resources>
+  <!-- Keep these in sync with `app/lib/style.dart` -->
+  <color name="foreground">#1c2123</color> <!-- grey200 -->
+  <color name="background">#eff3f5</color> <!-- grey900 -->
+  </resources>
