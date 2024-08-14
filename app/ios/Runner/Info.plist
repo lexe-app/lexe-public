@@ -80,6 +80,7 @@
     <string>Lexe needs photos access to read QR code images from the photo library</string>
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
+    <!-- The launch screen that shows while the main flutter view loads. -->
     <key>UILaunchStoryboardName</key>
     <string>LaunchScreen</string>
     <key>UIMainStoryboardFile</key>
