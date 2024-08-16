@@ -13,13 +13,15 @@ import 'package:flutter_markdown/flutter_markdown.dart'
 import 'package:lexeapp/components.dart'
     show CarouselIndicatorsAndButtons, LxFilledButton, LxOutlinedButton;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
-import 'package:lexeapp/logger.dart' show error, info;
+import 'package:lexeapp/logger.dart' show error, info, warn;
+import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/signup.dart' show SignupApi, SignupPage;
 import 'package:lexeapp/route/wallet.dart' show WalletPage;
 import 'package:lexeapp/settings.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
 import 'package:lexeapp/uri_events.dart' show UriEvents;
+import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
 const double maxWidth = 300.0;
 
@@ -150,36 +152,37 @@ class _LandingPageState extends State<LandingPage> {
 
       //
       LandingMarkdownBody('''
-## RECEIVE 24/7.
+## RECEIVE PAYMENTS 24/7.
 
-Your Lightning node is **always online** and ready to receive payments.
+Your Lightning node is **always available** to receive payments.
 
 Get paid **anytime, anywhere**. Even when your phone goes offline.
       '''),
 
-      //
+      // TODO(phlip9): tap to clarify what a "Secure Enclave" is?
       LandingMarkdownBody('''
 ## YOUR BITCOIN'S SAFE, EVEN FROM US.
 
-We run your node in a [Secure Enclave]() so your funds are protected, even if we get hacked.
+We run your node in a **Secure Enclave** so your funds are protected, even if we get hacked.
 
-With LEXE, **only you control your funds**, we'll handle the infrastructure.
+With LEXE, **only you control your funds**. Let us handle the infrastructure.
       '''),
 
-      //
-      LandingMarkdownBody('''
-## AUTOMATIC INBOUND LIQUIDITY.
-
-Your node can automatically top-up liquidity so you **never miss a payment again**.
-      '''),
+// TODO(phlip9): add this page after we actually implement paid liquidity.
+//       //
+//       LandingMarkdownBody('''
+// ## AUTOMATIC INBOUND LIQUIDITY.
+//
+// Your node can automatically top-up liquidity so you **never miss a payment again**.
+//       '''),
 
       //
       LandingMarkdownBody('''
 ## DON'T TRUST, VERIFY.
 
-The LEXE Lightning node is [open-source]() and fully reproducible.
+The LEXE Lightning node is [open-source](https://github.com/lexe-app/lexe-public) and fully reproducible.
 
-**Your wallet always verifies your node's software**, before it ever shares any keys.
+Your wallet always verifies your node's software before sharing any keys.
       '''),
     ];
 
@@ -301,6 +304,17 @@ class LandingMarkdownBody extends MarkdownBody {
               decoration: TextDecoration.underline,
             ),
           ),
+          // Called when a user hits a `[text](href)`.
+          // Currently just opens any https:// links in the browser.
+          onTapLink: (text, href, title) async {
+            if (href == null || !href.startsWith("https://")) {
+              return;
+            }
+            final result = await Result.tryAsync<bool, Exception>(
+                () => url_launcher.launchUrl(Uri.parse(href)));
+            result.mapErr(
+                (err) => warn("Failed to launch URL: '$href', err: $err"));
+          },
         );
 }
 
