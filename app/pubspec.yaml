@@ -55,7 +55,8 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # flutter_markdown: ^0.7.1
+  # markdown rendering
+  flutter_markdown: ^0.7.3
 
   # QR code scanning
   # NOTE: I tried `mobile_scanner`, but that adds a ton of closed source, MLKit

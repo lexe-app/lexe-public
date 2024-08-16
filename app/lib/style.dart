@@ -587,7 +587,7 @@ final class Fonts {
     fontFamily: "Hubot Sans",
     fontSize: Fonts.size800,
     color: LxColors.foreground,
-    height: 1.5,
+    height: 1.4,
     fontVariations: [Fonts.weightBold, Fonts.widthTight],
     decoration: TextDecoration.none,
   );
