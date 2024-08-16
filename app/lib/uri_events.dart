@@ -1,10 +1,10 @@
 import 'dart:async' show unawaited;
 
 import 'package:app_links/app_links.dart' as app_links;
+import 'package:flutter/foundation.dart' show immutable;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/stream_ext.dart';
-import 'package:meta/meta.dart';
 import 'package:rxdart/rxdart.dart' show BehaviorSubject;
 
 /// An interface for receiving platform URI events. A URI event is when the user
