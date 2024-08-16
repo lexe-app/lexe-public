@@ -165,9 +165,6 @@ flutter:
   # When we go to launch, we could probably shave off ~1.5 MiB from the app size
   # by only shipping the exact, static font variantions that we ultimately use.
   fonts:
-    # - family: "Mona Sans"
-    #   fonts:
-    #     - asset: fonts/Mona-Sans.ttf
     - family: "Hubot Sans"
       fonts:
         - asset: fonts/Hubot-Sans.ttf
