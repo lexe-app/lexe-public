@@ -8,6 +8,8 @@ import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
+import 'package:flutter_markdown/flutter_markdown.dart'
+    show MarkdownBody, MarkdownStyleSheet;
 import 'package:lexeapp/components.dart'
     show CarouselIndicatorsAndButtons, LxFilledButton, LxOutlinedButton;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
@@ -18,6 +20,8 @@ import 'package:lexeapp/settings.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
 import 'package:lexeapp/uri_events.dart' show UriEvents;
+
+const double maxWidth = 300.0;
 
 class LandingPage extends StatefulWidget {
   const LandingPage({
@@ -36,13 +40,6 @@ class LandingPage extends StatefulWidget {
   @override
   State<LandingPage> createState() => _LandingPageState();
 }
-
-const List<Widget> landingPages = [
-  LandingCalloutText(heroText: "LIGHTNING.\nBITCOIN.\nONE WALLET."),
-  LandingCalloutText(heroText: "RECEIVE\nPAYMENTS\n24/7."),
-  LandingCalloutText(heroText: "ZERO\nCOMPROMISE\nSELF CUSTODY."),
-  LandingCalloutText(heroText: "MAX SECURITY.\nPOWERED BY SGX™."),
-];
 
 class _LandingPageState extends State<LandingPage> {
   final PageController carouselScrollController = PageController();
@@ -114,6 +111,78 @@ class _LandingPageState extends State<LandingPage> {
 
   @override
   Widget build(BuildContext context) {
+    // "brought to you by LEXE™"
+    final broughtToYouByLexeText = Row(
+      // mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        // SizedBox(width: 128.0),
+        Text(
+          "brought to you by",
+          style: Fonts.fontUI.copyWith(
+            color: LxColors.clearB700,
+            fontSize: Fonts.size100,
+            fontVariations: [Fonts.weightExtraLight],
+          ),
+        ),
+        const SizedBox(width: 4.0),
+        Text(
+          "LEXE™",
+          style: Fonts.fontHubot.copyWith(
+            color: LxColors.clearB700,
+            fontSize: Fonts.size100,
+            fontVariations: [Fonts.weightMedium],
+            height: 1.0,
+          ),
+        ),
+      ],
+    );
+
+    // Each page in the carousel.
+    final List<Widget> landingPages = [
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LandingMarkdownBody("# SELF-CUSTODIAL BITCOIN AND LIGHTNING WALLET."),
+          broughtToYouByLexeText,
+        ],
+      ),
+
+      //
+      LandingMarkdownBody('''
+## RECEIVE 24/7.
+
+Your Lightning node is **always online** and ready to receive payments.
+
+Get paid **anytime, anywhere**. Even when your phone goes offline.
+      '''),
+
+      //
+      LandingMarkdownBody('''
+## YOUR BITCOIN'S SAFE, EVEN FROM US.
+
+We run your node in a [Secure Enclave]() so your funds are protected, even if we get hacked.
+
+With LEXE, **only you control your funds**, we'll handle the infrastructure.
+      '''),
+
+      //
+      LandingMarkdownBody('''
+## AUTOMATIC INBOUND LIQUIDITY.
+
+Your node can automatically top-up liquidity so you **never miss a payment again**.
+      '''),
+
+      //
+      LandingMarkdownBody('''
+## DON'T TRUST, VERIFY.
+
+The LEXE Lightning node is [open-source]() and fully reproducible.
+
+**Your wallet always verifies your node's software**, before it ever shares any keys.
+      '''),
+    ];
+
     final numPages = landingPages.length;
 
     // set the SystemUiOverlay bars to transparent so the background shader
@@ -135,14 +204,15 @@ class _LandingPageState extends State<LandingPage> {
             builder: (BuildContext context, BoxConstraints viewport) {
               final viewportHeight = viewport.maxHeight;
 
-              const maxWidth = 300.0;
               const minHeight = 525.0;
-              const verticalBreakpoint = 700.0;
+              const verticalBreakpoint = 725.0;
 
               final maxHeight = max(minHeight, viewportHeight);
               final top = (viewportHeight > verticalBreakpoint) ? 196.0 : 64.0;
               final bottom =
                   (viewportHeight > verticalBreakpoint) ? 64.0 : 32.0;
+
+              const horizPadding = Space.s400;
 
               return Center(
                 child: Container(
@@ -166,6 +236,8 @@ class _LandingPageState extends State<LandingPage> {
 
                           return Container(
                             alignment: Alignment.topCenter,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: horizPadding),
                             child: ConstrainedBox(
                               constraints:
                                   const BoxConstraints(maxWidth: maxWidth),
@@ -178,7 +250,8 @@ class _LandingPageState extends State<LandingPage> {
 
                     // Action buttons (signup, restore) and page indicators.
                     Container(
-                      padding: EdgeInsets.only(bottom: bottom),
+                      padding: EdgeInsets.fromLTRB(
+                          horizPadding, 0, horizPadding, bottom),
                       alignment: Alignment.bottomCenter,
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: maxWidth),
@@ -205,57 +278,30 @@ class _LandingPageState extends State<LandingPage> {
   }
 }
 
-class LandingCalloutText extends StatelessWidget {
-  const LandingCalloutText({super.key, required this.heroText});
-
-  final String heroText;
-
-  @override
-  Widget build(BuildContext context) {
-    final heroText = Text(
-      this.heroText,
-      overflow: TextOverflow.clip,
-      style: Fonts.fontHero.copyWith(
-        color: LxColors.foreground,
-      ),
-    );
-
-    final lexeText = Row(
-      // mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        // SizedBox(width: 128.0),
-        Text(
-          "brought to you by",
-          style: Fonts.fontUI.copyWith(
-            color: LxColors.clearB700,
-            fontSize: Fonts.size100,
-            fontVariations: [Fonts.weightExtraLight],
+/// [MarkdownBody] but styled for the landing page.
+class LandingMarkdownBody extends MarkdownBody {
+  LandingMarkdownBody(final String data, {super.key})
+      : super(
+          data: data,
+          styleSheet: MarkdownStyleSheet(
+            h1: Fonts.fontHero,
+            h1Padding: const EdgeInsets.only(bottom: Fonts.size800 * 0.5),
+            h2: Fonts.fontHero.copyWith(fontSize: Fonts.size700, height: 1.3),
+            h2Padding: const EdgeInsets.only(bottom: Fonts.size700 * 0.25),
+            p: Fonts.fontBody.copyWith(
+              fontSize: Fonts.size300,
+              color: LxColors.foreground,
+              letterSpacing: -0.5,
+            ),
+            pPadding:
+                const EdgeInsets.symmetric(vertical: Fonts.size300 * 0.25),
+            strong: const TextStyle(fontVariations: [Fonts.weightBold]),
+            a: const TextStyle(
+              color: LxColors.foreground,
+              decoration: TextDecoration.underline,
+            ),
           ),
-        ),
-        const SizedBox(width: 4.0),
-        Text(
-          "LEXE™",
-          style: Fonts.fontHubot.copyWith(
-            color: LxColors.clearB700,
-            fontSize: Fonts.size100,
-            fontVariations: [Fonts.weightMedium],
-            height: 1.0,
-          ),
-        ),
-      ],
-    );
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const SizedBox(height: Space.s100),
-        heroText,
-        const SizedBox(height: Space.s400),
-        lexeText,
-      ],
-    );
-  }
+        );
 }
 
 class LandingButtons extends StatelessWidget {
@@ -303,7 +349,7 @@ class LandingButtons extends StatelessWidget {
           style: FilledButton.styleFrom(
             backgroundColor: LxColors.foreground,
             foregroundColor: LxColors.background,
-            fixedSize: const Size(300.0, Space.s800),
+            fixedSize: const Size(maxWidth, Space.s800),
           ),
           label: const Text("Create new wallet"),
           icon: const Icon(LxIcons.nextSecondary),
@@ -314,7 +360,8 @@ class LandingButtons extends StatelessWidget {
         LxOutlinedButton(
           onTap: this.onRecoverPressed,
           style: ButtonStyle(
-            fixedSize: WidgetStateProperty.all(const Size(300.0, Space.s800)),
+            fixedSize:
+                WidgetStateProperty.all(const Size(maxWidth, Space.s800)),
           ),
           label: const Text("I have a Lexe wallet"),
         ),

@@ -187,10 +187,10 @@ void main() {
     gp = rotate(gp, vec2(0.5, 1.0), -0.10 * u_scroll_offset);
 
     // float darken = 0.8;
-    float brightness = 1.0 + sin(0.0);
+    float brightness = 0.9;
     // float zoom = 1.5;
     float zoom = 1.5 + (0.25 * u_scroll_offset);
-    float gamma = 1.5;
+    float gamma = 1.8;
 
     // Generate a shade value in [0.0, 1.0]
     float shade = pattern(zoom * gp);
