@@ -173,8 +173,8 @@ flutter:
         - asset: fonts/Hubot-Sans.ttf
     - family: "Inter V"
       fonts:
-        - asset: fonts/InterV.ttf
-        - asset: fonts/InterV-Italic.ttf
+        - asset: fonts/InterVariable.ttf
+        - asset: fonts/InterVariable-Italic.ttf
           style: italic
 
   # GLSL GPU fragment shaders
