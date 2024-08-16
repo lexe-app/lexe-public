@@ -16,3 +16,12 @@ $ make install_var
 # install variable fonts in repo
 $ cp -v build/fonts/var/Inter*.ttf ~/dev/lexe/public/app/fonts/
 ```
+
+## Hubot Sans
+
+Download from <https://github.com/github/hubot-sans/tree/main/fonts/variable>
+and place it in `app/fonts/Hubot-Sans.ttf`.
+
+```bash
+$ cp ~/Downloads/"HubotSans[slnt,wdth,wght].ttf" ~/dev/lexe/public/app/fonts/Hubot-Sans.ttf
+```
