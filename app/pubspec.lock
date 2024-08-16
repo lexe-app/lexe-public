@@ -733,7 +733,7 @@ packages:
     source: hosted
     version: "4.2780.0"
   meta:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: meta
       sha256: bdb68674043280c3428e9ec998512fb681678676b3c54e773629ffe74419f8c7

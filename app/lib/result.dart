@@ -3,7 +3,7 @@
 // ignore_for_file: nullable_type_in_catch_clause, only_throw_errors
 
 import 'package:app_rs_dart/frb.dart' show AnyhowException;
-import 'package:meta/meta.dart' show immutable;
+import 'package:flutter/foundation.dart' show immutable;
 
 /// [Result]s from the Rust FFI layer.
 typedef FfiResult<T> = Result<T, FfiError>;
