@@ -4,6 +4,7 @@ import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/form.dart' as form;
 import 'package:app_rs_dart/ffi/types.dart' show Config;
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
@@ -19,7 +20,8 @@ import 'package:lexeapp/components.dart'
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
-import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
+import 'package:lexeapp/style.dart'
+    show Fonts, LxColors, LxIcons, LxTheme, Space;
 
 /// A tiny interface for mocking the `signup` call.
 abstract interface class SignupApi {
@@ -129,11 +131,26 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
         leading: const LxBackButton(isLeading: true),
       ),
       body: ScrollableSinglePageBody(
-        body: const [
-          HeadingText(text: "Google Drive Auth"),
+        body: [
+          MarkdownBody(
+            data: '''
+# Connect your Google Drive
+
+Your **Lexe node needs access to Drive** to persist small amounts
+of critical data on a regular basis.
+
+- Your node can only access the files it creates in the **LexeData** folder.
+- Lexe cannot access any files in your Drive.
+- All data in Drive is stored end-to-end encrypted and is only readable by
+  you and your node.
+
+
+''',
+            styleSheet: LxTheme.buildMarkdownStyle(),
+          ),
         ],
-        bottom: LxFilledButton(
-          label: const Text("Sign in with Google Drive"),
+        bottom: LxFilledButton.strong(
+          label: const Text("Connect Google Drive"),
           icon: const Icon(LxIcons.next),
           onTap: this.onAuthPressed,
         ),
