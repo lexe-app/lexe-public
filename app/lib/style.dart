@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' as foundation;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
+import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownStyleSheet;
 import 'package:material_symbols_icons/symbols.dart';
 
 /// Our global flutter theme overrides.
@@ -235,6 +236,58 @@ final class LxTheme {
         ),
         barrierColor: LxColors.clearB300,
       ),
+    );
+  }
+
+  /// The default stylesheet (fonts, typography, margins, etc...) used for
+  /// rendering [Markdown] widgets.
+  static final markdownStyle = buildMarkdownStyle();
+
+  /// Build the default stylesheet (fonts, typography, margins, etc...) used for
+  /// rendering [Markdown] widgets.
+  static MarkdownStyleSheet buildMarkdownStyle() {
+    return MarkdownStyleSheet(
+      // Spacing between all blocks
+      blockSpacing: Space.s200,
+
+      // <a/>
+      a: const TextStyle(
+        decoration: TextDecoration.underline,
+        color: LxColors.linkText,
+        decorationColor: LxColors.linkText,
+      ),
+
+      // <strong>
+      strong: const TextStyle(fontVariations: [Fonts.weightBold]),
+
+      // <em>
+      em: const TextStyle(fontVariations: [Fonts.italic]),
+
+      // <p>
+      p: const TextStyle(
+        fontSize: Fonts.size300,
+        color: LxColors.foreground,
+        height: 1.5,
+        letterSpacing: -0.5,
+      ),
+      pPadding: const EdgeInsets.symmetric(vertical: Space.s200),
+
+      // <h1>
+      h1: const TextStyle(
+        fontSize: Fonts.size600,
+        fontVariations: [Fonts.weightMedium],
+        height: 1.35,
+        letterSpacing: -0.5,
+      ),
+      h1Padding: const EdgeInsets.fromLTRB(0, Space.s500, 0, Space.s100),
+
+      // <h2>
+      h2: const TextStyle(
+        fontVariations: [Fonts.weightMedium],
+        height: 1.4,
+        letterSpacing: -0.5,
+      ),
+      h2Padding: const EdgeInsets.fromLTRB(0, Space.s450, 0, 0),
     );
   }
 }

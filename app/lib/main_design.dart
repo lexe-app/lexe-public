@@ -18,8 +18,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentStatus;
 import 'package:app_rs_dart/ffi/types.ext.dart' show PaymentExt;
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart'
-    show MarkdownBody, MarkdownStyleSheet;
+import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
 import 'package:intl/intl.dart' show Intl;
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/components.dart'
@@ -666,12 +665,12 @@ class MarkdownPage extends StatelessWidget {
               data: '''
 # ACME protocol
 
-ACME is a protocol for automated provisioning of web PKI certificates, which are
+ACME is a protocol for automated provisioning of **web PKI certificates**, which are
 just certs bound to public domains and endorsed by web root CAs like Let's Encrypt.
 
 ## Why
 
-Before ACME, web service operators had to manually update their web certs.
+Before ACME, web service operators had to *manually update their web certs*.
 This error prone and time-consuming process meant that many sites either:
 
 1. Didn't use HTTPS at all, reducing security.
@@ -683,13 +682,7 @@ _approximations_ of the actual values.
 
 [Source](source)
 ''',
-              styleSheet: MarkdownStyleSheet(
-                pPadding: const EdgeInsets.only(top: 0.0, bottom: Space.s200),
-                h1Padding:
-                    const EdgeInsets.only(top: Space.s400, bottom: Space.s200),
-                h2Padding:
-                    const EdgeInsets.only(top: Space.s400, bottom: Space.s200),
-              ),
+              styleSheet: LxTheme.buildMarkdownStyle(),
             ),
           ],
         ),
