@@ -248,7 +248,7 @@ final class LxTheme {
   static MarkdownStyleSheet buildMarkdownStyle() {
     return MarkdownStyleSheet(
       // Spacing between all blocks
-      blockSpacing: Space.s200,
+      blockSpacing: Space.s300,
 
       // <a/>
       a: const TextStyle(
@@ -258,7 +258,7 @@ final class LxTheme {
       ),
 
       // <strong>
-      strong: const TextStyle(fontVariations: [Fonts.weightBold]),
+      strong: const TextStyle(fontVariations: [Fonts.weightSemiBold]),
 
       // <em>
       em: const TextStyle(fontVariations: [Fonts.italic]),
@@ -276,7 +276,7 @@ final class LxTheme {
       h1: const TextStyle(
         fontSize: Fonts.size600,
         fontVariations: [Fonts.weightMedium],
-        height: 1.35,
+        height: 1.15,
         letterSpacing: -0.5,
       ),
       h1Padding: const EdgeInsets.fromLTRB(0, Space.s500, 0, Space.s100),
@@ -284,10 +284,12 @@ final class LxTheme {
       // <h2>
       h2: const TextStyle(
         fontVariations: [Fonts.weightMedium],
-        height: 1.4,
+        height: 1.25,
         letterSpacing: -0.5,
       ),
       h2Padding: const EdgeInsets.fromLTRB(0, Space.s450, 0, 0),
+
+      listIndent: Space.s400,
     );
   }
 }
