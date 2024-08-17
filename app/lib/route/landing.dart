@@ -281,40 +281,42 @@ Your wallet always verifies your node's software before sharing any keys.
   }
 }
 
+final MarkdownStyleSheet _landingStyleSheet = MarkdownStyleSheet(
+  h1: Fonts.fontHero,
+  h1Padding: const EdgeInsets.only(bottom: Fonts.size800 * 0.5),
+  h2: Fonts.fontHero.copyWith(fontSize: Fonts.size700, height: 1.3),
+  h2Padding: const EdgeInsets.only(bottom: Fonts.size700 * 0.25),
+  p: Fonts.fontBody.copyWith(
+    fontSize: Fonts.size300,
+    color: LxColors.foreground,
+    letterSpacing: -0.5,
+  ),
+  pPadding: const EdgeInsets.symmetric(vertical: Fonts.size300 * 0.25),
+  strong: const TextStyle(fontVariations: [Fonts.weightBold]),
+  a: const TextStyle(
+    color: LxColors.foreground,
+    decoration: TextDecoration.underline,
+  ),
+);
+
+/// Called when a user hits a `[text](href)`.
+/// Currently just opens any https:// links in the browser.
+Future<void> _onTapLink(String _text, String? href, String _title) async {
+  if (href == null || !href.startsWith("https://")) {
+    return;
+  }
+  final result = await Result.tryAsync<bool, Exception>(
+      () => url_launcher.launchUrl(Uri.parse(href)));
+  result.mapErr((err) => warn("Failed to launch URL: '$href', err: $err"));
+}
+
 /// [MarkdownBody] but styled for the landing page.
 class LandingMarkdownBody extends MarkdownBody {
   LandingMarkdownBody(final String data, {super.key})
       : super(
           data: data,
-          styleSheet: MarkdownStyleSheet(
-            h1: Fonts.fontHero,
-            h1Padding: const EdgeInsets.only(bottom: Fonts.size800 * 0.5),
-            h2: Fonts.fontHero.copyWith(fontSize: Fonts.size700, height: 1.3),
-            h2Padding: const EdgeInsets.only(bottom: Fonts.size700 * 0.25),
-            p: Fonts.fontBody.copyWith(
-              fontSize: Fonts.size300,
-              color: LxColors.foreground,
-              letterSpacing: -0.5,
-            ),
-            pPadding:
-                const EdgeInsets.symmetric(vertical: Fonts.size300 * 0.25),
-            strong: const TextStyle(fontVariations: [Fonts.weightBold]),
-            a: const TextStyle(
-              color: LxColors.foreground,
-              decoration: TextDecoration.underline,
-            ),
-          ),
-          // Called when a user hits a `[text](href)`.
-          // Currently just opens any https:// links in the browser.
-          onTapLink: (text, href, title) async {
-            if (href == null || !href.startsWith("https://")) {
-              return;
-            }
-            final result = await Result.tryAsync<bool, Exception>(
-                () => url_launcher.launchUrl(Uri.parse(href)));
-            result.mapErr(
-                (err) => warn("Failed to launch URL: '$href', err: $err"));
-          },
+          styleSheet: _landingStyleSheet,
+          onTapLink: _onTapLink,
         );
 }
 
