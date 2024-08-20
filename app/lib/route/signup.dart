@@ -132,6 +132,14 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
       ),
       body: ScrollableSinglePageBody(
         body: [
+          // Big Google Drive icon
+          const Icon(
+            LxIcons.gdrive,
+            size: Space.s900,
+            weight: 300,
+            opticalSize: 48,
+            grade: -50,
+          ),
           MarkdownBody(
             data: '''
 # Connect your Google Drive
@@ -143,10 +151,8 @@ of critical data on a regular basis.
 - Lexe cannot access any files in your Drive.
 - All data in Drive is stored end-to-end encrypted and is only readable by
   you and your node.
-
-
 ''',
-            styleSheet: LxTheme.buildMarkdownStyle(),
+            styleSheet: LxTheme.markdownStyle,
           ),
         ],
         bottom: LxFilledButton.strong(
