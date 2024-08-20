@@ -814,6 +814,9 @@ final class LxIcons {
 
   /// Lightning symbol icon (lightning bolt)
   static const IconData lightning = Symbols.bolt_rounded;
+
+  /// Google Drive icon (gdrive + up arrow)
+  static const IconData gdrive = Symbols.drive_export_rounded;
 }
 
 /// Screen width breakpoints
