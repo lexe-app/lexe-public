@@ -164,7 +164,7 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
             data: '''
 # Connect your Google Drive
 
-Your **Lexe node needs access to Drive** to persist small amounts
+Your **node needs access to Drive** to persist small amounts
 of critical data on a regular basis.
 
 - Your node can only access the files it creates in the **LexeData** folder.
