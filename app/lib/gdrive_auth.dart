@@ -118,5 +118,7 @@ class MockGDriveAuth implements GDriveAuth {
   Future<Result<GDriveAuthInfo?, Exception>> tryAuth() => Future.delayed(
         const Duration(milliseconds: 1200),
         () => const Ok(GDriveAuthInfo(authCode: "fake")),
+        // () => Err(Exception(
+        //     "PlatformException(sign_in_failed, com.google.android.gms.common.api.ApiException: 10: , null, null)")),
       );
 }

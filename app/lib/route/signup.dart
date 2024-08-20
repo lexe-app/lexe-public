@@ -20,6 +20,8 @@ import 'package:lexeapp/components.dart'
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
+import 'package:lexeapp/route/send/page.dart'
+    show ErrorMessage, ErrorMessageSection;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
 
@@ -91,7 +93,19 @@ class SignupGDriveAuthPage extends StatefulWidget {
 }
 
 class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
+  final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
+
+  @override
+  void dispose() {
+    this.errorMessage.dispose();
+
+    super.dispose();
+  }
+
   Future<void> onAuthPressed() async {
+    // Hide error message
+    this.errorMessage.value = null;
+
     final result = await this.widget.gdriveAuth.tryAuth();
     if (!this.mounted) return;
 
@@ -102,18 +116,25 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
         if (ok == null) return;
         authInfo = ok;
       case Err(:final err):
-        error("Failed to auth user with GDrive: $err");
+        final errStr = err.toString();
+        error("Failed to auth user with GDrive: $errStr");
+        this.errorMessage.value = ErrorMessage(
+          title: "There was an error connecting your Google Drive",
+          message: errStr,
+        );
         return;
     }
 
-    final AppHandle? flowResult =
-        // ignore: use_build_context_synchronously
-        await Navigator.of(this.context).push(MaterialPageRoute(
-            builder: (_) => SignupBackupPasswordPage(
-                  config: this.widget.config,
-                  signupApi: this.widget.signupApi,
-                  authInfo: authInfo,
-                )));
+    // ignore: use_build_context_synchronously
+    final AppHandle? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (_) => SignupBackupPasswordPage(
+          config: this.widget.config,
+          signupApi: this.widget.signupApi,
+          authInfo: authInfo,
+        ),
+      ),
+    );
     if (flowResult == null) return;
     if (!this.mounted) return;
 
@@ -153,6 +174,13 @@ of critical data on a regular basis.
   you and your node.
 ''',
             styleSheet: LxTheme.markdownStyle,
+          ),
+          ValueListenableBuilder(
+            valueListenable: this.errorMessage,
+            builder: (_context, errorMessage, _widget) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: Space.s500),
+              child: ErrorMessageSection(errorMessage),
+            ),
           ),
         ],
         bottom: LxFilledButton.strong(

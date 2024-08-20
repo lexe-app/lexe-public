@@ -90,7 +90,7 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
   final GlobalKey<FormFieldState<String>> paymentUriFieldKey = GlobalKey();
 
   final ValueNotifier<bool> isPending = ValueNotifier(false);
-  final ValueNotifier<String?> errorMessage = ValueNotifier(null);
+  final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
 
   @override
   void dispose() {
@@ -144,7 +144,7 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
       case Ok(:final ok):
         sendCtx = ok;
       case Err(:final err):
-        this.errorMessage.value = err;
+        this.errorMessage.value = ErrorMessage(message: err);
         return;
     }
 
@@ -216,10 +216,8 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
             // Error parsing, resolving, and/or preflighting payment
             ValueListenableBuilder(
               valueListenable: this.errorMessage,
-              builder: (_context, errorMessage, _widget) => ErrorMessageSection(
-                title: "",
-                message: errorMessage,
-              ),
+              builder: (_context, errorMessage, _widget) =>
+                  ErrorMessageSection(errorMessage),
             ),
 
             // -> Next
@@ -260,7 +258,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 
   final IntInputFormatter intInputFormatter = IntInputFormatter();
 
-  final ValueNotifier<String?> estimateFeeError = ValueNotifier(null);
+  final ValueNotifier<ErrorMessage?> estimateFeeError = ValueNotifier(null);
   final ValueNotifier<bool> estimatingFee = ValueNotifier(false);
 
   @override
@@ -311,7 +309,10 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
         this.estimateFeeError.value = null;
       case Err(:final err):
         error("Error preflighting payment: $err");
-        this.estimateFeeError.value = err.message;
+        this.estimateFeeError.value = ErrorMessage(
+          title: "Error preflighting payment",
+          message: err.message,
+        );
         return;
     }
 
@@ -388,10 +389,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
             // Error fetching fee estimate
             ValueListenableBuilder(
               valueListenable: this.estimateFeeError,
-              builder: (_context, errorMessage, _widget) => ErrorMessageSection(
-                title: "Error fetching fee estimate",
-                message: errorMessage,
-              ),
+              builder: (_context, errorMessage, _widget) =>
+                  ErrorMessageSection(errorMessage),
             ),
 
             // Next ->
@@ -438,7 +437,7 @@ class SendPaymentConfirmPage extends StatefulWidget {
 class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
   final GlobalKey<FormFieldState<String>> noteFieldKey = GlobalKey();
 
-  final ValueNotifier<String?> sendError = ValueNotifier(null);
+  final ValueNotifier<ErrorMessage?> sendError = ValueNotifier(null);
   final ValueNotifier<bool> isSending = ValueNotifier(false);
 
   // TODO(phlip9): save/load this from/to user preferences?
@@ -480,7 +479,10 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
         // The request failed. Set the error message and unset loading.
         error("SendPaymentConfirmPage: error sending on-chain payment: $err");
         this.isSending.value = false;
-        this.sendError.value = err.message;
+        this.sendError.value = ErrorMessage(
+          title: "Error sending payment",
+          message: err.message,
+        );
     }
   }
 
@@ -720,10 +722,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             valueListenable: this.sendError,
             builder: (context, sendError, widget) => Padding(
               padding: const EdgeInsets.symmetric(vertical: Space.s300),
-              child: ErrorMessageSection(
-                title: "Error sending payment",
-                message: sendError,
-              ),
+              child: ErrorMessageSection(sendError),
             ),
           ),
         ],
@@ -890,44 +889,56 @@ class ChooseFeeDialogOption extends StatelessWidget {
   }
 }
 
-class ErrorMessageSection extends StatelessWidget {
-  const ErrorMessageSection({
-    super.key,
-    required this.title,
-    required this.message,
-  });
+final class ErrorMessage {
+  const ErrorMessage({this.title, this.message})
+      : assert(title != null || message != null);
 
-  final String title;
+  final String? title;
   final String? message;
+}
+
+class ErrorMessageSection extends StatelessWidget {
+  const ErrorMessageSection(this.errorMessage, {super.key});
+
+  final ErrorMessage? errorMessage;
 
   @override
   Widget build(BuildContext context) {
-    final message = this.message;
+    final errorMessage = this.errorMessage;
+    final title = errorMessage?.title;
+    final message = errorMessage?.message;
 
     // TODO(phlip9): maybe tap to expand full error message?
     // TODO(phlip9): slide up animation?
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 200),
-      child: (message != null)
+      child: (errorMessage != null)
           ? ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(
-                this.title,
-                style: const TextStyle(
-                  color: LxColors.errorText,
-                  fontVariations: [Fonts.weightMedium],
-                  height: 2.0,
-                ),
-              ),
-              subtitle: Text(
-                message,
-                maxLines: 3,
-                style: const TextStyle(
-                  color: LxColors.errorText,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
+              title: (title != null)
+                  ? Padding(
+                      padding: const EdgeInsets.only(bottom: Space.s200),
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          color: LxColors.errorText,
+                          fontVariations: [Fonts.weightMedium],
+                          height: 1.15,
+                        ),
+                      ),
+                    )
+                  : null,
+              subtitle: (message != null)
+                  ? Text(
+                      message,
+                      maxLines: 3,
+                      style: const TextStyle(
+                        color: LxColors.errorText,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    )
+                  : null,
             )
           : null,
     );
