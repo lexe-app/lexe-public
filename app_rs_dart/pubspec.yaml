@@ -5,8 +5,8 @@ homepage: "https://github.com/lexe-app/lexe-public/tree/master/app_rs_dart"
 
 # Remember to update `app/pubspec.yaml`
 environment:
-  sdk: 3.5.0-323.2.beta
-  flutter: 3.24.0-0.2.pre
+  sdk: 3.5.0
+  flutter: 3.24.0
 
 dependencies:
   # Used by the generated flutter_rust_bridge FFI bindings.
@@ -17,7 +17,7 @@ dependencies:
     sdk: flutter
 
   # The high-level memory safe interface for generated Rust<->dart ffi bindings.
-  flutter_rust_bridge: ^2.2.0
+  flutter_rust_bridge: 2.2.0
 
   # Immutable record types and Rust-style enums in Dart
   freezed_annotation: ^2.4.1
