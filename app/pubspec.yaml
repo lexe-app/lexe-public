@@ -23,8 +23,8 @@ version: 1.0.0+1
 #
 # Remember to update `app_rs_dart/pubspec.yaml`.
 environment:
-  sdk: 3.5.0-323.2.beta
-  flutter: 3.24.0-0.2.pre
+  sdk: 3.5.0
+  flutter: 3.24.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
