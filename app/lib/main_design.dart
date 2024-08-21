@@ -157,7 +157,6 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
   @override
   Widget build(BuildContext context) {
     final mockApp = mocks.MockAppHandle();
-    const mockGDriveAuth = GDriveAuth.mock;
     final mockSignupApi = mocks.MockSignupApi(app: mockApp);
 
     final cidBytes = List.generate(32, (idx) => idx);
@@ -191,16 +190,24 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "LandingPage",
               (context) => LandingPage(
                 config: widget.config,
-                gdriveAuth: mockGDriveAuth,
+                gdriveAuth: GDriveAuth.mock,
                 signupApi: mockSignupApi,
                 uriEvents: this.widget.uriEvents,
               ),
             ),
             Component(
-              "SignupPage",
+              "SignupPage (mock gdrive)",
               (context) => SignupPage(
                 config: widget.config,
-                gdriveAuth: mockGDriveAuth,
+                gdriveAuth: GDriveAuth.mock,
+                signupApi: mockSignupApi,
+              ),
+            ),
+            Component(
+              "SignupPage (real gdrive)",
+              (context) => SignupPage(
+                config: widget.config,
+                gdriveAuth: GDriveAuth.prod,
                 signupApi: mockSignupApi,
               ),
             ),
@@ -208,7 +215,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "SignupBackupPasswordPage",
               (context) => SignupBackupPasswordPage(
                 config: widget.config,
-                authInfo: const GDriveAuthInfo(authCode: "fake"),
+                authInfo: const GDriveAuthInfo(serverAuthCode: "fake"),
                 signupApi: mockSignupApi,
               ),
             ),

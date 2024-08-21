@@ -25,6 +25,12 @@ const bool debug = kDebugMode;
 /// `true` when the flutter is built for release (i.e., not debug or profile).
 const bool release = kReleaseMode;
 
+/// App flavor.
+const bool design = appFlavor == "design";
+const bool dev = appFlavor == null || appFlavor == "dev";
+const bool staging = appFlavor == "staging";
+const bool prod = appFlavor == "prod";
+
 /// `true` only in unit tests. This env var is set by the flutter test runner.
 /// `false` in integration tests and run mode.
 final bool test = Platform.environment.containsKey("FLUTTER_TEST");
@@ -35,10 +41,14 @@ final bool test = Platform.environment.containsKey("FLUTTER_TEST");
 // env $DEPLOY_ENVIRONMENT
 const String _deployEnvStr =
     String.fromEnvironment("DEPLOY_ENVIRONMENT", defaultValue: "dev");
+// This call should never fail after the compile-time checks below.
+final DeployEnv deployEnv = DeployEnv.fromStr(s: _deployEnvStr);
 
 // env $NETWORK
 const String _networkStr =
     String.fromEnvironment("NETWORK", defaultValue: "regtest");
+// This call should never fail after the compile-time checks below.
+final Network network = Network.fromStr(s: _networkStr);
 
 // env $SGX
 const String _useSgxStr = String.fromEnvironment("SGX", defaultValue: "false");
@@ -59,27 +69,18 @@ const String _devGatewayUrlStr = String.fromEnvironment(
 // The expected `DeployEnv` value for a given `--flavor=<appFlavor>`.
 // We'll assert on this down below.
 const String _flavorDeployEnvStr =
-    (appFlavor == null || appFlavor == "dev" || appFlavor == "design")
-        ? "dev"
-        : ((appFlavor == "staging")
-            ? "staging"
-            : ((appFlavor == "prod") ? "prod" : "ERROR"));
+    (dev || design) ? "dev" : (staging ? "staging" : (prod ? "prod" : "ERROR"));
 
 // The expected `Network` value for a given `--flavor=<appFlavor>`.
 // We'll assert on this down below.
-const String _flavorNetworkStr =
-    (appFlavor == null || appFlavor == "dev" || appFlavor == "design")
-        ? _networkStr
-        : ((appFlavor == "staging")
-            ? "testnet"
-            : ((appFlavor == "prod") ? "bitcoin" : "ERROR"));
+const String _flavorNetworkStr = (dev || design)
+    ? _networkStr
+    : (staging ? "testnet" : (prod ? "bitcoin" : "ERROR"));
 
 // The expected `useSgx` value for a given `--flavor=<appFlavor>`.
 // We'll assert on this down below.
 const bool _flavorUseSgx =
-    (appFlavor == null || appFlavor == "dev" || appFlavor == "design")
-        ? _useSgx
-        : ((appFlavor == "staging" || appFlavor == "prod") ? true : false);
+    (dev || design) ? _useSgx : ((staging || prod) ? true : false);
 
 // Compile-time assertions so we can throw a compile error if these somehow get
 // misconfigured.
@@ -141,10 +142,6 @@ Future<Config> build() async {
   // (dev/staging/prod) x (regtest/testnet/mainnet) x (sgx/dbg).
   // See: `app-rs::app::AppConfig`
   final baseAppDataDir = await path_provider.getApplicationSupportDirectory();
-
-  // These calls should never fail after the compile-time checks above.
-  final deployEnv = DeployEnv.fromStr(s: _deployEnvStr);
-  final network = Network.fromStr(s: _networkStr);
 
   final gatewayUrl = switch (deployEnv) {
     DeployEnv.prod => "https://api.lexe.app",
