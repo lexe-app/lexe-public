@@ -475,6 +475,7 @@ For all the `nvim` chads out there using `coc.nvim`, just do:
 
 Set `"dart.showTodos": false` in your `coc-settings.json`.
 
+
 ## Dev workflow
 
 To run the Lexe app in debug mode, run the following in the `app/` directory.

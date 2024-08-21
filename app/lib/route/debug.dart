@@ -66,6 +66,8 @@ class DebugPage extends StatelessWidget {
           const HeadingText(text: "Lexe Debug"),
           const SubheadingText(text: "Page for manipulating app internals."),
           const SizedBox(height: Space.s600),
+
+          // Delete PaymentDb
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text("Delete local PaymentDb"),
@@ -75,9 +77,11 @@ class DebugPage extends StatelessWidget {
             ),
             onTap: this.doDeleteLocalPaymentDb,
           ),
+
+          // TODO(phlip9): actually delete latest_provisioned
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text("Delete latest_provisioned file"),
+            title: const Text("Delete latest_provisioned file (TODO)"),
             subtitle: const Text(
               "On next restart, will ask the Lexe API for the most recent node "
               "version and unconditionally provision to it.",
@@ -85,6 +89,8 @@ class DebugPage extends StatelessWidget {
             ),
             onTap: this.doDeleteLatestProvisionedFile,
           ),
+
+          // Delete SecretStore
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text("Delete SecretStore & RootSeed"),
@@ -99,6 +105,8 @@ class DebugPage extends StatelessWidget {
             ])),
             onTap: this.doDeleteSecretStore,
           ),
+
+          // Reset SettingsDb
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text("Reset SettingsDb"),

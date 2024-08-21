@@ -21,16 +21,12 @@
 
     <!-- The root activity for Lexe.
 
-         `launchMode=singleInstance`
-             This activity will be the sole instance for the whole process. We
-             use this to handle the user clicking on a "lightning:" URI
-             internally, without creating a new copy of the app to handle the
-             intent. -->
+         `flutter_web_auth_2`: Removed `taskAffinity` key and went back to
+         default `launchMode=singleTop`. -->
     <activity
       android:name=".MainActivity"
       android:exported="true"
-      android:launchMode="singleInstance"
-      android:taskAffinity=""
+      android:launchMode="singleTop"
       android:theme="@style/LaunchTheme"
       android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
       android:hardwareAccelerated="true"
@@ -66,6 +62,28 @@
     <meta-data
       android:name="flutterEmbedding"
       android:value="2" />
+
+    <!-- Google Drive oauth2 flow callback Activity -->
+    <activity
+      android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
+      android:exported="true">
+      <intent-filter android:label="flutter_web_auth_2">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <!-- The URI scheme the user gets redirected to after completing the
+             gdrive authz flow.
+
+             Since each app flavor uses a different `applicationId` and each
+             google client_id is tied to a specific app id, we need to use a
+             separate client_id per "flavor".
+
+             Consequently, we configure each `google_callback_uri_scheme` per
+             flavor in `app/android/app/build.gradle`.
+             -->
+        <data android:scheme="@string/google_callback_uri_scheme"/>
+        </intent-filter>
+      </activity>
 
     </application>
 

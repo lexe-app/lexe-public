@@ -276,7 +276,7 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
 
     final result = await this.widget.signupApi.signup(
           config: this.widget.config,
-          googleAuthCode: this.widget.authInfo.authCode,
+          googleAuthCode: this.widget.authInfo.serverAuthCode,
           password: password,
         );
     if (!this.mounted) return;

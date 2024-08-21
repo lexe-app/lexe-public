@@ -87,6 +87,10 @@ android {
             resValue "string", "app_name", "Lexe Staging"
             applicationIdSuffix ".staging"
             versionNameSuffix "-staging"
+
+            // The google drive oauth2 callback URI scheme
+            // Keep in sync with <app/lib/gdrive_auth.dart::_GDriveCredentials>
+            resValue "string", "google_callback_uri_scheme", "com.googleusercontent.apps.495704988639-fvkq7thnksbqi7n3tanpopu5brr2pa4a"
         }
 
         // Lexe mainnet/production backend.
@@ -103,6 +107,10 @@ android {
             resValue "string", "app_name", "Lexe Design"
             applicationIdSuffix ".design"
             versionNameSuffix "-design"
+
+            // The google drive oauth2 callback URI scheme
+            // Keep in sync with <app/lib/gdrive_auth.dart::_GDriveCredentials>
+            resValue "string", "google_callback_uri_scheme", "com.googleusercontent.apps.495704988639-qhjbk0nkfaibgr16h0gimlqcae8cl13e"
         }
     }
 }

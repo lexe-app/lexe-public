@@ -53,6 +53,9 @@ dependencies:
   # markdown rendering
   flutter_markdown: ^0.7.3
 
+  # allow gdrive auth with more control
+  flutter_web_auth_2: ^4.0.0-alpha.8
+
   # QR code scanning
   # NOTE: I tried `mobile_scanner`, but that adds a ton of closed source, MLKit
   # junk, which is kinda sketch and added a bunch of build headaches.
@@ -81,8 +84,11 @@ dependencies:
   # Immutable record types and Rust-style enums in Dart.
   freezed_annotation: ^2.4.1
 
+  # Used to complete Google Drive OAuth2 token exchange
+  # TODO(phlip9): remove after moving oauth2 logic to Rust
+  http: ^1.2.2
+
   # International number, currency, and date formatting
-  google_sign_in: ^6.2.1
   intl: ^0.19.0
 
   # Use up-to-date Material 3 icons

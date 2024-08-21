@@ -9,7 +9,11 @@ PODS:
   - AppAuth/Core (1.7.5)
   - AppAuth/ExternalUserAgent (1.7.5):
     - AppAuth/Core
+  - desktop_webview_window (0.0.1):
+    - FlutterMacOS
   - file_selector_macos (0.0.1):
+    - FlutterMacOS
+  - flutter_web_auth_2 (3.0.0):
     - FlutterMacOS
   - flutter_zxing (0.0.1):
     - FlutterMacOS
@@ -39,17 +43,22 @@ PODS:
     - FlutterMacOS
   - url_launcher_macos (0.0.1):
     - FlutterMacOS
+  - window_to_front (0.0.1):
+    - FlutterMacOS
 
 DEPENDENCIES:
   - app_links (from `Flutter/ephemeral/.symlinks/plugins/app_links/macos`)
   - app_rs_dart (from `Flutter/ephemeral/.symlinks/plugins/app_rs_dart/macos`)
+  - desktop_webview_window (from `Flutter/ephemeral/.symlinks/plugins/desktop_webview_window/macos`)
   - file_selector_macos (from `Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos`)
+  - flutter_web_auth_2 (from `Flutter/ephemeral/.symlinks/plugins/flutter_web_auth_2/macos`)
   - flutter_zxing (from `Flutter/ephemeral/.symlinks/plugins/flutter_zxing/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
   - google_sign_in_ios (from `Flutter/ephemeral/.symlinks/plugins/google_sign_in_ios/darwin`)
   - path_provider_foundation (from `Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin`)
   - share_plus (from `Flutter/ephemeral/.symlinks/plugins/share_plus/macos`)
   - url_launcher_macos (from `Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos`)
+  - window_to_front (from `Flutter/ephemeral/.symlinks/plugins/window_to_front/macos`)
 
 SPEC REPOS:
   trunk:
@@ -63,8 +72,12 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/app_links/macos
   app_rs_dart:
     :path: Flutter/ephemeral/.symlinks/plugins/app_rs_dart/macos
+  desktop_webview_window:
+    :path: Flutter/ephemeral/.symlinks/plugins/desktop_webview_window/macos
   file_selector_macos:
     :path: Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos
+  flutter_web_auth_2:
+    :path: Flutter/ephemeral/.symlinks/plugins/flutter_web_auth_2/macos
   flutter_zxing:
     :path: Flutter/ephemeral/.symlinks/plugins/flutter_zxing/macos
   FlutterMacOS:
@@ -77,12 +90,16 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/share_plus/macos
   url_launcher_macos:
     :path: Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos
+  window_to_front:
+    :path: Flutter/ephemeral/.symlinks/plugins/window_to_front/macos
 
 SPEC CHECKSUMS:
   app_links: 10e0a0ab602ffaf34d142cd4862f29d34b303b2a
   app_rs_dart: ca6cae2fa1f07e4e259b171ee5ebf30418dd05e2
   AppAuth: 501c04eda8a8d11f179dbe8637b7a91bb7e5d2fa
+  desktop_webview_window: d4365e71bcd4e1aa0c14cf0377aa24db0c16a7e2
   file_selector_macos: 54fdab7caa3ac3fc43c9fac4d7d8d231277f8cf2
+  flutter_web_auth_2: 2e1dc2d2139973e4723c5286ce247dd590390d70
   flutter_zxing: ea030278aa2a051cd81a5b0053be9d0569d11c9a
   FlutterMacOS: 8f6f14fa908a6fb3fba0cd85dbd81ec4b251fb24
   google_sign_in_ios: 07375bfbf2620bc93a602c0e27160d6afc6ead38
@@ -92,6 +109,7 @@ SPEC CHECKSUMS:
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
   share_plus: 36537c04ce0c3e3f5bd297ce4318b6d5ee5fd6cf
   url_launcher_macos: 5f437abeda8c85500ceb03f5c1938a8c5a705399
+  window_to_front: 4cdc24ddd8461ad1a55fa06286d6a79d8b29e8d8
 
 PODFILE CHECKSUM: 48478609a3b686396a38490d596c6482e7625e16
 
