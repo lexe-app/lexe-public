@@ -41,6 +41,7 @@ import 'package:lexeapp/route/landing.dart' show LandingPage;
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
 import 'package:lexeapp/route/receive.dart'
     show LnInvoiceInputs, ReceivePaymentEditInvoicePage, ReceivePaymentPage;
+import 'package:lexeapp/route/restore.dart';
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
@@ -218,6 +219,14 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 authInfo: const GDriveAuthInfo(serverAuthCode: "fake"),
                 signupApi: mockSignupApi,
               ),
+            ),
+            Component(
+              "RestorePage (mock gdrive)",
+              (context) => const RestorePage(gdriveAuth: GDriveAuth.mock),
+            ),
+            Component(
+              "RestorePage (real gdrive)",
+              (context) => const RestorePage(gdriveAuth: GDriveAuth.prod),
             ),
             Component(
               "WalletPage",

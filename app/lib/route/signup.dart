@@ -4,7 +4,7 @@ import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/form.dart' as form;
 import 'package:app_rs_dart/ffi/types.dart' show Config;
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
@@ -98,7 +98,6 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
   @override
   void dispose() {
     this.errorMessage.dispose();
-
     super.dispose();
   }
 
