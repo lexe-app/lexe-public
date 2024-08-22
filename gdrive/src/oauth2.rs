@@ -6,9 +6,13 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use common::constants;
+use base64::Engine;
 #[cfg(test)]
 use common::test_utils::arbitrary;
+use common::{
+    constants,
+    rng::{Crng, RngExt},
+};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use reqwest::StatusCode;
@@ -152,18 +156,147 @@ impl fmt::Debug for GDriveCredentials {
     }
 }
 
-/// Verify that the GDrive OAuth response has a scope that contains our required
-/// [`API_SCOPE`].
-fn verify_response_scope(scope: String) -> Result<(), Error> {
-    if scope.split(' ').any(|s| s == API_SCOPE) {
-        Ok(())
-    } else {
-        Err(Error::InsufficientScopes { scope })
+//
+// [Step 1: Generate a code verifier and challenge](https://developers.google.com/identity/protocols/oauth2/native-app#step1-code-verifier)
+//
+
+/// OAuth2 "Proof Key for Code Exchange" impl.
+///
+/// Used by public OAuth2 clients to secure the OAuth2 flow. PKCE is effectively
+/// a commitment scheme that prevents an attacker who successfully intercepts
+/// the client auth code after redirect from being able to exchange for an
+/// access+refresh token, since they don't know the committed `code_verifier`.
+///
+/// See: [RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)
+#[cfg_attr(test, derive(Debug, PartialEq))]
+pub struct Oauth2PkceCodeChallenge {
+    pub code_verifier: String,
+    pub code_challenge: String,
+}
+
+impl Oauth2PkceCodeChallenge {
+    const METHOD: &'static str = "S256";
+
+    /// Generate a new PKCE verifier and challenge.
+    ///
+    /// ```not_rust
+    /// code-verifier := <alphanum>*64
+    /// code-challenge := base64url-unpadded(sha256(code-verifier))
+    /// ```
+    pub fn gen(rng: &mut impl Crng) -> Self {
+        Self::from_code_verifier(Self::gen_code_verifier(rng))
+    }
+
+    fn gen_code_verifier(rng: &mut impl Crng) -> String {
+        String::from_utf8(rng.gen_alphanum_bytes::<48>().to_vec())
+            .expect("Always valid string")
+    }
+
+    fn from_code_verifier(code_verifier: String) -> Self {
+        let code_challenge = sha256::digest(code_verifier.as_bytes());
+        let code_challenge = base64::prelude::BASE64_URL_SAFE_NO_PAD
+            .encode(code_challenge.as_slice());
+        Self {
+            code_verifier,
+            code_challenge,
+        }
     }
 }
 
-/// Exchanges an auth `code` (and other info) for an `access_token`,
-/// returning the full [`GDriveCredentials`] which can then be persisted.
+//
+// [Step 2: Send a request to Google's OAuth 2.0 server](https://developers.google.com/identity/protocols/oauth2/native-app#step-2:-send-a-request-to-googles-oauth-2.0-server)
+//
+
+/// Build the URL that the user's device should navigate to. Assuming the user
+/// consents to the permissions (`scope`) we request, they'll be redirected to
+/// `redirect_uri`, which should contain our client auth code in its query
+/// params.
+pub fn auth_code_url(
+    client_id: &str,
+    server_client_id: Option<&str>,
+    redirect_uri: &str,
+    code_challenge: &str,
+) -> String {
+    #[derive(Serialize)]
+    struct QueryParams<'a> {
+        client_id: &'a str,
+        redirect_uri: &'a str,
+        response_type: &'static str,
+        code_challenge: &'a str,
+        code_challenge_method: &'static str,
+        scope: &'static str,
+        access_type: &'static str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        audience: Option<&'a str>,
+    }
+
+    let query_params = QueryParams {
+        client_id,
+        redirect_uri,
+        response_type: "code",
+        code_challenge,
+        code_challenge_method: Oauth2PkceCodeChallenge::METHOD,
+        scope: API_SCOPE,
+        access_type: "offline",
+        // Include this field so we also receive the server auth code when we
+        // exchange for a token below. This server auth code is what the enclave
+        // uses to exchange for its auth token and long-term refresh token.
+        audience: server_client_id,
+    };
+
+    let query_string = serde_urlencoded::to_string(query_params)
+        .expect("Failed to serialize URL");
+
+    format!("https://accounts.google.com/o/oauth2/v2/auth?{query_string}")
+}
+
+//
+// [Step 3: Google prompts user for consent](https://developers.google.com/identity/protocols/oauth2/native-app#handlingresponse)
+// [Step 4: Handle the OAuth 2.0 server response](https://developers.google.com/identity/protocols/oauth2/native-app#handlingresponse)
+//
+
+/// Parse the client auth code from the redirect result URI's query parameters.
+///
+/// We get this URI when the user gets redirected to our `redirect_uri` after
+/// authorizing our gdrive access.
+pub fn parse_redirect_result_uri(
+    redirect_result_uri: &str,
+) -> Result<&str, Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Response<'a> {
+        Code {
+            code: &'a str,
+        },
+        Error {
+            error: &'a str,
+            error_description: String,
+        },
+    }
+
+    let (_, query_params) = redirect_result_uri
+        .split_once('?')
+        .ok_or(Error::RedirectIsNotUri)?;
+
+    let response = serde_urlencoded::from_str::<Response>(query_params)?;
+
+    match response {
+        Response::Code { code } => Ok(code),
+        Response::Error {
+            error,
+            error_description,
+        } => Err(Error::RedirectError(format!(
+            "{error}: {error_description}"
+        ))),
+    }
+}
+
+//
+// [Step 5: Exchange authorization code for refresh and access tokens](https://developers.google.com/identity/protocols/oauth2/native-app#exchange-authorization-code)
+//
+
+/// Exchanges an auth `code` (and other info) for an `access_token`. Returns
+/// [`GDriveCredentials`] which can then be persisted.
 ///
 /// <https://developers.google.com/identity/protocols/oauth2/native-app#exchange-authorization-code>
 pub async fn auth_code_for_token(
@@ -172,6 +305,7 @@ pub async fn auth_code_for_token(
     client_secret: Option<&str>,
     redirect_uri: &str,
     code: &str,
+    code_verifier: Option<&str>,
 ) -> Result<GDriveCredentials, Error> {
     #[derive(Serialize)]
     struct Request<'a> {
@@ -182,6 +316,8 @@ pub async fn auth_code_for_token(
         client_secret: Option<&'a str>,
         redirect_uri: &'a str,
         code: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        code_verifier: Option<&'a str>,
         grant_type: &'static str,
     }
 
@@ -203,6 +339,7 @@ pub async fn auth_code_for_token(
         client_secret,
         redirect_uri,
         code,
+        code_verifier,
         grant_type: "authorization_code",
     };
 
@@ -431,11 +568,110 @@ async fn refresh(
     Ok(())
 }
 
+/// Verify that the GDrive OAuth response has a scope that contains our required
+/// [`API_SCOPE`].
+fn verify_response_scope(scope: String) -> Result<(), Error> {
+    if scope.split(' ').any(|s| s == API_SCOPE) {
+        Ok(())
+    } else {
+        Err(Error::InsufficientScopes { scope })
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use common::test_utils::roundtrip;
+    use common::{rng::WeakRng, test_utils::roundtrip};
 
     use super::*;
+
+    #[test]
+    fn auth_code_url_snapshot() {
+        let client_id = "495704988639-2rqsnvobrvlnbkqdin38q2r3cph537l5.apps.googleusercontent.com";
+        let server_client_id = Some("495704988639-19bfg8k5f3runiio4apbicpounc10gh1.apps.googleusercontent.com");
+        let redirect_uri = "com.googleusercontent.apps.495704988639-2rqsnvobrvlnbkqdin38q2r3cph537l5:/";
+        let code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
+        let actual = auth_code_url(
+            client_id,
+            server_client_id,
+            redirect_uri,
+            code_challenge,
+        );
+        let expected = "\
+            https://accounts.google.com/o/oauth2/v2/auth\
+              ?client_id=495704988639-2rqsnvobrvlnbkqdin38q2r3cph537l5.apps.googleusercontent.com\
+              &redirect_uri=com.googleusercontent.apps.495704988639-2rqsnvobrvlnbkqdin38q2r3cph537l5%3A%2F\
+              &response_type=code\
+              &code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM\
+              &code_challenge_method=S256\
+              &scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive.file\
+              &access_type=offline\
+              &audience=495704988639-19bfg8k5f3runiio4apbicpounc10gh1.apps.googleusercontent.com\
+        ";
+        assert_eq!(actual, expected);
+
+        let server_client_id = None;
+        let actual = auth_code_url(
+            client_id,
+            server_client_id,
+            redirect_uri,
+            code_challenge,
+        );
+        let expected = "\
+            https://accounts.google.com/o/oauth2/v2/auth\
+              ?client_id=495704988639-2rqsnvobrvlnbkqdin38q2r3cph537l5.apps.googleusercontent.com\
+              &redirect_uri=com.googleusercontent.apps.495704988639-2rqsnvobrvlnbkqdin38q2r3cph537l5%3A%2F\
+              &response_type=code\
+              &code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM\
+              &code_challenge_method=S256\
+              &scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive.file\
+              &access_type=offline\
+        ";
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn pkce_snapshot() {
+        let mut rng = WeakRng::from_u64(654984984);
+        let actual = Oauth2PkceCodeChallenge::gen(&mut rng);
+        let expected = Oauth2PkceCodeChallenge {
+            code_verifier: "Im1AGo673tWX11XcfKt5Aog51PV3ZTZt2qeoWXWidR5DgsfD"
+                .to_owned(),
+            code_challenge: "wtX8v-ik3YSY1DsKdfNG4r9rphH9QZL2v68gg8JIXz8"
+                .to_owned(),
+        };
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn pkce_test_vector() {
+        // From: <https://datatracker.ietf.org/doc/html/rfc7636#appendix-B>
+        let expected = Oauth2PkceCodeChallenge {
+            code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                .to_owned(),
+            code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+                .to_owned(),
+        };
+        let actual = Oauth2PkceCodeChallenge::from_code_verifier(
+            expected.code_verifier.clone(),
+        );
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_parse_redirect_result_uri() {
+        let uri = "com.googleusercontent.apps.495704988639-2rqsnvobrvlnbkqdin38q2r3cph537l5:/?code=4/sdfm5981MI3h-9z_84sodifjOSIDJFsdlfkjsdf4849645h-LisED14891q5s_849844A7A&scope=https://www.googleapis.com/auth/drive.file";
+        let actual = parse_redirect_result_uri(uri);
+        let expected = "4/sdfm5981MI3h-9z_84sodifjOSIDJFsdlfkjsdf4849645h-LisED14891q5s_849844A7A";
+        assert_eq!(actual.unwrap(), expected);
+
+        let uri = "com.googleusercontent.apps.495704988639-2rqsnvobrvlnbkqdin38q2r3cph537l5:/?error=invalid_request&error_description=Unsupported%20operation";
+        let actual = parse_redirect_result_uri(uri);
+        match actual {
+            Err(Error::RedirectError(msg)) =>
+                assert_eq!(msg, "invalid_request: Unsupported operation"),
+            _ => panic!("unexpected: {actual:?}"),
+        }
+    }
 
     #[test]
     fn credentials_roundtrip() {
@@ -537,6 +773,8 @@ mod test {
         let redirect_uri = env::var("GOOGLE_REDIRECT_URI")
             .unwrap_or_else(|_| "https://localhost:6969/bogus".to_owned());
 
+        let code_verifier = None;
+
         let client = ReqwestClient::new();
         let credentials = auth_code_for_token(
             &client,
@@ -544,6 +782,7 @@ mod test {
             client_secret.as_deref(),
             &redirect_uri,
             &code,
+            code_verifier,
         )
         .await
         .unwrap();
