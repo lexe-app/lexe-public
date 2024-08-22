@@ -113,6 +113,12 @@ pub const API_SCOPE: &str = "https://www.googleapis.com/auth/drive.file";
 
 #[derive(Debug, Error)]
 pub enum Error {
+    // -- Auth code server response -- //
+    #[error("Auth redirect is not a valid URI")]
+    RedirectIsNotUri,
+    #[error("Auth redirect returned an error: {0}")]
+    RedirectError(String),
+
     // -- OAuth2 Token errors -- //
     #[error("Error occurred during token refresh: {0}")]
     TokenRefresh(Box<Self>),
@@ -134,6 +140,8 @@ pub enum Error {
     // -- Underlying error -- //
     #[error("serde_json error: {0}")]
     SerdeJson(#[from] serde_json::Error),
+    #[error("Invalid query parameters: {0}")]
+    SerdeUrlEncoded(#[from] serde_urlencoded::de::Error),
     #[error("Reqwest error: {0:#}")]
     Reqwest(#[from] reqwest::Error),
 }

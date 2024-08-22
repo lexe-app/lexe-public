@@ -364,12 +364,14 @@ mod helpers {
                 // persist.
 
                 // Use the auth code to get a GDriveCredentials.
+                let code_verifier = None;
                 let credentials = gdrive::oauth2::auth_code_for_token(
                     &ctx.client,
                     &oauth.client_id,
                     Some(&oauth.client_secret),
                     &oauth.redirect_uri,
                     code,
+                    code_verifier,
                 )
                 .await
                 .context("Couldn't get tokens using code")
