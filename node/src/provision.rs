@@ -366,8 +366,8 @@ mod helpers {
                 // Use the auth code to get a GDriveCredentials.
                 let credentials = gdrive::oauth2::auth_code_for_token(
                     &ctx.client,
-                    oauth.client_id,
-                    oauth.client_secret,
+                    &oauth.client_id,
+                    Some(&oauth.client_secret),
                     &oauth.redirect_uri,
                     code,
                 )
@@ -410,7 +410,7 @@ mod helpers {
                         "`client_id`s didn't match!",
                     ));
                 }
-                if oauth.client_secret != credentials.client_secret {
+                if Some(oauth.client_secret) != credentials.client_secret {
                     return Err(NodeApiError::provision(
                         "`client_secret`s didn't match!",
                     ));
