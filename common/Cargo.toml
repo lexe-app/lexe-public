@@ -120,8 +120,7 @@ yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
 
 proptest = { optional = true, workspace = true, features = ["alloc"] }
 proptest-derive = { optional = true, workspace = true }
-# This version should track the one that `axum` uses internally.
-serde_urlencoded = { optional = true, version = "0.7" }
+serde_urlencoded = { optional = true, workspace = true }
 # Lower-level async TLS interface
 tokio-rustls = { optional = true, version = "0.25", default-features = false }
 
@@ -152,8 +151,7 @@ proptest = { optional = true, workspace = true, features = ["std"] }
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
 serde_json.workspace = true
-# This version should track the one that `axum` uses internally.
-serde_urlencoded = "0.7"
+serde_urlencoded.workspace = true
 tokio = { workspace = true, features = [
     "io-util",
     "macros",
