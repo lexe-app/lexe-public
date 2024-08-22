@@ -69,12 +69,28 @@ impl ReqwestClient {
 pub struct GDriveCredentials {
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
     pub client_id: String,
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
-    pub client_secret: String,
+
+    /// Mobile clients (Android, iOS, macOS) don't have a `client_secret`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
+    pub client_secret: Option<String>,
+
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
     pub refresh_token: String,
+
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
     pub access_token: String,
+
+    /// Mobile clients (Android, iOS, macOS) may also request the server auth
+    /// code that will be passed to the node enclave during provision. We get
+    /// this via the `audience=<server_client_id>` parameter in the redirect
+    /// URI during authz.
+    ///
+    /// This field is also not persisted, since it's only used once.
+    #[serde(skip)]
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
+    pub server_code: Option<String>,
+
     /// Unix timestamp (in seconds) at which the current access token expires.
     /// Set to 0 if unknown; the tokens will just be refreshed at next use.
     pub expires_at: u64,
@@ -85,9 +101,10 @@ impl GDriveCredentials {
     ///
     /// ```bash
     /// export GOOGLE_CLIENT_ID="<client_id>"
-    /// export GOOGLE_CLIENT_SECRET="<client_secret>"
+    /// export GOOGLE_CLIENT_SECRET="<client_secret>" # Optional, depending on client
     /// export GOOGLE_REFRESH_TOKEN="<refresh_token>"
     /// export GOOGLE_ACCESS_TOKEN="<access_token>"
+    /// export GOOGLE_SERVER_CODE="<server_code>" # Optional, depending on client
     /// export GOOGLE_ACCESS_TOKEN_EXPIRY="<timestamp>" # Set to 0 if unknown
     /// ```
     #[cfg(any(test, feature = "test-utils"))]
@@ -98,12 +115,12 @@ impl GDriveCredentials {
 
         let client_id = env::var("GOOGLE_CLIENT_ID")
             .context("Missing 'GOOGLE_CLIENT_ID' in env")?;
-        let client_secret = env::var("GOOGLE_CLIENT_SECRET")
-            .context("Missing 'GOOGLE_CLIENT_SECRET' in env")?;
+        let client_secret = env::var("GOOGLE_CLIENT_SECRET").ok();
         let refresh_token = env::var("GOOGLE_REFRESH_TOKEN")
             .context("Missing 'GOOGLE_REFRESH_TOKEN' in env")?;
         let access_token = env::var("GOOGLE_ACCESS_TOKEN")
             .context("Missing 'GOOGLE_ACCESS_TOKEN' in env")?;
+        let server_code = env::var("GOOGLE_SERVER_CODE").ok();
         let expires_at_str = env::var("GOOGLE_ACCESS_TOKEN_EXPIRY")
             .context("Missing 'GOOGLE_ACCESS_TOKEN_EXPIRY' in env")?;
         let expires_at = u64::from_str(&expires_at_str)
@@ -114,6 +131,7 @@ impl GDriveCredentials {
             client_secret,
             refresh_token,
             access_token,
+            server_code,
             expires_at,
         })
     }
@@ -144,21 +162,24 @@ fn verify_response_scope(scope: String) -> Result<(), Error> {
     }
 }
 
-/// Exchanges the auth `code` (and other info) for the `access_token`,
+/// Exchanges an auth `code` (and other info) for an `access_token`,
 /// returning the full [`GDriveCredentials`] which can then be persisted.
 ///
 /// <https://developers.google.com/identity/protocols/oauth2/native-app#exchange-authorization-code>
 pub async fn auth_code_for_token(
     client: &ReqwestClient,
-    client_id: String,
-    client_secret: String,
+    client_id: &str,
+    client_secret: Option<&str>,
     redirect_uri: &str,
     code: &str,
 ) -> Result<GDriveCredentials, Error> {
     #[derive(Serialize)]
     struct Request<'a> {
         client_id: &'a str,
-        client_secret: &'a str,
+        // For mobile clients this is `None`. For enclave provision this is
+        // `Some`.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        client_secret: Option<&'a str>,
         redirect_uri: &'a str,
         code: &'a str,
         grant_type: &'static str,
@@ -171,11 +192,15 @@ pub async fn auth_code_for_token(
         expires_in: u32,
         scope: String,
         token_type: String,
+        // We should get a `server_code` during mobile client auth code
+        // exchange, but not during enclave provision server auth code
+        // exchange.
+        server_code: Option<String>,
     }
 
     let request = Request {
-        client_id: &client_id,
-        client_secret: &client_secret,
+        client_id,
+        client_secret,
         redirect_uri,
         code,
         grant_type: "authorization_code",
@@ -204,6 +229,7 @@ pub async fn auth_code_for_token(
         expires_in,
         scope,
         token_type,
+        server_code,
     } = response;
 
     // Validate response fields
@@ -220,10 +246,11 @@ pub async fn auth_code_for_token(
     let expires_at = now_timestamp + expires_in as u64;
 
     Ok(GDriveCredentials {
-        client_id,
-        client_secret,
+        client_id: client_id.to_owned(),
+        client_secret: client_secret.map(str::to_owned),
         refresh_token,
         access_token,
+        server_code,
         expires_at,
     })
 }
@@ -336,7 +363,8 @@ async fn refresh(
     struct RefreshRequest<'a> {
         grant_type: &'a str,
         client_id: &'a str,
-        client_secret: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        client_secret: Option<&'a str>,
         refresh_token: &'a str,
     }
 
@@ -351,7 +379,7 @@ async fn refresh(
     let req = RefreshRequest {
         grant_type: "refresh_token",
         client_id: &credentials.client_id,
-        client_secret: &credentials.client_secret,
+        client_secret: credentials.client_secret.as_deref(),
         refresh_token: &credentials.refresh_token,
     };
 
@@ -505,16 +533,16 @@ mod test {
         };
         let client_id = env::var("GOOGLE_CLIENT_ID")
             .expect("This test requires GOOGLE_CLIENT_ID to be set");
-        let client_secret = env::var("GOOGLE_CLIENT_SECRET")
-            .expect("This test requires GOOGLE_CLIENT_SECRET to be set");
+        let client_secret = env::var("GOOGLE_CLIENT_SECRET").ok();
+        let redirect_uri = env::var("GOOGLE_REDIRECT_URI")
+            .unwrap_or_else(|_| "https://localhost:6969/bogus".to_owned());
 
         let client = ReqwestClient::new();
-        let redirect_uri = "https://localhost:6969/bogus";
         let credentials = auth_code_for_token(
             &client,
-            client_id,
-            client_secret,
-            redirect_uri,
+            &client_id,
+            client_secret.as_deref(),
+            &redirect_uri,
             &code,
         )
         .await
