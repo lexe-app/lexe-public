@@ -11,6 +11,35 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// Rust type: RustOpaqueNom<GDriveClientInner>
+abstract class GDriveClientInner implements RustOpaqueInterface {}
+
+/// A basic authenticated Google Drive client, before we know which `UserPk`
+/// to use.
+class GDriveClient {
+  final GDriveClientInner inner;
+
+  const GDriveClient({
+    required this.inner,
+  });
+
+  String? serverCode() =>
+      AppRs.instance.api.crateFfiGdriveGDriveClientServerCode(
+        that: this,
+      );
+
+  @override
+  int get hashCode => inner.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GDriveClient &&
+          runtimeType == other.runtimeType &&
+          inner == other.inner;
+}
+
+/// Context required to execute the Google Drive OAuth2 authorization flow.
 class GDriveOauth2Flow {
   final String clientId;
   final String codeVerifier;
@@ -26,9 +55,15 @@ class GDriveOauth2Flow {
     required this.url,
   });
 
-  Future<String> exchange({required String resultUri}) => AppRs.instance.api
+  /// After the user has authorized access and we've gotten the redirect,
+  /// call this fn to exchange the client auth code for credentials + client.
+  Future<GDriveClient> exchange({required String resultUri}) => AppRs
+      .instance.api
       .crateFfiGdriveGDriveOauth2FlowExchange(that: this, resultUri: resultUri);
 
+  /// Begin the OAuth2 flow for the given mobile `client_id`. We'll also get
+  /// a `server_code` we can exchange at the node provision enclave, which
+  /// uses `server_client_id`.
   static GDriveOauth2Flow init(
           {required String clientId, required String serverClientId}) =>
       AppRs.instance.api.crateFfiGdriveGDriveOauth2FlowInit(

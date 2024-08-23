@@ -33,7 +33,7 @@ use flutter_rust_bridge::{
     Handler, IntoIntoDart,
 };
 
-use crate::ffi::app::*;
+use crate::ffi::{app::*, gdrive::*};
 
 // Section: boilerplate
 
@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.2.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 795100066;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2116735159;
 
 // Section: executor
 
@@ -517,6 +517,19 @@ fn wire__crate__ffi__form__validate_password_impl(
                      let output_ok = Result::<_,()>::Ok(crate::ffi::form::validate_password(api_password))?;   Ok(output_ok)
                 })()) })
 }
+fn wire__crate__ffi__gdrive__g_drive_client_server_code_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "g_drive_client_server_code", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::gdrive::GDriveClient>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, ()>((move || {
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::gdrive::GDriveClient::server_code(&api_that))?;   Ok(output_ok)
+                })()) })
+}
 fn wire__crate__ffi__gdrive__g_drive_oauth_2_flow_exchange_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -674,6 +687,16 @@ impl SseDecode for flutter_rust_bridge::for_generated::anyhow::Error {
 }
 
 impl SseDecode for RustOpaqueNom<App> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut inner = <usize>::sse_decode(deserializer);
+        return unsafe { decode_rust_opaque_nom(inner) };
+    }
+}
+
+impl SseDecode for RustOpaqueNom<GDriveClientInner> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -893,6 +916,17 @@ impl SseDecode for crate::ffi::api::FiatRates {
             timestamp_ms: var_timestampMs,
             rates: var_rates,
         };
+    }
+}
+
+impl SseDecode for crate::ffi::gdrive::GDriveClient {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_inner =
+            <RustOpaqueNom<GDriveClientInner>>::sse_decode(deserializer);
+        return crate::ffi::gdrive::GDriveClient { inner: var_inner };
     }
 }
 
@@ -1662,19 +1696,19 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        33 => wire__crate__ffi__gdrive__g_drive_oauth_2_flow_exchange_impl(
+        34 => wire__crate__ffi__gdrive__g_drive_oauth_2_flow_exchange_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        35 => wire__crate__ffi__logger__init_rust_log_stream_impl(
+        36 => wire__crate__ffi__logger__init_rust_log_stream_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        36 => wire__crate__ffi__payment_uri__resolve_best_impl(
+        37 => wire__crate__ffi__payment_uri__resolve_best_impl(
             port,
             ptr,
             rust_vec_len,
@@ -1707,13 +1741,14 @@ fn pde_ffi_dispatcher_sync_impl(
 28 => wire__crate__ffi__debug__delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
 29 => wire__crate__ffi__debug__delete_secret_store_impl(ptr, rust_vec_len, data_len),
 32 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
-34 => wire__crate__ffi__gdrive__g_drive_oauth_2_flow_init_impl(ptr, rust_vec_len, data_len),
-37 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
-38 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
-39 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-40 => wire__crate__ffi__types__client_payment_id_gen_impl(ptr, rust_vec_len, data_len),
-41 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
-42 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
+33 => wire__crate__ffi__gdrive__g_drive_client_server_code_impl(ptr, rust_vec_len, data_len),
+35 => wire__crate__ffi__gdrive__g_drive_oauth_2_flow_init_impl(ptr, rust_vec_len, data_len),
+38 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
+39 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
+40 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
+41 => wire__crate__ffi__types__client_payment_id_gen_impl(ptr, rust_vec_len, data_len),
+42 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
+43 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -1940,6 +1975,23 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::FiatRates>
     for crate::ffi::api::FiatRates
 {
     fn into_into_dart(self) -> crate::ffi::api::FiatRates {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::gdrive::GDriveClient {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.inner.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::gdrive::GDriveClient
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::gdrive::GDriveClient>
+    for crate::ffi::gdrive::GDriveClient
+{
+    fn into_into_dart(self) -> crate::ffi::gdrive::GDriveClient {
         self
     }
 }
@@ -2514,6 +2566,18 @@ impl SseEncode for RustOpaqueNom<App> {
     }
 }
 
+impl SseEncode for RustOpaqueNom<GDriveClientInner> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        let (ptr, size) = self.sse_encode_raw();
+        <usize>::sse_encode(ptr, serializer);
+        <i32>::sse_encode(size, serializer);
+    }
+}
+
 impl SseEncode for RustOpaqueNom<SettingsDbRs> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -2706,6 +2770,16 @@ impl SseEncode for crate::ffi::api::FiatRates {
     ) {
         <i64>::sse_encode(self.timestamp_ms, serializer);
         <Vec<crate::ffi::api::FiatRate>>::sse_encode(self.rates, serializer);
+    }
+}
+
+impl SseEncode for crate::ffi::gdrive::GDriveClient {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <RustOpaqueNom<GDriveClientInner>>::sse_encode(self.inner, serializer);
     }
 }
 
@@ -3313,7 +3387,7 @@ mod io {
     };
 
     use super::*;
-    use crate::ffi::app::*;
+    use crate::ffi::{app::*, gdrive::*};
 
     // Section: boilerplate
 
@@ -3334,6 +3408,24 @@ mod io {
     ) {
         unsafe {
             StdArc::<App>::decrement_strong_count(ptr as _);
+        }
+    }
+
+    #[no_mangle]
+    pub extern "C" fn frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_GDriveClientInner(
+        ptr: *const std::ffi::c_void,
+    ) {
+        unsafe {
+            StdArc::<GDriveClientInner>::increment_strong_count(ptr as _);
+        }
+    }
+
+    #[no_mangle]
+    pub extern "C" fn frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_GDriveClientInner(
+        ptr: *const std::ffi::c_void,
+    ) {
+        unsafe {
+            StdArc::<GDriveClientInner>::decrement_strong_count(ptr as _);
         }
     }
 

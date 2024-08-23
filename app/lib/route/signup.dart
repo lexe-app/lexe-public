@@ -17,7 +17,7 @@ import 'package:lexeapp/components.dart'
         ScrollableSinglePageBody,
         SubheadingText,
         baseInputDecoration;
-import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
+import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/send/page.dart'
@@ -105,10 +105,10 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
     // Hide error message
     this.errorMessage.value = null;
 
-    final result = await this.widget.gdriveAuth.tryAuth();
+    final result = await this.widget.gdriveAuth.tryAuthCodeOnly();
     if (!this.mounted) return;
 
-    final GDriveAuthInfo authInfo;
+    final GDriveServerAuthCode authInfo;
     switch (result) {
       case Ok(:final ok):
         // user canceled. they might want to try again, so don't pop yet.
@@ -202,7 +202,7 @@ class SignupBackupPasswordPage extends StatefulWidget {
 
   final Config config;
   final SignupApi signupApi;
-  final GDriveAuthInfo authInfo;
+  final GDriveServerAuthCode authInfo;
 
   @override
   State<SignupBackupPasswordPage> createState() =>

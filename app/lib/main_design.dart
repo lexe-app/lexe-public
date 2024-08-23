@@ -34,7 +34,7 @@ import 'package:lexeapp/components.dart'
         showModalAsyncFlow;
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/design_mode/mocks.dart' as mocks;
-import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
+import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/landing.dart' show LandingPage;
@@ -216,7 +216,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "SignupBackupPasswordPage",
               (context) => SignupBackupPasswordPage(
                 config: widget.config,
-                authInfo: const GDriveAuthInfo(serverAuthCode: "fake"),
+                authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
                 signupApi: mockSignupApi,
               ),
             ),

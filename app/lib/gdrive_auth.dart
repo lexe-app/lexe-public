@@ -9,30 +9,32 @@ library;
 
 import 'dart:io' show Platform;
 
-import 'package:app_rs_dart/ffi/gdrive.dart' show GDriveOauth2Flow;
+import 'package:app_rs_dart/ffi/gdrive.dart'
+    show GDriveClient, GDriveClientInner, GDriveOauth2Flow;
 import 'package:app_rs_dart/ffi/types.dart' show DeployEnv;
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException, appFlavor;
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart'
     show FlutterWebAuth2;
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/result.dart';
 
-/// Returned from Google OAuth2 after getting user consent.
-@immutable
-final class GDriveAuthInfo {
-  const GDriveAuthInfo({required this.serverAuthCode});
+/// Returned from Google OAuth2 after getting user consent. Sent to the node
+/// enclave during initial provisioning.
+final class GDriveServerAuthCode {
+  const GDriveServerAuthCode({required this.serverAuthCode});
 
   final String serverAuthCode;
 }
 
-abstract interface class GDriveAuth {
+abstract class GDriveAuth {
+  const GDriveAuth._();
+
   static const GDriveAuth prod = ProdGDriveAuth._();
   static const GDriveAuth mock = MockGDriveAuth._();
 
   /// Open a browser window to request user consent for GDrive file permissions.
   ///
-  /// - On success, returns a [GDriveAuthInfo], which contains an auth code that
+  /// - On success, returns a [GDriveClient], which contains an auth code that
   ///   the backend user enclave can use to get real access+refresh tokens.
   /// - If the user cancels, returns null.
   ///
@@ -48,14 +50,30 @@ abstract interface class GDriveAuth {
   /// of the user.
   ///
   /// Docs: <https://developers.google.com/identity/sign-in/ios/offline-access>
-  Future<Result<GDriveAuthInfo?, Exception>> tryAuth();
+  Future<Result<GDriveClient?, Exception>> tryAuth();
+
+  /// [tryAuth] but we only care about the `serverCode`.
+  Future<Result<GDriveServerAuthCode?, Exception>> tryAuthCodeOnly() async {
+    switch (await this.tryAuth()) {
+      case Ok(:final ok):
+        // User canceled
+        if (ok == null) return const Ok(null);
+        final serverAuthCode = ok.serverCode();
+        if (serverAuthCode == null) {
+          return Err(Exception("GDrive auth didn't return a server auth code"));
+        }
+        return Ok(GDriveServerAuthCode(serverAuthCode: serverAuthCode));
+      case Err(:final err):
+        return Err(err);
+    }
+  }
 }
 
-class ProdGDriveAuth implements GDriveAuth {
-  const ProdGDriveAuth._();
+class ProdGDriveAuth extends GDriveAuth {
+  const ProdGDriveAuth._() : super._();
 
   @override
-  Future<Result<GDriveAuthInfo?, Exception>> tryAuth() async {
+  Future<Result<GDriveClient?, Exception>> tryAuth() async {
     final clientId = _clientId();
     if (clientId == null) {
       final platform = Platform.operatingSystem;
@@ -91,9 +109,9 @@ class ProdGDriveAuth implements GDriveAuth {
       );
 
       // Exchange auth code from redirect for access token + server auth code.
-      final serverAuthCode = await oauthFlow.exchange(resultUri: resultUriStr);
+      final gdriveClient = await oauthFlow.exchange(resultUri: resultUriStr);
 
-      return Ok(GDriveAuthInfo(serverAuthCode: serverAuthCode));
+      return Ok(gdriveClient);
     } on PlatformException catch (err) {
       if (err.code == "CANCELED") {
         return const Ok(null);
@@ -140,14 +158,24 @@ class ProdGDriveAuth implements GDriveAuth {
 
 /// A basic mock [GDriveAuth] impl. It just returns a dummy auth token after a
 /// delay, without doing any oauth.
-class MockGDriveAuth implements GDriveAuth {
-  const MockGDriveAuth._();
+class MockGDriveAuth extends GDriveAuth {
+  const MockGDriveAuth._() : super._();
 
   @override
-  Future<Result<GDriveAuthInfo?, Exception>> tryAuth() => Future.delayed(
+  Future<Result<GDriveClient?, Exception>> tryAuth() => Future.delayed(
         const Duration(milliseconds: 1200),
-        () => const Ok(GDriveAuthInfo(serverAuthCode: "fake")),
+        () => const Ok(MockGDriveClient._()),
         // () => Err(Exception(
         //     "PlatformException(sign_in_failed, com.google.android.gms.common.api.ApiException: 10: , null, null)")),
       );
+}
+
+class MockGDriveClient implements GDriveClient {
+  const MockGDriveClient._();
+
+  @override
+  GDriveClientInner get inner => throw UnimplementedError();
+
+  @override
+  String? serverCode() => "fake";
 }

@@ -2,11 +2,12 @@
 library;
 
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/gdrive.dart' show GDriveClient;
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
 import 'package:lexeapp/components.dart'
     show LxBackButton, LxFilledButton, MultistepFlow, ScrollableSinglePageBody;
-import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
+import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/send/page.dart'
@@ -50,12 +51,12 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
     final result = await this.widget.gdriveAuth.tryAuth();
     if (!this.mounted) return;
 
-    final GDriveAuthInfo authInfo;
+    final GDriveClient gdriveClient;
     switch (result) {
       case Ok(:final ok):
         // user canceled. they might want to try again, so don't pop yet.
         if (ok == null) return;
-        authInfo = ok;
+        gdriveClient = ok;
       case Err(:final err):
         final errStr = err.toString();
         error("Failed to auth user with GDrive: $errStr");
@@ -66,7 +67,7 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
         return;
     }
 
-    info("authInfo: $authInfo");
+    info("gdriveClient: $gdriveClient");
 
     // // ignore: use_build_context_synchronously
     // final AppHandle? flowResult = await Navigator.of(this.context).push(
