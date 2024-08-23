@@ -31,9 +31,9 @@ pub(crate) struct GDriveClient {
 
 impl GDriveClient {
     pub fn new(
+        client: ReqwestClient,
         credentials: GDriveCredentials,
     ) -> (Self, watch::Receiver<GDriveCredentials>) {
-        let client = ReqwestClient::new();
         let (credentials_tx, mut credentials_rx) =
             watch::channel(credentials.clone());
         // Mark the current value as seen so that the first call to changed()

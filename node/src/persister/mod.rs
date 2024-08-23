@@ -17,7 +17,9 @@ use common::{
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Scid, User,
     },
-    constants::{SINGLETON_DIRECTORY, WALLET_DB_FILENAME},
+    constants::{
+        PW_ENC_ROOT_SEED_FILENAME, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
+    },
     ln::{
         channel::LxOutPoint,
         network::LxNetwork,
@@ -83,7 +85,6 @@ const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 const GDRIVE_CREDENTIALS_FILENAME: &str = "gdrive_credentials";
 const GVFS_ROOT_FILENAME: &str = "gvfs_root";
 const NETWORK_GRAPH_FILENAME: &str = "network_graph";
-const PW_ENC_ROOT_SEED_FILENAME: &str = "password_encrypted_root_seed";
 const SCORER_FILENAME: &str = "scorer";
 
 // Non-singleton objects use a fixed directory with dynamic filenames

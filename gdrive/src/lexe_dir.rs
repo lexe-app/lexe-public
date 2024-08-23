@@ -192,10 +192,10 @@ pub(crate) async fn get_or_create_gvfs_root(
 pub(crate) async fn get_gvfs_root_gid(
     client: &GDriveClient,
     lexe_dir: &GFileId,
-    network_str: &str,
+    gvfs_root_name: &str,
 ) -> anyhow::Result<Option<GFileId>> {
     let maybe_gvfs_root_gid = client
-        .search_direct_children(lexe_dir, network_str)
+        .search_direct_children(lexe_dir, gvfs_root_name)
         .await
         .context("search_direct_children")?
         .map(|gfile| gfile.id);
@@ -208,7 +208,7 @@ mod test {
     use common::{api::UserPk, env::DeployEnv, ln::network::LxNetwork};
 
     use super::*;
-    use crate::oauth2::GDriveCredentials;
+    use crate::{oauth2::GDriveCredentials, ReqwestClient};
 
     /// ```bash
     /// export GOOGLE_CLIENT_ID="<client_id>"
@@ -221,8 +221,9 @@ mod test {
     #[ignore]
     #[tokio::test]
     async fn test_lexe_dir() {
+        let client = ReqwestClient::new();
         let credentials = GDriveCredentials::from_env().unwrap();
-        let (client, _rx) = GDriveClient::new(credentials);
+        let (client, _rx) = GDriveClient::new(client, credentials);
         let lexe_dir = get_or_create_lexe_dir(&client).await.unwrap();
         let lexe_dir_name = &lexe_dir.name;
         println!("Lexe dir: {lexe_dir_name}");
