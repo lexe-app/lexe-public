@@ -160,6 +160,7 @@ dependencies = [
  "common",
  "const-utils",
  "flutter_rust_bridge",
+ "gdrive",
  "hex 0.1.0",
  "keyring",
  "lazy-lock",

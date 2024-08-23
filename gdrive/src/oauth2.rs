@@ -92,7 +92,7 @@ pub struct GDriveCredentials {
     ///
     /// This field is also not persisted, since it's only used once.
     #[serde(skip)]
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
+    #[cfg_attr(test, proptest(strategy = "proptest::strategy::Just(None)"))]
     pub server_code: Option<String>,
 
     /// Unix timestamp (in seconds) at which the current access token expires.

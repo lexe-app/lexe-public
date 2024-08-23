@@ -15,6 +15,7 @@ import 'ffi/api.dart';
 import 'ffi/app.dart';
 import 'ffi/debug.dart';
 import 'ffi/form.dart';
+import 'ffi/gdrive.dart';
 import 'ffi/logger.dart';
 import 'ffi/payment_uri.dart';
 import 'ffi/settings.dart';
@@ -84,6 +85,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   FeeEstimate dco_decode_box_autoadd_fee_estimate(dynamic raw);
 
   @protected
+  GDriveOauth2Flow dco_decode_box_autoadd_g_drive_oauth_2_flow(dynamic raw);
+
+  @protected
   Invoice dco_decode_box_autoadd_invoice(dynamic raw);
 
   @protected
@@ -151,6 +155,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   FiatRates dco_decode_fiat_rates(dynamic raw);
+
+  @protected
+  GDriveOauth2Flow dco_decode_g_drive_oauth_2_flow(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
@@ -331,6 +338,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   FeeEstimate sse_decode_box_autoadd_fee_estimate(SseDeserializer deserializer);
 
   @protected
+  GDriveOauth2Flow sse_decode_box_autoadd_g_drive_oauth_2_flow(
+      SseDeserializer deserializer);
+
+  @protected
   Invoice sse_decode_box_autoadd_invoice(SseDeserializer deserializer);
 
   @protected
@@ -407,6 +418,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   FiatRates sse_decode_fiat_rates(SseDeserializer deserializer);
+
+  @protected
+  GDriveOauth2Flow sse_decode_g_drive_oauth_2_flow(
+      SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -599,6 +614,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       FeeEstimate self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_g_drive_oauth_2_flow(
+      GDriveOauth2Flow self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_invoice(Invoice self, SseSerializer serializer);
 
   @protected
@@ -675,6 +694,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_fiat_rates(FiatRates self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_g_drive_oauth_2_flow(
+      GDriveOauth2Flow self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);

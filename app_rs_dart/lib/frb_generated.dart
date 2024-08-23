@@ -14,6 +14,7 @@ import 'ffi/api.dart';
 import 'ffi/app.dart';
 import 'ffi/debug.dart';
 import 'ffi/form.dart';
+import 'ffi/gdrive.dart';
 import 'ffi/logger.dart';
 import 'ffi/payment_uri.dart';
 import 'ffi/settings.dart';
@@ -68,7 +69,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.2.0';
 
   @override
-  int get rustContentHash => -138757465;
+  int get rustContentHash => 795100066;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -163,6 +164,12 @@ abstract class AppRsApi extends BaseApi {
   Future<void> crateFfiDebugUnconditionalPanic();
 
   String? crateFfiFormValidatePassword({required String password});
+
+  Future<String> crateFfiGdriveGDriveOauth2FlowExchange(
+      {required GDriveOauth2Flow that, required String resultUri});
+
+  GDriveOauth2Flow crateFfiGdriveGDriveOauth2FlowInit(
+      {required String clientId, required String serverClientId});
 
   Stream<String> crateFfiLoggerInitRustLogStream({required String rustLog});
 
@@ -1036,6 +1043,59 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
+  Future<String> crateFfiGdriveGDriveOauth2FlowExchange(
+      {required GDriveOauth2Flow that, required String resultUri}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_box_autoadd_g_drive_oauth_2_flow(that, serializer);
+        sse_encode_String(resultUri, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 33, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: sse_decode_AnyhowException,
+      ),
+      constMeta: kCrateFfiGdriveGDriveOauth2FlowExchangeConstMeta,
+      argValues: [that, resultUri],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateFfiGdriveGDriveOauth2FlowExchangeConstMeta =>
+      const TaskConstMeta(
+        debugName: "g_drive_oauth_2_flow_exchange",
+        argNames: ["that", "resultUri"],
+      );
+
+  @override
+  GDriveOauth2Flow crateFfiGdriveGDriveOauth2FlowInit(
+      {required String clientId, required String serverClientId}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(clientId, serializer);
+        sse_encode_String(serverClientId, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 34)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_g_drive_oauth_2_flow,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateFfiGdriveGDriveOauth2FlowInitConstMeta,
+      argValues: [clientId, serverClientId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateFfiGdriveGDriveOauth2FlowInitConstMeta =>
+      const TaskConstMeta(
+        debugName: "g_drive_oauth_2_flow_init",
+        argNames: ["clientId", "serverClientId"],
+      );
+
+  @override
   Stream<String> crateFfiLoggerInitRustLogStream({required String rustLog}) {
     final rustLogTx = RustStreamSink<String>();
     unawaited(handler.executeNormal(NormalTask(
@@ -1044,7 +1104,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         sse_encode_StreamSink_String_Sse(rustLogTx, serializer);
         sse_encode_String(rustLog, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 33, port: port_);
+            funcId: 35, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1072,7 +1132,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         sse_encode_network(network, serializer);
         sse_encode_String(uriStr, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 34, port: port_);
+            funcId: 36, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_payment_method,
@@ -1096,7 +1156,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_settings_db(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 35)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_settings,
@@ -1120,7 +1180,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_settings_db(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 38)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1146,7 +1206,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_settings_db(that, serializer);
         sse_encode_box_autoadd_settings(update, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 39)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1169,7 +1229,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 38)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 40)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_client_payment_id,
@@ -1193,7 +1253,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(s, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 39)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 41)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_deploy_env,
@@ -1217,7 +1277,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(s, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 40)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 42)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_network,
@@ -1353,6 +1413,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   FeeEstimate dco_decode_box_autoadd_fee_estimate(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_fee_estimate(raw);
+  }
+
+  @protected
+  GDriveOauth2Flow dco_decode_box_autoadd_g_drive_oauth_2_flow(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_g_drive_oauth_2_flow(raw);
   }
 
   @protected
@@ -1531,6 +1597,21 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     return FiatRates(
       timestampMs: dco_decode_CastedPrimitive_i_64(arr[0]),
       rates: dco_decode_list_fiat_rate(arr[1]),
+    );
+  }
+
+  @protected
+  GDriveOauth2Flow dco_decode_g_drive_oauth_2_flow(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return GDriveOauth2Flow(
+      clientId: dco_decode_String(arr[0]),
+      codeVerifier: dco_decode_String(arr[1]),
+      redirectUri: dco_decode_String(arr[2]),
+      redirectUriScheme: dco_decode_String(arr[3]),
+      url: dco_decode_String(arr[4]),
     );
   }
 
@@ -2048,6 +2129,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  GDriveOauth2Flow sse_decode_box_autoadd_g_drive_oauth_2_flow(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_g_drive_oauth_2_flow(deserializer));
+  }
+
+  @protected
   Invoice sse_decode_box_autoadd_invoice(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_invoice(deserializer));
@@ -2216,6 +2304,23 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_timestampMs = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_rates = sse_decode_list_fiat_rate(deserializer);
     return FiatRates(timestampMs: var_timestampMs, rates: var_rates);
+  }
+
+  @protected
+  GDriveOauth2Flow sse_decode_g_drive_oauth_2_flow(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_clientId = sse_decode_String(deserializer);
+    var var_codeVerifier = sse_decode_String(deserializer);
+    var var_redirectUri = sse_decode_String(deserializer);
+    var var_redirectUriScheme = sse_decode_String(deserializer);
+    var var_url = sse_decode_String(deserializer);
+    return GDriveOauth2Flow(
+        clientId: var_clientId,
+        codeVerifier: var_codeVerifier,
+        redirectUri: var_redirectUri,
+        redirectUriScheme: var_redirectUriScheme,
+        url: var_url);
   }
 
   @protected
@@ -2768,6 +2873,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_g_drive_oauth_2_flow(
+      GDriveOauth2Flow self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_g_drive_oauth_2_flow(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_invoice(Invoice self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_invoice(self, serializer);
@@ -2919,6 +3031,17 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_CastedPrimitive_i_64(self.timestampMs, serializer);
     sse_encode_list_fiat_rate(self.rates, serializer);
+  }
+
+  @protected
+  void sse_encode_g_drive_oauth_2_flow(
+      GDriveOauth2Flow self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.clientId, serializer);
+    sse_encode_String(self.codeVerifier, serializer);
+    sse_encode_String(self.redirectUri, serializer);
+    sse_encode_String(self.redirectUriScheme, serializer);
+    sse_encode_String(self.url, serializer);
   }
 
   @protected

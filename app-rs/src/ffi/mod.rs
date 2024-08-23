@@ -61,6 +61,8 @@ pub mod app;
 pub mod debug;
 /// Form field validators.
 pub mod form;
+/// Google Drive OAuth2 + API
+pub mod gdrive;
 /// Rust logger integration.
 pub mod logger;
 /// [`payment_uri`] interface
