@@ -27,6 +27,8 @@ pub const IMPORTANT_PERSIST_RETRIES: usize = 5;
 pub const SINGLETON_DIRECTORY: &str = ".";
 /// The vfs filename used for the `WalletDb`.
 pub const WALLET_DB_FILENAME: &str = "bdk_wallet_db";
+/// The vfs filename used for the user's password-encrypted root seed backup.
+pub const PW_ENC_ROOT_SEED_FILENAME: &str = "password_encrypted_root_seed";
 
 /// Reject backend requests for payments that are too large.
 pub const MAX_PAYMENTS_BATCH_SIZE: u16 = 100;

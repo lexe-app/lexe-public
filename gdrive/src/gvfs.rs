@@ -23,8 +23,12 @@ use tokio::sync::watch;
 use tracing::{instrument, warn};
 
 use crate::{
-    api, api::GDriveClient, gvfs_file_id::GvfsFileId, lexe_dir,
-    models::GFileId, oauth2::GDriveCredentials,
+    api::{self, GDriveClient},
+    gvfs_file_id::GvfsFileId,
+    lexe_dir,
+    models::GFileId,
+    oauth2::GDriveCredentials,
+    ReqwestClient,
 };
 
 // Allows tests to assert that these `anyhow::Error`s happened.
@@ -144,7 +148,8 @@ impl GoogleVfs {
         Option<GvfsRoot>,
         watch::Receiver<GDriveCredentials>,
     )> {
-        let (client, credentials_rx) = GDriveClient::new(credentials);
+        let client = ReqwestClient::new();
+        let (client, credentials_rx) = GDriveClient::new(client, credentials);
         let (google_vfs, maybe_new_gvfs_root) = Self::init_from_client(
             client,
             gvfs_root_name,
@@ -474,13 +479,24 @@ impl GoogleVfs {
 
 // --- impl GvfsRootName --- //
 
+impl GvfsRootName {
+    pub(crate) fn prefix(
+        deploy_env: DeployEnv,
+        network: LxNetwork,
+        use_sgx: bool,
+    ) -> String {
+        let deploy_env = deploy_env.as_str();
+        let network = network.as_str();
+        let sgx = if use_sgx { "sgx" } else { "dbg" };
+        format!("lexe-{deploy_env}-{network}-{sgx}-")
+    }
+}
+
 impl fmt::Display for GvfsRootName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let deploy_env = self.deploy_env.as_str();
-        let network = self.network.as_str();
-        let sgx = if self.use_sgx { "sgx" } else { "dbg" };
+        let prefix = Self::prefix(self.deploy_env, self.network, self.use_sgx);
         let user_pk = self.user_pk;
-        write!(f, "lexe-{deploy_env}-{network}-{sgx}-{user_pk}")
+        write!(f, "{prefix}{user_pk}")
     }
 }
 
@@ -509,7 +525,10 @@ mod test {
     /// Test utility to search for the Lexe dir and delete the regtest VFS root
     /// inside if it exists. We do NOT delete the entire Lexe dir in case there
     /// are "bitcoin" or "testnet" folders holding real funds.
-    async fn delete_regtest_vfs_root(client: &GDriveClient) {
+    async fn delete_vfs_root(
+        client: &GDriveClient,
+        gvfs_root_name: &GvfsRootName,
+    ) {
         let maybe_lexe_dir = lexe_dir::find_lexe_dir(client)
             .await
             .expect("find_lexe_dir failed");
@@ -518,11 +537,14 @@ mod test {
             None => return,
         };
 
-        let network_str = LxNetwork::Regtest.to_string();
-        let maybe_gvfs_root =
-            lexe_dir::get_gvfs_root_gid(client, &lexe_dir.id, &network_str)
-                .await
-                .expect("get_vfs_root failed");
+        let gvfs_root_name_str = gvfs_root_name.to_string();
+        let maybe_gvfs_root = lexe_dir::get_gvfs_root_gid(
+            client,
+            &lexe_dir.id,
+            &gvfs_root_name_str,
+        )
+        .await
+        .expect("get_vfs_root failed");
         let regtest_gvfs_root = match maybe_gvfs_root {
             Some(vr) => vr,
             None => return,
@@ -547,10 +569,9 @@ mod test {
     async fn test_gvfs() {
         logger::init_for_testing();
 
+        let client = ReqwestClient::new();
         let credentials = GDriveCredentials::from_env().unwrap();
-        let (client, _rx) = GDriveClient::new(credentials);
-
-        delete_regtest_vfs_root(&client).await;
+        let (client, _rx) = GDriveClient::new(client, credentials);
 
         let gvfs_root_name = GvfsRootName {
             deploy_env: DeployEnv::Dev,
@@ -558,6 +579,8 @@ mod test {
             use_sgx: false,
             user_pk: UserPk::from_u64(6549849),
         };
+        delete_vfs_root(&client, &gvfs_root_name).await;
+
         let gvfs_root = None;
         let (gvfs, created_root) =
             GoogleVfs::init_from_client(client, gvfs_root_name, gvfs_root)
@@ -628,10 +651,9 @@ mod test {
     async fn test_init_deleted_root() {
         logger::init_for_testing();
 
+        let client = ReqwestClient::new();
         let credentials = GDriveCredentials::from_env().unwrap();
-        let (client, _rx) = GDriveClient::new(credentials);
-
-        delete_regtest_vfs_root(&client).await;
+        let (client, _rx) = GDriveClient::new(client, credentials);
 
         let gvfs_root_name = GvfsRootName {
             deploy_env: DeployEnv::Dev,
@@ -639,6 +661,7 @@ mod test {
             use_sgx: false,
             user_pk: UserPk::from_u64(9849849),
         };
+        delete_vfs_root(&client, &gvfs_root_name).await;
 
         // Some random gid I created during testing
         let deleted_gid =
@@ -690,13 +713,12 @@ mod test {
     async fn test_init_bogus_root() {
         logger::init_for_testing();
 
+        let client = ReqwestClient::new();
         let credentials = GDriveCredentials::from_env().unwrap();
-        let (client, _rx) = GDriveClient::new(credentials);
+        let (client, _rx) = GDriveClient::new(client, credentials);
 
         // TODO(max): In the other case, make a call to the list_direct_children
         // method to ensure that it actually does return Err.
-
-        delete_regtest_vfs_root(&client).await;
 
         let gvfs_root_name = GvfsRootName {
             deploy_env: DeployEnv::Dev,
@@ -704,6 +726,7 @@ mod test {
             use_sgx: false,
             user_pk: UserPk::from_u64(3385140),
         };
+        delete_vfs_root(&client, &gvfs_root_name).await;
 
         let bogus_gid = GFileId("t0tAlLy!!wrong-/\\[]} format 11 ".to_owned());
         let bogus_root = GvfsRoot {

@@ -93,6 +93,8 @@ use thiserror::Error;
 pub mod gvfs;
 /// Google OAuth2.
 pub mod oauth2;
+/// Restore account from GDrive backup client.
+pub mod restore;
 
 /// Lower-level API client.
 pub(crate) mod api;
