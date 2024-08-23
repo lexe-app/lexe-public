@@ -10,9 +10,19 @@
 
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'types.dart';
 
 // Rust type: RustOpaqueNom<GDriveClientInner>
 abstract class GDriveClientInner implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueNom<GDriveRestoreCandidateRs>
+abstract class GDriveRestoreCandidateRs implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueNom<GDriveRestoreClientRs>
+abstract class GDriveRestoreClientRs implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueNom<RootSeedRs>
+abstract class RootSeedRs implements RustOpaqueInterface {}
 
 /// A basic authenticated Google Drive client, before we know which `UserPk`
 /// to use.
@@ -22,6 +32,11 @@ class GDriveClient {
   const GDriveClient({
     required this.inner,
   });
+
+  GDriveRestoreClient intoRestoreClient() =>
+      AppRs.instance.api.crateFfiGdriveGDriveClientIntoRestoreClient(
+        that: this,
+      );
 
   String? serverCode() =>
       AppRs.instance.api.crateFfiGdriveGDriveClientServerCode(
@@ -87,4 +102,58 @@ class GDriveOauth2Flow {
           redirectUri == other.redirectUri &&
           redirectUriScheme == other.redirectUriScheme &&
           url == other.url;
+}
+
+/// A candidate root seed backup. We just need the correct password to restore.
+class GDriveRestoreCandidate {
+  final GDriveRestoreCandidateRs inner;
+
+  const GDriveRestoreCandidate({
+    required this.inner,
+  });
+
+  RootSeed tryDecrypt({required String password}) =>
+      AppRs.instance.api.crateFfiGdriveGDriveRestoreCandidateTryDecrypt(
+          that: this, password: password);
+
+  String userPk() =>
+      AppRs.instance.api.crateFfiGdriveGDriveRestoreCandidateUserPk(
+        that: this,
+      );
+
+  @override
+  int get hashCode => inner.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GDriveRestoreCandidate &&
+          runtimeType == other.runtimeType &&
+          inner == other.inner;
+}
+
+/// An authenticated Google Drive client used for restoring from backup.
+class GDriveRestoreClient {
+  final GDriveRestoreClientRs inner;
+
+  const GDriveRestoreClient({
+    required this.inner,
+  });
+
+  Future<List<GDriveRestoreCandidate>> findRestoreCandidates(
+          {required DeployEnv deployEnv,
+          required Network network,
+          required bool useSgx}) =>
+      AppRs.instance.api.crateFfiGdriveGDriveRestoreClientFindRestoreCandidates(
+          that: this, deployEnv: deployEnv, network: network, useSgx: useSgx);
+
+  @override
+  int get hashCode => inner.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GDriveRestoreClient &&
+          runtimeType == other.runtimeType &&
+          inner == other.inner;
 }

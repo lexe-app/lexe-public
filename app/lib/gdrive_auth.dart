@@ -10,8 +10,14 @@ library;
 import 'dart:io' show Platform;
 
 import 'package:app_rs_dart/ffi/gdrive.dart'
-    show GDriveClient, GDriveClientInner, GDriveOauth2Flow;
-import 'package:app_rs_dart/ffi/types.dart' show DeployEnv;
+    show
+        GDriveClient,
+        GDriveClientInner,
+        GDriveOauth2Flow,
+        GDriveRestoreCandidate,
+        GDriveRestoreClient,
+        GDriveRestoreClientRs;
+import 'package:app_rs_dart/ffi/types.dart' show DeployEnv, Network;
 import 'package:flutter/services.dart' show PlatformException, appFlavor;
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart'
     show FlutterWebAuth2;
@@ -178,4 +184,22 @@ class MockGDriveClient implements GDriveClient {
 
   @override
   String? serverCode() => "fake";
+
+  @override
+  GDriveRestoreClient intoRestoreClient() => const MockGDriveRestoreClient._();
+}
+
+class MockGDriveRestoreClient implements GDriveRestoreClient {
+  const MockGDriveRestoreClient._();
+
+  @override
+  Future<List<GDriveRestoreCandidate>> findRestoreCandidates({
+    required DeployEnv deployEnv,
+    required Network network,
+    required bool useSgx,
+  }) =>
+      Future.value([]);
+
+  @override
+  GDriveRestoreClientRs get inner => throw UnimplementedError();
 }

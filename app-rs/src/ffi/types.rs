@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use anyhow::anyhow;
+pub(crate) use common::root_seed::RootSeed as RootSeedRs;
 use common::{
     env::DeployEnv as DeployEnvRs,
     ln::{
@@ -17,7 +18,7 @@ use common::{
     },
     rng::SysRng,
 };
-use flutter_rust_bridge::frb;
+use flutter_rust_bridge::{frb, RustOpaqueNom};
 
 use crate::app::AppConfig;
 
@@ -117,6 +118,11 @@ impl From<Config> for AppConfig {
             c.use_mock_secret_store,
         )
     }
+}
+
+/// The user's root seed from which we derive all child secrets.
+pub struct RootSeed {
+    pub(crate) inner: RustOpaqueNom<RootSeedRs>,
 }
 
 pub enum PaymentDirection {

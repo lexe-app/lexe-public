@@ -16,13 +16,13 @@ use crate::{
     gvfs::GvfsRootName,
     gvfs_file_id::GvfsFileId,
     lexe_dir::find_lexe_dir,
-    models::GFile,
     oauth2::{GDriveCredentials, ReqwestClient},
+    GvfsRoot,
 };
 
 /// A candidate wallet to restore.
 pub struct GDriveRestoreCandidate {
-    pub gvfs_root: GFile,
+    pub gvfs_root: GvfsRoot,
     pub pw_enc_root_seed: VfsFile,
 }
 
@@ -85,7 +85,7 @@ impl GDriveRestoreClient {
         deploy_env: DeployEnv,
         network: LxNetwork,
         use_sgx: bool,
-    ) -> anyhow::Result<Vec<GFile>> {
+    ) -> anyhow::Result<Vec<GvfsRoot>> {
         // Look for LexeData root dir
         let maybe_lexe_dir = find_lexe_dir(&self.client)
             .await
@@ -96,20 +96,28 @@ impl GDriveRestoreClient {
         };
 
         // Keep it simple. Just read all files/folders in LexeData.
-        let mut candidate_gvfs_roots = self
+        let candidate_gvfs_roots = self
             .client
             .list_direct_children(&lexe_dir.id)
             .await
             .context("Request for GVFS root directories failed")?;
 
-        let gvfs_root_name_prefix =
-            GvfsRootName::prefix(deploy_env, network, use_sgx);
-
         // Select only the potential GVFS roots for this env (deploy_env,
         // network, use_sgx).
-        candidate_gvfs_roots.retain(|gfile| {
-            gfile.name.starts_with(gvfs_root_name_prefix.as_str())
-        });
+        let candidate_gvfs_roots = candidate_gvfs_roots
+            .into_iter()
+            .filter_map(|gvfs_root| {
+                GvfsRootName::parse(&gvfs_root.name).map(|name| GvfsRoot {
+                    name,
+                    gid: gvfs_root.id,
+                })
+            })
+            .filter(|x| {
+                x.name.deploy_env == deploy_env
+                    && x.name.network == network
+                    && x.name.use_sgx == use_sgx
+            })
+            .collect();
 
         Ok(candidate_gvfs_roots)
     }
@@ -118,7 +126,7 @@ impl GDriveRestoreClient {
     /// backup file and download it.
     async fn get_pw_enc_root_seed(
         &self,
-        gvfs_root: &GFile,
+        gvfs_root: &GvfsRoot,
     ) -> anyhow::Result<Option<VfsFile>> {
         let vfs_id =
             VfsFileId::new(SINGLETON_DIRECTORY, PW_ENC_ROOT_SEED_FILENAME);
@@ -126,7 +134,7 @@ impl GDriveRestoreClient {
         let gvfs_file_name = gvfs_id.into_inner();
         let gfile = self
             .client
-            .search_direct_children(&gvfs_root.id, &gvfs_file_name)
+            .search_direct_children(&gvfs_root.gid, &gvfs_file_name)
             .await
             .context("Request for root seed backup file metadata failed")?;
 
