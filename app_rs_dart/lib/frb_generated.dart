@@ -69,7 +69,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.2.0';
 
   @override
-  int get rustContentHash => 795100066;
+  int get rustContentHash => 2116735159;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -165,7 +165,9 @@ abstract class AppRsApi extends BaseApi {
 
   String? crateFfiFormValidatePassword({required String password});
 
-  Future<String> crateFfiGdriveGDriveOauth2FlowExchange(
+  String? crateFfiGdriveGDriveClientServerCode({required GDriveClient that});
+
+  Future<GDriveClient> crateFfiGdriveGDriveOauth2FlowExchange(
       {required GDriveOauth2Flow that, required String resultUri});
 
   GDriveOauth2Flow crateFfiGdriveGDriveOauth2FlowInit(
@@ -194,6 +196,15 @@ abstract class AppRsApi extends BaseApi {
   RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_App;
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_AppPtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_GDriveClientInner;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_GDriveClientInner;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_GDriveClientInnerPtr;
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_SettingsDbRs;
@@ -1043,7 +1054,31 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<String> crateFfiGdriveGDriveOauth2FlowExchange(
+  String? crateFfiGdriveGDriveClientServerCode({required GDriveClient that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_box_autoadd_g_drive_client(that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 33)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_opt_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateFfiGdriveGDriveClientServerCodeConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateFfiGdriveGDriveClientServerCodeConstMeta =>
+      const TaskConstMeta(
+        debugName: "g_drive_client_server_code",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<GDriveClient> crateFfiGdriveGDriveOauth2FlowExchange(
       {required GDriveOauth2Flow that, required String resultUri}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
@@ -1051,10 +1086,10 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         sse_encode_box_autoadd_g_drive_oauth_2_flow(that, serializer);
         sse_encode_String(resultUri, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 33, port: port_);
+            funcId: 34, port: port_);
       },
       codec: SseCodec(
-        decodeSuccessData: sse_decode_String,
+        decodeSuccessData: sse_decode_g_drive_client,
         decodeErrorData: sse_decode_AnyhowException,
       ),
       constMeta: kCrateFfiGdriveGDriveOauth2FlowExchangeConstMeta,
@@ -1077,7 +1112,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(clientId, serializer);
         sse_encode_String(serverClientId, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 34)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 35)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_g_drive_oauth_2_flow,
@@ -1104,7 +1139,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         sse_encode_StreamSink_String_Sse(rustLogTx, serializer);
         sse_encode_String(rustLog, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 35, port: port_);
+            funcId: 36, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1132,7 +1167,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         sse_encode_network(network, serializer);
         sse_encode_String(uriStr, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 36, port: port_);
+            funcId: 37, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_payment_method,
@@ -1156,7 +1191,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_settings_db(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 38)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_settings,
@@ -1180,7 +1215,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_settings_db(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 38)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 39)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1206,7 +1241,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_settings_db(that, serializer);
         sse_encode_box_autoadd_settings(update, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 39)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 40)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1229,7 +1264,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 40)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 41)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_client_payment_id,
@@ -1253,7 +1288,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(s, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 41)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 42)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_deploy_env,
@@ -1277,7 +1312,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(s, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 42)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 43)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_network,
@@ -1300,6 +1335,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_App =>
       wire.rust_arc_decrement_strong_count_RustOpaque_App;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_GDriveClientInner =>
+          wire.rust_arc_increment_strong_count_RustOpaque_GDriveClientInner;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_GDriveClientInner =>
+          wire.rust_arc_decrement_strong_count_RustOpaque_GDriveClientInner;
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_SettingsDbRs =>
@@ -1340,6 +1383,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   App dco_decode_RustOpaque_App(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return AppImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  GDriveClientInner dco_decode_RustOpaque_GDriveClientInner(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return GDriveClientInnerImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -1413,6 +1462,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   FeeEstimate dco_decode_box_autoadd_fee_estimate(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_fee_estimate(raw);
+  }
+
+  @protected
+  GDriveClient dco_decode_box_autoadd_g_drive_client(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_g_drive_client(raw);
   }
 
   @protected
@@ -1597,6 +1652,17 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     return FiatRates(
       timestampMs: dco_decode_CastedPrimitive_i_64(arr[0]),
       rates: dco_decode_list_fiat_rate(arr[1]),
+    );
+  }
+
+  @protected
+  GDriveClient dco_decode_g_drive_client(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return GDriveClient(
+      inner: dco_decode_RustOpaque_GDriveClientInner(arr[0]),
     );
   }
 
@@ -2056,6 +2122,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  GDriveClientInner sse_decode_RustOpaque_GDriveClientInner(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return GDriveClientInnerImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
   SettingsDbRs sse_decode_RustOpaque_SettingsDbRs(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -2126,6 +2200,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_fee_estimate(deserializer));
+  }
+
+  @protected
+  GDriveClient sse_decode_box_autoadd_g_drive_client(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_g_drive_client(deserializer));
   }
 
   @protected
@@ -2304,6 +2385,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_timestampMs = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_rates = sse_decode_list_fiat_rate(deserializer);
     return FiatRates(timestampMs: var_timestampMs, rates: var_rates);
+  }
+
+  @protected
+  GDriveClient sse_decode_g_drive_client(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_inner = sse_decode_RustOpaque_GDriveClientInner(deserializer);
+    return GDriveClient(inner: var_inner);
   }
 
   @protected
@@ -2798,6 +2886,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_RustOpaque_GDriveClientInner(
+      GDriveClientInner self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as GDriveClientInnerImpl).frbInternalSseEncode(move: null),
+        serializer);
+  }
+
+  @protected
   void sse_encode_RustOpaque_SettingsDbRs(
       SettingsDbRs self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -2870,6 +2967,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       FeeEstimate self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_fee_estimate(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_g_drive_client(
+      GDriveClient self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_g_drive_client(self, serializer);
   }
 
   @protected
@@ -3031,6 +3135,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_CastedPrimitive_i_64(self.timestampMs, serializer);
     sse_encode_list_fiat_rate(self.rates, serializer);
+  }
+
+  @protected
+  void sse_encode_g_drive_client(GDriveClient self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_RustOpaque_GDriveClientInner(self.inner, serializer);
   }
 
   @protected
@@ -3428,6 +3538,27 @@ class AppImpl extends RustOpaque implements App {
         AppRs.instance.api.rust_arc_decrement_strong_count_App,
     rustArcDecrementStrongCountPtr:
         AppRs.instance.api.rust_arc_decrement_strong_count_AppPtr,
+  );
+}
+
+@sealed
+class GDriveClientInnerImpl extends RustOpaque implements GDriveClientInner {
+  // Not to be used by end users
+  GDriveClientInnerImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  GDriveClientInnerImpl.frbInternalSseDecode(
+      BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        AppRs.instance.api.rust_arc_increment_strong_count_GDriveClientInner,
+    rustArcDecrementStrongCount:
+        AppRs.instance.api.rust_arc_decrement_strong_count_GDriveClientInner,
+    rustArcDecrementStrongCountPtr:
+        AppRs.instance.api.rust_arc_decrement_strong_count_GDriveClientInnerPtr,
   );
 }
 

@@ -1,7 +1,8 @@
 use anyhow::Context;
 use common::rng::SysRng;
-use flutter_rust_bridge::frb;
+use flutter_rust_bridge::{frb, RustOpaqueNom};
 
+/// Context required to execute the Google Drive OAuth2 authorization flow.
 pub struct GDriveOauth2Flow {
     pub client_id: String,
     pub code_verifier: String,
@@ -10,7 +11,22 @@ pub struct GDriveOauth2Flow {
     pub url: String,
 }
 
+/// A basic authenticated Google Drive client, before we know which `UserPk`
+/// to use.
+pub struct GDriveClient {
+    pub inner: RustOpaqueNom<GDriveClientInner>,
+}
+
+#[allow(dead_code)] // TODO(phlip9): remove
+pub(crate) struct GDriveClientInner {
+    client: gdrive::ReqwestClient,
+    credentials: gdrive::oauth2::GDriveCredentials,
+}
+
 impl GDriveOauth2Flow {
+    /// Begin the OAuth2 flow for the given mobile `client_id`. We'll also get
+    /// a `server_code` we can exchange at the node provision enclave, which
+    /// uses `server_client_id`.
     #[frb(sync)]
     pub fn init(client_id: String, server_client_id: &str) -> Self {
         let pkce =
@@ -45,11 +61,16 @@ impl GDriveOauth2Flow {
         }
     }
 
-    pub async fn exchange(&self, result_uri: &str) -> anyhow::Result<String> {
+    /// After the user has authorized access and we've gotten the redirect,
+    /// call this fn to exchange the client auth code for credentials + client.
+    pub async fn exchange(
+        &self,
+        result_uri: &str,
+    ) -> anyhow::Result<GDriveClient> {
         let code = gdrive::oauth2::parse_redirect_result_uri(result_uri)?;
 
-        // // Uncomment while debugging
-        // tracing::info!("code: {code}");
+        // // Uncomment while debugging client auth
+        // tracing::info!("export GOOGLE_AUTH_CODE=\"{code}\"");
 
         let client = gdrive::oauth2::ReqwestClient::new();
         let client_secret = None;
@@ -64,13 +85,24 @@ impl GDriveOauth2Flow {
         .await
         .context("Auth code exchange failed")?;
 
-        let server_code = credentials.server_code.context(
-            "Auth code exchange response is missing the `server_code`",
-        )?;
+        // // Uncomment while debugging server auth
+        // {
+        //     let server_code = credentials.server_code.unwrap();
+        //     tracing::info!("export GOOGLE_AUTH_CODE=\"{server_code}\"");
+        // }
 
-        // // Uncomment while debugging
-        // tracing::info!("export GOOGLE_AUTH_CODE=\"{server_code}\"");
+        Ok(GDriveClient {
+            inner: RustOpaqueNom::new(GDriveClientInner {
+                client,
+                credentials,
+            }),
+        })
+    }
+}
 
-        Ok(server_code)
+impl GDriveClient {
+    #[frb(sync)]
+    pub fn server_code(&self) -> Option<String> {
+        self.inner.credentials.server_code.clone()
     }
 }

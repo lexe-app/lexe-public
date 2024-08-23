@@ -35,6 +35,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       wire._rust_arc_decrement_strong_count_RustOpaque_AppPtr;
 
   CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_GDriveClientInnerPtr =>
+          wire._rust_arc_decrement_strong_count_RustOpaque_GDriveClientInnerPtr;
+
+  CrossPlatformFinalizerArg
       get rust_arc_decrement_strong_count_SettingsDbRsPtr =>
           wire._rust_arc_decrement_strong_count_RustOpaque_SettingsDbRsPtr;
 
@@ -52,6 +56,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   App dco_decode_RustOpaque_App(dynamic raw);
+
+  @protected
+  GDriveClientInner dco_decode_RustOpaque_GDriveClientInner(dynamic raw);
 
   @protected
   SettingsDbRs dco_decode_RustOpaque_SettingsDbRs(dynamic raw);
@@ -83,6 +90,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   FeeEstimate dco_decode_box_autoadd_fee_estimate(dynamic raw);
+
+  @protected
+  GDriveClient dco_decode_box_autoadd_g_drive_client(dynamic raw);
 
   @protected
   GDriveOauth2Flow dco_decode_box_autoadd_g_drive_oauth_2_flow(dynamic raw);
@@ -155,6 +165,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   FiatRates dco_decode_fiat_rates(dynamic raw);
+
+  @protected
+  GDriveClient dco_decode_g_drive_client(dynamic raw);
 
   @protected
   GDriveOauth2Flow dco_decode_g_drive_oauth_2_flow(dynamic raw);
@@ -306,6 +319,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   App sse_decode_RustOpaque_App(SseDeserializer deserializer);
 
   @protected
+  GDriveClientInner sse_decode_RustOpaque_GDriveClientInner(
+      SseDeserializer deserializer);
+
+  @protected
   SettingsDbRs sse_decode_RustOpaque_SettingsDbRs(SseDeserializer deserializer);
 
   @protected
@@ -336,6 +353,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   FeeEstimate sse_decode_box_autoadd_fee_estimate(SseDeserializer deserializer);
+
+  @protected
+  GDriveClient sse_decode_box_autoadd_g_drive_client(
+      SseDeserializer deserializer);
 
   @protected
   GDriveOauth2Flow sse_decode_box_autoadd_g_drive_oauth_2_flow(
@@ -418,6 +439,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   FiatRates sse_decode_fiat_rates(SseDeserializer deserializer);
+
+  @protected
+  GDriveClient sse_decode_g_drive_client(SseDeserializer deserializer);
 
   @protected
   GDriveOauth2Flow sse_decode_g_drive_oauth_2_flow(
@@ -579,6 +603,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_RustOpaque_App(App self, SseSerializer serializer);
 
   @protected
+  void sse_encode_RustOpaque_GDriveClientInner(
+      GDriveClientInner self, SseSerializer serializer);
+
+  @protected
   void sse_encode_RustOpaque_SettingsDbRs(
       SettingsDbRs self, SseSerializer serializer);
 
@@ -612,6 +640,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_box_autoadd_fee_estimate(
       FeeEstimate self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_g_drive_client(
+      GDriveClient self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_g_drive_oauth_2_flow(
@@ -694,6 +726,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_fiat_rates(FiatRates self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_g_drive_client(GDriveClient self, SseSerializer serializer);
 
   @protected
   void sse_encode_g_drive_oauth_2_flow(
@@ -886,6 +921,36 @@ class AppRsWire implements BaseWire {
           'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_App');
   late final _rust_arc_decrement_strong_count_RustOpaque_App =
       _rust_arc_decrement_strong_count_RustOpaque_AppPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void rust_arc_increment_strong_count_RustOpaque_GDriveClientInner(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_GDriveClientInner(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_GDriveClientInnerPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_GDriveClientInner');
+  late final _rust_arc_increment_strong_count_RustOpaque_GDriveClientInner =
+      _rust_arc_increment_strong_count_RustOpaque_GDriveClientInnerPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void rust_arc_decrement_strong_count_RustOpaque_GDriveClientInner(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_GDriveClientInner(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_GDriveClientInnerPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_GDriveClientInner');
+  late final _rust_arc_decrement_strong_count_RustOpaque_GDriveClientInner =
+      _rust_arc_decrement_strong_count_RustOpaque_GDriveClientInnerPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void rust_arc_increment_strong_count_RustOpaque_SettingsDbRs(
