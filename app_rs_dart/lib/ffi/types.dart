@@ -10,6 +10,7 @@
 
 import '../frb_generated.dart';
 import 'app.dart';
+import 'gdrive.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
@@ -154,6 +155,25 @@ enum PaymentStatus {
   completed,
   failed,
   ;
+}
+
+/// The user's root seed from which we derive all child secrets.
+class RootSeed {
+  final RootSeedRs inner;
+
+  const RootSeed({
+    required this.inner,
+  });
+
+  @override
+  int get hashCode => inner.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RootSeed &&
+          runtimeType == other.runtimeType &&
+          inner == other.inner;
 }
 
 /// Just the info we need to display an entry in the payments list UI.

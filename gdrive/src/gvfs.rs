@@ -55,7 +55,7 @@ pub struct GvfsRootName {
 /// persist this and resupply it the next time [`GoogleVfs`] is initialized.
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct GvfsRoot {
-    pub(crate) name: GvfsRootName,
+    pub name: GvfsRootName,
     /// The [`GFileId`] corresponding to the GVFS root dir in Google Drive.
     pub(crate) gid: GFileId,
 }
@@ -480,23 +480,59 @@ impl GoogleVfs {
 // --- impl GvfsRootName --- //
 
 impl GvfsRootName {
-    pub(crate) fn prefix(
-        deploy_env: DeployEnv,
-        network: LxNetwork,
-        use_sgx: bool,
-    ) -> String {
-        let deploy_env = deploy_env.as_str();
-        let network = network.as_str();
-        let sgx = if use_sgx { "sgx" } else { "dbg" };
-        format!("lexe-{deploy_env}-{network}-{sgx}-")
+    pub(crate) fn parse(s: &str) -> Option<Self> {
+        let mut iter = s.split('-');
+        let (deploy_env, network, sgx, user_pk) = match (
+            iter.next(),
+            iter.next(),
+            iter.next(),
+            iter.next(),
+            iter.next(),
+            iter.next(),
+        ) {
+            (
+                Some("lexe"),
+                Some(deploy_env),
+                Some(network),
+                Some(sgx),
+                Some(user_pk),
+                None,
+            ) => (deploy_env, network, sgx, user_pk),
+            _ => return None,
+        };
+
+        let deploy_env = DeployEnv::from_str(deploy_env).ok()?;
+        let network = LxNetwork::from_str(network).ok()?;
+        let use_sgx = match sgx {
+            "sgx" => true,
+            "dbg" => false,
+            _ => return None,
+        };
+        let user_pk = UserPk::from_str(user_pk).ok()?;
+
+        Some(Self {
+            deploy_env,
+            network,
+            use_sgx,
+            user_pk,
+        })
     }
 }
 
 impl fmt::Display for GvfsRootName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let prefix = Self::prefix(self.deploy_env, self.network, self.use_sgx);
+        let deploy_env = self.deploy_env.as_str();
+        let network = self.network.as_str();
+        let sgx = if self.use_sgx { "sgx" } else { "dbg" };
         let user_pk = self.user_pk;
-        write!(f, "{prefix}{user_pk}")
+        write!(f, "lexe-{deploy_env}-{network}-{sgx}-{user_pk}")
+    }
+}
+
+impl FromStr for GvfsRootName {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s).with_context(|| format!("Invalid GVFS root name: '{s}'"))
     }
 }
 
@@ -508,6 +544,7 @@ mod test {
 
     #[test]
     fn test_gvfs_root_name_serde() {
+        // FromStr/Display
         let ex = GvfsRootName {
             deploy_env: DeployEnv::Dev,
             network: LxNetwork::Regtest,
@@ -515,10 +552,12 @@ mod test {
             user_pk: UserPk::from_u64(6546565654654654),
         };
         assert_eq!("lexe-dev-regtest-dbg-be2e581811421700000000000000000000000000000000000000000000000000", ex.to_string());
+        roundtrip::fromstr_display_roundtrip_proptest::<GvfsRootName>();
+
+        // JSON
         let json_str = r#"{"deploy_env":"dev","network":"regtest","use_sgx":false,"user_pk":"be2e581811421700000000000000000000000000000000000000000000000000"}"#;
         assert_eq!(json_str, serde_json::to_string(&ex).unwrap());
         assert_eq!(ex, serde_json::from_str::<GvfsRootName>(json_str).unwrap());
-
         roundtrip::json_value_roundtrip_proptest::<GvfsRootName>();
     }
 
