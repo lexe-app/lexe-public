@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.2.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -138757465;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 795100066;
 
 // Section: executor
 
@@ -517,6 +517,36 @@ fn wire__crate__ffi__form__validate_password_impl(
                      let output_ok = Result::<_,()>::Ok(crate::ffi::form::validate_password(api_password))?;   Ok(output_ok)
                 })()) })
 }
+fn wire__crate__ffi__gdrive__g_drive_oauth_2_flow_exchange_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "g_drive_oauth_2_flow_exchange", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::gdrive::GDriveOauth2Flow>::sse_decode(&mut deserializer);
+let api_result_uri = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
+                         let output_ok = crate::ffi::gdrive::GDriveOauth2Flow::exchange(&api_that, &api_result_uri).await?;   Ok(output_ok)
+                    })().await)
+                } })
+}
+fn wire__crate__ffi__gdrive__g_drive_oauth_2_flow_init_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "g_drive_oauth_2_flow_init", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_client_id = <String>::sse_decode(&mut deserializer);
+let api_server_client_id = <String>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, ()>((move || {
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::gdrive::GDriveOauth2Flow::init(api_client_id, &api_server_client_id))?;   Ok(output_ok)
+                })()) })
+}
 fn wire__crate__ffi__logger__init_rust_log_stream_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -862,6 +892,26 @@ impl SseDecode for crate::ffi::api::FiatRates {
         return crate::ffi::api::FiatRates {
             timestamp_ms: var_timestampMs,
             rates: var_rates,
+        };
+    }
+}
+
+impl SseDecode for crate::ffi::gdrive::GDriveOauth2Flow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_clientId = <String>::sse_decode(deserializer);
+        let mut var_codeVerifier = <String>::sse_decode(deserializer);
+        let mut var_redirectUri = <String>::sse_decode(deserializer);
+        let mut var_redirectUriScheme = <String>::sse_decode(deserializer);
+        let mut var_url = <String>::sse_decode(deserializer);
+        return crate::ffi::gdrive::GDriveOauth2Flow {
+            client_id: var_clientId,
+            code_verifier: var_codeVerifier,
+            redirect_uri: var_redirectUri,
+            redirect_uri_scheme: var_redirectUriScheme,
+            url: var_url,
         };
     }
 }
@@ -1612,13 +1662,19 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        33 => wire__crate__ffi__logger__init_rust_log_stream_impl(
+        33 => wire__crate__ffi__gdrive__g_drive_oauth_2_flow_exchange_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        34 => wire__crate__ffi__payment_uri__resolve_best_impl(
+        35 => wire__crate__ffi__logger__init_rust_log_stream_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        36 => wire__crate__ffi__payment_uri__resolve_best_impl(
             port,
             ptr,
             rust_vec_len,
@@ -1651,12 +1707,13 @@ fn pde_ffi_dispatcher_sync_impl(
 28 => wire__crate__ffi__debug__delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
 29 => wire__crate__ffi__debug__delete_secret_store_impl(ptr, rust_vec_len, data_len),
 32 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
-35 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
-36 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
-37 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-38 => wire__crate__ffi__types__client_payment_id_gen_impl(ptr, rust_vec_len, data_len),
-39 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
-40 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
+34 => wire__crate__ffi__gdrive__g_drive_oauth_2_flow_init_impl(ptr, rust_vec_len, data_len),
+37 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
+38 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
+39 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
+40 => wire__crate__ffi__types__client_payment_id_gen_impl(ptr, rust_vec_len, data_len),
+41 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
+42 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -1883,6 +1940,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::FiatRates>
     for crate::ffi::api::FiatRates
 {
     fn into_into_dart(self) -> crate::ffi::api::FiatRates {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::gdrive::GDriveOauth2Flow {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.client_id.into_into_dart().into_dart(),
+            self.code_verifier.into_into_dart().into_dart(),
+            self.redirect_uri.into_into_dart().into_dart(),
+            self.redirect_uri_scheme.into_into_dart().into_dart(),
+            self.url.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::gdrive::GDriveOauth2Flow
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::gdrive::GDriveOauth2Flow>
+    for crate::ffi::gdrive::GDriveOauth2Flow
+{
+    fn into_into_dart(self) -> crate::ffi::gdrive::GDriveOauth2Flow {
         self
     }
 }
@@ -2625,6 +2706,20 @@ impl SseEncode for crate::ffi::api::FiatRates {
     ) {
         <i64>::sse_encode(self.timestamp_ms, serializer);
         <Vec<crate::ffi::api::FiatRate>>::sse_encode(self.rates, serializer);
+    }
+}
+
+impl SseEncode for crate::ffi::gdrive::GDriveOauth2Flow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <String>::sse_encode(self.client_id, serializer);
+        <String>::sse_encode(self.code_verifier, serializer);
+        <String>::sse_encode(self.redirect_uri, serializer);
+        <String>::sse_encode(self.redirect_uri_scheme, serializer);
+        <String>::sse_encode(self.url, serializer);
     }
 }
 
