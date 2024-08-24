@@ -222,11 +222,13 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
             Component(
               "RestorePage (mock gdrive)",
-              (context) => const RestorePage(gdriveAuth: GDriveAuth.mock),
+              (context) => RestorePage(
+                  config: widget.config, gdriveAuth: GDriveAuth.mock),
             ),
             Component(
               "RestorePage (real gdrive)",
-              (context) => const RestorePage(gdriveAuth: GDriveAuth.prod),
+              (context) => RestorePage(
+                  config: widget.config, gdriveAuth: GDriveAuth.prod),
             ),
             Component(
               "WalletPage",

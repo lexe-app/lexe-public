@@ -198,7 +198,7 @@ class MockGDriveRestoreClient implements GDriveRestoreClient {
     required Network network,
     required bool useSgx,
   }) =>
-      Future.value([]);
+      Future.delayed(const Duration(milliseconds: 1234), () => []);
 
   @override
   GDriveRestoreClientRs get inner => throw UnimplementedError();
