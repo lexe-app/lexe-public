@@ -15,9 +15,10 @@ import 'package:app_rs_dart/ffi/gdrive.dart'
         GDriveClientInner,
         GDriveOauth2Flow,
         GDriveRestoreCandidate,
+        GDriveRestoreCandidateRs,
         GDriveRestoreClient,
         GDriveRestoreClientRs;
-import 'package:app_rs_dart/ffi/types.dart' show DeployEnv, Network;
+import 'package:app_rs_dart/ffi/types.dart' show DeployEnv, Network, RootSeed;
 import 'package:flutter/services.dart' show PlatformException, appFlavor;
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart'
     show FlutterWebAuth2;
@@ -198,8 +199,34 @@ class MockGDriveRestoreClient implements GDriveRestoreClient {
     required Network network,
     required bool useSgx,
   }) =>
-      Future.delayed(const Duration(milliseconds: 1234), () => []);
+      Future.delayed(
+          const Duration(milliseconds: 1234),
+          () => [
+                const MockGDriveRestoreCandidate(
+                    userPk:
+                        "4072836db6c62f1fd07281feb1f2d6d1b8f05f8be3f0019a9205edff244017f1"),
+                const MockGDriveRestoreCandidate(
+                    userPk:
+                        "ef64652cc9fc1d79d174bb52d0ffb7ad365db842e72e056aa5c4bfe00bcb20da"),
+              ]);
 
   @override
   GDriveRestoreClientRs get inner => throw UnimplementedError();
+}
+
+class MockGDriveRestoreCandidate implements GDriveRestoreCandidate {
+  const MockGDriveRestoreCandidate({required String userPk}) : _userPk = userPk;
+
+  final String _userPk;
+
+  @override
+  GDriveRestoreCandidateRs get inner => throw UnimplementedError();
+
+  @override
+  RootSeed tryDecrypt({required String password}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  String userPk() => this._userPk;
 }

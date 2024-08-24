@@ -1,6 +1,8 @@
 /// The wallet restore UI flow.
 library;
 
+import 'dart:async' show unawaited;
+
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/gdrive.dart'
     show GDriveClient, GDriveRestoreCandidate;
@@ -10,9 +12,11 @@ import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
+        HeadingText,
         LxBackButton,
         MultistepFlow,
-        ScrollableSinglePageBody;
+        ScrollableSinglePageBody,
+        SubheadingText;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
@@ -20,6 +24,7 @@ import 'package:lexeapp/route/send/page.dart'
     show ErrorMessage, ErrorMessageSection;
 import 'package:lexeapp/style.dart' show LxColors, LxIcons, LxTheme, Space;
 
+/// The entry point into the gdrive wallet restore UI flow.
 class RestorePage extends StatelessWidget {
   const RestorePage(
       {super.key, required this.config, required this.gdriveAuth});
@@ -34,6 +39,8 @@ class RestorePage extends StatelessWidget {
       );
 }
 
+/// First we need the user to authorize the app's access to their GDrive in
+/// order to locate their wallet backups.
 class RestoreGDriveAuthPage extends StatefulWidget {
   const RestoreGDriveAuthPage(
       {super.key, required this.config, required this.gdriveAuth});
@@ -131,36 +138,34 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
       return;
     }
 
-    // (normal case): Only one backup, open the password prompt page directly.
-    if (candidates.length == 1) {
-      // TODO(phlip9): impl
-    }
+    // Either (1) goto password prompt if only one candidate, or (2) ask user to
+    // choose which wallet first.
+    final bool? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(builder: (_) {
+        // (normal case): Only one backup, open the password prompt page directly.
+        if (candidates.length == 1) {
+          // TODO(phlip9): impl
+          throw UnimplementedError();
+        } else {
+          // It's possible (esp. for Lexe devs) to have multiple wallets for a single
+          // gdrive account. Open a page to ask the user which UserPk they want to
+          // restore.
+          //
+          // TODO(phlip9): UserPk isn't really a user-facing ID, so asking people to
+          // choose by UserPk is definitely suboptimal. Figure out some kind of wallet
+          // nickname system or something.
 
-    // It's possible (esp. for Lexe devs) to have multiple wallets for a single
-    // gdrive account. Open a page to ask the user which UserPk they want to
-    // restore.
-    //
-    // TODO(phlip9): UserPk isn't really a user-facing ID, so asking people to
-    // choose by UserPk is definitely suboptimal. Figure out some kind of wallet
-    // nickname system or something.
+          return RestoreChooseWalletPage(candidates: candidates);
+        }
+      }),
+    );
+    if (flowResult == null) return;
+    if (!this.mounted) return;
 
-    // // ignore: use_build_context_synchronously
-    // final AppHandle? flowResult = await Navigator.of(this.context).push(
-    //   MaterialPageRoute(
-    //     builder: (_) => SignupBackupPasswordPage(
-    //       config: this.widget.config,
-    //       signupApi: this.widget.signupApi,
-    //       authInfo: authInfo,
-    //     ),
-    //   ),
-    // );
-    // if (flowResult == null) return;
-    // if (!this.mounted) return;
-    //
-    // info("SignupGDriveAuthPage: successful signup");
-    //
-    // // ignore: use_build_context_synchronously
-    // unawaited(Navigator.of(this.context).maybePop(flowResult));
+    info("restore: successful restore");
+
+    // ignore: use_build_context_synchronously
+    unawaited(Navigator.of(this.context).maybePop(flowResult));
   }
 
   @override
@@ -212,6 +217,59 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// In rare cases, the user might have multiple wallets backed up in this gdrive
+/// account. Ask them to choose one.
+class RestoreChooseWalletPage extends StatefulWidget {
+  const RestoreChooseWalletPage({super.key, required this.candidates});
+
+  final List<GDriveRestoreCandidate> candidates;
+
+  @override
+  State<RestoreChooseWalletPage> createState() =>
+      _RestoreChooseWalletPageState();
+}
+
+class _RestoreChooseWalletPageState extends State<RestoreChooseWalletPage> {
+  Future<void> selectCandidate(final GDriveRestoreCandidate candidate) async {
+    info("restore: chose candidate UserPk: ${candidate.userPk()}");
+    // TODO(phlip9): impl
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
+        leading: const LxBackButton(isLeading: true),
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const HeadingText(text: "Choose wallet to restore"),
+          const SubheadingText(text: "Listed by UserPk"),
+          const SizedBox(height: Space.s600),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: this
+                .widget
+                .candidates
+                .map(
+                  // TODO(phlip9): add "created at: XXX" subtitle
+                  (candidate) => ListTile(
+                    title: Text(candidate.userPk()),
+                    trailing: const Icon(LxIcons.nextSecondary),
+                    onTap: () => this.selectCandidate(candidate),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                )
+                .toList(),
+          ),
+        ],
       ),
     );
   }
