@@ -6,7 +6,7 @@ import 'dart:async' show unawaited;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/gdrive.dart'
     show GDriveClient, GDriveRestoreCandidate;
-import 'package:app_rs_dart/ffi/types.dart' show Config;
+import 'package:app_rs_dart/ffi/types.dart' show Config, RootSeed;
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
 import 'package:lexeapp/components.dart'
@@ -14,15 +14,19 @@ import 'package:lexeapp/components.dart'
         AnimatedFillButton,
         HeadingText,
         LxBackButton,
+        LxCloseButton,
+        LxCloseButtonKind,
         MultistepFlow,
         ScrollableSinglePageBody,
-        SubheadingText;
-import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
+        SubheadingText,
+        baseInputDecoration;
+import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/send/page.dart'
     show ErrorMessage, ErrorMessageSection;
-import 'package:lexeapp/style.dart' show LxColors, LxIcons, LxTheme, Space;
+import 'package:lexeapp/style.dart'
+    show Fonts, LxColors, LxIcons, LxTheme, Space;
 
 /// The entry point into the gdrive wallet restore UI flow.
 class RestorePage extends StatelessWidget {
@@ -71,7 +75,7 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
     try {
       await this.onAuthPressedInner();
     } finally {
-      this.isRestoring.value = false;
+      if (this.mounted) this.isRestoring.value = false;
     }
   }
 
@@ -80,15 +84,28 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
     this.errorMessage.value = null;
 
     // Ask user to auth with Google Drive.
-    final authResult = await this.widget.gdriveAuth.tryAuth();
+    final Result<(GDriveClient, GDriveServerAuthCode)?, Exception> authResult =
+        (await this.widget.gdriveAuth.tryAuth()).andThen((client) {
+      if (client == null) return const Ok(null);
+      final serverAuthCode = client.serverCode();
+      if (serverAuthCode == null) {
+        return Err(Exception("GDrive auth didn't return a server auth code"));
+      }
+
+      return Ok((
+        client,
+        GDriveServerAuthCode(serverAuthCode: serverAuthCode),
+      ));
+    });
     if (!this.mounted) return;
 
+    final GDriveServerAuthCode serverAuthCode;
     final GDriveClient gdriveClient;
     switch (authResult) {
       case Ok(:final ok):
         // user canceled. they might want to try again, so don't pop yet.
         if (ok == null) return;
-        gdriveClient = ok;
+        (gdriveClient, serverAuthCode) = ok;
       case Err(:final err):
         final errStr = err.toString();
         error("restore: Failed to auth user with GDrive: $errStr");
@@ -127,7 +144,7 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
 
     final candidatesDbg =
         candidates.map((x) => x.userPk()).toList(growable: false);
-    info("restore: found candidates: $candidatesDbg");
+    info("restore: found candidate UserPks: $candidatesDbg");
 
     // We authed, but there were no backups :(
     if (candidates.isEmpty) {
@@ -140,12 +157,16 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
 
     // Either (1) goto password prompt if only one candidate, or (2) ask user to
     // choose which wallet first.
+    // TODO(phlip9): replace bool -> ???
     final bool? flowResult = await Navigator.of(this.context).push(
       MaterialPageRoute(builder: (_) {
         // (normal case): Only one backup, open the password prompt page directly.
         if (candidates.length == 1) {
-          // TODO(phlip9): impl
-          throw UnimplementedError();
+          return RestorePasswordPage(
+            config: this.widget.config,
+            serverAuthCode: serverAuthCode,
+            candidate: candidates.single,
+          );
         } else {
           // It's possible (esp. for Lexe devs) to have multiple wallets for a single
           // gdrive account. Open a page to ask the user which UserPk they want to
@@ -154,8 +175,11 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
           // TODO(phlip9): UserPk isn't really a user-facing ID, so asking people to
           // choose by UserPk is definitely suboptimal. Figure out some kind of wallet
           // nickname system or something.
-
-          return RestoreChooseWalletPage(candidates: candidates);
+          return RestoreChooseWalletPage(
+            config: this.widget.config,
+            serverAuthCode: serverAuthCode,
+            candidates: candidates,
+          );
         }
       }),
     );
@@ -187,7 +211,12 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
           ),
           MarkdownBody(
             data: '''
-# Restore Wallet from Google Drive backup
+# Restore wallet from Google Drive
+
+Already have a Lexe Wallet? Connect your Google Drive to restore from an existing Lexe Wallet backup.
+
+- **Your wallet backup is encrypted**. You'll need your backup password in a moment.
+- Lexe cannot access any files in your Drive.
 ''',
             styleSheet: LxTheme.markdownStyle,
           ),
@@ -225,8 +254,15 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
 /// In rare cases, the user might have multiple wallets backed up in this gdrive
 /// account. Ask them to choose one.
 class RestoreChooseWalletPage extends StatefulWidget {
-  const RestoreChooseWalletPage({super.key, required this.candidates});
+  const RestoreChooseWalletPage({
+    super.key,
+    required this.candidates,
+    required this.serverAuthCode,
+    required this.config,
+  });
 
+  final Config config;
+  final GDriveServerAuthCode serverAuthCode;
   final List<GDriveRestoreCandidate> candidates;
 
   @override
@@ -236,8 +272,21 @@ class RestoreChooseWalletPage extends StatefulWidget {
 
 class _RestoreChooseWalletPageState extends State<RestoreChooseWalletPage> {
   Future<void> selectCandidate(final GDriveRestoreCandidate candidate) async {
-    info("restore: chose candidate UserPk: ${candidate.userPk()}");
-    // TODO(phlip9): impl
+    info("restore: chose UserPk: ${candidate.userPk()}");
+
+    // Goto password prompt.
+    // TODO(phlip9): replace bool -> ???
+    final bool? flowResult =
+        await Navigator.of(this.context).push(MaterialPageRoute(
+            builder: (_) => RestorePasswordPage(
+                  config: this.widget.config,
+                  serverAuthCode: this.widget.serverAuthCode,
+                  candidate: candidate,
+                )));
+    if (flowResult == null) return;
+    if (!this.mounted) return;
+
+    unawaited(Navigator.of(this.context).maybePop(flowResult));
   }
 
   @override
@@ -246,12 +295,18 @@ class _RestoreChooseWalletPageState extends State<RestoreChooseWalletPage> {
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
         leading: const LxBackButton(isLeading: true),
+        actions: const [
+          LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
+          SizedBox(width: Space.s400),
+        ],
       ),
       body: ScrollableSinglePageBody(
         body: [
           const HeadingText(text: "Choose wallet to restore"),
-          const SubheadingText(text: "Listed by UserPk"),
+          const SubheadingText(text: "Wallets are listed by UserPk"),
           const SizedBox(height: Space.s600),
+
+          // List candidates (by UserPk)
           Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.start,
@@ -259,7 +314,7 @@ class _RestoreChooseWalletPageState extends State<RestoreChooseWalletPage> {
                 .widget
                 .candidates
                 .map(
-                  // TODO(phlip9): add "created at: XXX" subtitle
+                  // TODO(phlip9): add "created on XXX" subtitle to help differentiate?
                   (candidate) => ListTile(
                     title: Text(candidate.userPk()),
                     trailing: const Icon(LxIcons.nextSecondary),
@@ -270,6 +325,135 @@ class _RestoreChooseWalletPageState extends State<RestoreChooseWalletPage> {
                 .toList(),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Ask the user for their backup password to decrypt the root seed backup.
+class RestorePasswordPage extends StatefulWidget {
+  const RestorePasswordPage({
+    super.key,
+    required this.candidate,
+    required this.serverAuthCode,
+    required this.config,
+  });
+
+  final Config config;
+  final GDriveServerAuthCode serverAuthCode;
+  final GDriveRestoreCandidate candidate;
+
+  @override
+  State<RestorePasswordPage> createState() => _RestorePasswordPageState();
+}
+
+class _RestorePasswordPageState extends State<RestorePasswordPage> {
+  final GlobalKey<FormFieldState<String>> passwordFieldKey = GlobalKey();
+  final ValueNotifier<bool> isRestoring = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    this.isRestoring.dispose();
+    super.dispose();
+  }
+
+  Future<void> onSubmit() async {
+    if (this.isRestoring.value) return;
+
+    final fieldState = this.passwordFieldKey.currentState!;
+    final password = fieldState.value;
+    if (password == null || !fieldState.validate()) return;
+
+    final RootSeed rootSeed;
+    switch (this.tryDecrypt(fieldState.value)) {
+      case Ok(:final ok):
+        rootSeed = ok;
+      case Err():
+        return;
+    }
+
+    this.isRestoring.value = true;
+    try {
+      await this.onSubmitInner(password, rootSeed);
+    } finally {
+      if (this.mounted) this.isRestoring.value = false;
+    }
+  }
+
+  Future<void> onSubmitInner(String password, RootSeed rootSeed) async {
+    info("restore: recovered root seed");
+
+    // final config = this.widget.config;
+    // final serverAuthCode = this.widget.serverAuthCode;
+
+    await Future.delayed(const Duration(milliseconds: 1000), () => null);
+    // TODO(phlip9): impl
+  }
+
+  Result<RootSeed, String> tryDecrypt(final String? password) {
+    if (password == null || password.isEmpty) return const Err("");
+    return Result.tryFfi(
+      () => this.widget.candidate.tryDecrypt(password: password),
+    ).mapErr((err) {
+      warn("restore: decrypt: ${err.message}");
+      return "Invalid password";
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textFieldStyle = Fonts.fontUI.copyWith(
+      fontSize: Fonts.size700,
+      fontVariations: [Fonts.weightMedium],
+      fontFeatures: [Fonts.featDisambugation],
+      letterSpacing: -0.5,
+    );
+
+    return Scaffold(
+      appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
+        leading: const LxBackButton(isLeading: true),
+        actions: const [
+          LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
+          SizedBox(width: Space.s400),
+        ],
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const HeadingText(text: "Enter wallet backup password"),
+          const SubheadingText(
+              text: "This password was set when the wallet was first created"),
+          const SizedBox(height: Space.s600),
+
+          // Password field
+          TextFormField(
+            key: this.passwordFieldKey,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            validator: (password) => this.tryDecrypt(password).err,
+            onEditingComplete: this.onSubmit,
+            decoration: baseInputDecoration.copyWith(hintText: "Password"),
+            obscureText: true,
+            style: textFieldStyle,
+          ),
+        ],
+        // Restore ->
+        bottom: Padding(
+          padding: const EdgeInsets.only(top: Space.s500),
+          child: ValueListenableBuilder(
+            valueListenable: this.isRestoring,
+            builder: (context, isRestoring, widget) => AnimatedFillButton(
+              onTap: this.onSubmit,
+              loading: isRestoring,
+              label: const Text("Restore"),
+              icon: const Icon(LxIcons.next),
+              style: FilledButton.styleFrom(
+                backgroundColor: LxColors.moneyGoUp,
+                foregroundColor: LxColors.grey1000,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
