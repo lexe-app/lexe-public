@@ -17,8 +17,10 @@ import 'package:app_rs_dart/ffi/gdrive.dart'
         GDriveRestoreCandidate,
         GDriveRestoreCandidateRs,
         GDriveRestoreClient,
-        GDriveRestoreClientRs;
+        GDriveRestoreClientRs,
+        RootSeedRs;
 import 'package:app_rs_dart/ffi/types.dart' show DeployEnv, Network, RootSeed;
+// import 'package:app_rs_dart/frb.dart' show AnyhowException;
 import 'package:flutter/services.dart' show PlatformException, appFlavor;
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart'
     show FlutterWebAuth2;
@@ -223,10 +225,17 @@ class MockGDriveRestoreCandidate implements GDriveRestoreCandidate {
   GDriveRestoreCandidateRs get inner => throw UnimplementedError();
 
   @override
-  RootSeed tryDecrypt({required String password}) {
-    throw UnimplementedError();
-  }
+  RootSeed tryDecrypt({required String password}) =>
+      // throw AnyhowException("Password decryption failed: ciphertext malformed");
+      const MockRootSeed._();
 
   @override
   String userPk() => this._userPk;
+}
+
+class MockRootSeed implements RootSeed {
+  const MockRootSeed._();
+
+  @override
+  RootSeedRs get inner => throw UnimplementedError();
 }
