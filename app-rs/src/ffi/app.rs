@@ -97,7 +97,7 @@ impl AppHandle {
         App::signup(
             &mut rng,
             config.into(),
-            root_seed,
+            &root_seed,
             google_auth_code,
             Some(password),
         )
