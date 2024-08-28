@@ -20,6 +20,9 @@ import 'types.dart';
 // Rust type: RustOpaqueNom<App>
 abstract class App implements RustOpaqueInterface {}
 
+// Rust type: RustOpaqueNom<RootSeedRs>
+abstract class RootSeedRs implements RustOpaqueInterface {}
+
 // Rust type: RustOpaqueNom<SettingsDbRs>
 abstract class SettingsDbRs implements RustOpaqueInterface {}
 
@@ -135,9 +138,15 @@ class AppHandle {
           .crateFfiAppAppHandlePreflightPayOnchain(that: this, req: req);
 
   static Future<AppHandle> restore(
-          {required Config config, required String seedPhrase}) =>
-      AppRs.instance.api
-          .crateFfiAppAppHandleRestore(config: config, seedPhrase: seedPhrase);
+          {required Config config,
+          required String googleAuthCode,
+          required String password,
+          required RootSeed rootSeed}) =>
+      AppRs.instance.api.crateFfiAppAppHandleRestore(
+          config: config,
+          googleAuthCode: googleAuthCode,
+          password: password,
+          rootSeed: rootSeed);
 
   SettingsDb settingsDb() => AppRs.instance.api.crateFfiAppAppHandleSettingsDb(
         that: this,

@@ -381,9 +381,11 @@ fn wire__crate__ffi__app__app_handle_restore_impl(
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_config = <crate::ffi::types::Config>::sse_decode(&mut deserializer);
-let api_seed_phrase = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+let api_google_auth_code = <String>::sse_decode(&mut deserializer);
+let api_password = <String>::sse_decode(&mut deserializer);
+let api_root_seed = <crate::ffi::types::RootSeed>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::restore(api_config, api_seed_phrase).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::restore(api_config, api_google_auth_code, api_password, api_root_seed).await?;   Ok(output_ok)
                     })().await)
                 } })
 }

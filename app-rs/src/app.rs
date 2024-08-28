@@ -192,12 +192,112 @@ impl App {
         }))
     }
 
+    /// Restore wallet from backup.
     #[instrument(skip_all, name = "(restore)")]
     pub async fn restore(
-        _config: AppConfig,
-        _seed_phrase: String,
+        rng: &mut impl Crng,
+        config: AppConfig,
+        google_auth_code: String,
+        password: String,
+        root_seed: &RootSeed,
     ) -> anyhow::Result<Self> {
-        todo!()
+        // derive user key and node key
+        let user_key_pair = root_seed.derive_user_key_pair();
+        let user_pk = UserPk::from(*user_key_pair.public_key());
+        let node_key_pair = root_seed.derive_node_key_pair(rng);
+        let node_pk = NodePk(node_key_pair.public_key());
+        let user_config = AppConfigWithUserPk::new(config, user_pk);
+
+        // build NodeClient, GatewayClient
+        let bearer_authenticator =
+            Arc::new(BearerAuthenticator::new(user_key_pair, None));
+        let gateway_client = GatewayClient::new(
+            user_config.config.deploy_env,
+            user_config.config.gateway_url.clone(),
+        )
+        .context("Failed to build GatewayClient")?;
+        let node_client = NodeClient::new(
+            rng,
+            user_config.config.use_sgx,
+            root_seed,
+            user_config.config.deploy_env,
+            bearer_authenticator,
+            gateway_client.clone(),
+        )
+        .context("Failed to build NodeClient")?;
+
+        // Create new provision DB
+        let provision_ffs =
+            FlatFileFs::create_clean_dir_all(user_config.provision_db_dir())
+                .context("Could not create provision ffs")?;
+
+        // Potentially restore settings DB
+        let settings_ffs =
+            FlatFileFs::create_dir_all(user_config.settings_db_dir())
+                .context("Could not create settings ffs")?;
+        let settings_db = Arc::new(SettingsDb::load(settings_ffs));
+
+        // Create new payments DB
+        let payments_ffs =
+            FlatFileFs::create_clean_dir_all(user_config.payment_db_dir())
+                .context("Could not create payments ffs")?;
+        let payment_db = Mutex::new(PaymentDb::empty(payments_ffs));
+
+        // Ask gateway for latest release
+        let latest_release = gateway_client
+            .latest_release()
+            .await
+            .context("Could not fetch latest release")?;
+        info!(
+            version = %latest_release.version,
+            measurement = %latest_release.measurement,
+            "latest release",
+        );
+
+        // single-use `serverAuthCode` from Google OAuth 2 consent flow, used by
+        // the enclave to get access+refresh tokens.
+        //
+        // Ignored in local dev.
+        let google_auth_code = match user_config.config.deploy_env {
+            DeployEnv::Dev => None,
+            DeployEnv::Prod | DeployEnv::Staging => Some(google_auth_code),
+        };
+
+        // Reprovision credentials to most recent node version
+        Self::do_provision(
+            rng,
+            &node_client,
+            &latest_release,
+            &user_config,
+            root_seed,
+            &provision_ffs,
+            google_auth_code,
+            Some(&password),
+        )
+        .await
+        .context("Re-provision failed")?;
+        info!("Successfully re-provisioned to latest release");
+
+        // we've successfully signed up and provisioned our node; we can finally
+        // "commit" and persist our root seed
+        let secret_store = SecretStore::new(&user_config.config);
+        secret_store
+            .write_root_seed(root_seed)
+            .context("Failed to persist root seed")?;
+
+        info!(
+            %user_pk,
+            %node_pk,
+            "restored user"
+        );
+
+        Ok(Self {
+            node_client,
+            gateway_client,
+            payment_db,
+            payment_sync_lock: tokio::sync::Mutex::new(()),
+            settings_db,
+        })
     }
 
     pub async fn signup(
@@ -270,7 +370,7 @@ impl App {
 
         // Create new provision DB
         let provision_ffs =
-            FlatFileFs::create_dir_all(user_config.provision_db_dir())
+            FlatFileFs::create_clean_dir_all(user_config.provision_db_dir())
                 .context("Could not create provision ffs")?;
 
         // Create new settings DB
@@ -311,8 +411,6 @@ impl App {
         )
         .await
         .context("First provision failed")?;
-
-        // TODO(phlip9): commit RootSeed earlier?
 
         // we've successfully signed up and provisioned our node; we can finally
         // "commit" and persist our root seed
