@@ -346,6 +346,7 @@ class MockSignupApi implements SignupApi {
       Future.delayed(
         const Duration(milliseconds: 2000),
         () => Ok(this.app),
+        // () => const Err(FfiError("[Connect=10] Could not connect")),
       );
 }
 
