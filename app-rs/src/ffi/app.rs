@@ -9,8 +9,10 @@ use common::{
         qs::UpdatePaymentNote as UpdatePaymentNoteRs,
         Empty,
     },
+    env::DeployEnv,
     ln::payments::PaymentIndex as PaymentIndexRs,
     rng::SysRng,
+    root_seed::RootSeed as RootSeedRs,
 };
 use flutter_rust_bridge::{frb, RustOpaqueNom};
 
@@ -52,14 +54,23 @@ impl AppHandle {
     pub async fn restore(
         config: Config,
         google_auth_code: String,
-        password: String,
+        password: &str,
         root_seed: RootSeed,
     ) -> anyhow::Result<AppHandle> {
+        // Ignored in local dev.
+        //
+        // Single-use `serverAuthCode` from Google OAuth 2 consent flow, used by
+        // the enclave to get access+refresh tokens.
+        let google_auth_code = match DeployEnv::from(config.deploy_env) {
+            DeployEnv::Dev => None,
+            DeployEnv::Prod | DeployEnv::Staging => Some(google_auth_code),
+        };
+
         App::restore(
             &mut SysRng::new(),
             config.into(),
             google_auth_code,
-            password,
+            Some(password),
             &root_seed.inner,
         )
         .await
@@ -70,13 +81,25 @@ impl AppHandle {
     pub async fn signup(
         config: Config,
         google_auth_code: String,
-        password: String,
+        password: &str,
     ) -> anyhow::Result<AppHandle> {
+        // Ignored in local dev.
+        //
+        // Single-use `serverAuthCode` from Google OAuth 2 consent flow, used by
+        // the enclave to get access+refresh tokens.
+        let google_auth_code = match DeployEnv::from(config.deploy_env) {
+            DeployEnv::Dev => None,
+            DeployEnv::Prod | DeployEnv::Staging => Some(google_auth_code),
+        };
+
+        let mut rng = SysRng::new();
+        let root_seed = RootSeedRs::from_rng(&mut rng);
         App::signup(
-            &mut SysRng::new(),
+            &mut rng,
             config.into(),
+            root_seed,
             google_auth_code,
-            password,
+            Some(password),
         )
         .await
         .context("Failed to generate and signup new wallet")

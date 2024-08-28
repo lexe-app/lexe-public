@@ -197,8 +197,8 @@ impl App {
     pub async fn restore(
         rng: &mut impl Crng,
         config: AppConfig,
-        google_auth_code: String,
-        password: String,
+        google_auth_code: Option<String>,
+        password: Option<&str>,
         root_seed: &RootSeed,
     ) -> anyhow::Result<Self> {
         // derive user key and node key
@@ -254,15 +254,6 @@ impl App {
             "latest release",
         );
 
-        // single-use `serverAuthCode` from Google OAuth 2 consent flow, used by
-        // the enclave to get access+refresh tokens.
-        //
-        // Ignored in local dev.
-        let google_auth_code = match user_config.config.deploy_env {
-            DeployEnv::Dev => None,
-            DeployEnv::Prod | DeployEnv::Staging => Some(google_auth_code),
-        };
-
         // Reprovision credentials to most recent node version
         Self::do_provision(
             rng,
@@ -272,7 +263,7 @@ impl App {
             root_seed,
             &provision_ffs,
             google_auth_code,
-            Some(&password),
+            password,
         )
         .await
         .context("Re-provision failed")?;
@@ -300,41 +291,14 @@ impl App {
         })
     }
 
-    pub async fn signup(
-        rng: &mut impl Crng,
-        config: AppConfig,
-        google_auth_code: String,
-        password: String,
-    ) -> anyhow::Result<Self> {
-        // sample a new RootSeed
-        let root_seed = RootSeed::from_rng(rng);
-
-        // TODO(phlip9): what if we need to retry signup? we should probably
-        // check SecretStore defensively to see if we've already signed up and
-        // stored a RootSeed.
-
-        // single-use `serverAuthCode` from Google OAuth 2 consent flow, used by
-        // the enclave to get access+refresh tokens. Ignored in local dev.
-        let google_auth_code = match config.deploy_env {
-            DeployEnv::Dev => None,
-            DeployEnv::Prod | DeployEnv::Staging => Some(google_auth_code),
-        };
-
-        // The root seed backup password.
-        let password = Some(password);
-
-        Self::signup_custom(rng, config, root_seed, google_auth_code, password)
-            .await
-    }
-
     /// Allows signing up with a specific [`RootSeed`], useful in tests.
     #[instrument(skip_all, name = "(signup)")]
-    pub async fn signup_custom(
+    pub async fn signup(
         rng: &mut impl Crng,
         config: AppConfig,
         root_seed: RootSeed,
         google_auth_code: Option<String>,
-        maybe_password: Option<String>,
+        password: Option<&str>,
     ) -> anyhow::Result<Self> {
         // derive user key and node key
         let user_key_pair = root_seed.derive_user_key_pair();
@@ -407,7 +371,7 @@ impl App {
             &root_seed,
             &provision_ffs,
             google_auth_code,
-            maybe_password.as_deref(),
+            password,
         )
         .await
         .context("First provision failed")?;
