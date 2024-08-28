@@ -34,7 +34,8 @@ import 'package:lexeapp/components.dart'
         showModalAsyncFlow;
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/design_mode/mocks.dart' as mocks;
-import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
+import 'package:lexeapp/gdrive_auth.dart'
+    show GDriveAuth, GDriveServerAuthCode, MockGDriveRestoreCandidate;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/landing.dart' show LandingPage;
@@ -235,6 +236,35 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (context) => RestorePage(
                 config: widget.config,
                 gdriveAuth: GDriveAuth.prod,
+                restoreApi: mockRestoreApi,
+              ),
+            ),
+            Component(
+              "RestoreChooseWalletPage",
+              (context) => RestoreChooseWalletPage(
+                candidates: const [
+                  MockGDriveRestoreCandidate(
+                      userPk:
+                          "4072836db6c62f1fd07281feb1f2d6d1b8f05f8be3f0019a9205edff244017f1"),
+                  MockGDriveRestoreCandidate(
+                      userPk:
+                          "ef64652cc9fc1d79d174bb52d0ffb7ad365db842e72e056aa5c4bfe00bcb20da"),
+                ],
+                serverAuthCode:
+                    const GDriveServerAuthCode(serverAuthCode: "fake"),
+                config: widget.config,
+                restoreApi: mockRestoreApi,
+              ),
+            ),
+            Component(
+              "RestorePasswordPage",
+              (context) => RestorePasswordPage(
+                candidate: const MockGDriveRestoreCandidate(
+                    userPk:
+                        "ef64652cc9fc1d79d174bb52d0ffb7ad365db842e72e056aa5c4bfe00bcb20da"),
+                serverAuthCode:
+                    const GDriveServerAuthCode(serverAuthCode: "fake"),
+                config: widget.config,
                 restoreApi: mockRestoreApi,
               ),
             ),
