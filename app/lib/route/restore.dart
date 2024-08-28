@@ -28,18 +28,54 @@ import 'package:lexeapp/route/send/page.dart'
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
 
+/// A tiny interface so we can mock the [AppHandle.restore] call in design mode.
+abstract interface class RestoreApi {
+  static const RestoreApi prod = _ProdRestoreApi._();
+
+  Future<FfiResult<AppHandle>> restore({
+    required Config config,
+    required String googleAuthCode,
+    required String password,
+    required RootSeed rootSeed,
+  });
+}
+
+class _ProdRestoreApi implements RestoreApi {
+  const _ProdRestoreApi._();
+
+  @override
+  Future<FfiResult<AppHandle>> restore(
+          {required Config config,
+          required String googleAuthCode,
+          required String password,
+          required RootSeed rootSeed}) =>
+      Result.tryFfiAsync(() => AppHandle.restore(
+            config: config,
+            googleAuthCode: googleAuthCode,
+            password: password,
+            rootSeed: rootSeed,
+          ));
+}
+
 /// The entry point into the gdrive wallet restore UI flow.
 class RestorePage extends StatelessWidget {
   const RestorePage(
-      {super.key, required this.config, required this.gdriveAuth});
+      {super.key,
+      required this.config,
+      required this.gdriveAuth,
+      required this.restoreApi});
 
   final Config config;
   final GDriveAuth gdriveAuth;
+  final RestoreApi restoreApi;
 
   @override
   Widget build(BuildContext context) => MultistepFlow<AppHandle?>(
         builder: (_) => RestoreGDriveAuthPage(
-            config: this.config, gdriveAuth: this.gdriveAuth),
+          config: this.config,
+          gdriveAuth: this.gdriveAuth,
+          restoreApi: this.restoreApi,
+        ),
       );
 }
 
@@ -47,10 +83,14 @@ class RestorePage extends StatelessWidget {
 /// order to locate their wallet backups.
 class RestoreGDriveAuthPage extends StatefulWidget {
   const RestoreGDriveAuthPage(
-      {super.key, required this.config, required this.gdriveAuth});
+      {super.key,
+      required this.config,
+      required this.gdriveAuth,
+      required this.restoreApi});
 
   final Config config;
   final GDriveAuth gdriveAuth;
+  final RestoreApi restoreApi;
 
   @override
   State<RestoreGDriveAuthPage> createState() =>
@@ -157,13 +197,13 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
 
     // Either (1) goto password prompt if only one candidate, or (2) ask user to
     // choose which wallet first.
-    // TODO(phlip9): replace bool -> ???
-    final bool? flowResult = await Navigator.of(this.context).push(
+    final AppHandle? flowResult = await Navigator.of(this.context).push(
       MaterialPageRoute(builder: (_) {
         // (normal case): Only one backup, open the password prompt page directly.
         if (candidates.length == 1) {
           return RestorePasswordPage(
             config: this.widget.config,
+            restoreApi: this.widget.restoreApi,
             serverAuthCode: serverAuthCode,
             candidate: candidates.single,
           );
@@ -177,6 +217,7 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
           // nickname system or something.
           return RestoreChooseWalletPage(
             config: this.widget.config,
+            restoreApi: this.widget.restoreApi,
             serverAuthCode: serverAuthCode,
             candidates: candidates,
           );
@@ -259,9 +300,11 @@ class RestoreChooseWalletPage extends StatefulWidget {
     required this.candidates,
     required this.serverAuthCode,
     required this.config,
+    required this.restoreApi,
   });
 
   final Config config;
+  final RestoreApi restoreApi;
   final GDriveServerAuthCode serverAuthCode;
   final List<GDriveRestoreCandidate> candidates;
 
@@ -275,13 +318,13 @@ class _RestoreChooseWalletPageState extends State<RestoreChooseWalletPage> {
     info("restore: chose UserPk: ${candidate.userPk()}");
 
     // Goto password prompt.
-    // TODO(phlip9): replace bool -> ???
-    final bool? flowResult =
+    final AppHandle? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
             builder: (_) => RestorePasswordPage(
                   config: this.widget.config,
                   serverAuthCode: this.widget.serverAuthCode,
                   candidate: candidate,
+                  restoreApi: this.widget.restoreApi,
                 )));
     if (flowResult == null) return;
     if (!this.mounted) return;
@@ -337,9 +380,11 @@ class RestorePasswordPage extends StatefulWidget {
     required this.candidate,
     required this.serverAuthCode,
     required this.config,
+    required this.restoreApi,
   });
 
   final Config config;
+  final RestoreApi restoreApi;
   final GDriveServerAuthCode serverAuthCode;
   final GDriveRestoreCandidate candidate;
 
@@ -350,15 +395,20 @@ class RestorePasswordPage extends StatefulWidget {
 class _RestorePasswordPageState extends State<RestorePasswordPage> {
   final GlobalKey<FormFieldState<String>> passwordFieldKey = GlobalKey();
   final ValueNotifier<bool> isRestoring = ValueNotifier(false);
+  final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
 
   @override
   void dispose() {
     this.isRestoring.dispose();
+    this.errorMessage.dispose();
     super.dispose();
   }
 
   Future<void> onSubmit() async {
     if (this.isRestoring.value) return;
+
+    // Hide error message
+    this.errorMessage.value = null;
 
     final fieldState = this.passwordFieldKey.currentState!;
     final password = fieldState.value;
@@ -383,11 +433,32 @@ class _RestorePasswordPageState extends State<RestorePasswordPage> {
   Future<void> onSubmitInner(String password, RootSeed rootSeed) async {
     info("restore: recovered root seed");
 
-    // final config = this.widget.config;
-    // final serverAuthCode = this.widget.serverAuthCode;
+    final restoreApi = this.widget.restoreApi;
+    final config = this.widget.config;
+    final serverAuthCode = this.widget.serverAuthCode.serverAuthCode;
 
-    await Future.delayed(const Duration(milliseconds: 1000), () => null);
-    // TODO(phlip9): impl
+    final result = await restoreApi.restore(
+      config: config,
+      googleAuthCode: serverAuthCode,
+      password: password,
+      rootSeed: rootSeed,
+    );
+    if (!this.mounted) return;
+
+    final AppHandle flowResult;
+    switch (result) {
+      case Ok(:final ok):
+        flowResult = ok;
+      case Err(:final err):
+        error("restore: AppHandle.restore failed: $err");
+        this.errorMessage.value = ErrorMessage(
+          title: "Error restoring wallet",
+          message: err.message,
+        );
+        return;
+    }
+
+    unawaited(Navigator.of(this.context).maybePop(flowResult));
   }
 
   Result<RootSeed, String> tryDecrypt(final String? password) {
@@ -435,6 +506,15 @@ class _RestorePasswordPageState extends State<RestorePasswordPage> {
             decoration: baseInputDecoration.copyWith(hintText: "Password"),
             obscureText: true,
             style: textFieldStyle,
+          ),
+
+          // Error message
+          ValueListenableBuilder(
+            valueListenable: this.errorMessage,
+            builder: (_context, errorMessage, _widget) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: Space.s500),
+              child: ErrorMessageSection(errorMessage),
+            ),
           ),
         ],
         // Restore ->

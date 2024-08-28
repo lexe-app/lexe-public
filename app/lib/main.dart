@@ -9,6 +9,7 @@ import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/route/landing.dart' show LandingPage;
+import 'package:lexeapp/route/restore.dart' show RestoreApi;
 import 'package:lexeapp/route/signup.dart' show SignupApi;
 import 'package:lexeapp/route/wallet.dart' show WalletPage;
 import 'package:lexeapp/settings.dart' show LxSettings;
@@ -71,6 +72,7 @@ Future<void> main() async {
       config: config,
       gdriveAuth: gdriveAuth,
       signupApi: SignupApi.prod,
+      restoreApi: RestoreApi.prod,
       uriEvents: uriEvents,
     );
   }

@@ -15,6 +15,7 @@ import 'package:lexeapp/components.dart'
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/logger.dart' show error, info, warn;
 import 'package:lexeapp/result.dart';
+import 'package:lexeapp/route/restore.dart' show RestoreApi, RestorePage;
 import 'package:lexeapp/route/signup.dart' show SignupApi, SignupPage;
 import 'package:lexeapp/route/wallet.dart' show WalletPage;
 import 'package:lexeapp/settings.dart';
@@ -31,12 +32,14 @@ class LandingPage extends StatefulWidget {
     required this.config,
     required this.gdriveAuth,
     required this.signupApi,
+    required this.restoreApi,
     required this.uriEvents,
   });
 
   final Config config;
   final GDriveAuth gdriveAuth;
   final SignupApi signupApi;
+  final RestoreApi restoreApi;
   final UriEvents uriEvents;
 
   @override
@@ -62,7 +65,7 @@ class _LandingPageState extends State<LandingPage> {
   /// Start the Signup UI flow. Future resolves when the user has either
   /// (1) completed the flow and signed up or (2) canceled the flow.
   Future<void> doSignupFlow() async {
-    info("do signup flow");
+    info("landing: begin signup flow");
 
     final AppHandle? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
@@ -76,11 +79,9 @@ class _LandingPageState extends State<LandingPage> {
     if (flowResult == null) return;
     if (!this.mounted) return;
 
-    info("successfully signed up!");
+    info("landing: successfully signed up");
 
     final app = flowResult;
-
-    // ignore: use_build_context_synchronously
     unawaited(Navigator.of(this.context).pushReplacement(MaterialPageRoute(
       builder: (_) => WalletPage(
         config: this.widget.config,
@@ -94,7 +95,30 @@ class _LandingPageState extends State<LandingPage> {
   /// Start the Wallet Restore UI flow. Future resolves when the user has either
   /// (1) completed the flow and restored or (2) canceled the flow.
   Future<void> doRestoreFlow() async {
-    info("do restore flow");
+    info("landing: begin restore flow");
+
+    final AppHandle? flowResult =
+        await Navigator.of(this.context).push(MaterialPageRoute(
+            builder: (_) => RestorePage(
+                  config: this.widget.config,
+                  gdriveAuth: this.widget.gdriveAuth,
+                  restoreApi: this.widget.restoreApi,
+                )));
+
+    if (flowResult == null) return;
+    if (!this.mounted) return;
+
+    info("landing: successfully restored");
+
+    final app = flowResult;
+    unawaited(Navigator.of(this.context).pushReplacement(MaterialPageRoute(
+      builder: (_) => WalletPage(
+        config: this.widget.config,
+        app: app,
+        settings: LxSettings(app.settingsDb()),
+        uriEvents: this.widget.uriEvents,
+      ),
+    )));
   }
 
   void prevPage() {
@@ -263,7 +287,7 @@ Your wallet always verifies your node's software before sharing any keys.
                           numPages: numPages,
                           selectedPageIndex: this.selectedPageIndex,
                           onSignupPressed: () => unawaited(this.doSignupFlow()),
-                          onRecoverPressed: () =>
+                          onRestorePressed: () =>
                               unawaited(this.doRestoreFlow()),
                           onTapPrev: this.prevPage,
                           onTapNext: this.nextPage,
@@ -325,7 +349,7 @@ class LandingButtons extends StatelessWidget {
     super.key,
     required this.config,
     required this.onSignupPressed,
-    required this.onRecoverPressed,
+    required this.onRestorePressed,
     required this.selectedPageIndex,
     required this.numPages,
     required this.onTapPrev,
@@ -338,7 +362,7 @@ class LandingButtons extends StatelessWidget {
   final ValueListenable<int> selectedPageIndex;
 
   final VoidCallback onSignupPressed;
-  final VoidCallback onRecoverPressed;
+  final VoidCallback onRestorePressed;
   final VoidCallback onTapPrev;
   final VoidCallback onTapNext;
 
@@ -374,7 +398,7 @@ class LandingButtons extends StatelessWidget {
 
         // Recover Wallet
         LxOutlinedButton(
-          onTap: this.onRecoverPressed,
+          onTap: this.onRestorePressed,
           style: ButtonStyle(
             fixedSize:
                 WidgetStateProperty.all(const Size(maxWidth, Space.s800)),
