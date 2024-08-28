@@ -25,9 +25,9 @@ import 'package:lexeapp/route/send/page.dart'
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
 
-/// A tiny interface for mocking the `signup` call.
+/// A tiny interface so we can mock the [AppHandle.signup] call in design mode.
 abstract interface class SignupApi {
-  static const SignupApi prod = _ProdSignupApi();
+  static const SignupApi prod = _ProdSignupApi._();
 
   Future<FfiResult<AppHandle>> signup({
     required Config config,
@@ -37,7 +37,7 @@ abstract interface class SignupApi {
 }
 
 class _ProdSignupApi implements SignupApi {
-  const _ProdSignupApi();
+  const _ProdSignupApi._();
 
   @override
   Future<FfiResult<AppHandle>> signup({

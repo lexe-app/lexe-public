@@ -33,10 +33,12 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentIndex,
         PaymentKind,
         PaymentStatus,
+        RootSeed,
         ShortPaymentAndIndex;
 import 'package:app_rs_dart/ffi/types.ext.dart' show PaymentExt;
 import 'package:collection/collection.dart';
 import 'package:lexeapp/result.dart';
+import 'package:lexeapp/route/restore.dart' show RestoreApi;
 import 'package:lexeapp/route/signup.dart' show SignupApi;
 
 // TODO(phlip9): unhack
@@ -340,6 +342,24 @@ class MockSignupApi implements SignupApi {
     required Config config,
     required String googleAuthCode,
     required String password,
+  }) =>
+      Future.delayed(
+        const Duration(milliseconds: 2000),
+        () => Ok(this.app),
+      );
+}
+
+class MockRestoreApi implements RestoreApi {
+  const MockRestoreApi({required this.app});
+
+  final AppHandle app;
+
+  @override
+  Future<FfiResult<AppHandle>> restore({
+    required Config config,
+    required String googleAuthCode,
+    required String password,
+    required RootSeed rootSeed,
   }) =>
       Future.delayed(
         const Duration(milliseconds: 2000),

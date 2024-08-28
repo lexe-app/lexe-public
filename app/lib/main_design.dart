@@ -159,6 +159,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
   Widget build(BuildContext context) {
     final mockApp = mocks.MockAppHandle();
     final mockSignupApi = mocks.MockSignupApi(app: mockApp);
+    final mockRestoreApi = mocks.MockRestoreApi(app: mockApp);
 
     final cidBytes = List.generate(32, (idx) => idx);
     final cid = ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
@@ -193,6 +194,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 config: widget.config,
                 gdriveAuth: GDriveAuth.mock,
                 signupApi: mockSignupApi,
+                restoreApi: mockRestoreApi,
                 uriEvents: this.widget.uriEvents,
               ),
             ),
@@ -223,12 +225,18 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             Component(
               "RestorePage (mock gdrive)",
               (context) => RestorePage(
-                  config: widget.config, gdriveAuth: GDriveAuth.mock),
+                config: widget.config,
+                gdriveAuth: GDriveAuth.mock,
+                restoreApi: mockRestoreApi,
+              ),
             ),
             Component(
               "RestorePage (real gdrive)",
               (context) => RestorePage(
-                  config: widget.config, gdriveAuth: GDriveAuth.prod),
+                config: widget.config,
+                gdriveAuth: GDriveAuth.prod,
+                restoreApi: mockRestoreApi,
+              ),
             ),
             Component(
               "WalletPage",
