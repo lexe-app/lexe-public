@@ -214,10 +214,12 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
   final GlobalKey<FormFieldState<String>> confirmPasswordFieldKey = GlobalKey();
 
   final ValueNotifier<bool> isSigningUp = ValueNotifier(false);
+  final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
 
   @override
   void dispose() {
     this.isSigningUp.dispose();
+    this.errorMessage.dispose();
     super.dispose();
   }
 
@@ -255,6 +257,9 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
     // Ignore press while signing up
     if (this.isSigningUp.value) return;
 
+    // Hide error message
+    this.errorMessage.value = null;
+
     final passwordIsValid = this.passwordFieldKey.currentState!.validate();
     final fieldState = this.confirmPasswordFieldKey.currentState!;
     if (!passwordIsValid || !fieldState.validate()) {
@@ -272,7 +277,14 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
     info("SignupBackupPasswordPage: ready to sign up");
 
     this.isSigningUp.value = true;
+    try {
+      await this.onSubmitInner(password);
+    } finally {
+      if (this.mounted) this.isSigningUp.value = false;
+    }
+  }
 
+  Future<void> onSubmitInner(String password) async {
     final result = await this.widget.signupApi.signup(
           config: this.widget.config,
           googleAuthCode: this.widget.authInfo.serverAuthCode,
@@ -280,15 +292,20 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
         );
     if (!this.mounted) return;
 
-    this.isSigningUp.value = false;
-
+    final AppHandle flowResult;
     switch (result) {
       case Ok(:final ok):
-        // ignore: use_build_context_synchronously
-        unawaited(Navigator.of(this.context).maybePop(ok));
+        flowResult = ok;
       case Err(:final err):
         error("Failed to signup: $err");
+        this.errorMessage.value = ErrorMessage(
+          title: "Failed to signup",
+          message: err.message,
+        );
+        return;
     }
+
+    unawaited(Navigator.of(this.context).maybePop(flowResult));
   }
 
   @override
@@ -314,6 +331,7 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
           const HeadingText(text: "Enter a backup password"),
           const SubheadingText(text: "with at least 12 characters"),
           const SizedBox(height: Space.s600),
+
           // Password field
           TextFormField(
             key: this.passwordFieldKey,
@@ -333,6 +351,7 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
             style: textFieldStyle,
           ),
           const SizedBox(height: Space.s200),
+
           // Confirm password field
           TextFormField(
             key: this.confirmPasswordFieldKey,
@@ -345,7 +364,15 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
             obscureText: true,
             style: textFieldStyle,
           ),
-          const SizedBox(height: Space.s800),
+
+          // Error message
+          ValueListenableBuilder(
+            valueListenable: this.errorMessage,
+            builder: (_context, errorMessage, _widget) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: Space.s500),
+              child: ErrorMessageSection(errorMessage),
+            ),
+          ),
         ],
         bottom: Column(
           mainAxisSize: MainAxisSize.min,
