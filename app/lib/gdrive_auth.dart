@@ -14,7 +14,7 @@ import 'package:app_rs_dart/ffi/gdrive.dart'
     show
         GDriveClient,
         GDriveClientInner,
-        GDriveOauth2Flow,
+        GDriveOAuth2Flow,
         GDriveRestoreCandidate,
         GDriveRestoreCandidateRs,
         GDriveRestoreClient,
@@ -95,7 +95,7 @@ class ProdGDriveAuth extends GDriveAuth {
     const serverClientId =
         "495704988639-19bfg8k5f3runiio4apbicpounc10gh1.apps.googleusercontent.com";
 
-    final oauthFlow = GDriveOauth2Flow.init(
+    final oauthFlow = GDriveOAuth2Flow.init(
         clientId: clientId, serverClientId: serverClientId);
 
     // // Uncomment while debugging

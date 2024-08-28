@@ -10,7 +10,7 @@ pub(crate) use gdrive::restore::{
 use crate::ffi::types::{DeployEnv, Network, RootSeed};
 
 /// Context required to execute the Google Drive OAuth2 authorization flow.
-pub struct GDriveOauth2Flow {
+pub struct GDriveOAuth2Flow {
     pub client_id: String,
     pub code_verifier: String,
     pub redirect_uri: String,
@@ -39,14 +39,14 @@ pub struct GDriveRestoreCandidate {
     pub(crate) inner: RustOpaqueNom<GDriveRestoreCandidateRs>,
 }
 
-impl GDriveOauth2Flow {
+impl GDriveOAuth2Flow {
     /// Begin the OAuth2 flow for the given mobile `client_id`. We'll also get
     /// a `server_code` we can exchange at the node provision enclave, which
     /// uses `server_client_id`.
     #[frb(sync)]
     pub fn init(client_id: String, server_client_id: &str) -> Self {
         let pkce =
-            gdrive::oauth2::Oauth2PkceCodeChallenge::gen(&mut SysRng::new());
+            gdrive::oauth2::OAuth2PkceCodeChallenge::gen(&mut SysRng::new());
 
         // TODO(phlip9): Linux and Windows need to provide their own
         // `http://localhost:{port}` redirect URI.

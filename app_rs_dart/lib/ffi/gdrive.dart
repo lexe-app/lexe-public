@@ -53,14 +53,14 @@ class GDriveClient {
 }
 
 /// Context required to execute the Google Drive OAuth2 authorization flow.
-class GDriveOauth2Flow {
+class GDriveOAuth2Flow {
   final String clientId;
   final String codeVerifier;
   final String redirectUri;
   final String redirectUriScheme;
   final String url;
 
-  const GDriveOauth2Flow({
+  const GDriveOAuth2Flow({
     required this.clientId,
     required this.codeVerifier,
     required this.redirectUri,
@@ -72,14 +72,14 @@ class GDriveOauth2Flow {
   /// call this fn to exchange the client auth code for credentials + client.
   Future<GDriveClient> exchange({required String resultUri}) => AppRs
       .instance.api
-      .crateFfiGdriveGDriveOauth2FlowExchange(that: this, resultUri: resultUri);
+      .crateFfiGdriveGDriveOAuth2FlowExchange(that: this, resultUri: resultUri);
 
   /// Begin the OAuth2 flow for the given mobile `client_id`. We'll also get
   /// a `server_code` we can exchange at the node provision enclave, which
   /// uses `server_client_id`.
-  static GDriveOauth2Flow init(
+  static GDriveOAuth2Flow init(
           {required String clientId, required String serverClientId}) =>
-      AppRs.instance.api.crateFfiGdriveGDriveOauth2FlowInit(
+      AppRs.instance.api.crateFfiGdriveGDriveOAuth2FlowInit(
           clientId: clientId, serverClientId: serverClientId);
 
   @override
@@ -93,7 +93,7 @@ class GDriveOauth2Flow {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is GDriveOauth2Flow &&
+      other is GDriveOAuth2Flow &&
           runtimeType == other.runtimeType &&
           clientId == other.clientId &&
           codeVerifier == other.codeVerifier &&

@@ -117,7 +117,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   GDriveClient dco_decode_box_autoadd_g_drive_client(dynamic raw);
 
   @protected
-  GDriveOauth2Flow dco_decode_box_autoadd_g_drive_oauth_2_flow(dynamic raw);
+  GDriveOAuth2Flow dco_decode_box_autoadd_g_drive_o_auth_2_flow(dynamic raw);
 
   @protected
   GDriveRestoreCandidate dco_decode_box_autoadd_g_drive_restore_candidate(
@@ -203,7 +203,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   GDriveClient dco_decode_g_drive_client(dynamic raw);
 
   @protected
-  GDriveOauth2Flow dco_decode_g_drive_oauth_2_flow(dynamic raw);
+  GDriveOAuth2Flow dco_decode_g_drive_o_auth_2_flow(dynamic raw);
 
   @protected
   GDriveRestoreCandidate dco_decode_g_drive_restore_candidate(dynamic raw);
@@ -416,7 +416,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       SseDeserializer deserializer);
 
   @protected
-  GDriveOauth2Flow sse_decode_box_autoadd_g_drive_oauth_2_flow(
+  GDriveOAuth2Flow sse_decode_box_autoadd_g_drive_o_auth_2_flow(
       SseDeserializer deserializer);
 
   @protected
@@ -512,7 +512,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   GDriveClient sse_decode_g_drive_client(SseDeserializer deserializer);
 
   @protected
-  GDriveOauth2Flow sse_decode_g_drive_oauth_2_flow(
+  GDriveOAuth2Flow sse_decode_g_drive_o_auth_2_flow(
       SseDeserializer deserializer);
 
   @protected
@@ -741,8 +741,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       GDriveClient self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_g_drive_oauth_2_flow(
-      GDriveOauth2Flow self, SseSerializer serializer);
+  void sse_encode_box_autoadd_g_drive_o_auth_2_flow(
+      GDriveOAuth2Flow self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_g_drive_restore_candidate(
@@ -838,8 +838,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_g_drive_client(GDriveClient self, SseSerializer serializer);
 
   @protected
-  void sse_encode_g_drive_oauth_2_flow(
-      GDriveOauth2Flow self, SseSerializer serializer);
+  void sse_encode_g_drive_o_auth_2_flow(
+      GDriveOAuth2Flow self, SseSerializer serializer);
 
   @protected
   void sse_encode_g_drive_restore_candidate(
