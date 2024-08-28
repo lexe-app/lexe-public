@@ -492,6 +492,7 @@ class _RestorePasswordPageState extends State<RestorePasswordPage> {
       body: ScrollableSinglePageBody(
         body: [
           const HeadingText(text: "Enter wallet backup password"),
+          const SizedBox(height: Space.s200),
           const SubheadingText(
               text: "This password was set when the wallet was first created"),
           const SizedBox(height: Space.s600),
