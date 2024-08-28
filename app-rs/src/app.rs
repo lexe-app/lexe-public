@@ -296,7 +296,7 @@ impl App {
     pub async fn signup(
         rng: &mut impl Crng,
         config: AppConfig,
-        root_seed: RootSeed,
+        root_seed: &RootSeed,
         google_auth_code: Option<String>,
         password: Option<&str>,
     ) -> anyhow::Result<Self> {
@@ -325,7 +325,7 @@ impl App {
         let node_client = NodeClient::new(
             rng,
             user_config.config.use_sgx,
-            &root_seed,
+            root_seed,
             user_config.config.deploy_env,
             bearer_authenticator,
             gateway_client.clone(),
@@ -368,7 +368,7 @@ impl App {
             &node_client,
             &latest_release,
             &user_config,
-            &root_seed,
+            root_seed,
             &provision_ffs,
             google_auth_code,
             password,
@@ -380,7 +380,7 @@ impl App {
         // "commit" and persist our root seed
         let secret_store = SecretStore::new(&user_config.config);
         secret_store
-            .write_root_seed(&root_seed)
+            .write_root_seed(root_seed)
             .context("Failed to persist root seed")?;
 
         info!(
@@ -493,6 +493,7 @@ impl App {
 }
 
 /// Pure-Rust configuration for a particular user app.
+#[derive(Clone)]
 pub struct AppConfig {
     pub deploy_env: DeployEnv,
     pub network: common::ln::network::LxNetwork,
