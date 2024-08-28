@@ -385,7 +385,7 @@ let api_google_auth_code = <String>::sse_decode(&mut deserializer);
 let api_password = <String>::sse_decode(&mut deserializer);
 let api_root_seed = <crate::ffi::types::RootSeed>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::restore(api_config, api_google_auth_code, api_password, api_root_seed).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::restore(api_config, api_google_auth_code, &api_password, api_root_seed).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -415,7 +415,7 @@ fn wire__crate__ffi__app__app_handle_signup_impl(
 let api_google_auth_code = <String>::sse_decode(&mut deserializer);
 let api_password = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::signup(api_config, api_google_auth_code, api_password).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::signup(api_config, api_google_auth_code, &api_password).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
