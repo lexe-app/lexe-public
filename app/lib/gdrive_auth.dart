@@ -9,6 +9,7 @@ library;
 
 import 'dart:io' show Platform;
 
+import 'package:app_rs_dart/ffi/app.dart';
 import 'package:app_rs_dart/ffi/gdrive.dart'
     show
         GDriveClient,
@@ -17,8 +18,7 @@ import 'package:app_rs_dart/ffi/gdrive.dart'
         GDriveRestoreCandidate,
         GDriveRestoreCandidateRs,
         GDriveRestoreClient,
-        GDriveRestoreClientRs,
-        RootSeedRs;
+        GDriveRestoreClientRs;
 import 'package:app_rs_dart/ffi/types.dart' show DeployEnv, Network, RootSeed;
 // import 'package:app_rs_dart/frb.dart' show AnyhowException;
 import 'package:flutter/services.dart' show PlatformException, appFlavor;

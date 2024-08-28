@@ -154,6 +154,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       dco_decode_box_autoadd_preflight_pay_onchain_request(dynamic raw);
 
   @protected
+  RootSeed dco_decode_box_autoadd_root_seed(dynamic raw);
+
+  @protected
   Settings dco_decode_box_autoadd_settings(dynamic raw);
 
   @protected
@@ -454,6 +457,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PreflightPayOnchainRequest
       sse_decode_box_autoadd_preflight_pay_onchain_request(
           SseDeserializer deserializer);
+
+  @protected
+  RootSeed sse_decode_box_autoadd_root_seed(SseDeserializer deserializer);
 
   @protected
   Settings sse_decode_box_autoadd_settings(SseDeserializer deserializer);
@@ -774,6 +780,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_box_autoadd_preflight_pay_onchain_request(
       PreflightPayOnchainRequest self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_root_seed(
+      RootSeed self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_settings(Settings self, SseSerializer serializer);

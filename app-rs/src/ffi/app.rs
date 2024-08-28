@@ -24,7 +24,8 @@ use crate::ffi::{
     },
     settings::SettingsDb,
     types::{
-        Config, Payment, PaymentIndex, ShortPayment, ShortPaymentAndIndex,
+        Config, Payment, PaymentIndex, RootSeed, ShortPayment,
+        ShortPaymentAndIndex,
     },
 };
 pub(crate) use crate::{app::App, settings::SettingsDb as SettingsDbRs};
@@ -50,12 +51,20 @@ impl AppHandle {
 
     pub async fn restore(
         config: Config,
-        seed_phrase: String,
+        google_auth_code: String,
+        password: String,
+        root_seed: RootSeed,
     ) -> anyhow::Result<AppHandle> {
-        App::restore(config.into(), seed_phrase)
-            .await
-            .context("Failed to restore from seed phrase")
-            .map(Self::new)
+        App::restore(
+            &mut SysRng::new(),
+            config.into(),
+            google_auth_code,
+            password,
+            &root_seed.inner,
+        )
+        .await
+        .context("Failed to restore wallet")
+        .map(Self::new)
     }
 
     pub async fn signup(

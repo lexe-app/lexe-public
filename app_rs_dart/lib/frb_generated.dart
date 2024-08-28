@@ -141,7 +141,10 @@ abstract class AppRsApi extends BaseApi {
       {required AppHandle that, required PreflightPayOnchainRequest req});
 
   Future<AppHandle> crateFfiAppAppHandleRestore(
-      {required Config config, required String seedPhrase});
+      {required Config config,
+      required String googleAuthCode,
+      required String password,
+      required RootSeed rootSeed});
 
   SettingsDb crateFfiAppAppHandleSettingsDb({required AppHandle that});
 
@@ -845,12 +848,17 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   Future<AppHandle> crateFfiAppAppHandleRestore(
-      {required Config config, required String seedPhrase}) {
+      {required Config config,
+      required String googleAuthCode,
+      required String password,
+      required RootSeed rootSeed}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_config(config, serializer);
-        sse_encode_String(seedPhrase, serializer);
+        sse_encode_String(googleAuthCode, serializer);
+        sse_encode_String(password, serializer);
+        sse_encode_box_autoadd_root_seed(rootSeed, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 23, port: port_);
       },
@@ -859,7 +867,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeErrorData: sse_decode_AnyhowException,
       ),
       constMeta: kCrateFfiAppAppHandleRestoreConstMeta,
-      argValues: [config, seedPhrase],
+      argValues: [config, googleAuthCode, password, rootSeed],
       apiImpl: this,
     ));
   }
@@ -867,7 +875,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   TaskConstMeta get kCrateFfiAppAppHandleRestoreConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_restore",
-        argNames: ["config", "seedPhrase"],
+        argNames: ["config", "googleAuthCode", "password", "rootSeed"],
       );
 
   @override
@@ -1739,6 +1747,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  RootSeed dco_decode_box_autoadd_root_seed(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_root_seed(raw);
+  }
+
+  @protected
   Settings dco_decode_box_autoadd_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_settings(raw);
@@ -2560,6 +2574,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_preflight_pay_onchain_request(deserializer));
+  }
+
+  @protected
+  RootSeed sse_decode_box_autoadd_root_seed(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_root_seed(deserializer));
   }
 
   @protected
@@ -3402,6 +3422,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       PreflightPayOnchainRequest self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_preflight_pay_onchain_request(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_root_seed(
+      RootSeed self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_root_seed(self, serializer);
   }
 
   @protected

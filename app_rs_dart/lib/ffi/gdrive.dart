@@ -9,6 +9,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'app.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
@@ -20,9 +21,6 @@ abstract class GDriveRestoreCandidateRs implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueNom<GDriveRestoreClientRs>
 abstract class GDriveRestoreClientRs implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueNom<RootSeedRs>
-abstract class RootSeedRs implements RustOpaqueInterface {}
 
 /// A basic authenticated Google Drive client, before we know which `UserPk`
 /// to use.
