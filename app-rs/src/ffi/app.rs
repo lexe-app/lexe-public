@@ -54,7 +54,6 @@ impl AppHandle {
     pub async fn restore(
         config: Config,
         google_auth_code: String,
-        password: &str,
         root_seed: RootSeed,
     ) -> anyhow::Result<AppHandle> {
         // Ignored in local dev.
@@ -70,7 +69,6 @@ impl AppHandle {
             &mut SysRng::new(),
             config.into(),
             google_auth_code,
-            Some(password),
             &root_seed.inner,
         )
         .await

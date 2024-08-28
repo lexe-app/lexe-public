@@ -140,13 +140,9 @@ class AppHandle {
   static Future<AppHandle> restore(
           {required Config config,
           required String googleAuthCode,
-          required String password,
           required RootSeed rootSeed}) =>
       AppRs.instance.api.crateFfiAppAppHandleRestore(
-          config: config,
-          googleAuthCode: googleAuthCode,
-          password: password,
-          rootSeed: rootSeed);
+          config: config, googleAuthCode: googleAuthCode, rootSeed: rootSeed);
 
   SettingsDb settingsDb() => AppRs.instance.api.crateFfiAppAppHandleSettingsDb(
         that: this,

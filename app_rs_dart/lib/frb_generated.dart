@@ -69,7 +69,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.2.0';
 
   @override
-  int get rustContentHash => 1202158072;
+  int get rustContentHash => 1652396607;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -143,7 +143,6 @@ abstract class AppRsApi extends BaseApi {
   Future<AppHandle> crateFfiAppAppHandleRestore(
       {required Config config,
       required String googleAuthCode,
-      required String password,
       required RootSeed rootSeed});
 
   SettingsDb crateFfiAppAppHandleSettingsDb({required AppHandle that});
@@ -173,10 +172,10 @@ abstract class AppRsApi extends BaseApi {
 
   String? crateFfiGdriveGDriveClientServerCode({required GDriveClient that});
 
-  Future<GDriveClient> crateFfiGdriveGDriveOauth2FlowExchange(
-      {required GDriveOauth2Flow that, required String resultUri});
+  Future<GDriveClient> crateFfiGdriveGDriveOAuth2FlowExchange(
+      {required GDriveOAuth2Flow that, required String resultUri});
 
-  GDriveOauth2Flow crateFfiGdriveGDriveOauth2FlowInit(
+  GDriveOAuth2Flow crateFfiGdriveGDriveOAuth2FlowInit(
       {required String clientId, required String serverClientId});
 
   RootSeed crateFfiGdriveGDriveRestoreCandidateTryDecrypt(
@@ -850,14 +849,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Future<AppHandle> crateFfiAppAppHandleRestore(
       {required Config config,
       required String googleAuthCode,
-      required String password,
       required RootSeed rootSeed}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_config(config, serializer);
         sse_encode_String(googleAuthCode, serializer);
-        sse_encode_String(password, serializer);
         sse_encode_box_autoadd_root_seed(rootSeed, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 23, port: port_);
@@ -867,7 +864,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeErrorData: sse_decode_AnyhowException,
       ),
       constMeta: kCrateFfiAppAppHandleRestoreConstMeta,
-      argValues: [config, googleAuthCode, password, rootSeed],
+      argValues: [config, googleAuthCode, rootSeed],
       apiImpl: this,
     ));
   }
@@ -875,7 +872,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   TaskConstMeta get kCrateFfiAppAppHandleRestoreConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_restore",
-        argNames: ["config", "googleAuthCode", "password", "rootSeed"],
+        argNames: ["config", "googleAuthCode", "rootSeed"],
       );
 
   @override
@@ -1153,12 +1150,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<GDriveClient> crateFfiGdriveGDriveOauth2FlowExchange(
-      {required GDriveOauth2Flow that, required String resultUri}) {
+  Future<GDriveClient> crateFfiGdriveGDriveOAuth2FlowExchange(
+      {required GDriveOAuth2Flow that, required String resultUri}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_g_drive_oauth_2_flow(that, serializer);
+        sse_encode_box_autoadd_g_drive_o_auth_2_flow(that, serializer);
         sse_encode_String(resultUri, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 35, port: port_);
@@ -1167,20 +1164,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_g_drive_client,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiGdriveGDriveOauth2FlowExchangeConstMeta,
+      constMeta: kCrateFfiGdriveGDriveOAuth2FlowExchangeConstMeta,
       argValues: [that, resultUri],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiGdriveGDriveOauth2FlowExchangeConstMeta =>
+  TaskConstMeta get kCrateFfiGdriveGDriveOAuth2FlowExchangeConstMeta =>
       const TaskConstMeta(
-        debugName: "g_drive_oauth_2_flow_exchange",
+        debugName: "g_drive_o_auth_2_flow_exchange",
         argNames: ["that", "resultUri"],
       );
 
   @override
-  GDriveOauth2Flow crateFfiGdriveGDriveOauth2FlowInit(
+  GDriveOAuth2Flow crateFfiGdriveGDriveOAuth2FlowInit(
       {required String clientId, required String serverClientId}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
@@ -1190,18 +1187,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36)!;
       },
       codec: SseCodec(
-        decodeSuccessData: sse_decode_g_drive_oauth_2_flow,
+        decodeSuccessData: sse_decode_g_drive_o_auth_2_flow,
         decodeErrorData: null,
       ),
-      constMeta: kCrateFfiGdriveGDriveOauth2FlowInitConstMeta,
+      constMeta: kCrateFfiGdriveGDriveOAuth2FlowInitConstMeta,
       argValues: [clientId, serverClientId],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiGdriveGDriveOauth2FlowInitConstMeta =>
+  TaskConstMeta get kCrateFfiGdriveGDriveOAuth2FlowInitConstMeta =>
       const TaskConstMeta(
-        debugName: "g_drive_oauth_2_flow_init",
+        debugName: "g_drive_o_auth_2_flow_init",
         argNames: ["clientId", "serverClientId"],
       );
 
@@ -1677,9 +1674,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  GDriveOauth2Flow dco_decode_box_autoadd_g_drive_oauth_2_flow(dynamic raw) {
+  GDriveOAuth2Flow dco_decode_box_autoadd_g_drive_o_auth_2_flow(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_g_drive_oauth_2_flow(raw);
+    return dco_decode_g_drive_o_auth_2_flow(raw);
   }
 
   @protected
@@ -1893,12 +1890,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  GDriveOauth2Flow dco_decode_g_drive_oauth_2_flow(dynamic raw) {
+  GDriveOAuth2Flow dco_decode_g_drive_o_auth_2_flow(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 5)
       throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-    return GDriveOauth2Flow(
+    return GDriveOAuth2Flow(
       clientId: dco_decode_String(arr[0]),
       codeVerifier: dco_decode_String(arr[1]),
       redirectUri: dco_decode_String(arr[2]),
@@ -2501,10 +2498,10 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  GDriveOauth2Flow sse_decode_box_autoadd_g_drive_oauth_2_flow(
+  GDriveOAuth2Flow sse_decode_box_autoadd_g_drive_o_auth_2_flow(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_g_drive_oauth_2_flow(deserializer));
+    return (sse_decode_g_drive_o_auth_2_flow(deserializer));
   }
 
   @protected
@@ -2706,7 +2703,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  GDriveOauth2Flow sse_decode_g_drive_oauth_2_flow(
+  GDriveOAuth2Flow sse_decode_g_drive_o_auth_2_flow(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_clientId = sse_decode_String(deserializer);
@@ -2714,7 +2711,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_redirectUri = sse_decode_String(deserializer);
     var var_redirectUriScheme = sse_decode_String(deserializer);
     var var_url = sse_decode_String(deserializer);
-    return GDriveOauth2Flow(
+    return GDriveOAuth2Flow(
         clientId: var_clientId,
         codeVerifier: var_codeVerifier,
         redirectUri: var_redirectUri,
@@ -3351,10 +3348,10 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_g_drive_oauth_2_flow(
-      GDriveOauth2Flow self, SseSerializer serializer) {
+  void sse_encode_box_autoadd_g_drive_o_auth_2_flow(
+      GDriveOAuth2Flow self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_g_drive_oauth_2_flow(self, serializer);
+    sse_encode_g_drive_o_auth_2_flow(self, serializer);
   }
 
   @protected
@@ -3539,8 +3536,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  void sse_encode_g_drive_oauth_2_flow(
-      GDriveOauth2Flow self, SseSerializer serializer) {
+  void sse_encode_g_drive_o_auth_2_flow(
+      GDriveOAuth2Flow self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.clientId, serializer);
     sse_encode_String(self.codeVerifier, serializer);

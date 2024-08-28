@@ -193,12 +193,13 @@ impl App {
     }
 
     /// Restore wallet from backup.
+    ///
+    /// `google_auth_code`: see [`NodeProvisionRequest::google_auth_code`]
     #[instrument(skip_all, name = "(restore)")]
     pub async fn restore(
         rng: &mut impl Crng,
         config: AppConfig,
         google_auth_code: Option<String>,
-        password: Option<&str>,
         root_seed: &RootSeed,
     ) -> anyhow::Result<Self> {
         // derive user key and node key
@@ -255,6 +256,7 @@ impl App {
         );
 
         // Reprovision credentials to most recent node version
+        let password = None;
         Self::do_provision(
             rng,
             &node_client,
@@ -276,12 +278,7 @@ impl App {
             .write_root_seed(root_seed)
             .context("Failed to persist root seed")?;
 
-        info!(
-            %user_pk,
-            %node_pk,
-            "restored user"
-        );
-
+        info!(%user_pk, %node_pk, "restored user");
         Ok(Self {
             node_client,
             gateway_client,
@@ -291,7 +288,10 @@ impl App {
         })
     }
 
-    /// Allows signing up with a specific [`RootSeed`], useful in tests.
+    /// Signup a new user.
+    ///
+    /// `google_auth_code`: see [`NodeProvisionRequest::google_auth_code`]
+    /// `password`: see [`NodeProvisionRequest::encrypted_seed`]
     #[instrument(skip_all, name = "(signup)")]
     pub async fn signup(
         rng: &mut impl Crng,
@@ -383,12 +383,7 @@ impl App {
             .write_root_seed(root_seed)
             .context("Failed to persist root seed")?;
 
-        info!(
-            %user_pk,
-            %node_pk,
-            "new user signed up and node provisioned"
-        );
-
+        info!(%user_pk, %node_pk, "new user signed up and node provisioned");
         Ok(Self {
             node_client,
             gateway_client,

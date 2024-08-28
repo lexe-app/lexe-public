@@ -169,12 +169,12 @@ impl fmt::Debug for GDriveCredentials {
 ///
 /// See: [RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)
 #[cfg_attr(test, derive(Debug, PartialEq))]
-pub struct Oauth2PkceCodeChallenge {
+pub struct OAuth2PkceCodeChallenge {
     pub code_verifier: String,
     pub code_challenge: String,
 }
 
-impl Oauth2PkceCodeChallenge {
+impl OAuth2PkceCodeChallenge {
     const METHOD: &'static str = "S256";
 
     /// Generate a new PKCE verifier and challenge.
@@ -235,7 +235,7 @@ pub fn auth_code_url(
         redirect_uri,
         response_type: "code",
         code_challenge,
-        code_challenge_method: Oauth2PkceCodeChallenge::METHOD,
+        code_challenge_method: OAuth2PkceCodeChallenge::METHOD,
         scope: API_SCOPE,
         access_type: "offline",
         // Include this field so we also receive the server auth code when we
@@ -632,8 +632,8 @@ mod test {
     #[test]
     fn pkce_snapshot() {
         let mut rng = WeakRng::from_u64(654984984);
-        let actual = Oauth2PkceCodeChallenge::gen(&mut rng);
-        let expected = Oauth2PkceCodeChallenge {
+        let actual = OAuth2PkceCodeChallenge::gen(&mut rng);
+        let expected = OAuth2PkceCodeChallenge {
             code_verifier: "Im1AGo673tWX11XcfKt5Aog51PV3ZTZt2qeoWXWidR5DgsfD"
                 .to_owned(),
             code_challenge: "wtX8v-ik3YSY1DsKdfNG4r9rphH9QZL2v68gg8JIXz8"
@@ -645,13 +645,13 @@ mod test {
     #[test]
     fn pkce_test_vector() {
         // From: <https://datatracker.ietf.org/doc/html/rfc7636#appendix-B>
-        let expected = Oauth2PkceCodeChallenge {
+        let expected = OAuth2PkceCodeChallenge {
             code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
                 .to_owned(),
             code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
                 .to_owned(),
         };
-        let actual = Oauth2PkceCodeChallenge::from_code_verifier(
+        let actual = OAuth2PkceCodeChallenge::from_code_verifier(
             expected.code_verifier.clone(),
         );
         assert_eq!(actual, expected);

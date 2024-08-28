@@ -35,7 +35,6 @@ abstract interface class RestoreApi {
   Future<FfiResult<AppHandle>> restore({
     required Config config,
     required String googleAuthCode,
-    required String password,
     required RootSeed rootSeed,
   });
 }
@@ -44,15 +43,14 @@ class _ProdRestoreApi implements RestoreApi {
   const _ProdRestoreApi._();
 
   @override
-  Future<FfiResult<AppHandle>> restore(
-          {required Config config,
-          required String googleAuthCode,
-          required String password,
-          required RootSeed rootSeed}) =>
+  Future<FfiResult<AppHandle>> restore({
+    required Config config,
+    required String googleAuthCode,
+    required RootSeed rootSeed,
+  }) =>
       Result.tryFfiAsync(() => AppHandle.restore(
             config: config,
             googleAuthCode: googleAuthCode,
-            password: password,
             rootSeed: rootSeed,
           ));
 }
@@ -424,13 +422,13 @@ class _RestorePasswordPageState extends State<RestorePasswordPage> {
 
     this.isRestoring.value = true;
     try {
-      await this.onSubmitInner(password, rootSeed);
+      await this.onSubmitInner(rootSeed);
     } finally {
       if (this.mounted) this.isRestoring.value = false;
     }
   }
 
-  Future<void> onSubmitInner(String password, RootSeed rootSeed) async {
+  Future<void> onSubmitInner(RootSeed rootSeed) async {
     info("restore: recovered root seed");
 
     final restoreApi = this.widget.restoreApi;
@@ -440,7 +438,6 @@ class _RestorePasswordPageState extends State<RestorePasswordPage> {
     final result = await restoreApi.restore(
       config: config,
       googleAuthCode: serverAuthCode,
-      password: password,
       rootSeed: rootSeed,
     );
     if (!this.mounted) return;

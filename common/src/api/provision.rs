@@ -41,19 +41,19 @@ pub struct NodeProvisionRequest {
     /// Whether this provision instance is allowed to access the user's
     /// `GoogleVfs`. In order to ensure that different provision instances do
     /// not overwrite each other's updates to the `GoogleVfs`, this paramater
-    /// must only be [`true`] for at most one provision instance at a time.
+    /// must only be `true` for at most one provision instance at a time.
     ///
-    /// - The mobile app must always set this to [`true`], and must ensure that
+    /// - The mobile app must always set this to `true`, and must ensure that
     ///   it is only (re-)provisioning one instance at a time. Node version
     ///   approval and revocation (which requires mutating the `GoogleVfs`) can
-    ///   only be handled if this is set to [`true`].
+    ///   only be handled if this is set to `true`.
     /// - Running nodes, which initiate root seed replication, must always set
-    ///   this to [`false`], so that replicating instances will not overwrite
+    ///   this to `false`, so that replicating instances will not overwrite
     ///   updates made by (re-)provisioning instances.
     ///
     /// NOTE that it is always possible that while this instance is
     /// provisioning, the user's node is also running. Even when this parameter
-    /// is [`true`], the provision instance must be careful not to mutate
+    /// is `true`, the provision instance must be careful not to mutate
     /// `GoogleVfs` data which can also be mutated by a running user node,
     /// unless a persistence race between the provision and run modes is
     /// acceptable.
@@ -63,23 +63,19 @@ pub struct NodeProvisionRequest {
     /// The password-encrypted [`RootSeed`] which should be backed up in
     /// GDrive.
     /// - Applicable only in staging/prod.
-    /// - Requires [`allow_gvfs_access`]=[`true`] if [`Some`]; errors
-    ///   otherwise.
-    /// - If [`Some`], the provision instance will back up this encrypted
+    /// - Requires `allow_gvfs_access=true` if `Some`; errors otherwise.
+    /// - If `Some`, the provision instance will back up this encrypted
     ///   [`RootSeed`] in Google Drive. If a backup already exists, it is not
     ///   overwritten.
-    /// - If [`None`], no API calls are made, and no validation is done,
-    ///   including to check whether a backup exists.
-    /// - The mobile app should set this to [`Some`] at least on the very first
-    ///   provision. The mobile app can also pass [`None`] to avoid unnecessary
+    /// - If `None`, then this will error if we are missing the backup.
+    /// - The mobile app should set this to `Some` at least on the very first
+    ///   provision. The mobile app can also pass `None` to avoid unnecessary
     ///   work when it is known that the user already has a root seed backup.
-    /// - Replication (from running nodes) should always set this to [`None`].
+    /// - Replication (from running nodes) should always set this to `None`.
     /// - We require the client to password-encrypt prior to sending the
     ///   provision request to prevent leaking the length of the password. It
     ///   also shifts the burden of running the 600K HMAC iterations from the
     ///   provision instance to the mobile app.
-    ///
-    /// [`allow_gvfs_access`]: Self::allow_gvfs_access
     #[serde(with = "hexstr_or_bytes_opt")]
     pub encrypted_seed: Option<Vec<u8>>,
 }
