@@ -338,12 +338,14 @@ impl Default for ThreadWeakRng {
 #[cfg(any(test, feature = "test-utils"))]
 impl CryptoRng for ThreadWeakRng {}
 
+// Can't put a `WeakRng` here directly, since it's not `Copy`
+// (and shouldn't impl `Copy`).
+//
+// Using `const { .. }` with a noop-drop type (allegedly) lets us
+// use a faster thread_local impl.
 thread_local! {
-    // Can't put a `WeakRng` here directly, since it's not `Copy`
-    // (and shouldn't impl `Copy`).
-    //
-    // Using `const { .. }` with a noop-drop type (allegedly) lets us
-    // use a faster thread_local impl.
+    // TODO(phlip9): incorrect lint, remove when clippy not broken
+    #[allow(clippy::thread_local_initializer_can_be_made_const)]
     static THREAD_RNG_STATE: Cell<u64> = const { Cell::new(0) };
 }
 

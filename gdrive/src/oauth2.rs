@@ -111,7 +111,7 @@ impl GDriveCredentials {
     /// export GOOGLE_SERVER_CODE="<server_code>" # Optional, depending on client
     /// export GOOGLE_ACCESS_TOKEN_EXPIRY="<timestamp>" # Set to 0 if unknown
     /// ```
-    #[cfg(any(test, feature = "test-utils"))]
+    #[cfg(test)]
     pub fn from_env() -> anyhow::Result<Self> {
         use std::str::FromStr;
 
