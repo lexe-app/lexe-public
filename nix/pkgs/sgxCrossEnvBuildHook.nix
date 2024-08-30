@@ -35,6 +35,10 @@ in
         export CFLAGS_x86_64_fortanix_unknown_sgx="${cflagsSgx}"
         # CARGO_TARGET is for `cargo`
         export CARGO_TARGET_X86_64_FORTANIX_UNKNOWN_SGX_LINKER="${lld}/bin/ld.lld"
+        # `RUSTC_BOOTSTRAP=1` allows us to enable the one nightly feature we
+        # need (sgx_platform) for a few SGX-patched crates, even with a stable
+        # compiler.
+        export RUSTC_BOOTSTRAP=1
       }
 
       preBuildHooks+=(sgxCrossEnvBuildHook)

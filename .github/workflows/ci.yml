@@ -62,9 +62,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: arduino/setup-protoc@v3
       # SGX
-      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx
+      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" RUSTC_BOOTSTRAP=1 cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx
       # SGX + tests
-      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx --tests
+      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" RUSTC_BOOTSTRAP=1 cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx --tests
 
   # --- Check the production binaries, which don't use feature unification --- #
   check-release:
@@ -91,7 +91,7 @@ jobs:
           toolchain: ${{ env.LEXE_RUST_VERSION }}
       - uses: Swatinem/rust-cache@v2
       - uses: arduino/setup-protoc@v3
-      - run: cargo test --locked -- -Zunstable-options --report-time
+      - run: cargo test --locked
 
   # TODO(max): Enable once we are approved so we don't need to constantly reauth
   # test-gdrive:
@@ -119,7 +119,7 @@ jobs:
   #       # Run only the `#[ignore]`d gdrive tests, and do it on one thread to
   #       # prevent the tests (which create and delete the regtest VFS root) from
   #       # interfering with each other
-  #     - run: cargo test --locked -p gdrive -- --ignored --test-threads=1 -Zunstable-options --report-time
+  #     - run: cargo test --locked -p gdrive -- --ignored --test-threads=1
 
   fmt:
     runs-on: ubuntu-22.04
