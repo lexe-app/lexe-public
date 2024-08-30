@@ -61,13 +61,13 @@ impl Args {
             .arg("--output")
             .arg(&sgxs_bin_path)
             .arg("--heap-size")
-            .arg(&heap_size.to_string())
+            .arg(heap_size.to_string())
             .arg("--ssaframesize")
-            .arg(&ssaframesize.to_string())
+            .arg(ssaframesize.to_string())
             .arg("--stack-size")
-            .arg(&stack_size.to_string())
+            .arg(stack_size.to_string())
             .arg("--threads")
-            .arg(&threads.to_string());
+            .arg(threads.to_string());
 
         if debug {
             ftxsgx_elf2sgxs_cmd.arg("--debug");

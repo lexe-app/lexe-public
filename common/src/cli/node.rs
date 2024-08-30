@@ -78,7 +78,7 @@ pub struct RunArgs {
 
 impl ToCommand for RunArgs {
     fn append_args(&self, cmd: &mut Command) {
-        cmd.arg("run").arg(&self.to_string());
+        cmd.arg("run").arg(self.to_string());
     }
 }
 
@@ -125,7 +125,7 @@ pub struct ProvisionArgs {
 
 impl ToCommand for ProvisionArgs {
     fn append_args(&self, cmd: &mut Command) {
-        cmd.arg("provision").arg(&self.to_string());
+        cmd.arg("provision").arg(self.to_string());
     }
 }
 
