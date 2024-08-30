@@ -176,13 +176,13 @@ tokio = { version = "=1.36.0", default-features = false }
 # * ftx-sgx-tools: can build just `ftxsgx-elf2sgxs` on non-x86_64
 # * enclave-runner: allow redirecting enclave standard input/output
 # * enclave-runner: tighten tokio+futures features
-aesm-client = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b6f02626-2024_06_28" }
-async-usercalls = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b6f02626-2024_06_28" }
-dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b6f02626-2024_06_28" }
-enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b6f02626-2024_06_28" }
-sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b6f02626-2024_06_28" }
-sgxs = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b6f02626-2024_06_28" }
-sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b6f02626-2024_06_28" }
+aesm-client = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65c-2024_08_29" }
+async-usercalls = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65c-2024_08_29" }
+dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65c-2024_08_29" }
+enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65c-2024_08_29" }
+sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65c-2024_08_29" }
+sgxs = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65c-2024_08_29" }
+sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65c-2024_08_29" }
 
 # * server: Propagate current span across `tokio::spawn`
 # * fix: propagate graceful shutdown to inner hyper connection
