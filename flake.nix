@@ -3,7 +3,8 @@
 
   inputs = {
     # NixOS/nixpkgs - nixos-stable branch for the current release
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-24.05";
+    # nixpkgs.url = "github:nixos/nixpkgs/nixos-24.05";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
     # pure, reproducible, rust toolchain overlay. used to get toolchain from
     # our workspace `rust-toolchain.toml`.
@@ -19,12 +20,7 @@
 
     # library for building rust projects. supports basic incremental cargo
     # artifact caching.
-    crane = {
-      url = "github:ipetkov/crane";
-      inputs = {
-        nixpkgs.follows = "nixpkgs"; # use our nixpkgs version
-      };
-    };
+    crane.url = "github:ipetkov/crane";
   };
 
   outputs = {self, ...} @ inputs: let
