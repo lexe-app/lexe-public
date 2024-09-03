@@ -29,6 +29,7 @@ env:
   # less wasteful caching w/ non-incremental builds
   CARGO_INCREMENTAL: 0
   LEXE_RUST_VERSION: 1.80.1
+  LEXE_RUST_FMT_VERSION: nightly-2024-05-03
   LEXE_CI: 1
 
 jobs:
@@ -127,8 +128,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2024-05-03
-      - run: cargo +nightly-2024-05-03 fmt --all -- --check
+          toolchain: ${{ env.LEXE_RUST_FMT_VERSION }}
+          components: rustfmt
+      - run: cargo +${{ env.LEXE_RUST_FMT_VERSION }} fmt --all -- --check
 
   doc:
     runs-on: ubuntu-22.04
