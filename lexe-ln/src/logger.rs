@@ -33,11 +33,10 @@
 //! * `foo=trace` (TARGET=LEVEL)
 //! * `foo[{bar,baz}]=info` (TARGET[{FIELD,+}]=LEVEL)
 
-use std::{ops::Deref, str::FromStr};
+use std::{ops::Deref, str::FromStr, sync::LazyLock};
 
 use anyhow::anyhow;
 use common::{api::trace, define_trace_id_fns};
-use lazy_lock::LazyLock;
 use lightning::util::logger::{Level as LdkLevel, Logger, Record};
 use tracing_core::{
     dispatcher,

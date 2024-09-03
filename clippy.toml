@@ -58,9 +58,6 @@ disallowed-types = [
         Incompatible HTTP error response. \
         Use DefaultBodyLimit and axum::RequestExt::with_limited_body instead.\
     """ },
-
-    # nightly std types
-    { path = "std::sync::LazyLock", reason = "Use `lazy_lock::LazyLock` from workspace until the std type stabilizes." },
 ]
 
 # Suppress useless too_many_arguments lint
