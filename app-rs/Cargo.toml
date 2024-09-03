@@ -23,7 +23,6 @@ common = { path = "../common" }
 const-utils = { path = "../const-utils" }
 gdrive = { path = "../gdrive" }
 hex = { path = "../hex" }
-lazy-lock = { path = "../lazy-lock" }
 payment-uri = { path = "../payment-uri" }
 
 # --- WORKSPACE --- #

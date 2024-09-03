@@ -8,7 +8,6 @@ members = [
     "const-utils",
     "gdrive",
     "hex",
-    "lazy-lock",
     "lexe-ln",
     "logger",
     "node",
