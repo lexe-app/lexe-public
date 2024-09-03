@@ -39,7 +39,6 @@ common = { path = "../common" }
 const-utils = { path = "../const-utils" }
 gdrive = { path = "../gdrive" }
 hex = { path = "../hex" }
-lazy-lock = { path = "../lazy-lock" }
 lexe-ln = { path = "../lexe-ln" }
 
 # --- WORKSPACE --- #
