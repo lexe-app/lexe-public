@@ -5,13 +5,12 @@ use std::{
     path::PathBuf,
     pin::Pin,
     str::{self, FromStr},
-    sync::OnceLock,
+    sync::{LazyLock, OnceLock},
     task::{ready, Context, Poll},
 };
 
 use anyhow::{format_err, Context as _, Result};
 use argh::{EarlyExit, FromArgs, TopLevelCommand};
-use lazy_lock::LazyLock;
 use object::{
     read::{SymbolMap, SymbolMapName},
     Object,

@@ -1,7 +1,6 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use asn1_rs::FromDer;
-use lazy_lock::LazyLock;
 use rcgen::{DistinguishedName, DnType};
 use rustls::{crypto::WebPkiSupportedAlgorithms, ClientConfig, ServerConfig};
 use x509_parser::{
