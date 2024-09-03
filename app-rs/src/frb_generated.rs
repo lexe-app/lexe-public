@@ -1441,8 +1441,9 @@ impl SseDecode for crate::ffi::types::PaymentDirection {
         return match inner {
             0 => crate::ffi::types::PaymentDirection::Inbound,
             1 => crate::ffi::types::PaymentDirection::Outbound,
-            _ =>
-                unreachable!("Invalid variant for PaymentDirection: {}", inner),
+            _ => {
+                unreachable!("Invalid variant for PaymentDirection: {}", inner)
+            }
         };
     }
 }

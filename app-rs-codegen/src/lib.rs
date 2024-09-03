@@ -110,6 +110,12 @@ impl Args {
             "flutter_rust_bridge: failed to generate Rust+Dart ffi bindings ",
         ).unwrap();
 
+        // re-re-run `cargo +nightly-XXX fmt` with our nightly version...
+        Command::new("cargo")
+            .args(["+nightly-2024-05-03", "fmt", "--all"])
+            .status()
+            .context("Failed to run `cargo fmt` with nightly compiler")?;
+
         // Maybe update `app_rs_dart/build_rust_ios_macos.input.xcfilelist`.
         // This file is used in `app_rs_dart`'s CocoaPods/Xcode integration.
         let xcfilelist_path =
