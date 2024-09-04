@@ -3,6 +3,7 @@
   lib,
   pkgs,
   crane,
+  fenixPkgs,
   lexePubLib,
 }: rec {
   # cargo workspace Cargo.toml & Cargo.lock info
@@ -14,8 +15,34 @@
   workspaceVersion = workspaceTomlParsed.workspace.package.version;
 
   # Instantiate the rust toolchain from our `rust-toolchain.toml`.
-  rustLexeToolchain =
-    pkgs.rust-bin.fromRustupToolchainFile ../../rust-toolchain.toml;
+  rustLexeToolchain = let
+    fenixToolchain = fenixPkgs.combine [
+      fenixPkgs.stable.rustc
+      fenixPkgs.stable.cargo
+      fenixPkgs.targets.x86_64-fortanix-unknown-sgx.stable.rust-std
+    ];
+
+    # HACK: get the actual rustc version from the fenix toolchain dl url
+    # ex: `url = "https://static.rust-lang.org/dist/2024-08-08/cargo-1.80.1-x86_64-unknown-linux-gnu.tar.gz"`
+    #     `dlFile = "cargo-1.80.1-x86_64-unknown-linux-gnu.tar.gz"`
+    url = fenixPkgs.stable.cargo.src.url;
+    dlFile = builtins.baseNameOf url;
+    fenixToolchainVersion = builtins.elemAt (builtins.split "-" dlFile) 2;
+
+    # parse our `rust-toolchain.toml` file and get the expected version
+    rustToolchainToml = builtins.fromTOML (builtins.readFile ../../rust-toolchain.toml);
+    rustToolchainVersion = rustToolchainToml.toolchain.channel;
+  in
+    # assert that the fenix stable toolchain uses our expected version
+    assert lib.assertMsg (fenixToolchainVersion == rustToolchainVersion) ''
+      The stable rust toolchain from fenix doesn't match rust-toolchain.toml:
+      |
+      |
+      |           fenix stable: ${fenixToolchainVersion}
+       `>  rust-toolchain.toml: ${rustToolchainVersion}
+
+      Suggestion: update rust-toolchain.toml with `channel = "${rustToolchainVersion}"`.
+    ''; fenixToolchain;
 
   # `crane` cargo builder instantiated with our rust toolchain settings.
   craneLib = (crane.mkLib pkgs).overrideToolchain rustLexeToolchain;
