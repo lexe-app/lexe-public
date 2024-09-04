@@ -6,21 +6,22 @@
     # nixpkgs.url = "github:nixos/nixpkgs/nixos-24.05";
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
-    # pure, reproducible, rust toolchain overlay. used to get toolchain from
-    # our workspace `rust-toolchain.toml`.
-    #
-    # we must use a nightly rust toolchain for SGX reasons, so we can't use the
-    # rust toolchain from nixpkgs.
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      inputs = {
-        nixpkgs.follows = "nixpkgs"; # use our nixpkgs version
-      };
-    };
-
     # library for building rust projects. supports basic incremental cargo
     # artifact caching.
     crane.url = "github:ipetkov/crane";
+
+    # Provides official pre-built rust toolchains.
+    #
+    # This flake is lighter weight than oxalica/rust-overlay since
+    # 1. it doesn't use an overlay (costly during nix eval)
+    # 2. it has a much smaller git repo (only tracks the latest stable/beta/nightly)
+    #
+    # TODO(phlip9): Use this until I can figure out how to get sgx cross build via nixpkgs.
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.rust-analyzer-src.follows = "";
+    };
   };
 
   outputs = {self, ...} @ inputs: let
@@ -28,22 +29,15 @@
     lexePubLib = import ./nix/lib/default.nix {lib = lib;};
     eachSystem = lexePubLib.eachSystem;
 
-    # The "host" nixpkgs for each system.
+    # The "host" nixpkgs set for each system.
     #
     # ```
     # {
-    #   "aarch64-darwin" = <nixpkgs>;
-    #   "x86_64-linux" = <nixpkgs>;
+    #   "aarch64-darwin" = <pkgs>;
+    #   "x86_64-linux" = <pkgs>;
     # }
     # ```
-    systemPkgs = eachSystem (system:
-      import inputs.nixpkgs {
-        system = system;
-        overlays = [
-          # adds: `rust-bin.fromRustupToolchainFile` to this pkgs instance.
-          inputs.rust-overlay.overlays.default
-        ];
-      });
+    systemPkgs = inputs.nixpkgs.legacyPackages;
 
     # eachSystemPkgs :: (builder :: Nixpkgs -> AttrSet) -> AttrSet
     eachSystemPkgs = builder: eachSystem (system: builder systemPkgs.${system});
@@ -55,6 +49,7 @@
         lib = inputs.nixpkgs.lib;
         pkgs = systemPkgs.${system};
         crane = inputs.crane;
+        fenixPkgs = inputs.fenix.packages.${system};
         lexePubLib = lexePubLib;
       });
   in {
