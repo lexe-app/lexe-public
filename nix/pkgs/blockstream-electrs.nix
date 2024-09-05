@@ -6,6 +6,7 @@
   craneLib,
   darwin ? {},
   fetchFromGitHub,
+  iconv,
   lib,
   rocksdb,
   rustPlatform,
@@ -47,7 +48,11 @@ in
       rustPlatform.bindgenHook
     ];
 
-    buildInputs = lib.optionals stdenv.isDarwin [darwin.apple_sdk.frameworks.Security];
+    buildInputs = lib.optionals stdenv.isDarwin [
+      darwin.apple_sdk.frameworks.Security
+      # Not sure why this is required?
+      iconv
+    ];
 
     # link rocksdb dynamically
     ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";

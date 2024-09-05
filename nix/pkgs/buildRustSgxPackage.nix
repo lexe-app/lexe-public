@@ -4,6 +4,7 @@
   # nixpkgs
   #
   darwin,
+  iconv,
   lib,
   perl,
   protobuf,
@@ -77,7 +78,10 @@ let
     # build and runtime dependencies
     buildInputs =
       # ring crate uses Security.framework rng on apple platforms
-      lib.optional (!isSgx && stdenvNoCC.isDarwin) darwin.apple_sdk.frameworks.Security;
+      lib.optionals (!isSgx && stdenvNoCC.isDarwin) [
+        darwin.apple_sdk.frameworks.Security
+        iconv
+      ];
 
     # args passed to `cargo build`
     cargoExtraArgs = builtins.concatStringsSep " " (
