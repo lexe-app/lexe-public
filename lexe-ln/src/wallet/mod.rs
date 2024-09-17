@@ -38,6 +38,8 @@ use crate::{
 };
 
 /// Wallet DB.
+pub mod db;
+/// The old wallet DB used in BDK 0.29.
 // TODO(max): Remove
 pub mod db29;
 
