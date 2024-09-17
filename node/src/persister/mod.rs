@@ -47,7 +47,7 @@ use lexe_ln::{
     },
     persister,
     traits::LexeInnerPersister,
-    wallet::db::{DbData, WalletDb},
+    wallet::db29::{DbData, WalletDb},
 };
 use lightning::{
     chain::{

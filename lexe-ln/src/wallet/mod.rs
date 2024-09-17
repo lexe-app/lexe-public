@@ -34,11 +34,12 @@ use crate::{
     esplora::LexeEsplora,
     payments::onchain::OnchainSend,
     traits::{LexeInnerPersister, LexePersister},
-    wallet::db::WalletDb,
+    wallet::db29::WalletDb,
 };
 
 /// Wallet DB.
-pub mod db;
+// TODO(max): Remove
+pub mod db29;
 
 /// The 'stop_gap' parameter used by BDK's wallet sync. This seems to configure
 /// the threshold number of blocks after which BDK stops looking for scripts
