@@ -4,7 +4,6 @@
   # nixpkgs
   #
   darwin,
-  iconv,
   lib,
   perl,
   protobuf,
@@ -80,7 +79,6 @@ let
       # ring crate uses Security.framework rng on apple platforms
       lib.optionals (!isSgx && stdenvNoCC.isDarwin) [
         darwin.apple_sdk.frameworks.Security
-        iconv
       ];
 
     # args passed to `cargo build`
