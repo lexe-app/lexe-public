@@ -137,8 +137,8 @@
     cargoLock ? throw "Requires oneof `cargoLock`, `cargoLockContents`, `cargoLockParsed`",
     cargoLockContents ? builtins.readFile cargoLock,
     cargoLockParsed ? builtins.fromTOML cargoLockContents,
-    gitDepOutputs ? {},
     gitDepOutputHashes ? {},
+    gitDepOutputs ? builtins.mapAttrs fetchGitDep gitDepOutputHashes,
   }:
     craneLib.vendorMultipleCargoDeps {
       cargoConfigs = []; # only used if we have custom registries
@@ -197,7 +197,7 @@
 
   # Blockstream fork of electrs BTC chain index server, used in integration tests
   blockstream-electrs = pkgs.callPackage ./blockstream-electrs.nix {
-    inherit buildRustSccache craneLib;
+    inherit buildRustSccache vendorCargoDeps;
   };
 
   # rust-sgx repo source
