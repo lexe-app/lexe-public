@@ -6,7 +6,6 @@
   buildRustSccache,
   darwin ? {},
   fetchFromGitHub,
-  iconv,
   lib,
   rocksdb,
   rustPlatform,
@@ -56,8 +55,6 @@ in
 
     buildInputs = lib.optionals stdenv.isDarwin [
       darwin.apple_sdk.frameworks.Security
-      # Not sure why this is required?
-      iconv
     ];
 
     # link rocksdb dynamically

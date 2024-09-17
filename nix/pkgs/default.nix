@@ -24,8 +24,13 @@
 
     # - On macOS, we need to patch `cargo` so it uses dynamic libs from nixpkgs.
     #   Otherwise it doesn't work in the sandbox.
+    # - On macOS, we almost always need `libiconv` in any compiled binary. Add
+    #   it as a "propagated" dep so we don't have to keep including it manually.
     # TODO(phlip9): upstream these changes
     fenixToolchain = fenixToolchainUnpatched.overrideAttrs (super: {
+      # All darwin targets need libiconv
+      depsTargetTargetPropagated = lib.optional pkgs.targetPlatform.isDarwin pkgs.pkgsTargetTarget.iconv;
+
       buildCommand = ''
         ${lib.optionalString pkgs.hostPlatform.isDarwin ''
           # darwin.cctools provides 'install_name_tool'
@@ -41,6 +46,9 @@
             -change "/usr/lib/libiconv.2.dylib" "${pkgs.iconv.out}/lib/libiconv.2.dylib" \
             "$out/bin/cargo"
         ''}
+
+        mkdir -p "$out/nix-support"
+        [[ -z "$depsTargetTargetPropagated" ]] || echo "$depsTargetTargetPropagated " > $out/nix-support/propagated-target-target-deps
       '';
     });
 
