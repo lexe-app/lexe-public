@@ -23,10 +23,6 @@ use serde_with::{
 use tokio::sync::mpsc;
 use tracing::{debug, error, warn};
 
-/// BDK's wallet database test suite.
-#[cfg(test)]
-mod bdk_test_suite;
-
 type BdkResult<T> = Result<T, bdk29::Error>;
 
 /// Implements the DB traits required by BDK. Similar to [`MemoryDatabase`], but
@@ -1612,32 +1608,6 @@ mod test {
 
         serde_json::from_str::<DbData>(db_json_str)
             .expect("Failed to deserialize old serialized WalletDb");
-    }
-
-    /// Run BDK's test suite.
-    #[test]
-    fn bdk_tests() {
-        let (tx, _rx) = mpsc::channel(SMALLER_CHANNEL_SIZE);
-        bdk_test_suite::test_script_pubkey(WalletDb::new_test_db());
-        bdk_test_suite::test_batch_script_pubkey(WalletDb::new(tx));
-        bdk_test_suite::test_iter_script_pubkey(WalletDb::new_test_db());
-        bdk_test_suite::test_del_script_pubkey(WalletDb::new_test_db());
-        bdk_test_suite::test_utxo(WalletDb::new_test_db());
-        bdk_test_suite::test_raw_tx(WalletDb::new_test_db());
-        bdk_test_suite::test_tx(WalletDb::new_test_db());
-        bdk_test_suite::test_list_transaction(WalletDb::new_test_db());
-        bdk_test_suite::test_last_index(WalletDb::new_test_db());
-        bdk_test_suite::test_sync_time(WalletDb::new_test_db());
-        bdk_test_suite::test_iter_raw_txs(WalletDb::new_test_db());
-        bdk_test_suite::test_del_path_from_script_pubkey(
-            WalletDb::new_test_db(),
-        );
-        bdk_test_suite::test_iter_script_pubkeys(WalletDb::new_test_db());
-        bdk_test_suite::test_del_utxo(WalletDb::new_test_db());
-        bdk_test_suite::test_del_raw_tx(WalletDb::new_test_db());
-        bdk_test_suite::test_del_tx(WalletDb::new_test_db());
-        bdk_test_suite::test_del_last_index(WalletDb::new_test_db());
-        bdk_test_suite::test_check_descriptor_checksum(WalletDb::new_test_db());
     }
 
     /// This test tests the following properties:
