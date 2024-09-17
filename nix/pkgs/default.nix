@@ -16,11 +16,33 @@
 
   # Instantiate the rust toolchain from our `rust-toolchain.toml`.
   rustLexeToolchain = let
-    fenixToolchain = fenixPkgs.combine [
+    fenixToolchainUnpatched = fenixPkgs.combine [
       fenixPkgs.stable.rustc
       fenixPkgs.stable.cargo
       fenixPkgs.targets.x86_64-fortanix-unknown-sgx.stable.rust-std
     ];
+
+    # - On macOS, we need to patch `cargo` so it uses dynamic libs from nixpkgs.
+    #   Otherwise it doesn't work in the sandbox.
+    # TODO(phlip9): upstream these changes
+    fenixToolchain = fenixToolchainUnpatched.overrideAttrs (super: {
+      buildCommand = ''
+        ${lib.optionalString pkgs.hostPlatform.isDarwin ''
+          # darwin.cctools provides 'install_name_tool'
+          export PATH="$PATH:${pkgs.darwin.cctools}/bin"
+        ''}
+
+        ${super.buildCommand}
+
+        ${lib.optionalString pkgs.hostPlatform.isDarwin ''
+          # Patch libcurl and libiconv so they use nixpkgs versions
+          install_name_tool \
+            -change "/usr/lib/libcurl.4.dylib" "${pkgs.curl.out}/lib/libcurl.4.dylib" \
+            -change "/usr/lib/libiconv.2.dylib" "${pkgs.iconv.out}/lib/libiconv.2.dylib" \
+            "$out/bin/cargo"
+        ''}
+      '';
+    });
 
     # HACK: get the actual rustc version from the fenix toolchain dl url
     # ex: `url = "https://static.rust-lang.org/dist/2024-08-08/cargo-1.80.1-x86_64-unknown-linux-gnu.tar.gz"`
