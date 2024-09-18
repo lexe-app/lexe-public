@@ -47,7 +47,7 @@ use lexe_ln::{
     },
     persister,
     traits::LexeInnerPersister,
-    wallet::db29::{DbData, WalletDb},
+    wallet::db29::{DbData, WalletDb29},
 };
 use lightning::{
     chain::{
@@ -357,7 +357,7 @@ impl NodePersister {
     pub(crate) async fn read_wallet_db(
         &self,
         wallet_db_persister_tx: mpsc::Sender<()>,
-    ) -> anyhow::Result<WalletDb> {
+    ) -> anyhow::Result<WalletDb29> {
         debug!("Reading wallet db");
         let file_id = VfsFileId::new(
             SINGLETON_DIRECTORY.to_owned(),
@@ -380,12 +380,12 @@ impl NodePersister {
                     file,
                 )?;
 
-                WalletDb::from_inner(db_data, wallet_db_persister_tx)
+                WalletDb29::from_inner(db_data, wallet_db_persister_tx)
             }
             None => {
                 debug!("No wallet db found, creating a new one");
 
-                WalletDb::new(wallet_db_persister_tx)
+                WalletDb29::new(wallet_db_persister_tx)
             }
         };
 
