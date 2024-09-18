@@ -374,12 +374,13 @@ impl UserNode {
             .context("Could not read finalized payment ids")?;
 
         // Init BDK wallet; share esplora connection pool, spawn persister task
-        let wallet = LexeWallet::new(
+        let wallet = LexeWallet::init(
             &root_seed,
             network,
             esplora.clone(),
             wallet_db.clone(),
         )
+        .await
         .context("Could not init BDK wallet")?;
         tasks.push(wallet::spawn_wallet_db_persister_task(
             persister.clone(),
