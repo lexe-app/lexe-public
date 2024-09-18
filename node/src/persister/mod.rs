@@ -26,6 +26,7 @@ use common::{
         payments::{BasicPayment, DbPayment, LxPaymentId, PaymentIndex},
         peer::ChannelPeer,
     },
+    notify,
     rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
     task::LxTask,
@@ -47,7 +48,7 @@ use lexe_ln::{
     },
     persister,
     traits::LexeInnerPersister,
-    wallet::db29::{DbData, WalletDb29},
+    wallet::db::{ChangeSet, WalletDb},
 };
 use lightning::{
     chain::{
@@ -356,8 +357,8 @@ impl NodePersister {
 
     pub(crate) async fn read_wallet_db(
         &self,
-        wallet_db_persister_tx: mpsc::Sender<()>,
-    ) -> anyhow::Result<WalletDb29> {
+        wallet_db_persister_tx: notify::Sender,
+    ) -> anyhow::Result<WalletDb> {
         debug!("Reading wallet db");
         let file_id = VfsFileId::new(
             SINGLETON_DIRECTORY.to_owned(),
@@ -374,18 +375,16 @@ impl NodePersister {
         let wallet_db = match maybe_file {
             Some(file) => {
                 debug!("Decrypting and deserializing existing wallet db");
-                let db_data = persister::decrypt_json_file::<DbData>(
+                let changeset = persister::decrypt_json_file::<ChangeSet>(
                     &self.vfs_master_key,
                     &file_id,
                     file,
                 )?;
-
-                WalletDb29::from_inner(db_data, wallet_db_persister_tx)
+                WalletDb::from_changeset(changeset, wallet_db_persister_tx)
             }
             None => {
-                debug!("No wallet db found, creating a new one");
-
-                WalletDb29::new(wallet_db_persister_tx)
+                debug!("No wallet db found, creating an empty one");
+                WalletDb::empty(wallet_db_persister_tx)
             }
         };
 

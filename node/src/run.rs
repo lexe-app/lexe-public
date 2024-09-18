@@ -314,7 +314,7 @@ impl UserNode {
 
         // Read as much as possible concurrently to reduce init time
         let (wallet_db_persister_tx, wallet_db_persister_rx) =
-            mpsc::channel(SMALLER_CHANNEL_SIZE);
+            notify::channel();
         #[rustfmt::skip] // Does not respect 80 char line width
         let (
             try_maybe_approved_versions,
