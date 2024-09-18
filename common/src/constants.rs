@@ -26,7 +26,8 @@ pub const IMPORTANT_PERSIST_RETRIES: usize = 5;
 /// The vfs directory name used by singleton objects.
 pub const SINGLETON_DIRECTORY: &str = ".";
 /// The vfs filename used for the `WalletDb`.
-pub const WALLET_DB_FILENAME: &str = "bdk_wallet_db";
+// We previously used "bdk_wallet_db" for our pre BDK 1.0 wallet DB.
+pub const WALLET_DB_FILENAME: &str = "bdk_wallet_db_v1";
 /// The vfs filename used for the user's password-encrypted root seed backup.
 pub const PW_ENC_ROOT_SEED_FILENAME: &str = "password_encrypted_root_seed";
 

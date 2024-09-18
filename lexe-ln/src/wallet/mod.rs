@@ -23,6 +23,7 @@ use common::{
         amount::Amount, balance::Balance, network::LxNetwork,
         priority::ConfirmationPriority,
     },
+    notify,
     root_seed::RootSeed,
     shutdown::ShutdownChannel,
     task::LxTask,
@@ -30,11 +31,11 @@ use common::{
 use tokio::sync::mpsc;
 use tracing::{debug, info, instrument, warn};
 
+use self::{db::WalletDb, db29::WalletDb29};
 use crate::{
     esplora::LexeEsplora,
     payments::onchain::OnchainSend,
     traits::{LexeInnerPersister, LexePersister},
-    wallet::db29::WalletDb29,
 };
 
 /// Wallet DB.
@@ -83,7 +84,7 @@ pub struct LexeWallet {
     // TODO(max): Implement wallet persistence
     // TODO(max): Revisit wrapper type - do we need a Mutex?
     #[allow(dead_code)] // TODO(max): Remove
-    wallet: Arc<bdk::Wallet<()>>,
+    wallet: Arc<bdk::Wallet<WalletDb>>,
 }
 
 impl LexeWallet {
@@ -97,7 +98,7 @@ impl LexeWallet {
         root_seed: &RootSeed,
         network: LxNetwork,
         esplora: Arc<LexeEsplora>,
-        wallet_db29: WalletDb29,
+        wallet_db: WalletDb,
     ) -> anyhow::Result<Self> {
         let network = network.to_bitcoin();
         let master_xprv = root_seed.derive_bip32_master_xprv(network);
@@ -111,6 +112,9 @@ impl LexeWallet {
                 Bip84(master_xprv, KeychainKind::External);
             // Descriptor for internal (change) addresses: `m/84h/{0,1}h/0h/1/*`
             let change_descriptor = Bip84(master_xprv, KeychainKind::Internal);
+
+            let (wallet_db_persister_tx, _rx) = mpsc::channel(256);
+            let wallet_db29 = WalletDb29::new(wallet_db_persister_tx);
 
             bdk29::Wallet::new(
                 external_descriptor,
@@ -128,9 +132,7 @@ impl LexeWallet {
         // Descriptor for internal (change) addresses: `m/84h/{0,1}h/0h/1/*`
         let change_descriptor = Bip84(master_xprv, KeychainKind::Internal);
 
-        let wallet_db = ();
-
-        let wallet = bdk::Wallet::new(
+        let wallet = bdk::Wallet::new_or_load(
             external_descriptor,
             Some(change_descriptor),
             wallet_db,
@@ -472,24 +474,20 @@ impl LexeWallet {
 /// [`WalletDb`] needs to be re-persisted.
 pub fn spawn_wallet_db_persister_task<PS: LexePersister>(
     persister: PS,
-    wallet_db: WalletDb29,
-    mut wallet_db_persister_rx: mpsc::Receiver<()>,
+    wallet_db: WalletDb,
+    mut wallet_db_persister_rx: notify::Receiver,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()> {
     LxTask::spawn_named("wallet db persister", async move {
         loop {
             tokio::select! {
-                Some(()) = wallet_db_persister_rx.recv() => {
-                    // Clear out all (possibly) remaining notifications on the
-                    // channel; they'll all be handled in the following persist.
-                    while let Ok(()) = wallet_db_persister_rx.try_recv() {}
-
-                    // Serialize to JSON bytes, encrypt, then persist
+                () = wallet_db_persister_rx.recv() => {
+                    // Serialize changeset to JSON bytes, encrypt, then persist
                     let persist_fut = async {
                         let basic_file = persister.encrypt_json(
                             SINGLETON_DIRECTORY.to_owned(),
                             WALLET_DB_FILENAME.to_owned(),
-                            &wallet_db,
+                            &wallet_db.changeset(),
                         );
                         let persist_res = persister
                             .persist_file(
