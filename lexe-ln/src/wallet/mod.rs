@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{ensure, Context};
-use bdk::{template::Bip84, KeychainKind};
+use bdk::{template::Bip84, wallet::Update, KeychainKind};
 use bdk29::{
     blockchain::{EsploraBlockchain, Progress},
     wallet::{
@@ -10,6 +10,8 @@ use bdk29::{
     },
     FeeRate, SyncOptions, TransactionDetails, TxBuilder,
 };
+use bdk_chain::Append;
+use bdk_esplora::EsploraAsyncExt;
 use bitcoin::{psbt::PartiallySignedTransaction, Transaction, Txid};
 use common::{
     api::command::{
@@ -44,10 +46,13 @@ pub mod db;
 // TODO(max): Remove
 pub mod db29;
 
-/// The 'stop_gap' parameter used by BDK's wallet sync. This seems to configure
-/// the threshold number of blocks after which BDK stops looking for scripts
-/// belonging to the wallet. BDK's default value for this is 20.
-const BDK_WALLET_SYNC_STOP_GAP: usize = 20;
+/// "`stop_gap` is the maximum number of consecutive unused addresses. For
+/// example, with a `stop_gap` of  3, `full_scan` will keep scanning until it
+/// encounters 3 consecutive script pubkeys with no associated transactions."
+///
+/// From: [`EsploraAsyncExt::full_scan`]
+const BDK_FULL_SCAN_STOP_GAP: usize = 2;
+const BDK_PARALLEL_REQUESTS: usize = 8;
 
 /// The [`ConfirmationPriority`] for new open_channel funding transactions.
 ///
@@ -82,9 +87,8 @@ pub struct LexeWallet {
     // TODO(max): Switch over everything to new wallet, then remove
     bdk29_wallet: Arc<tokio::sync::Mutex<bdk29::Wallet<WalletDb29>>>,
     // TODO(max): Implement wallet persistence
-    // TODO(max): Revisit wrapper type - do we need a Mutex?
     #[allow(dead_code)] // TODO(max): Remove
-    wallet: Arc<bdk::Wallet<WalletDb>>,
+    wallet: Arc<std::sync::RwLock<bdk::Wallet<WalletDb>>>,
 }
 
 impl LexeWallet {
@@ -94,7 +98,7 @@ impl LexeWallet {
     ///
     /// [BIP 84]: https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki
     /// [BIP 44]: https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
-    pub fn new(
+    pub async fn init(
         root_seed: &RootSeed,
         network: LxNetwork,
         esplora: Arc<LexeEsplora>,
@@ -104,6 +108,8 @@ impl LexeWallet {
         let master_xprv = root_seed.derive_bip32_master_xprv(network);
 
         let bdk29_wallet = {
+            use std::time::Duration;
+
             use bdk29::{template::Bip84, KeychainKind};
 
             // Descriptor for external (receive) addresses:
@@ -113,8 +119,17 @@ impl LexeWallet {
             // Descriptor for internal (change) addresses: `m/84h/{0,1}h/0h/1/*`
             let change_descriptor = Bip84(master_xprv, KeychainKind::Internal);
 
-            let (wallet_db_persister_tx, _rx) = mpsc::channel(256);
+            let (wallet_db_persister_tx, wallet_db_persister_rx) =
+                mpsc::channel(256);
             let wallet_db29 = WalletDb29::new(wallet_db_persister_tx);
+
+            // Hack to prevent dropping rx while we transition to BDK 1.0
+            LxTask::spawn(async move {
+                tokio::time::sleep(Duration::from_secs(60 * 60 * 24 * 365))
+                    .await;
+                std::mem::drop(wallet_db_persister_rx);
+            })
+            .detach();
 
             bdk29::Wallet::new(
                 external_descriptor,
@@ -132,20 +147,33 @@ impl LexeWallet {
         // Descriptor for internal (change) addresses: `m/84h/{0,1}h/0h/1/*`
         let change_descriptor = Bip84(master_xprv, KeychainKind::Internal);
 
+        let db_empty = wallet_db.changeset().is_empty();
+
         let wallet = bdk::Wallet::new_or_load(
             external_descriptor,
             Some(change_descriptor),
             wallet_db,
             network,
         )
+        .map(std::sync::RwLock::new)
         .map(Arc::new)
         .context("bdk::Wallet::new failed")?;
 
-        Ok(Self {
+        let lexe_wallet = Self {
             esplora,
             bdk29_wallet,
             wallet,
-        })
+        };
+
+        if db_empty {
+            // After the first full sync, the db won't be empty anymore.
+            lexe_wallet
+                .full_sync()
+                .await
+                .context("Failed to conduct initial full sync")?;
+        }
+
+        Ok(lexe_wallet)
     }
 
     /// Syncs the inner [`bdk29::Wallet`] using the given Esplora server.
@@ -154,21 +182,85 @@ impl LexeWallet {
     /// [`bdk29::Wallet`] during wallet sync. It is held across `.await`.
     #[instrument(skip_all, name = "(bdk-sync)")]
     pub async fn sync(&self) -> anyhow::Result<()> {
-        let esplora_blockchain = EsploraBlockchain::from_client(
-            self.esplora.client().clone(),
-            BDK_WALLET_SYNC_STOP_GAP,
-        );
+        {
+            let esplora_blockchain = EsploraBlockchain::from_client(
+                self.esplora.client().clone(),
+                BDK_FULL_SCAN_STOP_GAP,
+            );
 
-        let progress =
-            Some(Box::new(ProgressLogger) as Box<(dyn Progress + 'static)>);
-        let sync_options = SyncOptions { progress };
+            let progress =
+                Some(Box::new(ProgressLogger) as Box<(dyn Progress + 'static)>);
+            let sync_options = SyncOptions { progress };
 
-        self.bdk29_wallet
-            .lock()
+            self.bdk29_wallet
+                .lock()
+                .await
+                .sync(&esplora_blockchain, sync_options)
+                .await
+                .context("bdk29::Wallet::sync failed")?;
+        }
+
+        // TODO(max): Implement
+
+        Ok(())
+    }
+
+    /// Conducts a full sync of all script pubkeys derived from all of our
+    /// wallet descriptors, until a stop gap is hit on both of our keychains.
+    ///
+    /// This should be done rarely, i.e. only when creating the wallet or if we
+    /// need to restore from a existing seed. See BDK's examples for more info.
+    async fn full_sync(&self) -> anyhow::Result<()> {
+        let keychains_spks;
+        let prev_tip;
+        let local_chain;
+        {
+            let locked_wallet = self.wallet.read().unwrap();
+            // Iterators over the script pks of all of our keychain descriptors
+            // (i.e. our external and internal/change keychains).
+            keychains_spks = locked_wallet.all_unbounded_spk_iters();
+            prev_tip = locked_wallet.latest_checkpoint();
+            local_chain = locked_wallet.local_chain().clone();
+        };
+
+        // Scan the blockchain for our keychain script pubkeys until we hit the
+        // `stop_gap`. We get a `TxGraph` update and the last active script
+        // pubkey derivation indices for each of our `KeychainKind`s.
+        let esplora_client = self.esplora.client();
+        let (tx_graph_update, last_active_indices) = esplora_client
+            .full_scan::<KeychainKind>(
+                keychains_spks,
+                BDK_FULL_SCAN_STOP_GAP,
+                BDK_PARALLEL_REQUESTS,
+            )
             .await
-            .sync(&esplora_blockchain, sync_options)
+            .context("EsploraAsyncExt::full_scan failed")?;
+
+        // Determine the block heights missing from our local chain based on the
+        // info in our `TxGraph` update. Returns an iterator over u32 heights.
+        let missing_heights = tx_graph_update.missing_heights(&local_chain);
+
+        // Now, prepare our local chain update based on the missing heights.
+        let local_chain_update = esplora_client
+            .update_local_chain(prev_tip, missing_heights)
             .await
-            .context("bdk29::Wallet::sync failed")
+            .context("Failed to update local chain")?;
+        let update = Update {
+            last_active_indices,
+            graph: tx_graph_update,
+            chain: Some(local_chain_update),
+        };
+
+        // Finally, apply the combined update to the wallet.
+        {
+            let mut locked_wallet = self.wallet.write().unwrap();
+            locked_wallet
+                .apply_update(update)
+                .context("Couldn't apply update")?;
+            locked_wallet.commit().context("Couldn't commit update")?;
+        }
+
+        Ok(())
     }
 
     /// Returns the current wallet balance. Note that newly received funds will
