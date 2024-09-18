@@ -1,7 +1,6 @@
 # Blockstream/electrs - indexed BTC chain REST API server
 #
 # Used in integration tests (see `common/src/regtest.rs`)
-# TODO(phlip9): broken until this PR lands <https://github.com/Blockstream/electrs/pull/109>.
 {
   buildRustSccache,
   darwin ? {},
@@ -12,15 +11,15 @@
   stdenv,
   vendorCargoDeps,
 }: let
-  # commit 2024-02-27
-  rev = "49a71805a2c15852a4fa0450bcb5a4a4a36c89d8";
+  # commit 2024-09-16
+  rev = "891426ab458eaf807442d8bfdb7b1b7386d358ea";
   shortRev = builtins.substring 0 8 rev;
 
   src = fetchFromGitHub {
     owner = "Blockstream";
     repo = "electrs";
     rev = rev;
-    hash = "sha256-bPEkdNGlQhpE4cj8K1yQWINqZ2MIgyrrYnp/IA9lu4Y=";
+    hash = "sha256-5IBoKLfKKNc/Ju17AqQf0ALn9AvNfTfDvth5R15aq8U=";
   };
 in
   buildRustSccache {
@@ -29,9 +28,9 @@ in
     cargoVendorDir = vendorCargoDeps {
       cargoLock = src + "/Cargo.lock";
       gitDepOutputHashes = {
-        "git+https://github.com/shesek/rust-jsonrpc?branch=202201-nonarray#aaa0af349bd4885a59f6f6ba1753e78279014f98" = "sha256-lSNkkQttb8LnJej4Vfe7MrjiNPOuJ5A6w5iLstl9O1k=";
-        "git+https://github.com/shesek/electrumd?rev=6eac0b7b1f2447472016e2c1473a6284f7f8648e#6eac0b7b1f2447472016e2c1473a6284f7f8648e" = "sha256-s1/laailcwOmqjAPJnuqe7Y45Bvxwqw8EjKN54BS5gI=";
         "git+https://github.com/Blockstream/rust-electrum-client?rev=d3792352992a539afffbe11501d1aff9fd5b919d#d3792352992a539afffbe11501d1aff9fd5b919d" = "sha256-HDRdGS7CwWsPXkA1HdurwrVu4lhEx0Ay8vHi08urjZ0=";
+        "git+https://github.com/shesek/electrumd?rev=b35d9db285d932cb3c2296beab65e571a2506349#b35d9db285d932cb3c2296beab65e571a2506349" = "sha256-QsoMD2uVDEITuYmYItfP6BJCq7ApoRztOCs7kdeRL9Y=";
+        "git+https://github.com/shesek/rust-jsonrpc?branch=202201-nonarray#aaa0af349bd4885a59f6f6ba1753e78279014f98" = "sha256-lSNkkQttb8LnJej4Vfe7MrjiNPOuJ5A6w5iLstl9O1k=";
       };
     };
     skipDepsOnlyBuild = true;
