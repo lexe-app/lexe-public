@@ -34,7 +34,7 @@ use crate::{
     esplora::LexeEsplora,
     payments::onchain::OnchainSend,
     traits::{LexeInnerPersister, LexePersister},
-    wallet::db29::WalletDb,
+    wallet::db29::WalletDb29,
 };
 
 /// Wallet DB.
@@ -54,7 +54,7 @@ const CHANNEL_FUNDING_CONF_PRIO: ConfirmationPriority =
     ConfirmationPriority::Normal;
 
 type TxBuilderType<'wallet, MODE> =
-    TxBuilder<'wallet, WalletDb, DefaultCoinSelectionAlgorithm, MODE>;
+    TxBuilder<'wallet, WalletDb29, DefaultCoinSelectionAlgorithm, MODE>;
 
 /// A newtype wrapper around [`bdk::Wallet`]. Can be cloned and used directly.
 // TODO(max): All LexeWallet methods currently use `lock().await` so that we can
@@ -77,7 +77,7 @@ pub struct LexeWallet {
     // - https://github.com/bitcoindevkit/bdk/commit/c5b2f5ac9ac152a7e0658ca99ccaf854b9063727
     // - https://github.com/bitcoindevkit/bdk/commit/ddc84ca1916620d021bae8c467c53555b7c62467
     // TODO(max): Switch over everything to new wallet, then remove
-    bdk29_wallet: Arc<tokio::sync::Mutex<bdk29::Wallet<WalletDb>>>,
+    bdk29_wallet: Arc<tokio::sync::Mutex<bdk29::Wallet<WalletDb29>>>,
     // TODO(max): Implement wallet persistence
     // TODO(max): Revisit wrapper type - do we need a Mutex?
     #[allow(dead_code)] // TODO(max): Remove
@@ -95,7 +95,7 @@ impl LexeWallet {
         root_seed: &RootSeed,
         network: LxNetwork,
         esplora: Arc<LexeEsplora>,
-        wallet_db: WalletDb,
+        wallet_db29: WalletDb29,
     ) -> anyhow::Result<Self> {
         let network = network.to_bitcoin();
         let master_xprv = root_seed.derive_bip32_master_xprv(network);
@@ -114,20 +114,19 @@ impl LexeWallet {
                 external_descriptor,
                 Some(change_descriptor),
                 network,
-                wallet_db,
+                wallet_db29,
             )
             .map(tokio::sync::Mutex::new)
             .map(Arc::new)
             .context("bdk29::Wallet::new failed")?
         };
 
-        // TODO(max): Use real persistence
-        let wallet_db = ();
-
         // Descriptor for external (receive) addresses: `m/84h/{0,1}h/0h/0/*`
         let external_descriptor = Bip84(master_xprv, KeychainKind::External);
         // Descriptor for internal (change) addresses: `m/84h/{0,1}h/0h/1/*`
         let change_descriptor = Bip84(master_xprv, KeychainKind::Internal);
+
+        let wallet_db = ();
 
         let wallet = bdk::Wallet::new(
             external_descriptor,
@@ -410,7 +409,7 @@ impl LexeWallet {
     }
 
     fn preflight_pay_onchain_inner(
-        wallet: &bdk29::Wallet<WalletDb>,
+        wallet: &bdk29::Wallet<WalletDb29>,
         address: &bitcoin::Address,
         amount: Amount,
         bdk_feerate: FeeRate,
@@ -444,7 +443,7 @@ impl LexeWallet {
     /// Note that this builder is specifically for *creating* transactions, not
     /// for e.g. bumping the fee of an existing transaction.
     fn default_tx_builder(
-        wallet: &bdk29::Wallet<WalletDb>,
+        wallet: &bdk29::Wallet<WalletDb29>,
         bdk_feerate: FeeRate,
     ) -> TxBuilderType<'_, CreateTx> {
         // Set the feerate and enable RBF by default
@@ -456,7 +455,7 @@ impl LexeWallet {
 
     /// Sign a [`PartiallySignedTransaction`] in the default way.
     fn default_sign_psbt(
-        wallet: &bdk29::Wallet<WalletDb>,
+        wallet: &bdk29::Wallet<WalletDb29>,
         psbt: &mut PartiallySignedTransaction,
     ) -> anyhow::Result<()> {
         let options = SignOptions::default();
@@ -471,7 +470,7 @@ impl LexeWallet {
 /// [`WalletDb`] needs to be re-persisted.
 pub fn spawn_wallet_db_persister_task<PS: LexePersister>(
     persister: PS,
-    wallet_db: WalletDb,
+    wallet_db: WalletDb29,
     mut wallet_db_persister_rx: mpsc::Receiver<()>,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()> {

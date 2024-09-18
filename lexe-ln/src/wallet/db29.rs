@@ -31,7 +31,7 @@ type BdkResult<T> = Result<T, bdk29::Error>;
 ///
 /// [`MemoryDatabase`]: bdk29::database::memory::MemoryDatabase
 #[derive(Clone, Debug)]
-pub struct WalletDb {
+pub struct WalletDb29 {
     inner: Arc<Mutex<DbData>>,
     wallet_db_persister_tx: mpsc::Sender<()>,
 }
@@ -101,7 +101,7 @@ struct TransactionMetadata {
 }
 
 /// Represents a batch of `DbOp`s. Operations can be queued up for execution via
-/// the [`BatchOperations`] trait methods. The underlying [`WalletDb`] is
+/// the [`BatchOperations`] trait methods. The underlying [`WalletDb29`] is
 /// guaranteed not to be affected until [`commit_batch`] is called.
 /// The queued operations can be aborted by simply dropping the [`DbBatch`]
 /// object.
@@ -512,9 +512,9 @@ impl DbOp {
     }
 }
 
-// --- impl WalletDb --- //
+// --- impl WalletDb29 --- //
 
-impl WalletDb {
+impl WalletDb29 {
     pub fn new(wallet_db_persister_tx: mpsc::Sender<()>) -> Self {
         let inner = Arc::new(Mutex::new(DbData::new()));
         Self {
@@ -523,7 +523,7 @@ impl WalletDb {
         }
     }
 
-    /// Helper to quickly construct a [`WalletDb`] without needing to pass in
+    /// Helper to quickly construct a [`WalletDb29`] without needing to pass in
     /// the channel tx, useful for tests. Note that for some tests it is still
     /// necessary to pass in the channel tx to prevent the test from failing due
     /// to the channel rx being dropped.
@@ -539,7 +539,7 @@ impl WalletDb {
         }
     }
 
-    /// Constructs a [`WalletDb`] given its inner [`DbData`] and persister
+    /// Constructs a [`WalletDb29`] given its inner [`DbData`] and persister
     /// [`mpsc::Sender`].
     pub fn from_inner(
         inner: DbData,
@@ -572,15 +572,15 @@ impl WalletDb {
 }
 
 #[cfg(test)]
-impl PartialEq for WalletDb {
-    fn eq(&self, other: &WalletDb) -> bool {
+impl PartialEq for WalletDb29 {
+    fn eq(&self, other: &WalletDb29) -> bool {
         let self_lock = self.inner.lock().unwrap();
         let other_lock = other.inner.lock().unwrap();
         self_lock.eq(&other_lock)
     }
 }
 
-impl Database for WalletDb {
+impl Database for WalletDb29 {
     // BDK wants us to store the first checksum we see, then check all future
     // given checksums against it. Sure, we can do that...
     fn check_descriptor_checksum<B: AsRef<[u8]>>(
@@ -672,7 +672,7 @@ impl Database for WalletDb {
     }
 }
 
-impl BatchOperations for WalletDb {
+impl BatchOperations for WalletDb29 {
     // Weird that the set_* methods give ref, but ok
     fn set_script_pubkey(
         &mut self,
@@ -762,16 +762,16 @@ impl BatchOperations for WalletDb {
     }
 }
 
-impl BatchDatabase for WalletDb {
+impl BatchDatabase for WalletDb29 {
     type Batch = DbBatch;
 
     fn begin_batch(&self) -> Self::Batch {
-        debug!("Beginning WalletDb batch");
+        debug!("Beginning WalletDb29 batch");
         DbBatch::new()
     }
 
     /// Executes all ops in the batch and notifies the wallet db persister task
-    /// that the [`WalletDb`] should be re-persisted.
+    /// that the [`WalletDb29`] should be re-persisted.
     ///
     /// NOTE: We are deliberately failing to meet the API requirement of this
     /// function, specifically that the database should be persisted before
@@ -779,14 +779,15 @@ impl BatchDatabase for WalletDb {
     ///
     /// - BDK does not provide an async database persist API.
     /// - The chance of data loss is fairly small - the node would need to be
-    ///   shut down in the <=1 second or so it takes to persist the `WalletDb`.
+    ///   shut down in the <=1 second or so it takes to persist the
+    ///   `WalletDb29`.
     /// - Most data lost can be recovered by redoing chain sync. In the worst
     ///   case, we reissue the same address twice.
     ///
     /// Taking all the above into consideration, it's not worth blocking the
     /// entire program to protect against this small amount of risk.
     fn commit_batch(&mut self, batch: Self::Batch) -> BdkResult<()> {
-        debug!("Committing WalletDb batch");
+        debug!("Committing WalletDb29 batch");
         // Acquire the lock and execute the ops directly on the DbData to avoid
         // acquiring and releasing the lock once for every op
         {
@@ -807,7 +808,7 @@ impl BatchDatabase for WalletDb {
     }
 }
 
-impl Serialize for WalletDb {
+impl Serialize for WalletDb29 {
     fn serialize<S: Serializer>(
         &self,
         serializer: S,
@@ -1263,7 +1264,7 @@ mod test {
         }
     }
 
-    impl Arbitrary for WalletDb {
+    impl Arbitrary for WalletDb29 {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
@@ -1346,12 +1347,12 @@ mod test {
         }
     }
 
-    /// Tests that [`WalletDb::iter_script_pubkeys`] filters according to
+    /// Tests that [`WalletDb29::iter_script_pubkeys`] filters according to
     /// [`KeychainKind`].
     #[test]
     fn iter_script_pubkeys_filters() {
         use KeychainKind::{External, Internal};
-        let mut wallet_db = WalletDb::new_test_db();
+        let mut wallet_db = WalletDb29::new_test_db();
 
         // Populate the db
         let script1 = ScriptBuf::from(vec![1]);
@@ -1401,7 +1402,7 @@ mod test {
     /// of the original) in e.g. an Option chain.
     #[test]
     fn increment_actually_increments() {
-        let mut db = WalletDb::new_test_db();
+        let mut db = WalletDb29::new_test_db();
         let keychain = KeychainKind::Internal;
 
         assert_eq!(db.get_last_index(keychain).unwrap(), None);
@@ -1423,7 +1424,7 @@ mod test {
         let any_vec_of_ops = proptest::collection::vec(any_op, 0..20);
         // We only test one case, otherwise this test takes several minutes.
         proptest!(Config::with_cases(1), |(vec_of_ops in any_vec_of_ops)| {
-            let mut db = WalletDb::new_test_db();
+            let mut db = WalletDb29::new_test_db();
 
             db.assert_invariants();
 
@@ -1436,8 +1437,8 @@ mod test {
     }
 
     /// Tests that the [`FromStr`] / [`Display`] and [`Serialize`] /
-    /// [`Deserialize`] impls of [`WalletDb`] fields roundtrip, because these
-    /// impls are used when serializing the [`WalletDb`] as a whole. See the
+    /// [`Deserialize`] impls of [`WalletDb29`] fields roundtrip, because these
+    /// impls are used when serializing the [`WalletDb29`] as a whole. See the
     /// [`serde_as`] annotations on [`DbData`] for more information.
     #[test]
     fn wallet_db_fields_roundtrips() {
@@ -1464,7 +1465,8 @@ mod test {
         json_value_custom(any_sync_time(), config);
     }
 
-    /// Tests that the [`WalletDb`] as a whole roundtrips to/from a JSON object
+    /// Tests that the [`WalletDb29`] as a whole roundtrips to/from a JSON
+    /// object
     #[test]
     fn wallet_db_serde_json_roundtrip() {
         // Configure this test to run only one iteration,
@@ -1478,7 +1480,7 @@ mod test {
     // TODO(max): Clarify with BDK on guarantees / expected behavior, then fix
     #[test]
     fn regression_nonbijective_path_script_mapping() {
-        let mut db = WalletDb::new_test_db();
+        let mut db = WalletDb29::new_test_db();
         let keychain = KeychainKind::External;
         let path1 = Path { keychain, child: 0 };
         let path2 = Path { keychain, child: 1 };
@@ -1504,9 +1506,9 @@ mod test {
     }
 
     /// Tests that possibly-updated deserialization logic can deserialize a
-    /// [`WalletDb`] that was serialized on 2022-12-24 (backwards-compatibility
-    /// test). This test can be removed if all nodes have migrated to the newer
-    /// serialization scheme.
+    /// [`WalletDb29`] that was serialized on 2022-12-24
+    /// (backwards-compatibility test). This test can be removed if all
+    /// nodes have migrated to the newer serialization scheme.
     ///
     /// NOTE: The data in the serialized wallet db is not guaranteed to be
     /// consensus-valid, or even valid enough to be propagated. If this test
@@ -1518,9 +1520,9 @@ mod test {
         // The following code generated the db_json_str below.
         /*
         let mut runner = proptest::test_runner::TestRunner::default();
-        let mut db = WalletDb::new_test_db();
+        let mut db = WalletDb29::new_test_db();
 
-        // To ensure each field of the WalletDb contains at least one element,
+        // To ensure each field of the WalletDb29 contains at least one element,
         // sample DbOps until we've executed at least one of each of the below:
         // SetPathScript, SetUtxo, SetRawTx, SetTx, SetLastIndex, SetSyncTime.
         // We mark a slot as Some after we have executed that op.
@@ -1607,16 +1609,18 @@ mod test {
         }"#;
 
         serde_json::from_str::<DbData>(db_json_str)
-            .expect("Failed to deserialize old serialized WalletDb");
+            .expect("Failed to deserialize old serialized WalletDb29");
     }
 
     /// This test tests the following properties:
     ///
     /// 1) An arbitrary sequence of operations executed on a [`DbBatch`] do not
-    ///    affect the underlying [`WalletDb`] until [`commit_batch`] is called.
+    ///    affect the underlying [`WalletDb29`] until [`commit_batch`] is
+    ///    called.
     /// 2) An arbitrary sequence of operations executed on a [`DbBatch`] (and
     ///    committed at the end) vs the same sequence of operations executed
-    ///    directly on a [`WalletDb`] results in the same [`WalletDb`] state.
+    ///    directly on a [`WalletDb29`] results in the same [`WalletDb29`]
+    ///    state.
     ///
     /// [`commit_batch`]: BatchDatabase::commit_batch
     #[test]
@@ -1625,10 +1629,10 @@ mod test {
         let any_vec_of_ops = proptest::collection::vec(any_op, 0..20);
         proptest!(|(vec_of_ops in any_vec_of_ops)| {
             let (tx, _rx) = mpsc::channel(SMALLER_CHANNEL_SIZE);
-            let empty_db = WalletDb::new_test_db();
-            let mut batch_db = WalletDb::new(tx);
+            let empty_db = WalletDb29::new_test_db();
+            let mut batch_db = WalletDb29::new(tx);
             let mut batch = batch_db.begin_batch();
-            let mut normal_db = WalletDb::new_test_db();
+            let mut normal_db = WalletDb29::new_test_db();
 
             for op in vec_of_ops {
                 // Execute the op on both the batch DB and the "normal" DB which
