@@ -8,7 +8,8 @@ import 'dart:async'
         Timer,
         unawaited;
 
-import 'package:app_rs_dart/ffi/api.dart' show FiatRate, FiatRates, NodeInfo;
+import 'package:app_rs_dart/ffi/api.dart'
+    show Balance, FiatRate, FiatRates, NodeInfo;
 import 'package:app_rs_dart/ffi/api.ext.dart';
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
@@ -176,7 +177,7 @@ class WalletPageState extends State<WalletPage> {
       this.nodeInfo.stream,
       this.fiatRate.stream,
       (nodeInfo, fiatRate) => BalanceState(
-        balanceSats: nodeInfo?.balance.totalSats,
+        balanceSats: nodeInfo?.balance,
         fiatRate: fiatRate,
       ),
     ).log(id: "balanceState").pipe(this.balanceState.sink);
@@ -817,7 +818,7 @@ class DrawerListItem extends StatelessWidget {
 @freezed
 class BalanceState with _$BalanceState {
   const factory BalanceState({
-    required int? balanceSats,
+    required Balance? balanceSats,
     required FiatRate? fiatRate,
   }) = _BalanceState;
 
@@ -826,9 +827,18 @@ class BalanceState with _$BalanceState {
   static BalanceState placeholder =
       const BalanceState(balanceSats: null, fiatRate: null);
 
-  double? fiatBalance() => (this.balanceSats != null && this.fiatRate != null)
-      ? currency_format.satsToBtc(this.balanceSats!) * this.fiatRate!.rate
-      : null;
+  int? totalSats() => this.balanceSats?.totalSats;
+  int? lightningSats() => this.balanceSats?.lightningSats;
+  int? onchainSats() => this.balanceSats?.onchainSats;
+
+  double? totalFiat() => this._convertFiat(this.totalSats());
+  double? lightningFiat() => this._convertFiat(this.lightningSats());
+  double? onchainFiat() => this._convertFiat(this.onchainSats());
+
+  double? _convertFiat(final int? satsBalance) =>
+      (satsBalance != null && this.fiatRate != null)
+          ? currency_format.satsToBtc(satsBalance) * this.fiatRate!.rate
+          : null;
 }
 
 class BalanceWidget extends StatelessWidget {
@@ -838,10 +848,11 @@ class BalanceWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final totalSats = this.state.totalSats();
     const satsBalanceSize = Fonts.size300;
-    final satsBalanceOrPlaceholder = (this.state.balanceSats != null)
+    final satsBalanceOrPlaceholder = (totalSats != null)
         ? Text(
-            currency_format.formatSatsAmount(this.state.balanceSats!),
+            currency_format.formatSatsAmount(totalSats),
             style: Fonts.fontUI.copyWith(
               fontSize: satsBalanceSize,
               color: LxColors.grey700,
@@ -849,16 +860,17 @@ class BalanceWidget extends StatelessWidget {
             ),
           )
         : const FilledPlaceholder(
-            width: Space.s1000,
+            width: Space.s900,
             height: satsBalanceSize,
+            color: LxColors.background,
             forText: true,
           );
 
-    final fiatBalance = this.state.fiatBalance();
+    final totalFiat = this.state.totalFiat();
     const fiatBalanceSize = Fonts.size800;
-    final fiatBalanceOrPlaceholder = (fiatBalance != null)
+    final fiatBalanceOrPlaceholder = (totalFiat != null)
         ? SplitAmountText(
-            amount: fiatBalance,
+            amount: totalFiat,
             fiatName: this.state.fiatRate!.fiat,
             style: Fonts.fontUI.copyWith(
               color: LxColors.foreground,
@@ -868,8 +880,9 @@ class BalanceWidget extends StatelessWidget {
             ),
           )
         : const FilledPlaceholder(
-            width: Space.s1100,
+            width: Space.s1000,
             height: fiatBalanceSize,
+            color: LxColors.background,
             forText: true,
           );
 
