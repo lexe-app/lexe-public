@@ -376,6 +376,24 @@ impl LexeWallet {
             .address
     }
 
+    /// Returns the last unused address from the internal (change) descriptor.
+    ///
+    /// Our [`sync`] implementation relies on internal addresses never being
+    /// exposed to users in any way, as otherwise users might send funds to
+    /// these addresses and expect their funds to show up. In our node code and
+    /// elsewhere, always receiving to the last unused internal address allows
+    /// us to avoid having to check these addresses for updates after they
+    /// have been used.
+    ///
+    /// [`sync`]: Self::sync
+    pub fn get_internal_address(&self) -> bitcoin::Address {
+        self.wallet
+            .write()
+            .unwrap()
+            .get_internal_address(AddressIndex::LastUnused)
+            .address
+    }
+
     /// Calls [`bdk29::Wallet::list_transactions`].
     pub async fn list_transactions(
         &self,
