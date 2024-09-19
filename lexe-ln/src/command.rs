@@ -78,14 +78,14 @@ pub enum CreateInvoiceCaller {
 }
 
 #[instrument(skip_all, name = "(node-info)")]
-pub async fn node_info<CM, PM, PS>(
+pub fn node_info<CM, PM, PS>(
     version: semver::Version,
     measurement: Measurement,
     channel_manager: &CM,
     peer_manager: &PM,
     wallet: &LexeWallet,
     chain_monitor: &LexeChainMonitorType<PS>,
-) -> anyhow::Result<NodeInfo>
+) -> NodeInfo
 where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS>,
@@ -101,7 +101,7 @@ where
     let lightning_balance = Amount::from_msat(lightning_balance_msat);
     let num_peers = peer_manager.list_peers().len();
 
-    let onchain_balance = wallet.get_balance().await?;
+    let onchain_balance = wallet.get_balance();
 
     let pending_monitor_updates = chain_monitor
         .list_pending_monitor_updates()
@@ -109,7 +109,7 @@ where
         .map(|v| v.len())
         .sum();
 
-    let info = NodeInfo {
+    NodeInfo {
         version,
         measurement,
         node_pk,
@@ -119,9 +119,7 @@ where
         num_peers,
         onchain_balance,
         pending_monitor_updates,
-    };
-
-    Ok(info)
+    }
 }
 
 #[instrument(skip_all, name = "(list-channels)")]

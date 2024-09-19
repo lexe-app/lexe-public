@@ -329,27 +329,24 @@ impl LexeWallet {
 
     /// Returns the current wallet balance. Note that newly received funds will
     /// not be detected unless the wallet has been `sync()`ed first.
-    pub async fn get_balance(&self) -> anyhow::Result<Balance> {
-        self.bdk29_wallet
-            .lock()
-            .await
-            .get_balance()
-            // Convert bdk29::Balance to common::ln::balance::Balance.
-            // Not using a From impl bc we don't want `common` to depend on BDK.
-            .map(
-                |bdk29::Balance {
-                     immature,
-                     trusted_pending,
-                     untrusted_pending,
-                     confirmed,
-                 }| Balance {
-                    immature_sat: immature,
-                    trusted_pending_sat: trusted_pending,
-                    untrusted_pending_sat: untrusted_pending,
-                    confirmed_sat: confirmed,
-                },
-            )
-            .context("Could not get balance")
+    pub fn get_balance(&self) -> Balance {
+        let balance = self.wallet.read().unwrap().get_balance();
+
+        // Convert bdk::Balance to common::ln::balance::Balance.
+        // Not using a From impl bc we don't want `common` to depend on BDK.
+        let bdk::wallet::Balance {
+            immature,
+            trusted_pending,
+            untrusted_pending,
+            confirmed,
+        } = balance;
+
+        Balance {
+            immature_sat: immature,
+            trusted_pending_sat: trusted_pending,
+            untrusted_pending_sat: untrusted_pending,
+            confirmed_sat: confirmed,
+        }
     }
 
     /// Returns the last unused address derived using the external descriptor.
