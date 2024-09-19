@@ -236,7 +236,7 @@ where
     // TODO(max): Maybe we should add another output for privacy?
     let spendable_output_descriptors = &outputs.iter().collect::<Vec<_>>();
     let destination_outputs = Vec::new();
-    let destination_change_script = wallet.get_address().await?.script_pubkey();
+    let destination_change_script = wallet.get_address().script_pubkey();
     let feerate_sat_per_1000_weight = esplora
         .get_est_sat_per_1000_weight(ConfirmationTarget::NonAnchorChannelFee);
     let secp_ctx = SysRng::new().gen_secp256k1_ctx();

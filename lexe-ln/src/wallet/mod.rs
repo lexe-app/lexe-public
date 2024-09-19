@@ -1,11 +1,15 @@
 use std::sync::Arc;
 
 use anyhow::{ensure, Context};
-use bdk::{template::Bip84, wallet::Update, KeychainKind};
+use bdk::{
+    template::Bip84,
+    wallet::{AddressIndex, Update},
+    KeychainKind,
+};
 use bdk29::{
     wallet::{
         coin_selection::DefaultCoinSelectionAlgorithm, signer::SignOptions,
-        tx_builder::CreateTx, AddressIndex,
+        tx_builder::CreateTx, AddressIndex as AddressIndex29,
     },
     FeeRate, TransactionDetails, TxBuilder,
 };
@@ -364,13 +368,12 @@ impl LexeWallet {
     /// simply avoid this scenario in the first place).
     ///
     /// See [`AddressIndex`] for more details.
-    pub async fn get_address(&self) -> anyhow::Result<bitcoin::Address> {
-        self.bdk29_wallet
-            .lock()
-            .await
+    pub fn get_address(&self) -> bitcoin::Address {
+        self.wallet
+            .write()
+            .unwrap()
             .get_address(AddressIndex::LastUnused)
-            .map(|info| info.address)
-            .context("Could not get new address")
+            .address
     }
 
     /// Calls [`bdk29::Wallet::list_transactions`].
@@ -576,7 +579,7 @@ impl LexeWallet {
         // up sync time. `AddressIndex::Peek` will just derive the output at the
         // index without persisting anything. It should always succeed.
         let change_address = wallet
-            .get_internal_address(AddressIndex::Peek(0))
+            .get_internal_address(AddressIndex29::Peek(0))
             .context("Failed to derive change address")?;
 
         let mut tx_builder = Self::default_tx_builder(wallet, bdk_feerate);
