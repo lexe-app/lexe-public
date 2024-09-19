@@ -30,6 +30,7 @@ import 'package:lexeapp/components.dart'
         LxOutlinedButton,
         MultistepFlow,
         ScrollableSinglePageBody,
+        SplitAmountText,
         SubheadingText,
         showModalAsyncFlow;
 import 'package:lexeapp/date_format.dart' as date_format;
@@ -430,6 +431,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "Markdown",
               (context) => const MarkdownPage(),
             ),
+            Component(
+              "SplitAmountText",
+              (context) => const SplitAmountTextPage(),
+            ),
             const SizedBox(height: Space.s800),
           ],
         ),
@@ -740,6 +745,85 @@ _approximations_ of the actual values.
 ''',
               styleSheet: LxTheme.buildMarkdownStyle(),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// View [SplitAmountText] with various currencies, locales, and values.
+class SplitAmountTextPage extends StatelessWidget {
+  const SplitAmountTextPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final TextStyle style = Fonts.fontUI.copyWith(
+      fontSize: Fonts.size600,
+      color: LxColors.foreground,
+      fontVariations: [Fonts.weightMedium],
+      fontFeatures: [Fonts.featTabularNumbers],
+      // fontFeatures: [Fonts.featDisambugation],
+    );
+
+    // const double amount = 0.0;
+    // const double amount = 3.50;
+    // const double amount = 10463;
+    const double amount = 1801.96;
+    // const double amount = 255.01;
+
+    Widget forLocaleFiat(String locale, String fiatName) => Padding(
+          padding: const EdgeInsets.only(bottom: Space.s100),
+          child: SplitAmountText(
+              amount: amount, fiatName: fiatName, style: style, locale: locale),
+        );
+
+    Widget forLocale(String locale) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Align(
+              alignment: Alignment.topLeft,
+              child: HeadingText(text: locale),
+            ),
+            //
+            forLocaleFiat(locale, "USD"),
+            forLocaleFiat(locale, "EUR"),
+            forLocaleFiat(locale, "MXN"),
+            forLocaleFiat(locale, "RUB"),
+            const SizedBox(height: Space.s100),
+            //
+            forLocaleFiat(locale, "ETB"),
+            forLocaleFiat(locale, "DKK"),
+            const SizedBox(height: Space.s100),
+            //
+            forLocaleFiat(locale, "JPY"),
+            forLocaleFiat(locale, "KRW"),
+            const SizedBox(height: Space.s300),
+          ],
+        );
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: const LxBackButton(isLeading: true),
+        leadingWidth: Space.appBarLeadingWidth,
+      ),
+      body: Theme(
+        data: LxTheme.light(),
+        child: ScrollableSinglePageBody(
+          body: [
+            const HeadingText(text: "SplitAmountText"),
+            const SubheadingText(text: "Listed by locale"),
+            const SizedBox(height: Space.s400),
+            forLocale("en_US"),
+            forLocale("fr_FR"),
+            forLocale("nb"),
+            forLocale("ja"),
+            forLocale("ru"),
+            forLocale("am"),
+            forLocale("th"),
+            forLocale("hi"),
+            forLocale("es_MX"),
           ],
         ),
       ),

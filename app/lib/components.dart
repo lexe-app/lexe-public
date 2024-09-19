@@ -7,6 +7,7 @@ import 'dart:math' show max;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MaxLengthEnforcement;
+import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/input_formatter.dart'
     show IntInputFormatter, MaxUtf8BytesInputFormatter;
 import 'package:lexeapp/result.dart';
@@ -597,6 +598,59 @@ class SubheadingText extends StatelessWidget {
       style: Fonts.fontUI.copyWith(
         color: LxColors.grey600,
         fontSize: Fonts.size300,
+      ),
+    );
+  }
+}
+
+/// A small Text-like widget that formats and displays a fiat amount so that
+/// the fractional part is de-emphasized.
+///
+/// Ex: amount = 1234.56, fiatName = "USD"
+///
+/// display:     $1,234.56      (+): emphasized
+///              ++++++---      (-): de-emphasized
+class SplitAmountText extends StatelessWidget {
+  const SplitAmountText({
+    super.key,
+    required this.amount,
+    required this.fiatName,
+    this.style,
+    this.styleFract,
+    this.locale,
+  });
+
+  final double amount;
+  final String fiatName;
+
+  /// The base font style.
+  final TextStyle? style;
+
+  /// Styling for the deemphasized fractional part, applied on top of [style].
+  final TextStyle? styleFract;
+
+  /// Used for debugging
+  final String? locale;
+
+  @override
+  Widget build(BuildContext context) {
+    // ex: 1234.56 -> "$1,234.56" (locale dependent) -> ("$1,234", ".56")
+    final (amountWhole, amountFract) = currency_format
+        .formatFiatParts(this.amount, this.fiatName, locale: this.locale);
+
+    final TextStyle styleFract =
+        this.styleFract ?? const TextStyle(color: LxColors.fgTertiary);
+
+    return RichText(
+      text: TextSpan(
+        children: <TextSpan>[
+          TextSpan(text: amountWhole),
+          TextSpan(
+            text: amountFract,
+            style: styleFract,
+          ),
+        ],
+        style: this.style,
       ),
     );
   }

@@ -30,6 +30,7 @@ import 'package:lexeapp/components.dart'
         LxOutlinedButton,
         LxRefreshButton,
         MultistepFlow,
+        SplitAmountText,
         StateStreamBuilder,
         showModalAsyncFlow;
 import 'package:lexeapp/currency_format.dart' as currency_format;
@@ -854,9 +855,14 @@ class BalanceWidget extends StatelessWidget {
 
     final fiatBalance = this.state.fiatBalance();
     final fiatBalanceOrPlaceholder = (fiatBalance != null)
-        ? PrimaryBalanceText(
-            fiatBalance: fiatBalance,
+        ? SplitAmountText(
+            amount: fiatBalance,
             fiatName: this.state.fiatRate!.fiat,
+            style: Fonts.fontUI.copyWith(
+              color: LxColors.foreground,
+              fontSize: Fonts.size800,
+              fontVariations: [Fonts.weightMedium],
+            ),
           )
         : const FilledPlaceholder(
             width: Space.s1100,
@@ -867,47 +873,8 @@ class BalanceWidget extends StatelessWidget {
     return Column(
       children: [
         fiatBalanceOrPlaceholder,
-        const SizedBox(height: Space.s400),
+        const SizedBox(height: Space.s300),
         satsBalanceOrPlaceholder,
-      ],
-    );
-  }
-}
-
-class PrimaryBalanceText extends StatelessWidget {
-  const PrimaryBalanceText({
-    super.key,
-    required this.fiatBalance,
-    required this.fiatName,
-  });
-
-  final double fiatBalance;
-  final String fiatName;
-
-  @override
-  Widget build(BuildContext context) {
-    final (fiatBalanceWhole, fiatBalanceFract) =
-        currency_format.formatFiatParts(this.fiatBalance, this.fiatName);
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          fiatBalanceWhole,
-          style: Fonts.fontUI.copyWith(
-            fontSize: Fonts.size800,
-            fontVariations: [Fonts.weightMedium],
-          ),
-        ),
-        if (fiatBalanceFract.isNotEmpty)
-          Text(
-            fiatBalanceFract,
-            style: Fonts.fontUI.copyWith(
-              fontSize: Fonts.size800,
-              color: LxColors.fgTertiary,
-              fontVariations: [Fonts.weightMedium],
-            ),
-          ),
       ],
     );
   }
