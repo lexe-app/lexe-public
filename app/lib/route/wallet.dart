@@ -849,44 +849,44 @@ class BalanceWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totalSats = this.state.totalSats();
-    const satsBalanceSize = Fonts.size300;
-    final satsBalanceOrPlaceholder = (totalSats != null)
+    const totalSatsSize = Fonts.size300;
+    final totalSatsOrPlaceholder = (totalSats != null)
         ? Text(
             currency_format.formatSatsAmount(totalSats),
             style: Fonts.fontUI.copyWith(
-              fontSize: satsBalanceSize,
+              fontSize: totalSatsSize,
               color: LxColors.grey700,
               fontVariations: [Fonts.weightMedium],
             ),
           )
         : const FilledPlaceholder(
             width: Space.s900,
-            height: satsBalanceSize,
+            height: totalSatsSize,
             color: LxColors.background,
             forText: true,
           );
 
     final totalFiat = this.state.totalFiat();
-    const fiatBalanceSize = Fonts.size800;
-    final fiatBalanceOrPlaceholder = (totalFiat != null)
+    const totalFiatSize = Fonts.size800;
+    final totalFiatOrPlaceholder = (totalFiat != null)
         ? SplitAmountText(
             amount: totalFiat,
             fiatName: this.state.fiatRate!.fiat,
             style: Fonts.fontUI.copyWith(
               color: LxColors.foreground,
-              fontSize: fiatBalanceSize,
+              fontSize: totalFiatSize,
               fontVariations: [Fonts.weightMedium],
               letterSpacing: -0.5,
             ),
           )
         : const FilledPlaceholder(
             width: Space.s1000,
-            height: fiatBalanceSize,
+            height: totalFiatSize,
             color: LxColors.background,
             forText: true,
           );
 
-    return Container(
+    final totalBalance = Container(
       decoration: BoxDecoration(
         color: LxColors.grey1000,
         borderRadius: BorderRadius.circular(LxRadius.r400),
@@ -912,7 +912,7 @@ class BalanceWidget extends StatelessWidget {
                   height: 1.0,
                 ),
               ),
-              fiatBalanceOrPlaceholder,
+              totalFiatOrPlaceholder,
             ],
           ),
           const SizedBox(height: Space.s100),
@@ -922,14 +922,162 @@ class BalanceWidget extends StatelessWidget {
             children: [
               const Icon(
                 LxIcons.expandDownSmall,
-                size: satsBalanceSize,
+                size: Fonts.size400,
               ),
               // // TODO(phlip9): expand button?
               // const SizedBox(),
-              satsBalanceOrPlaceholder,
+              totalSatsOrPlaceholder,
             ],
           ),
         ],
+      ),
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        totalBalance,
+        // const SizedBox(height: Space.s100),
+        const SizedBox(height: Space.s300),
+        SubBalanceRow(
+          kind: PaymentKind.invoice,
+          fiatName: this.state.fiatRate?.fiat,
+          fiatBalance: this.state.lightningFiat(),
+          satsBalance: this.state.lightningSats(),
+        ),
+        SubBalanceRow(
+          kind: PaymentKind.onchain,
+          fiatName: this.state.fiatRate?.fiat,
+          fiatBalance: this.state.onchainFiat(),
+          satsBalance: this.state.onchainSats(),
+        ),
+      ],
+    );
+  }
+}
+
+class SubBalanceRow extends StatelessWidget {
+  const SubBalanceRow({
+    super.key,
+    required this.kind,
+    required this.fiatName,
+    required this.fiatBalance,
+    required this.satsBalance,
+  });
+
+  // TODO(phlip9): more accurate enum
+  final PaymentKind kind;
+  final String? fiatName;
+  final double? fiatBalance;
+  final int? satsBalance;
+
+  @override
+  Widget build(BuildContext context) {
+    const satsSize = Fonts.size200;
+    final satsOrPlaceholder = (this.satsBalance != null)
+        ? Text(
+            currency_format.formatSatsAmount(this.satsBalance!),
+            style: Fonts.fontUI.copyWith(
+              fontSize: satsSize,
+              color: LxColors.grey700,
+              fontVariations: [Fonts.weightMedium],
+              fontFeatures: [Fonts.featTabularNumbers],
+              letterSpacing: -0.25,
+            ),
+          )
+        : const FilledPlaceholder(
+            width: Space.s900,
+            height: satsSize,
+            color: LxColors.background,
+            forText: true,
+          );
+
+    const fiatSize = Fonts.size300;
+    final fiatOrPlaceholder = (this.fiatBalance != null)
+        ? SplitAmountText(
+            amount: this.fiatBalance!,
+            fiatName: this.fiatName!,
+            style: Fonts.fontUI.copyWith(
+              color: LxColors.foreground,
+              fontSize: fiatSize,
+              fontVariations: [Fonts.weightMedium],
+              fontFeatures: [Fonts.featTabularNumbers],
+              letterSpacing: -0.25,
+            ),
+          )
+        : const FilledPlaceholder(
+            width: Space.s1000,
+            height: fiatSize,
+            color: LxColors.background,
+            forText: true,
+          );
+
+    final titleText =
+        (this.kind == PaymentKind.onchain) ? "On-chain" : "Lightning";
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Space.s400 + Space.s600),
+      child: ListTile(
+        // list tile styling
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: Space.s0,
+          vertical: Space.s0,
+        ),
+        horizontalTitleGap: Space.s200,
+        minTileHeight: Space.s700,
+
+        visualDensity: VisualDensity.standard,
+        dense: true,
+
+        // actual content
+        leading: PaymentListIcon(kind: this.kind),
+
+        // NOTE: we use a Row() in `title` and `subtitle` instead of `trailing` so
+        // that the text baselines align properly.
+        title: Padding(
+          padding: const EdgeInsets.only(bottom: Space.s100),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(
+                child: Text(
+                  titleText,
+                  style: Fonts.fontUI.copyWith(
+                    fontSize: fiatSize,
+                    color: LxColors.foreground,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: Space.s200),
+                child: fiatOrPlaceholder,
+              )
+            ],
+          ),
+        ),
+
+        subtitle: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Expanded(
+              child: Text(
+                "BTC",
+                style: Fonts.fontUI.copyWith(
+                  fontSize: satsSize,
+                  color: LxColors.fgTertiary,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: Space.s200),
+              child: satsOrPlaceholder,
+            )
+          ],
+        ),
       ),
     );
   }
