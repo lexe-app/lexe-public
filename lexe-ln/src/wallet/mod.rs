@@ -3,12 +3,11 @@ use std::sync::Arc;
 use anyhow::{ensure, Context};
 use bdk::{template::Bip84, wallet::Update, KeychainKind};
 use bdk29::{
-    blockchain::{EsploraBlockchain, Progress},
     wallet::{
         coin_selection::DefaultCoinSelectionAlgorithm, signer::SignOptions,
         tx_builder::CreateTx, AddressIndex,
     },
-    FeeRate, SyncOptions, TransactionDetails, TxBuilder,
+    FeeRate, TransactionDetails, TxBuilder,
 };
 use bdk_chain::Append;
 use bdk_esplora::EsploraAsyncExt;
@@ -52,7 +51,8 @@ pub mod db29;
 ///
 /// From: [`EsploraAsyncExt::full_scan`]
 const BDK_FULL_SCAN_STOP_GAP: usize = 2;
-const BDK_PARALLEL_REQUESTS: usize = 8;
+/// Number of parallel requests BDK is permitted to use.
+const BDK_CONCURRENCY: usize = 24;
 
 /// The [`ConfirmationPriority`] for new open_channel funding transactions.
 ///
@@ -87,14 +87,15 @@ pub struct LexeWallet {
     // TODO(max): Switch over everything to new wallet, then remove
     bdk29_wallet: Arc<tokio::sync::Mutex<bdk29::Wallet<WalletDb29>>>,
     // TODO(max): Implement wallet persistence
+    // TODO(max): A lot of methods can be sync again, since no need tokio mutex
     #[allow(dead_code)] // TODO(max): Remove
     wallet: Arc<std::sync::RwLock<bdk::Wallet<WalletDb>>>,
 }
 
 impl LexeWallet {
     /// Constructs a new [`LexeWallet`] from a [`RootSeed`] and [`WalletDb`].
-    /// Wallet addresses are generated according to the [BIP 84] standard. See
-    /// also [BIP 44].
+    /// Wallet addresses are generated according to the [BIP 84] standard.
+    /// See also [BIP 44].
     ///
     /// [BIP 84]: https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki
     /// [BIP 44]: https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
@@ -176,31 +177,94 @@ impl LexeWallet {
         Ok(lexe_wallet)
     }
 
-    /// Syncs the inner [`bdk29::Wallet`] using the given Esplora server.
-    ///
-    /// NOTE: Beware deadlocks; this function holds a lock to the inner
-    /// [`bdk29::Wallet`] during wallet sync. It is held across `.await`.
+    /// Syncs the [`bdk::Wallet`] using a remote Esplora backend.
     #[instrument(skip_all, name = "(bdk-sync)")]
     pub async fn sync(&self) -> anyhow::Result<()> {
+        // The full set of script pubkeys we want to check for updates.
+        let script_pubkeys;
+        // The UTXOs (outpoints) we check to see if they have been spent.
+        let utxos;
+        // The txids of txns we want to check if they have been spent.
+        let unconfirmed_txids;
+        let local_chain;
+        let prev_tip;
         {
-            let esplora_blockchain = EsploraBlockchain::from_client(
-                self.esplora.client().clone(),
-                BDK_FULL_SCAN_STOP_GAP,
-            );
+            let locked_wallet = self.wallet.read().unwrap();
 
-            let progress =
-                Some(Box::new(ProgressLogger) as Box<(dyn Progress + 'static)>);
-            let sync_options = SyncOptions { progress };
+            let keychains = locked_wallet.spk_index();
+            let tx_graph = locked_wallet.tx_graph();
+            local_chain = locked_wallet.local_chain().clone();
+            let chain_tip = local_chain.tip();
 
-            self.bdk29_wallet
-                .lock()
-                .await
-                .sync(&esplora_blockchain, sync_options)
-                .await
-                .context("bdk29::Wallet::sync failed")?;
+            // Sync all external script pubkeys we have ever revealed.
+            let external_spks = keychains
+                .revealed_keychain_spks(&KeychainKind::External)
+                .map(|(_idx, script)| script);
+            // Sync all internal (change) spks we've revealed but have not used.
+            let unused_internal_spks = keychains
+                .unused_keychain_spks(&KeychainKind::Internal)
+                .map(|(_idx, script)| script);
+            // Sync the last used internal (change) spk, in case a crash or race
+            // condition causes us to reuse the last-revealed internal spk.
+            let last_used_internal_spk =
+                keychains.last_used_index(&KeychainKind::Internal).and_then(
+                    |idx| keychains.spk_at_index(KeychainKind::Internal, idx),
+                );
+
+            script_pubkeys = external_spks
+                .chain(unused_internal_spks)
+                .chain(last_used_internal_spk.into_iter())
+                .map(ToOwned::to_owned)
+                .collect::<Vec<bitcoin::ScriptBuf>>();
+
+            utxos = locked_wallet
+                .list_unspent()
+                .map(|utxo| utxo.outpoint)
+                .collect::<Vec<bitcoin::OutPoint>>();
+
+            unconfirmed_txids = tx_graph
+                .list_chain_txs(&local_chain, chain_tip.block_id())
+                .filter(|canonical_tx| {
+                    !canonical_tx.chain_position.is_confirmed()
+                })
+                .map(|canonical_tx| canonical_tx.tx_node.txid)
+                .collect::<Vec<bitcoin::Txid>>();
+
+            prev_tip = chain_tip;
         }
 
-        // TODO(max): Implement
+        let esplora_client = self.esplora.client();
+
+        // Check for updates to our our spks, unconfirmed txids, and utxos.
+        // We get a `TxGraph` containing updates to be made to our local chain.
+        let tx_graph_update = esplora_client
+            .sync(script_pubkeys, unconfirmed_txids, utxos, BDK_CONCURRENCY)
+            .await
+            .context("`EsploraAsyncExt::sync` failed")?;
+
+        // Determine the block heights missing from our local chain based on the
+        // info in our `TxGraph` update. Returns an iterator over u32 heights.
+        let missing_heights = tx_graph_update.missing_heights(&local_chain);
+
+        // Now, prepare our local chain update based on the missing heights.
+        let local_chain_update = esplora_client
+            .update_local_chain(prev_tip, missing_heights)
+            .await
+            .context("Failed to update local chain")?;
+        let update = Update {
+            graph: tx_graph_update,
+            chain: Some(local_chain_update),
+            last_active_indices: Default::default(),
+        };
+
+        // Finally, apply the combined update to the wallet.
+        {
+            let mut locked_wallet = self.wallet.write().unwrap();
+            locked_wallet
+                .apply_update(update)
+                .context("Couldn't apply update")?;
+            locked_wallet.commit().context("Couldn't commit update")?;
+        }
 
         Ok(())
     }
@@ -231,7 +295,7 @@ impl LexeWallet {
             .full_scan::<KeychainKind>(
                 keychains_spks,
                 BDK_FULL_SCAN_STOP_GAP,
-                BDK_PARALLEL_REQUESTS,
+                BDK_CONCURRENCY,
             )
             .await
             .context("EsploraAsyncExt::full_scan failed")?;
@@ -606,22 +670,4 @@ pub fn spawn_wallet_db_persister_task<PS: LexePersister>(
 
         info!("wallet db persister task shutting down");
     })
-}
-
-/// A struct that logs every [`Progress`] update at info.
-#[derive(Debug)]
-struct ProgressLogger;
-
-impl Progress for ProgressLogger {
-    fn update(
-        &self,
-        progress: f32,
-        message: Option<String>,
-    ) -> Result<(), bdk29::Error> {
-        match message {
-            Some(msg) => info!("BDK sync progress: {progress}%, msg: {msg}"),
-            None => info!("BDK sync progress: {progress}%"),
-        }
-        Ok(())
-    }
 }
