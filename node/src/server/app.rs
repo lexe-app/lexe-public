@@ -201,11 +201,8 @@ pub(super) async fn preflight_pay_onchain(
 
 pub(super) async fn get_address(
     State(state): State<Arc<AppRouterState>>,
-) -> Result<LxJson<bitcoin::Address>, NodeApiError> {
-    lexe_ln::command::get_address(&state.wallet)
-        .await
-        .map(LxJson)
-        .map_err(NodeApiError::command)
+) -> LxJson<bitcoin::Address> {
+    LxJson(state.wallet.get_address())
 }
 
 pub(super) async fn get_payments_by_indexes(

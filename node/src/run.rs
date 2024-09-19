@@ -400,14 +400,15 @@ impl UserNode {
         // then closes a channel in the same node run, there will be address
         // reuse. This is the quickest way to work around the non-async
         // SignerProvider for now, but we should fix this eventually.
-        let recv_address = wallet
-            .get_address()
-            .await
-            .context("Could not get receive address")?;
-        let keys_manager =
-            LexeKeysManager::init(rng, &user.node_pk, &root_seed, recv_address)
-                .context("Failed to construct keys manager")?
-                .apply(Arc::new);
+        let channel_sweep_address = wallet.get_address();
+        let keys_manager = LexeKeysManager::init(
+            rng,
+            &user.node_pk,
+            &root_seed,
+            channel_sweep_address,
+        )
+        .context("Failed to construct keys manager")?
+        .apply(Arc::new);
 
         // Read channel monitors and scorer
         let (try_channel_monitors, try_scorer) = tokio::join!(

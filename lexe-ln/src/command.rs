@@ -719,13 +719,6 @@ pub async fn preflight_pay_onchain(
     wallet.preflight_pay_onchain(req, network).await
 }
 
-#[instrument(skip_all, name = "(get-address)")]
-pub async fn get_address(
-    wallet: &LexeWallet,
-) -> anyhow::Result<bitcoin::Address> {
-    wallet.get_address().await
-}
-
 // A preflighted BOLT11 invoice payment. That is, this is the outcome of
 // validating and routing a BOLT11 invoice, without actually paying yet.
 struct PreflightedPayInvoice {
