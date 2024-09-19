@@ -841,14 +841,21 @@ class BalanceState with _$BalanceState {
           : null;
 }
 
-class BalanceWidget extends StatelessWidget {
+class BalanceWidget extends StatefulWidget {
   const BalanceWidget(this.state, {super.key});
 
   final BalanceState state;
 
   @override
+  State<BalanceWidget> createState() => _BalanceWidgetState();
+}
+
+class _BalanceWidgetState extends State<BalanceWidget> {
+  final ValueNotifier<bool> isExpanded = ValueNotifier(false);
+
+  @override
   Widget build(BuildContext context) {
-    final totalSats = this.state.totalSats();
+    final totalSats = this.widget.state.totalSats();
     const totalSatsSize = Fonts.size300;
     final totalSatsOrPlaceholder = (totalSats != null)
         ? Text(
@@ -866,12 +873,12 @@ class BalanceWidget extends StatelessWidget {
             forText: true,
           );
 
-    final totalFiat = this.state.totalFiat();
+    final totalFiat = this.widget.state.totalFiat();
     const totalFiatSize = Fonts.size800;
     final totalFiatOrPlaceholder = (totalFiat != null)
         ? SplitAmountText(
             amount: totalFiat,
-            fiatName: this.state.fiatRate!.fiat,
+            fiatName: this.widget.state.fiatRate!.fiat,
             style: Fonts.fontUI.copyWith(
               color: LxColors.foreground,
               fontSize: totalFiatSize,
@@ -886,48 +893,79 @@ class BalanceWidget extends StatelessWidget {
             forText: true,
           );
 
-    final totalBalance = Container(
-      decoration: BoxDecoration(
-        color: LxColors.grey1000,
+    final totalBalance = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Space.s400),
+      child: Material(
         borderRadius: BorderRadius.circular(LxRadius.r400),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => this.isExpanded.value = !this.isExpanded.value,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: Space.s600,
+              vertical: Space.s500,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    const Text(
+                      "Balance",
+                      style: TextStyle(
+                        fontSize: Fonts.size500,
+                        fontVariations: [Fonts.weightMedium],
+                        letterSpacing: -0.5,
+                        height: 1.0,
+                      ),
+                    ),
+                    totalFiatOrPlaceholder,
+                  ],
+                ),
+                const SizedBox(height: Space.s100),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const SizedBox(),
+                    // const Icon(
+                    //   LxIcons.expandDownSmall,
+                    //   size: Fonts.size400,
+                    // ),
+                    // // TODO(phlip9): expand button?
+                    // const SizedBox(),
+                    totalSatsOrPlaceholder,
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
-      margin: const EdgeInsets.symmetric(horizontal: Space.s400),
-      padding: const EdgeInsets.fromLTRB(
-          Space.s600, Space.s500, Space.s600, Space.s500),
-      clipBehavior: Clip.antiAlias,
+    );
+
+    final subBalances = ValueListenableBuilder(
+      valueListenable: this.isExpanded,
+      builder: (context, isExpanded, child) =>
+          (isExpanded) ? child! : const SizedBox(),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Balance",
-                style: TextStyle(
-                  fontSize: Fonts.size700,
-                  fontVariations: [Fonts.weightMedium],
-                  letterSpacing: -0.5,
-                  height: 1.0,
-                ),
-              ),
-              totalFiatOrPlaceholder,
-            ],
+          SubBalanceRow(
+            kind: PaymentKind.invoice,
+            fiatName: this.widget.state.fiatRate?.fiat,
+            fiatBalance: this.widget.state.lightningFiat(),
+            satsBalance: this.widget.state.lightningSats(),
           ),
-          const SizedBox(height: Space.s100),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Icon(
-                LxIcons.expandDownSmall,
-                size: Fonts.size400,
-              ),
-              // // TODO(phlip9): expand button?
-              // const SizedBox(),
-              totalSatsOrPlaceholder,
-            ],
+          SubBalanceRow(
+            kind: PaymentKind.onchain,
+            fiatName: this.widget.state.fiatRate?.fiat,
+            fiatBalance: this.widget.state.onchainFiat(),
+            satsBalance: this.widget.state.onchainSats(),
           ),
         ],
       ),
@@ -939,18 +977,7 @@ class BalanceWidget extends StatelessWidget {
         totalBalance,
         // const SizedBox(height: Space.s100),
         const SizedBox(height: Space.s300),
-        SubBalanceRow(
-          kind: PaymentKind.invoice,
-          fiatName: this.state.fiatRate?.fiat,
-          fiatBalance: this.state.lightningFiat(),
-          satsBalance: this.state.lightningSats(),
-        ),
-        SubBalanceRow(
-          kind: PaymentKind.onchain,
-          fiatName: this.state.fiatRate?.fiat,
-          fiatBalance: this.state.onchainFiat(),
-          satsBalance: this.state.onchainSats(),
-        ),
+        subBalances,
       ],
     );
   }
