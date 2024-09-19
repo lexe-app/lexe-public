@@ -583,7 +583,13 @@ final class Fonts {
   /// <https://rsms.me/inter/#features/ss02>
   static const FontFeature featDisambugation = FontFeature("ss02");
 
-  // static const FontFeature featTabularNumbers = FontFeature.tabularFigures();
+  /// Features: Tabular Numbers and Symbols
+  ///
+  /// Fixed-width numbers and accounting symbols. Useful for tabular data, where
+  /// comparing columns across rows is desired.
+  ///
+  /// <https://rsms.me/inter/#features/tnum>
+  static const FontFeature featTabularNumbers = FontFeature.tabularFigures();
 
   static const TextStyle fontInter = TextStyle(
     debugLabel: "Fonts.fontInter",
