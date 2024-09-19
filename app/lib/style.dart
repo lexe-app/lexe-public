@@ -767,6 +767,12 @@ final class LxIcons {
   /// Expand up (up arrow)
   static const IconData expandUp = Symbols.arrow_upward_rounded;
 
+  /// Expand up small
+  static const IconData expandUpSmall = Symbols.stat_1_rounded;
+
+  /// Expand down small
+  static const IconData expandDownSmall = Symbols.stat_minus_1_rounded;
+
   /// Empty scanner (scan box)
   static const IconData scan = Symbols.crop_free_rounded;
 

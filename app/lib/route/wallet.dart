@@ -46,7 +46,8 @@ import 'package:lexeapp/route/send/state.dart'
     show SendFlowResult, SendState, SendState_NeedUri;
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/stream_ext.dart';
-import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
+import 'package:lexeapp/style.dart'
+    show Fonts, LxColors, LxIcons, LxRadius, Space;
 import 'package:lexeapp/uri_events.dart' show UriEvents;
 import 'package:lexeapp/value_listenable_stream.dart';
 import 'package:rxdart_ext/rxdart_ext.dart';
@@ -854,28 +855,69 @@ class BalanceWidget extends StatelessWidget {
           );
 
     final fiatBalance = this.state.fiatBalance();
+    const fiatBalanceSize = Fonts.size800;
     final fiatBalanceOrPlaceholder = (fiatBalance != null)
         ? SplitAmountText(
             amount: fiatBalance,
             fiatName: this.state.fiatRate!.fiat,
             style: Fonts.fontUI.copyWith(
               color: LxColors.foreground,
-              fontSize: Fonts.size800,
+              fontSize: fiatBalanceSize,
               fontVariations: [Fonts.weightMedium],
+              letterSpacing: -0.5,
             ),
           )
         : const FilledPlaceholder(
             width: Space.s1100,
-            height: Fonts.size800,
+            height: fiatBalanceSize,
             forText: true,
           );
 
-    return Column(
-      children: [
-        fiatBalanceOrPlaceholder,
-        const SizedBox(height: Space.s300),
-        satsBalanceOrPlaceholder,
-      ],
+    return Container(
+      decoration: BoxDecoration(
+        color: LxColors.grey1000,
+        borderRadius: BorderRadius.circular(LxRadius.r400),
+      ),
+      margin: const EdgeInsets.symmetric(horizontal: Space.s400),
+      padding: const EdgeInsets.fromLTRB(
+          Space.s600, Space.s500, Space.s600, Space.s500),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Balance",
+                style: TextStyle(
+                  fontSize: Fonts.size700,
+                  fontVariations: [Fonts.weightMedium],
+                  letterSpacing: -0.5,
+                  height: 1.0,
+                ),
+              ),
+              fiatBalanceOrPlaceholder,
+            ],
+          ),
+          const SizedBox(height: Space.s100),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const Icon(
+                LxIcons.expandDownSmall,
+                size: satsBalanceSize,
+              ),
+              // // TODO(phlip9): expand button?
+              // const SizedBox(),
+              satsBalanceOrPlaceholder,
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
