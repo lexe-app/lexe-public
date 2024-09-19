@@ -27,18 +27,15 @@ use crate::channel_manager;
 
 pub(super) async fn node_info(
     State(state): State<Arc<AppRouterState>>,
-) -> Result<LxJson<NodeInfo>, NodeApiError> {
-    lexe_ln::command::node_info(
+) -> LxJson<NodeInfo> {
+    LxJson(lexe_ln::command::node_info(
         state.version.clone(),
         state.measurement,
         &state.channel_manager,
         &state.peer_manager,
         &state.wallet,
         &state.chain_monitor,
-    )
-    .await
-    .map(LxJson)
-    .map_err(NodeApiError::command)
+    ))
 }
 
 pub(super) async fn list_channels(
