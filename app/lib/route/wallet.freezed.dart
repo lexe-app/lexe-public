@@ -16,7 +16,7 @@ final _privateConstructorUsedError = UnsupportedError(
 
 /// @nodoc
 mixin _$BalanceState {
-  int? get balanceSats => throw _privateConstructorUsedError;
+  Balance? get balanceSats => throw _privateConstructorUsedError;
   FiatRate? get fiatRate => throw _privateConstructorUsedError;
 }
 
@@ -27,7 +27,7 @@ class _$BalanceStateImpl extends _BalanceState {
       : super._();
 
   @override
-  final int? balanceSats;
+  final Balance? balanceSats;
   @override
   final FiatRate? fiatRate;
 
@@ -53,12 +53,12 @@ class _$BalanceStateImpl extends _BalanceState {
 
 abstract class _BalanceState extends BalanceState {
   const factory _BalanceState(
-      {required final int? balanceSats,
+      {required final Balance? balanceSats,
       required final FiatRate? fiatRate}) = _$BalanceStateImpl;
   const _BalanceState._() : super._();
 
   @override
-  int? get balanceSats;
+  Balance? get balanceSats;
   @override
   FiatRate? get fiatRate;
 }
