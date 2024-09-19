@@ -641,8 +641,8 @@ class SplitAmountText extends StatelessWidget {
     final TextStyle styleFract =
         this.styleFract ?? const TextStyle(color: LxColors.fgTertiary);
 
-    return RichText(
-      text: TextSpan(
+    return Text.rich(
+      TextSpan(
         children: <TextSpan>[
           TextSpan(text: amountWhole),
           TextSpan(

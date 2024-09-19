@@ -1434,8 +1434,8 @@ class PaymentsListEntry extends StatelessWidget {
     // ex: "Failed" (payment failed, no note)
     // ex: "Brunch with friends" (note only)
     // ex: "Failed · Funds from Boincase" (failed + note)
-    final secondaryText = RichText(
-      text: TextSpan(
+    final secondaryText = Text.rich(
+      TextSpan(
         text: null,
         children: <TextSpan>[
           // prefix with "Failed" to indicate problem w/ payment.

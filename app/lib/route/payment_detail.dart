@@ -583,8 +583,8 @@ class PaymentDetailDirectionTime extends StatelessWidget {
 
     final createdAtStr = date_format.formatDate(then: createdAt, now: now);
 
-    return RichText(
-      text: TextSpan(
+    return Text.rich(
+      TextSpan(
         children: <TextSpan>[
           TextSpan(
             text: directionLabel,
