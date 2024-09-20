@@ -9,7 +9,7 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
     show
-        FilledPlaceholder,
+        FilledTextPlaceholder,
         LxCloseButton,
         LxCloseButtonKind,
         LxFilledButton,
@@ -697,6 +697,14 @@ class PaymentDetailPrimaryAmount extends StatelessWidget {
       ((_, PaymentDirection.outbound)) => LxColors.fgSecondary,
     };
 
+    final fiatStyle = Fonts.fontUI.copyWith(
+      letterSpacing: -0.5,
+      fontSize: Fonts.size500,
+      fontVariations: [Fonts.weightNormal],
+      fontFeatures: [Fonts.featSlashedZero],
+      color: LxColors.fgTertiary,
+    );
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
@@ -716,19 +724,12 @@ class PaymentDetailPrimaryAmount extends StatelessWidget {
           child: (maybeAmountFiatStr != null)
               ? Text(
                   "≈ $maybeAmountFiatStr",
-                  style: Fonts.fontUI.copyWith(
-                    letterSpacing: -0.5,
-                    fontSize: Fonts.size500,
-                    fontVariations: [Fonts.weightNormal],
-                    fontFeatures: [Fonts.featSlashedZero],
-                    color: LxColors.fgTertiary,
-                  ),
+                  style: fiatStyle,
                   textAlign: TextAlign.center,
                 )
-              : const FilledPlaceholder(
+              : FilledTextPlaceholder(
                   width: Space.s1000,
-                  height: Fonts.size500,
-                  forText: true,
+                  style: fiatStyle,
                 ),
         ),
       ],

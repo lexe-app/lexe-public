@@ -23,6 +23,7 @@ import 'package:intl/intl.dart' show Intl;
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/components.dart'
     show
+        FilledTextPlaceholder,
         HeadingText,
         LoadingSpinnerModal,
         LxBackButton,
@@ -435,6 +436,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "SplitAmountText",
               (context) => const SplitAmountTextPage(),
             ),
+            Component(
+              "FilledTextPlaceholder",
+              (context) => const FilledTextPlaceholderPage(),
+            ),
             const SizedBox(height: Space.s800),
           ],
         ),
@@ -824,6 +829,51 @@ class SplitAmountTextPage extends StatelessWidget {
             forLocale("th"),
             forLocale("hi"),
             forLocale("es_MX"),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class FilledTextPlaceholderPage extends StatelessWidget {
+  const FilledTextPlaceholderPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: const LxBackButton(isLeading: true),
+        leadingWidth: Space.appBarLeadingWidth,
+      ),
+      body: Theme(
+        data: LxTheme.light(),
+        child: const ScrollableSinglePageBody(
+          body: [
+            HeadingText(text: "FilledTextPlaceholder"),
+            SubheadingText(text: "Align by baseline should work"),
+            SizedBox(height: Space.s700),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.start,
+              textBaseline: TextBaseline.alphabetic,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              children: [
+                Text("Kjg", style: Fonts.fontUI),
+                SizedBox(width: Space.s200),
+                FilledTextPlaceholder(
+                  width: Space.s700,
+                  style: Fonts.fontUI,
+                ),
+                SizedBox(width: Space.s200),
+                FilledTextPlaceholder(
+                  width: Space.s900,
+                  style: Fonts.fontLogo,
+                ),
+                SizedBox(width: Space.s200),
+                Text("Ref", style: Fonts.fontLogo),
+              ],
+            ),
           ],
         ),
       ),

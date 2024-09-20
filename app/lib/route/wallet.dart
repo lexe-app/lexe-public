@@ -27,7 +27,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' show freezed;
 import 'package:intl/intl.dart' show NumberFormat;
 import 'package:lexeapp/components.dart'
     show
-        FilledPlaceholder,
+        FilledTextPlaceholder,
         LxOutlinedButton,
         LxRefreshButton,
         MultistepFlow,
@@ -851,46 +851,46 @@ class BalanceWidget extends StatefulWidget {
 }
 
 class _BalanceWidgetState extends State<BalanceWidget> {
-  final ValueNotifier<bool> isExpanded = ValueNotifier(false);
+  // final ValueNotifier<bool> isExpanded = ValueNotifier(false);
+  // TODO(phlip9): switch after debugging
+  final ValueNotifier<bool> isExpanded = ValueNotifier(true);
 
   @override
   Widget build(BuildContext context) {
     final totalSats = this.widget.state.totalSats();
-    const totalSatsSize = Fonts.size300;
+    final totalSatsStyle = Fonts.fontUI.copyWith(
+      fontSize: Fonts.size300,
+      color: LxColors.grey700,
+      fontVariations: [Fonts.weightMedium],
+    );
     final totalSatsOrPlaceholder = (totalSats != null)
         ? Text(
             currency_format.formatSatsAmount(totalSats),
-            style: Fonts.fontUI.copyWith(
-              fontSize: totalSatsSize,
-              color: LxColors.grey700,
-              fontVariations: [Fonts.weightMedium],
-            ),
+            style: totalSatsStyle,
           )
-        : const FilledPlaceholder(
+        : FilledTextPlaceholder(
             width: Space.s900,
-            height: totalSatsSize,
             color: LxColors.background,
-            forText: true,
+            style: totalSatsStyle,
           );
 
     final totalFiat = this.widget.state.totalFiat();
-    const totalFiatSize = Fonts.size800;
+    final totalFiatStyle = Fonts.fontUI.copyWith(
+      color: LxColors.foreground,
+      fontSize: Fonts.size800,
+      fontVariations: [Fonts.weightMedium],
+      letterSpacing: -0.5,
+    );
     final totalFiatOrPlaceholder = (totalFiat != null)
         ? SplitAmountText(
             amount: totalFiat,
             fiatName: this.widget.state.fiatRate!.fiat,
-            style: Fonts.fontUI.copyWith(
-              color: LxColors.foreground,
-              fontSize: totalFiatSize,
-              fontVariations: [Fonts.weightMedium],
-              letterSpacing: -0.5,
-            ),
+            style: totalFiatStyle,
           )
-        : const FilledPlaceholder(
+        : FilledTextPlaceholder(
             width: Space.s1000,
-            height: totalFiatSize,
             color: LxColors.background,
-            forText: true,
+            style: totalFiatStyle,
           );
 
     final totalBalance = Padding(
@@ -1001,25 +1001,31 @@ class SubBalanceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const satsSize = Fonts.size200;
+    final satsStyle = Fonts.fontUI.copyWith(
+      color: LxColors.grey700,
+      fontSize: satsSize,
+      fontVariations: [Fonts.weightMedium],
+      fontFeatures: [Fonts.featTabularNumbers],
+      letterSpacing: -0.25,
+    );
     final satsOrPlaceholder = (this.satsBalance != null)
         ? Text(
             currency_format.formatSatsAmount(this.satsBalance!),
-            style: Fonts.fontUI.copyWith(
-              fontSize: satsSize,
-              color: LxColors.grey700,
-              fontVariations: [Fonts.weightMedium],
-              fontFeatures: [Fonts.featTabularNumbers],
-              letterSpacing: -0.25,
-            ),
+            style: satsStyle,
           )
-        : const FilledPlaceholder(
-            width: Space.s900,
-            height: satsSize,
-            color: LxColors.background,
-            forText: true,
+        : FilledTextPlaceholder(
+            width: Space.s800,
+            style: satsStyle,
           );
 
     const fiatSize = Fonts.size300;
+    final fiatStyle = Fonts.fontUI.copyWith(
+      color: LxColors.foreground,
+      fontSize: fiatSize,
+      fontVariations: [Fonts.weightMedium],
+      fontFeatures: [Fonts.featTabularNumbers],
+      letterSpacing: -0.25,
+    );
     final fiatOrPlaceholder = (this.fiatBalance != null)
         ? SplitAmountText(
             amount: this.fiatBalance!,
@@ -1032,11 +1038,9 @@ class SubBalanceRow extends StatelessWidget {
               letterSpacing: -0.25,
             ),
           )
-        : const FilledPlaceholder(
-            width: Space.s1000,
-            height: fiatSize,
-            color: LxColors.background,
-            forText: true,
+        : FilledTextPlaceholder(
+            width: Space.s900,
+            style: fiatStyle,
           );
 
     final titleText =
