@@ -262,9 +262,9 @@ class _AnimatedFillButtonState extends State<AnimatedFillButton> {
 /// The `width` and `height` are optional. If left `null`, that dimension will
 /// be determined by the parent `Widget`'s constraints.
 ///
-/// If the placeholder is replacing some text, `forText` should be set to `true`.
-/// This is because a `Text` widget's actual rendered height also depends on the
-/// current `MediaQuery.textScaleFactor`.
+/// Don't use this widget to replace [Text]. Use the specialized
+/// [FilledTextPlaceholder], which handles font sizing and baseline alignment
+/// properly.
 class FilledPlaceholder extends StatelessWidget {
   const FilledPlaceholder({
     super.key,
@@ -272,7 +272,6 @@ class FilledPlaceholder extends StatelessWidget {
     this.width = double.infinity,
     this.height = double.infinity,
     this.borderRadius = LxRadius.r200,
-    this.forText = false,
     this.child,
   });
 
@@ -280,30 +279,58 @@ class FilledPlaceholder extends StatelessWidget {
   final double width;
   final double height;
   final double borderRadius;
-  final bool forText;
   final Widget? child;
 
   @override
-  Widget build(BuildContext context) {
-    final double height;
-    if (!this.forText) {
-      height = this.height;
-    } else {
-      height = MediaQuery.of(context).textScaler.scale(this.height);
-    }
-
-    return SizedBox(
-      width: this.width,
-      height: height,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: this.color,
-          borderRadius: BorderRadius.circular(this.borderRadius),
+  Widget build(BuildContext context) => SizedBox(
+        width: this.width,
+        height: this.height,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: this.color,
+            borderRadius: BorderRadius.circular(this.borderRadius),
+          ),
+          child: this.child,
         ),
-        child: this.child,
-      ),
-    );
-  }
+      );
+}
+
+/// A simple colored box that we can show while we wait for some text content to
+/// load.
+///
+/// Like [FilledPlaceholder] but specialized for replacing [Text].
+///
+/// It contains an inner `Text(" ", style: this.style)`, so it has perfect
+/// height sizing and generates an accurate text baseline for e.g.
+/// [CrossAxisAlignment.baseline] to align against.
+///
+// TODO(phlip9): there's probably a more efficient way to get _just_ the sizing
+// and baseline generation from `Text`, but this works for now.
+class FilledTextPlaceholder extends StatelessWidget {
+  const FilledTextPlaceholder({
+    super.key,
+    this.color = LxColors.grey850,
+    this.width = double.infinity,
+    this.borderRadius = LxRadius.r200,
+    this.style,
+  });
+
+  final Color color;
+  final double width;
+  final double borderRadius;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: this.width,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: this.color,
+            borderRadius: BorderRadius.circular(this.borderRadius),
+          ),
+          child: Text(" ", style: this.style),
+        ),
+      );
 }
 
 enum LxCloseButtonKind {

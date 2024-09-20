@@ -12,6 +12,7 @@ import 'package:lexeapp/components.dart'
     show
         CarouselIndicatorsAndButtons,
         FilledPlaceholder,
+        FilledTextPlaceholder,
         HeadingText,
         LxBackButton,
         LxFilledButton,
@@ -765,12 +766,14 @@ class PaymentOfferPage extends StatelessWidget {
                       ),
                     if (code == null)
                       const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 15.0),
-                        child: FilledPlaceholder(
-                          width: Space.s900,
-                          forText: true,
-                          height: Fonts.size100,
+                        padding: EdgeInsets.symmetric(vertical: 12.0),
+                        child: FilledTextPlaceholder(
+                          width: Space.s950,
                           color: LxColors.background,
+                          style: TextStyle(
+                            fontSize: Fonts.size100,
+                            color: LxColors.grey550,
+                          ),
                         ),
                       ),
 
@@ -923,22 +926,22 @@ class PaymentOfferPage extends StatelessWidget {
                                 }
 
                                 const fontSize = Fonts.size400;
+                                const style = TextStyle(
+                                  color: LxColors.fgTertiary,
+                                  fontSize: fontSize,
+                                  letterSpacing: -0.25,
+                                  height: 1.0,
+                                );
 
                                 return (amountFiatStr != null)
                                     ? Text(
                                         "≈ $amountFiatStr",
-                                        style: const TextStyle(
-                                          color: LxColors.fgTertiary,
-                                          fontSize: fontSize,
-                                          letterSpacing: -0.25,
-                                          height: 1.0,
-                                        ),
+                                        style: style,
                                       )
-                                    : const FilledPlaceholder(
-                                        height: fontSize,
+                                    : const FilledTextPlaceholder(
                                         width: Space.s900,
-                                        forText: true,
                                         color: LxColors.background,
+                                        style: style,
                                       );
                               },
                             ),
