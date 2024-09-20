@@ -328,7 +328,12 @@ class FilledTextPlaceholder extends StatelessWidget {
             color: this.color,
             borderRadius: BorderRadius.circular(this.borderRadius),
           ),
-          child: Text(" ", style: this.style),
+          child: Text(
+            " ",
+            style: this.style,
+            maxLines: 1,
+            overflow: TextOverflow.clip,
+          ),
         ),
       );
 }
@@ -644,6 +649,7 @@ class SplitAmountText extends StatelessWidget {
     required this.fiatName,
     this.style,
     this.styleFract,
+    this.textAlign,
     this.locale,
   });
 
@@ -655,6 +661,8 @@ class SplitAmountText extends StatelessWidget {
 
   /// Styling for the deemphasized fractional part, applied on top of [style].
   final TextStyle? styleFract;
+
+  final TextAlign? textAlign;
 
   /// Used for debugging
   final String? locale;
@@ -679,6 +687,8 @@ class SplitAmountText extends StatelessWidget {
         ],
         style: this.style,
       ),
+      maxLines: 1,
+      textAlign: this.textAlign,
     );
   }
 }

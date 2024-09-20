@@ -638,7 +638,7 @@ class WalletPageState extends State<WalletPage> {
           // * Wallet Actions (Fund, Receive, Send, ...)
           SliverToBoxAdapter(
               child: Column(children: [
-            const SizedBox(height: Space.s1100),
+            const SizedBox(height: Space.s1000),
             StateStreamBuilder(
               stream: this.balanceState,
               builder: (context, balanceState) => BalanceWidget(balanceState),
@@ -652,7 +652,7 @@ class WalletPageState extends State<WalletPage> {
               // ↑ - Open BTC/LN send payment page
               onSendPressed: this.onSendPressed,
             ),
-            const SizedBox(height: Space.s800),
+            const SizedBox(height: Space.s600),
           ])),
 
           // Pending payments && not junk + header
@@ -886,12 +886,39 @@ class _BalanceWidgetState extends State<BalanceWidget> {
             amount: totalFiat,
             fiatName: this.widget.state.fiatRate!.fiat,
             style: totalFiatStyle,
+            textAlign: TextAlign.end,
           )
         : FilledTextPlaceholder(
             width: Space.s1000,
             color: LxColors.background,
             style: totalFiatStyle,
           );
+
+    const iconSize = Space.s500;
+    const iconColor = LxColors.fgSecondary;
+    const iconBg = LxColors.background;
+    final icon = ValueListenableBuilder(
+        valueListenable: this.isExpanded,
+        builder: (context, isExpanded, child) => (isExpanded)
+            ? const ListIcon(
+                Icon(
+                  LxIcons.expandUpSmall,
+                  size: iconSize,
+                  color: iconColor,
+                ),
+                background: iconBg,
+              )
+            : ListIcon(
+                Transform.translate(
+                  offset: const Offset(0.0, 2.0),
+                  child: const Icon(
+                    LxIcons.expandDownSmall,
+                    size: iconSize,
+                    color: iconColor,
+                  ),
+                ),
+                background: iconBg,
+              ));
 
     final totalBalance = Padding(
       padding: const EdgeInsets.symmetric(horizontal: Space.s400),
@@ -905,42 +932,37 @@ class _BalanceWidgetState extends State<BalanceWidget> {
               horizontal: Space.s600,
               vertical: Space.s500,
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+            child: Stack(
               children: [
+                // v / ^ - expand/collapse icon
+                Positioned(
+                  bottom: 0.0,
+                  left: 0.0,
+                  child: Transform.translate(
+                    offset: const Offset(0.0, 4.0),
+                    child: icon,
+                  ),
+                ),
+                // total balance
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
+                  mainAxisSize: MainAxisSize.max,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Balance",
-                      style: TextStyle(
-                        fontSize: Fonts.size500,
-                        fontVariations: [Fonts.weightMedium],
-                        letterSpacing: -0.5,
-                        height: 1.0,
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          totalFiatOrPlaceholder,
+                          const SizedBox(height: Space.s100),
+                          totalSatsOrPlaceholder,
+                        ],
                       ),
                     ),
-                    totalFiatOrPlaceholder,
                   ],
-                ),
-                const SizedBox(height: Space.s100),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    const SizedBox(),
-                    // const Icon(
-                    //   LxIcons.expandDownSmall,
-                    //   size: Fonts.size400,
-                    // ),
-                    // // TODO(phlip9): expand button?
-                    // const SizedBox(),
-                    totalSatsOrPlaceholder,
-                  ],
-                ),
+                )
               ],
             ),
           ),
@@ -1559,28 +1581,36 @@ class PaymentListIcon extends StatelessWidget {
 
     const size = Space.s500;
     const color = LxColors.fgSecondary;
+    final Icon icon = (isLightning)
+        ? const Icon(LxIcons.lightning,
+            size: size, color: color, fill: 1.0, weight: LxIcons.weightLight)
+        : const Icon(LxIcons.bitcoin, size: size, color: color);
 
+    return ListIcon(icon, background: LxColors.grey850);
+  }
+}
+
+class ListIcon extends StatelessWidget {
+  const ListIcon(
+    this.icon, {
+    super.key,
+    required this.background,
+  });
+
+  final Widget icon;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: LxColors.grey850,
-        borderRadius: BorderRadius.all(Radius.circular(20.0)),
+      decoration: BoxDecoration(
+        color: this.background,
+        borderRadius: const BorderRadius.all(Radius.circular(20.0)),
       ),
       child: SizedBox.square(
         // pixel perfect alignment
         dimension: 39.0,
-        child: (isLightning)
-            ? const Icon(
-                LxIcons.lightning,
-                size: size,
-                color: color,
-                fill: 1.0,
-                weight: LxIcons.weightLight,
-              )
-            : const Icon(
-                LxIcons.bitcoin,
-                size: size,
-                color: color,
-              ),
+        child: this.icon,
       ),
     );
   }

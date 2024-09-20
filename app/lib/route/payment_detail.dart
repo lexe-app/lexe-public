@@ -922,7 +922,7 @@ class PaymentDetailInfoRow extends StatelessWidget {
                 style: const TextStyle(
                   color: LxColors.grey550,
                   fontSize: Fonts.size200,
-                  height: 1.3,
+                  height: 1.2,
                 ),
               ),
             ),
@@ -934,7 +934,7 @@ class PaymentDetailInfoRow extends StatelessWidget {
                 style: const TextStyle(
                   color: LxColors.fgSecondary,
                   fontSize: Fonts.size200,
-                  height: 1.3,
+                  height: 1.2,
                   fontFeatures: [Fonts.featDisambugation],
                 ),
               ),
