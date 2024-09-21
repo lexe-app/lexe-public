@@ -48,7 +48,7 @@ import 'package:lexeapp/route/send/state.dart'
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/stream_ext.dart';
 import 'package:lexeapp/style.dart'
-    show Fonts, LxColors, LxIcons, LxRadius, Space;
+    show Fonts, LxBreakpoints, LxColors, LxIcons, LxRadius, Space;
 import 'package:lexeapp/uri_events.dart' show UriEvents;
 import 'package:lexeapp/value_listenable_stream.dart';
 import 'package:rxdart_ext/rxdart_ext.dart';
@@ -630,54 +630,75 @@ class WalletPageState extends State<WalletPage> {
         config: this.widget.config,
         onDebugPressed: this.onDebugPressed,
       ),
-      body: CustomScrollView(
-        slivers: [
-          // The primary wallet page content
-          //
-          // * Balance
-          // * Wallet Actions (Fund, Receive, Send, ...)
-          SliverToBoxAdapter(
-              child: Column(children: [
-            const SizedBox(height: Space.s1000),
-            StateStreamBuilder(
-              stream: this.balanceState,
-              builder: (context, balanceState) => BalanceWidget(balanceState),
-            ),
-            const SizedBox(height: Space.s700),
-            WalletActions(
-              // ☐ - Quickly scan a QR code
-              onScanPressed: this.onScanPressed,
-              // ↓ - Open BTC/LN receive payment page
-              onReceivePressed: this.onReceivePressed,
-              // ↑ - Open BTC/LN send payment page
-              onSendPressed: this.onSendPressed,
-            ),
-            const SizedBox(height: Space.s600),
-          ])),
+      body: Builder(builder: (context) {
+        // Limit body width to `LxBreakpoints.mobile`
+        const maxWidth = LxBreakpoints.mobile;
+        final width = MediaQuery.sizeOf(context).width;
+        final padding = (width <= maxWidth)
+            ? EdgeInsets.zero
+            : EdgeInsets.symmetric(horizontal: 0.5 * (width - maxWidth));
 
-          // Pending payments && not junk + header
-          StreamBuilder(
-            stream: this.paymentsUpdated.stream,
-            initialData: null,
-            builder: (context, snapshot) => SliverPaymentsList(
-              app: this.widget.app,
-              filter: PaymentsListFilter.pendingNotJunk,
-              onPaymentTap: this.onPaymentTap,
+        return CustomScrollView(
+          primary: true,
+          slivers: <Widget>[
+            // The primary wallet page content
+            //
+            // * Balance
+            // * Wallet Actions (Fund, Receive, Send, ...)
+            SliverPadding(
+              padding: padding,
+              sliver: SliverToBoxAdapter(
+                child: Column(children: [
+                  const SizedBox(height: Space.s1000),
+                  StateStreamBuilder(
+                    stream: this.balanceState,
+                    builder: (context, balanceState) =>
+                        BalanceWidget(balanceState),
+                  ),
+                  const SizedBox(height: Space.s700),
+                  WalletActions(
+                    // ☐ - Quickly scan a QR code
+                    onScanPressed: this.onScanPressed,
+                    // ↓ - Open BTC/LN receive payment page
+                    onReceivePressed: this.onReceivePressed,
+                    // ↑ - Open BTC/LN send payment page
+                    onSendPressed: this.onSendPressed,
+                  ),
+                  const SizedBox(height: Space.s600),
+                ]),
+              ),
             ),
-          ),
 
-          // Completed+Failed && not junk payments + header
-          StreamBuilder(
-            stream: this.paymentsUpdated.stream,
-            initialData: null,
-            builder: (context, snapshot) => SliverPaymentsList(
-              app: this.widget.app,
-              filter: PaymentsListFilter.finalizedNotJunk,
-              onPaymentTap: this.onPaymentTap,
+            // Pending payments && not junk + header
+            SliverPadding(
+              padding: padding,
+              sliver: StreamBuilder(
+                stream: this.paymentsUpdated.stream,
+                initialData: null,
+                builder: (context, snapshot) => SliverPaymentsList(
+                  app: this.widget.app,
+                  filter: PaymentsListFilter.pendingNotJunk,
+                  onPaymentTap: this.onPaymentTap,
+                ),
+              ),
             ),
-          )
-        ],
-      ),
+
+            // Completed+Failed && not junk payments + header
+            SliverPadding(
+              padding: padding,
+              sliver: StreamBuilder(
+                stream: this.paymentsUpdated.stream,
+                initialData: null,
+                builder: (context, snapshot) => SliverPaymentsList(
+                  app: this.widget.app,
+                  filter: PaymentsListFilter.finalizedNotJunk,
+                  onPaymentTap: this.onPaymentTap,
+                ),
+              ),
+            )
+          ],
+        );
+      }),
     );
   }
 }
@@ -1287,8 +1308,8 @@ class _SliverPaymentsListState extends State<SliverPaymentsList> {
       PaymentsListFilter.finalizedNotJunk =>
         this.widget.app.getNumFinalizedNotJunkPayments(),
     };
-    info("build SliverPaymentsList: filter: ${this.widget.filter}, "
-        "paymentKindCount: $paymentKindCount");
+    // info("build SliverPaymentsList: filter: ${this.widget.filter}, "
+    //     "paymentKindCount: $paymentKindCount");
 
     final numHeaders = switch (paymentKindCount) {
       > 0 => 1,
