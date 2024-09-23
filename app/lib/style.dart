@@ -770,11 +770,14 @@ final class LxIcons {
   /// Expand up (up arrow)
   static const IconData expandUp = Symbols.arrow_upward_rounded;
 
-  /// Expand up small
+  /// Expand up small (up caret)
   static const IconData expandUpSmall = Symbols.stat_1_rounded;
 
-  /// Expand down small
+  /// Expand down small (down caret)
   static const IconData expandDownSmall = Symbols.stat_minus_1_rounded;
+
+  /// Open/close channel (left/right arrows)
+  static const IconData openCloseChannel = Symbols.sync_alt_rounded;
 
   /// Empty scanner (scan box)
   static const IconData scan = Symbols.crop_free_rounded;

@@ -7,6 +7,7 @@ import 'dart:async'
         TimeoutException,
         Timer,
         unawaited;
+import 'dart:math' as math;
 
 import 'package:app_rs_dart/ffi/api.dart'
     show Balance, FiatRate, FiatRates, NodeInfo;
@@ -872,9 +873,19 @@ class BalanceWidget extends StatefulWidget {
 }
 
 class _BalanceWidgetState extends State<BalanceWidget> {
-  // final ValueNotifier<bool> isExpanded = ValueNotifier(false);
-  // TODO(phlip9): switch after debugging
-  final ValueNotifier<bool> isExpanded = ValueNotifier(true);
+  // TODO(phlip9): init with setting
+  final ValueNotifier<bool> subBalancesExpanded = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    this.subBalancesExpanded.dispose();
+    super.dispose();
+  }
+
+  /// Toggle expanding the sub-balances drop down
+  void toggleSubBalancesExpanded() {
+    this.subBalancesExpanded.value = !this.subBalancesExpanded.value;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -919,7 +930,7 @@ class _BalanceWidgetState extends State<BalanceWidget> {
     const iconColor = LxColors.fgSecondary;
     const iconBg = LxColors.background;
     final icon = ValueListenableBuilder(
-        valueListenable: this.isExpanded,
+        valueListenable: this.subBalancesExpanded,
         builder: (context, isExpanded, child) => (isExpanded)
             ? const ListIcon(
                 Icon(
@@ -947,12 +958,13 @@ class _BalanceWidgetState extends State<BalanceWidget> {
         borderRadius: BorderRadius.circular(LxRadius.r400),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () => this.isExpanded.value = !this.isExpanded.value,
+          onTap: this.toggleSubBalancesExpanded,
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Space.s600,
-              vertical: Space.s500,
-            ),
+            padding: const EdgeInsets.fromLTRB(
+                Space.s500, Space.s500, Space.s600, Space.s500),
+            // Use a stack here so the amount text can span the full box and
+            // occlude the icon. For large denomination currencies, this should
+            // leave us enough space.
             child: Stack(
               children: [
                 // v / ^ - expand/collapse icon
@@ -960,7 +972,7 @@ class _BalanceWidgetState extends State<BalanceWidget> {
                   bottom: 0.0,
                   left: 0.0,
                   child: Transform.translate(
-                    offset: const Offset(0.0, 4.0),
+                    offset: const Offset(0.0, 2.0),
                     child: icon,
                   ),
                 ),
@@ -983,7 +995,7 @@ class _BalanceWidgetState extends State<BalanceWidget> {
                       ),
                     ),
                   ],
-                )
+                ),
               ],
             ),
           ),
@@ -992,23 +1004,52 @@ class _BalanceWidgetState extends State<BalanceWidget> {
     );
 
     final subBalances = ValueListenableBuilder(
-      valueListenable: this.isExpanded,
+      valueListenable: this.subBalancesExpanded,
       builder: (context, isExpanded, child) =>
           (isExpanded) ? child! : const SizedBox(),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SubBalanceRow(
-            kind: PaymentKind.invoice,
-            fiatName: this.widget.state.fiatRate?.fiat,
-            fiatBalance: this.widget.state.lightningFiat(),
-            satsBalance: this.widget.state.lightningSats(),
+      child: Stack(
+        alignment: Alignment.center,
+        children: <Widget>[
+          // LN/BTC sub balances
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SubBalanceRow(
+                kind: PaymentKind.invoice,
+                fiatName: this.widget.state.fiatRate?.fiat,
+                fiatBalance: this.widget.state.lightningFiat(),
+                satsBalance: this.widget.state.lightningSats(),
+              ),
+              const SizedBox(height: Space.s200),
+              SubBalanceRow(
+                kind: PaymentKind.onchain,
+                fiatName: this.widget.state.fiatRate?.fiat,
+                fiatBalance: this.widget.state.onchainFiat(),
+                satsBalance: this.widget.state.onchainSats(),
+              ),
+            ],
           ),
-          SubBalanceRow(
-            kind: PaymentKind.onchain,
-            fiatName: this.widget.state.fiatRate?.fiat,
-            fiatBalance: this.widget.state.onchainFiat(),
-            satsBalance: this.widget.state.onchainSats(),
+          // ↑↓ - Open/close channel button on the right
+          Positioned(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 2.0),
+                child: IconButton(
+                  // TODO(phlip9): impl
+                  onPressed: () => info("TODO: open/close channel"),
+                  // Rotate the icon so it's up/down and not left/right.
+                  // Doesn't seem to be a vertical variant of this icon...
+                  icon: Transform.rotate(
+                    angle: 0.5 * math.pi,
+                    child: const Icon(
+                      LxIcons.openCloseChannel,
+                      color: LxColors.fgSecondary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -1026,6 +1067,8 @@ class _BalanceWidgetState extends State<BalanceWidget> {
   }
 }
 
+/// A single row beneath the unified balance showing the user's lightning
+/// channel balance or on-chain balance.
 class SubBalanceRow extends StatelessWidget {
   const SubBalanceRow({
     super.key,
@@ -1090,7 +1133,10 @@ class SubBalanceRow extends StatelessWidget {
         (this.kind == PaymentKind.onchain) ? "On-chain" : "Lightning";
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Space.s400 + Space.s600),
+      padding: const EdgeInsets.only(
+        left: Space.s400 + Space.s500,
+        right: Space.s400 + Space.s600 + 1.0,
+      ),
       child: ListTile(
         // list tile styling
         contentPadding: const EdgeInsets.symmetric(
@@ -1104,6 +1150,7 @@ class SubBalanceRow extends StatelessWidget {
         dense: true,
 
         // actual content
+
         leading: PaymentListIcon(kind: this.kind),
 
         // NOTE: we use a Row() in `title` and `subtitle` instead of `trailing` so

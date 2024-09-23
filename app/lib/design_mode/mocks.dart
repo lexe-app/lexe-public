@@ -81,8 +81,10 @@ class MockAppHandle extends AppHandle {
   @override
   Future<NodeInfo> nodeInfo({dynamic hint}) =>
       Future.delayed(const Duration(milliseconds: 1000), () {
-        const lightningSats = 0;
-        const onchainSats = 0;
+        const lightningSats = 9836390;
+        const onchainSats = 3493734;
+        // const lightningSats = 0;
+        // const onchainSats = 0;
         const totalSats = lightningSats + onchainSats;
         return const NodeInfo(
           nodePk:
