@@ -104,6 +104,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   AppHandle dco_decode_box_autoadd_app_handle(dynamic raw);
 
   @protected
+  bool dco_decode_box_autoadd_bool(dynamic raw);
+
+  @protected
   Config dco_decode_box_autoadd_config(dynamic raw);
 
   @protected
@@ -255,6 +258,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   AppHandle? dco_decode_opt_box_autoadd_app_handle(dynamic raw);
 
   @protected
+  bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
+
+  @protected
   FeeEstimate? dco_decode_opt_box_autoadd_fee_estimate(dynamic raw);
 
   @protected
@@ -400,6 +406,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   AppHandle sse_decode_box_autoadd_app_handle(SseDeserializer deserializer);
+
+  @protected
+  bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
   Config sse_decode_box_autoadd_config(SseDeserializer deserializer);
@@ -568,6 +577,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       SseDeserializer deserializer);
 
   @protected
+  bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
   FeeEstimate? sse_decode_opt_box_autoadd_fee_estimate(
       SseDeserializer deserializer);
 
@@ -724,6 +736,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_box_autoadd_app_handle(
       AppHandle self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_config(Config self, SseSerializer serializer);
@@ -894,6 +909,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_opt_box_autoadd_app_handle(
       AppHandle? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_fee_estimate(

@@ -13,6 +13,7 @@ import 'package:app_rs_dart/ffi/api.dart'
     show Balance, FiatRate, FiatRates, NodeInfo;
 import 'package:app_rs_dart/ffi/api.ext.dart';
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/settings.dart';
 import 'package:app_rs_dart/ffi/types.dart'
     show
         ClientPaymentId,
@@ -653,8 +654,10 @@ class WalletPageState extends State<WalletPage> {
                   const SizedBox(height: Space.s1000),
                   StateStreamBuilder(
                     stream: this.balanceState,
-                    builder: (context, balanceState) =>
-                        BalanceWidget(balanceState),
+                    builder: (context, balanceState) => BalanceWidget(
+                      state: balanceState,
+                      settings: this.widget.settings,
+                    ),
                   ),
                   const SizedBox(height: Space.s700),
                   WalletActions(
@@ -864,8 +867,9 @@ class BalanceState with _$BalanceState {
 }
 
 class BalanceWidget extends StatefulWidget {
-  const BalanceWidget(this.state, {super.key});
+  const BalanceWidget({super.key, required this.settings, required this.state});
 
+  final LxSettings settings;
   final BalanceState state;
 
   @override
@@ -873,18 +877,11 @@ class BalanceWidget extends StatefulWidget {
 }
 
 class _BalanceWidgetState extends State<BalanceWidget> {
-  // TODO(phlip9): init with setting
-  final ValueNotifier<bool> subBalancesExpanded = ValueNotifier(false);
-
-  @override
-  void dispose() {
-    this.subBalancesExpanded.dispose();
-    super.dispose();
-  }
-
   /// Toggle expanding the sub-balances drop down
-  void toggleSubBalancesExpanded() {
-    this.subBalancesExpanded.value = !this.subBalancesExpanded.value;
+  void toggleSplitBalancesExpanded() {
+    final settings = this.widget.settings;
+    final value = settings.showSplitBalances.value ?? false;
+    settings.update(Settings(showSplitBalances: !value)).unwrap();
   }
 
   @override
@@ -930,27 +927,28 @@ class _BalanceWidgetState extends State<BalanceWidget> {
     const iconColor = LxColors.fgSecondary;
     const iconBg = LxColors.background;
     final icon = ValueListenableBuilder(
-        valueListenable: this.subBalancesExpanded,
-        builder: (context, isExpanded, child) => (isExpanded)
-            ? const ListIcon(
-                Icon(
-                  LxIcons.expandUpSmall,
-                  size: iconSize,
-                  color: iconColor,
-                ),
-                background: iconBg,
-              )
-            : ListIcon(
-                Transform.translate(
-                  offset: const Offset(0.0, 2.0),
-                  child: const Icon(
-                    LxIcons.expandDownSmall,
-                    size: iconSize,
-                    color: iconColor,
-                  ),
-                ),
-                background: iconBg,
-              ));
+        valueListenable: this.widget.settings.showSplitBalances,
+        builder: (context, showSplitBalances, child) =>
+            (showSplitBalances ?? false)
+                ? const ListIcon(
+                    Icon(
+                      LxIcons.expandUpSmall,
+                      size: iconSize,
+                      color: iconColor,
+                    ),
+                    background: iconBg,
+                  )
+                : ListIcon(
+                    Transform.translate(
+                      offset: const Offset(0.0, 2.0),
+                      child: const Icon(
+                        LxIcons.expandDownSmall,
+                        size: iconSize,
+                        color: iconColor,
+                      ),
+                    ),
+                    background: iconBg,
+                  ));
 
     final totalBalance = Padding(
       padding: const EdgeInsets.symmetric(horizontal: Space.s400),
@@ -958,7 +956,7 @@ class _BalanceWidgetState extends State<BalanceWidget> {
         borderRadius: BorderRadius.circular(LxRadius.r400),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: this.toggleSubBalancesExpanded,
+          onTap: this.toggleSplitBalancesExpanded,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
                 Space.s500, Space.s500, Space.s600, Space.s500),
@@ -1004,9 +1002,9 @@ class _BalanceWidgetState extends State<BalanceWidget> {
     );
 
     final subBalances = ValueListenableBuilder(
-      valueListenable: this.subBalancesExpanded,
-      builder: (context, isExpanded, child) =>
-          (isExpanded) ? child! : const SizedBox(),
+      valueListenable: this.widget.settings.showSplitBalances,
+      builder: (context, showSplitBalances, child) =>
+          (showSplitBalances ?? false) ? child! : const SizedBox(),
       child: Stack(
         alignment: Alignment.center,
         children: <Widget>[

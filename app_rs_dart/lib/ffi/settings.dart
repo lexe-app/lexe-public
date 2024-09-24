@@ -18,14 +18,17 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 class Settings {
   final String? locale;
   final String? fiatCurrency;
+  final bool? showSplitBalances;
 
   const Settings({
     this.locale,
     this.fiatCurrency,
+    this.showSplitBalances,
   });
 
   @override
-  int get hashCode => locale.hashCode ^ fiatCurrency.hashCode;
+  int get hashCode =>
+      locale.hashCode ^ fiatCurrency.hashCode ^ showSplitBalances.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -33,7 +36,8 @@ class Settings {
       other is Settings &&
           runtimeType == other.runtimeType &&
           locale == other.locale &&
-          fiatCurrency == other.fiatCurrency;
+          fiatCurrency == other.fiatCurrency &&
+          showSplitBalances == other.showSplitBalances;
 }
 
 class SettingsDb {

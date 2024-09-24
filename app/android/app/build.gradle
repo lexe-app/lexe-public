@@ -78,6 +78,10 @@ android {
             resValue "string", "app_name", "Lexe Dev"
             applicationIdSuffix ".dev"
             versionNameSuffix "-dev"
+
+            // AndroidManifest.xml requires this value to be set, even though
+            // local dev doesn't use gDrive.
+            resValue "string", "google_callback_uri_scheme", "DUMMY"
         }
 
         // Lexe testnet/staging backend.

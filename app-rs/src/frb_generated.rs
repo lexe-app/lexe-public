@@ -1266,6 +1266,19 @@ impl SseDecode for Option<crate::ffi::app::AppHandle> {
     }
 }
 
+impl SseDecode for Option<bool> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<bool>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::ffi::api::FeeEstimate> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -1595,9 +1608,12 @@ impl SseDecode for crate::ffi::settings::Settings {
     ) -> Self {
         let mut var_locale = <Option<String>>::sse_decode(deserializer);
         let mut var_fiatCurrency = <Option<String>>::sse_decode(deserializer);
+        let mut var_showSplitBalances =
+            <Option<bool>>::sse_decode(deserializer);
         return crate::ffi::settings::Settings {
             locale: var_locale,
             fiat_currency: var_fiatCurrency,
+            show_split_balances: var_showSplitBalances,
         };
     }
 }
@@ -2542,6 +2558,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::settings::Settings {
         [
             self.locale.into_into_dart().into_dart(),
             self.fiat_currency.into_into_dart().into_dart(),
+            self.show_split_balances.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -3143,6 +3160,19 @@ impl SseEncode for Option<crate::ffi::app::AppHandle> {
     }
 }
 
+impl SseEncode for Option<bool> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <bool>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::ffi::api::FeeEstimate> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -3433,6 +3463,7 @@ impl SseEncode for crate::ffi::settings::Settings {
     ) {
         <Option<String>>::sse_encode(self.locale, serializer);
         <Option<String>>::sse_encode(self.fiat_currency, serializer);
+        <Option<bool>>::sse_encode(self.show_split_balances, serializer);
     }
 }
 
