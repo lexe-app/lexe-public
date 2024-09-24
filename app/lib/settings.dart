@@ -6,12 +6,20 @@ import 'package:lexeapp/result.dart';
 class LxSettings {
   factory LxSettings(final SettingsDb db) {
     final settings = db.read();
+
     final locale = ValueNotifier(settings.locale);
     final fiatCurrency = ValueNotifier(settings.fiatCurrency);
-    return LxSettings._(db, locale, fiatCurrency);
+    final showSplitBalances = ValueNotifier(settings.showSplitBalances);
+
+    return LxSettings._(db, locale, fiatCurrency, showSplitBalances);
   }
 
-  LxSettings._(this._db, this._locale, this._fiatCurrency);
+  LxSettings._(
+    this._db,
+    this._locale,
+    this._fiatCurrency,
+    this._showSplitBalances,
+  );
 
   final SettingsDb _db;
 
@@ -21,10 +29,15 @@ class LxSettings {
   final ValueNotifier<String?> _fiatCurrency;
   ValueListenable<String?> get fiatCurrency => this._fiatCurrency;
 
+  final ValueNotifier<bool?> _showSplitBalances;
+  ValueListenable<bool?> get showSplitBalances => this._showSplitBalances;
+
   void reset() {
     this._db.reset();
+
     this._locale.value = null;
     this._fiatCurrency.value = null;
+    this._showSplitBalances.value = null;
   }
 
   FfiResult<void> update(final Settings update) {
@@ -37,6 +50,7 @@ class LxSettings {
     // Update ValueNotifier's
     this._locale.update(update.locale);
     this._fiatCurrency.update(update.fiatCurrency);
+    this._showSplitBalances.update(update.showSplitBalances);
 
     // Can't create an Ok(void), so just return this `result` that conveniently
     // has the right type.

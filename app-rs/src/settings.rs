@@ -16,6 +16,50 @@ use crate::ffs::Ffs;
 
 const SETTINGS_JSON: &str = "settings.json";
 
+/// In-memory app settings state.
+#[derive(Clone, PartialEq, Deserialize, Serialize)]
+#[cfg_attr(test, derive(Debug, Arbitrary))]
+pub(crate) struct Settings {
+    /// Settings schema version.
+    pub schema: SchemaVersion,
+    /// Preferred locale.
+    pub locale: Option<String>,
+    /// Perferred fiat currency (e.g. "USD").
+    pub fiat_currency: Option<IsoCurrencyCode>,
+    /// Show lightning and bitcoin sub-balances on the wallet home-page.
+    pub show_split_balances: Option<bool>,
+}
+
+impl Settings {
+    /// Merge updated settings from `update` into `self`.
+    pub(crate) fn update(&mut self, update: Self) -> anyhow::Result<()> {
+        ensure!(
+            self.schema == update.schema,
+            "Trying to update settings of a different schema version (persisted={}, update={}). \
+             Somehow migrations didn't run?",
+            self.schema.0,
+            update.schema.0,
+        );
+
+        self.locale.update(update.locale);
+        self.fiat_currency.update(update.fiat_currency);
+        self.show_split_balances.update(update.show_split_balances);
+
+        Ok(())
+    }
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            schema: SchemaVersion::CURRENT,
+            locale: None,
+            fiat_currency: None,
+            show_split_balances: None,
+        }
+    }
+}
+
 /// The app settings DB. Responsible for managing access to the settings.
 ///
 /// Persistence is currently done asynchronously out-of-band, so calling
@@ -43,18 +87,6 @@ struct SettingsPersister<F> {
     persist_rx: notify::Receiver,
     /// Receives shutdown signal.
     shutdown: ShutdownChannel,
-}
-
-/// In-memory app settings state.
-#[derive(Clone, PartialEq, Deserialize, Serialize)]
-#[cfg_attr(test, derive(Debug, Arbitrary))]
-pub(crate) struct Settings {
-    /// Settings schema version.
-    pub schema: SchemaVersion,
-    /// Preferred locale.
-    pub locale: Option<String>,
-    /// Perferred fiat currency (e.g. "USD").
-    pub fiat_currency: Option<IsoCurrencyCode>,
 }
 
 /// Settings schema version. Used to determine whether to run migrations.
@@ -247,22 +279,6 @@ impl Settings {
         Ok(Some(settings))
     }
 
-    /// Merge updated settings from `update` into `self`.
-    pub(crate) fn update(&mut self, update: Self) -> anyhow::Result<()> {
-        ensure!(
-            self.schema == update.schema,
-            "Trying to update settings of a different schema version (persisted={}, update={}). \
-             Somehow migrations didn't run?",
-            self.schema.0,
-            update.schema.0,
-        );
-
-        self.locale.update(update.locale);
-        self.fiat_currency.update(update.fiat_currency);
-
-        Ok(())
-    }
-
     fn serialize_json(&self) -> anyhow::Result<Vec<u8>> {
         serde_json::to_vec_pretty(self)
             .context("Failed to serialize settings.json")
@@ -270,16 +286,6 @@ impl Settings {
 
     fn deserialize_json(s: &[u8]) -> anyhow::Result<Self> {
         serde_json::from_slice(s).context("Failed to deserialize settings.json")
-    }
-}
-
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            schema: SchemaVersion::CURRENT,
-            locale: None,
-            fiat_currency: None,
-        }
     }
 }
 
@@ -341,7 +347,8 @@ mod test {
         let settings_str = r#"
         {
             "schema": 1,
-            "fiat_currency": "USD"
+            "fiat_currency": "USD",
+            "show_split_balances": true
         }
         "#;
         let ffs = MockFfs::new();
@@ -350,6 +357,7 @@ mod test {
         assert_eq!(settings.schema, SchemaVersion(1));
         assert_eq!(settings.locale, None);
         assert_eq!(settings.fiat_currency, Some(IsoCurrencyCode::USD));
+        assert_eq!(settings.show_split_balances, Some(true));
     }
 
     /// A tiny model implementation of [`SettingsDb`].

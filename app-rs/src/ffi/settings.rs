@@ -16,6 +16,7 @@ pub struct SettingsDb {
 pub struct Settings {
     pub locale: Option<String>,
     pub fiat_currency: Option<String>,
+    pub show_split_balances: Option<bool>,
 }
 
 // --- impl SettingsDb --- //
@@ -60,6 +61,7 @@ impl From<SettingsRs> for Settings {
         Self {
             locale: s.locale,
             fiat_currency: s.fiat_currency.map(|x| x.as_str().to_owned()),
+            show_split_balances: s.show_split_balances,
         }
     }
 }
@@ -75,6 +77,7 @@ impl TryFrom<Settings> for SettingsRs {
                 .as_deref()
                 .map(IsoCurrencyCode::from_str)
                 .transpose()?,
+            show_split_balances: s.show_split_balances,
         })
     }
 }
