@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLockReadGuard, RwLockWriteGuard};
 
 use anyhow::{ensure, Context};
 use bdk::{
@@ -11,11 +11,11 @@ use bdk29::{
         coin_selection::DefaultCoinSelectionAlgorithm, signer::SignOptions,
         tx_builder::CreateTx, AddressIndex as AddressIndex29,
     },
-    FeeRate, TransactionDetails, TxBuilder,
+    FeeRate, TxBuilder,
 };
 use bdk_chain::Append;
 use bdk_esplora::EsploraAsyncExt;
-use bitcoin::{psbt::PartiallySignedTransaction, Transaction, Txid};
+use bitcoin::{psbt::PartiallySignedTransaction, Transaction};
 use common::{
     api::command::{
         FeeEstimate, PayOnchainRequest, PreflightPayOnchainRequest,
@@ -179,6 +179,18 @@ impl LexeWallet {
         }
 
         Ok(lexe_wallet)
+    }
+
+    /// Returns a read lock on the inner [`bdk::Wallet`].
+    /// The caller is responsible for avoiding deadlocks.
+    pub fn read(&self) -> RwLockReadGuard<'_, bdk::Wallet<WalletDb>> {
+        self.wallet.read().unwrap()
+    }
+
+    /// Returns a write lock on the inner [`bdk::Wallet`].
+    /// The caller is responsible for avoiding deadlocks.
+    pub fn write(&self) -> RwLockWriteGuard<'_, bdk::Wallet<WalletDb>> {
+        self.wallet.write().unwrap()
     }
 
     /// Syncs the [`bdk::Wallet`] using a remote Esplora backend.
@@ -392,31 +404,6 @@ impl LexeWallet {
             .unwrap()
             .get_internal_address(AddressIndex::LastUnused)
             .address
-    }
-
-    /// Calls [`bdk29::Wallet::list_transactions`].
-    pub async fn list_transactions(
-        &self,
-        include_raw: bool,
-    ) -> anyhow::Result<Vec<TransactionDetails>> {
-        self.bdk29_wallet
-            .lock()
-            .await
-            .list_transactions(include_raw)
-            .context("Could not list transactions")
-    }
-
-    /// Calls [`bdk29::Wallet::get_tx`].
-    pub async fn get_tx(
-        &self,
-        txid: &Txid,
-        include_raw: bool,
-    ) -> anyhow::Result<Option<TransactionDetails>> {
-        self.bdk29_wallet
-            .lock()
-            .await
-            .get_tx(txid, include_raw)
-            .context("Could not get tx")
     }
 
     /// Determine if we have enough on-chain balance for a potential channel

@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::{bail, ensure, Context};
-use bdk29::TransactionDetails;
+use bdk::KeychainKind;
 use common::{
     api::qs::UpdatePaymentNote,
     ln::{
@@ -21,7 +21,6 @@ use common::{
     test_event::TestEvent,
 };
 use lightning::{events::PaymentPurpose, ln::channelmanager::FailureCode};
-use rust_decimal::Decimal;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, info_span, instrument};
 
@@ -658,7 +657,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         Ok(())
     }
 
-    /// Queries the [`bdk29::Wallet`] to see if there are any onchain receives
+    /// Queries the [`bdk::Wallet`] to see if there are any onchain receives
     /// that the [`PaymentsManager`] doesn't yet know about. If so, the
     /// [`OnchainReceive`] is constructed and registered with the
     /// [`PaymentsManager`].
@@ -671,53 +670,45 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     ) -> anyhow::Result<()> {
         debug!("Checking for onchain receives");
 
-        let include_raw = false;
-        let txs = wallet.list_transactions(include_raw).await?;
-
-        // Drop the lock here to prevent deadlocking when we call `new_payment`.
-        let unseen_txs = {
+        let onchain_recvs = {
             let locked_data = self.data.lock().await;
-            txs.into_iter()
-                // The tx is inbound if we own none of the inputs.
-                .filter(|tx_details| tx_details.sent == 0)
-                // Filter out txs we already know about
-                .filter(|tx_details| {
-                    let id = LxPaymentId::OnchainRecv(LxTxid(tx_details.txid));
-                    !locked_data.pending.contains_key(&id)
-                        && !locked_data.finalized.contains(&id)
-                })
-                .collect::<Vec<TransactionDetails>>()
-        };
+            let locked_wallet = wallet.read();
 
-        let onchain_recv_futs = unseen_txs
-            .iter()
-            // Map each to a future which constructs the `OnchainReceive`
-            .map(|tx_details| async {
-                let include_raw = true;
-                let raw_tx = wallet
-                    .get_tx(&tx_details.txid, include_raw)
-                    .await?
-                    .context("Missing tx details")?
-                    .transaction
-                    .context("Raw tx was not included")?;
+            // List the txids of unspent outputs owned by the wallet.
+            let unspent_txids = locked_wallet
+                .list_unspent()
+                // Only register payments to the external descriptor, so there
+                // aren't entries for e.g. channel closes / splices / etc.
+                .filter(|o| matches!(o.keychain, KeychainKind::External))
+                .map(|local_output| local_output.outpoint.txid);
 
-                let amount_sats = Decimal::from(tx_details.received);
-                let amount = Amount::try_from_satoshis(amount_sats)
-                    .context("Overflowed")?;
-
-                let or = OnchainReceive::new(raw_tx, amount);
-
-                Ok::<_, anyhow::Error>(or)
+            // Filter out txids we already know about.
+            let unseen_txids = unspent_txids.filter(|txid| {
+                let id = LxPaymentId::OnchainRecv(LxTxid(*txid));
+                !locked_data.pending.contains_key(&id)
+                    && !locked_data.finalized.contains(&id)
             });
 
-        let onchain_recvs = futures::future::try_join_all(onchain_recv_futs)
-            .await
-            .context("Error constructing new `OnchainReceive`s")?;
+            // Construct new `OnchainReceive`s for each unseen txid.
+            unseen_txids
+                .map(|txid| {
+                    let canonical_tx = locked_wallet
+                        .get_tx(txid)
+                        .context("Missing full tx for owned output")?;
+                    let raw_tx = canonical_tx.tx_node.tx;
+                    let (_, received) = locked_wallet.sent_and_received(raw_tx);
+                    let amount = Amount::try_from_sats_u64(received)
+                        .context("Overflowed")?;
+                    Ok(OnchainReceive::new(raw_tx.clone(), amount))
+                })
+                .collect::<anyhow::Result<Vec<OnchainReceive>>>()?
+        };
+        // Drop locks here to avoid deadlock when calling `self.new_payment`.
 
+        // Register all of the new onchain receives.
         let register_futs = onchain_recvs
             .into_iter()
             .map(|or| self.new_payment(or.into()));
-
         for res in futures::future::join_all(register_futs).await {
             res.context("Failed to register new onchain receive")?;
         }
