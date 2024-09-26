@@ -8,8 +8,9 @@ use common::{
         command::{
             CreateInvoiceRequest as CreateInvoiceRequestRs,
             CreateInvoiceResponse as CreateInvoiceResponseRs,
-            FeeEstimate as FeeEstimateRs, NodeInfo as NodeInfoRs,
-            PayInvoiceRequest as PayInvoiceRequestRs,
+            FeeEstimate as FeeEstimateRs,
+            ListChannelsResponse as ListChannelsResponseRs,
+            NodeInfo as NodeInfoRs, PayInvoiceRequest as PayInvoiceRequestRs,
             PayInvoiceResponse as PayInvoiceResponseRs,
             PayOnchainRequest as PayOnchainRequestRs,
             PayOnchainResponse as PayOnchainResponseRs,
@@ -33,7 +34,8 @@ use common::{
 use flutter_rust_bridge::frb;
 
 use crate::ffi::types::{
-    ClientPaymentId, ConfirmationPriority, Invoice, PaymentIndex,
+    ClientPaymentId, ConfirmationPriority, Invoice, LxChannelDetails,
+    PaymentIndex,
 };
 
 #[frb(dart_metadata=("freezed"))]
@@ -78,6 +80,23 @@ impl From<&NodeInfoRs> for Balance {
             total_sats,
             lightning_sats,
             onchain_sats,
+        }
+    }
+}
+
+#[frb(dart_metadata=("freezed"))]
+pub struct ListChannelsResponse {
+    pub channels: Vec<LxChannelDetails>,
+}
+
+impl From<ListChannelsResponseRs> for ListChannelsResponse {
+    fn from(resp: ListChannelsResponseRs) -> Self {
+        Self {
+            channels: resp
+                .channels
+                .into_iter()
+                .map(LxChannelDetails::from)
+                .collect(),
         }
     }
 }

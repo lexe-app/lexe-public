@@ -18,9 +18,9 @@ use flutter_rust_bridge::{frb, RustOpaqueNom};
 
 use crate::ffi::{
     api::{
-        CreateInvoiceRequest, CreateInvoiceResponse, FiatRates, NodeInfo,
-        PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
-        PayOnchainResponse, PreflightPayInvoiceRequest,
+        CreateInvoiceRequest, CreateInvoiceResponse, FiatRates,
+        ListChannelsResponse, NodeInfo, PayInvoiceRequest, PayInvoiceResponse,
+        PayOnchainRequest, PayOnchainResponse, PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
         PreflightPayOnchainResponse, UpdatePaymentNote,
     },
@@ -115,6 +115,15 @@ impl AppHandle {
             .node_info()
             .await
             .map(NodeInfo::from)
+            .map_err(anyhow::Error::new)
+    }
+
+    pub async fn list_channels(&self) -> anyhow::Result<ListChannelsResponse> {
+        self.inner
+            .node_client()
+            .list_channels()
+            .await
+            .map(ListChannelsResponse::from)
             .map_err(anyhow::Error::new)
     }
 

@@ -5,6 +5,7 @@ pub(crate) use common::root_seed::RootSeed as RootSeedRs;
 use common::{
     env::DeployEnv as DeployEnvRs,
     ln::{
+        channel::LxChannelDetails as LxChannelDetailsRs,
         invoice::LxInvoice,
         network::LxNetwork as NetworkRs,
         payments::{
@@ -396,6 +397,41 @@ impl From<ConfirmationPriority> for ConfirmationPriorityRs {
             ConfirmationPriority::High => Self::High,
             ConfirmationPriority::Normal => Self::Normal,
             ConfirmationPriority::Background => Self::Background,
+        }
+    }
+}
+
+pub struct LxChannelDetails {
+    pub channel_id: String,
+    pub counterparty_node_id: String,
+    pub channel_value_sats: u64,
+
+    pub is_usable: bool,
+
+    pub our_balance_sats: u64,
+    pub outbound_capacity_sats: u64,
+
+    pub their_balance_sats: u64,
+    pub inbound_capacity_sats: u64,
+    //
+    // TODO(phlip9): how to handle proportional fee
+    // pub our_base_fee_sats: u64,
+    // pub our_prop_fee_percent: String,
+}
+
+impl From<LxChannelDetailsRs> for LxChannelDetails {
+    fn from(value: LxChannelDetailsRs) -> Self {
+        Self {
+            channel_id: value.channel_id.to_string(),
+            counterparty_node_id: value.counterparty_node_id.to_string(),
+            channel_value_sats: value.channel_value.sats_u64(),
+            is_usable: value.is_usable,
+            our_balance_sats: value.our_balance.sats_u64(),
+            outbound_capacity_sats: value.outbound_capacity.sats_u64(),
+            their_balance_sats: value.their_balance.sats_u64(),
+            inbound_capacity_sats: value.inbound_capacity.sats_u64(),
+            // our_base_fee_sats: value.our_base_fee.sats_u64(),
+            // our_prop_fee: value.our_prop_fee.satu,
         }
     }
 }

@@ -14,7 +14,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 /// A unique, client-generated id for payment types (onchain send,
 /// ln spontaneous send) that need an extra id for idempotency.
@@ -71,6 +71,53 @@ class Invoice with _$Invoice {
     int? amountSats,
     required String payeePubkey,
   }) = _Invoice;
+}
+
+class LxChannelDetails {
+  final String channelId;
+  final String counterpartyNodeId;
+  final int channelValueSats;
+  final bool isUsable;
+  final int ourBalanceSats;
+  final int outboundCapacitySats;
+  final int theirBalanceSats;
+  final int inboundCapacitySats;
+
+  const LxChannelDetails({
+    required this.channelId,
+    required this.counterpartyNodeId,
+    required this.channelValueSats,
+    required this.isUsable,
+    required this.ourBalanceSats,
+    required this.outboundCapacitySats,
+    required this.theirBalanceSats,
+    required this.inboundCapacitySats,
+  });
+
+  @override
+  int get hashCode =>
+      channelId.hashCode ^
+      counterpartyNodeId.hashCode ^
+      channelValueSats.hashCode ^
+      isUsable.hashCode ^
+      ourBalanceSats.hashCode ^
+      outboundCapacitySats.hashCode ^
+      theirBalanceSats.hashCode ^
+      inboundCapacitySats.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LxChannelDetails &&
+          runtimeType == other.runtimeType &&
+          channelId == other.channelId &&
+          counterpartyNodeId == other.counterpartyNodeId &&
+          channelValueSats == other.channelValueSats &&
+          isUsable == other.isUsable &&
+          ourBalanceSats == other.ourBalanceSats &&
+          outboundCapacitySats == other.outboundCapacitySats &&
+          theirBalanceSats == other.theirBalanceSats &&
+          inboundCapacitySats == other.inboundCapacitySats;
 }
 
 /// See [`common::ln::network::LxNetwork`]
