@@ -25,7 +25,7 @@
 use async_trait::async_trait;
 use bitcoin::{address::NetworkUnchecked, Address};
 
-use super::qs::GetPaymentsByIndexes;
+use super::{command::ListChannelsResponse, qs::GetPaymentsByIndexes};
 #[cfg(doc)]
 use crate::{
     api::qs::{GetByMeasurement, GetByUserPk},
@@ -341,6 +341,10 @@ pub trait AppNodeProvisionApi {
 pub trait AppNodeRunApi {
     /// GET /app/node_info [`Empty`] -> [`NodeInfo`]
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError>;
+
+    /// GET /app/list_channels [`Empty`] -> [`ListChannelsResponse`]
+    async fn list_channels(&self)
+        -> Result<ListChannelsResponse, NodeApiError>;
 
     /// POST /app/create_invoice [`CreateInvoiceRequest`]
     ///                          -> [`CreateInvoiceResponse`]

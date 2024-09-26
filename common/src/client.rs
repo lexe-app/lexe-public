@@ -23,8 +23,8 @@ use crate::{
             UserSignupRequest,
         },
         command::{
-            CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
-            PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse, ListChannelsResponse,
+            NodeInfo, PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
             PayOnchainResponse, PreflightPayInvoiceRequest,
             PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
             PreflightPayOnchainResponse,
@@ -349,6 +349,16 @@ impl AppNodeRunApi for NodeClient {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/node_info");
+        let req = self.run_rest.builder(GET, url);
+        self.run_rest.send(req).await
+    }
+
+    async fn list_channels(
+        &self,
+    ) -> Result<ListChannelsResponse, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/list_channels");
         let req = self.run_rest.builder(GET, url);
         self.run_rest.send(req).await
     }

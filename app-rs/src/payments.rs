@@ -941,11 +941,11 @@ mod test {
     use common::{
         api::{
             command::{
-                CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
-                PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
-                PayOnchainResponse, PreflightPayInvoiceRequest,
-                PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
-                PreflightPayOnchainResponse,
+                CreateInvoiceRequest, CreateInvoiceResponse,
+                ListChannelsResponse, NodeInfo, PayInvoiceRequest,
+                PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
+                PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+                PreflightPayOnchainRequest, PreflightPayOnchainResponse,
             },
             error::NodeApiError,
             Empty,
@@ -982,6 +982,11 @@ mod test {
         // these methods are not relevant
 
         async fn node_info(&self) -> Result<NodeInfo, NodeApiError> {
+            unimplemented!()
+        }
+        async fn list_channels(
+            &self,
+        ) -> Result<ListChannelsResponse, NodeApiError> {
             unimplemented!()
         }
         async fn create_invoice(

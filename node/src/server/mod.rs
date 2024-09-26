@@ -65,6 +65,7 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
     #[rustfmt::skip]
     let router = Router::new()
         .route("/app/node_info", get(app::node_info))
+        .route("/app/list_channels", get(app::list_channels))
         .route("/app/create_invoice", post(app::create_invoice))
         .route("/app/pay_invoice", post(app::pay_invoice))
         .route("/app/preflight_pay_invoice", post(app::preflight_pay_invoice))
