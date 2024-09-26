@@ -4,8 +4,8 @@ use axum::extract::State;
 use common::{
     api::{
         command::{
-            CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
-            PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse, ListChannelsResponse,
+            NodeInfo, PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
             PayOnchainResponse, PreflightPayInvoiceRequest,
             PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
             PreflightPayOnchainResponse,
@@ -35,6 +35,14 @@ pub(super) async fn node_info(
     .await
     .map(LxJson)
     .map_err(NodeApiError::command)
+}
+
+pub(super) async fn list_channels(
+    State(state): State<Arc<AppRouterState>>,
+) -> LxJson<ListChannelsResponse> {
+    LxJson(lexe_ln::command::list_channels(
+        state.channel_manager.clone(),
+    ))
 }
 
 pub(super) async fn create_invoice(

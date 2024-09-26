@@ -6,8 +6,8 @@ use bitcoin_hashes::{sha256, Hash};
 use common::{
     api::{
         command::{
-            CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
-            PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse, ListChannelsResponse,
+            NodeInfo, PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
             PayOnchainResponse, PreflightPayInvoiceRequest,
             PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
             PreflightPayOnchainResponse,
@@ -118,16 +118,17 @@ where
     Ok(info)
 }
 
-pub fn list_channels<CM, PS>(channel_manager: CM) -> Vec<LxChannelDetails>
+pub fn list_channels<CM, PS>(channel_manager: CM) -> ListChannelsResponse
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
-    channel_manager
+    let channels = channel_manager
         .list_channels()
         .into_iter()
         .map(LxChannelDetails::from)
-        .collect::<Vec<_>>()
+        .collect::<Vec<_>>();
+    ListChannelsResponse { channels }
 }
 
 /// Uses the given `[bdk|ldk]_resync_tx` to retrigger BDK and LDK sync, and

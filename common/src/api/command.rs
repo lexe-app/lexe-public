@@ -5,8 +5,12 @@ use crate::{
     api::NodePk,
     enclave::Measurement,
     ln::{
-        amount::Amount, balance::Balance, channel::LxChannelId, hashes::LxTxid,
-        invoice::LxInvoice, payments::ClientPaymentId,
+        amount::Amount,
+        balance::Balance,
+        channel::{LxChannelDetails, LxChannelId},
+        hashes::LxTxid,
+        invoice::LxInvoice,
+        payments::ClientPaymentId,
         priority::ConfirmationPriority,
     },
     time::TimestampMs,
@@ -26,6 +30,11 @@ pub struct NodeInfo {
     /// The number of pending channel monitor updates.
     /// If this isn't 0, it's likely that at least one channel is paused.
     pub pending_monitor_updates: usize,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ListChannelsResponse {
+    pub channels: Vec<LxChannelDetails>,
 }
 
 /// The information required for the user node to open a channel to the LSP.
