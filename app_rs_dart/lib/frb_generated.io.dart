@@ -224,6 +224,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Invoice dco_decode_invoice(dynamic raw);
 
   @protected
+  ListChannelsResponse dco_decode_list_channels_response(dynamic raw);
+
+  @protected
   List<FiatRate> dco_decode_list_fiat_rate(dynamic raw);
 
   @protected
@@ -231,7 +234,13 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       dynamic raw);
 
   @protected
+  List<LxChannelDetails> dco_decode_list_lx_channel_details(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  LxChannelDetails dco_decode_lx_channel_details(dynamic raw);
 
   @protected
   Network dco_decode_network(dynamic raw);
@@ -542,6 +551,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Invoice sse_decode_invoice(SseDeserializer deserializer);
 
   @protected
+  ListChannelsResponse sse_decode_list_channels_response(
+      SseDeserializer deserializer);
+
+  @protected
   List<FiatRate> sse_decode_list_fiat_rate(SseDeserializer deserializer);
 
   @protected
@@ -549,7 +562,14 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       SseDeserializer deserializer);
 
   @protected
+  List<LxChannelDetails> sse_decode_list_lx_channel_details(
+      SseDeserializer deserializer);
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  LxChannelDetails sse_decode_lx_channel_details(SseDeserializer deserializer);
 
   @protected
   Network sse_decode_network(SseDeserializer deserializer);
@@ -874,6 +894,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_invoice(Invoice self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_channels_response(
+      ListChannelsResponse self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_fiat_rate(List<FiatRate> self, SseSerializer serializer);
 
   @protected
@@ -881,8 +905,16 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       List<GDriveRestoreCandidate> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_lx_channel_details(
+      List<LxChannelDetails> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
       Uint8List self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_lx_channel_details(
+      LxChannelDetails self, SseSerializer serializer);
 
   @protected
   void sse_encode_network(Network self, SseSerializer serializer);

@@ -113,6 +113,11 @@ class AppHandle {
       AppRs.instance.api.crateFfiAppAppHandleGetVecIdxByPaymentIndex(
           that: this, paymentIndex: paymentIndex);
 
+  Future<ListChannelsResponse> listChannels() =>
+      AppRs.instance.api.crateFfiAppAppHandleListChannels(
+        that: this,
+      );
+
   static Future<AppHandle?> load({required Config config}) =>
       AppRs.instance.api.crateFfiAppAppHandleLoad(config: config);
 

@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.2.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1652396607;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1912969341;
 
 // Section: executor
 
@@ -275,6 +275,21 @@ let api_payment_index = <crate::ffi::types::PaymentIndex>::sse_decode(&mut deser
                     transform_result_sse::<_, ()>((move ||  {
                          let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::get_vec_idx_by_payment_index(&api_that, api_payment_index))?;   Ok(output_ok)
                     })())
+                } })
+}
+fn wire__crate__ffi__app__app_handle_list_channels_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_list_channels", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
+                         let output_ok = crate::ffi::app::AppHandle::list_channels(&api_that).await?;   Ok(output_ok)
+                    })().await)
                 } })
 }
 fn wire__crate__ffi__app__app_handle_load_impl(
@@ -1101,6 +1116,21 @@ impl SseDecode for crate::ffi::types::Invoice {
     }
 }
 
+impl SseDecode for crate::ffi::api::ListChannelsResponse {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_channels =
+            <Vec<crate::ffi::types::LxChannelDetails>>::sse_decode(
+                deserializer,
+            );
+        return crate::ffi::api::ListChannelsResponse {
+            channels: var_channels,
+        };
+    }
+}
+
 impl SseDecode for Vec<crate::ffi::api::FiatRate> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -1133,6 +1163,22 @@ impl SseDecode for Vec<crate::ffi::gdrive::GDriveRestoreCandidate> {
     }
 }
 
+impl SseDecode for Vec<crate::ffi::types::LxChannelDetails> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::ffi::types::LxChannelDetails>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<u8> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -1144,6 +1190,32 @@ impl SseDecode for Vec<u8> {
             ans_.push(<u8>::sse_decode(deserializer));
         }
         return ans_;
+    }
+}
+
+impl SseDecode for crate::ffi::types::LxChannelDetails {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_channelId = <String>::sse_decode(deserializer);
+        let mut var_counterpartyNodeId = <String>::sse_decode(deserializer);
+        let mut var_channelValueSats = <u64>::sse_decode(deserializer);
+        let mut var_isUsable = <bool>::sse_decode(deserializer);
+        let mut var_ourBalanceSats = <u64>::sse_decode(deserializer);
+        let mut var_outboundCapacitySats = <u64>::sse_decode(deserializer);
+        let mut var_theirBalanceSats = <u64>::sse_decode(deserializer);
+        let mut var_inboundCapacitySats = <u64>::sse_decode(deserializer);
+        return crate::ffi::types::LxChannelDetails {
+            channel_id: var_channelId,
+            counterparty_node_id: var_counterpartyNodeId,
+            channel_value_sats: var_channelValueSats,
+            is_usable: var_isUsable,
+            our_balance_sats: var_ourBalanceSats,
+            outbound_capacity_sats: var_outboundCapacitySats,
+            their_balance_sats: var_theirBalanceSats,
+            inbound_capacity_sats: var_inboundCapacitySats,
+        };
     }
 }
 
@@ -1755,22 +1827,23 @@ fn pde_ffi_dispatcher_primary_impl(
 3 => wire__crate__ffi__app__app_handle_fiat_rates_impl(port, ptr, rust_vec_len, data_len),
 4 => wire__crate__ffi__app__app_handle_get_address_impl(port, ptr, rust_vec_len, data_len),
 16 => wire__crate__ffi__app__app_handle_get_vec_idx_by_payment_index_impl(port, ptr, rust_vec_len, data_len),
-17 => wire__crate__ffi__app__app_handle_load_impl(port, ptr, rust_vec_len, data_len),
-18 => wire__crate__ffi__app__app_handle_node_info_impl(port, ptr, rust_vec_len, data_len),
-19 => wire__crate__ffi__app__app_handle_pay_invoice_impl(port, ptr, rust_vec_len, data_len),
-20 => wire__crate__ffi__app__app_handle_pay_onchain_impl(port, ptr, rust_vec_len, data_len),
-21 => wire__crate__ffi__app__app_handle_preflight_pay_invoice_impl(port, ptr, rust_vec_len, data_len),
-22 => wire__crate__ffi__app__app_handle_preflight_pay_onchain_impl(port, ptr, rust_vec_len, data_len),
-23 => wire__crate__ffi__app__app_handle_restore_impl(port, ptr, rust_vec_len, data_len),
-25 => wire__crate__ffi__app__app_handle_signup_impl(port, ptr, rust_vec_len, data_len),
-26 => wire__crate__ffi__app__app_handle_sync_payments_impl(port, ptr, rust_vec_len, data_len),
-27 => wire__crate__ffi__app__app_handle_update_payment_note_impl(port, ptr, rust_vec_len, data_len),
-30 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
-31 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
-35 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_exchange_impl(port, ptr, rust_vec_len, data_len),
-39 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
-40 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
-41 => wire__crate__ffi__payment_uri__resolve_best_impl(port, ptr, rust_vec_len, data_len),
+17 => wire__crate__ffi__app__app_handle_list_channels_impl(port, ptr, rust_vec_len, data_len),
+18 => wire__crate__ffi__app__app_handle_load_impl(port, ptr, rust_vec_len, data_len),
+19 => wire__crate__ffi__app__app_handle_node_info_impl(port, ptr, rust_vec_len, data_len),
+20 => wire__crate__ffi__app__app_handle_pay_invoice_impl(port, ptr, rust_vec_len, data_len),
+21 => wire__crate__ffi__app__app_handle_pay_onchain_impl(port, ptr, rust_vec_len, data_len),
+22 => wire__crate__ffi__app__app_handle_preflight_pay_invoice_impl(port, ptr, rust_vec_len, data_len),
+23 => wire__crate__ffi__app__app_handle_preflight_pay_onchain_impl(port, ptr, rust_vec_len, data_len),
+24 => wire__crate__ffi__app__app_handle_restore_impl(port, ptr, rust_vec_len, data_len),
+26 => wire__crate__ffi__app__app_handle_signup_impl(port, ptr, rust_vec_len, data_len),
+27 => wire__crate__ffi__app__app_handle_sync_payments_impl(port, ptr, rust_vec_len, data_len),
+28 => wire__crate__ffi__app__app_handle_update_payment_note_impl(port, ptr, rust_vec_len, data_len),
+31 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
+32 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
+36 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_exchange_impl(port, ptr, rust_vec_len, data_len),
+40 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
+41 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
+42 => wire__crate__ffi__payment_uri__resolve_best_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -1794,21 +1867,21 @@ fn pde_ffi_dispatcher_sync_impl(
 13 => wire__crate__ffi__app__app_handle_get_pending_not_junk_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
 14 => wire__crate__ffi__app__app_handle_get_pending_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
 15 => wire__crate__ffi__app__app_handle_get_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
-24 => wire__crate__ffi__app__app_handle_settings_db_impl(ptr, rust_vec_len, data_len),
-28 => wire__crate__ffi__debug__delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
-29 => wire__crate__ffi__debug__delete_secret_store_impl(ptr, rust_vec_len, data_len),
-32 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
-33 => wire__crate__ffi__gdrive__g_drive_client_into_restore_client_impl(ptr, rust_vec_len, data_len),
-34 => wire__crate__ffi__gdrive__g_drive_client_server_code_impl(ptr, rust_vec_len, data_len),
-36 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_init_impl(ptr, rust_vec_len, data_len),
-37 => wire__crate__ffi__gdrive__g_drive_restore_candidate_try_decrypt_impl(ptr, rust_vec_len, data_len),
-38 => wire__crate__ffi__gdrive__g_drive_restore_candidate_user_pk_impl(ptr, rust_vec_len, data_len),
-42 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
-43 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
-44 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-45 => wire__crate__ffi__types__client_payment_id_gen_impl(ptr, rust_vec_len, data_len),
-46 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
-47 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
+25 => wire__crate__ffi__app__app_handle_settings_db_impl(ptr, rust_vec_len, data_len),
+29 => wire__crate__ffi__debug__delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
+30 => wire__crate__ffi__debug__delete_secret_store_impl(ptr, rust_vec_len, data_len),
+33 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
+34 => wire__crate__ffi__gdrive__g_drive_client_into_restore_client_impl(ptr, rust_vec_len, data_len),
+35 => wire__crate__ffi__gdrive__g_drive_client_server_code_impl(ptr, rust_vec_len, data_len),
+37 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_init_impl(ptr, rust_vec_len, data_len),
+38 => wire__crate__ffi__gdrive__g_drive_restore_candidate_try_decrypt_impl(ptr, rust_vec_len, data_len),
+39 => wire__crate__ffi__gdrive__g_drive_restore_candidate_user_pk_impl(ptr, rust_vec_len, data_len),
+43 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
+44 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
+45 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
+46 => wire__crate__ffi__types__client_payment_id_gen_impl(ptr, rust_vec_len, data_len),
+47 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
+48 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -2139,6 +2212,50 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Invoice>
     for crate::ffi::types::Invoice
 {
     fn into_into_dart(self) -> crate::ffi::types::Invoice {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::ListChannelsResponse {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.channels.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::api::ListChannelsResponse
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::ListChannelsResponse>
+    for crate::ffi::api::ListChannelsResponse
+{
+    fn into_into_dart(self) -> crate::ffi::api::ListChannelsResponse {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::LxChannelDetails {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.channel_id.into_into_dart().into_dart(),
+            self.counterparty_node_id.into_into_dart().into_dart(),
+            self.channel_value_sats.into_into_dart().into_dart(),
+            self.is_usable.into_into_dart().into_dart(),
+            self.our_balance_sats.into_into_dart().into_dart(),
+            self.outbound_capacity_sats.into_into_dart().into_dart(),
+            self.their_balance_sats.into_into_dart().into_dart(),
+            self.inbound_capacity_sats.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::LxChannelDetails
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::LxChannelDetails>
+    for crate::ffi::types::LxChannelDetails
+{
+    fn into_into_dart(self) -> crate::ffi::types::LxChannelDetails {
         self
     }
 }
@@ -3008,6 +3125,19 @@ impl SseEncode for crate::ffi::types::Invoice {
     }
 }
 
+impl SseEncode for crate::ffi::api::ListChannelsResponse {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <Vec<crate::ffi::types::LxChannelDetails>>::sse_encode(
+            self.channels,
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for Vec<crate::ffi::api::FiatRate> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -3036,6 +3166,19 @@ impl SseEncode for Vec<crate::ffi::gdrive::GDriveRestoreCandidate> {
     }
 }
 
+impl SseEncode for Vec<crate::ffi::types::LxChannelDetails> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::ffi::types::LxChannelDetails>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<u8> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -3046,6 +3189,23 @@ impl SseEncode for Vec<u8> {
         for item in self {
             <u8>::sse_encode(item, serializer);
         }
+    }
+}
+
+impl SseEncode for crate::ffi::types::LxChannelDetails {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <String>::sse_encode(self.channel_id, serializer);
+        <String>::sse_encode(self.counterparty_node_id, serializer);
+        <u64>::sse_encode(self.channel_value_sats, serializer);
+        <bool>::sse_encode(self.is_usable, serializer);
+        <u64>::sse_encode(self.our_balance_sats, serializer);
+        <u64>::sse_encode(self.outbound_capacity_sats, serializer);
+        <u64>::sse_encode(self.their_balance_sats, serializer);
+        <u64>::sse_encode(self.inbound_capacity_sats, serializer);
     }
 }
 

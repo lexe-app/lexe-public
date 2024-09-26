@@ -307,6 +307,53 @@ abstract class _FiatRates implements FiatRates {
 }
 
 /// @nodoc
+mixin _$ListChannelsResponse {
+  List<LxChannelDetails> get channels => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$ListChannelsResponseImpl implements _ListChannelsResponse {
+  const _$ListChannelsResponseImpl(
+      {required final List<LxChannelDetails> channels})
+      : _channels = channels;
+
+  final List<LxChannelDetails> _channels;
+  @override
+  List<LxChannelDetails> get channels {
+    if (_channels is EqualUnmodifiableListView) return _channels;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_channels);
+  }
+
+  @override
+  String toString() {
+    return 'ListChannelsResponse(channels: $channels)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ListChannelsResponseImpl &&
+            const DeepCollectionEquality().equals(other._channels, _channels));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, const DeepCollectionEquality().hash(_channels));
+}
+
+abstract class _ListChannelsResponse implements ListChannelsResponse {
+  const factory _ListChannelsResponse(
+          {required final List<LxChannelDetails> channels}) =
+      _$ListChannelsResponseImpl;
+
+  @override
+  List<LxChannelDetails> get channels;
+}
+
+/// @nodoc
 mixin _$NodeInfo {
   String get nodePk => throw _privateConstructorUsedError;
   String get version => throw _privateConstructorUsedError;

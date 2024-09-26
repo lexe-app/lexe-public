@@ -83,7 +83,7 @@ pub struct LxChannelDetails {
     /// *if all pending inbound HTLCs failed and on-chain fees were 0
     ///
     /// Use this for displaying our "current funds".
-    pub balance: Amount,
+    pub our_balance: Amount,
     /// Roughly: `balance - punishment_reserve - pending_outbound_htlcs`
     ///
     /// Use this as an approximate measurement of liquidity, e.g. in graphics.
@@ -249,7 +249,7 @@ impl From<ChannelDetails> for LxChannelDetails {
             is_outbound,
             is_ready,
             is_usable,
-            balance,
+            our_balance: balance,
             outbound_capacity,
             next_outbound_htlc_limit,
 
