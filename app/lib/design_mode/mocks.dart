@@ -12,6 +12,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         FeeEstimate,
         FiatRate,
         FiatRates,
+        ListChannelsResponse,
         NodeInfo,
         PayInvoiceRequest,
         PayInvoiceResponse,
@@ -28,6 +29,7 @@ import 'package:app_rs_dart/ffi/types.dart'
     show
         Config,
         Invoice,
+        LxChannelDetails,
         Payment,
         PaymentDirection,
         PaymentIndex,
@@ -62,7 +64,7 @@ class MockAppHandle extends AppHandle {
   // New user has no payments
   // List<Payment> payments = [];
 
-  // Some sample data
+  // Some sample payments
   List<Payment> payments = [
     dummyOnchainInboundCompleted01,
     dummyOnchainOutboundFailed01,
@@ -74,6 +76,22 @@ class MockAppHandle extends AppHandle {
     dummyInvoiceInboundFailed01,
     dummyOnchainOutboundCompleted01,
   ].sortedBy((payment) => payment.index.field0);
+
+  // Some sample channels
+  List<LxChannelDetails> channels = [
+    const LxChannelDetails(
+      channelId:
+          "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",
+      counterpartyNodeId:
+          "03781d57bd783a2767d6cb816edd77178d61a5e2a3faf46c5958b9c249bedce274",
+      channelValueSats: 123000,
+      isUsable: true,
+      ourBalanceSats: 55000,
+      outboundCapacitySats: 52000,
+      theirBalanceSats: 68000,
+      inboundCapacitySats: 65000,
+    ),
+  ];
 
   @override
   SettingsDb settingsDb() => MockSettingsDb();
@@ -99,6 +117,11 @@ class MockAppHandle extends AppHandle {
           ),
         );
       });
+
+  @override
+  Future<ListChannelsResponse> listChannels({dynamic hint}) => Future.delayed(
+      const Duration(milliseconds: 1000),
+      () => ListChannelsResponse(channels: this.channels));
 
   @override
   Future<FiatRates> fiatRates({dynamic hint}) => Future.delayed(
