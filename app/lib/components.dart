@@ -1332,3 +1332,56 @@ class LoadingSpinnerModal extends StatelessWidget {
     );
   }
 }
+
+/// A filled circle with a widget inside.
+class FilledCircle extends DecoratedBox {
+  FilledCircle({
+    super.key,
+    required double size,
+    required Color color,
+    Widget? child,
+  }) : super(
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.all(Radius.circular(0.5 * size)),
+          ),
+          child: SizedBox.square(dimension: size, child: child),
+        );
+}
+
+/// An icon inside a filled circle.
+class ListIcon extends StatelessWidget {
+  const ListIcon(
+    this.icon, {
+    super.key,
+    required this.background,
+  });
+
+  const ListIcon.lightning({super.key})
+      : icon = const Icon(
+          LxIcons.lightning,
+          size: Space.s500,
+          color: LxColors.fgSecondary,
+          fill: 1.0,
+          weight: LxIcons.weightLight,
+        ),
+        background = LxColors.grey850;
+
+  const ListIcon.bitcoin({super.key})
+      : icon = const Icon(
+          LxIcons.bitcoin,
+          size: Space.s500,
+          color: LxColors.fgSecondary,
+        ),
+        background = LxColors.grey850;
+
+  final Widget icon;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) => FilledCircle(
+        size: Space.s650,
+        color: this.background,
+        child: this.icon,
+      );
+}
