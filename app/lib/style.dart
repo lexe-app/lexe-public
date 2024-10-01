@@ -326,6 +326,9 @@ final class LxColors {
   /// 0x14b87d - hsl(158deg 80% 40%)
   static const Color moneyGoUp = Color(0xff14b87d);
 
+  /// 0xabe0cd - hsl(158deg 47% 78%)
+  static const Color moneyGoUpSecondary = Color(0xffabe0cd);
+
   // static const Color errorText = Color(0xffe9553e); // < looks good w/ Failed
   // static const Color errorText = Color(0xffd3302f); // < default material
   // static const Color errorText = Color(0xff994133);
@@ -644,6 +647,17 @@ final class Fonts {
     fontVariations: [Fonts.weightMedium],
     decoration: TextDecoration.none,
     letterSpacing: -0.5,
+  );
+
+  static const TextStyle fontSubheading = TextStyle(
+    debugLabel: "Fonts.fontSubheading",
+    fontFamily: "Inter V",
+    fontSize: Fonts.size300,
+    color: LxColors.grey600,
+    height: 1.25,
+    fontVariations: [Fonts.weightNormal],
+    decoration: TextDecoration.none,
+    letterSpacing: -0.25,
   );
 
   static const TextStyle fontHero = TextStyle(
