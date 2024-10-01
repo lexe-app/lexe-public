@@ -30,6 +30,7 @@ import 'package:intl/intl.dart' show NumberFormat;
 import 'package:lexeapp/components.dart'
     show
         FilledTextPlaceholder,
+        ListIcon,
         LxOutlinedButton,
         LxRefreshButton,
         MultistepFlow,
@@ -1622,45 +1623,10 @@ class PaymentListIcon extends StatelessWidget {
   final PaymentKind kind;
 
   @override
-  Widget build(BuildContext context) {
-    final bool isLightning = switch (this.kind) {
-      PaymentKind.invoice || PaymentKind.spontaneous => true,
-      PaymentKind.onchain => false,
-    };
-
-    const size = Space.s500;
-    const color = LxColors.fgSecondary;
-    final Icon icon = (isLightning)
-        ? const Icon(LxIcons.lightning,
-            size: size, color: color, fill: 1.0, weight: LxIcons.weightLight)
-        : const Icon(LxIcons.bitcoin, size: size, color: color);
-
-    return ListIcon(icon, background: LxColors.grey850);
-  }
-}
-
-class ListIcon extends StatelessWidget {
-  const ListIcon(
-    this.icon, {
-    super.key,
-    required this.background,
-  });
-
-  final Widget icon;
-  final Color background;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: this.background,
-        borderRadius: const BorderRadius.all(Radius.circular(20.0)),
-      ),
-      child: SizedBox.square(
-        // pixel perfect alignment
-        dimension: 39.0,
-        child: this.icon,
-      ),
-    );
-  }
+  Widget build(BuildContext context) => switch (this.kind) {
+        PaymentKind.invoice ||
+        PaymentKind.spontaneous =>
+          const ListIcon.lightning(),
+        PaymentKind.onchain => const ListIcon.bitcoin(),
+      };
 }
