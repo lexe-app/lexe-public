@@ -49,24 +49,33 @@ const InputDecoration baseInputDecoration = InputDecoration(
 ///   the bottom, is always visible on top, and forces body content to scroll
 ///   underneath.
 ///
+/// * If you need Slivers for the body widgets, then use `bodySlivers` instead
+///   of `body`. `bodySlivers` only accepts Sliver widgets and `body` only
+///   accepts Box widgets.
+///
 /// NOTE(phlip9): There seem to be multiple ways to accomplish this and I'm not
 /// really sure which is "best".
 class ScrollableSinglePageBody extends StatelessWidget {
   const ScrollableSinglePageBody({
     super.key,
-    required this.body,
+    this.body,
+    this.bodySlivers,
     this.useFullWidth = false,
     this.padding = const EdgeInsets.symmetric(horizontal: Space.s600),
     this.bottom,
     this.bottomAlignment = Alignment.bottomCenter,
     this.bottomPadding = const EdgeInsets.only(bottom: Space.s600),
-  });
+  }) :
+        // can't both be non-null
+        assert(body == null || bodySlivers == null);
 
   /// If true, this page will always use the full screen width. Otherwise, by
   /// default, the page will be centered with a max-width on larger screens.
   final bool useFullWidth;
 
-  final List<Widget> body;
+  final List<Widget>? body;
+  final List<Widget>? bodySlivers;
+
   final EdgeInsets padding;
   final Widget? bottom;
   final Alignment bottomAlignment;
@@ -76,6 +85,7 @@ class ScrollableSinglePageBody extends StatelessWidget {
   Widget build(BuildContext context) {
     const maxWidth = LxBreakpoints.mobile;
 
+    // Calculate left-right margin so page is centered with at most maxWidth
     final EdgeInsets innerPadding;
     if (!useFullWidth) {
       final width = MediaQuery.sizeOf(context).width;
@@ -87,49 +97,48 @@ class ScrollableSinglePageBody extends StatelessWidget {
       innerPadding = EdgeInsets.zero;
     }
 
-    final sliverBody = SliverList.list(children: this.body);
+    final body = this.body;
+    final bodySlivers = this.bodySlivers;
+    final bottom = this.bottom;
 
-    final sliverBottom = SliverFillRemaining(
-      hasScrollBody: false,
-      child: Align(
-        alignment: this.bottomAlignment,
-        child: Padding(
-          padding: this.bottomPadding,
-          child: this.bottom,
+    final sliversPrePadding = <Widget>[
+      // The primary body widgets (if sliver widgets).
+      if (bodySlivers != null) ...bodySlivers,
+      // The primary body widgets (if box widgets).
+      if (body != null && body.length >= 2) SliverList.list(children: body),
+      if (body != null && body.length == 1)
+        SliverToBoxAdapter(child: body.first),
+      // The bottom widgets; these expand to fill the available space.
+      if (bottom != null)
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Align(
+            alignment: this.bottomAlignment,
+            child: Padding(
+              padding: this.bottomPadding,
+              child: bottom,
+            ),
+          ),
         ),
-      ),
-    );
+    ];
+
+    final List<Widget> slivers = (!this.useFullWidth)
+        ? sliversPrePadding
+            .map((sliver) => SliverPadding(
+                  padding: innerPadding,
+                  sliver: SliverConstrainedCrossAxis(
+                    maxExtent: maxWidth,
+                    sliver: sliver,
+                  ),
+                ))
+            .toList()
+        : sliversPrePadding;
 
     return Padding(
       padding: this.padding,
       child: CustomScrollView(
         primary: true,
-        slivers: [
-          // The primary body widgets.
-          if (!this.useFullWidth)
-            SliverPadding(
-              padding: innerPadding,
-              sliver: SliverConstrainedCrossAxis(
-                maxExtent: maxWidth,
-                sliver: sliverBody,
-              ),
-            )
-          else
-            sliverBody,
-
-          // The bottom widgets; these expand to fill the available space.
-          if (this.bottom != null)
-            if (!this.useFullWidth)
-              SliverPadding(
-                padding: innerPadding,
-                sliver: SliverConstrainedCrossAxis(
-                  maxExtent: maxWidth,
-                  sliver: sliverBottom,
-                ),
-              )
-            else
-              sliverBottom,
-        ],
+        slivers: slivers,
       ),
     );
   }
