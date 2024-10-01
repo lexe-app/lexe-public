@@ -572,38 +572,37 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
         padding: EdgeInsets.zero,
         useFullWidth: true,
         body: [
-          // const SizedBox(height: Space.s500),
-          const SizedBox(height: Space.s200),
-
           // Payment offer pages (LN invoice, BTC address)
-          SizedBox(
-            height: 660.0,
-            // height: 575.0,
-            child: PageView(
-              controller: this.pageController,
-              scrollBehavior: const CupertinoScrollBehavior(),
-              padEnds: true,
-              allowImplicitScrolling: false,
-              onPageChanged: (pageIdx) {
-                if (!this.mounted) return;
-                this.selectedPageIndex.value = pageIdx;
-              },
-              children: this
-                  .paymentOffers
-                  .map((offer) => ValueListenableBuilder(
-                        valueListenable: offer,
-                        builder: (_context, offer, _child) => PaymentOfferPage(
-                          paymentOffer: offer,
-                          fiatRate: this.widget.fiatRate,
-                          openSetAmountPage: () =>
-                              this.openEditPage(offer.kind),
-                        ),
-                      ))
-                  .toList(),
+          Padding(
+            padding: const EdgeInsets.only(top: Space.s200, bottom: Space.s400),
+            child: SizedBox(
+              height: 660.0,
+              // height: 575.0,
+              child: PageView(
+                controller: this.pageController,
+                scrollBehavior: const CupertinoScrollBehavior(),
+                padEnds: true,
+                allowImplicitScrolling: false,
+                onPageChanged: (pageIdx) {
+                  if (!this.mounted) return;
+                  this.selectedPageIndex.value = pageIdx;
+                },
+                children: this
+                    .paymentOffers
+                    .map((offer) => ValueListenableBuilder(
+                          valueListenable: offer,
+                          builder: (_context, offer, _child) =>
+                              PaymentOfferPage(
+                            paymentOffer: offer,
+                            fiatRate: this.widget.fiatRate,
+                            openSetAmountPage: () =>
+                                this.openEditPage(offer.kind),
+                          ),
+                        ))
+                    .toList(),
+              ),
             ),
           ),
-
-          const SizedBox(height: Space.s400),
         ],
         bottom: Padding(
           padding: const EdgeInsets.symmetric(horizontal: Space.s600),
