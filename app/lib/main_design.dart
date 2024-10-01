@@ -1,7 +1,7 @@
 // An alternate application entrypoint specifically for designing pages
 // and components in isolation, without actually touching any real backends.
 
-import 'dart:async';
+import 'dart:async' show Timer, unawaited;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
@@ -40,6 +40,7 @@ import 'package:lexeapp/gdrive_auth.dart'
     show GDriveAuth, GDriveServerAuthCode, MockGDriveRestoreCandidate;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
+import 'package:lexeapp/route/channels.dart' show ChannelsPage;
 import 'package:lexeapp/route/landing.dart' show LandingPage;
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
 import 'package:lexeapp/route/receive.dart'
@@ -384,6 +385,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 isRefreshing: ValueNotifier(false),
                 triggerRefresh: () {},
               ),
+            ),
+            Component(
+              "ChannelsPage",
+              (context) => ChannelsPage(app: mockApp),
             ),
             Component(
               "ScanPage",
