@@ -1,6 +1,6 @@
 import 'dart:math' show max, min;
 
-import 'package:app_rs_dart/ffi/api.dart' show FiatRate;
+import 'package:app_rs_dart/ffi/api.dart' show Balance, FiatRate;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart' show LxChannelDetails;
 import 'package:flutter/material.dart';
@@ -14,10 +14,14 @@ import 'package:lexeapp/components.dart'
         LxRefreshButton,
         ScrollableSinglePageBody,
         SplitAmountText,
+        StateStreamBuilder,
         ValueStreamBuilder;
 import 'package:lexeapp/currency_format.dart' as currency_format;
-import 'package:lexeapp/style.dart' show Fonts, LxColors, LxRadius, Space;
-import 'package:rxdart/rxdart.dart';
+import 'package:lexeapp/logger.dart';
+import 'package:lexeapp/route/wallet.dart';
+import 'package:lexeapp/style.dart'
+    show Fonts, LxColors, LxIcons, LxRadius, Space;
+import 'package:rxdart_ext/rxdart_ext.dart';
 
 class ChannelsPage extends StatefulWidget {
   const ChannelsPage({super.key, required this.app, required this.fiatRate});
@@ -88,6 +92,16 @@ class _ChannelsPageState extends State<ChannelsPage> {
     // TODO(phlip9): impl
   }
 
+  void onOpenPressed() {
+    info("open");
+    // TODO(phlip9): impl
+  }
+
+  void onClosePressed() {
+    info("close");
+    // TODO(phlip9): impl
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -102,68 +116,93 @@ class _ChannelsPageState extends State<ChannelsPage> {
           const SizedBox(width: Space.appBarTrailingPadding),
         ],
       ),
-      body: ScrollableSinglePageBody(
-        bodySlivers: [
-          SliverToBoxAdapter(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Heading
-                const Padding(
-                  padding: EdgeInsets.only(top: Space.s300, bottom: Space.s100),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      ListIcon.lightning(),
-                      SizedBox(width: Space.s200),
-                      Text("Lightning channels",
-                          style: Fonts.fontHeadlineSmall),
-                    ],
-                  ),
-                ),
-                const Text(
-                  "Open channels to send payments instantly over the Lightning network",
-                  style: Fonts.fontSubheading,
-                ),
-                const SizedBox(height: Space.s600),
-
-                // Send up to/Receive up to
-                ValueListenableBuilder(
-                  valueListenable: this.totalChannelBalance,
-                  builder: (context, totalChannelBalance, child) =>
-                      TotalChannelBalanceWidget(
-                          totalChannelBalance: totalChannelBalance),
-                ),
-                const SizedBox(height: Space.s800),
-
-                // You/Lexe LSP channels heading
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          ScrollableSinglePageBody(
+            bodySlivers: [
+              SliverToBoxAdapter(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    ChannelsPartyChip(name: "You"),
-                    ChannelsPartyChip(name: "Lexe LSP"),
+                    // Heading
+                    const Padding(
+                      padding:
+                          EdgeInsets.only(top: Space.s300, bottom: Space.s100),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          ListIcon.lightning(),
+                          SizedBox(width: Space.s200),
+                          Text("Lightning channels",
+                              style: Fonts.fontHeadlineSmall),
+                        ],
+                      ),
+                    ),
+                    const Text(
+                      "Open channels to send payments instantly over the Lightning network",
+                      style: Fonts.fontSubheading,
+                    ),
+                    const SizedBox(height: Space.s600),
+
+                    // Send up to/Receive up to
+                    ValueListenableBuilder(
+                      valueListenable: this.totalChannelBalance,
+                      builder: (context, totalChannelBalance, child) =>
+                          TotalChannelBalanceWidget(
+                              totalChannelBalance: totalChannelBalance),
+                    ),
+                    const SizedBox(height: Space.s800),
+
+                    // You/Lexe LSP channels heading
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        ChannelsPartyChip(name: "You"),
+                        ChannelsPartyChip(name: "Lexe LSP"),
+                      ],
+                    ),
+                    const SizedBox(height: Space.s200),
                   ],
                 ),
-                const SizedBox(height: Space.s200),
-              ],
-            ),
+              ),
+
+              // Channels list
+              SliverPadding(
+                padding: const EdgeInsets.only(bottom: 300.0),
+                sliver: ValueListenableBuilder(
+                  valueListenable: this.channels,
+                  builder: (context, channelsList, child) =>
+                      SliverFixedExtentList.list(
+                    itemExtent: Space.s850,
+                    children: (channelsList != null)
+                        ? channelsList.channels
+                            .map((channel) => ChannelsListEntry(
+                                  maxValueSats: channelsList.maxValueSats,
+                                  channel: channel,
+                                  fiatRate: this.widget.fiatRate,
+                                ))
+                            .toList()
+                        : [],
+                  ),
+                ),
+              ),
+            ],
           ),
 
-          // Channels list
-          ValueListenableBuilder(
-            valueListenable: this.channels,
-            builder: (context, channelsList, child) =>
-                SliverFixedExtentList.list(
-              itemExtent: Space.s850,
-              children: (channelsList != null)
-                  ? channelsList.channels
-                      .map((channel) => ChannelsListEntry(
-                            maxValueSats: channelsList.maxValueSats,
-                            channel: channel,
-                            fiatRate: this.widget.fiatRate,
-                          ))
-                      .toList()
-                  : [],
+          // On-chain balance and open/close channel buttons
+          Positioned(
+            child: OnchainBottomSheet(
+              balanceState: StateSubject(BalanceState(
+                balanceSats: const Balance(
+                  totalSats: 1236546,
+                  lightningSats: 454544,
+                  onchainSats: 1236546 - 454544,
+                ),
+                fiatRate: this.widget.fiatRate.value,
+              )),
+              onOpenPressed: this.onOpenPressed,
+              onClosedPressed: this.onClosePressed,
             ),
           ),
         ],
@@ -303,7 +342,7 @@ class TotalChannelBalanceRow extends StatelessWidget {
     required this.fiatRate,
   });
 
-  final Color color;
+  final Color? color;
 
   final String primaryText;
   final String? secondaryText;
@@ -363,18 +402,21 @@ class TotalChannelBalanceRow extends StatelessWidget {
     const dimCircle = Fonts.size500;
     const padCirclePrimary = Space.s200;
 
+    final color = this.color;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Row(
-          // crossAxisAlignment: CrossAxisAlignment.baseline,
-          // textBaseline: TextBaseline.alphabetic,
           children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: FilledCircle(size: dimCircle, color: this.color),
-            ),
-            const SizedBox(width: padCirclePrimary),
+            if (color != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: padCirclePrimary),
+                  child: FilledCircle(size: dimCircle, color: color),
+                ),
+              ),
             Expanded(
               child: Text(
                 this.primaryText,
@@ -573,6 +615,184 @@ class ChannelBalanceBarRow extends StatelessWidget {
             ),
           ),
         Expanded(flex: 100 - flex, child: const SizedBox()),
+      ],
+    );
+  }
+}
+
+/// The floating bottom sheet that contains the user's on-chain balance and
+/// the open/close channel buttons.
+class OnchainBottomSheet extends StatelessWidget {
+  const OnchainBottomSheet({
+    super.key,
+    required this.balanceState,
+    required this.onOpenPressed,
+    required this.onClosedPressed,
+  });
+
+  final StateStream<BalanceState?> balanceState;
+
+  final VoidCallback onOpenPressed;
+  final VoidCallback onClosedPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.topCenter,
+      children: [
+        // On-chain balance box
+        Padding(
+          padding: const EdgeInsets.only(top: Space.s600),
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              color: LxColors.grey1000,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(LxRadius.r400),
+                topRight: Radius.circular(LxRadius.r400),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: Space.s600,
+                vertical: Space.s700,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Heading
+                  const Padding(
+                    padding:
+                        EdgeInsets.only(top: Space.s600, bottom: Space.s100),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        ListIcon.bitcoin(),
+                        SizedBox(width: Space.s200),
+                        Text(
+                          "On-chain balance",
+                          style: Fonts.fontHeadlineSmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Text(
+                    "Open Lightning channels using on-chain BTC",
+                    style: Fonts.fontSubheading,
+                  ),
+                  const SizedBox(height: Space.s400),
+
+                  StateStreamBuilder(
+                    stream: this.balanceState,
+                    builder: (context, balanceState) => TotalChannelBalanceRow(
+                      color: null,
+                      primaryText: "Send up to",
+                      secondaryText: null,
+                      amountSats: balanceState?.onchainSats(),
+                      fiatRate: balanceState?.fiatRate,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // Open/Close channel buttons
+        Positioned(
+          top: 0.0,
+          child: OpenCloseChannelButtons(
+            onOpenPressed: this.onOpenPressed,
+            onClosedPressed: this.onClosedPressed,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class OpenCloseChannelButtons extends StatelessWidget {
+  const OpenCloseChannelButtons({
+    super.key,
+    required this.onOpenPressed,
+    required this.onClosedPressed,
+  });
+
+  final VoidCallback onOpenPressed;
+  final VoidCallback onClosedPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.max,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        ChannelButton(
+          label: "Open",
+          icon: LxIcons.openChannel,
+          onPressed: this.onOpenPressed,
+        ),
+        const SizedBox(width: Space.s700),
+        ChannelButton(
+          label: "Close",
+          icon: LxIcons.closeChannel,
+          onPressed: this.onClosedPressed,
+        ),
+      ],
+    );
+  }
+}
+
+/// The big open or close buttons
+class ChannelButton extends StatelessWidget {
+  const ChannelButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    required this.icon,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        FilledButton(
+          onPressed: onPressed,
+          style: const ButtonStyle(
+            side: WidgetStatePropertyAll(
+              BorderSide(
+                color: LxColors.background,
+                width: 6.0,
+                style: BorderStyle.solid,
+                strokeAlign: BorderSide.strokeAlignOutside,
+              ),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: Space.s450,
+            ),
+            child: Icon(
+              this.icon,
+              size: Fonts.size700,
+              weight: 700,
+            ),
+          ),
+        ),
+        const SizedBox(height: Space.s300),
+        Text(
+          this.label,
+          style: Fonts.fontUI.copyWith(
+            fontSize: Fonts.size500,
+            fontVariations: [Fonts.weightSemiBold],
+            letterSpacing: -0.5,
+          ),
+        ),
       ],
     );
   }
