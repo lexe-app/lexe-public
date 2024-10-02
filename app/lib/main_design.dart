@@ -2,7 +2,6 @@
 // and components in isolation, without actually touching any real backends.
 
 import 'dart:async' show Timer, unawaited;
-import 'dart:math' show max, min;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
@@ -24,7 +23,6 @@ import 'package:intl/intl.dart' show Intl;
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/components.dart'
     show
-        ChannelBalanceBar,
         FilledTextPlaceholder,
         HeadingText,
         LoadingSpinnerModal,
@@ -42,7 +40,8 @@ import 'package:lexeapp/gdrive_auth.dart'
     show GDriveAuth, GDriveServerAuthCode, MockGDriveRestoreCandidate;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
-import 'package:lexeapp/route/channels.dart' show ChannelsPage;
+import 'package:lexeapp/route/channels.dart'
+    show ChannelBalanceBarRow, ChannelsPage;
 import 'package:lexeapp/route/landing.dart' show LandingPage;
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
 import 'package:lexeapp/route/receive.dart'
@@ -390,7 +389,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
             Component(
               "ChannelsPage",
-              (context) => ChannelsPage(app: mockApp),
+              (context) => ChannelsPage(
+                app: mockApp,
+                fiatRate: this.makeFiatRateStream(),
+              ),
             ),
             Component(
               "ScanPage",
@@ -448,8 +450,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (context) => const FilledTextPlaceholderPage(),
             ),
             Component(
-              "ChannelBalanceBar",
-              (context) => const ChannelBalanceBarPage(),
+              "ChannelBalanceBarRow",
+              (context) => const ChannelBalanceBarRowPage(),
             ),
             const SizedBox(height: Space.s800),
           ],
@@ -892,9 +894,9 @@ class FilledTextPlaceholderPage extends StatelessWidget {
   }
 }
 
-/// Debug the [ChannelBalanceBar] widget for various values and widths
-class ChannelBalanceBarPage extends StatelessWidget {
-  const ChannelBalanceBarPage({super.key});
+/// Debug the [ChannelBalanceBarRow] widget for various values and widths
+class ChannelBalanceBarRowPage extends StatelessWidget {
+  const ChannelBalanceBarRowPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -902,7 +904,7 @@ class ChannelBalanceBarPage extends StatelessWidget {
     const widths = [0.00, 0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99, 1.00];
 
     List<Widget> channelBars = [];
-    for (final isReady in [true, false]) {
+    for (final isUsable in [true, false]) {
       for (final width in widths) {
         channelBars.add(Padding(
           padding: const EdgeInsets.symmetric(vertical: Space.s100),
@@ -910,20 +912,14 @@ class ChannelBalanceBarPage extends StatelessWidget {
         ));
 
         for (final value in values) {
-          final bar = (isReady)
-              ? ChannelBalanceBar.ready(value: value)
-              : ChannelBalanceBar.pending(value: value);
-          final flex = min(100, max(5, (width * 100.0).truncate()));
-          final widget = Padding(
+          channelBars.add(Padding(
             padding: const EdgeInsets.symmetric(vertical: Space.s100),
-            child: Row(
-              children: [
-                Expanded(flex: flex, child: bar),
-                Expanded(flex: 100 - flex, child: const SizedBox()),
-              ],
+            child: ChannelBalanceBarRow(
+              value: value,
+              width: width,
+              isUsable: isUsable,
             ),
-          );
-          channelBars.add(widget);
+          ));
         }
         channelBars.add(const SizedBox(height: Space.s400));
       }
@@ -943,27 +939,14 @@ class ChannelBalanceBarPage extends StatelessWidget {
           const SizedBox(height: Space.s700),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: Space.s200),
-            child: Row(
-              children: [
-                Expanded(flex: 100, child: ChannelBalanceBar.ready(value: 0.5)),
-                Expanded(flex: 0, child: SizedBox()),
-              ],
-            ),
+            child: ChannelBalanceBarRow(value: 0.5, width: 1.0, isUsable: true),
           ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: Space.s200),
-            child: Row(
-              children: [
-                Expanded(flex: 50, child: ChannelBalanceBar.ready(value: 0.5)),
-                Expanded(flex: 50, child: SizedBox()),
-              ],
-            ),
+            child: ChannelBalanceBarRow(value: 0.5, width: 0.5, isUsable: true),
           ),
           const SizedBox(height: Space.s400),
           ...channelBars,
-          // ...channelBarsActive,
-          // const SizedBox(height: Space.s400),
-          // ...channelBarsPending,
         ],
       ),
     );

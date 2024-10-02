@@ -1082,7 +1082,7 @@ class ChannelBalanceBar extends StatelessWidget {
     this.height = Space.s300,
   });
 
-  const ChannelBalanceBar.ready({
+  const ChannelBalanceBar.usable({
     super.key,
     required this.value,
     this.height = Space.s300,
