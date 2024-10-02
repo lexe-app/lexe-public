@@ -793,6 +793,12 @@ final class LxIcons {
   /// Open/close channel (left/right arrows)
   static const IconData openCloseChannel = Symbols.sync_alt_rounded;
 
+  /// Open channel (up arrow)
+  static const IconData openChannel = Symbols.arrow_upward_rounded;
+
+  /// Close channel (down arrow)
+  static const IconData closeChannel = Symbols.arrow_downward_rounded;
+
   /// Empty scanner (scan box)
   static const IconData scan = Symbols.crop_free_rounded;
 

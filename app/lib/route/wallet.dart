@@ -1252,7 +1252,7 @@ class WalletActionButton extends StatelessWidget {
         ),
         const SizedBox(height: Space.s400),
         Text(
-          label,
+          this.label,
           style: Fonts.fontUI.copyWith(
             fontSize: Fonts.size300,
             color: (!isDisabled) ? LxColors.foreground : LxColors.grey725,
