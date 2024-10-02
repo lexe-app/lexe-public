@@ -2,6 +2,7 @@
 // and components in isolation, without actually touching any real backends.
 
 import 'dart:async' show Timer, unawaited;
+import 'dart:math' show max, min;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
@@ -23,6 +24,7 @@ import 'package:intl/intl.dart' show Intl;
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/components.dart'
     show
+        ChannelBalanceBar,
         FilledTextPlaceholder,
         HeadingText,
         LoadingSpinnerModal,
@@ -444,6 +446,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             Component(
               "FilledTextPlaceholder",
               (context) => const FilledTextPlaceholderPage(),
+            ),
+            Component(
+              "ChannelBalanceBar",
+              (context) => const ChannelBalanceBarPage(),
             ),
             const SizedBox(height: Space.s800),
           ],
@@ -881,6 +887,84 @@ class FilledTextPlaceholderPage extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Debug the [ChannelBalanceBar] widget for various values and widths
+class ChannelBalanceBarPage extends StatelessWidget {
+  const ChannelBalanceBarPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const values = [0.00, 0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99, 1.00];
+    const widths = [0.00, 0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99, 1.00];
+
+    List<Widget> channelBars = [];
+    for (final isReady in [true, false]) {
+      for (final width in widths) {
+        channelBars.add(Padding(
+          padding: const EdgeInsets.symmetric(vertical: Space.s100),
+          child: Text("width = $width"),
+        ));
+
+        for (final value in values) {
+          final bar = (isReady)
+              ? ChannelBalanceBar.ready(value: value)
+              : ChannelBalanceBar.pending(value: value);
+          final flex = min(100, max(5, (width * 100.0).truncate()));
+          final widget = Padding(
+            padding: const EdgeInsets.symmetric(vertical: Space.s100),
+            child: Row(
+              children: [
+                Expanded(flex: flex, child: bar),
+                Expanded(flex: 100 - flex, child: const SizedBox()),
+              ],
+            ),
+          );
+          channelBars.add(widget);
+        }
+        channelBars.add(const SizedBox(height: Space.s400));
+      }
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: const LxBackButton(isLeading: true),
+        leadingWidth: Space.appBarLeadingWidth,
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const HeadingText(text: "ChannelBalanceBarPage"),
+          const SubheadingText(
+              text:
+                  "Ensure channel balance bars look good at all values and sizes"),
+          const SizedBox(height: Space.s700),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: Space.s200),
+            child: Row(
+              children: [
+                Expanded(flex: 100, child: ChannelBalanceBar.ready(value: 0.5)),
+                Expanded(flex: 0, child: SizedBox()),
+              ],
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: Space.s200),
+            child: Row(
+              children: [
+                Expanded(flex: 50, child: ChannelBalanceBar.ready(value: 0.5)),
+                Expanded(flex: 50, child: SizedBox()),
+              ],
+            ),
+          ),
+          const SizedBox(height: Space.s400),
+          ...channelBars,
+          // ...channelBarsActive,
+          // const SizedBox(height: Space.s400),
+          // ...channelBarsPending,
+        ],
       ),
     );
   }

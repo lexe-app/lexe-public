@@ -4,7 +4,7 @@ library;
 import 'dart:async' show unawaited;
 import 'dart:math' show max;
 
-import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/foundation.dart' show ValueListenable, clampDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MaxLengthEnforcement;
 import 'package:lexeapp/currency_format.dart' as currency_format;
@@ -1067,6 +1067,117 @@ class DashPainter extends CustomPainter {
         this.dashWidth != oldDelegate.dashWidth ||
         this.dashSpace != oldDelegate.dashSpace ||
         this.dashThickness != oldDelegate.dashThickness;
+  }
+}
+
+/// A channel balance bar graphic. Effectively a [ProgressIndicator], but not
+/// animated and avoids display artifacts at the extremes (near zero value and
+/// small bar width).
+class ChannelBalanceBar extends StatelessWidget {
+  const ChannelBalanceBar({
+    super.key,
+    required this.color,
+    required this.backgroundColor,
+    required this.value,
+    this.height = Space.s300,
+  });
+
+  const ChannelBalanceBar.ready({
+    super.key,
+    required this.value,
+    this.height = Space.s300,
+  })  : color = LxColors.moneyGoUp,
+        backgroundColor = LxColors.moneyGoUpSecondary;
+
+  const ChannelBalanceBar.pending({
+    super.key,
+    required this.value,
+    this.height = Space.s300,
+  })  : color = LxColors.grey800,
+        backgroundColor = LxColors.grey850;
+
+  final Color color;
+  final Color backgroundColor;
+  final double value;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: ChannelBalanceBarPainter(
+        color: this.color,
+        backgroundColor: this.backgroundColor,
+        value: this.value,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          // exactly `height`
+          minHeight: this.height,
+          maxHeight: this.height,
+          // also ensure the bar isn't so small that it clips
+          minWidth: this.height,
+        ),
+      ),
+    );
+  }
+}
+
+///               size
+/// |---------------------------------|
+///      size * value
+/// |---------------------|
+///  _________________________________
+/// (_/_/_/_/_/_/_/_/_/_/_)___________) | height
+class ChannelBalanceBarPainter extends CustomPainter {
+  const ChannelBalanceBarPainter({
+    super.repaint,
+    required this.color,
+    required this.backgroundColor,
+    required this.value,
+  });
+
+  final Color color;
+  final Color backgroundColor;
+  final double value;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // just clamp the value in [0, 1] so it always displays properly
+    final value = clampDouble(this.value, 0.0, 1.0);
+    // the bar should be centered in the box
+    final r = 0.5 * size.height;
+
+    // The rounded stroke caps are drawn _past_ the line extent, so we need to
+    // draw the line inside smaller bounds so the rounded caps don't get cut off
+
+    // Draw the background bar across the whole box.
+    final pathBg = Path()..moveTo(r, r);
+    pathBg.lineTo(max(r, size.width - r), r);
+    final paintBg = Paint()
+      ..color = this.backgroundColor
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = size.height;
+    canvas.drawPath(pathBg, paintBg);
+
+    // Draw the foreground bar on-top, across the active section.
+    // Note: this is technically wrong for colors with transparency, but we
+    // don't need that atm, so we can keep it simple.
+    final pathFg = Path()..moveTo(r, r);
+    pathFg.lineTo(max(r, (size.width * value) - r), r);
+    final paintFg = Paint()
+      ..color = this.color
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = size.height;
+    canvas.drawPath(pathFg, paintFg);
+  }
+
+  @override
+  bool shouldRepaint(covariant ChannelBalanceBarPainter oldDelegate) {
+    return this.color != oldDelegate.color ||
+        this.backgroundColor != oldDelegate.backgroundColor ||
+        this.value != oldDelegate.value;
   }
 }
 
