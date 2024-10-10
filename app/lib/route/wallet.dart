@@ -75,10 +75,6 @@ class WalletPage extends StatefulWidget {
 class WalletPageState extends State<WalletPage> {
   final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey();
 
-  /// The wallet page listens to URI events. We'll navigate to the right page
-  /// after a user scans/taps a bitcoin/lightning URI.
-  late StreamSubscription<String> uriEventsListener;
-
   /// Manages page refresh state.
   final RefreshService refreshService = RefreshService();
 
@@ -100,14 +96,32 @@ class WalletPageState extends State<WalletPage> {
   /// When to show refresh loading indicator.
   late final CombinedValueListenable<bool> isRefreshing;
 
+  /// The wallet page listens to URI events. We'll navigate to the right page
+  /// after a user scans/taps a bitcoin/lightning URI.
+  late StreamSubscription<String> uriEventsListener;
+
+  @override
+  void dispose() {
+    info("wallet: dispose");
+
+    // Dispose in reverse field order.
+    this.uriEventsListener.cancel();
+    this.isRefreshing.dispose();
+    this.balanceState.dispose();
+    this.nodeInfoFetchOnRefresh.dispose();
+    this.nodeInfoService.dispose();
+    this.paymentSyncOnRefresh.dispose();
+    this.paymentSyncService.dispose();
+    this.fiatRateService.dispose();
+    this.refreshService.dispose();
+
+    super.dispose();
+    info("wallet: disposed");
+  }
+
   @override
   void initState() {
     super.initState();
-
-    // Listen to platform URI events (e.g., user taps a "lightning:" URI in
-    // their browser).
-    this.uriEventsListener =
-        this.widget.uriEvents.uriStream.listen(this.onUriEvent);
 
     // Start fetching fiat rates in the background. We fetch the fiat rates on a
     // separate timer from the syncPayments and nodeInfo fetchers, since they
@@ -148,25 +162,13 @@ class WalletPageState extends State<WalletPage> {
       (isSyncing, isFetching) => isSyncing || isFetching,
     );
 
+    // Listen to platform URI events (e.g., user taps a "lightning:" URI in
+    // their browser).
+    this.uriEventsListener =
+        this.widget.uriEvents.uriStream.listen(this.onUriEvent);
+
     // Start us off with an initial refresh.
     this.refreshService.triggerRefreshUnthrottled();
-  }
-
-  @override
-  void dispose() {
-    info("wallet: dispose");
-
-    this.uriEventsListener.cancel();
-    this.fiatRateService.dispose();
-    this.paymentSyncOnRefresh.dispose();
-    this.paymentSyncService.dispose();
-    this.nodeInfoFetchOnRefresh.dispose();
-    this.nodeInfoService.dispose();
-    this.balanceState.dispose();
-    this.isRefreshing.dispose();
-
-    super.dispose();
-    info("wallet: disposed");
   }
 
   /// User triggers a refresh (fetch balance, fiat rates, payment sync).
