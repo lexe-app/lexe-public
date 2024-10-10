@@ -2,7 +2,7 @@
 /// [ValueNotifier], [ChangeNotifier], etc...
 library;
 
-import 'dart:async' show Completer;
+import 'dart:async' show Completer, Timer;
 
 import 'package:flutter/foundation.dart'
     show
@@ -129,5 +129,27 @@ class CombinedValueListenable<T> extends ValueNotifier<T> {
   set value(T newValue) {
     throw UnsupportedError(
         "CombinedValueListenable doesn't support setting the value");
+  }
+}
+
+/// Notify listeners with the current [DateTime] every `period` [Duration].
+class DateTimeNotifier extends AlwaysValueNotifier<DateTime> {
+  factory DateTimeNotifier({required Duration period}) {
+    final notifier = DateTimeNotifier._();
+    final ticker = Timer.periodic(period, notifier._onTick);
+    notifier._ticker = ticker;
+    return notifier;
+  }
+
+  DateTimeNotifier._() : super(DateTime.now());
+
+  late final Timer _ticker;
+
+  void _onTick(Timer _timer) => this.value = DateTime.now();
+
+  @override
+  void dispose() {
+    this._ticker.cancel();
+    super.dispose();
   }
 }

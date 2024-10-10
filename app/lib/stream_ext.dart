@@ -1,6 +1,8 @@
 import 'dart:async' show FutureOr, Stream, StreamController, StreamSubscription;
 
+import 'package:flutter/foundation.dart';
 import 'package:lexeapp/logger.dart';
+import 'package:lexeapp/result.dart';
 import 'package:rxdart_ext/rxdart_ext.dart';
 
 extension StreamControllerExt<T> on StreamController<T> {
@@ -21,6 +23,8 @@ extension StreamExt<T> on Stream<T> {
       this.doOn(
         data: (data) => info("$id: $data"),
         error: (err, trace) => error("$id: error: $err, $trace"),
+        // cancel: () => info("$id: cancel"),
+        // done: () => info("$id: done"),
       );
 
   /// Alias for [Stream.where].
@@ -98,5 +102,49 @@ extension StreamExt<T> on Stream<T> {
     };
 
     return controller.stream;
+  }
+}
+
+extension StreamFilterOkExt<T extends Object, E> on Stream<Result<T, E>> {
+  Stream<T> filterOk() => this.filterMap((res) => res.ok);
+}
+
+extension StreamFilterErrExt<T, E extends Object> on Stream<Result<T, E>> {
+  Stream<E> filterErr() => this.filterMap((res) => res.err);
+}
+
+extension ValueStreamExt<T> on ValueStream<T> {
+  StreamValueListenable<T> toValueListenable() {
+    final listenable = StreamValueListenable<T>(this.value);
+    final subscription = this.listen(
+      listenable._setValue,
+      onDone: () {
+        listenable._subscription = null;
+        listenable.dispose();
+      },
+      cancelOnError: false,
+    );
+    listenable._subscription = subscription;
+    return listenable;
+  }
+}
+
+class StreamValueListenable<T> extends ValueNotifier<T> {
+  StreamValueListenable(super._value);
+
+  StreamSubscription<T>? _subscription;
+
+  @override
+  void dispose() {
+    this._subscription?.cancel();
+    super.dispose();
+  }
+
+  void _setValue(T value) => super.value = value;
+
+  @override
+  set value(T newValue) {
+    throw UnsupportedError(
+        "StreamValueListenable doesn't support setting the value");
   }
 }

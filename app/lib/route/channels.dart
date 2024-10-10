@@ -3,6 +3,7 @@ import 'dart:math' show max, min;
 import 'package:app_rs_dart/ffi/api.dart' show Balance, FiatRate;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart' show LxChannelDetails;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
     show
@@ -14,8 +15,7 @@ import 'package:lexeapp/components.dart'
         LxRefreshButton,
         ScrollableSinglePageBody,
         SplitAmountText,
-        StateStreamBuilder,
-        ValueStreamBuilder;
+        StateStreamBuilder;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/route/wallet.dart';
@@ -29,7 +29,7 @@ class ChannelsPage extends StatefulWidget {
   final AppHandle app;
 
   /// Updating stream of fiat rates.
-  final ValueStream<FiatRate?> fiatRate;
+  final ValueListenable<FiatRate?> fiatRate;
 
   @override
   State<ChannelsPage> createState() => _ChannelsPageState();
@@ -483,7 +483,7 @@ class ChannelsListEntry extends StatelessWidget {
   final Channel channel;
 
   /// Updating stream of fiat rates.
-  final ValueStream<FiatRate?> fiatRate;
+  final ValueListenable<FiatRate?> fiatRate;
 
   @override
   Widget build(BuildContext context) {
@@ -498,9 +498,9 @@ class ChannelsListEntry extends StatelessWidget {
 
     final secondaryStyle = primaryStyle.copyWith(color: LxColors.fgTertiary);
 
-    final ourBalanceFiat = ValueStreamBuilder(
-      stream: this.fiatRate,
-      builder: (context, fiatRate) => (fiatRate != null)
+    final ourBalanceFiat = ValueListenableBuilder(
+      valueListenable: this.fiatRate,
+      builder: (context, fiatRate, child) => (fiatRate != null)
           ? SplitAmountText(
               amount: FiatAmount.fromSats(fiatRate, this.channel.ourBalanceSats)
                   .amount,
@@ -519,9 +519,9 @@ class ChannelsListEntry extends StatelessWidget {
       style: secondaryStyle,
     );
 
-    final theirBalanceFiat = ValueStreamBuilder(
-      stream: this.fiatRate,
-      builder: (context, fiatRate) => (fiatRate != null)
+    final theirBalanceFiat = ValueListenableBuilder(
+      valueListenable: this.fiatRate,
+      builder: (context, fiatRate, child) => (fiatRate != null)
           ? Text(
               currency_format.formatFiat(
                   FiatAmount.fromSats(fiatRate, this.channel.ourBalanceSats)

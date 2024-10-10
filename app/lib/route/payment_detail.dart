@@ -1,4 +1,4 @@
-import 'dart:async' show Timer, unawaited;
+import 'dart:async' show unawaited;
 
 import 'package:app_rs_dart/ffi/api.dart' show FiatRate, UpdatePaymentNote;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
@@ -16,16 +16,13 @@ import 'package:lexeapp/components.dart'
         LxRefreshButton,
         PaymentNoteInput,
         ScrollableSinglePageBody,
-        SheetDragHandle,
-        StateStreamBuilder,
-        ValueStreamBuilder;
+        SheetDragHandle;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/logger.dart';
+import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/result.dart';
-import 'package:lexeapp/stream_ext.dart';
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
-import 'package:rxdart_ext/rxdart_ext.dart';
 
 /// A page for displaying a single payment, in detail.
 ///
@@ -38,7 +35,7 @@ class PaymentDetailPage extends StatefulWidget {
     required this.paymentVecIdx,
     required this.paymentsUpdated,
     required this.fiatRate,
-    required this.isRefreshing,
+    required this.isSyncing,
     required this.triggerRefresh,
   });
 
@@ -48,15 +45,14 @@ class PaymentDetailPage extends StatefulWidget {
   final int paymentVecIdx;
 
   /// We receive a notification on this [Stream]
-  final Stream<Null> paymentsUpdated;
+  final Listenable paymentsUpdated;
 
   /// A stream of [FiatRate] (user's preferred fiat + its exchange rate). May
   /// be null if we're still fetching the rates at startup.
-  final ValueStream<FiatRate?> fiatRate;
+  final ValueListenable<FiatRate?> fiatRate;
 
-  /// True when we are currently refreshing (includes syncing payments from our
-  /// node).
-  final ValueListenable<bool> isRefreshing;
+  /// True when we are currently syncing payments from our node.
+  final ValueListenable<bool> isSyncing;
 
   /// Call this function to (maybe) start a new refresh. Will do nothing if
   /// we're currently refreshing.
@@ -81,9 +77,8 @@ class PaymentDetailPage extends StatefulWidget {
 class _PaymentDetailPageState extends State<PaymentDetailPage> {
   // When this stream ticks, all the payments' createdAt label should update.
   // This stream ticks every 30 seconds.
-  final StateSubject<DateTime> paymentDateUpdates =
-      StateSubject(DateTime.now());
-  Timer? paymentDateUpdatesTimer;
+  final DateTimeNotifier paymentDateUpdates =
+      DateTimeNotifier(period: const Duration(seconds: 30));
 
   late final ValueNotifier<Payment> payment =
       ValueNotifier(this.widget.getPayment());
@@ -91,27 +86,21 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
   @override
   void dispose() {
     this.payment.dispose();
-    this.paymentDateUpdatesTimer?.cancel();
-    this.paymentDateUpdates.close();
-
+    this.paymentDateUpdates.dispose();
+    this.widget.paymentsUpdated.removeListener(this.onPaymentsUpdated);
     super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
+    this.widget.paymentsUpdated.addListener(this.onPaymentsUpdated);
+  }
 
-    // Update the relative dates on a timer.
-    this.paymentDateUpdatesTimer =
-        Timer.periodic(const Duration(seconds: 30), (timer) {
-      this.paymentDateUpdates.addIfNotClosed(DateTime.now());
-    });
-
-    // After we sync some new payments, fetch the payment from the local db.
-    this.widget.paymentsUpdated.listen((_) {
-      if (!this.mounted) return;
-      this.payment.value = this.widget.getPayment();
-    });
+  /// After we sync some new payments, fetch the payment from the local db.
+  void onPaymentsUpdated() {
+    if (!this.mounted) return;
+    this.payment.value = this.widget.getPayment();
   }
 
   @override
@@ -121,7 +110,7 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
       payment: this.payment,
       paymentDateUpdates: this.paymentDateUpdates,
       fiatRate: this.widget.fiatRate,
-      isRefreshing: this.widget.isRefreshing,
+      isSyncing: this.widget.isSyncing,
       triggerRefresh: this.widget.triggerRefresh,
     );
   }
@@ -138,14 +127,14 @@ class PaymentDetailPageInner extends StatelessWidget {
     required this.paymentDateUpdates,
     required this.fiatRate,
     required this.triggerRefresh,
-    required this.isRefreshing,
+    required this.isSyncing,
   });
 
   final AppHandle app;
   final ValueListenable<Payment> payment;
-  final StateStream<DateTime> paymentDateUpdates;
-  final ValueStream<FiatRate?> fiatRate;
-  final ValueListenable<bool> isRefreshing;
+  final ValueListenable<DateTime> paymentDateUpdates;
+  final ValueListenable<FiatRate?> fiatRate;
+  final ValueListenable<bool> isSyncing;
   final VoidCallback triggerRefresh;
 
   // HACK: parsing the serialized form like this is ugly af.
@@ -177,7 +166,7 @@ class PaymentDetailPageInner extends StatelessWidget {
         leading: const LxCloseButton(isLeading: true),
         actions: [
           LxRefreshButton(
-            isRefreshing: this.isRefreshing,
+            isRefreshing: this.isSyncing,
             triggerRefresh: this.triggerRefresh,
           ),
           const SizedBox(width: Space.appBarTrailingPadding),
@@ -211,9 +200,9 @@ class PaymentDetailPageInner extends StatelessWidget {
               const SizedBox(height: Space.s500),
 
               // Direction + short time
-              StateStreamBuilder(
-                stream: this.paymentDateUpdates,
-                builder: (_, now) => PaymentDetailDirectionTime(
+              ValueListenableBuilder(
+                valueListenable: this.paymentDateUpdates,
+                builder: (_, now, child) => PaymentDetailDirectionTime(
                   status: status,
                   direction: direction,
                   createdAt: createdAt,
@@ -240,9 +229,10 @@ class PaymentDetailPageInner extends StatelessWidget {
 
               // Amount sent/received in BTC and fiat.
               if (maybeAmountSat != null)
-                ValueStreamBuilder(
-                  stream: this.fiatRate,
-                  builder: (_context, fiatRate) => PaymentDetailPrimaryAmount(
+                ValueListenableBuilder(
+                  valueListenable: this.fiatRate,
+                  builder: (_context, fiatRate, child) =>
+                      PaymentDetailPrimaryAmount(
                     status: status,
                     direction: direction,
                     amountSat: maybeAmountSat,
@@ -304,7 +294,7 @@ class PaymentDetailBottomSheet extends StatelessWidget {
   });
 
   final ValueListenable<Payment> payment;
-  final ValueStream<FiatRate?> fiatRate;
+  final ValueListenable<FiatRate?> fiatRate;
 
   String paymentIdxBody() => this.payment.value.index.body();
 
@@ -408,9 +398,9 @@ class PaymentDetailBottomSheet extends StatelessWidget {
 
                   // Full payment amount + fees info
                   // TODO(phlip9): deemphasize fiat amount below
-                  ValueStreamBuilder(
-                    stream: this.fiatRate,
-                    builder: (_context, fiatRate) =>
+                  ValueListenableBuilder(
+                    valueListenable: this.fiatRate,
+                    builder: (_context, fiatRate, child) =>
                         PaymentDetailInfoCard(children: [
                       if (amountSat != null)
                         PaymentDetailInfoRow(
