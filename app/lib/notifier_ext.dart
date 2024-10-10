@@ -21,6 +21,12 @@ class LxChangeNotifier extends ChangeNotifier {
 }
 
 extension ListenableExt on Listenable {
+  /// Listen for notifications like [addListener], but return an [LxListener]
+  /// handle that can be easily paused, resumed, and disposed.
+  LxListener listen(VoidCallback listener) {
+    return LxListener.listen(this, listener);
+  }
+
   /// Returns a Future that resolves when the next notification is fired.
   Future<void> next() {
     final Completer<void> completer = Completer.sync();
@@ -152,4 +158,44 @@ class DateTimeNotifier extends AlwaysValueNotifier<DateTime> {
     this._ticker.cancel();
     super.dispose();
   }
+}
+
+/// An easier handle on a consumer of a [Listenable].
+///
+/// The owner must call [dispose].
+class LxListener {
+  LxListener._(this._isPaused, this._listenable, this._listener);
+
+  factory LxListener.listen(Listenable listenable, VoidCallback listener) {
+    listenable.addListener(listener);
+    return LxListener._(false, listenable, listener);
+  }
+
+  factory LxListener.paused(Listenable listenable, VoidCallback listener) {
+    return LxListener._(true, listenable, listener);
+  }
+
+  bool _isPaused;
+  final Listenable _listenable;
+  final VoidCallback _listener;
+
+  /// Pause listening for notifications. Does nothing if already paused.
+  void pause() {
+    if (!this._isPaused) {
+      this._listenable.removeListener(this._listener);
+      this._isPaused = true;
+    }
+  }
+
+  /// Resume listening for notifications. Does nothing if already listening.
+  void resume() {
+    if (this._isPaused) {
+      this._listenable.addListener(this._listener);
+      this._isPaused = false;
+    }
+  }
+
+  /// Stop listening for notifications. The owner must call this before the
+  /// handle goes out-of-scope.
+  void dispose() => this.pause();
 }
