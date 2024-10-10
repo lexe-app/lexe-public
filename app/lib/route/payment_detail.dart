@@ -83,25 +83,19 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
   late final ValueNotifier<Payment> payment =
       ValueNotifier(this.widget.getPayment());
 
+  late final LxListener paymentsUpdatedListener =
+      this.widget.paymentsUpdated.listen(this.onPaymentsUpdated);
+
   @override
   void dispose() {
     this.payment.dispose();
     this.paymentDateUpdates.dispose();
-    this.widget.paymentsUpdated.removeListener(this.onPaymentsUpdated);
+    this.paymentsUpdatedListener.dispose();
     super.dispose();
   }
 
-  @override
-  void initState() {
-    super.initState();
-    this.widget.paymentsUpdated.addListener(this.onPaymentsUpdated);
-  }
-
   /// After we sync some new payments, fetch the payment from the local db.
-  void onPaymentsUpdated() {
-    if (!this.mounted) return;
-    this.payment.value = this.widget.getPayment();
-  }
+  void onPaymentsUpdated() => this.payment.value = this.widget.getPayment();
 
   @override
   Widget build(BuildContext context) {
