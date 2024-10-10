@@ -1,8 +1,7 @@
 // An alternate application entrypoint specifically for designing pages
 // and components in isolation, without actually touching any real backends.
 
-import 'dart:async' show Timer, unawaited;
-import 'dart:typed_data' show Uint8List;
+import 'dart:async' show unawaited;
 
 import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
 import 'package:app_rs_dart/ffi/api.dart'
@@ -17,6 +16,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentMethod,
         PaymentStatus;
 import 'package:app_rs_dart/ffi/types.ext.dart' show PaymentExt;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
 import 'package:intl/intl.dart' show Intl;
@@ -39,6 +39,7 @@ import 'package:lexeapp/design_mode/mocks.dart' as mocks;
 import 'package:lexeapp/gdrive_auth.dart'
     show GDriveAuth, GDriveServerAuthCode, MockGDriveRestoreCandidate;
 import 'package:lexeapp/logger.dart';
+import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/channels.dart'
     show ChannelBalanceBarRow, ChannelsPage;
@@ -115,34 +116,24 @@ class LexeDesignPage extends StatefulWidget {
 class _LexeDesignPageState extends State<LexeDesignPage> {
   // When this stream ticks, all the payments' createdAt label should update.
   // This stream ticks every 30 seconds.
-  final StateSubject<DateTime> paymentDateUpdates =
-      StateSubject(DateTime.now());
-  Timer? paymentDateUpdatesTimer;
+  final DateTimeNotifier paymentDateUpdates =
+      DateTimeNotifier(period: const Duration(seconds: 30));
 
   @override
   void dispose() {
-    this.paymentDateUpdatesTimer?.cancel();
-    this.paymentDateUpdates.close();
-
+    this.paymentDateUpdates.dispose();
     super.dispose();
   }
 
-  @override
-  void initState() {
-    super.initState();
-
-    this.paymentDateUpdatesTimer =
-        Timer.periodic(const Duration(seconds: 30), (timer) {
-      this.paymentDateUpdates.addIfNotClosed(DateTime.now());
-    });
-  }
-
-  ValueStream<FiatRate?> makeFiatRateStream() =>
+  ValueListenable<FiatRate?> makeFiatRateStream() =>
       Stream.fromIterable(<FiatRate?>[
         const FiatRate(fiat: "USD", rate: 73111.19),
         const FiatRate(fiat: "USD", rate: 73222.29),
         const FiatRate(fiat: "USD", rate: 73333.39),
-      ]).interval(const Duration(seconds: 2)).shareValueSeeded(null);
+      ])
+          .interval(const Duration(seconds: 2))
+          .shareValueSeeded(null)
+          .toValueListenable();
 
   /// Complete the payment after a few seconds
   ValueNotifier<Payment> makeCompletingPayment(final Payment payment) {
@@ -358,7 +349,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 payment: ValueNotifier(mocks.dummyOnchainOutboundFailed01),
                 paymentDateUpdates: this.paymentDateUpdates,
                 fiatRate: this.makeFiatRateStream(),
-                isRefreshing: ValueNotifier(false),
+                isSyncing: ValueNotifier(false),
                 triggerRefresh: () {},
               ),
             ),
@@ -370,7 +361,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 payment: ValueNotifier(mocks.dummyOnchainInboundCompleted01),
                 paymentDateUpdates: this.paymentDateUpdates,
                 fiatRate: this.makeFiatRateStream(),
-                isRefreshing: ValueNotifier(false),
+                isSyncing: ValueNotifier(false),
                 triggerRefresh: () {},
               ),
             ),
@@ -383,7 +374,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     .makeCompletingPayment(mocks.dummyInvoiceInboundPending01),
                 paymentDateUpdates: this.paymentDateUpdates,
                 fiatRate: this.makeFiatRateStream(),
-                isRefreshing: ValueNotifier(false),
+                isSyncing: ValueNotifier(false),
                 triggerRefresh: () {},
               ),
             ),

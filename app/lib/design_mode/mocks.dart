@@ -125,7 +125,7 @@ class MockAppHandle extends AppHandle {
 
   @override
   Future<FiatRates> fiatRates({dynamic hint}) => Future.delayed(
-        const Duration(milliseconds: 1300),
+        const Duration(milliseconds: 2000),
         () => const FiatRates(
           timestampMs: 1679863795,
           rates: [

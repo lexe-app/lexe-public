@@ -1,65 +1,80 @@
-import 'dart:async' show Stream, StreamController;
+import 'dart:async' show Timer, unawaited;
 import 'dart:math' as math;
 
 import 'package:app_rs_dart/ffi/api.dart' show FiatRate, FiatRates;
 import 'package:app_rs_dart/ffi/api.ext.dart' show FiatRatesExt;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
+import 'package:flutter/foundation.dart';
 import 'package:lexeapp/logger.dart';
+import 'package:lexeapp/notifier_ext.dart' show AlwaysValueNotifier;
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/settings.dart' show LxSettings;
-import 'package:lexeapp/stream_ext.dart';
-import 'package:lexeapp/value_listenable_stream.dart' show ValueListenableExt;
-import 'package:rxdart_ext/rxdart_ext.dart';
 
 /// Maintains the user's current preferred [FiatRate] stream and periodically
 /// refreshes the full [FiatRates] feed in the background.
 class FiatRateService {
-  FiatRateService._({required this.cancelTx, required this.fiatRate});
-
-  final StreamController<void> cancelTx;
-  final StateStream<FiatRate?> fiatRate;
+  FiatRateService._(this._app, this._settings);
 
   factory FiatRateService.start({
     required AppHandle app,
     required LxSettings settings,
-    Stream<Null>? ticker,
   }) {
-    // We'll close this stream to stop the FiatRateService.
-    final cancelTx = StreamController<void>.broadcast(sync: true);
+    final svc = FiatRateService._(app, settings);
 
-    // Default to refreshing the FiatRates every 15 min
-    ticker ??=
-        Stream<Null>.periodic(const Duration(minutes: 15)).startWith(null);
+    svc.fiatRates.addListener(svc.updateFiatRate);
+    settings.fiatCurrency.addListener(svc.updateFiatRate);
 
-    // A stream of FiatRates? that updates periodically.
-    final Stream<FiatRates?> fiatRates = ticker.asyncMap(
-      (_) async {
-        final fiatRates = await _fetchWithRetries(
-          app: app,
-          // Stop retries early
-          isCanceled: () => cancelTx.isClosed,
-        );
-        return fiatRates?.ok;
-      },
-    ).takeUntil(cancelTx.stream);
+    // Kick off with an initial fetch
+    unawaited(svc.fetch());
 
-    // The user's current preferred fiat currency, as a stream of changes.
-    final fiatCurrency =
-        settings.fiatCurrency.toValueStream().takeUntil(cancelTx.stream);
-
-    // Combine the FiatRates feed and preferred currency, exposing the single
-    // preferred [FiatRate]
-    final fiatRate = Rx.combineLatest2(
-      fiatRates,
-      fiatCurrency,
-      (fiatRates, fiatCurrency) => fiatRates?.findByFiat(fiatCurrency ?? "USD"),
-    ).log(id: "fiatRate").toStateStream(null).asBroadcastStateStream();
-
-    return FiatRateService._(cancelTx: cancelTx, fiatRate: fiatRate);
+    return svc;
   }
 
-  void cancel() {
-    this.cancelTx.close();
+  final AppHandle _app;
+  final LxSettings _settings;
+
+  bool isDisposed = false;
+
+  late final Timer _ticker = Timer.periodic(
+    const Duration(minutes: 15),
+    (timer) => this.fetch,
+  );
+
+  final AlwaysValueNotifier<FiatRates?> fiatRates = AlwaysValueNotifier(null);
+  final ValueNotifier<FiatRate?> fiatRate = ValueNotifier(null);
+
+  Future<void> fetch() async {
+    assert(!this.isDisposed);
+
+    final fiatRates = await _fetchWithRetries(
+      app: this._app,
+      // Stop retries early
+      isCanceled: () => this.isDisposed,
+    );
+    if (this.isDisposed) return;
+
+    if (fiatRates case Ok(:final ok)) this.fiatRates.value = ok;
+  }
+
+  void updateFiatRate() {
+    final fiatCurrency = this._settings.fiatCurrency.value;
+    final fiatRate = this.fiatRates.value?.findByFiat(fiatCurrency ?? "USD");
+    info("fiat-rate: $fiatRate");
+    this.fiatRate.value = fiatRate;
+  }
+
+  void dispose() {
+    assert(!this.isDisposed);
+
+    this._ticker.cancel();
+    this.fiatRates.dispose();
+    this.fiatRate.dispose();
+
+    this.fiatRates.removeListener(this.updateFiatRate);
+    this._settings.fiatCurrency.removeListener(this.updateFiatRate);
+
+    this.isDisposed = true;
+    // info("fiat-rates: disposed");
   }
 }
 

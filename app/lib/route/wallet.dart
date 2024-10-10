@@ -1,12 +1,7 @@
 // The primary wallet page.
 
 import 'dart:async'
-    show
-        StreamController,
-        StreamSubscription,
-        TimeoutException,
-        Timer,
-        unawaited;
+    show StreamController, StreamSubscription, TimeoutException, unawaited;
 import 'dart:math' as math;
 
 import 'package:app_rs_dart/ffi/api.dart' show Balance, FiatRate, NodeInfo;
@@ -22,6 +17,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentStatus,
         ShortPayment,
         ShortPaymentAndIndex;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' show freezed;
 import 'package:intl/intl.dart' show NumberFormat;
@@ -34,11 +30,11 @@ import 'package:lexeapp/components.dart'
         MultistepFlow,
         ScrollableSinglePageBody,
         SplitAmountText,
-        StateStreamBuilder,
         showModalAsyncFlow;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/logger.dart';
+import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/debug.dart' show DebugPage;
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPage;
@@ -47,7 +43,9 @@ import 'package:lexeapp/route/scan.dart';
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
     show SendFlowResult, SendState, SendState_NeedUri;
-import 'package:lexeapp/service/fiat_rates.dart';
+import 'package:lexeapp/service/fiat_rates.dart' show FiatRateService;
+import 'package:lexeapp/service/node_info.dart';
+import 'package:lexeapp/service/payment_sync.dart' show PaymentSyncService;
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/stream_ext.dart';
 import 'package:lexeapp/style.dart'
@@ -79,105 +77,107 @@ class WalletPage extends StatefulWidget {
 class WalletPageState extends State<WalletPage> {
   final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey();
 
-  /// A timer calls `this.triggerRefresh` every ~1 min of _inactivity_, so the
-  /// balance, fiat rates, etc... stay somewhat up-to-date while the app is
-  /// open.
-  Timer? backgroundRefresh;
-
-  /// After just sending a Lightning payment, we'll burst refresh for a moment
-  /// to try and catch the payment completing. Bitcoin payments take a while
-  /// to confirm, so there's no point polling harder.
-  final StreamController<Null> burstRefresh = StreamController();
-  bool isBurstRefreshing = false;
-
-  /// A stream controller to trigger refreshes of the wallet page contents.
-  final StreamController<Null> refresh = StreamController.broadcast();
-
-  /// Listen to this stream to be notified of the next completed refresh.
-  final StreamController<Null> onCompletedRefresh =
-      StreamController.broadcast();
-
-  /// True if there's currently an outstanding refresh.
-  final ValueNotifier<bool> isRefreshing = ValueNotifier(false);
-
-  /// A stream controller to notify when some payments are updated.
-  final StreamController<Null> paymentsUpdated = StreamController.broadcast();
-
-  // BehaviorSubject: a StreamController that captures the latest item added
-  // to the controller, and emits that as the first item to any new listener.
-  final BehaviorSubject<NodeInfo?> nodeInfo = BehaviorSubject.seeded(null);
-
-  // Completes when the Rx.combine -> balanceStates completes
-  late Future balanceStatesCombinerClosed;
-  // StateSubject: like BehaviorSubject but only notifies subscribers if the
-  // new item is actually different.
-  final StateSubject<BalanceState> balanceState =
-      StateSubject(BalanceState.placeholder);
-
-  /// The wallet page listens to URI events.
+  /// The wallet page listens to URI events. We'll navigate to the right page
+  /// after a user scans/taps a bitcoin/lightning URI.
   late StreamSubscription<String> uriEventsListener;
+
+  /// Allow user to manually trigger a refresh.
+  final StreamController<void> manualRefreshTx = StreamController();
+
+  /// Cancel the background refresh / ~1 min stream.
+  final StreamController<void> cancelBackgroundRefreshTx = StreamController();
+
+  /// Trigger burst refresh after e.g. sending a payment.
+  final StreamController<void> burstRefreshTx = StreamController();
 
   /// Maintains the fiat exchange rate feed, combined with the user's preferred
   /// fiat as a [Stream<FiatRate>].
   late final FiatRateService fiatRateService;
 
+  /// Sync payments on refresh.
+  late final PaymentSyncService paymentSyncService;
+  late final StreamSubscription<void> paymentSyncOnRefresh;
+
+  /// Fetch [NodeInfo] on refresh.
+  late final NodeInfoService nodeInfoService;
+  late final StreamSubscription<void> nodeInfoFetchOnRefresh;
+
+  /// Compute [BalanceState] from [FiatRate] and [NodeInfo] signals.
+  late final CombinedValueListenable<BalanceState> balanceState;
+
+  /// When to show refresh loading indicator.
+  late final CombinedValueListenable<bool> isRefreshing;
+
   @override
   void initState() {
     super.initState();
-
-    this.fiatRateService = FiatRateService.start(
-      app: this.widget.app,
-      settings: this.widget.settings,
-    );
-
-    // Calls `this.onRefresh` when we get a new refresh (and always once at
-    // page open). Refreshes are also throttled and won't trigger while a
-    // a previous refresh is pending.
-    this
-        .refresh
-        .stream
-        // ignore `triggerRefresh` if we're currently refreshing.
-        .where((_) => !this.isRefreshing.value)
-        // but unconditionally start with an initial "refresh" to load node
-        // state.
-        .startWith(null)
-        // ignore multiple refreshes if the we trigger again within 3 secs.
-        .throttleTime(const Duration(seconds: 3))
-        .log(id: "refresh start")
-        // ok we're actually refreshing for real this time! do some bookkeeping
-        // and send some requests.
-        .listen(this.onRefresh);
-
-    // Kick off the initial background refresh tick (happens every 1 min of
-    // inactivity).
-    this.resetBackgroundRefreshTimer();
-
-    // Burst refresher (2 sec, 6 sec, 15 sec) after e.g. sending a payment and
-    // polling for its status.
-    this
-        .burstRefresh
-        .stream
-        // TODO(phlip9): reset burst refresh instead of skipping?
-        .where((_) => !this.isBurstRefreshing)
-        .log(id: "burst refresh start")
-        .listen(this.onBurstRefresh);
-
-    // A stream of `BalanceState`s that gets updated when `nodeInfos` or
-    // `fiatRate` are updated. Since it's fed into a `StateSubject`, it also
-    // avoids widget rebuilds if new state == old state.
-    this.balanceStatesCombinerClosed = Rx.combineLatest2(
-      this.nodeInfo.stream,
-      this.fiatRateService.fiatRate,
-      (nodeInfo, fiatRate) => BalanceState(
-        balanceSats: nodeInfo?.balance,
-        fiatRate: fiatRate,
-      ),
-    ).log(id: "balanceState").pipe(this.balanceState.sink);
 
     // Listen to platform URI events (e.g., user taps a "lightning:" URI in
     // their browser).
     this.uriEventsListener =
         this.widget.uriEvents.uriStream.listen(this.onUriEvent);
+
+    // Start fetching fiat rates in the background
+    this.fiatRateService = FiatRateService.start(
+      app: this.widget.app,
+      settings: this.widget.settings,
+    );
+
+    // Refresh wallet page every minute
+    final Stream<void> backgroundRefresh =
+        Stream<void>.periodic(const Duration(minutes: 1))
+            .startWith(null)
+            .takeUntil(this.cancelBackgroundRefreshTx.stream)
+            .log(id: "background-refresh");
+
+    // After e.g. sending a new payment, we poll quickly to try and pick it up.
+    final Stream<void> burstRefresh = this
+        .burstRefreshTx
+        .stream
+        .asyncExpand(
+            (_) => Stream<void>.periodic(const Duration(seconds: 3)).take(3))
+        .log(id: "burst-refresh");
+
+    // User can manually refresh by tapping the refresh button.
+    final Stream<void> manualRefresh =
+        this.manualRefreshTx.stream.log(id: "manual-refresh");
+
+    // Debounced stream of refresh events.
+    final Stream<void> refresh =
+        Rx.merge([manualRefresh, backgroundRefresh, burstRefresh])
+            .throttleTime(const Duration(seconds: 3))
+            .log(id: "refresh")
+            .asBroadcastStream();
+
+    // Sync payments on refresh.
+    this.paymentSyncService = PaymentSyncService(app: this.widget.app);
+    this.paymentSyncOnRefresh =
+        refresh.listen((_) => unawaited(this.paymentSyncService.sync()));
+
+    // Fetch [NodeInfo] on refresh.
+    this.nodeInfoService = NodeInfoService(app: this.widget.app);
+    this.nodeInfoFetchOnRefresh =
+        refresh.listen((_) => unawaited(this.nodeInfoService.fetch()));
+
+    // A stream of `BalanceState`s that gets updated when `nodeInfos` or
+    // `fiatRate` are updated.
+    this.balanceState = combine2(
+      this.nodeInfoService.nodeInfo,
+      this.fiatRateService.fiatRate,
+      (nodeInfo, fiatRate) {
+        final balance =
+            BalanceState(balanceSats: nodeInfo?.balance, fiatRate: fiatRate);
+        info("balance-state: $balance");
+        return balance;
+      },
+    );
+
+    // When the refresh button should show a loading spinner.
+    this.isRefreshing = combine2(
+      this.paymentSyncService.isSyncing,
+      this.nodeInfoService.isFetching,
+      (isSyncing, isFetching) => isSyncing || isFetching,
+    );
   }
 
   @override
@@ -185,9 +185,14 @@ class WalletPageState extends State<WalletPage> {
     info("wallet: dispose");
 
     // Cancel/dispose of all synchronous resources here
-    this.backgroundRefresh?.cancel();
     this.uriEventsListener.cancel();
-    this.fiatRateService.cancel();
+    this.fiatRateService.dispose();
+    this.paymentSyncOnRefresh.cancel();
+    this.paymentSyncService.dispose();
+    this.nodeInfoFetchOnRefresh.cancel();
+    this.nodeInfoService.dispose();
+    this.balanceState.dispose();
+    this.isRefreshing.dispose();
 
     // Close async streams from inputs to outputs. While this is definitely more
     // work than what we were doing previously (`addIfNotClosed` everywhere),
@@ -204,112 +209,18 @@ class WalletPageState extends State<WalletPage> {
   }
 
   Future<void> closeStreams() async {
-    await this.burstRefresh.close();
-    await this.refresh.close();
-    await this.onCompletedRefresh.close();
-    this.isRefreshing.dispose();
-    await this.paymentsUpdated.close();
-    await this.nodeInfo.close();
-    await this.balanceStatesCombinerClosed;
-    await this.balanceState.close();
+    await this.manualRefreshTx.close();
+    await this.cancelBackgroundRefreshTx.close();
+    await this.burstRefreshTx.close();
+    info("wallet: closeStreams: done");
   }
 
   /// User triggers a refresh (fetch balance, fiat rates, payment sync).
   /// NOTE: the refresh stream is throttled to max every 3 sec.
-  void triggerRefresh() => this.refresh.addIfNotClosed(null);
-
-  /// On refresh, resync state from the node.
-  Future<void> onRefresh(Null n) async {
-    this.isRefreshing.value = true;
-
-    // First, let's reset the background timer. If e.g. the user just hit the
-    // refresh button, we won't needlessly background refresh early.
-    this.resetBackgroundRefreshTimer();
-
-    // Actually resync the state.
-    await (fetchNodeInfo(), syncPayments()).wait;
-
-    if (!this.mounted) return;
-
-    this.onCompletedRefresh.addIfNotClosed(null);
-    this.isRefreshing.value = false;
-  }
-
-  /// Cancel the current background timer and set a new one a minute from now.
-  /// This way, if the user hits the refresh button or a burst refresh is
-  /// triggered, the background refresh will get delayed until the next period
-  /// of inactivity.
-  void resetBackgroundRefreshTimer() {
-    this.backgroundRefresh?.cancel();
-
-    // TODO(phlip9): once we get push notifications working, we can perhaps
-    // remove this or only background refresh for the first ~10 min. Then rely
-    // on push notification to tell us to start polling again.
-    this.backgroundRefresh = Timer(
-      const Duration(minutes: 1),
-      () {
-        info("background refresh timer tick");
-        this.triggerRefresh();
-      },
-    );
-  }
+  void triggerRefresh() => this.manualRefreshTx.add(null);
 
   /// Start a new burst refresh.
-  void triggerBurstRefresh() => this.burstRefresh.addNull();
-
-  /// Call [this.triggerRefresh] in rapid succession after we e.g. send a
-  /// payment and want to quickly poll its status as it updates.
-  Future<void> onBurstRefresh(Null n) async {
-    this.isBurstRefreshing = true;
-
-    const delays = [
-      Duration(seconds: 3),
-      Duration(seconds: 6),
-      Duration(seconds: 9)
-    ];
-
-    for (final delay in delays) {
-      await Future.delayed(delay);
-      if (!this.mounted) return;
-
-      info("burst refresh timer tick");
-      this.triggerRefresh();
-    }
-
-    this.isBurstRefreshing = false;
-  }
-
-  Future<void> fetchNodeInfo() async {
-    final res = await Result.tryFfiAsync(this.widget.app.nodeInfo);
-    switch (res) {
-      case Ok(:final ok):
-        info("nodeInfo: $ok");
-        this.nodeInfo.addIfNotClosed(ok);
-        return;
-      case Err(:final err):
-        error("Failed to fetch nodeInfo: $err");
-        return;
-    }
-  }
-
-  Future<void> syncPayments() async {
-    final res = await Result.tryFfiAsync(this.widget.app.syncPayments);
-
-    final bool anyChangedPayments;
-    switch (res) {
-      case Ok(:final ok):
-        info("syncPayments: any changed: $ok");
-        anyChangedPayments = ok;
-      case Err(:final err):
-        error("Failed to syncPayments: $err");
-        return;
-    }
-
-    // Only re-render payments if they've actually changed.
-    if (anyChangedPayments) {
-      this.paymentsUpdated.addIfNotClosed(null);
-    }
-  }
+  void triggerBurstRefresh() => this.burstRefreshTx.add(null);
 
   /// When a user taps a payment URI (ex: "lightning:") in another app/browser,
   /// and chooses Lexe to handle it, we'll try to open a new send flow to handle
@@ -457,31 +368,45 @@ class WalletPageState extends State<WalletPage> {
   /// available.
   Future<Result<SendState_NeedUri, TimeoutException>>
       collectSendContext() async {
-    final result = await Result.tryAsync<NodeInfo, TimeoutException>(
+    final nodeInfo = this.nodeInfoService.nodeInfo.value;
+    if (nodeInfo != null) return Ok(this.nodeInfoIntoSendContext(nodeInfo));
+
+    final res = await Result.tryAsync<NodeInfo, TimeoutException>(
       () => this
+          .nodeInfoService
           .nodeInfo
-          .stream
-          .whereNotNull()
-          .first
+          .nextValue()
+          .then((nodeInfo) => nodeInfo!)
           .timeout(const Duration(seconds: 15)),
     );
-    return result.map((_) => this.tryCollectSendContext()!);
+    return res.map(this.nodeInfoIntoSendContext);
   }
 
   /// Collect up all the relevant context needed to support a new send payment
   /// flow.
   SendState_NeedUri? tryCollectSendContext() {
-    final maybeNodeInfo = this.nodeInfo.value;
+    final nodeInfo = this.nodeInfoService.nodeInfo.value;
     // Ignore Send/Scan button press, we haven't fetched the node info yet.
-    if (maybeNodeInfo == null) return null;
+    if (nodeInfo == null) return null;
+    return this.nodeInfoIntoSendContext(nodeInfo);
+  }
 
-    final balance = maybeNodeInfo.balance;
-    return SendState_NeedUri(
-      app: this.widget.app,
-      configNetwork: this.widget.config.network,
-      balance: balance,
-      cid: ClientPaymentId.gen(),
-    );
+  SendState_NeedUri nodeInfoIntoSendContext(NodeInfo nodeInfo) =>
+      SendState_NeedUri(
+        app: this.widget.app,
+        configNetwork: this.widget.config.network,
+        balance: nodeInfo.balance,
+        cid: ClientPaymentId.gen(),
+      );
+
+  Future<Result<void, Exception>> nextCompletedRefresh() {
+    // Add a waiter for the next completed refresh tick, with a timeout.
+    // TODO(phlip9): join with next completed nodeInfo fetch
+    return Result.tryAsync(() => this
+        .paymentSyncService
+        .completed
+        .next()
+        .timeout(const Duration(seconds: 10)));
   }
 
   /// Called after the user has successfully sent a new payment and the send
@@ -492,14 +417,7 @@ class WalletPageState extends State<WalletPage> {
   /// For lightning payments, we'll also start burst refreshing, so we can
   /// quickly pick up any status changes.
   Future<void> onSendFlowSuccess(SendFlowResult flowResult) async {
-    // Add a waiter for the next completed refresh tick, with a timeout.
-    final nextCompletedRefresh = Result.tryAsync<Null, Exception>(
-      () => this
-          .onCompletedRefresh
-          .stream
-          .first
-          .timeout(const Duration(seconds: 10)),
-    );
+    final nextCompletedRefresh = this.nextCompletedRefresh();
 
     // Actually trigger a refresh. May be ignored, if throttled, in which case
     // timeout should clean things up.
@@ -547,9 +465,9 @@ class WalletPageState extends State<WalletPage> {
       builder: (context) => PaymentDetailPage(
         app: this.widget.app,
         paymentVecIdx: paymentVecIdx,
-        paymentsUpdated: this.paymentsUpdated.stream,
+        paymentsUpdated: this.paymentSyncService.updated,
         fiatRate: this.fiatRateService.fiatRate,
-        isRefreshing: this.isRefreshing,
+        isSyncing: this.paymentSyncService.isSyncing,
         triggerRefresh: this.triggerRefresh,
       ),
     ));
@@ -600,9 +518,9 @@ class WalletPageState extends State<WalletPage> {
           SliverToBoxAdapter(
             child: Column(children: [
               const SizedBox(height: Space.s1000),
-              StateStreamBuilder(
-                stream: this.balanceState,
-                builder: (context, balanceState) => BalanceWidget(
+              ValueListenableBuilder(
+                valueListenable: this.balanceState,
+                builder: (context, balanceState, child) => BalanceWidget(
                   state: balanceState,
                   settings: this.widget.settings,
                 ),
@@ -621,10 +539,9 @@ class WalletPageState extends State<WalletPage> {
           ),
 
           // Pending payments && not junk + header
-          StreamBuilder(
-            stream: this.paymentsUpdated.stream,
-            initialData: null,
-            builder: (context, snapshot) => SliverPaymentsList(
+          ListenableBuilder(
+            listenable: this.paymentSyncService.updated,
+            builder: (context, child) => SliverPaymentsList(
               app: this.widget.app,
               filter: PaymentsListFilter.pendingNotJunk,
               onPaymentTap: this.onPaymentTap,
@@ -632,10 +549,9 @@ class WalletPageState extends State<WalletPage> {
           ),
 
           // Completed+Failed && not junk payments + header
-          StreamBuilder(
-            stream: this.paymentsUpdated.stream,
-            initialData: null,
-            builder: (context, snapshot) => SliverPaymentsList(
+          ListenableBuilder(
+            listenable: this.paymentSyncService.updated,
+            builder: (context, child) => SliverPaymentsList(
               app: this.widget.app,
               filter: PaymentsListFilter.finalizedNotJunk,
               onPaymentTap: this.onPaymentTap,
@@ -1256,30 +1172,17 @@ class SliverPaymentsList extends StatefulWidget {
 }
 
 class _SliverPaymentsListState extends State<SliverPaymentsList> {
-  // When this stream ticks, all the payments' createdAt label should update.
-  // This stream ticks every 30 seconds. All the payment times should also
-  // update at the same time, which is why they all share the same ticker
-  // stream, hoisted up here to the parent list widget.
-  final StateSubject<DateTime> paymentDateUpdates =
-      StateSubject(DateTime.now());
-  Timer? paymentDateUpdatesTimer;
+  // When this ticks every 30 sec, all the payments' createdAt label should
+  // update. All the payment times should also update at the same time, which is
+  // why they all share the same ticker, hoisted up here to the parent list
+  // widget.
+  final DateTimeNotifier paymentDateUpdates =
+      DateTimeNotifier(period: const Duration(seconds: 30));
 
   @override
   void dispose() {
-    this.paymentDateUpdatesTimer?.cancel();
-    this.paymentDateUpdates.close();
-
+    this.paymentDateUpdates.dispose();
     super.dispose();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-
-    this.paymentDateUpdatesTimer =
-        Timer.periodic(const Duration(seconds: 30), (timer) {
-      this.paymentDateUpdates.addIfNotClosed(DateTime.now());
-    });
   }
 
   @override
@@ -1389,7 +1292,7 @@ class PaymentsListEntry extends StatelessWidget {
   }) : super(key: ValueKey<int>(vecIdx));
 
   final VoidCallback onTap;
-  final StateStream<DateTime> paymentDateUpdates;
+  final ValueListenable<DateTime> paymentDateUpdates;
   final ShortPayment payment;
 
   @override
@@ -1496,9 +1399,9 @@ class PaymentsListEntry extends StatelessWidget {
     // Wrap the "createdAt" text so that it updates every ~30 sec, not just
     // when we refresh.
     final createdAt = DateTime.fromMillisecondsSinceEpoch(payment.createdAt);
-    final secondaryDateText = StateStreamBuilder(
-        stream: this.paymentDateUpdates,
-        builder: (_, now) {
+    final secondaryDateText = ValueListenableBuilder(
+        valueListenable: this.paymentDateUpdates,
+        builder: (_, now, child) {
           final createdAtStr =
               date_format.formatDateCompact(then: createdAt, now: now);
 

@@ -5,6 +5,7 @@ import 'package:app_rs_dart/ffi/api.dart' show CreateInvoiceRequest, FiatRate;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart' show Invoice;
 import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
@@ -18,8 +19,7 @@ import 'package:lexeapp/components.dart'
         LxFilledButton,
         PaymentAmountInput,
         PaymentNoteInput,
-        ScrollableSinglePageBody,
-        ValueStreamBuilder;
+        ScrollableSinglePageBody;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/logger.dart';
@@ -28,7 +28,6 @@ import 'package:lexeapp/route/show_qr.dart' show InteractiveQrImage;
 import 'package:lexeapp/share.dart' show LxShare;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxRadius, Space;
-import 'package:rxdart/rxdart.dart';
 
 const double minViewportWidth = 365.0;
 
@@ -211,7 +210,7 @@ class ReceivePaymentPage extends StatelessWidget {
   final AppHandle app;
 
   /// Updating stream of fiat rates.
-  final ValueStream<FiatRate?> fiatRate;
+  final ValueListenable<FiatRate?> fiatRate;
 
   @override
   Widget build(BuildContext context) => ReceivePaymentPageInner(
@@ -233,7 +232,7 @@ class ReceivePaymentPageInner extends StatefulWidget {
   });
 
   final AppHandle app;
-  final ValueStream<FiatRate?> fiatRate;
+  final ValueListenable<FiatRate?> fiatRate;
 
   final double viewportWidth;
 
@@ -631,7 +630,7 @@ class PaymentOfferPage extends StatelessWidget {
   });
 
   final PaymentOffer paymentOffer;
-  final ValueStream<FiatRate?> fiatRate;
+  final ValueListenable<FiatRate?> fiatRate;
 
   final VoidCallback openSetAmountPage;
 
@@ -907,9 +906,9 @@ class PaymentOfferPage extends StatelessWidget {
                               ),
 
                             // Amount (fiat)
-                            ValueStreamBuilder(
-                              stream: this.fiatRate,
-                              builder: (context, fiatRate) {
+                            ValueListenableBuilder(
+                              valueListenable: this.fiatRate,
+                              builder: (context, fiatRate, child) {
                                 if (amountSats == null) {
                                   return const SizedBox.shrink();
                                 }
