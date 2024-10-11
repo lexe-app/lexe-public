@@ -15,16 +15,18 @@ class NodeInfoService {
 
   bool isDisposed = false;
 
-  final AlwaysValueNotifier<NodeInfo?> _nodeInfo = AlwaysValueNotifier(null);
+  /// The most recent [NodeInfo]. `null` if we haven't successfully fetched the
+  /// [NodeInfo] yet.
   ValueListenable<NodeInfo?> get nodeInfo => this._nodeInfo;
+  final AlwaysValueNotifier<NodeInfo?> _nodeInfo = AlwaysValueNotifier(null);
 
   /// Notifies after each completed fetch, successful or otherwise.
-  final LxChangeNotifier _completed = LxChangeNotifier();
   Listenable get completed => this._completed;
+  final LxChangeNotifier _completed = LxChangeNotifier();
 
   /// True whenever we're fetching the next nodeInfo.
-  final ValueNotifier<bool> _isFetching = ValueNotifier(false);
   ValueListenable<bool> get isFetching => this._isFetching;
+  final ValueNotifier<bool> _isFetching = ValueNotifier(false);
 
   Future<void> fetch() async {
     assert(!this.isDisposed);
