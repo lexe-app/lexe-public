@@ -1,6 +1,7 @@
 // The primary wallet page.
 
-import 'dart:async' show StreamSubscription, TimeoutException, unawaited;
+import 'dart:async'
+    show StreamSubscription, TimeoutException, scheduleMicrotask, unawaited;
 import 'dart:math' as math;
 
 import 'package:app_rs_dart/ffi/api.dart' show Balance, FiatRate, NodeInfo;
@@ -35,6 +36,7 @@ import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/result.dart';
+import 'package:lexeapp/route/channels.dart';
 import 'package:lexeapp/route/debug.dart' show DebugPage;
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPage;
 import 'package:lexeapp/route/receive.dart' show ReceivePaymentPage;
@@ -83,18 +85,20 @@ class WalletPageState extends State<WalletPage> {
   late final FiatRateService fiatRateService;
 
   /// Sync payments on refresh.
-  late final PaymentSyncService paymentSyncService;
+  late final PaymentSyncService paymentSyncService =
+      PaymentSyncService(app: this.widget.app);
   late final LxListener paymentSyncOnRefresh;
 
   /// Fetch [NodeInfo] on refresh.
-  late final NodeInfoService nodeInfoService;
+  late final NodeInfoService nodeInfoService =
+      NodeInfoService(app: this.widget.app);
   late final LxListener nodeInfoFetchOnRefresh;
 
   /// Compute [BalanceState] from [FiatRate] and [NodeInfo] signals.
-  late final CombinedValueListenable<BalanceState> balanceState;
+  late final ComputedValueListenable<BalanceState> balanceState;
 
   /// When to show refresh loading indicator.
-  late final CombinedValueListenable<bool> isRefreshing;
+  late final ComputedValueListenable<bool> isRefreshing;
 
   /// The wallet page listens to URI events. We'll navigate to the right page
   /// after a user scans/taps a bitcoin/lightning URI.
@@ -102,8 +106,6 @@ class WalletPageState extends State<WalletPage> {
 
   @override
   void dispose() {
-    info("wallet: dispose");
-
     // Dispose in reverse field order.
     this.uriEventsListener.cancel();
     this.isRefreshing.dispose();
@@ -116,7 +118,6 @@ class WalletPageState extends State<WalletPage> {
     this.refreshService.dispose();
 
     super.dispose();
-    info("wallet: disposed");
   }
 
   @override
@@ -133,12 +134,10 @@ class WalletPageState extends State<WalletPage> {
     );
 
     // Sync payments on refresh.
-    this.paymentSyncService = PaymentSyncService(app: this.widget.app);
     this.paymentSyncOnRefresh =
         refreshService.refresh.listen(this.paymentSyncService.sync);
 
     // Fetch [NodeInfo] on refresh.
-    this.nodeInfoService = NodeInfoService(app: this.widget.app);
     this.nodeInfoFetchOnRefresh =
         refreshService.refresh.listen(this.nodeInfoService.fetch);
 
@@ -168,7 +167,7 @@ class WalletPageState extends State<WalletPage> {
         this.widget.uriEvents.uriStream.listen(this.onUriEvent);
 
     // Start us off with an initial refresh.
-    this.refreshService.triggerRefreshUnthrottled();
+    scheduleMicrotask(this.refreshService.triggerRefreshUnthrottled);
   }
 
   /// User triggers a refresh (fetch balance, fiat rates, payment sync).
@@ -251,15 +250,37 @@ class WalletPageState extends State<WalletPage> {
     );
   }
 
+  /// Open the left drawer.
   void openScaffoldDrawer() {
     this.scaffoldKey.currentState?.openDrawer();
   }
 
+  /// Open the [ChannelsPage] for the user to manage their lightning channels.
+  Future<void> onOpenChannelsPage() async {
+    // We want to reuse the same cached [NodeInfo] while allowing the
+    // [ChannelsPage] to fetch on its own cadence, so we'll pass down the
+    // [NodeInfoService] but pause the refresher on this page.
+    this.refreshService.pauseBackgroundRefresh();
+
+    try {
+      await Navigator.of(this.context).push(
+        MaterialPageRoute(
+          builder: (context) => ChannelsPage(
+            app: this.widget.app,
+            fiatRate: this.fiatRateService.fiatRate,
+            balanceState: this.balanceState,
+            nodeInfoService: this.nodeInfoService,
+          ),
+        ),
+      );
+    } finally {
+      if (this.mounted) this.refreshService.resumeBackgroundRefresh();
+    }
+  }
+
   /// Called when the "Receive" button is pressed. Pushes the receive payment
   /// page onto the navigation stack.
-  Future<void> onReceivePressed() async {
-    if (!this.mounted) return;
-
+  void onReceivePressed() {
     unawaited(Navigator.of(this.context).push(
       MaterialPageRoute(
         builder: (context) => ReceivePaymentPage(
@@ -479,6 +500,7 @@ class WalletPageState extends State<WalletPage> {
                 builder: (context, balanceState, child) => BalanceWidget(
                   state: balanceState,
                   settings: this.widget.settings,
+                  onOpenChannelsPage: this.onOpenChannelsPage,
                 ),
               ),
               const SizedBox(height: Space.s700),
@@ -678,27 +700,27 @@ class BalanceState with _$BalanceState {
           : null;
 }
 
-class BalanceWidget extends StatefulWidget {
-  const BalanceWidget({super.key, required this.settings, required this.state});
+class BalanceWidget extends StatelessWidget {
+  const BalanceWidget({
+    super.key,
+    required this.settings,
+    required this.state,
+    required this.onOpenChannelsPage,
+  });
 
   final LxSettings settings;
   final BalanceState state;
+  final VoidCallback onOpenChannelsPage;
 
-  @override
-  State<BalanceWidget> createState() => _BalanceWidgetState();
-}
-
-class _BalanceWidgetState extends State<BalanceWidget> {
   /// Toggle expanding the sub-balances drop down
   void toggleSplitBalancesExpanded() {
-    final settings = this.widget.settings;
-    final value = settings.showSplitBalances.value ?? true;
-    settings.update(Settings(showSplitBalances: !value)).unwrap();
+    final value = this.settings.showSplitBalances.value ?? true;
+    this.settings.update(Settings(showSplitBalances: !value)).unwrap();
   }
 
   @override
   Widget build(BuildContext context) {
-    final totalSats = this.widget.state.totalSats();
+    final totalSats = this.state.totalSats();
     final totalSatsStyle = Fonts.fontUI.copyWith(
       fontSize: Fonts.size300,
       color: LxColors.grey700,
@@ -715,7 +737,7 @@ class _BalanceWidgetState extends State<BalanceWidget> {
             style: totalSatsStyle,
           );
 
-    final totalFiat = this.widget.state.totalFiat();
+    final totalFiat = this.state.totalFiat();
     final totalFiatStyle = Fonts.fontUI.copyWith(
       color: LxColors.foreground,
       fontSize: Fonts.size800,
@@ -725,7 +747,7 @@ class _BalanceWidgetState extends State<BalanceWidget> {
     final totalFiatOrPlaceholder = (totalFiat != null)
         ? SplitAmountText(
             amount: totalFiat,
-            fiatName: this.widget.state.fiatRate!.fiat,
+            fiatName: this.state.fiatRate!.fiat,
             style: totalFiatStyle,
             textAlign: TextAlign.end,
           )
@@ -739,7 +761,7 @@ class _BalanceWidgetState extends State<BalanceWidget> {
     const iconColor = LxColors.fgSecondary;
     const iconBg = LxColors.background;
     final icon = ValueListenableBuilder(
-        valueListenable: this.widget.settings.showSplitBalances,
+        valueListenable: this.settings.showSplitBalances,
         builder: (context, showSplitBalances, child) =>
             (showSplitBalances ?? true)
                 ? const ListIcon(
@@ -814,7 +836,7 @@ class _BalanceWidgetState extends State<BalanceWidget> {
     );
 
     final subBalances = ValueListenableBuilder(
-      valueListenable: this.widget.settings.showSplitBalances,
+      valueListenable: this.settings.showSplitBalances,
       builder: (context, showSplitBalances, child) =>
           (showSplitBalances ?? true) ? child! : const SizedBox(),
       child: Stack(
@@ -826,16 +848,16 @@ class _BalanceWidgetState extends State<BalanceWidget> {
             children: [
               SubBalanceRow(
                 kind: PaymentKind.invoice,
-                fiatName: this.widget.state.fiatRate?.fiat,
-                fiatBalance: this.widget.state.lightningFiat(),
-                satsBalance: this.widget.state.lightningSats(),
+                fiatName: this.state.fiatRate?.fiat,
+                fiatBalance: this.state.lightningFiat(),
+                satsBalance: this.state.lightningSats(),
               ),
               const SizedBox(height: Space.s200),
               SubBalanceRow(
                 kind: PaymentKind.onchain,
-                fiatName: this.widget.state.fiatRate?.fiat,
-                fiatBalance: this.widget.state.onchainFiat(),
-                satsBalance: this.widget.state.onchainSats(),
+                fiatName: this.state.fiatRate?.fiat,
+                fiatBalance: this.state.onchainFiat(),
+                satsBalance: this.state.onchainSats(),
               ),
             ],
           ),
@@ -846,8 +868,7 @@ class _BalanceWidgetState extends State<BalanceWidget> {
               child: Padding(
                 padding: const EdgeInsets.only(right: 2.0),
                 child: IconButton(
-                  // TODO(phlip9): impl
-                  onPressed: () => info("TODO: open/close channel"),
+                  onPressed: onOpenChannelsPage,
                   // Rotate the icon so it's up/down and not left/right.
                   // Doesn't seem to be a vertical variant of this icon...
                   icon: Transform.rotate(
@@ -869,7 +890,6 @@ class _BalanceWidgetState extends State<BalanceWidget> {
       mainAxisSize: MainAxisSize.min,
       children: [
         totalBalance,
-        // const SizedBox(height: Space.s100),
         const SizedBox(height: Space.s300),
         subBalances,
       ],

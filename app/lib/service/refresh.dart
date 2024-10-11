@@ -47,6 +47,11 @@ class RefreshService {
     }
   }
 
+  /// Pause the background refreshing.
+  void pauseBackgroundRefresh() => this._backgroundTimer.cancel();
+  void resumeBackgroundRefresh() =>
+      this._backgroundTimer = this._makeBackgroundTimer();
+
   /// Trigger a "burst" of refreshes in rapid succession after we e.g. send a
   /// payment and want to quickly poll its status as it updates.
   void triggerBurstRefresh() {

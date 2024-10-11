@@ -56,6 +56,18 @@ extension ValueListenableExt<T> on ValueListenable<T> {
 
     return completer.future;
   }
+
+  ComputedValueListenable<U> map<U>(U Function(T t) mapper) {
+    final combined = ComputedValueListenable(mapper(this.value));
+
+    void onParentUpdated() => combined._setValue(mapper(this.value));
+    this.addListener(onParentUpdated);
+
+    void onDispose() => this.removeListener(onParentUpdated);
+    combined._onDispose = onDispose;
+
+    return combined;
+  }
 }
 
 /// [AlwaysValueNotifier] is a [ValueNotifier] that always notifies its
@@ -90,13 +102,13 @@ class AlwaysValueNotifier<T> extends ChangeNotifier
 /// [ValueListenable]s.
 ///
 /// Must call [dispose].
-CombinedValueListenable<T> combine2<T, A, B>(
+ComputedValueListenable<T> combine2<T, A, B>(
   ValueListenable<A> listenableA,
   ValueListenable<B> listenableB,
   T Function(A a, B b) combiner,
 ) {
   final value = combiner(listenableA.value, listenableB.value);
-  final combined = CombinedValueListenable(value);
+  final combined = ComputedValueListenable(value);
 
   void onParentUpdated() {
     combined._setValue(combiner(listenableA.value, listenableB.value));
@@ -114,12 +126,12 @@ CombinedValueListenable<T> combine2<T, A, B>(
   return combined;
 }
 
-/// A [ValueListenable] that combines the [value]s of two parent
+/// A [ValueListenable] that combines the [value]s of some number of parent
 /// [ValueListenable]s.
 ///
 /// Must call [dispose].
-class CombinedValueListenable<T> extends ValueNotifier<T> {
-  CombinedValueListenable(super._value);
+class ComputedValueListenable<T> extends ValueNotifier<T> {
+  ComputedValueListenable(super._value);
 
   late final VoidCallback _onDispose;
 
