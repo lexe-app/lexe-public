@@ -228,6 +228,11 @@ bdd9eec1fbd625eec3b2a9e2a6072f60240c930b0867b47199730b320c148e8c
 ## License
 
 All files in this repository are licensed under the [PolyForm Noncommercial
-License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0/).
+License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0/),
+unless otherwise indicated.
+
+Lexe recognizes the value of open-source. To give back to the open-source
+community, Lexe commits to switching to the MIT license or other permissive
+open-source license once Lexe is in a financially stable position.
 
 © 2022-2024 Lexe Corporation
