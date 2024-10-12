@@ -170,7 +170,8 @@ tokio = { version = "=1.36.0", default-features = false }
 [patch.crates-io]
 # NOTE: Make sure to duplicate any changes to the root Cargo.toml.
 
-# Fortanix EDP (rust-sgx) crates:
+# Fortanix EDP (rust-sgx) crates.
+# These patches remain licensed under MPL 2.0.
 # * rust-sgx: hide all fortanixvme crates
 # * ftx-sgx-tools: can build just `ftxsgx-elf2sgxs` on non-x86_64
 # * enclave-runner: allow redirecting enclave standard input/output
@@ -183,61 +184,70 @@ sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65
 sgxs = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65c-2024_08_29" }
 sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65c-2024_08_29" }
 
+# * license: Add dual license information
 # * server: Propagate current span across `tokio::spawn`
 # * fix: propagate graceful shutdown to inner hyper connection
 #   PR: <https://github.com/programatik29/axum-server/pull/119>
-axum-server = { git = "https://github.com/lexe-app/axum-server", branch = "lexe-v0.6.0-2024_05_20" }
+axum-server = { git = "https://github.com/lexe-app/axum-server", branch = "lexe-v0.6.0-2024_10_11" }
 
+# * license: Add dual license information
 # * Replace RefCell with tokio::sync::RwLock 
 # * Wallet and EsploraBlockchain are thread-safe*+
 # * Reduce CACHE_ADDR_BATCH_SIZE from 100 -> 1
-bdk = { git = "https://github.com/lexe-app/bdk", branch = "lexe-v0.29.0-2024_07_24" }
-bdk-macros = { git = "https://github.com/lexe-app/bdk", branch = "lexe-v0.29.0-2024_07_24" }
+bdk = { git = "https://github.com/lexe-app/bdk", branch = "lexe-v0.29.0-2024_10_11" }
+bdk-macros = { git = "https://github.com/lexe-app/bdk", branch = "lexe-v0.29.0-2024_10_11" }
 # bdk = { path = "../../bdk" }
 # bdk-macros = { path = "../../bdk/macros" }
 
+# * license: Add dual license information
 # * sgx: socket2 requires `client-legacy-socket2` cfg
 # * sgx: Skip DNS resolution in SGX
-hyper-util = { git = "https://github.com/lexe-app/hyper-util", branch = "lexe-v0.1.5-2024_06_03" }
+hyper-util = { git = "https://github.com/lexe-app/hyper-util", branch = "lexe-v0.1.5-2024_10_11" }
 
+# * license: Add dual license information
 # * support sgx: Remove socket2 dependency. Just use tokio APIs directly. 
 # TODO(max): Remove this patch once everything updates to hyper 1.0
-hyper_old = { package = "hyper", git = "https://github.com/lexe-app/hyper", branch = "lexe-v0.14.28-2024_03_08" }
+hyper_old = { package = "hyper", git = "https://github.com/lexe-app/hyper", branch = "lexe-v0.14.28-2024_10_11" }
 
-# * fortanix: SGX port
-# * test: fix testing script
-# * net: add `TcpStream::try_into_std`, used by our `tokio` SGX patchset
-# * Revert "Support compilers with stdlibs that don't have `Send` `User<T>` types"
-mio = { git = "https://github.com/lexe-app/mio", branch = "lexe-v0.8.11-2024_07_01" }
-
-# * proxy: Expose `ProxyScheme`, `set_custom_http_auth`
-# * lib: Fail compilation if using insecure TLS roots
-reqwest = { git = "https://github.com/lexe-app/reqwest", branch = "lexe-v0.12.1-2024_03_22" }
-reqwest11 = { package = "reqwest", git = "https://github.com/lexe-app/reqwest", branch = "lexe-v0.11.26-2024_03_12" }
-
-# * cpu: use static cpuid feature set in SGX enclaves
-# * rand: Use `RDRAND` implementation in SGX
-# * build: Always build from source
-ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.17.8-2024_03_21" }
-ring16 = { package = "ring", git = "https://github.com/lexe-app/ring", branch = "lexe-v0.16.20-2023_09_26" }
-
-# * fortanix: SGX port
-# * test: fix testing script
-# * net: add SGX `TcpStream::into_std` used by `lightning-net-tokio`
-tokio = { git = "https://github.com/lexe-app/tokio",  branch = "lexe-v1.36.0-2024_07_01" }
-
+# * license: Add dual license information
 # * lightning-invoice: Add `Description::as_inner`
 #   - Upstream PR: https://github.com/lightningdevkit/rust-lightning/pull/3203
 #   - TODO(max): Remove once we update to LDK v0.0.124
 # * lightning-net-tokio: Propagate tracing spans
-lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.123-2024_07_25" }
-lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.123-2024_07_25" }
-lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.123-2024_07_25" }
-lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.123-2024_07_25" }
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.123-2024_10_11" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.123-2024_10_11" }
+lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.123-2024_10_11" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.123-2024_10_11" }
 # lightning = { path = "../../ldk/lightning" }
 # lightning-invoice = { path = "../../ldk/lightning-invoice" }
 # lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }
 # lightning-transaction-sync = { path = "../../ldk/lightning-transaction-sync" }
+
+# * fortanix: SGX port
+# * license: Add dual license information
+# * test: fix testing script
+# * net: add `TcpStream::try_into_std`, used by our `tokio` SGX patchset
+# * Revert "Support compilers with stdlibs that don't have `Send` `User<T>` types"
+mio = { git = "https://github.com/lexe-app/mio", branch = "lexe-v0.8.11-2024_10_11" }
+
+# * license: Add dual license information
+# * proxy: Expose `ProxyScheme`, `set_custom_http_auth`
+# * lib: Fail compilation if using insecure TLS roots
+reqwest = { git = "https://github.com/lexe-app/reqwest", branch = "lexe-v0.12.1-2024_10_11" }
+reqwest11 = { package = "reqwest", git = "https://github.com/lexe-app/reqwest", branch = "lexe-v0.11.26-2024_10_11" }
+
+# * license: Add dual license information
+# * cpu: use static cpuid feature set in SGX enclaves
+# * rand: Use `RDRAND` implementation in SGX
+# * build: Always build from source
+ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.17.8-2024_10_11" }
+ring16 = { package = "ring", git = "https://github.com/lexe-app/ring", branch = "lexe-v0.16.20-2024_10_11" }
+
+# * license: Add dual license information
+# * fortanix: SGX port
+# * test: fix testing script
+# * net: add SGX `TcpStream::into_std` used by `lightning-net-tokio`
+tokio = { git = "https://github.com/lexe-app/tokio",  branch = "lexe-v1.36.0-2024_10_11" }
 
 [profile.release]
 # Enable "thin" LTO (link-time optimization) for better perf+binary size. "fat"
