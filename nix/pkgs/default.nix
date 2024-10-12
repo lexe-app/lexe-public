@@ -115,18 +115,18 @@
   # ```
   gitDepOutputHashes = {
     "git+https://github.com/arik-so/rust-musig2?rev=cff11e3#cff11e3b1af1691f721a120dc6acb921afa31f89" = "sha256-++1x7uHHR7KEhl8LF3VywooULiTzKeDu3e+0/c/8p9Y=";
-    "git+https://github.com/lexe-app/axum-server?branch=lexe-v0.6.0-2024_05_20#25a7f52c0a1ba91f4e2ad80fff649fce377483c4" = "sha256-iA0uAKXlC+x7l9W8CqTsROjAqifqvnmBKnquu2NUgFc=";
-    "git+https://github.com/lexe-app/bdk?branch=lexe-v0.29.0-2024_07_24#9868657663ec65a6be585d7721421fb877b11fe4" = "sha256-38SzJDSskwXJGfU2Wj8YPrsUXjAUQ5Vqj76yUK11/T8=";
-    "git+https://github.com/lexe-app/hyper-util?branch=lexe-v0.1.5-2024_06_03#c817db0b44c11ef194e19b51da6451eb1d328f2d" = "sha256-wX1qxhM9h7loBqU7quvy1aXbygO4ZWiG+peNV9oMjRQ=";
-    "git+https://github.com/lexe-app/hyper?branch=lexe-v0.14.28-2024_03_08#4d072553660a707b7a22b8e4b811e0458e865895" = "sha256-qoQaq/EXBvEE1ptwgdc0m5tupWUG0wLC+v+UQZqTmjs=";
-    "git+https://github.com/lexe-app/mio?branch=lexe-v0.8.11-2024_07_01#dc3cdb65d392dc67bc14dac6fe0d53e16e65d009" = "sha256-Q52i0M9zZWec5JJhh7Rf2v3HX6fTUnr8n2h7sj2B2Ec=";
-    "git+https://github.com/lexe-app/reqwest?branch=lexe-v0.11.26-2024_03_12#1589a52107374fbe14651a1adce2c4463ebf410f" = "sha256-WjQasUfVgH9436d3PQQoHX52RUPCHg92Zz0asSIjfeI=";
-    "git+https://github.com/lexe-app/reqwest?branch=lexe-v0.12.1-2024_03_22#912562f0f2399cb29d8e0456d65732c641382683" = "sha256-cBZOjms6xj/yQ8KDi5sQKC0NVGdC5E7pkU6k7cKcL9A=";
-    "git+https://github.com/lexe-app/ring?branch=lexe-v0.16.20-2023_09_26#6aad00356d5eea8d4c8a00e7f53775e9fedf53be" = "sha256-9CQjWJ0Fk8twGRYv2mMoEMFinrM/2WVQ+X2fV/59vXI=";
-    "git+https://github.com/lexe-app/ring?branch=lexe-v0.17.8-2024_03_21#56c92f51cc0b5dc7ecbfd3c61ed0bbd53546cca6" = "sha256-YljqthNfkFxcIg8Cl2iCIqMG80IMl8hF+Un0rdH+0hY=";
-    "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.123-2024_07_25#f7bbb05c7ee1f532a2eb9e206320ad80d3f752aa" = "sha256-0UJFW/YvS4k1Sh7Lln2xSE8Cx3Qpgl2Y++UA3amWDmE=";
+    "git+https://github.com/lexe-app/axum-server?branch=lexe-v0.6.0-2024_10_11#ef4876f298eb963702704e5a6d976d304c145c1d" = "sha256-8jhdcSpI59Sf/Jg7zEI+QtJHSrhiWr5E+T2BnHD8Tjk=";
+    "git+https://github.com/lexe-app/bdk?branch=lexe-v0.29.0-2024_10_11#b88e742008843707495de3634fb6bd5fe37e3da1" = "sha256-jSMYKVlrmgyFXjbWIwTpHB17SypqJn/TLne6uIdgYJ0=";
+    "git+https://github.com/lexe-app/hyper-util?branch=lexe-v0.1.5-2024_10_11#5e6597befadd773ff7616248eb09d60339312bc1" = "sha256-QNhWHakQBKdYXMAnmWhgXyyg3LulgqYCWZggjl7tm7s=";
+    "git+https://github.com/lexe-app/hyper?branch=lexe-v0.14.28-2024_10_11#dcb0ca215b6873b5966de529e017fb0e7412fb2e" = "sha256-pNBH2Ct6kzIwWWnHAMj4oPrrIMCLkcqxzM6JJ0MyqXo=";
+    "git+https://github.com/lexe-app/mio?branch=lexe-v0.8.11-2024_10_11#84142417f08a9100114f4bda12931a481c1024d6" = "sha256-uYoek4uKq5Yxs0GARttet6lJ0u3xIyxkaLoHJaufJu0";
+    "git+https://github.com/lexe-app/reqwest?branch=lexe-v0.11.26-2024_10_11#50cc5e16ff22c3f657edd7e4d9e6001fc55a69be" = "sha256-V5EiuZI2839ySHTre6cNNyl00x0O7Ukv3l9VHIBmpj8=";
+    "git+https://github.com/lexe-app/reqwest?branch=lexe-v0.12.1-2024_10_11#2158f1ce3ef0df20fb646571f61caf8ba5a5b4ca" = "sha256-ADMgL4ivs63GJOp3OPQ4PWJslkA8w7/qtb40gYeIwP4=";
+    "git+https://github.com/lexe-app/ring?branch=lexe-v0.16.20-2024_10_11#46842781024ab26ae8d4a77ac13153bd5ec013e3" = "sha256-LhbkszM16JzoucXH3vewzSn4WE+q/Zo1aCAdlqmh+BI=";
+    "git+https://github.com/lexe-app/ring?branch=lexe-v0.17.8-2024_10_11#db1b9833cf8f80b6eb3445857846978497d80e66" = "sha256-Cw/yD0ebBhTUX7yQftHP0nNtm1bX626wTPeL2cC4wDw=";
+    "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.123-2024_10_11#58b164a15282de6f5de72fffa6c6a5deb1cfc800" = "sha256-UnX3fksCFTzHxNrTH8RcrnBWy1bj+hR2HWr5X9peQAk=";
     "git+https://github.com/lexe-app/rust-sgx?branch=lexe-30cfd65c-2024_08_29#30cfd65c2b537c4330d6702f3f692762cc7fe1a6" = "sha256-NVGQ+n0NY/UYHiav6BiSmkeFCeyKSDMtG6hPQ8MIQJ0=";
-    "git+https://github.com/lexe-app/tokio?branch=lexe-v1.36.0-2024_07_01#3df5631ecea5ffcafd3d6fd1a141629a1630a534" = "sha256-LmlC43TdO3iUImHmix/M8YvVdG0jqeJeadqgXFsPiOE=";
+    "git+https://github.com/lexe-app/tokio?branch=lexe-v1.36.0-2024_10_11#f6d1d554668fe7530007e1a624e9d46d8755dfd6" = "sha256-ZUoZHJC9OZthqtFKu4WdrBgyr7QSKxoQCCUtcOc9kvU=";
   };
 
   # Quickly fetch a gitdep with its output hash using `pkgs.fetchFromGitHub`.
