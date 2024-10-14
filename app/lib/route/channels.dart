@@ -107,10 +107,10 @@ class _ChannelsPageState extends State<ChannelsPage> {
 
     // Build [TotalChannelBalance].
     this.totalChannelBalance = combine2(
-      this.channels,
+      this.listChannelsService.listChannels,
       this.widget.fiatRate,
       (channels, fiatRate) => (channels != null)
-          ? TotalChannelBalance.fromChannelsList(channels, fiatRate)
+          ? TotalChannelBalance.fromApi(channels, fiatRate)
           : null,
     );
 
@@ -300,42 +300,45 @@ class FiatAmount {
 
 class TotalChannelBalance {
   const TotalChannelBalance({
-    required this.ourBalanceSats,
-    required this.theirBalanceSats,
+    required this.outboundCapacitySats,
+    required this.inboundCapacitySats,
     required this.fiatRate,
   });
 
-  factory TotalChannelBalance.fromChannelsList(
-      ChannelsList channels, FiatRate? fiatRate) {
-    final ourBalanceSats = maxInt(
+  /// Roughly: `balance - punishment_reserve - pending_outbound_htlcs`
+  final int outboundCapacitySats;
+
+  /// A lower bound on the inbound capacity available to us.
+  final int inboundCapacitySats;
+
+  final FiatRate? fiatRate;
+
+  factory TotalChannelBalance.fromApi(
+      ListChannelsResponse channels, FiatRate? fiatRate) {
+    final outboundCapacitySats = maxInt(
           channels.channels
               .where((channel) => channel.isUsable)
-              .map((channel) => channel.ourBalanceSats),
+              .map((channel) => channel.outboundCapacitySats),
         ) ??
         0;
-    final theirBalanceSats = maxInt(
+    final inboundCapacitySats = maxInt(
           channels.channels
               .where((channel) => channel.isUsable)
-              .map((channel) => channel.theirBalanceSats),
+              .map((channel) => channel.inboundCapacitySats),
         ) ??
         0;
 
     return TotalChannelBalance(
-      ourBalanceSats: ourBalanceSats,
-      theirBalanceSats: theirBalanceSats,
+      outboundCapacitySats: outboundCapacitySats,
+      inboundCapacitySats: inboundCapacitySats,
       fiatRate: fiatRate,
     );
   }
 
-  final int ourBalanceSats;
-  final int theirBalanceSats;
-
-  final FiatRate? fiatRate;
-
   @override
   int get hashCode =>
-      this.ourBalanceSats.hashCode ^
-      this.theirBalanceSats.hashCode ^
+      this.outboundCapacitySats.hashCode ^
+      this.inboundCapacitySats.hashCode ^
       this.fiatRate.hashCode;
 
   @override
@@ -343,8 +346,8 @@ class TotalChannelBalance {
       identical(this, other) ||
       other is TotalChannelBalance &&
           runtimeType == other.runtimeType &&
-          this.ourBalanceSats == other.ourBalanceSats &&
-          this.theirBalanceSats == other.theirBalanceSats &&
+          this.outboundCapacitySats == other.outboundCapacitySats &&
+          this.inboundCapacitySats == other.inboundCapacitySats &&
           this.fiatRate == other.fiatRate;
 }
 
@@ -357,8 +360,8 @@ class TotalChannelBalanceWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fiatRate = this.totalChannelBalance?.fiatRate;
-    final ourBalanceSats = this.totalChannelBalance?.ourBalanceSats;
-    final theirBalanceSats = this.totalChannelBalance?.theirBalanceSats;
+    final ourBalanceSats = this.totalChannelBalance?.outboundCapacitySats;
+    final theirBalanceSats = this.totalChannelBalance?.inboundCapacitySats;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
