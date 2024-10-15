@@ -279,15 +279,6 @@ pub trait LexeNodeRunApi {
     /// Returns only once sync has either completed or timed out.
     async fn resync(&self) -> Result<Empty, NodeApiError>;
 
-    /// POST /lexe/open_channel [`OpenChannelRequest`] -> [`Empty`]
-    ///
-    /// Opens a channel to the LSP.
-    /// Does nothing and returns an error if called in prod.
-    async fn open_channel(
-        &self,
-        req: OpenChannelRequest,
-    ) -> Result<Empty, NodeApiError>;
-
     /// POST /lexe/test_event [`TestEventOp`] -> [`Empty`]
     ///
     /// Calls the corresponding `TestEventReceiver` method.
@@ -345,6 +336,14 @@ pub trait AppNodeRunApi {
     /// GET /app/list_channels [`Empty`] -> [`ListChannelsResponse`]
     async fn list_channels(&self)
         -> Result<ListChannelsResponse, NodeApiError>;
+
+    /// POST /app/open_channel [`OpenChannelRequest`] -> [`Empty`]
+    ///
+    /// Opens a channel to the LSP.
+    async fn open_channel(
+        &self,
+        req: OpenChannelRequest,
+    ) -> Result<Empty, NodeApiError>;
 
     /// POST /app/create_invoice [`CreateInvoiceRequest`]
     ///                          -> [`CreateInvoiceResponse`]

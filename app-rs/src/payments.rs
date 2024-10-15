@@ -942,10 +942,11 @@ mod test {
         api::{
             command::{
                 CreateInvoiceRequest, CreateInvoiceResponse,
-                ListChannelsResponse, NodeInfo, PayInvoiceRequest,
-                PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
-                PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-                PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+                ListChannelsResponse, NodeInfo, OpenChannelRequest,
+                PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
+                PayOnchainResponse, PreflightPayInvoiceRequest,
+                PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
+                PreflightPayOnchainResponse,
             },
             error::NodeApiError,
             Empty,
@@ -987,6 +988,12 @@ mod test {
         async fn list_channels(
             &self,
         ) -> Result<ListChannelsResponse, NodeApiError> {
+            unimplemented!()
+        }
+        async fn open_channel(
+            &self,
+            _data: OpenChannelRequest,
+        ) -> Result<Empty, NodeApiError> {
             unimplemented!()
         }
         async fn create_invoice(
