@@ -8,8 +8,12 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use common::{
-    api::NodePk, cli::LspInfo, ln::channel::LxChannelId,
-    shutdown::ShutdownChannel, task::LxTask, test_event::TestEvent,
+    api::NodePk,
+    cli::LspInfo,
+    ln::channel::{LxChannelId, LxUserChannelId},
+    shutdown::ShutdownChannel,
+    task::LxTask,
+    test_event::TestEvent,
 };
 use lexe_ln::{
     alias::NetworkGraphType,
@@ -263,6 +267,8 @@ async fn handle_event_fallible(
             funding_txo,
             channel_type,
         } => {
+            let channel_id = LxChannelId::from(channel_id);
+            let user_channel_id = LxUserChannelId::from(user_channel_id);
             let channel_type = channel_type.expect("Launched after 0.0.122");
             info!(
                 %channel_id, %user_channel_id, %counterparty_node_id,
@@ -278,12 +284,39 @@ async fn handle_event_fallible(
             counterparty_node_id,
             channel_type,
         } => {
+            let channel_id = LxChannelId::from(channel_id);
+            let user_channel_id = LxUserChannelId::from(user_channel_id);
             info!(
                 %channel_id, %user_channel_id,
                 %counterparty_node_id, %channel_type,
                 "Channel ready",
             );
             test_event_tx.send(TestEvent::ChannelReady);
+        }
+
+        Event::ChannelClosed {
+            channel_id,
+            user_channel_id: _,
+            reason,
+            counterparty_node_id,
+            channel_capacity_sats,
+            channel_funding_txo,
+        } => {
+            let channel_id = LxChannelId::from(channel_id);
+            let counterparty_node_id =
+                counterparty_node_id.expect("Launched after v0.0.117");
+            let channel_capacity_sats =
+                channel_capacity_sats.expect("Launched after v0.0.117");
+            // Contrary to the LDK docs, the funding TXO is None when a new
+            // channel negotiation fails.
+            // let channel_funding_txo =
+            //     channel_funding_txo.expect("Launched after v0.0.119");
+            info!(
+                %channel_id, ?reason, %counterparty_node_id,
+                %channel_capacity_sats, ?channel_funding_txo,
+                "Channel is being closed"
+            );
+            test_event_tx.send(TestEvent::ChannelClosed);
         }
 
         Event::PaymentClaimable {
@@ -446,29 +479,6 @@ async fn handle_event_fallible(
             .context("Error handling SpendableOutputs")
             // This is fatal because the outputs are lost if they aren't swept.
             .map_err(EventHandleError::Fatal)?;
-        }
-
-        Event::ChannelClosed {
-            channel_id,
-            user_channel_id: _,
-            reason,
-            counterparty_node_id,
-            channel_capacity_sats,
-            channel_funding_txo,
-        } => {
-            let channel_id = LxChannelId::from(channel_id);
-            let counterparty_node_id =
-                counterparty_node_id.expect("Launched after v0.0.117");
-            let channel_capacity_sats =
-                channel_capacity_sats.expect("Launched after v0.0.117");
-            let channel_funding_txo =
-                channel_funding_txo.expect("Launched after v0.0.119");
-            info!(
-                %channel_id, ?reason, %counterparty_node_id,
-                %channel_capacity_sats, %channel_funding_txo,
-                "Channel is being closed"
-            );
-            test_event_tx.send(TestEvent::ChannelClosed);
         }
 
         Event::DiscardFunding { .. } => {
