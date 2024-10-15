@@ -622,9 +622,6 @@ impl UserNode {
         // TODO(phlip9): authenticate lexe<->node
         let lexe_router_state = Arc::new(LexeRouterState {
             user_pk: args.user_pk,
-            channel_manager: channel_manager.clone(),
-            peer_manager: peer_manager.clone(),
-            lsp_info: args.lsp.clone(),
             bdk_resync_tx,
             ldk_resync_tx,
             test_event_rx,

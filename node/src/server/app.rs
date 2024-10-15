@@ -5,21 +5,23 @@ use common::{
     api::{
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse, ListChannelsResponse,
-            NodeInfo, PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
-            PayOnchainResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse,
+            NodeInfo, OpenChannelRequest, PayInvoiceRequest,
+            PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
         },
         error::NodeApiError,
         qs::{GetNewPayments, GetPaymentsByIndexes, UpdatePaymentNote},
         server::{extract::LxQuery, LxJson},
         Empty,
     },
-    ln::payments::BasicPayment,
+    ln::{channel::LxUserChannelId, payments::BasicPayment},
+    rng::SysRng,
 };
-use lexe_ln::command::CreateInvoiceCaller;
+use lexe_ln::{channel::ChannelRelationship, command::CreateInvoiceCaller};
 
 use super::AppRouterState;
+use crate::channel_manager;
 
 pub(super) async fn node_info(
     State(state): State<Arc<AppRouterState>>,
@@ -43,6 +45,27 @@ pub(super) async fn list_channels(
     LxJson(lexe_ln::command::list_channels(
         state.channel_manager.clone(),
     ))
+}
+
+pub(super) async fn open_channel(
+    State(state): State<Arc<AppRouterState>>,
+    LxJson(req): LxJson<OpenChannelRequest>,
+) -> Result<LxJson<Empty>, NodeApiError> {
+    let user_channel_id = LxUserChannelId::gen(&mut SysRng::new());
+    let relationship = ChannelRelationship::UserToLsp {
+        lsp_channel_peer: state.lsp_info.channel_peer(),
+    };
+    lexe_ln::channel::open_channel(
+        state.channel_manager.clone(),
+        state.peer_manager.clone(),
+        user_channel_id.to_u128(),
+        req.value,
+        relationship,
+        channel_manager::USER_CONFIG,
+    )
+    .await
+    .map(LxJson)
+    .map_err(NodeApiError::command)
 }
 
 pub(super) async fn create_invoice(

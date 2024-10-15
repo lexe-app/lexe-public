@@ -66,6 +66,7 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
     let router = Router::new()
         .route("/app/node_info", get(app::node_info))
         .route("/app/list_channels", get(app::list_channels))
+        .route("/app/open_channel", post(app::open_channel))
         .route("/app/create_invoice", post(app::create_invoice))
         .route("/app/pay_invoice", post(app::pay_invoice))
         .route("/app/preflight_pay_invoice", post(app::preflight_pay_invoice))
@@ -87,9 +88,6 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
 
 pub(crate) struct LexeRouterState {
     pub user_pk: UserPk,
-    pub channel_manager: NodeChannelManager,
-    pub peer_manager: NodePeerManager,
-    pub lsp_info: LspInfo,
     pub bdk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
     pub ldk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
     pub test_event_rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
@@ -103,7 +101,6 @@ pub(crate) fn lexe_router(state: Arc<LexeRouterState>) -> Router<()> {
     Router::new()
         .route("/lexe/status", get(lexe::status))
         .route("/lexe/resync", post(lexe::resync))
-        .route("/lexe/open_channel", post(lexe::open_channel))
         .route("/lexe/test_event", post(lexe::test_event))
         .route("/lexe/shutdown", get(lexe::shutdown))
         .with_state(state)
