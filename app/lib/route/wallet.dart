@@ -135,11 +135,11 @@ class WalletPageState extends State<WalletPage> {
 
     // Sync payments on refresh.
     this.paymentSyncOnRefresh =
-        refreshService.refresh.listen(this.paymentSyncService.sync);
+        this.refreshService.refresh.listen(this.paymentSyncService.sync);
 
     // Fetch [NodeInfo] on refresh.
     this.nodeInfoFetchOnRefresh =
-        refreshService.refresh.listen(this.nodeInfoService.fetch);
+        this.refreshService.refresh.listen(this.nodeInfoService.fetch);
 
     // A stream of `BalanceState`s that gets updated when `nodeInfos` or
     // `fiatRate` are updated.
