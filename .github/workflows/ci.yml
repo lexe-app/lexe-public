@@ -81,7 +81,7 @@ jobs:
       # Utils
       - run: cargo check --release --locked -p run-sgx
       # Node
-      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo check --release --locked -p node --target=x86_64-fortanix-unknown-sgx
+      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" RUSTC_BOOTSTRAP=1 cargo check --release --locked -p node --target=x86_64-fortanix-unknown-sgx
 
   test:
     runs-on: ubuntu-22.04
