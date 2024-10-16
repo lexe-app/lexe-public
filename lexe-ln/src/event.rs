@@ -64,19 +64,23 @@ pub fn get_event_name(event: &Event) -> &'static str {
 /// Handles a [`Event::FundingGenerationReady`].
 pub async fn handle_funding_generation_ready<CM, PS>(
     wallet: &LexeWallet,
-    channel_manager: CM,
+    channel_manager: &CM,
     test_event_tx: &TestEventSender,
 
     temporary_channel_id: ChannelId,
     counterparty_node_id: secp256k1::PublicKey,
     channel_value_satoshis: u64,
     output_script: bitcoin::ScriptBuf,
-) -> anyhow::Result<()>
+) -> Result<(), EventHandleError>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
     let conf_prio = ConfirmationPriority::Normal;
+
+    // Sign the funding tx.
+    // This can fail if we just don't have enought on-chain funds, so it's a
+    // tolerable error.
     let signed_raw_funding_tx = wallet
         .create_and_sign_funding_tx(
             output_script,
@@ -84,27 +88,44 @@ where
             conf_prio,
         )
         .await
-        .context("Could not create and sign funding tx")
-        // Force close the pending channel if funding tx generation failed.
-        .inspect_err(|_| {
-            channel_manager
-                .force_close_without_broadcasting_txn(
+        .context("Failed to create channel funding tx")
+        .map_err(|create_err| {
+            // Make sure we force close the channel. Should not fail.
+            if let Err(close_err) = channel_manager
+                .force_close_broadcasting_latest_txn(
                     &temporary_channel_id,
                     &counterparty_node_id,
                 )
-                .expect(
-                    "Failed to force close after funding generation failed",
-                );
+                .map_err(|close_err| {
+                    anyhow!(
+                        "Failed to force close channel after funding generation \
+                         fail: {close_err:?}, funding err: {create_err:#}")
+                })
+            {
+                return EventHandleError::Fatal(close_err);
+            }
+
+            // Failing to build the funding tx is tolerable.
+            EventHandleError::Tolerable(create_err)
         })?;
 
-    channel_manager
-        .funding_transaction_generated(
-            &temporary_channel_id,
-            &counterparty_node_id,
-            signed_raw_funding_tx,
-        )
-        .inspect(|()| test_event_tx.send(TestEvent::FundingGenerationHandled))
-        .map_err(|e| anyhow!("LDK rejected the signed funding tx: {e:?}"))?;
+    use lightning::util::errors::APIError;
+    match channel_manager.funding_transaction_generated(
+        &temporary_channel_id,
+        &counterparty_node_id,
+        signed_raw_funding_tx,
+    ) {
+        Ok(()) => test_event_tx.send(TestEvent::FundingGenerationHandled),
+        Err(APIError::APIMisuseError { err }) =>
+            return Err(EventHandleError::Fatal(anyhow!(
+                "Failed to finish channel funding generation: \
+                 LDK API misuse error: {err}"
+            ))),
+        Err(err) =>
+            return Err(EventHandleError::Tolerable(anyhow!(
+                "Failed to handle channel funding generation: {err:?}"
+            ))),
+    }
 
     Ok(())
 }

@@ -244,20 +244,17 @@ async fn handle_event_fallible(
             channel_value_satoshis,
             output_script,
             user_channel_id: _,
-        } => {
+        } =>
             event::handle_funding_generation_ready(
                 wallet,
-                channel_manager.clone(),
+                channel_manager,
                 test_event_tx,
                 temporary_channel_id,
                 counterparty_node_id,
                 channel_value_satoshis,
                 output_script,
             )
-            .await
-            .context("Failed to handle funding generation ready")
-            .map_err(EventHandleError::Fatal)?;
-        }
+            .await?,
 
         Event::ChannelPending {
             channel_id,
