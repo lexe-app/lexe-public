@@ -8,15 +8,12 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use common::{
-    api::NodePk,
-    cli::LspInfo,
-    ln::channel::{LxChannelId, LxUserChannelId},
-    shutdown::ShutdownChannel,
-    task::LxTask,
-    test_event::TestEvent,
+    api::NodePk, cli::LspInfo, ln::channel::LxChannelId,
+    shutdown::ShutdownChannel, task::LxTask,
 };
 use lexe_ln::{
     alias::NetworkGraphType,
+    channel::ChannelEventsMonitor,
     esplora::LexeEsplora,
     event::{self, EventHandleError},
     keys_manager::LexeKeysManager,
@@ -40,6 +37,7 @@ pub struct NodeEventHandler {
     pub(crate) network_graph: Arc<NetworkGraphType>,
     pub(crate) payments_manager: PaymentsManagerType,
     pub(crate) fatal_event: Arc<AtomicBool>,
+    pub(crate) channel_events_monitor: ChannelEventsMonitor,
     pub(crate) test_event_tx: TestEventSender,
     pub(crate) shutdown: ShutdownChannel,
 }
@@ -89,6 +87,7 @@ impl EventHandler for NodeEventHandler {
         let keys_manager = self.keys_manager.clone();
         let payments_manager = self.payments_manager.clone();
         let fatal_event = self.fatal_event.clone();
+        let channel_events_monitor = self.channel_events_monitor.clone();
         let test_event_tx = self.test_event_tx.clone();
         let shutdown = self.shutdown.clone();
 
@@ -117,6 +116,7 @@ impl EventHandler for NodeEventHandler {
                 keys_manager.as_ref(),
                 &payments_manager,
                 fatal_event.as_ref(),
+                &channel_events_monitor,
                 &test_event_tx,
                 &shutdown,
                 event,
@@ -137,6 +137,7 @@ pub(crate) async fn handle_event(
     keys_manager: &LexeKeysManager,
     payments_manager: &PaymentsManagerType,
     fatal_event: &AtomicBool,
+    channel_events_monitor: &ChannelEventsMonitor,
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
     event: Event,
@@ -150,6 +151,7 @@ pub(crate) async fn handle_event(
         network_graph,
         keys_manager,
         payments_manager,
+        channel_events_monitor,
         test_event_tx,
         shutdown,
         event,
@@ -179,6 +181,7 @@ async fn handle_event_fallible(
     _network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
     payments_manager: &PaymentsManagerType,
+    channel_events_monitor: &ChannelEventsMonitor,
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
     event: Event,
@@ -263,58 +266,47 @@ async fn handle_event_fallible(
             counterparty_node_id,
             funding_txo,
             channel_type,
-        } => {
-            let channel_id = LxChannelId::from(channel_id);
-            let user_channel_id = LxUserChannelId::from(user_channel_id);
-            let channel_type = channel_type.expect("Launched after 0.0.122");
-            info!(
-                %channel_id, %user_channel_id, %counterparty_node_id,
-                %funding_txo, %channel_type,
-                "Channel pending",
-            );
-            test_event_tx.send(TestEvent::ChannelPending);
-        }
+        } => event::handle_channel_pending(
+            channel_events_monitor,
+            test_event_tx,
+            channel_id,
+            user_channel_id,
+            counterparty_node_id,
+            funding_txo,
+            channel_type,
+        ),
 
         Event::ChannelReady {
             channel_id,
             user_channel_id,
             counterparty_node_id,
             channel_type,
-        } => {
-            let channel_id = LxChannelId::from(channel_id);
-            let user_channel_id = LxUserChannelId::from(user_channel_id);
-            info!(
-                %channel_id, %user_channel_id,
-                %counterparty_node_id, %channel_type,
-                "Channel ready",
-            );
-            test_event_tx.send(TestEvent::ChannelReady);
-        }
+        } => event::handle_channel_ready(
+            channel_events_monitor,
+            test_event_tx,
+            channel_id,
+            user_channel_id,
+            counterparty_node_id,
+            channel_type,
+        ),
 
         Event::ChannelClosed {
             channel_id,
-            user_channel_id: _,
+            user_channel_id,
             reason,
             counterparty_node_id,
             channel_capacity_sats,
             channel_funding_txo,
-        } => {
-            let channel_id = LxChannelId::from(channel_id);
-            let counterparty_node_id =
-                counterparty_node_id.expect("Launched after v0.0.117");
-            let channel_capacity_sats =
-                channel_capacity_sats.expect("Launched after v0.0.117");
-            // Contrary to the LDK docs, the funding TXO is None when a new
-            // channel negotiation fails.
-            // let channel_funding_txo =
-            //     channel_funding_txo.expect("Launched after v0.0.119");
-            info!(
-                %channel_id, ?reason, %counterparty_node_id,
-                %channel_capacity_sats, ?channel_funding_txo,
-                "Channel is being closed"
-            );
-            test_event_tx.send(TestEvent::ChannelClosed);
-        }
+        } => event::handle_channel_closed(
+            channel_events_monitor,
+            test_event_tx,
+            channel_id,
+            user_channel_id,
+            reason,
+            counterparty_node_id,
+            channel_capacity_sats,
+            channel_funding_txo,
+        ),
 
         Event::PaymentClaimable {
             payment_hash,
