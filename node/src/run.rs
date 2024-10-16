@@ -596,6 +596,7 @@ impl UserNode {
             network,
             measurement,
             activity_tx,
+            channel_events_monitor,
         });
         let app_listener =
             TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)

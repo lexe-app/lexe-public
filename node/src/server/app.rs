@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anyhow::Context;
 use axum::extract::State;
 use common::{
     api::{
@@ -55,15 +56,18 @@ pub(super) async fn open_channel(
     let relationship = ChannelRelationship::UserToLsp {
         lsp_channel_peer: state.lsp_info.channel_peer(),
     };
-    lexe_ln::channel::open_channel(
-        state.channel_manager.clone(),
-        state.peer_manager.clone(),
-        user_channel_id.to_u128(),
+
+    lexe_ln::command::open_channel(
+        &state.channel_manager,
+        &state.peer_manager,
+        &state.channel_events_monitor,
+        user_channel_id,
         req.value,
         relationship,
         channel_manager::USER_CONFIG,
     )
     .await
+    .context("Failed to open channel")
     .map(LxJson)
     .map_err(NodeApiError::command)
 }

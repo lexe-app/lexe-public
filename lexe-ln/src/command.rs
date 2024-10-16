@@ -17,7 +17,9 @@ use common::{
     cli::LspInfo,
     enclave::Measurement,
     ln::{
-        amount::Amount, channel::LxChannelDetails, invoice::LxInvoice,
+        amount::Amount,
+        channel::{LxChannelDetails, LxUserChannelId},
+        invoice::LxInvoice,
         network::LxNetwork,
     },
 };
@@ -31,6 +33,7 @@ use lightning::{
     },
     routing::router::{PaymentParameters, RouteHint, RouteParameters, Router},
     sign::{NodeSigner, Recipient},
+    util::config::UserConfig,
 };
 use lightning_invoice::{Bolt11Invoice, Currency, InvoiceBuilder};
 use tokio::sync::{mpsc, oneshot};
@@ -38,6 +41,7 @@ use tracing::{debug, info, instrument};
 
 use crate::{
     alias::{LexeChainMonitorType, RouterType},
+    channel::{ChannelEvent, ChannelEventsMonitor, ChannelRelationship},
     esplora::LexeEsplora,
     keys_manager::LexeKeysManager,
     payments::{
@@ -129,6 +133,61 @@ where
         .map(LxChannelDetails::from)
         .collect::<Vec<_>>();
     ListChannelsResponse { channels }
+}
+
+/// Open and fund a new channel with `channel_value` and counterparty of
+/// `relationship`. Waits for the channel to become `Pending` (success) or
+/// `Closed` (failure).
+pub async fn open_channel<CM, PM, PS>(
+    channel_manager: &CM,
+    peer_manager: &PM,
+    channel_events_monitor: &ChannelEventsMonitor,
+    user_channel_id: LxUserChannelId,
+    channel_value: Amount,
+    relationship: ChannelRelationship<PS>,
+    user_config: UserConfig,
+) -> anyhow::Result<Empty>
+where
+    CM: LexeChannelManager<PS>,
+    PM: LexePeerManager<CM, PS>,
+    PS: LexePersister,
+{
+    // Start listening to channel events
+    let mut channel_events = channel_events_monitor.subscribe();
+
+    // TODO(phlip9): connect peer first, then subscribe, then open channel.
+    // Minimize potential to lose channel events.
+
+    // Connect to remote peer and start the open channel process
+    crate::channel::open_channel(
+        channel_manager.clone(),
+        peer_manager.clone(),
+        user_channel_id,
+        channel_value,
+        relationship,
+        user_config,
+    )
+    .await?;
+
+    // Wait for the next channel event with this `user_channel_id`. A successful
+    // channel open should yield a `Pending` event, while a failed channel
+    // open should yield a `Closed` event.
+    let channel_event = tokio::time::timeout(
+        Duration::from_secs(15),
+        channel_events
+            .next_filtered(|event| event.user_channel_id() == &user_channel_id),
+    )
+    .await
+    .context("Waiting for channel pending")?;
+
+    if let ChannelEvent::Closed { reason, .. } = channel_event {
+        return Err(anyhow!("Channel open failed: {reason}"));
+    }
+
+    // TODO(phlip9): include in respose
+    let _channel_id = channel_event.channel_id();
+
+    Ok(Empty {})
 }
 
 /// Uses the given `[bdk|ldk]_resync_tx` to retrigger BDK and LDK sync, and
