@@ -35,6 +35,7 @@ use lexe_ln::{
         RouterType,
     },
     background_processor::LexeBackgroundProcessor,
+    channel::ChannelEventsMonitor,
     channel_monitor,
     esplora::{self, LexeEsplora},
     keys_manager::LexeKeysManager,
@@ -553,6 +554,7 @@ impl UserNode {
 
         // Initialize the event handler
         let fatal_event = Arc::new(AtomicBool::new(false));
+        let channel_events_monitor = ChannelEventsMonitor::new();
         let event_handler = NodeEventHandler {
             lsp: args.lsp.clone(),
             wallet: wallet.clone(),
@@ -562,6 +564,7 @@ impl UserNode {
             network_graph: network_graph.clone(),
             payments_manager: payments_manager.clone(),
             fatal_event: fatal_event.clone(),
+            channel_events_monitor: channel_events_monitor.clone(),
             test_event_tx: test_event_tx.clone(),
             shutdown: shutdown.clone(),
         };
