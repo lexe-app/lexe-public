@@ -20,8 +20,9 @@ use common::{
     shutdown::ShutdownChannel,
 };
 use lexe_ln::{
-    alias::RouterType, esplora::LexeEsplora, keys_manager::LexeKeysManager,
-    test_event::TestEventReceiver, wallet::LexeWallet,
+    alias::RouterType, channel::ChannelEventsMonitor, esplora::LexeEsplora,
+    keys_manager::LexeKeysManager, test_event::TestEventReceiver,
+    wallet::LexeWallet,
 };
 use tokio::sync::{mpsc, oneshot};
 use tower::util::MapRequestLayer;
@@ -55,6 +56,7 @@ pub(crate) struct AppRouterState {
     pub network: LxNetwork,
     pub measurement: Measurement,
     pub activity_tx: mpsc::Sender<()>,
+    pub channel_events_monitor: ChannelEventsMonitor,
 }
 
 /// Implements [`AppNodeRunApi`] - endpoints only callable by the app.

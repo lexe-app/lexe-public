@@ -48,7 +48,7 @@ pub enum ChannelRelationship<PS: LexePersister> {
 pub async fn open_channel<CM, PM, PS>(
     channel_manager: CM,
     peer_manager: PM,
-    user_channel_id: u128,
+    user_channel_id: LxUserChannelId,
     channel_value: Amount,
     relationship: ChannelRelationship<PS>,
     user_config: UserConfig,
@@ -119,7 +119,7 @@ where
             responder_node_pk.0,
             channel_value.sats_u64(),
             push_msat,
-            user_channel_id,
+            user_channel_id.to_u128(),
             temporary_channel_id,
             Some(user_config),
         )
