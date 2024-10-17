@@ -127,6 +127,8 @@
     pkgs.just
     # cat files with syntax highlighting
     pkgs.bat
+    # JSON processor; used for releases.json when verifying reproducible builds
+    pkgs.jq
   ];
 
   environment.shellAliases = {
