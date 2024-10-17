@@ -24,10 +24,11 @@ use crate::{
         },
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse, ListChannelsResponse,
-            NodeInfo, OpenChannelRequest, PayInvoiceRequest,
-            PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            NodeInfo, OpenChannelRequest, OpenChannelResponse,
+            PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
+            PayOnchainResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse,
         },
         def::{
             AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
@@ -366,7 +367,7 @@ impl AppNodeRunApi for NodeClient {
     async fn open_channel(
         &self,
         data: OpenChannelRequest,
-    ) -> Result<Empty, NodeApiError> {
+    ) -> Result<OpenChannelResponse, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/open_channel");

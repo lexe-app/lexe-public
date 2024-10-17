@@ -25,7 +25,6 @@
 use async_trait::async_trait;
 use bitcoin::{address::NetworkUnchecked, Address};
 
-use super::{command::ListChannelsResponse, qs::GetPaymentsByIndexes};
 #[cfg(doc)]
 use crate::{
     api::qs::{GetByMeasurement, GetByUserPk},
@@ -38,9 +37,10 @@ use crate::{
             UserSignupRequest,
         },
         command::{
-            CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
-            OpenChannelRequest, PayInvoiceRequest, PayInvoiceResponse,
-            PayOnchainRequest, PayOnchainResponse, PreflightPayInvoiceRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse, ListChannelsResponse,
+            NodeInfo, OpenChannelRequest, OpenChannelResponse,
+            PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
+            PayOnchainResponse, PreflightPayInvoiceRequest,
             PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
             PreflightPayOnchainResponse,
         },
@@ -52,7 +52,10 @@ use crate::{
         models::NodeRelease,
         ports::Ports,
         provision::{NodeProvisionRequest, SealedSeed, SealedSeedId},
-        qs::{GetNewPayments, GetPaymentByIndex, UpdatePaymentNote},
+        qs::{
+            GetNewPayments, GetPaymentByIndex, GetPaymentsByIndexes,
+            UpdatePaymentNote,
+        },
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Empty, NodePk, Scid, User, UserPk,
     },
@@ -337,13 +340,13 @@ pub trait AppNodeRunApi {
     async fn list_channels(&self)
         -> Result<ListChannelsResponse, NodeApiError>;
 
-    /// POST /app/open_channel [`OpenChannelRequest`] -> [`Empty`]
+    /// POST /app/open_channel [`OpenChannelRequest`] -> [`OpenChannelResponse`]
     ///
     /// Opens a channel to the LSP.
     async fn open_channel(
         &self,
         req: OpenChannelRequest,
-    ) -> Result<Empty, NodeApiError>;
+    ) -> Result<OpenChannelResponse, NodeApiError>;
 
     /// POST /app/create_invoice [`CreateInvoiceRequest`]
     ///                          -> [`CreateInvoiceResponse`]

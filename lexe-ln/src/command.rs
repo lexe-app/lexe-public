@@ -7,10 +7,10 @@ use common::{
     api::{
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse, ListChannelsResponse,
-            NodeInfo, PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
-            PayOnchainResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse,
+            NodeInfo, OpenChannelResponse, PayInvoiceRequest,
+            PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
         },
         Empty, NodePk, Scid,
     },
@@ -148,7 +148,7 @@ pub async fn open_channel<CM, PM, PS>(
     channel_value: Amount,
     relationship: ChannelRelationship<PS>,
     user_config: UserConfig,
-) -> anyhow::Result<Empty>
+) -> anyhow::Result<OpenChannelResponse>
 where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS>,
@@ -191,10 +191,9 @@ where
         return Err(anyhow!("Channel open failed: {reason}"));
     }
 
-    // TODO(phlip9): include in respose
-    let _channel_id = channel_event.channel_id();
-
-    Ok(Empty {})
+    Ok(OpenChannelResponse {
+        channel_id: *channel_event.channel_id(),
+    })
 }
 
 /// Uses the given `[bdk|ldk]_resync_tx` to retrigger BDK and LDK sync, and
