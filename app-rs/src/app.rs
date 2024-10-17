@@ -483,6 +483,11 @@ impl App {
         storage::write_latest_provisioned(app_data_ffs, node_release)
             .context("Could not write latest provisioned")?;
 
+        info!(
+            version = %node_release.version,
+            measurement = %node_release.measurement,
+            "Provision success:"
+        );
         Ok(())
     }
 }
