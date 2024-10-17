@@ -1,5 +1,5 @@
 use std::{
-    fmt::{self, Display},
+    fmt::{self, Debug, Display},
     str::FromStr,
 };
 
@@ -25,7 +25,7 @@ use crate::{
 };
 
 /// A newtype for [`lightning::ln::ChannelId`].
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct LxChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
 impl FromStr for LxChannelId {
@@ -38,6 +38,12 @@ impl FromStr for LxChannelId {
 impl Display for LxChannelId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", hex::display(&self.0))
+    }
+}
+
+impl Debug for LxChannelId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(self, f)
     }
 }
 
@@ -61,7 +67,7 @@ impl From<LxChannelId> for ChannelId {
 /// actually talked to the remote node and agreed to open a channel. The second
 /// issue is that we can't easily observe and correlate any errors from channel
 /// negotiation beyond some basic checks before we send any messages.
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct LxUserChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 16]);
 
 impl LxUserChannelId {
@@ -85,6 +91,12 @@ impl FromStr for LxUserChannelId {
 impl Display for LxUserChannelId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", hex::display(&self.0))
+    }
+}
+
+impl Debug for LxUserChannelId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(self, f)
     }
 }
 
