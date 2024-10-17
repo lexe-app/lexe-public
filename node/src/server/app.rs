@@ -6,10 +6,11 @@ use common::{
     api::{
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse, ListChannelsResponse,
-            NodeInfo, OpenChannelRequest, PayInvoiceRequest,
-            PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            NodeInfo, OpenChannelRequest, OpenChannelResponse,
+            PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
+            PayOnchainResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse,
         },
         error::NodeApiError,
         qs::{GetNewPayments, GetPaymentsByIndexes, UpdatePaymentNote},
@@ -51,7 +52,7 @@ pub(super) async fn list_channels(
 pub(super) async fn open_channel(
     State(state): State<Arc<AppRouterState>>,
     LxJson(req): LxJson<OpenChannelRequest>,
-) -> Result<LxJson<Empty>, NodeApiError> {
+) -> Result<LxJson<OpenChannelResponse>, NodeApiError> {
     let user_channel_id = LxUserChannelId::gen(&mut SysRng::new());
     let relationship = ChannelRelationship::UserToLsp {
         lsp_channel_peer: state.lsp_info.channel_peer(),
