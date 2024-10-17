@@ -1,6 +1,6 @@
-use std::{sync::Arc, time::Duration};
+use std::{slice, sync::Arc, time::Duration};
 
-use anyhow::{anyhow, bail, Context};
+use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin::bech32::ToBase32;
 use bitcoin_hashes::{sha256, Hash};
 use common::{
@@ -21,6 +21,7 @@ use common::{
         channel::{LxChannelDetails, LxUserChannelId},
         invoice::LxInvoice,
         network::LxNetwork,
+        peer::ChannelPeer,
     },
 };
 use lightning::{
@@ -44,6 +45,7 @@ use crate::{
     channel::{ChannelEvent, ChannelEventsMonitor, ChannelRelationship},
     esplora::LexeEsplora,
     keys_manager::LexeKeysManager,
+    p2p::{self, ChannelPeerUpdate},
     payments::{
         inbound::InboundInvoicePayment,
         manager::PaymentsManager,
@@ -53,7 +55,9 @@ use crate::{
         },
         Payment,
     },
-    traits::{LexeChannelManager, LexePeerManager, LexePersister},
+    traits::{
+        LexeChannelManager, LexeInnerPersister, LexePeerManager, LexePersister,
+    },
     wallet::LexeWallet,
 };
 
@@ -157,10 +161,70 @@ where
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
-    // First ensure we're connected to the remote peer.
-    crate::channel::pre_open_channel_connect_peer(peer_manager, &relationship)
-        .await
-        .context("Failed to connect to peer")?;
+    /// Before opening a new channel with a peer, we need to first ensure
+    /// that we're connected:
+    ///
+    /// - In the UserToLsp and LspToExternal cases, we may initiate an
+    ///   outgoing connection if we are not already connected.
+    ///
+    /// - In the LspToUser case, the caller must ensure that we are already
+    ///   connected to the user prior to open_channel.
+    ///
+    /// - If the LSP is opening a channel with an external LN node, we must
+    ///   ensure that we've persisted the counterparty's ChannelPeer
+    ///   information so that we can connect with them after restart.
+    use ChannelRelationship::*;
+    match &relationship {
+        UserToLsp { lsp_channel_peer } => {
+            let ChannelPeer { node_pk, addr } = lsp_channel_peer;
+            let addrs = slice::from_ref(addr);
+            p2p::connect_peer_if_necessary(
+                peer_manager.clone(),
+                node_pk,
+                addrs,
+            )
+            .await
+            .context("Could not connect to LSP")?;
+        }
+        LspToUser { user_node_pk } => ensure!(
+            peer_manager.peer_by_node_id(&user_node_pk.0).is_some(),
+            "LSP must be connected to user before opening channel",
+        ),
+        LspToExternal {
+            channel_peer,
+            persister,
+            channel_peer_tx,
+        } => {
+            let ChannelPeer { node_pk, addr } = channel_peer;
+            let addrs = slice::from_ref(addr);
+            p2p::connect_peer_if_necessary(
+                peer_manager.clone(),
+                node_pk,
+                addrs,
+            )
+            .await
+            .context("Could not connect to external node")?;
+
+            // Before we actually create the channel, persist the ChannelPeer so
+            // that there is no chance of having an open channel without the
+            // associated ChannelPeer information.
+            // TODO(max): This should be renamed to persist_external_peer
+            let channel_peer = ChannelPeer {
+                node_pk: *node_pk,
+                addr: addr.clone(),
+            };
+            persister
+                .persist_channel_peer(channel_peer.clone())
+                .await
+                .context("Failed to persist channel peer")?;
+
+            // Also tell our p2p reconnector to continuously try to reconnect to
+            // this channel peer if we disconnect for some reason.
+            channel_peer_tx
+                .try_send(ChannelPeerUpdate::Add(channel_peer))
+                .context("Couldn't tell p2p reconnector of new channel peer")?;
+        }
+    }
 
     // Start listening for channel events.
     let mut channel_events_rx = channel_events_monitor.subscribe();
