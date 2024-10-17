@@ -1,20 +1,20 @@
-use std::fmt::{self, Display};
+use std::{
+    fmt::{self, Display},
+    slice,
+};
 
 use anyhow::{anyhow, ensure, Context};
 use common::{
     api::{command::CloseChannelRequest, Empty, NodePk},
     constants::DEFAULT_CHANNEL_SIZE,
     ln::{
-        amount::Amount,
         channel::{LxChannelId, LxUserChannelId},
         peer::ChannelPeer,
     },
 };
-use lightning::{
-    events::ClosureReason, ln::ChannelId, util::config::UserConfig,
-};
+use lightning::{events::ClosureReason, ln::ChannelId};
 use tokio::sync::{broadcast, mpsc};
-use tracing::{info, instrument};
+use tracing::info;
 
 use crate::{
     p2p::{self, ChannelPeerUpdate},
@@ -42,62 +42,67 @@ pub enum ChannelRelationship<PS: LexePersister> {
     },
 }
 
-/// Handles the full logic of opening a channel, including connecting to the
-/// peer, creating the channel, and persisting the newly created channel.
-#[instrument(skip_all, name = "(open-channel)")]
-pub async fn open_channel<CM, PM, PS>(
-    channel_manager: CM,
-    peer_manager: PM,
-    user_channel_id: LxUserChannelId,
-    channel_value: Amount,
-    relationship: ChannelRelationship<PS>,
-    user_config: UserConfig,
-) -> anyhow::Result<Empty>
+/// Before opening a new channel with a peer, we need to first ensure that we're
+/// connected:
+///
+/// - In the UserToLsp and LspToExternal cases, we may initiate an outgoing
+///   connection if we are not already connected.
+///
+/// - In the LspToUser case, the caller must ensure that we are already
+///   connected to the user prior to open_channel.
+///
+/// - If the LSP is opening a channel with an external LN node, we must ensure
+///   that we've persisted the counterparty's ChannelPeer information so that we
+///   can connect with them after restart.
+pub async fn pre_open_channel_connect_peer<CM, PM, PS>(
+    peer_manager: &PM,
+    relationship: &ChannelRelationship<PS>,
+) -> anyhow::Result<()>
 where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
-    let responder_node_pk = relationship.responder_node_pk();
-    info!("Opening a {relationship} channel to {responder_node_pk}");
-
-    // Ensure that we are connected to the channel responder.
-    // - In the UserToLsp and LspToExternal cases, we may initiate an outgoing
-    //   connection if we are not already connected.
-    // - In the LspToUser case, the caller must ensure that we are already
-    //   connected to the user prior to open_channel.
-    // - If the LSP is opening a channel with an external LN node, we must
-    //   ensure that we've persisted the counterparty's ChannelPeer information
-    //   so that we can connect with them after restart.
     use ChannelRelationship::*;
     match relationship {
         UserToLsp { lsp_channel_peer } => {
             let ChannelPeer { node_pk, addr } = lsp_channel_peer;
-            p2p::connect_peer_if_necessary(peer_manager, &node_pk, &[addr])
+            let addrs = slice::from_ref(addr);
+            p2p::connect_peer_if_necessary(peer_manager.clone(), node_pk, addrs)
                 .await
-                .context("Could not connect to LSP")?;
+                .map(|_| ())
+                .context("Could not connect to LSP")
         }
-        LspToUser { user_node_pk } => ensure!(
-            peer_manager.peer_by_node_id(&user_node_pk.0).is_some(),
-            "LSP must be connected to user before opening channel",
-        ),
+        LspToUser { user_node_pk } => {
+            ensure!(
+                peer_manager.peer_by_node_id(&user_node_pk.0).is_some(),
+                "LSP must be connected to user before opening channel",
+            );
+            Ok(())
+        }
         LspToExternal {
             channel_peer,
             persister,
             channel_peer_tx,
         } => {
             let ChannelPeer { node_pk, addr } = channel_peer;
-            let addrs = [addr];
-            p2p::connect_peer_if_necessary(peer_manager, &node_pk, &addrs)
-                .await
-                .context("Could not connect to external node")?;
+            let addrs = slice::from_ref(addr);
+            p2p::connect_peer_if_necessary(
+                peer_manager.clone(),
+                node_pk,
+                addrs,
+            )
+            .await
+            .context("Could not connect to external node")?;
 
             // Before we actually create the channel, persist the ChannelPeer so
             // that there is no chance of having an open channel without the
             // associated ChannelPeer information.
             // TODO(max): This should be renamed to persist_external_peer
-            let [addr] = addrs;
-            let channel_peer = ChannelPeer { node_pk, addr };
+            let channel_peer = ChannelPeer {
+                node_pk: *node_pk,
+                addr: addr.clone(),
+            };
             persister
                 .persist_channel_peer(channel_peer.clone())
                 .await
@@ -107,26 +112,9 @@ where
             // this channel peer if we disconnect for some reason.
             channel_peer_tx
                 .try_send(ChannelPeerUpdate::Add(channel_peer))
-                .context("Couldn't tell p2p reconnector of new channel peer")?;
+                .context("Couldn't tell p2p reconnector of new channel peer")
         }
-    };
-
-    // Finally, create the channel.
-    let push_msat = 0; // No need for this yet
-    let temporary_channel_id = None; // No need for this yet
-    channel_manager
-        .create_channel(
-            responder_node_pk.0,
-            channel_value.sats_u64(),
-            push_msat,
-            user_channel_id.to_u128(),
-            temporary_channel_id,
-            Some(user_config),
-        )
-        .map_err(|e| anyhow!("Failed to create channel: {e:?}"))?;
-
-    info!("Successfully opened channel");
-    Ok(Empty {})
+    }
 }
 
 /// Initiates a channel close. Supports both cooperative (bilateral) and force
@@ -183,7 +171,7 @@ where
 
 impl<PS: LexePersister> ChannelRelationship<PS> {
     /// Returns the channel responder's [`NodePk`]
-    fn responder_node_pk(&self) -> NodePk {
+    pub fn responder_node_pk(&self) -> NodePk {
         match self {
             Self::UserToLsp { lsp_channel_peer } => lsp_channel_peer.node_pk,
             Self::LspToUser { user_node_pk } => *user_node_pk,

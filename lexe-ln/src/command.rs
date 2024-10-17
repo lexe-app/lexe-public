@@ -122,6 +122,7 @@ where
     Ok(info)
 }
 
+#[instrument(skip_all, name = "(list-channels)")]
 pub fn list_channels<CM, PS>(channel_manager: CM) -> ListChannelsResponse
 where
     CM: LexeChannelManager<PS>,
@@ -138,6 +139,7 @@ where
 /// Open and fund a new channel with `channel_value` and counterparty of
 /// `relationship`. Waits for the channel to become `Pending` (success) or
 /// `Closed` (failure).
+#[instrument(skip_all, name = "(open-channel)")]
 pub async fn open_channel<CM, PM, PS>(
     channel_manager: &CM,
     peer_manager: &PM,
@@ -152,22 +154,27 @@ where
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
-    // Start listening to channel events
+    // First ensure we're connected to the remote peer.
+    crate::channel::pre_open_channel_connect_peer(peer_manager, &relationship)
+        .await
+        .context("Failed to connect to peer")?;
+
+    // Start listening for channel events.
     let mut channel_events = channel_events_monitor.subscribe();
 
-    // TODO(phlip9): connect peer first, then subscribe, then open channel.
-    // Minimize potential to lose channel events.
-
-    // Connect to remote peer and start the open channel process
-    crate::channel::open_channel(
-        channel_manager.clone(),
-        peer_manager.clone(),
-        user_channel_id,
-        channel_value,
-        relationship,
-        user_config,
-    )
-    .await?;
+    // Start the open channel process.
+    let push_msat = 0; // No need for this yet
+    let temporary_channel_id = None; // No need for this yet
+    channel_manager
+        .create_channel(
+            relationship.responder_node_pk().0,
+            channel_value.sats_u64(),
+            push_msat,
+            user_channel_id.to_u128(),
+            temporary_channel_id,
+            Some(user_config),
+        )
+        .map_err(|e| anyhow!("Failed to create channel: {e:?}"))?;
 
     // Wait for the next channel event with this `user_channel_id`. A successful
     // channel open should yield a `Pending` event, while a failed channel
