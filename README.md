@@ -26,7 +26,122 @@ More information is available on our website: [lexe.app](https://lexe.app)
 - [`flake.nix`](./flake.nix): Reproducible node build
 - [`SECURITY.md`](./SECURITY.md) contains information about Lexe's security model and responsible disclosure.
 
-## Dev Setup (nix)
+## Reproducibly building the user node
+
+Follow these instructions if you are interested in verifying the reproducible
+build for a Lexe user node release.
+
+### Overview
+
+Lexe's user node builds are bit-for-bit reproducible, meaning that given the
+source code in this repository, anyone can independently derive the exact same
+~250 million bits of the enclave binary that Lexe has released in this repo.
+
+This is an important part of the remote attestation process because it allows
+you to verify that the node that your app is talking to inside of SGX is running
+the exact code that has been published in this repository, without any backdoors
+or other modifications that could give Lexe the ability to steal your funds.
+
+Enclave binaries are identified by their **measurement** (known in SGX lingo as
+the `MRENCLAVE`), which is a SHA256 hash of the initial SGX memory contents,
+including the loaded binary. The enclave binary is a `.sgxs` file. The SHA256
+hash of the `.sgxs` file is the measurement.
+
+For convenience, Lexe has included the metadata of all currently supported user
+node builds in a `releases.json` file at the root of the directory. The
+`releases.json` represents the current list of acceptable node measurements, and
+is hard-coded into node clients, and must therefore be independently verifiable.
+
+Clone the repo and take a look at `releases.json`:
+
+```bash
+$ git clone https://github.com/lexe-app/lexe-public.git
+$ cd lexe-public
+$ cat releases.json
+{
+  "node": {
+    "0.4.0": {
+      "measurement": "ac018bb70a5901dedb0a7da01820f16b04044755809203783b9e4d43477269cd",
+      "revision": "f53221b4a4c6c180b6d9845f2da07746f95f2828",
+      "release-date": "2024-10-15",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.4.0"
+    }
+  }
+}
+```
+
+### Requirements
+
+If you want to reproducibly build the user node SGX enclave, you'll need a
+`x86_64-linux` machine or VM. You can check your machine architecture with a
+simple command:
+
+```bash
+$ uname -sm
+Linux x86_64
+```
+
+If you don't have one readily available, and you use macOS, we recommend using
+[OrbStack](https://orbstack.dev/) to run local, near-native `x86_64` linux
+pseudo-VMS. Follow the OrbStack linux-builder setup instructions in the next
+section to get going quickly.
+
+Another good option is to use a cloud VM (make sure it's running on an `x86_64`
+CPU). If you're on Windows, then WSL2 might work, though we haven't tried it.
+
+### OrbStack linux-builder setup
+
+Follow these instructions if you're running on macOS and want to reproduce the
+user node with a local Linux VM.
+
+Download OrbStack. Either follow <https://orbstack.dev/download> or just install
+with homebrew:
+
+```bash
+$ brew install orbstack
+```
+
+Create a new NixOS VM @ v24.05 called `linux-builder`:
+
+NOTE: when orbstack runs, you don't need to install the privileged docker
+socket helper, since we don't require it.
+
+```bash
+$ orb create nixos linux-builder
+```
+
+In order to get a usable builder VM, we have to tweak the base NixOS config.
+This will install some extra required packages in the VM (git), enable some nix
+features, and tell the VM to sign its store packages:
+
+```bash
+$ orb push -m linux-builder ./nix/linux-builder/configuration.nix /tmp/configuration.nix
+$ orb run -m linux-builder --user root --shell <<EOF
+sed "s/{{ username }}/$USER/" /tmp/configuration.nix > /etc/nixos/configuration.nix
+chown root:root /etc/nixos/configuration.nix
+nixos-rebuild switch
+EOF
+```
+
+Shell into the VM:
+
+```bash
+$ orb shell -m linux-builder
+```
+
+Check that Nix is available:
+
+```bash
+$ nix --version
+nix (Nix) 2.18.1
+```
+
+Now you're ready to run a reproduce a node build!
+
+### Nix setup
+
+If you're in a `x86_64-linux` environment that *isn't* the `linux-builder` VM,
+you'll need to install Nix.
 
 Install `nix` with the [DeterminateSystems/nix-installer](https://github.com/DeterminateSystems/nix-installer).
 We suggest the multi-user installation.
@@ -36,49 +151,129 @@ $ curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/ni
     | sh -s -- install
 ```
 
-Enter an ephemeral dev shell for working on the project. This shell is setup
-with all the tools needed to build, lint, run tests, etc...
+### Reproduce the user node
+
+Now that you're in a `x86_64-linux` environment with Nix, you can reproduce any
+node version that you want.
+
+Clone and cd into the repo if you haven't already:
+
+```bash
+$ git clone https://github.com/lexe-app/lexe-public.git
+$ cd lexe-public
+```
+
+Take a look at `releases.json` and set `VERSION` to the one you want to
+reproduce. If you're not sure, we recommend reproducing the latest node release.
+
+```bash
+$ VERSION=0.4.0 # Change this 
+
+# Save the measurement that we'll compare our build against later.
+$ MEASUREMENT=$(jq -- -r ".node.\"$VERSION\".measurement" releases.json)
+$ echo $MEASUREMENT
+ac018bb70a5901dedb0a7da01820f16b04044755809203783b9e4d43477269cd
+```
+
+Check out the code for this version:
+
+```bash
+$ git fetch --all --tags
+$ git checkout node-v$VERSION
+$ git show --no-patch
+─────────────────────────────────────────────────────────────────────────┐
+commit f53221b4a4c6c180b6d9845f2da07746f95f2828 (HEAD, tag: node-v0.4.0) │
+─────────────────────────────────────────────────────────────────────────┘
+Author: Max Fang <hello.github@maxfa.ng>
+Date:   Mon Oct 14 19:44:42 2024 -0700
+
+    release (1/2): `node-v0.4.0` (Reproducible commit)
+
+```
+
+Reproducibly build the `node.sgxs` enclave binary:
+
+```bash
+$ nix build .#packages.x86_64-linux.node-release-sgx
+```
+
+Check that the locally-built `.sgxs` produces the intended measurement:
+
+```bash
+$ sha256sum result/bin/node.sgxs
+ac018bb70a5901dedb0a7da01820f16b04044755809203783b9e4d43477269cd  result/bin/node.sgxs
+$ cat result/bin/node.measurement
+ac018bb70a5901dedb0a7da01820f16b04044755809203783b9e4d43477269cd
+$ echo $MEASUREMENT
+ac018bb70a5901dedb0a7da01820f16b04044755809203783b9e4d43477269cd
+```
+
+Congrats, you have verified a reproducible node build! We invite you to share
+your results in the [node build attestations issue](https://github.com/lexe-app/lexe-public/issues/70).
+
+If you need help setting up the reproducible build, or if reproducibility seems
+broken in your environment, please open a separate issue or ping us on Discord.
+
+### (Optional) Verify the contents of a node GitHub Release 
+
+Follow these instructions if you would like to further verify the contents of a
+Lexe node release package against the associated measurement in `releases.json`.
+
+```bash
+# Ensure $VERSION is set to the version you want to verify
+$ echo $VERSION
+0.4.0
+
+# Set up a package dir to contain the release package contents
+$ mkdir node-v$VERSION
+
+# Fetch and extract the node release into our package directory.
+$ wget https://github.com/lexe-app/lexe-public/releases/download/node-v$VERSION/node-v$VERSION.tar.gz
+$ tar -xzf node-v$VERSION.tar.gz -C node-v$VERSION && rm node-v$VERSION.tar.gz
+
+# Directory contents:
+$ ls node-v$VERSION
+node*
+node.measurement
+node.sgxs
+node.sigstruct
+```
+
+Let's check that the SHA256 hash of Lexe's `node.sgxs` matches that contained
+in the `node.measurement` file, as well as in the `releases.json` file:
+
+```bash
+$ sha256sum node-v$VERSION/node.sgxs
+ac018bb70a5901dedb0a7da01820f16b04044755809203783b9e4d43477269cd  node.sgxs
+$ cat node-v$VERSION/node.measurement
+ac018bb70a5901dedb0a7da01820f16b04044755809203783b9e4d43477269cd
+$ cat releases.json | jq -r ".node.\"$VERSION\".measurement"
+ac018bb70a5901dedb0a7da01820f16b04044755809203783b9e4d43477269cd
+```
+
+## Dev Setup (nix)
+
+Follow these steps if you want to quickly set up a basic Lexe dev environment.
+
+First follow the [Nix setup](#nix-setup) steps above.
+
+From the root of the repo, enter an ephemeral dev shell for working on the
+project. This shell is set up with all the tools needed to build, lint, run
+tests, etc...
 
 ```bash
 $ nix develop
 ```
 
-Try running the Rust tests:
+And you're done! You can try out your setup by running the Rust tests:
 
 ```bash
 $ cargo test
 ```
 
-If you want to reproducibly build the user node SGX enclave, you'll need to
-follow the above setup instructions on an `x86_64-linux` machine or VM. You can
-check your machine architecture with a simple command:
-
-```bash
-$ uname -sm
-Linux x86_64
-```
-
-If you don't have one readily available, we suggest using a cloud VM (make sure
-it's running on an x86_64 CPU). If you use macOS, our engineers currently use
-[OrbStack](https://orbstack.dev/) to run local, near-native x86_64 linux
-pseudo-VMS. Follow our [OrbStack linux-builder setup](#orbstack-linux-builder-setup)
-to get going quickly. If you're on Windows, then WSL2 might work, though we
-haven't tried it.
-
-Once you have an `x86_64-linux` machine setup, reproduce the user node for the
-given release tag (e.g., `node-v0.1.0`):
-
-```bash
-$ git fetch --all --tags
-$ git checkout tags/node-v0.1.0 -b node-v0.1.0
-$ nix build .#node-release-sgx
-$ cat result/bin/node.measurement
-867d0c37d5af59644d9d30f376dc1f574de9196b3f8b0287f52d76a0e15d621b
-```
-
-<!-- TODO(phlip9): flesh this out more once the app provisioning UI flow is more functional. -->
-
 ## Dev Setup (manual)
+
+Follow these instructions if you need to do extensive work on this repo.
 
 Install `rustup`
 
@@ -142,6 +337,8 @@ $ cargo install --path run-sgx
 
 ## Usage
 
+After setting up your dev environment, you can work with the repo like so.
+
 Run lints and tests
 ```bash
 $ cargo clippy --all
@@ -180,50 +377,6 @@ $ cargo run -p node --release --target=x86_64-fortanix-unknown-sgx -- run --help
   best-effort basis and is not tested (or used) regularly by Lexe devs.
 
 See `RunArgs`/`ProvisionArgs` contained in `common::cli::node` for full options.
-
-## OrbStack linux-builder setup
-
-Follow these instructions if you're running on macOS and want to reproduce the
-user node.
-
-Download OrbStack. Either follow <https://orbstack.dev/download> or just install
-with homebrew:
-
-```bash
-$ brew install orbstack
-```
-
-Create a new NixOS VM @ v24.05 called `linux-builder`:
-
-NOTE: when orbstack runs, you don't need to install the privileged docker
-socket helper, since we don't require it.
-
-```bash
-$ orb create nixos linux-builder
-```
-
-In order to get a usable builder VM, we have to tweak the base NixOS config.
-This will install some extra required packages in the VM (git), enable some nix
-features, and tell the VM to sign its store packages:
-
-```bash
-$ orb push -m linux-builder ./nix/linux-builder/configuration.nix /tmp/configuration.nix
-$ orb run -m linux-builder --user root --shell <<EOF
-sed "s/{{ username }}/$USER/" /tmp/configuration.nix > /etc/nixos/configuration.nix
-chown root:root /etc/nixos/configuration.nix
-nixos-rebuild switch
-EOF
-```
-
-Now, you can shell into the VM and build:
-
-```bash
-
-$ orb shell -m linux-builder
-(linux-builder)$ nix build .#packages.x86_64-linux.node-release-sgx
-(linux-builder)$ cat ./result/bin/node.measurement
-bdd9eec1fbd625eec3b2a9e2a6072f60240c930b0867b47199730b320c148e8c
-```
 
 ## License
 
