@@ -1,7 +1,4 @@
-use std::{
-    fmt::{self, Display},
-    slice,
-};
+use std::fmt::{self, Display};
 
 use anyhow::{anyhow, ensure, Context};
 use common::{
@@ -17,14 +14,12 @@ use tokio::sync::{broadcast, mpsc};
 use tracing::info;
 
 use crate::{
-    p2p::{self, ChannelPeerUpdate},
-    traits::{
-        LexeChannelManager, LexeInnerPersister, LexePeerManager, LexePersister,
-    },
+    p2p::ChannelPeerUpdate,
+    traits::{LexeChannelManager, LexePeerManager, LexePersister},
 };
 
 /// Specifies the channel initiator-responder relationship. The required
-/// parameters and behavior of [`open_channel`] may be different in each case.
+/// parameters and behavior of `open_channel` may be different in each case.
 pub enum ChannelRelationship<PS: LexePersister> {
     /// A Lexe user node is opening a channel to the LSP.
     /// The LSP's [`ChannelPeer`] must be specified.
@@ -40,81 +35,6 @@ pub enum ChannelRelationship<PS: LexePersister> {
         persister: PS,
         channel_peer_tx: mpsc::Sender<ChannelPeerUpdate>,
     },
-}
-
-/// Before opening a new channel with a peer, we need to first ensure that we're
-/// connected:
-///
-/// - In the UserToLsp and LspToExternal cases, we may initiate an outgoing
-///   connection if we are not already connected.
-///
-/// - In the LspToUser case, the caller must ensure that we are already
-///   connected to the user prior to open_channel.
-///
-/// - If the LSP is opening a channel with an external LN node, we must ensure
-///   that we've persisted the counterparty's ChannelPeer information so that we
-///   can connect with them after restart.
-pub async fn pre_open_channel_connect_peer<CM, PM, PS>(
-    peer_manager: &PM,
-    relationship: &ChannelRelationship<PS>,
-) -> anyhow::Result<()>
-where
-    CM: LexeChannelManager<PS>,
-    PM: LexePeerManager<CM, PS>,
-    PS: LexePersister,
-{
-    use ChannelRelationship::*;
-    match relationship {
-        UserToLsp { lsp_channel_peer } => {
-            let ChannelPeer { node_pk, addr } = lsp_channel_peer;
-            let addrs = slice::from_ref(addr);
-            p2p::connect_peer_if_necessary(peer_manager.clone(), node_pk, addrs)
-                .await
-                .map(|_| ())
-                .context("Could not connect to LSP")
-        }
-        LspToUser { user_node_pk } => {
-            ensure!(
-                peer_manager.peer_by_node_id(&user_node_pk.0).is_some(),
-                "LSP must be connected to user before opening channel",
-            );
-            Ok(())
-        }
-        LspToExternal {
-            channel_peer,
-            persister,
-            channel_peer_tx,
-        } => {
-            let ChannelPeer { node_pk, addr } = channel_peer;
-            let addrs = slice::from_ref(addr);
-            p2p::connect_peer_if_necessary(
-                peer_manager.clone(),
-                node_pk,
-                addrs,
-            )
-            .await
-            .context("Could not connect to external node")?;
-
-            // Before we actually create the channel, persist the ChannelPeer so
-            // that there is no chance of having an open channel without the
-            // associated ChannelPeer information.
-            // TODO(max): This should be renamed to persist_external_peer
-            let channel_peer = ChannelPeer {
-                node_pk: *node_pk,
-                addr: addr.clone(),
-            };
-            persister
-                .persist_channel_peer(channel_peer.clone())
-                .await
-                .context("Failed to persist channel peer")?;
-
-            // Also tell our p2p reconnector to continuously try to reconnect to
-            // this channel peer if we disconnect for some reason.
-            channel_peer_tx
-                .try_send(ChannelPeerUpdate::Add(channel_peer))
-                .context("Couldn't tell p2p reconnector of new channel peer")
-        }
-    }
 }
 
 /// Initiates a channel close. Supports both cooperative (bilateral) and force
