@@ -137,8 +137,11 @@ where
 }
 
 /// Open and fund a new channel with `channel_value` and counterparty of
-/// `relationship`. Waits for the channel to become `Pending` (success) or
-/// `Closed` (failure).
+/// `relationship`.
+///
+/// Waits for the channel to become `Pending` (success) or `Closed` (failure).
+/// If the channel is an LSP->User JIT channel, it will wait for full channel
+/// `Ready`.
 #[instrument(skip_all, name = "(open-channel)")]
 pub async fn open_channel<CM, PM, PS>(
     channel_manager: &CM,
@@ -160,7 +163,7 @@ where
         .context("Failed to connect to peer")?;
 
     // Start listening for channel events.
-    let mut channel_events = channel_events_monitor.subscribe();
+    let mut channel_events_rx = channel_events_monitor.subscribe();
 
     // Start the open channel process.
     let push_msat = 0; // No need for this yet
@@ -176,16 +179,27 @@ where
         )
         .map_err(|e| anyhow!("Failed to create channel: {e:?}"))?;
 
-    // Wait for the next channel event with this `user_channel_id`. A successful
-    // channel open should yield a `Pending` event, while a failed channel
-    // open should yield a `Closed` event.
+    // User nodes accept JIT channels from the LSP, this means we can wait for
+    // channel `Ready` and not just `Pending`.
+    let is_jit_channel =
+        matches!(relationship, ChannelRelationship::LspToUser { .. });
+
+    // Wait for the next relevant channel event with this `user_channel_id`.
     let channel_event = tokio::time::timeout(
         Duration::from_secs(15),
-        channel_events
-            .next_filtered(|event| event.user_channel_id() == &user_channel_id),
+        channel_events_rx.next_filtered(|event| {
+            if is_jit_channel {
+                matches!(event,
+                    ChannelEvent::Ready { .. } | ChannelEvent::Closed { .. }
+                    if event.user_channel_id() == &user_channel_id
+                )
+            } else {
+                event.user_channel_id() == &user_channel_id
+            }
+        }),
     )
     .await
-    .context("Waiting for channel pending")?;
+    .context("Waiting for channel event")?;
 
     if let ChannelEvent::Closed { reason, .. } = channel_event {
         return Err(anyhow!("Channel open failed: {reason}"));
