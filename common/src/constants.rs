@@ -71,6 +71,10 @@ pub fn node_provision_dns(mr_short: &MrShort) -> String {
 }
 pub const NODE_PROVISION_DNS_SUFFIX: &str = ".provision.lexe.app";
 
+/// User nodes and the LSP will reject new inbound channels with total channel
+/// value larger than this value in satoshis.
+pub const CHANNEL_MAX_FUNDING_SATS: u32 = 5 * 1_0000_0000; // 5 BTC
+
 // --- Root CA certs --- //
 //
 // This section contains DER-encoded TLS certs for the root CAs used by various
