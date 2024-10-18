@@ -2,7 +2,7 @@ use std::{ops::Deref, sync::Arc, time::SystemTime};
 
 use anyhow::Context;
 use bitcoin::BlockHash;
-use common::ln::network::LxNetwork;
+use common::{constants, ln::network::LxNetwork};
 use lexe_ln::{
     alias::{BroadcasterType, FeeEstimatorType, RouterType},
     keys_manager::LexeKeysManager,
@@ -137,10 +137,14 @@ const CHANNEL_HANDSHAKE_LIMITS: ChannelHandshakeLimits =
         // The maximum # of blocks we're willing to wait to reclaim our funds in
         // the case of a unilateral close initiated by us. See doc comment.
         their_to_self_delay: MAXIMUM_TIME_TO_RECLAIM_FUNDS,
+        // The maximum total channel value (our balance + their balance) that
+        // we'll accept for a new inbound channel.
+        // The current LDK default was too low (0.16_777_216 BTC, the pre-wumbo
+        // channel maximum).
+        max_funding_satoshis: constants::CHANNEL_MAX_FUNDING_SATS as u64,
         // Use LDK defaults for everything else. We can't use Default::default()
         // in a const, but it's better to explicitly specify the values anyway.
         min_funding_satoshis: 0,
-        max_funding_satoshis: (1 << 24) - 1, // 2^24 - 1
         max_htlc_minimum_msat: u64::MAX,
         min_max_htlc_value_in_flight_msat: 0,
         max_channel_reserve_satoshis: u64::MAX,

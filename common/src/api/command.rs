@@ -44,7 +44,7 @@ pub struct OpenChannelRequest {
     pub value: Amount,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct OpenChannelResponse {
     /// The real channel id of the newly created channel.
     pub channel_id: LxChannelId,
