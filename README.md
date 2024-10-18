@@ -73,8 +73,8 @@ $ cat releases.json
 ### Requirements
 
 If you want to reproducibly build the user node SGX enclave, you'll need a
-`x86_64-linux` machine or VM. You can check your machine architecture with a
-simple command:
+`x86_64-linux` machine or VM. We recommend at least 16gb disk and 4gb memory.
+You can check your machine architecture with a simple command:
 
 ```bash
 $ uname -sm
@@ -170,7 +170,7 @@ reproduce. If you're not sure, we recommend reproducing the latest node release.
 $ VERSION=0.4.0 # Change this 
 
 # Save the measurement that we'll compare our build against later.
-$ MEASUREMENT=$(jq -- -r ".node.\"$VERSION\".measurement" releases.json)
+$ MEASUREMENT=$(jq -r ".node.\"$VERSION\".measurement" releases.json)
 $ echo $MEASUREMENT
 ac018bb70a5901dedb0a7da01820f16b04044755809203783b9e4d43477269cd
 ```
