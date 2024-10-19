@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{slice, sync::Arc};
 
 use anyhow::Context;
 use axum::extract::State;
@@ -20,7 +20,7 @@ use common::{
     ln::{channel::LxUserChannelId, payments::BasicPayment},
     rng::SysRng,
 };
-use lexe_ln::{channel::ChannelRelationship, command::CreateInvoiceCaller};
+use lexe_ln::{command::CreateInvoiceCaller, p2p};
 
 use super::AppRouterState;
 use crate::channel_manager;
@@ -54,18 +54,26 @@ pub(super) async fn open_channel(
     LxJson(req): LxJson<OpenChannelRequest>,
 ) -> Result<LxJson<OpenChannelResponse>, NodeApiError> {
     let user_channel_id = LxUserChannelId::gen(&mut SysRng::new());
-    let relationship = ChannelRelationship::UserToLsp {
-        lsp_channel_peer: state.lsp_info.channel_peer(),
-    };
 
+    // First ensure we're connected to the LSP.
+    let lsp_node_pk = &state.lsp_info.node_pk;
+    let lsp_addrs = slice::from_ref(&state.lsp_info.private_p2p_addr);
+    let peer_manager = state.peer_manager.clone();
+    p2p::connect_peer_if_necessary(peer_manager, lsp_node_pk, lsp_addrs)
+        .await
+        .context("Could not connect to Lexe LSP")
+        .map_err(NodeApiError::command)?;
+
+    // Open the channel and wait for `ChannelPending`.
+    let is_jit_channel = false;
     lexe_ln::command::open_channel(
         &state.channel_manager,
-        &state.peer_manager,
         &state.channel_events_monitor,
         user_channel_id,
         req.value,
-        relationship,
+        lsp_node_pk,
         channel_manager::USER_CONFIG,
+        is_jit_channel,
     )
     .await
     .context("Failed to open channel")

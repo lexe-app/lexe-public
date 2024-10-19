@@ -1,6 +1,6 @@
-use std::{slice, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
-use anyhow::{anyhow, bail, ensure, Context};
+use anyhow::{anyhow, bail, Context};
 use bitcoin::bech32::ToBase32;
 use bitcoin_hashes::{sha256, Hash};
 use common::{
@@ -21,7 +21,6 @@ use common::{
         channel::{LxChannelDetails, LxUserChannelId},
         invoice::LxInvoice,
         network::LxNetwork,
-        peer::ChannelPeer,
     },
 };
 use lightning::{
@@ -42,10 +41,9 @@ use tracing::{debug, info, instrument};
 
 use crate::{
     alias::{LexeChainMonitorType, RouterType},
-    channel::{ChannelEvent, ChannelEventsMonitor, ChannelRelationship},
+    channel::{ChannelEvent, ChannelEventsMonitor},
     esplora::LexeEsplora,
     keys_manager::LexeKeysManager,
-    p2p::{self, ChannelPeerUpdate},
     payments::{
         inbound::InboundInvoicePayment,
         manager::PaymentsManager,
@@ -55,9 +53,7 @@ use crate::{
         },
         Payment,
     },
-    traits::{
-        LexeChannelManager, LexeInnerPersister, LexePeerManager, LexePersister,
-    },
+    traits::{LexeChannelManager, LexePeerManager, LexePersister},
     wallet::LexeWallet,
 };
 
@@ -140,91 +136,27 @@ where
     ListChannelsResponse { channels }
 }
 
-/// Open and fund a new channel with `channel_value` and counterparty of
-/// `relationship`.
+/// Open and fund a new channel with `channel_value` and `counterparty_node_pk`.
 ///
 /// Waits for the channel to become `Pending` (success) or `Closed` (failure).
-/// If the channel is an LSP->User JIT channel, it will wait for full channel
-/// `Ready`.
+/// If the channel `is_jit_channel` (an LSP->User JIT channel), it will wait for
+/// full channel `Ready`.
+///
+/// Precondition: must be connected with the remote peer before open_channel.
 #[instrument(skip_all, name = "(open-channel)")]
-pub async fn open_channel<CM, PM, PS>(
+pub async fn open_channel<CM, PS>(
     channel_manager: &CM,
-    peer_manager: &PM,
     channel_events_monitor: &ChannelEventsMonitor,
     user_channel_id: LxUserChannelId,
     channel_value: Amount,
-    relationship: ChannelRelationship<PS>,
+    counterparty_node_pk: &NodePk,
     user_config: UserConfig,
+    is_jit_channel: bool,
 ) -> anyhow::Result<OpenChannelResponse>
 where
     CM: LexeChannelManager<PS>,
-    PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
-    /// Before opening a new channel with a peer, we need to first ensure
-    /// that we're connected:
-    ///
-    /// - In the UserToLsp and LspToExternal cases, we may initiate an
-    ///   outgoing connection if we are not already connected.
-    ///
-    /// - In the LspToUser case, the caller must ensure that we are already
-    ///   connected to the user prior to open_channel.
-    ///
-    /// - If the LSP is opening a channel with an external LN node, we must
-    ///   ensure that we've persisted the counterparty's ChannelPeer
-    ///   information so that we can connect with them after restart.
-    use ChannelRelationship::*;
-    match &relationship {
-        UserToLsp { lsp_channel_peer } => {
-            let ChannelPeer { node_pk, addr } = lsp_channel_peer;
-            let addrs = slice::from_ref(addr);
-            p2p::connect_peer_if_necessary(
-                peer_manager.clone(),
-                node_pk,
-                addrs,
-            )
-            .await
-            .context("Could not connect to LSP")?;
-        }
-        LspToUser { user_node_pk } => ensure!(
-            peer_manager.peer_by_node_id(&user_node_pk.0).is_some(),
-            "LSP must be connected to user before opening channel",
-        ),
-        LspToExternal {
-            channel_peer,
-            persister,
-            channel_peer_tx,
-        } => {
-            let ChannelPeer { node_pk, addr } = channel_peer;
-            let addrs = slice::from_ref(addr);
-            p2p::connect_peer_if_necessary(
-                peer_manager.clone(),
-                node_pk,
-                addrs,
-            )
-            .await
-            .context("Could not connect to external node")?;
-
-            // Before we actually create the channel, persist the ChannelPeer so
-            // that there is no chance of having an open channel without the
-            // associated ChannelPeer information.
-            let channel_peer = ChannelPeer {
-                node_pk: *node_pk,
-                addr: addr.clone(),
-            };
-            persister
-                .persist_external_peer(channel_peer.clone())
-                .await
-                .context("Failed to persist channel peer")?;
-
-            // Also tell our p2p reconnector to continuously try to reconnect to
-            // this channel peer if we disconnect for some reason.
-            channel_peer_tx
-                .try_send(ChannelPeerUpdate::Add(channel_peer))
-                .context("Couldn't tell p2p reconnector of new channel peer")?;
-        }
-    }
-
     // Start listening for channel events.
     let mut channel_events_rx = channel_events_monitor.subscribe();
 
@@ -233,7 +165,7 @@ where
     let temporary_channel_id = None; // No need for this yet
     channel_manager
         .create_channel(
-            relationship.responder_node_pk().0,
+            counterparty_node_pk.0,
             channel_value.sats_u64(),
             push_msat,
             user_channel_id.to_u128(),
@@ -242,12 +174,10 @@ where
         )
         .map_err(|e| anyhow!("Failed to create channel: {e:?}"))?;
 
-    // User nodes accept JIT channels from the LSP, this means we can wait for
-    // channel `Ready` and not just `Pending`.
-    let is_jit_channel =
-        matches!(relationship, ChannelRelationship::LspToUser { .. });
-
     // Wait for the next relevant channel event with this `user_channel_id`.
+    //
+    // If this is a JIT channel open, we can wait for channel `Ready` and not
+    // just `Pending`.
     let channel_event = tokio::time::timeout(
         Duration::from_secs(15),
         channel_events_rx.next_filtered(|event| {
