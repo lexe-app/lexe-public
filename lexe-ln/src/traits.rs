@@ -55,7 +55,7 @@ pub trait LexeInnerPersister: Persist<SignerType> {
         scorer_mutex: &Mutex<ProbabilisticScorerType>,
     ) -> anyhow::Result<()>;
 
-    async fn persist_channel_peer(
+    async fn persist_external_peer(
         &self,
         channel_peer: ChannelPeer,
     ) -> anyhow::Result<()>;
