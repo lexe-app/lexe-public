@@ -1,41 +1,14 @@
-use std::fmt::{self, Display};
-
 use anyhow::{anyhow, ensure, Context};
 use common::{
     api::{command::CloseChannelRequest, Empty, NodePk},
     constants::DEFAULT_CHANNEL_SIZE,
-    ln::{
-        channel::{LxChannelId, LxUserChannelId},
-        peer::ChannelPeer,
-    },
+    ln::channel::{LxChannelId, LxUserChannelId},
 };
 use lightning::{events::ClosureReason, ln::ChannelId};
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::broadcast;
 use tracing::info;
 
-use crate::{
-    p2p::ChannelPeerUpdate,
-    traits::{LexeChannelManager, LexePeerManager, LexePersister},
-};
-
-/// Specifies the channel initiator-responder relationship. The required
-/// parameters and behavior of `open_channel` may be different in each case.
-pub enum ChannelRelationship<PS: LexePersister> {
-    /// A Lexe user node is opening a channel to the LSP.
-    /// The LSP's [`ChannelPeer`] must be specified.
-    UserToLsp { lsp_channel_peer: ChannelPeer },
-    /// Lexe's LSP is opening a channel to a user node.
-    /// The user node's [`NodePk`] must be specified.
-    LspToUser { user_node_pk: NodePk },
-    /// The LSP is opening a channel to an external LN node.
-    /// The external LN node's [`ChannelPeer`] must be specified, along with
-    /// the utilities required to persist and reconnect to the external peer.
-    LspToExternal {
-        channel_peer: ChannelPeer,
-        persister: PS,
-        channel_peer_tx: mpsc::Sender<ChannelPeerUpdate>,
-    },
-}
+use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
 /// Initiates a channel close. Supports both cooperative (bilateral) and force
 /// (unilateral) channel closes.
@@ -68,11 +41,15 @@ where
         .with_context(|| format!("No channel exists with id {channel_id}"))?;
 
     let channel_id = ChannelId::from(channel_id);
+
     if force_close {
         channel_manager
             .force_close_broadcasting_latest_txn(&channel_id, &counterparty.0)
             .map_err(|e| anyhow!("(Force close) LDK returned error: {e:?}"))?;
     } else {
+        // TODO(phlip9): proactively try to reconnect. ex: this will fail if the
+        // LSP is closing a channel with a user node that is currently offline.
+
         ensure!(
             peer_manager.peer_by_node_id(&counterparty.0).is_some(),
             "Cannot initiate cooperative close with disconnected peer"
@@ -85,29 +62,6 @@ where
 
     info!(%channel_id, %force_close, "Successfully initiated channel close");
     Ok(Empty {})
-}
-
-// --- impl ChannelRelationship --- //
-
-impl<PS: LexePersister> ChannelRelationship<PS> {
-    /// Returns the channel responder's [`NodePk`]
-    pub fn responder_node_pk(&self) -> NodePk {
-        match self {
-            Self::UserToLsp { lsp_channel_peer } => lsp_channel_peer.node_pk,
-            Self::LspToUser { user_node_pk } => *user_node_pk,
-            Self::LspToExternal { channel_peer, .. } => channel_peer.node_pk,
-        }
-    }
-}
-
-impl<PS: LexePersister> Display for ChannelRelationship<PS> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::UserToLsp { .. } => write!(f, "user to LSP"),
-            Self::LspToUser { .. } => write!(f, "LSP to user"),
-            Self::LspToExternal { .. } => write!(f, "LSP to external"),
-        }
-    }
 }
 
 /// Channel lifecycle events emitted from the node event handler.
