@@ -48,6 +48,10 @@ pub enum TestEvent {
     ///
     /// [`PaymentSent`]: lightning::events::Event::PaymentSent
     PaymentSent,
+    /// A [`PaymentFailed`] event was handled.
+    ///
+    /// [`PaymentFailed`]: lightning::events::Event::PaymentFailed
+    PaymentFailed,
     /// A [`ChannelClosed`] event was handled.
     ///
     /// [`ChannelClosed`]: lightning::events::Event::ChannelClosed

@@ -9,7 +9,7 @@ use std::{
 use anyhow::{anyhow, Context};
 use common::{
     api::NodePk, cli::LspInfo, ln::channel::LxChannelId,
-    shutdown::ShutdownChannel, task::LxTask,
+    shutdown::ShutdownChannel, task::LxTask, test_event::TestEvent,
 };
 use lexe_ln::{
     alias::NetworkGraphType,
@@ -389,6 +389,7 @@ async fn handle_event_fallible(
                 reason.unwrap_or(PaymentFailureReason::RetriesExhausted);
             let failure = LxOutboundPaymentFailure::from(reason);
             warn!("Payment failed: {failure:?}");
+            test_event_tx.send(TestEvent::PaymentFailed);
             payments_manager
                 .payment_failed(payment_hash.into(), failure)
                 .await
