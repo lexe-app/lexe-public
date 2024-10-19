@@ -208,13 +208,12 @@ where
             // Before we actually create the channel, persist the ChannelPeer so
             // that there is no chance of having an open channel without the
             // associated ChannelPeer information.
-            // TODO(max): This should be renamed to persist_external_peer
             let channel_peer = ChannelPeer {
                 node_pk: *node_pk,
                 addr: addr.clone(),
             };
             persister
-                .persist_channel_peer(channel_peer.clone())
+                .persist_external_peer(channel_peer.clone())
                 .await
                 .context("Failed to persist channel peer")?;
 

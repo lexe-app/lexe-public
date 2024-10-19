@@ -762,7 +762,7 @@ impl LexeInnerPersister for NodePersister {
             .context("Could not persist scorer")
     }
 
-    async fn persist_channel_peer(
+    async fn persist_external_peer(
         &self,
         _channel_peer: ChannelPeer,
     ) -> anyhow::Result<()> {
