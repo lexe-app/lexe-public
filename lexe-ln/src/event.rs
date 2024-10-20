@@ -21,7 +21,7 @@ use thiserror::Error;
 use tracing::{debug, info, warn};
 
 use crate::{
-    channel::{ChannelEvent, ChannelEventsMonitor},
+    channel::{ChannelEvent, ChannelEventsBus},
     esplora::LexeEsplora,
     keys_manager::LexeKeysManager,
     test_event::TestEventSender,
@@ -139,7 +139,7 @@ where
 
 /// Handles an [`Event::ChannelPending`]
 pub fn handle_channel_pending(
-    channel_events_monitor: &ChannelEventsMonitor,
+    channel_events_bus: &ChannelEventsBus,
     test_event_tx: &TestEventSender,
 
     channel_id: ChannelId,
@@ -156,7 +156,7 @@ pub fn handle_channel_pending(
         %funding_txo, %channel_type,
         "Channel pending",
     );
-    channel_events_monitor.notify(ChannelEvent::Pending {
+    channel_events_bus.notify(ChannelEvent::Pending {
         user_channel_id,
         channel_id,
         funding_txo,
@@ -166,7 +166,7 @@ pub fn handle_channel_pending(
 
 /// Handles an [`Event::ChannelReady`]
 pub fn handle_channel_ready(
-    channel_events_monitor: &ChannelEventsMonitor,
+    channel_events_bus: &ChannelEventsBus,
     test_event_tx: &TestEventSender,
 
     channel_id: ChannelId,
@@ -181,7 +181,7 @@ pub fn handle_channel_ready(
         %counterparty_node_id, %channel_type,
         "Channel ready",
     );
-    channel_events_monitor.notify(ChannelEvent::Ready {
+    channel_events_bus.notify(ChannelEvent::Ready {
         user_channel_id,
         channel_id,
     });
@@ -190,7 +190,7 @@ pub fn handle_channel_ready(
 
 /// Handles an [`Event::ChannelClosed`]
 pub fn handle_channel_closed(
-    channel_events_monitor: &ChannelEventsMonitor,
+    channel_events_bus: &ChannelEventsBus,
     test_event_tx: &TestEventSender,
 
     channel_id: ChannelId,
@@ -215,7 +215,7 @@ pub fn handle_channel_closed(
         "Channel is being closed"
     );
 
-    channel_events_monitor.notify(ChannelEvent::Closed {
+    channel_events_bus.notify(ChannelEvent::Closed {
         user_channel_id,
         channel_id,
         reason,

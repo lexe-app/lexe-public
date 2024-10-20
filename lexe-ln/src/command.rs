@@ -41,7 +41,7 @@ use tracing::{debug, info, instrument};
 
 use crate::{
     alias::{LexeChainMonitorType, RouterType},
-    channel::{ChannelEvent, ChannelEventsMonitor},
+    channel::{ChannelEvent, ChannelEventsBus},
     esplora::LexeEsplora,
     keys_manager::LexeKeysManager,
     payments::{
@@ -146,7 +146,7 @@ where
 #[instrument(skip_all, name = "(open-channel)")]
 pub async fn open_channel<CM, PS>(
     channel_manager: &CM,
-    channel_events_monitor: &ChannelEventsMonitor,
+    channel_events_bus: &ChannelEventsBus,
     user_channel_id: LxUserChannelId,
     channel_value: Amount,
     counterparty_node_pk: &NodePk,
@@ -158,7 +158,7 @@ where
     PS: LexePersister,
 {
     // Start listening for channel events.
-    let mut channel_events_rx = channel_events_monitor.subscribe();
+    let mut channel_events_rx = channel_events_bus.subscribe();
 
     // Start the open channel process.
     let push_msat = 0; // No need for this yet

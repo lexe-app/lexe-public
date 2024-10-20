@@ -68,7 +68,7 @@ pub(super) async fn open_channel(
     let is_jit_channel = false;
     lexe_ln::command::open_channel(
         &state.channel_manager,
-        &state.channel_events_monitor,
+        &state.channel_events_bus,
         user_channel_id,
         req.value,
         lsp_node_pk,
