@@ -13,7 +13,7 @@ use common::{
 };
 use lexe_ln::{
     alias::NetworkGraphType,
-    channel::ChannelEventsMonitor,
+    channel::ChannelEventsBus,
     esplora::LexeEsplora,
     event::{self, EventHandleError},
     keys_manager::LexeKeysManager,
@@ -37,7 +37,7 @@ pub struct NodeEventHandler {
     pub(crate) network_graph: Arc<NetworkGraphType>,
     pub(crate) payments_manager: PaymentsManagerType,
     pub(crate) fatal_event: Arc<AtomicBool>,
-    pub(crate) channel_events_monitor: ChannelEventsMonitor,
+    pub(crate) channel_events_bus: ChannelEventsBus,
     pub(crate) test_event_tx: TestEventSender,
     pub(crate) shutdown: ShutdownChannel,
 }
@@ -87,7 +87,7 @@ impl EventHandler for NodeEventHandler {
         let keys_manager = self.keys_manager.clone();
         let payments_manager = self.payments_manager.clone();
         let fatal_event = self.fatal_event.clone();
-        let channel_events_monitor = self.channel_events_monitor.clone();
+        let channel_events_bus = self.channel_events_bus.clone();
         let test_event_tx = self.test_event_tx.clone();
         let shutdown = self.shutdown.clone();
 
@@ -116,7 +116,7 @@ impl EventHandler for NodeEventHandler {
                 keys_manager.as_ref(),
                 &payments_manager,
                 fatal_event.as_ref(),
-                &channel_events_monitor,
+                &channel_events_bus,
                 &test_event_tx,
                 &shutdown,
                 event,
@@ -137,7 +137,7 @@ pub(crate) async fn handle_event(
     keys_manager: &LexeKeysManager,
     payments_manager: &PaymentsManagerType,
     fatal_event: &AtomicBool,
-    channel_events_monitor: &ChannelEventsMonitor,
+    channel_events_bus: &ChannelEventsBus,
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
     event: Event,
@@ -151,7 +151,7 @@ pub(crate) async fn handle_event(
         network_graph,
         keys_manager,
         payments_manager,
-        channel_events_monitor,
+        channel_events_bus,
         test_event_tx,
         shutdown,
         event,
@@ -181,7 +181,7 @@ async fn handle_event_fallible(
     _network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
     payments_manager: &PaymentsManagerType,
-    channel_events_monitor: &ChannelEventsMonitor,
+    channel_events_bus: &ChannelEventsBus,
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
     event: Event,
@@ -267,7 +267,7 @@ async fn handle_event_fallible(
             funding_txo,
             channel_type,
         } => event::handle_channel_pending(
-            channel_events_monitor,
+            channel_events_bus,
             test_event_tx,
             channel_id,
             user_channel_id,
@@ -282,7 +282,7 @@ async fn handle_event_fallible(
             counterparty_node_id,
             channel_type,
         } => event::handle_channel_ready(
-            channel_events_monitor,
+            channel_events_bus,
             test_event_tx,
             channel_id,
             user_channel_id,
@@ -298,7 +298,7 @@ async fn handle_event_fallible(
             channel_capacity_sats,
             channel_funding_txo,
         } => event::handle_channel_closed(
-            channel_events_monitor,
+            channel_events_bus,
             test_event_tx,
             channel_id,
             user_channel_id,

@@ -66,7 +66,7 @@ where
 
 /// Channel lifecycle events emitted from the node event handler.
 ///
-/// Tail these events using the [`ChannelEventsMonitor`].
+/// Tail these events using the [`ChannelEventsBus`].
 #[derive(Clone)]
 pub enum ChannelEvent {
     Pending {
@@ -109,7 +109,7 @@ impl ChannelEvent {
     }
 }
 
-/// The `ChannelEventsMonitor` lets API handlers like `open_channel` and
+/// The `ChannelEventsBus` lets API handlers like `open_channel` and
 /// `close_channel` wait on channel lifecycle events (pending, ready, closed)
 /// for specific channels.
 ///
@@ -117,11 +117,11 @@ impl ChannelEvent {
 /// notification is a noop if there are no waiters, which is common, and (2) we
 /// don't need to garbage collect waiters that timeout.
 #[derive(Clone)]
-pub struct ChannelEventsMonitor {
+pub struct ChannelEventsBus {
     event_tx: broadcast::Sender<ChannelEvent>,
 }
 
-impl ChannelEventsMonitor {
+impl ChannelEventsBus {
     pub fn new() -> Self {
         Self {
             event_tx: broadcast::channel(DEFAULT_CHANNEL_SIZE).0,
