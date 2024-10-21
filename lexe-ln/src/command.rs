@@ -6,11 +6,12 @@ use bitcoin_hashes::{sha256, Hash};
 use common::{
     api::{
         command::{
-            CreateInvoiceRequest, CreateInvoiceResponse, ListChannelsResponse,
-            NodeInfo, OpenChannelResponse, PayInvoiceRequest,
-            PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
+            ListChannelsResponse, NodeInfo, OpenChannelResponse,
+            PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
+            PayOnchainResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse,
         },
         Empty, NodePk, Scid,
     },
@@ -23,13 +24,14 @@ use common::{
         network::LxNetwork,
     },
 };
+use futures::Future;
 use lightning::{
     ln::{
         channelmanager::{
             PaymentId, RecipientOnionFields, RetryableSendFailure,
             MIN_FINAL_CLTV_EXPIRY_DELTA,
         },
-        PaymentHash,
+        ChannelId, PaymentHash,
     },
     routing::router::{PaymentParameters, RouteHint, RouteParameters, Router},
     sign::{NodeSigner, Recipient},
@@ -201,6 +203,111 @@ where
     Ok(OpenChannelResponse {
         channel_id: *channel_event.channel_id(),
     })
+}
+
+/// Close a channel and wait for the corresponding [`Event::ChannelClosed`].
+///
+/// For a co-operative channel close, we'll first call
+/// `ensure_counterparty_connected`, which should proactively connect to the
+/// counterparty (if not already connected).
+///
+/// If `req.force_close` is set, this will begin channel force closure, without
+/// first trying to connect to the counterparty.
+///
+/// If `req.maybe_counterparty` is unset, we'll look it up from the channels
+/// list. Note that this is somewhat expensive--ideally the caller should
+/// provide the channel counterparty.
+///
+/// [`Event::ChannelClosed`]: lightning::events::Event::ChannelClosed
+#[instrument(skip_all, name = "(close-channel)")]
+pub async fn close_channel<CM, PS, F>(
+    channel_manager: &CM,
+    channel_events_bus: &ChannelEventsBus,
+    ensure_counterparty_connected: impl FnOnce(NodePk) -> F,
+    req: CloseChannelRequest,
+) -> anyhow::Result<()>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+    F: Future<Output = anyhow::Result<()>>,
+{
+    let CloseChannelRequest {
+        channel_id,
+        force_close,
+        maybe_counterparty,
+    } = req;
+    let lx_channel_id = channel_id;
+    let ln_channel_id = ChannelId::from(lx_channel_id);
+
+    info!(%channel_id, ?force_close, "closing channel");
+
+    // Lookup the counterparty's NodePk from our channels, if the request
+    // didn't specify.
+    let counterparty = maybe_counterparty
+        .or_else(|| {
+            // TODO(phlip9): this is fairly inefficient...
+            channel_manager
+                .list_channels()
+                .into_iter()
+                .find(|c| c.channel_id.0 == channel_id.0)
+                .map(|c| NodePk(c.counterparty.node_id))
+        })
+        .context("No channel exists with this channel id")?;
+
+    // Before cooperatively closing the channel, we need to ensure we're
+    // connected with the counterparty.
+    if !force_close {
+        ensure_counterparty_connected(counterparty)
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to connect to channel counterparty: {counterparty}"
+                )
+            })?;
+    }
+
+    // Start subscribing to ChannelEvents.
+    let mut channel_events_rx = channel_events_bus.subscribe();
+
+    // Tell the channel manager to begin co-op or forced channel close.
+    if !force_close {
+        // Co-operative close
+        channel_manager
+            .close_channel(&ln_channel_id, &counterparty.0)
+            .map_err(|err| {
+                anyhow!(
+                "Channel manager failed to begin cooperative channel close: \
+                 {err:?}"
+            )
+            })?;
+    } else {
+        // Force close
+        channel_manager
+            .force_close_broadcasting_latest_txn(
+                &ln_channel_id,
+                &counterparty.0,
+            )
+            .map_err(|e| {
+                anyhow!("Channel manager failed to force close channel: {e:?}")
+            })?;
+    }
+
+    // Wait for the corresponding ChannelClosed event
+    tokio::time::timeout(
+        Duration::from_secs(15),
+        channel_events_rx.next_filtered(|event| {
+            matches!(
+                event,
+                ChannelEvent::Closed { channel_id, .. } if channel_id == &lx_channel_id,
+            )
+        }),
+    )
+    .await
+    .context("Waiting for channel close event")?;
+
+    info!(%channel_id, "channel closed");
+
+    Ok(())
 }
 
 /// Uses the given `[bdk|ldk]_resync_tx` to retrigger BDK and LDK sync, and
