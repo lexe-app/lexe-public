@@ -2,7 +2,7 @@ use std::{ops::Deref, sync::Mutex};
 
 use async_trait::async_trait;
 use common::{
-    api::vfs::VfsFile,
+    api::{vfs::VfsFile, NodePk},
     ln::{
         payments::{LxPaymentId, PaymentIndex},
         peer::ChannelPeer,
@@ -139,6 +139,10 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
+    /// Returns `true` if we're connected to a peer with `node_pk`.
+    fn is_connected(&self, node_pk: &NodePk) -> bool {
+        self.peer_by_node_id(&node_pk.0).is_some()
+    }
 }
 
 impl<PM, CM, PS> LexePeerManager<CM, PS> for PM
