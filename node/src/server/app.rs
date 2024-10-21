@@ -81,6 +81,8 @@ pub(super) async fn open_channel(
     .map_err(NodeApiError::command)
 }
 
+// TODO(phlip9): close_channel
+
 pub(super) async fn create_invoice(
     State(state): State<Arc<AppRouterState>>,
     LxJson(req): LxJson<CreateInvoiceRequest>,

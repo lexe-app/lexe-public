@@ -99,7 +99,7 @@ where
         .map_err(|create_err| {
             // Make sure we force close the channel. Should not fail.
             if let Err(close_err) = channel_manager
-                .force_close_broadcasting_latest_txn(
+                .force_close_without_broadcasting_txn(
                     &temporary_channel_id,
                     &counterparty_node_id,
                 )

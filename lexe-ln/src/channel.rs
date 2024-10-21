@@ -1,68 +1,9 @@
-use anyhow::{anyhow, ensure, Context};
 use common::{
-    api::{command::CloseChannelRequest, Empty, NodePk},
     constants::DEFAULT_CHANNEL_SIZE,
     ln::channel::{LxChannelId, LxUserChannelId},
 };
-use lightning::{events::ClosureReason, ln::ChannelId};
+use lightning::events::ClosureReason;
 use tokio::sync::broadcast;
-use tracing::info;
-
-use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
-
-/// Initiates a channel close. Supports both cooperative (bilateral) and force
-/// (unilateral) channel closes.
-pub fn close_channel<CM, PM, PS>(
-    req: CloseChannelRequest,
-    channel_manager: CM,
-    peer_manager: PM,
-) -> anyhow::Result<Empty>
-where
-    CM: LexeChannelManager<PS>,
-    PM: LexePeerManager<CM, PS>,
-    PS: LexePersister,
-{
-    let channel_id = req.channel_id;
-    let force_close = req.force_close;
-    let maybe_counterparty = req.maybe_counterparty;
-    info!(
-        %channel_id, %force_close, ?maybe_counterparty,
-        "Initiating channel close",
-    );
-
-    let counterparty = maybe_counterparty
-        .or_else(|| {
-            channel_manager
-                .list_channels()
-                .into_iter()
-                .find(|c| c.channel_id.0 == channel_id.0)
-                .map(|c| NodePk(c.counterparty.node_id))
-        })
-        .with_context(|| format!("No channel exists with id {channel_id}"))?;
-
-    let channel_id = ChannelId::from(channel_id);
-
-    if force_close {
-        channel_manager
-            .force_close_broadcasting_latest_txn(&channel_id, &counterparty.0)
-            .map_err(|e| anyhow!("(Force close) LDK returned error: {e:?}"))?;
-    } else {
-        // TODO(phlip9): proactively try to reconnect. ex: this will fail if the
-        // LSP is closing a channel with a user node that is currently offline.
-
-        ensure!(
-            peer_manager.peer_by_node_id(&counterparty.0).is_some(),
-            "Cannot initiate cooperative close with disconnected peer"
-        );
-
-        channel_manager
-            .close_channel(&channel_id, &counterparty.0)
-            .map_err(|e| anyhow!("(Co-op close) LDK returned error: {e:?}"))?;
-    }
-
-    info!(%channel_id, %force_close, "Successfully initiated channel close");
-    Ok(Empty {})
-}
 
 /// Channel lifecycle events emitted from the node event handler.
 ///
