@@ -58,7 +58,7 @@ pub(super) async fn open_channel(
     // First ensure we're connected to the LSP.
     let lsp_node_pk = &state.lsp_info.node_pk;
     let lsp_addrs = slice::from_ref(&state.lsp_info.private_p2p_addr);
-    let peer_manager = state.peer_manager.clone();
+    let peer_manager = &state.peer_manager;
     p2p::connect_peer_if_necessary(peer_manager, lsp_node_pk, lsp_addrs)
         .await
         .context("Could not connect to Lexe LSP")

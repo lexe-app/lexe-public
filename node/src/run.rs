@@ -997,7 +997,7 @@ async fn maybe_reconnect_to_lsp(
 
         info!("Reconnecting to LSP");
         p2p::connect_peer_if_necessary(
-            peer_manager.clone(),
+            peer_manager,
             &lsp.node_pk,
             &[lsp.private_p2p_addr.clone()],
         )
