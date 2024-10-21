@@ -50,7 +50,7 @@ where
     ensure!(!addrs.is_empty(), "No addrs were provided");
 
     // Early return if we're already connected
-    if peer_manager.peer_by_node_id(&node_pk.0).is_some() {
+    if peer_manager.is_connected(node_pk) {
         return Ok(Empty {});
     }
 
@@ -76,7 +76,7 @@ where
 
         // Right before the next attempt, check again whether we're connected in
         // case another task managed to connect while we were sleeping.
-        if peer_manager.peer_by_node_id(&node_pk.0).is_some() {
+        if peer_manager.is_connected(node_pk) {
             return Ok(Empty {});
         }
     }
@@ -148,7 +148,7 @@ where
         }
 
         // Check if the connection has been established.
-        if peer_manager.peer_by_node_id(&node_pk.0).is_some() {
+        if peer_manager.is_connected(node_pk) {
             // Connection confirmed, log and return Ok
             debug!(%node_pk, %addr, "Successfully connected to peer");
             return Ok(());
