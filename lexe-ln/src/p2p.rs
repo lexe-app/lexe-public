@@ -38,7 +38,7 @@ pub enum ChannelPeerUpdate {
 /// Connects to a LN peer, returning early if we were already connected.
 /// Cycles through the given addresses until we run out of connect attempts.
 pub async fn connect_peer_if_necessary<CM, PM, PS>(
-    peer_manager: PM,
+    peer_manager: &PM,
     node_pk: &NodePk,
     addrs: &[LxSocketAddress],
 ) -> anyhow::Result<Empty>
@@ -63,7 +63,7 @@ where
     for _ in 0..retries {
         let addr = addrs.next().expect("Cycling through a non-empty slice");
 
-        match do_connect_peer(peer_manager.clone(), node_pk, addr).await {
+        match do_connect_peer(peer_manager, node_pk, addr).await {
             Ok(()) => return Ok(Empty {}),
             Err(e) => warn!("Failed to connect to peer: {e:#}"),
         }
@@ -91,7 +91,7 @@ where
 }
 
 async fn do_connect_peer<CM, PM, PS>(
-    peer_manager: PM,
+    peer_manager: &PM,
     node_pk: &NodePk,
     addr: &LxSocketAddress,
 ) -> anyhow::Result<()>
@@ -231,10 +231,10 @@ where
                 let reconnect_futs = disconnected_peers
                     .into_values()
                     .map(|peer| {
-                        let peer_manager_clone = peer_manager.clone();
+                        let peer_manager_ref = &peer_manager;
                         let reconnect_fut = async move {
                             let res = do_connect_peer(
-                                peer_manager_clone,
+                                peer_manager_ref,
                                 &peer.node_pk,
                                 &peer.addr,
                             )
