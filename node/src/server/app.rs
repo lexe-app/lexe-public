@@ -1,14 +1,14 @@
 use std::{slice, sync::Arc};
 
-use anyhow::Context;
+use anyhow::{ensure, Context};
 use axum::extract::State;
 use common::{
     api::{
         command::{
-            CreateInvoiceRequest, CreateInvoiceResponse, ListChannelsResponse,
-            NodeInfo, OpenChannelRequest, OpenChannelResponse,
-            PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
-            PayOnchainResponse, PreflightPayInvoiceRequest,
+            CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
+            ListChannelsResponse, NodeInfo, OpenChannelRequest,
+            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOnchainRequest, PayOnchainResponse, PreflightPayInvoiceRequest,
             PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
             PreflightPayOnchainResponse,
         },
@@ -81,7 +81,34 @@ pub(super) async fn open_channel(
     .map_err(NodeApiError::command)
 }
 
-// TODO(phlip9): close_channel
+pub(super) async fn close_channel(
+    State(state): State<Arc<AppRouterState>>,
+    LxJson(req): LxJson<CloseChannelRequest>,
+) -> Result<LxJson<Empty>, NodeApiError> {
+    let lsp_node_pk = &state.lsp_info.node_pk;
+    let lsp_addrs = slice::from_ref(&state.lsp_info.private_p2p_addr);
+    let peer_manager = &state.peer_manager;
+
+    // During a cooperative channel close, we want to guarantee that we're
+    // connected to the LSP. Proactively reconnect if necessary.
+    let ensure_lsp_connected = |node_pk| async move {
+        ensure!(&node_pk == lsp_node_pk, "Can only connect to the Lexe LSP");
+        p2p::connect_peer_if_necessary(peer_manager, lsp_node_pk, lsp_addrs)
+            .await
+            .context("Could not connect to Lexe LSP")
+    };
+
+    lexe_ln::command::close_channel(
+        &state.channel_manager,
+        &state.channel_events_bus,
+        ensure_lsp_connected,
+        req,
+    )
+    .await
+    .context("Failed to close channel")
+    .map(|()| LxJson(Empty {}))
+    .map_err(NodeApiError::command)
+}
 
 pub(super) async fn create_invoice(
     State(state): State<Arc<AppRouterState>>,
