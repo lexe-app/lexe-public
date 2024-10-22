@@ -140,16 +140,20 @@ where
 
 /// Open and fund a new channel with `channel_value` and `counterparty_node_pk`.
 ///
-/// Waits for the channel to become `Pending` (success) or `Closed` (failure).
-/// If the channel `is_jit_channel` (an LSP->User JIT channel), it will wait for
-/// full channel `Ready`.
+/// After checking that we have enough balance for the new channel, we'll await
+/// on `ensure_counterparty_connected()`, which should proactively try to
+/// connect to the new channel counterparty if we're not already connected.
 ///
-/// Precondition: must be connected with the remote peer before open_channel.
+/// Once the new channel is registered with LDK, we wait for the channel to
+/// become `Pending` (success) or `Closed` (failure). If the new channel
+/// `is_jit_channel` (an LSP->User JIT channel), it will wait for full channel
+/// `Ready`.
 #[instrument(skip_all, name = "(open-channel)")]
-pub async fn open_channel<CM, PS>(
+pub async fn open_channel<CM, PS, F>(
     channel_manager: &CM,
     channel_events_bus: &ChannelEventsBus,
     wallet: &LexeWallet,
+    ensure_counterparty_connected: impl FnOnce() -> F,
     user_channel_id: LxUserChannelId,
     channel_value: Amount,
     counterparty_node_pk: &NodePk,
@@ -159,6 +163,7 @@ pub async fn open_channel<CM, PS>(
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
+    F: Future<Output = anyhow::Result<()>>,
 {
     // Get our current on-chain spendable sats (trusted + confirmed outputs).
     let spendable_sats = wallet
@@ -168,19 +173,19 @@ where
         .get_spendable_sats();
     let channel_value_sats = channel_value.sats_u64();
 
-    // TODO(phlip9): How can we accurately estimate the on-chain fee
-    // for opening a new channel?
-
-    // TODO(phlip9): Alt., we have a min threshold for on-chain bal,
-    // beyond which we don't allow new JIT channel opens. This way
-    // we can guarantee capital for safety critical channel closures
-    // and won't accidentally spend it all on user liquidity.
+    // TODO(phlip9): How can we accurately estimate the on-chain fee for
+    // opening a new channel?
 
     // Check if we actually have enough for this channel.
     ensure!(
         spendable_sats >= channel_value_sats,
         "Insufficient on-chain balance: {spendable_sats}, need: {channel_value_sats}"
     );
+
+    // Ensure channel counterparty is connected.
+    ensure_counterparty_connected()
+        .await
+        .context("Failed to connect to channel counterparty")?;
 
     // Start listening for channel events.
     let mut channel_events_rx = channel_events_bus.subscribe();
