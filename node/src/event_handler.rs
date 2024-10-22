@@ -12,7 +12,6 @@ use common::{
     shutdown::ShutdownChannel, task::LxTask, test_event::TestEvent,
 };
 use lexe_ln::{
-    alias::NetworkGraphType,
     channel::ChannelEventsBus,
     esplora::LexeEsplora,
     event::{self, EventHandleError},
@@ -26,15 +25,21 @@ use tracing::{error, info, warn};
 
 use crate::{alias::PaymentsManagerType, channel_manager::NodeChannelManager};
 
+/// The LDK [`EventHandler`] for the user node.
+pub struct NodeEventHandler {
+    pub(crate) ctx: Arc<Ctx>,
+}
+
 // We pub(crate) all the fields to prevent having to specify each field two more
 // times in Self::new parameters and in struct init syntax.
-pub struct NodeEventHandler {
+// TODO(phlip9): we probably won't need this intermediate struct when we impl
+// full async event handling.
+pub(crate) struct Ctx {
     pub(crate) lsp: LspInfo,
     pub(crate) wallet: LexeWallet,
     pub(crate) channel_manager: NodeChannelManager,
     pub(crate) keys_manager: Arc<LexeKeysManager>,
     pub(crate) esplora: Arc<LexeEsplora>,
-    pub(crate) network_graph: Arc<NetworkGraphType>,
     pub(crate) payments_manager: PaymentsManagerType,
     pub(crate) fatal_event: Arc<AtomicBool>,
     pub(crate) channel_events_bus: ChannelEventsBus,
@@ -78,18 +83,8 @@ impl EventHandler for NodeEventHandler {
         #[cfg(debug_assertions)] // Events contain sensitive info
         tracing::trace!("Event details: {event:?}");
 
-        // TODO(max): Remove all clone()s when async handling is implemented
-        let lsp = self.lsp.clone();
-        let wallet = self.wallet.clone();
-        let channel_manager = self.channel_manager.clone();
-        let esplora = self.esplora.clone();
-        let network_graph = self.network_graph.clone();
-        let keys_manager = self.keys_manager.clone();
-        let payments_manager = self.payments_manager.clone();
-        let fatal_event = self.fatal_event.clone();
-        let channel_events_bus = self.channel_events_bus.clone();
-        let test_event_tx = self.test_event_tx.clone();
-        let shutdown = self.shutdown.clone();
+        // TODO(max): Remove clone() when async handling is implemented
+        let ctx = self.ctx.clone();
 
         // XXX(max): We are currently breaking the EventHandler contract because
         // spawning off the event handling in a task means that it is possible
@@ -106,68 +101,40 @@ impl EventHandler for NodeEventHandler {
         // channel manager only after it `.await`s for the async event handler
         // to complete, so the contract will be upheld once more.
         #[allow(clippy::redundant_async_block)]
-        LxTask::spawn(async move {
-            handle_event(
-                &lsp,
-                &wallet,
-                &channel_manager,
-                &esplora,
-                &network_graph,
-                keys_manager.as_ref(),
-                &payments_manager,
-                fatal_event.as_ref(),
-                &channel_events_bus,
-                &test_event_tx,
-                &shutdown,
-                event,
-            )
-            .await
-        })
-        .detach();
+        LxTask::spawn(async move { ctx.handle_event(event).await }).detach();
     }
 }
 
-// TODO(max): Make this non-async by spawning tasks instead
-pub(crate) async fn handle_event(
-    lsp: &LspInfo,
-    wallet: &LexeWallet,
-    channel_manager: &NodeChannelManager,
-    esplora: &LexeEsplora,
-    network_graph: &NetworkGraphType,
-    keys_manager: &LexeKeysManager,
-    payments_manager: &PaymentsManagerType,
-    fatal_event: &AtomicBool,
-    channel_events_bus: &ChannelEventsBus,
-    test_event_tx: &TestEventSender,
-    shutdown: &ShutdownChannel,
-    event: Event,
-) {
-    let event_name = lexe_ln::event::get_event_name(&event);
-    let handle_event_res = handle_event_fallible(
-        lsp,
-        wallet,
-        channel_manager,
-        esplora,
-        network_graph,
-        keys_manager,
-        payments_manager,
-        channel_events_bus,
-        test_event_tx,
-        shutdown,
-        event,
-    )
-    .await;
+impl Ctx {
+    // TODO(max): Make this non-async by spawning tasks instead
+    async fn handle_event(&self, event: Event) {
+        let event_name = lexe_ln::event::get_event_name(&event);
+        let handle_event_res = handle_event_fallible(
+            &self.lsp,
+            &self.wallet,
+            &self.channel_manager,
+            &self.esplora,
+            &self.keys_manager,
+            &self.payments_manager,
+            &self.channel_events_bus,
+            &self.test_event_tx,
+            &self.shutdown,
+            event,
+        )
+        .await;
 
-    match handle_event_res {
-        Ok(()) => info!("Successfully handled {event_name}"),
-        Err(EventHandleError::Tolerable(e)) =>
-            warn!("Tolerable error handling {event_name}: {e:#}"),
-        Err(EventHandleError::Fatal(e)) => {
-            error!("Fatal error handling {event_name}: {e:#}");
-            shutdown.send();
-            // Notify our BGP that a fatal event handling error has occurred and
-            // that the current batch of events MUST not be lost.
-            fatal_event.store(true, Ordering::Release);
+        match handle_event_res {
+            Ok(()) => info!("Successfully handled {event_name}"),
+            Err(EventHandleError::Tolerable(e)) =>
+                warn!("Tolerable error handling {event_name}: {e:#}"),
+            Err(EventHandleError::Fatal(e)) => {
+                error!("Fatal error handling {event_name}: {e:#}");
+                self.shutdown.send();
+                // Notify our BGP that a fatal event handling error has occurred
+                // and that the current batch of events MUST not
+                // be lost.
+                self.fatal_event.store(true, Ordering::Release);
+            }
         }
     }
 }
@@ -177,8 +144,6 @@ async fn handle_event_fallible(
     wallet: &LexeWallet,
     channel_manager: &NodeChannelManager,
     esplora: &LexeEsplora,
-    // TODO(max): Remove this?
-    _network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
     payments_manager: &PaymentsManagerType,
     channel_events_bus: &ChannelEventsBus,
