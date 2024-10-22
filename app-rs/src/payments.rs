@@ -941,10 +941,10 @@ mod test {
     use common::{
         api::{
             command::{
-                CreateInvoiceRequest, CreateInvoiceResponse,
-                ListChannelsResponse, NodeInfo, OpenChannelRequest,
-                OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-                PayOnchainRequest, PayOnchainResponse,
+                CloseChannelRequest, CreateInvoiceRequest,
+                CreateInvoiceResponse, ListChannelsResponse, NodeInfo,
+                OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+                PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
                 PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
                 PreflightPayOnchainRequest, PreflightPayOnchainResponse,
             },
@@ -994,6 +994,12 @@ mod test {
             &self,
             _data: OpenChannelRequest,
         ) -> Result<OpenChannelResponse, NodeApiError> {
+            unimplemented!()
+        }
+        async fn close_channel(
+            &self,
+            _data: CloseChannelRequest,
+        ) -> Result<Empty, NodeApiError> {
             unimplemented!()
         }
         async fn create_invoice(

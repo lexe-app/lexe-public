@@ -23,10 +23,10 @@ use crate::{
             UserSignupRequest,
         },
         command::{
-            CreateInvoiceRequest, CreateInvoiceResponse, ListChannelsResponse,
-            NodeInfo, OpenChannelRequest, OpenChannelResponse,
-            PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
-            PayOnchainResponse, PreflightPayInvoiceRequest,
+            CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
+            ListChannelsResponse, NodeInfo, OpenChannelRequest,
+            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOnchainRequest, PayOnchainResponse, PreflightPayInvoiceRequest,
             PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
             PreflightPayOnchainResponse,
         },
@@ -371,6 +371,17 @@ impl AppNodeRunApi for NodeClient {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/open_channel");
+        let req = self.run_rest.post(url, &data);
+        self.run_rest.send(req).await
+    }
+
+    async fn close_channel(
+        &self,
+        data: CloseChannelRequest,
+    ) -> Result<Empty, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/close_channel");
         let req = self.run_rest.post(url, &data);
         self.run_rest.send(req).await
     }

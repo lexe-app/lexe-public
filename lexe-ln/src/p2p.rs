@@ -2,7 +2,7 @@ use std::{collections::HashMap, time::Duration};
 
 use anyhow::{bail, ensure, Context};
 use common::{
-    api::{Empty, NodePk},
+    api::NodePk,
     backoff,
     ln::{addr::LxSocketAddress, peer::ChannelPeer},
     shutdown::ShutdownChannel,
@@ -41,7 +41,7 @@ pub async fn connect_peer_if_necessary<CM, PM, PS>(
     peer_manager: &PM,
     node_pk: &NodePk,
     addrs: &[LxSocketAddress],
-) -> anyhow::Result<Empty>
+) -> anyhow::Result<()>
 where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS>,
@@ -51,7 +51,7 @@ where
 
     // Early return if we're already connected
     if peer_manager.is_connected(node_pk) {
-        return Ok(Empty {});
+        return Ok(());
     }
 
     // Cycle the given addresses in order
@@ -64,7 +64,7 @@ where
         let addr = addrs.next().expect("Cycling through a non-empty slice");
 
         match do_connect_peer(peer_manager, node_pk, addr).await {
-            Ok(()) => return Ok(Empty {}),
+            Ok(()) => return Ok(()),
             Err(e) => warn!("Failed to connect to peer: {e:#}"),
         }
 
@@ -77,7 +77,7 @@ where
         // Right before the next attempt, check again whether we're connected in
         // case another task managed to connect while we were sleeping.
         if peer_manager.is_connected(node_pk) {
-            return Ok(Empty {});
+            return Ok(());
         }
     }
 
@@ -87,7 +87,7 @@ where
         .await
         .context("Failed to connect to peer")?;
 
-    Ok(Empty {})
+    Ok(())
 }
 
 async fn do_connect_peer<CM, PM, PS>(

@@ -25,6 +25,7 @@
 use async_trait::async_trait;
 use bitcoin::{address::NetworkUnchecked, Address};
 
+use super::command::CloseChannelRequest;
 #[cfg(doc)]
 use crate::{
     api::qs::{GetByMeasurement, GetByUserPk},
@@ -347,6 +348,14 @@ pub trait AppNodeRunApi {
         &self,
         req: OpenChannelRequest,
     ) -> Result<OpenChannelResponse, NodeApiError>;
+
+    /// POST /app/close_channel [`CloseChannelRequest`] -> [`Empty`]
+    ///
+    /// Opens a channel to the LSP.
+    async fn close_channel(
+        &self,
+        req: CloseChannelRequest,
+    ) -> Result<Empty, NodeApiError>;
 
     /// POST /app/create_invoice [`CreateInvoiceRequest`]
     ///                          -> [`CreateInvoiceResponse`]
