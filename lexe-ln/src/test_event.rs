@@ -2,7 +2,6 @@ use std::{
     collections::HashMap,
     fmt::Write,
     mem::{self, Discriminant},
-    sync::Arc,
     time::Duration,
 };
 
@@ -27,7 +26,7 @@ pub fn channel(label: &'static str) -> (TestEventSender, TestEventReceiver) {
 /// A handler for calling any of the [`TestEventReceiver`] methods.
 pub async fn do_op(
     op: TestEventOp,
-    rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
+    rx: &tokio::sync::Mutex<TestEventReceiver>,
 ) -> anyhow::Result<()> {
     cfg_if! {
         if #[cfg(any(test, feature = "test-utils"))] {

@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use anyhow::{anyhow, bail, Context};
 use bitcoin::bech32::ToBase32;
@@ -81,10 +81,10 @@ pub enum CreateInvoiceCaller {
 pub async fn node_info<CM, PM, PS>(
     version: semver::Version,
     measurement: Measurement,
-    channel_manager: CM,
-    peer_manager: PM,
-    wallet: LexeWallet,
-    chain_monitor: Arc<LexeChainMonitorType<PS>>,
+    channel_manager: &CM,
+    peer_manager: &PM,
+    wallet: &LexeWallet,
+    chain_monitor: &LexeChainMonitorType<PS>,
 ) -> anyhow::Result<NodeInfo>
 where
     CM: LexeChannelManager<PS>,
@@ -125,7 +125,7 @@ where
 }
 
 #[instrument(skip_all, name = "(list-channels)")]
-pub fn list_channels<CM, PS>(channel_manager: CM) -> ListChannelsResponse
+pub fn list_channels<CM, PS>(channel_manager: &CM) -> ListChannelsResponse
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
@@ -346,9 +346,9 @@ pub async fn resync(
 #[instrument(skip_all, name = "(create-invoice)")]
 pub async fn create_invoice<CM, PS>(
     req: CreateInvoiceRequest,
-    channel_manager: CM,
-    keys_manager: Arc<LexeKeysManager>,
-    payments_manager: PaymentsManager<CM, PS>,
+    channel_manager: &CM,
+    keys_manager: &LexeKeysManager,
+    payments_manager: &PaymentsManager<CM, PS>,
     caller: CreateInvoiceCaller,
     network: LxNetwork,
 ) -> anyhow::Result<CreateInvoiceResponse>
@@ -465,9 +465,9 @@ where
 #[instrument(skip_all, name = "(pay-invoice)")]
 pub async fn pay_invoice<CM, PS>(
     req: PayInvoiceRequest,
-    router: Arc<RouterType>,
-    channel_manager: CM,
-    payments_manager: PaymentsManager<CM, PS>,
+    router: &RouterType,
+    channel_manager: &CM,
+    payments_manager: &PaymentsManager<CM, PS>,
 ) -> anyhow::Result<PayInvoiceResponse>
 where
     CM: LexeChannelManager<PS>,
@@ -481,8 +481,8 @@ where
     } = preflight_pay_invoice_inner(
         req,
         router,
-        &channel_manager,
-        &payments_manager,
+        channel_manager,
+        payments_manager,
     )
     .await?;
     let payment_hash = payment.hash;
@@ -547,9 +547,9 @@ where
 #[instrument(skip_all, name = "(preflight-pay-invoice)")]
 pub async fn preflight_pay_invoice<CM, PS>(
     req: PreflightPayInvoiceRequest,
-    router: Arc<RouterType>,
-    channel_manager: CM,
-    payments_manager: PaymentsManager<CM, PS>,
+    router: &RouterType,
+    channel_manager: &CM,
+    payments_manager: &PaymentsManager<CM, PS>,
 ) -> anyhow::Result<PreflightPayInvoiceResponse>
 where
     CM: LexeChannelManager<PS>,
@@ -564,8 +564,8 @@ where
     let preflight = preflight_pay_invoice_inner(
         req,
         router,
-        &channel_manager,
-        &payments_manager,
+        channel_manager,
+        payments_manager,
     )
     .await?;
     Ok(PreflightPayInvoiceResponse {
@@ -578,9 +578,9 @@ where
 pub async fn pay_onchain<CM, PS>(
     req: PayOnchainRequest,
     network: LxNetwork,
-    wallet: LexeWallet,
-    esplora: Arc<LexeEsplora>,
-    payments_manager: PaymentsManager<CM, PS>,
+    wallet: &LexeWallet,
+    esplora: &LexeEsplora,
+    payments_manager: &PaymentsManager<CM, PS>,
 ) -> anyhow::Result<PayOnchainResponse>
 where
     CM: LexeChannelManager<PS>,
@@ -630,7 +630,7 @@ where
 #[instrument(skip_all, name = "(estimate-fee-send-onchain)")]
 pub async fn preflight_pay_onchain(
     req: PreflightPayOnchainRequest,
-    wallet: LexeWallet,
+    wallet: &LexeWallet,
     network: LxNetwork,
 ) -> anyhow::Result<PreflightPayOnchainResponse> {
     wallet.preflight_pay_onchain(req, network).await
@@ -638,7 +638,7 @@ pub async fn preflight_pay_onchain(
 
 #[instrument(skip_all, name = "(get-address)")]
 pub async fn get_address(
-    wallet: LexeWallet,
+    wallet: &LexeWallet,
 ) -> anyhow::Result<bitcoin::Address> {
     wallet.get_address().await
 }
@@ -655,7 +655,7 @@ struct PreflightedPayInvoice {
 // pay.
 async fn preflight_pay_invoice_inner<CM, PS>(
     req: PayInvoiceRequest,
-    router: Arc<RouterType>,
+    router: &RouterType,
     channel_manager: &CM,
     payments_manager: &PaymentsManager<CM, PS>,
 ) -> anyhow::Result<PreflightedPayInvoice>
