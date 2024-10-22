@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use anyhow::{anyhow, bail, ensure, Context};
+use anyhow::{anyhow, bail, Context};
 use bitcoin::bech32::ToBase32;
 use bitcoin_hashes::{sha256, Hash};
 use common::{
@@ -165,22 +165,12 @@ where
     PS: LexePersister,
     F: Future<Output = anyhow::Result<()>>,
 {
-    // Get our current on-chain spendable sats (trusted + confirmed outputs).
-    let spendable_sats = wallet
-        .get_balance()
-        .await
-        .context("Failed to get wallet balance")?
-        .get_spendable_sats();
-    let channel_value_sats = channel_value.sats_u64();
-
-    // TODO(phlip9): How can we accurately estimate the on-chain fee for
-    // opening a new channel?
-
-    // Check if we actually have enough for this channel.
-    ensure!(
-        spendable_sats >= channel_value_sats,
-        "Insufficient on-chain balance: {spendable_sats}, need: {channel_value_sats}"
-    );
+    // Check if we actually have enough on-chain funds for this channel +
+    // on-chain fees. This check isn't safety critical; it just lets us quickly
+    // avoid a lot of unnecessary work.
+    let _fees = wallet
+        .preflight_channel_funding_tx(channel_value.sats_u64())
+        .await?;
 
     // Ensure channel counterparty is connected.
     ensure_counterparty_connected()
