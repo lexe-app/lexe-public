@@ -61,14 +61,15 @@ pub(super) async fn open_channel(
     } = &*state;
 
     let user_channel_id = LxUserChannelId::gen(&mut SysRng::new());
-
-    // First ensure we're connected to the LSP.
     let lsp_node_pk = &lsp_info.node_pk;
     let lsp_addrs = slice::from_ref(&lsp_info.private_p2p_addr);
-    p2p::connect_peer_if_necessary(peer_manager, lsp_node_pk, lsp_addrs)
-        .await
-        .context("Could not connect to Lexe LSP")
-        .map_err(NodeApiError::command)?;
+
+    // Callback ensures we're connected to the LSP.
+    let ensure_lsp_connected = || async move {
+        p2p::connect_peer_if_necessary(peer_manager, lsp_node_pk, lsp_addrs)
+            .await
+            .context("Could not connect to Lexe LSP")
+    };
 
     // Open the channel and wait for `ChannelPending`.
     let is_jit_channel = false;
@@ -76,6 +77,7 @@ pub(super) async fn open_channel(
         channel_manager,
         channel_events_bus,
         wallet,
+        ensure_lsp_connected,
         user_channel_id,
         req.value,
         lsp_node_pk,
