@@ -1,10 +1,7 @@
 use anyhow::{anyhow, Context};
 use bitcoin::{absolute, secp256k1};
 use common::{
-    ln::{
-        channel::{LxChannelId, LxUserChannelId},
-        priority::ConfirmationPriority,
-    },
+    ln::channel::{LxChannelId, LxUserChannelId},
     rng::{Crng, SysRng},
     test_event::TestEvent,
 };
@@ -83,8 +80,6 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
-    let conf_prio = ConfirmationPriority::Normal;
-
     // Sign the funding tx.
     // This can fail if we just don't have enought on-chain funds, so it's a
     // tolerable error.
@@ -92,7 +87,6 @@ where
         .create_and_sign_funding_tx(
             output_script,
             channel_value_satoshis,
-            conf_prio,
         )
         .await
         .context("Failed to create channel funding tx")

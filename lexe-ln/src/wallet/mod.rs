@@ -45,6 +45,13 @@ pub mod db;
 /// belonging to the wallet. BDK's default value for this is 20.
 const BDK_WALLET_SYNC_STOP_GAP: usize = 20;
 
+/// The [`ConfirmationPriority`] for new open_channel funding transactions.
+///
+/// See: [`LexeWallet::create_and_sign_funding_tx`]
+///  and [`LexeWallet::preflight_channel_funding_tx`].
+const CHANNEL_FUNDING_CONF_PRIO: ConfirmationPriority =
+    ConfirmationPriority::Normal;
+
 type TxBuilderType<'wallet, MODE> =
     TxBuilder<'wallet, WalletDb, DefaultCoinSelectionAlgorithm, MODE>;
 
@@ -201,6 +208,47 @@ impl LexeWallet {
             .context("Could not get tx")
     }
 
+    /// Determine if we have enough on-chain balance for a potential channel
+    /// funding tx of this `channel_value_sats`. If so, return the estimated
+    /// on-chain fees.
+    pub(crate) async fn preflight_channel_funding_tx(
+        &self,
+        channel_value_sats: u64,
+    ) -> anyhow::Result<Amount> {
+        // TODO(phlip9): need more correct approach here. Ultimately, we can't
+        // exactly predict the final output since that would require the
+        // actual channel negotiation. But we should probably account for our
+        // `UserConfig` at least?
+        //
+        // Experimentally determined output script length for LSP<->User node:
+        // output_script = [
+        //   OP_0
+        //   OP_PUSHBYTES_32
+        //   1f81a37547d600618b57ffd57d36144158060961a4b22076f365fd3fb1b4c1f0
+        // ]
+        // => len == 34 bytes
+        let fake_output_script = bitcoin::ScriptBuf::from_bytes(vec![0x69; 34]);
+
+        let locked_wallet = self.wallet.lock().await;
+
+        // Build
+        let conf_prio = CHANNEL_FUNDING_CONF_PRIO;
+        let bdk_feerate = self.esplora.conf_prio_to_bdk_feerate(conf_prio);
+        let mut tx_builder =
+            Self::default_tx_builder(&locked_wallet, bdk_feerate);
+        tx_builder.add_recipient(fake_output_script, channel_value_sats);
+        let (_psbt, tx_details) = tx_builder
+            .finish()
+            .context("Could not build channel funding tx")?;
+
+        // Extract fees
+        let fees = tx_details
+            .fee
+            .expect("When creating a new tx, bdk always sets the fee value");
+
+        Amount::try_from_sats_u64(fees).context("Bad fee amount")
+    }
+
     /// Create and sign a funding tx given an output script, channel value, and
     /// confirmation target. Intended to be called downstream of an
     /// [`FundingGenerationReady`] event
@@ -209,16 +257,16 @@ impl LexeWallet {
     pub(crate) async fn create_and_sign_funding_tx(
         &self,
         output_script: bitcoin::ScriptBuf,
-        channel_value_satoshis: u64,
-        conf_prio: ConfirmationPriority,
+        channel_value_sats: u64,
     ) -> anyhow::Result<Transaction> {
         let locked_wallet = self.wallet.lock().await;
 
         // Build
+        let conf_prio = CHANNEL_FUNDING_CONF_PRIO;
         let bdk_feerate = self.esplora.conf_prio_to_bdk_feerate(conf_prio);
         let mut tx_builder =
             Self::default_tx_builder(&locked_wallet, bdk_feerate);
-        tx_builder.add_recipient(output_script, channel_value_satoshis);
+        tx_builder.add_recipient(output_script, channel_value_sats);
         let (mut psbt, _tx_details) = tx_builder
             .finish()
             .context("Could not build funding PSBT")?;
