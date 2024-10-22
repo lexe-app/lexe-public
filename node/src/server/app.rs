@@ -56,6 +56,7 @@ pub(super) async fn open_channel(
         peer_manager,
         channel_manager,
         channel_events_bus,
+        wallet,
         ..
     } = &*state;
 
@@ -74,6 +75,7 @@ pub(super) async fn open_channel(
     lexe_ln::command::open_channel(
         channel_manager,
         channel_events_bus,
+        wallet,
         user_channel_id,
         req.value,
         lsp_node_pk,
