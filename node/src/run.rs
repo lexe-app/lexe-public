@@ -63,7 +63,7 @@ use crate::{
     alias::{ChainMonitorType, OnionMessengerType, PaymentsManagerType},
     api::{self, BackendApiClient},
     channel_manager::NodeChannelManager,
-    event_handler::NodeEventHandler,
+    event_handler::{self, NodeEventHandler},
     inactivity_timer::InactivityTimer,
     peer_manager::NodePeerManager,
     persister::{self, NodePersister},
@@ -556,17 +556,18 @@ impl UserNode {
         let fatal_event = Arc::new(AtomicBool::new(false));
         let channel_events_bus = ChannelEventsBus::new();
         let event_handler = NodeEventHandler {
-            lsp: args.lsp.clone(),
-            wallet: wallet.clone(),
-            channel_manager: channel_manager.clone(),
-            keys_manager: keys_manager.clone(),
-            esplora: esplora.clone(),
-            network_graph: network_graph.clone(),
-            payments_manager: payments_manager.clone(),
-            fatal_event: fatal_event.clone(),
-            channel_events_bus: channel_events_bus.clone(),
-            test_event_tx: test_event_tx.clone(),
-            shutdown: shutdown.clone(),
+            ctx: Arc::new(event_handler::Ctx {
+                lsp: args.lsp.clone(),
+                wallet: wallet.clone(),
+                channel_manager: channel_manager.clone(),
+                keys_manager: keys_manager.clone(),
+                esplora: esplora.clone(),
+                payments_manager: payments_manager.clone(),
+                fatal_event: fatal_event.clone(),
+                channel_events_bus: channel_events_bus.clone(),
+                test_event_tx: test_event_tx.clone(),
+                shutdown: shutdown.clone(),
+            }),
         };
 
         // Set up the channel monitor persistence task
