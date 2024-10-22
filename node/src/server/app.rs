@@ -31,10 +31,10 @@ pub(super) async fn node_info(
     lexe_ln::command::node_info(
         state.version.clone(),
         state.measurement,
-        state.channel_manager.clone(),
-        state.peer_manager.clone(),
-        state.wallet.clone(),
-        state.chain_monitor.clone(),
+        &state.channel_manager,
+        &state.peer_manager,
+        &state.wallet,
+        &state.chain_monitor,
     )
     .await
     .map(LxJson)
@@ -44,21 +44,26 @@ pub(super) async fn node_info(
 pub(super) async fn list_channels(
     State(state): State<Arc<AppRouterState>>,
 ) -> LxJson<ListChannelsResponse> {
-    LxJson(lexe_ln::command::list_channels(
-        state.channel_manager.clone(),
-    ))
+    LxJson(lexe_ln::command::list_channels(&state.channel_manager))
 }
 
 pub(super) async fn open_channel(
     State(state): State<Arc<AppRouterState>>,
     LxJson(req): LxJson<OpenChannelRequest>,
 ) -> Result<LxJson<OpenChannelResponse>, NodeApiError> {
+    let AppRouterState {
+        lsp_info,
+        peer_manager,
+        channel_manager,
+        channel_events_bus,
+        ..
+    } = &*state;
+
     let user_channel_id = LxUserChannelId::gen(&mut SysRng::new());
 
     // First ensure we're connected to the LSP.
-    let lsp_node_pk = &state.lsp_info.node_pk;
-    let lsp_addrs = slice::from_ref(&state.lsp_info.private_p2p_addr);
-    let peer_manager = &state.peer_manager;
+    let lsp_node_pk = &lsp_info.node_pk;
+    let lsp_addrs = slice::from_ref(&lsp_info.private_p2p_addr);
     p2p::connect_peer_if_necessary(peer_manager, lsp_node_pk, lsp_addrs)
         .await
         .context("Could not connect to Lexe LSP")
@@ -67,8 +72,8 @@ pub(super) async fn open_channel(
     // Open the channel and wait for `ChannelPending`.
     let is_jit_channel = false;
     lexe_ln::command::open_channel(
-        &state.channel_manager,
-        &state.channel_events_bus,
+        channel_manager,
+        channel_events_bus,
         user_channel_id,
         req.value,
         lsp_node_pk,
@@ -85,12 +90,18 @@ pub(super) async fn close_channel(
     State(state): State<Arc<AppRouterState>>,
     LxJson(req): LxJson<CloseChannelRequest>,
 ) -> Result<LxJson<Empty>, NodeApiError> {
-    let lsp_node_pk = &state.lsp_info.node_pk;
-    let lsp_addrs = slice::from_ref(&state.lsp_info.private_p2p_addr);
-    let peer_manager = &state.peer_manager;
+    let AppRouterState {
+        lsp_info,
+        peer_manager,
+        channel_manager,
+        channel_events_bus,
+        ..
+    } = &*state;
 
     // During a cooperative channel close, we want to guarantee that we're
     // connected to the LSP. Proactively reconnect if necessary.
+    let lsp_node_pk = &lsp_info.node_pk;
+    let lsp_addrs = slice::from_ref(&lsp_info.private_p2p_addr);
     let ensure_lsp_connected = |node_pk| async move {
         ensure!(&node_pk == lsp_node_pk, "Can only connect to the Lexe LSP");
         p2p::connect_peer_if_necessary(peer_manager, lsp_node_pk, lsp_addrs)
@@ -99,8 +110,8 @@ pub(super) async fn close_channel(
     };
 
     lexe_ln::command::close_channel(
-        &state.channel_manager,
-        &state.channel_events_bus,
+        channel_manager,
+        channel_events_bus,
         ensure_lsp_connected,
         req,
     )
@@ -120,9 +131,9 @@ pub(super) async fn create_invoice(
     };
     lexe_ln::command::create_invoice(
         req,
-        state.channel_manager.clone(),
-        state.keys_manager.clone(),
-        state.payments_manager.clone(),
+        &state.channel_manager,
+        &state.keys_manager,
+        &state.payments_manager,
         caller,
         state.network,
     )
@@ -137,9 +148,9 @@ pub(super) async fn pay_invoice(
 ) -> Result<LxJson<PayInvoiceResponse>, NodeApiError> {
     lexe_ln::command::pay_invoice(
         req,
-        state.router.clone(),
-        state.channel_manager.clone(),
-        state.payments_manager.clone(),
+        &state.router,
+        &state.channel_manager,
+        &state.payments_manager,
     )
     .await
     .map(LxJson)
@@ -152,9 +163,9 @@ pub(super) async fn preflight_pay_invoice(
 ) -> Result<LxJson<PreflightPayInvoiceResponse>, NodeApiError> {
     lexe_ln::command::preflight_pay_invoice(
         req,
-        state.router.clone(),
-        state.channel_manager.clone(),
-        state.payments_manager.clone(),
+        &state.router,
+        &state.channel_manager,
+        &state.payments_manager,
     )
     .await
     .map(LxJson)
@@ -168,9 +179,9 @@ pub(super) async fn pay_onchain(
     lexe_ln::command::pay_onchain(
         req,
         state.network,
-        state.wallet.clone(),
-        state.esplora.clone(),
-        state.payments_manager.clone(),
+        &state.wallet,
+        &state.esplora,
+        &state.payments_manager,
     )
     .await
     .map(LxJson)
@@ -181,20 +192,16 @@ pub(super) async fn preflight_pay_onchain(
     State(state): State<Arc<AppRouterState>>,
     LxJson(req): LxJson<PreflightPayOnchainRequest>,
 ) -> Result<LxJson<PreflightPayOnchainResponse>, NodeApiError> {
-    lexe_ln::command::preflight_pay_onchain(
-        req,
-        state.wallet.clone(),
-        state.network,
-    )
-    .await
-    .map(LxJson)
-    .map_err(NodeApiError::command)
+    lexe_ln::command::preflight_pay_onchain(req, &state.wallet, state.network)
+        .await
+        .map(LxJson)
+        .map_err(NodeApiError::command)
 }
 
 pub(super) async fn get_address(
     State(state): State<Arc<AppRouterState>>,
 ) -> Result<LxJson<bitcoin::Address>, NodeApiError> {
-    lexe_ln::command::get_address(state.wallet.clone())
+    lexe_ln::command::get_address(&state.wallet)
         .await
         .map(LxJson)
         .map_err(NodeApiError::command)

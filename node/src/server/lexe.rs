@@ -38,7 +38,7 @@ pub(super) async fn test_event(
     State(state): State<Arc<LexeRouterState>>,
     LxJson(op): LxJson<TestEventOp>,
 ) -> Result<LxJson<()>, NodeApiError> {
-    test_event::do_op(op, state.test_event_rx.clone())
+    test_event::do_op(op, &state.test_event_rx)
         .await
         .map(LxJson)
         .map_err(NodeApiError::command)
