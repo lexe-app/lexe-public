@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use anyhow::{anyhow, bail, Context};
+use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin::bech32::ToBase32;
 use bitcoin_hashes::{sha256, Hash};
 use common::{
@@ -149,6 +149,7 @@ where
 pub async fn open_channel<CM, PS>(
     channel_manager: &CM,
     channel_events_bus: &ChannelEventsBus,
+    wallet: &LexeWallet,
     user_channel_id: LxUserChannelId,
     channel_value: Amount,
     counterparty_node_pk: &NodePk,
@@ -159,6 +160,28 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
+    // Get our current on-chain spendable sats (trusted + confirmed outputs).
+    let spendable_sats = wallet
+        .get_balance()
+        .await
+        .context("Failed to get wallet balance")?
+        .get_spendable_sats();
+    let channel_value_sats = channel_value.sats_u64();
+
+    // TODO(phlip9): How can we accurately estimate the on-chain fee
+    // for opening a new channel?
+
+    // TODO(phlip9): Alt., we have a min threshold for on-chain bal,
+    // beyond which we don't allow new JIT channel opens. This way
+    // we can guarantee capital for safety critical channel closures
+    // and won't accidentally spend it all on user liquidity.
+
+    // Check if we actually have enough for this channel.
+    ensure!(
+        spendable_sats >= channel_value_sats,
+        "Insufficient on-chain balance: {spendable_sats}, need: {channel_value_sats}"
+    );
+
     // Start listening for channel events.
     let mut channel_events_rx = channel_events_bus.subscribe();
 
