@@ -19,7 +19,7 @@ use common::{
     enclave::Measurement,
     ln::{
         amount::Amount,
-        channel::{LxChannelDetails, LxUserChannelId},
+        channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
         invoice::LxInvoice,
         network::LxNetwork,
     },
@@ -43,7 +43,7 @@ use tracing::{debug, info, instrument};
 
 use crate::{
     alias::{LexeChainMonitorType, RouterType},
-    channel::{ChannelEvent, ChannelEventsBus},
+    channel::{ChannelEvent, ChannelEventsBus, ChannelEventsRx},
     esplora::LexeEsplora,
     keys_manager::LexeKeysManager,
     payments::{
@@ -165,6 +165,56 @@ where
     PS: LexePersister,
     F: Future<Output = anyhow::Result<()>>,
 {
+    // Check if we've already opened a channel with this `user_channel_id`.
+    //
+    // NOTE(phlip9): The idempotency here is not perfect; there's still a race
+    // if we send multiple `open_channel` requests with the same
+    // `user_channel_id` concurrently. But we mostly care about serial retries,
+    // for which this is good enough^tm.
+    {
+        // Start listening for channel events. Do this before we look at our
+        // channels so we pick up any events that occur while we're looking.
+        let mut channel_events_rx = channel_events_bus.subscribe();
+
+        let uid = user_channel_id.to_u128();
+        let maybe_channel = channel_manager
+            .list_channels_with_counterparty(&counterparty_node_pk.0)
+            .into_iter()
+            .find(|channel| channel.user_channel_id == uid);
+
+        // Check if there's an existing channel with this `user_channel_id`.
+        if let Some(channel) = maybe_channel {
+            let temp_channel_id =
+                ChannelId::from(user_channel_id.derive_temporary_channel_id());
+
+            // If the channel doesn't have the `temp_channel_id` anymore, it
+            // must be `Pending`. We can return it.
+            let channel_id = channel.channel_id;
+            if channel_id != temp_channel_id {
+                // If it's a JIT channel, it also needs to be `Ready`
+                #[allow(clippy::nonminimal_bool)] // More readable IMO
+                if !is_jit_channel
+                    || (is_jit_channel && channel.is_channel_ready)
+                {
+                    return Ok(OpenChannelResponse {
+                        channel_id: LxChannelId::from(channel_id),
+                    });
+                }
+            }
+
+            // Wait for the next relevant channel event with this
+            // `user_channel_id`.
+            return wait_for_our_channel_open_event(
+                &mut channel_events_rx,
+                is_jit_channel,
+                &user_channel_id,
+            )
+            .await;
+        }
+
+        // No existing channel, proceed normally.
+    }
+
     // Check if we actually have enough on-chain funds for this channel +
     // on-chain fees. This check isn't safety critical; it just lets us quickly
     // avoid a lot of unnecessary work.
@@ -177,37 +227,54 @@ where
         .await
         .context("Failed to connect to channel counterparty")?;
 
-    // Start listening for channel events.
+    // Start listening for channel events. Do this before we notify LDK so we
+    // definitely pick up any events.
     let mut channel_events_rx = channel_events_bus.subscribe();
 
-    // Start the open channel process.
+    // Tell LDK to start the open channel process.
     let push_msat = 0; // No need for this yet
-    let temporary_channel_id = None; // No need for this yet
+    let temp_channel_id =
+        ChannelId::from(user_channel_id.derive_temporary_channel_id());
     channel_manager
         .create_channel(
             counterparty_node_pk.0,
             channel_value.sats_u64(),
             push_msat,
             user_channel_id.to_u128(),
-            temporary_channel_id,
+            Some(temp_channel_id),
             Some(user_config),
         )
         .map_err(|e| anyhow!("Failed to create channel: {e:?}"))?;
 
     // Wait for the next relevant channel event with this `user_channel_id`.
-    //
-    // If this is a JIT channel open, we can wait for channel `Ready` and not
-    // just `Pending`.
+    wait_for_our_channel_open_event(
+        &mut channel_events_rx,
+        is_jit_channel,
+        &user_channel_id,
+    )
+    .await
+}
+
+/// Wait for the next relevant channel event for a new `open_channel` with this
+/// `user_channel_id`.
+///
+/// If this is a JIT channel open, we can wait for channel `Ready` and not
+/// just `Pending`.
+async fn wait_for_our_channel_open_event(
+    channel_events_rx: &mut ChannelEventsRx<'_>,
+    is_jit_channel: bool,
+    user_channel_id: &LxUserChannelId,
+) -> anyhow::Result<OpenChannelResponse> {
     let channel_event = tokio::time::timeout(
         Duration::from_secs(15),
         channel_events_rx.next_filtered(|event| {
             if is_jit_channel {
                 matches!(event,
                     ChannelEvent::Ready { .. } | ChannelEvent::Closed { .. }
-                    if event.user_channel_id() == &user_channel_id
+                    if event.user_channel_id() == user_channel_id
                 )
             } else {
-                event.user_channel_id() == &user_channel_id
+                event.user_channel_id() == user_channel_id
             }
         }),
     )

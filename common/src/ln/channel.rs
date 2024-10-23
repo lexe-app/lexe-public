@@ -79,6 +79,10 @@ impl LxUserChannelId {
     pub fn gen<R: RngCore>(rng: &mut R) -> Self {
         Self(rng.gen_bytes())
     }
+
+    pub fn derive_temporary_channel_id(&self) -> LxChannelId {
+        LxChannelId(sha256::digest(&self.0).into_inner())
+    }
 }
 
 impl FromStr for LxUserChannelId {
