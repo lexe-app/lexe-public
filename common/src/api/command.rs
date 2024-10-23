@@ -7,7 +7,7 @@ use crate::{
     ln::{
         amount::Amount,
         balance::Balance,
-        channel::{LxChannelDetails, LxChannelId},
+        channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
         hashes::LxTxid,
         invoice::LxInvoice,
         payments::ClientPaymentId,
@@ -40,13 +40,20 @@ pub struct ListChannelsResponse {
 /// The information required for the user node to open a channel to the LSP.
 #[derive(Serialize, Deserialize)]
 pub struct OpenChannelRequest {
+    /// A user-provided id for this channel that's associated with the channel
+    /// throughout its whole lifetime, as the Lightning protocol channel id is
+    /// only known after negotiating the channel and creating the funding tx.
+    ///
+    /// This id is also used for idempotency. Retrying a request with the same
+    /// `user_channel_id` won't accidentally open another channel.
+    pub user_channel_id: LxUserChannelId,
     /// The value of the channel we want to open.
     pub value: Amount,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OpenChannelResponse {
-    /// The real channel id of the newly created channel.
+    /// The Lightning protocol channel id of the newly created channel.
     pub channel_id: LxChannelId,
 }
 
