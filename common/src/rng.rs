@@ -345,7 +345,7 @@ impl CryptoRng for ThreadWeakRng {}
 // use a faster thread_local impl.
 thread_local! {
     // TODO(phlip9): incorrect lint, remove when clippy not broken
-    #[allow(clippy::thread_local_initializer_can_be_made_const)]
+    #[allow(clippy::missing_const_for_thread_local)]
     static THREAD_RNG_STATE: Cell<u64> = const { Cell::new(0) };
 }
 

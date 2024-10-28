@@ -1,29 +1,8 @@
 [toolchain]
-channel = "1.80.1"
+channel = "1.82.0"
 components = ["clippy", "rustfmt"]
 targets = [
-    # # Remote azure host target
-    # "x86_64-unknown-linux-musl",
-
-    # Enclave target
+    # Intel SGX enclave target
     "x86_64-fortanix-unknown-sgx",
-
-    # # Android targets
-    # "aarch64-linux-android",
-    # "armv7-linux-androideabi",
-    # "x86_64-linux-android",
-    # "i686-linux-android",
-
-    # TODO(phlip9): I'm guess there's no point at all installing the apple
-    # toolchains on other platforms...
-
-    # # iOS targets
-    # "aarch64-apple-ios-sim",
-    # "aarch64-apple-ios",
-    # "x86_64-apple-ios",
-
-    # # macOS targets
-    # "aarch64-apple-darwin",
-    # "x86_64-apple-darwin",
 ]
 profile = "minimal"
