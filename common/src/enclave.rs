@@ -2,7 +2,7 @@
 //! This module provides APIs for these along with related newtypes and consts.
 //! Outside of SGX, dummy data is returned. See [`sgx_isa`] for more info.
 
-use std::{borrow::Cow, fmt, io, mem, str::FromStr};
+use std::{borrow::Cow, fmt, io, mem, str::FromStr, sync::LazyLock};
 
 use bytes::{Buf, BufMut};
 use cfg_if::cfg_if;
@@ -35,34 +35,38 @@ use crate::{
 /// Get an [`sgx_isa::Report`] for the current enclave by calling [`EREPORT`].
 ///
 /// [`EREPORT`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#report-ereport
-pub fn report() -> sgx_isa::Report {
-    cfg_if! {
-        if #[cfg(target_env = "sgx")] {
-            sgx_isa::Report::for_self()
-        } else {
-            sgx_isa::Report {
-                cpusvn: MinCpusvn::CURRENT.0,
-                miscselect: miscselect::LEXE_FLAGS,
-                _reserved1: [0; 28],
-                attributes: sgx_isa::Attributes {
-                    // Just use prod value since the flags are fake anyway
-                    flags: attributes::LEXE_FLAGS_PROD,
-                    xfrm: xfrm::LEXE_FLAGS,
-                },
-                mrenclave: enclave::measurement().0,
-                _reserved2: [0; 32],
-                mrsigner: enclave::signer().0,
-                _reserved3: [0; 96],
-                isvprodid: 0u16,
-                isvsvn: 0u16,
-                _reserved4: [0; 60],
-                // This field is newtyped in `tls::attestation::quote`.
-                reportdata: [0; 64],
-                keyid: MachineId::KEY_ID,
-                mac: [0; 16],
+pub fn report() -> &'static sgx_isa::Report {
+    static SELF_REPORT: LazyLock<sgx_isa::Report> = LazyLock::new(|| {
+        cfg_if! {
+            if #[cfg(target_env = "sgx")] {
+                sgx_isa::Report::for_self()
+            } else {
+                sgx_isa::Report {
+                    cpusvn: MinCpusvn::CURRENT.0,
+                    miscselect: miscselect::LEXE_FLAGS,
+                    _reserved1: [0; 28],
+                    attributes: sgx_isa::Attributes {
+                        // Just use prod value since the flags are fake anyway
+                        flags: attributes::LEXE_FLAGS_PROD,
+                        xfrm: xfrm::LEXE_FLAGS,
+                    },
+                    mrenclave: enclave::measurement().0,
+                    _reserved2: [0; 32],
+                    mrsigner: enclave::signer().0,
+                    _reserved3: [0; 96],
+                    isvprodid: 0u16,
+                    isvsvn: 0u16,
+                    _reserved4: [0; 60],
+                    // This field is newtyped in `tls::attestation::quote`.
+                    reportdata: [0; 64],
+                    keyid: MachineId::KEY_ID,
+                    mac: [0; 16],
+                }
             }
         }
-    }
+    });
+
+    &SELF_REPORT
 }
 
 /// Return the current enclave measurement.
