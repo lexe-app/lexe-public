@@ -153,7 +153,7 @@ impl SgxAttestationExtension<'static> {
     /// Build a dummy attestation for testing on non-SGX platforms.
     pub fn dummy(cert_pk: &ed25519::PublicKey) -> Self {
         // Use a dummy report as the 'quote'.
-        let mut report = enclave::report();
+        let mut report = enclave::report().clone();
 
         // Insert the cert pk into the first 32 bytes of the `reportdata` field,
         // See `ReportData::from_cert_pk` in `attestation::quote::quote_enclave`
