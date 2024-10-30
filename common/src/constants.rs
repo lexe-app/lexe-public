@@ -41,10 +41,14 @@ pub const MAX_PAYMENT_NOTE_BYTES: usize = 512;
 pub const STANDARD_LIGHTNING_P2P_PORT: Port = 9735;
 
 // Mainnet Esplora urls
+pub const MAINNET_LEXE_MEMPOOL_ESPLORA: &str = "https://lexe.mempool.space/api";
 pub const MAINNET_BLOCKSTREAM_ESPLORA: &str = "https://blockstream.info/api";
 pub const MAINNET_KUUTAMO_ESPLORA: &str = "https://esplora.kuutamo.cloud";
-pub const MAINNET_ESPLORA_WHITELIST: [&str; 2] =
-    [MAINNET_BLOCKSTREAM_ESPLORA, MAINNET_KUUTAMO_ESPLORA];
+pub const MAINNET_ESPLORA_WHITELIST: [&str; 3] = [
+    MAINNET_LEXE_MEMPOOL_ESPLORA,
+    MAINNET_BLOCKSTREAM_ESPLORA,
+    MAINNET_KUUTAMO_ESPLORA,
+];
 
 // Testnet Esplora urls
 // Quickly test these by appending /fee-estimates and opening in browser,
