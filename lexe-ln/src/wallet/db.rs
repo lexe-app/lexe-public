@@ -261,9 +261,6 @@ mod test {
     fn dump_changesets() {
         let mut rng = WeakRng::from_u64(20241030);
         let strategy = arbitrary_impl::any_changeset();
-
-        // NOTE: I had to comment out "call `simplify` a bit" in GenValueIter
-        // to get interesting data, otherwise most instances are just empty.
         let changesets = arbitrary::gen_value_iter(&mut rng, strategy)
             .take(3)
             .collect::<Vec<ChangeSet>>();
