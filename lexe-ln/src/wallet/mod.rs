@@ -32,10 +32,9 @@ use common::{
     shutdown::ShutdownChannel,
     task::LxTask,
 };
-use tokio::sync::mpsc;
 use tracing::{debug, info, instrument, warn};
 
-use self::{db::WalletDb, db29::WalletDb29};
+use self::db::WalletDb;
 use crate::{
     esplora::LexeEsplora,
     payments::onchain::OnchainSend,
@@ -44,9 +43,6 @@ use crate::{
 
 /// Wallet DB.
 pub mod db;
-/// The old wallet DB used in BDK 0.29.
-// TODO(max): Remove
-pub mod db29;
 
 /// "`stop_gap` is the maximum number of consecutive unused addresses. For
 /// example, with a `stop_gap` of  3, `full_scan` will keep scanning until it
@@ -68,31 +64,9 @@ type TxBuilderType<'wallet, MODE> =
     TxBuilder<'wallet, WalletDb, DefaultCoinSelectionAlgorithm, MODE>;
 
 /// A newtype wrapper around [`bdk::Wallet`]. Can be cloned and used directly.
-// TODO(max): All LexeWallet methods currently use `lock().await` so that we can
-// avoid `try_lock()` which could cause random failures. What we really want,
-// however, is to make all of these methods non-async and switch back to the
-// std::sync::Mutex (or no Mutex at all), but BDK needs to become robust to
-// concurrent access first.
 #[derive(Clone)]
 pub struct LexeWallet {
-    // TODO(max): Not security critical; should use Lexe's 'internal' Esplora.
     esplora: Arc<LexeEsplora>,
-    // The Mutex is needed because bdk29::Wallet (without our patch) is not
-    // Send, and therefore does not guarantee that concurrent accesses will
-    // not panic on internal locking calls. Furthermore, since a lock to
-    // the bdk29::Wallet needs to be held while awaiting on BDK wallet
-    // sync, the Mutex we use must be a Tokio mutex. See the patched
-    // commits for more details:
-    //
-    // - https://github.com/lexe-app/bdk/tree/max/thread-safe
-    // - https://github.com/bitcoindevkit/bdk/commit/c5b2f5ac9ac152a7e0658ca99ccaf854b9063727
-    // - https://github.com/bitcoindevkit/bdk/commit/ddc84ca1916620d021bae8c467c53555b7c62467
-    // TODO(max): Switch over everything to new wallet, then remove
-    #[allow(dead_code)] // TODO(max): Remove
-    bdk29_wallet: Arc<tokio::sync::Mutex<bdk29::Wallet<WalletDb29>>>,
-    // TODO(max): Implement wallet persistence
-    // TODO(max): A lot of methods can be sync again, since no need tokio mutex
-    #[allow(dead_code)] // TODO(max): Remove
     wallet: Arc<std::sync::RwLock<bdk::Wallet<WalletDb>>>,
 }
 
@@ -112,41 +86,6 @@ impl LexeWallet {
         let network = network.to_bitcoin();
         let master_xprv = root_seed.derive_bip32_master_xprv(network);
 
-        let bdk29_wallet = {
-            use std::time::Duration;
-
-            use bdk29::{template::Bip84, KeychainKind};
-
-            // Descriptor for external (receive) addresses:
-            // `m/84h/{0,1}h/0h/0/*`
-            let external_descriptor =
-                Bip84(master_xprv, KeychainKind::External);
-            // Descriptor for internal (change) addresses: `m/84h/{0,1}h/0h/1/*`
-            let change_descriptor = Bip84(master_xprv, KeychainKind::Internal);
-
-            let (wallet_db_persister_tx, wallet_db_persister_rx) =
-                mpsc::channel(256);
-            let wallet_db29 = WalletDb29::new(wallet_db_persister_tx);
-
-            // Hack to prevent dropping rx while we transition to BDK 1.0
-            LxTask::spawn(async move {
-                tokio::time::sleep(Duration::from_secs(60 * 60 * 24 * 365))
-                    .await;
-                std::mem::drop(wallet_db_persister_rx);
-            })
-            .detach();
-
-            bdk29::Wallet::new(
-                external_descriptor,
-                Some(change_descriptor),
-                network,
-                wallet_db29,
-            )
-            .map(tokio::sync::Mutex::new)
-            .map(Arc::new)
-            .context("bdk29::Wallet::new failed")?
-        };
-
         // Descriptor for external (receive) addresses: `m/84h/{0,1}h/0h/0/*`
         let external_descriptor = Bip84(master_xprv, KeychainKind::External);
         // Descriptor for internal (change) addresses: `m/84h/{0,1}h/0h/1/*`
@@ -164,11 +103,7 @@ impl LexeWallet {
         .map(Arc::new)
         .context("bdk::Wallet::new failed")?;
 
-        let lexe_wallet = Self {
-            esplora,
-            bdk29_wallet,
-            wallet,
-        };
+        let lexe_wallet = Self { esplora, wallet };
 
         if db_empty {
             // After the first full sync, the db won't be empty anymore.
