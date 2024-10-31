@@ -194,7 +194,6 @@ pub(super) async fn preflight_pay_onchain(
     LxJson(req): LxJson<PreflightPayOnchainRequest>,
 ) -> Result<LxJson<PreflightPayOnchainResponse>, NodeApiError> {
     lexe_ln::command::preflight_pay_onchain(req, &state.wallet, state.network)
-        .await
         .map(LxJson)
         .map_err(NodeApiError::command)
 }

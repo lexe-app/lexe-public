@@ -48,9 +48,6 @@ const ESPLORA_CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 const BITCOIN_CORE_MEMPOOL_EXPIRY: Duration =
     Duration::from_secs(60 * 60 * 24 * 14);
 
-/// Shorthand for 1000 bitcoin weight units, i.e. one kwu.
-const R1000_WU: bitcoin::Weight = bitcoin::Weight::from_wu(1000);
-
 /// Whether this esplora url is contained in the whitelist for this network.
 #[must_use]
 pub fn url_is_whitelisted(esplora_url: &str, network: LxNetwork) -> bool {
@@ -253,38 +250,38 @@ impl LexeEsplora {
         Ok(())
     }
 
-    /// Convert a target # of blocks into a [`bdk29::FeeRate`] via a cache
-    /// lookup. Since [`bdk29::FeeRate`] is easily convertible to other
-    /// units, this is the core feerate function that others delegate to.
-    pub fn num_blocks_to_bdk_feerate(
-        &self,
-        num_blocks: usize,
-    ) -> bdk29::FeeRate {
+    /// Convert a target # of blocks into a [`bitcoin::FeeRate`] via a cache
+    /// lookup. Since [`bitcoin::FeeRate`] is easily convertible to other units,
+    /// this is the core feerate function that others delegate to.
+    pub fn num_blocks_to_feerate(&self, num_blocks: usize) -> bitcoin::FeeRate {
         let guarded_fee_estimates = self.fee_estimates.load();
         let feerate_satsvbyte =
             lookup_fee_rate(num_blocks, &guarded_fee_estimates);
-        bdk29::FeeRate::from_sat_per_vb(feerate_satsvbyte as f32)
+        let maybe_feerate =
+            bitcoin::FeeRate::from_sat_per_vb(feerate_satsvbyte as u64);
+        debug_assert!(maybe_feerate.is_some(), "Feerate overflow?");
+        maybe_feerate.unwrap_or(bitcoin::FeeRate::MAX)
     }
 
-    /// Convert a [`ConfirmationPriority`] into a [`bdk29::FeeRate`].
-    pub fn conf_prio_to_bdk_feerate(
+    /// Convert a [`ConfirmationPriority`] into a [`bitcoin::FeeRate`].
+    pub fn conf_prio_to_feerate(
         &self,
         conf_prio: ConfirmationPriority,
-    ) -> bdk29::FeeRate {
+    ) -> bitcoin::FeeRate {
         let num_blocks = conf_prio.to_num_blocks();
-        self.num_blocks_to_bdk_feerate(num_blocks)
+        self.num_blocks_to_feerate(num_blocks)
     }
 
-    /// Convert a [`ConfirmationTarget`] into a [`bdk29::FeeRate`].
+    /// Convert a [`ConfirmationTarget`] into a [`bitcoin::FeeRate`].
     /// This calls into the [`FeeEstimator`] impl, which as of LDK v0.0.118
     /// requires some special post-estimation logic.
-    pub fn conf_target_to_bdk_feerate(
+    pub fn conf_target_to_feerate(
         &self,
         conf_target: ConfirmationTarget,
-    ) -> bdk29::FeeRate {
+    ) -> bitcoin::FeeRate {
         let fee_for_1000_wu =
             self.get_est_sat_per_1000_weight(conf_target) as u64;
-        bdk29::FeeRate::from_wu(fee_for_1000_wu, R1000_WU)
+        bitcoin::FeeRate::from_sat_per_kwu(fee_for_1000_wu)
     }
 
     /// Broadcast a [`Transaction`].
@@ -488,7 +485,7 @@ impl FeeEstimator for LexeEsplora {
     ) -> u32 {
         // Munge with units to get to sats per 1000 weight unit required by LDK
         let num_blocks = conf_target.to_num_blocks();
-        let feerate = self.num_blocks_to_bdk_feerate(num_blocks);
+        let feerate = self.num_blocks_to_feerate(num_blocks);
 
         // LDK v0.0.118 introduced changes to `ConfirmationTarget` which require
         // some post-estimation adjustments to the fee rates, which we do here.
@@ -496,19 +493,17 @@ impl FeeEstimator for LexeEsplora {
         // https://github.com/lightningdevkit/rust-lightning/releases/tag/v0.0.118
         let adjusted_fee_rate = match conf_target {
             ConfirmationTarget::MinAllowedNonAnchorChannelRemoteFee => {
-                let sats_1000wu = feerate.fee_wu(R1000_WU);
-                let adjusted_sats_1000wu = sats_1000wu.saturating_sub(250);
-                bdk29::FeeRate::from_sat_per_kwu(adjusted_sats_1000wu as f32)
+                let sats_kwu = feerate.to_sat_per_kwu();
+                let adjusted_sats_kwu = sats_kwu.saturating_sub(250);
+                bitcoin::FeeRate::from_sat_per_kwu(adjusted_sats_kwu)
             }
             _ => feerate,
         };
 
         // Ensure we don't fall below the minimum feerate required by LDK.
-        let feerate_sats_per_1000_weight = adjusted_fee_rate
-            .fee_wu(R1000_WU)
-            .try_into()
-            .expect("Overflow");
-        cmp::max(feerate_sats_per_1000_weight, FEERATE_FLOOR_SATS_PER_KW)
+        let feerate_sat_kwu = adjusted_fee_rate.to_sat_per_kwu();
+        debug_assert!(feerate_sat_kwu <= u32::MAX as u64, "Feerate overflow");
+        cmp::max(feerate_sat_kwu as u32, FEERATE_FLOOR_SATS_PER_KW)
     }
 }
 

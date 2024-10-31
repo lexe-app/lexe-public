@@ -216,9 +216,8 @@ where
     // Check if we actually have enough on-chain funds for this channel +
     // on-chain fees. This check isn't safety critical; it just lets us quickly
     // avoid a lot of unnecessary work.
-    let _fees = wallet
-        .preflight_channel_funding_tx(channel_value.sats_u64())
-        .await?;
+    let _fees =
+        wallet.preflight_channel_funding_tx(channel_value.sats_u64())?;
 
     // Ensure channel counterparty is connected.
     ensure_counterparty_connected()
@@ -672,7 +671,6 @@ where
     // Create and sign the onchain send tx.
     let onchain_send = wallet
         .create_onchain_send(req, network)
-        .await
         .context("Error while creating outbound tx")?;
     let tx = onchain_send.tx.clone();
     let id = onchain_send.id();
@@ -711,12 +709,12 @@ where
 }
 
 #[instrument(skip_all, name = "(estimate-fee-send-onchain)")]
-pub async fn preflight_pay_onchain(
+pub fn preflight_pay_onchain(
     req: PreflightPayOnchainRequest,
     wallet: &LexeWallet,
     network: LxNetwork,
 ) -> anyhow::Result<PreflightPayOnchainResponse> {
-    wallet.preflight_pay_onchain(req, network).await
+    wallet.preflight_pay_onchain(req, network)
 }
 
 // A preflighted BOLT11 invoice payment. That is, this is the outcome of

@@ -66,7 +66,7 @@ pub fn get_event_name(event: &Event) -> &'static str {
 }
 
 /// Handles a [`Event::FundingGenerationReady`].
-pub async fn handle_funding_generation_ready<CM, PS>(
+pub fn handle_funding_generation_ready<CM, PS>(
     wallet: &LexeWallet,
     channel_manager: &CM,
     test_event_tx: &TestEventSender,
@@ -88,7 +88,6 @@ where
             output_script,
             channel_value_satoshis,
         )
-        .await
         .context("Failed to create channel funding tx")
         .map_err(|create_err| {
             // Make sure we force close the channel. Should not fail.

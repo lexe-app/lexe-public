@@ -1,17 +1,16 @@
-use std::sync::{Arc, RwLockReadGuard, RwLockWriteGuard};
+use std::{
+    ops::DerefMut,
+    sync::{Arc, RwLockReadGuard, RwLockWriteGuard},
+};
 
 use anyhow::{ensure, Context};
 use bdk::{
     template::Bip84,
-    wallet::{AddressIndex, Update},
-    KeychainKind,
-};
-use bdk29::{
     wallet::{
-        coin_selection::DefaultCoinSelectionAlgorithm, signer::SignOptions,
-        tx_builder::CreateTx, AddressIndex as AddressIndex29,
+        coin_selection::DefaultCoinSelectionAlgorithm, tx_builder::CreateTx,
+        AddressIndex, Update,
     },
-    FeeRate, TxBuilder,
+    KeychainKind, SignOptions, TxBuilder,
 };
 use bdk_chain::Append;
 use bdk_esplora::EsploraAsyncExt;
@@ -66,7 +65,7 @@ const CHANNEL_FUNDING_CONF_PRIO: ConfirmationPriority =
     ConfirmationPriority::Normal;
 
 type TxBuilderType<'wallet, MODE> =
-    TxBuilder<'wallet, WalletDb29, DefaultCoinSelectionAlgorithm, MODE>;
+    TxBuilder<'wallet, WalletDb, DefaultCoinSelectionAlgorithm, MODE>;
 
 /// A newtype wrapper around [`bdk::Wallet`]. Can be cloned and used directly.
 // TODO(max): All LexeWallet methods currently use `lock().await` so that we can
@@ -89,6 +88,7 @@ pub struct LexeWallet {
     // - https://github.com/bitcoindevkit/bdk/commit/c5b2f5ac9ac152a7e0658ca99ccaf854b9063727
     // - https://github.com/bitcoindevkit/bdk/commit/ddc84ca1916620d021bae8c467c53555b7c62467
     // TODO(max): Switch over everything to new wallet, then remove
+    #[allow(dead_code)] // TODO(max): Remove
     bdk29_wallet: Arc<tokio::sync::Mutex<bdk29::Wallet<WalletDb29>>>,
     // TODO(max): Implement wallet persistence
     // TODO(max): A lot of methods can be sync again, since no need tokio mutex
@@ -409,7 +409,7 @@ impl LexeWallet {
     /// Determine if we have enough on-chain balance for a potential channel
     /// funding tx of this `channel_value_sats`. If so, return the estimated
     /// on-chain fees.
-    pub(crate) async fn preflight_channel_funding_tx(
+    pub(crate) fn preflight_channel_funding_tx(
         &self,
         channel_value_sats: u64,
     ) -> anyhow::Result<Amount> {
@@ -427,24 +427,22 @@ impl LexeWallet {
         // => len == 34 bytes
         let fake_output_script = bitcoin::ScriptBuf::from_bytes(vec![0x69; 34]);
 
-        let locked_wallet = self.bdk29_wallet.lock().await;
+        let mut locked_wallet = self.wallet.write().unwrap();
 
         // Build
         let conf_prio = CHANNEL_FUNDING_CONF_PRIO;
-        let bdk_feerate = self.esplora.conf_prio_to_bdk_feerate(conf_prio);
+        let feerate = self.esplora.conf_prio_to_feerate(conf_prio);
         let mut tx_builder =
-            Self::default_tx_builder(&locked_wallet, bdk_feerate);
+            Self::default_tx_builder(&mut locked_wallet, feerate);
         tx_builder.add_recipient(fake_output_script, channel_value_sats);
-        let (_psbt, tx_details) = tx_builder
+        let psbt = tx_builder
             .finish()
             .context("Could not build channel funding tx")?;
 
-        // Extract fees
-        let fees = tx_details
-            .fee
-            .expect("When creating a new tx, bdk always sets the fee value");
-
-        Amount::try_from_sats_u64(fees).context("Bad fee amount")
+        let fee = psbt.fee().context("Bad PSBT fee")?;
+        let fee_amount = Amount::try_from_sats_u64(fee.to_sat())
+            .context("Bad fee amount")?;
+        Ok(fee_amount)
     }
 
     /// Create and sign a funding tx given an output script, channel value, and
@@ -452,20 +450,20 @@ impl LexeWallet {
     /// [`FundingGenerationReady`] event
     ///
     /// [`FundingGenerationReady`]: lightning::events::Event::FundingGenerationReady
-    pub(crate) async fn create_and_sign_funding_tx(
+    pub(crate) fn create_and_sign_funding_tx(
         &self,
         output_script: bitcoin::ScriptBuf,
         channel_value_sats: u64,
     ) -> anyhow::Result<Transaction> {
-        let locked_wallet = self.bdk29_wallet.lock().await;
+        let mut locked_wallet = self.wallet.write().unwrap();
 
         // Build
         let conf_prio = CHANNEL_FUNDING_CONF_PRIO;
-        let bdk_feerate = self.esplora.conf_prio_to_bdk_feerate(conf_prio);
+        let feerate = self.esplora.conf_prio_to_feerate(conf_prio);
         let mut tx_builder =
-            Self::default_tx_builder(&locked_wallet, bdk_feerate);
+            Self::default_tx_builder(&mut locked_wallet, feerate);
         tx_builder.add_recipient(output_script, channel_value_sats);
-        let (mut psbt, _tx_details) = tx_builder
+        let mut psbt = tx_builder
             .finish()
             .context("Could not build funding PSBT")?;
 
@@ -478,13 +476,13 @@ impl LexeWallet {
 
     /// Create and sign a transaction which sends the given amount to the given
     /// address, packaging up all of this info in a new [`OnchainSend`].
-    pub(crate) async fn create_onchain_send(
+    pub(crate) fn create_onchain_send(
         &self,
         req: PayOnchainRequest,
         network: LxNetwork,
     ) -> anyhow::Result<OnchainSend> {
         let (tx, fees) = {
-            let locked_wallet = self.bdk29_wallet.lock().await;
+            let mut locked_wallet = self.wallet.write().unwrap();
 
             let address = req
                 .address
@@ -493,31 +491,28 @@ impl LexeWallet {
                 .context("Invalid network")?;
 
             // Build unsigned tx
-            let bdk_feerate =
-                self.esplora.conf_prio_to_bdk_feerate(req.priority);
+            let feerate = self.esplora.conf_prio_to_feerate(req.priority);
             let mut tx_builder =
-                Self::default_tx_builder(&locked_wallet, bdk_feerate);
+                Self::default_tx_builder(&mut locked_wallet, feerate);
             tx_builder
                 .add_recipient(address.script_pubkey(), req.amount.sats_u64());
-            let (mut psbt, tx_details) = tx_builder
+            let mut psbt = tx_builder
                 .finish()
                 .context("Failed to build onchain send tx")?;
 
-            let fees = tx_details.fee.expect(
-                "When creating a new tx, bdk always sets the fee value",
-            );
-            let fees =
-                Amount::try_from_sats_u64(fees).context("Bad fee amount")?;
+            // Extract fees
+            let fee = psbt.fee().context("Bad PSBT fee")?;
+            let fee_amount = Amount::try_from_sats_u64(fee.to_sat())
+                .context("Bad fee amount")?;
 
             // Sign tx
             Self::default_sign_psbt(&locked_wallet, &mut psbt)
                 .context("Could not sign outbound tx")?;
 
-            (psbt.extract_tx(), fees)
+            (psbt.extract_tx(), fee_amount)
         };
 
         let onchain_send = OnchainSend::new(tx, req, fees);
-
         Ok(onchain_send)
     }
 
@@ -526,7 +521,7 @@ impl LexeWallet {
     ///
     /// This fn deliberately avoids modifying the [`WalletDb`] state. We don't
     /// want to generate unnecessary addresses that we need to watch and sync.
-    pub(crate) async fn preflight_pay_onchain(
+    pub(crate) fn preflight_pay_onchain(
         &self,
         req: PreflightPayOnchainRequest,
         network: LxNetwork,
@@ -535,23 +530,23 @@ impl LexeWallet {
         let normal_prio = ConfirmationPriority::Normal;
         let background_prio = ConfirmationPriority::Background;
 
-        let high_feerate = self.esplora.conf_prio_to_bdk_feerate(high_prio);
-        let normal_feerate = self.esplora.conf_prio_to_bdk_feerate(normal_prio);
+        let high_feerate = self.esplora.conf_prio_to_feerate(high_prio);
+        let normal_feerate = self.esplora.conf_prio_to_feerate(normal_prio);
         let background_feerate =
-            self.esplora.conf_prio_to_bdk_feerate(background_prio);
+            self.esplora.conf_prio_to_feerate(background_prio);
 
-        let locked_wallet = self.bdk29_wallet.lock().await;
+        let mut locked_wallet = self.wallet.write().unwrap();
 
         // We _require_ a tx to at least be able to use normal fee rate.
         let address = req.address.require_network(network.into())?;
         let normal_fee = Self::preflight_pay_onchain_inner(
-            &locked_wallet,
+            locked_wallet.deref_mut(),
             &address,
             req.amount,
             normal_feerate,
         )?;
         let background_fee = Self::preflight_pay_onchain_inner(
-            &locked_wallet,
+            locked_wallet.deref_mut(),
             &address,
             req.amount,
             background_feerate,
@@ -559,7 +554,7 @@ impl LexeWallet {
 
         // The high fee rate tx is allowed to fail with insufficient balance.
         let high_fee = Self::preflight_pay_onchain_inner(
-            &locked_wallet,
+            locked_wallet.deref_mut(),
             &address,
             req.amount,
             high_feerate,
@@ -574,33 +569,28 @@ impl LexeWallet {
     }
 
     fn preflight_pay_onchain_inner(
-        wallet: &bdk29::Wallet<WalletDb29>,
+        wallet: &mut bdk::Wallet<WalletDb>,
         address: &bitcoin::Address,
         amount: Amount,
-        bdk_feerate: FeeRate,
+        feerate: bitcoin::FeeRate,
     ) -> anyhow::Result<FeeEstimate> {
         // We're just estimating the fee for tx; we don't want to create
         // unnecessary change outputs, which will need to be persisted and take
         // up sync time. `AddressIndex::Peek` will just derive the output at the
-        // index without persisting anything. It should always succeed.
-        let change_address = wallet
-            .get_internal_address(AddressIndex29::Peek(0))
-            .context("Failed to derive change address")?;
-
-        let mut tx_builder = Self::default_tx_builder(wallet, bdk_feerate);
+        // index without persisting anything.
+        // NOTE: `get_[internal_]address` is technically fine atm because it
+        // uses `AddressIndex::LastUnused`, but that might change in the future.
+        let change_address = wallet.get_internal_address(AddressIndex::Peek(0));
+        let mut tx_builder = Self::default_tx_builder(wallet, feerate);
         tx_builder.add_recipient(address.script_pubkey(), amount.sats_u64());
         tx_builder.drain_to(change_address.script_pubkey());
-        let (_, tx_details) = tx_builder
+        let psbt = tx_builder
             .finish()
             .context("Failed to build onchain send tx")?;
-
-        let fees = tx_details
-            .fee
-            .expect("When creating a new tx, bdk always sets the fee value");
-        Ok(FeeEstimate {
-            amount: Amount::try_from_sats_u64(fees)
-                .context("Bad fee amount")?,
-        })
+        let fee = psbt.fee().context("Bad PSBT fee")?;
+        let amount = Amount::try_from_sats_u64(fee.to_sat())
+            .context("Bad fee amount")?;
+        Ok(FeeEstimate { amount })
     }
 
     /// Get a [`TxBuilder`] which has some defaults prepopulated.
@@ -608,19 +598,19 @@ impl LexeWallet {
     /// Note that this builder is specifically for *creating* transactions, not
     /// for e.g. bumping the fee of an existing transaction.
     fn default_tx_builder(
-        wallet: &bdk29::Wallet<WalletDb29>,
-        bdk_feerate: FeeRate,
+        wallet: &mut bdk::Wallet<WalletDb>,
+        feerate: bitcoin::FeeRate,
     ) -> TxBuilderType<'_, CreateTx> {
         // Set the feerate and enable RBF by default
         let mut tx_builder = wallet.build_tx();
         tx_builder.enable_rbf();
-        tx_builder.fee_rate(bdk_feerate);
+        tx_builder.fee_rate(feerate);
         tx_builder
     }
 
     /// Sign a [`PartiallySignedTransaction`] in the default way.
     fn default_sign_psbt(
-        wallet: &bdk29::Wallet<WalletDb29>,
+        wallet: &bdk::Wallet<WalletDb>,
         psbt: &mut PartiallySignedTransaction,
     ) -> anyhow::Result<()> {
         let options = SignOptions::default();
