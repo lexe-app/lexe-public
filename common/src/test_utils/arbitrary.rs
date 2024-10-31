@@ -549,11 +549,7 @@ impl<T, S: Strategy<Value = T>> Iterator for GenValueIter<T, S> {
         // Call `simplify` a bit to get some more interesting data.
         // NOTE: `complicate` doesn't do what you think it does -- it's more
         // like "undo" for the previous, successful `simplify` call.
-        // TODO(max): I think this should be removed?
-        // `lexe_ln::wallet::db::test::dump_changesets` mostly produces empty
-        // data unless this is commented out.
-        // /*
-        let simplify_iters = self.rng.gen_range(0..128);
+        let simplify_iters = self.rng.gen_range(0..4);
         for _ in 0..simplify_iters {
             // `simplify` returns `false` if there's no more simplification to
             // do.
@@ -561,7 +557,6 @@ impl<T, S: Strategy<Value = T>> Iterator for GenValueIter<T, S> {
                 break;
             }
         }
-        // */
         Some(value_tree.current())
     }
 }
