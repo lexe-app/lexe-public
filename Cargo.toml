@@ -190,16 +190,6 @@ sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30
 #   PR: <https://github.com/programatik29/axum-server/pull/119>
 axum-server = { git = "https://github.com/lexe-app/axum-server", branch = "lexe-v0.6.0-2024_10_11" }
 
-# TODO(max): Remove
-# * license: Add dual license information
-# * Replace RefCell with tokio::sync::RwLock 
-# * Wallet and EsploraBlockchain are thread-safe*+
-# * Reduce CACHE_ADDR_BATCH_SIZE from 100 -> 1
-bdk29 = { package = "bdk", git = "https://github.com/lexe-app/bdk", branch = "lexe-v0.29.0-2024_10_11" }
-bdk-macros29 = { package = "bdk-macros", git = "https://github.com/lexe-app/bdk", branch = "lexe-v0.29.0-2024_10_11" }
-# bdk = { path = "../../bdk" }
-# bdk-macros = { path = "../../bdk/macros" }
-
 # * license: Add dual license information
 # * sgx: socket2 requires `client-legacy-socket2` cfg
 # * sgx: Skip DNS resolution in SGX
