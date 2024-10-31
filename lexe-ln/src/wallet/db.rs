@@ -4,11 +4,11 @@
 //! ## [`ChangeSet`]s
 //!
 //! [`bdk::wallet::ChangeSet`] is the top-level data struct given to us by BDK,
-//! and is the main thing that need to be persisted.h It implements
-//! [`Serialize`] / [`Deserialize`], and [`bdk_chain::Append`], which allows
-//! changesets to be aggregated together. The [`ChangeSet`]s may be persisted in
-//! aggregated form, or they can be persisted separately and reaggregated when
-//! (re-)initializing our [`bdk::Wallet`].
+//! and is the main thing that need to be persisted. It implements [`Serialize`]
+//! / [`Deserialize`], and [`bdk_chain::Append`], which allows changesets to be
+//! aggregated together. The [`ChangeSet`]s may be persisted in aggregated form,
+//! or they can be persisted separately and reaggregated when (re-)initializing
+//! our [`bdk::Wallet`].
 //!
 //! ## [`PersistBackend`] implementation
 //!
@@ -104,14 +104,171 @@ impl PersistBackend<ChangeSet> for WalletDb {
 }
 
 #[cfg(test)]
+mod arbitrary_impl {
+    use bdk::{wallet::ChangeSet, KeychainKind};
+    use bdk_chain::{
+        indexed_tx_graph, keychain, local_chain, tx_graph,
+        ConfirmationTimeHeightAnchor,
+    };
+    use common::test_utils::arbitrary;
+    use proptest::{
+        arbitrary::any,
+        prop_oneof,
+        strategy::{Just, Strategy},
+    };
+
+    type KeychainChangeset = keychain::ChangeSet<KeychainKind>;
+    type TxGraphChangeset = tx_graph::ChangeSet<ConfirmationTimeHeightAnchor>;
+    type IndexedTxGraphChangeset = indexed_tx_graph::ChangeSet<
+        ConfirmationTimeHeightAnchor,
+        KeychainChangeset,
+    >;
+
+    pub(super) fn any_changeset() -> impl Strategy<Value = ChangeSet> {
+        (
+            any_localchain_changeset(),
+            any_indexedtxgraph_changeset(),
+            proptest::option::of(arbitrary::any_network()),
+        )
+            .prop_map(|(chain, indexed_tx_graph, network)| ChangeSet {
+                chain,
+                indexed_tx_graph,
+                network,
+            })
+    }
+
+    fn any_indexedtxgraph_changeset(
+    ) -> impl Strategy<Value = IndexedTxGraphChangeset> {
+        (any_txgraph_changeset(), any_keychain_changeset()).prop_map(
+            |(graph, indexer)| IndexedTxGraphChangeset { graph, indexer },
+        )
+    }
+
+    fn any_txgraph_changeset() -> impl Strategy<Value = TxGraphChangeset> {
+        // BTreeSet<Transaction>
+        let any_txs =
+            proptest::collection::btree_set(arbitrary::any_raw_tx(), 0..4);
+        // BTreeMap<OutPoint, TxOut>
+        let any_txouts = proptest::collection::btree_map(
+            arbitrary::any_outpoint(),
+            arbitrary::any_txout(),
+            0..4,
+        );
+        // BTreeSet<(ConfirmationTimeHeightAnchor, Txid)>
+        let anchors = proptest::collection::btree_set(
+            (any_confirmationtimeheightanchor(), arbitrary::any_txid()),
+            0..4,
+        );
+        // BTreeMap<Txid, u64>,
+        let last_seen = proptest::collection::btree_map(
+            arbitrary::any_txid(),
+            any::<u64>(),
+            0..4,
+        );
+
+        (any_txs, any_txouts, anchors, last_seen).prop_map(
+            |(txs, txouts, anchors, last_seen)| TxGraphChangeset {
+                txs,
+                txouts,
+                anchors,
+                last_seen,
+            },
+        )
+    }
+
+    // This is just `BTreeMap<KeychainKind, u32>`
+    fn any_keychain_changeset() -> impl Strategy<Value = KeychainChangeset> {
+        proptest::collection::btree_map(
+            any_keychain_kind(),
+            any::<u32>(),
+            0..16,
+        )
+        .prop_map(keychain::ChangeSet)
+    }
+
+    // This is just `BTreeMap<u32, Option<BlockHash>>`
+    fn any_localchain_changeset(
+    ) -> impl Strategy<Value = local_chain::ChangeSet> {
+        proptest::collection::btree_map(
+            any::<u32>(),
+            proptest::option::of(arbitrary::any_blockhash()),
+            0..16,
+        )
+    }
+
+    fn any_confirmationtimeheightanchor(
+    ) -> impl Strategy<Value = ConfirmationTimeHeightAnchor> {
+        (any::<u32>(), any::<u64>(), any_blockid()).prop_map(
+            |(confirmation_height, confirmation_time, anchor_block)| {
+                ConfirmationTimeHeightAnchor {
+                    confirmation_height,
+                    confirmation_time,
+                    anchor_block,
+                }
+            },
+        )
+    }
+
+    fn any_blockid() -> impl Strategy<Value = bdk_chain::BlockId> {
+        (any::<u32>(), arbitrary::any_blockhash())
+            .prop_map(|(height, hash)| bdk_chain::BlockId { height, hash })
+    }
+
+    fn any_keychain_kind() -> impl Strategy<Value = KeychainKind> {
+        prop_oneof![Just(KeychainKind::External), Just(KeychainKind::Internal)]
+    }
+}
+
+#[cfg(test)]
 mod test {
+    use common::{
+        rng::WeakRng,
+        test_utils::{arbitrary, roundtrip},
+    };
+    use proptest::test_runner::Config;
+
     use super::*;
+
+    // Snapshot taken 2024-10-30
+    const CHANGESET_SNAPSHOT: &str =
+        include_str!("../../data/changeset-snapshot.json");
 
     #[test]
     fn default_changeset_is_empty() {
         assert!(ChangeSet::default().is_empty());
     }
 
-    // TODO(max): Add some snapshot tests
-    // TODO(max): Add some arbitrary impls and roundtrip tests
+    #[test]
+    fn changeset_roundtrip_proptest() {
+        roundtrip::json_value_custom(
+            arbitrary_impl::any_changeset(),
+            Config::default(),
+        );
+    }
+
+    #[test]
+    fn test_changeset_snapshot() {
+        serde_json::from_str::<Vec<ChangeSet>>(CHANGESET_SNAPSHOT).unwrap();
+    }
+
+    /// Dumps a JSON array of three `ChangeSet`s using the proptest strategy.
+    ///
+    /// ```bash
+    /// $ cargo test -p lexe-ln -- --ignored dump_changesets --show-output
+    /// ```
+    #[ignore]
+    #[test]
+    fn dump_changesets() {
+        let mut rng = WeakRng::from_u64(20241030);
+        let strategy = arbitrary_impl::any_changeset();
+
+        // NOTE: I had to comment out "call `simplify` a bit" in GenValueIter
+        // to get interesting data, otherwise most instances are just empty.
+        let changesets = arbitrary::gen_value_iter(&mut rng, strategy)
+            .take(3)
+            .collect::<Vec<ChangeSet>>();
+        println!("---");
+        println!("{}", serde_json::to_string_pretty(&changesets).unwrap());
+        println!("---");
+    }
 }
