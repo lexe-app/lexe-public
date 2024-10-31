@@ -170,6 +170,16 @@ pub fn any_option_duration() -> impl Strategy<Value = Option<Duration>> {
 
 // --- Bitcoin types --- //
 
+/// An `Arbitrary`-like [`Strategy`] for a [`bitcoin::Network`].
+pub fn any_network() -> impl Strategy<Value = bitcoin::Network> {
+    prop_oneof![
+        Just(bitcoin::Network::Bitcoin),
+        Just(bitcoin::Network::Testnet),
+        Just(bitcoin::Network::Signet),
+        Just(bitcoin::Network::Regtest),
+    ]
+}
+
 /// An `Arbitrary`-like [`Strategy`] for [`bitcoin::PublicKey`]s.
 pub fn any_bitcoin_pubkey() -> impl Strategy<Value = bitcoin::PublicKey> {
     any::<NodePk>()
@@ -344,6 +354,12 @@ pub fn any_outpoint() -> impl Strategy<Value = OutPoint> {
 pub fn any_script_hash() -> impl Strategy<Value = ScriptHash> {
     any::<[u8; 20]>()
         .prop_map(|hash| ScriptHash::from_slice(&hash).unwrap())
+        .no_shrink()
+}
+
+pub fn any_blockhash() -> impl Strategy<Value = bitcoin::BlockHash> {
+    any::<[u8; 32]>()
+        .prop_map(bitcoin::BlockHash::from_byte_array)
         .no_shrink()
 }
 
@@ -533,6 +549,10 @@ impl<T, S: Strategy<Value = T>> Iterator for GenValueIter<T, S> {
         // Call `simplify` a bit to get some more interesting data.
         // NOTE: `complicate` doesn't do what you think it does -- it's more
         // like "undo" for the previous, successful `simplify` call.
+        // TODO(max): I think this should be removed?
+        // `lexe_ln::wallet::db::test::dump_changesets` mostly produces empty
+        // data unless this is commented out.
+        // /*
         let simplify_iters = self.rng.gen_range(0..128);
         for _ in 0..simplify_iters {
             // `simplify` returns `false` if there's no more simplification to
@@ -541,7 +561,7 @@ impl<T, S: Strategy<Value = T>> Iterator for GenValueIter<T, S> {
                 break;
             }
         }
-
+        // */
         Some(value_tree.current())
     }
 }
