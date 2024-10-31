@@ -396,19 +396,11 @@ impl UserNode {
             logger.clone(),
         ));
 
-        // Init keys manager. NOTE: If a user sends to their on-chain wallet
-        // then closes a channel in the same node run, there will be address
-        // reuse. This is the quickest way to work around the non-async
-        // SignerProvider for now, but we should fix this eventually.
-        let channel_sweep_address = wallet.get_address();
-        let keys_manager = LexeKeysManager::init(
-            rng,
-            &user.node_pk,
-            &root_seed,
-            channel_sweep_address,
-        )
-        .context("Failed to construct keys manager")?
-        .apply(Arc::new);
+        // Init keys manager.
+        let keys_manager =
+            LexeKeysManager::init(rng, &root_seed, wallet.clone())
+                .map(Arc::new)
+                .context("Failed to construct keys manager")?;
 
         // Read channel monitors and scorer
         let (try_channel_monitors, try_scorer) = tokio::join!(
@@ -833,6 +825,7 @@ async fn fetch_provisioned_secrets(
     machine_id: MachineId,
 ) -> anyhow::Result<(User, RootSeed, DeployEnv, LxNetwork, ed25519::KeyPair)> {
     debug!(%user_pk, %measurement, %machine_id, "fetching provisioned secrets");
+    let mut rng = SysRng::new();
 
     let sealed_seed_id = SealedSeedId {
         user_pk,
@@ -852,8 +845,9 @@ async fn fetch_provisioned_secrets(
     match (maybe_user, maybe_sealed_seed) {
         (Some(user), Some(sealed_seed)) => {
             let db_user_pk = user.user_pk;
+            let db_node_pk = user.node_pk;
             ensure!(
-                user_pk == db_user_pk,
+                db_user_pk == user_pk,
                 "UserPk {db_user_pk} from DB didn't match {user_pk} from CLI"
             );
 
@@ -864,11 +858,17 @@ async fn fetch_provisioned_secrets(
             let user_key_pair = root_seed.derive_user_key_pair();
             let derived_user_pk =
                 UserPk::from_ref(user_key_pair.public_key().as_inner());
+            let derived_node_pk = root_seed.derive_node_pk(&mut rng);
 
             ensure!(
                 &user_pk == derived_user_pk,
                 "The user_pk derived from the sealed seed {derived_user_pk} \
-                doesn't match the user_pk from CLI {user_pk} "
+                doesn't match the user_pk from CLI {user_pk}"
+            );
+            ensure!(
+                db_node_pk == derived_node_pk,
+                "The node_pk derived from the sealed seed {derived_node_pk} \
+                doesn't match the node_pk from CLI {db_node_pk}"
             );
 
             Ok((user, root_seed, deploy_env, unsealed_network, user_key_pair))
