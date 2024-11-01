@@ -335,6 +335,15 @@ $ cd lexe-public # or $ cd lexe/public
 $ cargo install --path run-sgx
 ```
 
+(Optional) We use the nightly rust toolchain for `cargo fmt`.
+If you use coc.nvim, you can set the nightly version with this config:
+
+```json
+{
+  "rust-analyzer.rustfmt.extraArgs": ["+nightly-2024-05-03"]
+}
+```
+
 ## Usage
 
 After setting up your dev environment, you can work with the repo like so.
