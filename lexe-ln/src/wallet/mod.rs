@@ -569,29 +569,22 @@ pub fn spawn_wallet_db_persister_task<PS: LexePersister>(
             tokio::select! {
                 () = wallet_db_persister_rx.recv() => {
                     // Serialize changeset to JSON bytes, encrypt, then persist
-                    let persist_fut = async {
-                        let basic_file = persister.encrypt_json(
-                            SINGLETON_DIRECTORY.to_owned(),
-                            WALLET_DB_FILENAME.to_owned(),
-                            &wallet_db.changeset(),
-                        );
-                        let persist_res = persister
-                            .persist_file(
-                                basic_file, IMPORTANT_PERSIST_RETRIES
-                            )
-                            .await
-                            .context("Could not persist wallet db");
-                        match persist_res {
-                            Ok(()) => debug!("Success: persisted wallet db"),
-                            Err(e) => warn!("Wallet DB persist error: {e:#}"),
-                        }
-                    };
-
-                    // Give up during the persist if we recv a shutdown signal
-                    tokio::select! {
-                        () = persist_fut => {}
-                        () = shutdown.recv() =>
-                            break info!("Giving up on wallet db persist"),
+                    let basic_file = persister.encrypt_json(
+                        SINGLETON_DIRECTORY.to_owned(),
+                        WALLET_DB_FILENAME.to_owned(),
+                        &wallet_db.changeset(),
+                    );
+                    // Finish the current persist attempt before responding to
+                    // any shutdown signal received in the meantime.
+                    let persist_result = persister
+                        .persist_file(
+                            basic_file, IMPORTANT_PERSIST_RETRIES
+                        )
+                        .await
+                        .context("Could not persist wallet db");
+                    match persist_result {
+                        Ok(()) => debug!("Success: persisted wallet db"),
+                        Err(e) => warn!("Wallet DB persist error: {e:#}"),
                     }
                 }
                 () = shutdown.recv() => break,

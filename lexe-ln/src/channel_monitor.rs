@@ -12,7 +12,7 @@ use common::{
 use lightning::chain::{chainmonitor::MonitorUpdateId, transaction::OutPoint};
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 use crate::{alias::LexeChainMonitorType, traits::LexePersister};
 
@@ -82,23 +82,15 @@ where
                 Some(update) = channel_monitor_persister_rx.recv() => {
                     idx += 1;
 
-                    let handle_res = handle_update(
+                    let handle_result = handle_update(
                         chain_monitor.as_ref(),
                         update,
                         idx,
                         &process_events_tx,
-                        &mut shutdown,
                     ).await;
 
-                    if let Err(error) = handle_res {
-                        // Log `Interrupted` at `warn` since it is a race that
-                        // is expected to occur, especially in integration
-                        // tests. Everything else is logged at `error`.
-                        match error {
-                            Error::Interrupted =>
-                                warn!("Monitor persist interrupted"),
-                            e => error!("Monitor persist error: {e:#}"),
-                        }
+                    if let Err(e) = handle_result {
+                        error!("Monitor persist error: {e:#}");
 
                         // All errors are considered fatal.
                         shutdown.send();
@@ -128,8 +120,6 @@ enum Error {
     },
     #[error("Chain monitor returned err: {0:?}")]
     ChainMonitor(lightning::util::errors::APIError),
-    #[error("Received shutdown signal")]
-    Interrupted,
     #[error("Timed out waiting for events to be processed")]
     EventsProcessTimeout,
     #[error("Could not receive reply from the `processed_rx` channel")]
@@ -146,19 +136,12 @@ async fn handle_update<PS: LexePersister>(
     update: LxChannelMonitorUpdate,
     idx: usize,
     process_events_tx: &mpsc::Sender<oneshot::Sender<()>>,
-    shutdown: &mut ShutdownChannel,
 ) -> Result<(), Error> {
     debug!("Handling channel monitor update #{idx}");
 
-    // Run the persist future
+    // Run the persist future.
     let kind = update.kind;
-    debug!("Running {kind} channel persist future #{idx}");
-    let persist_result = tokio::select! {
-        res = update.api_call_fut => res,
-        () = shutdown.recv() => return Err(Error::Interrupted),
-    };
-
-    if let Err(inner) = persist_result {
+    if let Err(inner) = update.api_call_fut.await {
         // Channel monitor persistence errors are serious;
         // return err and shut down to prevent any loss of funds.
         return Err(Error::PersistFailure { kind, idx, inner });
