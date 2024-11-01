@@ -155,7 +155,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         &self,
         mut shutdown: ShutdownChannel,
     ) -> LxTask<()> {
-        let payments_manager = self.clone();
+        let payman = self.clone();
         LxTask::spawn_named_with_span(
             "invoice expiry checker",
             info_span!("(invoice-expiry-checker)"),
@@ -165,14 +165,17 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
                 loop {
                     tokio::select! {
-                        _ = check_timer.tick() => {
-                            if let Err(e) = payments_manager
-                                .check_invoice_expiries()
-                                .await {
-                                error!("Error checking invoice expiries: {e:#}");
-                            }
-                        }
+                        _ = check_timer.tick() => (),
                         () = shutdown.recv() => break,
+                    }
+
+                    let check_result = tokio::select! {
+                        res = payman.check_invoice_expiries() => res,
+                        () = shutdown.recv() => break,
+                    };
+
+                    if let Err(e) = check_result {
+                        error!("Error checking invoice expiries: {e:#}");
                     }
                 }
 
@@ -186,7 +189,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         esplora: Arc<LexeEsplora>,
         mut shutdown: ShutdownChannel,
     ) -> LxTask<()> {
-        let payments_manager = self.clone();
+        let payman = self.clone();
 
         LxTask::spawn_named_with_span(
             "onchain confs checker",
@@ -196,14 +199,17 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                     tokio::time::interval(ONCHAIN_PAYMENT_CHECK_INTERVAL);
                 loop {
                     tokio::select! {
-                        _ = check_timer.tick() => {
-                            if let Err(e) = payments_manager
-                                .check_onchain_confs(esplora.as_ref())
-                                .await {
-                                error!("Error checking onchain confs: {e:#}");
-                            }
-                        }
+                        _ = check_timer.tick() => (),
                         () = shutdown.recv() => break,
+                    }
+
+                    let check_result = tokio::select! {
+                        res = payman.check_onchain_confs(&esplora) => res,
+                        () = shutdown.recv() => break,
+                    };
+
+                    if let Err(e) = check_result {
+                        error!("Error checking onchain confs: {e:#}");
                     }
                 }
 
@@ -222,21 +228,24 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         mut onchain_recv_rx: notify::Receiver,
         mut shutdown: ShutdownChannel,
     ) -> LxTask<()> {
-        let payments_manager = self.clone();
+        let payman = self.clone();
         LxTask::spawn_named_with_span(
             "onchain receive checker",
             info_span!("(onchain-recv-checker)"),
             async move {
                 loop {
                     tokio::select! {
-                        () = onchain_recv_rx.recv() => {
-                            if let Err(e) = payments_manager
-                                .check_onchain_receives(&wallet)
-                                .await {
-                                error!("Error checking onchain recvs: {e:#}");
-                            }
-                        }
+                        () = onchain_recv_rx.recv() => (),
                         () = shutdown.recv() => break,
+                    }
+
+                    let check_result = tokio::select! {
+                        res = payman.check_onchain_receives(&wallet) => res,
+                        () = shutdown.recv() => break,
+                    };
+
+                    if let Err(e) = check_result {
+                        error!("Error checking onchain recvs: {e:#}");
                     }
                 }
 
