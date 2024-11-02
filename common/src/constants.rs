@@ -1,9 +1,6 @@
 use std::{include_bytes, time::Duration};
 
-use crate::{
-    api::ports::Port,
-    enclave::{Measurement, MrShort},
-};
+use crate::enclave::{Measurement, MrShort};
 
 // --- General --- //
 
@@ -32,6 +29,12 @@ pub const MAX_PAYMENT_NOTE_BYTES: usize = 512;
 pub const USER_NODE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
 
 // --- Channels and liquidity --- //
+
+/// The amount of liquidity (in sats) that Lexe supplies to us for free, which
+/// we are not expected to pay interest on. This is also the amount of liquidity
+/// Lexe's LSP will supply to a user in their first JIT zeroconf channel open.
+// 50k sats = 0.0005 BTC = $25 at $50k/BTC or $50 at $100k/BTC
+pub const FREE_LIQUIDITY_SAT: u32 = 50_000;
 
 /// User nodes and the LSP will reject new inbound channels with total channel
 /// value larger than this value in satoshis.
