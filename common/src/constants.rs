@@ -5,8 +5,7 @@ use crate::{
     enclave::{Measurement, MrShort},
 };
 
-pub const DEFAULT_CHANNEL_SIZE: usize = 256;
-pub const SMALLER_CHANNEL_SIZE: usize = 16;
+// --- General --- //
 
 /// If a node release needs to be yanked, add its semver version and measurement
 /// here. See `node::approved_versions` for more info.
@@ -17,9 +16,28 @@ const_utils::const_assert!(
     YANKED_NODE_VERSIONS.len() == YANKED_NODE_MEASUREMENTS.len()
 );
 
+// Tokio channels
+pub const DEFAULT_CHANNEL_SIZE: usize = 256;
+pub const SMALLER_CHANNEL_SIZE: usize = 16;
+
+/// Reject backend requests for payments that are too large.
+pub const MAX_PAYMENTS_BATCH_SIZE: u16 = 100;
+pub const DEFAULT_PAYMENTS_BATCH_SIZE: u16 = 50;
+
+/// Reject payment notes that are too large.
+pub const MAX_PAYMENT_NOTE_BYTES: usize = 512;
+
 /// The amount of time user node tasks have to finish after a graceful shutdown
 /// signal is received before the program is forced to exit.
 pub const USER_NODE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
+
+// --- Channels and liquidity --- //
+
+/// User nodes and the LSP will reject new inbound channels with total channel
+/// value larger than this value in satoshis.
+pub const CHANNEL_MAX_FUNDING_SATS: u32 = 5 * 1_0000_0000; // 5 BTC
+
+// --- VFS --- //
 
 /// The default number of persist retries for important objects.
 pub const IMPORTANT_PERSIST_RETRIES: usize = 5;
@@ -31,15 +49,18 @@ pub const WALLET_DB_FILENAME: &str = "bdk_wallet_db_v1";
 /// The vfs filename used for the user's password-encrypted root seed backup.
 pub const PW_ENC_ROOT_SEED_FILENAME: &str = "password_encrypted_root_seed";
 
-/// Reject backend requests for payments that are too large.
-pub const MAX_PAYMENTS_BATCH_SIZE: u16 = 100;
-pub const DEFAULT_PAYMENTS_BATCH_SIZE: u16 = 50;
+// --- Networking --- //
 
-/// Reject payment notes that are too large.
-pub const MAX_PAYMENT_NOTE_BYTES: usize = 512;
+/// Fake DNS names used by the reverse proxy to route requests to user nodes.
+/// Provision mode uses "{mr_short}.provision.lexe.app" and run mode uses
+/// "run.lexe.app". These DNS names don't actually resolve.
+pub const NODE_RUN_DNS: &str = "run.lexe.app";
+pub fn node_provision_dns(mr_short: &MrShort) -> String {
+    format!("{mr_short}{NODE_PROVISION_DNS_SUFFIX}")
+}
+pub const NODE_PROVISION_DNS_SUFFIX: &str = ".provision.lexe.app";
 
-/// The standard port used for Lightning Network P2P connections
-pub const STANDARD_LIGHTNING_P2P_PORT: Port = 9735;
+// --- Esplora --- //
 
 // Mainnet Esplora urls
 pub const MAINNET_LEXE_MEMPOOL_ESPLORA: &str = "https://lexe.mempool.space/api";
@@ -66,19 +87,6 @@ pub const TESTNET_ESPLORA_WHITELIST: [&str; 4] = [
     TESTNET_LTBL_ESPLORA,
     TESTNET_LEXE_ESPLORA,
 ];
-
-/// Fake DNS names used by the reverse proxy to route requests to user nodes.
-/// Provision mode uses "{mr_short}.provision.lexe.app" and run mode uses
-/// "run.lexe.app". These DNS names don't actually resolve.
-pub const NODE_RUN_DNS: &str = "run.lexe.app";
-pub fn node_provision_dns(mr_short: &MrShort) -> String {
-    format!("{mr_short}{NODE_PROVISION_DNS_SUFFIX}")
-}
-pub const NODE_PROVISION_DNS_SUFFIX: &str = ".provision.lexe.app";
-
-/// User nodes and the LSP will reject new inbound channels with total channel
-/// value larger than this value in satoshis.
-pub const CHANNEL_MAX_FUNDING_SATS: u32 = 5 * 1_0000_0000; // 5 BTC
 
 // --- Root CA certs --- //
 //
