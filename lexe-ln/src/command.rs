@@ -9,7 +9,8 @@ use common::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
             ListChannelsResponse, NodeInfo, OpenChannelResponse,
             PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
-            PayOnchainResponse, PreflightPayInvoiceRequest,
+            PayOnchainResponse, PreflightOpenChannelRequest,
+            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
             PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
             PreflightPayOnchainResponse,
         },
@@ -285,6 +286,17 @@ async fn wait_for_our_channel_open_event(
     Ok(OpenChannelResponse {
         channel_id: *channel_event.channel_id(),
     })
+}
+
+/// Check if we actually have enough on-chain funds for this channel and return
+/// the on-chain fees required.
+pub async fn preflight_open_channel(
+    wallet: &LexeWallet,
+    req: PreflightOpenChannelRequest,
+) -> anyhow::Result<PreflightOpenChannelResponse> {
+    let fee_estimate =
+        wallet.preflight_channel_funding_tx(req.value.sats_u64())?;
+    Ok(PreflightOpenChannelResponse { fee_estimate })
 }
 
 /// Close a channel and wait for the corresponding [`Event::ChannelClosed`].
