@@ -7,6 +7,7 @@ import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart' show LxChannelDetails;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:lexeapp/components.dart'
     show
         ChannelBalanceBar,
@@ -25,7 +26,7 @@ import 'package:lexeapp/service/list_channels.dart' show ListChannelsService;
 import 'package:lexeapp/service/node_info.dart' show NodeInfoService;
 import 'package:lexeapp/service/refresh.dart' show RefreshService;
 import 'package:lexeapp/style.dart'
-    show Fonts, LxColors, LxIcons, LxRadius, Space;
+    show Fonts, LxColors, LxIcons, LxRadius, LxTheme, Space;
 
 /// The user can view and manage their Lightning channels on this page.
 class ChannelsPage extends StatefulWidget {
@@ -140,101 +141,105 @@ class _ChannelsPageState extends State<ChannelsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: const LxBackButton(isLeading: true),
-        // Refresh channels
-        actions: [
-          LxRefreshButton(
-            isRefreshing: this.isRefreshing,
-            triggerRefresh: this.triggerRefresh,
-          ),
-          const SizedBox(width: Space.appBarTrailingPadding),
-        ],
-      ),
-      body: Stack(
-        alignment: Alignment.bottomCenter,
-        children: [
-          ScrollableSinglePageBody(
-            bodySlivers: [
-              SliverToBoxAdapter(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Heading
-                    const Padding(
-                      padding:
-                          EdgeInsets.only(top: Space.s300, bottom: Space.s100),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+    // Android: set the bottom nav bar to white bg so it matches the bottom sheet.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: LxTheme.systemOverlayStyleLightWhiteBg,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: const LxBackButton(isLeading: true),
+          // Refresh channels
+          actions: [
+            LxRefreshButton(
+              isRefreshing: this.isRefreshing,
+              triggerRefresh: this.triggerRefresh,
+            ),
+            const SizedBox(width: Space.appBarTrailingPadding),
+          ],
+        ),
+        body: Stack(
+          alignment: Alignment.bottomCenter,
+          children: [
+            ScrollableSinglePageBody(
+              bodySlivers: [
+                SliverToBoxAdapter(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Heading
+                      const Padding(
+                        padding: EdgeInsets.only(
+                            top: Space.s300, bottom: Space.s100),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            ListIcon.lightning(),
+                            SizedBox(width: Space.s200),
+                            Text("Lightning channels",
+                                style: Fonts.fontHeadlineSmall),
+                          ],
+                        ),
+                      ),
+                      const Text(
+                        "Open channels to send payments instantly over the Lightning network",
+                        style: Fonts.fontSubheading,
+                      ),
+                      const SizedBox(height: Space.s600),
+
+                      // Send up to/Receive up to
+                      ValueListenableBuilder(
+                        valueListenable: this.totalChannelBalance,
+                        builder: (context, totalChannelBalance, child) =>
+                            TotalChannelBalanceWidget(
+                                totalChannelBalance: totalChannelBalance),
+                      ),
+                      const SizedBox(height: Space.s800),
+
+                      // You/Lexe LSP channels heading
+                      const Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          ListIcon.lightning(),
-                          SizedBox(width: Space.s200),
-                          Text("Lightning channels",
-                              style: Fonts.fontHeadlineSmall),
+                          ChannelsPartyChip(name: "You"),
+                          ChannelsPartyChip(name: "Lexe LSP"),
                         ],
                       ),
-                    ),
-                    const Text(
-                      "Open channels to send payments instantly over the Lightning network",
-                      style: Fonts.fontSubheading,
-                    ),
-                    const SizedBox(height: Space.s600),
-
-                    // Send up to/Receive up to
-                    ValueListenableBuilder(
-                      valueListenable: this.totalChannelBalance,
-                      builder: (context, totalChannelBalance, child) =>
-                          TotalChannelBalanceWidget(
-                              totalChannelBalance: totalChannelBalance),
-                    ),
-                    const SizedBox(height: Space.s800),
-
-                    // You/Lexe LSP channels heading
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        ChannelsPartyChip(name: "You"),
-                        ChannelsPartyChip(name: "Lexe LSP"),
-                      ],
-                    ),
-                    const SizedBox(height: Space.s200),
-                  ],
-                ),
-              ),
-
-              // Channels list
-              SliverPadding(
-                padding: const EdgeInsets.only(bottom: 300.0),
-                sliver: ValueListenableBuilder(
-                  valueListenable: this.channels,
-                  builder: (context, channelsList, child) =>
-                      SliverFixedExtentList.list(
-                    itemExtent: Space.s850,
-                    children: (channelsList != null)
-                        ? channelsList.channels
-                            .map((channel) => ChannelsListEntry(
-                                  maxValueSats: channelsList.maxValueSats,
-                                  channel: channel,
-                                  fiatRate: this.widget.fiatRate,
-                                ))
-                            .toList()
-                        : [],
+                      const SizedBox(height: Space.s200),
+                    ],
                   ),
                 ),
-              ),
-            ],
-          ),
 
-          // On-chain balance and open/close channel buttons
-          Positioned(
-            child: OnchainBottomSheet(
-              balanceState: this.widget.balanceState,
-              onOpenPressed: this.onOpenPressed,
-              onClosedPressed: this.onClosePressed,
+                // Channels list
+                SliverPadding(
+                  padding: const EdgeInsets.only(bottom: 300.0),
+                  sliver: ValueListenableBuilder(
+                    valueListenable: this.channels,
+                    builder: (context, channelsList, child) =>
+                        SliverFixedExtentList.list(
+                      itemExtent: 90.0,
+                      children: (channelsList != null)
+                          ? channelsList.channels
+                              .map((channel) => ChannelsListEntry(
+                                    maxValueSats: channelsList.maxValueSats,
+                                    channel: channel,
+                                    fiatRate: this.widget.fiatRate,
+                                  ))
+                              .toList()
+                          : [],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+
+            // On-chain balance and open/close channel buttons
+            Positioned(
+              child: OnchainBottomSheet(
+                balanceState: this.widget.balanceState,
+                onOpenPressed: this.onOpenPressed,
+                onClosedPressed: this.onClosePressed,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
