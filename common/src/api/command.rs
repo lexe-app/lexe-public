@@ -57,6 +57,18 @@ pub struct OpenChannelResponse {
     pub channel_id: LxChannelId,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct PreflightOpenChannelRequest {
+    /// The value of the channel we want to open.
+    pub value: Amount,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PreflightOpenChannelResponse {
+    /// The estimated on-chain fee required to execute the channel open.
+    pub fee_estimate: Amount,
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct CreateInvoiceRequest {
     pub expiry_secs: u32,

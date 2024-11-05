@@ -8,7 +8,8 @@ use common::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
             ListChannelsResponse, NodeInfo, OpenChannelRequest,
             OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOnchainRequest, PayOnchainResponse, PreflightPayInvoiceRequest,
+            PayOnchainRequest, PayOnchainResponse, PreflightOpenChannelRequest,
+            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
             PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
             PreflightPayOnchainResponse,
         },
@@ -85,6 +86,16 @@ pub(super) async fn open_channel(
     .context("Failed to open channel")
     .map(LxJson)
     .map_err(NodeApiError::command)
+}
+
+pub(super) async fn preflight_open_channel(
+    State(state): State<Arc<AppRouterState>>,
+    LxJson(req): LxJson<PreflightOpenChannelRequest>,
+) -> Result<LxJson<PreflightOpenChannelResponse>, NodeApiError> {
+    lexe_ln::command::preflight_open_channel(&state.wallet, req)
+        .await
+        .map(LxJson)
+        .map_err(NodeApiError::command)
 }
 
 pub(super) async fn close_channel(

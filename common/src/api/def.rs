@@ -25,7 +25,10 @@
 use async_trait::async_trait;
 use bitcoin::{address::NetworkUnchecked, Address};
 
-use super::command::CloseChannelRequest;
+use super::command::{
+    CloseChannelRequest, PreflightOpenChannelRequest,
+    PreflightOpenChannelResponse,
+};
 #[cfg(doc)]
 use crate::{
     api::qs::{GetByMeasurement, GetByUserPk},
@@ -348,6 +351,17 @@ pub trait AppNodeRunApi {
         &self,
         req: OpenChannelRequest,
     ) -> Result<OpenChannelResponse, NodeApiError>;
+
+    /// POST /app/preflight_open_channel [`PreflightOpenChannelRequest`]
+    ///                                  -> [`PreflightOpenChannelResponse`]
+    ///
+    /// Calculate on-chain fees required for an [`open_channel`] to the LSP.
+    ///
+    /// [`open_channel`]: AppNodeRunApi::open_channel
+    async fn preflight_open_channel(
+        &self,
+        req: PreflightOpenChannelRequest,
+    ) -> Result<PreflightOpenChannelResponse, NodeApiError>;
 
     /// POST /app/close_channel [`CloseChannelRequest`] -> [`Empty`]
     ///
