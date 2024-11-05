@@ -17,7 +17,7 @@ import 'types.dart';
 part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_cid_and_response`, `from_id_and_response`, `validate_note`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
 @freezed
 class Balance with _$Balance {
@@ -140,6 +140,20 @@ class PayOnchainResponse with _$PayOnchainResponse {
     required PaymentIndex index,
     required String txid,
   }) = _PayOnchainResponse;
+}
+
+@freezed
+class PreflightOpenChannelRequest with _$PreflightOpenChannelRequest {
+  const factory PreflightOpenChannelRequest({
+    required int valueSats,
+  }) = _PreflightOpenChannelRequest;
+}
+
+@freezed
+class PreflightOpenChannelResponse with _$PreflightOpenChannelResponse {
+  const factory PreflightOpenChannelResponse({
+    required int feeEstimateSats,
+  }) = _PreflightOpenChannelResponse;
 }
 
 /// See [`common::api::command::PreflightPayInvoiceRequest`].

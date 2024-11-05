@@ -5,6 +5,7 @@ use common::{
             OpenChannelRequest as OpenChannelRequestRs,
             PayInvoiceRequest as PayInvoiceRequestRs,
             PayOnchainRequest as PayOnchainRequestRs,
+            PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
         },
         def::{AppGatewayApi, AppNodeRunApi},
         qs::UpdatePaymentNote as UpdatePaymentNoteRs,
@@ -22,7 +23,8 @@ use crate::ffi::{
         CreateInvoiceRequest, CreateInvoiceResponse, FiatRates,
         ListChannelsResponse, NodeInfo, OpenChannelRequest,
         OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-        PayOnchainRequest, PayOnchainResponse, PreflightPayInvoiceRequest,
+        PayOnchainRequest, PayOnchainResponse, PreflightOpenChannelRequest,
+        PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
         PreflightPayOnchainResponse, UpdatePaymentNote,
     },
@@ -139,6 +141,19 @@ impl AppHandle {
             .open_channel(req)
             .await
             .map(OpenChannelResponse::from)
+            .map_err(anyhow::Error::new)
+    }
+
+    pub async fn preflight_open_channel(
+        &self,
+        req: PreflightOpenChannelRequest,
+    ) -> anyhow::Result<PreflightOpenChannelResponse> {
+        let req = PreflightOpenChannelRequestRs::try_from(req)?;
+        self.inner
+            .node_client()
+            .preflight_open_channel(req)
+            .await
+            .map(PreflightOpenChannelResponse::from)
             .map_err(anyhow::Error::new)
     }
 
