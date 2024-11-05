@@ -718,6 +718,89 @@ abstract class _PayOnchainResponse implements PayOnchainResponse {
 }
 
 /// @nodoc
+mixin _$PreflightOpenChannelRequest {
+  int get valueSats => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PreflightOpenChannelRequestImpl
+    implements _PreflightOpenChannelRequest {
+  const _$PreflightOpenChannelRequestImpl({required this.valueSats});
+
+  @override
+  final int valueSats;
+
+  @override
+  String toString() {
+    return 'PreflightOpenChannelRequest(valueSats: $valueSats)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PreflightOpenChannelRequestImpl &&
+            (identical(other.valueSats, valueSats) ||
+                other.valueSats == valueSats));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, valueSats);
+}
+
+abstract class _PreflightOpenChannelRequest
+    implements PreflightOpenChannelRequest {
+  const factory _PreflightOpenChannelRequest({required final int valueSats}) =
+      _$PreflightOpenChannelRequestImpl;
+
+  @override
+  int get valueSats;
+}
+
+/// @nodoc
+mixin _$PreflightOpenChannelResponse {
+  int get feeEstimateSats => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PreflightOpenChannelResponseImpl
+    implements _PreflightOpenChannelResponse {
+  const _$PreflightOpenChannelResponseImpl({required this.feeEstimateSats});
+
+  @override
+  final int feeEstimateSats;
+
+  @override
+  String toString() {
+    return 'PreflightOpenChannelResponse(feeEstimateSats: $feeEstimateSats)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PreflightOpenChannelResponseImpl &&
+            (identical(other.feeEstimateSats, feeEstimateSats) ||
+                other.feeEstimateSats == feeEstimateSats));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, feeEstimateSats);
+}
+
+abstract class _PreflightOpenChannelResponse
+    implements PreflightOpenChannelResponse {
+  const factory _PreflightOpenChannelResponse(
+          {required final int feeEstimateSats}) =
+      _$PreflightOpenChannelResponseImpl;
+
+  @override
+  int get feeEstimateSats;
+}
+
+/// @nodoc
 mixin _$PreflightPayInvoiceRequest {
   String get invoice => throw _privateConstructorUsedError;
   int? get fallbackAmountSats => throw _privateConstructorUsedError;

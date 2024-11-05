@@ -153,6 +153,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentIndex dco_decode_box_autoadd_payment_index(dynamic raw);
 
   @protected
+  PreflightOpenChannelRequest
+      dco_decode_box_autoadd_preflight_open_channel_request(dynamic raw);
+
+  @protected
   PreflightPayInvoiceRequest
       dco_decode_box_autoadd_preflight_pay_invoice_request(dynamic raw);
 
@@ -326,6 +330,14 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentStatus dco_decode_payment_status(dynamic raw);
 
   @protected
+  PreflightOpenChannelRequest dco_decode_preflight_open_channel_request(
+      dynamic raw);
+
+  @protected
+  PreflightOpenChannelResponse dco_decode_preflight_open_channel_response(
+      dynamic raw);
+
+  @protected
   PreflightPayInvoiceRequest dco_decode_preflight_pay_invoice_request(
       dynamic raw);
 
@@ -488,6 +500,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   PaymentIndex sse_decode_box_autoadd_payment_index(
       SseDeserializer deserializer);
+
+  @protected
+  PreflightOpenChannelRequest
+      sse_decode_box_autoadd_preflight_open_channel_request(
+          SseDeserializer deserializer);
 
   @protected
   PreflightPayInvoiceRequest
@@ -682,6 +699,14 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentStatus sse_decode_payment_status(SseDeserializer deserializer);
 
   @protected
+  PreflightOpenChannelRequest sse_decode_preflight_open_channel_request(
+      SseDeserializer deserializer);
+
+  @protected
+  PreflightOpenChannelResponse sse_decode_preflight_open_channel_response(
+      SseDeserializer deserializer);
+
+  @protected
   PreflightPayInvoiceRequest sse_decode_preflight_pay_invoice_request(
       SseDeserializer deserializer);
 
@@ -851,6 +876,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_box_autoadd_payment_index(
       PaymentIndex self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_preflight_open_channel_request(
+      PreflightOpenChannelRequest self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_preflight_pay_invoice_request(
@@ -1050,6 +1079,14 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_payment_status(PaymentStatus self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_preflight_open_channel_request(
+      PreflightOpenChannelRequest self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_preflight_open_channel_response(
+      PreflightOpenChannelResponse self, SseSerializer serializer);
 
   @protected
   void sse_encode_preflight_pay_invoice_request(

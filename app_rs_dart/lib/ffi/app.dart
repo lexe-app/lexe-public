@@ -136,6 +136,11 @@ class AppHandle {
   Future<PayOnchainResponse> payOnchain({required PayOnchainRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandlePayOnchain(that: this, req: req);
 
+  Future<PreflightOpenChannelResponse> preflightOpenChannel(
+          {required PreflightOpenChannelRequest req}) =>
+      AppRs.instance.api
+          .crateFfiAppAppHandlePreflightOpenChannel(that: this, req: req);
+
   Future<PreflightPayInvoiceResponse> preflightPayInvoice(
           {required PreflightPayInvoiceRequest req}) =>
       AppRs.instance.api

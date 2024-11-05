@@ -16,6 +16,8 @@ use common::{
             PayInvoiceResponse as PayInvoiceResponseRs,
             PayOnchainRequest as PayOnchainRequestRs,
             PayOnchainResponse as PayOnchainResponseRs,
+            PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
+            PreflightOpenChannelResponse as PreflightOpenChannelResponseRs,
             PreflightPayInvoiceRequest as PreflightPayInvoiceRequestRs,
             PreflightPayInvoiceResponse as PreflightPayInvoiceResponseRs,
             PreflightPayOnchainRequest as PreflightPayOnchainRequestRs,
@@ -129,6 +131,33 @@ impl From<OpenChannelResponseRs> for OpenChannelResponse {
     fn from(resp: OpenChannelResponseRs) -> Self {
         Self {
             channel_id: ChannelId::from(resp.channel_id),
+        }
+    }
+}
+
+#[frb(dart_metadata=("freezed"))]
+pub struct PreflightOpenChannelRequest {
+    pub value_sats: u64,
+}
+
+impl TryFrom<PreflightOpenChannelRequest> for PreflightOpenChannelRequestRs {
+    type Error = anyhow::Error;
+    fn try_from(req: PreflightOpenChannelRequest) -> Result<Self, Self::Error> {
+        Ok(Self {
+            value: Amount::try_from_sats_u64(req.value_sats)?,
+        })
+    }
+}
+
+#[frb(dart_metadata=("freezed"))]
+pub struct PreflightOpenChannelResponse {
+    pub fee_estimate_sats: u64,
+}
+
+impl From<PreflightOpenChannelResponseRs> for PreflightOpenChannelResponse {
+    fn from(resp: PreflightOpenChannelResponseRs) -> Self {
+        Self {
+            fee_estimate_sats: resp.fee_estimate.sats_u64(),
         }
     }
 }
