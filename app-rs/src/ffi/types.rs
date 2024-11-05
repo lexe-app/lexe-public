@@ -5,7 +5,10 @@ pub(crate) use common::root_seed::RootSeed as RootSeedRs;
 use common::{
     env::DeployEnv as DeployEnvRs,
     ln::{
-        channel::LxChannelDetails as LxChannelDetailsRs,
+        channel::{
+            LxChannelDetails as LxChannelDetailsRs,
+            LxChannelId as LxChannelIdRs, LxUserChannelId as LxUserChannelIdRs,
+        },
         invoice::LxInvoice,
         network::LxNetwork as NetworkRs,
         payments::{
@@ -382,6 +385,44 @@ impl ClientPaymentId {
 impl From<ClientPaymentId> for ClientPaymentIdRs {
     fn from(value: ClientPaymentId) -> ClientPaymentIdRs {
         ClientPaymentIdRs(value.id)
+    }
+}
+
+/// A unique, client-generated id for `open_channel`.
+///
+/// - Provides idempotency, to avoid opening duplicate channels on
+///   `open_channel` retries.
+/// - The `ChannelId` is only assigned when the channel finishes negotiation and
+///   we build the channel funding txo.
+#[frb(dart_metadata=("freezed"))]
+pub struct UserChannelId {
+    pub id: [u8; 16],
+}
+
+impl UserChannelId {
+    #[frb(sync)]
+    pub fn gen() -> Self {
+        UserChannelId {
+            id: LxUserChannelIdRs::gen(&mut SysRng::new()).0,
+        }
+    }
+}
+
+impl From<UserChannelId> for LxUserChannelIdRs {
+    fn from(value: UserChannelId) -> LxUserChannelIdRs {
+        LxUserChannelIdRs(value.id)
+    }
+}
+
+/// A Lightning channel id.
+#[frb(dart_metadata=("freezed"))]
+pub struct ChannelId {
+    pub id: [u8; 32],
+}
+
+impl From<LxChannelIdRs> for ChannelId {
+    fn from(value: LxChannelIdRs) -> ChannelId {
+        Self { id: value.0 }
     }
 }
 

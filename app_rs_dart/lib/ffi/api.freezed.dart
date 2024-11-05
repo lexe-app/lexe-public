@@ -419,6 +419,93 @@ abstract class _NodeInfo implements NodeInfo {
 }
 
 /// @nodoc
+mixin _$OpenChannelRequest {
+  UserChannelId get userChannelId => throw _privateConstructorUsedError;
+  int get valueSats => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$OpenChannelRequestImpl implements _OpenChannelRequest {
+  const _$OpenChannelRequestImpl(
+      {required this.userChannelId, required this.valueSats});
+
+  @override
+  final UserChannelId userChannelId;
+  @override
+  final int valueSats;
+
+  @override
+  String toString() {
+    return 'OpenChannelRequest(userChannelId: $userChannelId, valueSats: $valueSats)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$OpenChannelRequestImpl &&
+            (identical(other.userChannelId, userChannelId) ||
+                other.userChannelId == userChannelId) &&
+            (identical(other.valueSats, valueSats) ||
+                other.valueSats == valueSats));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, userChannelId, valueSats);
+}
+
+abstract class _OpenChannelRequest implements OpenChannelRequest {
+  const factory _OpenChannelRequest(
+      {required final UserChannelId userChannelId,
+      required final int valueSats}) = _$OpenChannelRequestImpl;
+
+  @override
+  UserChannelId get userChannelId;
+  @override
+  int get valueSats;
+}
+
+/// @nodoc
+mixin _$OpenChannelResponse {
+  ChannelId get channelId => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$OpenChannelResponseImpl implements _OpenChannelResponse {
+  const _$OpenChannelResponseImpl({required this.channelId});
+
+  @override
+  final ChannelId channelId;
+
+  @override
+  String toString() {
+    return 'OpenChannelResponse(channelId: $channelId)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$OpenChannelResponseImpl &&
+            (identical(other.channelId, channelId) ||
+                other.channelId == channelId));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, channelId);
+}
+
+abstract class _OpenChannelResponse implements OpenChannelResponse {
+  const factory _OpenChannelResponse({required final ChannelId channelId}) =
+      _$OpenChannelResponseImpl;
+
+  @override
+  ChannelId get channelId;
+}
+
+/// @nodoc
 mixin _$PayInvoiceRequest {
   String get invoice => throw _privateConstructorUsedError;
   int? get fallbackAmountSats => throw _privateConstructorUsedError;

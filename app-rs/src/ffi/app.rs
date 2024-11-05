@@ -2,6 +2,7 @@ use anyhow::Context;
 use common::{
     api::{
         command::{
+            OpenChannelRequest as OpenChannelRequestRs,
             PayInvoiceRequest as PayInvoiceRequestRs,
             PayOnchainRequest as PayOnchainRequestRs,
         },
@@ -19,7 +20,8 @@ use flutter_rust_bridge::{frb, RustOpaqueNom};
 use crate::ffi::{
     api::{
         CreateInvoiceRequest, CreateInvoiceResponse, FiatRates,
-        ListChannelsResponse, NodeInfo, PayInvoiceRequest, PayInvoiceResponse,
+        ListChannelsResponse, NodeInfo, OpenChannelRequest,
+        OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
         PayOnchainRequest, PayOnchainResponse, PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
         PreflightPayOnchainResponse, UpdatePaymentNote,
@@ -124,6 +126,19 @@ impl AppHandle {
             .list_channels()
             .await
             .map(ListChannelsResponse::from)
+            .map_err(anyhow::Error::new)
+    }
+
+    pub async fn open_channel(
+        &self,
+        req: OpenChannelRequest,
+    ) -> anyhow::Result<OpenChannelResponse> {
+        let req = OpenChannelRequestRs::try_from(req)?;
+        self.inner
+            .node_client()
+            .open_channel(req)
+            .await
+            .map(OpenChannelResponse::from)
             .map_err(anyhow::Error::new)
     }
 

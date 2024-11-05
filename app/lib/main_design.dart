@@ -6,7 +6,6 @@ import 'dart:async' show unawaited;
 import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
 import 'package:app_rs_dart/ffi/api.dart'
     show Balance, FeeEstimate, FiatRate, PreflightPayOnchainResponse;
-import 'package:app_rs_dart/ffi/app.dart' show U8Array32;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         ClientPaymentId,
@@ -16,6 +15,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentMethod,
         PaymentStatus;
 import 'package:app_rs_dart/ffi/types.ext.dart' show PaymentExt;
+import 'package:app_rs_dart/lib.dart' show U8Array32;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;

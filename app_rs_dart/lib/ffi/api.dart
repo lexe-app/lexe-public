@@ -9,6 +9,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import '../lib.dart';
 import 'app.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
@@ -16,7 +17,7 @@ import 'types.dart';
 part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_cid_and_response`, `from_id_and_response`, `validate_note`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
 @freezed
 class Balance with _$Balance {
@@ -84,6 +85,21 @@ class NodeInfo with _$NodeInfo {
     required String measurement,
     required Balance balance,
   }) = _NodeInfo;
+}
+
+@freezed
+class OpenChannelRequest with _$OpenChannelRequest {
+  const factory OpenChannelRequest({
+    required UserChannelId userChannelId,
+    required int valueSats,
+  }) = _OpenChannelRequest;
+}
+
+@freezed
+class OpenChannelResponse with _$OpenChannelResponse {
+  const factory OpenChannelResponse({
+    required ChannelId channelId,
+  }) = _OpenChannelResponse;
 }
 
 /// Mirrors the [`common::api::command::PayInvoiceRequest`] type.
