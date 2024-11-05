@@ -1406,6 +1406,63 @@ Future<Result<T, E>?> showModalAsyncFlow<T, E>({
   return result;
 }
 
+final class ErrorMessage {
+  const ErrorMessage({this.title, this.message})
+      : assert(title != null || message != null);
+
+  final String? title;
+  final String? message;
+}
+
+/// A section that fades-in error details when the [errorMessage] is set.
+class ErrorMessageSection extends StatelessWidget {
+  const ErrorMessageSection(this.errorMessage, {super.key});
+
+  final ErrorMessage? errorMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    final errorMessage = this.errorMessage;
+    final title = errorMessage?.title;
+    final message = errorMessage?.message;
+
+    // TODO(phlip9): maybe tap to expand full error message?
+    // TODO(phlip9): slide up animation?
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      child: (errorMessage != null)
+          ? ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: (title != null)
+                  ? Padding(
+                      padding: const EdgeInsets.only(bottom: Space.s200),
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          color: LxColors.errorText,
+                          fontVariations: [Fonts.weightMedium],
+                          height: 1.15,
+                        ),
+                      ),
+                    )
+                  : null,
+              subtitle: (message != null)
+                  ? Text(
+                      message,
+                      maxLines: 3,
+                      style: const TextStyle(
+                        color: LxColors.errorText,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    )
+                  : null,
+            )
+          : null,
+    );
+  }
+}
+
 class LoadingSpinnerModal extends StatelessWidget {
   const LoadingSpinnerModal({super.key});
 
