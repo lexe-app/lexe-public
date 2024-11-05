@@ -12,6 +12,8 @@ import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
+        ErrorMessage,
+        ErrorMessageSection,
         HeadingText,
         LxBackButton,
         LxCloseButton,
@@ -885,62 +887,6 @@ class ChooseFeeDialogOption extends StatelessWidget {
             // TODO(phlip9): fee estimate fiat value
           ]),
       onTap: () => Navigator.of(context).pop(priority),
-    );
-  }
-}
-
-final class ErrorMessage {
-  const ErrorMessage({this.title, this.message})
-      : assert(title != null || message != null);
-
-  final String? title;
-  final String? message;
-}
-
-class ErrorMessageSection extends StatelessWidget {
-  const ErrorMessageSection(this.errorMessage, {super.key});
-
-  final ErrorMessage? errorMessage;
-
-  @override
-  Widget build(BuildContext context) {
-    final errorMessage = this.errorMessage;
-    final title = errorMessage?.title;
-    final message = errorMessage?.message;
-
-    // TODO(phlip9): maybe tap to expand full error message?
-    // TODO(phlip9): slide up animation?
-
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 200),
-      child: (errorMessage != null)
-          ? ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: (title != null)
-                  ? Padding(
-                      padding: const EdgeInsets.only(bottom: Space.s200),
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          color: LxColors.errorText,
-                          fontVariations: [Fonts.weightMedium],
-                          height: 1.15,
-                        ),
-                      ),
-                    )
-                  : null,
-              subtitle: (message != null)
-                  ? Text(
-                      message,
-                      maxLines: 3,
-                      style: const TextStyle(
-                        color: LxColors.errorText,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    )
-                  : null,
-            )
-          : null,
     );
   }
 }

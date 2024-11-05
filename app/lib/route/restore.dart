@@ -12,6 +12,8 @@ import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
+        ErrorMessage,
+        ErrorMessageSection,
         HeadingText,
         LxBackButton,
         LxCloseButton,
@@ -23,8 +25,6 @@ import 'package:lexeapp/components.dart'
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
-import 'package:lexeapp/route/send/page.dart'
-    show ErrorMessage, ErrorMessageSection;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
 
