@@ -691,9 +691,19 @@ class BalanceState with _$BalanceState {
   int? lightningSats() => this.balanceSats?.lightningSats;
   int? onchainSats() => this.balanceSats?.onchainSats;
 
+  int? byKindSats(BalanceKind kind) => switch (kind) {
+        BalanceKind.onchain => this.onchainSats(),
+        BalanceKind.lightning => this.lightningSats(),
+      };
+
   double? totalFiat() => this._convertFiat(this.totalSats());
   double? lightningFiat() => this._convertFiat(this.lightningSats());
   double? onchainFiat() => this._convertFiat(this.onchainSats());
+
+  double? byKindFiat(BalanceKind kind) => switch (kind) {
+        BalanceKind.onchain => this.onchainFiat(),
+        BalanceKind.lightning => this.lightningFiat(),
+      };
 
   double? _convertFiat(final int? satsBalance) =>
       (satsBalance != null && this.fiatRate != null)
@@ -849,16 +859,12 @@ class BalanceWidget extends StatelessWidget {
             children: [
               SubBalanceRow(
                 kind: BalanceKind.lightning,
-                fiatName: this.state.fiatRate?.fiat,
-                fiatBalance: this.state.lightningFiat(),
-                satsBalance: this.state.lightningSats(),
+                balance: this.state,
               ),
               const SizedBox(height: Space.s200),
               SubBalanceRow(
                 kind: BalanceKind.onchain,
-                fiatName: this.state.fiatRate?.fiat,
-                fiatBalance: this.state.onchainFiat(),
-                satsBalance: this.state.onchainSats(),
+                balance: this.state,
               ),
             ],
           ),
@@ -904,18 +910,18 @@ class SubBalanceRow extends StatelessWidget {
   const SubBalanceRow({
     super.key,
     required this.kind,
-    required this.fiatName,
-    required this.fiatBalance,
-    required this.satsBalance,
+    required this.balance,
   });
 
   final BalanceKind kind;
-  final String? fiatName;
-  final double? fiatBalance;
-  final int? satsBalance;
+  final BalanceState balance;
 
   @override
   Widget build(BuildContext context) {
+    final String? fiatName = this.balance.fiatRate?.fiat;
+    final double? fiatBalance = this.balance.byKindFiat(this.kind);
+    final int? satsBalance = this.balance.byKindSats(this.kind);
+
     const satsSize = Fonts.size200;
     final satsStyle = Fonts.fontUI.copyWith(
       color: LxColors.grey700,
@@ -924,9 +930,9 @@ class SubBalanceRow extends StatelessWidget {
       fontFeatures: [Fonts.featTabularNumbers],
       letterSpacing: -0.25,
     );
-    final satsOrPlaceholder = (this.satsBalance != null)
+    final satsOrPlaceholder = (satsBalance != null)
         ? Text(
-            currency_format.formatSatsAmount(this.satsBalance!),
+            currency_format.formatSatsAmount(satsBalance),
             style: satsStyle,
           )
         : FilledTextPlaceholder(
@@ -942,10 +948,10 @@ class SubBalanceRow extends StatelessWidget {
       fontFeatures: [Fonts.featTabularNumbers],
       letterSpacing: -0.25,
     );
-    final fiatOrPlaceholder = (this.fiatBalance != null)
+    final fiatOrPlaceholder = (fiatBalance != null)
         ? SplitAmountText(
-            amount: this.fiatBalance!,
-            fiatName: this.fiatName!,
+            amount: fiatBalance,
+            fiatName: fiatName!,
             style: Fonts.fontUI.copyWith(
               color: LxColors.foreground,
               fontSize: fiatSize,
