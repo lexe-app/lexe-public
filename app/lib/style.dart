@@ -46,6 +46,19 @@ final class LxTheme {
     systemNavigationBarDividerColor: LxColors.clearW0,
   );
 
+  // theme: light, icons: dark, background: white
+  static const SystemUiOverlayStyle systemOverlayStyleLightWhiteBg =
+      SystemUiOverlayStyle(
+    // From: SystemUiOverlayStyle.dark
+    systemNavigationBarIconBrightness: Brightness.light,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+    // Lexe overrides
+    statusBarColor: LxColors.background,
+    systemNavigationBarColor: LxColors.grey1000,
+    systemNavigationBarDividerColor: LxColors.grey1000,
+  );
+
   // theme: dark, icons: light, background: dark
   static const SystemUiOverlayStyle systemOverlayStyleDark =
       SystemUiOverlayStyle(
