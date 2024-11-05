@@ -21,6 +21,7 @@ import 'ffi/payment_uri.dart';
 import 'ffi/settings.dart';
 import 'ffi/types.dart';
 import 'frb_generated.dart';
+import 'lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 
 abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
@@ -137,6 +138,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Onchain dco_decode_box_autoadd_onchain(dynamic raw);
 
   @protected
+  OpenChannelRequest dco_decode_box_autoadd_open_channel_request(dynamic raw);
+
+  @protected
   PayInvoiceRequest dco_decode_box_autoadd_pay_invoice_request(dynamic raw);
 
   @protected
@@ -171,6 +175,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   UpdatePaymentNote dco_decode_box_autoadd_update_payment_note(dynamic raw);
+
+  @protected
+  ChannelId dco_decode_channel_id(dynamic raw);
 
   @protected
   ClientPaymentId dco_decode_client_payment_id(dynamic raw);
@@ -250,6 +257,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Onchain dco_decode_onchain(dynamic raw);
+
+  @protected
+  OpenChannelRequest dco_decode_open_channel_request(dynamic raw);
+
+  @protected
+  OpenChannelResponse dco_decode_open_channel_response(dynamic raw);
 
   @protected
   int? dco_decode_opt_CastedPrimitive_i_64(dynamic raw);
@@ -353,6 +366,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   int dco_decode_u_8(dynamic raw);
 
   @protected
+  U8Array16 dco_decode_u_8_array_16(dynamic raw);
+
+  @protected
   U8Array32 dco_decode_u_8_array_32(dynamic raw);
 
   @protected
@@ -360,6 +376,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   UpdatePaymentNote dco_decode_update_payment_note(dynamic raw);
+
+  @protected
+  UserChannelId dco_decode_user_channel_id(dynamic raw);
 
   @protected
   BigInt dco_decode_usize(dynamic raw);
@@ -452,6 +471,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Onchain sse_decode_box_autoadd_onchain(SseDeserializer deserializer);
 
   @protected
+  OpenChannelRequest sse_decode_box_autoadd_open_channel_request(
+      SseDeserializer deserializer);
+
+  @protected
   PayInvoiceRequest sse_decode_box_autoadd_pay_invoice_request(
       SseDeserializer deserializer);
 
@@ -492,6 +515,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   UpdatePaymentNote sse_decode_box_autoadd_update_payment_note(
       SseDeserializer deserializer);
+
+  @protected
+  ChannelId sse_decode_channel_id(SseDeserializer deserializer);
 
   @protected
   ClientPaymentId sse_decode_client_payment_id(SseDeserializer deserializer);
@@ -579,6 +605,14 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Onchain sse_decode_onchain(SseDeserializer deserializer);
+
+  @protected
+  OpenChannelRequest sse_decode_open_channel_request(
+      SseDeserializer deserializer);
+
+  @protected
+  OpenChannelResponse sse_decode_open_channel_response(
+      SseDeserializer deserializer);
 
   @protected
   int? sse_decode_opt_CastedPrimitive_i_64(SseDeserializer deserializer);
@@ -689,6 +723,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   int sse_decode_u_8(SseDeserializer deserializer);
 
   @protected
+  U8Array16 sse_decode_u_8_array_16(SseDeserializer deserializer);
+
+  @protected
   U8Array32 sse_decode_u_8_array_32(SseDeserializer deserializer);
 
   @protected
@@ -697,6 +734,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   UpdatePaymentNote sse_decode_update_payment_note(
       SseDeserializer deserializer);
+
+  @protected
+  UserChannelId sse_decode_user_channel_id(SseDeserializer deserializer);
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
@@ -794,6 +834,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_box_autoadd_onchain(Onchain self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_open_channel_request(
+      OpenChannelRequest self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_pay_invoice_request(
       PayInvoiceRequest self, SseSerializer serializer);
 
@@ -834,6 +878,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_box_autoadd_update_payment_note(
       UpdatePaymentNote self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_channel_id(ChannelId self, SseSerializer serializer);
 
   @protected
   void sse_encode_client_payment_id(
@@ -924,6 +971,14 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_onchain(Onchain self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_open_channel_request(
+      OpenChannelRequest self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_open_channel_response(
+      OpenChannelResponse self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_CastedPrimitive_i_64(int? self, SseSerializer serializer);
@@ -1038,6 +1093,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_u_8(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_u_8_array_16(U8Array16 self, SseSerializer serializer);
+
+  @protected
   void sse_encode_u_8_array_32(U8Array32 self, SseSerializer serializer);
 
   @protected
@@ -1046,6 +1104,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_update_payment_note(
       UpdatePaymentNote self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_user_channel_id(UserChannelId self, SseSerializer serializer);
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);

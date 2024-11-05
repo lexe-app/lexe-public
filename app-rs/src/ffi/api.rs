@@ -10,7 +10,9 @@ use common::{
             CreateInvoiceResponse as CreateInvoiceResponseRs,
             FeeEstimate as FeeEstimateRs,
             ListChannelsResponse as ListChannelsResponseRs,
-            NodeInfo as NodeInfoRs, PayInvoiceRequest as PayInvoiceRequestRs,
+            NodeInfo as NodeInfoRs, OpenChannelRequest as OpenChannelRequestRs,
+            OpenChannelResponse as OpenChannelResponseRs,
+            PayInvoiceRequest as PayInvoiceRequestRs,
             PayInvoiceResponse as PayInvoiceResponseRs,
             PayOnchainRequest as PayOnchainRequestRs,
             PayOnchainResponse as PayOnchainResponseRs,
@@ -24,6 +26,7 @@ use common::{
     },
     ln::{
         amount::Amount,
+        channel::LxUserChannelId as LxUserChannelIdRs,
         invoice::LxInvoice,
         payments::{
             ClientPaymentId as ClientPaymentIdRs, LxPaymentId as LxPaymentIdRs,
@@ -34,8 +37,8 @@ use common::{
 use flutter_rust_bridge::frb;
 
 use crate::ffi::types::{
-    ClientPaymentId, ConfirmationPriority, Invoice, LxChannelDetails,
-    PaymentIndex,
+    ChannelId, ClientPaymentId, ConfirmationPriority, Invoice,
+    LxChannelDetails, PaymentIndex, UserChannelId,
 };
 
 #[frb(dart_metadata=("freezed"))]
@@ -97,6 +100,35 @@ impl From<ListChannelsResponseRs> for ListChannelsResponse {
                 .into_iter()
                 .map(LxChannelDetails::from)
                 .collect(),
+        }
+    }
+}
+
+#[frb(dart_metadata=("freezed"))]
+pub struct OpenChannelRequest {
+    pub user_channel_id: UserChannelId,
+    pub value_sats: u64,
+}
+
+impl TryFrom<OpenChannelRequest> for OpenChannelRequestRs {
+    type Error = anyhow::Error;
+    fn try_from(req: OpenChannelRequest) -> Result<Self, Self::Error> {
+        Ok(Self {
+            user_channel_id: LxUserChannelIdRs::from(req.user_channel_id),
+            value: Amount::try_from_sats_u64(req.value_sats)?,
+        })
+    }
+}
+
+#[frb(dart_metadata=("freezed"))]
+pub struct OpenChannelResponse {
+    pub channel_id: ChannelId,
+}
+
+impl From<OpenChannelResponseRs> for OpenChannelResponse {
+    fn from(resp: OpenChannelResponseRs) -> Self {
+        Self {
+            channel_id: ChannelId::from(resp.channel_id),
         }
     }
 }

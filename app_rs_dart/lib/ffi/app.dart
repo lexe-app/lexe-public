@@ -9,6 +9,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import '../lib.dart';
 import 'api.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
@@ -126,6 +127,9 @@ class AppHandle {
         that: this,
       );
 
+  Future<OpenChannelResponse> openChannel({required OpenChannelRequest req}) =>
+      AppRs.instance.api.crateFfiAppAppHandleOpenChannel(that: this, req: req);
+
   Future<PayInvoiceResponse> payInvoice({required PayInvoiceRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandlePayInvoice(that: this, req: req);
 
@@ -184,16 +188,16 @@ class AppHandle {
           inner == other.inner;
 }
 
-class U8Array32 extends NonGrowableListView<int> {
-  static const arraySize = 32;
+class U8Array16 extends NonGrowableListView<int> {
+  static const arraySize = 16;
 
   @internal
   Uint8List get inner => _inner;
   final Uint8List _inner;
 
-  U8Array32(this._inner)
+  U8Array16(this._inner)
       : assert(_inner.length == arraySize),
         super(_inner);
 
-  U8Array32.init() : this(Uint8List(arraySize));
+  U8Array16.init() : this(Uint8List(arraySize));
 }
