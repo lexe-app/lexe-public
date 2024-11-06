@@ -375,12 +375,32 @@ impl NodePersister {
         let wallet_db = match maybe_file {
             Some(file) => {
                 debug!("Decrypting and deserializing existing wallet db");
-                let changeset = persister::decrypt_json_file::<ChangeSet>(
+                let changeset_bytes = persister::decrypt_file(
                     &self.vfs_master_key,
                     &file_id,
                     file,
                 )?;
-                WalletDb::from_changeset(changeset, wallet_db_persister_tx)
+
+                match serde_json::from_slice::<ChangeSet>(&changeset_bytes) {
+                    Ok(changeset) => WalletDb::from_changeset(
+                        changeset,
+                        wallet_db_persister_tx,
+                    ),
+                    Err(e) => {
+                        // If deserialization fails, just proceed with an empty
+                        // wallet DB, since it isn't safety-critical.
+                        // TODO(max): Ideally we log the JSON structure here for
+                        // debuggability, but we need to preserve privacy.
+                        // let changeset_json =
+                        //     String::from_utf8_lossy(&changeset_bytes);
+                        error!(
+                            // %changeset_json,
+                            "Failed to deserialize wallet db!! \
+                             Proceeding with empty wallet db: {e:#}"
+                        );
+                        WalletDb::empty(wallet_db_persister_tx)
+                    }
+                }
             }
             None => {
                 debug!("No wallet db found, creating an empty one");
