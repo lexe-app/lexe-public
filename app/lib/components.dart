@@ -13,6 +13,7 @@ import 'package:lexeapp/input_formatter.dart'
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxBreakpoints, LxColors, LxIcons, LxRadius, Space;
+import 'package:lexeapp/types.dart' show BalanceKind, BalanceState;
 import 'package:rxdart_ext/rxdart_ext.dart';
 
 // TODO(phlip9): frb no longer exposing consts?
@@ -639,6 +640,136 @@ class SubheadingText extends StatelessWidget {
       style: Fonts.fontUI.copyWith(
         color: LxColors.grey600,
         fontSize: Fonts.size300,
+      ),
+    );
+  }
+}
+
+/// A single row showing the user's lightning / channel balance or on-chain
+/// balance. Ex: two are beneath the unified balance on the main wallet screen.
+class SubBalanceRow extends StatelessWidget {
+  const SubBalanceRow({
+    super.key,
+    required this.kind,
+    required this.balance,
+  });
+
+  final BalanceKind kind;
+  final BalanceState balance;
+
+  @override
+  Widget build(BuildContext context) {
+    final String? fiatName = this.balance.fiatRate?.fiat;
+    final double? fiatBalance = this.balance.byKindFiat(this.kind);
+    final int? satsBalance = this.balance.byKindSats(this.kind);
+
+    const satsSize = Fonts.size200;
+    final satsStyle = Fonts.fontUI.copyWith(
+      color: LxColors.grey700,
+      fontSize: satsSize,
+      fontVariations: [Fonts.weightMedium],
+      fontFeatures: [Fonts.featTabularNumbers],
+      letterSpacing: -0.25,
+    );
+    final satsOrPlaceholder = (satsBalance != null)
+        ? Text(
+            currency_format.formatSatsAmount(satsBalance),
+            style: satsStyle,
+          )
+        : FilledTextPlaceholder(
+            width: Space.s800,
+            style: satsStyle,
+          );
+
+    const fiatSize = Fonts.size300;
+    final fiatStyle = Fonts.fontUI.copyWith(
+      color: LxColors.foreground,
+      fontSize: fiatSize,
+      fontVariations: [Fonts.weightMedium],
+      fontFeatures: [Fonts.featTabularNumbers],
+      letterSpacing: -0.25,
+    );
+    final fiatOrPlaceholder = (fiatBalance != null)
+        ? SplitAmountText(
+            amount: fiatBalance,
+            fiatName: fiatName!,
+            style: Fonts.fontUI.copyWith(
+              color: LxColors.foreground,
+              fontSize: fiatSize,
+              fontVariations: [Fonts.weightMedium],
+              fontFeatures: [Fonts.featTabularNumbers],
+              letterSpacing: -0.25,
+            ),
+          )
+        : FilledTextPlaceholder(
+            width: Space.s900,
+            style: fiatStyle,
+          );
+
+    final titleText =
+        (this.kind == BalanceKind.onchain) ? "On-chain" : "Lightning";
+
+    return ListTile(
+      // list tile styling
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: Space.s0,
+        vertical: Space.s0,
+      ),
+      horizontalTitleGap: Space.s200,
+      minTileHeight: Space.s700,
+
+      visualDensity: VisualDensity.standard,
+      dense: true,
+
+      // actual content
+
+      leading: ListIcon.byBalanceKind(this.kind),
+
+      // NOTE: we use a Row() in `title` and `subtitle` instead of `trailing` so
+      // that the text baselines align properly.
+      title: Padding(
+        padding: const EdgeInsets.only(bottom: Space.s100),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Expanded(
+              child: Text(
+                titleText,
+                style: Fonts.fontUI.copyWith(
+                  fontSize: fiatSize,
+                  color: LxColors.foreground,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: Space.s200),
+              child: fiatOrPlaceholder,
+            )
+          ],
+        ),
+      ),
+
+      subtitle: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Expanded(
+            child: Text(
+              "BTC",
+              style: Fonts.fontUI.copyWith(
+                fontSize: satsSize,
+                color: LxColors.fgTertiary,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: Space.s200),
+            child: satsOrPlaceholder,
+          )
+        ],
       ),
     );
   }
@@ -1542,6 +1673,11 @@ class ListIcon extends StatelessWidget {
           color: LxColors.fgSecondary,
         ),
         background = LxColors.grey850;
+
+  factory ListIcon.byBalanceKind(BalanceKind kind) => switch (kind) {
+        BalanceKind.onchain => const ListIcon.bitcoin(),
+        BalanceKind.lightning => const ListIcon.lightning(),
+      };
 
   final Widget icon;
   final Color background;

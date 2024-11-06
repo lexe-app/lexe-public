@@ -29,6 +29,7 @@ import 'package:lexeapp/components.dart'
         MultistepFlow,
         ScrollableSinglePageBody,
         SplitAmountText,
+        SubBalanceRow,
         showModalAsyncFlow;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
@@ -814,19 +815,25 @@ class BalanceWidget extends StatelessWidget {
         alignment: Alignment.center,
         children: <Widget>[
           // LN/BTC sub balances
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SubBalanceRow(
-                kind: BalanceKind.lightning,
-                balance: this.state,
-              ),
-              const SizedBox(height: Space.s200),
-              SubBalanceRow(
-                kind: BalanceKind.onchain,
-                balance: this.state,
-              ),
-            ],
+          Padding(
+            padding: const EdgeInsets.only(
+              left: Space.s400 + Space.s500,
+              right: Space.s400 + Space.s600 + 1.0,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SubBalanceRow(
+                  kind: BalanceKind.lightning,
+                  balance: this.state,
+                ),
+                const SizedBox(height: Space.s200),
+                SubBalanceRow(
+                  kind: BalanceKind.onchain,
+                  balance: this.state,
+                ),
+              ],
+            ),
           ),
           // ↑↓ - Open/close channel button on the right
           Positioned(
@@ -860,142 +867,6 @@ class BalanceWidget extends StatelessWidget {
         const SizedBox(height: Space.s300),
         subBalances,
       ],
-    );
-  }
-}
-
-/// A single row beneath the unified balance showing the user's lightning
-/// channel balance or on-chain balance.
-class SubBalanceRow extends StatelessWidget {
-  const SubBalanceRow({
-    super.key,
-    required this.kind,
-    required this.balance,
-  });
-
-  final BalanceKind kind;
-  final BalanceState balance;
-
-  @override
-  Widget build(BuildContext context) {
-    final String? fiatName = this.balance.fiatRate?.fiat;
-    final double? fiatBalance = this.balance.byKindFiat(this.kind);
-    final int? satsBalance = this.balance.byKindSats(this.kind);
-
-    const satsSize = Fonts.size200;
-    final satsStyle = Fonts.fontUI.copyWith(
-      color: LxColors.grey700,
-      fontSize: satsSize,
-      fontVariations: [Fonts.weightMedium],
-      fontFeatures: [Fonts.featTabularNumbers],
-      letterSpacing: -0.25,
-    );
-    final satsOrPlaceholder = (satsBalance != null)
-        ? Text(
-            currency_format.formatSatsAmount(satsBalance),
-            style: satsStyle,
-          )
-        : FilledTextPlaceholder(
-            width: Space.s800,
-            style: satsStyle,
-          );
-
-    const fiatSize = Fonts.size300;
-    final fiatStyle = Fonts.fontUI.copyWith(
-      color: LxColors.foreground,
-      fontSize: fiatSize,
-      fontVariations: [Fonts.weightMedium],
-      fontFeatures: [Fonts.featTabularNumbers],
-      letterSpacing: -0.25,
-    );
-    final fiatOrPlaceholder = (fiatBalance != null)
-        ? SplitAmountText(
-            amount: fiatBalance,
-            fiatName: fiatName!,
-            style: Fonts.fontUI.copyWith(
-              color: LxColors.foreground,
-              fontSize: fiatSize,
-              fontVariations: [Fonts.weightMedium],
-              fontFeatures: [Fonts.featTabularNumbers],
-              letterSpacing: -0.25,
-            ),
-          )
-        : FilledTextPlaceholder(
-            width: Space.s900,
-            style: fiatStyle,
-          );
-
-    final titleText =
-        (this.kind == BalanceKind.onchain) ? "On-chain" : "Lightning";
-
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: Space.s400 + Space.s500,
-        right: Space.s400 + Space.s600 + 1.0,
-      ),
-      child: ListTile(
-        // list tile styling
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: Space.s0,
-          vertical: Space.s0,
-        ),
-        horizontalTitleGap: Space.s200,
-        minTileHeight: Space.s700,
-
-        visualDensity: VisualDensity.standard,
-        dense: true,
-
-        // actual content
-
-        leading: PaymentListIcon(kind: this.kind),
-
-        // NOTE: we use a Row() in `title` and `subtitle` instead of `trailing` so
-        // that the text baselines align properly.
-        title: Padding(
-          padding: const EdgeInsets.only(bottom: Space.s100),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Expanded(
-                child: Text(
-                  titleText,
-                  style: Fonts.fontUI.copyWith(
-                    fontSize: fiatSize,
-                    color: LxColors.foreground,
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: Space.s200),
-                child: fiatOrPlaceholder,
-              )
-            ],
-          ),
-        ),
-
-        subtitle: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Expanded(
-              child: Text(
-                "BTC",
-                style: Fonts.fontUI.copyWith(
-                  fontSize: satsSize,
-                  color: LxColors.fgTertiary,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(left: Space.s200),
-              child: satsOrPlaceholder,
-            )
-          ],
-        ),
-      ),
     );
   }
 }
