@@ -16,9 +16,12 @@ use bdk_chain::Append;
 use bdk_esplora::EsploraAsyncExt;
 use bitcoin::{psbt::PartiallySignedTransaction, Transaction};
 use common::{
-    api::command::{
-        FeeEstimate, PayOnchainRequest, PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse,
+    api::{
+        command::{
+            FeeEstimate, PayOnchainRequest, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse,
+        },
+        vfs::{Vfs, VfsFileId},
     },
     constants::{
         IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
@@ -36,9 +39,7 @@ use tracing::{debug, info, instrument, warn};
 
 use self::db::WalletDb;
 use crate::{
-    esplora::LexeEsplora,
-    payments::onchain::OnchainSend,
-    traits::{LexeInnerPersister, LexePersister},
+    esplora::LexeEsplora, payments::onchain::OnchainSend, traits::LexePersister,
 };
 
 /// Wallet DB.
@@ -568,20 +569,18 @@ pub fn spawn_wallet_db_persister_task<PS: LexePersister>(
         loop {
             tokio::select! {
                 () = wallet_db_persister_rx.recv() => {
-                    // Serialize changeset to JSON bytes, encrypt, then persist
-                    let basic_file = persister.encrypt_json(
-                        SINGLETON_DIRECTORY.to_owned(),
-                        WALLET_DB_FILENAME.to_owned(),
-                        &wallet_db.changeset(),
-                    );
+                    let file_id =
+                        VfsFileId::new(SINGLETON_DIRECTORY, WALLET_DB_FILENAME);
+
                     // Finish the current persist attempt before responding to
                     // any shutdown signal received in the meantime.
-                    let persist_result = persister
-                        .persist_file(
-                            basic_file, IMPORTANT_PERSIST_RETRIES
-                        )
-                        .await
-                        .context("Could not persist wallet db");
+                    let persist_result = persister.persist_json(
+                        file_id,
+                        &wallet_db.changeset(),
+                        IMPORTANT_PERSIST_RETRIES,
+                    )
+                    .await;
+
                     match persist_result {
                         Ok(()) => debug!("Success: persisted wallet db"),
                         Err(e) => warn!("Wallet DB persist error: {e:#}"),

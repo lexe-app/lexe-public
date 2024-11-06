@@ -129,6 +129,8 @@ pub fn decrypt_json_file<D: DeserializeOwned>(
         decrypt_file(vfs_master_key, expected_file_id, returned_file)
             .context("Decryption failed")?;
     let value = serde_json::from_slice(json_bytes.as_slice())
+        .with_context(|| format!("{expected_file_id}"))
         .context("JSON deserialization failed")?;
+
     Ok(value)
 }
