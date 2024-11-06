@@ -21,6 +21,8 @@ import 'package:lexeapp/components.dart'
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart';
+import 'package:lexeapp/route/open_channel.dart'
+    show OpenChannelFlowResult, OpenChannelPage;
 import 'package:lexeapp/service/list_channels.dart' show ListChannelsService;
 import 'package:lexeapp/service/node_info.dart' show NodeInfoService;
 import 'package:lexeapp/service/refresh.dart' show RefreshService;
@@ -129,13 +131,27 @@ class _ChannelsPageState extends State<ChannelsPage> {
 
   void triggerRefresh() => this.refreshService.triggerRefresh();
 
-  void onOpenPressed() {
-    info("open");
-    // TODO(phlip9): impl
+  /// Called when the big channel "Open" button is pressed. Begins the channel
+  /// open UI flow.
+  Future<void> onOpenPressed() async {
+    final OpenChannelFlowResult? flowResult =
+        await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) => OpenChannelPage(
+          app: this.widget.app,
+          balanceState: this.widget.balanceState,
+        ),
+      ),
+    );
+
+    info("ChannelsPage: onOpenPressed: $flowResult");
+
+    if (!this.mounted || flowResult == null) return;
+
+    // TODO(phlip9): open some kind of "channel detail page" to track status?
   }
 
   void onClosePressed() {
-    info("close");
     // TODO(phlip9): impl
   }
 
