@@ -60,12 +60,13 @@ import 'package:lexeapp/route/send/state.dart'
 import 'package:lexeapp/route/show_qr.dart' show ShowQrPage;
 import 'package:lexeapp/route/signup.dart'
     show SignupBackupPasswordPage, SignupPage;
-import 'package:lexeapp/route/wallet.dart' show BalanceState, WalletPage;
+import 'package:lexeapp/route/wallet.dart' show WalletPage;
 import 'package:lexeapp/service/node_info.dart';
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/stream_ext.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
+import 'package:lexeapp/types.dart' show BalanceState;
 import 'package:lexeapp/uri_events.dart' show UriEvents;
 import 'package:rxdart_ext/rxdart_ext.dart';
 

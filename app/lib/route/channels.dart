@@ -21,12 +21,12 @@ import 'package:lexeapp/components.dart'
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart';
-import 'package:lexeapp/route/wallet.dart' show BalanceState;
 import 'package:lexeapp/service/list_channels.dart' show ListChannelsService;
 import 'package:lexeapp/service/node_info.dart' show NodeInfoService;
 import 'package:lexeapp/service/refresh.dart' show RefreshService;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxRadius, LxTheme, Space;
+import 'package:lexeapp/types.dart' show BalanceState;
 
 /// The user can view and manage their Lightning channels on this page.
 class ChannelsPage extends StatefulWidget {
