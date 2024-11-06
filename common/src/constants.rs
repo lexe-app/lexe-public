@@ -40,6 +40,10 @@ pub const FREE_LIQUIDITY_SAT: u32 = 50_000;
 /// value larger than this value in satoshis.
 pub const CHANNEL_MAX_FUNDING_SATS: u32 = 5 * 1_0000_0000; // 5 BTC
 
+/// The LSP will only accept new inbound channels with channel value at or above
+/// this limit in satoshis.
+pub const LSP_CHANNEL_MIN_FUNDING_SATS: u32 = 5_000; // 0.00005000 BTC
+
 // --- VFS --- //
 
 /// The default number of persist retries for important objects.
