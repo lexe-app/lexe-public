@@ -342,7 +342,9 @@ impl LexeWallet {
             .address
     }
 
-    /// Determine if we have enough on-chain balance for a potential channel
+    /// Preflight a potential channel open.
+    ///
+    /// Determines if we have enough on-chain balance for a potential channel
     /// funding tx of this `channel_value_sats`. If so, return the estimated
     /// on-chain fees.
     pub(crate) fn preflight_channel_funding_tx(
