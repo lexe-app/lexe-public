@@ -46,11 +46,13 @@ pub const CHANNEL_MAX_FUNDING_SATS: u32 = 5 * 1_0000_0000; // 5 BTC
 pub const IMPORTANT_PERSIST_RETRIES: usize = 5;
 /// The vfs directory name used by singleton objects.
 pub const SINGLETON_DIRECTORY: &str = ".";
-/// The vfs filename used for the `WalletDb`.
+
+pub const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
+pub const NETWORK_GRAPH_FILENAME: &str = "network_graph";
+pub const PW_ENC_ROOT_SEED_FILENAME: &str = "password_encrypted_root_seed";
+pub const SCORER_FILENAME: &str = "scorer";
 // We previously used "bdk_wallet_db" for our pre BDK 1.0 wallet DB.
 pub const WALLET_DB_FILENAME: &str = "bdk_wallet_db_v1";
-/// The vfs filename used for the user's password-encrypted root seed backup.
-pub const PW_ENC_ROOT_SEED_FILENAME: &str = "password_encrypted_root_seed";
 
 // --- Networking --- //
 

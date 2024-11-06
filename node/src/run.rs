@@ -325,7 +325,7 @@ impl UserNode {
             try_finalized_payment_ids,
         ) = tokio::join!(
             read_maybe_approved_versions,
-            persister.read_network_graph(network, logger.clone()),
+            persister.read_graph(network, logger.clone()),
             persister.read_wallet_db(wallet_db_persister_tx),
             persister.read_scid(),
             persister.read_pending_payments(),

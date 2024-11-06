@@ -1,10 +1,4 @@
-use std::{
-    io::Cursor,
-    ops::Deref,
-    str::FromStr,
-    sync::{Arc, Mutex},
-    time::SystemTime,
-};
+use std::{io::Cursor, str::FromStr, sync::Arc, time::SystemTime};
 
 use anyhow::{anyhow, ensure, Context};
 use async_trait::async_trait;
@@ -13,18 +7,18 @@ use common::{
     aes::AesMasterKey,
     api::{
         auth::{BearerAuthToken, BearerAuthenticator},
+        error::BackendApiError,
         qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIndexes},
-        vfs::{VfsDirectory, VfsFile, VfsFileId},
-        Scid, User,
+        vfs::{Vfs, VfsDirectory, VfsFile, VfsFileId},
+        Empty, Scid, User,
     },
     constants::{
-        PW_ENC_ROOT_SEED_FILENAME, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
+        self, CHANNEL_MANAGER_FILENAME, PW_ENC_ROOT_SEED_FILENAME,
+        SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
     },
     ln::{
         channel::LxOutPoint,
-        network::LxNetwork,
         payments::{BasicPayment, DbPayment, LxPaymentId, PaymentIndex},
-        peer::ChannelPeer,
     },
     notify,
     rng::{Crng, SysRng},
@@ -35,8 +29,8 @@ use common::{
 use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
 use lexe_ln::{
     alias::{
-        BroadcasterType, ChannelMonitorType, FeeEstimatorType,
-        NetworkGraphType, ProbabilisticScorerType, RouterType, SignerType,
+        BroadcasterType, ChannelMonitorType, FeeEstimatorType, RouterType,
+        SignerType,
     },
     channel_monitor::{ChannelMonitorUpdateKind, LxChannelMonitorUpdate},
     keys_manager::LexeKeysManager,
@@ -58,10 +52,6 @@ use lightning::{
         ChannelMonitorUpdateStatus,
     },
     ln::channelmanager::ChannelManagerReadArgs,
-    routing::{
-        gossip::NetworkGraph,
-        scoring::{ProbabilisticScorer, ProbabilisticScoringDecayParameters},
-    },
     util::ser::{ReadableArgs, Writeable},
 };
 use secrecy::{ExposeSecret, Secret};
@@ -82,11 +72,8 @@ mod discrepancy;
 mod multi;
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
-const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 const GDRIVE_CREDENTIALS_FILENAME: &str = "gdrive_credentials";
 const GVFS_ROOT_FILENAME: &str = "gvfs_root";
-const NETWORK_GRAPH_FILENAME: &str = "network_graph";
-const SCORER_FILENAME: &str = "scorer";
 
 // Non-singleton objects use a fixed directory with dynamic filenames
 const CHANNEL_MONITORS_DIR: &str = "channel_monitors";
@@ -321,29 +308,10 @@ impl NodePersister {
         }
     }
 
-    /// Sugar for calling [`persister::encrypt_ldk_writeable`].
-    #[inline]
-    fn encrypt_ldk_writeable(
-        &self,
-        dirname: impl Into<String>,
-        filename: impl Into<String>,
-        writeable: &impl Writeable,
-    ) -> VfsFile {
-        let mut rng = SysRng::new();
-        let vfile_id = VfsFileId::new(dirname.into(), filename.into());
-        persister::encrypt_ldk_writeable(
-            &mut rng,
-            &self.vfs_master_key,
-            vfile_id,
-            writeable,
-        )
-    }
-
-    async fn get_token(&self) -> anyhow::Result<BearerAuthToken> {
+    async fn get_token(&self) -> Result<BearerAuthToken, BackendApiError> {
         self.authenticator
             .get_token(&*self.backend_api, SystemTime::now())
             .await
-            .context("Could not get auth token")
     }
 
     pub(crate) async fn read_scid(&self) -> anyhow::Result<Option<Scid>> {
@@ -360,28 +328,12 @@ impl NodePersister {
         wallet_db_persister_tx: notify::Sender,
     ) -> anyhow::Result<WalletDb> {
         debug!("Reading wallet db");
-        let file_id = VfsFileId::new(
-            SINGLETON_DIRECTORY.to_owned(),
-            WALLET_DB_FILENAME.to_owned(),
-        );
-        let token = self.get_token().await?;
+        let file_id = VfsFileId::new(SINGLETON_DIRECTORY, WALLET_DB_FILENAME);
 
-        let maybe_file = self
-            .backend_api
-            .get_file(&file_id, token)
-            .await
-            .context("Could not fetch wallet db from db")?;
-
-        let wallet_db = match maybe_file {
-            Some(file) => {
-                debug!("Decrypting and deserializing existing wallet db");
-                let changeset_bytes = persister::decrypt_file(
-                    &self.vfs_master_key,
-                    &file_id,
-                    file,
-                )?;
-
-                match serde_json::from_slice::<ChangeSet>(&changeset_bytes) {
+        let wallet_db = match self.read_bytes(&file_id).await? {
+            Some(bytes) => {
+                debug!("Deserializing existing wallet db");
+                match serde_json::from_slice::<ChangeSet>(&bytes) {
                     Ok(changeset) => WalletDb::from_changeset(
                         changeset,
                         wallet_db_persister_tx,
@@ -477,8 +429,6 @@ impl NodePersister {
 
         let maybe_manager = match maybe_plaintext {
             Some(chanman_bytes) => {
-                let mut state_buf = Cursor::new(chanman_bytes.expose_secret());
-
                 let mut channel_monitor_mut_refs = Vec::new();
                 for (_, channel_monitor) in channel_monitors.iter_mut() {
                     channel_monitor_mut_refs.push(channel_monitor);
@@ -496,15 +446,14 @@ impl NodePersister {
                     channel_monitor_mut_refs,
                 );
 
-                let (blockhash, channel_manager) = <(
-                    BlockHash,
-                    ChannelManagerType,
-                )>::read(
-                    &mut state_buf, read_args
-                )
-                // LDK DecodeError is Debug but doesn't impl std::error::Error
-                .map_err(|e| anyhow!("{:?}", e))
-                .context("Failed to deserialize ChannelManager")?;
+                let mut reader = Cursor::new(chanman_bytes.expose_secret());
+                let (blockhash, channel_manager) =
+                    <(BlockHash, ChannelManagerType)>::read(
+                        &mut reader,
+                        read_args,
+                    )
+                    .map_err(|e| anyhow!("{:?}", e))
+                    .context("Failed to deserialize ChannelManager")?;
 
                 Some((blockhash, channel_manager))
             }
@@ -514,7 +463,6 @@ impl NodePersister {
         Ok(maybe_manager)
     }
 
-    // Replaces equivalent method in lightning_persister::FilesystemPersister
     pub(crate) async fn read_channel_monitors(
         &self,
         keys_manager: Arc<LexeKeysManager>,
@@ -575,8 +523,8 @@ impl NodePersister {
 
         for (file_id, plaintext) in plaintext_pairs {
             let plaintext_bytes = plaintext.expose_secret();
-            let mut plaintext_reader = Cursor::new(plaintext_bytes);
 
+            let mut plaintext_reader = Cursor::new(plaintext_bytes);
             let (blockhash, channel_monitor) =
                 // This is ReadableArgs::read's foreign impl on the cmon tuple
                 <(BlockHash, ChannelMonitorType)>::read(
@@ -603,193 +551,66 @@ impl NodePersister {
 
         Ok(result)
     }
+}
 
-    pub(crate) async fn read_scorer(
+#[async_trait]
+impl Vfs for NodePersister {
+    async fn get_file(
         &self,
-        graph: Arc<NetworkGraphType>,
-        logger: LexeTracingLogger,
-    ) -> anyhow::Result<ProbabilisticScorerType> {
-        debug!("Reading probabilistic scorer");
-        let params = ProbabilisticScoringDecayParameters::default();
-
-        let file_id = VfsFileId::new(
-            SINGLETON_DIRECTORY.to_owned(),
-            SCORER_FILENAME.to_owned(),
-        );
+        file_id: &VfsFileId,
+    ) -> Result<Option<VfsFile>, BackendApiError> {
         let token = self.get_token().await?;
-
-        let maybe_file = self
-            .backend_api
-            .get_file(&file_id, token)
-            .await
-            .context("Could not fetch probabilistic scorer from DB")?;
-
-        let scorer = match maybe_file {
-            Some(file) => {
-                let data = persister::decrypt_file(
-                    &self.vfs_master_key,
-                    &file_id,
-                    file,
-                )?;
-                let mut state_buf = Cursor::new(&data);
-
-                ProbabilisticScorer::read(
-                    &mut state_buf,
-                    (params, Arc::clone(&graph), logger),
-                )
-                // LDK DecodeError is Debug but doesn't impl std::error::Error
-                .map_err(|e| anyhow!("{:?}", e))
-                .context("Failed to deserialize ProbabilisticScorer")?
-            }
-            None => ProbabilisticScorer::new(params, graph, logger),
-        };
-
-        Ok(scorer)
+        self.backend_api.get_file(file_id, token).await
     }
 
-    pub(crate) async fn read_network_graph(
+    async fn upsert_file(
         &self,
-        network: LxNetwork,
-        logger: LexeTracingLogger,
-    ) -> anyhow::Result<NetworkGraphType> {
-        debug!("Reading network graph");
-        let file_id = VfsFileId::new(
-            SINGLETON_DIRECTORY.to_owned(),
-            NETWORK_GRAPH_FILENAME.to_owned(),
-        );
+        file: &VfsFile,
+        retries: usize,
+    ) -> Result<Empty, BackendApiError> {
         let token = self.get_token().await?;
-
-        let maybe_file = self
-            .backend_api
-            .get_file(&file_id, token)
+        self.backend_api
+            .upsert_file_with_retries(file, token, retries)
             .await
-            .context("Could not fetch network graph from DB")?;
+    }
 
-        let network_graph = match maybe_file {
-            Some(file) => {
-                let data = persister::decrypt_file(
-                    &self.vfs_master_key,
-                    &file_id,
-                    file,
-                )?;
-                let mut state_buf = Cursor::new(&data);
+    #[inline]
+    fn encrypt_ldk_writeable<W: Writeable>(
+        &self,
+        file_id: VfsFileId,
+        writeable: &W,
+    ) -> VfsFile {
+        let mut rng = SysRng::new();
+        persister::encrypt_ldk_writeable(
+            &mut rng,
+            &self.vfs_master_key,
+            file_id,
+            writeable,
+        )
+    }
 
-                NetworkGraph::read(&mut state_buf, logger.clone())
-                    // LDK DecodeError is Debug but doesn't impl
-                    // std::error::Error
-                    .map_err(|e| anyhow!("{e:?}"))
-                    .context("Failed to deserialize NetworkGraph")?
-            }
-            None => NetworkGraph::new(network.to_bitcoin(), logger),
-        };
+    #[inline]
+    fn encrypt_json<T: Serialize>(
+        &self,
+        file_id: VfsFileId,
+        value: &T,
+    ) -> VfsFile {
+        let mut rng = SysRng::new();
+        persister::encrypt_json(&mut rng, &self.vfs_master_key, file_id, value)
+    }
 
-        Ok(network_graph)
+    #[inline]
+    fn decrypt_file(
+        &self,
+        expected_file_id: &VfsFileId,
+        file: VfsFile,
+    ) -> anyhow::Result<Vec<u8>> {
+        persister::decrypt_file(&self.vfs_master_key, expected_file_id, file)
     }
 }
 
 #[async_trait]
 impl LexeInnerPersister for NodePersister {
-    #[inline]
-    fn encrypt_json(
-        &self,
-        dirname: impl Into<String>,
-        filename: impl Into<String>,
-        value: &impl Serialize,
-    ) -> VfsFile {
-        let mut rng = SysRng::new();
-        let vfile_id = VfsFileId::new(dirname.into(), filename.into());
-        persister::encrypt_json(&mut rng, &self.vfs_master_key, vfile_id, value)
-    }
-
-    async fn persist_file(
-        &self,
-        file: VfsFile,
-        retries: usize,
-    ) -> anyhow::Result<()> {
-        let dirname = &file.id.dir.dirname;
-        let filename = &file.id.filename;
-        let bytes = file.data.len();
-        debug!("Persisting file {dirname}/{filename} <{bytes} bytes>");
-        let token = self.get_token().await?;
-
-        self.backend_api
-            .upsert_file_with_retries(&file, token, retries)
-            .await
-            .map(|_| ())
-            .context("Could not persist basic file")
-    }
-
-    async fn persist_manager<W: Writeable + Send + Sync>(
-        &self,
-        channel_manager: &W,
-    ) -> anyhow::Result<()> {
-        debug!("Persisting channel manager");
-
-        let file = self.encrypt_ldk_writeable(
-            SINGLETON_DIRECTORY,
-            CHANNEL_MANAGER_FILENAME,
-            channel_manager,
-        );
-
-        multi::upsert(
-            &*self.backend_api,
-            &self.authenticator,
-            self.google_vfs.as_deref(),
-            file,
-        )
-        .await
-        .context("multi::upsert failed")
-    }
-
-    async fn persist_graph(
-        &self,
-        network_graph: &NetworkGraphType,
-    ) -> anyhow::Result<()> {
-        debug!("Persisting network graph");
-        let token = self.get_token().await?;
-
-        let file = self.encrypt_ldk_writeable(
-            SINGLETON_DIRECTORY,
-            NETWORK_GRAPH_FILENAME,
-            network_graph,
-        );
-
-        self.backend_api
-            .upsert_file(&file, token)
-            .await
-            .map(|_| ())
-            .context("Could not persist network graph")
-    }
-
-    async fn persist_scorer(
-        &self,
-        scorer_mutex: &Mutex<ProbabilisticScorerType>,
-    ) -> anyhow::Result<()> {
-        debug!("Persisting probabilistic scorer");
-        let token = self.get_token().await?;
-
-        let file = self.encrypt_ldk_writeable(
-            SINGLETON_DIRECTORY,
-            SCORER_FILENAME,
-            scorer_mutex.lock().unwrap().deref(),
-        );
-
-        self.backend_api
-            .upsert_file(&file, token)
-            .await
-            .map(|_| ())
-            .context("Could not persist scorer")
-    }
-
-    async fn persist_external_peer(
-        &self,
-        _channel_peer: ChannelPeer,
-    ) -> anyhow::Result<()> {
-        // User nodes only ever have one channel peer (the LSP), whose address
-        // often changes in between restarts, so there is nothing to do here.
-        Ok(())
-    }
-
     async fn read_pending_payments(&self) -> anyhow::Result<Vec<Payment>> {
         let token = self.get_token().await?;
         self.backend_api
@@ -904,6 +725,29 @@ impl LexeInnerPersister for NodePersister {
 
         Ok(maybe_payment)
     }
+
+    /// Override the default since we want multi-upsert.
+    async fn persist_manager<CM: Writeable + Send + Sync>(
+        &self,
+        channel_manager: &CM,
+    ) -> anyhow::Result<()> {
+        debug!("Persisting channel manager");
+
+        let file_id = VfsFileId::new(
+            SINGLETON_DIRECTORY,
+            constants::CHANNEL_MANAGER_FILENAME,
+        );
+        let file = self.encrypt_ldk_writeable(file_id, channel_manager);
+
+        multi::upsert(
+            &*self.backend_api,
+            &self.authenticator,
+            self.google_vfs.as_deref(),
+            file,
+        )
+        .await
+        .context("multi::upsert failed")
+    }
 }
 
 impl Persist<SignerType> for NodePersister {
@@ -916,11 +760,9 @@ impl Persist<SignerType> for NodePersister {
         let funding_txo = LxOutPoint::from(funding_txo);
         info!("Persisting new channel {funding_txo}");
 
-        let file = self.encrypt_ldk_writeable(
-            CHANNEL_MONITORS_DIR,
-            funding_txo.to_string(),
-            monitor,
-        );
+        let file_id =
+            VfsFileId::new(CHANNEL_MONITORS_DIR, funding_txo.to_string());
+        let file = self.encrypt_ldk_writeable(file_id, monitor);
 
         // Generate a future for making a few attempts to persist the channel
         // monitor. It will be executed by the channel monitor persistence task.
@@ -984,11 +826,9 @@ impl Persist<SignerType> for NodePersister {
         let funding_txo = LxOutPoint::from(funding_txo);
         info!("Updating persisted channel {funding_txo}");
 
-        let file = self.encrypt_ldk_writeable(
-            CHANNEL_MONITORS_DIR,
-            funding_txo.to_string(),
-            monitor,
-        );
+        let file_id =
+            VfsFileId::new(CHANNEL_MONITORS_DIR, funding_txo.to_string());
+        let file = self.encrypt_ldk_writeable(file_id, monitor);
 
         // Generate a future for making a few attempts to persist the channel
         // monitor. It will be executed by the channel monitor persistence task.
