@@ -223,8 +223,8 @@ pub async fn handle_spendable_outputs<CM, PS>(
     keys_manager: &LexeKeysManager,
     esplora: &LexeEsplora,
     wallet: &LexeWallet,
-    outputs: Vec<SpendableOutputDescriptor>,
     test_event_tx: &TestEventSender,
+    outputs: Vec<SpendableOutputDescriptor>,
 ) -> anyhow::Result<()>
 where
     CM: LexeChannelManager<PS>,
