@@ -101,54 +101,32 @@ impl EventHandler for NodeEventHandler {
         // channel manager only after it `.await`s for the async event handler
         // to complete, so the contract will be upheld once more.
         #[allow(clippy::redundant_async_block)]
-        LxTask::spawn(async move { ctx.handle_event(event).await }).detach();
+        LxTask::spawn(async move { handle_event(&ctx, event).await }).detach();
     }
 }
 
-impl Ctx {
-    // TODO(max): Make this non-async by spawning tasks instead
-    async fn handle_event(&self, event: Event) {
-        let event_name = lexe_ln::event::get_event_name(&event);
-        let handle_event_res = handle_event_fallible(
-            &self.lsp,
-            &self.wallet,
-            &self.channel_manager,
-            &self.esplora,
-            &self.keys_manager,
-            &self.payments_manager,
-            &self.channel_events_bus,
-            &self.test_event_tx,
-            &self.shutdown,
-            event,
-        )
-        .await;
+// TODO(max): Make this non-async by spawning tasks instead
+async fn handle_event(ctx: &Ctx, event: Event) {
+    let event_name = lexe_ln::event::get_event_name(&event);
+    let handle_event_res = handle_event_fallible(ctx, event).await;
 
-        match handle_event_res {
-            Ok(()) => info!("Successfully handled {event_name}"),
-            Err(EventHandleError::Tolerable(e)) =>
-                warn!("Tolerable error handling {event_name}: {e:#}"),
-            Err(EventHandleError::Fatal(e)) => {
-                error!("Fatal error handling {event_name}: {e:#}");
-                self.shutdown.send();
-                // Notify our BGP that a fatal event handling error has occurred
-                // and that the current batch of events MUST not
-                // be lost.
-                self.fatal_event.store(true, Ordering::Release);
-            }
+    match handle_event_res {
+        Ok(()) => info!("Successfully handled {event_name}"),
+        Err(EventHandleError::Tolerable(e)) =>
+            warn!("Tolerable error handling {event_name}: {e:#}"),
+        Err(EventHandleError::Fatal(e)) => {
+            error!("Fatal error handling {event_name}: {e:#}");
+            ctx.shutdown.send();
+            // Notify our BGP that a fatal event handling error has occurred
+            // and that the current batch of events MUST not
+            // be lost.
+            ctx.fatal_event.store(true, Ordering::Release);
         }
     }
 }
 
 async fn handle_event_fallible(
-    lsp: &LspInfo,
-    wallet: &LexeWallet,
-    channel_manager: &NodeChannelManager,
-    esplora: &LexeEsplora,
-    keys_manager: &LexeKeysManager,
-    payments_manager: &PaymentsManagerType,
-    channel_events_bus: &ChannelEventsBus,
-    test_event_tx: &TestEventSender,
-    shutdown: &ShutdownChannel,
+    ctx: &Ctx,
     event: Event,
 ) -> Result<(), EventHandleError> {
     match event {
@@ -169,7 +147,7 @@ async fn handle_event_fallible(
         } => {
             // Only accept inbound channels from Lexe's LSP
             let counterparty_node_pk = NodePk(counterparty_node_id);
-            if counterparty_node_pk != lsp.node_pk {
+            if counterparty_node_pk != ctx.lsp.node_pk {
                 // Lexe's proxy should have prevented non-Lexe nodes from
                 // connecting to us. Log an error and shut down.
                 error!(
@@ -178,7 +156,7 @@ async fn handle_event_fallible(
                 );
 
                 // Reject the channel
-                channel_manager
+                ctx.channel_manager
                     .force_close_without_broadcasting_txn(
                         &temporary_channel_id,
                         &counterparty_node_id,
@@ -188,13 +166,13 @@ async fn handle_event_fallible(
                     .map_err(EventHandleError::Tolerable)?;
 
                 // Initiate a shutdown
-                shutdown.send();
+                ctx.shutdown.send();
             } else {
                 // Checks passed, accept the (possible zero-conf) channel.
 
                 // No need for a user channel id at the moment
                 let user_channel_id = 0;
-                channel_manager
+                ctx.channel_manager
                     .accept_inbound_channel_from_trusted_peer_0conf(
                         &temporary_channel_id,
                         &counterparty_node_id,
@@ -213,9 +191,9 @@ async fn handle_event_fallible(
             output_script,
             user_channel_id: _,
         } => event::handle_funding_generation_ready(
-            wallet,
-            channel_manager,
-            test_event_tx,
+            &ctx.wallet,
+            &ctx.channel_manager,
+            &ctx.test_event_tx,
             temporary_channel_id,
             counterparty_node_id,
             channel_value_satoshis,
@@ -230,8 +208,8 @@ async fn handle_event_fallible(
             funding_txo,
             channel_type,
         } => event::handle_channel_pending(
-            channel_events_bus,
-            test_event_tx,
+            &ctx.channel_events_bus,
+            &ctx.test_event_tx,
             channel_id,
             user_channel_id,
             counterparty_node_id,
@@ -245,8 +223,8 @@ async fn handle_event_fallible(
             counterparty_node_id,
             channel_type,
         } => event::handle_channel_ready(
-            channel_events_bus,
-            test_event_tx,
+            &ctx.channel_events_bus,
+            &ctx.test_event_tx,
             channel_id,
             user_channel_id,
             counterparty_node_id,
@@ -261,8 +239,8 @@ async fn handle_event_fallible(
             channel_capacity_sats,
             channel_funding_txo,
         } => event::handle_channel_closed(
-            channel_events_bus,
-            test_event_tx,
+            &ctx.channel_events_bus,
+            &ctx.test_event_tx,
             channel_id,
             user_channel_id,
             reason,
@@ -283,7 +261,7 @@ async fn handle_event_fallible(
             via_user_channel_id: _,
             claim_deadline: _,
         } => {
-            payments_manager
+            ctx.payments_manager
                 .payment_claimable(payment_hash.into(), amount_msat, purpose)
                 .await
                 .context("Error handling PaymentClaimable")
@@ -300,7 +278,7 @@ async fn handle_event_fallible(
             // TODO(max): We probably want to use this to get JIT on-chain fees?
             sender_intended_total_msat: _,
         } => {
-            payments_manager
+            ctx.payments_manager
                 .payment_claimed(payment_hash.into(), amount_msat, purpose)
                 .await
                 .context("Error handling PaymentClaimed")
@@ -331,7 +309,7 @@ async fn handle_event_fallible(
             payment_preimage,
             fee_paid_msat,
         } => {
-            payments_manager
+            ctx.payments_manager
                 .payment_sent(
                     payment_hash.into(),
                     payment_preimage.into(),
@@ -352,8 +330,8 @@ async fn handle_event_fallible(
                 reason.unwrap_or(PaymentFailureReason::RetriesExhausted);
             let failure = LxOutboundPaymentFailure::from(reason);
             warn!("Payment failed: {failure:?}");
-            test_event_tx.send(TestEvent::PaymentFailed);
-            payments_manager
+            ctx.test_event_tx.send(TestEvent::PaymentFailed);
+            ctx.payments_manager
                 .payment_failed(payment_hash.into(), failure)
                 .await
                 .context("Error handling PaymentFailed")
@@ -404,7 +382,7 @@ async fn handle_event_fallible(
         Event::HTLCHandlingFailed { .. } => {}
 
         Event::PendingHTLCsForwardable { time_forwardable } => {
-            let forwarding_channel_manager = channel_manager.clone();
+            let forwarding_channel_manager = ctx.channel_manager.clone();
             let millis_to_sleep = time_forwardable.as_millis() as u64;
             LxTask::spawn(async move {
                 tokio::time::sleep(Duration::from_millis(millis_to_sleep))
@@ -420,12 +398,12 @@ async fn handle_event_fallible(
         } => {
             let channel_id = channel_id.map(LxChannelId::from);
             event::handle_spendable_outputs(
-                channel_manager.clone(),
-                keys_manager,
-                esplora,
-                wallet,
+                ctx.channel_manager.clone(),
+                &ctx.keys_manager,
+                &ctx.esplora,
+                &ctx.wallet,
+                &ctx.test_event_tx,
                 outputs,
-                test_event_tx,
             )
             .await
             .with_context(|| format!("{channel_id:?}"))
