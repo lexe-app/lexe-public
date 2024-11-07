@@ -44,6 +44,7 @@ import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/channels.dart'
     show ChannelBalanceBarRow, ChannelsPage;
 import 'package:lexeapp/route/landing.dart' show LandingPage;
+import 'package:lexeapp/route/open_channel.dart';
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
 import 'package:lexeapp/route/receive.dart'
     show LnInvoiceInputs, ReceivePaymentEditInvoicePage, ReceivePaymentPage;
@@ -397,6 +398,21 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 balanceState: balanceState,
               );
             }),
+            Component(
+              "OpenChannelPage",
+              (context) => OpenChannelPage(
+                app: mockApp,
+                balanceState: ValueNotifier(const BalanceState(
+                  balanceSats: Balance(
+                    totalSats: 123000,
+                    lightningSats: 0,
+                    onchainSats: 123000,
+                  ),
+                  fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
+                )),
+              ),
+            ),
+            // Component("OpenChannelConfirmPage", (context) => )
             Component(
               "ScanPage",
               (_) => MultistepFlow<SendFlowResult>(
