@@ -134,6 +134,7 @@ class _ChannelsPageState extends State<ChannelsPage> {
   /// Called when the big channel "Open" button is pressed. Begins the channel
   /// open UI flow.
   Future<void> onOpenPressed() async {
+    // Begin open channel flow and wait for the flow result.
     final OpenChannelFlowResult? flowResult =
         await Navigator.of(this.context).push(
       MaterialPageRoute(
@@ -148,7 +149,11 @@ class _ChannelsPageState extends State<ChannelsPage> {
 
     if (!this.mounted || flowResult == null) return;
 
-    // TODO(phlip9): open some kind of "channel detail page" to track status?
+    // Successfully opened the channel, refresh channels list
+    this.refreshService.triggerRefreshUnthrottled();
+
+    // TODO(phlip9): highlight the new channel? open a detail page to track the
+    // channel open?
   }
 
   void onClosePressed() {
