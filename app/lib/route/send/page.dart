@@ -22,9 +22,9 @@ import 'package:lexeapp/components.dart'
         MultistepFlow,
         PaymentAmountInput,
         PaymentNoteInput,
+        ReceiptSeparator,
         ScrollableSinglePageBody,
         SubheadingText,
-        ZigZag,
         baseInputDecoration;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
@@ -675,11 +675,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
           // sparator - /\/\/\/\/\/\/\/\/\/\/
 
-          const SizedBox(
-            height: Space.s650,
-            child: ZigZag(
-                color: LxColors.grey750, zigWidth: 14.0, strokeWidth: 1.0),
-          ),
+          const ReceiptSeparator(),
 
           //
           // Total amount sent by user/payer

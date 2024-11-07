@@ -647,21 +647,61 @@ class SubheadingText extends StatelessWidget {
 
 /// A single row showing the user's lightning / channel balance or on-chain
 /// balance. Ex: two are beneath the unified balance on the main wallet screen.
-class SubBalanceRow extends StatelessWidget {
-  const SubBalanceRow({
+class SubBalanceRow extends ItemizedAmountRow {
+  factory SubBalanceRow({
+    Key? key,
+    required BalanceKind kind,
+    required BalanceState balance,
+  }) {
+    return SubBalanceRow._(
+      key: key,
+      fiatName: balance.fiatRate?.fiat,
+      fiatAmount: balance.byKindFiat(kind),
+      satsAmount: balance.byKindSats(kind),
+      title: switch (kind) {
+        BalanceKind.onchain => "On-chain",
+        BalanceKind.lightning => "Lightning",
+      },
+      subtitle: "BTC",
+      icon: ListIcon.byBalanceKind(kind),
+    );
+  }
+
+  const SubBalanceRow._({
+    required super.key,
+    required super.fiatName,
+    required super.fiatAmount,
+    required super.satsAmount,
+    required super.title,
+    required super.subtitle,
+    required super.icon,
+  });
+}
+
+class ItemizedAmountRow extends StatelessWidget {
+  const ItemizedAmountRow({
     super.key,
-    required this.kind,
-    required this.balance,
+    required this.fiatName,
+    required this.fiatAmount,
+    required this.satsAmount,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
   });
 
-  final BalanceKind kind;
-  final BalanceState balance;
+  final String? fiatName;
+  final double? fiatAmount;
+  final int? satsAmount;
+
+  final String title;
+  final String subtitle;
+  final Widget icon;
 
   @override
   Widget build(BuildContext context) {
-    final String? fiatName = this.balance.fiatRate?.fiat;
-    final double? fiatBalance = this.balance.byKindFiat(this.kind);
-    final int? satsBalance = this.balance.byKindSats(this.kind);
+    final fiatName = this.fiatName;
+    final fiatAmount = this.fiatAmount;
+    final satsAmount = this.satsAmount;
 
     const satsSize = Fonts.size200;
     final satsStyle = Fonts.fontUI.copyWith(
@@ -671,9 +711,9 @@ class SubBalanceRow extends StatelessWidget {
       fontFeatures: [Fonts.featTabularNumbers],
       letterSpacing: -0.25,
     );
-    final satsOrPlaceholder = (satsBalance != null)
+    final satsOrPlaceholder = (satsAmount != null)
         ? Text(
-            currency_format.formatSatsAmount(satsBalance),
+            currency_format.formatSatsAmount(satsAmount),
             style: satsStyle,
           )
         : FilledTextPlaceholder(
@@ -689,9 +729,9 @@ class SubBalanceRow extends StatelessWidget {
       fontFeatures: [Fonts.featTabularNumbers],
       letterSpacing: -0.25,
     );
-    final fiatOrPlaceholder = (fiatBalance != null)
+    final fiatOrPlaceholder = (fiatAmount != null)
         ? SplitAmountText(
-            amount: fiatBalance,
+            amount: fiatAmount,
             fiatName: fiatName!,
             style: Fonts.fontUI.copyWith(
               color: LxColors.foreground,
@@ -705,9 +745,6 @@ class SubBalanceRow extends StatelessWidget {
             width: Space.s900,
             style: fiatStyle,
           );
-
-    final titleText =
-        (this.kind == BalanceKind.onchain) ? "On-chain" : "Lightning";
 
     return ListTile(
       // list tile styling
@@ -723,7 +760,7 @@ class SubBalanceRow extends StatelessWidget {
 
       // actual content
 
-      leading: ListIcon.byBalanceKind(this.kind),
+      leading: this.icon,
 
       // NOTE: we use a Row() in `title` and `subtitle` instead of `trailing` so
       // that the text baselines align properly.
@@ -736,7 +773,7 @@ class SubBalanceRow extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                titleText,
+                this.title,
                 style: Fonts.fontUI.copyWith(
                   fontSize: fiatSize,
                   color: LxColors.foreground,
@@ -758,7 +795,7 @@ class SubBalanceRow extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              "BTC",
+              this.subtitle,
               style: Fonts.fontUI.copyWith(
                 fontSize: satsSize,
                 color: LxColors.fgTertiary,
@@ -1049,6 +1086,16 @@ class ValueStreamBuilder<T> extends StreamBuilder<T> {
           initialData: stream.value,
           builder: (BuildContext context, AsyncSnapshot<T> snapshot) =>
               builder(context, snapshot.data),
+        );
+}
+
+/// The receipt-style separator on various confirm pages.
+class ReceiptSeparator extends SizedBox {
+  const ReceiptSeparator({super.key})
+      : super(
+          height: Space.s650,
+          child: const ZigZag(
+              color: LxColors.grey750, zigWidth: 14.0, strokeWidth: 1.0),
         );
 }
 
