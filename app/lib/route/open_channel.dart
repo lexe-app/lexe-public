@@ -1,6 +1,12 @@
+import 'dart:async' show unawaited;
+
 import 'package:app_rs_dart/ffi/api.dart'
-    show PreflightOpenChannelRequest, PreflightOpenChannelResponse;
+    show
+        OpenChannelRequest,
+        PreflightOpenChannelRequest,
+        PreflightOpenChannelResponse;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/types.dart' show UserChannelId;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
@@ -9,9 +15,14 @@ import 'package:lexeapp/components.dart'
         ErrorMessage,
         ErrorMessageSection,
         HeadingText,
+        ItemizedAmountRow,
+        ListIcon,
         LxBackButton,
+        LxCloseButton,
+        LxCloseButtonKind,
         MultistepFlow,
         PaymentAmountInput,
+        ReceiptSeparator,
         ScrollableSinglePageBody,
         SubBalanceRow,
         SubheadingText;
@@ -19,8 +30,8 @@ import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
-import 'package:lexeapp/style.dart' show LxIcons, Space;
-import 'package:lexeapp/types.dart' show BalanceKind, BalanceState;
+import 'package:lexeapp/style.dart' show LxColors, LxIcons, Space;
+import 'package:lexeapp/types.dart' show BalanceKind, BalanceState, FiatAmount;
 
 @immutable
 final class OpenChannelFlowResult {
@@ -80,6 +91,13 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
 
   final ValueNotifier<ErrorMessage?> estimateFeeError = ValueNotifier(null);
   final ValueNotifier<bool> estimatingFee = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    this.estimatingFee.dispose();
+    this.estimateFeeError.dispose();
+    super.dispose();
+  }
 
   Result<(), String> validateValue(int value) {
     final onchainSats = this.widget.balanceState.value.onchainSats();
@@ -149,7 +167,23 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
 
     info("preflight_open_channel($valueSats) -> fees: ${resp.feeEstimateSats}");
 
-    // TODO(phlip9): navigate to confirmation page
+    // Navigate to confirm page and pop with the result if successful
+    final OpenChannelFlowResult? flowResult =
+        await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) => OpenChannelConfirmPage(
+          app: this.widget.app,
+          balanceState: this.widget.balanceState,
+          channelValueSats: valueSats,
+          userChannelId: UserChannelId.gen(),
+          preflight: resp,
+        ),
+      ),
+    );
+    info("OpenChannelNeedValuePage: flowResult: $flowResult");
+    if (!this.mounted || flowResult == null) return;
+
+    await Navigator.of(this.context).maybePop(flowResult);
   }
 
   @override
@@ -213,6 +247,197 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
                   icon: const Icon(LxIcons.next),
                   onTap: this.onNext,
                   loading: estimatingFee,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Ask the user to confirm the channel open fees after preflighting.
+class OpenChannelConfirmPage extends StatefulWidget {
+  const OpenChannelConfirmPage({
+    super.key,
+    required this.app,
+    required this.balanceState,
+    required this.channelValueSats,
+    required this.userChannelId,
+    required this.preflight,
+  });
+
+  final AppHandle app;
+
+  /// The current top-level balance.
+  final ValueListenable<BalanceState> balanceState;
+
+  /// The channel value from the previous page.
+  final int channelValueSats;
+
+  /// The idempotency key.
+  final UserChannelId userChannelId;
+
+  /// The estimated fees for this channel open.
+  final PreflightOpenChannelResponse preflight;
+
+  @override
+  State<OpenChannelConfirmPage> createState() => _OpenChannelConfirmPageState();
+}
+
+class _OpenChannelConfirmPageState extends State<OpenChannelConfirmPage> {
+  final ValueNotifier<ErrorMessage?> openError = ValueNotifier(null);
+  final ValueNotifier<bool> isPending = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    this.isPending.dispose();
+    this.openError.dispose();
+    super.dispose();
+  }
+
+  /// Try to open the channel after the user confirms.
+  Future<void> onConfirm() async {
+    // Don't allow submission while a channel open is pending.
+    if (this.isPending.value) return;
+
+    // Start loading and reset any errors.
+    this.isPending.value = true;
+    this.openError.value = null;
+
+    // Open the channel.
+    final req = OpenChannelRequest(
+      userChannelId: this.widget.userChannelId,
+      valueSats: this.widget.channelValueSats,
+    );
+    final result =
+        await Result.tryFfiAsync(() => this.widget.app.openChannel(req: req));
+
+    if (!this.mounted) return;
+
+    final OpenChannelFlowResult flowResult;
+    switch (result) {
+      case Ok(:final ok):
+        info("OpenChannelConfirmPage: success: flowResult: $ok");
+        flowResult = OpenChannelFlowResult(channelId: ok.channelId);
+      case Err(:final err):
+        error("OpenChannelConfirmPage: error: ${err.message}");
+        this.isPending.value = false;
+        this.openError.value = ErrorMessage(
+          title: "Failed to open channel",
+          message: err.message,
+        );
+        return;
+    }
+
+    unawaited(Navigator.of(this.context).maybePop(flowResult));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
+        leading: const LxBackButton(isLeading: true),
+        actions: const [
+          LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
+          SizedBox(width: Space.appBarTrailingPadding),
+        ],
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const HeadingText(text: "Confirm channel open"),
+          const SubheadingText(
+            text: "Moving on-chain Bitcoin into a Lightning channel.",
+          ),
+
+          const SizedBox(height: Space.s700),
+
+          // Show the "itemized" receipt for this channel open.
+          //
+          // Most importantly, the user needs to confirm the on-chain fee.
+          // Secondly, we need to communicate that the on-chain balance is
+          // getting "converted" into their lightning balance.
+          ValueListenableBuilder(
+            valueListenable: this.widget.balanceState,
+            builder: (context, balanceState, child) {
+              final fiatRate = balanceState.fiatRate;
+              final channelSats = this.widget.channelValueSats;
+              final channelFiat =
+                  FiatAmount.maybeFromSats(fiatRate, channelSats);
+              final feeSats = this.widget.preflight.feeEstimateSats;
+              final feeFiat = FiatAmount.maybeFromSats(fiatRate, feeSats);
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // In: On-chain balance
+                  ItemizedAmountRow(
+                    fiatAmount: channelFiat,
+                    satsAmount: channelSats,
+                    title: "On-chain",
+                    // subtitle: "Channel deposit",
+                    subtitle: "",
+                    icon: const ListIcon.bitcoin(),
+                  ),
+
+                  // In: Miner fee
+                  ItemizedAmountRow(
+                    fiatAmount: feeFiat,
+                    satsAmount: feeSats,
+                    title: "Miner fee",
+                    subtitle: "",
+                    // subtitle: "Paid to the BTC network",
+                    icon: const SizedBox.square(dimension: Space.s650),
+                    // icon: const ListIcon.bitcoin(),
+                  ),
+
+                  const ReceiptSeparator(),
+
+                  // Out: Lightning balance
+                  ItemizedAmountRow(
+                    fiatAmount: channelFiat,
+                    satsAmount: channelSats,
+                    title: "Lightning",
+                    subtitle: "",
+                    // subtitle: "New channel",
+                    icon: const ListIcon.lightning(),
+                  ),
+                ],
+              );
+            },
+          ),
+
+          const SizedBox(height: Space.s600),
+        ],
+        bottom: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            const Expanded(child: SizedBox(height: Space.s500)),
+
+            // Error opening channel
+            ValueListenableBuilder(
+              valueListenable: this.openError,
+              builder: (_context, errorMessage, _widget) =>
+                  ErrorMessageSection(errorMessage),
+            ),
+
+            // Open channel ->
+            ValueListenableBuilder(
+              valueListenable: this.isPending,
+              builder: (_context, estimatingFee, _widget) => Padding(
+                padding: const EdgeInsets.only(top: Space.s500),
+                child: AnimatedFillButton(
+                  label: const Text("Open channel"),
+                  icon: const Icon(LxIcons.next),
+                  onTap: this.onConfirm,
+                  loading: estimatingFee,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: LxColors.moneyGoUp,
+                    foregroundColor: LxColors.grey1000,
+                  ),
                 ),
               ),
             ),

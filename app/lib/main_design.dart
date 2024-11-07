@@ -5,8 +5,13 @@ import 'dart:async' show unawaited;
 
 import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
 import 'package:app_rs_dart/ffi/api.dart'
-    show Balance, FeeEstimate, FiatRate, PreflightPayOnchainResponse;
-import 'package:app_rs_dart/ffi/app.dart' show U8Array32;
+    show
+        Balance,
+        FeeEstimate,
+        FiatRate,
+        PreflightOpenChannelResponse,
+        PreflightPayOnchainResponse;
+import 'package:app_rs_dart/ffi/app.dart' show U8Array16, U8Array32;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         ClientPaymentId,
@@ -14,7 +19,8 @@ import 'package:app_rs_dart/ffi/types.dart'
         Onchain,
         Payment,
         PaymentMethod,
-        PaymentStatus;
+        PaymentStatus,
+        UserChannelId;
 import 'package:app_rs_dart/ffi/types.ext.dart' show PaymentExt;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -412,7 +418,24 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 )),
               ),
             ),
-            // Component("OpenChannelConfirmPage", (context) => )
+            Component(
+              "OpenChannelConfirmPage",
+              (context) => OpenChannelConfirmPage(
+                app: mockApp,
+                balanceState: ValueNotifier(const BalanceState(
+                  balanceSats: Balance(
+                    totalSats: 123000,
+                    lightningSats: 0,
+                    onchainSats: 123000,
+                  ),
+                  fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
+                )),
+                channelValueSats: 6500,
+                userChannelId: UserChannelId(id: U8Array16.init()),
+                preflight:
+                    const PreflightOpenChannelResponse(feeEstimateSats: 122),
+              ),
+            ),
             Component(
               "ScanPage",
               (_) => MultistepFlow<SendFlowResult>(

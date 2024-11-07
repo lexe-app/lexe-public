@@ -2,6 +2,8 @@
 
 // ignore_for_file: camel_case_types
 
+import 'dart:async' show unawaited;
+
 import 'package:app_rs_dart/ffi/api.dart'
     show FeeEstimate, PreflightPayOnchainResponse;
 import 'package:app_rs_dart/ffi/types.dart'
@@ -474,7 +476,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
         final flowResult = ok;
         info("SendPaymentConfirmPage: success: flowResult: $flowResult");
         // ignore: use_build_context_synchronously
-        await Navigator.of(this.context).maybePop(flowResult);
+        unawaited(Navigator.of(this.context).maybePop(flowResult));
 
       case Err(:final err):
         // The request failed. Set the error message and unset loading.
