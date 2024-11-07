@@ -55,7 +55,7 @@ use common::{
         WALLET_CHANGESET_FILENAME,
     },
     ln::{
-        amount::Amount, balance::Balance, network::LxNetwork,
+        amount::Amount, balance::OnchainBalance, network::LxNetwork,
         priority::ConfirmationPriority,
     },
     notify,
@@ -351,7 +351,7 @@ impl LexeWallet {
 
     /// Returns the current wallet balance. Note that newly received funds will
     /// not be detected unless the wallet has been `sync()`ed first.
-    pub fn get_balance(&self) -> Balance {
+    pub fn get_balance(&self) -> OnchainBalance {
         let balance = self.inner.read().unwrap().balance();
 
         // Convert bdk_wallet::Balance to common::ln::balance::Balance.
@@ -363,7 +363,7 @@ impl LexeWallet {
             confirmed,
         } = balance;
 
-        Balance {
+        OnchainBalance {
             immature,
             trusted_pending,
             untrusted_pending,

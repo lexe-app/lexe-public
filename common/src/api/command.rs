@@ -6,7 +6,7 @@ use crate::{
     enclave::Measurement,
     ln::{
         amount::Amount,
-        balance::Balance,
+        balance::OnchainBalance,
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
         hashes::LxTxid,
         invoice::LxInvoice,
@@ -25,8 +25,8 @@ pub struct NodeInfo {
     pub num_usable_channels: usize,
     pub lightning_balance: Amount,
     pub num_peers: usize,
-    /// Our on-chain wallet [`Balance`].
-    pub onchain_balance: Balance,
+    /// Our on-chain wallet [`OnchainBalance`].
+    pub onchain_balance: OnchainBalance,
     /// The number of pending channel monitor updates.
     /// If this isn't 0, it's likely that at least one channel is paused.
     pub pending_monitor_updates: usize,
