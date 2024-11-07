@@ -1,7 +1,6 @@
 import 'package:app_rs_dart/ffi/api.dart'
     show PreflightOpenChannelRequest, PreflightOpenChannelResponse;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
-import 'package:app_rs_dart/ffi/types.dart' show ChannelId;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
@@ -27,7 +26,7 @@ import 'package:lexeapp/types.dart' show BalanceKind, BalanceState;
 final class OpenChannelFlowResult {
   const OpenChannelFlowResult({required this.channelId});
 
-  final ChannelId channelId;
+  final String channelId;
 
   @override
   String toString() => "OpenChannelFlowResult(channelId: $channelId)";

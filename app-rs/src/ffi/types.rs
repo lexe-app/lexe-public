@@ -7,7 +7,7 @@ use common::{
     ln::{
         channel::{
             LxChannelDetails as LxChannelDetailsRs,
-            LxChannelId as LxChannelIdRs, LxUserChannelId as LxUserChannelIdRs,
+            LxUserChannelId as LxUserChannelIdRs,
         },
         invoice::LxInvoice,
         network::LxNetwork as NetworkRs,
@@ -411,18 +411,6 @@ impl UserChannelId {
 impl From<UserChannelId> for LxUserChannelIdRs {
     fn from(value: UserChannelId) -> LxUserChannelIdRs {
         LxUserChannelIdRs(value.id)
-    }
-}
-
-/// A Lightning channel id.
-#[frb(dart_metadata=("freezed"))]
-pub struct ChannelId {
-    pub id: [u8; 32],
-}
-
-impl From<LxChannelIdRs> for ChannelId {
-    fn from(value: LxChannelIdRs) -> ChannelId {
-        Self { id: value.0 }
     }
 }
 
