@@ -22,7 +22,6 @@ import 'ffi/types.dart';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
-import 'lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API
@@ -1909,17 +1908,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  ChannelId dco_decode_channel_id(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return ChannelId(
-      id: dco_decode_u_8_array_32(arr[0]),
-    );
-  }
-
-  @protected
   ClientPaymentId dco_decode_client_payment_id(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -2208,7 +2196,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
     return OpenChannelResponse(
-      channelId: dco_decode_channel_id(arr[0]),
+      channelId: dco_decode_String(arr[0]),
     );
   }
 
@@ -2878,13 +2866,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  ChannelId sse_decode_channel_id(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_id = sse_decode_u_8_array_32(deserializer);
-    return ChannelId(id: var_id);
-  }
-
-  @protected
   ClientPaymentId sse_decode_client_payment_id(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_u_8_array_32(deserializer);
@@ -3170,7 +3151,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   OpenChannelResponse sse_decode_open_channel_response(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_channelId = sse_decode_channel_id(deserializer);
+    var var_channelId = sse_decode_String(deserializer);
     return OpenChannelResponse(channelId: var_channelId);
   }
 
@@ -3863,12 +3844,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  void sse_encode_channel_id(ChannelId self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_8_array_32(self.id, serializer);
-  }
-
-  @protected
   void sse_encode_client_payment_id(
       ClientPaymentId self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -4090,7 +4065,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void sse_encode_open_channel_response(
       OpenChannelResponse self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_channel_id(self.channelId, serializer);
+    sse_encode_String(self.channelId, serializer);
   }
 
   @protected

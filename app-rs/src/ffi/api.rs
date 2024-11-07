@@ -39,8 +39,8 @@ use common::{
 use flutter_rust_bridge::frb;
 
 use crate::ffi::types::{
-    ChannelId, ClientPaymentId, ConfirmationPriority, Invoice,
-    LxChannelDetails, PaymentIndex, UserChannelId,
+    ClientPaymentId, ConfirmationPriority, Invoice, LxChannelDetails,
+    PaymentIndex, UserChannelId,
 };
 
 #[frb(dart_metadata=("freezed"))]
@@ -124,13 +124,13 @@ impl TryFrom<OpenChannelRequest> for OpenChannelRequestRs {
 
 #[frb(dart_metadata=("freezed"))]
 pub struct OpenChannelResponse {
-    pub channel_id: ChannelId,
+    pub channel_id: String,
 }
 
 impl From<OpenChannelResponseRs> for OpenChannelResponse {
     fn from(resp: OpenChannelResponseRs) -> Self {
         Self {
-            channel_id: ChannelId::from(resp.channel_id),
+            channel_id: resp.channel_id.to_string(),
         }
     }
 }

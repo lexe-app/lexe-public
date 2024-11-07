@@ -468,7 +468,7 @@ abstract class _OpenChannelRequest implements OpenChannelRequest {
 
 /// @nodoc
 mixin _$OpenChannelResponse {
-  ChannelId get channelId => throw _privateConstructorUsedError;
+  String get channelId => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -477,7 +477,7 @@ class _$OpenChannelResponseImpl implements _OpenChannelResponse {
   const _$OpenChannelResponseImpl({required this.channelId});
 
   @override
-  final ChannelId channelId;
+  final String channelId;
 
   @override
   String toString() {
@@ -498,11 +498,11 @@ class _$OpenChannelResponseImpl implements _OpenChannelResponse {
 }
 
 abstract class _OpenChannelResponse implements OpenChannelResponse {
-  const factory _OpenChannelResponse({required final ChannelId channelId}) =
+  const factory _OpenChannelResponse({required final String channelId}) =
       _$OpenChannelResponseImpl;
 
   @override
-  ChannelId get channelId;
+  String get channelId;
 }
 
 /// @nodoc

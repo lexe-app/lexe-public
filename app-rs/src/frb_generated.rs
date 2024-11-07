@@ -922,16 +922,6 @@ impl SseDecode for bool {
     }
 }
 
-impl SseDecode for crate::ffi::types::ChannelId {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_id = <[u8; 32]>::sse_decode(deserializer);
-        return crate::ffi::types::ChannelId { id: var_id };
-    }
-}
-
 impl SseDecode for crate::ffi::types::ClientPaymentId {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -1346,8 +1336,7 @@ impl SseDecode for crate::ffi::api::OpenChannelResponse {
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
-        let mut var_channelId =
-            <crate::ffi::types::ChannelId>::sse_decode(deserializer);
+        let mut var_channelId = <String>::sse_decode(deserializer);
         return crate::ffi::api::OpenChannelResponse {
             channel_id: var_channelId,
         };
@@ -2054,23 +2043,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::Balance>
     for crate::ffi::api::Balance
 {
     fn into_into_dart(self) -> crate::ffi::api::Balance {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::types::ChannelId {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.id.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::types::ChannelId
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::ChannelId>
-    for crate::ffi::types::ChannelId
-{
-    fn into_into_dart(self) -> crate::ffi::types::ChannelId {
         self
     }
 }
@@ -3157,16 +3129,6 @@ impl SseEncode for bool {
     }
 }
 
-impl SseEncode for crate::ffi::types::ChannelId {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <[u8; 32]>::sse_encode(self.id, serializer);
-    }
-}
-
 impl SseEncode for crate::ffi::types::ClientPaymentId {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -3529,7 +3491,7 @@ impl SseEncode for crate::ffi::api::OpenChannelResponse {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::types::ChannelId>::sse_encode(self.channel_id, serializer);
+        <String>::sse_encode(self.channel_id, serializer);
     }
 }
 

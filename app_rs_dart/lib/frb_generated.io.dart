@@ -21,7 +21,6 @@ import 'ffi/payment_uri.dart';
 import 'ffi/settings.dart';
 import 'ffi/types.dart';
 import 'frb_generated.dart';
-import 'lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 
 abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
@@ -179,9 +178,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   UpdatePaymentNote dco_decode_box_autoadd_update_payment_note(dynamic raw);
-
-  @protected
-  ChannelId dco_decode_channel_id(dynamic raw);
 
   @protected
   ClientPaymentId dco_decode_client_payment_id(dynamic raw);
@@ -532,9 +528,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   UpdatePaymentNote sse_decode_box_autoadd_update_payment_note(
       SseDeserializer deserializer);
-
-  @protected
-  ChannelId sse_decode_channel_id(SseDeserializer deserializer);
 
   @protected
   ClientPaymentId sse_decode_client_payment_id(SseDeserializer deserializer);
@@ -907,9 +900,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_box_autoadd_update_payment_note(
       UpdatePaymentNote self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_channel_id(ChannelId self, SseSerializer serializer);
 
   @protected
   void sse_encode_client_payment_id(

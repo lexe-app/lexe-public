@@ -9,7 +9,6 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-import '../lib.dart';
 import 'app.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
@@ -98,7 +97,7 @@ class OpenChannelRequest with _$OpenChannelRequest {
 @freezed
 class OpenChannelResponse with _$OpenChannelResponse {
   const factory OpenChannelResponse({
-    required ChannelId channelId,
+    required String channelId,
   }) = _OpenChannelResponse;
 }
 
