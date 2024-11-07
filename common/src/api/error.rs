@@ -601,7 +601,9 @@ api_error_kind! {
         Provision = 100,
         /// Error occurred while fetching new scid
         Scid = 101,
-        /// Error while executing command
+        // Error while executing command
+        // NOTE(phlip9): intentionally NOT a doc-comment. These get displayed on
+        // the app UI frequently and should be concise.
         Command = 102,
     }
 }
@@ -668,7 +670,9 @@ api_error_kind! {
         BadAuth = 104,
         /// Could not proxy request to node
         Proxy = 105,
-        /// Error while executing command
+        // Error while executing command
+        // NOTE(phlip9): intentionally NOT a doc-comment. These get displayed on
+        // the app UI frequently and should be concise.
         Command = 106,
     }
 }
@@ -1137,5 +1141,14 @@ mod test {
         assert_api_error_invariants::<LspApiError, LspErrorKind>();
         assert_api_error_invariants::<NodeApiError, NodeErrorKind>();
         assert_api_error_invariants::<RunnerApiError, RunnerErrorKind>();
+    }
+
+    #[test]
+    fn node_lsp_command_error_is_clean() {
+        let err1 = format!("{:#}", NodeApiError::command("Oops!"));
+        let err2 = format!("{:#}", LspApiError::command("Oops!"));
+
+        assert_eq!(err1, "[106=Command]: Oops!");
+        assert_eq!(err2, "[102=Command]: Oops!");
     }
 }
