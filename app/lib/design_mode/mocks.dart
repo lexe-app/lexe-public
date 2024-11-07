@@ -14,10 +14,14 @@ import 'package:app_rs_dart/ffi/api.dart'
         FiatRates,
         ListChannelsResponse,
         NodeInfo,
+        OpenChannelRequest,
+        OpenChannelResponse,
         PayInvoiceRequest,
         PayInvoiceResponse,
         PayOnchainRequest,
         PayOnchainResponse,
+        PreflightOpenChannelRequest,
+        PreflightOpenChannelResponse,
         PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse,
         PreflightPayOnchainRequest,
@@ -146,6 +150,17 @@ class MockAppHandle extends AppHandle {
   Future<ListChannelsResponse> listChannels() => Future.delayed(
       const Duration(milliseconds: 1000),
       () => ListChannelsResponse(channels: this.channels));
+
+  @override
+  Future<PreflightOpenChannelResponse> preflightOpenChannel(
+          {required PreflightOpenChannelRequest req}) =>
+      Future.delayed(const Duration(milliseconds: 1000),
+          () => const PreflightOpenChannelResponse(feeEstimateSats: 123));
+
+  @override
+  Future<OpenChannelResponse> openChannel({required OpenChannelRequest req}) =>
+      Future.delayed(const Duration(milliseconds: 1000),
+          () => OpenChannelResponse(channelId: this.channels[1].channelId));
 
   @override
   Future<FiatRates> fiatRates() => Future.delayed(
