@@ -848,18 +848,22 @@ class PaymentAmountInput extends StatelessWidget {
 
   final IntInputFormatter intInputFormatter;
   final bool allowEmpty;
-  final Result<(), String?> Function(int amount)? validate;
+
+  /// Additional validation to perform on the value. We already validate that
+  /// the value is a non-zero unsigned integer. Return `Err(null)` to prevent
+  /// submission without displaying an error bar.
+  final Result<(), String> Function(int amount)? validate;
 
   final VoidCallback? onEditingComplete;
 
   final int? initialValue;
 
-  Result<(), String?> validateAmountStr(String? maybeAmountStr) {
+  Result<(), String> validateAmountStr(String? maybeAmountStr) {
     if (maybeAmountStr == null || maybeAmountStr.isEmpty) {
       if (this.allowEmpty) {
         return const Ok(());
       } else {
-        return const Err(null);
+        return const Err("");
       }
     }
 
@@ -871,9 +875,8 @@ class PaymentAmountInput extends StatelessWidget {
         return const Err("Amount must be a number.");
     }
 
-    // Don't show any error message if the field is effectively empty.
     if (amount <= 0) {
-      return const Err(null);
+      return const Err("");
     }
 
     final validate = this.validate;
