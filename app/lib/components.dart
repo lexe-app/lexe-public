@@ -13,7 +13,7 @@ import 'package:lexeapp/input_formatter.dart'
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxBreakpoints, LxColors, LxIcons, LxRadius, Space;
-import 'package:lexeapp/types.dart' show BalanceKind, BalanceState;
+import 'package:lexeapp/types.dart' show BalanceKind, BalanceState, FiatAmount;
 import 'package:rxdart_ext/rxdart_ext.dart';
 
 // TODO(phlip9): frb no longer exposing consts?
@@ -655,7 +655,6 @@ class SubBalanceRow extends ItemizedAmountRow {
   }) {
     return SubBalanceRow._(
       key: key,
-      fiatName: balance.fiatRate?.fiat,
       fiatAmount: balance.byKindFiat(kind),
       satsAmount: balance.byKindSats(kind),
       title: switch (kind) {
@@ -669,7 +668,6 @@ class SubBalanceRow extends ItemizedAmountRow {
 
   const SubBalanceRow._({
     required super.key,
-    required super.fiatName,
     required super.fiatAmount,
     required super.satsAmount,
     required super.title,
@@ -681,7 +679,6 @@ class SubBalanceRow extends ItemizedAmountRow {
 class ItemizedAmountRow extends StatelessWidget {
   const ItemizedAmountRow({
     super.key,
-    required this.fiatName,
     required this.fiatAmount,
     required this.satsAmount,
     required this.title,
@@ -689,8 +686,7 @@ class ItemizedAmountRow extends StatelessWidget {
     required this.icon,
   });
 
-  final String? fiatName;
-  final double? fiatAmount;
+  final FiatAmount? fiatAmount;
   final int? satsAmount;
 
   final String title;
@@ -699,7 +695,6 @@ class ItemizedAmountRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fiatName = this.fiatName;
     final fiatAmount = this.fiatAmount;
     final satsAmount = this.satsAmount;
 
@@ -731,8 +726,8 @@ class ItemizedAmountRow extends StatelessWidget {
     );
     final fiatOrPlaceholder = (fiatAmount != null)
         ? SplitAmountText(
-            amount: fiatAmount,
-            fiatName: fiatName!,
+            amount: fiatAmount.amount,
+            fiatName: fiatAmount.fiat,
             style: Fonts.fontUI.copyWith(
               color: LxColors.foreground,
               fontSize: fiatSize,

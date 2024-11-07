@@ -28,7 +28,7 @@ import 'package:lexeapp/service/node_info.dart' show NodeInfoService;
 import 'package:lexeapp/service/refresh.dart' show RefreshService;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxRadius, LxTheme, Space;
-import 'package:lexeapp/types.dart' show BalanceState;
+import 'package:lexeapp/types.dart' show BalanceState, FiatAmount;
 
 /// The user can view and manage their Lightning channels on this page.
 class ChannelsPage extends StatefulWidget {
@@ -287,36 +287,6 @@ class ChannelsPartyChip extends StatelessWidget {
           ),
         ),
       );
-}
-
-class FiatAmount {
-  const FiatAmount({required this.fiat, required this.amount});
-
-  FiatAmount.fromBtc(FiatRate rate, double amountBtc)
-      : fiat = rate.fiat,
-        amount = amountBtc * rate.rate;
-
-  factory FiatAmount.fromSats(FiatRate rate, int amountSats) =>
-      FiatAmount.fromBtc(rate, currency_format.satsToBtc(amountSats));
-
-  static FiatAmount? maybeFromSats(FiatRate? rate, int? amountSats) =>
-      (rate != null && amountSats != null)
-          ? FiatAmount.fromSats(rate, amountSats)
-          : null;
-
-  final String fiat;
-  final double amount;
-
-  @override
-  int get hashCode => this.fiat.hashCode ^ this.amount.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is FiatAmount &&
-          runtimeType == other.runtimeType &&
-          this.fiat == other.fiat &&
-          this.amount == other.amount;
 }
 
 class TotalChannelBalance {

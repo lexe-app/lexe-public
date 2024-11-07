@@ -718,8 +718,8 @@ class BalanceWidget extends StatelessWidget {
     );
     final totalFiatOrPlaceholder = (totalFiat != null)
         ? SplitAmountText(
-            amount: totalFiat,
-            fiatName: this.state.fiatRate!.fiat,
+            amount: totalFiat.amount,
+            fiatName: totalFiat.fiat,
             style: totalFiatStyle,
             textAlign: TextAlign.end,
           )
