@@ -121,7 +121,7 @@ class MockAppHandle extends AppHandle {
   SettingsDb settingsDb() => MockSettingsDb();
 
   @override
-  Future<NodeInfo> nodeInfo({dynamic hint}) =>
+  Future<NodeInfo> nodeInfo() =>
       Future.delayed(const Duration(milliseconds: 1000), () {
         const lightningSats = 9836390;
         const onchainSats = 3493734;
@@ -143,12 +143,12 @@ class MockAppHandle extends AppHandle {
       });
 
   @override
-  Future<ListChannelsResponse> listChannels({dynamic hint}) => Future.delayed(
+  Future<ListChannelsResponse> listChannels() => Future.delayed(
       const Duration(milliseconds: 1000),
       () => ListChannelsResponse(channels: this.channels));
 
   @override
-  Future<FiatRates> fiatRates({dynamic hint}) => Future.delayed(
+  Future<FiatRates> fiatRates() => Future.delayed(
         const Duration(milliseconds: 2000),
         () => const FiatRates(
           timestampMs: 1679863795,
@@ -165,7 +165,6 @@ class MockAppHandle extends AppHandle {
   @override
   Future<PayOnchainResponse> payOnchain({
     required PayOnchainRequest req,
-    dynamic hint,
   }) =>
       Future.delayed(
         const Duration(milliseconds: 1200),
@@ -180,7 +179,7 @@ class MockAppHandle extends AppHandle {
 
   @override
   Future<PreflightPayOnchainResponse> preflightPayOnchain(
-          {required PreflightPayOnchainRequest req, dynamic hint}) =>
+          {required PreflightPayOnchainRequest req}) =>
       Future.delayed(
         const Duration(seconds: 1),
         () => const PreflightPayOnchainResponse(
@@ -192,14 +191,14 @@ class MockAppHandle extends AppHandle {
       );
 
   @override
-  Future<String> getAddress({dynamic hint}) => Future.delayed(
+  Future<String> getAddress() => Future.delayed(
         const Duration(milliseconds: 1200),
         () => "bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl",
       );
 
   @override
   Future<CreateInvoiceResponse> createInvoice(
-      {required CreateInvoiceRequest req, dynamic hint}) {
+      {required CreateInvoiceRequest req}) {
     final now = DateTime.now();
     final createdAt = now.millisecondsSinceEpoch;
     final expiresAt =
@@ -225,7 +224,6 @@ class MockAppHandle extends AppHandle {
   @override
   Future<PayInvoiceResponse> payInvoice({
     required PayInvoiceRequest req,
-    dynamic hint,
   }) =>
       Future.delayed(
         const Duration(milliseconds: 1200),
@@ -238,7 +236,7 @@ class MockAppHandle extends AppHandle {
 
   @override
   Future<PreflightPayInvoiceResponse> preflightPayInvoice(
-          {required PreflightPayInvoiceRequest req, dynamic hint}) =>
+          {required PreflightPayInvoiceRequest req}) =>
       Future.delayed(
         const Duration(seconds: 1),
         // () => throw FfiError("Request timed out").toFfi(),
@@ -249,12 +247,12 @@ class MockAppHandle extends AppHandle {
       );
 
   @override
-  Future<bool> syncPayments({dynamic hint}) =>
+  Future<bool> syncPayments() =>
       Future.delayed(const Duration(milliseconds: 1500), () => true);
 
   @override
   Future<int?> getVecIdxByPaymentIndex(
-      {required PaymentIndex paymentIndex, dynamic hint}) async {
+      {required PaymentIndex paymentIndex}) async {
     final vecIdx =
         this.payments.indexWhere((payment) => payment.index == paymentIndex);
     if (vecIdx >= 0) {
@@ -265,8 +263,7 @@ class MockAppHandle extends AppHandle {
   }
 
   @override
-  Payment? getPaymentByVecIdx({required int vecIdx, dynamic hint}) =>
-      this.payments[vecIdx];
+  Payment? getPaymentByVecIdx({required int vecIdx}) => this.payments[vecIdx];
 
   ShortPaymentAndIndex? _getByScrollIdx({
     required bool Function(Payment) filter,
@@ -286,58 +283,56 @@ class MockAppHandle extends AppHandle {
   }
 
   @override
-  ShortPaymentAndIndex? getShortPaymentByScrollIdx(
-          {required int scrollIdx, dynamic hint}) =>
+  ShortPaymentAndIndex? getShortPaymentByScrollIdx({required int scrollIdx}) =>
       this._getByScrollIdx(filter: (_) => true, scrollIdx: scrollIdx);
 
   @override
   ShortPaymentAndIndex? getPendingShortPaymentByScrollIdx(
-          {required int scrollIdx, dynamic hint}) =>
+          {required int scrollIdx}) =>
       this._getByScrollIdx(
           filter: (payment) => payment.isPending(), scrollIdx: scrollIdx);
 
   @override
   ShortPaymentAndIndex? getPendingNotJunkShortPaymentByScrollIdx(
-          {required int scrollIdx, dynamic hint}) =>
+          {required int scrollIdx}) =>
       this._getByScrollIdx(
           filter: (payment) => payment.isPendingNotJunk(),
           scrollIdx: scrollIdx);
 
   @override
   ShortPaymentAndIndex? getFinalizedShortPaymentByScrollIdx(
-          {required int scrollIdx, dynamic hint}) =>
+          {required int scrollIdx}) =>
       this._getByScrollIdx(
           filter: (payment) => payment.isFinalized(), scrollIdx: scrollIdx);
 
   @override
   ShortPaymentAndIndex? getFinalizedNotJunkShortPaymentByScrollIdx(
-          {required int scrollIdx, dynamic hint}) =>
+          {required int scrollIdx}) =>
       this._getByScrollIdx(
           filter: (payment) => payment.isFinalizedNotJunk(),
           scrollIdx: scrollIdx);
 
   @override
-  int getNumPayments({dynamic hint}) => this.payments.length;
+  int getNumPayments() => this.payments.length;
 
   @override
-  int getNumPendingPayments({dynamic hint}) =>
+  int getNumPendingPayments() =>
       this.payments.where((payment) => payment.isPending()).length;
 
   @override
-  int getNumPendingNotJunkPayments({dynamic hint}) =>
+  int getNumPendingNotJunkPayments() =>
       this.payments.where((payment) => payment.isPendingNotJunk()).length;
 
   @override
-  int getNumFinalizedPayments({dynamic hint}) =>
+  int getNumFinalizedPayments() =>
       this.payments.where((payment) => payment.isFinalized()).length;
 
   @override
-  int getNumFinalizedNotJunkPayments({dynamic hint}) =>
+  int getNumFinalizedNotJunkPayments() =>
       this.payments.where((payment) => payment.isFinalizedNotJunk()).length;
 
   @override
-  Future<void> updatePaymentNote(
-          {required UpdatePaymentNote req, dynamic hint}) =>
+  Future<void> updatePaymentNote({required UpdatePaymentNote req}) =>
       Future.delayed(const Duration(milliseconds: 1000), () => ());
 }
 
@@ -347,11 +342,10 @@ class MockAppHandleErroring extends MockAppHandle {
 
   @override
   Future<CreateInvoiceResponse> createInvoice(
-      {required CreateInvoiceRequest req, dynamic hint}) {
+      {required CreateInvoiceRequest req}) {
     return Future.delayed(
       const Duration(milliseconds: 1000),
-      () => throw const FfiError(
-              "[106=Command] Error while executing command: Failed to register new payment")
+      () => throw const FfiError("[106=Command] Failed to register new payment")
           .toFfi(),
     );
   }
