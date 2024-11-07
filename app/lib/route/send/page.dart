@@ -334,7 +334,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     await Navigator.of(this.context).maybePop(flowResult);
   }
 
-  Result<(), String?> validateAmount(int amount) {
+  Result<(), String> validateAmount(int amount) {
     final balanceSats = this.widget.sendCtx.balanceSats();
     if (amount > balanceSats) {
       final kind = this.widget.sendCtx.paymentMethod.kind();
@@ -344,8 +344,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
       };
       final balanceStr =
           currency_format.formatSatsAmount(balanceSats, satsSuffix: true);
-      return Err(
-          "This amount is more than your bitcoin $kindLabel spendable balance of $balanceStr.");
+      return Err("Can't send more than your $kindLabel balance ($balanceStr).");
     }
 
     return const Ok(());

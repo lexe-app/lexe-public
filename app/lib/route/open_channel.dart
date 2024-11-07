@@ -82,12 +82,12 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
   final ValueNotifier<ErrorMessage?> estimateFeeError = ValueNotifier(null);
   final ValueNotifier<bool> estimatingFee = ValueNotifier(false);
 
-  Result<(), String?> validateValue(int value) {
+  Result<(), String> validateValue(int value) {
     final onchainSats = this.widget.balanceState.value.onchainSats();
 
     // Not connected yet? Just prevent submission.
     if (onchainSats == null) {
-      return const Err(null);
+      return const Err("");
     }
 
     // Basic check against balance. More complete checks happen in preflight.
