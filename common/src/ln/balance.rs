@@ -1,9 +1,11 @@
 use serde::{Deserialize, Serialize};
 
+use crate::ln::amount::Amount;
+
 /// Basically `bdk::Balance`, so that `common` doesn't need to depend on `bdk`.
 ///
 /// Partitions a wallet balance into different categories.
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub struct OnchainBalance {
     /// All coinbase outputs not yet matured
     pub immature: bitcoin::Amount,
@@ -15,7 +17,33 @@ pub struct OnchainBalance {
     pub confirmed: bitcoin::Amount,
 }
 
+/// Classify the lightning channel balances into different categories.
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
+pub struct LightningBalance {
+    /// If we try to send right now, we can send at most this much (i.e., not
+    /// accounting for channel reserves, max HTLC, etc...).
+    ///
+    /// For example, if we have an open channel with a disconnected node, then
+    /// we can't send over it; it would not be counted here.
+    pub usable: Amount,
+    /// The sum channel value that isn't currently usable.
+    ///
+    /// The channel may be (1) opening and await confirmation, (2) shutting
+    /// down, or (3) confirmed but the peer is disconnected.
+    // TODO(phlip9): split these out
+    pub pending: Amount,
+}
+
+// ---- impl OnchainBalance ---- //
+
 impl OnchainBalance {
+    pub const ZERO: Self = Self {
+        immature: bitcoin::Amount::ZERO,
+        trusted_pending: bitcoin::Amount::ZERO,
+        untrusted_pending: bitcoin::Amount::ZERO,
+        confirmed: bitcoin::Amount::ZERO,
+    };
+
     /// Get sum of trusted pending and confirmed coins
     pub fn spendable(&self) -> bitcoin::Amount {
         self.confirmed + self.trusted_pending
@@ -27,17 +55,6 @@ impl OnchainBalance {
             + self.trusted_pending
             + self.untrusted_pending
             + self.immature
-    }
-}
-
-impl std::fmt::Display for OnchainBalance {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let spendable = self.spendable();
-        let total = self.total();
-        write!(
-            f,
-            "{{ spendable balance: {spendable} sats, total: {total} sats }}"
-        )
     }
 }
 
@@ -56,11 +73,32 @@ impl std::ops::Add for OnchainBalance {
 
 impl std::iter::Sum for OnchainBalance {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        iter.fold(
-            OnchainBalance {
-                ..Default::default()
-            },
-            |a, b| a + b,
-        )
+        iter.fold(Self::ZERO, |a, b| a + b)
+    }
+}
+
+impl Default for OnchainBalance {
+    fn default() -> Self {
+        Self::ZERO
+    }
+}
+
+// ---- impl LightningBalance ---- //
+
+impl LightningBalance {
+    pub const ZERO: Self = Self {
+        usable: Amount::ZERO,
+        pending: Amount::ZERO,
+    };
+
+    /// Get the sum total of all our known channel balances.
+    pub fn total(&self) -> Amount {
+        self.usable + self.pending
+    }
+}
+
+impl Default for LightningBalance {
+    fn default() -> Self {
+        Self::ZERO
     }
 }

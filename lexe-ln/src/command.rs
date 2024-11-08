@@ -19,6 +19,7 @@ use common::{
     enclave::Measurement,
     ln::{
         amount::Amount,
+        balance::LightningBalance,
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
         invoice::LxInvoice,
         network::LxNetwork,
@@ -28,6 +29,7 @@ use common::{
 use futures::Future;
 use lightning::{
     ln::{
+        channel_state::ChannelDetails,
         channelmanager::{
             PaymentId, RecipientOnionFields, RetryableSendFailure,
             MIN_FINAL_CLTV_EXPIRY_DELTA,
@@ -96,17 +98,19 @@ where
     let node_pk = NodePk(channel_manager.get_our_node_id());
 
     let channels = channel_manager.list_channels();
-    let num_channels = channels.len();
-    let num_usable_channels = channels.iter().filter(|c| c.is_usable).count();
 
-    let ignored = [];
-    let lightning_balance_sat = chain_monitor
-        .get_claimable_balances(&ignored)
-        .into_iter()
-        .map(|balance| balance.claimable_amount_satoshis())
-        .sum();
-    let lightning_balance = Amount::try_from_sats_u64(lightning_balance_sat)
-        .expect("Lightning balance overflow");
+    let num_channels: usize = channels.len();
+    let mut num_usable_channels: usize = 0;
+    let mut lightning_balance = LightningBalance::ZERO;
+
+    for channel in channels {
+        let _ = channel_add_to_balance(
+            chain_monitor,
+            channel,
+            &mut lightning_balance,
+            &mut num_usable_channels,
+        );
+    }
 
     let num_peers = peer_manager.list_peers().len();
 
@@ -129,6 +133,36 @@ where
         onchain_balance,
         pending_monitor_updates,
     }
+}
+
+/// Jump through LDK hoops to get our current balance for a channel.
+fn channel_add_to_balance<PS: LexePersister>(
+    chain_monitor: &LexeChainMonitorType<PS>,
+    channel: ChannelDetails,
+    balance: &mut LightningBalance,
+    num_usable_channels: &mut usize,
+) -> Option<()> {
+    // If there is no negotiated funding TXO or monitor yet, we'll just ignore
+    // this channel.
+    let txo = channel.funding_txo?;
+    let monitor = chain_monitor.get_monitor(txo).ok()?;
+
+    let claimable_balance_sats = monitor
+        .get_claimable_balances()
+        .into_iter()
+        .map(|b| b.claimable_amount_satoshis())
+        .sum();
+
+    let amount = Amount::try_from_sats_u64(claimable_balance_sats).ok()?;
+
+    if channel.is_usable {
+        balance.usable += amount;
+        *num_usable_channels += 1;
+    } else {
+        balance.pending += amount;
+    }
+
+    Some(())
 }
 
 #[instrument(skip_all, name = "(list-channels)")]

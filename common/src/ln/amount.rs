@@ -60,7 +60,7 @@
 use std::{
     fmt::{self, Display},
     iter::Sum,
-    ops::{Add, Div, Mul, Sub},
+    ops::{Add, AddAssign, Div, Mul, Sub},
     str::FromStr,
 };
 
@@ -285,6 +285,12 @@ impl Add for Amount {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
         Self::try_from_inner(self.0 + rhs.0).expect("Overflowed")
+    }
+}
+impl AddAssign for Amount {
+    #[inline]
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
     }
 }
 
