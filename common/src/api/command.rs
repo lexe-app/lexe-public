@@ -6,7 +6,7 @@ use crate::{
     enclave::Measurement,
     ln::{
         amount::Amount,
-        balance::OnchainBalance,
+        balance::{LightningBalance, OnchainBalance},
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
         hashes::LxTxid,
         invoice::LxInvoice,
@@ -21,11 +21,12 @@ pub struct NodeInfo {
     pub version: semver::Version,
     pub measurement: Measurement,
     pub node_pk: NodePk,
-    pub num_channels: usize,
-    pub num_usable_channels: usize,
-    pub lightning_balance: Amount,
     pub num_peers: usize,
-    /// Our on-chain wallet [`OnchainBalance`].
+    pub num_usable_channels: usize,
+    pub num_channels: usize,
+    /// Our lightning channel balance
+    pub lightning_balance: LightningBalance,
+    /// Our on-chain wallet balance
     pub onchain_balance: OnchainBalance,
     /// The number of pending channel monitor updates.
     /// If this isn't 0, it's likely that at least one channel is paused.
