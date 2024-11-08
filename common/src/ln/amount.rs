@@ -59,6 +59,7 @@
 
 use std::{
     fmt::{self, Display},
+    iter::Sum,
     ops::{Add, Div, Mul, Sub},
     str::FromStr,
 };
@@ -314,6 +315,12 @@ impl Div<Decimal> for Amount {
     type Output = Self;
     fn div(self, rhs: Decimal) -> Self::Output {
         Self::try_from_inner(self.0 / rhs).expect("Overflowed")
+    }
+}
+
+impl Sum for Amount {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Amount::ZERO, Self::add)
     }
 }
 
