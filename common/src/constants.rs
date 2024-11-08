@@ -36,13 +36,17 @@ pub const USER_NODE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
 // 50k sats = 0.0005 BTC = $25 at $50k/BTC or $50 at $100k/BTC
 pub const FREE_LIQUIDITY_SAT: u32 = 50_000;
 
+/// The maximum amount of liquidity that Lexe will supply to a user in one tx.
+pub const MAX_LIQUIDITY_SAT: u32 = 10_000_000; // 0.1 BTC
+
 /// User nodes and the LSP will reject new inbound channels with total channel
 /// value larger than this value in satoshis.
 pub const CHANNEL_MAX_FUNDING_SATS: u32 = 5 * 1_0000_0000; // 5 BTC
 
 /// The LSP will only accept new inbound channels with channel value at or above
 /// this limit in satoshis.
-pub const LSP_CHANNEL_MIN_FUNDING_SATS: u32 = 5_000; // 0.00005000 BTC
+// 0.00005000 BTC = $2.50 at $50k/BTC or $5 at $100k/BTC
+pub const LSP_CHANNEL_MIN_FUNDING_SATS: u32 = 5_000;
 
 // --- VFS --- //
 
