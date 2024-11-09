@@ -1,4 +1,34 @@
+//! Event handling requirements are outlined in the doc comments for
+//! [`EventsProvider`], `ChannelManager::process_pending_events`, and
+//! `ChainMonitor::process_pending_events`, which we summarize and expand on
+//! here because they are very important to understand clearly.
+//!
+//! - The docs state that the handling of an event must *succeed* before
+//!   returning from this function. Otherwise, if the background processor
+//!   repersists the channel manager and the program crashes before event
+//!   handling succeeds, the event (which is queued up and persisted in the
+//!   channel manager) will be lost forever.
+//!   - In practice, we accomplish this by sending a notification to the BGP if
+//!     a fatal [`EventHandleError`] occurs. The BGP checks for a notification
+//!     just after the call to `process_pending_events[_async]` and skips the
+//!     channel manager persist and any I/O if a notification was received.
+//! - Event handling must be *idempotent*. It must be okay to handle the same
+//!   event twice, since if an event is handled but another event produced a
+//!   fatal error, or the program crashes before the channel manager can be
+//!   repersisted, the event will be replayed upon next boot.
+//! - The event handler must avoid reentrancy by avoiding direct calls to
+//!   `ChannelManager::process_pending_events` or
+//!   `ChainMonitor::process_pending_events` (or their async variants).
+//!   Otherwise, there may be a deadlock.
+//! - The event handler must not call [`Writeable::write`] on the channel
+//!   manager, otherwise there will be a deadlock, because the channel manager's
+//!   `total_consistency_lock` is held for the duration of the event handling.
+//!
+//! [`EventsProvider`]: lightning::events::EventsProvider
+//! [`Writeable::write`]: lightning::util::ser::Writeable::write
+
 use std::{
+    future::Future,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -18,23 +48,21 @@ use lexe_ln::{
     keys_manager::LexeKeysManager,
     payments::outbound::LxOutboundPaymentFailure,
     test_event::TestEventSender,
+    traits::LexeEventHandler,
     wallet::LexeWallet,
 };
-use lightning::events::{Event, EventHandler, PaymentFailureReason};
+use lightning::events::{Event, PaymentFailureReason};
 use tracing::{error, info, warn};
 
 use crate::{alias::PaymentsManagerType, channel_manager::NodeChannelManager};
 
-/// The LDK [`EventHandler`] for the user node.
 pub struct NodeEventHandler {
-    pub(crate) ctx: Arc<Ctx>,
+    pub(crate) ctx: Arc<EventCtx>,
 }
 
-// We pub(crate) all the fields to prevent having to specify each field two more
-// times in Self::new parameters and in struct init syntax.
-// TODO(phlip9): we probably won't need this intermediate struct when we impl
-// full async event handling.
-pub(crate) struct Ctx {
+/// Allows all event handling context to be shared (e.g. spawned into a task)
+/// with a single [`Arc`] clone.
+pub(crate) struct EventCtx {
     pub(crate) lsp: LspInfo,
     pub(crate) wallet: LexeWallet,
     pub(crate) channel_manager: NodeChannelManager,
@@ -47,86 +75,36 @@ pub(crate) struct Ctx {
     pub(crate) shutdown: ShutdownChannel,
 }
 
-// TODO(max): Revisit with async handling in mind, docs likely out of date
-/// Event handling requirements are outlined in the doc comments for
-/// [`EventsProvider`], `ChannelManager::process_pending_events`, and
-/// `ChainMonitor::process_pending_events`, which we summarize and expand on
-/// here because they are very important to understand clearly.
-///
-/// - The docs state that the handling of an event must *succeed* before
-///   returning from this function. Otherwise, if the background processor
-///   repersists the channel manager and the program crashes before event
-///   handling succeeds, the event (which is queued up and persisted in the
-///   channel manager) will be lost forever.
-///   - In practice, we accomplish this by sending a notification to the BGP if
-///     a fatal [`EventHandleError`] occurs. The BGP checks for a notification
-///     just after the call to `process_pending_events[_async]` and skips the
-///     channel manager persist and any I/O if a notification was received.
-/// - Event handling must be *idempotent*. It must be okay to handle the same
-///   event twice, since if an event is handled but another event produced a
-///   fatal error, or the program crashes before the channel manager can be
-///   repersisted, the event will be replayed upon next boot.
-/// - The event handler must avoid reentrancy by avoiding direct calls to
-///   `ChannelManager::process_pending_events` or
-///   `ChainMonitor::process_pending_events` (or their async variants).
-///   Otherwise, there may be a deadlock.
-/// - The event handler must not call [`Writeable::write`] on the channel
-///   manager, otherwise there will be a deadlock, because the channel manager's
-///   `total_consistency_lock` is held for the duration of the event handling.
-///
-/// [`EventsProvider`]: lightning::events::EventsProvider
-/// [`Writeable::write`]: lightning::util::ser::Writeable::write
-impl EventHandler for NodeEventHandler {
-    fn handle_event(&self, event: Event) {
+impl LexeEventHandler for NodeEventHandler {
+    fn get_handler_future(&self, event: Event) -> impl Future<Output = ()> {
+        self.handle_event(event)
+    }
+}
+
+impl NodeEventHandler {
+    async fn handle_event(&self, event: Event) {
         let event_name = event.name();
         info!("Handling event: {event_name}");
         #[cfg(debug_assertions)] // Events contain sensitive info
         tracing::trace!("Event details: {event:?}");
 
-        // TODO(max): Remove clone() when async handling is implemented
-        let ctx = self.ctx.clone();
-
-        // XXX(max): We are currently breaking the EventHandler contract because
-        // spawning off the event handling in a task means that it is possible
-        // for the BGP to repersist the channel manager (thus losing any events)
-        // prior to finding out that one of the events in the batch produced a
-        // fatal error and must be replayed upon the next boot.
-        //
-        // An attempt to hack around this using the BlockingTaskRt caused other
-        // Lexe services (which are run on the same thread in integration tests)
-        // to be unresponsive while events were being handled, which in turn
-        // prevented the event handler from completing, so we gave up for now.
-        //
-        // Once we move to async event handling, the BGP will repersist the
-        // channel manager only after it `.await`s for the async event handler
-        // to complete, so the contract will be upheld once more.
-        #[allow(clippy::redundant_async_block)]
-        LxTask::spawn(async move { handle_event(&ctx, event).await }).detach();
-    }
-}
-
-// TODO(max): Make this non-async by spawning tasks instead
-async fn handle_event(ctx: &Arc<Ctx>, event: Event) {
-    let event_name = event.name();
-    let handle_event_res = handle_event_fallible(ctx, event).await;
-
-    match handle_event_res {
-        Ok(()) => info!("Successfully handled {event_name}"),
-        Err(EventHandleError::Tolerable(e)) =>
-            warn!("Tolerable error handling {event_name}: {e:#}"),
-        Err(EventHandleError::Fatal(e)) => {
-            error!("Fatal error handling {event_name}: {e:#}");
-            ctx.shutdown.send();
-            // Notify our BGP that a fatal event handling error has occurred
-            // and that the current batch of events MUST not
-            // be lost.
-            ctx.fatal_event.store(true, Ordering::Release);
+        match handle_event_inner(&self.ctx, event).await {
+            Ok(()) => info!("Successfully handled {event_name}"),
+            Err(EventHandleError::Tolerable(e)) =>
+                warn!("Tolerable error handling {event_name}: {e:#}"),
+            Err(EventHandleError::Fatal(e)) => {
+                error!("Fatal error handling {event_name}: {e:#}");
+                self.ctx.shutdown.send();
+                // Notify our BGP that a fatal event handling error has occurred
+                // and that the current batch of events MUST not be lost.
+                self.ctx.fatal_event.store(true, Ordering::Release);
+            }
         }
     }
 }
 
-async fn handle_event_fallible(
-    ctx: &Arc<Ctx>,
+async fn handle_event_inner(
+    ctx: &Arc<EventCtx>,
     event: Event,
 ) -> Result<(), EventHandleError> {
     match event {
