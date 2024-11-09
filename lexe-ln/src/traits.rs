@@ -1,4 +1,5 @@
 use std::{
+    future::Future,
     ops::Deref,
     sync::{Arc, Mutex},
 };
@@ -17,7 +18,7 @@ use common::{
 };
 use lightning::{
     chain::chainmonitor::Persist,
-    events::EventHandler,
+    events::Event,
     routing::{
         gossip::NetworkGraph, scoring::ProbabilisticScoringDecayParameters,
     },
@@ -216,6 +217,10 @@ where
 }
 
 /// A 'trait alias' defining all the requirements of a Lexe event handler.
-pub trait LexeEventHandler: EventHandler + Send + Sync + 'static {}
-
-impl<EH> LexeEventHandler for EH where EH: EventHandler + Send + Sync + 'static {}
+pub trait LexeEventHandler: Send + Sync + 'static {
+    /// Given a LDK [`Event`], get a future which handles it.
+    fn get_handler_future(
+        &self,
+        event: Event,
+    ) -> impl Future<Output = ()> + Send;
+}

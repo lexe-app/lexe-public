@@ -7,7 +7,6 @@ use std::{
 };
 
 use common::{shutdown::ShutdownChannel, task::LxTask};
-use lightning::events::EventsProvider;
 use tokio::{
     sync::{mpsc, oneshot},
     time::{interval, interval_at, Instant},
@@ -96,6 +95,10 @@ impl LexeBackgroundProcessor {
             let mut ng_timer = interval_at(start, NETWORK_GRAPH_PRUNE_INTERVAL);
             let mut ps_timer = interval(PROB_SCORER_PERSIST_INTERVAL);
 
+            // This is the event handler future generator type required by LDK
+            let mk_event_handler_fut =
+                |event| event_handler.get_handler_future(event);
+
             loop {
                 debug!("Beginning BGP loop iteration");
 
@@ -135,16 +138,15 @@ impl LexeBackgroundProcessor {
                     // --- Process events + channel manager repersist --- //
                     () = process_events_fut => {
                         debug!("Processing pending events");
-                        // TODO(max): These async blocks can be removed once we
-                        // switch to async event handling.
-                        async {
-                            channel_manager
-                                .process_pending_events(&event_handler);
-                        }.instrument(info_span!("(process)(chan-man)")).await;
-                        async {
-                            chain_monitor
-                                .process_pending_events(&event_handler);
-                        }.instrument(info_span!("(process)(chain-mon)")).await;
+
+                        channel_manager
+                            .process_pending_events_async(mk_event_handler_fut)
+                            .instrument(info_span!("(event-handler)(chan-man)"))
+                            .await;
+                        chain_monitor
+                            .process_pending_events_async(mk_event_handler_fut)
+                            .instrument(info_span!("(event-handler)(chain-mon)"))
+                            .await;
 
                         // If there was a fatal error, exit here before (1) any
                         // messages are sent by the peer manager; (2) anything

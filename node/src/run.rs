@@ -550,7 +550,7 @@ impl UserNode {
         let fatal_event = Arc::new(AtomicBool::new(false));
         let channel_events_bus = ChannelEventsBus::new();
         let event_handler = NodeEventHandler {
-            ctx: Arc::new(event_handler::Ctx {
+            ctx: Arc::new(event_handler::EventCtx {
                 lsp: args.lsp.clone(),
                 wallet: wallet.clone(),
                 channel_manager: channel_manager.clone(),
