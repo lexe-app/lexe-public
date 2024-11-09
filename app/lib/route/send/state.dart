@@ -21,12 +21,14 @@ import 'package:app_rs_dart/ffi/types.dart'
         Invoice,
         Network,
         Onchain,
-        PaymentIndex,
+        Payment,
+        PaymentDirection,
         PaymentKind,
         PaymentMethod,
         PaymentMethod_Invoice,
         PaymentMethod_Offer,
-        PaymentMethod_Onchain;
+        PaymentMethod_Onchain,
+        PaymentStatus;
 import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:flutter/material.dart' show immutable;
 import 'package:lexeapp/address_format.dart' as address_format;
@@ -36,13 +38,18 @@ import 'package:lexeapp/result.dart';
 /// The outcome of a successful send flow.
 @immutable
 final class SendFlowResult {
-  const SendFlowResult({required this.kind, required this.index});
+  const SendFlowResult({required this.payment});
 
-  final PaymentKind kind;
-  final PaymentIndex index;
+  /// We return an "unsynced" Payment from the send flow.
+  ///
+  /// It's not the canonical version in the node, rather it's generated locally.
+  /// After sending a payment, we need to show something reasonable on the
+  /// payment page until we actually sync the canonical Payment from the node to
+  /// the local DB.
+  final Payment payment;
 
   @override
-  String toString() => "($kind, $index)";
+  String toString() => "(${payment.kind}, ${payment.index})";
 }
 
 /// An enum containing all the different major states for the outbound send
@@ -266,11 +273,37 @@ class SendState_Preflighted implements SendState {
       note: note,
     );
 
-    return (await Result.tryFfiAsync(() async => this.app.payOnchain(req: req)))
-        .map((resp) => SendFlowResult(
-              kind: PaymentKind.onchain,
-              index: resp.index,
-            ));
+    final preflight = preflighted.preflight;
+    final estimatedFee = switch (confPriority) {
+      ConfirmationPriority.high => preflight.high ?? preflight.normal,
+      ConfirmationPriority.normal => preflight.normal,
+      ConfirmationPriority.background => preflight.background,
+    };
+
+    final res =
+        (await Result.tryFfiAsync(() async => this.app.payOnchain(req: req)));
+    return res.map(
+      (resp) => SendFlowResult(
+        payment: Payment(
+          index: resp.index,
+          kind: PaymentKind.onchain,
+          direction: PaymentDirection.outbound,
+          status: PaymentStatus.pending,
+          statusStr: "syncing from node",
+          note: note,
+
+          // Choose some reasonable values until we can get these from the
+          // response.
+
+          // TODO(phlip9): get this from resp/index
+          createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
+          // TODO(phlip9): get from resp
+          amountSat: preflighted.amountSats,
+          // TODO(phlip9): get from resp
+          feesSat: estimatedFee.amountSats,
+        ),
+      ),
+    );
   }
 
   Future<FfiResult<SendFlowResult>> payInvoice(
@@ -285,11 +318,31 @@ class SendState_Preflighted implements SendState {
       note: note,
     );
 
-    return (await Result.tryFfiAsync(() async => this.app.payInvoice(req: req)))
-        .map((resp) => SendFlowResult(
-              kind: PaymentKind.invoice,
-              index: resp.index,
-            ));
+    final res =
+        (await Result.tryFfiAsync(() async => this.app.payInvoice(req: req)));
+    return res.map(
+      (resp) => SendFlowResult(
+        payment: Payment(
+          index: resp.index,
+          kind: PaymentKind.invoice,
+          direction: PaymentDirection.outbound,
+          status: PaymentStatus.pending,
+          statusStr: "syncing from node",
+          invoice: preflighted.invoice,
+          note: note,
+
+          // Choose some reasonable values until we can get these from the
+          // response.
+
+          // TODO(phlip9): get from resp/index
+          createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
+          // TODO(phlip9): get from resp
+          amountSat: preflighted.preflight.amountSats,
+          // TODO(phlip9): get from resp
+          feesSat: preflighted.preflight.feesSats,
+        ),
+      ),
+    );
   }
 }
 

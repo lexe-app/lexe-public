@@ -13,6 +13,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         Config,
         DeployEnv,
         PaymentDirection,
+        PaymentIndex,
         PaymentKind,
         PaymentStatus,
         ShortPayment,
@@ -38,7 +39,8 @@ import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/channels.dart';
 import 'package:lexeapp/route/debug.dart' show DebugPage;
-import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPage;
+import 'package:lexeapp/route/payment_detail.dart'
+    show PaymentDetailPage, PaymentSource;
 import 'package:lexeapp/route/receive.dart' show ReceivePaymentPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
@@ -374,16 +376,6 @@ class WalletPageState extends State<WalletPage> {
         cid: ClientPaymentId.gen(),
       );
 
-  Future<Result<void, Exception>> nextCompletedRefresh() {
-    // Add a waiter for the next completed refresh tick, with a timeout.
-    // TODO(phlip9): join with next completed nodeInfo fetch
-    return Result.tryAsync(() => this
-        .paymentSyncService
-        .completed
-        .next()
-        .timeout(const Duration(seconds: 10)));
-  }
-
   /// Called after the user has successfully sent a new payment and the send
   /// flow has popped back to the wallet page. We'll trigger a refresh, wait
   /// for the next payments sync, then open the payment detail page for the
@@ -392,54 +384,31 @@ class WalletPageState extends State<WalletPage> {
   /// For lightning payments, we'll also start burst refreshing, so we can
   /// quickly pick up any status changes.
   Future<void> onSendFlowSuccess(SendFlowResult flowResult) async {
-    final nextCompletedRefresh = this.nextCompletedRefresh();
-
-    // Actually trigger a refresh. May be ignored, if throttled, in which case
-    // timeout should clean things up.
-    this.triggerRefresh();
-
-    // Wait for next completed refresh.
-    switch (await nextCompletedRefresh) {
-      case Ok():
-        info("WalletPage: onSendFlowSuccess: refresh completed");
-
-      case Err(:final err):
-        warn(
-            "WalletPage: onSendFlowSuccess: error waiting for next completed refresh: $err");
-        return;
-    }
+    final payment = flowResult.payment;
 
     // Lightning payments actually have a chance to finalize in the next few
     // seconds, so start a burst refresh.
-    switch (flowResult.kind) {
+    switch (payment.kind) {
       case PaymentKind.invoice || PaymentKind.spontaneous:
         this.triggerBurstRefresh();
       case PaymentKind.onchain:
-      // do nothing.
+        this.triggerRefresh();
     }
 
-    // Now lookup the new payment in our freshly synced local db.
-    final maybeVecIdx = await this
-        .widget
-        .app
-        .getVecIdxByPaymentIndex(paymentIndex: flowResult.index);
-
-    if (maybeVecIdx == null) {
-      warn(
-          "WalletPage: onSendFlowSuccess: failed to find payment index after refresh: index: $flowResult.index");
-      return;
-    }
-
-    // Open the payment detail page to this payment.
-    this.onPaymentTap(maybeVecIdx);
+    // Open the payment detail page to this unsynced payment.
+    this.onPaymentTap(payment.index, PaymentSource.unsynced(payment));
   }
 
   /// Called when one of the payments in the [SliverPaymentsList] is tapped.
-  void onPaymentTap(int paymentVecIdx) {
+  void onPaymentTap(
+    PaymentIndex paymentIndex,
+    PaymentSource paymentSource,
+  ) {
     Navigator.of(this.context).push(MaterialPageRoute(
       builder: (context) => PaymentDetailPage(
         app: this.widget.app,
-        paymentVecIdx: paymentVecIdx,
+        paymentIndex: paymentIndex,
+        paymentSource: paymentSource,
         paymentsUpdated: this.paymentSyncService.updated,
         fiatRate: this.fiatRateService.fiatRate,
         isSyncing: this.paymentSyncService.isSyncing,
@@ -966,7 +935,10 @@ enum PaymentsListFilter {
       };
 }
 
-typedef PaymentTapCallback = void Function(int paymentVecIdx);
+typedef PaymentTapCallback = void Function(
+  PaymentIndex paymentIndex,
+  PaymentSource paymentSource,
+);
 
 class SliverPaymentsList extends StatefulWidget {
   const SliverPaymentsList({
@@ -1070,7 +1042,10 @@ class _SliverPaymentsListState extends State<SliverPaymentsList> {
             vecIdx: result.vecIdx,
             payment: result.payment,
             paymentDateUpdates: this.paymentDateUpdates,
-            onTap: () => this.widget.onPaymentTap(result.vecIdx),
+            onTap: () => this.widget.onPaymentTap(
+                  result.payment.index,
+                  PaymentSource.localDb(result.vecIdx),
+                ),
           );
         },
         // findChildIndexCallback: (Key childKey) => this.app.getPaymentScrollIdxByPaymentId(childKey),
