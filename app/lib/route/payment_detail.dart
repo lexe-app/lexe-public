@@ -24,15 +24,36 @@ import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
+/// A bit of a hack so we can display "reasonable" Payment info immediately
+/// after sending a payment, but before we've synced our local payment DB.
+sealed class PaymentSource {
+  static PaymentSource localDb(int vecIdx) => PaymentSourceLocalDb(vecIdx);
+  static PaymentSource unsynced(Payment payment) =>
+      PaymentSourceUnsynced(payment);
+}
+
+final class PaymentSourceLocalDb implements PaymentSource {
+  const PaymentSourceLocalDb(this.vecIdx);
+  final int vecIdx;
+}
+
+final class PaymentSourceUnsynced implements PaymentSource {
+  const PaymentSourceUnsynced(this.payment);
+  final Payment payment;
+}
+
 /// A page for displaying a single payment, in detail.
 ///
 /// Ex: tapping a payment in the wallet page payments list will open this page
-/// for that payment.
+///     for that payment.
+/// Ex: after making a payment, we will immediately open this page for the user
+///     to track the settlement status.
 class PaymentDetailPage extends StatefulWidget {
   const PaymentDetailPage({
     super.key,
     required this.app,
-    required this.paymentVecIdx,
+    required this.paymentIndex,
+    required this.paymentSource,
     required this.paymentsUpdated,
     required this.fiatRate,
     required this.isSyncing,
@@ -41,8 +62,12 @@ class PaymentDetailPage extends StatefulWidget {
 
   final AppHandle app;
 
-  /// The index of this payment in the [app_rs::payments::PaymentDb].
-  final int paymentVecIdx;
+  /// The id of the payment we want to display.
+  final PaymentIndex paymentIndex;
+
+  /// Is the payment already synced in the local db (tap payment in list) vs
+  /// display one immediately after a send (not yet synced to local db).
+  final PaymentSource paymentSource;
 
   /// We receive a notification on this [Stream]
   final Listenable paymentsUpdated;
@@ -58,18 +83,6 @@ class PaymentDetailPage extends StatefulWidget {
   /// we're currently refreshing.
   final VoidCallback triggerRefresh;
 
-  Payment getPayment() {
-    final vecIdx = this.paymentVecIdx;
-    final payment = this.app.getPaymentByVecIdx(vecIdx: vecIdx);
-
-    if (payment == null) {
-      throw StateError(
-          "PaymentDb is in an invalid state: missing payment @ vec_idx: $vecIdx");
-    }
-
-    return payment;
-  }
-
   @override
   State<PaymentDetailPage> createState() => _PaymentDetailPageState();
 }
@@ -80,11 +93,11 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
   final DateTimeNotifier paymentDateUpdates =
       DateTimeNotifier(period: const Duration(seconds: 30));
 
-  late final ValueNotifier<Payment> payment =
-      ValueNotifier(this.widget.getPayment());
+  /// If `unsynced`, we'll switch the source to `localDb` after it gets synced.
+  late PaymentSource paymentSource = this.widget.paymentSource;
 
-  late final LxListener paymentsUpdatedListener =
-      this.widget.paymentsUpdated.listen(this.onPaymentsUpdated);
+  late final ValueNotifier<Payment> payment;
+  late final LxListener paymentsUpdatedListener;
 
   @override
   void dispose() {
@@ -94,8 +107,81 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+
+    // Get the current payment
+    this.payment = ValueNotifier(this.getPaymentInitially());
+
+    // Start listening for payment updates
+    this.paymentsUpdatedListener =
+        this.widget.paymentsUpdated.listen(this.onPaymentsUpdated);
+
+    // HACK(phlip9): mitigate race b/w triggering refresh after send
+    // and opening the page + starting to listen for the payment updated event.
+    unawaited(Future.delayed(const Duration(seconds: 500), () async {
+      if (!this.mounted) return;
+      await this.onPaymentsUpdated();
+    }));
+  }
+
+  // Can't async in `initState`
+  Payment getPaymentInitially() {
+    switch (this.paymentSource) {
+      case PaymentSourceUnsynced(:final payment):
+        return payment;
+      case PaymentSourceLocalDb(:final vecIdx):
+        return this.getPaymentByVecIdx(vecIdx);
+    }
+  }
+
+  /// Get the Payment. If we know the payment is in our local DB, this just gets
+  /// it. Otherwise, _check_ if it's in our DB and use that from now on,
+  /// else fallback to `unsynced`.
+  Future<Payment> getPaymentAfterUpdate() async {
+    final int paymentVecIdx;
+    switch (this.paymentSource) {
+      case PaymentSourceLocalDb(:final vecIdx):
+        paymentVecIdx = vecIdx;
+      case PaymentSourceUnsynced(:final payment):
+        final maybeVecIdx = await this
+            .widget
+            .app
+            .getVecIdxByPaymentIndex(paymentIndex: payment.index);
+
+        // Still not synced yet, keep displaying the unsynced payment
+        if (maybeVecIdx == null) {
+          return payment;
+        }
+
+        // Payment is synced, can get by local db idx now
+        this.paymentSource = PaymentSourceLocalDb(maybeVecIdx);
+        paymentVecIdx = maybeVecIdx;
+    }
+
+    return this.getPaymentByVecIdx(paymentVecIdx);
+  }
+
+  /// [AppHandle.getPaymentByVecIdx] but we expect the payment to be in the
+  /// local db. Throws otherwise.
+  Payment getPaymentByVecIdx(final int vecIdx) {
+    // O/w get the payment from the local DB.
+    final payment = this.widget.app.getPaymentByVecIdx(vecIdx: vecIdx);
+    if (payment == null) {
+      throw StateError(
+          "PaymentDb is in an invalid state: missing payment @ vec_idx: "
+          "$vecIdx, payment_index: ${this.widget.paymentIndex}");
+    }
+    return payment;
+  }
+
   /// After we sync some new payments, fetch the payment from the local db.
-  void onPaymentsUpdated() => this.payment.value = this.widget.getPayment();
+  Future<void> onPaymentsUpdated() async {
+    final payment = await this.getPaymentAfterUpdate();
+    if (!this.mounted) return;
+    this.payment.value = payment;
+  }
 
   @override
   Widget build(BuildContext context) {
