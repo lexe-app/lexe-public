@@ -106,7 +106,7 @@ impl EventHandler for NodeEventHandler {
 }
 
 // TODO(max): Make this non-async by spawning tasks instead
-async fn handle_event(ctx: &Ctx, event: Event) {
+async fn handle_event(ctx: &Arc<Ctx>, event: Event) {
     let event_name = lexe_ln::event::get_event_name(&event);
     let handle_event_res = handle_event_fallible(ctx, event).await;
 
@@ -126,7 +126,7 @@ async fn handle_event(ctx: &Ctx, event: Event) {
 }
 
 async fn handle_event_fallible(
-    ctx: &Ctx,
+    ctx: &Arc<Ctx>,
     event: Event,
 ) -> Result<(), EventHandleError> {
     match event {
