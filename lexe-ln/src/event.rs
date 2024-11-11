@@ -2,8 +2,9 @@ use anyhow::{anyhow, Context};
 use bitcoin::{absolute, secp256k1};
 use common::{
     ln::channel::{LxChannelId, LxUserChannelId},
-    rng::{Crng, SysRng},
+    rng::{Crng, RngExt, SysRng},
     test_event::TestEvent,
+    time::TimestampMs,
 };
 use lightning::{
     chain::{
@@ -38,30 +39,50 @@ pub enum EventHandleError {
     Fatal(anyhow::Error),
 }
 
-pub fn get_event_name(event: &Event) -> &'static str {
-    match event {
-        Event::OpenChannelRequest { .. } => "OpenChannelRequest",
-        Event::FundingGenerationReady { .. } => "FundingGenerationReady",
-        Event::ChannelPending { .. } => "ChannelPending",
-        Event::ChannelReady { .. } => "ChannelReady",
-        Event::PaymentClaimable { .. } => "PaymentClaimable",
-        Event::HTLCIntercepted { .. } => "HTLCIntercepted",
-        Event::PaymentClaimed { .. } => "PaymentClaimed",
-        Event::ConnectionNeeded { .. } => "ConnectionNeeded",
-        Event::InvoiceRequestFailed { .. } => "InvoiceRequestFailed",
-        Event::PaymentSent { .. } => "PaymentSent",
-        Event::PaymentFailed { .. } => "PaymentFailed",
-        Event::PaymentPathSuccessful { .. } => "PaymentPathSuccessful",
-        Event::PaymentPathFailed { .. } => "PaymentPathFailed",
-        Event::ProbeSuccessful { .. } => "ProbeSuccessful",
-        Event::ProbeFailed { .. } => "ProbeFailed",
-        Event::PendingHTLCsForwardable { .. } => "PendingHTLCsForwardable",
-        Event::SpendableOutputs { .. } => "SpendableOutputs",
-        Event::PaymentForwarded { .. } => "PaymentForwarded",
-        Event::ChannelClosed { .. } => "ChannelClosed",
-        Event::DiscardFunding { .. } => "DiscardFunding",
-        Event::HTLCHandlingFailed { .. } => "HTLCHandlingFailed",
-        Event::BumpTransaction { .. } => "BumpTransaction",
+/// Small extension trait which adds some methods to LDK's [`Event`] type.
+pub trait EventExt {
+    /// Returns the name of the event.
+    fn name(&self) -> &'static str;
+    /// Get a unique string ID for this event.
+    /// Current format: `<timestamp_ms>-<nonce>-<event_name>`
+    fn id(&self) -> String;
+}
+
+impl EventExt for Event {
+    /// Get the name of the event, without any event details.
+    fn name(&self) -> &'static str {
+        match self {
+            Event::OpenChannelRequest { .. } => "OpenChannelRequest",
+            Event::FundingGenerationReady { .. } => "FundingGenerationReady",
+            Event::ChannelPending { .. } => "ChannelPending",
+            Event::ChannelReady { .. } => "ChannelReady",
+            Event::PaymentClaimable { .. } => "PaymentClaimable",
+            Event::HTLCIntercepted { .. } => "HTLCIntercepted",
+            Event::PaymentClaimed { .. } => "PaymentClaimed",
+            Event::ConnectionNeeded { .. } => "ConnectionNeeded",
+            Event::InvoiceRequestFailed { .. } => "InvoiceRequestFailed",
+            Event::PaymentSent { .. } => "PaymentSent",
+            Event::PaymentFailed { .. } => "PaymentFailed",
+            Event::PaymentPathSuccessful { .. } => "PaymentPathSuccessful",
+            Event::PaymentPathFailed { .. } => "PaymentPathFailed",
+            Event::ProbeSuccessful { .. } => "ProbeSuccessful",
+            Event::ProbeFailed { .. } => "ProbeFailed",
+            Event::PendingHTLCsForwardable { .. } => "PendingHTLCsForwardable",
+            Event::SpendableOutputs { .. } => "SpendableOutputs",
+            Event::PaymentForwarded { .. } => "PaymentForwarded",
+            Event::ChannelClosed { .. } => "ChannelClosed",
+            Event::DiscardFunding { .. } => "DiscardFunding",
+            Event::HTLCHandlingFailed { .. } => "HTLCHandlingFailed",
+            Event::BumpTransaction { .. } => "BumpTransaction",
+        }
+    }
+
+    fn id(&self) -> String {
+        let timestamp_ms = TimestampMs::now().into_u64();
+        // Prevents duplicate keys with high probability.
+        let nonce = SysRng::new().gen_u32();
+        let event_name = self.name();
+        format!("{timestamp_ms}-{nonce}-{event_name}")
     }
 }
 

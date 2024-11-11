@@ -14,7 +14,7 @@ use common::{
 use lexe_ln::{
     channel::ChannelEventsBus,
     esplora::LexeEsplora,
-    event::{self, EventHandleError},
+    event::{self, EventExt, EventHandleError},
     keys_manager::LexeKeysManager,
     payments::outbound::LxOutboundPaymentFailure,
     test_event::TestEventSender,
@@ -78,7 +78,7 @@ pub(crate) struct Ctx {
 /// [`Writeable::write`]: lightning::util::ser::Writeable::write
 impl EventHandler for NodeEventHandler {
     fn handle_event(&self, event: Event) {
-        let event_name = lexe_ln::event::get_event_name(&event);
+        let event_name = event.name();
         info!("Handling event: {event_name}");
         #[cfg(debug_assertions)] // Events contain sensitive info
         tracing::trace!("Event details: {event:?}");
@@ -107,7 +107,7 @@ impl EventHandler for NodeEventHandler {
 
 // TODO(max): Make this non-async by spawning tasks instead
 async fn handle_event(ctx: &Arc<Ctx>, event: Event) {
-    let event_name = lexe_ln::event::get_event_name(&event);
+    let event_name = event.name();
     let handle_event_res = handle_event_fallible(ctx, event).await;
 
     match handle_event_res {
