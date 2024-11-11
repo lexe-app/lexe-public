@@ -224,27 +224,30 @@ impl LexeBackgroundProcessor {
                 }
             }
 
-            // Persist everything one last time.
-            // - For the channel manager, this may prevent some races where the
-            //   node quits while channel updates were in-flight, causing
-            //   ChannelMonitor updates to be persisted without corresponding
-            //   ChannelManager updating being persisted. This does not risk the
-            //   loss of funds, but upon next boot the ChannelManager may
-            //   accidentally trigger a force close..
-            // - For the network graph and scorer, it is possible that the node
-            //   is shut down before they have gotten a chance to be persisted,
-            //   (e.g. `shutdown_after_sync` is set), and since we're already
-            //   another API call for the channel manager, we might as well
-            //   concurrently persist these as well.
-            let network_graph = gossip_sync.network_graph();
-            let results = tokio::join!(
-                persister.persist_manager(channel_manager.deref()),
-                persister.persist_graph(network_graph),
-                persister.persist_scorer(scorer.as_ref()),
-            );
-            for res in <[_; 3]>::from(results) {
-                if let Err(e) = res {
-                    error!("Final persistence failure: {e:#}");
+            // If there wasn't a fatal error, persist everything one last time.
+            if !fatal_event.load(Ordering::Acquire) {
+                // Persist everything one last time.
+                // - For the channel manager, this may prevent some races where
+                //   the node quits while channel updates were in-flight,
+                //   causing ChannelMonitor updates to be persisted without
+                //   corresponding ChannelManager updating being persisted. This
+                //   does not risk the loss of funds, but upon next boot the
+                //   ChannelManager may accidentally trigger a force close..
+                // - For the network graph and scorer, it is possible that the
+                //   node is shut down before they have gotten a chance to be
+                //   persisted, (e.g. `shutdown_after_sync` is set), and since
+                //   we're already another API call for the channel manager, we
+                //   might as well concurrently persist these as well.
+                let network_graph = gossip_sync.network_graph();
+                let results = tokio::join!(
+                    persister.persist_manager(channel_manager.deref()),
+                    persister.persist_graph(network_graph),
+                    persister.persist_scorer(scorer.as_ref()),
+                );
+                for res in <[_; 3]>::from(results) {
+                    if let Err(e) = res {
+                        error!("Final persistence failure: {e:#}");
+                    }
                 }
             }
         })
