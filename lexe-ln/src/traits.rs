@@ -7,7 +7,7 @@ use std::{
 use async_trait::async_trait;
 use common::{
     api::{
-        vfs::{Vfs, VfsFileId},
+        vfs::{Vfs, VfsDirectory, VfsFileId},
         NodePk,
     },
     constants,
@@ -30,6 +30,7 @@ use crate::{
         LexeChainMonitorType, LexeChannelManagerType, LexePeerManagerType,
         NetworkGraphType, ProbabilisticScorerType, SignerType,
     },
+    event::EventExt,
     logger::LexeTracingLogger,
     payments::{
         manager::{CheckedPayment, PersistedPayment},
@@ -69,6 +70,43 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
     ) -> anyhow::Result<Option<Payment>>;
 
     // --- Provided methods --- //
+
+    async fn read_graph(
+        &self,
+        network: LxNetwork,
+        logger: LexeTracingLogger,
+    ) -> anyhow::Result<NetworkGraphType> {
+        let file_id = VfsFileId::new(
+            constants::SINGLETON_DIRECTORY,
+            constants::NETWORK_GRAPH_FILENAME,
+        );
+        let read_args = logger.clone();
+        let network_graph = self
+            .read_readableargs(&file_id, read_args)
+            .await?
+            .unwrap_or_else(|| NetworkGraph::new(network.to_bitcoin(), logger));
+        Ok(network_graph)
+    }
+
+    async fn read_scorer(
+        &self,
+        graph: Arc<NetworkGraphType>,
+        logger: LexeTracingLogger,
+    ) -> anyhow::Result<ProbabilisticScorerType> {
+        let file_id = VfsFileId::new(
+            constants::SINGLETON_DIRECTORY,
+            constants::SCORER_FILENAME,
+        );
+        let params = ProbabilisticScoringDecayParameters::default();
+        let read_args = (params, graph.clone(), logger.clone());
+        let scorer = self
+            .read_readableargs(&file_id, read_args)
+            .await?
+            .unwrap_or_else(|| {
+                ProbabilisticScorerType::new(params, graph, logger)
+            });
+        Ok(scorer)
+    }
 
     async fn persist_manager<CM: Writeable + Send + Sync>(
         &self,
@@ -112,41 +150,24 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
         self.persist_file(&file, retries).await
     }
 
-    async fn read_graph(
-        &self,
-        network: LxNetwork,
-        logger: LexeTracingLogger,
-    ) -> anyhow::Result<NetworkGraphType> {
-        let file_id = VfsFileId::new(
-            constants::SINGLETON_DIRECTORY,
-            constants::NETWORK_GRAPH_FILENAME,
-        );
-        let read_args = logger.clone();
-        let network_graph = self
-            .read_readableargs(&file_id, read_args)
-            .await?
-            .unwrap_or_else(|| NetworkGraph::new(network.to_bitcoin(), logger));
-        Ok(network_graph)
+    async fn read_events(&self) -> anyhow::Result<Vec<Event>> {
+        let dir = VfsDirectory::new(constants::EVENTS_DIR);
+        let events = self.read_dir_maybereadable(&dir).await?;
+        Ok(events)
     }
 
-    async fn read_scorer(
-        &self,
-        graph: Arc<NetworkGraphType>,
-        logger: LexeTracingLogger,
-    ) -> anyhow::Result<ProbabilisticScorerType> {
-        let file_id = VfsFileId::new(
-            constants::SINGLETON_DIRECTORY,
-            constants::SCORER_FILENAME,
-        );
-        let params = ProbabilisticScoringDecayParameters::default();
-        let read_args = (params, graph.clone(), logger.clone());
-        let scorer = self
-            .read_readableargs(&file_id, read_args)
-            .await?
-            .unwrap_or_else(|| {
-                ProbabilisticScorerType::new(params, graph, logger)
-            });
-        Ok(scorer)
+    async fn persist_event(&self, event: &Event) -> anyhow::Result<()> {
+        let file_id = VfsFileId::new(constants::EVENTS_DIR, event.id());
+        // Failed event persistence can result in the node shutting down, so try
+        // a few extra times. TODO(max): Change back to 1 once we switch to
+        // LDK's fallible event handling.
+        let retries = 3;
+        self.persist_ldk_writeable(file_id, &event, retries).await
+    }
+
+    async fn remove_event(&self, event_id: String) -> anyhow::Result<()> {
+        let file_id = VfsFileId::new(constants::EVENTS_DIR, event_id);
+        self.remove_file(&file_id).await
     }
 }
 
