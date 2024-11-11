@@ -59,8 +59,11 @@ pub const LSP_CHANNEL_MIN_FUNDING_SATS: u32 = 5_000;
 
 /// The default number of persist retries for important objects.
 pub const IMPORTANT_PERSIST_RETRIES: usize = 5;
+
 /// The vfs directory name used by singleton objects.
 pub const SINGLETON_DIRECTORY: &str = ".";
+/// The vfs directory name used to persist events.
+pub const EVENTS_DIR: &str = "events";
 
 pub const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 pub const NETWORK_GRAPH_FILENAME: &str = "network_graph";
