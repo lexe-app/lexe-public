@@ -52,7 +52,7 @@ use lexe_ln::{
     wallet::LexeWallet,
 };
 use lightning::events::{Event, PaymentFailureReason};
-use tracing::{error, info, warn};
+use tracing::{error, info, info_span, warn, Instrument};
 
 use crate::{alias::PaymentsManagerType, channel_manager::NodeChannelManager};
 
@@ -83,17 +83,21 @@ impl LexeEventHandler for NodeEventHandler {
 
 impl NodeEventHandler {
     async fn handle_event(&self, event: Event) {
-        let event_name = event.name();
-        info!("Handling event: {event_name}");
+        let event_id = event.id();
+        info!("Handling event: {event_id}");
         #[cfg(debug_assertions)] // Events contain sensitive info
-        tracing::trace!("Event details: {event:?}");
+        tracing::trace!(%event_id, "Event details: {event:?}");
 
-        match handle_event_inner(&self.ctx, event).await {
-            Ok(()) => info!("Successfully handled {event_name}"),
+        let result = handle_event_inner(&self.ctx, event)
+            .instrument(info_span!("(event)", event_id = %event_id))
+            .await;
+
+        match result {
+            Ok(()) => info!(%event_id, "Successfully handled event"),
             Err(EventHandleError::Tolerable(e)) =>
-                warn!("Tolerable error handling {event_name}: {e:#}"),
+                warn!(%event_id, "Tolerable error handling event: {e:#}"),
             Err(EventHandleError::Fatal(e)) => {
-                error!("Fatal error handling {event_name}: {e:#}");
+                error!(%event_id, "Fatal error handling event: {e:#}");
                 self.ctx.shutdown.send();
                 // Notify our BGP that a fatal event handling error has occurred
                 // and that the current batch of events MUST not be lost.
