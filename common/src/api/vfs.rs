@@ -151,6 +151,17 @@ pub trait Vfs {
         result
     }
 
+    /// Serializes, encrypts, then persists a LDK [`Writeable`] to the DB.
+    async fn persist_ldk_writeable<W: Writeable + Send + Sync>(
+        &self,
+        file_id: VfsFileId,
+        writeable: &W,
+        retries: usize,
+    ) -> anyhow::Result<()> {
+        let file = self.encrypt_ldk_writeable(file_id, writeable);
+        self.persist_file(&file, retries).await
+    }
+
     /// JSON-serializes, encrypts, then persists a type `T` to the DB.
     async fn persist_json<T: Serialize + Send + Sync>(
         &self,
