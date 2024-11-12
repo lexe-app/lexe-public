@@ -131,15 +131,15 @@ pub trait Vfs {
         Ok(Some(value))
     }
 
-    /// Reads, decrypts, and deserializes a [`VfsDirectory`] of
-    /// LDK [`MaybeReadable`]s from the DB.
+    /// Reads, decrypts, and deserializes a [`VfsDirectory`] of LDK
+    /// [`MaybeReadable`]s from the DB, along with their [`VfsFileId`]s.
     /// [`None`] values are omitted from the result.
     async fn read_dir_maybereadable<T: MaybeReadable>(
         &self,
         dir: &VfsDirectory,
-    ) -> anyhow::Result<Vec<T>> {
+    ) -> anyhow::Result<Vec<(VfsFileId, T)>> {
         let ids_and_bytes = self.read_dir_bytes(dir).await?;
-        let mut values = Vec::with_capacity(ids_and_bytes.len());
+        let mut ids_and_values = Vec::with_capacity(ids_and_bytes.len());
         for (file_id, bytes) in ids_and_bytes {
             let mut reader = Cursor::new(&bytes);
             let maybe_value = T::read(&mut reader)
@@ -147,10 +147,10 @@ pub trait Vfs {
                 .with_context(|| format!("{file_id}"))
                 .context("LDK MaybeReadable deserialization failed (in dir)")?;
             if let Some(event) = maybe_value {
-                values.push(event);
+                ids_and_values.push((file_id, event));
             }
         }
-        Ok(values)
+        Ok(ids_and_values)
     }
 
     /// Reads and decrypts [`VfsFile`] bytes from the DB.

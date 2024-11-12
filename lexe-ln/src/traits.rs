@@ -150,10 +150,16 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
         self.persist_file(&file, retries).await
     }
 
-    async fn read_events(&self) -> anyhow::Result<Vec<Event>> {
+    /// Reads all persisted events, along with their event IDs.
+    async fn read_events(&self) -> anyhow::Result<Vec<(String, Event)>> {
         let dir = VfsDirectory::new(constants::EVENTS_DIR);
-        let events = self.read_dir_maybereadable(&dir).await?;
-        Ok(events)
+        let ids_and_events = self
+            .read_dir_maybereadable(&dir)
+            .await?
+            .into_iter()
+            .map(|(file_id, event)| (file_id.filename, event))
+            .collect();
+        Ok(ids_and_events)
     }
 
     async fn persist_event(&self, event: &Event) -> anyhow::Result<()> {
