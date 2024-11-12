@@ -8,10 +8,11 @@ use common::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
             ListChannelsResponse, NodeInfo, OpenChannelRequest,
             OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOnchainRequest, PayOnchainResponse, PreflightOpenChannelRequest,
-            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse,
+            PayOnchainRequest, PayOnchainResponse,
+            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
         },
         error::NodeApiError,
         qs::{GetNewPayments, GetPaymentsByIndexes, UpdatePaymentNote},
@@ -163,6 +164,16 @@ pub(super) async fn close_channel(
     .context("Failed to close channel")
     .map(|()| LxJson(Empty {}))
     .map_err(NodeApiError::command)
+}
+
+pub(super) async fn preflight_close_channel(
+    State(_state): State<Arc<AppRouterState>>,
+    LxJson(req): LxJson<PreflightCloseChannelRequest>,
+) -> Result<LxJson<PreflightCloseChannelResponse>, NodeApiError> {
+    lexe_ln::command::preflight_close_channel(req)
+        .await
+        .map(LxJson)
+        .map_err(NodeApiError::command)
 }
 
 pub(super) async fn create_invoice(

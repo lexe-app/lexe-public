@@ -71,6 +71,7 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
         .route("/app/open_channel", post(app::open_channel))
         .route("/app/preflight_open_channel", post(app::preflight_open_channel))
         .route("/app/close_channel", post(app::close_channel))
+        .route("/app/preflight_close_channel", post(app::preflight_close_channel))
         .route("/app/create_invoice", post(app::create_invoice))
         .route("/app/pay_invoice", post(app::pay_invoice))
         .route("/app/preflight_pay_invoice", post(app::preflight_pay_invoice))

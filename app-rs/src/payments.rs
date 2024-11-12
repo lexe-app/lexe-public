@@ -945,6 +945,7 @@ mod test {
                 CreateInvoiceResponse, ListChannelsResponse, NodeInfo,
                 OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
                 PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
+                PreflightCloseChannelRequest, PreflightCloseChannelResponse,
                 PreflightOpenChannelRequest, PreflightOpenChannelResponse,
                 PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
                 PreflightPayOnchainRequest, PreflightPayOnchainResponse,
@@ -1007,6 +1008,12 @@ mod test {
             &self,
             _data: CloseChannelRequest,
         ) -> Result<Empty, NodeApiError> {
+            unimplemented!()
+        }
+        async fn preflight_close_channel(
+            &self,
+            _req: PreflightCloseChannelRequest,
+        ) -> Result<PreflightCloseChannelResponse, NodeApiError> {
             unimplemented!()
         }
         async fn create_invoice(
