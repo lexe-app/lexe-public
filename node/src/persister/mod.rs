@@ -574,6 +574,14 @@ impl Vfs for NodePersister {
             .await
     }
 
+    async fn delete_file(
+        &self,
+        file_id: &VfsFileId,
+    ) -> Result<Empty, BackendApiError> {
+        let token = self.get_token().await?;
+        self.backend_api.delete_file(file_id, token).await
+    }
+
     #[inline]
     fn encrypt_ldk_writeable<W: Writeable>(
         &self,

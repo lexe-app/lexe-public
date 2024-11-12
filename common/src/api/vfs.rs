@@ -52,6 +52,14 @@ pub trait Vfs {
         retries: usize,
     ) -> Result<Empty, BackendApiError>;
 
+    /// Deletes the [`VfsFile`] with the given [`VfsFileId`] from the backend.
+    ///
+    /// Prefer [`Vfs::remove_file`] which adds logging and error context.
+    async fn delete_file(
+        &self,
+        file_id: &VfsFileId,
+    ) -> Result<Empty, BackendApiError>;
+
     /// Serialize a LDK [`Writeable`] then encrypt it under the VFS master key.
     fn encrypt_ldk_writeable<W: Writeable>(
         &self,
@@ -199,6 +207,27 @@ pub trait Vfs {
                 "Error: Failed to persist {file_id} \
                 <{elapsed:?}> <{bytes} bytes>"
             );
+        }
+        result
+    }
+
+    /// Wraps [`Vfs::delete_file`] to add logging and error context.
+    async fn remove_file(&self, file_id: &VfsFileId) -> anyhow::Result<()> {
+        let start = Instant::now();
+
+        debug!("Deleting file {file_id}");
+        let result = self
+            .delete_file(file_id)
+            .await
+            .map(|_| ())
+            .with_context(|| format!("{file_id}"))
+            .context("Couldn't delete file from DB");
+
+        let elapsed = start.elapsed();
+        if result.is_ok() {
+            debug!("Done: Deleted {file_id} <{elapsed:?}>");
+        } else {
+            warn!("Error: Failed to delete {file_id} <{elapsed:?}>");
         }
         result
     }
