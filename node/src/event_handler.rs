@@ -52,7 +52,7 @@ use lexe_ln::{
     wallet::LexeWallet,
 };
 use lightning::events::{Event, PaymentFailureReason};
-use tracing::{error, info, info_span, warn, Instrument};
+use tracing::{error, info, warn, Instrument};
 
 use crate::{alias::PaymentsManagerType, channel_manager::NodeChannelManager};
 
@@ -83,14 +83,10 @@ impl LexeEventHandler for NodeEventHandler {
 
 impl NodeEventHandler {
     async fn handle_event(&self, event: Event) {
-        let event_id = event.id();
-        info!("Handling event: {event_id}");
-        #[cfg(debug_assertions)] // Events contain sensitive info
-        tracing::trace!(%event_id, "Event details: {event:?}");
+        let (event_id, span) = event.handle_prelude();
 
-        let result = handle_event_inner(&self.ctx, event)
-            .instrument(info_span!("(event)", event_id = %event_id))
-            .await;
+        let result =
+            handle_event_inner(&self.ctx, event).instrument(span).await;
 
         match result {
             Ok(()) => info!(%event_id, "Successfully handled event"),

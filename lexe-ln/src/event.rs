@@ -16,7 +16,7 @@ use lightning::{
     sign::SpendableOutputDescriptor,
 };
 use thiserror::Error;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, info_span, warn};
 
 use crate::{
     channel::{ChannelEvent, ChannelEventsBus},
@@ -43,9 +43,19 @@ pub enum EventHandleError {
 pub trait EventExt {
     /// Returns the name of the event.
     fn name(&self) -> &'static str;
+
     /// Get a unique string ID for this event.
     /// Current format: `<timestamp_ms>-<nonce>-<event_name>`
     fn id(&self) -> String;
+
+    /// A method to call just as we begin to handle an event.
+    /// - Logs "Handling event: {name}" at INFO
+    /// - Logs the event details at DEBUG if running in debug mode
+    /// - Returns the event ID and a [`tracing::Span`] for the event
+    fn handle_prelude(&self) -> (String, tracing::Span);
+
+    /// Calls [`Self::handle_prelude`] with an existing event ID.
+    fn handle_prelude_with_id(&self, event_id: &str) -> tracing::Span;
 }
 
 impl EventExt for Event {
@@ -83,6 +93,19 @@ impl EventExt for Event {
         let nonce = SysRng::new().gen_u32();
         let event_name = self.name();
         format!("{timestamp_ms}-{nonce}-{event_name}")
+    }
+
+    fn handle_prelude(&self) -> (String, tracing::Span) {
+        let event_id = self.id();
+        let span = self.handle_prelude_with_id(&event_id);
+        (event_id, span)
+    }
+
+    fn handle_prelude_with_id(&self, event_id: &str) -> tracing::Span {
+        info!(%event_id, "Handling event: {name}", name = self.name());
+        #[cfg(debug_assertions)] // Events contain sensitive info
+        debug!(%event_id, "Event details: {self:?}");
+        info_span!("(event)", %event_id)
     }
 }
 
