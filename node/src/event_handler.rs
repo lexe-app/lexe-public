@@ -76,7 +76,7 @@ pub(crate) struct EventCtx {
 }
 
 impl LexeEventHandler for NodeEventHandler {
-    fn get_handler_future(&self, event: Event) -> impl Future<Output = ()> {
+    fn get_ldk_handler_future(&self, event: Event) -> impl Future<Output = ()> {
         self.handle_event(event)
     }
 }

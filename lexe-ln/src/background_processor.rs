@@ -97,7 +97,7 @@ impl LexeBackgroundProcessor {
 
             // This is the event handler future generator type required by LDK
             let mk_event_handler_fut =
-                |event| event_handler.get_handler_future(event);
+                |event| event_handler.get_ldk_handler_future(event);
 
             loop {
                 debug!("Beginning BGP loop iteration");

@@ -240,7 +240,8 @@ where
 /// A 'trait alias' defining all the requirements of a Lexe event handler.
 pub trait LexeEventHandler: Send + Sync + 'static {
     /// Given a LDK [`Event`], get a future which handles it.
-    fn get_handler_future(
+    /// The BGP passes this future to LDK for async event handling.
+    fn get_ldk_handler_future(
         &self,
         event: Event,
     ) -> impl Future<Output = ()> + Send;
