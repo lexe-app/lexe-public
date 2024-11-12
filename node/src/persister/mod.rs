@@ -582,6 +582,14 @@ impl Vfs for NodePersister {
         self.backend_api.delete_file(file_id, token).await
     }
 
+    async fn get_directory(
+        &self,
+        dir: &VfsDirectory,
+    ) -> Result<Vec<VfsFile>, BackendApiError> {
+        let token = self.get_token().await?;
+        self.backend_api.get_directory(dir, token).await
+    }
+
     #[inline]
     fn encrypt_ldk_writeable<W: Writeable>(
         &self,

@@ -22,7 +22,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
-use lightning::util::ser::{ReadableArgs, Writeable};
+use lightning::util::ser::{MaybeReadable, ReadableArgs, Writeable};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tracing::{debug, warn};
 
@@ -60,6 +60,14 @@ pub trait Vfs {
         file_id: &VfsFileId,
     ) -> Result<Empty, BackendApiError>;
 
+    /// Fetches all files in the given [`VfsDirectory`] from the backend.
+    ///
+    /// Prefer [`Vfs::read_dir_files`] which adds logging and error context.
+    async fn get_directory(
+        &self,
+        dir: &VfsDirectory,
+    ) -> Result<Vec<VfsFile>, BackendApiError>;
+
     /// Serialize a LDK [`Writeable`] then encrypt it under the VFS master key.
     fn encrypt_ldk_writeable<W: Writeable>(
         &self,
@@ -83,6 +91,21 @@ pub trait Vfs {
 
     // --- Provided methods --- //
 
+    /// Reads, decrypts, and JSON-deserializes a type `T` from the DB.
+    async fn read_json<T: DeserializeOwned>(
+        &self,
+        file_id: &VfsFileId,
+    ) -> anyhow::Result<Option<T>> {
+        let json_bytes = match self.read_bytes(file_id).await? {
+            Some(bytes) => bytes,
+            None => return Ok(None),
+        };
+        let value = serde_json::from_slice(json_bytes.as_slice())
+            .with_context(|| format!("{file_id}"))
+            .context("JSON deserialization failed")?;
+        Ok(Some(value))
+    }
+
     /// Reads, decrypts, and deserializes a LDK [`ReadableArgs`] of type `T`
     /// with read args `A` from the DB.
     async fn read_readableargs<T, A>(
@@ -103,24 +126,31 @@ pub trait Vfs {
         let value = T::read(&mut reader, read_args)
             .map_err(|e| anyhow!("{e:?}"))
             .with_context(|| format!("{file_id}"))
-            .context("LDK deserialization failed")?;
+            .context("LDK ReadableArgs deserialization failed")?;
 
         Ok(Some(value))
     }
 
-    /// Reads, decrypts, and JSON-deserializes a type `T` from the DB.
-    async fn read_json<T: DeserializeOwned>(
+    /// Reads, decrypts, and deserializes a [`VfsDirectory`] of
+    /// LDK [`MaybeReadable`]s from the DB.
+    /// [`None`] values are omitted from the result.
+    async fn read_dir_maybereadable<T: MaybeReadable>(
         &self,
-        file_id: &VfsFileId,
-    ) -> anyhow::Result<Option<T>> {
-        let json_bytes = match self.read_bytes(file_id).await? {
-            Some(bytes) => bytes,
-            None => return Ok(None),
-        };
-        let value = serde_json::from_slice(json_bytes.as_slice())
-            .with_context(|| format!("{file_id}"))
-            .context("JSON deserialization failed")?;
-        Ok(Some(value))
+        dir: &VfsDirectory,
+    ) -> anyhow::Result<Vec<T>> {
+        let ids_and_bytes = self.read_dir_bytes(dir).await?;
+        let mut values = Vec::with_capacity(ids_and_bytes.len());
+        for (file_id, bytes) in ids_and_bytes {
+            let mut reader = Cursor::new(&bytes);
+            let maybe_value = T::read(&mut reader)
+                .map_err(|e| anyhow!("{e:?}"))
+                .with_context(|| format!("{file_id}"))
+                .context("LDK MaybeReadable deserialization failed (in dir)")?;
+            if let Some(event) = maybe_value {
+                values.push(event);
+            }
+        }
+        Ok(values)
     }
 
     /// Reads and decrypts [`VfsFile`] bytes from the DB.
@@ -135,6 +165,28 @@ pub trait Vfs {
             }
             None => Ok(None),
         }
+    }
+
+    /// Reads and decrypts all files in the given [`VfsDirectory`] from the DB,
+    /// returning the [`VfsFileId`] and plaintext bytes for each file.
+    async fn read_dir_bytes(
+        &self,
+        dir: &VfsDirectory,
+    ) -> anyhow::Result<Vec<(VfsFileId, Vec<u8>)>> {
+        let files = self.read_dir_files(dir).await?;
+        let file_ids_and_bytes = files
+            .into_iter()
+            .map(|file| {
+                // Get the expected dirname from params but filename from DB
+                let expected_file_id = VfsFileId::new(
+                    dir.dirname.clone(),
+                    file.id.filename.clone(),
+                );
+                let bytes = self.decrypt_file(&expected_file_id, file)?;
+                Ok((expected_file_id, bytes))
+            })
+            .collect::<anyhow::Result<Vec<(VfsFileId, Vec<u8>)>>>()?;
+        Ok(file_ids_and_bytes)
     }
 
     /// Wraps [`Vfs::get_file`] to add logging and error context.
@@ -155,6 +207,28 @@ pub trait Vfs {
             debug!("Done: Read {file_id} <{elapsed:?}>");
         } else {
             warn!("Error: Failed to read {file_id} <{elapsed:?}>");
+        }
+        result
+    }
+
+    /// Wraps [`Vfs::get_directory`] to add logging and error context.
+    async fn read_dir_files(
+        &self,
+        dir: &VfsDirectory,
+    ) -> anyhow::Result<Vec<VfsFile>> {
+        let start = Instant::now();
+
+        debug!("Reading directory {dir}");
+        let result = self
+            .get_directory(dir)
+            .await
+            .with_context(|| format!("Couldn't fetch VFS dir from DB: {dir}"));
+
+        let elapsed = start.elapsed();
+        if result.is_ok() {
+            debug!("Done: Read directory {dir} <{elapsed:?}>");
+        } else {
+            warn!("Error: Failed to read directory {dir} <{elapsed:?}>");
         }
         result
     }
@@ -304,6 +378,12 @@ impl VfsFile {
             },
             data,
         }
+    }
+}
+
+impl Display for VfsDirectory {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{dirname}", dirname = self.dirname)
     }
 }
 
