@@ -25,10 +25,6 @@
 use async_trait::async_trait;
 use bitcoin::{address::NetworkUnchecked, Address};
 
-use super::command::{
-    CloseChannelRequest, PreflightOpenChannelRequest,
-    PreflightOpenChannelResponse,
-};
 #[cfg(doc)]
 use crate::{
     api::qs::{GetByMeasurement, GetByUserPk},
@@ -41,12 +37,14 @@ use crate::{
             UserSignupRequest,
         },
         command::{
-            CreateInvoiceRequest, CreateInvoiceResponse, ListChannelsResponse,
-            NodeInfo, OpenChannelRequest, OpenChannelResponse,
-            PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
-            PayOnchainResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse,
+            CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
+            ListChannelsResponse, NodeInfo, OpenChannelRequest,
+            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOnchainRequest, PayOnchainResponse,
+            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
         },
         error::{
             BackendApiError, GatewayApiError, LspApiError, NodeApiError,
@@ -355,7 +353,7 @@ pub trait AppNodeRunApi {
     /// POST /app/preflight_open_channel [`PreflightOpenChannelRequest`]
     ///                                  -> [`PreflightOpenChannelResponse`]
     ///
-    /// Calculate on-chain fees required for an [`open_channel`] to the LSP.
+    /// Estimate on-chain fees required for an [`open_channel`] to the LSP.
     ///
     /// [`open_channel`]: AppNodeRunApi::open_channel
     async fn preflight_open_channel(
@@ -365,11 +363,22 @@ pub trait AppNodeRunApi {
 
     /// POST /app/close_channel [`CloseChannelRequest`] -> [`Empty`]
     ///
-    /// Opens a channel to the LSP.
+    /// Closes a channel to the LSP.
     async fn close_channel(
         &self,
         req: CloseChannelRequest,
     ) -> Result<Empty, NodeApiError>;
+
+    /// POST /app/preflight_close_channel [`PreflightCloseChannelRequest`]
+    ///                                   -> [`PreflightCloseChannelResponse`]
+    ///
+    /// Estimate the on-chain fees required for a [`close_channel`].
+    ///
+    /// [`close_channel`]: AppNodeRunApi::close_channel
+    async fn preflight_close_channel(
+        &self,
+        req: PreflightCloseChannelRequest,
+    ) -> Result<PreflightCloseChannelResponse, NodeApiError>;
 
     /// POST /app/create_invoice [`CreateInvoiceRequest`]
     ///                          -> [`CreateInvoiceResponse`]

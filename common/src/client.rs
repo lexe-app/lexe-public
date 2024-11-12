@@ -26,10 +26,11 @@ use crate::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
             ListChannelsResponse, NodeInfo, OpenChannelRequest,
             OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOnchainRequest, PayOnchainResponse, PreflightOpenChannelRequest,
-            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse,
+            PayOnchainRequest, PayOnchainResponse,
+            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
         },
         def::{
             AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
@@ -394,6 +395,17 @@ impl AppNodeRunApi for NodeClient {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/close_channel");
+        let req = self.run_rest.post(url, &data);
+        self.run_rest.send(req).await
+    }
+
+    async fn preflight_close_channel(
+        &self,
+        data: PreflightCloseChannelRequest,
+    ) -> Result<PreflightCloseChannelResponse, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/preflight_close_channel");
         let req = self.run_rest.post(url, &data);
         self.run_rest.send(req).await
     }

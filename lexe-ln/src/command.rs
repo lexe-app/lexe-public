@@ -8,7 +8,8 @@ use common::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
             ListChannelsResponse, NodeInfo, OpenChannelResponse,
             PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
-            PayOnchainResponse, PreflightOpenChannelRequest,
+            PayOnchainResponse, PreflightCloseChannelRequest,
+            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
             PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
             PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
             PreflightPayOnchainResponse,
@@ -479,6 +480,15 @@ where
     info!(%channel_id, "channel closed");
 
     Ok(())
+}
+
+/// Estimate the on-chain fees required to close this channel.
+pub async fn preflight_close_channel(
+    _req: PreflightCloseChannelRequest,
+) -> anyhow::Result<PreflightCloseChannelResponse> {
+    // TODO(phlip9): impl
+    let fee_estimate = Amount::ZERO;
+    Ok(PreflightCloseChannelResponse { fee_estimate })
 }
 
 /// Uses the given `[bdk|ldk]_resync_tx` to retrigger BDK and LDK sync, and
