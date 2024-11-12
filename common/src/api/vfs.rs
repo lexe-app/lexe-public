@@ -17,7 +17,6 @@
 use std::{
     fmt::{self, Display},
     io::Cursor,
-    time::Instant,
 };
 
 use anyhow::{anyhow, Context};
@@ -194,19 +193,16 @@ pub trait Vfs {
         &self,
         file_id: &VfsFileId,
     ) -> anyhow::Result<Option<VfsFile>> {
-        let start = Instant::now();
-
         debug!("Reading file {file_id}");
         let result = self
             .get_file(file_id)
             .await
             .with_context(|| format!("Couldn't fetch file from DB: {file_id}"));
 
-        let elapsed = start.elapsed();
         if result.is_ok() {
-            debug!("Done: Read {file_id} <{elapsed:?}>");
+            debug!("Done: Read {file_id}");
         } else {
-            warn!("Error: Failed to read {file_id} <{elapsed:?}>");
+            warn!("Error: Failed to read {file_id}");
         }
         result
     }
@@ -216,19 +212,16 @@ pub trait Vfs {
         &self,
         dir: &VfsDirectory,
     ) -> anyhow::Result<Vec<VfsFile>> {
-        let start = Instant::now();
-
         debug!("Reading directory {dir}");
         let result = self
             .get_directory(dir)
             .await
             .with_context(|| format!("Couldn't fetch VFS dir from DB: {dir}"));
 
-        let elapsed = start.elapsed();
         if result.is_ok() {
-            debug!("Done: Read directory {dir} <{elapsed:?}>");
+            debug!("Done: Read directory {dir}");
         } else {
-            warn!("Error: Failed to read directory {dir} <{elapsed:?}>");
+            warn!("Error: Failed to read directory {dir}");
         }
         result
     }
@@ -261,8 +254,6 @@ pub trait Vfs {
         file: &VfsFile,
         retries: usize,
     ) -> anyhow::Result<()> {
-        let start = Instant::now();
-
         let file_id = &file.id;
         let bytes = file.data.len();
         debug!("Persisting file {file_id} <{bytes} bytes>");
@@ -273,22 +264,16 @@ pub trait Vfs {
             .map(|_| ())
             .with_context(|| format!("Couldn't persist file to DB: {file_id}"));
 
-        let elapsed = start.elapsed();
         if result.is_ok() {
-            debug!("Done: Persisted {file_id} <{elapsed:?}> <{bytes} bytes>");
+            debug!("Done: Persisted {file_id} <{bytes} bytes>");
         } else {
-            warn!(
-                "Error: Failed to persist {file_id} \
-                <{elapsed:?}> <{bytes} bytes>"
-            );
+            warn!("Error: Failed to persist {file_id}  <{bytes} bytes>");
         }
         result
     }
 
     /// Wraps [`Vfs::delete_file`] to add logging and error context.
     async fn remove_file(&self, file_id: &VfsFileId) -> anyhow::Result<()> {
-        let start = Instant::now();
-
         debug!("Deleting file {file_id}");
         let result = self
             .delete_file(file_id)
@@ -297,11 +282,10 @@ pub trait Vfs {
             .with_context(|| format!("{file_id}"))
             .context("Couldn't delete file from DB");
 
-        let elapsed = start.elapsed();
         if result.is_ok() {
-            debug!("Done: Deleted {file_id} <{elapsed:?}>");
+            debug!("Done: Deleted {file_id}");
         } else {
-            warn!("Error: Failed to delete {file_id} <{elapsed:?}>");
+            warn!("Error: Failed to delete {file_id}");
         }
         result
     }
