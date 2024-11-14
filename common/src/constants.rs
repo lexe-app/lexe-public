@@ -30,6 +30,15 @@ pub const USER_NODE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
 
 // --- Channels and liquidity --- //
 
+/// Our dust limit for e.g. our channel close txo's. If our channel balance,
+/// after paying close fees, is <= this value, we will not get a txo and this
+/// value is lost (goes to fees).
+///
+/// LDK just uses a fixed value here.
+///
+/// See: [`MIN_CHAN_DUST_LIMIT_SATOSHIS`](https://github.com/lightningdevkit/rust-lightning/blob/70add1448b5c36368b8f1c17d672d8871cee14de/lightning/src/ln/channel.rs#L697)
+pub const LDK_DUST_LIMIT_SATS: u64 = 354;
+
 /// The amount of liquidity (in sats) that Lexe supplies to us for free, which
 /// we are not expected to pay interest on. This is also the amount of liquidity
 /// Lexe's LSP will supply to a user in their first JIT zeroconf channel open.

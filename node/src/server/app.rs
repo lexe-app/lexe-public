@@ -167,13 +167,18 @@ pub(super) async fn close_channel(
 }
 
 pub(super) async fn preflight_close_channel(
-    State(_state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<AppRouterState>>,
     LxJson(req): LxJson<PreflightCloseChannelRequest>,
 ) -> Result<LxJson<PreflightCloseChannelResponse>, NodeApiError> {
-    lexe_ln::command::preflight_close_channel(req)
-        .await
-        .map(LxJson)
-        .map_err(NodeApiError::command)
+    lexe_ln::command::preflight_close_channel(
+        &state.channel_manager,
+        &state.chain_monitor,
+        &state.esplora,
+        req,
+    )
+    .await
+    .map(LxJson)
+    .map_err(NodeApiError::command)
 }
 
 pub(super) async fn create_invoice(
