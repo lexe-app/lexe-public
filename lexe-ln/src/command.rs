@@ -17,6 +17,7 @@ use common::{
         Empty, NodePk, Scid,
     },
     cli::LspInfo,
+    constants,
     enclave::Measurement,
     ln::{
         amount::Amount,
@@ -29,6 +30,10 @@ use common::{
 };
 use futures::Future;
 use lightning::{
+    chain::{
+        chaininterface::{ConfirmationTarget, FeeEstimator},
+        chainmonitor::LockedChannelMonitor,
+    },
     ln::{
         channel_state::ChannelDetails,
         channelmanager::{
@@ -47,7 +52,7 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, info, instrument};
 
 use crate::{
-    alias::{LexeChainMonitorType, RouterType},
+    alias::{LexeChainMonitorType, RouterType, SignerType},
     channel::{ChannelEvent, ChannelEventsBus, ChannelEventsRx},
     esplora::LexeEsplora,
     keys_manager::LexeKeysManager,
@@ -143,6 +148,8 @@ fn channel_add_to_balance<PS: LexePersister>(
     balance: &mut LightningBalance,
     num_usable_channels: &mut usize,
 ) -> Option<()> {
+    use lightning::chain::channelmonitor::Balance;
+
     // If there is no negotiated funding TXO or monitor yet, we'll just ignore
     // this channel.
     let txo = channel.funding_txo?;
@@ -151,7 +158,32 @@ fn channel_add_to_balance<PS: LexePersister>(
     let claimable_balance_sats = monitor
         .get_claimable_balances()
         .into_iter()
-        .map(|b| b.claimable_amount_satoshis())
+        .map(|b| match b {
+            Balance::ClaimableOnChannelClose {
+                amount_satoshis,
+                transaction_fee_satoshis,
+                outbound_payment_htlc_rounded_msat: _,
+                outbound_forwarded_htlc_rounded_msat: _,
+                inbound_claiming_htlc_rounded_msat: _,
+                inbound_htlc_rounded_msat: _,
+            } => amount_satoshis + transaction_fee_satoshis,
+            Balance::ClaimableAwaitingConfirmations {
+                amount_satoshis, ..
+            } => amount_satoshis,
+            Balance::ContentiousClaimable {
+                amount_satoshis, ..
+            } => amount_satoshis,
+            Balance::MaybeTimeoutClaimableHTLC {
+                amount_satoshis, ..
+            } => amount_satoshis,
+            Balance::MaybePreimageClaimableHTLC {
+                amount_satoshis, ..
+            } => amount_satoshis,
+            Balance::CounterpartyRevokedOutputClaimable {
+                amount_satoshis,
+                ..
+            } => amount_satoshis,
+        })
         .sum();
 
     let amount = Amount::try_from_sats_u64(claimable_balance_sats).ok()?;
@@ -483,12 +515,179 @@ where
 }
 
 /// Estimate the on-chain fees required to close this channel.
-pub async fn preflight_close_channel(
-    _req: PreflightCloseChannelRequest,
-) -> anyhow::Result<PreflightCloseChannelResponse> {
-    // TODO(phlip9): impl
-    let fee_estimate = Amount::ZERO;
+pub async fn preflight_close_channel<CM, PS>(
+    channel_manager: &CM,
+    chain_monitor: &LexeChainMonitorType<PS>,
+    esplora: &LexeEsplora,
+    req: PreflightCloseChannelRequest,
+) -> anyhow::Result<PreflightCloseChannelResponse>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
+    let channels = match &req.maybe_counterparty {
+        Some(counterparty) =>
+            channel_manager.list_channels_with_counterparty(&counterparty.0),
+        None => channel_manager.list_channels(),
+    };
+    let channel = channels
+        .into_iter()
+        .find(|chan| chan.channel_id.0 == req.channel_id.0)
+        .context("No channel with this id")?;
+
+    // If we haven't negotiated a funding_txo, the channel is free to close.
+    let monitor = channel
+        .funding_txo
+        .and_then(|txo| chain_monitor.get_monitor(txo).ok());
+    let monitor = match monitor {
+        Some(x) => x,
+        None =>
+            return Ok(PreflightCloseChannelResponse {
+                fee_estimate: Amount::ZERO,
+            }),
+    };
+
+    // TODO(phlip9): handle force_close=true
+    let fee_estimate = our_close_tx_fees_sats(esplora, &channel, monitor);
+    let fee_estimate = Amount::try_from_sats_u64(fee_estimate)?;
+
+    // TODO(phlip9): include est. blocks to confirmation? Esp. for force close.
     Ok(PreflightCloseChannelResponse { fee_estimate })
+}
+
+/// Calculate the fees _we_ have to pay to close this channel.
+///
+/// TODO(phlip9): support v2/anchor channels
+fn our_close_tx_fees_sats(
+    esplora: &LexeEsplora,
+    channel: &ChannelDetails,
+    monitor: LockedChannelMonitor<'_, SignerType>,
+) -> u64 {
+    use lightning::chain::channelmonitor::Balance;
+    let our_sats: u64 = monitor
+        .get_claimable_balances()
+        .into_iter()
+        .map(|b| match b {
+            Balance::ClaimableOnChannelClose {
+                amount_satoshis,
+                transaction_fee_satoshis,
+                outbound_payment_htlc_rounded_msat: _,
+                outbound_forwarded_htlc_rounded_msat: _,
+                inbound_claiming_htlc_rounded_msat: _,
+                inbound_htlc_rounded_msat: _,
+            } => amount_satoshis + transaction_fee_satoshis,
+            Balance::ClaimableAwaitingConfirmations { .. } => 0,
+            Balance::ContentiousClaimable { .. } => 0,
+            Balance::MaybeTimeoutClaimableHTLC { .. } => 0,
+            Balance::MaybePreimageClaimableHTLC { .. } => 0,
+            Balance::CounterpartyRevokedOutputClaimable { .. } => 0,
+        })
+        .sum();
+    if our_sats == 0 {
+        return 0;
+    };
+
+    // We only pay for the on-chain channel close fees if we're the channel
+    // funder.
+    //
+    // For our purposes, if we're not the funder and our output is also beneath
+    // our dust limit, we'll just consider our remaining channel balance as part
+    // // of the close fee.
+    if !channel.is_outbound {
+        let fee_sats = if our_sats <= constants::LDK_DUST_LIMIT_SATS {
+            our_sats
+        } else {
+            0
+        };
+        return fee_sats;
+    }
+
+    // The current fees required for this close tx to confirm
+    let tx_fees_sats = close_tx_fees_sats(esplora, channel);
+
+    // As the funder, if we somehow don't have enough to pay the full
+    // `tx_fees_sats`, then the most we can possibly pay (without RBF / anchors)
+    // is our current balance. Most likely the remote will force close.
+    // Usually the channel reserve should prevent this case from happening, i.e,
+    // we should have enough balance to pay the on-chain fees.
+    if our_sats <= tx_fees_sats {
+        // TODO(phlip9): we'll probably get force closed. So use that fee
+        // estimate instead.
+        return our_sats;
+    }
+
+    // If, after paying the fees, our output would be smaller than our dust
+    // limit, then we just donate our sats to the miners.
+    let our_sats = our_sats - tx_fees_sats;
+    if our_sats <= constants::LDK_DUST_LIMIT_SATS {
+        return tx_fees_sats + our_sats;
+    }
+
+    // Normally, we just pay the fees
+    tx_fees_sats
+}
+
+/// Estimate the total on-chain fees for a channel close, which must be paid by
+/// the channel funder.
+fn close_tx_fees_sats(esplora: &LexeEsplora, channel: &ChannelDetails) -> u64 {
+    let conf_target = ConfirmationTarget::NonAnchorChannelFee;
+    let fee_sat_per_kwu =
+        esplora.get_est_sat_per_1000_weight(conf_target) as u64;
+
+    let close_tx_weight = CLOSE_TX_WEIGHT;
+    let normal_fee_sats =
+        fee_sat_per_kwu.saturating_mul(close_tx_weight) / 1000;
+
+    let force_close_avoidance_max_fee_sats = channel
+        .config
+        .map(|c| c.force_close_avoidance_max_fee_satoshis)
+        .unwrap_or(1000);
+
+    // For some reason the `force_close_avoidance_max_fee_sats` is always
+    // getting added?
+
+    normal_fee_sats.saturating_add(force_close_avoidance_max_fee_sats)
+}
+
+/// Between User and LSP, the close tx is currently predictable.
+///
+/// LDK (currently) always over-estimates the close tx cost by one output if one
+/// side's balance (after fees) is below their dust limit.
+const CLOSE_TX_WEIGHT: u64 = close_tx_weight(
+    // funding_redeemscript:
+    // [ OP_PUSHNUM_2 <a-pubkey> <b-pubkey> OP_PUSHNUM_2 OP_CHECKMULTISIG ]
+    71,
+    //
+    // a/b_scriptpubkey:
+    // [ OP_0 OP_PUSHBYTES_20 <20-bytes> ]
+    22, 22,
+);
+
+/// Calculate the tx weight for a potential channel close.
+///
+/// See: <https://github.com/lightningdevkit/rust-lightning/blob/70add1448b5c36368b8f1c17d672d8871cee14de/lightning/src/ln/channel.rs#L3962>
+const fn close_tx_weight(
+    funding_redeemscript_len: u64,
+    a_scriptpubkey_len: u64,
+    b_scriptpubkey_len: u64,
+) -> u64 {
+    (4 +                                    // version
+     1 +                                    // input count
+     36 +                                   // prevout
+     1 +                                    // script length (0)
+     4 +                                    // sequence
+     1 +                                    // output count
+     4                                      // lock time
+     )*4 +                                  // * 4 for non-witness parts
+    2 +                                     // witness marker and flag
+    1 +                                     // witness element count
+    4 +                                     // 4 element lengths (2 sigs, multisig dummy, and witness script)
+    funding_redeemscript_len +              // funding witness script
+    2*(1 + 71) +                            // two signatures + sighash type flags
+    (((8+1) +                               // output values and script length
+        a_scriptpubkey_len) * 4) +          // scriptpubkey and witness multiplier
+    (((8+1) +                               // output values and script length
+        b_scriptpubkey_len) * 4) //         // scriptpubkey and witn multiplier
 }
 
 /// Uses the given `[bdk|ldk]_resync_tx` to retrigger BDK and LDK sync, and
@@ -894,6 +1093,15 @@ where
         max_total_routing_fee_msat,
     };
 
+    // TODO(phlip9): need better error messages for simpler failure cases like
+    // trying to send above User<->LSP channel max outbound HTLC limit, etc...
+    //
+    // Right now we just get "Could not find route to recipient", which is
+    // completely useless and not actionable.
+    //
+    // More generally, we could also try to compute the Max-Flow to the
+    // destination and suggest that value as an upper bound.
+
     // Find a Route so we can estimate the fees to be paid. Modeled after
     // `lightning::ln::outbound_payment::OutboundPayments::pay_internal`.
     let usable_channels = channel_manager.list_usable_channels();
@@ -913,4 +1121,60 @@ where
         route_params,
         recipient_fields,
     })
+}
+
+#[cfg(test)]
+mod test {
+    use bitcoin::{
+        key::PublicKey,
+        opcodes,
+        script::{self, ScriptBuf},
+        secp256k1,
+    };
+    use common::rng::{Crng, WeakRng};
+
+    use super::*;
+
+    fn pubkey() -> PublicKey {
+        let mut rng = WeakRng::new();
+        let secp_ctx = rng.gen_secp256k1_ctx_signing();
+        let secret_key = secp256k1::SecretKey::from_slice(&[
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+        ])
+        .unwrap();
+        PublicKey::new(secp256k1::PublicKey::from_secret_key(
+            &secp_ctx,
+            &secret_key,
+        ))
+    }
+
+    // [ OP_PUSHNUM_2 <a-pubkey> <b-pubkey> OP_PUSHNUM_2 OP_CHECKMULTISIG ]
+    fn redeem_script() -> ScriptBuf {
+        let pubkey = pubkey();
+        script::Builder::new()
+            .push_opcode(opcodes::all::OP_PUSHNUM_2)
+            .push_key(&pubkey)
+            .push_key(&pubkey)
+            .push_opcode(opcodes::all::OP_PUSHNUM_2)
+            .push_opcode(opcodes::all::OP_CHECKMULTISIG)
+            .into_script()
+    }
+
+    // [ OP_0 OP_PUSHBYTES_20 <20-bytes> ]
+    fn output_script() -> ScriptBuf {
+        ScriptBuf::from_bytes(vec![0x69; 22])
+    }
+
+    #[test]
+    fn check_close_tx_weight_constant() {
+        let redeem_script = redeem_script();
+        let output_script = output_script();
+        let close_wu = close_tx_weight(
+            redeem_script.len() as u64,
+            output_script.len() as u64,
+            output_script.len() as u64,
+        );
+        assert_eq!(close_wu, CLOSE_TX_WEIGHT);
+    }
 }
