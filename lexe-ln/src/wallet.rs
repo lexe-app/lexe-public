@@ -887,7 +887,7 @@ mod test {
 
     use super::*;
 
-    // Snapshot taken 2024-10-30
+    // Snapshot taken 2024-11-14
     const CHANGESET_SNAPSHOT: &str =
         include_str!("../data/changeset-snapshot.json");
 
