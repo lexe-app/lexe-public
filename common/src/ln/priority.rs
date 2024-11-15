@@ -13,14 +13,15 @@ use serde::{Deserialize, Serialize};
 /// and LDK's [`ConfirmationTarget`].
 pub trait ToNumBlocks {
     /// Convert a confirmation priority into a target number of blocks.
-    fn to_num_blocks(&self) -> usize;
+    fn to_num_blocks(&self) -> u16;
 }
 
 impl ToNumBlocks for ConfirmationTarget {
-    fn to_num_blocks(&self) -> usize {
+    fn to_num_blocks(&self) -> u16 {
         // Based on ldk-node's FeeEstimator implementation.
         match self {
-            ConfirmationTarget::OnChainSweep => 6,
+            ConfirmationTarget::MaximumFeeEstimate => 1,
+            ConfirmationTarget::UrgentOnChainSweep => 6,
             ConfirmationTarget::MinAllowedAnchorChannelRemoteFee => 1008,
             ConfirmationTarget::MinAllowedNonAnchorChannelRemoteFee => 144,
             ConfirmationTarget::AnchorChannelFee => 1008,
@@ -44,7 +45,7 @@ pub enum ConfirmationPriority {
 }
 
 impl ToNumBlocks for ConfirmationPriority {
-    fn to_num_blocks(&self) -> usize {
+    fn to_num_blocks(&self) -> u16 {
         match self {
             ConfirmationPriority::High => 1,
             ConfirmationPriority::Normal => 3,

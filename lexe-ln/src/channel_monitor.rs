@@ -9,7 +9,7 @@ use std::{
 use common::{
     ln::channel::LxOutPoint, shutdown::ShutdownChannel, task::LxTask, Apply,
 };
-use lightning::chain::{chainmonitor::MonitorUpdateId, transaction::OutPoint};
+use lightning::chain::transaction::OutPoint;
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info};
@@ -26,7 +26,13 @@ type BoxedAnyhowFuture =
 /// Represents a channel monitor update. See docs on each field for details.
 pub struct LxChannelMonitorUpdate {
     pub funding_txo: LxOutPoint,
-    pub update_id: MonitorUpdateId,
+    /// The ID of the channel monitor update, given by
+    /// [`ChannelMonitorUpdate::update_id`] or
+    /// [`ChannelMonitor::get_latest_update_id`].
+    ///
+    /// [`ChannelMonitorUpdate::update_id`]: lightning::chain::channelmonitor::ChannelMonitorUpdate::update_id
+    /// [`ChannelMonitor::get_latest_update_id`]: lightning::chain::channelmonitor::ChannelMonitor::get_latest_update_id
+    pub update_id: u64,
     /// A [`Future`] which makes an api call (typically with retries) to the
     /// backend to persist the channel monitor state, returning an
     /// `anyhow::Result<()>` once either (1) persistence succeeds or (2) there
@@ -35,13 +41,6 @@ pub struct LxChannelMonitorUpdate {
     /// way to abstract over the user node and LSP's differing api clients, vfs
     /// structures, and expected error types.
     pub api_call_fut: BoxedAnyhowFuture,
-    /// The sequence number of the channel monitor update, given by
-    /// [`ChannelMonitorUpdate::update_id`]. Is [`None`] for new channels and
-    /// updates triggered by chain sync.
-    ///
-    /// [`ChannelMonitorUpdate`]: lightning::chain::channelmonitor::ChannelMonitorUpdate
-    /// [`ChannelMonitorUpdate::update_id`]: lightning::chain::channelmonitor::ChannelMonitorUpdate::update_id
-    pub sequence_num: Option<u64>,
     pub kind: ChannelMonitorUpdateKind,
 }
 

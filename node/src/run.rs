@@ -48,7 +48,7 @@ use lexe_ln::{
 };
 use lightning::{
     chain::{chainmonitor::ChainMonitor, Watch},
-    ln::{peer_handler::IgnoringMessageHandler, ChannelId},
+    ln::{peer_handler::IgnoringMessageHandler, types::ChannelId},
     onion_message::messenger::{DefaultMessageRouter, OnionMessenger},
     routing::{
         gossip::P2PGossipSync, router::DefaultRouter,
@@ -313,20 +313,18 @@ impl UserNode {
         };
 
         // Read as much as possible concurrently to reduce init time
-        let (wallet_db_persister_tx, wallet_db_persister_rx) =
-            notify::channel();
         #[rustfmt::skip] // Does not respect 80 char line width
         let (
             try_maybe_approved_versions,
             try_network_graph,
-            try_wallet_db,
+            try_maybe_changeset,
             try_scid,
             try_pending_payments,
             try_finalized_payment_ids,
         ) = tokio::join!(
             read_maybe_approved_versions,
             persister.read_graph(network, logger.clone()),
-            persister.read_wallet_db(wallet_db_persister_tx),
+            persister.read_wallet_changeset(),
             persister.read_scid(),
             persister.read_pending_payments(),
             persister.read_finalized_payment_ids(),
@@ -358,7 +356,8 @@ impl UserNode {
         let network_graph = try_network_graph
             .map(Arc::new)
             .context("Could not read network graph")?;
-        let wallet_db = try_wallet_db.context("Could not read wallet db")?;
+        let maybe_changeset =
+            try_maybe_changeset.context("Could not read wallet changeset")?;
         let maybe_scid = try_scid.context("Could not read scid")?;
         let scid = match maybe_scid {
             Some(s) => s,
@@ -374,18 +373,20 @@ impl UserNode {
             .context("Could not read finalized payment ids")?;
 
         // Init BDK wallet; share esplora connection pool, spawn persister task
+        let (wallet_persister_tx, wallet_persister_rx) = notify::channel();
         let wallet = LexeWallet::init(
             &root_seed,
             network,
             esplora.clone(),
-            wallet_db.clone(),
+            maybe_changeset,
+            wallet_persister_tx,
         )
         .await
         .context("Could not init BDK wallet")?;
-        tasks.push(wallet::spawn_wallet_db_persister_task(
+        tasks.push(wallet::spawn_wallet_persister_task(
             persister.clone(),
-            wallet_db,
-            wallet_db_persister_rx,
+            wallet.clone(),
+            wallet_persister_rx,
             shutdown.clone(),
         ));
 
@@ -474,6 +475,7 @@ impl UserNode {
                     .force_close_without_broadcasting_txn(
                         &channel_id,
                         &counterparty_node_id,
+                        "Couldn't watch this channel".to_owned(),
                     )
                     .inspect(|()| {
                         info!(
@@ -497,14 +499,18 @@ impl UserNode {
             network_graph.clone(),
             keys_manager.clone(),
         ));
+        let offers_msg_handler = IgnoringMessageHandler {};
+        let async_payments_msg_handler = IgnoringMessageHandler {};
+        let custom_onion_msg_handler = IgnoringMessageHandler {};
         let onion_messenger = Arc::new(OnionMessenger::new(
             keys_manager.clone(),
             keys_manager.clone(),
             logger.clone(),
             channel_manager.clone(),
             message_router,
-            IgnoringMessageHandler {},
-            IgnoringMessageHandler {},
+            offers_msg_handler,
+            async_payments_msg_handler,
+            custom_onion_msg_handler,
         ));
 
         // Initialize PeerManager

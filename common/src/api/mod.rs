@@ -268,17 +268,18 @@ impl NodePkProof {
     // msg := H(H(DSV) || node_pk)
     fn message(node_pk: &NodePk) -> secp256k1::Message {
         let node_pk_bytes = node_pk.0.serialize();
-        secp256k1::Message::from(sha256::digest_many(&[
+        let hash = sha256::digest_many(&[
             &NodePkProof::DOMAIN_SEPARATOR,
             &node_pk_bytes,
-        ]))
+        ]);
+        secp256k1::Message::from_digest(hash.into_inner())
     }
 
-    /// Given a [`secp256k1::KeyPair`], sign a new [`NodePkProof`]
+    /// Given a [`secp256k1::Keypair`], sign a new [`NodePkProof`]
     /// Proof-of-Key-Possession for your key pair.
     pub fn sign<R: Crng>(
         rng: &mut R,
-        node_key_pair: &secp256k1::KeyPair,
+        node_key_pair: &secp256k1::Keypair,
     ) -> Self {
         let node_pk = NodePk::from(node_key_pair.public_key());
         let msg = Self::message(&node_pk);

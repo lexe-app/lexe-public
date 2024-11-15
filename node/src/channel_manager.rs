@@ -93,6 +93,8 @@ pub const USER_CONFIG: UserConfig = UserConfig {
     accept_intercept_htlcs: false,
     // Allow receiving keysend payments composed of multiple parts.
     accept_mpp_keysend: true,
+    // For now, no need to manually pay BOLT 12 invoices when received.
+    manually_handle_bolt12_invoices: false,
 };
 
 const CHANNEL_HANDSHAKE_CONFIG: ChannelHandshakeConfig =
@@ -119,7 +121,7 @@ const CHANNEL_HANDSHAKE_CONFIG: ChannelHandshakeConfig =
         // Publically announce our channels
         // TODO: Is there a way to *not* publicly announce our channel, but
         // still be able to complete a channel negatiation with the LSP?
-        announced_channel: true,
+        announce_for_forwarding: true,
         // The additional 'security' provided by this setting is pointless.
         // Also, we want to be able to sweep all funds to an address specified
         // at the time of channel close, instead of committing upfront.
@@ -132,7 +134,8 @@ const CHANNEL_HANDSHAKE_CONFIG: ChannelHandshakeConfig =
 const CHANNEL_HANDSHAKE_LIMITS: ChannelHandshakeLimits =
     ChannelHandshakeLimits {
         // Force an incoming channel (from the LSP) to match the value we set
-        // for `ChannelHandshakeConfig::announced_channel` (which is false)
+        // for `ChannelHandshakeConfig::announce_for_forwarding` (which is
+        // false)
         force_announced_channel_preference: true,
         // The maximum # of blocks we're willing to wait to reclaim our funds in
         // the case of a unilateral close initiated by us. See doc comment.

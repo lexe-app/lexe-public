@@ -56,8 +56,12 @@ pub type LexeOnionMessengerType<CHANNEL_MANAGER> = OnionMessenger<
     LexeTracingLogger,
     CHANNEL_MANAGER,
     Arc<MessageRouterType>,
+    // OffersMessageHandler
     // TODO(max): Need a OffersMessageHandler for BOLT 12
     IgnoringMessageHandler,
+    // AsyncPaymentsMessageHandler
+    IgnoringMessageHandler,
+    // CustomOnionMessageHandler
     IgnoringMessageHandler,
 >;
 

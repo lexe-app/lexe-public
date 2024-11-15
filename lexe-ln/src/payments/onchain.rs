@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{bail, ensure};
 use bitcoin::Transaction;
 #[cfg(test)]
@@ -12,6 +14,8 @@ use common::{
     },
     time::TimestampMs,
 };
+#[cfg(test)]
+use proptest::strategy::Strategy;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -90,7 +94,7 @@ impl OnchainSend {
     pub fn new(tx: Transaction, req: PayOnchainRequest, fees: Amount) -> Self {
         Self {
             cid: req.cid,
-            txid: LxTxid(tx.txid()),
+            txid: LxTxid(tx.compute_txid()),
             tx,
             replacement: None,
             priority: req.priority,
@@ -222,8 +226,11 @@ impl OnchainSend {
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct OnchainReceive {
     pub txid: LxTxid,
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_raw_tx()"))]
-    pub tx: Transaction,
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_raw_tx().prop_map(Arc::new)")
+    )]
+    pub tx: Arc<Transaction>,
     /// The txid of the replacement tx, if one exists.
     pub replacement: Option<LxTxid>,
     pub amount: Amount,
@@ -272,9 +279,9 @@ pub enum OnchainReceiveStatus {
 }
 
 impl OnchainReceive {
-    pub(crate) fn new(tx: Transaction, amount: Amount) -> Self {
+    pub(crate) fn new(tx: Arc<Transaction>, amount: Amount) -> Self {
         Self {
-            txid: LxTxid(tx.txid()),
+            txid: LxTxid(tx.compute_txid()),
             tx,
             replacement: None,
             amount,

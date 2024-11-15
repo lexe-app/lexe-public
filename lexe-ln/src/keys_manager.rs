@@ -1,8 +1,6 @@
 use anyhow::anyhow;
 use bitcoin::{
     absolute,
-    address::Payload,
-    bech32::u5,
     blockdata::transaction::{Transaction, TxOut},
     secp256k1::{
         ecdh, ecdsa, scalar::Scalar, schnorr, PublicKey, Secp256k1, Signing,
@@ -26,6 +24,7 @@ use lightning::{
         OutputSpender, Recipient, SignerProvider, SpendableOutputDescriptor,
     },
 };
+use lightning_invoice::RawBolt11Invoice;
 use secrecy::ExposeSecret;
 use tracing::{debug, error};
 
@@ -160,11 +159,10 @@ impl NodeSigner for LexeKeysManager {
 
     fn sign_invoice(
         &self,
-        hrp_bytes: &[u8],
-        invoice_data: &[u5],
+        invoice: &RawBolt11Invoice,
         recipient: Recipient,
     ) -> Result<ecdsa::RecoverableSignature, ()> {
-        self.inner.sign_invoice(hrp_bytes, invoice_data, recipient)
+        self.inner.sign_invoice(invoice, recipient)
     }
 
     fn sign_bolt12_invoice_request(
@@ -239,13 +237,9 @@ impl SignerProvider for LexeKeysManager {
     fn get_shutdown_scriptpubkey(&self) -> Result<ShutdownScript, ()> {
         // Use an internal address so we only have to watch it once.
         let sweep_address = self.wallet.get_internal_address();
-        let witness_program = match sweep_address.payload {
-            Payload::WitnessProgram(wp) => wp,
-            _ => {
-                error!("Derived address should've been segwit address!");
-                return Err(());
-            }
-        };
+        let witness_program = sweep_address
+            .witness_program()
+            .ok_or_else(|| error!("Sweep address wasn't segwit address!"))?;
         let shutdown_scriptpubkey =
             ShutdownScript::new_witness_program(&witness_program)
                 .inspect_err(|e| error!("Invalid shutdown script: {e:?}"))

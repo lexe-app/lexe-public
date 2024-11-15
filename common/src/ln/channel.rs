@@ -7,7 +7,7 @@ use anyhow::Context;
 use hex::FromHex;
 use lightning::{
     chain::transaction::OutPoint,
-    ln::{channelmanager::ChannelDetails, ChannelId},
+    ln::{channel_state::ChannelDetails, types::ChannelId},
 };
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
@@ -24,7 +24,7 @@ use crate::{
     Apply,
 };
 
-/// A newtype for [`lightning::ln::ChannelId`].
+/// A newtype for [`lightning::ln::types::ChannelId`].
 #[derive(Copy, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct LxChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
@@ -58,7 +58,7 @@ impl From<LxChannelId> for ChannelId {
     }
 }
 
-/// See: [`lightning::ln::channelmanager::ChannelDetails::user_channel_id`]
+/// See: [`lightning::ln::channel_state::ChannelDetails::user_channel_id`]
 ///
 /// The user channel id lets us consistently identify a channel through its
 /// whole lifecycle.
@@ -134,7 +134,8 @@ pub struct LxChannelDetails {
     /// initiate a channel close. Is [`None`] if the channel is outbound and
     /// hasn't yet been accepted by our counterparty.
     pub force_close_spend_delay: Option<u16>,
-    pub is_public: bool,
+    // This field was `is_public` prior to LDK v0.0.124
+    pub is_announced: bool,
     pub is_outbound: bool,
     /// (1) channel has been confirmed
     /// (2) `channel_ready` messages have been exchanged
@@ -204,9 +205,21 @@ pub struct LxChannelDetails {
     pub cpty_supports_zero_conf: bool,
 }
 
-impl From<ChannelDetails> for LxChannelDetails {
-    fn from(
-        ChannelDetails {
+impl LxChannelDetails {
+    /// Construct a [`LxChannelDetails`] from a LDK [`ChannelDetails`] and the
+    /// channel balance from [`ChannelMonitor::get_claimable_balances`].
+    /// Not to be confused with [`ChainMonitor::get_claimable_balances`].
+    ///
+    /// [`ChannelMonitor::get_claimable_balances`]: lightning::chain::channelmonitor::ChannelMonitor::get_claimable_balances
+    /// [`ChainMonitor::get_claimable_balances`]: lightning::chain::chainmonitor::ChainMonitor::get_claimable_balances
+    pub fn from_details_and_balance(
+        details: ChannelDetails,
+        our_balance: Amount,
+    ) -> anyhow::Result<Self> {
+        // This destructuring makes clear which fields we *aren't* using,
+        // in case we want to include more fields in the future.
+        #[allow(deprecated)]
+        let ChannelDetails {
             channel_id,
             counterparty,
             funding_txo,
@@ -218,7 +231,8 @@ impl From<ChannelDetails> for LxChannelDetails {
             unspendable_punishment_reserve,
             user_channel_id,
             feerate_sat_per_1000_weight: _,
-            balance_msat,
+            // Deprecated field
+            balance_msat: _,
             outbound_capacity_msat,
             next_outbound_htlc_limit_msat,
             next_outbound_htlc_minimum_msat: _,
@@ -230,39 +244,38 @@ impl From<ChannelDetails> for LxChannelDetails {
             is_channel_ready,
             channel_shutdown_state: _,
             is_usable,
-            is_public,
+            is_announced,
             inbound_htlc_minimum_msat,
             inbound_htlc_maximum_msat,
             config,
             pending_inbound_htlcs: _,
             pending_outbound_htlcs: _,
-        }: ChannelDetails,
-    ) -> Self {
+        } = details;
+
         let channel_id = LxChannelId::from(channel_id);
         let user_channel_id = LxUserChannelId::from(user_channel_id);
         let funding_txo = funding_txo.map(LxOutPoint::from);
         let counterparty_node_id = NodePk(counterparty.node_id);
-        let channel_value = u32::try_from(channel_value_satoshis)
-            .expect("We should not have a 42 BTC+ channel")
-            .apply(Amount::from_sats_u32);
+        let channel_value = Amount::try_from_sats_u64(channel_value_satoshis)
+            .context("Channel value overflow")?;
         let punishment_reserve = unspendable_punishment_reserve
             .unwrap_or(0)
-            .apply(u32::try_from)
-            .expect("Reserve was greater than 42 BTC")
-            .apply(Amount::from_sats_u32);
+            .apply(Amount::try_from_sats_u64)
+            .context("Punishment reserve overflow")?;
         let is_ready = is_channel_ready;
 
-        let balance = Amount::from_msat(balance_msat);
         let outbound_capacity = Amount::from_msat(outbound_capacity_msat);
         let next_outbound_htlc_limit =
             Amount::from_msat(next_outbound_htlc_limit_msat);
 
         let their_balance = channel_value
-            .checked_sub(balance)
-            .expect("Our balance was higher than the total channel value");
+            .checked_sub(our_balance)
+            .context("Our balance was higher than the total channel value")?;
         let inbound_capacity = Amount::from_msat(inbound_capacity_msat);
 
-        let config = config.expect("Only None prior to LDK 0.0.109");
+        let config = config
+            // Only None prior to LDK 0.0.109
+            .context("Missing config")?;
         let one_million = dec!(1_000_000);
         let our_base_fee = config
             .forwarding_fee_base_msat
@@ -286,7 +299,8 @@ impl From<ChannelDetails> for LxChannelDetails {
             .map(|info| info.cltv_expiry_delta);
 
         let inbound_htlc_minimum = inbound_htlc_minimum_msat
-            .expect("Only None prior to LDK 0.0.107")
+            // Only None prior to LDK 0.0.107
+            .context("Missing inbound_htlc_minimum_msat")?
             .apply(Amount::from_msat);
         let inbound_htlc_maximum =
             inbound_htlc_maximum_msat.map(Amount::from_msat);
@@ -305,7 +319,7 @@ impl From<ChannelDetails> for LxChannelDetails {
         let cpty_supports_zero_conf =
             counterparty.features.supports_zero_conf();
 
-        Self {
+        Ok(Self {
             channel_id,
             user_channel_id,
             funding_txo,
@@ -313,11 +327,11 @@ impl From<ChannelDetails> for LxChannelDetails {
             channel_value,
             punishment_reserve,
             force_close_spend_delay,
-            is_public,
+            is_announced,
             is_outbound,
             is_ready,
             is_usable,
-            our_balance: balance,
+            our_balance,
             outbound_capacity,
             next_outbound_htlc_limit,
 
@@ -340,7 +354,7 @@ impl From<ChannelDetails> for LxChannelDetails {
             cpty_supports_onion_messages,
             cpty_supports_wumbo,
             cpty_supports_zero_conf,
-        }
+        })
     }
 }
 

@@ -18,7 +18,7 @@ use common::{
 };
 use lightning::{
     chain::chainmonitor::Persist,
-    events::Event,
+    events::{Event, ReplayEvent},
     routing::{
         gossip::NetworkGraph, scoring::ProbabilisticScoringDecayParameters,
     },
@@ -250,5 +250,5 @@ pub trait LexeEventHandler: Send + Sync + 'static {
     fn get_ldk_handler_future(
         &self,
         event: Event,
-    ) -> impl Future<Output = ()> + Send;
+    ) -> impl Future<Output = Result<(), ReplayEvent>> + Send;
 }

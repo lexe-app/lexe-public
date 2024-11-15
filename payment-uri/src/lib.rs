@@ -233,7 +233,8 @@ fn flatten_invoice_into(invoice: LxInvoice, out: &mut Vec<PaymentMethod>) {
         let amount = invoice.amount();
 
         for addr in onchain_fallback_addrs {
-            let address = bitcoin::Address::new(addr.network, addr.payload);
+            // TODO(max): Upstream an `Address::into_unchecked` to avoid clone
+            let address = addr.as_unchecked().clone();
             out.push(PaymentMethod::Onchain(Onchain {
                 address,
                 amount,
@@ -314,7 +315,8 @@ impl Onchain {
 
 impl<V: NetworkValidation> From<bitcoin::Address<V>> for Onchain {
     fn from(addr: bitcoin::Address<V>) -> Self {
-        let address = bitcoin::Address::new(addr.network, addr.payload);
+        // TODO(max): Upstream an `Address::into_unchecked` to avoid clone
+        let address = addr.as_unchecked().clone();
         Self {
             address,
             amount: None,
