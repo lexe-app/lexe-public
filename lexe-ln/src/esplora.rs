@@ -190,16 +190,24 @@ impl LexeEsplora {
             .context("Could not fetch initial esplora fee estimates")?;
 
         // Instantiate
-        let esplora = Arc::new(Self {
-            client,
-            fee_estimates,
-            test_event_tx,
-        });
+        let esplora = Arc::new(Self::new(client, fee_estimates, test_event_tx));
 
         // Spawn refresh fees task
         let task = Self::spawn_refresh_fees_task(esplora.clone(), shutdown);
 
         Ok((esplora, task))
+    }
+
+    pub(crate) fn new(
+        client: AsyncClient,
+        fee_estimates: ArcSwap<BTreeMap<u16, f64>>,
+        test_event_tx: TestEventSender,
+    ) -> Self {
+        Self {
+            client,
+            fee_estimates,
+            test_event_tx,
+        }
     }
 
     /// Spawns a task that periodically calls [`Self::refresh_fee_estimates`].
