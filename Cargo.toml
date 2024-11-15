@@ -193,6 +193,14 @@ sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30
 axum-server = { git = "https://github.com/lexe-app/axum-server", branch = "lexe-v0.6.0-2024_10_11" }
 
 # * license: Add dual license information
+# * refactor(async)!: remove async-std dependency, allow custom runtime
+#   - TODO(max): Remove once merged
+# * cargo: Reduce `tokio` requirement to 1.36
+#   - TODO(max): Remove
+esplora-client = { git = "https://github.com/lexe-app/rust-esplora-client", branch = "lexe-v0.10.0-2024_11_14" }
+# esplora-client = { path = "../../forks/rust-esplora-client" }
+
+# * license: Add dual license information
 # * sgx: socket2 requires `client-legacy-socket2` cfg
 # * sgx: Skip DNS resolution in SGX
 hyper-util = { git = "https://github.com/lexe-app/hyper-util", branch = "lexe-v0.1.5-2024_10_11" }
@@ -204,6 +212,7 @@ hyper_old = { package = "hyper", git = "https://github.com/lexe-app/hyper", bran
 
 # * license: Add dual license information
 # * lightning-net-tokio: Propagate tracing spans
+# * lightning-transaction-sync: esplora-client -> 0.10 TODO(max): Remove
 lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2024_11_14" }
 lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2024_11_14" }
 lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2024_11_14" }

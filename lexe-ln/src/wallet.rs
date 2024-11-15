@@ -675,9 +675,8 @@ impl LexeWallet {
         wallet: &mut Wallet,
         feerate: bitcoin::FeeRate,
     ) -> TxBuilder<'_, DefaultCoinSelectionAlgorithm> {
-        // Set the feerate and enable RBF by default
+        // Set the feerate. RBF is already enabled by default.
         let mut tx_builder = wallet.build_tx();
-        tx_builder.enable_rbf();
         tx_builder.fee_rate(feerate);
         tx_builder
     }
@@ -803,24 +802,14 @@ mod arbitrary_impl {
                     tx_graph,
                     indexer,
                 )| {
-                    let mut changeset = ChangeSet::default();
-                    changeset.descriptor = descriptor;
-                    changeset.change_descriptor = change_descriptor;
-                    changeset.network = network;
-                    changeset.local_chain = local_chain;
-                    changeset.tx_graph = tx_graph;
-                    changeset.indexer = indexer;
-                    changeset
-                    // TODO(max): Switch to this once we have 1.0.0-beta.5,
-                    // which doesn't have #[non_exhaustive] on `ChangeSet`
-                    // ChangeSet {
-                    //     descriptor,
-                    //     change_descriptor,
-                    //     network,
-                    //     local_chain,
-                    //     tx_graph,
-                    //     indexer,
-                    // }
+                    ChangeSet {
+                        descriptor,
+                        change_descriptor,
+                        network,
+                        local_chain,
+                        tx_graph,
+                        indexer,
+                    }
                 },
             )
     }
