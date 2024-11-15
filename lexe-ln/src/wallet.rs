@@ -91,6 +91,16 @@ const BDK_LOOKAHEAD: u32 = 1;
 const CHANNEL_FUNDING_CONF_PRIO: ConfirmationPriority =
     ConfirmationPriority::Normal;
 
+/// The length of our drain script outputs, in bytes. Used for estimating fees.
+///
+/// Example: [
+///     OP_0
+///     OP_PUSHBYTES_20
+///     9b77ada43d0f43f14ee4d15980511bb3777607e8
+/// ]
+#[allow(dead_code)] // TODO(phlip9): remove
+const DRAIN_SCRIPT_LEN: usize = 22;
+
 /// A newtype wrapper around [`Wallet`]. Can be cloned and used directly.
 #[derive(Clone)]
 pub struct LexeWallet {
@@ -117,6 +127,33 @@ impl LexeWallet {
         maybe_changeset: Option<ChangeSet>,
         wallet_persister_tx: notify::Sender,
     ) -> anyhow::Result<Self> {
+        let (lexe_wallet, wallet_created) = Self::new(
+            root_seed,
+            network,
+            esplora,
+            maybe_changeset,
+            wallet_persister_tx,
+        )?;
+
+        if wallet_created {
+            lexe_wallet
+                .full_sync()
+                .await
+                .context("Failed to conduct initial full sync")?;
+        } else {
+            lexe_wallet.trigger_persist();
+        }
+
+        Ok(lexe_wallet)
+    }
+
+    fn new(
+        root_seed: &RootSeed,
+        network: LxNetwork,
+        esplora: Arc<LexeEsplora>,
+        maybe_changeset: Option<ChangeSet>,
+        wallet_persister_tx: notify::Sender,
+    ) -> anyhow::Result<(Self, bool)> {
         let network = network.to_bitcoin();
         let master_xprv = root_seed.derive_bip32_master_xprv(network);
 
@@ -178,23 +215,15 @@ impl LexeWallet {
             .or_else(|| wallet.take_staged())
             .unwrap_or_default();
 
-        let lexe_wallet = Self {
-            esplora,
-            inner: Arc::new(std::sync::RwLock::new(wallet)),
-            changeset: Arc::new(std::sync::Mutex::new(initial_changeset)),
-            wallet_persister_tx,
-        };
-
-        if wallet_created {
-            lexe_wallet
-                .full_sync()
-                .await
-                .context("Failed to conduct initial full sync")?;
-        } else {
-            lexe_wallet.trigger_persist();
-        }
-
-        Ok(lexe_wallet)
+        Ok((
+            Self {
+                esplora,
+                inner: Arc::new(std::sync::RwLock::new(wallet)),
+                changeset: Arc::new(std::sync::Mutex::new(initial_changeset)),
+                wallet_persister_tx,
+            },
+            wallet_created,
+        ))
     }
 
     /// Returns a read lock on the inner [`Wallet`].
@@ -879,10 +908,14 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
+    use std::collections::BTreeMap;
+
+    use arc_swap::ArcSwap;
     use common::{
         rng::WeakRng,
         test_utils::{arbitrary, roundtrip},
     };
+    use esplora_client::AsyncClient;
     use proptest::test_runner::Config;
 
     use super::*;
@@ -925,5 +958,42 @@ mod test {
         println!("---");
         println!("{}", serde_json::to_string_pretty(&changesets).unwrap());
         println!("---");
+    }
+
+    fn make_wallet() -> LexeWallet {
+        let root_seed = RootSeed::from_u64(923409802);
+
+        let client = reqwest11::ClientBuilder::new().build().unwrap();
+        let client = AsyncClient::from_client("dummy".to_owned(), client);
+        let fee_estimates = ArcSwap::from_pointee(BTreeMap::new());
+        let (test_tx, _test_rx) = crate::test_event::channel("test");
+        let esplora =
+            Arc::new(LexeEsplora::new(client, fee_estimates, test_tx));
+
+        let maybe_changeset = None;
+        let (persist_tx, _persist_rx) = notify::channel();
+        let (lexe_wallet, _wallet_created) = LexeWallet::new(
+            &root_seed,
+            LxNetwork::Regtest,
+            esplora,
+            maybe_changeset,
+            persist_tx,
+        )
+        .unwrap();
+
+        lexe_wallet
+    }
+
+    #[test]
+    fn test_drain_script_len_equiv() {
+        let wallet = make_wallet();
+        let address = wallet.get_internal_address();
+
+        let spk = address.script_pubkey();
+        assert_eq!(
+            spk.len(),
+            DRAIN_SCRIPT_LEN,
+            "Drain script ({spk:?}) has unexpected length"
+        );
     }
 }
