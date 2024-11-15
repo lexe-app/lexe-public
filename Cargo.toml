@@ -53,10 +53,12 @@ axum = { version = "0.7", default-features = false, features = [
 ] }
 # Converting to/from base 64.
 base64 = "0.22"
+# Encoding and decoding of the Bech32 format.
+bech32 = "0.9"
 # rust-bitcoin suite of libraries
-bitcoin = { version = "0.30", features = ["serde"] }
+bitcoin = { version = "0.32", features = ["serde"] }
 bitcoin-bech32 = "0.12"
-bitcoin_hashes = "0.12"
+bitcoin_hashes = "0.14"
 # Abstractions for working with bytes
 bytes = "1"
 # Write #[cfg(..)] if-else statements without repeating clauses
@@ -102,7 +104,7 @@ rust_decimal_macros = { version = "1", default-features = false }
 rustls = { version = "0.22", default-features = false }
 # Rust bindings to libsecp256k1. Implements ECDSA and BIP 340 signatures.
 # Version should match that used by the `bitcoin` crate.
-secp256k1 = "0.27"
+secp256k1 = "0.29"
 # A wrapper type for carefully handling secrets
 secrecy = "0.8"
 # SemVer version newtype for parsing and precedence
@@ -147,10 +149,10 @@ enclave-runner = { version = "=0.6.0", default-features = false }
 # Hyper-related utilities
 hyper-util = { version = "=0.1.5", default-features = false, features = ["http2"] }
 # LDK (rust-lightning) libraries
-lightning = { version = "=0.0.123", features = ["max_level_trace"] }
-lightning-invoice = { version = "=0.31" }
-lightning-net-tokio = { version = "=0.0.123" }
-lightning-transaction-sync = { version = "=0.0.123", features = ["esplora-async"] }
+lightning = { version = "=0.0.125", features = ["max_level_trace"] }
+lightning-invoice = { version = "=0.32", features = ["std"] }
+lightning-net-tokio = { version = "=0.0.125" }
+lightning-transaction-sync = { version = "=0.0.125", features = ["esplora-async"] }
 # Required by tokio
 mio = "=0.8.11"
 # High-level HTTP client
@@ -201,14 +203,11 @@ hyper-util = { git = "https://github.com/lexe-app/hyper-util", branch = "lexe-v0
 hyper_old = { package = "hyper", git = "https://github.com/lexe-app/hyper", branch = "lexe-v0.14.28-2024_10_11" }
 
 # * license: Add dual license information
-# * lightning-invoice: Add `Description::as_inner`
-#   - Upstream PR: https://github.com/lightningdevkit/rust-lightning/pull/3203
-#   - TODO(max): Remove once we update to LDK v0.0.124
 # * lightning-net-tokio: Propagate tracing spans
-lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.123-2024_10_11" }
-lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.123-2024_10_11" }
-lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.123-2024_10_11" }
-lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.123-2024_10_11" }
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2024_11_14" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2024_11_14" }
+lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2024_11_14" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2024_11_14" }
 # lightning = { path = "../../ldk/lightning" }
 # lightning-invoice = { path = "../../ldk/lightning-invoice" }
 # lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }

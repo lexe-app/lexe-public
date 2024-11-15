@@ -177,12 +177,15 @@ impl OutboundInvoicePayment {
 
     pub(crate) fn check_payment_failed(
         &self,
-        hash: LxPaymentHash,
+        id: LxPaymentId,
         failure: LxOutboundPaymentFailure,
     ) -> anyhow::Result<Self> {
         use OutboundInvoicePaymentStatus::*;
 
-        ensure!(hash == self.hash, "Hashes don't match");
+        ensure!(
+            matches!(id, LxPaymentId::Lightning(hash) if hash == self.hash),
+            "Id doesn't match hash",
+        );
 
         match self.status {
             Pending | Abandoning => (),
@@ -303,6 +306,15 @@ pub enum LxOutboundPaymentFailure {
     Expired,
     /// Failed to route the payment while retrying.
     NoRoute,
+    /// The payment metadata is too large, causing us to exceed the maximum
+    /// onion packet size.
+    MetadataTooLarge,
+    /// An invoice was received that required unknown features.
+    UnknownFeatures,
+    /// A BOLT 12 invoice was not received in time.
+    InvoiceRequestExpired,
+    /// The recipient rejected our BOLT 12 invoice request.
+    InvoiceRequestRejected,
     /// API misuse error. Probably a bug in Lexe code.
     LexeErr,
     /// Any unrecognized variant we might deserialize. This variant is for
@@ -320,6 +332,12 @@ impl LxOutboundPaymentFailure {
             Self::Expired =>
                 "the invoice expired before we could complete the payment",
             Self::NoRoute => "could not find usable route to send payment over",
+            Self::MetadataTooLarge => "invalid payment metadata: too large",
+            Self::UnknownFeatures => "invoice requires unknown features",
+            Self::InvoiceRequestExpired =>
+                "recipient did not respond with the invoice in time",
+            Self::InvoiceRequestRejected =>
+                "recipient rejected our invoice request",
             Self::LexeErr => "probable bug in LEXE user node payment router",
             Self::Unknown => "unknown error, app is likely out-of-date",
         }
@@ -336,6 +354,9 @@ impl From<PaymentFailureReason> for LxOutboundPaymentFailure {
             PaymentExpired => Self::Expired,
             RouteNotFound => Self::NoRoute,
             UnexpectedError => Self::LexeErr,
+            UnknownRequiredFeatures => Self::UnknownFeatures,
+            InvoiceRequestExpired => Self::InvoiceRequestExpired,
+            InvoiceRequestRejected => Self::InvoiceRequestRejected,
         }
     }
 }
@@ -361,7 +382,9 @@ mod test {
 
     #[test]
     fn lx_outbound_payment_failure_json_backwards_compat() {
-        let expected_ser = r#"["NoRetries","Rejected","Abandoned","Expired","NoRoute","LexeErr","Unknown"]"#;
+        // TODO(max): LxOutboundPaymentFailure has an 'unknown' variant.
+        // Do we really need this test?
+        let expected_ser = r#"["NoRetries","Rejected","Abandoned","Expired","NoRoute","MetadataTooLarge","UnknownFeatures","InvoiceRequestExpired","InvoiceRequestRejected","LexeErr","Unknown"]"#;
         json_unit_enum_backwards_compat::<LxOutboundPaymentFailure>(
             expected_ser,
         );

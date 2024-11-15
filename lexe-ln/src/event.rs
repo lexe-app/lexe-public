@@ -12,7 +12,7 @@ use lightning::{
         transaction,
     },
     events::{ClosureReason, Event},
-    ln::{features::ChannelTypeFeatures, ChannelId},
+    ln::{features::ChannelTypeFeatures, types::ChannelId},
     sign::SpendableOutputDescriptor,
 };
 use thiserror::Error;
@@ -27,10 +27,11 @@ use crate::{
     wallet::LexeWallet,
 };
 
-/// Errors that can occur while handling [`Event`]s.
+/// Specifies what to do with a [`Event`] after getting this error handling it.
 #[derive(Debug, Error)]
 pub enum EventHandleError {
     /// We encountered an tolerable error; log it and move on.
+    /// It's OK to lose this event.
     #[error("Tolerable event handle error: {0:#}")]
     Tolerable(anyhow::Error),
     /// We encountered a fatal error and the node must shut down without losing
@@ -64,13 +65,14 @@ impl EventExt for Event {
         match self {
             Event::OpenChannelRequest { .. } => "OpenChannelRequest",
             Event::FundingGenerationReady { .. } => "FundingGenerationReady",
+            Event::FundingTxBroadcastSafe { .. } => "FundingTxBroadcastSafe",
             Event::ChannelPending { .. } => "ChannelPending",
             Event::ChannelReady { .. } => "ChannelReady",
             Event::PaymentClaimable { .. } => "PaymentClaimable",
             Event::HTLCIntercepted { .. } => "HTLCIntercepted",
             Event::PaymentClaimed { .. } => "PaymentClaimed",
             Event::ConnectionNeeded { .. } => "ConnectionNeeded",
-            Event::InvoiceRequestFailed { .. } => "InvoiceRequestFailed",
+            Event::InvoiceReceived { .. } => "InvoiceReceived",
             Event::PaymentSent { .. } => "PaymentSent",
             Event::PaymentFailed { .. } => "PaymentFailed",
             Event::PaymentPathSuccessful { .. } => "PaymentPathSuccessful",
@@ -84,6 +86,9 @@ impl EventExt for Event {
             Event::DiscardFunding { .. } => "DiscardFunding",
             Event::HTLCHandlingFailed { .. } => "HTLCHandlingFailed",
             Event::BumpTransaction { .. } => "BumpTransaction",
+            Event::OnionMessageIntercepted { .. } => "OnionMessageIntercepted",
+            Event::OnionMessagePeerConnected { .. } =>
+                "OnionMessagePeerConnected",
         }
     }
 
@@ -127,36 +132,35 @@ where
     // Sign the funding tx.
     // This can fail if we just don't have enought on-chain funds, so it's a
     // tolerable error.
+    let channel_value = bitcoin::Amount::from_sat(channel_value_satoshis);
     let signed_raw_funding_tx = wallet
-        .create_and_sign_funding_tx(
-            output_script,
-            channel_value_satoshis,
-        )
+        .create_and_sign_funding_tx(output_script, channel_value)
         .context("Failed to create channel funding tx")
-        .map_err(|create_err| {
-            // Make sure we force close the channel. Should not fail.
-            if let Err(close_err) = channel_manager
+        .or_else(|create_err| {
+            // Make sure we force close the channel.
+            channel_manager
                 .force_close_without_broadcasting_txn(
                     &temporary_channel_id,
                     &counterparty_node_id,
+                    "Failed to create channel funding transaction".to_owned(),
                 )
                 .map_err(|close_err| {
                     anyhow!(
-                        "Failed to force close channel after funding generation \
-                         fail: {close_err:?}, funding err: {create_err:#}")
+                        "Force close failed after funding generation failed: \
+                        create_err: {create_err:#}; close_err: {close_err:?}"
+                    )
                 })
-            {
-                return EventHandleError::Fatal(close_err);
-            }
+                // Force closing the channel should not fail.
+                .map_err(EventHandleError::Fatal)?;
 
             // Failing to build the funding tx is tolerable.
-            EventHandleError::Tolerable(create_err)
+            Err(EventHandleError::Tolerable(create_err))
         })?;
 
     use lightning::util::errors::APIError;
     match channel_manager.funding_transaction_generated(
-        &temporary_channel_id,
-        &counterparty_node_id,
+        temporary_channel_id,
+        counterparty_node_id,
         signed_raw_funding_tx,
     ) {
         Ok(()) => test_event_tx.send(TestEvent::FundingGenerationHandled),

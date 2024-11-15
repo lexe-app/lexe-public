@@ -38,8 +38,12 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use common::{
-    api::NodePk, cli::LspInfo, ln::channel::LxChannelId,
-    shutdown::ShutdownChannel, task::LxTask, test_event::TestEvent,
+    api::NodePk,
+    cli::LspInfo,
+    ln::{channel::LxChannelId, payments::LxPaymentHash},
+    shutdown::ShutdownChannel,
+    task::LxTask,
+    test_event::TestEvent,
 };
 use lexe_ln::{
     channel::ChannelEventsBus,
@@ -51,7 +55,7 @@ use lexe_ln::{
     traits::LexeEventHandler,
     wallet::LexeWallet,
 };
-use lightning::events::{Event, PaymentFailureReason};
+use lightning::events::{Event, PaymentFailureReason, ReplayEvent};
 use tracing::{error, info, warn, Instrument};
 
 use crate::{alias::PaymentsManagerType, channel_manager::NodeChannelManager};
@@ -76,8 +80,17 @@ pub(crate) struct EventCtx {
 }
 
 impl LexeEventHandler for NodeEventHandler {
-    fn get_ldk_handler_future(&self, event: Event) -> impl Future<Output = ()> {
-        self.handle_event(event)
+    #[allow(clippy::manual_async_fn)] // Be more explicit re LDK's API.
+    fn get_ldk_handler_future(
+        &self,
+        event: Event,
+    ) -> impl Future<Output = Result<(), ReplayEvent>> {
+        async {
+            self.handle_event(event).await;
+            // TODO(max): Switch to the new `ReplayEvent` API;
+            // the above fn should return `Result<(), ReplayEvent>`.
+            Ok(())
+        }
     }
 }
 
@@ -122,6 +135,8 @@ async fn handle_event_inner(
             funding_satoshis: _,
             push_msat: _,
             channel_type: _,
+            is_announced: _,
+            params: _,
         } => {
             // Only accept inbound channels from Lexe's LSP
             let counterparty_node_pk = NodePk(counterparty_node_id);
@@ -138,6 +153,7 @@ async fn handle_event_inner(
                     .force_close_without_broadcasting_txn(
                         &temporary_channel_id,
                         &counterparty_node_id,
+                        "User only accepts channels from Lexe's LSP".to_owned(),
                     )
                     .map_err(|e| anyhow!("{e:?}"))
                     .context("Couldn't reject channel from unknown LSP")
@@ -177,6 +193,18 @@ async fn handle_event_inner(
             channel_value_satoshis,
             output_script,
         )?,
+
+        // This event is only emitted if we use
+        // `ChannelManager::unsafe_manual_funding_transaction_generated`.
+        Event::FundingTxBroadcastSafe {
+            channel_id,
+            funding_txo,
+            counterparty_node_id,
+            ..
+        } => error!(
+            %channel_id, %funding_txo, %counterparty_node_id,
+            "Somehow received FundingTxBroadcastSafe"
+        ),
 
         Event::ChannelPending {
             channel_id,
@@ -255,6 +283,7 @@ async fn handle_event_inner(
             htlcs: _,
             // TODO(max): We probably want to use this to get JIT on-chain fees?
             sender_intended_total_msat: _,
+            onion_fields: _,
         } => {
             ctx.payments_manager
                 .payment_claimed(payment_hash.into(), amount_msat, purpose)
@@ -276,10 +305,9 @@ async fn handle_event_inner(
             debug_assert!(false);
         }
 
-        Event::InvoiceRequestFailed { payment_id } => {
-            // TODO(max): Revisit once we implement BOLT 12
-            error!(%payment_id, "Invoice request failed");
-        }
+        // TODO(max): Revisit for BOLT 12
+        Event::InvoiceReceived { payment_id, .. } =>
+            error!(%payment_id, "Somehow received InvoiceReceived"),
 
         Event::PaymentSent {
             payment_id: _,
@@ -308,9 +336,12 @@ async fn handle_event_inner(
                 reason.unwrap_or(PaymentFailureReason::RetriesExhausted);
             let failure = LxOutboundPaymentFailure::from(reason);
             warn!("Payment failed: {failure:?}");
+            // TODO(max): Remove .expect() for BOLT 12, handle bolt 12 client id
+            let hash = payment_hash.expect("Only None for BOLT 12");
+            let hash = LxPaymentHash::from(hash);
             ctx.test_event_tx.send(TestEvent::PaymentFailed);
             ctx.payments_manager
-                .payment_failed(payment_hash.into(), failure)
+                .payment_failed(hash.into(), failure)
                 .await
                 .context("Error handling PaymentFailed")
                 // Don't want to end up with a 'hung' payment state
@@ -399,6 +430,17 @@ async fn handle_event_inner(
         Event::BumpTransaction(_) => {
             // TODO(max): Implement this once we support anchor outputs
         }
+
+        // We don't use this
+        Event::OnionMessageIntercepted { peer_node_id, .. } => error!(
+            %peer_node_id,
+            "Somehow received OnionMessageIntercepted"
+        ),
+        // We don't use this
+        Event::OnionMessagePeerConnected { peer_node_id } => error!(
+            %peer_node_id,
+            "Somehow received OnionMessagePeerConnected"
+        ),
     }
 
     Ok(())

@@ -31,7 +31,7 @@ impl Display for LxTxid {
 }
 
 impl FromStr for LxTxid {
-    type Err = bitcoin::hashes::hex::Error;
+    type Err = bitcoin::hex::HexToArrayError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Txid::from_str(s).map(Self)
     }
@@ -44,6 +44,7 @@ impl Ord for LxTxid {
         // find a pair of bytes that are not equal, returning Ordering::Equal if
         // all of the bytes were equal.
         self.0
+            .as_raw_hash()
             .as_byte_array()
             .iter()
             .rev()

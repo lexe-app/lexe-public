@@ -91,13 +91,6 @@ impl fmt::Debug for Hash {
     }
 }
 
-impl secp256k1::ThirtyTwoByteHash for Hash {
-    #[inline]
-    fn into_32(self) -> [u8; 32] {
-        self.into_inner()
-    }
-}
-
 // -- impl Context -- //
 
 impl Context {

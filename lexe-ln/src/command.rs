@@ -1,7 +1,6 @@
-use std::time::Duration;
+use std::{convert::Infallible, time::Duration};
 
 use anyhow::{anyhow, bail, Context};
-use bitcoin::bech32::ToBase32;
 use bitcoin_hashes::{sha256, Hash};
 use common::{
     api::{
@@ -24,6 +23,7 @@ use common::{
         invoice::LxInvoice,
         network::LxNetwork,
     },
+    Apply,
 };
 use futures::Future;
 use lightning::{
@@ -32,7 +32,8 @@ use lightning::{
             PaymentId, RecipientOnionFields, RetryableSendFailure,
             MIN_FINAL_CLTV_EXPIRY_DELTA,
         },
-        ChannelId, PaymentHash,
+        types::ChannelId,
+        PaymentHash,
     },
     routing::router::{PaymentParameters, RouteHint, RouteParameters, Router},
     sign::{NodeSigner, Recipient},
@@ -98,8 +99,15 @@ where
     let num_channels = channels.len();
     let num_usable_channels = channels.iter().filter(|c| c.is_usable).count();
 
-    let lightning_balance_msat = channels.iter().map(|c| c.balance_msat).sum();
-    let lightning_balance = Amount::from_msat(lightning_balance_msat);
+    let ignored = [];
+    let lightning_balance_sat = chain_monitor
+        .get_claimable_balances(&ignored)
+        .into_iter()
+        .map(|balance| balance.claimable_amount_satoshis())
+        .sum();
+    let lightning_balance = Amount::try_from_sats_u64(lightning_balance_sat)
+        .expect("Lightning balance overflow");
+
     let num_peers = peer_manager.list_peers().len();
 
     let onchain_balance = wallet.get_balance();
@@ -124,7 +132,10 @@ where
 }
 
 #[instrument(skip_all, name = "(list-channels)")]
-pub fn list_channels<CM, PS>(channel_manager: &CM) -> ListChannelsResponse
+pub fn list_channels<CM, PS>(
+    channel_manager: &CM,
+    chain_monitor: &LexeChainMonitorType<PS>,
+) -> anyhow::Result<ListChannelsResponse>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
@@ -132,9 +143,49 @@ where
     let channels = channel_manager
         .list_channels()
         .into_iter()
-        .map(LxChannelDetails::from)
-        .collect::<Vec<_>>();
-    ListChannelsResponse { channels }
+        .map(|details| {
+            // `ChannelDetails::balance_msat` was removed in LDK 0.0.124.
+            // `{ChainMonitor, ChannelMonitor}::get_claimable_balances` is now
+            // the 'correct' way to obtain our current balance.
+            let channel_balance = match details.funding_txo.as_ref() {
+                Some(funding_txo) => {
+                    let monitor = chain_monitor
+                        // TODO(max): This should take &OutPoint. Can probably
+                        // submit a quick PR for this
+                        .get_monitor(*funding_txo)
+                        .map_err(|()| anyhow!("{funding_txo}"))
+                        .context("Monitor not found")?;
+                    let balance_sat = monitor
+                        .get_claimable_balances()
+                        .iter()
+                        .map(|balance| balance.claimable_amount_satoshis())
+                        .sum();
+                    Amount::try_from_sats_u64(balance_sat)
+                        .context("Balance overflow")?
+                }
+                None => {
+                    // No way to call `get_claimable_balances` for this channel.
+                    // Approximate our channel balance by summing our outbound
+                    // capacity + unspendable punishment reserve.
+                    let outbound_capacity =
+                        Amount::from_msat(details.outbound_capacity_msat);
+                    let reserve_sat = details
+                        .unspendable_punishment_reserve
+                        .unwrap_or(0)
+                        .apply(Amount::try_from_sats_u64)
+                        .with_context(|| details.channel_id)
+                        .context("Reserve overflow")?;
+                    outbound_capacity + reserve_sat
+                }
+            };
+
+            let channel_id = details.channel_id;
+            LxChannelDetails::from_details_and_balance(details, channel_balance)
+                .context(channel_id)
+        })
+        .collect::<anyhow::Result<Vec<LxChannelDetails>>>()
+        .context("Error listing channel details")?;
+    Ok(ListChannelsResponse { channels })
 }
 
 /// Open and fund a new channel with `channel_value` and `counterparty_node_pk`.
@@ -217,8 +268,7 @@ where
     // Check if we actually have enough on-chain funds for this channel +
     // on-chain fees. This check isn't safety critical; it just lets us quickly
     // avoid a lot of unnecessary work.
-    let _fees =
-        wallet.preflight_channel_funding_tx(channel_value.sats_u64())?;
+    let _fees = wallet.preflight_channel_funding_tx(channel_value)?;
 
     // Ensure channel counterparty is connected.
     ensure_counterparty_connected()
@@ -294,8 +344,7 @@ pub async fn preflight_open_channel(
     wallet: &LexeWallet,
     req: PreflightOpenChannelRequest,
 ) -> anyhow::Result<PreflightOpenChannelResponse> {
-    let fee_estimate =
-        wallet.preflight_channel_funding_tx(req.value.sats_u64())?;
+    let fee_estimate = wallet.preflight_channel_funding_tx(req.value)?;
     Ok(PreflightOpenChannelResponse { fee_estimate })
 }
 
@@ -353,11 +402,8 @@ where
     if !force_close {
         ensure_counterparty_connected(counterparty)
             .await
-            .with_context(|| {
-                format!(
-                    "Failed to connect to channel counterparty: {counterparty}"
-                )
-            })?;
+            .with_context(|| format!("{counterparty}"))
+            .context("Failed to connect to channel counterparty")?;
     }
 
     // Start subscribing to ChannelEvents.
@@ -368,22 +414,19 @@ where
         // Co-operative close
         channel_manager
             .close_channel(&ln_channel_id, &counterparty.0)
-            .map_err(|err| {
-                anyhow!(
-                "Channel manager failed to begin cooperative channel close: \
-                 {err:?}"
-            )
-            })?;
+            .map_err(|e| anyhow!("{e:?}"))
+            .context("Channel manager failed to begin coop channel close")?;
     } else {
         // Force close
+        let error_msg = "User-initiated force close".to_owned();
         channel_manager
             .force_close_broadcasting_latest_txn(
                 &ln_channel_id,
                 &counterparty.0,
+                error_msg,
             )
-            .map_err(|e| {
-                anyhow!("Channel manager failed to force close channel: {e:?}")
-            })?;
+            .map_err(|e| anyhow!("{e:?}"))
+            .context("Channel manager failed to force close channel")?;
     }
 
     // Wait for the corresponding ChannelClosed event
@@ -470,9 +513,7 @@ where
             req.expiry_secs,
             Some(cltv_expiry),
         )
-        .map_err(|()| {
-            anyhow!("Supplied msat amount > total bitcoin supply!")
-        })?;
+        .map_err(|()| anyhow!("Supplied amount > total bitcoin supply!"))?;
     let preimage = channel_manager
         .get_payment_preimage(hash, secret)
         .map_err(|e| anyhow!("Could not get preimage: {e:?}"))?;
@@ -522,20 +563,13 @@ where
     // Build, sign, and return the invoice
     let raw_invoice =
         builder.build_raw().context("Could not build raw invoice")?;
-    let hr_part_str = raw_invoice.hrp.to_string();
-    let data_part_base32 = raw_invoice.data.to_base32();
     let recipient = Recipient::Node;
+    let raw_invoice_signature = keys_manager
+        .sign_invoice(&raw_invoice, recipient)
+        .map_err(|()| anyhow!("Failed to sign invoice"))?;
     let signed_raw_invoice = raw_invoice
-        .sign(|_| {
-            keys_manager
-                .sign_invoice(
-                    hr_part_str.as_bytes(),
-                    &data_part_base32,
-                    recipient,
-                )
-                .map_err(|()| anyhow!("Failed to sign invoice"))
-        })
-        .context("Failed to sign invoice")?;
+        .sign(|_| Ok::<_, Infallible>(raw_invoice_signature))
+        .expect("Infallible");
     let invoice = Bolt11Invoice::from_signed(signed_raw_invoice)
         .map(LxInvoice)
         .context("Invoice was semantically incorrect")?;
@@ -579,7 +613,7 @@ where
         payments_manager,
     )
     .await?;
-    let payment_hash = payment.hash;
+    let hash = payment.hash;
 
     let payment = Payment::from(payment);
     let created_at = payment.created_at();
@@ -594,14 +628,14 @@ where
     // Send the payment, letting LDK handle payment retries, and match on the
     // result, registering a failure with the payments manager if appropriate.
     match channel_manager.send_payment(
-        PaymentHash::from(payment_hash),
+        PaymentHash::from(hash),
         recipient_fields,
-        PaymentId::from(payment_hash),
+        PaymentId::from(hash),
         route_params,
         OUTBOUND_PAYMENT_RETRY_STRATEGY,
     ) {
         Ok(()) => {
-            info!(hash = %payment_hash, "Success: OIP initiated immediately");
+            info!(%hash, "Success: OIP initiated immediately");
             Ok(PayInvoiceResponse { created_at })
         }
         Err(RetryableSendFailure::DuplicatePayment) => {
@@ -609,9 +643,7 @@ where
             // for uniqueness when registering the new payment above. If it
             // somehow does, we should let the first payment follow its course,
             // and wait for a PaymentSent or PaymentFailed event.
-            Err(anyhow!(
-                "Somehow got DuplicatePayment error (OIP {payment_hash})"
-            ))
+            Err(anyhow!("Somehow got DuplicatePayment error (OIP {hash})"))
         }
         Err(RetryableSendFailure::PaymentExpired) => {
             // We've already checked the expiry of the invoice to be paid, but
@@ -619,10 +651,10 @@ where
             // returned, LDK does not track the payment and thus will not emit a
             // PaymentFailed later, so we should fail the payment now.
             payments_manager
-                .payment_failed(payment_hash, LxOutboundPaymentFailure::Expired)
+                .payment_failed(hash.into(), LxOutboundPaymentFailure::Expired)
                 .await
                 .context("(PaymentExpired) Could not register failure")?;
-            Err(anyhow!("LDK returned PaymentExpired (OIP {payment_hash})"))
+            Err(anyhow!("LDK returned PaymentExpired (OIP {hash})"))
         }
         Err(RetryableSendFailure::RouteNotFound) => {
             // It appears that if this variant is returned, LDK does not track
@@ -630,10 +662,24 @@ where
             // If the user wants to retry, they'll need to ask the recipient to
             // generate a new invoice. TODO(max): Is this really what we want?
             payments_manager
-                .payment_failed(payment_hash, LxOutboundPaymentFailure::NoRoute)
+                .payment_failed(hash.into(), LxOutboundPaymentFailure::NoRoute)
                 .await
                 .context("(RouteNotFound) Could not register failure")?;
-            Err(anyhow!("LDK returned RouteNotFound (OIP {payment_hash})"))
+            Err(anyhow!("LDK returned RouteNotFound (OIP {hash})"))
+        }
+        Err(RetryableSendFailure::OnionPacketSizeExceeded) => {
+            // If the metadata causes us to exceed the maximum onion packet
+            // size, it probably isn't possible to pay this. Fail the payment.
+            payments_manager
+                .payment_failed(
+                    hash.into(),
+                    LxOutboundPaymentFailure::MetadataTooLarge,
+                )
+                .await
+                .context(
+                    "(OnionPacketSizeExceeded) Could not register failure",
+                )?;
+            Err(anyhow!("LDK returned OnionPacketSizeExceeded (OIP {hash})"))
         }
     }
 }

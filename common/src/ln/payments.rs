@@ -186,6 +186,7 @@ pub struct PaymentIndex {
 /// - On-chain sends use a [`ClientPaymentId`] as their id.
 /// - On-chain receives use their [`LxTxid`] as their id.
 /// - Lightning payments use their [`LxPaymentHash`] as their id.
+/// - TODO(max): Revisit most appropriate ID type for BOLT 12
 ///
 /// NOTE that this is NOT a drop-in replacement for LDK's [`PaymentId`], since
 /// [`PaymentId`] is Lightning-specific, whereas [`LxPaymentId`] is not.
@@ -466,12 +467,9 @@ impl From<LxPaymentSecret> for PaymentSecret {
     }
 }
 
-// As recommended by LDK, we use LxPaymentHash as our PaymentId
-impl From<PaymentId> for LxPaymentHash {
-    fn from(id: PaymentId) -> Self {
-        Self(id.0)
-    }
-}
+// For BOLT11 payments, we use LxPaymentHash as our PaymentId.
+// For BOLT12 payments, we use a client-generated id.
+// TODO(max): Revisit for BOLT 12: Use separate Bolt12PaymentId?
 impl From<LxPaymentHash> for PaymentId {
     fn from(hash: LxPaymentHash) -> Self {
         Self(hash.0)

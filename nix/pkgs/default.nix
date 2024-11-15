@@ -114,7 +114,7 @@
   # $ nix build --keep-going -L .#_dbg.systemLexePubPkgs.x86_64-linux.cargoVendorDir
   # ```
   gitDepOutputHashes = {
-    "git+https://github.com/arik-so/rust-musig2?rev=cff11e3#cff11e3b1af1691f721a120dc6acb921afa31f89" = "sha256-++1x7uHHR7KEhl8LF3VywooULiTzKeDu3e+0/c/8p9Y=";
+    "git+https://github.com/arik-so/rust-musig2?rev=6f95a05718cbb44d8fe3fa6021aea8117aa38d50#6f95a05718cbb44d8fe3fa6021aea8117aa38d50" = "sha256-+ksLhW4rXHDmi6xkPHrWAUdMvkm1cM/PBuJUnTt0vQk=";
     "git+https://github.com/lexe-app/axum-server?branch=lexe-v0.6.0-2024_10_11#ef4876f298eb963702704e5a6d976d304c145c1d" = "sha256-8jhdcSpI59Sf/Jg7zEI+QtJHSrhiWr5E+T2BnHD8Tjk=";
     "git+https://github.com/lexe-app/bdk?branch=lexe-v0.29.0-2024_10_11#b88e742008843707495de3634fb6bd5fe37e3da1" = "sha256-jSMYKVlrmgyFXjbWIwTpHB17SypqJn/TLne6uIdgYJ0=";
     "git+https://github.com/lexe-app/hyper-util?branch=lexe-v0.1.5-2024_10_11#5e6597befadd773ff7616248eb09d60339312bc1" = "sha256-QNhWHakQBKdYXMAnmWhgXyyg3LulgqYCWZggjl7tm7s=";
@@ -124,7 +124,8 @@
     "git+https://github.com/lexe-app/reqwest?branch=lexe-v0.12.1-2024_10_11#2158f1ce3ef0df20fb646571f61caf8ba5a5b4ca" = "sha256-ADMgL4ivs63GJOp3OPQ4PWJslkA8w7/qtb40gYeIwP4=";
     "git+https://github.com/lexe-app/ring?branch=lexe-v0.16.20-2024_10_11#46842781024ab26ae8d4a77ac13153bd5ec013e3" = "sha256-LhbkszM16JzoucXH3vewzSn4WE+q/Zo1aCAdlqmh+BI=";
     "git+https://github.com/lexe-app/ring?branch=lexe-v0.17.8-2024_10_11#db1b9833cf8f80b6eb3445857846978497d80e66" = "sha256-Cw/yD0ebBhTUX7yQftHP0nNtm1bX626wTPeL2cC4wDw=";
-    "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.123-2024_10_11#58b164a15282de6f5de72fffa6c6a5deb1cfc800" = "sha256-UnX3fksCFTzHxNrTH8RcrnBWy1bj+hR2HWr5X9peQAk=";
+    "git+https://github.com/lexe-app/rust-esplora-client?branch=lexe-v0.10.0-2024_11_14#aab0b6a230e4b27ad83e1d92ba00c4df1a05ea53" = "sha256-YzpAxKpRsgneaqvQvoTZMDDv5QRruhaIliTgvemmcUA=";
+    "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.125-2024_11_14#752c2e52227729cfb9c6172c96fcd00ef55d8db8" = "sha256-oTSjTEzMygmHaDQZ2aGFJBOssiqO1ux0LwOQVcJLsvw=";
     "git+https://github.com/lexe-app/rust-sgx?branch=lexe-30cfd65c-2024_08_29#30cfd65c2b537c4330d6702f3f692762cc7fe1a6" = "sha256-NVGQ+n0NY/UYHiav6BiSmkeFCeyKSDMtG6hPQ8MIQJ0=";
     "git+https://github.com/lexe-app/tokio?branch=lexe-v1.36.0-2024_10_11#f6d1d554668fe7530007e1a624e9d46d8755dfd6" = "sha256-ZUoZHJC9OZthqtFKu4WdrBgyr7QSKxoQCCUtcOc9kvU=";
   };
@@ -184,8 +185,8 @@
           builtins.throw ''
             Error: missing an output hash for this cargo git dependency: ${builtins.toJSON package}
 
-            Try adding a new placeholder entry to `gitDepOutputHashes` in `nix/pkgs/default.nix`
-            and re-running the build:
+            Try adding a new placeholder entry to `gitDepOutputHashes` in
+            `public/nix/pkgs/default.nix` and re-running the build:
 
             gitDepOutputHashes = {
               # ...

@@ -263,7 +263,7 @@ mod arbitrary_impl {
     /// Un-builder-ify the [`InvoiceBuilder`] API, since the extra type params
     /// get in the way when generating via proptest. Only used during testing.
     pub(super) fn gen_invoice(
-        node_key_pair: secp256k1::KeyPair,
+        node_key_pair: secp256k1::Keypair,
         network: LxNetwork,
         description_or_hash: Result<String, [u8; 32]>,
         timestamp: Duration,

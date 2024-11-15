@@ -3,7 +3,7 @@ use std::{fmt, str::FromStr};
 use anyhow::{bail, ensure, Context};
 use bip39::{Language, Mnemonic};
 use bitcoin::{
-    bip32::{ChildNumber, ExtendedPrivKey},
+    bip32::{self, ChildNumber},
     secp256k1, Network,
 };
 use secrecy::{zeroize::Zeroizing, ExposeSecret, Secret, SecretVec};
@@ -131,11 +131,8 @@ impl RootSeed {
     /// Derive the BIP32 master xprv used for the BDK (on-chain) wallet as well
     /// as in an intermediate step when deriving the LDK seed. See `LexeWallet`
     /// init and `LexeKeysManager` init respectively for details.
-    pub fn derive_bip32_master_xprv(
-        &self,
-        network: Network,
-    ) -> ExtendedPrivKey {
-        ExtendedPrivKey::new_master(network, self.0.expose_secret())
+    pub fn derive_bip32_master_xprv(&self, network: Network) -> bip32::Xpriv {
+        bip32::Xpriv::new_master(network, self.0.expose_secret())
             .expect("Should never fail")
     }
 
@@ -151,7 +148,7 @@ impl RootSeed {
         let m_535h =
             ChildNumber::from_hardened_idx(535).expect("Is within [0, 2^31-1]");
         let ldk_xprv = master_xprv
-            .ckd_priv(&secp_ctx, m_535h)
+            .derive_priv(&secp_ctx, &m_535h)
             .expect("Should always succeed");
 
         Secret::new(ldk_xprv.private_key.secret_bytes())
@@ -162,13 +159,13 @@ impl RootSeed {
     pub fn derive_node_key_pair<R: Crng>(
         &self,
         rng: &mut R,
-    ) -> secp256k1::KeyPair {
+    ) -> secp256k1::Keypair {
         // Derive the LDK seed first.
         let ldk_seed = self.derive_ldk_seed(rng);
 
         // When deriving a secp256k1 key, the network doesn't matter.
         // This is checked in when_does_network_matter.
-        let ldk_xprv = ExtendedPrivKey::new_master(
+        let ldk_xprv = bip32::Xpriv::new_master(
             Network::Bitcoin,
             ldk_seed.expose_secret(),
         )
@@ -178,11 +175,11 @@ impl RootSeed {
         let m_0h = ChildNumber::from_hardened_idx(0)
             .expect("should never fail; index is in range");
         let node_sk = ldk_xprv
-            .ckd_priv(&secp_ctx, m_0h)
+            .derive_priv(&secp_ctx, &m_0h)
             .expect("should never fail")
             .private_key;
 
-        secp256k1::KeyPair::from_secret_key(&secp_ctx, &node_sk)
+        secp256k1::Keypair::from_secret_key(&secp_ctx, &node_sk)
     }
 
     /// Convenience function to derive the Lightning node pubkey.
@@ -404,6 +401,7 @@ mod test_impls {
 
 #[cfg(test)]
 mod test {
+    use bitcoin::NetworkKind;
     use proptest::{
         arbitrary::any, collection::vec, prop_assert_eq, proptest,
         strategy::Strategy, test_runner::Config,
@@ -584,10 +582,9 @@ mod test {
     }
 
     /// A series of tests that demonstrate when the [`LxNetwork`] affects the
-    /// partial equality of key material at various stages of derivation. This
-    /// helps ensure that the APIs of our derivation methods are correct;
-    /// [`LxNetwork`] should be required when it is needed and set to a default
-    /// when it is not.
+    /// partial equality of key material at various stages of derivation.
+    /// This helps determine whether our APIs should take a [`Network`] as a
+    /// parameter, or if setting a default would be sufficient.
     #[test]
     fn when_does_network_matter() {
         proptest!(|(
@@ -598,27 +595,31 @@ mod test {
         )| {
             let network1 = network1.to_bitcoin();
             let network2 = network2.to_bitcoin();
+            let network_kind1 = NetworkKind::from(network1);
+            let network_kind2 = NetworkKind::from(network2);
             let secp_ctx = rng.gen_secp256k1_ctx();
 
-            // Network DOES matter for master xprvs (and all xprvs in general).
+            // Network DOES matter for master xprvs (and all xprvs in general),
+            // but only to the extent that their `NetworkKind` is different.
+            // i.e. a `Signet` and `Testnet` xprv may be considered the same.
             let master_xprv1 = root_seed.derive_bip32_master_xprv(network1);
             let master_xprv2 = root_seed.derive_bip32_master_xprv(network2);
-            // The following asserts:  "master xprvs equal iff networks equal"
+            // Assert: "master xprvs are equal iff network kinds are equal"
             let master_xprvs_equal = master_xprv1 == master_xprv2;
-            let networks_equal = network1 == network2;
-            prop_assert_eq!(master_xprvs_equal, networks_equal);
+            let network_kinds_equal = network_kind1 == network_kind2;
+            prop_assert_eq!(master_xprvs_equal, network_kinds_equal);
 
             // Test derive_ldk_seed(): The [u8; 32] LDK seed should be the same
             // regardless of the network of the master_xprv it was based on
             let m_535h = ChildNumber::from_hardened_idx(535)
                 .expect("Is within [0, 2^31-1]");
             let ldk_seed1 = master_xprv1
-                .ckd_priv(&secp_ctx, m_535h)
+                .derive_priv(&secp_ctx, &m_535h)
                 .expect("Should always succeed")
                 .private_key
                 .secret_bytes();
             let ldk_seed2 = master_xprv2
-                .ckd_priv(&secp_ctx, m_535h)
+                .derive_priv(&secp_ctx, &m_535h)
                 .expect("Should always succeed")
                 .private_key
                 .secret_bytes();
@@ -626,32 +627,32 @@ mod test {
             let ldk_seed = ldk_seed1;
 
             // Test derive_node_key_pair() and derive_node_pk(): The outputted
-            // secp256k1::KeyPair should be the same regardless of the network
+            // secp256k1::Keypair should be the same regardless of the network
             // of the ldk_xprv it was based on
-            let ldk_xprv1 = ExtendedPrivKey::new_master(network1, &ldk_seed)
+            let ldk_xprv1 = bip32::Xpriv::new_master(network1, &ldk_seed)
                 .expect("Should never fail");
-            let ldk_xprv2 = ExtendedPrivKey::new_master(network2, &ldk_seed)
+            let ldk_xprv2 = bip32::Xpriv::new_master(network2, &ldk_seed)
                 .expect("Should never fail");
-            // Network matters for xprvs: "ldk_xprvs equal iff networks equal"
+            // Assert: "ldk_xprvs are equal iff network kinds are equal"
             let ldk_xprvs_equal = ldk_xprv1 == ldk_xprv2;
-            prop_assert_eq!(ldk_xprvs_equal, networks_equal);
+            prop_assert_eq!(ldk_xprvs_equal, network_kinds_equal);
             // First check the node_sks
             let m_0h = ChildNumber::from_hardened_idx(0)
                 .expect("should never fail; index is in range");
             let node_sk1 = ldk_xprv1
-                .ckd_priv(&secp_ctx, m_0h)
+                .derive_priv(&secp_ctx, &m_0h)
                 .expect("should never fail")
                 .private_key;
             let node_sk2 = ldk_xprv2
-                .ckd_priv(&secp_ctx, m_0h)
+                .derive_priv(&secp_ctx, &m_0h)
                 .expect("should never fail")
                 .private_key;
             prop_assert_eq!(node_sk1, node_sk2);
             // Then check the keypairs
             let keypair1 =
-                secp256k1::KeyPair::from_secret_key(&secp_ctx, &node_sk1);
+                secp256k1::Keypair::from_secret_key(&secp_ctx, &node_sk1);
             let keypair2 =
-                secp256k1::KeyPair::from_secret_key(&secp_ctx, &node_sk2);
+                secp256k1::Keypair::from_secret_key(&secp_ctx, &node_sk2);
             prop_assert_eq!(keypair1, keypair2);
             // Then check the node_pks
             let node_pk1 = NodePk(secp256k1::PublicKey::from(keypair1));

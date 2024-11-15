@@ -126,7 +126,7 @@ impl LxOffer {
     pub fn amount(&self) -> Option<Amount> {
         match self.0.amount()? {
             offer::Amount::Bitcoin { amount_msats } =>
-                Some(Amount::from_msat(*amount_msats)),
+                Some(Amount::from_msat(amount_msats)),
             offer::Amount::Currency { .. } => None,
         }
     }
@@ -140,7 +140,7 @@ impl LxOffer {
             offer::Amount::Currency {
                 iso4217_code,
                 amount,
-            } => Some((*iso4217_code, *amount)),
+            } => Some((iso4217_code, amount)),
         }
     }
 
@@ -194,10 +194,20 @@ impl fmt::Display for LxBolt12ParseError {
 mod arb {
     use std::{num::NonZeroU64, time::Duration};
 
+    use bitcoin::hashes::{Hash, Hmac};
     use lightning::{
-        blinded_path::BlindedPath,
-        ln::inbound_payment::ExpandedKey,
-        offers::offer::{OfferBuilder, Quantity},
+        blinded_path::message::{
+            BlindedMessagePath, MessageContext, MessageForwardNode,
+            OffersContext,
+        },
+        ln::{
+            channelmanager::PaymentId, inbound_payment::ExpandedKey,
+            PaymentHash,
+        },
+        offers::{
+            nonce::Nonce,
+            offer::{OfferBuilder, Quantity},
+        },
         sign::KeyMaterial,
     };
     use proptest::{
@@ -213,36 +223,93 @@ mod arb {
         test_utils::arbitrary::{self, any_option_string},
     };
 
+    fn any_offers_context() -> impl Strategy<Value = OffersContext> {
+        fn any_nonce() -> impl Strategy<Value = Nonce> {
+            any::<WeakRng>()
+                .prop_map(|mut rng| Nonce::from_entropy_source(&mut rng))
+        }
+        fn any_payment_id() -> impl Strategy<Value = PaymentId> {
+            any::<[u8; 32]>().prop_map(PaymentId)
+        }
+        fn any_hmac_sha256(
+        ) -> impl Strategy<Value = Hmac<bitcoin::hashes::sha256::Hash>>
+        {
+            any::<[u8; 32]>().prop_map(Hmac::from_byte_array)
+        }
+        fn any_payment_hash() -> impl Strategy<Value = PaymentHash> {
+            any::<[u8; 32]>().prop_map(PaymentHash)
+        }
+
+        let any_maybe_hmac = option::of(any_hmac_sha256());
+
+        prop_oneof![
+            any_nonce()
+                .prop_map(|nonce| OffersContext::InvoiceRequest { nonce }),
+            (any_payment_id(), any_nonce(), any_maybe_hmac).prop_map(
+                |(payment_id, nonce, hmac)| {
+                    OffersContext::OutboundPayment {
+                        payment_id,
+                        nonce,
+                        hmac,
+                    }
+                }
+            ),
+            any_payment_hash().prop_map(|payment_hash| {
+                OffersContext::InboundPayment { payment_hash }
+            }),
+        ]
+    }
+
+    fn any_message_context() -> impl Strategy<Value = MessageContext> {
+        prop_oneof![
+            any_offers_context().prop_map(MessageContext::Offers),
+            any::<Vec<u8>>().prop_map(MessageContext::Custom),
+        ]
+    }
+
+    fn any_vec_message_forward_node(
+    ) -> impl Strategy<Value = Vec<MessageForwardNode>> {
+        let any_message_forward_node =
+            (arbitrary::any_secp256k1_pubkey(), option::of(any::<u64>()))
+                .prop_map(|(node_id, short_channel_id)| MessageForwardNode {
+                    node_id,
+                    short_channel_id,
+                });
+        proptest::collection::vec(any_message_forward_node, 0..4)
+    }
+
     impl Arbitrary for LxOffer {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            let rng = any::<WeakRng>();
-            let network = any::<Option<LxNetwork>>();
-            let is_blinded = any::<bool>();
-            let description = arbitrary::any_option_string();
-            let amount = any::<Option<Amount>>();
-            let expiry = arbitrary::any_option_duration();
-            let issuer = any_option_string();
-            let quantity = option::of(prop_oneof![
+            let any_rng = any::<WeakRng>();
+            let any_network = any::<Option<LxNetwork>>();
+            let any_is_blinded = any::<bool>();
+            let any_description = arbitrary::any_option_string();
+            let any_amount = any::<Option<Amount>>();
+            let any_expiry = arbitrary::any_option_duration();
+            let any_issuer = any_option_string();
+            let any_quantity = option::of(prop_oneof![
                 any::<NonZeroU64>().prop_map(Quantity::Bounded),
                 Just(Quantity::Unbounded),
                 Just(Quantity::One),
             ]);
+            let any_message_context = any_message_context();
             // TODO(phlip9): technically there could be more than one path...
-            let path_len = 0_usize..4;
+            let any_intermediate_nodes = any_vec_message_forward_node();
 
             (
-                rng,
-                network,
-                is_blinded,
-                description,
-                amount,
-                expiry,
-                issuer,
-                quantity,
-                path_len,
+                any_rng,
+                any_network,
+                any_is_blinded,
+                any_description,
+                any_amount,
+                any_expiry,
+                any_issuer,
+                any_quantity,
+                any_message_context,
+                any_intermediate_nodes,
             )
                 .prop_map(
                     |(
@@ -254,7 +321,8 @@ mod arb {
                         expiry,
                         issuer,
                         quantity,
-                        path_len,
+                        message_context,
+                        intermediate_nodes,
                     )| {
                         gen_offer(
                             rng,
@@ -265,7 +333,8 @@ mod arb {
                             expiry,
                             issuer,
                             quantity,
-                            path_len,
+                            message_context,
+                            intermediate_nodes.as_slice(),
                         )
                     },
                 )
@@ -284,8 +353,9 @@ mod arb {
         expiry: Option<Duration>,
         issuer: Option<String>,
         quantity: Option<Quantity>,
+        message_context: MessageContext,
         // NOTE: len <= 1 will not set a path
-        path_len: usize,
+        intermediate_nodes: &[MessageForwardNode],
     ) -> LxOffer {
         let root_seed = RootSeed::from_rng(&mut rng);
         let node_pk = root_seed.derive_node_pk(&mut rng);
@@ -295,27 +365,28 @@ mod arb {
 
         let network = network.map(LxNetwork::to_bitcoin);
         let amount = amount.map(|x| x.msat());
-        let path = if path_len >= 2 {
-            let mut node_pks = Vec::new();
-            for _ in 0..path_len {
-                node_pks.push(
-                    RootSeed::from_rng(&mut rng)
-                        .derive_node_pk(&mut rng)
-                        .inner(),
-                );
-            }
-            let path = BlindedPath::new_for_message(&node_pks, &rng, &secp_ctx);
-            Some(path.unwrap())
+        let path = if intermediate_nodes.len() >= 2 {
+            let recipient_node_id = node_pk.inner();
+            let path = BlindedMessagePath::new(
+                intermediate_nodes,
+                recipient_node_id,
+                message_context,
+                &mut rng,
+                &secp_ctx,
+            )
+            .unwrap();
+            Some(path)
         } else {
             None
         };
 
         // each builder constructor returns a different type, hence the copying
         let offer = if is_blinded {
+            let nonce = Nonce::from_entropy_source(&mut rng);
             let mut offer = OfferBuilder::deriving_signing_pubkey(
                 node_pk.inner(),
                 &expanded_key,
-                &mut rng,
+                nonce,
                 &secp_ctx,
             );
             if let Some(network) = network {
@@ -372,6 +443,12 @@ mod arb {
 
 #[cfg(test)]
 mod test {
+    use lightning::{
+        blinded_path::message::{
+            MessageContext, MessageForwardNode, OffersContext,
+        },
+        offers::nonce::Nonce,
+    };
     use proptest::arbitrary::any;
     use test::arb::gen_offer;
 
@@ -438,7 +515,7 @@ mod test {
     #[ignore]
     #[test]
     fn offer_dump() {
-        let rng = WeakRng::from_u64(123);
+        let mut rng = WeakRng::from_u64(123);
 
         // false => use node_pk to sign offer (less privacy)
         // true => derive a signing keypair per offer (add ~50 B per offer).
@@ -450,7 +527,22 @@ mod test {
         let expiry = None;
         let issuer = Some("this is the issuer".to_owned());
         let quantity = None;
-        let path_len = 2;
+        let message_context =
+            MessageContext::Offers(OffersContext::InvoiceRequest {
+                nonce: Nonce::from_entropy_source(&mut rng),
+            });
+        let intermediate_nodes = vec![
+            MessageForwardNode {
+                node_id: arbitrary::gen_value(&mut rng, any::<NodePk>())
+                    .inner(),
+                short_channel_id: None,
+            },
+            MessageForwardNode {
+                node_id: arbitrary::gen_value(&mut rng, any::<NodePk>())
+                    .inner(),
+                short_channel_id: None,
+            },
+        ];
 
         let offer = gen_offer(
             rng,
@@ -461,7 +553,8 @@ mod test {
             expiry,
             issuer,
             quantity,
-            path_len,
+            message_context,
+            intermediate_nodes.as_slice(),
         );
         let offer_str = offer.to_string();
         let offer_len = offer_str.len();

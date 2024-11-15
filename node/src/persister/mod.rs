@@ -14,13 +14,12 @@ use common::{
     },
     constants::{
         self, CHANNEL_MANAGER_FILENAME, PW_ENC_ROOT_SEED_FILENAME,
-        SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
+        SINGLETON_DIRECTORY, WALLET_CHANGESET_FILENAME,
     },
     ln::{
         channel::LxOutPoint,
         payments::{BasicPayment, DbPayment, LxPaymentId, PaymentIndex},
     },
-    notify,
     rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
     task::LxTask,
@@ -42,14 +41,12 @@ use lexe_ln::{
     },
     persister,
     traits::LexeInnerPersister,
-    wallet::db::{ChangeSet, WalletDb},
+    wallet::ChangeSet,
 };
 use lightning::{
     chain::{
-        chainmonitor::{MonitorUpdateId, Persist},
-        channelmonitor::ChannelMonitorUpdate,
-        transaction::OutPoint,
-        ChannelMonitorUpdateStatus,
+        chainmonitor::Persist, channelmonitor::ChannelMonitorUpdate,
+        transaction::OutPoint, ChannelMonitorUpdateStatus,
     },
     ln::channelmanager::ChannelManagerReadArgs,
     util::ser::{ReadableArgs, Writeable},
@@ -323,44 +320,34 @@ impl NodePersister {
             .context("Could not fetch scid")
     }
 
-    pub(crate) async fn read_wallet_db(
+    pub(crate) async fn read_wallet_changeset(
         &self,
-        wallet_db_persister_tx: notify::Sender,
-    ) -> anyhow::Result<WalletDb> {
-        debug!("Reading wallet db");
-        let file_id = VfsFileId::new(SINGLETON_DIRECTORY, WALLET_DB_FILENAME);
+    ) -> anyhow::Result<Option<ChangeSet>> {
+        let file_id =
+            VfsFileId::new(SINGLETON_DIRECTORY, WALLET_CHANGESET_FILENAME);
 
-        let wallet_db = match self.read_bytes(&file_id).await? {
-            Some(bytes) => {
-                debug!("Deserializing existing wallet db");
+        let maybe_changeset =
+            self.read_bytes(&file_id).await?.and_then(|bytes| {
                 match serde_json::from_slice::<ChangeSet>(&bytes) {
-                    Ok(changeset) => WalletDb::from_changeset(
-                        changeset,
-                        wallet_db_persister_tx,
-                    ),
+                    Ok(changeset) => Some(changeset),
                     Err(e) => {
                         // If deserialization fails, just proceed with an empty
-                        // wallet DB, since it isn't safety-critical.
+                        // wallet, since the data will just be `full_sync`'d.
                         // TODO(max): Ideally we log the JSON structure here for
-                        // debuggability, but we need to preserve privacy.
+                        // debugging, but we need to preserve privacy.
                         // let changeset_json =
                         //     String::from_utf8_lossy(&changeset_bytes);
                         error!(
                             // %changeset_json,
-                            "Failed to deserialize wallet db!! \
-                             Proceeding with empty wallet db: {e:#}"
+                            "Failed to deserialize wallet changeset!! \
+                             Proceeding with empty wallet: {e:#}"
                         );
-                        WalletDb::empty(wallet_db_persister_tx)
+                        None
                     }
                 }
-            }
-            None => {
-                debug!("No wallet db found, creating an empty one");
-                WalletDb::empty(wallet_db_persister_tx)
-            }
-        };
+            });
 
-        Ok(wallet_db)
+        Ok(maybe_changeset)
     }
 
     pub(crate) async fn read_payments_by_indexes(
@@ -771,10 +758,10 @@ impl Persist<SignerType> for NodePersister {
         &self,
         funding_txo: OutPoint,
         monitor: &ChannelMonitorType,
-        update_id: MonitorUpdateId,
     ) -> ChannelMonitorUpdateStatus {
         let funding_txo = LxOutPoint::from(funding_txo);
-        info!("Persisting new channel {funding_txo}");
+        let update_id = monitor.get_latest_update_id();
+        info!(%funding_txo, %update_id, "Persisting new channel");
 
         let file_id =
             VfsFileId::new(CHANNEL_MONITORS_DIR, funding_txo.to_string());
@@ -803,14 +790,12 @@ impl Persist<SignerType> for NodePersister {
             }
         });
 
-        let sequence_num = None;
         let kind = ChannelMonitorUpdateKind::New;
 
         let update = LxChannelMonitorUpdate {
             funding_txo,
             update_id,
             api_call_fut,
-            sequence_num,
             kind,
         };
 
@@ -837,10 +822,13 @@ impl Persist<SignerType> for NodePersister {
         // TODO: We may want to use the id inside for rollback protection
         update: Option<&ChannelMonitorUpdate>,
         monitor: &ChannelMonitorType,
-        update_id: MonitorUpdateId,
     ) -> ChannelMonitorUpdateStatus {
         let funding_txo = LxOutPoint::from(funding_txo);
-        info!("Updating persisted channel {funding_txo}");
+        let update_id = update
+            .as_ref()
+            .map(|u| u.update_id)
+            .unwrap_or_else(|| monitor.get_latest_update_id());
+        info!(%funding_txo, %update_id, "Updating persisted channel");
 
         let file_id =
             VfsFileId::new(CHANNEL_MONITORS_DIR, funding_txo.to_string());
@@ -864,14 +852,12 @@ impl Persist<SignerType> for NodePersister {
             }
         });
 
-        let sequence_num = update.as_ref().map(|u| u.update_id);
         let kind = ChannelMonitorUpdateKind::Updated;
 
         let update = LxChannelMonitorUpdate {
             funding_txo,
             update_id,
             api_call_fut,
-            sequence_num,
             kind,
         };
 

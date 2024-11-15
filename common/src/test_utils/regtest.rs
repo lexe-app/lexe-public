@@ -1,10 +1,8 @@
 use std::{cmp, env, path::PathBuf, time::Duration};
 
 use anyhow::Context;
-use bitcoin::{
-    address::Payload, hash_types::PubkeyHash, hashes::Hash,
-    network::constants::Network, BlockHash,
-};
+use bitcoin::{BlockHash, Network, PubkeyHash};
+use bitcoin_hashes::Hash;
 use electrsd::{
     bitcoind::{self, bitcoincore_rpc::RpcApi, BitcoinD},
     electrum_client::ElectrumApi,
@@ -238,7 +236,6 @@ impl Regtest {
 /// Helper to get a dummy [`bitcoin::Address`] which blocks can be mined to
 fn get_dummy_address() -> bitcoin::Address {
     let pkh = PubkeyHash::from_byte_array([0; 20]);
-    let payload = Payload::PubkeyHash(pkh);
     let network = Network::Regtest;
-    bitcoin::Address::new(network, payload)
+    bitcoin::Address::p2pkh(pkh, network)
 }

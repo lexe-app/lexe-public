@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::{bail, ensure, Context};
-use bdk::KeychainKind;
+use bdk_wallet::KeychainKind;
 use common::{
     api::qs::UpdatePaymentNote,
     ln::{
@@ -494,15 +494,15 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     #[instrument(skip_all, name = "(payment-failed)")]
     pub async fn payment_failed(
         &self,
-        hash: LxPaymentHash,
+        id: LxPaymentId,
         failure: LxOutboundPaymentFailure,
     ) -> anyhow::Result<()> {
-        info!(%hash, "Handling PaymentFailed");
+        info!(%id, "Handling PaymentFailed");
 
         // Check
         let mut locked_data = self.data.lock().await;
         let checked = locked_data
-            .check_payment_failed(hash, failure)
+            .check_payment_failed(id, failure)
             .context("Error validating PaymentFailed")?;
 
         // Persist
@@ -666,9 +666,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         Ok(())
     }
 
-    /// Queries the [`bdk::Wallet`] to see if there are any onchain receives
-    /// that the [`PaymentsManager`] doesn't yet know about. If so, the
-    /// [`OnchainReceive`] is constructed and registered with the
+    /// Queries the [`bdk_wallet::Wallet`] to see if there are any onchain
+    /// receives that the [`PaymentsManager`] doesn't yet know about. If so,
+    /// the [`OnchainReceive`] is constructed and registered with the
     /// [`PaymentsManager`].
     ///
     /// This function should be called regularly.
@@ -705,10 +705,11 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                         .get_tx(txid)
                         .context("Missing full tx for owned output")?;
                     let raw_tx = canonical_tx.tx_node.tx;
-                    let (_, received) = locked_wallet.sent_and_received(raw_tx);
-                    let amount = Amount::try_from_sats_u64(received)
-                        .context("Overflowed")?;
-                    Ok(OnchainReceive::new(raw_tx.clone(), amount))
+                    let (_, received) =
+                        locked_wallet.sent_and_received(&raw_tx);
+                    let amount =
+                        Amount::try_from(received).context("Overflowed")?;
+                    Ok(OnchainReceive::new(raw_tx, amount))
                 })
                 .collect::<anyhow::Result<Vec<OnchainReceive>>>()?
         };
@@ -909,11 +910,9 @@ impl PaymentsData {
 
     fn check_payment_failed(
         &self,
-        hash: LxPaymentHash,
+        id: LxPaymentId,
         failure: LxOutboundPaymentFailure,
     ) -> anyhow::Result<CheckedPayment> {
-        let id = LxPaymentId::from(hash);
-
         ensure!(
             !self.finalized.contains(&id),
             "Payment was already finalized"
@@ -926,7 +925,7 @@ impl PaymentsData {
 
         let checked = match pending_payment {
             Payment::OutboundInvoice(oip) => oip
-                .check_payment_failed(hash, failure)
+                .check_payment_failed(id, failure)
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error checking outbound invoice payment")?,

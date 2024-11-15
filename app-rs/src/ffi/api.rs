@@ -78,7 +78,7 @@ pub struct Balance {
 impl From<&NodeInfoRs> for Balance {
     fn from(info: &NodeInfoRs) -> Self {
         let lightning_sats = info.lightning_balance.sats_u64();
-        let onchain_sats = info.onchain_balance.get_spendable_sats();
+        let onchain_sats = info.onchain_balance.spendable().to_sat();
         let total_sats = lightning_sats + onchain_sats;
 
         Self {

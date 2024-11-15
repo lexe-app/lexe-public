@@ -69,8 +69,11 @@ pub const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 pub const NETWORK_GRAPH_FILENAME: &str = "network_graph";
 pub const PW_ENC_ROOT_SEED_FILENAME: &str = "password_encrypted_root_seed";
 pub const SCORER_FILENAME: &str = "scorer";
-// We previously used "bdk_wallet_db" for our pre BDK 1.0 wallet DB.
-pub const WALLET_DB_FILENAME: &str = "bdk_wallet_db_v1";
+// Filename history:
+// - "bdk_wallet_db" for our pre BDK 1.0 wallet DB.
+// - "bdk_wallet_db_v1" for our BDK 1.0.0-alpha.X wallet DB.
+// - "bdk_wallet_changeset" since BDK 1.0.0-beta.X.
+pub const WALLET_CHANGESET_FILENAME: &str = "bdk_wallet_changeset";
 
 // --- Networking --- //
 

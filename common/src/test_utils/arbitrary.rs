@@ -1,3 +1,9 @@
+//! This module contains [`Arbitrary`]-like [`Strategy`]s for generating various
+//! non-Lexe types.
+//!
+//! [`Arbitrary`]: proptest::arbitrary::Arbitrary
+//! [`Strategy`]: proptest::strategy::Strategy
+
 use std::{
     net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
     ops::RangeInclusive,
@@ -6,8 +12,8 @@ use std::{
 
 use bitcoin::{
     absolute,
-    address::{self, NetworkUnchecked, Payload},
-    blockdata::{opcodes, script, transaction},
+    address::NetworkUnchecked,
+    blockdata::{script, transaction},
     hashes::{sha256d, Hash},
     script::PushBytesBuf,
     secp256k1, Address, Network, OutPoint, ScriptBuf, ScriptHash, Sequence,
@@ -24,7 +30,7 @@ use lightning::{
 use lightning_invoice::Fallback;
 use proptest::{
     arbitrary::any,
-    prop_oneof,
+    option, prop_oneof,
     strategy::{Just, Strategy, ValueTree},
     test_runner::{Config, RngAlgorithm, TestRng, TestRunner},
 };
@@ -36,7 +42,7 @@ use crate::{
     rng::{RngExt, WeakRng},
 };
 
-// --- Rust types --- ///
+// --- `std` types --- ///
 
 /// Like [`any::<String>()`], but is available inside SGX.
 ///
@@ -73,7 +79,7 @@ pub fn any_string() -> impl Strategy<Value = String> {
 /// }
 /// ```
 pub fn any_option_string() -> impl Strategy<Value = Option<String>> {
-    proptest::option::of(any_string())
+    option::of(any_string())
 }
 
 /// A strategy for simple (i.e. alphanumeric) strings, useful when the contents
@@ -91,7 +97,7 @@ pub fn any_simple_string() -> impl Strategy<Value = String> {
 ///
 /// The option has a 50% probability of being [`Some`].
 pub fn any_option_simple_string() -> impl Strategy<Value = Option<String>> {
-    proptest::option::of(any_simple_string())
+    option::of(any_simple_string())
 }
 
 /// A [`Vec`] version of [`any_simple_string`]. Contains 0-8 strings.
@@ -99,8 +105,7 @@ pub fn any_vec_simple_string() -> impl Strategy<Value = Vec<String>> {
     proptest::collection::vec(any_simple_string(), 0..=8)
 }
 
-/// An `Arbitrary`-like [`Strategy`] for LDK's [`Hostname`] type. `Hostname` is
-/// just a DNS-like string with 1..=255 alphanumeric + '-' + '.' chars.
+/// `Hostname` is a DNS-like string with 1..=255 alphanumeric + '-' + '.' chars.
 pub fn any_hostname() -> impl Strategy<Value = Hostname> {
     static RANGES: &[RangeInclusive<char>; 4] = &[
         '0'..='9',
@@ -165,12 +170,42 @@ pub fn any_duration() -> impl Strategy<Value = Duration> {
 
 /// An [`Option`] version of [`any_duration`] that works inside SGX.
 pub fn any_option_duration() -> impl Strategy<Value = Option<Duration>> {
-    proptest::option::of(any_duration())
+    option::of(any_duration())
+}
+
+// --- General --- //
+
+/// Does not include prerelease or build metadata components.
+pub fn any_semver_version() -> impl Strategy<Value = semver::Version> {
+    (0..=u64::MAX, 0..=u64::MAX, 0..=u64::MAX).prop_map(
+        |(major, minor, patch)| {
+            let pre = Prerelease::EMPTY;
+            let build = BuildMetadata::EMPTY;
+            semver::Version {
+                major,
+                minor,
+                patch,
+                pre,
+                build,
+            }
+        },
+    )
+}
+
+/// Does not include leap seconds.
+pub fn any_chrono_datetime() -> impl Strategy<Value = chrono::DateTime<Utc>> {
+    let min_utc_secs = chrono::DateTime::<Utc>::MIN_UTC.timestamp();
+    let max_utc_secs = chrono::DateTime::<Utc>::MAX_UTC.timestamp();
+    let secs_range = min_utc_secs..max_utc_secs;
+    let nanos_range = 0..1_000_000_000u32;
+    (secs_range, nanos_range)
+        .prop_filter_map("Invalid chrono::DateTime<Utc>", |(secs, nanos)| {
+            chrono::DateTime::from_timestamp(secs, nanos)
+        })
 }
 
 // --- Bitcoin types --- //
 
-/// An `Arbitrary`-like [`Strategy`] for a [`bitcoin::Network`].
 pub fn any_network() -> impl Strategy<Value = bitcoin::Network> {
     prop_oneof![
         Just(bitcoin::Network::Bitcoin),
@@ -180,17 +215,26 @@ pub fn any_network() -> impl Strategy<Value = bitcoin::Network> {
     ]
 }
 
-/// An `Arbitrary`-like [`Strategy`] for [`bitcoin::PublicKey`]s.
-pub fn any_bitcoin_pubkey() -> impl Strategy<Value = bitcoin::PublicKey> {
-    any::<NodePk>()
-        .prop_map(secp256k1::PublicKey::from)
-        .prop_map(|inner| bitcoin::PublicKey {
-            compressed: true,
-            inner,
-        })
+pub fn any_amount() -> impl Strategy<Value = bitcoin::Amount> {
+    any::<u64>().prop_map(bitcoin::Amount::from_sat)
 }
 
-/// An `Arbitrary`-like [`Strategy`] for [`bitcoin::key::XOnlyPublicKey`]s.
+pub fn any_secp256k1_pubkey() -> impl Strategy<Value = secp256k1::PublicKey> {
+    any::<NodePk>().prop_map(|node_pk| node_pk.0)
+}
+
+pub fn any_bitcoin_pubkey() -> impl Strategy<Value = bitcoin::PublicKey> {
+    any_secp256k1_pubkey().prop_map(|inner| bitcoin::PublicKey {
+        compressed: true,
+        inner,
+    })
+}
+
+pub fn any_compressed_pubkey(
+) -> impl Strategy<Value = bitcoin::CompressedPublicKey> {
+    any_secp256k1_pubkey().prop_map(bitcoin::CompressedPublicKey)
+}
+
 pub fn any_x_only_pubkey() -> impl Strategy<Value = bitcoin::key::XOnlyPublicKey>
 {
     any::<NodePk>()
@@ -198,14 +242,10 @@ pub fn any_x_only_pubkey() -> impl Strategy<Value = bitcoin::key::XOnlyPublicKey
         .prop_map(bitcoin::key::XOnlyPublicKey::from)
 }
 
-/// An `Arbitrary`-like [`Strategy`] for bitcoin [opcode]s.
-///
-/// [opcode]: opcodes::All
-pub fn any_opcode() -> impl Strategy<Value = opcodes::All> {
-    any::<u8>().prop_map(opcodes::All::from)
+pub fn any_opcode() -> impl Strategy<Value = bitcoin::Opcode> {
+    any::<u8>().prop_map(bitcoin::Opcode::from)
 }
 
-/// An `Arbitrary`-like [`Strategy`] for Bitcoin [`ScriptBuf`]s.
 pub fn any_script() -> impl Strategy<Value = ScriptBuf> {
     #[derive(Clone, Debug)]
     enum PushOp {
@@ -213,10 +253,10 @@ pub fn any_script() -> impl Strategy<Value = ScriptBuf> {
         Slice(Vec<u8>),
         Key(bitcoin::PublicKey),
         XOnlyPublicKey(bitcoin::key::XOnlyPublicKey),
-        Opcode(opcodes::All),
+        Opcode(bitcoin::Opcode),
         OpVerify,
         LockTime(absolute::LockTime),
-        Sequence(transaction::Sequence),
+        Sequence(Sequence),
     }
 
     impl PushOp {
@@ -263,7 +303,6 @@ pub fn any_script() -> impl Strategy<Value = ScriptBuf> {
     })
 }
 
-/// An `Arbitrary`-like [`Strategy`] for a [`Witness`].
 pub fn any_witness() -> impl Strategy<Value = Witness> {
     // The `Vec<Vec<u8>>`s from any::<Vec<u8>>() are too big,
     // so we limit to 8x8 = 64 bytes.
@@ -272,12 +311,10 @@ pub fn any_witness() -> impl Strategy<Value = Witness> {
     any_vec_vec_u8.prop_map(|vec_vec| Witness::from_slice(vec_vec.as_slice()))
 }
 
-/// An `Arbitrary`-like [`Strategy`] for a [`Sequence`].
 pub fn any_sequence() -> impl Strategy<Value = Sequence> {
     any::<u32>().prop_map(Sequence)
 }
 
-/// An `Arbitrary`-like [`Strategy`] for a [`absolute::LockTime`].
 pub fn any_locktime() -> impl Strategy<Value = absolute::LockTime> {
     use bitcoin::absolute::{Height, LockTime, Time};
     prop_oneof![
@@ -288,7 +325,6 @@ pub fn any_locktime() -> impl Strategy<Value = absolute::LockTime> {
     ]
 }
 
-/// An `Arbitrary`-like [`Strategy`] for a [`TxIn`].
 pub fn any_txin() -> impl Strategy<Value = TxIn> {
     (any_outpoint(), any_script(), any_sequence(), any_witness()).prop_map(
         |(previous_output, script_sig, sequence, witness)| TxIn {
@@ -300,28 +336,35 @@ pub fn any_txin() -> impl Strategy<Value = TxIn> {
     )
 }
 
-/// An `Arbitrary`-like [`Strategy`] for a [`TxOut`].
 pub fn any_txout() -> impl Strategy<Value = TxOut> {
-    (any::<u64>(), any_script()).prop_map(|(value, script_pubkey)| TxOut {
+    (any_amount(), any_script()).prop_map(|(value, script_pubkey)| TxOut {
         value,
         script_pubkey,
     })
 }
 
-/// An `Arbitrary`-like [`Strategy`] for a raw [`Transaction`].
+pub fn any_tx_version() -> impl Strategy<Value = transaction::Version> {
+    any::<i32>().prop_map(transaction::Version)
+}
+
 pub fn any_raw_tx() -> impl Strategy<Value = Transaction> {
+    let any_version = any_tx_version();
     let any_lock_time = any_locktime();
     // Txns include anywhere from 1 to 2 inputs / outputs
     let any_vec_of_txins = proptest::collection::vec(any_txin(), 1..=2);
     let any_vec_of_txouts = proptest::collection::vec(any_txout(), 1..=2);
-    (any_lock_time, any_vec_of_txins, any_vec_of_txouts).prop_map(
-        |(lock_time, input, output)| Transaction {
-            version: 1,
+    (
+        any_version,
+        any_lock_time,
+        any_vec_of_txins,
+        any_vec_of_txouts,
+    )
+        .prop_map(|(version, lock_time, input, output)| Transaction {
+            version,
             lock_time,
             input,
             output,
-        },
-    )
+        })
 }
 
 /// An `Arbitrary`-like [`Strategy`] for a [`Txid`].
@@ -346,7 +389,6 @@ pub fn any_txid() -> impl Strategy<Value = Txid> {
     // */
 }
 
-/// An `Arbitrary`-like [`Strategy`] for a [`OutPoint`].
 pub fn any_outpoint() -> impl Strategy<Value = OutPoint> {
     (any_txid(), any::<u32>()).prop_map(|(txid, vout)| OutPoint { txid, vout })
 }
@@ -364,94 +406,62 @@ pub fn any_blockhash() -> impl Strategy<Value = bitcoin::BlockHash> {
 }
 
 pub fn any_mainnet_addr() -> impl Strategy<Value = Address> {
-    const NET: Network = Network::Bitcoin;
+    const NETWORK: Network = Network::Bitcoin;
 
     prop_oneof![
         // P2PKH
-        any_bitcoin_pubkey().prop_map(|pk| Address::p2pkh(&pk, NET)),
-        // P2SH / P2WSH / P2SHWSH / P2SHWPKH
-        any_script_hash().prop_map(|sh| {
-            Address::new(NET, address::Payload::ScriptHash(sh))
-        }),
-        // P2WPKH
-        any_bitcoin_pubkey().prop_map(|pk| Address::p2wpkh(&pk, NET).unwrap()),
+        any_bitcoin_pubkey().prop_map(|pk| Address::p2pkh(pk, NETWORK)),
+        // P2SH
+        any_script_hash().prop_map(|sh| Address::p2sh_from_hash(sh, NETWORK)),
         // P2WSH
-        any_script().prop_map(|script| Address::p2wsh(&script, NET)),
+        any_script().prop_map(|script| Address::p2wsh(&script, NETWORK)),
+        // P2SHWSH
+        any_script().prop_map(|script| Address::p2shwsh(&script, NETWORK)),
+        // P2SHWPKH
+        any_compressed_pubkey().prop_map(|pk| Address::p2shwpkh(&pk, NETWORK)),
+        // P2WPKH
+        any_compressed_pubkey().prop_map(|pk| Address::p2wpkh(&pk, NETWORK)),
         // TODO(phlip9): taproot
     ]
 }
 
 pub fn any_mainnet_addr_unchecked(
 ) -> impl Strategy<Value = Address<NetworkUnchecked>> {
-    any_mainnet_addr().prop_map(
-        |Address {
-             payload, network, ..
-         }| Address::new(network, payload),
-    )
+    // TODO(max): Upstream an `Address::into_unchecked` to avoid clone
+    any_mainnet_addr().prop_map(|addr| addr.as_unchecked().clone())
 }
 
-/// An `Arbitrary`-like [`Strategy`] for [`semver::Version`]s.
-/// Does not include prerelease or build metadata components.
-pub fn any_semver_version() -> impl Strategy<Value = semver::Version> {
-    (0..=u64::MAX, 0..=u64::MAX, 0..=u64::MAX).prop_map(
-        |(major, minor, patch)| {
-            let pre = Prerelease::EMPTY;
-            let build = BuildMetadata::EMPTY;
-            semver::Version {
-                major,
-                minor,
-                patch,
-                pre,
-                build,
-            }
-        },
-    )
-}
+// --- LDK types --- //
 
-/// An `Arbitrary`-like [`Strategy`] for [`chrono::DateTime<Utc>`].
-/// Does not include leap seconds.
-pub fn any_chrono_datetime() -> impl Strategy<Value = chrono::DateTime<Utc>> {
-    let min_utc_secs = chrono::DateTime::<Utc>::MIN_UTC.timestamp();
-    let max_utc_secs = chrono::DateTime::<Utc>::MAX_UTC.timestamp();
-    let secs_range = min_utc_secs..max_utc_secs;
-    let nanos_range = 0..1_000_000_000u32;
-    (secs_range, nanos_range)
-        .prop_filter_map("Invalid chrono::DateTime<Utc>", |(secs, nanos)| {
-            chrono::DateTime::from_timestamp(secs, nanos)
-        })
-}
-
-/// An `Arbitrary`-like [`Strategy`] for a lightning invoice on-chain
-/// [`Fallback`] address.
 pub fn any_onchain_fallback() -> impl Strategy<Value = Fallback> {
     any_mainnet_addr().prop_filter_map(
-        "Missing bitcoin::address::Payload variant",
-        |address| match address.payload {
-            Payload::WitnessProgram(wp) => {
+        "Invalid bitcoin::address::Address",
+        |address| {
+            if let Some(pkh) = address.pubkey_hash() {
+                return Some(Fallback::PubKeyHash(pkh));
+            }
+            if let Some(sh) = address.script_hash() {
+                return Some(Fallback::ScriptHash(sh));
+            }
+            if let Some(wp) = address.witness_program() {
                 let version = wp.version();
-                // TODO(max): Ideally can just get the owned PushBytesBuf to
-                // avoid a Vec clone here, can probably contribute this upstream
+                // TODO(max): Ideally can just get owned PushBytesBuf to
+                // avoid allocation here, can contribute this upstream
                 let program_bytes_buf = wp.program().to_owned();
                 let program = Vec::<u8>::from(program_bytes_buf);
-                Some(Fallback::SegWitProgram { version, program })
+                return Some(Fallback::SegWitProgram { version, program });
             }
-            Payload::PubkeyHash(pkh) => Some(Fallback::PubKeyHash(pkh)),
-            Payload::ScriptHash(sh) => Some(Fallback::ScriptHash(sh)),
-            // `bitcoin::address::Payload` is `#[non_exhaustive]`, so we have to
-            // `.prop_filter_map()`... But we should try to cover all cases.
-            _ => None,
+            None
         },
     )
 }
 
-/// An `Arbitrary`-like [`Strategy`] for a lightning invoice [`RouteHint`].
 /// Invoice [`RouteHint`]s don't include HTLC min/max msat amounts.
 pub fn any_invoice_route_hint() -> impl Strategy<Value = RouteHint> {
     proptest::collection::vec(any_invoice_route_hint_hop(), 0..=2)
         .prop_map(RouteHint)
 }
 
-/// An `Arbitrary`-like [`Strategy`] for a lightning invoice [`RouteHintHop`].
 /// Invoice [`RouteHintHop`]s don't include HTLC min/max msat amounts.
 pub fn any_invoice_route_hint_hop() -> impl Strategy<Value = RouteHintHop> {
     let src_node_id = any::<NodePk>();
