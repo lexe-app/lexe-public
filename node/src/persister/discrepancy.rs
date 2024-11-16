@@ -13,7 +13,7 @@ use common::{
         auth::BearerAuthenticator,
         vfs::{VfsFile, VfsFileId},
     },
-    Secret,
+    debug_panic_release_log, Secret,
 };
 use gdrive::GoogleVfs;
 use lexe_ln::persister;
@@ -249,13 +249,12 @@ pub(super) async fn evaluate_and_resolve_all(
         match result {
             Ok((file_id, maybe_plaintext)) => match maybe_plaintext {
                 Some(plaintext) => plaintext_pairs.push((file_id, plaintext)),
-                None => {
-                    // At least one of the files given to `evaluate_and_resolve`
-                    // is Some, so the output should always be Some. But it is
-                    // possible that `evaluate_and_resolve`'s will change later.
-                    error!("Resolution resulted in no file: {file_id}");
-                    debug_assert!(false);
-                }
+                // At least one of the files given to `evaluate_and_resolve` is
+                // Some, so the output should always be Some. But it is possible
+                // that `evaluate_and_resolve`'s logic will change later.
+                None => debug_panic_release_log!(
+                    "Resolution resulted in no plaintext: {file_id}"
+                ),
             },
             Err(e) => err_msgs.push(format!("{e:#}")),
         }

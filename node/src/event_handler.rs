@@ -40,6 +40,7 @@ use anyhow::{anyhow, Context};
 use common::{
     api::NodePk,
     cli::LspInfo,
+    debug_panic_release_log,
     ln::{channel::LxChannelId, payments::LxPaymentHash},
     shutdown::ShutdownChannel,
     task::LxTask,
@@ -301,8 +302,10 @@ async fn handle_event_inner(
                 .into_iter()
                 .map(|addr| format!("{addr}"))
                 .collect::<Vec<String>>();
-            error!(%node_pk, ?addrs, "Unexpected `ConnectionNeeded` event");
-            debug_assert!(false);
+            debug_panic_release_log!(
+                "Unexpected `ConnectionNeeded` event: \
+                node_pk={node_pk}, addrs={addrs:?}"
+            );
         }
 
         // TODO(max): Revisit for BOLT 12
@@ -374,14 +377,17 @@ async fn handle_event_inner(
                 prev_user_channel_id.expect("Launched after v0.0.122");
 
             // The user node doesn't forward payments
-            error!(
-                %prev_channel_id, %next_channel_id,
-                %prev_user_channel_id, ?next_user_channel_id,
-                ?total_fee_earned_msat, ?skimmed_fee_msat,
-                %claim_from_onchain_tx, ?outbound_amount_forwarded_msat,
-                "Somehow received a PaymentForwarded event??"
+            debug_panic_release_log!(
+                "Somehow received a PaymentForwarded event: \
+                prev_channel_id={prev_channel_id}, \
+                next_channel_id={next_channel_id}, \
+                prev_user_channel_id={prev_user_channel_id}, \
+                next_user_channel_id={next_user_channel_id:?}, \
+                total_fee_earned_msat={total_fee_earned_msat:?}, \
+                skimmed_fee_msat={skimmed_fee_msat:?}, \
+                claim_from_onchain_tx={claim_from_onchain_tx}, \
+                outbound_amount_forwarded_msat={outbound_amount_forwarded_msat:?}"
             );
-            debug_assert!(false);
         }
 
         Event::HTLCIntercepted { .. } => {
