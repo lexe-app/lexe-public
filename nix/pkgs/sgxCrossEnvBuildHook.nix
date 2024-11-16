@@ -40,8 +40,8 @@ in
 
         # `TARGET_CC` and `TARGET_CFLAGS` are for the `cc` build.rs helper crate.
         # See: <https://docs.rs/cc/latest/cc/#external-configuration-via-environment-variables>
-        export TARGET_CC_x86_64_fortanix_unknown_sgx="${clang-unwrapped}/bin/clang"
-        export TARGET_CFLAGS_x86_64_fortanix_unknown_sgx="${cflagsSgx}"
+        export CC_x86_64_fortanix_unknown_sgx="${clang-unwrapped}/bin/clang"
+        export CFLAGS_x86_64_fortanix_unknown_sgx="${cflagsSgx}"
         # `CARGO_TARGET` is for `cargo`.
         # See: <https://doc.rust-lang.org/cargo/reference/environment-variables.html#configuration-environment-variables>
         export CARGO_TARGET_X86_64_FORTANIX_UNKNOWN_SGX_LINKER="${lld}/bin/ld.lld"
