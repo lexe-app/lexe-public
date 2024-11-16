@@ -4,8 +4,8 @@ use std::{io, sync::Arc, time::Duration};
 
 use anyhow::{ensure, Context};
 use common::{
-    api::fiat_rates::IsoCurrencyCode, notify, shutdown::ShutdownChannel,
-    task::LxTask,
+    api::fiat_rates::IsoCurrencyCode, debug_panic_release_log, notify,
+    shutdown::ShutdownChannel, task::LxTask,
 };
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -94,20 +94,6 @@ struct SettingsPersister<F> {
 #[cfg_attr(test, derive(Debug))]
 #[serde(transparent)]
 pub(crate) struct SchemaVersion(pub u32);
-
-// --- macro --- //
-
-/// `panic!(..)` when `cfg(debug_assertions)`.
-/// `tracing::error!(..)` otherwise.
-macro_rules! debug_panic_prod_log {
-    ($($arg:tt)*) => {
-        if core::cfg!(debug_assertions) {
-            core::panic!($($arg)*);
-        } else {
-            tracing::error!($($arg)*);
-        }
-    };
-}
 
 // --- impl SettingsDb --- //
 
@@ -231,8 +217,7 @@ where
 
     async fn do_persist(&mut self) {
         if let Err(err) = self.do_persist_inner().await {
-            // prod: Just log the error
-            debug_panic_prod_log!("Error persisting settings: {err:#}");
+            debug_panic_release_log!("Error persisting settings: {err:#}");
         }
     }
 
@@ -259,7 +244,7 @@ impl Settings {
             Ok(Some(settings)) => settings,
             Ok(None) => Settings::default(),
             Err(err) => {
-                debug_panic_prod_log!("settings: failed to load: {err:#}");
+                debug_panic_release_log!("settings: failed to load: {err:#}");
                 Settings::default()
             }
         }
