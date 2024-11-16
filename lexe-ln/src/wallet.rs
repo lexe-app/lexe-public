@@ -91,16 +91,6 @@ const BDK_LOOKAHEAD: u32 = 1;
 const CHANNEL_FUNDING_CONF_PRIO: ConfirmationPriority =
     ConfirmationPriority::Normal;
 
-/// The length of our drain script outputs, in bytes. Used for estimating fees.
-///
-/// Example: [
-///     OP_0
-///     OP_PUSHBYTES_20
-///     9b77ada43d0f43f14ee4d15980511bb3777607e8
-/// ]
-#[allow(dead_code)] // TODO(phlip9): remove
-const DRAIN_SCRIPT_LEN: usize = 22;
-
 /// A newtype wrapper around [`Wallet`]. Can be cloned and used directly.
 #[derive(Clone)]
 pub struct LexeWallet {
@@ -464,54 +454,29 @@ impl LexeWallet {
         // output_script = [
         //   OP_0
         //   OP_PUSHBYTES_32
-        //   1f81a37547d600618b57ffd57d36144158060961a4b22076f365fd3fb1b4c1f0
+        //   <32-byte hash>
         // ]
         // => len == 34 bytes
         let fake_output_script = bitcoin::ScriptBuf::from_bytes(vec![0x69; 34]);
 
         let mut locked_wallet = self.inner.write().unwrap();
 
-        // Get status of wallet prior to preflight
-        #[cfg(debug_assertions)]
-        let (next_unused_idx1, had_staged_changes) = {
-            let idx = locked_wallet
-                .next_unused_address(KeychainKind::Internal)
-                .index;
-            let staged = locked_wallet.staged().is_some();
-            (idx, staged)
-        };
-
         // Build
         let conf_prio = CHANNEL_FUNDING_CONF_PRIO;
         let feerate = self.esplora.conf_prio_to_feerate(conf_prio);
         let mut tx_builder =
             Self::default_tx_builder(&mut locked_wallet, feerate);
-        tx_builder.add_recipient(fake_output_script, channel_value.into());
+        tx_builder
+            .add_recipient(fake_output_script, channel_value.into())
+            // We're just estimating fees, use a fake drain script to prevent
+            // creating and tracking new internal change outputs.
+            .drain_to(fake_drain_script());
         let psbt = tx_builder
             // This possibly 'uses' a change address.
             .finish()
             .context("Could not build channel funding tx")?;
         // This unmarks the change address that was just 'used'.
         locked_wallet.cancel_tx(&psbt.unsigned_tx);
-
-        // Check that we didn't increment the last used change index,
-        // and didn't stage any changes if nothing was staged before.
-        #[cfg(debug_assertions)]
-        {
-            let next_unused_idx2 = locked_wallet
-                .next_unused_address(KeychainKind::Internal)
-                .index;
-            assert_eq!(
-                next_unused_idx1, next_unused_idx2,
-                "Preflight funding tx incremented the next unused change index"
-            );
-            if !had_staged_changes {
-                assert!(
-                    locked_wallet.staged().is_none(),
-                    "Preflight funding tx created staged changes"
-                );
-            }
-        }
 
         let fee: bitcoin::Amount = psbt.fee().context("Bad PSBT fee")?;
         let fee_amount = Amount::try_from(fee).context("Bad fee amount")?;
@@ -614,16 +579,6 @@ impl LexeWallet {
 
         let mut locked_wallet = self.inner.write().unwrap();
 
-        // Get status of wallet prior to preflight
-        #[cfg(debug_assertions)]
-        let (next_unused_idx1, had_staged_changes) = {
-            let idx = locked_wallet
-                .next_unused_address(KeychainKind::Internal)
-                .index;
-            let staged = locked_wallet.staged().is_some();
-            (idx, staged)
-        };
-
         // We _require_ a tx to at least be able to use normal fee rate.
         let address = req.address.require_network(network.into())?;
         let normal_fee = Self::preflight_pay_onchain_inner(
@@ -648,25 +603,6 @@ impl LexeWallet {
         )
         .ok();
 
-        // Check that we didn't increment the last used change index,
-        // and didn't stage any changes if nothing was staged before.
-        #[cfg(debug_assertions)]
-        {
-            let next_unused_idx2 = locked_wallet
-                .next_unused_address(KeychainKind::Internal)
-                .index;
-            assert_eq!(
-                next_unused_idx1, next_unused_idx2,
-                "Preflight funding tx incremented the next unused change index"
-            );
-            if !had_staged_changes {
-                assert!(
-                    locked_wallet.staged().is_none(),
-                    "Preflight funding tx created staged changes"
-                );
-            }
-        }
-
         Ok(PreflightPayOnchainResponse {
             high: high_fee,
             normal: normal_fee,
@@ -680,13 +616,12 @@ impl LexeWallet {
         amount: Amount,
         feerate: bitcoin::FeeRate,
     ) -> anyhow::Result<FeeEstimate> {
-        // We're just estimating the fee for tx; we don't want to unnecessarily
-        // reveal any addresses, which will take up sync time. `peek_address`
-        // will just derive the output at the index without persisting anything.
-        let change_address = wallet.peek_address(KeychainKind::Internal, 0);
         let mut tx_builder = Self::default_tx_builder(wallet, feerate);
-        tx_builder.add_recipient(address.script_pubkey(), amount.into());
-        tx_builder.drain_to(change_address.script_pubkey());
+        tx_builder
+            .add_recipient(address.script_pubkey(), amount.into())
+            // We're just estimating fees, use a fake drain script to prevent
+            // creating and tracking new internal change outputs.
+            .drain_to(fake_drain_script());
         let psbt = tx_builder
             .finish()
             .context("Failed to build onchain send tx")?;
@@ -773,6 +708,19 @@ pub fn spawn_wallet_persister_task<PS: LexePersister>(
 
         info!("wallet db persister task shutting down");
     })
+}
+
+/// Use this fake TXO drain script to prevent the BDK wallet from modifying its
+/// internal state when building fake txs, like the ones used to estimate fees
+/// during preflight.
+///
+/// Returns a 22-byte script: [
+///     OP_0
+///     OP_PUSHBYTES_20
+///     aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+/// ]
+fn fake_drain_script() -> bitcoin::ScriptBuf {
+    bitcoin::ScriptBuf::from_bytes(vec![0xaa; 22])
 }
 
 #[cfg(test)]
@@ -911,6 +859,9 @@ mod test {
     use std::collections::BTreeMap;
 
     use arc_swap::ArcSwap;
+    use bdk_chain::BlockId;
+    use bitcoin::TxOut;
+    use bitcoin_hashes::Hash;
     use common::{
         rng::WeakRng,
         test_utils::{arbitrary, roundtrip},
@@ -919,6 +870,211 @@ mod test {
     use proptest::test_runner::Config;
 
     use super::*;
+
+    struct Harness {
+        wallet: LexeWallet,
+        network: LxNetwork,
+    }
+
+    impl Harness {
+        fn new(fee_estimates: BTreeMap<u16, f64>) -> Self {
+            let root_seed = RootSeed::from_u64(923409802);
+            let network = LxNetwork::Regtest;
+
+            let client = reqwest11::ClientBuilder::new().build().unwrap();
+            let client = AsyncClient::from_client("dummy".to_owned(), client);
+            let fee_estimates = ArcSwap::from_pointee(fee_estimates);
+            let (test_tx, _test_rx) = crate::test_event::channel("test");
+            let esplora =
+                Arc::new(LexeEsplora::new(client, fee_estimates, test_tx));
+
+            let maybe_changeset = None;
+            let (persist_tx, _persist_rx) = notify::channel();
+            let (wallet, _wallet_created) = LexeWallet::new(
+                &root_seed,
+                network,
+                esplora,
+                maybe_changeset,
+                persist_tx,
+            )
+            .unwrap();
+
+            Harness { wallet, network }
+        }
+
+        fn default() -> Self {
+            let fee_estimates = BTreeMap::from_iter([
+                (1, 2.5),
+                (3, 2.0),
+                (5, 1.5),
+                (10, 1.3),
+                (20, 1.2),
+                (1008, 1.1),
+            ]);
+            Self::new(fee_estimates)
+        }
+
+        fn fund(&self, amount: Amount) {
+            let address = self.wallet.get_address();
+
+            let mut wallet = self.wallet.write();
+
+            let block_hash = bitcoin::BlockHash::from_byte_array([0u8; 32]);
+
+            // build tx and fake anchor to confirm tx
+            let tx = Transaction {
+                output: vec![TxOut {
+                    value: amount.into(),
+                    script_pubkey: address.script_pubkey(),
+                }],
+                ..new_tx()
+            };
+            let txid = tx.compute_txid();
+            let anchor = bdk_chain::ConfirmationBlockTime {
+                block_id: bdk_chain::BlockId {
+                    height: 1000,
+                    hash: block_hash,
+                },
+                confirmation_time: 100,
+            };
+
+            // "confirm" some blocks
+            insert_checkpoint(
+                &mut wallet,
+                BlockId {
+                    height: 42,
+                    hash: block_hash,
+                },
+            );
+            insert_checkpoint(
+                &mut wallet,
+                BlockId {
+                    height: 1000,
+                    hash: block_hash,
+                },
+            );
+
+            // persist tx
+            wallet.insert_tx(tx);
+            wallet
+                .apply_update(bdk_wallet::Update {
+                    tx_update: bdk_chain::tx_graph::TxUpdate {
+                        anchors: [(anchor, txid)].into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .unwrap();
+
+            // "persist"
+            let _ = wallet.take_staged();
+        }
+
+        fn check_no_persists_in<F, R>(&mut self, f: F) -> R
+        where
+            F: FnOnce(&mut Self) -> R,
+        {
+            let _ = self.wallet.write().take_staged();
+            let ret = f(self);
+            assert_eq!(None, self.wallet.write().take_staged());
+            ret
+        }
+    }
+
+    fn insert_checkpoint(wallet: &mut Wallet, block: BlockId) {
+        let mut cp = wallet.latest_checkpoint();
+        cp = cp.insert(block);
+        wallet
+            .apply_update(bdk_wallet::Update {
+                chain: Some(cp),
+                ..Default::default()
+            })
+            .unwrap();
+    }
+
+    fn new_tx() -> Transaction {
+        Transaction {
+            version: bitcoin::transaction::Version::ONE,
+            lock_time: bitcoin::absolute::LockTime::ZERO,
+            input: Vec::new(),
+            output: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn drain_script_len_equiv() {
+        let h = Harness::default();
+        let address = h.wallet.get_internal_address();
+
+        let spk = address.script_pubkey();
+        assert_eq!(
+            spk.len(),
+            fake_drain_script().len(),
+            "Drain script ({spk:?}) has unexpected length"
+        );
+    }
+
+    // `preflight_{open_channel,pay_onchain}` should not have any side effects
+    #[test]
+    fn preflight_doesnt_persist() {
+        use bitcoin::{Address, Script};
+
+        // with a single large utxo
+        let mut h = Harness::default();
+        h.fund(Amount::from_sats_u32(123_456));
+
+        // preflight_open_channel
+        h.check_no_persists_in(|h| {
+            let fee = h
+                .wallet
+                .preflight_channel_funding_tx(Amount::from_sats_u32(12_345))
+                .unwrap();
+            assert_eq!(fee.sats_u64(), 305);
+        });
+
+        // preflight_pay_onchain
+        let address = {
+            let network = h.network.to_bitcoin();
+            let script = Script::from_bytes(&[0x42; 10]);
+            Address::p2wsh(script, network).as_unchecked().clone()
+        };
+        h.check_no_persists_in(|h| {
+            let req = PreflightPayOnchainRequest {
+                address: address.clone(),
+                amount: Amount::from_sats_u32(12_345),
+            };
+            let fee = h.wallet.preflight_pay_onchain(req, h.network).unwrap();
+            assert_eq!(fee.high.map(|x| x.amount.sats_u64()), Some(382));
+            assert_eq!(fee.normal.amount.sats_u64(), 305);
+            assert_eq!(fee.background.amount.sats_u64(), 185);
+        });
+
+        // use a fresh wallet, as coin selection is apparently
+        // non-deterministic :')
+        // with some smaller utxos so we get multiple inputs to the funding tx
+        let mut h = Harness::default();
+        h.fund(Amount::from_sats_u32(11_500));
+        h.fund(Amount::from_sats_u32(11_500));
+
+        // preflight_open_channel
+        h.check_no_persists_in(|h| {
+            let amount = Amount::from_sats_u32(12_345);
+            let fee = h.wallet.preflight_channel_funding_tx(amount).unwrap();
+            assert_eq!(fee.sats_u64(), 441);
+        });
+
+        // preflight_pay_onchain
+        h.check_no_persists_in(|h| {
+            let req = PreflightPayOnchainRequest {
+                address: address.clone(),
+                amount: Amount::from_sats_u32(12_345),
+            };
+            let fee = h.wallet.preflight_pay_onchain(req, h.network).unwrap();
+            assert_eq!(fee.high.map(|x| x.amount.sats_u64()), Some(552));
+            assert_eq!(fee.normal.amount.sats_u64(), 441);
+            assert_eq!(fee.background.amount.sats_u64(), 267);
+        });
+    }
 
     // Snapshot taken 2024-11-14
     const CHANGESET_SNAPSHOT: &str =
@@ -958,42 +1114,5 @@ mod test {
         println!("---");
         println!("{}", serde_json::to_string_pretty(&changesets).unwrap());
         println!("---");
-    }
-
-    fn make_wallet() -> LexeWallet {
-        let root_seed = RootSeed::from_u64(923409802);
-
-        let client = reqwest11::ClientBuilder::new().build().unwrap();
-        let client = AsyncClient::from_client("dummy".to_owned(), client);
-        let fee_estimates = ArcSwap::from_pointee(BTreeMap::new());
-        let (test_tx, _test_rx) = crate::test_event::channel("test");
-        let esplora =
-            Arc::new(LexeEsplora::new(client, fee_estimates, test_tx));
-
-        let maybe_changeset = None;
-        let (persist_tx, _persist_rx) = notify::channel();
-        let (lexe_wallet, _wallet_created) = LexeWallet::new(
-            &root_seed,
-            LxNetwork::Regtest,
-            esplora,
-            maybe_changeset,
-            persist_tx,
-        )
-        .unwrap();
-
-        lexe_wallet
-    }
-
-    #[test]
-    fn test_drain_script_len_equiv() {
-        let wallet = make_wallet();
-        let address = wallet.get_internal_address();
-
-        let spk = address.script_pubkey();
-        assert_eq!(
-            spk.len(),
-            DRAIN_SCRIPT_LEN,
-            "Drain script ({spk:?}) has unexpected length"
-        );
     }
 }
