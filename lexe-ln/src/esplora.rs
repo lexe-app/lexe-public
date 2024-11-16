@@ -265,12 +265,13 @@ impl LexeEsplora {
     /// this is the core feerate function that others delegate to.
     pub fn num_blocks_to_feerate(&self, num_blocks: u16) -> bitcoin::FeeRate {
         let guarded_fee_estimates = self.fee_estimates.load();
-        let feerate_satsvbyte =
+        let feerate_sats_vbyte =
             lookup_fee_rate(num_blocks, &guarded_fee_estimates);
-        let maybe_feerate =
-            bitcoin::FeeRate::from_sat_per_vb(feerate_satsvbyte as u64);
-        debug_assert!(maybe_feerate.is_some(), "Feerate overflow?");
-        maybe_feerate.unwrap_or(bitcoin::FeeRate::MAX)
+
+        // (X sat/1 vb) * (1 vb/4 wu) * (1000 wu/1 kwu)
+        // = (X sat/vb) * (250.0 vb/kwu)
+        let feerate_sats_kwu = (feerate_sats_vbyte * 250.0) as u64;
+        bitcoin::FeeRate::from_sat_per_kwu(feerate_sats_kwu)
     }
 
     /// Convert a [`ConfirmationPriority`] into a [`bitcoin::FeeRate`].
