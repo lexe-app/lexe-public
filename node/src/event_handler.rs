@@ -40,6 +40,7 @@ use common::{
     cli::LspInfo,
     debug_panic_release_log,
     ln::{channel::LxChannelId, payments::LxPaymentHash},
+    notify,
     shutdown::ShutdownChannel,
     task::LxTask,
     test_event::TestEvent,
@@ -75,6 +76,8 @@ pub(crate) struct EventCtx {
     pub(crate) esplora: Arc<LexeEsplora>,
     pub(crate) payments_manager: PaymentsManagerType,
     pub(crate) channel_events_bus: ChannelEventsBus,
+    #[allow(dead_code)] // TODO(max): Remove
+    pub(crate) scorer_persist_tx: notify::Sender,
     pub(crate) test_event_tx: TestEventSender,
     pub(crate) shutdown: ShutdownChannel,
 }

@@ -554,6 +554,7 @@ impl UserNode {
 
         // Initialize the event handler
         let channel_events_bus = ChannelEventsBus::new();
+        let (scorer_persist_tx, scorer_persist_rx) = notify::channel();
         let event_handler = NodeEventHandler {
             ctx: Arc::new(event_handler::EventCtx {
                 lsp: args.lsp.clone(),
@@ -564,6 +565,7 @@ impl UserNode {
                 esplora: esplora.clone(),
                 payments_manager: payments_manager.clone(),
                 channel_events_bus: channel_events_bus.clone(),
+                scorer_persist_tx,
                 test_event_tx: test_event_tx.clone(),
                 shutdown: shutdown.clone(),
             }),
@@ -668,6 +670,7 @@ impl UserNode {
             gossip_sync.clone(),
             scorer.clone(),
             process_events_rx,
+            scorer_persist_rx,
             shutdown.clone(),
         );
         tasks.push(bg_processor_task);
