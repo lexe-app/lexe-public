@@ -74,6 +74,45 @@ abstract class _Balance implements Balance {
 }
 
 /// @nodoc
+mixin _$CloseChannelRequest {
+  String get channelId => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$CloseChannelRequestImpl implements _CloseChannelRequest {
+  const _$CloseChannelRequestImpl({required this.channelId});
+
+  @override
+  final String channelId;
+
+  @override
+  String toString() {
+    return 'CloseChannelRequest(channelId: $channelId)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$CloseChannelRequestImpl &&
+            (identical(other.channelId, channelId) ||
+                other.channelId == channelId));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, channelId);
+}
+
+abstract class _CloseChannelRequest implements CloseChannelRequest {
+  const factory _CloseChannelRequest({required final String channelId}) =
+      _$CloseChannelRequestImpl;
+
+  @override
+  String get channelId;
+}
+
+/// @nodoc
 mixin _$CreateInvoiceRequest {
   int get expirySecs => throw _privateConstructorUsedError;
   int? get amountSats => throw _privateConstructorUsedError;
@@ -715,6 +754,48 @@ abstract class _PayOnchainResponse implements PayOnchainResponse {
   PaymentIndex get index;
   @override
   String get txid;
+}
+
+/// @nodoc
+mixin _$PreflightCloseChannelResponse {
+  int get feeEstimateSats => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PreflightCloseChannelResponseImpl
+    implements _PreflightCloseChannelResponse {
+  const _$PreflightCloseChannelResponseImpl({required this.feeEstimateSats});
+
+  @override
+  final int feeEstimateSats;
+
+  @override
+  String toString() {
+    return 'PreflightCloseChannelResponse(feeEstimateSats: $feeEstimateSats)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PreflightCloseChannelResponseImpl &&
+            (identical(other.feeEstimateSats, feeEstimateSats) ||
+                other.feeEstimateSats == feeEstimateSats));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, feeEstimateSats);
+}
+
+abstract class _PreflightCloseChannelResponse
+    implements PreflightCloseChannelResponse {
+  const factory _PreflightCloseChannelResponse(
+          {required final int feeEstimateSats}) =
+      _$PreflightCloseChannelResponseImpl;
+
+  @override
+  int get feeEstimateSats;
 }
 
 /// @nodoc

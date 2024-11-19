@@ -107,6 +107,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   bool dco_decode_box_autoadd_bool(dynamic raw);
 
   @protected
+  CloseChannelRequest dco_decode_box_autoadd_close_channel_request(dynamic raw);
+
+  @protected
   Config dco_decode_box_autoadd_config(dynamic raw);
 
   @protected
@@ -181,6 +184,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ClientPaymentId dco_decode_client_payment_id(dynamic raw);
+
+  @protected
+  CloseChannelRequest dco_decode_close_channel_request(dynamic raw);
 
   @protected
   Config dco_decode_config(dynamic raw);
@@ -326,6 +332,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentStatus dco_decode_payment_status(dynamic raw);
 
   @protected
+  PreflightCloseChannelResponse dco_decode_preflight_close_channel_response(
+      dynamic raw);
+
+  @protected
   PreflightOpenChannelRequest dco_decode_preflight_open_channel_request(
       dynamic raw);
 
@@ -447,6 +457,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
+  CloseChannelRequest sse_decode_box_autoadd_close_channel_request(
+      SseDeserializer deserializer);
+
+  @protected
   Config sse_decode_box_autoadd_config(SseDeserializer deserializer);
 
   @protected
@@ -531,6 +545,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ClientPaymentId sse_decode_client_payment_id(SseDeserializer deserializer);
+
+  @protected
+  CloseChannelRequest sse_decode_close_channel_request(
+      SseDeserializer deserializer);
 
   @protected
   Config sse_decode_config(SseDeserializer deserializer);
@@ -692,6 +710,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentStatus sse_decode_payment_status(SseDeserializer deserializer);
 
   @protected
+  PreflightCloseChannelResponse sse_decode_preflight_close_channel_response(
+      SseDeserializer deserializer);
+
+  @protected
   PreflightOpenChannelRequest sse_decode_preflight_open_channel_request(
       SseDeserializer deserializer);
 
@@ -819,6 +841,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_close_channel_request(
+      CloseChannelRequest self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_config(Config self, SseSerializer serializer);
 
   @protected
@@ -904,6 +930,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_client_payment_id(
       ClientPaymentId self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_close_channel_request(
+      CloseChannelRequest self, SseSerializer serializer);
 
   @protected
   void sse_encode_config(Config self, SseSerializer serializer);
@@ -1069,6 +1099,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_payment_status(PaymentStatus self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_preflight_close_channel_response(
+      PreflightCloseChannelResponse self, SseSerializer serializer);
 
   @protected
   void sse_encode_preflight_open_channel_request(

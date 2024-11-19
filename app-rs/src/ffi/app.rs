@@ -20,10 +20,11 @@ use flutter_rust_bridge::{frb, RustOpaqueNom};
 
 use crate::ffi::{
     api::{
-        CreateInvoiceRequest, CreateInvoiceResponse, FiatRates,
-        ListChannelsResponse, NodeInfo, OpenChannelRequest,
+        CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
+        FiatRates, ListChannelsResponse, NodeInfo, OpenChannelRequest,
         OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-        PayOnchainRequest, PayOnchainResponse, PreflightOpenChannelRequest,
+        PayOnchainRequest, PayOnchainResponse, PreflightCloseChannelRequest,
+        PreflightCloseChannelResponse, PreflightOpenChannelRequest,
         PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
         PreflightPayOnchainResponse, UpdatePaymentNote,
@@ -154,6 +155,30 @@ impl AppHandle {
             .preflight_open_channel(req)
             .await
             .map(PreflightOpenChannelResponse::from)
+            .map_err(anyhow::Error::new)
+    }
+
+    pub async fn close_channel(
+        &self,
+        req: CloseChannelRequest,
+    ) -> anyhow::Result<()> {
+        self.inner
+            .node_client()
+            .close_channel(req.try_into()?)
+            .await
+            .map(|Empty {}| ())
+            .map_err(anyhow::Error::new)
+    }
+
+    pub async fn preflight_close_channel(
+        &self,
+        req: PreflightCloseChannelRequest,
+    ) -> anyhow::Result<PreflightCloseChannelResponse> {
+        self.inner
+            .node_client()
+            .preflight_close_channel(req.try_into()?)
+            .await
+            .map(PreflightCloseChannelResponse::from)
             .map_err(anyhow::Error::new)
     }
 

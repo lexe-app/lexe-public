@@ -6,6 +6,7 @@ use anyhow::{anyhow, Context};
 use common::{
     api::{
         command::{
+            CloseChannelRequest as CloseChannelRequestRs,
             CreateInvoiceRequest as CreateInvoiceRequestRs,
             CreateInvoiceResponse as CreateInvoiceResponseRs,
             FeeEstimate as FeeEstimateRs,
@@ -16,6 +17,7 @@ use common::{
             PayInvoiceResponse as PayInvoiceResponseRs,
             PayOnchainRequest as PayOnchainRequestRs,
             PayOnchainResponse as PayOnchainResponseRs,
+            PreflightCloseChannelResponse as PreflightCloseChannelResponseRs,
             PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
             PreflightOpenChannelResponse as PreflightOpenChannelResponseRs,
             PreflightPayInvoiceRequest as PreflightPayInvoiceRequestRs,
@@ -28,7 +30,7 @@ use common::{
     },
     ln::{
         amount::Amount,
-        channel::LxUserChannelId as LxUserChannelIdRs,
+        channel::{LxChannelId, LxUserChannelId as LxUserChannelIdRs},
         invoice::LxInvoice,
         payments::{
             ClientPaymentId as ClientPaymentIdRs, LxPaymentId as LxPaymentIdRs,
@@ -158,6 +160,38 @@ impl From<PreflightOpenChannelResponseRs> for PreflightOpenChannelResponse {
     fn from(resp: PreflightOpenChannelResponseRs) -> Self {
         Self {
             fee_estimate_sats: resp.fee_estimate.sats_u64(),
+        }
+    }
+}
+
+#[frb(dart_metadata=("freezed"))]
+pub struct CloseChannelRequest {
+    pub channel_id: String,
+    // TODO(phlip9): force_close
+}
+
+impl TryFrom<CloseChannelRequest> for CloseChannelRequestRs {
+    type Error = anyhow::Error;
+    fn try_from(value: CloseChannelRequest) -> anyhow::Result<Self> {
+        Ok(Self {
+            channel_id: LxChannelId::from_str(&value.channel_id)?,
+            force_close: false,
+            maybe_counterparty: None,
+        })
+    }
+}
+
+pub type PreflightCloseChannelRequest = CloseChannelRequest;
+
+#[frb(dart_metadata=("freezed"))]
+pub struct PreflightCloseChannelResponse {
+    pub fee_estimate_sats: u64,
+}
+
+impl From<PreflightCloseChannelResponseRs> for PreflightCloseChannelResponse {
+    fn from(value: PreflightCloseChannelResponseRs) -> Self {
+        Self {
+            fee_estimate_sats: value.fee_estimate.sats_u64(),
         }
     }
 }
