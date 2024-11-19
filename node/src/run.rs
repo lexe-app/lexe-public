@@ -560,6 +560,7 @@ impl UserNode {
                 wallet: wallet.clone(),
                 channel_manager: channel_manager.clone(),
                 keys_manager: keys_manager.clone(),
+                network_graph: network_graph.clone(),
                 esplora: esplora.clone(),
                 payments_manager: payments_manager.clone(),
                 channel_events_bus: channel_events_bus.clone(),

@@ -11,7 +11,7 @@ use lightning::{
         chaininterface::{ConfirmationTarget, FeeEstimator},
         transaction,
     },
-    events::{ClosureReason, Event},
+    events::{ClosureReason, Event, PathFailure},
     ln::{features::ChannelTypeFeatures, types::ChannelId},
     sign::SpendableOutputDescriptor,
 };
@@ -19,6 +19,7 @@ use thiserror::Error;
 use tracing::{debug, info, info_span, warn};
 
 use crate::{
+    alias::NetworkGraphType,
     channel::{ChannelEvent, ChannelEventsBus},
     esplora::LexeEsplora,
     keys_manager::LexeKeysManager,
@@ -76,8 +77,8 @@ impl EventExt for Event {
             Event::FundingTxBroadcastSafe { .. } => "FundingTxBroadcastSafe",
             Event::ChannelPending { .. } => "ChannelPending",
             Event::ChannelReady { .. } => "ChannelReady",
+            Event::ChannelClosed { .. } => "ChannelClosed",
             Event::PaymentClaimable { .. } => "PaymentClaimable",
-            Event::HTLCIntercepted { .. } => "HTLCIntercepted",
             Event::PaymentClaimed { .. } => "PaymentClaimed",
             Event::ConnectionNeeded { .. } => "ConnectionNeeded",
             Event::InvoiceReceived { .. } => "InvoiceReceived",
@@ -87,12 +88,12 @@ impl EventExt for Event {
             Event::PaymentPathFailed { .. } => "PaymentPathFailed",
             Event::ProbeSuccessful { .. } => "ProbeSuccessful",
             Event::ProbeFailed { .. } => "ProbeFailed",
+            Event::PaymentForwarded { .. } => "PaymentForwarded",
+            Event::HTLCIntercepted { .. } => "HTLCIntercepted",
+            Event::HTLCHandlingFailed { .. } => "HTLCHandlingFailed",
             Event::PendingHTLCsForwardable { .. } => "PendingHTLCsForwardable",
             Event::SpendableOutputs { .. } => "SpendableOutputs",
-            Event::PaymentForwarded { .. } => "PaymentForwarded",
-            Event::ChannelClosed { .. } => "ChannelClosed",
             Event::DiscardFunding { .. } => "DiscardFunding",
-            Event::HTLCHandlingFailed { .. } => "HTLCHandlingFailed",
             Event::BumpTransaction { .. } => "BumpTransaction",
             Event::OnionMessageIntercepted { .. } => "OnionMessageIntercepted",
             Event::OnionMessagePeerConnected { .. } =>
@@ -269,6 +270,21 @@ pub fn handle_channel_closed(
         reason,
     });
     test_event_tx.send(TestEvent::ChannelClosed);
+}
+
+/// Handles an [`Event::PaymentPathFailed`].
+pub fn handle_payment_path_failed(
+    network_graph: &NetworkGraphType,
+    failure: &PathFailure,
+) {
+    // This reimplements `handle_network_graph_update` used in LDK's BGP.
+    // https://github.com/lightningdevkit/rust-lightning/blob/8da30df223d50099c75ba8251615bd2026fcea75/lightning-background-processor/src/lib.rs#L257
+    if let PathFailure::OnPath {
+        network_update: Some(update),
+    } = failure
+    {
+        network_graph.handle_network_update(update);
+    }
 }
 
 /// Handles a [`Event::SpendableOutputs`] by spending any non-static outputs to
