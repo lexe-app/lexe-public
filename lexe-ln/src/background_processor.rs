@@ -3,7 +3,7 @@ use std::{
     time::Duration,
 };
 
-use common::{shutdown::ShutdownChannel, task::LxTask};
+use common::{notify, shutdown::ShutdownChannel, task::LxTask};
 use tokio::{
     sync::{mpsc, oneshot},
     time::{interval, interval_at, Instant},
@@ -67,6 +67,7 @@ impl LexeBackgroundProcessor {
         // be able to get rid of this once LDK#2052 is implemented. See the
         // comment above `PROCESS_EVENTS_INTERVAL` for more info.
         mut process_events_rx: mpsc::Receiver<oneshot::Sender<()>>,
+        mut scorer_persist_rx: notify::Receiver,
         mut shutdown: ShutdownChannel,
     ) -> LxTask<()>
     where
@@ -81,7 +82,7 @@ impl LexeBackgroundProcessor {
             let mut cm_tick_timer = interval(CHANNEL_MANAGER_TICK_INTERVAL);
             let start = Instant::now() + NETWORK_GRAPH_INITIAL_DELAY;
             let mut ng_timer = interval_at(start, NETWORK_GRAPH_PRUNE_INTERVAL);
-            let mut ps_timer = interval(PROB_SCORER_PERSIST_INTERVAL);
+            let mut scorer_timer = interval(PROB_SCORER_PERSIST_INTERVAL);
 
             // This is the event handler future generator type required by LDK
             let mk_event_handler_fut =
@@ -119,6 +120,19 @@ impl LexeBackgroundProcessor {
                     process_events_timer.reset();
                     while let Ok(tx) = process_events_rx.try_recv() {
                         processed_txs.push(tx);
+                    }
+                };
+
+                // A future that completes when the scorer persist timer ticks
+                // or a notification is sent over the `scorer_persist` channel.
+                let scorer_persist_fut = async {
+                    tokio::select! {
+                        _ = scorer_timer.tick() =>
+                            debug!("Triggered: Scorer persist timer"),
+                        () = scorer_persist_rx.recv() => {
+                            debug!("Triggered: Scorer persist channel");
+                            scorer_timer.reset();
+                        }
                     }
                 };
 
@@ -160,6 +174,18 @@ impl LexeBackgroundProcessor {
                         }
                     }
 
+                    // --- Scorer persist branch --- //
+                    () = scorer_persist_fut => {
+                        debug!("Persisting probabilistic scorer");
+                        let persist_res = persister
+                            .persist_scorer(scorer.as_ref())
+                            .await;
+                        if let Err(e) = persist_res {
+                            // The scorer isn't super important.
+                            warn!("Couldn't persist scorer: {e:#}");
+                        }
+                    }
+
                     // --- Timer tick branches --- //
                     _ = pm_timer.tick() => {
                         debug!("Calling PeerManager::timer_tick_occurred()");
@@ -179,20 +205,8 @@ impl LexeBackgroundProcessor {
                             .persist_graph(network_graph)
                             .await;
                         if let Err(e) = persist_res {
-                            // The network graph isn't super important,
-                            // but we still should log a warning.
+                            // The network graph isn't super important.
                             warn!("Couldn't persist network graph: {:#}", e);
-                        }
-                    }
-                    _ = ps_timer.tick() => {
-                        debug!("Persisting probabilistic scorer");
-                        let persist_res = persister
-                            .persist_scorer(scorer.as_ref())
-                            .await;
-                        if let Err(e) = persist_res {
-                            // The scorer isn't super important,
-                            // but we still should log a warning.
-                            warn!("Couldn't persist scorer: {e:#}");
                         }
                     }
 
