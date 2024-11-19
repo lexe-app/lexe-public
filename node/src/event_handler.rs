@@ -32,7 +32,11 @@
 //! [`ChannelManager::process_pending_events_async`]: lightning::ln::channelmanager::ChannelManager::process_pending_events_async
 //! [`ChainMonitor::process_pending_events_async`]: lightning::chain::chainmonitor::ChainMonitor::process_pending_events_async
 
-use std::{future::Future, sync::Arc, time::Duration};
+use std::{
+    future::Future,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use anyhow::{anyhow, Context};
 use common::{
@@ -46,7 +50,7 @@ use common::{
     test_event::TestEvent,
 };
 use lexe_ln::{
-    alias::NetworkGraphType,
+    alias::{NetworkGraphType, ProbabilisticScorerType},
     channel::ChannelEventsBus,
     esplora::LexeEsplora,
     event::{self, EventExt, EventHandleError},
@@ -69,14 +73,14 @@ pub struct NodeEventHandler {
 /// with a single [`Arc`] clone.
 pub(crate) struct EventCtx {
     pub(crate) lsp: LspInfo,
+    pub(crate) esplora: Arc<LexeEsplora>,
     pub(crate) wallet: LexeWallet,
     pub(crate) channel_manager: NodeChannelManager,
     pub(crate) keys_manager: Arc<LexeKeysManager>,
     pub(crate) network_graph: Arc<NetworkGraphType>,
-    pub(crate) esplora: Arc<LexeEsplora>,
+    pub(crate) scorer: Arc<Mutex<ProbabilisticScorerType>>,
     pub(crate) payments_manager: PaymentsManagerType,
     pub(crate) channel_events_bus: ChannelEventsBus,
-    #[allow(dead_code)] // TODO(max): Remove
     pub(crate) scorer_persist_tx: notify::Sender,
     pub(crate) test_event_tx: TestEventSender,
     pub(crate) shutdown: ShutdownChannel,
@@ -118,6 +122,9 @@ async fn do_handle_event(
     ctx: &Arc<EventCtx>,
     event: Event,
 ) -> Result<(), EventHandleError> {
+    event::handle_network_graph_update(&ctx.network_graph, &event);
+    event::handle_scorer_update(&ctx.scorer, &ctx.scorer_persist_tx, &event);
+
     match event {
         // NOTE: This event is received because manually_accept_inbound_channels
         // is set to true. Manually accepting inbound channels is required
@@ -348,21 +355,11 @@ async fn do_handle_event(
                 .map_err(EventHandleError::Replay)?;
         }
 
-        Event::PaymentPathSuccessful { .. } => {}
-
-        Event::PaymentPathFailed {
-            payment_id: _,
-            payment_hash: _,
-            payment_failed_permanently: _,
-            failure,
-            path: _,
-            short_channel_id: _,
-            ..
-        } => event::handle_payment_path_failed(&ctx.network_graph, &failure),
-
-        Event::ProbeSuccessful { .. } => {}
-
-        Event::ProbeFailed { .. } => {}
+        // Handled by `handle_network_graph_update` and `handle_scorer_update`
+        Event::PaymentPathSuccessful { .. } => (),
+        Event::PaymentPathFailed { .. } => (),
+        Event::ProbeSuccessful { .. } => (),
+        Event::ProbeFailed { .. } => (),
 
         Event::PaymentForwarded {
             prev_channel_id,

@@ -1,7 +1,10 @@
+use std::sync::Mutex;
+
 use anyhow::{anyhow, Context};
 use bitcoin::{absolute, secp256k1};
 use common::{
     ln::channel::{LxChannelId, LxUserChannelId},
+    notify,
     rng::{Crng, RngExt, SysRng},
     test_event::TestEvent,
     time::TimestampMs,
@@ -13,13 +16,14 @@ use lightning::{
     },
     events::{ClosureReason, Event, PathFailure},
     ln::{features::ChannelTypeFeatures, types::ChannelId},
+    routing::scoring::ScoreUpdate,
     sign::SpendableOutputDescriptor,
 };
 use thiserror::Error;
 use tracing::{debug, info, info_span, warn};
 
 use crate::{
-    alias::NetworkGraphType,
+    alias::{NetworkGraphType, ProbabilisticScorerType},
     channel::{ChannelEvent, ChannelEventsBus},
     esplora::LexeEsplora,
     keys_manager::LexeKeysManager,
@@ -272,18 +276,81 @@ pub fn handle_channel_closed(
     test_event_tx.send(TestEvent::ChannelClosed);
 }
 
-/// Handles an [`Event::PaymentPathFailed`].
-pub fn handle_payment_path_failed(
+/// If the given [`Event`] contains information the [`NetworkGraphType`] should
+/// be updated with, updates the network graph accordingly.
+///
+/// Based on the `handle_network_graph_update` fn in LDK's BGP:
+/// <https://github.com/lightningdevkit/rust-lightning/blob/8da30df223d50099c75ba8251615bd2026fcea75/lightning-background-processor/src/lib.rs#L257>
+pub fn handle_network_graph_update(
     network_graph: &NetworkGraphType,
-    failure: &PathFailure,
+    event: &Event,
 ) {
-    // This reimplements `handle_network_graph_update` used in LDK's BGP.
-    // https://github.com/lightningdevkit/rust-lightning/blob/8da30df223d50099c75ba8251615bd2026fcea75/lightning-background-processor/src/lib.rs#L257
-    if let PathFailure::OnPath {
-        network_update: Some(update),
-    } = failure
+    if let Event::PaymentPathFailed {
+        failure:
+            PathFailure::OnPath {
+                network_update: Some(ref update),
+            },
+        ..
+    } = event
     {
         network_graph.handle_network_update(update);
+    }
+}
+
+/// If the given [`Event`] contains information the [`ProbabilisticScorerType`]
+/// should be updated with, this fn updates the scorer accordingly and notifies
+/// the BGP to re-persist the scorer.
+///
+/// Based on the `update_scorer` fn in LDK's BGP:
+/// <https://github.com/lightningdevkit/rust-lightning/blob/8da30df223d50099c75ba8251615bd2026fcea75/lightning-background-processor/src/lib.rs#L272>
+pub fn handle_scorer_update(
+    scorer: &Mutex<ProbabilisticScorerType>,
+    scorer_persist_tx: &notify::Sender,
+    event: &Event,
+) {
+    let now_since_epoch = TimestampMs::now().into_duration();
+    match event {
+        Event::PaymentPathFailed {
+            ref path,
+            short_channel_id: Some(scid),
+            ..
+        } => {
+            let mut locked_scorer = scorer.lock().unwrap();
+            locked_scorer.payment_path_failed(path, *scid, now_since_epoch);
+            scorer_persist_tx.send();
+        }
+        Event::PaymentPathFailed {
+            ref path,
+            payment_failed_permanently: true,
+            ..
+        } => {
+            // This branch is hit if the destination explicitly failed it back.
+            // This is treated as a successful probe because the payment made it
+            // all the way to the destination with sufficient liquidity.
+            let mut locked_scorer = scorer.lock().unwrap();
+            locked_scorer.probe_successful(path, now_since_epoch);
+            scorer_persist_tx.send();
+        }
+        Event::PaymentPathSuccessful { path, .. } => {
+            let mut locked_scorer = scorer.lock().unwrap();
+            locked_scorer.payment_path_successful(path, now_since_epoch);
+            scorer_persist_tx.send();
+        }
+        Event::ProbeSuccessful { path, .. } => {
+            let mut locked_scorer = scorer.lock().unwrap();
+            locked_scorer.probe_successful(path, now_since_epoch);
+            scorer_persist_tx.send();
+        }
+        Event::ProbeFailed {
+            path,
+            short_channel_id: Some(scid),
+            ..
+        } => {
+            let mut locked_scorer = scorer.lock().unwrap();
+            locked_scorer.probe_failed(path, *scid, now_since_epoch);
+            scorer_persist_tx.send();
+        }
+        _ => (),
     }
 }
 

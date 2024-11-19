@@ -558,11 +558,12 @@ impl UserNode {
         let event_handler = NodeEventHandler {
             ctx: Arc::new(event_handler::EventCtx {
                 lsp: args.lsp.clone(),
+                esplora: esplora.clone(),
                 wallet: wallet.clone(),
                 channel_manager: channel_manager.clone(),
                 keys_manager: keys_manager.clone(),
                 network_graph: network_graph.clone(),
-                esplora: esplora.clone(),
+                scorer: scorer.clone(),
                 payments_manager: payments_manager.clone(),
                 channel_events_bus: channel_events_bus.clone(),
                 scorer_persist_tx,
