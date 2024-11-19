@@ -18,30 +18,26 @@ use crate::{
     },
 };
 
-// TODO(max): Update comments below; the mentioned future has been released.
+// The BGP relies on LDK's waker system which has historically caused a lot of
+// subtle and hard-to-debug bugs, so we want to use a `PROCESS_EVENTS_INTERVAL`
+// timer when running in production to mitigate any bugs which may have slipped
+// through our integration tests.
 //
-// Since the BGP relies on LDK's waker system which has historically been the
-// source for a lot of subtle and hard-to-debug bugs, we want to use a
-// relatively frequent `PROCESS_EVENTS_INTERVAL` of 3 seconds when running in
-// production, to mitigate any bugs which may have slipped through our
-// integration tests. What we really want, however, is to remove this timer
-// entirely, in order to maximize the amount of time that nodes spend sleeping.
-// However, this is blocked on several things:
+// What we really want is to remove this timer entirely, in order to maximize
+// the amount of time that nodes spend sleeping. But LDK's BGP uses a 100-1000ms
+// timer (depending on platform) to wake the BGP to process events, so they
+// aren't likely to catch any failures to wake the BGP in their tests. However,
+// LDK does trigger the `event_persist_notifier` pretty much anytime a read
+// guard on the `total_consistency_lock` is dropped. As a compromise between all
+// of the above, we'll use a 10s timer in prod.
 //
-// 1) LDK doesn't support this yet; i.e. we are waiting on an LDK-provided
-//    future which resolves immediately after any event is made available for
-//    processing: https://github.com/lightningdevkit/rust-lightning/issues/2052
-// 2) Until we have extensively tested the new future exposed in (1), we cannot
-//    rely on it, and thus need the 3 second interval as a fallback. In our
-//    debug builds and tests, however, we will use a much more infrequent 60
-//    second timer in order to surface more bugs caused by unprocessed events.
-// 3) So long as LDK's BGP still has a 100ms timer, LDK itself has not signalled
-//    confidence in the future that they will provide in (1). So long as this is
-//    the case, we should keep `PROCESS_EVENTS_INTERVAL` around as a backup.
+// In debug mode, we use a very long timer so that our integration tests can
+// hopefully catch any cases where `get_event_or_persistence_needed_future`
+// isn't woken after an event needs to be processed, and thus fail the test.
 #[cfg(debug_assertions)]
-const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_secs(60);
+const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_secs(600);
 #[cfg(not(debug_assertions))]
-const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_secs(3);
+const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_secs(10);
 const PEER_MANAGER_PING_INTERVAL: Duration = Duration::from_secs(15);
 const CHANNEL_MANAGER_TICK_INTERVAL: Duration = Duration::from_secs(60);
 const NETWORK_GRAPH_INITIAL_DELAY: Duration = Duration::from_secs(60);
