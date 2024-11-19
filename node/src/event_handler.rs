@@ -104,9 +104,9 @@ impl NodeEventHandler {
 
         match result {
             Ok(()) => info!(%event_id, "Successfully handled event"),
-            Err(EventHandleError::Tolerable(e)) =>
+            Err(EventHandleError::Discard(e)) =>
                 warn!(%event_id, "Tolerable error handling event: {e:#}"),
-            Err(EventHandleError::Fatal(e)) => {
+            Err(EventHandleError::Replay(e)) => {
                 error!(%event_id, "Fatal error handling event: {e:#}");
                 self.ctx.shutdown.send();
                 // Notify our BGP that a fatal event handling error has occurred
@@ -158,7 +158,7 @@ async fn handle_event_inner(
                     )
                     .map_err(|e| anyhow!("{e:?}"))
                     .context("Couldn't reject channel from unknown LSP")
-                    .map_err(EventHandleError::Tolerable)?;
+                    .map_err(EventHandleError::Discard)?;
 
                 // Initiate a shutdown
                 ctx.shutdown.send();
@@ -175,7 +175,7 @@ async fn handle_event_inner(
                     )
                     .inspect(|_| info!("Accepted zeroconf channel from LSP"))
                     .map_err(|e| anyhow!("Zero conf required: {e:?}"))
-                    .map_err(EventHandleError::Tolerable)?;
+                    .map_err(EventHandleError::Discard)?;
             }
         }
 
@@ -273,7 +273,7 @@ async fn handle_event_inner(
                 .await
                 .context("Error handling PaymentClaimable")
                 // Want to ensure we always claim funds
-                .map_err(EventHandleError::Fatal)?;
+                .map_err(EventHandleError::Replay)?;
         }
 
         Event::PaymentClaimed {
@@ -291,7 +291,7 @@ async fn handle_event_inner(
                 .await
                 .context("Error handling PaymentClaimed")
                 // Don't want to end up with a 'hung' payment state
-                .map_err(EventHandleError::Fatal)?;
+                .map_err(EventHandleError::Replay)?;
         }
 
         Event::ConnectionNeeded { node_id, addresses } => {
@@ -327,7 +327,7 @@ async fn handle_event_inner(
                 .await
                 .context("Error handling PaymentSent")
                 // Don't want to end up with a 'hung' payment state
-                .map_err(EventHandleError::Fatal)?;
+                .map_err(EventHandleError::Replay)?;
         }
 
         Event::PaymentFailed {
@@ -348,7 +348,7 @@ async fn handle_event_inner(
                 .await
                 .context("Error handling PaymentFailed")
                 // Don't want to end up with a 'hung' payment state
-                .map_err(EventHandleError::Fatal)?;
+                .map_err(EventHandleError::Replay)?;
         }
 
         Event::PaymentPathSuccessful { .. } => {}
@@ -424,7 +424,7 @@ async fn handle_event_inner(
             .with_context(|| format!("{channel_id:?}"))
             .context("Error handling SpendableOutputs")
             // This is fatal because the outputs are lost if they aren't swept.
-            .map_err(EventHandleError::Fatal)?;
+            .map_err(EventHandleError::Replay)?;
         }
 
         Event::DiscardFunding { .. } => {

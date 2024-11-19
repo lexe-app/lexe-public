@@ -30,14 +30,20 @@ use crate::{
 /// Specifies what to do with a [`Event`] after getting this error handling it.
 #[derive(Debug, Error)]
 pub enum EventHandleError {
-    /// We encountered an tolerable error; log it and move on.
-    /// It's OK to lose this event.
-    #[error("Tolerable event handle error: {0:#}")]
-    Tolerable(anyhow::Error),
-    /// We encountered a fatal error and the node must shut down without losing
-    /// the unhandled [`Event`] (i.e. without repersisting the channel manager)
-    #[error("Fatal event handle error: {0:#}")]
-    Fatal(anyhow::Error),
+    /// Discard the [`Event`], log the error, and move on. Either this event
+    /// isn't important, or the event was resolved in some other way.
+    ///
+    /// NOTE: As of LDK v0.0.124, returning [`ReplayEvent`] to LDK will prevent
+    /// any subsequent events from making progress until handling of this event
+    /// succeeds. Until that is resolved, we should (re-)persist the event, and
+    /// return [`ReplayEvent`] only if persistence fails. See:
+    /// <https://github.com/lightningdevkit/rust-lightning/issues/2491#issuecomment-2466036948>
+    #[error("EventHandleError (Discard): {0:#}")]
+    Discard(anyhow::Error),
+    /// We must not lose this unhandled [`Event`].
+    /// Keep replaying the event until handling succeeds.
+    #[error("EventHandleError (Replay): {0:#}")]
+    Replay(anyhow::Error),
 }
 
 /// Small extension trait which adds some methods to LDK's [`Event`] type.
@@ -151,10 +157,10 @@ where
                     )
                 })
                 // Force closing the channel should not fail.
-                .map_err(EventHandleError::Fatal)?;
+                .map_err(EventHandleError::Replay)?;
 
             // Failing to build the funding tx is tolerable.
-            Err(EventHandleError::Tolerable(create_err))
+            Err(EventHandleError::Discard(create_err))
         })?;
 
     use lightning::util::errors::APIError;
@@ -165,12 +171,12 @@ where
     ) {
         Ok(()) => test_event_tx.send(TestEvent::FundingGenerationHandled),
         Err(APIError::APIMisuseError { err }) =>
-            return Err(EventHandleError::Fatal(anyhow!(
+            return Err(EventHandleError::Replay(anyhow!(
                 "Failed to finish channel funding generation: \
                  LDK API misuse error: {err}"
             ))),
         Err(err) =>
-            return Err(EventHandleError::Tolerable(anyhow!(
+            return Err(EventHandleError::Discard(anyhow!(
                 "Failed to handle channel funding generation: {err:?}"
             ))),
     }
