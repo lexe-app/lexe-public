@@ -1,40 +1,38 @@
 //! Event handling requirements are outlined in the doc comments for
-//! [`EventsProvider`], `ChannelManager::process_pending_events`, and
-//! `ChainMonitor::process_pending_events`, which we summarize and expand on
+//! [`EventsProvider::process_pending_events`], which we summarize and expand on
 //! here because they are very important to understand clearly.
 //!
-//! - The docs state that the handling of an event must *succeed* before
-//!   returning from this function. Otherwise, if the background processor
-//!   repersists the channel manager and the program crashes before event
-//!   handling succeeds, the event (which is queued up and persisted in the
-//!   channel manager) will be lost forever.
-//!   - In practice, we accomplish this by sending a notification to the BGP if
-//!     a fatal [`EventHandleError`] occurs. The BGP checks for a notification
-//!     just after the call to `process_pending_events[_async]` and skips the
-//!     channel manager persist and any I/O if a notification was received.
+//! - The channel manager internally contains a `pending_events` queue holding
+//!   events which are released to our event handler when our BGP calls
+//!   [`ChannelManager::process_pending_events_async`]. If the handler returns
+//!   [`Ok(())`], the event is lost when the BGP repersists the channel manager.
+//! - On the other hand, if the event handler returns [`Err(ReplayEvent)`], the
+//!   event won't be removed from the queue and LDK will automatically replay it
+//!   for us, but (as of 2024-11-18) the node won't be able to make progress on
+//!   other events until the erroring event is successfully handled.
+//! - In practice, depending on the event kind, sometimes we will handle the
+//!   event 'inline' (without spawning a task), and sometimes we'll persist the
+//!   event in our own queue and handle or replay it later.
 //! - Event handling must be *idempotent*. It must be okay to handle the same
-//!   event twice, since if an event is handled but another event produced a
-//!   fatal error, or the program crashes before the channel manager can be
-//!   repersisted, the event will be replayed upon next boot.
+//!   event twice, since events may be redundantly replayed due to various race
+//!   conditions such as the program crashing before the event is deleted from
+//!   the channel manager / Lexe's own event queue.
 //! - The event handler must avoid reentrancy by avoiding direct calls to
-//!   `ChannelManager::process_pending_events` or
-//!   `ChainMonitor::process_pending_events` (or their async variants).
-//!   Otherwise, there may be a deadlock.
+//!   [`ChannelManager::process_pending_events_async`] or
+//!   [`ChainMonitor::process_pending_events_async`]. Otherwise, there may be a
+//!   deadlock.
 //! - The event handler must not call [`Writeable::write`] on the channel
-//!   manager, otherwise there will be a deadlock, because the channel manager's
-//!   `total_consistency_lock` is held for the duration of the event handling.
+//!   manager, otherwise there will be a deadlock, because a read lock on the
+//!   channel manager's `total_consistency_lock` is held for the duration of the
+//!   event handling, and serializing the channel manager requires a write lock.
 //!
-//! [`EventsProvider`]: lightning::events::EventsProvider
+//! [`EventsProvider::process_pending_events`]: lightning::events::EventsProvider::process_pending_events
 //! [`Writeable::write`]: lightning::util::ser::Writeable::write
+//! [`ChannelManager::process_pending_events_async`]: lightning::ln::channelmanager::ChannelManager::process_pending_events_async
+//! [`ChannelManager::process_pending_events_async`]: lightning::ln::channelmanager::ChannelManager::process_pending_events_async
+//! [`ChainMonitor::process_pending_events_async`]: lightning::chain::chainmonitor::ChainMonitor::process_pending_events_async
 
-use std::{
-    future::Future,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time::Duration,
-};
+use std::{future::Future, sync::Arc, time::Duration};
 
 use anyhow::{anyhow, Context};
 use common::{
@@ -74,7 +72,6 @@ pub(crate) struct EventCtx {
     pub(crate) keys_manager: Arc<LexeKeysManager>,
     pub(crate) esplora: Arc<LexeEsplora>,
     pub(crate) payments_manager: PaymentsManagerType,
-    pub(crate) fatal_event: Arc<AtomicBool>,
     pub(crate) channel_events_bus: ChannelEventsBus,
     pub(crate) test_event_tx: TestEventSender,
     pub(crate) shutdown: ShutdownChannel,
@@ -86,38 +83,33 @@ impl LexeEventHandler for NodeEventHandler {
         &self,
         event: Event,
     ) -> impl Future<Output = Result<(), ReplayEvent>> {
-        async {
-            self.handle_event(event).await;
-            // TODO(max): Switch to the new `ReplayEvent` API;
-            // the above fn should return `Result<(), ReplayEvent>`.
-            Ok(())
-        }
+        self.handle_inline(event)
     }
 }
 
 impl NodeEventHandler {
-    async fn handle_event(&self, event: Event) {
-        let (event_id, span) = event.handle_prelude();
+    /// Handles an event 'inline', i.e. without spawning off to a task.
+    async fn handle_inline(&self, event: Event) -> Result<(), ReplayEvent> {
+        let (_event_id, span) = event.handle_prelude();
 
-        let result =
-            handle_event_inner(&self.ctx, event).instrument(span).await;
-
-        match result {
-            Ok(()) => info!(%event_id, "Successfully handled event"),
-            Err(EventHandleError::Discard(e)) =>
-                warn!(%event_id, "Tolerable error handling event: {e:#}"),
-            Err(EventHandleError::Replay(e)) => {
-                error!(%event_id, "Fatal error handling event: {e:#}");
-                self.ctx.shutdown.send();
-                // Notify our BGP that a fatal event handling error has occurred
-                // and that the current batch of events MUST not be lost.
-                self.ctx.fatal_event.store(true, Ordering::Release);
+        async {
+            match do_handle_event(&self.ctx, event).await {
+                Ok(()) => Ok(info!("Successfully handled event")),
+                Err(EventHandleError::Discard(e)) =>
+                    Ok(warn!("Tolerable event error, discarding event: {e:#}")),
+                Err(EventHandleError::Replay(e)) => {
+                    error!("Critical event error, will replay event: {e:#}");
+                    Err(ReplayEvent())
+                }
             }
         }
+        // Instrument all logs for this event with the event span
+        .instrument(span)
+        .await
     }
 }
 
-async fn handle_event_inner(
+async fn do_handle_event(
     ctx: &Arc<EventCtx>,
     event: Event,
 ) -> Result<(), EventHandleError> {
@@ -423,7 +415,7 @@ async fn handle_event_inner(
             .await
             .with_context(|| format!("{channel_id:?}"))
             .context("Error handling SpendableOutputs")
-            // This is fatal because the outputs are lost if they aren't swept.
+            // Must replay because the outputs are lost if they aren't swept.
             .map_err(EventHandleError::Replay)?;
         }
 
