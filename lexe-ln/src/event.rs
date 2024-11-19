@@ -38,6 +38,8 @@ pub enum EventHandleError {
     /// succeeds. Until that is resolved, we should (re-)persist the event, and
     /// return [`ReplayEvent`] only if persistence fails. See:
     /// <https://github.com/lightningdevkit/rust-lightning/issues/2491#issuecomment-2466036948>
+    ///
+    /// [`ReplayEvent`]: lightning::events::ReplayEvent
     #[error("EventHandleError (Discard): {0:#}")]
     Discard(anyhow::Error),
     /// We must not lose this unhandled [`Event`].
@@ -135,9 +137,8 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
-    // Sign the funding tx.
-    // This can fail if we just don't have enought on-chain funds, so it's a
-    // tolerable error.
+    // Sign the funding tx. This can fail if we just don't have enought on-chain
+    // funds, so it's a tolerable error.
     let channel_value = bitcoin::Amount::from_sat(channel_value_satoshis);
     let signed_raw_funding_tx = wallet
         .create_and_sign_funding_tx(output_script, channel_value)

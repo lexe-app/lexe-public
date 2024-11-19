@@ -553,7 +553,6 @@ impl UserNode {
         tasks.extend(payments_tasks);
 
         // Initialize the event handler
-        let fatal_event = Arc::new(AtomicBool::new(false));
         let channel_events_bus = ChannelEventsBus::new();
         let event_handler = NodeEventHandler {
             ctx: Arc::new(event_handler::EventCtx {
@@ -563,7 +562,6 @@ impl UserNode {
                 keys_manager: keys_manager.clone(),
                 esplora: esplora.clone(),
                 payments_manager: payments_manager.clone(),
-                fatal_event: fatal_event.clone(),
                 channel_events_bus: channel_events_bus.clone(),
                 test_event_tx: test_event_tx.clone(),
                 shutdown: shutdown.clone(),
@@ -655,6 +653,8 @@ impl UserNode {
         let ports = Ports::new_run(user_pk, app_port, lexe_port);
 
         // Init background processor
+        // TODO(max): Remove `fatal_event`
+        let fatal_event = Arc::new(AtomicBool::new(false));
         let bg_processor_task = LexeBackgroundProcessor::start::<
             NodeChannelManager,
             NodePeerManager,
