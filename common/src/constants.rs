@@ -64,6 +64,9 @@ pub const LSP_RESERVE_PROP_MILLIONTHS: u32 = 10_000; // 1%
 // 0.00005000 BTC = $2.50 at $50k/BTC or $5 at $100k/BTC
 pub const LSP_CHANNEL_MIN_FUNDING_SATS: u32 = 5_000;
 
+/// See: [`lightning::util::config::ChannelConfig::force_close_avoidance_max_fee_satoshis`]
+pub const FORCE_CLOSE_AVOIDANCE_MAX_FEE_SATS: u64 = 1_000;
+
 // --- VFS --- //
 
 /// The default number of persist retries for important objects.

@@ -173,7 +173,8 @@ const CHANNEL_CONFIG: ChannelConfig = ChannelConfig {
     // to `their_to_self_delay` time (currently set to ~1 day) in the case of a
     // unilateral close initiated by us. In practice our LSP should always be
     // online so this should rarely, if ever, be paid.
-    force_close_avoidance_max_fee_satoshis: 1000,
+    force_close_avoidance_max_fee_satoshis:
+        constants::FORCE_CLOSE_AVOIDANCE_MAX_FEE_SATS,
 };
 
 /// An Arc is held internally, so it is fine to clone directly.

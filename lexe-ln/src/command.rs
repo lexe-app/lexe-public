@@ -641,7 +641,7 @@ fn close_tx_fees_sats(esplora: &LexeEsplora, channel: &ChannelDetails) -> u64 {
     let force_close_avoidance_max_fee_sats = channel
         .config
         .map(|c| c.force_close_avoidance_max_fee_satoshis)
-        .unwrap_or(1000);
+        .unwrap_or(constants::FORCE_CLOSE_AVOIDANCE_MAX_FEE_SATS);
 
     // For some reason the `force_close_avoidance_max_fee_sats` is always
     // getting added?
