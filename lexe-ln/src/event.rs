@@ -172,7 +172,7 @@ where
     ) {
         Ok(()) => test_event_tx.send(TestEvent::FundingGenerationHandled),
         Err(APIError::APIMisuseError { err }) =>
-            return Err(EventHandleError::Replay(anyhow!(
+            return Err(EventHandleError::Discard(anyhow!(
                 "Failed to finish channel funding generation: \
                  LDK API misuse error: {err}"
             ))),
