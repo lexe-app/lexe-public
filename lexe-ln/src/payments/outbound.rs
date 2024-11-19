@@ -382,8 +382,6 @@ mod test {
 
     #[test]
     fn lx_outbound_payment_failure_json_backwards_compat() {
-        // TODO(max): LxOutboundPaymentFailure has an 'unknown' variant.
-        // Do we really need this test?
         let expected_ser = r#"["NoRetries","Rejected","Abandoned","Expired","NoRoute","MetadataTooLarge","UnknownFeatures","InvoiceRequestExpired","InvoiceRequestRejected","LexeErr","Unknown"]"#;
         json_unit_enum_backwards_compat::<LxOutboundPaymentFailure>(
             expected_ser,
