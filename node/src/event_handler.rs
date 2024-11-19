@@ -45,6 +45,7 @@ use common::{
     test_event::TestEvent,
 };
 use lexe_ln::{
+    alias::NetworkGraphType,
     channel::ChannelEventsBus,
     esplora::LexeEsplora,
     event::{self, EventExt, EventHandleError},
@@ -70,6 +71,7 @@ pub(crate) struct EventCtx {
     pub(crate) wallet: LexeWallet,
     pub(crate) channel_manager: NodeChannelManager,
     pub(crate) keys_manager: Arc<LexeKeysManager>,
+    pub(crate) network_graph: Arc<NetworkGraphType>,
     pub(crate) esplora: Arc<LexeEsplora>,
     pub(crate) payments_manager: PaymentsManagerType,
     pub(crate) channel_events_bus: ChannelEventsBus,
@@ -345,7 +347,15 @@ async fn do_handle_event(
 
         Event::PaymentPathSuccessful { .. } => {}
 
-        Event::PaymentPathFailed { .. } => {}
+        Event::PaymentPathFailed {
+            payment_id: _,
+            payment_hash: _,
+            payment_failed_permanently: _,
+            failure,
+            path: _,
+            short_channel_id: _,
+            ..
+        } => event::handle_payment_path_failed(&ctx.network_graph, &failure),
 
         Event::ProbeSuccessful { .. } => {}
 
