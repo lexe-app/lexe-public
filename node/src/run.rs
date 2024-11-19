@@ -1,6 +1,6 @@
 use std::{
     net::TcpListener,
-    sync::{atomic::AtomicBool, Arc, Mutex},
+    sync::{Arc, Mutex},
     time::Instant,
 };
 
@@ -653,8 +653,6 @@ impl UserNode {
         let ports = Ports::new_run(user_pk, app_port, lexe_port);
 
         // Init background processor
-        // TODO(max): Remove `fatal_event`
-        let fatal_event = Arc::new(AtomicBool::new(false));
         let bg_processor_task = LexeBackgroundProcessor::start::<
             NodeChannelManager,
             NodePeerManager,
@@ -669,7 +667,6 @@ impl UserNode {
             gossip_sync.clone(),
             scorer.clone(),
             process_events_rx,
-            fatal_event,
             shutdown.clone(),
         );
         tasks.push(bg_processor_task);

@@ -1,8 +1,5 @@
 use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
+    sync::{Arc, Mutex},
     time::Duration,
 };
 
@@ -74,11 +71,6 @@ impl LexeBackgroundProcessor {
         // be able to get rid of this once LDK#2052 is implemented. See the
         // comment above `PROCESS_EVENTS_INTERVAL` for more info.
         mut process_events_rx: mpsc::Receiver<oneshot::Sender<()>>,
-        // If any events produced a fatal error (`EventHandleError::Fatal`),
-        // the event handler will notify us via this bool. It is the BGP's
-        // responsibility to ensure that events are not lost by preventing the
-        // channel manager and other event providers from being repersisted.
-        fatal_event: Arc<AtomicBool>,
         mut shutdown: ShutdownChannel,
     ) -> LxTask<()>
     where
@@ -148,15 +140,6 @@ impl LexeBackgroundProcessor {
                             .instrument(info_span!("(event-handler)(chain-mon)"))
                             .await;
 
-                        // If there was a fatal error, exit here before (1) any
-                        // messages are sent by the peer manager; (2) anything
-                        // is repersisted, especially the channel manager.
-                        // `return` instead of `break` also skips the final
-                        // repersist at the end of the run body.
-                        if fatal_event.load(Ordering::Acquire) {
-                            return;
-                        }
-
                         async {
                             peer_manager.process_events();
                         }.instrument(info_span!("(process)(peer-man)")).await;
@@ -224,30 +207,27 @@ impl LexeBackgroundProcessor {
                 }
             }
 
-            // If there wasn't a fatal error, persist everything one last time.
-            if !fatal_event.load(Ordering::Acquire) {
-                // Persist everything one last time.
-                // - For the channel manager, this may prevent some races where
-                //   the node quits while channel updates were in-flight,
-                //   causing ChannelMonitor updates to be persisted without
-                //   corresponding ChannelManager updating being persisted. This
-                //   does not risk the loss of funds, but upon next boot the
-                //   ChannelManager may accidentally trigger a force close..
-                // - For the network graph and scorer, it is possible that the
-                //   node is shut down before they have gotten a chance to be
-                //   persisted, (e.g. `shutdown_after_sync` is set), and since
-                //   we're already another API call for the channel manager, we
-                //   might as well concurrently persist these as well.
-                let network_graph = gossip_sync.network_graph();
-                let results = tokio::join!(
-                    persister.persist_manager(channel_manager.deref()),
-                    persister.persist_graph(network_graph),
-                    persister.persist_scorer(scorer.as_ref()),
-                );
-                for res in <[_; 3]>::from(results) {
-                    if let Err(e) = res {
-                        error!("Final persistence failure: {e:#}");
-                    }
+            // Persist everything one last time.
+            // - For the channel manager, this may prevent some races where the
+            //   node quits while channel updates were in-flight, causing
+            //   ChannelMonitor updates to be persisted without corresponding
+            //   ChannelManager updating being persisted. This does not risk the
+            //   loss of funds, but upon next boot the ChannelManager may
+            //   accidentally trigger a force close..
+            // - For the network graph and scorer, it is possible that the node
+            //   is shut down before they have gotten a chance to be persisted,
+            //   (e.g. `shutdown_after_sync` is set), and since we're already
+            //   another API call for the channel manager, we might as well
+            //   concurrently persist these as well.
+            let network_graph = gossip_sync.network_graph();
+            let results = tokio::join!(
+                persister.persist_manager(channel_manager.deref()),
+                persister.persist_graph(network_graph),
+                persister.persist_scorer(scorer.as_ref()),
+            );
+            for res in <[_; 3]>::from(results) {
+                if let Err(e) = res {
+                    error!("Final persistence failure: {e:#}");
                 }
             }
         })
