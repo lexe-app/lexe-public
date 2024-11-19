@@ -175,39 +175,45 @@ fn channel_balance<PS: LexePersister>(
             let amount_sats = monitor
                 .get_claimable_balances()
                 .into_iter()
-                .map(|b| match b {
-                    Balance::ClaimableOnChannelClose {
-                        amount_satoshis,
-                        transaction_fee_satoshis,
-                        outbound_payment_htlc_rounded_msat: _,
-                        outbound_forwarded_htlc_rounded_msat: _,
-                        inbound_claiming_htlc_rounded_msat: _,
-                        inbound_htlc_rounded_msat: _,
-                    } => {
-                        // Add back in the "reserved" `transaction_fee_satoshis`
-                        // to make things more intuitive, i.e., open 10_000 sat
-                        // channel, get 10_000 sats balance.
-                        amount_satoshis + transaction_fee_satoshis
+                .map(|b| {
+                    debug!("ln_balance: {b:?}");
+                    match b {
+                        Balance::ClaimableOnChannelClose {
+                            amount_satoshis,
+                            transaction_fee_satoshis,
+                            outbound_payment_htlc_rounded_msat: _,
+                            outbound_forwarded_htlc_rounded_msat: _,
+                            inbound_claiming_htlc_rounded_msat: _,
+                            inbound_htlc_rounded_msat: _,
+                        } => {
+                            // Add back in the "reserved"
+                            // `transaction_fee_satoshis`
+                            // to make things more intuitive, i.e., open 10_000
+                            // sat channel, get
+                            // 10_000 sats balance.
+                            amount_satoshis + transaction_fee_satoshis
+                        }
+                        Balance::ClaimableAwaitingConfirmations {
+                            amount_satoshis,
+                            ..
+                        } => amount_satoshis,
+                        Balance::ContentiousClaimable {
+                            amount_satoshis,
+                            ..
+                        } => amount_satoshis,
+                        Balance::MaybeTimeoutClaimableHTLC {
+                            amount_satoshis,
+                            ..
+                        } => amount_satoshis,
+                        Balance::MaybePreimageClaimableHTLC {
+                            amount_satoshis,
+                            ..
+                        } => amount_satoshis,
+                        Balance::CounterpartyRevokedOutputClaimable {
+                            amount_satoshis,
+                            ..
+                        } => amount_satoshis,
                     }
-                    Balance::ClaimableAwaitingConfirmations {
-                        amount_satoshis,
-                        ..
-                    } => amount_satoshis,
-                    Balance::ContentiousClaimable {
-                        amount_satoshis, ..
-                    } => amount_satoshis,
-                    Balance::MaybeTimeoutClaimableHTLC {
-                        amount_satoshis,
-                        ..
-                    } => amount_satoshis,
-                    Balance::MaybePreimageClaimableHTLC {
-                        amount_satoshis,
-                        ..
-                    } => amount_satoshis,
-                    Balance::CounterpartyRevokedOutputClaimable {
-                        amount_satoshis,
-                        ..
-                    } => amount_satoshis,
                 })
                 .sum();
             Amount::try_from_sats_u64(amount_sats)
