@@ -34,6 +34,9 @@ class AppHandle {
     required this.inner,
   });
 
+  Future<void> closeChannel({required CloseChannelRequest req}) =>
+      AppRs.instance.api.crateFfiAppAppHandleCloseChannel(that: this, req: req);
+
   Future<CreateInvoiceResponse> createInvoice(
           {required CreateInvoiceRequest req}) =>
       AppRs.instance.api
@@ -134,6 +137,11 @@ class AppHandle {
 
   Future<PayOnchainResponse> payOnchain({required PayOnchainRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandlePayOnchain(that: this, req: req);
+
+  Future<PreflightCloseChannelResponse> preflightCloseChannel(
+          {required CloseChannelRequest req}) =>
+      AppRs.instance.api
+          .crateFfiAppAppHandlePreflightCloseChannel(that: this, req: req);
 
   Future<PreflightOpenChannelResponse> preflightOpenChannel(
           {required PreflightOpenChannelRequest req}) =>
