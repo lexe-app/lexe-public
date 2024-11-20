@@ -10,6 +10,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         FeeEstimate,
         FiatRate,
         ListChannelsResponse,
+        PreflightCloseChannelResponse,
         PreflightOpenChannelResponse,
         PreflightPayOnchainResponse;
 import 'package:app_rs_dart/ffi/app.dart' show U8Array16, U8Array32;
@@ -50,7 +51,8 @@ import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/channels.dart'
     show ChannelBalanceBarRow, ChannelsList, ChannelsPage;
-import 'package:lexeapp/route/close_channel.dart' show CloseChannelPage;
+import 'package:lexeapp/route/close_channel.dart'
+    show CloseChannelConfirmPage, CloseChannelPage;
 import 'package:lexeapp/route/landing.dart' show LandingPage;
 import 'package:lexeapp/route/open_channel.dart';
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
@@ -167,6 +169,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
     final mockApp = mocks.MockAppHandle();
     final mockSignupApi = mocks.MockSignupApi(app: mockApp);
     final mockRestoreApi = mocks.MockRestoreApi(app: mockApp);
+    final mockFiatRate = this.makeFiatRateStream();
 
     final cidBytes = List.generate(32, (idx) => idx);
     final cid = ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
@@ -442,7 +445,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "CloseChannelPage",
               (context) => CloseChannelPage(
                 app: mockApp,
-                fiatRate: this.makeFiatRateStream(),
+                fiatRate: mockFiatRate,
                 channels: ValueNotifier(ChannelsList.fromApi(
                     ListChannelsResponse(channels: mockApp.channels))),
               ),
@@ -452,9 +455,21 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               subtitle: "preflight error",
               (context) => CloseChannelPage(
                 app: mocks.MockAppHandleErroring(),
-                fiatRate: this.makeFiatRateStream(),
+                fiatRate: mockFiatRate,
                 channels: ValueNotifier(ChannelsList.fromApi(
                     ListChannelsResponse(channels: mockApp.channels))),
+              ),
+            ),
+            Component(
+              "CloseChannelConfirmPage",
+              (context) => CloseChannelConfirmPage(
+                app: mockApp,
+                fiatRate: mockFiatRate,
+                channelId:
+                    "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",
+                channelOurBalanceSats: 300231,
+                preflight:
+                    const PreflightCloseChannelResponse(feeEstimateSats: 1100),
               ),
             ),
             Component(

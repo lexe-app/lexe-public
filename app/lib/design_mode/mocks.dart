@@ -165,6 +165,10 @@ class MockAppHandle extends AppHandle {
           () => OpenChannelResponse(channelId: this.channels[1].channelId));
 
   @override
+  Future<void> closeChannel({required CloseChannelRequest req}) =>
+      Future.delayed(const Duration(milliseconds: 1000), () {});
+
+  @override
   Future<PreflightCloseChannelResponse> preflightCloseChannel(
           {required CloseChannelRequest req}) =>
       Future.delayed(const Duration(milliseconds: 1000),
