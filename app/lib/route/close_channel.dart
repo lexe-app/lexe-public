@@ -1,6 +1,8 @@
 /// UI flow for users to close one of their open channels with the Lexe LSP.
 library;
 
+import 'dart:math' show max;
+
 import 'package:app_rs_dart/ffi/api.dart'
     show CloseChannelRequest, FiatRate, PreflightCloseChannelResponse;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
@@ -8,9 +10,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
     show
+        AnimatedFillButton,
+        ErrorMessage,
+        ErrorMessageSection,
         HeadingText,
+        ItemizedAmountRow,
+        ListIcon,
         LxBackButton,
+        LxCloseButton,
+        LxCloseButtonKind,
         MultistepFlow,
+        ReceiptSeparator,
         ScrollableSinglePageBody,
         SubheadingText,
         showModalAsyncFlow;
@@ -23,7 +33,8 @@ import 'package:lexeapp/route/channels.dart'
         ChannelsListEntry,
         ChannelsPartyChip,
         channelsListEntryHeight;
-import 'package:lexeapp/style.dart' show LxColors, Space;
+import 'package:lexeapp/style.dart' show LxColors, LxIcons, Space;
+import 'package:lexeapp/types.dart';
 
 @immutable
 final class CloseChannelFlowResult {
@@ -132,6 +143,9 @@ class _CloseChannelChoosePageState extends State<CloseChannelChoosePage> {
       MaterialPageRoute(
         builder: (context) => CloseChannelConfirmPage(
           app: this.widget.app,
+          fiatRate: this.widget.fiatRate,
+          channelId: channel.channelId,
+          channelOurBalanceSats: channel.ourBalanceSats,
           preflight: preflight,
         ),
       ),
@@ -213,10 +227,23 @@ class CloseChannelConfirmPage extends StatefulWidget {
   const CloseChannelConfirmPage({
     super.key,
     required this.app,
+    required this.fiatRate,
+    required this.channelId,
+    required this.channelOurBalanceSats,
     required this.preflight,
   });
 
   final AppHandle app;
+
+  /// Updating stream of fiat rates.
+  final ValueListenable<FiatRate?> fiatRate;
+
+  final String channelId;
+
+  /// Our balance for the selected channel.
+  final int channelOurBalanceSats;
+
+  /// The preflight/fee estimate for closing this channel.
   final PreflightCloseChannelResponse preflight;
 
   @override
@@ -225,8 +252,130 @@ class CloseChannelConfirmPage extends StatefulWidget {
 }
 
 class _CloseChannelConfirmPageState extends State<CloseChannelConfirmPage> {
+  final ValueNotifier<ErrorMessage?> closeError = ValueNotifier(null);
+  final ValueNotifier<bool> isPending = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    this.isPending.dispose();
+    this.closeError.dispose();
+    super.dispose();
+  }
+
+  Future<void> onConfirm() async {
+    info("CloseChannelConfirmPage: confirm");
+  }
+
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return Scaffold(
+      appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
+        leading: const LxBackButton(isLeading: true),
+        actions: const [
+          LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
+          SizedBox(width: Space.appBarTrailingPadding),
+        ],
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const HeadingText(text: "Confirm channel close"),
+          const SubheadingText(
+            text: "Moving Lightning channel funds back on-chain.",
+          ),
+
+          const SizedBox(height: Space.s700),
+
+          // Show the "itemized" receipt for this channel close.
+          ValueListenableBuilder(
+            valueListenable: this.widget.fiatRate,
+            builder: (context, fiatRate, child) {
+              final channelSats = this.widget.channelOurBalanceSats;
+              final channelFiat =
+                  FiatAmount.maybeFromSats(fiatRate, channelSats);
+
+              final feeSats = this.widget.preflight.feeEstimateSats;
+              final feeFiat = FiatAmount.maybeFromSats(fiatRate, feeSats);
+
+              final onchainSats = max(0, channelSats - feeSats);
+              final onchainFiat =
+                  FiatAmount.maybeFromSats(fiatRate, onchainSats);
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // In: On-chain balance
+                  ItemizedAmountRow(
+                    fiatAmount: channelFiat,
+                    satsAmount: channelSats,
+                    title: "Lightning",
+                    // subtitle: "Channel deposit",
+                    subtitle: "",
+                    icon: const ListIcon.lightning(),
+                  ),
+
+                  // In: Miner fee
+                  ItemizedAmountRow(
+                    fiatAmount: feeFiat,
+                    satsAmount: feeSats,
+                    title: "Miner fee",
+                    subtitle: "",
+                    // subtitle: "Paid to the BTC network",
+                    icon: const SizedBox.square(dimension: Space.s650),
+                    // icon: const ListIcon.bitcoin(),
+                  ),
+
+                  const ReceiptSeparator(),
+
+                  // Out: Lightning balance
+                  ItemizedAmountRow(
+                    fiatAmount: onchainFiat,
+                    satsAmount: onchainSats,
+                    title: "On-chain",
+                    subtitle: "",
+                    // subtitle: "New channel",
+                    icon: const ListIcon.lightning(),
+                  ),
+                ],
+              );
+            },
+          ),
+
+          const SizedBox(height: Space.s600),
+        ],
+        bottom: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            const Expanded(child: SizedBox(height: Space.s500)),
+
+            // Error closing channel
+            ValueListenableBuilder(
+              valueListenable: this.closeError,
+              builder: (_context, errorMessage, _widget) =>
+                  ErrorMessageSection(errorMessage),
+            ),
+
+            // Open channel ->
+            ValueListenableBuilder(
+              valueListenable: this.isPending,
+              builder: (_context, estimatingFee, _widget) => Padding(
+                padding: const EdgeInsets.only(top: Space.s500),
+                child: AnimatedFillButton(
+                  label: const Text("Close channel"),
+                  icon: const Icon(LxIcons.next),
+                  onTap: this.onConfirm,
+                  loading: estimatingFee,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: LxColors.moneyGoUp,
+                    foregroundColor: LxColors.grey1000,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
