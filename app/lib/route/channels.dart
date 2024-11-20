@@ -21,6 +21,7 @@ import 'package:lexeapp/components.dart'
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart';
+import 'package:lexeapp/route/close_channel.dart';
 import 'package:lexeapp/route/open_channel.dart'
     show OpenChannelFlowResult, OpenChannelPage;
 import 'package:lexeapp/service/list_channels.dart' show ListChannelsService;
@@ -158,8 +159,28 @@ class _ChannelsPageState extends State<ChannelsPage> {
     // channel open?
   }
 
-  void onClosePressed() {
-    // TODO(phlip9): impl
+  /// Called when the big channel "Closed" button is pressed. Begins the channel
+  /// close UI flow.
+  Future<void> onClosePressed() async {
+    final CloseChannelFlowResult? flowResult =
+        await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) => CloseChannelPage(
+          app: this.widget.app,
+          fiatRate: this.widget.fiatRate,
+          channels: this.channels,
+        ),
+      ),
+    );
+
+    info("ChannelsPage: onClosePressed: $flowResult");
+
+    if (!this.mounted || flowResult == null) return;
+
+    // Successfully closed the channel, refresh channels list
+    this.refreshService.triggerRefreshUnthrottled();
+
+    // TODO(phlip9): open a detail page to track status/confirmations?
   }
 
   @override

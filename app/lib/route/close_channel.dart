@@ -1,6 +1,7 @@
 /// UI flow for users to close one of their open channels with the Lexe LSP.
 library;
 
+import 'dart:async' show unawaited;
 import 'dart:math' show max;
 
 import 'package:app_rs_dart/ffi/api.dart'
@@ -95,11 +96,6 @@ class CloseChannelChoosePage extends StatefulWidget {
 }
 
 class _CloseChannelChoosePageState extends State<CloseChannelChoosePage> {
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   Future<void> onChannelSelected(final Channel channel) async {
     info("CloseChannelChoosePage: selected channel: ${channel.channelId}, "
         "our sats: ${channel.ourBalanceSats}");
@@ -262,8 +258,39 @@ class _CloseChannelConfirmPageState extends State<CloseChannelConfirmPage> {
     super.dispose();
   }
 
+  /// Try to close the channel after the user confirms.
   Future<void> onConfirm() async {
-    info("CloseChannelConfirmPage: confirm");
+    // Don't allow submission while a channel close is pending.
+    if (this.isPending.value) return;
+
+    // Start loading and reset any errors.
+    this.isPending.value = true;
+    this.closeError.value = null;
+
+    // Close the channel.
+    final channelId = this.widget.channelId;
+    final req = CloseChannelRequest(channelId: channelId);
+    final result =
+        await Result.tryFfiAsync(() => this.widget.app.closeChannel(req: req));
+
+    if (!this.mounted) return;
+
+    final CloseChannelFlowResult flowResult;
+    switch (result) {
+      case Ok():
+        flowResult = CloseChannelFlowResult(channelId: channelId);
+        info("CloseChannelConfirmPage: success: $flowResult");
+      case Err(:final err):
+        error("CloseChannelConfirmPage: error: ${err.message}");
+        this.isPending.value = false;
+        this.closeError.value = ErrorMessage(
+          title: "Failed to close channel",
+          message: err.message,
+        );
+        return;
+    }
+
+    unawaited(Navigator.of(this.context).maybePop(flowResult));
   }
 
   @override
