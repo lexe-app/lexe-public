@@ -9,6 +9,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         Balance,
         FeeEstimate,
         FiatRate,
+        ListChannelsResponse,
         PreflightOpenChannelResponse,
         PreflightPayOnchainResponse;
 import 'package:app_rs_dart/ffi/app.dart' show U8Array16, U8Array32;
@@ -48,7 +49,8 @@ import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/channels.dart'
-    show ChannelBalanceBarRow, ChannelsPage;
+    show ChannelBalanceBarRow, ChannelsList, ChannelsPage;
+import 'package:lexeapp/route/close_channel.dart' show CloseChannelPage;
 import 'package:lexeapp/route/landing.dart' show LandingPage;
 import 'package:lexeapp/route/open_channel.dart';
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
@@ -434,6 +436,15 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 userChannelId: UserChannelId(id: U8Array16.init()),
                 preflight:
                     const PreflightOpenChannelResponse(feeEstimateSats: 122),
+              ),
+            ),
+            Component(
+              "CloseChannelPage",
+              (context) => CloseChannelPage(
+                app: mockApp,
+                fiatRate: this.makeFiatRateStream(),
+                channels: ValueNotifier(ChannelsList.fromApi(
+                    ListChannelsResponse(channels: mockApp.channels))),
               ),
             ),
             Component(

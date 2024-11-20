@@ -512,6 +512,7 @@ where
     .await
     .context("Waiting for channel close event")?;
 
+    // TODO(phlip9): return txid so user can track close
     info!(%channel_id, "channel closed");
 
     Ok(())
