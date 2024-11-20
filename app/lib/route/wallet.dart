@@ -240,6 +240,7 @@ class WalletPageState extends State<WalletPage> {
       errorBuilder: (context, err) => AlertDialog(
         title: const Text("Issue with payment"),
         content: Text(err),
+        scrollable: true,
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),

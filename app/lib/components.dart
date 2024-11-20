@@ -1544,16 +1544,17 @@ typedef ErrorDialogBuilder<E> = Widget Function(BuildContext context, E err);
 /// as another modal.
 ///
 /// Returns [null] if the user canceled (gesture/HW back) during the loading,
-/// otherwise returns the [Future] output.
+/// otherwise returns the [Future] output. If [barrierDismissible] is true,
+/// also allow the user to cancel by tapping outside the spinner.
 Future<Result<T, E>?> showModalAsyncFlow<T, E>({
   required BuildContext context,
   required Future<Result<T, E>> future,
   ErrorDialogBuilder<E>? errorBuilder,
+  bool barrierDismissible = false,
 }) async {
   final Result<T, E>? result = await showDialog(
     context: context,
-    // Don't want loading spinner to be dismissable.
-    barrierDismissible: false,
+    barrierDismissible: barrierDismissible,
     builder: (_context) => FutureBuilder(
       future: future,
       builder: (context, result) {

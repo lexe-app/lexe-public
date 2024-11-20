@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:app_rs_dart/ffi/api.dart'
     show
         Balance,
+        CloseChannelRequest,
         CreateInvoiceRequest,
         CreateInvoiceResponse,
         FeeEstimate,
@@ -20,6 +21,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         PayInvoiceResponse,
         PayOnchainRequest,
         PayOnchainResponse,
+        PreflightCloseChannelResponse,
         PreflightOpenChannelRequest,
         PreflightOpenChannelResponse,
         PreflightPayInvoiceRequest,
@@ -163,15 +165,21 @@ class MockAppHandle extends AppHandle {
           () => OpenChannelResponse(channelId: this.channels[1].channelId));
 
   @override
+  Future<PreflightCloseChannelResponse> preflightCloseChannel(
+          {required CloseChannelRequest req}) =>
+      Future.delayed(const Duration(milliseconds: 1000),
+          () => const PreflightCloseChannelResponse(feeEstimateSats: 1100));
+
+  @override
   Future<FiatRates> fiatRates() => Future.delayed(
         const Duration(milliseconds: 2000),
         () => const FiatRates(
-          timestampMs: 1679863795,
+          timestampMs: 1732136733,
           rates: [
-            FiatRate(fiat: "USD", rate: 73111.19 /* USD/BTC */),
+            FiatRate(fiat: "USD", rate: 94385.79 /* USD/BTC */),
             FiatRate(
               fiat: "EUR",
-              rate: 73111.19 /* USD/BTC */ * 1.10 /* EUR/USD */,
+              rate: 94385.79 /* USD/BTC */ * 1.10 /* EUR/USD */,
             ),
           ],
         ),
@@ -364,6 +372,14 @@ class MockAppHandleErroring extends MockAppHandle {
           .toFfi(),
     );
   }
+
+  @override
+  Future<PreflightCloseChannelResponse> preflightCloseChannel(
+          {required CloseChannelRequest req}) =>
+      Future.delayed(
+          const Duration(milliseconds: 1000),
+          () => throw const FfiError("[106=Command] No channel with this id")
+              .toFfi());
 }
 
 class MockSettingsDb extends SettingsDb {

@@ -448,6 +448,16 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               ),
             ),
             Component(
+              "CloseChannelPage",
+              subtitle: "preflight error",
+              (context) => CloseChannelPage(
+                app: mocks.MockAppHandleErroring(),
+                fiatRate: this.makeFiatRateStream(),
+                channels: ValueNotifier(ChannelsList.fromApi(
+                    ListChannelsResponse(channels: mockApp.channels))),
+              ),
+            ),
+            Component(
               "ScanPage",
               (_) => MultistepFlow<SendFlowResult>(
                 builder: (_) => ScanPage(
@@ -726,6 +736,7 @@ class ModalAsyncFlowDesignPage extends StatelessWidget {
       errorBuilder: (context, err) => AlertDialog(
         title: const Text("Issue with payment"),
         content: Text(err),
+        scrollable: true,
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
