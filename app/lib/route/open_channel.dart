@@ -1,3 +1,6 @@
+/// UI flow for users to open a new channel with the Lexe LSP.
+library;
+
 import 'dart:async' show unawaited;
 
 import 'package:app_rs_dart/ffi/api.dart'

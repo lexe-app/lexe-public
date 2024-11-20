@@ -30,6 +30,8 @@ import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxRadius, LxTheme, Space;
 import 'package:lexeapp/types.dart' show BalanceState, FiatAmount;
 
+const double channelsListEntryHeight = 90;
+
 /// The user can view and manage their Lightning channels on this page.
 class ChannelsPage extends StatefulWidget {
   const ChannelsPage({
@@ -235,7 +237,7 @@ class _ChannelsPageState extends State<ChannelsPage> {
                     valueListenable: this.channels,
                     builder: (context, channelsList, child) =>
                         SliverFixedExtentList.list(
-                      itemExtent: 90.0,
+                      itemExtent: channelsListEntryHeight,
                       children: (channelsList != null)
                           ? channelsList.channels
                               .map((channel) => ChannelsListEntry(
