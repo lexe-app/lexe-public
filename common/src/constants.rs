@@ -166,6 +166,13 @@ pub const TESTNET_ESPLORA_WHITELIST: [&str; 4] = [
 pub const LEXE_STAGING_CA_CERT_DER: &[u8] =
     include_bytes!("../data/lexe-staging-root-ca-cert.der");
 
+/// The root CA cert for Amazon's Root CA 1, used by `ltbl.io`.
+// Serial Number : 06:6c:9f:cf:99:bf:8c:0a:39:e2:f0:78:8a:43:e6:96:36:5b:ca
+//    Not Before : May 26 00:00:00 2015 GMT
+//     Not After : Jan 17 00:00:00 2038 GMT
+pub const AMAZON_ROOT_CA_1_CERT_DER: &[u8] =
+    include_bytes!("../data/amazon-root-ca-1-cert.der");
+
 /// Google Trust Services Root R1, used by `googleapis.com`, `blockstream.info`,
 /// and `kuutamo.cloud`.
 // Serial Number : 02:03:E5:93:6F:31:B0:13:49:88:6B:A2:17
@@ -181,12 +188,12 @@ pub const GTS_ROOT_R1_CA_CERT_DER: &[u8] =
 pub const ISRG_ROOT_X1_CA_CERT_DER: &[u8] =
     include_bytes!("../data/isrg-root-x1-ca-cert.der");
 
-/// The root CA cert for Amazon's Root CA 1, used by `ltbl.io`.
-// Serial Number : 06:6c:9f:cf:99:bf:8c:0a:39:e2:f0:78:8a:43:e6:96:36:5b:ca
-//    Not Before : May 26 00:00:00 2015 GMT
-//     Not After : Jan 17 00:00:00 2038 GMT
-pub const AMAZON_ROOT_CA_1_CERT_DER: &[u8] =
-    include_bytes!("../data/amazon-root-ca-1-cert.der");
+/// USERTrust RSA Certification Authority, used by `mempool.space`.
+// Serial Number : 01:fd:6d:30:fc:a3:ca:51:a8:1b:bc:64:0e:35:03:2d
+//    Not Before : Feb  1 00:00:00 2010 GMT
+//    Not After  : Jan 18 23:59:59 2038 GMT
+pub const USERTRUST_RSA_CA_CERT_DER: &[u8] =
+    include_bytes!("../data/usertrust-rsa-root-ca-cert.der");
 
 #[cfg(test)]
 mod test {
@@ -197,7 +204,9 @@ mod test {
     #[test]
     fn test_parse_ca_certs() {
         Certificate::from_der(LEXE_STAGING_CA_CERT_DER).unwrap();
-        Certificate::from_der(GTS_ROOT_R1_CA_CERT_DER).unwrap();
         Certificate::from_der(AMAZON_ROOT_CA_1_CERT_DER).unwrap();
+        Certificate::from_der(GTS_ROOT_R1_CA_CERT_DER).unwrap();
+        Certificate::from_der(ISRG_ROOT_X1_CA_CERT_DER).unwrap();
+        Certificate::from_der(USERTRUST_RSA_CA_CERT_DER).unwrap();
     }
 }

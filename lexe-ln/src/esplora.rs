@@ -163,17 +163,22 @@ impl LexeEsplora {
         test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<(Arc<Self>, LxTask<()>)> {
-        let google_ca_cert = reqwest11::Certificate::from_der(
-            constants::GTS_ROOT_R1_CA_CERT_DER,
-        )
-        .context("Invalid Google CA cert der")?;
         let amazon_ca_cert = reqwest11::Certificate::from_der(
             constants::AMAZON_ROOT_CA_1_CERT_DER,
         )
         .context("Invalid Amazon Root CA cert der")?;
+        let google_ca_cert = reqwest11::Certificate::from_der(
+            constants::GTS_ROOT_R1_CA_CERT_DER,
+        )
+        .context("Invalid Google CA cert der")?;
+        let usertrust_ca_cert = reqwest11::Certificate::from_der(
+            constants::USERTRUST_RSA_CA_CERT_DER,
+        )
+        .context("Invalid USERTrust CA cert der")?;
         let reqwest_client = reqwest11::ClientBuilder::new()
-            .add_root_certificate(google_ca_cert)
             .add_root_certificate(amazon_ca_cert)
+            .add_root_certificate(google_ca_cert)
+            .add_root_certificate(usertrust_ca_cert)
             .timeout(ESPLORA_CLIENT_TIMEOUT)
             .build()
             .context("Failed to build reqwest client")?;
