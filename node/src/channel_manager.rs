@@ -118,10 +118,9 @@ const CHANNEL_HANDSHAKE_CONFIG: ChannelHandshakeConfig =
         // that we can check that we have a sufficient wallet balance to cover
         // the fees for all existing and future channels.
         negotiate_anchors_zero_fee_htlc_tx: false,
-        // Publically announce our channels
-        // TODO: Is there a way to *not* publicly announce our channel, but
-        // still be able to complete a channel negatiation with the LSP?
-        announce_for_forwarding: true,
+        // User<->LSP channels are private. People route to us via a route hop
+        // hint in the invoice.
+        announce_for_forwarding: false,
         // The additional 'security' provided by this setting is pointless.
         // Also, we want to be able to sweep all funds to an address specified
         // at the time of channel close, instead of committing upfront.

@@ -191,6 +191,23 @@ impl Amount {
         Self(self.0.round())
     }
 
+    /// Returns the absolute difference |x-y| between two [`Amount`]s.
+    #[inline]
+    pub fn abs_diff(self, other: Self) -> Amount {
+        if self >= other {
+            self - other
+        } else {
+            other - self
+        }
+    }
+
+    /// Returns true if two amounts are approximately equal, up to some
+    /// `epsilon` max difference.
+    #[inline]
+    pub fn approx_eq(self, other: Self, epsilon: Self) -> bool {
+        self.abs_diff(other) <= epsilon
+    }
+
     // --- Checked arithmetic --- //
 
     pub fn checked_add(self, rhs: Self) -> Option<Self> {
@@ -475,6 +492,9 @@ mod test {
                 prop_assert!(lesser.checked_sub(greater).is_none());
                 prop_assert!(Amount::MAX.checked_add(greater).is_none());
             }
+
+            // Should never underflow
+            prop_assert!(amount1.abs_diff(amount2) >= Amount::ZERO);
         })
     }
 

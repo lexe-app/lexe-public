@@ -65,6 +65,8 @@ pub const LSP_RESERVE_PROP_MILLIONTHS: u32 = 10_000; // 1%
 pub const LSP_CHANNEL_MIN_FUNDING_SATS: u32 = 5_000;
 
 /// See: [`lightning::util::config::ChannelConfig::force_close_avoidance_max_fee_satoshis`]
+//
+// 1,000 sats = $1.00 assuming $100k/BTC
 pub const FORCE_CLOSE_AVOIDANCE_MAX_FEE_SATS: u64 = 1_000;
 
 // --- VFS --- //
