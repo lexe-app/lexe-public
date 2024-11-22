@@ -30,7 +30,6 @@ use crate::{
         LexeChainMonitorType, LexeChannelManagerType, LexePeerManagerType,
         NetworkGraphType, ProbabilisticScorerType, SignerType,
     },
-    event::EventExt,
     logger::LexeTracingLogger,
     payments::{
         manager::{CheckedPayment, PersistedPayment},
@@ -162,8 +161,12 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
         Ok(ids_and_events)
     }
 
-    async fn persist_event(&self, event: &Event) -> anyhow::Result<()> {
-        let file_id = VfsFileId::new(constants::EVENTS_DIR, event.id());
+    async fn persist_event(
+        &self,
+        event: &Event,
+        event_id: String,
+    ) -> anyhow::Result<()> {
+        let file_id = VfsFileId::new(constants::EVENTS_DIR, event_id);
         // Failed event persistence can result in the node shutting down, so try
         // a few extra times. TODO(max): Change back to 1 once we switch to
         // LDK's fallible event handling.
