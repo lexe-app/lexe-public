@@ -45,6 +45,7 @@ use common::{
     debug_panic_release_log,
     ln::{channel::LxChannelId, payments::LxPaymentHash},
     notify,
+    rng::{RngExt, ThreadWeakRng},
     shutdown::ShutdownChannel,
     task::LxTask,
     test_event::TestEvent,
@@ -143,34 +144,27 @@ async fn do_handle_event(
             is_announced: _,
             params: _,
         } => {
-            // Only accept inbound channels from Lexe's LSP
-            let counterparty_node_pk = NodePk(counterparty_node_id);
-            if counterparty_node_pk != ctx.lsp.node_pk {
-                // Lexe's proxy should have prevented non-Lexe nodes from
-                // connecting to us. Log an error and shut down.
-                error!(
-                    "Received open channel request from non-Lexe node which \
-                    the proxy should have prevented: {counterparty_node_pk}"
-                );
+            let handle_open_channel_request = || {
+                // Only accept inbound channels from Lexe's LSP
+                let counterparty_node_pk = NodePk(counterparty_node_id);
+                if counterparty_node_pk != ctx.lsp.node_pk {
+                    // Lexe's proxy should have prevented non-Lexe nodes from
+                    // connecting to us. Log an error and shut down.
+                    error!(
+                        "Received open channel request from non-Lexe node which \
+                        the proxy should have prevented: {counterparty_node_pk}"
+                    );
 
-                // Reject the channel
-                ctx.channel_manager
-                    .force_close_without_broadcasting_txn(
-                        &temporary_channel_id,
-                        &counterparty_node_id,
-                        "User only accepts channels from Lexe's LSP".to_owned(),
-                    )
-                    .map_err(|e| anyhow!("{e:?}"))
-                    .context("Couldn't reject channel from unknown LSP")
-                    .map_err(EventHandleError::Discard)?;
+                    // Initiate a shutdown
+                    ctx.shutdown.send();
 
-                // Initiate a shutdown
-                ctx.shutdown.send();
-            } else {
-                // Checks passed, accept the (possible zero-conf) channel.
+                    return Err(anyhow!(
+                        "User only accepts inbound channels from Lexe LSP"
+                    ));
+                }
 
-                // No need for a user channel id at the moment
-                let user_channel_id = 0;
+                // Checks passed, accept the (probably zero-conf) channel.
+                let user_channel_id = ThreadWeakRng::new().gen_u128();
                 ctx.channel_manager
                     .accept_inbound_channel_from_trusted_peer_0conf(
                         &temporary_channel_id,
@@ -178,7 +172,26 @@ async fn do_handle_event(
                         user_channel_id,
                     )
                     .inspect(|_| info!("Accepted zeroconf channel from LSP"))
-                    .map_err(|e| anyhow!("Zero conf required: {e:?}"))
+                    .map_err(|e| anyhow!("accept inbound 0conf: {e:?}"))?;
+
+                Ok::<(), anyhow::Error>(())
+            };
+
+            // Make sure we clean up and close the channel if something goes
+            // wrong accepting the channel.
+            if let Err(handle_err) = handle_open_channel_request() {
+                ctx.channel_manager
+                    .force_close_without_broadcasting_txn(
+                        &temporary_channel_id,
+                        &counterparty_node_id,
+                        handle_err.to_string(),
+                    )
+                    .map_err(|close_err| {
+                        anyhow!(
+                            "Error closing channel from failed open request: \
+                                 {close_err:?}; handle error: {handle_err:#}"
+                        )
+                    })
                     .map_err(EventHandleError::Discard)?;
             }
         }
