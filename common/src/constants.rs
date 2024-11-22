@@ -166,6 +166,13 @@ pub const TESTNET_ESPLORA_WHITELIST: [&str; 4] = [
 pub const LEXE_STAGING_CA_CERT_DER: &[u8] =
     include_bytes!("../data/lexe-staging-root-ca-cert.der");
 
+/// The union of all root CA certs used by Lexe's Esplora providers.
+pub const ALL_ESPLORA_CA_CERTS: [&[u8]; 3] = [
+    AMAZON_ROOT_CA_1_CERT_DER,
+    GTS_ROOT_R1_CA_CERT_DER,
+    USERTRUST_RSA_CA_CERT_DER,
+];
+
 /// The root CA cert for Amazon's Root CA 1, used by `ltbl.io`.
 // Serial Number : 06:6c:9f:cf:99:bf:8c:0a:39:e2:f0:78:8a:43:e6:96:36:5b:ca
 //    Not Before : May 26 00:00:00 2015 GMT

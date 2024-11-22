@@ -74,6 +74,10 @@ esplora-client = { version = "0.10", default-features = false, features = ["asyn
 # Pieter Wuille's simpler alternative to Bitcoin Script
 # The version should match that used by BDK.
 miniscript = { version = "12", features = ["std"] }
+# TODO(max): Remove once esplora-client no longer needs it...
+rustls21 = { package = "rustls", version = "0.21", default-features = false }
+# Mozilla's set of trusted webpki root certificates hard-coded into a const
+webpki-roots = "0.26"
 
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }
