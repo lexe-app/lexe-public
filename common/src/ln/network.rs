@@ -16,19 +16,15 @@ use strum::VariantArray;
 /// A simple version of [`bitcoin::Network`] which impls [`FromStr`] and
 /// [`Display`] in a consistent way, and which isn't `#[non_exhaustive]`.
 ///
-/// There are slight variations in how the network is represented as strings
-/// across bitcoin, lightning, Lexe, etc. For consistency, we use the mapping
-/// defined in [`bitcoin::Network`]'s `FromStr` impl, which is:
-///
-/// - Bitcoin <-> "bitcoin"
-/// - Testnet <-> "testnet",
-/// - Signet <-> "signet",
-/// - Regtest <-> "regtest"
+/// NOTE: [`bitcoin::Network`] serializes their mainnet variant as "bitcoin",
+/// while we serialize it as "mainnet". Be sure to use *our* [`serde`] impls
+/// when (de)serializing this network.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, DeserializeFromStr, VariantArray)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum LxNetwork {
     Mainnet,
-    Testnet,
+    Testnet3,
+    Testnet4,
     Regtest,
     Signet,
 }
@@ -43,8 +39,9 @@ impl LxNetwork {
 
     pub fn as_str(self) -> &'static str {
         match self {
-            Self::Mainnet => "bitcoin",
-            Self::Testnet => "testnet",
+            Self::Mainnet => "mainnet",
+            Self::Testnet3 => "testnet3",
+            Self::Testnet4 => "testnet4",
             Self::Regtest => "regtest",
             Self::Signet => "signet",
         }
@@ -68,14 +65,12 @@ impl FromStr for LxNetwork {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "bitcoin" => Ok(Self::Mainnet),
-            "testnet" => Ok(Self::Testnet),
+            "mainnet" => Ok(Self::Mainnet),
+            "testnet3" => Ok(Self::Testnet3),
+            "testnet4" => Ok(Self::Testnet4),
             "regtest" => Ok(Self::Regtest),
             "signet" => Ok(Self::Signet),
-            _ => Err(anyhow!(
-                "`LxNetwork` must be one of: \
-                 ['bitcoin', 'testnet', 'regtest', 'signet']"
-            )),
+            _ => Err(anyhow!("Invalid `LxNetwork`")),
         }
     }
 }
@@ -92,7 +87,8 @@ impl TryFrom<bitcoin::Network> for LxNetwork {
     fn try_from(network: bitcoin::Network) -> Result<Self, Self::Error> {
         let maybe_network = match network {
             bitcoin::Network::Bitcoin => Some(Self::Mainnet),
-            bitcoin::Network::Testnet => Some(Self::Testnet),
+            bitcoin::Network::Testnet => Some(Self::Testnet3),
+            bitcoin::Network::Testnet4 => Some(Self::Testnet4),
             bitcoin::Network::Signet => Some(Self::Signet),
             bitcoin::Network::Regtest => Some(Self::Regtest),
             _ => None,
@@ -112,7 +108,8 @@ impl From<LxNetwork> for bitcoin::Network {
     fn from(lx: LxNetwork) -> Self {
         match lx {
             LxNetwork::Mainnet => Self::Bitcoin,
-            LxNetwork::Testnet => Self::Testnet,
+            LxNetwork::Testnet3 => Self::Testnet,
+            LxNetwork::Testnet4 => Self::Testnet4,
             LxNetwork::Regtest => Self::Regtest,
             LxNetwork::Signet => Self::Signet,
         }
@@ -123,7 +120,7 @@ impl From<LxNetwork> for bitcoin_bech32::constants::Network {
     fn from(lx: LxNetwork) -> Self {
         match lx {
             LxNetwork::Mainnet => Self::Bitcoin,
-            LxNetwork::Testnet => Self::Testnet,
+            LxNetwork::Testnet3 | LxNetwork::Testnet4 => Self::Testnet,
             LxNetwork::Regtest => Self::Regtest,
             LxNetwork::Signet => Self::Signet,
         }
@@ -134,7 +131,7 @@ impl From<LxNetwork> for Currency {
     fn from(lx: LxNetwork) -> Self {
         match lx {
             LxNetwork::Mainnet => Self::Bitcoin,
-            LxNetwork::Testnet => Self::BitcoinTestnet,
+            LxNetwork::Testnet3 | LxNetwork::Testnet4 => Self::BitcoinTestnet,
             LxNetwork::Regtest => Self::Regtest,
             LxNetwork::Signet => Self::Signet,
         }
@@ -157,7 +154,8 @@ mod test {
 
     #[test]
     fn network_roundtrip() {
-        let expected_ser = r#"["bitcoin","testnet","regtest","signet"]"#;
+        let expected_ser =
+            r#"["mainnet","testnet3","testnet4","regtest","signet"]"#;
         roundtrip::json_unit_enum_backwards_compat::<LxNetwork>(expected_ser);
         roundtrip::fromstr_display_roundtrip_proptest::<LxNetwork>();
     }

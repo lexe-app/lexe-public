@@ -545,8 +545,10 @@ impl AppConfig {
             use DeployEnv::*;
             match (deploy_env, network, use_sgx, use_mock_secret_store) {
                 (Prod, LxNetwork::Mainnet, true, false) => (),
-                (Staging, LxNetwork::Testnet, true, false) => (),
-                (Dev, LxNetwork::Testnet, _, _)
+                (Staging, LxNetwork::Testnet3, true, false) => (),
+                (Staging, LxNetwork::Testnet4, true, false) => (),
+                (Dev, LxNetwork::Testnet3, _, _)
+                | (Dev, LxNetwork::Testnet4, _, _)
                 | (Dev, LxNetwork::Regtest, _, _) => (),
                 _ => panic!("Unsupported app config combination: {build}"),
             }

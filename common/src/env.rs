@@ -57,17 +57,18 @@ impl DeployEnv {
 
     /// Validate the [`LxNetwork`] parameter for this deploy environment.
     pub fn validate_network(&self, network: LxNetwork) -> anyhow::Result<()> {
+        use LxNetwork::*;
         match self {
             Self::Dev => ensure!(
-                matches!(network, LxNetwork::Regtest | LxNetwork::Testnet),
+                matches!(network, Regtest | Testnet3 | Testnet4),
                 "Dev environment can only be regtest or testnet!"
             ),
             Self::Staging => ensure!(
-                matches!(network, LxNetwork::Testnet),
+                matches!(network, Testnet3 | Testnet4),
                 "Staging environment can only be testnet!"
             ),
             Self::Prod => ensure!(
-                matches!(network, LxNetwork::Mainnet),
+                matches!(network, Mainnet),
                 "Prod environment can only be mainnet!"
             ),
         }
@@ -93,8 +94,10 @@ impl DeployEnv {
         // boilerplate adds very little value.
         proptest::prop_oneof![
             Just((Self::Dev, LxNetwork::Regtest)),
-            Just((Self::Dev, LxNetwork::Testnet)),
-            Just((Self::Staging, LxNetwork::Testnet)),
+            Just((Self::Dev, LxNetwork::Testnet3)),
+            Just((Self::Dev, LxNetwork::Testnet4)),
+            Just((Self::Staging, LxNetwork::Testnet3)),
+            Just((Self::Staging, LxNetwork::Testnet4)),
             Just((Self::Prod, LxNetwork::Mainnet)),
         ]
     }

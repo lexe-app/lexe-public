@@ -56,8 +56,9 @@ pub fn url_is_whitelisted(esplora_url: &str, network: LxNetwork) -> bool {
     match network {
         LxNetwork::Mainnet =>
             constants::MAINNET_ESPLORA_WHITELIST.contains(&esplora_url),
-        LxNetwork::Testnet =>
-            constants::TESTNET_ESPLORA_WHITELIST.contains(&esplora_url),
+        LxNetwork::Testnet3 =>
+            constants::TESTNET3_ESPLORA_WHITELIST.contains(&esplora_url),
+        LxNetwork::Testnet4 => todo!("Don't have testnet4 esplora whitelist"),
         LxNetwork::Signet => todo!("Don't have a signet esplora whitelist yet"),
         // Regtest can use whatever
         LxNetwork::Regtest => true,

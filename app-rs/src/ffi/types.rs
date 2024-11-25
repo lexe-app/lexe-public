@@ -81,7 +81,7 @@ impl From<Network> for NetworkRs {
     fn from(network: Network) -> Self {
         match network {
             Network::Mainnet => NetworkRs::Mainnet,
-            Network::Testnet => NetworkRs::Testnet,
+            Network::Testnet => NetworkRs::Testnet3,
             Network::Regtest => NetworkRs::Regtest,
         }
     }
@@ -93,7 +93,7 @@ impl TryFrom<NetworkRs> for Network {
     fn try_from(network: NetworkRs) -> anyhow::Result<Self> {
         match network {
             NetworkRs::Mainnet => Ok(Self::Mainnet),
-            NetworkRs::Testnet => Ok(Self::Testnet),
+            NetworkRs::Testnet3 => Ok(Self::Testnet),
             NetworkRs::Regtest => Ok(Self::Regtest),
             _ => Err(anyhow!("unsupported NETWORK: '{network}'")),
         }

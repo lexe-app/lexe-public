@@ -115,17 +115,17 @@ pub const MAINNET_ESPLORA_WHITELIST: [&str; 3] = [
 // Testnet Esplora urls
 // Quickly test these by appending /fee-estimates and opening in browser,
 // e.g. "https://testnet.ltbl.io/api/fee-estimates"
-pub const TESTNET_BLOCKSTREAM_ESPLORA: &str =
+pub const TESTNET3_BLOCKSTREAM_ESPLORA: &str =
     "https://blockstream.info/testnet/api";
-pub const TESTNET_KUUTAMO_ESPLORA: &str =
+pub const TESTNET3_KUUTAMO_ESPLORA: &str =
     "https://esplora.testnet.kuutamo.cloud";
-pub const TESTNET_LTBL_ESPLORA: &str = "https://testnet.ltbl.io/api";
-pub const TESTNET_LEXE_ESPLORA: &str = "http://testnet.esplora.lexe.app:3001";
-pub const TESTNET_ESPLORA_WHITELIST: [&str; 4] = [
-    TESTNET_BLOCKSTREAM_ESPLORA,
-    TESTNET_KUUTAMO_ESPLORA,
-    TESTNET_LTBL_ESPLORA,
-    TESTNET_LEXE_ESPLORA,
+pub const TESTNET3_LTBL_ESPLORA: &str = "https://testnet.ltbl.io/api";
+pub const TESTNET3_LEXE_ESPLORA: &str = "http://testnet.esplora.lexe.app:3001";
+pub const TESTNET3_ESPLORA_WHITELIST: [&str; 4] = [
+    TESTNET3_BLOCKSTREAM_ESPLORA,
+    TESTNET3_KUUTAMO_ESPLORA,
+    TESTNET3_LTBL_ESPLORA,
+    TESTNET3_LEXE_ESPLORA,
 ];
 
 // --- Root CA certs --- //
