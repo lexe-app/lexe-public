@@ -78,6 +78,7 @@ pub struct OutboundInvoicePayment {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
+#[serde(rename_all = "snake_case")]
 pub enum OutboundInvoicePaymentStatus {
     /// We initiated the payment with [`pay_invoice`].
     Pending,
@@ -273,6 +274,7 @@ impl OutboundSpontaneousPayment {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
 pub enum OutboundSpontaneousPaymentStatus {
     /// We initiated the payment with `send_spontaneous_payment`.
@@ -369,12 +371,12 @@ mod test {
 
     #[test]
     fn status_json_backward_compat() {
-        let expected_ser = r#"["Pending","Abandoning","Completed","Failed"]"#;
+        let expected_ser = r#"["pending","abandoning","completed","failed"]"#;
         json_unit_enum_backwards_compat::<OutboundInvoicePaymentStatus>(
             expected_ser,
         );
 
-        let expected_ser = r#"["Pending","Completed","Failed"]"#;
+        let expected_ser = r#"["pending","completed","failed"]"#;
         json_unit_enum_backwards_compat::<OutboundSpontaneousPaymentStatus>(
             expected_ser,
         );

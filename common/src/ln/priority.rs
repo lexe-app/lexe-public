@@ -36,6 +36,7 @@ impl ToNumBlocks for ConfirmationTarget {
 /// Basically a simplified version of LDK's [`ConfirmationTarget`] type.
 /// Lexe code should prefer to use this type when possible.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[cfg_attr(test, derive(strum::VariantArray))]
 pub enum ConfirmationPriority {
@@ -83,7 +84,7 @@ mod test {
 
     #[test]
     fn conf_prio_json_backward_compat() {
-        let expected_ser = r#"["High","Normal","Background"]"#;
+        let expected_ser = r#"["high","normal","background"]"#;
         json_unit_enum_backwards_compat::<ConfirmationPriority>(expected_ser);
     }
 }

@@ -476,8 +476,6 @@ impl From<LxPaymentHash> for PaymentId {
     }
 }
 
-// --- FromStr / Display / Serialize for the simple enums --- //
-
 // --- impl PaymentKind --- //
 
 impl PaymentKind {

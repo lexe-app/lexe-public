@@ -49,6 +49,7 @@ pub struct OnchainSend {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
 pub enum OnchainSendStatus {
     /// (Pending, not broadcasted) The tx has been created and signed but
@@ -244,6 +245,7 @@ pub struct OnchainReceive {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
 pub enum OnchainReceiveStatus {
     /// (Pending, zeroconf) We detected the inbound tx, but it is still
@@ -373,10 +375,10 @@ mod test {
 
     #[test]
     fn status_json_backwards_compat() {
-        let expected_ser = r#"["Created","Broadcasted","ReplacementBroadcasted","PartiallyConfirmed","PartiallyReplaced","FullyConfirmed","FullyReplaced","Dropped"]"#;
+        let expected_ser = r#"["created","broadcasted","replacement_broadcasted","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped"]"#;
         json_unit_enum_backwards_compat::<OnchainSendStatus>(expected_ser);
 
-        let expected_ser = r#"["Zeroconf","PartiallyConfirmed","PartiallyReplaced","FullyConfirmed","FullyReplaced","Dropped"]"#;
+        let expected_ser = r#"["zeroconf","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped"]"#;
         json_unit_enum_backwards_compat::<OnchainReceiveStatus>(expected_ser);
     }
 }

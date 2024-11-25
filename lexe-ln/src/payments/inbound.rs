@@ -257,6 +257,7 @@ pub struct InboundInvoicePayment {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
 pub enum InboundInvoicePaymentStatus {
     /// We generated an invoice, but it hasn't been paid yet.
@@ -457,6 +458,7 @@ pub struct InboundSpontaneousPayment {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
 pub enum InboundSpontaneousPaymentStatus {
     /// We received a [`PaymentClaimable`] event.
@@ -553,12 +555,12 @@ mod test {
     #[test]
     fn status_json_backwards_compat() {
         let expected_ser =
-            r#"["InvoiceGenerated","Claiming","Completed","Expired"]"#;
+            r#"["invoice_generated","claiming","completed","expired"]"#;
         json_unit_enum_backwards_compat::<InboundInvoicePaymentStatus>(
             expected_ser,
         );
 
-        let expected_ser = r#"["Claiming","Completed"]"#;
+        let expected_ser = r#"["claiming","completed"]"#;
         json_unit_enum_backwards_compat::<InboundSpontaneousPaymentStatus>(
             expected_ser,
         );
