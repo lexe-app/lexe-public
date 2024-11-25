@@ -2,7 +2,7 @@ use bitcoin::address::NetworkUnchecked;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    api::NodePk,
+    api::user::NodePk,
     enclave::Measurement,
     ln::{
         amount::Amount,

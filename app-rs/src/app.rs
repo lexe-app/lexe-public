@@ -15,7 +15,7 @@ use common::{
         def::{AppBackendApi, AppGatewayApi, AppNodeProvisionApi},
         models::NodeRelease,
         provision::NodeProvisionRequest,
-        NodePk, NodePkProof, UserPk,
+        user::{NodePk, NodePkProof, UserPk},
     },
     client::{GatewayClient, NodeClient},
     constants,

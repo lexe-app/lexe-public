@@ -7,8 +7,8 @@ use std::{
 use async_trait::async_trait;
 use common::{
     api::{
+        user::NodePk,
         vfs::{Vfs, VfsDirectory, VfsFileId},
-        NodePk,
     },
     constants,
     ln::{

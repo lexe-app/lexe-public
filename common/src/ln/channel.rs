@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
-    api::NodePk,
+    api::user::NodePk,
     hexstr_or_bytes,
     ln::{amount::Amount, hashes::LxTxid},
     rng::{RngCore, RngExt},

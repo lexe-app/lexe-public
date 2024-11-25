@@ -9,8 +9,9 @@ use common::{
         auth::{BearerAuthToken, BearerAuthenticator},
         error::BackendApiError,
         qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIndexes},
+        user::{Scid, User},
         vfs::{Vfs, VfsDirectory, VfsFile, VfsFileId},
-        Empty, Scid, User,
+        Empty,
     },
     constants::{
         self, CHANNEL_MANAGER_FILENAME, PW_ENC_ROOT_SEED_FILENAME,

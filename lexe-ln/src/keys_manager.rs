@@ -7,7 +7,7 @@ use bitcoin::{
     },
 };
 use common::{
-    api::NodePk,
+    api::user::NodePk,
     rng::{Crng, RngExt},
     root_seed::RootSeed,
 };

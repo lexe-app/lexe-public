@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(test)]
 use crate::test_utils::arbitrary;
 use crate::{
-    api::UserPk,
+    api::user::UserPk,
     cli::{LspInfo, OAuthConfig, ToCommand},
     env::DeployEnv,
     ln::network::LxNetwork,

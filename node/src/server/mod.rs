@@ -13,7 +13,7 @@ use axum::{
     Router,
 };
 use common::{
-    api::{Scid, UserPk},
+    api::user::{Scid, UserPk},
     cli::LspInfo,
     enclave::Measurement,
     ln::network::LxNetwork,

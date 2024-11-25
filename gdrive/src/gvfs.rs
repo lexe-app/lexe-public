@@ -10,8 +10,8 @@ use std::{collections::BTreeMap, fmt, str::FromStr};
 use anyhow::{anyhow, bail, ensure, Context};
 use common::{
     api::{
+        user::UserPk,
         vfs::{VfsDirectory, VfsFile, VfsFileId},
-        UserPk,
     },
     constants,
     env::DeployEnv,

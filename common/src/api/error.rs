@@ -13,7 +13,10 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use super::{auth, NodePk, UserPk};
+use super::{
+    auth,
+    user::{NodePk, UserPk},
+};
 use crate::api::server;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;

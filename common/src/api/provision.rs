@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(test)]
 use crate::test_utils::arbitrary;
 use crate::{
-    api::UserPk,
+    api::user::UserPk,
     array, ed25519,
     enclave::{self, MachineId, Measurement, Sealed},
     env::DeployEnv,

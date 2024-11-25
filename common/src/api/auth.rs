@@ -11,7 +11,7 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use super::NodePkProof;
+use super::user::NodePkProof;
 use crate::{
     api::{
         def::BearerAuthBackendApi,
@@ -65,8 +65,8 @@ pub enum Error {
 /// these are different, the account will be created, but the user node will
 /// fail to ever run or provision.
 ///
-/// [`UserPk`]: crate::api::UserPk
-/// [`NodePk`]: crate::api::NodePk
+/// [`UserPk`]: crate::api::user::UserPk
+/// [`NodePk`]: crate::api::user::NodePk
 /// [`RootSeed`]: crate::root_seed::RootSeed
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -115,7 +115,7 @@ pub struct BearerAuthResponse {
 }
 
 /// An opaque bearer auth token for authenticating user clients against lexe
-/// infra as a particular [`UserPk`](crate::api::UserPk).
+/// infra as a particular [`UserPk`](crate::api::user::UserPk).
 ///
 /// Most user clients should just treat this as an opaque Bearer token with a
 /// very short (~15 min) expiration.
@@ -135,7 +135,7 @@ pub struct BearerAuthenticator {
     /// The [`ed25519::KeyPair`] for the [`UserPk`], used to authenticate with
     /// the lexe backend.
     ///
-    /// [`UserPk`]: crate::api::UserPk
+    /// [`UserPk`]: crate::api::user::UserPk
     user_key_pair: ed25519::KeyPair,
 
     /// The latest [`BearerAuthToken`] with its expected expiration time.

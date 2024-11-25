@@ -8,7 +8,7 @@ use std::collections::{btree_map::Entry, BTreeMap};
 
 use anyhow::ensure;
 use common::{
-    api::UserPk,
+    api::user::UserPk,
     constants::{YANKED_NODE_MEASUREMENTS, YANKED_NODE_VERSIONS},
     enclave::Measurement,
 };

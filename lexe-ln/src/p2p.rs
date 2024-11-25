@@ -2,7 +2,7 @@ use std::{collections::HashMap, time::Duration};
 
 use anyhow::{bail, ensure, Context};
 use common::{
-    api::NodePk,
+    api::user::NodePk,
     backoff,
     ln::{addr::LxSocketAddress, peer::ChannelPeer},
     shutdown::ShutdownChannel,

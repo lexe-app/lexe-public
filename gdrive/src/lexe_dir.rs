@@ -205,7 +205,7 @@ pub(crate) async fn get_gvfs_root_gid(
 
 #[cfg(test)]
 mod test {
-    use common::{api::UserPk, env::DeployEnv, ln::network::LxNetwork};
+    use common::{api::user::UserPk, env::DeployEnv, ln::network::LxNetwork};
 
     use super::*;
     use crate::{oauth2::GDriveCredentials, ReqwestClient};

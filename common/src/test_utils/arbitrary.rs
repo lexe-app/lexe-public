@@ -38,7 +38,7 @@ use rand::Rng;
 use semver::{BuildMetadata, Prerelease};
 
 use crate::{
-    api::NodePk,
+    api::user::NodePk,
     rng::{RngExt, WeakRng},
 };
 

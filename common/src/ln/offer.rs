@@ -7,7 +7,7 @@ use lightning::offers::{
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
-    api::NodePk,
+    api::user::NodePk,
     ln::{amount::Amount, network::LxNetwork},
 };
 

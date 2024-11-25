@@ -8,7 +8,7 @@ use anyhow::Context;
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-use crate::{api::NodePk, ln::addr::LxSocketAddress};
+use crate::{api::user::NodePk, ln::addr::LxSocketAddress};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]

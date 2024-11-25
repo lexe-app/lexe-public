@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(test)]
 use crate::test_utils::arbitrary;
 use crate::{
-    api::{NodePk, Scid},
+    api::user::{NodePk, Scid},
     ln::{addr::LxSocketAddress, peer::ChannelPeer},
 };
 

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{api::UserPk, enclave::Measurement};
+use crate::{api::user::UserPk, enclave::Measurement};
 
 pub type Port = u16;
 

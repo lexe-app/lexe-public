@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(doc)]
 use crate::ln::payments::LxPaymentId;
 use crate::{
-    api::{NodePk, Scid, UserPk},
+    api::user::{NodePk, Scid, UserPk},
     enclave::Measurement,
     ln::payments::PaymentIndex,
 };

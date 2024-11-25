@@ -8,8 +8,12 @@ use anyhow::{anyhow, bail, ensure, Context};
 use common::{
     aes::AesMasterKey,
     api::{
-        auth::BearerAuthenticator, def::NodeRunnerApi, ports::Ports,
-        provision::SealedSeedId, server::LayerConfig, User, UserPk,
+        auth::BearerAuthenticator,
+        def::NodeRunnerApi,
+        ports::Ports,
+        provision::SealedSeedId,
+        server::LayerConfig,
+        user::{User, UserPk},
     },
     cli::{node::RunArgs, LspInfo},
     constants::{self, DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},

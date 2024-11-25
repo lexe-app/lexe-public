@@ -194,7 +194,7 @@ mod handlers {
     use axum::extract::State;
     use common::api::{
         server::{extract::LxQuery, LxJson},
-        UserPk,
+        user::UserPk,
     };
 
     use super::*;
@@ -331,7 +331,7 @@ mod helpers {
         aes::AesMasterKey,
         api::{
             error::{BackendApiError, BackendErrorKind},
-            UserPk,
+            user::UserPk,
         },
     };
     use gdrive::{gvfs::GvfsRootName, oauth2::GDriveCredentials};

@@ -101,7 +101,7 @@ where
 /// proptests that would otherwise take too long.
 ///
 /// ```
-/// # use common::api::UserPk;
+/// # use common::api::user::UserPk;
 /// # use common::test_utils::roundtrip;
 /// # use proptest::arbitrary::{any, Arbitrary};
 /// # use proptest::test_runner::Config;

@@ -11,7 +11,7 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
     aes::{self, AesMasterKey},
-    api::{NodePk, UserPk},
+    api::user::{NodePk, UserPk},
     array::{self, ArrayExt},
     ed25519, password,
     rng::{Crng, RngExt},
@@ -117,7 +117,7 @@ impl RootSeed {
     /// key pair is also used to sign up and authenticate as the user against
     /// the lexe backend.
     ///
-    /// [`UserPk`]: crate::api::UserPk
+    /// [`UserPk`]: crate::api::user::UserPk
     pub fn derive_user_key_pair(&self) -> ed25519::KeyPair {
         let seed = self.derive(&[b"user key pair"]);
         ed25519::KeyPair::from_seed(seed.expose_secret())

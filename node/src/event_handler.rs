@@ -40,7 +40,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use common::{
-    api::NodePk,
+    api::user::NodePk,
     cli::LspInfo,
     debug_panic_release_log,
     ln::{channel::LxChannelId, payments::LxPaymentHash},

@@ -8,7 +8,7 @@ use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescription};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
-    api::NodePk,
+    api::user::NodePk,
     ln::{
         amount::Amount,
         network::LxNetwork,
