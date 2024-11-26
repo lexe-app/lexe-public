@@ -20,7 +20,7 @@ use common::{
             BackendApiError, BackendErrorKind, LspApiError, RunnerApiError,
         },
         ports::Ports,
-        provision::{SealedSeed, SealedSeedId},
+        provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         user::{MaybeUser, NodePk, Scid, User, UserPk},
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Empty,
@@ -215,8 +215,10 @@ impl NodeBackendApi for MockBackendClient {
     async fn get_sealed_seed(
         &self,
         data: &SealedSeedId,
-    ) -> Result<Option<SealedSeed>, BackendApiError> {
-        Ok(Some(sealed_seed(&data.user_pk)))
+    ) -> Result<MaybeSealedSeed, BackendApiError> {
+        Ok(MaybeSealedSeed {
+            maybe_seed: Some(sealed_seed(&data.user_pk)),
+        })
     }
 
     async fn create_sealed_seed(

@@ -59,7 +59,9 @@ use crate::{
         },
         fiat_rates::FiatRates,
         ports::Ports,
-        provision::{NodeProvisionRequest, SealedSeed, SealedSeedId},
+        provision::{
+            MaybeSealedSeed, NodeProvisionRequest, SealedSeed, SealedSeedId,
+        },
         user::{MaybeUser, NodePk, Scid, UserPk},
         version::NodeRelease,
         vfs::{VfsDirectory, VfsFile, VfsFileId},
@@ -82,11 +84,11 @@ pub trait NodeBackendApi {
         user_pk: UserPk,
     ) -> Result<MaybeUser, BackendApiError>;
 
-    /// GET /node/v1/sealed_seed [`SealedSeedId`] -> [`Option<SealedSeed>`]
+    /// GET /node/v1/sealed_seed [`SealedSeedId`] -> [`MaybeSealedSeed`]
     async fn get_sealed_seed(
         &self,
         data: &SealedSeedId,
-    ) -> Result<Option<SealedSeed>, BackendApiError>;
+    ) -> Result<MaybeSealedSeed, BackendApiError>;
 
     // --- Bearer authentication required --- //
 

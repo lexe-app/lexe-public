@@ -9,7 +9,7 @@ use common::{
         },
         error::{BackendApiError, LspApiError, RunnerApiError},
         ports::Ports,
-        provision::{SealedSeed, SealedSeedId},
+        provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         rest::{RequestBuilderExt, RestClient, POST},
         user::{MaybeUser, NodePk, NodePkStruct, Scid, UserPk, UserPkStruct},
         version::MeasurementStruct,
@@ -159,7 +159,7 @@ impl NodeBackendApi for BackendClient {
     async fn get_sealed_seed(
         &self,
         data: &SealedSeedId,
-    ) -> Result<Option<SealedSeed>, BackendApiError> {
+    ) -> Result<MaybeSealedSeed, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest

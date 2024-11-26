@@ -114,6 +114,12 @@ pub struct SealedSeed {
     pub ciphertext: Vec<u8>,
 }
 
+/// An upgradeable version of [`Option<SealedSeed>`].
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MaybeSealedSeed {
+    pub maybe_seed: Option<SealedSeed>,
+}
+
 /// The data that is actually sealed. This struct is serialized to JSON bytes
 /// before it is encrypted. By sealing the [`LxNetwork`] along with the
 /// [`RootSeed`], the root seed is bound to this [`LxNetwork`]. This allows us
