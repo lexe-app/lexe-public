@@ -58,9 +58,9 @@ pub trait EventExt {
     /// Returns the name of the event.
     fn name(&self) -> &'static str;
 
-    /// Get a unique string ID for this event.
+    /// Generate a unique string ID for this event.
     /// Current format: `<timestamp_ms>-<nonce>-<event_name>`
-    fn id(&self) -> String;
+    fn generate_id(&self) -> String;
 
     /// A method to call just as we begin to handle an event.
     /// - Logs "Handling event: {name}" at INFO
@@ -105,7 +105,7 @@ impl EventExt for Event {
         }
     }
 
-    fn id(&self) -> String {
+    fn generate_id(&self) -> String {
         let timestamp_ms = TimestampMs::now().into_u64();
         // Prevents duplicate keys with high probability.
         let nonce = SysRng::new().gen_u32();
@@ -114,7 +114,7 @@ impl EventExt for Event {
     }
 
     fn handle_prelude(&self) -> (String, tracing::Span) {
-        let event_id = self.id();
+        let event_id = self.generate_id();
         let span = self.handle_prelude_with_id(&event_id);
         (event_id, span)
     }
