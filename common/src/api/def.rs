@@ -69,7 +69,9 @@ use crate::{
 use crate::{
     ed25519,
     enclave::Measurement,
-    ln::payments::{BasicPayment, DbPayment, LxPaymentId, MaybeDbPayment},
+    ln::payments::{
+        BasicPayment, DbPayment, LxPaymentId, MaybeDbPayment, VecDbPayment,
+    },
     test_event::TestEventOp,
 };
 
@@ -178,17 +180,17 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
-    /// PUT /node/v1/payments/batch [`Vec<DbPayment>`] -> [`Empty`]
+    /// PUT /node/v1/payments/batch [`VecDbPayment`] -> [`Empty`]
     ///
     /// ACID endpoint for upserting a batch of payments.
     async fn upsert_payment_batch(
         &self,
-        payments: Vec<DbPayment>,
+        payments: VecDbPayment,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
     /// POST /node/v1/payments/indexes [`PaymentIndexes`]
-    ///                             -> [`Vec<DbPayment>`]
+    ///                             -> [`VecDbPayment`]
     ///
     /// Fetch a batch of payments by their [`PaymentIndex`]s. This is typically
     /// used by a mobile client to poll for updates on payments which it
@@ -201,9 +203,9 @@ pub trait NodeBackendApi {
         &self,
         req: PaymentIndexes,
         auth: BearerAuthToken,
-    ) -> Result<Vec<DbPayment>, BackendApiError>;
+    ) -> Result<VecDbPayment, BackendApiError>;
 
-    /// GET /node/v1/payments/new [`GetNewPayments`] -> [`Vec<DbPayment>`]
+    /// GET /node/v1/payments/new [`GetNewPayments`] -> [`VecDbPayment`]
     ///
     /// Sync a batch of new payments to local storage, optionally starting from
     /// a known [`PaymentIndex`] (exclusive). Results are in ascending order, by
@@ -212,15 +214,15 @@ pub trait NodeBackendApi {
         &self,
         req: GetNewPayments,
         auth: BearerAuthToken,
-    ) -> Result<Vec<DbPayment>, BackendApiError>;
+    ) -> Result<VecDbPayment, BackendApiError>;
 
-    /// GET /node/v1/payments/pending -> [`Vec<DbPayment>`]
+    /// GET /node/v1/payments/pending -> [`VecDbPayment`]
     ///
     /// Fetches all pending payments.
     async fn get_pending_payments(
         &self,
         auth: BearerAuthToken,
-    ) -> Result<Vec<DbPayment>, BackendApiError>;
+    ) -> Result<VecDbPayment, BackendApiError>;
 
     /// GET /node/v1/payments/final -> [`Vec<LxPaymentId>`]
     ///
@@ -438,7 +440,7 @@ pub trait AppNodeRunApi {
         &self,
     ) -> Result<Address<NetworkUnchecked>, NodeApiError>;
 
-    /// POST /v1/payments/indexes [`PaymentIndexes`] -> [`Vec<DbPayment>`]
+    /// POST /v1/payments/indexes [`PaymentIndexes`] -> [`VecDbPayment`]
     ///
     /// Fetch a batch of payments by their [`PaymentIndex`]s. This is typically
     /// used by a mobile client to poll for updates on payments which it

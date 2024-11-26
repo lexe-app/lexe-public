@@ -21,7 +21,9 @@ use common::{
     },
     ln::{
         channel::LxOutPoint,
-        payments::{BasicPayment, DbPayment, LxPaymentId, PaymentIndex},
+        payments::{
+            BasicPayment, DbPayment, LxPaymentId, PaymentIndex, VecDbPayment,
+        },
     },
     rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
@@ -366,6 +368,7 @@ impl NodePersister {
             .get_payments_by_indexes(req, token)
             .await
             .context("Could not fetch `DbPayment`s")?
+            .payments
             .into_iter()
             // Decrypt into `Payment`s
             .map(|p| payments::decrypt(&self.vfs_master_key, p))
@@ -385,6 +388,7 @@ impl NodePersister {
             .get_new_payments(req, token)
             .await
             .context("Could not fetch `DbPayment`s")?
+            .payments
             .into_iter()
             // Decrypt into `Payment`s
             .map(|p| payments::decrypt(&self.vfs_master_key, p))
@@ -631,6 +635,7 @@ impl LexeInnerPersister for NodePersister {
             .get_pending_payments(token)
             .await
             .context("Could not fetch pending `DbPayment`s")?
+            .payments
             .into_iter()
             // Decrypt into `Payment`s
             .map(|p| payments::decrypt(&self.vfs_master_key, p))
@@ -702,7 +707,7 @@ impl LexeInnerPersister for NodePersister {
 
         let token = self.get_token().await?;
         self.backend_api
-            .upsert_payment_batch(batch, token)
+            .upsert_payment_batch(VecDbPayment { payments: batch }, token)
             .await
             .context("upsert_payment API call failed")?;
 

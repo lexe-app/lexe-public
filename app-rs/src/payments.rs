@@ -1055,7 +1055,7 @@ mod test {
         // payment sync methods
 
         /// POST /v1/payments/indexes [`PaymentIndexes`]
-        ///                        -> [`Vec<DbPayment>`]
+        ///                        -> [`VecDbPayment`]
         async fn get_payments_by_indexes(
             &self,
             req: PaymentIndexes,

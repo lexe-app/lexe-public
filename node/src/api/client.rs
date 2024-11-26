@@ -22,7 +22,7 @@ use common::{
     ed25519,
     enclave::Measurement,
     env::DeployEnv,
-    ln::payments::{DbPayment, LxPaymentId, MaybeDbPayment},
+    ln::payments::{DbPayment, LxPaymentId, MaybeDbPayment, VecDbPayment},
     rng::Crng,
     tls::attestation::{self, NodeMode},
 };
@@ -320,7 +320,7 @@ impl NodeBackendApi for BackendClient {
 
     async fn upsert_payment_batch(
         &self,
-        payments: Vec<DbPayment>,
+        payments: VecDbPayment,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
@@ -335,7 +335,7 @@ impl NodeBackendApi for BackendClient {
         &self,
         req: PaymentIndexes,
         auth: BearerAuthToken,
-    ) -> Result<Vec<DbPayment>, BackendApiError> {
+    ) -> Result<VecDbPayment, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -348,7 +348,7 @@ impl NodeBackendApi for BackendClient {
         &self,
         req: GetNewPayments,
         auth: BearerAuthToken,
-    ) -> Result<Vec<DbPayment>, BackendApiError> {
+    ) -> Result<VecDbPayment, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -360,7 +360,7 @@ impl NodeBackendApi for BackendClient {
     async fn get_pending_payments(
         &self,
         auth: BearerAuthToken,
-    ) -> Result<Vec<DbPayment>, BackendApiError> {
+    ) -> Result<VecDbPayment, BackendApiError> {
         let backend = &self.backend_url;
         let data = Empty {};
         let req = self

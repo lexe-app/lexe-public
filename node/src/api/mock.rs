@@ -32,7 +32,8 @@ use common::{
     ln::{
         network::LxNetwork,
         payments::{
-            DbPayment, LxPaymentId, MaybeDbPayment, PaymentIndex, PaymentStatus,
+            DbPayment, LxPaymentId, MaybeDbPayment, PaymentIndex,
+            PaymentStatus, VecDbPayment,
         },
     },
     rng::SysRng,
@@ -362,11 +363,11 @@ impl NodeBackendApi for MockBackendClient {
 
     async fn upsert_payment_batch(
         &self,
-        payments: Vec<DbPayment>,
+        vec_payments: VecDbPayment,
         _auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
         let mut locked_payments = self.payments.lock().unwrap();
-        for payment in payments {
+        for payment in vec_payments.payments {
             let created_at = TimestampMs::try_from(payment.created_at).unwrap();
             let id = LxPaymentId::from_str(&payment.id).unwrap();
             let key = PaymentIndex { created_at, id };
@@ -379,21 +380,21 @@ impl NodeBackendApi for MockBackendClient {
         &self,
         req: PaymentIndexes,
         _auth: BearerAuthToken,
-    ) -> Result<Vec<DbPayment>, BackendApiError> {
+    ) -> Result<VecDbPayment, BackendApiError> {
         let payments_lock = self.payments.lock().unwrap();
         let payments = req
             .indexes
             .into_iter()
             .filter_map(|idx| payments_lock.get(&idx).cloned())
             .collect::<Vec<_>>();
-        Ok(payments)
+        Ok(VecDbPayment { payments })
     }
 
     async fn get_new_payments(
         &self,
         req: GetNewPayments,
         _auth: BearerAuthToken,
-    ) -> Result<Vec<DbPayment>, BackendApiError> {
+    ) -> Result<VecDbPayment, BackendApiError> {
         let limit = req.limit.unwrap_or(constants::DEFAULT_PAYMENTS_BATCH_SIZE);
         if limit > constants::MAX_PAYMENTS_BATCH_SIZE {
             return Err(BackendApiError::batch_size_too_large());
@@ -413,13 +414,13 @@ impl NodeBackendApi for MockBackendClient {
             .cloned()
             .collect::<Vec<DbPayment>>();
 
-        Ok(payments)
+        Ok(VecDbPayment { payments })
     }
 
     async fn get_pending_payments(
         &self,
         _auth: BearerAuthToken,
-    ) -> Result<Vec<DbPayment>, BackendApiError> {
+    ) -> Result<VecDbPayment, BackendApiError> {
         let pending_status_str = PaymentStatus::Pending.to_string();
         let payments = self
             .payments
@@ -430,7 +431,7 @@ impl NodeBackendApi for MockBackendClient {
             .cloned()
             .collect::<Vec<DbPayment>>();
 
-        Ok(payments)
+        Ok(VecDbPayment { payments })
     }
 
     async fn get_finalized_payment_ids(
