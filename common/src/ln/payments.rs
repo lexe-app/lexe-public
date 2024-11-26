@@ -113,6 +113,12 @@ pub struct DbPayment {
     pub data: Vec<u8>,
 }
 
+/// An upgradeable version of [`Option<DbPayment>`].
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MaybeDbPayment {
+    pub maybe_payment: Option<DbPayment>,
+}
+
 /// Specifies whether this is an onchain payment, LN invoice payment, etc.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(DeserializeFromStr)]

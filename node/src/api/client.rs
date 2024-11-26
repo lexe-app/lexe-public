@@ -22,7 +22,7 @@ use common::{
     ed25519,
     enclave::Measurement,
     env::DeployEnv,
-    ln::payments::{DbPayment, LxPaymentId},
+    ln::payments::{DbPayment, LxPaymentId, MaybeDbPayment},
     rng::Crng,
     tls::attestation::{self, NodeMode},
 };
@@ -283,7 +283,7 @@ impl NodeBackendApi for BackendClient {
         &self,
         req: PaymentIndexStruct,
         auth: BearerAuthToken,
-    ) -> Result<Option<DbPayment>, BackendApiError> {
+    ) -> Result<MaybeDbPayment, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest

@@ -721,6 +721,7 @@ impl LexeInnerPersister for NodePersister {
             .get_payment(req, token)
             .await
             .context("Could not fetch `DbPayment`s")?
+            .maybe_payment
             // Decrypt into `Payment`
             .map(|p| payments::decrypt(&self.vfs_master_key, p))
             .transpose()

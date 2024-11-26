@@ -69,7 +69,7 @@ use crate::{
 use crate::{
     ed25519,
     enclave::Measurement,
-    ln::payments::{BasicPayment, DbPayment, LxPaymentId},
+    ln::payments::{BasicPayment, DbPayment, LxPaymentId, MaybeDbPayment},
     test_event::TestEventOp,
 };
 
@@ -157,12 +157,12 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Vec<VfsFile>, BackendApiError>;
 
-    /// GET /node/v1/payments [`PaymentIndexStruct`] -> [`Option<DbPayment>`]
+    /// GET /node/v1/payments [`PaymentIndexStruct`] -> [`MaybeDbPayment`]
     async fn get_payment(
         &self,
         req: PaymentIndexStruct,
         auth: BearerAuthToken,
-    ) -> Result<Option<DbPayment>, BackendApiError>;
+    ) -> Result<MaybeDbPayment, BackendApiError>;
 
     /// POST /node/v1/payments [`DbPayment`] -> [`Empty`]
     async fn create_payment(

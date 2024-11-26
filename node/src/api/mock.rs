@@ -31,7 +31,9 @@ use common::{
     env::DeployEnv,
     ln::{
         network::LxNetwork,
-        payments::{DbPayment, LxPaymentId, PaymentIndex, PaymentStatus},
+        payments::{
+            DbPayment, LxPaymentId, MaybeDbPayment, PaymentIndex, PaymentStatus,
+        },
     },
     rng::SysRng,
     root_seed::RootSeed,
@@ -313,16 +315,16 @@ impl NodeBackendApi for MockBackendClient {
         &self,
         req: PaymentIndexStruct,
         _auth: BearerAuthToken,
-    ) -> Result<Option<DbPayment>, BackendApiError> {
-        self.payments
+    ) -> Result<MaybeDbPayment, BackendApiError> {
+        let maybe_payment = self
+            .payments
             .lock()
             .unwrap()
             .iter()
             .find(|(k, _v)| k.id == req.index.id)
             .map(|(_k, v)| v)
-            .cloned()
-            .map(Ok)
-            .transpose()
+            .cloned();
+        Ok(MaybeDbPayment { maybe_payment })
     }
 
     async fn create_payment(
