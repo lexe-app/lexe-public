@@ -22,7 +22,7 @@ use common::{
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         user::{MaybeScid, MaybeUser, NodePk, Scid, User, UserPk},
-        vfs::{MaybeVfsFile, VfsDirectory, VfsFile, VfsFileId},
+        vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
         Empty,
     },
     byte_str::ByteStr,
@@ -306,9 +306,9 @@ impl NodeBackendApi for MockBackendClient {
         &self,
         dir: &VfsDirectory,
         _auth: BearerAuthToken,
-    ) -> Result<Vec<VfsFile>, BackendApiError> {
-        let files_vec = self.vfs.lock().unwrap().get_dir(dir.clone());
-        Ok(files_vec)
+    ) -> Result<VecVfsFile, BackendApiError> {
+        let files = self.vfs.lock().unwrap().get_dir(dir.clone());
+        Ok(VecVfsFile { files })
     }
 
     async fn get_payment(

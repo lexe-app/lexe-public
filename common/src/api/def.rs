@@ -58,7 +58,7 @@ use super::{
     },
     user::{MaybeScid, MaybeUser, NodePk, Scid, UserPk},
     version::NodeRelease,
-    vfs::{MaybeVfsFile, VfsDirectory, VfsFile, VfsFileId},
+    vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
     Empty,
 };
 #[cfg(doc)]
@@ -150,12 +150,12 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
-    /// GET /node/v1/directory [`VfsDirectory`] -> [`Vec<VfsFile>`]
+    /// GET /node/v1/directory [`VfsDirectory`] -> [`VecVfsFile`]
     async fn get_directory(
         &self,
         dir: &VfsDirectory,
         auth: BearerAuthToken,
-    ) -> Result<Vec<VfsFile>, BackendApiError>;
+    ) -> Result<VecVfsFile, BackendApiError>;
 
     /// GET /node/v1/payments [`PaymentIndexStruct`] -> [`MaybeDbPayment`]
     async fn get_payment(

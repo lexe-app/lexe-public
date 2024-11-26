@@ -294,6 +294,7 @@ impl GoogleVfs {
         self.gid_cache.read().await.get(vfile_id).is_some()
     }
 
+    // TODO(max): GoogleVfs should impl the Vfs trait
     #[instrument(skip_all, name = "(gvfs-get-file)")]
     pub async fn get_file(
         &self,
@@ -322,6 +323,7 @@ impl GoogleVfs {
     }
 
     /// The error will contain [`CREATE_DUPE_MSG`] if the file was a duplicate.
+    // TODO(max): GoogleVfs should impl the Vfs trait
     #[instrument(skip_all, name = "(gvfs-create-file)")]
     pub async fn create_file(&self, vfile: VfsFile) -> anyhow::Result<()> {
         let mut locked_cache = self.gid_cache.write().await;
@@ -350,6 +352,7 @@ impl GoogleVfs {
         Ok(())
     }
 
+    // TODO(max): GoogleVfs should impl the Vfs trait
     #[instrument(skip_all, name = "(gvfs-upsert-file)")]
     pub async fn upsert_file(&self, vfile: VfsFile) -> anyhow::Result<()> {
         let mut locked_cache = self.gid_cache.write().await;
@@ -384,6 +387,7 @@ impl GoogleVfs {
     }
 
     /// The error will contain [`NOT_FOUND_MSG`] if the file was not found.
+    // TODO(max): GoogleVfs should impl the Vfs trait
     #[instrument(skip_all, name = "(gvfs-delete-file)")]
     pub async fn delete_file(
         &self,
@@ -413,6 +417,7 @@ impl GoogleVfs {
         Ok(())
     }
 
+    // TODO(max): GoogleVfs should impl the Vfs trait
     #[instrument(skip_all, name = "(gvfs-get-directory)")]
     pub async fn get_directory(
         &self,

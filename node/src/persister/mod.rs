@@ -10,7 +10,9 @@ use common::{
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         error::BackendApiError,
         user::{MaybeScid, Scid, User},
-        vfs::{MaybeVfsFile, Vfs, VfsDirectory, VfsFile, VfsFileId},
+        vfs::{
+            MaybeVfsFile, VecVfsFile, Vfs, VfsDirectory, VfsFile, VfsFileId,
+        },
         Empty,
     },
     constants::{
@@ -482,32 +484,30 @@ impl NodePersister {
                     &self.vfs_master_key,
                     gvfs,
                     google_files,
-                    lexe_files,
+                    lexe_files.files,
                 )
                 .await
                 .context("Monitor evaluation and resolution failed")?
             }
             // We're running in dev/test. Just fetch from Lexe's DB.
-            None => {
-                let files =
-                    self.backend_api
-                        .get_directory(&dir, token)
-                        .await
-                        .context("Failed to fetch from Lexe (`None` branch)")?;
-                files
-                    .into_iter()
-                    .map(|file| {
-                        let file_id = file.id.clone();
-                        let plaintext = persister::decrypt_file(
-                            &self.vfs_master_key,
-                            &file_id,
-                            file,
-                        )
-                        .map(Secret::new)?;
-                        anyhow::Ok((file_id, plaintext))
-                    })
-                    .collect::<anyhow::Result<Vec<_>>>()?
-            }
+            None => self
+                .backend_api
+                .get_directory(&dir, token)
+                .await
+                .context("Failed to fetch from Lexe (`None` branch)")?
+                .files
+                .into_iter()
+                .map(|file| {
+                    let file_id = file.id.clone();
+                    let plaintext = persister::decrypt_file(
+                        &self.vfs_master_key,
+                        &file_id,
+                        file,
+                    )
+                    .map(Secret::new)?;
+                    anyhow::Ok((file_id, plaintext))
+                })
+                .collect::<anyhow::Result<Vec<_>>>()?,
         };
 
         let mut result = Vec::new();
@@ -581,7 +581,10 @@ impl Vfs for NodePersister {
         dir: &VfsDirectory,
     ) -> Result<Vec<VfsFile>, BackendApiError> {
         let token = self.get_token().await?;
-        self.backend_api.get_directory(dir, token).await
+        self.backend_api
+            .get_directory(dir, token)
+            .await
+            .map(|VecVfsFile { files }| files)
     }
 
     #[inline]
