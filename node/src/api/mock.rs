@@ -21,7 +21,7 @@ use common::{
         },
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
-        user::{MaybeUser, NodePk, Scid, User, UserPk},
+        user::{MaybeScid, MaybeUser, NodePk, Scid, User, UserPk},
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Empty,
     },
@@ -241,8 +241,10 @@ impl NodeBackendApi for MockBackendClient {
         &self,
         _node_pk: NodePk,
         _auth: BearerAuthToken,
-    ) -> Result<Option<Scid>, BackendApiError> {
-        Ok(Some(DUMMY_SCID))
+    ) -> Result<MaybeScid, BackendApiError> {
+        Ok(MaybeScid {
+            maybe_scid: Some(DUMMY_SCID),
+        })
     }
 
     async fn get_file(

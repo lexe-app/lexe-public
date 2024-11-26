@@ -9,7 +9,7 @@ use common::{
         auth::{BearerAuthToken, BearerAuthenticator},
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         error::BackendApiError,
-        user::{Scid, User},
+        user::{MaybeScid, Scid, User},
         vfs::{Vfs, VfsDirectory, VfsFile, VfsFileId},
         Empty,
     },
@@ -318,6 +318,7 @@ impl NodePersister {
         self.backend_api
             .get_scid(self.user.node_pk, token)
             .await
+            .map(|MaybeScid { maybe_scid }| maybe_scid)
             .context("Could not fetch scid")
     }
 

@@ -31,42 +31,42 @@
 use async_trait::async_trait;
 use bitcoin::{address::NetworkUnchecked, Address};
 
+use super::{
+    auth::{
+        BearerAuthRequest, BearerAuthResponse, BearerAuthToken,
+        UserSignupRequest,
+    },
+    command::{
+        CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
+        GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
+        OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+        PayOnchainRequest, PayOnchainResponse, PaymentIndexStruct,
+        PaymentIndexes, PreflightCloseChannelRequest,
+        PreflightCloseChannelResponse, PreflightOpenChannelRequest,
+        PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
+        PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
+        PreflightPayOnchainResponse, UpdatePaymentNote,
+    },
+    error::{
+        BackendApiError, GatewayApiError, LspApiError, NodeApiError,
+        RunnerApiError,
+    },
+    fiat_rates::FiatRates,
+    ports::Ports,
+    provision::{
+        MaybeSealedSeed, NodeProvisionRequest, SealedSeed, SealedSeedId,
+    },
+    user::{MaybeScid, MaybeUser, NodePk, Scid, UserPk},
+    version::NodeRelease,
+    vfs::{VfsDirectory, VfsFile, VfsFileId},
+    Empty,
+};
 #[cfg(doc)]
 use crate::{
     api::user::UserPkStruct, api::version::MeasurementStruct,
     ln::payments::PaymentIndex,
 };
 use crate::{
-    api::{
-        auth::{
-            BearerAuthRequest, BearerAuthResponse, BearerAuthToken,
-            UserSignupRequest,
-        },
-        command::{
-            CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-            GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
-            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentIndexStruct,
-            PaymentIndexes, PreflightCloseChannelRequest,
-            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse, UpdatePaymentNote,
-        },
-        error::{
-            BackendApiError, GatewayApiError, LspApiError, NodeApiError,
-            RunnerApiError,
-        },
-        fiat_rates::FiatRates,
-        ports::Ports,
-        provision::{
-            MaybeSealedSeed, NodeProvisionRequest, SealedSeed, SealedSeedId,
-        },
-        user::{MaybeUser, NodePk, Scid, UserPk},
-        version::NodeRelease,
-        vfs::{VfsDirectory, VfsFile, VfsFileId},
-        Empty,
-    },
     ed25519,
     enclave::Measurement,
     ln::payments::{BasicPayment, DbPayment, LxPaymentId},
@@ -111,14 +111,14 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
-    /// GET /node/v1/scid [`NodePkStruct`] -> [`Option<Scid>`]
+    /// GET /node/v1/scid [`NodePkStruct`] -> [`MaybeScid`]
     ///
     /// [`NodePkStruct`]: crate::api::user::NodePkStruct
     async fn get_scid(
         &self,
         node_pk: NodePk,
         auth: BearerAuthToken,
-    ) -> Result<Option<Scid>, BackendApiError>;
+    ) -> Result<MaybeScid, BackendApiError>;
 
     /// GET /node/v1/file [`VfsFileId`] -> [`Option<VfsFile>`]
     async fn get_file(
@@ -262,7 +262,7 @@ pub trait BearerAuthBackendApi {
 /// Defines the api that the LSP exposes to user nodes.
 #[async_trait]
 pub trait NodeLspApi {
-    /// GET /node/v1/scid [`NodePkStruct`] -> [`Option<Scid>`]
+    /// GET /node/v1/scid [`NodePkStruct`] -> [`Scid`]
     ///
     /// [`NodePkStruct`]: crate::api::user::NodePkStruct
     async fn get_new_scid(&self, node_pk: NodePk) -> Result<Scid, LspApiError>;

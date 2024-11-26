@@ -11,7 +11,10 @@ use common::{
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         rest::{RequestBuilderExt, RestClient, POST},
-        user::{MaybeUser, NodePk, NodePkStruct, Scid, UserPk, UserPkStruct},
+        user::{
+            MaybeScid, MaybeUser, NodePk, NodePkStruct, Scid, UserPk,
+            UserPkStruct,
+        },
         version::MeasurementStruct,
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Empty,
@@ -198,7 +201,7 @@ impl NodeBackendApi for BackendClient {
         &self,
         node_pk: NodePk,
         auth: BearerAuthToken,
-    ) -> Result<Option<Scid>, BackendApiError> {
+    ) -> Result<MaybeScid, BackendApiError> {
         let backend = &self.backend_url;
         let data = NodePkStruct { node_pk };
         let req = self

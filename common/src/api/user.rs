@@ -111,6 +111,12 @@ pub struct ScidStruct {
     pub scid: Scid,
 }
 
+/// An upgradeable version of [`Option<Scid>`].
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct MaybeScid {
+    pub maybe_scid: Option<Scid>,
+}
+
 /// Represents an entry in the `node_scid` table.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
