@@ -21,7 +21,7 @@ use common::{
         },
         ports::Ports,
         provision::{SealedSeed, SealedSeedId},
-        user::{NodePk, Scid, User, UserPk},
+        user::{MaybeUser, NodePk, Scid, User, UserPk},
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Empty,
     },
@@ -201,11 +201,14 @@ impl NodeBackendApi for MockBackendClient {
     async fn get_user(
         &self,
         user_pk: UserPk,
-    ) -> Result<Option<User>, BackendApiError> {
-        Ok(Some(User {
+    ) -> Result<MaybeUser, BackendApiError> {
+        let user = User {
             user_pk,
             node_pk: node_pk(user_pk),
-        }))
+        };
+        Ok(MaybeUser {
+            maybe_user: Some(user),
+        })
     }
 
     /// Always return the dummy version

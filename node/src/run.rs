@@ -861,7 +861,7 @@ async fn fetch_provisioned_secrets(
     let maybe_sealed_seed =
         try_maybe_sealed_seed.context("Error while fetching sealed seed")?;
 
-    match (maybe_user, maybe_sealed_seed) {
+    match (maybe_user.maybe_user, maybe_sealed_seed) {
         (Some(user), Some(sealed_seed)) => {
             let db_user_pk = user.user_pk;
             let db_node_pk = user.node_pk;

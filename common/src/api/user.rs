@@ -31,6 +31,12 @@ pub struct User {
     pub node_pk: NodePk,
 }
 
+/// An upgradeable version of [`Option<User>`].
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct MaybeUser {
+    pub maybe_user: Option<User>,
+}
+
 /// A Lexe user's primary identifier - their `ed25519::PublicKey`.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]

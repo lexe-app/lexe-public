@@ -8,6 +8,9 @@
 //!
 //! ## Guidelines
 //!
+//! All API requests and responses should return structs for upgradeability,
+//! e.g. [`UserPkStruct`] instead of [`UserPk`].
+//!
 //! If an API method takes or returns nothing, make the type [`Empty`] and NOT
 //! `()` (unit type). Using `()` makes it impossible to add optional fields in a
 //! backwards-compatible way.
@@ -19,6 +22,9 @@
 //! - 4) The return type e.g. `Option<VfsFile>`
 //!
 //! The methods below should resemble the data actually sent across the wire.
+//!
+//! [`UserPk`]: crate::api::user::UserPk
+//! [`UserPkStruct`]: crate::api::user::UserPkStruct
 
 #![deny(missing_docs)]
 
@@ -54,7 +60,7 @@ use crate::{
         fiat_rates::FiatRates,
         ports::Ports,
         provision::{NodeProvisionRequest, SealedSeed, SealedSeedId},
-        user::{NodePk, Scid, User, UserPk},
+        user::{MaybeUser, NodePk, Scid, UserPk},
         version::NodeRelease,
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Empty,
@@ -70,11 +76,11 @@ use crate::{
 pub trait NodeBackendApi {
     // --- Unauthenticated --- //
 
-    /// GET /node/v1/user [`UserPkStruct`] -> [`Option<User>`]
+    /// GET /node/v1/user [`UserPkStruct`] -> [`MaybeUser`]
     async fn get_user(
         &self,
         user_pk: UserPk,
-    ) -> Result<Option<User>, BackendApiError>;
+    ) -> Result<MaybeUser, BackendApiError>;
 
     /// GET /node/v1/sealed_seed [`SealedSeedId`] -> [`Option<SealedSeed>`]
     async fn get_sealed_seed(

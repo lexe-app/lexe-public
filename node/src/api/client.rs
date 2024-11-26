@@ -11,7 +11,7 @@ use common::{
         ports::Ports,
         provision::{SealedSeed, SealedSeedId},
         rest::{RequestBuilderExt, RestClient, POST},
-        user::{NodePk, NodePkStruct, Scid, User, UserPk, UserPkStruct},
+        user::{MaybeUser, NodePk, NodePkStruct, Scid, UserPk, UserPkStruct},
         version::MeasurementStruct,
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Empty,
@@ -148,7 +148,7 @@ impl NodeBackendApi for BackendClient {
     async fn get_user(
         &self,
         user_pk: UserPk,
-    ) -> Result<Option<User>, BackendApiError> {
+    ) -> Result<MaybeUser, BackendApiError> {
         let backend = &self.backend_url;
         let data = UserPkStruct { user_pk };
         let req = self.rest.get(format!("{backend}/node/v1/user"), &data);
