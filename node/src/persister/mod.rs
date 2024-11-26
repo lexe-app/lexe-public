@@ -23,6 +23,7 @@ use common::{
         channel::LxOutPoint,
         payments::{
             BasicPayment, DbPayment, LxPaymentId, PaymentIndex, VecDbPayment,
+            VecLxPaymentId,
         },
     },
     rng::{Crng, SysRng},
@@ -650,6 +651,7 @@ impl LexeInnerPersister for NodePersister {
         self.backend_api
             .get_finalized_payment_ids(token)
             .await
+            .map(|VecLxPaymentId { ids }| ids)
             .context("Could not get ids of finalized payments")
     }
 

@@ -70,7 +70,7 @@ use crate::{
     ed25519,
     enclave::Measurement,
     ln::payments::{
-        BasicPayment, DbPayment, LxPaymentId, MaybeDbPayment, VecDbPayment,
+        BasicPayment, DbPayment, MaybeDbPayment, VecDbPayment, VecLxPaymentId,
     },
     test_event::TestEventOp,
 };
@@ -224,13 +224,13 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<VecDbPayment, BackendApiError>;
 
-    /// GET /node/v1/payments/final -> [`Vec<LxPaymentId>`]
+    /// GET /node/v1/payments/final -> [`VecLxPaymentId`]
     ///
     /// Fetches the IDs of all finalized payments.
     async fn get_finalized_payment_ids(
         &self,
         auth: BearerAuthToken,
-    ) -> Result<Vec<LxPaymentId>, BackendApiError>;
+    ) -> Result<VecLxPaymentId, BackendApiError>;
 }
 
 /// Defines the api that the backend exposes to the app (via the gateway).

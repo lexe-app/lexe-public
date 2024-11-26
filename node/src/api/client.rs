@@ -22,7 +22,7 @@ use common::{
     ed25519,
     enclave::Measurement,
     env::DeployEnv,
-    ln::payments::{DbPayment, LxPaymentId, MaybeDbPayment, VecDbPayment},
+    ln::payments::{DbPayment, MaybeDbPayment, VecDbPayment, VecLxPaymentId},
     rng::Crng,
     tls::attestation::{self, NodeMode},
 };
@@ -373,7 +373,7 @@ impl NodeBackendApi for BackendClient {
     async fn get_finalized_payment_ids(
         &self,
         auth: BearerAuthToken,
-    ) -> Result<Vec<LxPaymentId>, BackendApiError> {
+    ) -> Result<VecLxPaymentId, BackendApiError> {
         let backend = &self.backend_url;
         let data = Empty {};
         let req = self

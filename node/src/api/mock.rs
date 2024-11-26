@@ -33,7 +33,7 @@ use common::{
         network::LxNetwork,
         payments::{
             DbPayment, LxPaymentId, MaybeDbPayment, PaymentIndex,
-            PaymentStatus, VecDbPayment,
+            PaymentStatus, VecDbPayment, VecLxPaymentId,
         },
     },
     rng::SysRng,
@@ -437,10 +437,10 @@ impl NodeBackendApi for MockBackendClient {
     async fn get_finalized_payment_ids(
         &self,
         _auth: BearerAuthToken,
-    ) -> Result<Vec<LxPaymentId>, BackendApiError> {
+    ) -> Result<VecLxPaymentId, BackendApiError> {
         let completed_status_str = PaymentStatus::Completed.to_string();
         let failed_status_str = PaymentStatus::Failed.to_string();
-        let payments = self
+        let ids = self
             .payments
             .lock()
             .unwrap()
@@ -458,7 +458,7 @@ impl NodeBackendApi for MockBackendClient {
             .cloned()
             .collect::<Vec<_>>();
 
-        Ok(payments)
+        Ok(VecLxPaymentId { ids })
     }
 }
 
