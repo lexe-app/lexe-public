@@ -50,7 +50,7 @@ use crate::{
     ed25519,
     enclave::Measurement,
     env::DeployEnv,
-    ln::payments::BasicPayment,
+    ln::payments::VecBasicPayment,
     rng::Crng,
     root_seed::RootSeed,
     tls::{self, lexe_ca},
@@ -478,7 +478,7 @@ impl AppNodeRunApi for NodeClient {
     async fn get_payments_by_indexes(
         &self,
         req: PaymentIndexes,
-    ) -> Result<Vec<BasicPayment>, NodeApiError> {
+    ) -> Result<VecBasicPayment, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/payments/indexes");
@@ -489,7 +489,7 @@ impl AppNodeRunApi for NodeClient {
     async fn get_new_payments(
         &self,
         req: GetNewPayments,
-    ) -> Result<Vec<BasicPayment>, NodeApiError> {
+    ) -> Result<VecBasicPayment, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/payments/new");

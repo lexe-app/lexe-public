@@ -104,6 +104,12 @@ pub struct BasicPayment {
     pub finalized_at: Option<TimestampMs>,
 }
 
+/// An upgradeable version of [`Vec<BasicPayment>`].
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct VecBasicPayment {
+    pub payments: Vec<BasicPayment>,
+}
+
 /// An encrypted payment, as represented in the DB.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DbPayment {

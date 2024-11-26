@@ -70,7 +70,8 @@ use crate::{
     ed25519,
     enclave::Measurement,
     ln::payments::{
-        BasicPayment, DbPayment, MaybeDbPayment, VecDbPayment, VecLxPaymentId,
+        DbPayment, MaybeDbPayment, VecBasicPayment, VecDbPayment,
+        VecLxPaymentId,
     },
     test_event::TestEventOp,
 };
@@ -452,13 +453,13 @@ pub trait AppNodeRunApi {
     async fn get_payments_by_indexes(
         &self,
         req: PaymentIndexes,
-    ) -> Result<Vec<BasicPayment>, NodeApiError>;
+    ) -> Result<VecBasicPayment, NodeApiError>;
 
-    /// GET /app/payments/new [`GetNewPayments`] -> [`Vec<BasicPayment>`]
+    /// GET /app/payments/new [`GetNewPayments`] -> [`VecBasicPayment`]
     async fn get_new_payments(
         &self,
         req: GetNewPayments,
-    ) -> Result<Vec<BasicPayment>, NodeApiError>;
+    ) -> Result<VecBasicPayment, NodeApiError>;
 
     /// PUT /app/payments/note [`UpdatePaymentNote`] -> [`Empty`]
     async fn update_payment_note(

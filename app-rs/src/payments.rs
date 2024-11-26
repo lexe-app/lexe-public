@@ -849,7 +849,8 @@ async fn sync_pending_payments<F: Ffs, N: AppNodeRunApi>(
         let resp_payments = node
             .get_payments_by_indexes(req)
             .await
-            .context("Failed to request updated pending payments from node")?;
+            .context("Failed to request updated pending payments from node")?
+            .payments;
 
         // Sanity check response.
         if resp_payments.len() > pending_idxs_batch.len() {
@@ -906,7 +907,8 @@ async fn sync_new_payments<F: Ffs, N: AppNodeRunApi>(
         let resp_payments = node
             .get_new_payments(req)
             .await
-            .context("Failed to fetch new payments")?;
+            .context("Failed to fetch new payments")?
+            .payments;
 
         let resp_payments_len = resp_payments.len();
         num_new += resp_payments_len;
@@ -953,7 +955,7 @@ mod test {
             error::NodeApiError,
             Empty,
         },
-        ln::payments::PaymentStatus,
+        ln::payments::{PaymentStatus, VecBasicPayment},
         rng::{RngExt, WeakRng},
     };
     use proptest::{
@@ -1059,8 +1061,8 @@ mod test {
         async fn get_payments_by_indexes(
             &self,
             req: PaymentIndexes,
-        ) -> Result<Vec<BasicPayment>, NodeApiError> {
-            Ok(req
+        ) -> Result<VecBasicPayment, NodeApiError> {
+            let payments = req
                 .indexes
                 .into_iter()
                 .filter_map(|idx_i| {
@@ -1070,14 +1072,15 @@ mod test {
                         .map(|(_idx, p)| p)
                         .cloned()
                 })
-                .collect())
+                .collect();
+            Ok(VecBasicPayment { payments })
         }
 
-        /// GET /app/payments/new [`GetNewPayments`] -> [`Vec<BasicPayment>`]
+        /// GET /app/payments/new [`GetNewPayments`] -> [`VecBasicPayment`]
         async fn get_new_payments(
             &self,
             req: GetNewPayments,
-        ) -> Result<Vec<BasicPayment>, NodeApiError> {
+        ) -> Result<VecBasicPayment, NodeApiError> {
             let iter = match req.start_index {
                 Some(idx) => {
                     // Advance the iter until we find the first key where
@@ -1098,10 +1101,11 @@ mod test {
 
             let limit = req.limit.unwrap_or(u16::MAX);
 
-            Ok(iter
+            let payments = iter
                 .take(limit as usize)
                 .map(|(_key, value)| value.clone())
-                .collect::<Vec<_>>())
+                .collect::<Vec<_>>();
+            Ok(VecBasicPayment { payments })
         }
 
         /// PUT /app/payments/note [`UpdatePaymentNote`] -> [`()`]

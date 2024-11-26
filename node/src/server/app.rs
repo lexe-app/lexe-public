@@ -20,7 +20,7 @@ use common::{
         Empty,
     },
     constants,
-    ln::{amount::Amount, channel::LxUserChannelId, payments::BasicPayment},
+    ln::{amount::Amount, channel::LxUserChannelId, payments::VecBasicPayment},
     rng::SysRng,
 };
 use lexe_ln::{command::CreateInvoiceCaller, p2p};
@@ -266,25 +266,25 @@ pub(super) async fn get_address(
 pub(super) async fn get_payments_by_indexes(
     State(state): State<Arc<AppRouterState>>,
     LxJson(req): LxJson<PaymentIndexes>,
-) -> Result<LxJson<Vec<BasicPayment>>, NodeApiError> {
-    state
+) -> Result<LxJson<VecBasicPayment>, NodeApiError> {
+    let payments = state
         .persister
         .read_payments_by_indexes(req)
         .await
-        .map(LxJson)
-        .map_err(NodeApiError::command)
+        .map_err(NodeApiError::command)?;
+    Ok(LxJson(VecBasicPayment { payments }))
 }
 
 pub(super) async fn get_new_payments(
     State(state): State<Arc<AppRouterState>>,
     LxQuery(req): LxQuery<GetNewPayments>,
-) -> Result<LxJson<Vec<BasicPayment>>, NodeApiError> {
-    state
+) -> Result<LxJson<VecBasicPayment>, NodeApiError> {
+    let payments = state
         .persister
         .read_new_payments(req)
         .await
-        .map(LxJson)
-        .map_err(NodeApiError::command)
+        .map_err(NodeApiError::command)?;
+    Ok(LxJson(VecBasicPayment { payments }))
 }
 
 pub(super) async fn update_payment_note(
