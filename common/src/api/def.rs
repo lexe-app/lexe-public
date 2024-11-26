@@ -27,7 +27,7 @@ use bitcoin::{address::NetworkUnchecked, Address};
 
 #[cfg(doc)]
 use crate::{
-    api::models::MeasurementStruct, api::user::UserPkStruct,
+    api::user::UserPkStruct, api::version::MeasurementStruct,
     ln::payments::PaymentIndex,
 };
 use crate::{
@@ -52,10 +52,10 @@ use crate::{
             RunnerApiError,
         },
         fiat_rates::FiatRates,
-        models::NodeRelease,
         ports::Ports,
         provision::{NodeProvisionRequest, SealedSeed, SealedSeedId},
         user::{NodePk, Scid, User, UserPk},
+        version::NodeRelease,
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Empty,
     },

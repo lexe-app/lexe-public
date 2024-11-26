@@ -1,7 +1,7 @@
 use std::io;
 
 use anyhow::{anyhow, Context};
-use common::api::models::NodeRelease;
+use common::api::version::NodeRelease;
 
 use crate::ffs::Ffs;
 

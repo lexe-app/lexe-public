@@ -13,9 +13,9 @@ use common::{
     api::{
         auth::{BearerAuthenticator, UserSignupRequest},
         def::{AppBackendApi, AppGatewayApi, AppNodeProvisionApi},
-        models::NodeRelease,
         provision::NodeProvisionRequest,
         user::{NodePk, NodePkProof, UserPk},
+        version::NodeRelease,
     },
     client::{GatewayClient, NodeClient},
     constants,
