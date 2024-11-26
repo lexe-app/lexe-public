@@ -3,6 +3,8 @@ use bitcoin::address::NetworkUnchecked;
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
+#[cfg(any(test, feature = "test-utils"))]
+use crate::test_utils::arbitrary;
 use crate::{
     api::user::NodePk,
     enclave::Measurement,
@@ -206,6 +208,16 @@ pub struct PreflightPayInvoiceResponse {
 
 // --- On-chain payments --- //
 
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct GetAddressResponse {
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_mainnet_addr_unchecked()")
+    )]
+    pub addr: bitcoin::Address<NetworkUnchecked>,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct PayOnchainRequest {
     /// The identifier to use for this payment.
@@ -232,7 +244,7 @@ pub struct PayOnchainResponse {
     pub txid: LxTxid,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct PreflightPayOnchainRequest {
     /// The address we want to send funds to.
     pub address: bitcoin::Address<NetworkUnchecked>,
@@ -260,14 +272,13 @@ pub struct FeeEstimate {
 }
 
 #[cfg(any(test, feature = "test-utils"))]
-mod arbitrary {
+mod arbitrary_impl {
     use proptest::{
         arbitrary::{any, Arbitrary},
         strategy::{BoxedStrategy, Strategy},
     };
 
     use super::*;
-    use crate::test_utils::arbitrary;
 
     impl Arbitrary for PreflightPayOnchainRequest {
         type Parameters = ();
@@ -305,5 +316,10 @@ mod test {
     fn payment_indexes_roundtrip() {
         // This is serialized as JSON, not query strings.
         roundtrip::json_value_roundtrip_proptest::<PaymentIndexes>();
+    }
+
+    #[test]
+    fn get_address_response_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<GetAddressResponse>();
     }
 }

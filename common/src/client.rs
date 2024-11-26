@@ -13,7 +13,6 @@ use std::{
 
 use anyhow::Context;
 use async_trait::async_trait;
-use bitcoin::{address::NetworkUnchecked, Address};
 use reqwest::Url;
 
 use crate::{
@@ -24,14 +23,14 @@ use crate::{
         },
         command::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-            GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
-            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentIndexes,
-            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            UpdatePaymentNote,
+            GetAddressResponse, GetNewPayments, ListChannelsResponse, NodeInfo,
+            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+            PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
+            PaymentIndexes, PreflightCloseChannelRequest,
+            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
+            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse, UpdatePaymentNote,
         },
         def::{
             AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
@@ -465,9 +464,7 @@ impl AppNodeRunApi for NodeClient {
         self.run_rest.send(req).await
     }
 
-    async fn get_address(
-        &self,
-    ) -> Result<Address<NetworkUnchecked>, NodeApiError> {
+    async fn get_address(&self) -> Result<GetAddressResponse, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/get_address");

@@ -939,14 +939,14 @@ mod test {
     use std::collections::BTreeMap;
 
     use async_trait::async_trait;
-    use bitcoin::address::NetworkUnchecked;
     use common::{
         api::{
             command::{
                 CloseChannelRequest, CreateInvoiceRequest,
-                CreateInvoiceResponse, ListChannelsResponse, NodeInfo,
-                OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-                PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
+                CreateInvoiceResponse, GetAddressResponse,
+                ListChannelsResponse, NodeInfo, OpenChannelRequest,
+                OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+                PayOnchainRequest, PayOnchainResponse,
                 PreflightCloseChannelRequest, PreflightCloseChannelResponse,
                 PreflightOpenChannelRequest, PreflightOpenChannelResponse,
                 PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
@@ -1050,7 +1050,7 @@ mod test {
         }
         async fn get_address(
             &self,
-        ) -> Result<bitcoin::Address<NetworkUnchecked>, NodeApiError> {
+        ) -> Result<GetAddressResponse, NodeApiError> {
             unimplemented!()
         }
 

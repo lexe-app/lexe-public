@@ -29,7 +29,6 @@
 #![deny(missing_docs)]
 
 use async_trait::async_trait;
-use bitcoin::{address::NetworkUnchecked, Address};
 
 use super::{
     auth::{
@@ -38,10 +37,10 @@ use super::{
     },
     command::{
         CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-        GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
-        OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-        PayOnchainRequest, PayOnchainResponse, PaymentIndexStruct,
-        PaymentIndexes, PreflightCloseChannelRequest,
+        GetAddressResponse, GetNewPayments, ListChannelsResponse, NodeInfo,
+        OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+        PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
+        PaymentIndexStruct, PaymentIndexes, PreflightCloseChannelRequest,
         PreflightCloseChannelResponse, PreflightOpenChannelRequest,
         PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
@@ -413,6 +412,12 @@ pub trait AppNodeRunApi {
         req: PreflightPayInvoiceRequest,
     ) -> Result<PreflightPayInvoiceResponse, NodeApiError>;
 
+    /// POST /app/get_address [`Empty`] -> [`GetAddressResponse`]
+    ///
+    /// Returns an address which can be used to receive funds. It is unused
+    /// unless there is an incoming tx and BDK hasn't detected it yet.
+    async fn get_address(&self) -> Result<GetAddressResponse, NodeApiError>;
+
     /// POST /app/pay_onchain [`PayOnchainRequest`] -> [`PayOnchainResponse`]
     ///
     /// Pay bitcoin onchain. If the address is valid and we have sufficient
@@ -431,15 +436,6 @@ pub trait AppNodeRunApi {
         &self,
         req: PreflightPayOnchainRequest,
     ) -> Result<PreflightPayOnchainResponse, NodeApiError>;
-
-    /// POST /app/get_address [`Empty`] -> [`bitcoin::Address`]
-    ///
-    /// Returns an address which can be used to receive funds. It is unused
-    /// unless there is an incoming tx and BDK hasn't detected it yet.
-    // TODO(max): Make backwards compatible
-    async fn get_address(
-        &self,
-    ) -> Result<Address<NetworkUnchecked>, NodeApiError>;
 
     /// POST /v1/payments/indexes [`PaymentIndexes`] -> [`VecDbPayment`]
     ///

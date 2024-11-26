@@ -2,7 +2,7 @@ use anyhow::Context;
 use common::{
     api::{
         command::{
-            OpenChannelRequest as OpenChannelRequestRs,
+            GetAddressResponse, OpenChannelRequest as OpenChannelRequestRs,
             PayInvoiceRequest as PayInvoiceRequestRs,
             PayOnchainRequest as PayOnchainRequestRs,
             PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
@@ -222,8 +222,8 @@ impl AppHandle {
             .node_client()
             .get_address()
             .await
-            // TODO(max): Use `assume_checked_ref` once bitcoin@0.31.0
-            .map(|addr| addr.assume_checked().to_string())
+            .map(|GetAddressResponse { addr }| addr)
+            .map(|addr| addr.assume_checked_ref().to_string())
             .map_err(anyhow::Error::new)
     }
 

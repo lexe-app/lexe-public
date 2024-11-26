@@ -6,14 +6,14 @@ use common::{
     api::{
         command::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-            GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
-            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentIndexes,
-            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            UpdatePaymentNote,
+            GetAddressResponse, GetNewPayments, ListChannelsResponse, NodeInfo,
+            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+            PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
+            PaymentIndexes, PreflightCloseChannelRequest,
+            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
+            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse, UpdatePaymentNote,
         },
         error::NodeApiError,
         server::{extract::LxQuery, LxJson},
@@ -259,8 +259,10 @@ pub(super) async fn preflight_pay_onchain(
 
 pub(super) async fn get_address(
     State(state): State<Arc<AppRouterState>>,
-) -> LxJson<bitcoin::Address> {
-    LxJson(state.wallet.get_address())
+) -> LxJson<GetAddressResponse> {
+    // TODO(max): Upstream an `Address::into_unchecked` to avoid clone
+    let addr = state.wallet.get_address().as_unchecked().clone();
+    LxJson(GetAddressResponse { addr })
 }
 
 pub(super) async fn get_payments_by_indexes(
