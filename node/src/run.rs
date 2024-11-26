@@ -193,17 +193,10 @@ impl UserNode {
         );
 
         // Concurrently initialize esplora while fetching provisioned secrets
-        // We trust Mozilla's webpki roots because Esplora providers may
-        // change their root CAs without warning, which has historically caused
-        // our esplora clients to break. Since user nodes might be updated very
-        // infrequently, it is more practical to trust the default (Mozilla) set
-        // of CA roots by default.
-        let trust_mozilla_roots = true;
         let (try_esplora, try_fetch) = tokio::join!(
             LexeEsplora::init_any(
                 rng,
                 filtered_esplora_urls,
-                trust_mozilla_roots,
                 test_event_tx.clone(),
                 shutdown.clone()
             ),

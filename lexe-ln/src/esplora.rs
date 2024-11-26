@@ -114,12 +114,9 @@ impl LexeEsplora {
     /// Try initializing a [`LexeEsplora`] from *any* of the given Esplora urls,
     /// trying all of the URLs until one succeeds or all fail. If successful,
     /// returns the client, the fee refresher task, and the chosen esplora url.
-    ///
-    /// `trust_mozilla_roots`: whether to trust Mozilla's set of webpki roots.
     pub async fn init_any(
         rng: &mut impl RngCore,
         mut esplora_urls: Vec<String>,
-        trust_mozilla_roots: bool,
         test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<(Arc<Self>, LxTask<()>, String)> {
@@ -133,7 +130,6 @@ impl LexeEsplora {
             info!("Initializing Esplora from url: {url}");
             let init_result = Self::init(
                 url.clone(),
-                trust_mozilla_roots,
                 test_event_tx.clone(),
                 shutdown.clone(),
             )
@@ -156,8 +152,6 @@ impl LexeEsplora {
     }
 
     /// Initialize a [`LexeEsplora`] client.
-    ///
-    /// `trust_mozilla_roots`: whether to trust Mozilla's set of webpki roots.
     // NOTE: This makes a call to `/fee-estimates` both as a means to
     //
     // 1) Get the initial fee estimates.
@@ -167,12 +161,11 @@ impl LexeEsplora {
     // Esplora URLs (which have likely been fixed in a later version).
     pub async fn init(
         esplora_url: String,
-        trust_mozilla_roots: bool,
         test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<(Arc<Self>, LxTask<()>)> {
         // LexeEsplora wraps AsyncClient which in turn wraps reqwest::Client.
-        let reqwest_client = Self::build_reqwest_client(trust_mozilla_roots)
+        let reqwest_client = Self::build_reqwest_client()
             .context("Failed to build reqwest client")?;
         let client = AsyncClient::from_client(esplora_url, reqwest_client);
 
@@ -206,40 +199,27 @@ impl LexeEsplora {
 
     /// Builds the [`reqwest11::Client`] used by the [`AsyncClient`].
     ///
-    /// The reqwest client always trusts the root CAs hard-coded manually in
-    /// [`constants::ALL_ESPLORA_CA_CERTS`]. If `trust_mozilla_roots` is `true`,
-    /// it will also trust Mozilla's set of webpki roots.
-    // We add the trust anchors manually to avoid enabling reqwest's
-    // `rustls-tls-webpki-roots` feature, which propagates to other crates via
-    // feature unification. Safer to use this workaround than to have to
-    // remember to set `.tls_built_in_root_certs(false)` in every builder.
-    fn build_reqwest_client(
-        trust_mozilla_roots: bool,
-    ) -> anyhow::Result<reqwest11::Client> {
+    /// We trust Mozilla's webpki roots because Esplora providers sometimes
+    /// change their root CAs, which has historically caused our esplora clients
+    /// to break. Since user nodes might be updated very infrequently, it is
+    /// more practical to just trust the Mozilla set of CA roots.
+    fn build_reqwest_client() -> anyhow::Result<reqwest11::Client> {
         use rustls21::OwnedTrustAnchor;
 
         let mut root_cert_store = rustls21::RootCertStore::empty();
 
-        for (i, cert_der) in constants::ALL_ESPLORA_CA_CERTS.iter().enumerate()
-        {
-            let cert = rustls21::Certificate(cert_der.to_vec());
-            root_cert_store
-                .add(&cert)
-                .with_context(|| format!("Invalid CA cert: index={i}"))?;
-        }
-
-        if trust_mozilla_roots {
-            let mozilla_roots =
-                webpki_roots::TLS_SERVER_ROOTS.iter().map(|root| {
-                    OwnedTrustAnchor::from_subject_spki_name_constraints(
-                        root.subject.to_vec(),
-                        root.subject_public_key_info.to_vec(),
-                        root.name_constraints.as_ref().map(|nc| nc.to_vec()),
-                    )
-                });
-
-            root_cert_store.add_trust_anchors(mozilla_roots);
-        }
+        // We add the trust anchors manually to avoid enabling reqwest's
+        // `rustls-tls-webpki-roots` feature, which propagates to other crates
+        // via feature unification. Safer to use this workaround than to have to
+        // remember to set `.tls_built_in_root_certs(false)` in every builder.
+        let mozilla_roots = webpki_roots::TLS_SERVER_ROOTS.iter().map(|root| {
+            OwnedTrustAnchor::from_subject_spki_name_constraints(
+                root.subject.to_vec(),
+                root.subject_public_key_info.to_vec(),
+                root.name_constraints.as_ref().map(|nc| nc.to_vec()),
+            )
+        });
+        root_cert_store.add_trust_anchors(mozilla_roots);
 
         // TODO(max): Switch to common::tls::client_config_builder() once
         // esplora-client updates reqwest / rustls to the same version we use.
@@ -633,11 +613,6 @@ mod test {
     /// it won't be caught at compile time.
     #[test]
     fn test_build_reqwest_client() {
-        let trust_mozilla_roots = false;
-        LexeEsplora::build_reqwest_client(trust_mozilla_roots)
-            .expect("Could not build reqwest client with only manual roots");
-        let trust_mozilla_roots = true;
-        LexeEsplora::build_reqwest_client(trust_mozilla_roots)
-            .expect("Could not build reqwest client with Mozilla roots");
+        LexeEsplora::build_reqwest_client().unwrap();
     }
 }
