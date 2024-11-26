@@ -19,7 +19,7 @@
 //! - 1) HTTP method e.g. `GET`
 //! - 2) Endpoint e.g. `/v1/file`
 //! - 3) Data used to make the request e.g. `VfsFileId`
-//! - 4) The return type e.g. `Option<VfsFile>`
+//! - 4) The return type e.g. `MaybeVfsFile`
 //!
 //! The methods below should resemble the data actually sent across the wire.
 //!
@@ -58,7 +58,7 @@ use super::{
     },
     user::{MaybeScid, MaybeUser, NodePk, Scid, UserPk},
     version::NodeRelease,
-    vfs::{VfsDirectory, VfsFile, VfsFileId},
+    vfs::{MaybeVfsFile, VfsDirectory, VfsFile, VfsFileId},
     Empty,
 };
 #[cfg(doc)]
@@ -120,12 +120,12 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<MaybeScid, BackendApiError>;
 
-    /// GET /node/v1/file [`VfsFileId`] -> [`Option<VfsFile>`]
+    /// GET /node/v1/file [`VfsFileId`] -> [`MaybeVfsFile`]
     async fn get_file(
         &self,
         file_id: &VfsFileId,
         auth: BearerAuthToken,
-    ) -> Result<Option<VfsFile>, BackendApiError>;
+    ) -> Result<MaybeVfsFile, BackendApiError>;
 
     /// POST /node/v1/file [`VfsFile`] -> [`Empty`]
     async fn create_file(

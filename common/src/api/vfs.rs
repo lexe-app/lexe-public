@@ -325,6 +325,12 @@ pub struct VfsFile {
     pub data: Vec<u8>,
 }
 
+/// An upgradeable version of [`Option<VfsFile>`].
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct MaybeVfsFile {
+    pub maybe_file: Option<VfsFile>,
+}
+
 impl VfsDirectory {
     pub fn new(dirname: impl Into<String>) -> Self {
         Self {

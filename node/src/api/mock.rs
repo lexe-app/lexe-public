@@ -22,7 +22,7 @@ use common::{
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         user::{MaybeScid, MaybeUser, NodePk, Scid, User, UserPk},
-        vfs::{VfsDirectory, VfsFile, VfsFileId},
+        vfs::{MaybeVfsFile, VfsDirectory, VfsFile, VfsFileId},
         Empty,
     },
     byte_str::ByteStr,
@@ -251,9 +251,9 @@ impl NodeBackendApi for MockBackendClient {
         &self,
         file_id: &VfsFileId,
         _auth: BearerAuthToken,
-    ) -> Result<Option<VfsFile>, BackendApiError> {
-        let file_opt = self.vfs.lock().unwrap().get(file_id.clone());
-        Ok(file_opt)
+    ) -> Result<MaybeVfsFile, BackendApiError> {
+        let maybe_file = self.vfs.lock().unwrap().get(file_id.clone());
+        Ok(MaybeVfsFile { maybe_file })
     }
 
     async fn create_file(

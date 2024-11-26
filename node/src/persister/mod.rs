@@ -10,7 +10,7 @@ use common::{
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         error::BackendApiError,
         user::{MaybeScid, Scid, User},
-        vfs::{Vfs, VfsDirectory, VfsFile, VfsFileId},
+        vfs::{MaybeVfsFile, Vfs, VfsDirectory, VfsFile, VfsFileId},
         Empty,
     },
     constants::{
@@ -136,6 +136,7 @@ pub(crate) async fn read_gdrive_credentials(
         .get_file(&file_id, token)
         .await
         .context("Failed to fetch file")?
+        .maybe_file
         .context(
             "No GDriveCredentials VFS file returned from DB; \
              perhaps it was never provisioned?",
@@ -186,6 +187,7 @@ pub(crate) async fn read_gvfs_root(
         .get_file(&file_id, token)
         .await
         .context("Failed to fetch file")?
+        .maybe_file
         .map(|file| {
             persister::decrypt_json_file(vfs_master_key, &file_id, file)
         })
@@ -549,7 +551,10 @@ impl Vfs for NodePersister {
         file_id: &VfsFileId,
     ) -> Result<Option<VfsFile>, BackendApiError> {
         let token = self.get_token().await?;
-        self.backend_api.get_file(file_id, token).await
+        self.backend_api
+            .get_file(file_id, token)
+            .await
+            .map(|MaybeVfsFile { maybe_file }| maybe_file)
     }
 
     async fn upsert_file(

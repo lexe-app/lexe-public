@@ -62,7 +62,7 @@ pub(super) async fn read(
                 gvfs,
                 file_id,
                 maybe_google_file,
-                maybe_lexe_file,
+                maybe_lexe_file.maybe_file,
             )
             .await
             .context("Evaluation and resolution failed")?
@@ -70,6 +70,7 @@ pub(super) async fn read(
         None => {
             let maybe_lexe_file = read_from_lexe.await?;
             maybe_lexe_file
+                .maybe_file
                 .map(|file| {
                     persister::decrypt_file(vfs_master_key, file_id, file)
                         .map(Secret::new)

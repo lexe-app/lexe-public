@@ -16,7 +16,7 @@ use common::{
             UserPkStruct,
         },
         version::MeasurementStruct,
-        vfs::{VfsDirectory, VfsFile, VfsFileId},
+        vfs::{MaybeVfsFile, VfsDirectory, VfsFile, VfsFileId},
         Empty,
     },
     ed25519,
@@ -215,7 +215,7 @@ impl NodeBackendApi for BackendClient {
         &self,
         data: &VfsFileId,
         auth: BearerAuthToken,
-    ) -> Result<Option<VfsFile>, BackendApiError> {
+    ) -> Result<MaybeVfsFile, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
