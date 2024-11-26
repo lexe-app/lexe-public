@@ -7,7 +7,7 @@ use std::{
 use anyhow::{bail, ensure, Context};
 use bdk_wallet::KeychainKind;
 use common::{
-    api::qs::UpdatePaymentNote,
+    api::command::UpdatePaymentNote,
     ln::{
         amount::Amount,
         hashes::LxTxid,

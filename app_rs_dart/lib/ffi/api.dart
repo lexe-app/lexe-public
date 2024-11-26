@@ -206,7 +206,7 @@ class PreflightPayOnchainResponse with _$PreflightPayOnchainResponse {
   }) = _PreflightPayOnchainResponse;
 }
 
-/// See [`common::api::qs::UpdatePaymentNote`].
+/// See [`common::api::user::UpdatePaymentNote`].
 @freezed
 class UpdatePaymentNote with _$UpdatePaymentNote {
   const factory UpdatePaymentNote({

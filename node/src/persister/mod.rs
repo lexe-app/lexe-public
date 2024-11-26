@@ -7,8 +7,8 @@ use common::{
     aes::AesMasterKey,
     api::{
         auth::{BearerAuthToken, BearerAuthenticator},
+        command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         error::BackendApiError,
-        qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIndexes},
         user::{Scid, User},
         vfs::{Vfs, VfsDirectory, VfsFile, VfsFileId},
         Empty,
@@ -353,7 +353,7 @@ impl NodePersister {
 
     pub(crate) async fn read_payments_by_indexes(
         &self,
-        req: GetPaymentsByIndexes,
+        req: PaymentIndexes,
     ) -> anyhow::Result<Vec<BasicPayment>> {
         let token = self.get_token().await?;
         self.backend_api
@@ -708,7 +708,7 @@ impl LexeInnerPersister for NodePersister {
         &self,
         index: PaymentIndex,
     ) -> anyhow::Result<Option<Payment>> {
-        let req = GetPaymentByIndex { index };
+        let req = PaymentIndexStruct { index };
         let token = self.get_token().await?;
         let maybe_payment = self
             .backend_api

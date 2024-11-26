@@ -24,13 +24,14 @@ use crate::{
         },
         command::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-            ListChannelsResponse, NodeInfo, OpenChannelRequest,
+            GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
             OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOnchainRequest, PayOnchainResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentIndexes,
             PreflightCloseChannelRequest, PreflightCloseChannelResponse,
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            UpdatePaymentNote,
         },
         def::{
             AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
@@ -42,7 +43,6 @@ use crate::{
         fiat_rates::FiatRates,
         models::NodeRelease,
         provision::NodeProvisionRequest,
-        qs::{GetNewPayments, GetPaymentsByIndexes, UpdatePaymentNote},
         rest::{RequestBuilderExt, RestClient, GET, POST},
         Empty,
     },
@@ -477,7 +477,7 @@ impl AppNodeRunApi for NodeClient {
 
     async fn get_payments_by_indexes(
         &self,
-        req: GetPaymentsByIndexes,
+        req: PaymentIndexes,
     ) -> Result<Vec<BasicPayment>, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;

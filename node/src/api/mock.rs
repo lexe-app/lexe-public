@@ -11,6 +11,7 @@ use common::{
             BearerAuthRequest, BearerAuthResponse, BearerAuthToken,
             UserSignupRequest,
         },
+        command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         def::{
             AppBackendApi, BearerAuthBackendApi, NodeBackendApi, NodeLspApi,
             NodeRunnerApi,
@@ -20,7 +21,6 @@ use common::{
         },
         ports::Ports,
         provision::{SealedSeed, SealedSeedId},
-        qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIndexes},
         user::{NodePk, Scid, User, UserPk},
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Empty,
@@ -304,7 +304,7 @@ impl NodeBackendApi for MockBackendClient {
 
     async fn get_payment(
         &self,
-        req: GetPaymentByIndex,
+        req: PaymentIndexStruct,
         _auth: BearerAuthToken,
     ) -> Result<Option<DbPayment>, BackendApiError> {
         self.payments
@@ -368,7 +368,7 @@ impl NodeBackendApi for MockBackendClient {
 
     async fn get_payments_by_indexes(
         &self,
-        req: GetPaymentsByIndexes,
+        req: PaymentIndexes,
         _auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError> {
         let payments_lock = self.payments.lock().unwrap();

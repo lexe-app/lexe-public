@@ -24,9 +24,9 @@ use common::{
             PreflightPayInvoiceResponse as PreflightPayInvoiceResponseRs,
             PreflightPayOnchainRequest as PreflightPayOnchainRequestRs,
             PreflightPayOnchainResponse as PreflightPayOnchainResponseRs,
+            UpdatePaymentNote as UpdatePaymentNoteRs,
         },
         fiat_rates::FiatRates as FiatRatesRs,
-        qs::UpdatePaymentNote as UpdatePaymentNoteRs,
     },
     ln::{
         amount::Amount,
@@ -484,7 +484,7 @@ impl From<PreflightPayInvoiceResponseRs> for PreflightPayInvoiceResponse {
     }
 }
 
-/// See [`common::api::qs::UpdatePaymentNote`].
+/// See [`common::api::user::UpdatePaymentNote`].
 #[frb(dart_metadata=("freezed"))]
 pub struct UpdatePaymentNote {
     pub index: PaymentIndex,

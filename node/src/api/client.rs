@@ -3,18 +3,16 @@ use async_trait::async_trait;
 use common::{
     api::{
         auth::{BearerAuthRequest, BearerAuthResponse, BearerAuthToken},
+        command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         def::{
             BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi,
         },
         error::{BackendApiError, LspApiError, RunnerApiError},
+        models::MeasurementStruct,
         ports::Ports,
         provision::{SealedSeed, SealedSeedId},
-        qs::{
-            GetByMeasurement, GetByNodePk, GetByUserPk, GetNewPayments,
-            GetPaymentByIndex, GetPaymentsByIndexes,
-        },
         rest::{RequestBuilderExt, RestClient, POST},
-        user::{NodePk, Scid, User, UserPk},
+        user::{NodePk, NodePkStruct, Scid, User, UserPk, UserPkStruct},
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Empty,
     },
@@ -84,7 +82,7 @@ impl LspClient {
 impl NodeLspApi for LspClient {
     async fn get_new_scid(&self, node_pk: NodePk) -> Result<Scid, LspApiError> {
         let lsp = &self.lsp_url;
-        let data = GetByNodePk { node_pk };
+        let data = NodePkStruct { node_pk };
         let req = self.rest.get(format!("{lsp}/node/v1/scid"), &data);
         self.rest.send(req).await
     }
@@ -152,7 +150,7 @@ impl NodeBackendApi for BackendClient {
         user_pk: UserPk,
     ) -> Result<Option<User>, BackendApiError> {
         let backend = &self.backend_url;
-        let data = GetByUserPk { user_pk };
+        let data = UserPkStruct { user_pk };
         let req = self.rest.get(format!("{backend}/node/v1/user"), &data);
         self.rest.send(req).await
     }
@@ -188,7 +186,7 @@ impl NodeBackendApi for BackendClient {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
-        let data = GetByMeasurement { measurement };
+        let data = MeasurementStruct { measurement };
         let req = self
             .rest
             .delete(format!("{backend}/node/v1/sealed_seed"), &data)
@@ -202,7 +200,7 @@ impl NodeBackendApi for BackendClient {
         auth: BearerAuthToken,
     ) -> Result<Option<Scid>, BackendApiError> {
         let backend = &self.backend_url;
-        let data = GetByNodePk { node_pk };
+        let data = NodePkStruct { node_pk };
         let req = self
             .rest
             .get(format!("{backend}/node/v1/scid"), &data)
@@ -280,7 +278,7 @@ impl NodeBackendApi for BackendClient {
 
     async fn get_payment(
         &self,
-        req: GetPaymentByIndex,
+        req: PaymentIndexStruct,
         auth: BearerAuthToken,
     ) -> Result<Option<DbPayment>, BackendApiError> {
         let backend = &self.backend_url;
@@ -332,7 +330,7 @@ impl NodeBackendApi for BackendClient {
 
     async fn get_payments_by_indexes(
         &self,
-        req: GetPaymentsByIndexes,
+        req: PaymentIndexes,
         auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError> {
         let backend = &self.backend_url;

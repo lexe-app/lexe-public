@@ -27,7 +27,7 @@ use bitcoin::{address::NetworkUnchecked, Address};
 
 #[cfg(doc)]
 use crate::{
-    api::qs::{GetByMeasurement, GetByUserPk},
+    api::models::MeasurementStruct, api::user::UserPkStruct,
     ln::payments::PaymentIndex,
 };
 use crate::{
@@ -38,13 +38,14 @@ use crate::{
         },
         command::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-            ListChannelsResponse, NodeInfo, OpenChannelRequest,
+            GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
             OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOnchainRequest, PayOnchainResponse,
-            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentIndexStruct,
+            PaymentIndexes, PreflightCloseChannelRequest,
+            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
+            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse, UpdatePaymentNote,
         },
         error::{
             BackendApiError, GatewayApiError, LspApiError, NodeApiError,
@@ -54,10 +55,6 @@ use crate::{
         models::NodeRelease,
         ports::Ports,
         provision::{NodeProvisionRequest, SealedSeed, SealedSeedId},
-        qs::{
-            GetNewPayments, GetPaymentByIndex, GetPaymentsByIndexes,
-            UpdatePaymentNote,
-        },
         user::{NodePk, Scid, User, UserPk},
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Empty,
@@ -73,7 +70,7 @@ use crate::{
 pub trait NodeBackendApi {
     // --- Unauthenticated --- //
 
-    /// GET /node/v1/user [`GetByUserPk`] -> [`Option<User>`]
+    /// GET /node/v1/user [`UserPkStruct`] -> [`Option<User>`]
     async fn get_user(
         &self,
         user_pk: UserPk,
@@ -99,16 +96,16 @@ pub trait NodeBackendApi {
     /// Delete all sealed seeds which have the given measurement and the user_pk
     /// of the authenticated user.
     ///
-    /// DELETE /node/v1/sealed_seed [`GetByMeasurement`] -> [`Empty`]
+    /// DELETE /node/v1/sealed_seed [`MeasurementStruct`] -> [`Empty`]
     async fn delete_sealed_seeds(
         &self,
         measurement: Measurement,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
-    /// GET /node/v1/scid [`GetByNodePk`] -> [`Option<Scid>`]
+    /// GET /node/v1/scid [`NodePkStruct`] -> [`Option<Scid>`]
     ///
-    /// [`GetByNodePk`]: crate::api::qs::GetByNodePk
+    /// [`NodePkStruct`]: crate::api::user::NodePkStruct
     async fn get_scid(
         &self,
         node_pk: NodePk,
@@ -152,10 +149,10 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Vec<VfsFile>, BackendApiError>;
 
-    /// GET /node/v1/payments [`GetPaymentByIndex`] -> [`Option<DbPayment>`]
+    /// GET /node/v1/payments [`PaymentIndexStruct`] -> [`Option<DbPayment>`]
     async fn get_payment(
         &self,
-        req: GetPaymentByIndex,
+        req: PaymentIndexStruct,
         auth: BearerAuthToken,
     ) -> Result<Option<DbPayment>, BackendApiError>;
 
@@ -182,7 +179,7 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
-    /// POST /node/v1/payments/indexes [`GetPaymentsByIndexes`]
+    /// POST /node/v1/payments/indexes [`PaymentIndexes`]
     ///                             -> [`Vec<DbPayment>`]
     ///
     /// Fetch a batch of payments by their [`PaymentIndex`]s. This is typically
@@ -194,7 +191,7 @@ pub trait NodeBackendApi {
     // to fit inside query parameters.
     async fn get_payments_by_indexes(
         &self,
-        req: GetPaymentsByIndexes,
+        req: PaymentIndexes,
         auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError>;
 
@@ -257,9 +254,9 @@ pub trait BearerAuthBackendApi {
 /// Defines the api that the LSP exposes to user nodes.
 #[async_trait]
 pub trait NodeLspApi {
-    /// GET /node/v1/scid [`GetByNodePk`] -> [`Option<Scid>`]
+    /// GET /node/v1/scid [`NodePkStruct`] -> [`Option<Scid>`]
     ///
-    /// [`GetByNodePk`]: crate::api::qs::GetByNodePk
+    /// [`NodePkStruct`]: crate::api::user::NodePkStruct
     async fn get_new_scid(&self, node_pk: NodePk) -> Result<Scid, LspApiError>;
 }
 
@@ -276,7 +273,7 @@ pub trait NodeRunnerApi {
 /// contain methods for limited operational and lifecycle management endpoints.
 #[async_trait]
 pub trait LexeNodeRunApi {
-    /// GET /lexe/status [`GetByUserPk`] -> [`Empty`]
+    /// GET /lexe/status [`UserPkStruct`] -> [`Empty`]
     async fn status(&self, user_pk: UserPk) -> Result<Empty, NodeApiError>;
 
     /// POST /lexe/resync [`Empty`] -> [`Empty`]
@@ -295,7 +292,7 @@ pub trait LexeNodeRunApi {
     // also significantly more ergonomic in tests w/ `tokio::join`.
     async fn test_event(&self, op: TestEventOp) -> Result<(), NodeApiError>;
 
-    /// GET /lexe/shutdown [`GetByUserPk`] -> [`Empty`]
+    /// GET /lexe/shutdown [`UserPkStruct`] -> [`Empty`]
     ///
     /// Not to be confused with [`LexeNodeProvisionApi::shutdown_provision`].
     async fn shutdown_run(
@@ -310,7 +307,7 @@ pub trait LexeNodeRunApi {
 /// contain methods for limited operational and lifecycle management endpoints.
 #[async_trait]
 pub trait LexeNodeProvisionApi {
-    /// GET /lexe/shutdown [`GetByMeasurement`] -> [`Empty`]
+    /// GET /lexe/shutdown [`MeasurementStruct`] -> [`Empty`]
     ///
     /// Not to be confused with [`LexeNodeRunApi::shutdown_run`].
     async fn shutdown_provision(
@@ -433,7 +430,7 @@ pub trait AppNodeRunApi {
         &self,
     ) -> Result<Address<NetworkUnchecked>, NodeApiError>;
 
-    /// POST /v1/payments/indexes [`GetPaymentsByIndexes`] -> [`Vec<DbPayment>`]
+    /// POST /v1/payments/indexes [`PaymentIndexes`] -> [`Vec<DbPayment>`]
     ///
     /// Fetch a batch of payments by their [`PaymentIndex`]s. This is typically
     /// used by a mobile client to poll for updates on payments which it
@@ -444,7 +441,7 @@ pub trait AppNodeRunApi {
     // to fit inside query parameters.
     async fn get_payments_by_indexes(
         &self,
-        req: GetPaymentsByIndexes,
+        req: PaymentIndexes,
     ) -> Result<Vec<BasicPayment>, NodeApiError>;
 
     /// GET /app/payments/new [`GetNewPayments`] -> [`Vec<BasicPayment>`]

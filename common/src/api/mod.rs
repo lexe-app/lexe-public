@@ -1,3 +1,20 @@
+//! # Notes on API types
+//!
+//! ## Query parameters
+//!
+//! When serializing data as query parameters, we have to wrap newtypes in these
+//! structs (instead of e.g. using UserPk directly), otherwise `serde_qs` errors
+//! with "top-level serializer supports only maps and structs."
+//!
+//! ## `serde(flatten)`
+//!
+//! Also beware when using `#[serde(flatten)]` on a field. All inner fields must
+//! be string-ish types (&str, String, Cow<'_, str>, etc...) OR use
+//! `SerializeDisplay` and `DeserializeFromStr` from `serde_with`.
+//!
+//! This issue is due to a limitation in serde. See:
+//! <https://github.com/serde-rs/serde/issues/1183>
+
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -20,8 +37,6 @@ pub mod models;
 pub mod ports;
 /// Data types specific to provisioning.
 pub mod provision;
-/// Data types used to serialize / deserialize query strings.
-pub mod qs;
 /// A client and helpers that enforce common REST semantics across Lexe crates.
 pub mod rest;
 /// Webserver utilities.

@@ -28,9 +28,9 @@ use common::{
         auth::BearerAuthenticator,
         def::{NodeBackendApi, NodeRunnerApi},
         error::{NodeApiError, NodeErrorKind},
+        models::MeasurementStruct,
         ports::Ports,
         provision::{NodeProvisionRequest, SealedSeed},
-        qs::GetByMeasurement,
         server::LayerConfig,
         Empty,
     },
@@ -303,7 +303,7 @@ mod handlers {
 
     pub(super) async fn shutdown(
         State(state): State<LexeRouterState>,
-        LxQuery(req): LxQuery<GetByMeasurement>,
+        LxQuery(req): LxQuery<MeasurementStruct>,
     ) -> Result<LxJson<Empty>, NodeApiError> {
         let LexeRouterState {
             measurement,

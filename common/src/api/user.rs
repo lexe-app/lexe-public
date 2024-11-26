@@ -38,6 +38,13 @@ pub struct User {
 #[repr(transparent)]
 pub struct UserPk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
+/// Upgradeable API struct for a user pk.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct UserPkStruct {
+    pub user_pk: UserPk,
+}
+
 /// A simple wrapper around [`secp256k1::PublicKey`] which allows for
 /// `Arbitrary` and other custom impls.
 ///
@@ -74,6 +81,13 @@ pub struct NodePkProof {
     sig: secp256k1::ecdsa::Signature,
 }
 
+/// Upgradeable API struct for a node pk.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct NodePkStruct {
+    pub node_pk: NodePk,
+}
+
 #[derive(Debug, Error)]
 #[error("invalid node pk proof signature")]
 pub struct InvalidNodePkProofSignature;
@@ -83,6 +97,13 @@ pub struct InvalidNodePkProofSignature;
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct Scid(pub u64);
+
+/// Upgradeable API struct for a scid.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct ScidStruct {
+    pub scid: Scid,
+}
 
 /// Represents an entry in the `node_scid` table.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -404,5 +425,20 @@ mod test {
     #[test]
     fn node_scid_roundtrips() {
         roundtrip::json_value_roundtrip_proptest::<NodeScid>();
+    }
+
+    #[test]
+    fn user_pk_struct_roundtrip() {
+        roundtrip::query_string_roundtrip_proptest::<UserPkStruct>();
+    }
+
+    #[test]
+    fn node_pk_struct_roundtrip() {
+        roundtrip::query_string_roundtrip_proptest::<NodePkStruct>();
+    }
+
+    #[test]
+    fn scid_struct_roundtrip() {
+        roundtrip::query_string_roundtrip_proptest::<ScidStruct>();
     }
 }

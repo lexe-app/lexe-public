@@ -6,16 +6,16 @@ use common::{
     api::{
         command::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-            ListChannelsResponse, NodeInfo, OpenChannelRequest,
+            GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
             OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOnchainRequest, PayOnchainResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentIndexes,
             PreflightCloseChannelRequest, PreflightCloseChannelResponse,
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            UpdatePaymentNote,
         },
         error::NodeApiError,
-        qs::{GetNewPayments, GetPaymentsByIndexes, UpdatePaymentNote},
         server::{extract::LxQuery, LxJson},
         Empty,
     },
@@ -265,7 +265,7 @@ pub(super) async fn get_address(
 
 pub(super) async fn get_payments_by_indexes(
     State(state): State<Arc<AppRouterState>>,
-    LxJson(req): LxJson<GetPaymentsByIndexes>,
+    LxJson(req): LxJson<PaymentIndexes>,
 ) -> Result<LxJson<Vec<BasicPayment>>, NodeApiError> {
     state
         .persister

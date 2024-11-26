@@ -1,4 +1,6 @@
 use bitcoin::address::NetworkUnchecked;
+#[cfg(any(test, feature = "test-utils"))]
+use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -10,7 +12,7 @@ use crate::{
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
         hashes::LxTxid,
         invoice::LxInvoice,
-        payments::ClientPaymentId,
+        payments::{ClientPaymentId, PaymentIndex},
         priority::ConfirmationPriority,
     },
     time::TimestampMs,
@@ -97,6 +99,49 @@ pub type PreflightCloseChannelRequest = CloseChannelRequest;
 pub struct PreflightCloseChannelResponse {
     /// The estimated on-chain fee required to execute the channel close.
     pub fee_estimate: Amount,
+}
+
+// --- Syncing and updating payments data --- //
+
+/// Upgradeable API struct for a payment index.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct PaymentIndexStruct {
+    /// The index of the payment to be fetched.
+    // We use index instead of id so the backend can query by primary key.
+    pub index: PaymentIndex,
+}
+
+/// Sync a batch of new payments to local storage.
+/// Results are returned in ascending `(created_at, payment_id)` order.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct GetNewPayments {
+    /// Optional [`PaymentIndex`] at which the results should start, exclusive.
+    /// Payments with an index less than or equal to this will not be returned.
+    pub start_index: Option<PaymentIndex>,
+    /// (Optional) the maximum number of results that can be returned.
+    pub limit: Option<u16>,
+}
+
+/// Upgradeable API struct for a list of [`PaymentIndex`]s.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct PaymentIndexes {
+    /// The string-serialized [`PaymentIndex`]s of the payments to be fetched.
+    /// Typically, the ids passed here correspond to payments that the mobile
+    /// client currently has stored locally as "pending"; the intention is to
+    /// check whether any of these payments have been updated.
+    pub indexes: Vec<PaymentIndex>,
+}
+
+/// Update the note on a payment.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct UpdatePaymentNote {
+    /// The index of the payment whose note should be updated.
+    pub index: PaymentIndex,
+    /// The updated note.
+    pub note: Option<String>,
 }
 
 // --- BOLT11 Invoice Payments --- //
@@ -239,10 +284,26 @@ mod arbitrary {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::test_utils::roundtrip::query_string_roundtrip_proptest;
+    use crate::test_utils::roundtrip::{self, query_string_roundtrip_proptest};
 
     #[test]
     fn preflight_pay_onchain_roundtrip() {
         query_string_roundtrip_proptest::<PreflightPayOnchainRequest>();
+    }
+
+    #[test]
+    fn payment_index_struct_roundtrip() {
+        query_string_roundtrip_proptest::<PaymentIndexStruct>();
+    }
+
+    #[test]
+    fn get_new_payments_roundtrip() {
+        query_string_roundtrip_proptest::<GetNewPayments>();
+    }
+
+    #[test]
+    fn payment_indexes_roundtrip() {
+        // This is serialized as JSON, not query strings.
+        roundtrip::json_value_roundtrip_proptest::<PaymentIndexes>();
     }
 }

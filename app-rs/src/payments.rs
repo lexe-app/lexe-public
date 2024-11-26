@@ -30,8 +30,8 @@ use std::{io, str::FromStr, sync::Mutex};
 use anyhow::{format_err, Context};
 use common::{
     api::{
+        command::{GetNewPayments, PaymentIndexes, UpdatePaymentNote},
         def::AppNodeRunApi,
-        qs::{GetNewPayments, GetPaymentsByIndexes, UpdatePaymentNote},
     },
     iter::IteratorExt,
     ln::payments::{BasicPayment, PaymentIndex},
@@ -843,7 +843,7 @@ async fn sync_pending_payments<F: Ffs, N: AppNodeRunApi>(
 
     for pending_idxs_batch in pending_idxs.chunks(usize::from(batch_size)) {
         // Request the current state of all payments we believe are pending.
-        let req = GetPaymentsByIndexes {
+        let req = PaymentIndexes {
             indexes: pending_idxs_batch.to_vec(),
         };
         let resp_payments = node
@@ -1054,11 +1054,11 @@ mod test {
 
         // payment sync methods
 
-        /// POST /v1/payments/indexes [`GetPaymentsByIndexes`]
+        /// POST /v1/payments/indexes [`PaymentIndexes`]
         ///                        -> [`Vec<DbPayment>`]
         async fn get_payments_by_indexes(
             &self,
-            req: GetPaymentsByIndexes,
+            req: PaymentIndexes,
         ) -> Result<Vec<BasicPayment>, NodeApiError> {
             Ok(req
                 .indexes

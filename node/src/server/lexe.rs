@@ -4,8 +4,8 @@ use axum::extract::State;
 use common::{
     api::{
         error::NodeApiError,
-        qs::GetByUserPk,
         server::{extract::LxQuery, LxJson},
+        user::UserPkStruct,
         Empty,
     },
     test_event::TestEventOp,
@@ -16,7 +16,7 @@ use crate::server::LexeRouterState;
 
 pub(super) async fn status(
     State(state): State<Arc<LexeRouterState>>,
-    LxQuery(req): LxQuery<GetByUserPk>,
+    LxQuery(req): LxQuery<UserPkStruct>,
 ) -> Result<LxJson<Empty>, NodeApiError> {
     if state.user_pk == req.user_pk {
         Ok(LxJson(Empty {}))
@@ -46,7 +46,7 @@ pub(super) async fn test_event(
 
 pub(super) async fn shutdown(
     State(state): State<Arc<LexeRouterState>>,
-    LxQuery(req): LxQuery<GetByUserPk>,
+    LxQuery(req): LxQuery<UserPkStruct>,
 ) -> Result<LxJson<Empty>, NodeApiError> {
     if state.user_pk == req.user_pk {
         state.shutdown.send();
