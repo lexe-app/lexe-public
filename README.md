@@ -26,6 +26,11 @@ More information is available on our website: [lexe.app](https://lexe.app)
 - [`flake.nix`](./flake.nix): Reproducible node build
 - [`SECURITY.md`](./SECURITY.md) contains information about Lexe's security model and responsible disclosure.
 
+NOTE(2024-11-26): For technical reasons, commits before mid October 2022 had to
+be squashed on the `master` branch and revs changed. You can view the full
+history on the [`master-archived`](https://github.com/lexe-app/lexe-public/tree/master-archived)
+branch in this range [5a1a3221...8f94074d](https://github.com/lexe-app/lexe-public/compare/5a1a32212d537eee0bbada603e234516de49ca66...8f94074deb16c216f85f0fc73954b086089e6918).
+
 ## Reproducibly building the user node
 
 Follow these instructions if you are interested in verifying the reproducible
