@@ -86,6 +86,6 @@ mod test {
 
     #[test]
     fn test_json_roundtrip() {
-        roundtrip::json_string_roundtrip_proptest::<LnPeer>();
+        roundtrip::json_value_roundtrip_proptest::<LnPeer>();
     }
 }
