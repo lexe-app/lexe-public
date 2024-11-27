@@ -1,5 +1,5 @@
 use std::{
-    fmt::{self, Display},
+    fmt,
     net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
     str::FromStr,
 };
@@ -20,7 +20,7 @@ use crate::test_utils::arbitrary;
 /// intentionally ignores all TOR-related addresses since we don't currently
 /// support TOR. It also has a well-defined human-readable serialization format,
 /// unlike the LDK type.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum LxSocketAddress {
@@ -187,16 +187,22 @@ impl FromStr for LxSocketAddress {
     }
 }
 
-impl Display for LxSocketAddress {
+impl fmt::Display for LxSocketAddress {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::TcpIpv4 { ip, port } =>
-                Display::fmt(&SocketAddrV4::new(*ip, *port), f),
+                fmt::Display::fmt(&SocketAddrV4::new(*ip, *port), f),
             Self::TcpIpv6 { ip, port } =>
-                Display::fmt(&SocketAddrV6::new(*ip, *port, 0, 0), f),
+                fmt::Display::fmt(&SocketAddrV6::new(*ip, *port, 0, 0), f),
             Self::TcpDns { hostname, port } =>
                 write!(f, "{}:{port}", hostname.as_str()),
         }
+    }
+}
+
+impl fmt::Debug for LxSocketAddress {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self}")
     }
 }
 
