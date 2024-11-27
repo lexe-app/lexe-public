@@ -105,6 +105,22 @@ pub trait Vfs {
         Ok(Some(value))
     }
 
+    /// Reads, decrypts, and JSON-deserializes a [`VfsDirectory`] of type `T`.
+    async fn read_dir_json<T: DeserializeOwned>(
+        &self,
+        dir: &VfsDirectory,
+    ) -> anyhow::Result<Vec<(VfsFileId, T)>> {
+        let ids_and_bytes = self.read_dir_bytes(dir).await?;
+        let mut ids_and_values = Vec::with_capacity(ids_and_bytes.len());
+        for (file_id, bytes) in ids_and_bytes {
+            let value = serde_json::from_slice(bytes.as_slice())
+                .with_context(|| format!("{file_id}"))
+                .context("JSON deserialization failed (in dir)")?;
+            ids_and_values.push((file_id, value));
+        }
+        Ok(ids_and_values)
+    }
+
     /// Reads, decrypts, and deserializes a LDK [`ReadableArgs`] of type `T`
     /// with read args `A` from the DB.
     async fn read_readableargs<T, A>(
