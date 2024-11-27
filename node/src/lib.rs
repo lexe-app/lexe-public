@@ -18,6 +18,7 @@ mod approved_versions;
 mod channel_manager;
 mod event_handler;
 mod inactivity_timer;
+mod p2p;
 mod peer_manager;
 mod persister;
 mod provision;

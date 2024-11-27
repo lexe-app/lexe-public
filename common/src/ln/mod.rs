@@ -21,7 +21,5 @@ pub mod network;
 pub mod offer;
 /// Payments types and newtypes.
 pub mod payments;
-/// `LnPeer`.
-pub mod peer;
 /// Confirmation priorities.
 pub mod priority;

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::test_utils::arbitrary;
 use crate::{
     api::user::{NodePk, Scid},
-    ln::{addr::LxSocketAddress, peer::LnPeer},
+    ln::addr::LxSocketAddress,
 };
 
 /// User node CLI args.
@@ -41,7 +41,6 @@ pub struct LspInfo {
     #[serde(rename = "url")] // Original name needed for forward compat
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
     pub node_api_url: Option<String>,
-    // - LnPeer fields - //
     pub node_pk: NodePk,
     /// The socket on which the LSP accepts P2P LN connections from user nodes
     #[serde(rename = "addr")] // Original name needed for forward compat
@@ -71,15 +70,6 @@ pub struct OAuthConfig {
 // --- impl LspInfo --- //
 
 impl LspInfo {
-    pub fn ln_peer(&self) -> LnPeer {
-        LnPeer {
-            node_pk: self.node_pk,
-            // The node uses this LnPeer to proactively connect to the LSP.
-            outbound: true,
-            addrs: vec![self.private_p2p_addr.clone()],
-        }
-    }
-
     pub fn route_hint_hop(&self, scid: Scid) -> RouteHintHop {
         RouteHintHop {
             src_node_id: self.node_pk.0,
