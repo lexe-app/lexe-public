@@ -12,6 +12,13 @@ use crate::{api::user::NodePk, ln::addr::LxSocketAddress};
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct LnPeer {
     pub node_pk: NodePk,
+    /// Whether this peer is outbound,
+    /// i.e. we manually initiated a connection to it
+    pub outbound: bool,
+    /// - For outbound peers: Contains only the addresses that were *manually*
+    ///   specified when we initiated a connection to this peer.
+    /// - For inbound peers: This list is empty, since we lazily look up this
+    ///   peer's addresses from the network graph as needed.
     pub addrs: Vec<LxSocketAddress>,
 }
 

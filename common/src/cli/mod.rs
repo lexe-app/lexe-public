@@ -74,6 +74,8 @@ impl LspInfo {
     pub fn ln_peer(&self) -> LnPeer {
         LnPeer {
             node_pk: self.node_pk,
+            // The node uses this LnPeer to proactively connect to the LSP.
+            outbound: true,
             addrs: vec![self.private_p2p_addr.clone()],
         }
     }
