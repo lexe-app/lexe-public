@@ -9,7 +9,6 @@ use common::{
     task::LxTask,
     Apply,
 };
-use futures::future;
 use tokio::{net::TcpStream, sync::mpsc, time};
 use tracing::{debug, info, info_span, warn, Instrument};
 
@@ -50,6 +49,7 @@ where
     ensure!(!addrs.is_empty(), "No addrs were provided");
 
     // Early return if we're already connected
+    // TODO(max): LDK's fn is O(n) in the # of peers...
     if peer_manager.is_connected(node_pk) {
         return Ok(());
     }
@@ -222,35 +222,28 @@ where
                 }
 
                 // Generate futures to reconnect to all disconnected peers.
-                let mut disconnected_peers = ln_peers.clone();
-                for details in peer_manager.list_peers() {
-                    let connected_peer_pk =
-                        NodePk(details.counterparty_node_id);
-                    disconnected_peers.remove(&connected_peer_pk);
-                }
-                let reconnect_futs = disconnected_peers
-                    .into_values()
-                    .map(|peer| {
-                        let peer_manager_ref = &peer_manager;
-                        let reconnect_fut = async move {
-                            let res = do_connect_peer(
-                                peer_manager_ref,
-                                &peer.node_pk,
-                                &peer.addr,
-                            )
-                            .await;
-                            if let Err(e) = res {
-                                warn!("Couldn't reconnect to {peer}: {e:#}");
-                            }
-                        };
+                let reconnect_futs = ln_peers.values().map(|peer| {
+                    let peer_manager_ref = &peer_manager;
+                    async move {
+                        let result = connect_peer_if_necessary(
+                            peer_manager_ref,
+                            &peer.node_pk,
+                            &peer.addrs,
+                        )
+                        .await
+                        .with_context(|| peer.clone())
+                        .context("Couldn't reconnect to peer");
 
-                        reconnect_fut.in_current_span()
-                    })
-                    .collect::<Vec<_>>();
+                        if let Err(e) = result {
+                            warn!(%peer, "Couldn't reconnect to peer: {e:#}");
+                        }
+                    }
+                    .in_current_span()
+                });
 
                 // Do the reconnect(s), quit early if shutting down
                 tokio::select! {
-                    _ = future::join_all(reconnect_futs) => (),
+                    _ = futures::future::join_all(reconnect_futs) => (),
                     () = shutdown.recv() => break,
                 }
             }

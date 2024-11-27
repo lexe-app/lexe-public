@@ -234,6 +234,7 @@ where
 {
     /// Returns `true` if we're connected to a peer with `node_pk`.
     fn is_connected(&self, node_pk: &NodePk) -> bool {
+        // TODO(max): This LDK fn is O(n) in the # of peers...
         self.peer_by_node_id(&node_pk.0).is_some()
     }
 }

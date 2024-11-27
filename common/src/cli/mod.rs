@@ -74,7 +74,7 @@ impl LspInfo {
     pub fn ln_peer(&self) -> LnPeer {
         LnPeer {
             node_pk: self.node_pk,
-            addr: self.private_p2p_addr.clone(),
+            addrs: vec![self.private_p2p_addr.clone()],
         }
     }
 
