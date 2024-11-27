@@ -239,5 +239,5 @@ impl NodeChannelManager {
         Ok(Self(Arc::new(inner)))
     }
 
-    // TODO: Closing a channel should delete a channel peer.
+    // TODO: Closing a channel should delete a LN peer.
 }

@@ -44,7 +44,7 @@ use lexe_ln::{
     esplora::{self, LexeEsplora},
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
-    p2p::{self, ChannelPeerUpdate},
+    p2p::{self, LnPeerUpdate},
     payments::manager::PaymentsManager,
     sync, test_event,
     traits::LexeInnerPersister,
@@ -84,7 +84,7 @@ pub struct UserNode {
     deploy_env: DeployEnv,
     ports: Ports,
     tasks: Vec<LxTask<()>>,
-    channel_peer_tx: mpsc::Sender<ChannelPeerUpdate>,
+    ln_peer_tx: mpsc::Sender<LnPeerUpdate>,
     shutdown: ShutdownChannel,
 
     // --- Actors --- //
@@ -155,8 +155,7 @@ impl UserNode {
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (channel_monitor_persister_tx, channel_monitor_persister_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
-        let (channel_peer_tx, channel_peer_rx) =
-            mpsc::channel(SMALLER_CHANNEL_SIZE);
+        let (ln_peer_tx, ln_peer_rx) = mpsc::channel(SMALLER_CHANNEL_SIZE);
         let (bdk_resync_tx, bdk_resync_rx) =
             mpsc::channel(SMALLER_CHANNEL_SIZE);
         let (ldk_resync_tx, ldk_resync_rx) =
@@ -530,14 +529,14 @@ impl UserNode {
         // The LSP is the only peer the p2p reconnector needs to reconnect to,
         // but we do so only *after* we have completed init and sync; it is our
         // signal to the LSP that we are ready to receive messages.
-        let initial_channel_peers = Vec::new();
+        let initial_ln_peers = Vec::new();
 
-        // Spawn the task to regularly reconnect to channel peers while running,
-        // and disconnect from all peers at shutdown.
+        // Spawn the task to regularly reconnect to peers while running, and
+        // disconnect from all peers at shutdown.
         tasks.push(p2p::spawn_p2p_connector(
             peer_manager.clone(),
-            initial_channel_peers,
-            channel_peer_rx,
+            initial_ln_peers,
+            ln_peer_rx,
             shutdown.clone(),
         ));
 
@@ -698,7 +697,7 @@ impl UserNode {
             deploy_env,
             ports,
             tasks,
-            channel_peer_tx,
+            ln_peer_tx,
             shutdown,
 
             // Actors
@@ -773,7 +772,7 @@ impl UserNode {
             self.deploy_env,
             self.args.allow_mock,
             &self.args.lsp,
-            &self.channel_peer_tx,
+            &self.ln_peer_tx,
         )
         .await
         .context("Could not reconnect to LSP")?;
@@ -1001,7 +1000,7 @@ async fn maybe_reconnect_to_lsp(
     deploy_env: DeployEnv,
     allow_mock: bool,
     lsp: &LspInfo,
-    channel_peer_tx: &mpsc::Sender<ChannelPeerUpdate>,
+    ln_peer_tx: &mpsc::Sender<LnPeerUpdate>,
 ) -> anyhow::Result<()> {
     if deploy_env.is_staging_or_prod() || lsp.node_api_url.is_some() {
         // If --allow-mock was set, the caller may have made an error.
@@ -1019,9 +1018,9 @@ async fn maybe_reconnect_to_lsp(
         .await
         .context("Could not connect to LSP")?;
 
-        debug!("Notifying reconnector task of LSP channel peer");
-        let add_lsp = ChannelPeerUpdate::Add(lsp.channel_peer());
-        channel_peer_tx
+        debug!("Notifying reconnector task of LSP LN peer");
+        let add_lsp = LnPeerUpdate::Add(lsp.ln_peer());
+        ln_peer_tx
             .try_send(add_lsp)
             .map_err(|e| anyhow!("Could not notify p2p reconnector: {e:#}"))?;
     } else {

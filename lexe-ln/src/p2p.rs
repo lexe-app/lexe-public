@@ -4,7 +4,7 @@ use anyhow::{bail, ensure, Context};
 use common::{
     api::user::NodePk,
     backoff,
-    ln::{addr::LxSocketAddress, peer::ChannelPeer},
+    ln::{addr::LxSocketAddress, peer::LnPeer},
     shutdown::ShutdownChannel,
     task::LxTask,
     Apply,
@@ -20,19 +20,19 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
 
-/// Every time a channel peer is added or removed, a [`ChannelPeerUpdate`] is
+/// Every time a LN peer is added or removed, a [`LnPeerUpdate`] is
 /// generated and sent to the [p2p connector task] via an [`mpsc`] channel.
 /// The [p2p connector task] uses this information to update its view of the
-/// current set of [`ChannelPeer`]s, obviating the need to repeatedly read the
-/// list of channel peers from the DB.
+/// current set of [`LnPeer`]s, obviating the need to repeatedly read the
+/// list of LN peers from the DB.
 ///
 /// [p2p connector task]: spawn_p2p_connector
 #[derive(Debug)]
-pub enum ChannelPeerUpdate {
-    /// We opened a channel and have a new channel peer.
-    Add(ChannelPeer),
-    /// We closed a channel and need to remove one of our channel peers.
-    Remove(ChannelPeer),
+pub enum LnPeerUpdate {
+    /// We opened a channel and have a new LN peer.
+    Add(LnPeer),
+    /// We closed a channel and need to remove one of our LN peers.
+    Remove(LnPeer),
 }
 
 /// Connects to a LN peer, returning early if we were already connected.
@@ -164,21 +164,21 @@ where
     }
 }
 
-/// Spawns a task that regularly reconnects to the channel peers in this task's
-/// `channel_peers` map, which is initialized with `initial_channel_peers`.
+/// Spawns a task that regularly reconnects to the LN peers in this task's
+/// `ln_peers` map, which is initialized with `initial_ln_peers`.
 /// Upon shutdown, this task will also disconnect from all peers.
 ///
-/// To reconnect to a node, include it in `initial_channel_peers` during startup
-/// or send a [`ChannelPeerUpdate::Add`] anytime to have the task immediately
-/// begin reconnect attempts to the given node.
+/// To reconnect to a node, include it in `initial_ln_peers` during startup or
+/// send a [`LnPeerUpdate::Add`] anytime to have the task immediately begin
+/// reconnect attempts to the given node.
 ///
-/// If you do NOT wish to immediately reconnect to a given channel peer (e.g.
-/// LSP should not reconnect to user nodes which are still offline), simply do
-/// not send the [`ChannelPeerUpdate::Add`] until the peer (user node) is ready.
+/// If you do NOT wish to immediately reconnect to a given LN peer (e.g. LSP
+/// should not reconnect to user nodes which are still offline), simply do not
+/// send the [`LnPeerUpdate::Add`] until the peer (user node) is ready.
 pub fn spawn_p2p_connector<CM, PM, PS>(
     peer_manager: PM,
-    initial_channel_peers: Vec<ChannelPeer>,
-    mut channel_peer_rx: mpsc::Receiver<ChannelPeerUpdate>,
+    initial_ln_peers: Vec<LnPeer>,
+    mut ln_peer_rx: mpsc::Receiver<LnPeerUpdate>,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
 where
@@ -193,36 +193,36 @@ where
         async move {
             let mut interval = time::interval(P2P_RECONNECT_INTERVAL);
 
-            // The current set of `ChannelPeer`s, indexed by their `NodePk`.
-            let mut channel_peers = initial_channel_peers
+            // The current set of `LnPeer`s, indexed by their `NodePk`.
+            let mut ln_peers = initial_ln_peers
                 .into_iter()
-                .map(|cp| (cp.node_pk, cp))
-                .collect::<HashMap<NodePk, ChannelPeer>>();
+                .map(|lp| (lp.node_pk, lp))
+                .collect::<HashMap<NodePk, LnPeer>>();
 
             loop {
                 // Retry reconnect when timer ticks or we get an update
                 tokio::select! {
                     _ = interval.tick() => (),
-                    Some(cp_update) = channel_peer_rx.recv() => {
-                        info!("Received channel peer update: {cp_update:?}");
-                        // We received a ChannelPeerUpdate; update our HashMap of
-                        // current channel peers accordingly.
-                        match cp_update {
-                            ChannelPeerUpdate::Add(cp) =>
-                                channel_peers.insert(cp.node_pk, cp),
-                            ChannelPeerUpdate::Remove(cp) =>
-                                channel_peers.remove(&cp.node_pk),
+                    Some(lp_update) = ln_peer_rx.recv() => {
+                        info!("Received LN peer update: {lp_update:?}");
+                        // We received a LnPeerUpdate; update our HashMap of
+                        // current LN peers accordingly.
+                        match lp_update {
+                            LnPeerUpdate::Add(lp) =>
+                                ln_peers.insert(lp.node_pk, lp),
+                            LnPeerUpdate::Remove(lp) =>
+                                ln_peers.remove(&lp.node_pk),
                         };
-                        // TODO(max): We should also update the channel peers
+                        // TODO(max): We should also update the LN peers
                         // that are persisted, but only after differentiating
-                        // between channel peer kinds (e.g. we persist external
+                        // between LN peer kinds (e.g. we persist external
                         // peers, but not lexe users or the LSP).
                     }
                     () = shutdown.recv() => break,
                 }
 
                 // Generate futures to reconnect to all disconnected peers.
-                let mut disconnected_peers = channel_peers.clone();
+                let mut disconnected_peers = ln_peers.clone();
                 for details in peer_manager.list_peers() {
                     let connected_peer_pk =
                         NodePk(details.counterparty_node_id);

@@ -250,7 +250,7 @@ impl NodeBackendApi for BackendClient {
         self.rest.send(req).await
     }
 
-    // TODO We want to delete channel peers / monitors when channels close
+    // TODO We want to delete LN peers / monitors when channels close
     /// Returns "OK" if exactly one row was deleted.
     #[allow(dead_code)]
     async fn delete_file(
