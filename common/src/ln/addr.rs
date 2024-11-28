@@ -20,7 +20,7 @@ use crate::test_utils::arbitrary;
 /// intentionally ignores all TOR-related addresses since we don't currently
 /// support TOR. It also has a well-defined human-readable serialization format,
 /// unlike the LDK type.
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum LxSocketAddress {
