@@ -319,7 +319,7 @@ impl UserNode {
             try_maybe_approved_versions,
             try_network_graph,
             try_maybe_changeset,
-            try_scid,
+            try_maybe_scid,
             try_pending_payments,
             try_finalized_payment_ids,
         ) = tokio::join!(
@@ -359,14 +359,16 @@ impl UserNode {
             .context("Could not read network graph")?;
         let maybe_changeset =
             try_maybe_changeset.context("Could not read wallet changeset")?;
-        let maybe_scid = try_scid.context("Could not read scid")?;
+        let maybe_scid = try_maybe_scid.context("Could not read scid")?;
         let scid = match maybe_scid {
             Some(s) => s,
             // We has not been assigned an scid yet; ask the LSP for one
-            None => lsp_api
-                .get_new_scid(user.node_pk)
-                .await
-                .context("Could not get new scid from LSP")?,
+            None =>
+                lsp_api
+                    .get_new_scid(user.node_pk)
+                    .await
+                    .context("Could not get new scid from LSP")?
+                    .scid,
         };
         let pending_payments =
             try_pending_payments.context("Could not read pending payments")?;

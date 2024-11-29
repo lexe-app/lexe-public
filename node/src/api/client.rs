@@ -12,7 +12,7 @@ use common::{
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         rest::{RequestBuilderExt, RestClient, POST},
         user::{
-            MaybeScid, MaybeUser, NodePk, NodePkStruct, Scid, UserPk,
+            MaybeScid, MaybeUser, NodePk, NodePkStruct, ScidStruct, UserPk,
             UserPkStruct,
         },
         version::MeasurementStruct,
@@ -83,7 +83,10 @@ impl LspClient {
 
 #[async_trait]
 impl NodeLspApi for LspClient {
-    async fn get_new_scid(&self, node_pk: NodePk) -> Result<Scid, LspApiError> {
+    async fn get_new_scid(
+        &self,
+        node_pk: NodePk,
+    ) -> Result<ScidStruct, LspApiError> {
         let lsp = &self.lsp_url;
         let data = NodePkStruct { node_pk };
         let req = self.rest.get(format!("{lsp}/node/v1/scid"), &data);

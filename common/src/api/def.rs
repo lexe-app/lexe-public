@@ -55,7 +55,7 @@ use super::{
     provision::{
         MaybeSealedSeed, NodeProvisionRequest, SealedSeed, SealedSeedId,
     },
-    user::{MaybeScid, MaybeUser, NodePk, Scid, UserPk},
+    user::{MaybeScid, MaybeUser, NodePk, ScidStruct, UserPk},
     version::NodeRelease,
     vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
     Empty,
@@ -74,6 +74,9 @@ use crate::{
     },
     test_event::TestEventOp,
 };
+
+// TODO(max): To make clear that only upgradeable structs are being serialized,
+// these methods should take e.g. `&UserPkStruct` instead of `UserPk`.
 
 /// Defines the api that the backend exposes to the node.
 #[async_trait]
@@ -264,10 +267,13 @@ pub trait BearerAuthBackendApi {
 /// Defines the api that the LSP exposes to user nodes.
 #[async_trait]
 pub trait NodeLspApi {
-    /// GET /node/v1/scid [`NodePkStruct`] -> [`Scid`]
+    /// GET /node/v1/scid [`NodePkStruct`] -> [`ScidStruct`]
     ///
     /// [`NodePkStruct`]: crate::api::user::NodePkStruct
-    async fn get_new_scid(&self, node_pk: NodePk) -> Result<Scid, LspApiError>;
+    async fn get_new_scid(
+        &self,
+        node_pk: NodePk,
+    ) -> Result<ScidStruct, LspApiError>;
 }
 
 /// Defines the api that the runner exposes to the node.

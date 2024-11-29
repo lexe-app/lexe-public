@@ -21,7 +21,7 @@ use common::{
         },
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
-        user::{MaybeScid, MaybeUser, NodePk, Scid, User, UserPk},
+        user::{MaybeScid, MaybeUser, NodePk, Scid, ScidStruct, User, UserPk},
         vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
         Empty,
     },
@@ -145,8 +145,8 @@ impl NodeLspApi for MockLspClient {
     async fn get_new_scid(
         &self,
         _node_pk: NodePk,
-    ) -> Result<Scid, LspApiError> {
-        Ok(DUMMY_SCID)
+    ) -> Result<ScidStruct, LspApiError> {
+        Ok(ScidStruct { scid: DUMMY_SCID })
     }
 }
 
