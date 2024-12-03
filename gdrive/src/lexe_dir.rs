@@ -6,13 +6,13 @@
 //! My Drive
 //! |___ ... (The LexeData dir can be moved anywhere in My Drive)
 //!     |___"X LexeData (DO NOT RENAME, MODIFY, OR DELETE)"
-//!         |___"bitcoin" (mainnet gvfs root)
+//!         |___"mainnet" (mainnet gvfs root)
 //!         |   |___"./encrypted_root_seed" (singleton file, password-encrypted)
 //!         |   |___"./channel_manager" (singleton file, AES encrypted)
 //!         |   |___"channel_monitors/deadcafe" (vfs subdir file, AES encrypted)
 //!         |   |___"channel_monitors/baddecaf" (vfs subdir file, AES encrypted)
 //!         |   |___...
-//!         |___"testnet" (testnet gvfs root)
+//!         |___"testnet3" (testnet gvfs root)
 //!         |   |___"./encrypted_root_seed" (singleton file, password-encrypted)
 //!         |   |___"./channel_manager" (singleton file, AES encrypted)
 //!         |   |___"channel_monitors/deadcafe" (vfs subdir file, AES encrypted)

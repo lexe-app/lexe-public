@@ -568,7 +568,7 @@ mod test {
 
     /// Test utility to search for the Lexe dir and delete the regtest VFS root
     /// inside if it exists. We do NOT delete the entire Lexe dir in case there
-    /// are "bitcoin" or "testnet" folders holding real funds.
+    /// are "mainnet" or "testnet{3,4}" folders holding real funds.
     async fn delete_vfs_root(
         client: &GDriveClient,
         gvfs_root_name: &GvfsRootName,

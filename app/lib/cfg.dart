@@ -3,7 +3,7 @@
 //! ### Build-time Environment Variables:
 //!
 //! * `DEPLOY_ENVIRONMENT`: prod, staging, dev
-//! * `NETWORK`: mainnet, testnet, regtest
+//! * `NETWORK`: mainnet, testnet3, testnet4, regtest
 //! * `SGX`: true, false (whether the app should expect SGX nodes)
 //! * `RUST_LOG`: e.g. "app-rs=trace,http=debug,warn"
 //! * `DEV_GATEWAY_URL`: url of local development gateway
@@ -75,7 +75,7 @@ const String _flavorDeployEnvStr =
 // We'll assert on this down below.
 const String _flavorNetworkStr = (dev || design)
     ? _networkStr
-    : (staging ? "testnet" : (prod ? "bitcoin" : "ERROR"));
+    : (staging ? "testnet3" : (prod ? "mainnet" : "ERROR"));
 
 // The expected `useSgx` value for a given `--flavor=<appFlavor>`.
 // We'll assert on this down below.
@@ -92,7 +92,10 @@ class _AssertDeployEnv {
 
 class _AssertNetworkEnv {
   const _AssertNetworkEnv(String s)
-      : assert(s == "bitcoin" || s == "testnet" || s == "regtest");
+      : assert(s == "mainnet" ||
+            s == "testnet3" ||
+            s == "testnet4" ||
+            s == "regtest");
 }
 
 class _AssertBoolEnv {

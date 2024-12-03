@@ -1316,8 +1316,9 @@ impl SseDecode for crate::ffi::types::Network {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
             0 => crate::ffi::types::Network::Mainnet,
-            1 => crate::ffi::types::Network::Testnet,
-            2 => crate::ffi::types::Network::Regtest,
+            1 => crate::ffi::types::Network::Testnet3,
+            2 => crate::ffi::types::Network::Testnet4,
+            3 => crate::ffi::types::Network::Regtest,
             _ => unreachable!("Invalid variant for Network: {}", inner),
         };
     }
@@ -2458,8 +2459,9 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::Network {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             Self::Mainnet => 0.into_dart(),
-            Self::Testnet => 1.into_dart(),
-            Self::Regtest => 2.into_dart(),
+            Self::Testnet3 => 1.into_dart(),
+            Self::Testnet4 => 2.into_dart(),
+            Self::Regtest => 3.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -3540,8 +3542,9 @@ impl SseEncode for crate::ffi::types::Network {
         <i32>::sse_encode(
             match self {
                 crate::ffi::types::Network::Mainnet => 0,
-                crate::ffi::types::Network::Testnet => 1,
-                crate::ffi::types::Network::Regtest => 2,
+                crate::ffi::types::Network::Testnet3 => 1,
+                crate::ffi::types::Network::Testnet4 => 2,
+                crate::ffi::types::Network::Regtest => 3,
                 _ => {
                     unimplemented!("");
                 }

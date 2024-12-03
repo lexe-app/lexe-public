@@ -123,7 +123,8 @@ class LxChannelDetails {
 /// See [`common::ln::network::LxNetwork`]
 enum Network {
   mainnet,
-  testnet,
+  testnet3,
+  testnet4,
   regtest,
   ;
 
