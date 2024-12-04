@@ -147,7 +147,7 @@ Future<Config> build() async {
   final baseAppDataDir = await path_provider.getApplicationSupportDirectory();
 
   final gatewayUrl = switch (deployEnv) {
-    DeployEnv.prod => "https://lexe-prod.uswest.prod.lexe.app",
+    DeployEnv.prod => "https://lexe-prod.uswest2.prod.lexe.app",
     DeployEnv.staging => "https://lexe-staging-sgx.uswest2.staging.lexe.app",
     // Use the build-time env $DEV_GATEWAY_URL in local dev.
     // We can't hard code this since deploying to a real mobile device in dev
