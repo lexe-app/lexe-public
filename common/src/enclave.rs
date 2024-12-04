@@ -561,9 +561,9 @@ impl fmt::Debug for MachineId {
 impl MinCpusvn {
     /// This is the current CPUSVN we commit to when sealing data in SGX.
     ///
-    /// Updated: 2024/01/03 - Linux SGX platform v2.21
+    /// Updated: 2024/12/04 - Linux SGX platform v2.25
     pub const CURRENT: Self =
-        Self::new(hex::decode_const(b"0c0c100fffff01000000000000000000"));
+        Self::new(hex::decode_const(b"0e0e100fffff01000000000000000000"));
 
     pub const fn new(bytes: [u8; 16]) -> Self {
         Self(bytes)
@@ -723,7 +723,6 @@ impl LxKeyRequest {
         // complexity. When we need to bump the CPUSVN committed version (either
         // periodically or in response to a vulnerability disclosure), we'll cut
         // a new release (i.e., different MRENCLAVE) with the updated CPUSVN.
-        // TODO(phlip9): update this just before prod release
         let cpusvn = MinCpusvn::CURRENT;
 
         Self(sgx_isa::Keyrequest {

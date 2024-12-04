@@ -44,10 +44,8 @@ pub fn lexe_ca_cert(deploy_env: DeployEnv) -> LxCertificateDer {
         DeployEnv::Dev => dummy_lexe_ca_cert().cert_der,
         DeployEnv::Staging =>
             LxCertificateDer(constants::LEXE_STAGING_CA_CERT_DER.to_vec()),
-        // TODO(max): Switch to hard-coded cert
-        // DeployEnv::Prod =>
-        //     LxCertificateDer(constants::LEXE_PROD_CA_CERT_DER.to_vec()),
-        DeployEnv::Prod => dummy_lexe_ca_cert().cert_der,
+        DeployEnv::Prod =>
+            LxCertificateDer(constants::LEXE_PROD_CA_CERT_DER.to_vec()),
     }
 }
 

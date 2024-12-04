@@ -105,25 +105,18 @@ pub const NODE_PROVISION_DNS_SUFFIX: &str = ".provision.lexe.app";
 // Mainnet Esplora urls
 pub const MAINNET_LEXE_MEMPOOL_ESPLORA: &str = "https://lexe.mempool.space/api";
 pub const MAINNET_BLOCKSTREAM_ESPLORA: &str = "https://blockstream.info/api";
-pub const MAINNET_KUUTAMO_ESPLORA: &str = "https://esplora.kuutamo.cloud";
-pub const MAINNET_ESPLORA_WHITELIST: [&str; 3] = [
-    MAINNET_LEXE_MEMPOOL_ESPLORA,
-    MAINNET_BLOCKSTREAM_ESPLORA,
-    MAINNET_KUUTAMO_ESPLORA,
-];
+pub const MAINNET_ESPLORA_WHITELIST: [&str; 2] =
+    [MAINNET_LEXE_MEMPOOL_ESPLORA, MAINNET_BLOCKSTREAM_ESPLORA];
 
 // Testnet Esplora urls
 // Quickly test these by appending /fee-estimates and opening in browser,
 // e.g. "https://testnet.ltbl.io/api/fee-estimates"
 pub const TESTNET3_BLOCKSTREAM_ESPLORA: &str =
     "https://blockstream.info/testnet/api";
-pub const TESTNET3_KUUTAMO_ESPLORA: &str =
-    "https://esplora.testnet.kuutamo.cloud";
 pub const TESTNET3_LTBL_ESPLORA: &str = "https://testnet.ltbl.io/api";
 pub const TESTNET3_LEXE_ESPLORA: &str = "http://testnet.esplora.lexe.app:3001";
-pub const TESTNET3_ESPLORA_WHITELIST: [&str; 4] = [
+pub const TESTNET3_ESPLORA_WHITELIST: [&str; 3] = [
     TESTNET3_BLOCKSTREAM_ESPLORA,
-    TESTNET3_KUUTAMO_ESPLORA,
     TESTNET3_LTBL_ESPLORA,
     TESTNET3_LEXE_ESPLORA,
 ];
@@ -159,6 +152,13 @@ pub const TESTNET3_ESPLORA_WHITELIST: [&str; 4] = [
 // openssl x509 -inform der -in <certificate-name>.der -text -noout
 // ```
 
+/// The Lexe CA responsible for `lexe.app` and `.lx`.
+// Serial Number : 73:bb:2d:b0:13:58:d7:1c:ca:a5:d3:56:a7:f3:33:5b:4c:3c:60:8e
+//    Not Before : Nov 27 21:44:46 2024 GMT
+//     Not After : Dec  4 21:44:46 2034 GMT
+pub const LEXE_PROD_CA_CERT_DER: &[u8] =
+    include_bytes!("../data/lexe-prod-root-ca-cert.der");
+
 /// The Lexe CA responsible for `staging.lexe.app` and `staging.lx`.
 // Serial Number : 30:ef:fb:a0:ba:ca:82:0b:7f:49:9a:46:b7:8d:05:18:23:91:62:17
 //    Not Before : Jul 30 02:15:24 2024 GMT
@@ -173,13 +173,6 @@ pub const LEXE_STAGING_CA_CERT_DER: &[u8] =
 pub const GTS_ROOT_R1_CA_CERT_DER: &[u8] =
     include_bytes!("../data/google-trust-services-root-r1-ca-cert.der");
 
-/// ISRG Root X1, used by `coincap.io`.
-// Serial Number : 82:10:cf:b0:d2:40:e3:59:44:63:e0:bb:63:82:8b:00
-//    Not Before : Jun  4 11:04:38 2015 GMT
-//     Not After : Jun  4 11:04:38 2035 GMT
-pub const ISRG_ROOT_X1_CA_CERT_DER: &[u8] =
-    include_bytes!("../data/isrg-root-x1-ca-cert.der");
-
 #[cfg(test)]
 mod test {
     use reqwest::tls::Certificate;
@@ -188,8 +181,8 @@ mod test {
 
     #[test]
     fn test_parse_ca_certs() {
+        Certificate::from_der(LEXE_PROD_CA_CERT_DER).unwrap();
         Certificate::from_der(LEXE_STAGING_CA_CERT_DER).unwrap();
         Certificate::from_der(GTS_ROOT_R1_CA_CERT_DER).unwrap();
-        Certificate::from_der(ISRG_ROOT_X1_CA_CERT_DER).unwrap();
     }
 }

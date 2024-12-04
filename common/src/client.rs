@@ -226,13 +226,13 @@ impl NodeClient {
             .into_proxy_scheme()
             .context("Invalid proxy url")?;
 
-        // TODO(phlip9): https only mode in production
-        // match proxy_scheme_no_auth {
-        //     reqwest::ProxyScheme::Https { .. } => (),
-        //     _ => anyhow::bail!(
-        //         "proxy connection must be https! gateway url: {gateway_url}"
-        //     ),
-        // }
+        // App->Gateway connection must be HTTPS
+        match proxy_scheme_no_auth {
+            reqwest::ProxyScheme::Https { .. } => (),
+            _ => anyhow::bail!(
+                "proxy connection must be https: gateway url: {gateway_url}"
+            ),
+        }
 
         // ugly hack to get auth token to proxy
         //
