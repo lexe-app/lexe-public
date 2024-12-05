@@ -7,7 +7,7 @@ use std::{
 };
 
 use common::{
-    ln::channel::LxOutPoint, shutdown::ShutdownChannel, task::LxTask, Apply,
+    ln::channel::LxOutPoint, shutdown::ShutdownChannel, task::LxTask,
 };
 use lightning::chain::transaction::OutPoint;
 use thiserror::Error;
@@ -121,8 +121,6 @@ enum Error {
     ChainMonitor(lightning::util::errors::APIError),
     #[error("Timed out waiting for events to be processed")]
     EventsProcessTimeout,
-    #[error("Could not receive reply from the `processed_rx` channel")]
-    EventsProcessRecv,
 }
 
 /// A helper to prevent [`spawn_channel_monitor_persister_task`]'s control flow
@@ -164,11 +162,12 @@ async fn handle_update<PS: LexePersister>(
     // Furthermore, wait for the event to be handled.
     let (processed_tx, processed_rx) = oneshot::channel();
     let _ = process_events_tx.try_send(processed_tx);
-    processed_rx
-        .apply(|rx| tokio::time::timeout(PROCESS_EVENTS_TIMEOUT, rx))
+
+    tokio::time::timeout(PROCESS_EVENTS_TIMEOUT, processed_rx)
         .await
         .map_err(|_| Error::EventsProcessTimeout)?
-        .map_err(|_| Error::EventsProcessRecv)?;
+        // Channel sender dropped, probably means we're shutting down.
+        .ok();
 
     info!("Success: persisted {kind} channel #{idx}");
 
