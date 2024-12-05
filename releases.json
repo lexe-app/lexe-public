@@ -1,23 +1,5 @@
 {
   "node": {
-    "0.4.0": {
-      "measurement": "ac018bb70a5901dedb0a7da01820f16b04044755809203783b9e4d43477269cd",
-      "revision": "f53221b4a4c6c180b6d9845f2da07746f95f2828",
-      "release-date": "2024-10-15",
-      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.4.0"
-    },
-    "0.4.1": {
-      "measurement": "3101f4f9e985f3d4f06ffaed4dbf79eb043e4fa41e2f242e494bb6c856fcfa04",
-      "revision": "644c0ae54dc02492d550ce360a26edd98589a7b6",
-      "release-date": "2024-10-25",
-      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.4.1"
-    },
-    "0.5.0": {
-      "measurement": "35c9db7da963fae3663451aa4986e13002a67fded750d6bd6d3d418f154cf8f0",
-      "revision": "55719929da21a23d40a6979cc3d293fead34cdbb",
-      "release-date": "2024-12-03",
-      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.5.0"
-    },
     "0.5.1": {
       "measurement": "b9db29fb00acd6a406ce3fef0250301c1333ead4b7ebb21aac392154d2b42ec8",
       "revision": "9042ca799320023a0e547ec3cc12cf6334280229",
