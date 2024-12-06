@@ -85,18 +85,28 @@
 
     # lexe development shells
     # ex: `nix develop`
-    devShells = eachSystemPkgs (pkgs: let
+    devShells = eachSystem (system: let
       lib = inputs.nixpkgs.lib;
-      lexePubPkgs = systemLexePubPkgs.${pkgs.system};
-    in {
-      # default development shell
-      default = pkgs.mkShell {
-        name = "lexe";
-        inputsFrom = [lexePubPkgs.node-release-sgx];
-        packages = lib.optionals pkgs.stdenv.isDarwin [
-          pkgs.darwin.apple_sdk.frameworks.Security
-        ];
+      pkgs = systemPkgs.${system};
+      lexePubPkgs = systemLexePubPkgs.${system};
+      lexePubDevShells = import ./nix/devShells {
+        lib = lib;
+        pkgs = pkgs;
+        lexePubPkgs = lexePubPkgs;
       };
+    in rec {
+      # The default dev shell for `nix develop`.
+      default = sgx;
+
+      # compile Rust SGX enclaves
+      sgx = lexePubDevShells.sgx;
+
+      #
+      # app
+      #
+
+      # app flutter_rust_bridge codegen
+      app-rs-codegen = lexePubDevShells.app-rs-codegen;
     });
 
     # The *.nix file formatter.
