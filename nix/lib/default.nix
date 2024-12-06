@@ -7,7 +7,6 @@
     "x86_64-linux"
     "aarch64-linux"
     "aarch64-darwin"
-    "x86_64-darwin"
   ];
 
   # genAttrs :: [ String ] -> (String -> Any) -> AttrSet
@@ -55,4 +54,22 @@
     splits;
   in
     concatStringsSep "" matchesReplaced;
+
+  # mkPkgsUnfree :: NixpkgsFlakeInput -> String -> NixpkgsPackageSet
+  #
+  # Builds a `pkgs` set that allows unfree packages, like the Android SDK.
+  # Only used for building the Android app. We keep this as a separate package
+  # set for eval efficiency.
+  mkPkgsUnfree = nixpkgsFlake: system:
+    import nixpkgsFlake {
+      system = system;
+      config = {
+        android_sdk.accept_license = true;
+        allowUnfreePredicate = pkg:
+          builtins.elem (lib.getName pkg) [
+            "android-sdk-tools"
+            "android-sdk-cmdline-tools"
+          ];
+      };
+    };
 }

@@ -39,6 +39,10 @@
     # ```
     systemPkgs = inputs.nixpkgs.legacyPackages;
 
+    # Host nixpkgs set that allows "unfree" packages, like the Android SDK.
+    # Only used for building the Android app.
+    systemPkgsUnfree = eachSystem (system: lexePubLib.mkPkgsUnfree inputs.nixpkgs system);
+
     # eachSystemPkgs :: (builder :: Nixpkgs -> AttrSet) -> AttrSet
     eachSystemPkgs = builder: eachSystem (system: builder systemPkgs.${system});
 
@@ -48,6 +52,7 @@
       import ./nix/pkgs/default.nix {
         lib = inputs.nixpkgs.lib;
         pkgs = systemPkgs.${system};
+        pkgsUnfree = systemPkgsUnfree.${system};
         crane = inputs.crane;
         fenixPkgs = inputs.fenix.packages.${system};
         lexePubLib = lexePubLib;
@@ -107,6 +112,9 @@
 
       # app flutter_rust_bridge codegen
       app-rs-codegen = lexePubDevShells.app-rs-codegen;
+
+      # Android app development toolchains
+      app-android = lexePubDevShells.app-android;
     });
 
     # The *.nix file formatter.

@@ -27,7 +27,7 @@ android {
     compileSdk flutter.compileSdkVersion
 
     // Needs to match the value in `app_rs_dart/android/build.gradle`.
-    ndkVersion "27.0.11902837"
+    ndkVersion "26.3.11579264"
     // ndkVersion flutter.ndkVersion
 
     compileOptions {

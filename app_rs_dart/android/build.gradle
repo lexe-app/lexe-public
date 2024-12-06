@@ -40,7 +40,7 @@ android {
 
     // Need more recent NDK version or lib fails to link
     // Needs to match the value in `app/android/app/build.gradle`.
-    ndkVersion = "27.0.11902837"
+    ndkVersion "26.3.11579264"
     // ndkVersion = android.ndkVersion
 
     compileOptions {
@@ -49,7 +49,7 @@ android {
     }
 
     defaultConfig {
-        minSdk = 21
+        minSdk = 23
     }
 }
 
