@@ -14,6 +14,46 @@
   workspaceTomlParsed = builtins.fromTOML (builtins.readFile workspaceToml);
   workspaceVersion = workspaceTomlParsed.workspace.package.version;
 
+  # `fenix` rust toolchains need patching on macOS to work properly inside the
+  # build sandbox.
+  patchFenixRustToolchainIfMacOS = fenixToolchainUnpatched: let
+    isDarwin = pkgs.targetPlatform.isDarwin;
+  in
+    # non-macOS doesn't need patching
+    if !isDarwin
+    then fenixToolchainUnpatched
+    else
+      # - On macOS, we need to patch `cargo` so it uses dynamic libs from
+      #   nixpkgs. Otherwise it doesn't work in the sandbox.
+      # - On macOS, we almost always need `libiconv` in any compiled binary.
+      #   Add it as a "propagated" dep so we don't have to keep including it
+      #   manually.
+      # TODO(phlip9): upstream these changes
+      fenixToolchainUnpatched.overrideAttrs (super: {
+        # All darwin targets need libiconv
+        depsTargetTargetPropagated = lib.optional pkgs.targetPlatform.isDarwin pkgs.pkgsTargetTarget.iconv;
+
+        buildCommand = ''
+          ${lib.optionalString pkgs.hostPlatform.isDarwin ''
+            # darwin.cctools provides 'install_name_tool'
+            export PATH="$PATH:${pkgs.darwin.cctools}/bin"
+          ''}
+
+          ${super.buildCommand}
+
+          ${lib.optionalString pkgs.hostPlatform.isDarwin ''
+            # Patch libcurl and libiconv so they use nixpkgs versions
+            install_name_tool \
+              -change "/usr/lib/libcurl.4.dylib" "${pkgs.curl.out}/lib/libcurl.4.dylib" \
+              -change "/usr/lib/libiconv.2.dylib" "${pkgs.iconv.out}/lib/libiconv.2.dylib" \
+              "$out/bin/cargo"
+          ''}
+
+          mkdir -p "$out/nix-support"
+          [[ -z "$depsTargetTargetPropagated" ]] || echo "$depsTargetTargetPropagated " > $out/nix-support/propagated-target-target-deps
+        '';
+      });
+
   # Instantiate the rust toolchain from our `rust-toolchain.toml`.
   rustLexeToolchain = let
     fenixToolchainUnpatched = fenixPkgs.combine [
@@ -22,35 +62,8 @@
       fenixPkgs.targets.x86_64-fortanix-unknown-sgx.stable.rust-std
     ];
 
-    # - On macOS, we need to patch `cargo` so it uses dynamic libs from nixpkgs.
-    #   Otherwise it doesn't work in the sandbox.
-    # - On macOS, we almost always need `libiconv` in any compiled binary. Add
-    #   it as a "propagated" dep so we don't have to keep including it manually.
-    # TODO(phlip9): upstream these changes
-    fenixToolchain = fenixToolchainUnpatched.overrideAttrs (super: {
-      # All darwin targets need libiconv
-      depsTargetTargetPropagated = lib.optional pkgs.targetPlatform.isDarwin pkgs.pkgsTargetTarget.iconv;
-
-      buildCommand = ''
-        ${lib.optionalString pkgs.hostPlatform.isDarwin ''
-          # darwin.cctools provides 'install_name_tool'
-          export PATH="$PATH:${pkgs.darwin.cctools}/bin"
-        ''}
-
-        ${super.buildCommand}
-
-        ${lib.optionalString pkgs.hostPlatform.isDarwin ''
-          # Patch libcurl and libiconv so they use nixpkgs versions
-          install_name_tool \
-            -change "/usr/lib/libcurl.4.dylib" "${pkgs.curl.out}/lib/libcurl.4.dylib" \
-            -change "/usr/lib/libiconv.2.dylib" "${pkgs.iconv.out}/lib/libiconv.2.dylib" \
-            "$out/bin/cargo"
-        ''}
-
-        mkdir -p "$out/nix-support"
-        [[ -z "$depsTargetTargetPropagated" ]] || echo "$depsTargetTargetPropagated " > $out/nix-support/propagated-target-target-deps
-      '';
-    });
+    # make fenix Rust work in build sandbox on macOS
+    fenixToolchain = patchFenixRustToolchainIfMacOS fenixToolchainUnpatched;
 
     # HACK: get the actual rustc version from the fenix toolchain dl url
     # ex: `url = "https://static.rust-lang.org/dist/2024-08-08/cargo-1.80.1-x86_64-unknown-linux-gnu.tar.gz"`
