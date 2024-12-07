@@ -29,6 +29,7 @@
       FLUTTER_SDK = lexePubPkgs.flutter;
 
       ANDROID_SDK_ROOT = lexePubPkgs.ANDROID_SDK_ROOT;
+      ANDROID_HOME = lexePubPkgs.ANDROID_HOME;
       ANDROID_NDK_ROOT = lexePubPkgs.ANDROID_NDK_ROOT;
 
       JAVA_HOME = lexePubPkgs.JAVA_HOME;

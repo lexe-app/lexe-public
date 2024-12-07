@@ -75,17 +75,50 @@ android {
 // // ex: "/Users/phlip9/dev/lexe/public/app/build/app_rs_dart"
 // println "app_rs_dart: project.buildDir: '${project.buildDir}'"
 
-// TODO(phlip9): gradle can tell us which targets to build
+// Collect the native `rustc` target triples that flutter wants to build as a
+// space-separated string.
 //
-// for (project in rootProject.childProjects) {
-//     for (plugin in project.value.getPlugins()) {
-//         println "app_rs_dart: plugin.class.name: ${plugin.class.name}"
-//         if (plugin.class.name == "FlutterPlugin") {
-//             println "app_rs_dart: FlutterPlugin: $plugin"
-//             println "app_rs_dart: target platforms: ${plugin.getTargetPlatforms().collect()}"
-//         }
-//     }
-// }
+// ex: -> "aarch64-linux-android"
+// ex: -> "aarch64-linux-android armv7-linux-androideabi x86_64-linux-android"
+def getRustTargets() {
+    // BTreeSet<String>
+    def out = new TreeSet<String>();
+
+    // flutter target platform -> rustc target triples
+    def platformToRust = [
+        "android-arm": "armv7-linux-androideabi",
+        "android-arm64": "aarch64-linux-android",
+        "android-x64": "x86_64-linux-android"
+    ]
+
+    // Search for `FlutterPlugin` and add `getTargetPlatforms()` as rustc target
+    // triples.
+    for (project in rootProject.childProjects) {
+        // Find the `FlutterPlugin`
+        def flutterPlugin = null
+        for (plugin in project.value.getPlugins()) {
+            if (plugin.class.name == "FlutterPlugin") {
+                flutterPlugin = plugin;
+                break;
+            }
+        }
+        if (!flutterPlugin) {
+            continue
+        }
+
+        // Add the rust target triples
+        flutterPlugin.getTargetPlatforms().collect().each { platform ->
+            def rustTarget = platformToRust[platform]
+            if (rustTarget == null) {
+                throw new GradleException("app_rs_dart: unrecognized flutter target platform: ${platform}")
+            }
+            out.add(rustTarget)
+        }
+    }
+
+    // Return as a space-separated string, since we'll be passing via env var.
+    return out.join(" ")
+}
 
 // project: [`Project`](https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.api/-project/index.html)
 project.android.buildTypes.all { buildType ->
@@ -120,6 +153,10 @@ project.android.buildTypes.all { buildType ->
         environment APP_RS__OUT_DIR: outDir
         // "android-34" -> "34"
         environment APP_RS__COMPILE_SDK_VERSION: project.android.compileSdkVersion.substring(8)
+        // The space-separated rustc targets that flutter wants to build.
+        // ex: -> "aarch64-linux-android"
+        // ex: -> "aarch64-linux-android armv7-linux-androideabi x86_64-linux-android"
+        environment APP_RS__TARGETS: getRustTargets()
     }
 
     // println "app_rs_dart: registered: $cargoBuildTask"

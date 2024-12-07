@@ -23,25 +23,25 @@ set -o pipefail
 export NO_COLOR=1
 
 CARGO_NDK_VERSION="3.5.7"
-TARGETS=("aarch64-linux-android")
 
-
-# Important envs passed to us from gradle:
+# Important envs passed to us from `app_rs_dart/android/build.gradle`:
 #
 # ANDROID_NDK_HOME (ex: "/Users/phlip9/.local/android/ndk/23.1.7779620")
 # APP_RS__OUT_DIR (ex: "/Users/phlip9/dev/lexe/public/app/build/app_rs_dart/jniLibs/release")
 # APP_RS__COMPILE_SDK_VERSION (ex: "34")
+# APP_RS__TARGETS (ex: "aarch64-linux-android armv7-linux-androideabi")
 
 #
 # Read input from gradle
 #
 
 APP_RS__COMPILE_SDK_VERSION="${APP_RS__COMPILE_SDK_VERSION:-34}"
+APP_RS__TARGETS="${APP_RS__TARGETS:-"aarch64-linux-android"}"
 
 # If we run this script standalone, just dump the output in a tempdir.
 if [[ -z $APP_RS__OUT_DIR ]]; then
   APP_RS__OUT_DIR="$(mktemp -d)"
-  # trap 'rm -rf $APP_RS__OUT_DIR' EXIT
+  trap 'rm -rf $APP_RS__OUT_DIR' EXIT
 fi
 
 #
@@ -78,7 +78,7 @@ fi
 # Ensure `cargo ndk` has the right version
 actualCargoNdk="$(cargo ndk --version)"
 expectedCargoNdk="cargo-ndk $CARGO_NDK_VERSION"
-if [[ "$actualCargoNdk" != "$expectedCargoNdk" ]]; then
+if [[ $actualCargoNdk != "$expectedCargoNdk" ]]; then
   echo >&2 "error: \"$actualCargoNdk\" != \"$expectedCargoNdk\""
   echo >&2 "  > suggestion:   nix develop .#app-android"
   echo >&2 "            or:   cargo install --force --version=$CARGO_NDK_VERSION cargo-ndk"
@@ -86,8 +86,8 @@ if [[ "$actualCargoNdk" != "$expectedCargoNdk" ]]; then
 fi
 
 # Ensure rust toolchains are installed for targets
-for target in "${TARGETS[@]}"; do
-  if ! rustc --target $target --print target-libdir &> /dev/null; then
+for target in $APP_RS__TARGETS; do
+  if ! rustc --target "$target" --print target-libdir &> /dev/null; then
     echo >&2 "error: missing Rust toolchain for target $target"
     echo >&2 "  > suggestion:   nix develop .#app-android"
     echo >&2 "            or:   rustup target add $target"
@@ -126,18 +126,22 @@ done
 
 # --target=$target
 targetArgs=()
-for target in "${TARGETS[@]}"; do
+for target in $APP_RS__TARGETS; do
   targetArgs+=("--target=$target")
 done
+
+set -x
 
 # Run `cargo ndk build` in a clean env
 # Short args (-i) ensure this works with non-coreutils /usr/bin/env on macOS.
 env -i "${clean_envs[@]}" \
   cargo ndk \
-  $targetArgs \
+  "${targetArgs[@]}" \
   --output-dir="$APP_RS__OUT_DIR" \
   --platform="$APP_RS__COMPILE_SDK_VERSION" \
   -- rustc --lib --crate-type=cdylib -p app-rs "$@"
+
+set +x
 
 # Restore cwd
 popd

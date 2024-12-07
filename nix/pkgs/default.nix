@@ -343,6 +343,8 @@
     # arm64 and arm-v7 cover 99.7% of all Android devices
     fenixPkgs.targets.aarch64-linux-android.stable.rust-std
     fenixPkgs.targets.armv7-linux-androideabi.stable.rust-std
+    # but flutter seems to want x86_64...
+    fenixPkgs.targets.x86_64-linux-android.stable.rust-std
   ];
 
   # Our flutter version
