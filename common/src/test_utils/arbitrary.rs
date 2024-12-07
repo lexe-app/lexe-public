@@ -17,7 +17,7 @@ use bitcoin::{
     hashes::{sha256d, Hash},
     script::PushBytesBuf,
     secp256k1, Address, Network, OutPoint, ScriptBuf, ScriptHash, Sequence,
-    Transaction, TxIn, TxOut, Txid, Witness,
+    TxIn, TxOut, Txid, Witness,
 };
 use chrono::Utc;
 use lightning::{
@@ -347,7 +347,7 @@ pub fn any_tx_version() -> impl Strategy<Value = transaction::Version> {
     any::<i32>().prop_map(transaction::Version)
 }
 
-pub fn any_raw_tx() -> impl Strategy<Value = Transaction> {
+pub fn any_raw_tx() -> impl Strategy<Value = bitcoin::Transaction> {
     let any_version = any_tx_version();
     let any_lock_time = any_locktime();
     // Txns include anywhere from 1 to 2 inputs / outputs
@@ -359,18 +359,20 @@ pub fn any_raw_tx() -> impl Strategy<Value = Transaction> {
         any_vec_of_txins,
         any_vec_of_txouts,
     )
-        .prop_map(|(version, lock_time, input, output)| Transaction {
-            version,
-            lock_time,
-            input,
-            output,
+        .prop_map(|(version, lock_time, input, output)| {
+            bitcoin::Transaction {
+                version,
+                lock_time,
+                input,
+                output,
+            }
         })
 }
 
 /// An `Arbitrary`-like [`Strategy`] for a [`Txid`].
 ///
-/// NOTE that it is often preferred to generate a [`Transaction`] first, and
-/// then get the [`Txid`] via [`Transaction::txid`].
+/// NOTE that it is often preferred to generate a [`bitcoin::Transaction`]
+/// first, and then get the [`Txid`] via [`bitcoin::Transaction::txid`].
 pub fn any_txid() -> impl Strategy<Value = Txid> {
     // In order to generate txids which are more likely to shrink() to a value
     // that corresponds with an actual raw transaction, we can generate txids by
@@ -573,6 +575,9 @@ impl<T, S: Strategy<Value = T>> Iterator for GenValueIter<T, S> {
 
 #[cfg(test)]
 mod test {
+    use bitcoin::consensus::{Decodable, Encodable};
+    use proptest::{prop_assert_eq, proptest};
+
     use super::*;
     use crate::test_utils::roundtrip;
 
@@ -588,5 +593,18 @@ mod test {
     fn chrono_datetime_roundtrip() {
         let config = Config::with_cases(1024);
         roundtrip::fromstr_display_custom(any_chrono_datetime(), config);
+    }
+
+    /// Test that the [`bitcoin::Transaction`] consensus encoding roundtrips.
+    #[test]
+    fn bitcoin_consensus_encode_roundtrip() {
+        proptest!(|(tx1 in any_raw_tx())| {
+            let mut data = Vec::new();
+            tx1.consensus_encode(&mut data).unwrap();
+            let tx2 =
+                bitcoin::Transaction::consensus_decode(&mut data.as_slice())
+                    .unwrap();
+            prop_assert_eq!(tx1, tx2)
+        });
     }
 }
