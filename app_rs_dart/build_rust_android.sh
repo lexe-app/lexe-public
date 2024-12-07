@@ -12,19 +12,19 @@
 # See: `app/android/app/build.gradle` for how this script is used when hooked
 #      into gradle build.
 
-# TODO(phlip9): get gradle to tell us the target android platform API level.
 # TODO(phlip9): get gradle to tell us which architecture we're building for.
-# TODO(phlip9): add `--target=armeabi-v7a` and `--target=x86_64` when
-#               publishing. otherwise we get 3x the compile time...
+# TODO(phlip9): add `armv7-linux-androideabi` target when publishing. otherwise
+#               we get 2x the compile time during development...
 
 set -e
 set -o pipefail
-set -x
+# set -x
 
 export NO_COLOR=1
 
-CARGO_NDK_VERSION="3.5.4"
-TARGET="aarch64-linux-android"
+CARGO_NDK_VERSION="3.5.7"
+TARGETS=("aarch64-linux-android")
+
 
 # Important envs passed to us from gradle:
 #
@@ -41,7 +41,7 @@ APP_RS__COMPILE_SDK_VERSION="${APP_RS__COMPILE_SDK_VERSION:-34}"
 # If we run this script standalone, just dump the output in a tempdir.
 if [[ -z $APP_RS__OUT_DIR ]]; then
   APP_RS__OUT_DIR="$(mktemp -d)"
-  trap 'rm -rf $APP_RS__OUT_DIR' EXIT
+  # trap 'rm -rf $APP_RS__OUT_DIR' EXIT
 fi
 
 #
@@ -60,48 +60,55 @@ pushd "$APP_RS__WORKSPACE_DIR"
 # Ensure toolchains are installed
 #
 
-# Ensure cargo is installed
+# Ensure `cargo` is installed
 if ! command -v cargo &> /dev/null; then
   echo >&2 "error: need to install cargo. See README.md"
+  echo >&2 "  > suggestion:   nix develop .#app-android"
   exit 1
 fi
 
-# Ensure rustup is installed
-if ! command -v rustup &> /dev/null; then
-  echo >&2 "error: need to install rustup. See README.md"
-  exit 1
-fi
-
-# Ensure `cargo ndk` is installed with the desired version
+# Ensure `cargo ndk` is installed
 if ! command -v cargo-ndk &> /dev/null; then
-  echo "info: Installing cargo-ndk"
-  cargo install --version="$CARGO_NDK_VERSION" cargo-ndk
-elif [[ $(cargo ndk --version) != "cargo-ndk $CARGO_NDK_VERSION" ]]; then
-  echo "info: Updating cargo-ndk to version $CARGO_NDK_VERSION"
-  cargo install --force --version="$CARGO_NDK_VERSION" cargo-ndk
+  echo >&2 "error: need to install cargo-ndk"
+  echo >&2 "  > suggestion:   nix develop .#app-android"
+  echo >&2 "            or:   cargo install --version=$CARGO_NDK_VERSION cargo-ndk"
+  exit 1
 fi
 
-# Ensure rustup is installed
-if ! command -v rustup &> /dev/null; then
-  echo >&2 "error: need to install rustup. See README.md"
+# Ensure `cargo ndk` has the right version
+actualCargoNdk="$(cargo ndk --version)"
+expectedCargoNdk="cargo-ndk $CARGO_NDK_VERSION"
+if [[ "$actualCargoNdk" != "$expectedCargoNdk" ]]; then
+  echo >&2 "error: \"$actualCargoNdk\" != \"$expectedCargoNdk\""
+  echo >&2 "  > suggestion:   nix develop .#app-android"
+  echo >&2 "            or:   cargo install --force --version=$CARGO_NDK_VERSION cargo-ndk"
   exit 1
 fi
 
 # Ensure rust toolchains are installed for targets
-if ! rustup target list --installed | grep -Eq "^$TARGET$"; then
-  echo "info: Installing missing Rust toolchain for target: $TARGET"
-  if ! rustup target add "$TARGET"; then
-    echo >&2 "error: failed to install missing rust toolchain with 'rustup target add $TARGET'"
+for target in "${TARGETS[@]}"; do
+  if ! rustc --target $target --print target-libdir &> /dev/null; then
+    echo >&2 "error: missing Rust toolchain for target $target"
+    echo >&2 "  > suggestion:   nix develop .#app-android"
+    echo >&2 "            or:   rustup target add $target"
     exit 1
   fi
-fi
+done
 
 #
 # `cargo ndk build` the libapp_rs.so shared library
 #
 
+# Try to sanitize paths in the output library. These remaps get applied from
+# last-to-first.
+RUSTFLAGS="\
+  --remap-path-prefix $HOME=/home \
+  --remap-path-prefix $HOME/.cargo=/cargo \
+  --remap-path-prefix $HOME/.cargo/registry/src/index.crates.io-6f17d22bba15001f=/crates-io \
+  --remap-path-prefix $APP_RS__WORKSPACE_DIR=/lexe"
+
 # Envs to propagate to `cargo ndk build`
-clean_envs=("PATH=$PATH" "HOME=$HOME" LC_ALL="$LC_ALL")
+clean_envs=("PATH=$PATH" "HOME=$HOME" LC_ALL="$LC_ALL" RUSTFLAGS="$RUSTFLAGS")
 
 # Only propagate these envs if they're already set
 #
@@ -109,18 +116,25 @@ clean_envs=("PATH=$PATH" "HOME=$HOME" LC_ALL="$LC_ALL")
 # `cargo ndk` is also smart enough to figure out _an_ NDK to use if that's all
 # it's given. The most accurate ofc is the ANDROID_NDK_HOME we get from gradle,
 # but that might not be set when running this script standalone.
-conditional_envs=("ANDROID_HOME" "ANDROID_NDK_HOME")
+# TODO(phlip9): do we still need `ANDROID_NDK_HOME`?
+conditional_envs=("ANDROID_SDK_ROOT" "ANDROID_NDK_ROOT" "ANDROID_HOME" "ANDROID_NDK_HOME")
 for env in "${conditional_envs[@]}"; do
   if printenv "$env"; then
     clean_envs+=("$env=$(printenv "$env")")
   fi
 done
 
+# --target=$target
+targetArgs=()
+for target in "${TARGETS[@]}"; do
+  targetArgs+=("--target=$target")
+done
+
 # Run `cargo ndk build` in a clean env
 # Short args (-i) ensure this works with non-coreutils /usr/bin/env on macOS.
 env -i "${clean_envs[@]}" \
   cargo ndk \
-  --target="$TARGET" \
+  $targetArgs \
   --output-dir="$APP_RS__OUT_DIR" \
   --platform="$APP_RS__COMPILE_SDK_VERSION" \
   -- rustc --lib --crate-type=cdylib -p app-rs "$@"

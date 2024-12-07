@@ -193,7 +193,7 @@ and [`app_rs_dart/android/build.gradle`](../app_rs_dart/android/build.gradle).
 ```bash
 $ sdkmanager --install \
     "build-tools;34.0.0" \
-    "ndk;27.0.11902837" \
+    "ndk;26.3.11579264" \
     "platform-tools" \
     "platforms;android-34" \
     "sources;android-34"
