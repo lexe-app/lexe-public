@@ -94,6 +94,7 @@ android {
 
             // The google drive oauth2 callback URI scheme
             // Keep in sync with <app/lib/gdrive_auth.dart::_GDriveCredentials>
+            // Signer: <debug>
             resValue "string", "google_callback_uri_scheme", "com.googleusercontent.apps.495704988639-fvkq7thnksbqi7n3tanpopu5brr2pa4a"
         }
 
@@ -102,6 +103,11 @@ android {
             dimension "flavor"
             // The app name. ex: displayed under the icon on the user's home screen.
             resValue "string", "app_name", "Lexe"
+
+            // The google drive oauth2 callback URI scheme
+            // Keep in sync with <app/lib/gdrive_auth.dart::_GDriveCredentials>
+            // Signer: <Google Play>
+            resValue "string", "google_callback_uri_scheme", "com.googleusercontent.apps.495704988639-cr7bvcr117n7aks3p3e3qntoa7ps0lj1"
         }
 
         // Lexe design mode.
@@ -114,6 +120,7 @@ android {
 
             // The google drive oauth2 callback URI scheme
             // Keep in sync with <app/lib/gdrive_auth.dart::_GDriveCredentials>
+            // Signer: <debug>
             resValue "string", "google_callback_uri_scheme", "com.googleusercontent.apps.495704988639-qhjbk0nkfaibgr16h0gimlqcae8cl13e"
         }
     }
