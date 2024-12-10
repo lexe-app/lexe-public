@@ -36,7 +36,7 @@
 //! let amount = Amount::from_msat(69_420_420);
 //! println!("{amount} msats");
 //!
-//! let sats = amount.satoshis();
+//! let sats = amount.sats();
 //! println!("{sats:.3} satoshis");
 //!
 //! let btc = amount.btc();
@@ -170,13 +170,12 @@ impl Amount {
     /// Returns the [`Amount`] as a [`u64`] satoshi value.
     #[inline]
     pub fn sats_u64(&self) -> u64 {
-        self.satoshis().to_u64().expect("Msats fits => sats fits")
+        self.sats().to_u64().expect("Msats fits => sats fits")
     }
 
     /// Returns the [`Amount`] as a [`Decimal`] satoshi value.
-    // "satoshis" instead of "sat" to have a greater string distance from "msat"
     #[inline]
-    pub fn satoshis(&self) -> Decimal {
+    pub fn sats(&self) -> Decimal {
         self.0
     }
 
@@ -284,7 +283,7 @@ impl FromStr for Amount {
 impl From<Amount> for bitcoin::Amount {
     #[inline]
     fn from(amt: Amount) -> Self {
-        Self::from_sat(amt.satoshis().to_u64().expect("safe by construction"))
+        Self::from_sat(amt.sats().to_u64().expect("safe by construction"))
     }
 }
 
@@ -395,7 +394,7 @@ mod test {
 
         assert_eq!(Amount::MAX.msat(), u64::MAX);
         assert_eq!(
-            Amount::MAX_BITCOIN_SUPPLY.satoshis(),
+            Amount::MAX_BITCOIN_SUPPLY.sats(),
             dec!(21_000_000) * dec!(100_000_000),
         );
         assert_eq!(
@@ -421,7 +420,7 @@ mod test {
         proptest!(|(sat1 in any::<u32>())| {
             let amount = Amount::from_sats_u32(sat1);
             let sat2a = amount.sats_u64().apply(u32::try_from).unwrap();
-            let sat2b = amount.satoshis().to_u32().unwrap();
+            let sat2b = amount.sats().to_u32().unwrap();
             prop_assert_eq!(sat1, sat2a);
             prop_assert_eq!(sat1, sat2b);
         })
@@ -439,7 +438,7 @@ mod test {
             {
                 // Roundtrip 'inside': Amount -> sat dec -> Amount
                 let roundtrip_inside =
-                    Amount::try_from_satoshis(amount.satoshis()).unwrap();
+                    Amount::try_from_satoshis(amount.sats()).unwrap();
                 prop_assert_eq!(amount, roundtrip_inside);
 
                 // Roundtrip 'outside':
