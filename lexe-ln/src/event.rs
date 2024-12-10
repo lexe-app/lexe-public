@@ -1,7 +1,9 @@
-use std::sync::Mutex;
+use std::{fmt, str::FromStr, sync::Mutex};
 
 use anyhow::{anyhow, Context};
 use bitcoin::{absolute, secp256k1};
+#[cfg(test)]
+use common::test_utils::arbitrary;
 use common::{
     ln::channel::{LxChannelId, LxUserChannelId},
     notify,
@@ -19,6 +21,9 @@ use lightning::{
     routing::scoring::ScoreUpdate,
     sign::SpendableOutputDescriptor,
 };
+#[cfg(test)]
+use proptest_derive::Arbitrary;
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 use thiserror::Error;
 use tracing::{debug, info, info_span, warn};
 
@@ -58,18 +63,14 @@ pub trait EventExt {
     /// Returns the name of the event.
     fn name(&self) -> &'static str;
 
-    /// Generate a unique string ID for this event.
-    /// Current format: `<timestamp_ms>-<nonce>-<event_name>`
-    fn generate_id(&self) -> String;
-
     /// A method to call just as we begin to handle an event.
     /// - Logs "Handling event: {name}" at INFO
     /// - Logs the event details at DEBUG if running in debug mode
     /// - Returns the event ID and a [`tracing::Span`] for the event
-    fn handle_prelude(&self) -> (String, tracing::Span);
+    fn handle_prelude(&self) -> (EventId, tracing::Span);
 
     /// Calls [`Self::handle_prelude`] with an existing event ID.
-    fn handle_prelude_with_id(&self, event_id: &str) -> tracing::Span;
+    fn handle_prelude_with_id(&self, event_id: &EventId) -> tracing::Span;
 }
 
 impl EventExt for Event {
@@ -105,25 +106,71 @@ impl EventExt for Event {
         }
     }
 
-    fn generate_id(&self) -> String {
-        let timestamp_ms = TimestampMs::now().into_u64();
-        // Prevents duplicate keys with high probability.
-        let nonce = SysRng::new().gen_u32();
-        let event_name = self.name();
-        format!("{timestamp_ms}-{nonce}-{event_name}")
-    }
-
-    fn handle_prelude(&self) -> (String, tracing::Span) {
-        let event_id = self.generate_id();
+    fn handle_prelude(&self) -> (EventId, tracing::Span) {
+        let event_id = EventId::generate(self);
         let span = self.handle_prelude_with_id(&event_id);
         (event_id, span)
     }
 
-    fn handle_prelude_with_id(&self, event_id: &str) -> tracing::Span {
+    fn handle_prelude_with_id(&self, event_id: &EventId) -> tracing::Span {
         info!(%event_id, "Handling event: {name}", name = self.name());
         #[cfg(debug_assertions)] // Events contain sensitive info
         debug!(%event_id, "Event details: {self:?}");
         info_span!("(event)", %event_id)
+    }
+}
+
+/// A unique identifier for an [`Event`].
+/// Serialized and displayed as `<timestamp_ms>-<nonce>-<event_name>`.
+#[derive(Clone, Debug, PartialEq, SerializeDisplay, DeserializeFromStr)]
+#[cfg_attr(test, derive(Arbitrary))]
+pub struct EventId {
+    pub timestamp: TimestampMs,
+    pub nonce: u32,
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
+    pub name: String,
+}
+
+impl EventId {
+    /// Generates a new [`EventId`] for the given [`Event`].
+    pub fn generate(event: &Event) -> Self {
+        let timestamp = TimestampMs::now();
+        // Prevents duplicate keys with high probability.
+        let nonce = SysRng::new().gen_u32();
+        let name = event.name().to_owned();
+        Self {
+            timestamp,
+            nonce,
+            name,
+        }
+    }
+}
+
+impl FromStr for EventId {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (timestamp_str, rest) =
+            s.split_once('-').context("Missing timestamp")?;
+        let timestamp = TimestampMs::from_str(timestamp_str)
+            .context("Invalid timestamp")?;
+        let (nonce_str, name) =
+            rest.split_once('-').context("Missing nonce")?;
+        let nonce = u32::from_str(nonce_str).context("Invalid nonce")?;
+        Ok(Self {
+            timestamp,
+            nonce,
+            name: name.to_owned(),
+        })
+    }
+}
+
+impl fmt::Display for EventId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let timestamp = &self.timestamp;
+        let nonce = &self.nonce;
+        let name = &self.name;
+        write!(f, "{timestamp}-{nonce}-{name}")
     }
 }
 
@@ -403,4 +450,37 @@ where
 
     test_event_tx.send(TestEvent::SpendableOutputs);
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use common::test_utils::roundtrip;
+
+    use super::*;
+
+    /// cargo test -p lexe-ln -- event_id_basic --show-output
+    #[test]
+    fn event_id_example() {
+        let event_id1 =
+            EventId::from_str("1733956429163-1598316375-ChannelReady").unwrap();
+
+        let event_id2 = {
+            let timestamp = TimestampMs::try_from(1733956429163i64).unwrap();
+            let nonce = 1598316375;
+            let name = "ChannelReady".to_owned();
+            EventId {
+                timestamp,
+                nonce,
+                name,
+            }
+        };
+
+        assert_eq!(event_id1, event_id2);
+    }
+
+    #[test]
+    fn event_id_roundtrips() {
+        roundtrip::json_string_roundtrip_proptest::<EventId>();
+        roundtrip::fromstr_display_roundtrip_proptest::<EventId>();
+    }
 }

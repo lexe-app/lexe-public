@@ -1,9 +1,11 @@
 use std::{
     future::Future,
     ops::Deref,
+    str::FromStr,
     sync::{Arc, Mutex},
 };
 
+use anyhow::Context;
 use async_trait::async_trait;
 use common::{
     api::{
@@ -30,6 +32,7 @@ use crate::{
         LexeChainMonitorType, LexeChannelManagerType, LexePeerManagerType,
         NetworkGraphType, ProbabilisticScorerType, SignerType,
     },
+    event::EventId,
     logger::LexeTracingLogger,
     payments::{
         manager::{CheckedPayment, PersistedPayment},
@@ -150,23 +153,30 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
     }
 
     /// Reads all persisted events, along with their event IDs.
-    async fn read_events(&self) -> anyhow::Result<Vec<(String, Event)>> {
+    async fn read_events(&self) -> anyhow::Result<Vec<(EventId, Event)>> {
         let dir = VfsDirectory::new(constants::EVENTS_DIR);
         let ids_and_events = self
             .read_dir_maybereadable(&dir)
             .await?
             .into_iter()
-            .map(|(file_id, event)| (file_id.filename, event))
-            .collect();
+            .map(|(file_id, event)| {
+                let event_id = EventId::from_str(&file_id.filename)
+                    .with_context(|| file_id.filename.clone())
+                    .context("Couldn't parse event ID from filename")?;
+                Ok((event_id, event))
+            })
+            .collect::<anyhow::Result<_>>()
+            .context("Error while reading events")?;
         Ok(ids_and_events)
     }
 
     async fn persist_event(
         &self,
         event: &Event,
-        event_id: String,
+        event_id: &EventId,
     ) -> anyhow::Result<()> {
-        let file_id = VfsFileId::new(constants::EVENTS_DIR, event_id);
+        let filename = event_id.to_string();
+        let file_id = VfsFileId::new(constants::EVENTS_DIR, filename);
         // Failed event persistence can result in the node shutting down, so try
         // a few extra times. TODO(max): Change back to 1 once we switch to
         // LDK's fallible event handling.
@@ -174,8 +184,9 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
         self.persist_ldk_writeable(file_id, &event, retries).await
     }
 
-    async fn remove_event(&self, event_id: String) -> anyhow::Result<()> {
-        let file_id = VfsFileId::new(constants::EVENTS_DIR, event_id);
+    async fn remove_event(&self, event_id: &EventId) -> anyhow::Result<()> {
+        let filename = event_id.to_string();
+        let file_id = VfsFileId::new(constants::EVENTS_DIR, filename);
         self.remove_file(&file_id).await
     }
 }
