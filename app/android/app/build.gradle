@@ -54,13 +54,15 @@ android {
         versionName flutterVersionName
     }
 
-    buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig signingConfigs.debug
-        }
-    }
+    // Comment this out to force flutter to produce an unsigned appbundle. We'll
+    // sign the appbundle with our own tooling.
+    // buildTypes {
+    //     release {
+    //         // Signing with the debug keys for now, so
+    //         // `flutter run --release` works.
+    //         signingConfig signingConfigs.debug
+    //     }
+    // }
 
     flavorDimensions "flavor"
 
