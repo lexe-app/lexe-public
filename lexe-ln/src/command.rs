@@ -22,12 +22,10 @@ use common::{
     enclave::Measurement,
     ln::{
         amount::Amount,
-        balance::LightningBalance,
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
         invoice::LxInvoice,
         network::LxNetwork,
     },
-    Apply,
 };
 use futures::Future;
 use lightning::{
@@ -54,6 +52,7 @@ use tracing::{debug, info, instrument};
 
 use crate::{
     alias::{LexeChainMonitorType, RouterType, SignerType},
+    balance,
     channel::{ChannelEvent, ChannelEventsBus, ChannelEventsRx},
     esplora::LexeEsplora,
     keys_manager::LexeKeysManager,
@@ -107,17 +106,9 @@ where
     let channels = channel_manager.list_channels();
 
     let num_channels: usize = channels.len();
-    let mut num_usable_channels: usize = 0;
-    let mut lightning_balance = LightningBalance::ZERO;
 
-    for channel in &channels {
-        let _ = channel_add_to_balance(
-            chain_monitor,
-            channel,
-            &mut lightning_balance,
-            &mut num_usable_channels,
-        );
-    }
+    let (lightning_balance, num_usable_channels) =
+        balance::all_channel_balances(chain_monitor, &channels);
 
     let num_peers = peer_manager.list_peers().len();
 
@@ -142,100 +133,6 @@ where
     }
 }
 
-/// Jump through LDK hoops to get our current balance for a channel.
-fn channel_add_to_balance<PS: LexePersister>(
-    chain_monitor: &LexeChainMonitorType<PS>,
-    channel: &ChannelDetails,
-    balance: &mut LightningBalance,
-    num_usable_channels: &mut usize,
-) -> Option<()> {
-    let amount = channel_balance(chain_monitor, channel).ok()?;
-
-    if channel.is_usable {
-        balance.usable += amount;
-        *num_usable_channels += 1;
-    } else {
-        balance.pending += amount;
-    }
-
-    Some(())
-}
-
-/// Get our claimable channel balance for a given channel.
-fn channel_balance<PS: LexePersister>(
-    chain_monitor: &LexeChainMonitorType<PS>,
-    channel: &ChannelDetails,
-) -> anyhow::Result<Amount> {
-    use lightning::chain::channelmonitor::Balance;
-
-    let monitor = channel
-        .funding_txo
-        .and_then(|txo| chain_monitor.get_monitor(txo).ok());
-    match monitor {
-        Some(monitor) => {
-            let amount_sats = monitor
-                .get_claimable_balances()
-                .into_iter()
-                .map(|b| {
-                    debug!("ln_balance: {b:?}");
-                    match b {
-                        Balance::ClaimableOnChannelClose {
-                            amount_satoshis,
-                            transaction_fee_satoshis,
-                            outbound_payment_htlc_rounded_msat: _,
-                            outbound_forwarded_htlc_rounded_msat: _,
-                            inbound_claiming_htlc_rounded_msat: _,
-                            inbound_htlc_rounded_msat: _,
-                        } => {
-                            // Add back in the "reserved"
-                            // `transaction_fee_satoshis`
-                            // to make things more intuitive, i.e., open 10_000
-                            // sat channel, get
-                            // 10_000 sats balance.
-                            amount_satoshis + transaction_fee_satoshis
-                        }
-                        Balance::ClaimableAwaitingConfirmations {
-                            amount_satoshis,
-                            ..
-                        } => amount_satoshis,
-                        Balance::ContentiousClaimable {
-                            amount_satoshis,
-                            ..
-                        } => amount_satoshis,
-                        Balance::MaybeTimeoutClaimableHTLC {
-                            amount_satoshis,
-                            ..
-                        } => amount_satoshis,
-                        Balance::MaybePreimageClaimableHTLC {
-                            amount_satoshis,
-                            ..
-                        } => amount_satoshis,
-                        Balance::CounterpartyRevokedOutputClaimable {
-                            amount_satoshis,
-                            ..
-                        } => amount_satoshis,
-                    }
-                })
-                .sum();
-            Amount::try_from_sats_u64(amount_sats)
-                .with_context(|| channel.channel_id)
-        }
-        None => {
-            // No way to call `get_claimable_balances` for this channel.
-            // Approximate our channel balance by summing our outbound
-            // capacity + unspendable punishment reserve.
-            let outbound_capacity =
-                Amount::from_msat(channel.outbound_capacity_msat);
-            let reserve_sat = channel
-                .unspendable_punishment_reserve
-                .unwrap_or(0)
-                .apply(Amount::try_from_sats_u64)
-                .with_context(|| channel.channel_id)?;
-            Ok(outbound_capacity + reserve_sat)
-        }
-    }
-}
-
 #[instrument(skip_all, name = "(list-channels)")]
 pub fn list_channels<CM, PS>(
     channel_manager: &CM,
@@ -250,7 +147,8 @@ where
         .into_iter()
         .map(|channel| {
             let channel_id = channel.channel_id;
-            let channel_balance = channel_balance(chain_monitor, &channel)?;
+            let channel_balance =
+                balance::channel_balance(chain_monitor, &channel)?;
             LxChannelDetails::from_details_and_balance(channel, channel_balance)
                 .context(channel_id)
         })
