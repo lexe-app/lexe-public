@@ -25,7 +25,7 @@
     #
     # These are files present in the VM's `/etc/nixos/` directory, provided by
     # the default OrbStack NixOS install.
-    ./lxd.nix
+    ./incus.nix
     ./orbstack.nix
   ];
 
@@ -68,21 +68,39 @@
     };
   };
 
+  # Extra certificates from OrbStack.
+  security.pki.certificates = [
+    ''
+      -----BEGIN CERTIFICATE-----
+      MIICDDCCAbKgAwIBAgIQW3k1qlbV5cRze6aAyG/3WTAKBggqhkjOPQQDAjBmMR0w
+      GwYDVQQKExRPcmJTdGFjayBEZXZlbG9wbWVudDEeMBwGA1UECwwVQ29udGFpbmVy
+      cyAmIFNlcnZpY2VzMSUwIwYDVQQDExxPcmJTdGFjayBEZXZlbG9wbWVudCBSb290
+      IENBMB4XDTIzMTExNjIwMjMxMVoXDTMzMTExNjIwMjMxMVowZjEdMBsGA1UEChMU
+      T3JiU3RhY2sgRGV2ZWxvcG1lbnQxHjAcBgNVBAsMFUNvbnRhaW5lcnMgJiBTZXJ2
+      aWNlczElMCMGA1UEAxMcT3JiU3RhY2sgRGV2ZWxvcG1lbnQgUm9vdCBDQTBZMBMG
+      ByqGSM49AgEGCCqGSM49AwEHA0IABCQw9nJqHN/8b6X680JDmJrFXJ8N5y9AlZOg
+      kI6/iBuktdXyiSGhbFPU+l54+JK1XkZ8dKxZsNGaKl+BMl0PYHmjQjBAMA4GA1Ud
+      DwEB/wQEAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQiZeJ6dekQ6wVn
+      8ATNUyoBnCpOQjAKBggqhkjOPQQDAgNIADBFAiA6eotAAObTAQgTfd8foMB4qeB3
+      tlaVYMa0k2RF6lXhcQIhAIIuDNHV3t7Aj6wLGUQ9qn0we0ePdZ2Cmx9Woj1eE3sd
+      -----END CERTIFICATE-----
+    ''
+  ];
+
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions
   # on your system were taken. It‘s perfectly fine and recommended to leave
   # this value at the release version of the first install of this system.
   # Before changing this value read the documentation for this option
   # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
-  system.stateVersion = "24.05"; # Did you read the comment?
+  system.stateVersion = "24.11"; # Did you read the comment?
 
-  # As this is intended as a stadalone image, undo some of the minimal profile stuff
+  # As this is intended as a standalone image, undo some of the minimal profile stuff
   documentation = {
     enable = true;
     nixos.enable = true;
     man.enable = true;
   };
-  environment.noXlibs = false;
 
   #
   # LEXE LINUX-BUILDER CONFIG
