@@ -10,6 +10,7 @@ version.workspace = true
 default = []
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
 test-utils = [
+  "dep:chrono",
   "dep:electrsd",
   "dep:proptest",
   "dep:proptest-derive",
@@ -46,7 +47,6 @@ bitcoin_hashes.workspace = true
 bitcoin-bech32.workspace = true
 base64.workspace = true
 bytes.workspace = true
-chrono.workspace = true
 cfg-if.workspace = true
 dcap-ql.workspace = true
 dotenvy.workspace = true
@@ -117,6 +117,7 @@ yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
 # --- OPTIONAL --- #
 # These must have `optional = true` to prevent infecting production binaries.
 
+chrono = { optional = true, workspace = true }
 proptest = { optional = true, workspace = true, features = ["alloc"] }
 proptest-derive = { optional = true, workspace = true }
 serde_urlencoded = { optional = true, workspace = true }
@@ -147,6 +148,7 @@ hyper-util = { workspace = true, features = ["client-legacy-socket2"] }
 proptest = { optional = true, workspace = true, features = ["std"] }
 
 [dev-dependencies]
+chrono.workspace = true
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
 serde_json.workspace = true

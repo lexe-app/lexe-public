@@ -4,7 +4,6 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use chrono::Utc;
 use serde::{de, Serialize};
 
 /// The number of milliseconds since the [`UNIX_EPOCH`].
@@ -83,13 +82,6 @@ impl From<TimestampMs> for SystemTime {
     #[inline]
     fn from(t: TimestampMs) -> Self {
         t.into_system_time()
-    }
-}
-
-impl From<TimestampMs> for chrono::DateTime<Utc> {
-    #[inline]
-    fn from(t: TimestampMs) -> Self {
-        Self::from(t.into_system_time())
     }
 }
 
