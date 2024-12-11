@@ -16,7 +16,7 @@
 //!
 //! let sats_str = "42069";
 //! let sats_dec = Decimal::from_str(sats_str).expect("Not a number");
-//! let amount1 = Amount::try_from_satoshis(sats_dec).expect("Invalid amount");
+//! let amount1 = Amount::try_from_sats(sats_dec).expect("Invalid amount");
 //!
 //! let btc_str = "42.069";
 //! let btc_dec = Decimal::from_str(btc_str).expect("Not a number");
@@ -129,13 +129,12 @@ impl Amount {
     /// Construct an [`Amount`] from a satoshi [`u64`] value.
     #[inline]
     pub fn try_from_sats_u64(sats_u64: u64) -> Result<Self, Error> {
-        Self::try_from_satoshis(Decimal::from(sats_u64))
+        Self::try_from_sats(Decimal::from(sats_u64))
     }
 
     /// Construct an [`Amount`] from a satoshi [`Decimal`] value.
-    // "satoshis" instead of "sat" to have a greater string distance from "msat"
     #[inline]
-    pub fn try_from_satoshis(sats: Decimal) -> Result<Self, Error> {
+    pub fn try_from_sats(sats: Decimal) -> Result<Self, Error> {
         Self::try_from_inner(sats)
     }
 
@@ -291,7 +290,7 @@ impl TryFrom<bitcoin::Amount> for Amount {
     type Error = Error;
     #[inline]
     fn try_from(amt: bitcoin::Amount) -> Result<Self, Self::Error> {
-        Self::try_from_satoshis(Decimal::from(amt.to_sat()))
+        Self::try_from_sats(Decimal::from(amt.to_sat()))
     }
 }
 
@@ -438,7 +437,7 @@ mod test {
             {
                 // Roundtrip 'inside': Amount -> sat dec -> Amount
                 let roundtrip_inside =
-                    Amount::try_from_satoshis(amount.sats()).unwrap();
+                    Amount::try_from_sats(amount.sats()).unwrap();
                 prop_assert_eq!(amount, roundtrip_inside);
 
                 // Roundtrip 'outside':
@@ -446,7 +445,7 @@ mod test {
                 let msat_u64 = amount.msat();
                 let msat_dec = Decimal::from(msat_u64);
                 let sat_dec = msat_dec / dec!(1000);
-                let roundtrip_outside = Amount::try_from_satoshis(sat_dec).unwrap();
+                let roundtrip_outside = Amount::try_from_sats(sat_dec).unwrap();
                 prop_assert_eq!(roundtrip_inside, roundtrip_outside);
             }
 
