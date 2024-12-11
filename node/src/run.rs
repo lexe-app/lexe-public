@@ -190,10 +190,12 @@ impl UserNode {
         );
 
         // Concurrently initialize esplora while fetching provisioned secrets
+        let broadcast_hook = None;
         let (try_esplora, try_fetch) = tokio::join!(
             LexeEsplora::init_any(
                 rng,
                 filtered_esplora_urls,
+                broadcast_hook,
                 test_event_tx.clone(),
                 shutdown.clone()
             ),

@@ -13,6 +13,8 @@
 // Ignore this useless lint
 #![allow(clippy::new_without_default)]
 
+use std::{future::Future, pin::Pin};
+
 /// Type aliases.
 pub mod alias;
 /// Background processor.
@@ -47,3 +49,7 @@ pub mod test_event;
 pub mod traits;
 /// BDK wallet.
 pub mod wallet;
+
+/// The type we usually need for passing futures around.
+pub type BoxedAnyhowFuture =
+    Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'static>>;

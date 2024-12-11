@@ -885,8 +885,13 @@ mod test {
             let client = AsyncClient::from_client("dummy".to_owned(), client);
             let fee_estimates = ArcSwap::from_pointee(fee_estimates);
             let (test_tx, _test_rx) = crate::test_event::channel("test");
-            let esplora =
-                Arc::new(LexeEsplora::new(client, fee_estimates, test_tx));
+            let broadcast_hook = None;
+            let esplora = Arc::new(LexeEsplora::new(
+                client,
+                fee_estimates,
+                broadcast_hook,
+                test_tx,
+            ));
 
             let maybe_changeset = None;
             let (persist_tx, _persist_rx) = notify::channel();

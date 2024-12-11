@@ -29,7 +29,7 @@ use rand::{seq::SliceRandom, RngCore};
 use tokio::time;
 use tracing::{debug, error, info, instrument, warn};
 
-use crate::test_event::TestEventSender;
+use crate::{test_event::TestEventSender, BoxedAnyhowFuture};
 
 /// The interval at which we refresh estimated fee rates.
 // Since we want to reduce the number of API calls made to our (external)
@@ -49,6 +49,10 @@ const BITCOIN_CORE_MEMPOOL_EXPIRY: Duration =
 
 /// The feerate we fall back to if fee rate lookup fails.
 const FALLBACK_FEE_RATE: f64 = 1.0;
+
+/// The type of the hook to be called just before broadcasting a tx.
+type PreBroadcastHook =
+    Arc<dyn Fn(&Transaction) -> BoxedAnyhowFuture + Send + Sync>;
 
 /// Whether this esplora url is contained in the whitelist for this network.
 #[must_use]
@@ -108,6 +112,8 @@ pub struct LexeEsplora {
     /// (in sats per vbyte) returned by [`AsyncClient::get_fee_estimates`].
     fee_estimates: ArcSwap<BTreeMap<u16, f64>>,
     test_event_tx: TestEventSender,
+    /// An optional hook to be called just before broadcasting a tx.
+    broadcast_hook: Option<PreBroadcastHook>,
 }
 
 impl LexeEsplora {
@@ -117,6 +123,7 @@ impl LexeEsplora {
     pub async fn init_any(
         rng: &mut impl RngCore,
         mut esplora_urls: Vec<String>,
+        broadcast_hook: Option<PreBroadcastHook>,
         test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<(Arc<Self>, LxTask<()>, String)> {
@@ -130,6 +137,7 @@ impl LexeEsplora {
             info!("Initializing Esplora from url: {url}");
             let init_result = Self::init(
                 url.clone(),
+                broadcast_hook.clone(),
                 test_event_tx.clone(),
                 shutdown.clone(),
             )
@@ -161,6 +169,7 @@ impl LexeEsplora {
     // Esplora URLs (which have likely been fixed in a later version).
     pub async fn init(
         esplora_url: String,
+        broadcast_hook: Option<PreBroadcastHook>,
         test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<(Arc<Self>, LxTask<()>)> {
@@ -177,7 +186,12 @@ impl LexeEsplora {
             .map(ArcSwap::from_pointee)
             .context("Could not fetch initial esplora fee estimates")?;
 
-        let esplora = Arc::new(Self::new(client, fee_estimates, test_event_tx));
+        let esplora = Arc::new(Self::new(
+            client,
+            fee_estimates,
+            broadcast_hook,
+            test_event_tx,
+        ));
 
         // Spawn refresh fees task
         let task = Self::spawn_refresh_fees_task(esplora.clone(), shutdown);
@@ -188,10 +202,12 @@ impl LexeEsplora {
     pub(crate) fn new(
         client: AsyncClient,
         fee_estimates: ArcSwap<BTreeMap<u16, f64>>,
+        broadcast_hook: Option<PreBroadcastHook>,
         test_event_tx: TestEventSender,
     ) -> Self {
         Self {
             client,
+            broadcast_hook,
             fee_estimates,
             test_event_tx,
         }
@@ -327,18 +343,22 @@ impl LexeEsplora {
     }
 
     /// Broadcast a [`Transaction`].
-    ///
-    /// - Logs a debug message if successful.
-    /// - Logs an error message if the broadcast failed.
-    /// - Sends a [`TestEvent::TxBroadcasted`] if successful.
+    /// Sends a [`TestEvent::TxBroadcasted`] if successful.
     pub async fn broadcast_tx(&self, tx: &Transaction) -> anyhow::Result<()> {
-        Self::broadcast_txs_inner(&self.client, &self.test_event_tx, &[tx])
-            .await
+        Self::broadcast_txs_inner(
+            &self.client,
+            self.broadcast_hook.clone(),
+            &self.test_event_tx,
+            &[tx],
+        )
+        .await
     }
 
+    // See BroadcasterInterface impl for why this fn exists.
     #[instrument(skip_all, name = "(broadcast-tx)")]
     async fn broadcast_txs_inner(
         client: &AsyncClient,
+        broadcast_hook: Option<PreBroadcastHook>,
         test_event_tx: &TestEventSender,
         txs: &[&Transaction],
     ) -> anyhow::Result<()> {
@@ -349,32 +369,32 @@ impl LexeEsplora {
         let num_txs = txs.len();
         info!("Broadcasting batch of {num_txs} txs");
 
-        let results = txs
-            .iter()
+        // Run the pre-broadcast hook on all txs if one exists
+        if let Some(hook) = broadcast_hook {
+            // Map each tx to a hook future, then run the futures concurrently
+            txs.iter()
+                .map(|tx| hook(tx))
+                .apply(futures::future::join_all)
+                .await
+                .apply(transpose_results)
+                .context("Pre-broadcast hook(s) failed")?;
+        }
+
+        txs.iter()
             .map(|tx| async {
                 let txid = tx.compute_txid();
                 debug!("Broadcasting tx {txid}");
-                let res = client.broadcast(tx).await.map_err(|e| {
-                    anyhow!("Error broadcasting tx {txid}: {e:#}")
-                });
-                (txid, res)
+                client
+                    .broadcast(tx)
+                    .await
+                    .inspect(|()| debug!("Broadcasted tx {txid}"))
+                    .with_context(|| txid)
+                    .context("Error broadcasting tx")
             })
             .apply(futures::future::join_all)
-            .await;
-
-        let mut err_msgs = Vec::new();
-        for (txid, res) in results {
-            match res {
-                Ok(()) => debug!("Successfully broadcasted {txid}"),
-                Err(e) => err_msgs.push(format!("{e:#}")),
-            }
-        }
-
-        if !err_msgs.is_empty() {
-            let joined_msgs = err_msgs.join("; ");
-            error!("Batch broadcast failed: {joined_msgs}");
-            return Err(anyhow!("Batch broadcast failed: {joined_msgs}"));
-        }
+            .await
+            .apply(transpose_results)
+            .context("Batch broadcast failed")?;
 
         test_event_tx.send(TestEvent::TxBroadcasted);
         info!("Batch broadcast of {num_txs} txs succeeded");
@@ -502,6 +522,7 @@ impl BroadcasterInterface for LexeEsplora {
         // version of itself is a dumb way to accomplish that. Instead, we have
         // the `broadcast_txs_inner` static method which is good enough.
         let client = self.client.clone();
+        let broadcast_hook = self.broadcast_hook.clone();
         let test_event_tx = self.test_event_tx.clone();
         let txs = txs.iter().copied().cloned().collect::<Vec<Transaction>>();
 
@@ -509,12 +530,17 @@ impl BroadcasterInterface for LexeEsplora {
         #[allow(clippy::redundant_async_block)]
         LxTask::spawn(async move {
             let tx_refs = txs.iter().collect::<Vec<&Transaction>>();
-            LexeEsplora::broadcast_txs_inner(
+            let result = LexeEsplora::broadcast_txs_inner(
                 &client,
+                broadcast_hook,
                 &test_event_tx,
                 tx_refs.as_slice(),
             )
-            .await
+            .await;
+            match result {
+                Ok(()) => debug!("Broadcasted txs successfully"),
+                Err(e) => error!("Error broadcasting txs: {e:#}"),
+            }
         })
         .detach()
     }
@@ -576,6 +602,24 @@ fn lookup_fee_rate(
         .find(|(num_blocks, _)| *num_blocks <= &num_blocks_target)
         .map(|(_, feerate)| feerate)
         .unwrap_or(&FALLBACK_FEE_RATE)
+}
+
+/// Converts a [`Vec<anyhow::Result<()>>`] to an [`anyhow::Result<()>`],
+/// with any error messages joined by a semicolon.
+fn transpose_results(results: Vec<anyhow::Result<()>>) -> anyhow::Result<()> {
+    let errors = results
+        .into_iter()
+        .filter_map(|res| match res {
+            Ok(_) => None,
+            Err(e) => Some(format!("{e:#}")),
+        })
+        .collect::<Vec<String>>();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        let joined_errs = errors.join("; ");
+        Err(anyhow!("Joined errors: {joined_errs}"))
+    }
 }
 
 #[cfg(all(test, not(target_env = "sgx")))]

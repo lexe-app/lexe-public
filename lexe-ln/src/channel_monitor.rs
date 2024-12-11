@@ -1,7 +1,5 @@
 use std::{
     fmt::{self, Display},
-    future::Future,
-    pin::Pin,
     sync::Arc,
     time::Duration,
 };
@@ -14,14 +12,13 @@ use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info};
 
-use crate::{alias::LexeChainMonitorType, traits::LexePersister};
+use crate::{
+    alias::LexeChainMonitorType, traits::LexePersister, BoxedAnyhowFuture,
+};
 
 /// How long we'll wait to receive a reply from the background processor that
 /// event processing is complete.
 const PROCESS_EVENTS_TIMEOUT: Duration = Duration::from_secs(15);
-
-type BoxedAnyhowFuture =
-    Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'static>>;
 
 /// Represents a channel monitor update. See docs on each field for details.
 pub struct LxChannelMonitorUpdate {
@@ -33,7 +30,7 @@ pub struct LxChannelMonitorUpdate {
     /// [`ChannelMonitorUpdate::update_id`]: lightning::chain::channelmonitor::ChannelMonitorUpdate::update_id
     /// [`ChannelMonitor::get_latest_update_id`]: lightning::chain::channelmonitor::ChannelMonitor::get_latest_update_id
     pub update_id: u64,
-    /// A [`Future`] which makes an api call (typically with retries) to the
+    /// A future which makes an api call (typically with retries) to the
     /// backend to persist the channel monitor state, returning an
     /// `anyhow::Result<()>` once either (1) persistence succeeds or (2) there
     /// were too many failures to keep trying. We take this future as input
