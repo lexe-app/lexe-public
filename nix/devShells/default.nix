@@ -20,18 +20,27 @@
     name = "app-android";
 
     packages = [
+      # flutter/dart
       lexePubPkgs.flutter
+      # rust toolchains for Android
       lexePubPkgs.rustLexeToolchainAndroid
+      # `cargo ndk` - easily build rust with Android NDK toolchains
       pkgs.cargo-ndk
+      # fastlane - app deploy tooling
+      pkgs.fastlane
     ];
 
     env = {
-      FLUTTER_SDK = lexePubPkgs.flutter;
+      # flutter SDK directory
+      FLUTTER_ROOT = lexePubPkgs.flutter;
 
+      # Android envs
       ANDROID_SDK_ROOT = lexePubPkgs.ANDROID_SDK_ROOT;
       ANDROID_HOME = lexePubPkgs.ANDROID_HOME;
       ANDROID_NDK_ROOT = lexePubPkgs.ANDROID_NDK_ROOT;
 
+      # Java tooling. We can avoid polluting our $PATH by just setting
+      # $JAVA_HOME, which Android tooling looks for.
       JAVA_HOME = lexePubPkgs.JAVA_HOME;
     };
 
