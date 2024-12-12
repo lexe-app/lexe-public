@@ -3,7 +3,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 /// An enum for calling various `TestEventReceiver` methods.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum TestEventOp {
     Clear,
     Wait(TestEvent),
