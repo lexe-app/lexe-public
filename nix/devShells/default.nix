@@ -28,6 +28,8 @@
       pkgs.cargo-ndk
       # fastlane - app deploy tooling
       pkgs.fastlane
+      # bundletool - build and inspect Android app bundles (*.aab)
+      pkgs.bundletool
     ];
 
     env = {
