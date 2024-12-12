@@ -29,7 +29,6 @@ use tracing::{debug, info, info_span, warn};
 
 use crate::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
-    channel::{ChannelEvent, ChannelEventsBus},
     esplora::LexeEsplora,
     keys_manager::LexeKeysManager,
     test_event::TestEventSender,
@@ -238,70 +237,44 @@ where
 }
 
 /// Handles an [`Event::ChannelPending`]
-pub fn handle_channel_pending(
-    channel_events_bus: &ChannelEventsBus,
-    test_event_tx: &TestEventSender,
-
-    channel_id: ChannelId,
-    user_channel_id: u128,
+pub fn log_channel_pending(
+    channel_id: LxChannelId,
+    user_channel_id: LxUserChannelId,
     counterparty_node_id: secp256k1::PublicKey,
     funding_txo: bitcoin::OutPoint,
     channel_type: Option<ChannelTypeFeatures>,
 ) {
-    let channel_id = LxChannelId::from(channel_id);
-    let user_channel_id = LxUserChannelId::from(user_channel_id);
     let channel_type = channel_type.expect("Launched after 0.0.122");
     info!(
         %channel_id, %user_channel_id, %counterparty_node_id,
         %funding_txo, %channel_type,
         "Channel pending",
     );
-    channel_events_bus.notify(ChannelEvent::Pending {
-        user_channel_id,
-        channel_id,
-        funding_txo,
-    });
-    test_event_tx.send(TestEvent::ChannelPending);
 }
 
-/// Handles an [`Event::ChannelReady`]
-pub fn handle_channel_ready(
-    channel_events_bus: &ChannelEventsBus,
-    test_event_tx: &TestEventSender,
-
-    channel_id: ChannelId,
-    user_channel_id: u128,
+/// Logs an [`Event::ChannelReady`]
+pub fn log_channel_ready(
+    channel_id: LxChannelId,
+    user_channel_id: LxUserChannelId,
     counterparty_node_id: secp256k1::PublicKey,
     channel_type: ChannelTypeFeatures,
 ) {
-    let channel_id = LxChannelId::from(channel_id);
-    let user_channel_id = LxUserChannelId::from(user_channel_id);
     info!(
         %channel_id, %user_channel_id,
         %counterparty_node_id, %channel_type,
         "Channel ready",
     );
-    channel_events_bus.notify(ChannelEvent::Ready {
-        user_channel_id,
-        channel_id,
-    });
-    test_event_tx.send(TestEvent::ChannelReady);
 }
 
-/// Handles an [`Event::ChannelClosed`]
-pub fn handle_channel_closed(
-    channel_events_bus: &ChannelEventsBus,
-    test_event_tx: &TestEventSender,
-
-    channel_id: ChannelId,
-    user_channel_id: u128,
-    reason: ClosureReason,
+/// Logs an [`Event::ChannelClosed`].
+pub fn log_channel_closed(
+    channel_id: LxChannelId,
+    user_channel_id: LxUserChannelId,
+    reason: &ClosureReason,
     counterparty_node_id: Option<secp256k1::PublicKey>,
     capacity_sats: Option<u64>,
     funding_txo: Option<transaction::OutPoint>,
 ) {
-    let channel_id = LxChannelId::from(channel_id);
-    let user_channel_id = LxUserChannelId::from(user_channel_id);
     let counterparty_node_id =
         counterparty_node_id.expect("Launched after v0.0.117");
     let capacity_sats = capacity_sats.expect("Launched after v0.0.117");
@@ -314,13 +287,6 @@ pub fn handle_channel_closed(
         %capacity_sats, ?funding_txo,
         "Channel is being closed"
     );
-
-    channel_events_bus.notify(ChannelEvent::Closed {
-        user_channel_id,
-        channel_id,
-        reason,
-    });
-    test_event_tx.send(TestEvent::ChannelClosed);
 }
 
 /// If the given [`Event`] contains information the [`NetworkGraphType`] should

@@ -70,11 +70,6 @@ impl ChannelEventsBus {
     }
 
     /// Called from the event handler, when it observes a channel event.
-    ///
-    /// See:
-    /// * [crate::event::handle_channel_pending]
-    /// * [crate::event::handle_channel_ready]
-    /// * [crate::event::handle_channel_closed]
     pub fn notify(&self, event: ChannelEvent) {
         // `broadcast::Sender::send` returns an error if there are no active
         // receivers. That's fine in this case.

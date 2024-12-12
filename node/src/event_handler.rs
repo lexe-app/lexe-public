@@ -52,7 +52,7 @@ use common::{
 };
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
-    channel::ChannelEventsBus,
+    channel::{ChannelEvent, ChannelEventsBus},
     esplora::LexeEsplora,
     event::{self, EventExt, EventHandleError},
     keys_manager::LexeKeysManager,
@@ -231,29 +231,40 @@ async fn do_handle_event(
             counterparty_node_id,
             funding_txo,
             channel_type,
-        } => event::handle_channel_pending(
-            &ctx.channel_events_bus,
-            &ctx.test_event_tx,
-            channel_id,
-            user_channel_id,
-            counterparty_node_id,
-            funding_txo,
-            channel_type,
-        ),
+        } => {
+            event::log_channel_pending(
+                channel_id.into(),
+                user_channel_id.into(),
+                counterparty_node_id,
+                funding_txo,
+                channel_type,
+            );
+            ctx.channel_events_bus.notify(ChannelEvent::Pending {
+                user_channel_id: user_channel_id.into(),
+                channel_id: channel_id.into(),
+                funding_txo,
+            });
+            ctx.test_event_tx.send(TestEvent::ChannelPending);
+        }
 
         Event::ChannelReady {
             channel_id,
             user_channel_id,
             counterparty_node_id,
             channel_type,
-        } => event::handle_channel_ready(
-            &ctx.channel_events_bus,
-            &ctx.test_event_tx,
-            channel_id,
-            user_channel_id,
-            counterparty_node_id,
-            channel_type,
-        ),
+        } => {
+            event::log_channel_ready(
+                channel_id.into(),
+                user_channel_id.into(),
+                counterparty_node_id,
+                channel_type,
+            );
+            ctx.channel_events_bus.notify(ChannelEvent::Ready {
+                user_channel_id: user_channel_id.into(),
+                channel_id: channel_id.into(),
+            });
+            ctx.test_event_tx.send(TestEvent::ChannelReady);
+        }
 
         Event::ChannelClosed {
             channel_id,
@@ -262,16 +273,22 @@ async fn do_handle_event(
             counterparty_node_id,
             channel_capacity_sats,
             channel_funding_txo,
-        } => event::handle_channel_closed(
-            &ctx.channel_events_bus,
-            &ctx.test_event_tx,
-            channel_id,
-            user_channel_id,
-            reason,
-            counterparty_node_id,
-            channel_capacity_sats,
-            channel_funding_txo,
-        ),
+        } => {
+            event::log_channel_closed(
+                channel_id.into(),
+                user_channel_id.into(),
+                &reason,
+                counterparty_node_id,
+                channel_capacity_sats,
+                channel_funding_txo,
+            );
+            ctx.channel_events_bus.notify(ChannelEvent::Closed {
+                user_channel_id: user_channel_id.into(),
+                channel_id: channel_id.into(),
+                reason,
+            });
+            ctx.test_event_tx.send(TestEvent::ChannelClosed);
+        }
 
         Event::PaymentClaimable {
             payment_hash,
