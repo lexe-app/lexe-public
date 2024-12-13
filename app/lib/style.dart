@@ -845,8 +845,11 @@ final class LxIcons {
   /// Security icon (outlined lock)
   static const IconData security = Symbols.lock_outline_rounded;
 
-  /// Support/help icon (? in circle)
+  /// Support/help icon ('?' in circle)
   static const IconData support = Symbols.help_outline_rounded;
+
+  /// Node info icon ('i' in circle)
+  static const IconData nodeInfo = Symbols.info_rounded;
 
   /// Debug symbol (bug)
   static const IconData debug = Symbols.bug_report_rounded;

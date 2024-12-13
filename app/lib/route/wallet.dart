@@ -25,7 +25,6 @@ import 'package:lexeapp/components.dart'
     show
         FilledTextPlaceholder,
         ListIcon,
-        LxOutlinedButton,
         LxRefreshButton,
         MultistepFlow,
         ScrollableSinglePageBody,
@@ -513,22 +512,24 @@ class WalletDrawer extends StatelessWidget {
   const WalletDrawer({
     super.key,
     required this.config,
-    this.onSettingsPressed,
-    this.onBackupPressed,
-    this.onSecurityPressed,
-    this.onSupportPressed,
+    // this.onSettingsPressed,
+    // this.onBackupPressed,
+    // this.onSecurityPressed,
+    // this.onSupportPressed,
+    this.onNodeInfoMenuPressed,
     this.onDebugPressed,
-    this.onInvitePressed,
+    // this.onInvitePressed,
   });
 
   final Config config;
 
-  final VoidCallback? onSettingsPressed;
-  final VoidCallback? onBackupPressed;
-  final VoidCallback? onSecurityPressed;
-  final VoidCallback? onSupportPressed;
+  // final VoidCallback? onSettingsPressed;
+  // final VoidCallback? onBackupPressed;
+  // final VoidCallback? onSecurityPressed;
+  // final VoidCallback? onSupportPressed;
+  final VoidCallback? onNodeInfoMenuPressed;
   final VoidCallback? onDebugPressed;
-  final VoidCallback? onInvitePressed;
+  // final VoidCallback? onInvitePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -547,30 +548,37 @@ class WalletDrawer extends StatelessWidget {
             ),
             const SizedBox(height: Space.s600),
 
-            // * Settings
-            // * Backup
-            // * Security
-            // * Support
             DrawerListItem(
-              title: "Settings",
-              icon: LxIcons.settings,
-              onTap: this.onSettingsPressed,
+              title: "Node Info",
+              icon: LxIcons.nodeInfo,
+              onTap: this.onNodeInfoMenuPressed,
             ),
-            DrawerListItem(
-              title: "Backup",
-              icon: LxIcons.backup,
-              onTap: this.onBackupPressed,
-            ),
-            DrawerListItem(
-              title: "Security",
-              icon: LxIcons.security,
-              onTap: this.onSecurityPressed,
-            ),
-            DrawerListItem(
-              title: "Support",
-              icon: LxIcons.support,
-              onTap: this.onSupportPressed,
-            ),
+
+            // TODO(phlip9): impl
+            // // * Settings
+            // // * Backup
+            // // * Security
+            // // * Support
+            // DrawerListItem(
+            //   title: "Settings",
+            //   icon: LxIcons.settings,
+            //   onTap: this.onSettingsPressed,
+            // ),
+            // DrawerListItem(
+            //   title: "Backup",
+            //   icon: LxIcons.backup,
+            //   onTap: this.onBackupPressed,
+            // ),
+            // DrawerListItem(
+            //   title: "Security",
+            //   icon: LxIcons.security,
+            //   onTap: this.onSecurityPressed,
+            // ),
+            // DrawerListItem(
+            //   title: "Support",
+            //   icon: LxIcons.support,
+            //   onTap: this.onSupportPressed,
+            // ),
 
             // Don't show debugging menu in prod
             if (config.deployEnv == DeployEnv.dev ||
@@ -583,17 +591,18 @@ class WalletDrawer extends StatelessWidget {
 
             const SizedBox(height: Space.s600),
 
-            // < Invite Friends >
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Space.s500),
-              child: LxOutlinedButton(
-                // TODO(phlip9): we use a closure to see button w/o disabled
-                // styling. remove extra closure when real functionality exists.
-                onTap: () => this.onInvitePressed?.call(),
-                label: const Text("Invite Friends"),
-              ),
-            ),
-            const SizedBox(height: Space.s600),
+            // TODO(phlip9): impl
+            // // < Invite Friends >
+            // Padding(
+            //   padding: const EdgeInsets.symmetric(horizontal: Space.s500),
+            //   child: LxOutlinedButton(
+            //     // TODO(phlip9): we use a closure to see button w/o disabled
+            //     // styling. remove extra closure when real functionality exists.
+            //     onTap: () => this.onInvitePressed?.call(),
+            //     label: const Text("Invite Friends"),
+            //   ),
+            // ),
+            // const SizedBox(height: Space.s600),
 
             // app version
             Text("Lexe App · v1.2.345",
