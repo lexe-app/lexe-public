@@ -69,6 +69,18 @@ impl TimestampMs {
         // This add is infallible -- it doesn't panic even with Self::MAX.
         UNIX_EPOCH + self.into_duration()
     }
+
+    pub fn checked_add(self, duration: Duration) -> Option<Self> {
+        let dur_ms = i64::try_from(duration.as_millis()).ok()?;
+        let added = self.0.checked_add(dur_ms)?;
+        Self::try_from(added).ok()
+    }
+
+    pub fn checked_sub(self, duration: Duration) -> Option<Self> {
+        let dur_ms = i64::try_from(duration.as_millis()).ok()?;
+        let subtracted = self.0.checked_sub(dur_ms)?;
+        Self::try_from(subtracted).ok()
+    }
 }
 
 impl From<TimestampMs> for Duration {
@@ -221,5 +233,26 @@ mod test {
         proptest!(|(t: TimestampMs)| {
             assert_conversion_roundtrips(t);
         });
+    }
+
+    #[test]
+    fn timestamp_diff() {
+        proptest!(|(ts1: TimestampMs, ts2: TimestampMs)| {
+            // Determine which timestamp is lesser/greater
+            let (lesser, greater) = if ts1 <= ts2 {
+                (ts1, ts2)
+            } else {
+                (ts2, ts1)
+            };
+
+            let diff =
+                Duration::from_millis(greater.into_u64() - lesser.into_u64());
+
+            let added = lesser.checked_add(diff).unwrap();
+            assert_eq!(added, greater);
+
+            let subtracted = greater.checked_sub(diff).unwrap();
+            assert_eq!(subtracted, lesser);
+        })
     }
 }
