@@ -336,6 +336,29 @@ mod test {
     use crate::test_utils::roundtrip;
 
     #[test]
+    fn user_node_pk_ser_examples() {
+        let mut rng = WeakRng::from_u64(811011698);
+        let root_seed = RootSeed::from_rng(&mut rng);
+        let user_pk = root_seed.derive_user_pk();
+        let node_key_pair = root_seed.derive_node_key_pair(&mut rng);
+        let node_pk = NodePk(node_key_pair.public_key());
+        let node_pk_proof = NodePkProof::sign(&mut rng, &node_key_pair);
+
+        assert_eq!(
+            "52b999003525a3d905f9916eff26cee6625a3976fc25270ce5b3e79aa3c16f45",
+            user_pk.to_string()
+        );
+        assert_eq!(
+            "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",
+            node_pk.to_string(),
+        );
+        assert_eq!(
+            "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b46304402206f762d23d206f3af2ffa452a71a11bca3df68838408851ab77931d7eb7fa1ef6022057141408428d6885d00ca6ca50e6d702aeab227c1550135be5fce4af4e726736",
+            node_pk_proof.to_hex_string(),
+        );
+    }
+
+    #[test]
     fn user_pk_consistent() {
         let user_pk1 = UserPk::new(hex::decode_const(
             b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",

@@ -33,6 +33,7 @@ import 'package:app_rs_dart/ffi/app.dart' show App, AppHandle, SettingsDbRs;
 import 'package:app_rs_dart/ffi/settings.dart' show Settings, SettingsDb;
 import 'package:app_rs_dart/ffi/types.dart'
     show
+        AppUserInfo,
         Config,
         Invoice,
         LxChannelDetails,
@@ -127,6 +128,16 @@ class MockAppHandle extends AppHandle {
   SettingsDb settingsDb() => MockSettingsDb();
 
   @override
+  AppUserInfo userInfo() => const AppUserInfo(
+        userPk:
+            "52b999003525a3d905f9916eff26cee6625a3976fc25270ce5b3e79aa3c16f45",
+        nodePk:
+            "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",
+        nodePkProof:
+            "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b46304402206f762d23d206f3af2ffa452a71a11bca3df68838408851ab77931d7eb7fa1ef6022057141408428d6885d00ca6ca50e6d702aeab227c1550135be5fce4af4e726736",
+      );
+
+  @override
   Future<NodeInfo> nodeInfo() =>
       Future.delayed(const Duration(milliseconds: 1000), () {
         const lightningSats = 9836390;
@@ -136,7 +147,7 @@ class MockAppHandle extends AppHandle {
         const totalSats = lightningSats + onchainSats;
         return const NodeInfo(
           nodePk:
-              "03fedbc6adf1a7175389d26b2896d10ef00fa71c81ba085a7c8cd34b6a4e0f7556",
+              "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",
           version: "1.2.3",
           measurement:
               "1d97c2c837b09ec7b0e0b26cb6fa9a211be84c8fdb53299cc9ee8884c7a25ac1",

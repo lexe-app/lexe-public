@@ -36,8 +36,9 @@ import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/result.dart';
-import 'package:lexeapp/route/channels.dart';
+import 'package:lexeapp/route/channels.dart' show ChannelsPage;
 import 'package:lexeapp/route/debug.dart' show DebugPage;
+import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
 import 'package:lexeapp/route/payment_detail.dart'
     show PaymentDetailPage, PaymentSource;
 import 'package:lexeapp/route/receive.dart' show ReceivePaymentPage;
@@ -417,6 +418,15 @@ class WalletPageState extends State<WalletPage> {
     ));
   }
 
+  void onNodeInfoMenuPressed() {
+    Navigator.of(this.context).push(MaterialPageRoute(
+      builder: (context) => NodeInfoPage(
+        nodeInfo: this.nodeInfoService.nodeInfo,
+        userInfo: this.widget.app.userInfo(),
+      ),
+    ));
+  }
+
   void onDebugPressed() {
     Navigator.of(this.context).push(MaterialPageRoute(
       builder: (context) => DebugPage(
@@ -450,6 +460,7 @@ class WalletPageState extends State<WalletPage> {
       ),
       drawer: WalletDrawer(
         config: this.widget.config,
+        onNodeInfoMenuPressed: this.onNodeInfoMenuPressed,
         onDebugPressed: this.onDebugPressed,
       ),
       body: ScrollableSinglePageBody(
