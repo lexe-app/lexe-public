@@ -1735,3 +1735,112 @@ class ListIcon extends StatelessWidget {
         child: this.icon,
       );
 }
+
+/// A [Column] of [InfoRow]s, surrounded by a white rounded card. Includes
+/// optional header text above the card.
+class InfoCard extends StatelessWidget {
+  const InfoCard({
+    super.key,
+    required this.children,
+    this.header,
+    this.bodyPadding = Space.s300,
+  });
+
+  final String? header;
+  final List<Widget> children;
+  final double bodyPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    final section = Card(
+      color: LxColors.grey1000,
+      elevation: 0.0,
+      margin: const EdgeInsets.all(0),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+            horizontal: this.bodyPadding, vertical: Space.s300 / 2),
+        child: Column(
+          children: this.children,
+        ),
+      ),
+    );
+
+    const intraCardSpace = Space.s200;
+
+    final header = this.header;
+    if (header != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: intraCardSpace),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding:
+                  EdgeInsets.only(left: this.bodyPadding, bottom: Space.s200),
+              child: Text(
+                header,
+                style: const TextStyle(
+                  color: LxColors.fgTertiary,
+                  fontSize: Fonts.size200,
+                ),
+              ),
+            ),
+            section,
+          ],
+        ),
+      );
+    } else {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: intraCardSpace),
+        child: section,
+      );
+    }
+  }
+}
+
+/// A [Row] inside an [InfoCard].
+class InfoRow extends StatelessWidget {
+  const InfoRow({
+    super.key,
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: Space.s300 / 2),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints.tightFor(width: Space.s900),
+              child: Text(
+                this.label,
+                style: const TextStyle(
+                  color: LxColors.grey550,
+                  fontSize: Fonts.size200,
+                  height: 1.2,
+                ),
+              ),
+            ),
+            const SizedBox(width: Space.s400),
+            Expanded(
+              // TODO(phlip9): just copy to clipboard on tap or hold?
+              child: SelectableText(
+                this.value,
+                style: const TextStyle(
+                  color: LxColors.fgSecondary,
+                  fontSize: Fonts.size200,
+                  height: 1.2,
+                  fontFeatures: [Fonts.featDisambugation],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}

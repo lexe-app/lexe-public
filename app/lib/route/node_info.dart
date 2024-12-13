@@ -3,9 +3,13 @@ import 'package:app_rs_dart/ffi/types.dart' show AppUserInfo;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
-    show HeadingText, LxCloseButton, ScrollableSinglePageBody, SubheadingText;
-import 'package:lexeapp/route/payment_detail.dart'
-    show PaymentDetailInfoCard, PaymentDetailInfoRow;
+    show
+        HeadingText,
+        InfoCard,
+        InfoRow,
+        LxCloseButton,
+        ScrollableSinglePageBody,
+        SubheadingText;
 import 'package:lexeapp/style.dart' show Space;
 
 /// A basic page containing relevant user and user node identities, versions,
@@ -41,32 +45,30 @@ class _NodeInfoPageState extends State<NodeInfoPage> {
           const SizedBox(height: Space.s500),
 
           // NodeInfo and userInfo.nodePk{Proof}
-          PaymentDetailInfoCard(
+          InfoCard(
             header: "Node",
             children: [
               ValueListenableBuilder(
                 valueListenable: this.widget.nodeInfo,
-                builder: (context, nodeInfo, child) => PaymentDetailInfoRow(
-                    label: "Version", value: nodeInfo?.version ?? ""),
+                builder: (context, nodeInfo, child) =>
+                    InfoRow(label: "Version", value: nodeInfo?.version ?? ""),
               ),
               ValueListenableBuilder(
                 valueListenable: this.widget.nodeInfo,
-                builder: (context, nodeInfo, child) => PaymentDetailInfoRow(
+                builder: (context, nodeInfo, child) => InfoRow(
                     label: "Measurement", value: nodeInfo?.measurement ?? ""),
               ),
-              PaymentDetailInfoRow(
-                  label: "Node public key", value: userInfo.nodePk),
+              InfoRow(label: "Node public key", value: userInfo.nodePk),
               // Show the NodePkProof here so a user can prove possession of their
               // node key pair.
-              PaymentDetailInfoRow(
+              InfoRow(
                   label: "Proof-of-Possession", value: userInfo.nodePkProof),
             ],
           ),
 
           // UserPk
-          PaymentDetailInfoCard(header: "User", children: [
-            PaymentDetailInfoRow(
-                label: "User public key", value: userInfo.userPk),
+          InfoCard(header: "User", children: [
+            InfoRow(label: "User public key", value: userInfo.userPk),
           ]),
         ],
       ),

@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
     show
         FilledTextPlaceholder,
+        InfoCard,
+        InfoRow,
         LxCloseButton,
         LxCloseButtonKind,
         LxFilledButton,
@@ -460,17 +462,17 @@ class PaymentDetailBottomSheet extends StatelessWidget {
 
                   // Payment date info
                   PaymentDetailInfoCard(children: [
-                    PaymentDetailInfoRow(
+                    InfoRow(
                       label: "Created at",
                       value: date_format.formatDateFull(createdAt),
                     ),
                     if (expiresAt != null)
-                      PaymentDetailInfoRow(
+                      InfoRow(
                         label: "Expires at",
                         value: date_format.formatDateFull(expiresAt),
                       ),
                     if (finalizedAt != null)
-                      PaymentDetailInfoRow(
+                      InfoRow(
                         label: "Finalized at",
                         value: date_format.formatDateFull(finalizedAt),
                       ),
@@ -483,20 +485,20 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                     builder: (_context, fiatRate, child) =>
                         PaymentDetailInfoCard(children: [
                       if (amountSat != null)
-                        PaymentDetailInfoRow(
+                        InfoRow(
                           label: "Amount $directionLabel",
                           value: formatSatsAmountFiatBelow(amountSat, fiatRate),
                         ),
 
                       if (invoiceAmountSat != null)
-                        PaymentDetailInfoRow(
+                        InfoRow(
                           label: "Invoiced amount",
                           value: formatSatsAmountFiatBelow(
                               invoiceAmountSat, fiatRate),
                         ),
 
                       // TODO(phlip9): breakdown fees
-                      PaymentDetailInfoRow(
+                      InfoRow(
                         label: "Fees",
                         value: formatSatsAmountFiatBelow(feesSat, fiatRate),
                       ),
@@ -506,17 +508,14 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                   // Low-level stuff
                   PaymentDetailInfoCard(children: [
                     // oneof: BTC txid, LN payment hash, Lx ClientPaymentId
-                    PaymentDetailInfoRow(
-                        label: paymentIdxLabel, value: paymentIdxBody),
+                    InfoRow(label: paymentIdxLabel, value: paymentIdxBody),
 
                     if (payeePubkey != null)
-                      PaymentDetailInfoRow(
-                          label: "Payee public key", value: payeePubkey),
+                      InfoRow(label: "Payee public key", value: payeePubkey),
 
                     // the full invoice
                     if (invoice != null)
-                      PaymentDetailInfoRow(
-                          label: "Invoice", value: invoice.string),
+                      InfoRow(label: "Invoice", value: invoice.string),
                   ]),
 
                   const SizedBox(height: Space.s400)
@@ -917,99 +916,11 @@ class _PaymentDetailNoteInputState extends State<PaymentDetailNoteInput> {
   }
 }
 
-class PaymentDetailInfoCard extends StatelessWidget {
-  const PaymentDetailInfoCard({super.key, required this.children, this.header});
-
-  final String? header;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final section = Card(
-      color: LxColors.grey1000,
-      elevation: 0.0,
-      margin: const EdgeInsets.all(0),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: bodyPadding, vertical: Space.s300 / 2),
-        child: Column(
-          children: this.children,
-        ),
-      ),
-    );
-
-    const intraCardSpace = Space.s200;
-
-    final header = this.header;
-    if (header != null) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: intraCardSpace),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding:
-                  const EdgeInsets.only(left: bodyPadding, bottom: Space.s200),
-              child: Text(
-                header,
-                style: const TextStyle(
-                  color: LxColors.fgTertiary,
-                  fontSize: Fonts.size200,
-                ),
-              ),
-            ),
-            section,
-          ],
-        ),
-      );
-    } else {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: intraCardSpace),
-        child: section,
-      );
-    }
-  }
-}
-
-class PaymentDetailInfoRow extends StatelessWidget {
-  const PaymentDetailInfoRow(
-      {super.key, required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: Space.s300 / 2),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints.tightFor(width: Space.s900),
-              child: Text(
-                this.label,
-                style: const TextStyle(
-                  color: LxColors.grey550,
-                  fontSize: Fonts.size200,
-                  height: 1.2,
-                ),
-              ),
-            ),
-            const SizedBox(width: Space.s400),
-            Expanded(
-              // TODO(phlip9): just copy to clipboard on tap or hold?
-              child: SelectableText(
-                this.value,
-                style: const TextStyle(
-                  color: LxColors.fgSecondary,
-                  fontSize: Fonts.size200,
-                  height: 1.2,
-                  fontFeatures: [Fonts.featDisambugation],
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
+/// [InfoCard] but uses the shared [bodyPadding] constant on this page.
+class PaymentDetailInfoCard extends InfoCard {
+  const PaymentDetailInfoCard({
+    super.key,
+    required super.children,
+    super.header,
+  }) : super(bodyPadding: bodyPadding);
 }
