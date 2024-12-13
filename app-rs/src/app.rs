@@ -9,6 +9,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Context};
+use bitcoin::secp256k1;
 use common::{
     api::{
         auth::{BearerAuthenticator, UserSignupRequest},
@@ -47,6 +48,9 @@ pub struct App {
 
     /// App settings
     settings_db: Arc<SettingsDb>,
+
+    /// Some misc. info needed for user support / user account deletion.
+    user_info: AppUserInfoRs,
 }
 
 impl App {
@@ -73,6 +77,8 @@ impl App {
         let user_key_pair = root_seed.derive_user_key_pair();
         let user_pk = UserPk::from(*user_key_pair.public_key());
         let user_config = AppConfigWithUserPk::new(config, user_pk);
+        let node_key_pair = root_seed.derive_node_key_pair(rng);
+        let user_info = AppUserInfoRs::new(rng, user_pk, &node_key_pair);
 
         // Init API clients
         let bearer_authenticator =
@@ -189,6 +195,7 @@ impl App {
             payment_db,
             payment_sync_lock: tokio::sync::Mutex::new(()),
             settings_db,
+            user_info,
         }))
     }
 
@@ -208,6 +215,7 @@ impl App {
         let node_key_pair = root_seed.derive_node_key_pair(rng);
         let node_pk = NodePk(node_key_pair.public_key());
         let user_config = AppConfigWithUserPk::new(config, user_pk);
+        let user_info = AppUserInfoRs::new(rng, user_pk, &node_key_pair);
 
         // build NodeClient, GatewayClient
         let bearer_authenticator =
@@ -285,6 +293,7 @@ impl App {
             payment_db,
             payment_sync_lock: tokio::sync::Mutex::new(()),
             settings_db,
+            user_info,
         })
     }
 
@@ -309,6 +318,11 @@ impl App {
 
         // gen + sign the UserSignupRequest
         let node_pk_proof = NodePkProof::sign(rng, &node_key_pair);
+        let user_info = AppUserInfoRs {
+            user_pk,
+            node_pk,
+            node_pk_proof: node_pk_proof.clone(),
+        };
         let signup_req = UserSignupRequest { node_pk_proof };
         let (_, signed_signup_req) = user_key_pair
             .sign_struct(&signup_req)
@@ -390,6 +404,7 @@ impl App {
             payment_db,
             payment_sync_lock: tokio::sync::Mutex::new(()),
             settings_db,
+            user_info,
         })
     }
 
@@ -404,6 +419,13 @@ impl App {
     #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
     pub(crate) fn settings_db(&self) -> Arc<SettingsDb> {
         self.settings_db.clone()
+    }
+
+    // TODO(phlip9): unhack this API when I figure out how to make frb stop auto
+    // opaque'ing `AppUserInfo`.
+    #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
+    pub(crate) fn user_info(&self) -> (String, String, String) {
+        self.user_info.to_ffi()
     }
 
     // We have to hold the std Mutex lock past .await because of FRB
@@ -608,5 +630,39 @@ impl fmt::Display for BuildFlavor {
         let network = self.network.as_str();
         let sgx = if self.use_sgx { "sgx" } else { "dbg" };
         write!(f, "{deploy_env}-{network}-{sgx}")
+    }
+}
+
+/// Some assorted user/node info. This is kinda hacked together currently just
+/// to support account deletion requests.
+struct AppUserInfoRs {
+    pub user_pk: UserPk,
+    pub node_pk: NodePk,
+    pub node_pk_proof: NodePkProof,
+}
+
+impl AppUserInfoRs {
+    fn new<R: Crng>(
+        rng: &mut R,
+        user_pk: UserPk,
+        node_key_pair: &secp256k1::Keypair,
+    ) -> Self {
+        let node_pk = NodePk(node_key_pair.public_key());
+        let node_pk_proof = NodePkProof::sign(rng, node_key_pair);
+        Self {
+            user_pk,
+            node_pk,
+            node_pk_proof,
+        }
+    }
+
+    // NOTE(phlip9): I can't for the life of me figure out why frb keeps trying
+    // to RustAutoOpaque wrap the ffi type. Impling the conversion here seems to
+    // make it stop???
+    fn to_ffi(&self) -> (String, String, String) {
+        let user_pk = self.user_pk.to_string();
+        let node_pk = self.node_pk.to_string();
+        let node_pk_proof = self.node_pk_proof.to_hex_string();
+        (user_pk, node_pk, node_pk_proof)
     }
 }

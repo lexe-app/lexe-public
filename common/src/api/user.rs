@@ -286,6 +286,11 @@ impl NodePkProof {
             .map(|()| &self.node_pk)
             .map_err(|_| InvalidNodePkProofSignature)
     }
+
+    /// Dump this `NodePkProof` to a hex-encoded string. Please don't use this.
+    pub fn to_hex_string(&self) -> String {
+        hex::encode(&bcs::to_bytes(self).expect("Failed to serialize"))
+    }
 }
 
 impl Signable for NodePkProof {

@@ -9,10 +9,14 @@
   #
 
   # app flutter_rust_bridge codegen
-  app-rs-codegen = pkgs.mkShellNoCC {
+  app-rs-codegen = pkgs.mkShell {
     name = "app-rs-codegen";
     # TODO(phlip9): also `llvm` for dart `ffigen`
-    packages = [pkgs.cargo-expand];
+    packages = [
+      lexePubPkgs.flutter
+      lexePubPkgs.rustLexeToolchain
+      pkgs.cargo-expand
+    ];
   };
 
   # Android app development toolchains

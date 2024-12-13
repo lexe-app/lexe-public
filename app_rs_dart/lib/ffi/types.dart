@@ -16,6 +16,17 @@ part 'types.freezed.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
+/// Some assorted user/node info. This is kinda hacked together currently just
+/// to support account deletion requests.
+@freezed
+class AppUserInfo with _$AppUserInfo {
+  const factory AppUserInfo({
+    required String userPk,
+    required String nodePk,
+    required String nodePkProof,
+  }) = _AppUserInfo;
+}
+
 /// A unique, client-generated id for payment types (onchain send,
 /// ln spontaneous send) that need an extra id for idempotency.
 @freezed

@@ -95,6 +95,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   AppHandle dco_decode_app_handle(dynamic raw);
 
   @protected
+  AppUserInfo dco_decode_app_user_info(dynamic raw);
+
+  @protected
   Balance dco_decode_balance(dynamic raw);
 
   @protected
@@ -443,6 +446,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   AppHandle sse_decode_app_handle(SseDeserializer deserializer);
+
+  @protected
+  AppUserInfo sse_decode_app_user_info(SseDeserializer deserializer);
 
   @protected
   Balance sse_decode_balance(SseDeserializer deserializer);
@@ -826,6 +832,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_app_handle(AppHandle self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_app_user_info(AppUserInfo self, SseSerializer serializer);
 
   @protected
   void sse_encode_balance(Balance self, SseSerializer serializer);

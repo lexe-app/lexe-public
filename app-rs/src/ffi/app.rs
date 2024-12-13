@@ -31,7 +31,7 @@ use crate::ffi::{
     },
     settings::SettingsDb,
     types::{
-        Config, Payment, PaymentIndex, RootSeed, ShortPayment,
+        AppUserInfo, Config, Payment, PaymentIndex, RootSeed, ShortPayment,
         ShortPaymentAndIndex,
     },
 };
@@ -112,6 +112,16 @@ impl AppHandle {
     #[frb(sync)]
     pub fn settings_db(&self) -> SettingsDb {
         SettingsDb::new(self.inner.settings_db())
+    }
+
+    #[frb(sync)]
+    pub fn user_info(&self) -> AppUserInfo {
+        let (user_pk, node_pk, node_pk_proof) = self.inner.user_info();
+        AppUserInfo {
+            user_pk,
+            node_pk,
+            node_pk_proof,
+        }
     }
 
     pub async fn node_info(&self) -> anyhow::Result<NodeInfo> {

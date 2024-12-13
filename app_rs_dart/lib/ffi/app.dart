@@ -189,6 +189,10 @@ class AppHandle {
       AppRs.instance.api
           .crateFfiAppAppHandleUpdatePaymentNote(that: this, req: req);
 
+  AppUserInfo userInfo() => AppRs.instance.api.crateFfiAppAppHandleUserInfo(
+        that: this,
+      );
+
   @override
   int get hashCode => inner.hashCode;
 

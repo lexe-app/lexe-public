@@ -15,6 +15,60 @@ final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
 /// @nodoc
+mixin _$AppUserInfo {
+  String get userPk => throw _privateConstructorUsedError;
+  String get nodePk => throw _privateConstructorUsedError;
+  String get nodePkProof => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$AppUserInfoImpl implements _AppUserInfo {
+  const _$AppUserInfoImpl(
+      {required this.userPk, required this.nodePk, required this.nodePkProof});
+
+  @override
+  final String userPk;
+  @override
+  final String nodePk;
+  @override
+  final String nodePkProof;
+
+  @override
+  String toString() {
+    return 'AppUserInfo(userPk: $userPk, nodePk: $nodePk, nodePkProof: $nodePkProof)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$AppUserInfoImpl &&
+            (identical(other.userPk, userPk) || other.userPk == userPk) &&
+            (identical(other.nodePk, nodePk) || other.nodePk == nodePk) &&
+            (identical(other.nodePkProof, nodePkProof) ||
+                other.nodePkProof == nodePkProof));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, userPk, nodePk, nodePkProof);
+}
+
+abstract class _AppUserInfo implements AppUserInfo {
+  const factory _AppUserInfo(
+      {required final String userPk,
+      required final String nodePk,
+      required final String nodePkProof}) = _$AppUserInfoImpl;
+
+  @override
+  String get userPk;
+  @override
+  String get nodePk;
+  @override
+  String get nodePkProof;
+}
+
+/// @nodoc
 mixin _$ClientPaymentId {
   U8Array32 get id => throw _privateConstructorUsedError;
 }

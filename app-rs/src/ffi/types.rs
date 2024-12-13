@@ -132,6 +132,18 @@ pub struct RootSeed {
     pub(crate) inner: RustOpaqueNom<RootSeedRs>,
 }
 
+/// Some assorted user/node info. This is kinda hacked together currently just
+/// to support account deletion requests.
+#[frb(dart_metadata=("freezed"))]
+pub struct AppUserInfo {
+    pub user_pk: String,
+    pub node_pk: String,
+    pub node_pk_proof: String,
+}
+
+// See `crate::app::AppUserInfo::to_ffi` for the conversion. Can't figure out
+// why frb keeps RustAutoOpaque'ing this type if I impl the conversion here.
+
 pub enum PaymentDirection {
     Inbound,
     Outbound,
