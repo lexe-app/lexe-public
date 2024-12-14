@@ -307,6 +307,22 @@ impl Arbitrary for NodePkProof {
 
 // --- impl Scid --- //
 
+impl Scid {
+    /// Some platforms don't support unsigned ints, but they support [`i64`],
+    /// so this can be used to convert to the type suitable for that platform.
+    pub fn to_i64(&self) -> i64 {
+        let bytes = self.0.to_le_bytes();
+        i64::from_le_bytes(bytes)
+    }
+
+    /// Some platforms don't support unsigned ints, but they support [`i64`],
+    /// so this can be used to convert from the type suitable for that platform.
+    pub fn from_i64(bytes_i64: i64) -> Self {
+        let bytes = bytes_i64.to_le_bytes();
+        Self(u64::from_le_bytes(bytes))
+    }
+}
+
 impl FromStr for Scid {
     type Err = std::num::ParseIntError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -317,6 +333,17 @@ impl FromStr for Scid {
 impl fmt::Display for Scid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
+    }
+}
+
+impl From<i64> for Scid {
+    fn from(i: i64) -> Self {
+        Self::from_i64(i)
+    }
+}
+impl From<Scid> for i64 {
+    fn from(scid: Scid) -> Self {
+        scid.to_i64()
     }
 }
 
