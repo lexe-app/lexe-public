@@ -308,6 +308,7 @@ impl App {
         root_seed: &RootSeed,
         google_auth_code: Option<String>,
         password: Option<&str>,
+        signup_code: Option<String>,
     ) -> anyhow::Result<Self> {
         // derive user key and node key
         let user_key_pair = root_seed.derive_user_key_pair();
@@ -323,7 +324,10 @@ impl App {
             node_pk,
             node_pk_proof: node_pk_proof.clone(),
         };
-        let signup_req = UserSignupRequest { node_pk_proof };
+        let signup_req = UserSignupRequest {
+            node_pk_proof,
+            signup_code,
+        };
         let (_, signed_signup_req) = user_key_pair
             .sign_struct(&signup_req)
             .expect("Should never fail to serialize UserSignupRequest");

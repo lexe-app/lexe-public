@@ -12,6 +12,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use super::user::NodePkProof;
+#[cfg(any(test, feature = "test-utils"))]
+use crate::test_utils::arbitrary;
 use crate::{
     api::{
         def::BearerAuthBackendApi,
@@ -73,6 +75,13 @@ pub enum Error {
 pub struct UserSignupRequest {
     /// The lightning node pubkey in a Proof-of-Key-Possession
     pub node_pk_proof: NodePkProof,
+
+    /// The user's signup code, if provided.
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_option_string()")
+    )]
+    pub signup_code: Option<String>,
     // do we need this?
     // pub display_name: Option<String>,
 

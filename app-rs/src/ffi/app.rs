@@ -95,6 +95,9 @@ impl AppHandle {
             DeployEnv::Prod | DeployEnv::Staging => Some(google_auth_code),
         };
 
+        // TODO(max): Wire this through the FFI, I had flutter version issues...
+        let signup_code = None;
+
         let mut rng = SysRng::new();
         let root_seed = RootSeedRs::from_rng(&mut rng);
         App::signup(
@@ -103,6 +106,7 @@ impl AppHandle {
             &root_seed,
             google_auth_code,
             Some(password),
+            signup_code,
         )
         .await
         .context("Failed to generate and signup new wallet")
