@@ -327,7 +327,7 @@ impl BearerAuthenticator {
                 msg: format!("Error signing auth request: {err:#}"),
             })?;
 
-        let resp = api.bearer_auth(signed_req.cloned()).await?;
+        let resp = api.bearer_auth(&signed_req).await?;
 
         Ok(TokenWithExpiration {
             expiration,

@@ -179,7 +179,7 @@ impl BackendApiClient for MockBackendClient {
 impl AppBackendApi for MockBackendClient {
     async fn signup(
         &self,
-        _signed_req: ed25519::Signed<UserSignupRequest>,
+        _signed_req: &ed25519::Signed<&UserSignupRequest>,
     ) -> Result<Empty, BackendApiError> {
         Ok(Empty {})
     }
@@ -189,7 +189,7 @@ impl AppBackendApi for MockBackendClient {
 impl BearerAuthBackendApi for MockBackendClient {
     async fn bearer_auth(
         &self,
-        _signed_req: ed25519::Signed<BearerAuthRequest>,
+        _signed_req: &ed25519::Signed<&BearerAuthRequest>,
     ) -> Result<BearerAuthResponse, BackendApiError> {
         // TODO(phlip9): return something we can verify
         Ok(BearerAuthResponse {

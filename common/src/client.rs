@@ -103,7 +103,7 @@ impl GatewayClient {
 impl AppBackendApi for GatewayClient {
     async fn signup(
         &self,
-        signed_req: ed25519::Signed<UserSignupRequest>,
+        signed_req: &ed25519::Signed<&UserSignupRequest>,
     ) -> Result<Empty, BackendApiError> {
         let gateway_url = &self.gateway_url;
         let req = self
@@ -119,7 +119,7 @@ impl AppBackendApi for GatewayClient {
 impl BearerAuthBackendApi for GatewayClient {
     async fn bearer_auth(
         &self,
-        signed_req: ed25519::Signed<BearerAuthRequest>,
+        signed_req: &ed25519::Signed<&BearerAuthRequest>,
     ) -> Result<BearerAuthResponse, BackendApiError> {
         let gateway_url = &self.gateway_url;
         let req = self

@@ -369,7 +369,7 @@ pub trait RequestBuilderExt: Sized {
     /// corresponding content type header.
     fn signed_bcs<T>(
         self,
-        signed_bcs: ed25519::Signed<T>,
+        signed_bcs: &ed25519::Signed<&T>,
     ) -> Result<Self, bcs::Error>
     where
         T: ed25519::Signable + Serialize;
@@ -378,13 +378,15 @@ pub trait RequestBuilderExt: Sized {
 impl RequestBuilderExt for reqwest::RequestBuilder {
     fn signed_bcs<T>(
         self,
-        signed_bcs: ed25519::Signed<T>,
+        signed_bcs: &ed25519::Signed<&T>,
     ) -> Result<Self, bcs::Error>
     where
         T: ed25519::Signable + Serialize,
     {
-        Ok(self
+        let bytes = signed_bcs.serialize()?;
+        let request = self
             .header(CONTENT_TYPE, CONTENT_TYPE_ED25519_BCS.clone())
-            .body(signed_bcs.serialize()?))
+            .body(bytes);
+        Ok(request)
     }
 }

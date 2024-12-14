@@ -367,7 +367,7 @@ impl App {
 
         // signup the user and get the latest release
         let (try_signup, try_latest_release) = tokio::join!(
-            gateway_client.signup(signed_signup_req.cloned()),
+            gateway_client.signup(&signed_signup_req),
             gateway_client.latest_release(),
         );
         try_signup.context("Failed to signup user")?;
