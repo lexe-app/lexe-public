@@ -1817,7 +1817,7 @@ class InfoRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ConstrainedBox(
-              constraints: const BoxConstraints.tightFor(width: Space.s900),
+              constraints: const BoxConstraints.tightFor(width: Space.s925),
               child: Text(
                 this.label,
                 style: const TextStyle(

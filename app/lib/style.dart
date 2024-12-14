@@ -515,6 +515,9 @@ final class Space {
   /// 96 px
   static const double s900 = 96.0;
 
+  /// 108 px
+  static const double s925 = 108.0;
+
   /// 120 px
   static const double s950 = 120.0;
 

@@ -32,6 +32,7 @@ class _NodeInfoPageState extends State<NodeInfoPage> {
   @override
   Widget build(BuildContext context) {
     final userInfo = this.widget.userInfo;
+    const cardPad = Space.s300;
 
     return Scaffold(
       appBar: AppBar(
@@ -39,10 +40,20 @@ class _NodeInfoPageState extends State<NodeInfoPage> {
         leading: const LxCloseButton(isLeading: true),
       ),
       body: ScrollableSinglePageBody(
+        padding: const EdgeInsets.symmetric(horizontal: Space.s600 - cardPad),
         body: [
-          const HeadingText(text: "Node Info"),
-          const SubheadingText(text: "Your Lexe user and node identities."),
-          const SizedBox(height: Space.s500),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: cardPad),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                HeadingText(text: "Node Info"),
+                SubheadingText(text: "Your Lexe user and node identities."),
+                SizedBox(height: Space.s500),
+              ],
+            ),
+          ),
 
           // NodeInfo and userInfo.nodePk{Proof}
           InfoCard(
@@ -50,13 +61,18 @@ class _NodeInfoPageState extends State<NodeInfoPage> {
             children: [
               ValueListenableBuilder(
                 valueListenable: this.widget.nodeInfo,
-                builder: (context, nodeInfo, child) =>
-                    InfoRow(label: "Version", value: nodeInfo?.version ?? ""),
+                builder: (context, nodeInfo, child) {
+                  final version = nodeInfo?.version;
+                  // Use " " to prevent slight vertical reflow when node info
+                  // fills.
+                  final vVersion = (version != null) ? "v$version" : " ";
+                  return InfoRow(label: "Version", value: vVersion);
+                },
               ),
               ValueListenableBuilder(
                 valueListenable: this.widget.nodeInfo,
                 builder: (context, nodeInfo, child) => InfoRow(
-                    label: "Measurement", value: nodeInfo?.measurement ?? ""),
+                    label: "Measurement", value: nodeInfo?.measurement ?? " "),
               ),
               InfoRow(label: "Node public key", value: userInfo.nodePk),
               // Show the NodePkProof here so a user can prove possession of their
