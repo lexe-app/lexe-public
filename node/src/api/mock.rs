@@ -242,7 +242,6 @@ impl NodeBackendApi for MockBackendClient {
 
     async fn get_scid(
         &self,
-        _node_pk: NodePk,
         _auth: BearerAuthToken,
     ) -> Result<MaybeScid, BackendApiError> {
         Ok(MaybeScid {

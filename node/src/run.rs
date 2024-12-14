@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, ensure, Context};
+use bitcoin::secp256k1;
 use common::{
     aes::AesMasterKey,
     api::{
@@ -13,7 +14,7 @@ use common::{
         ports::Ports,
         provision::SealedSeedId,
         server::LayerConfig,
-        user::{User, UserPk},
+        user::{NodePk, User, UserPk},
     },
     cli::{node::RunArgs, LspInfo},
     constants::{self, DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
@@ -209,8 +210,14 @@ impl UserNode {
         let (esplora, refresh_fees_task, esplora_url) =
             try_esplora.context("Failed to init esplora")?;
         tasks.push(refresh_fees_task);
-        let (user, root_seed, deploy_env, network, user_key_pair) =
-            try_fetch.context("Failed to fetch provisioned secrets")?;
+        let ProvisionedSecrets {
+            user,
+            root_seed,
+            deploy_env,
+            network,
+            user_key_pair,
+            node_key_pair: _,
+        } = try_fetch.context("Failed to fetch provisioned secrets")?;
         info!(%esplora_url);
 
         // Validate deploy env and network
@@ -292,7 +299,6 @@ impl UserNode {
             authenticator,
             vfs_master_key.clone(),
             maybe_google_vfs.clone(),
-            user,
             shutdown.clone(),
             channel_monitor_persister_tx,
         ));
@@ -817,7 +823,17 @@ impl UserNode {
     }
 }
 
-/// Fetches previously provisioned secrets from the API.
+struct ProvisionedSecrets {
+    user: User,
+    root_seed: RootSeed,
+    deploy_env: DeployEnv,
+    network: LxNetwork,
+    user_key_pair: ed25519::KeyPair,
+    #[allow(unused)] // May be used to generate `NodePkProof`s later
+    node_key_pair: secp256k1::Keypair,
+}
+
+/// Fetches and validates previously provisioned secrets from the API.
 // Really this could just take `&dyn NodeBackendApi` but dyn upcasting is
 // marked as incomplete and not yet safe to use as of 2023-02-01.
 // https://github.com/rust-lang/rust/issues/65991
@@ -826,7 +842,7 @@ async fn fetch_provisioned_secrets(
     user_pk: UserPk,
     measurement: Measurement,
     machine_id: MachineId,
-) -> anyhow::Result<(User, RootSeed, DeployEnv, LxNetwork, ed25519::KeyPair)> {
+) -> anyhow::Result<ProvisionedSecrets> {
     debug!(%user_pk, %measurement, %machine_id, "fetching provisioned secrets");
     let mut rng = SysRng::new();
 
@@ -861,7 +877,9 @@ async fn fetch_provisioned_secrets(
             let user_key_pair = root_seed.derive_user_key_pair();
             let derived_user_pk =
                 UserPk::from_ref(user_key_pair.public_key().as_inner());
-            let derived_node_pk = root_seed.derive_node_pk(&mut rng);
+            let derived_node_key_pair =
+                root_seed.derive_node_key_pair(&mut rng);
+            let derived_node_pk = NodePk(derived_node_key_pair.public_key());
 
             ensure!(
                 &user_pk == derived_user_pk,
@@ -874,7 +892,14 @@ async fn fetch_provisioned_secrets(
                 doesn't match the node_pk from CLI {db_node_pk}"
             );
 
-            Ok((user, root_seed, deploy_env, unsealed_network, user_key_pair))
+            Ok(ProvisionedSecrets {
+                user,
+                root_seed,
+                deploy_env,
+                network: unsealed_network,
+                user_key_pair,
+                node_key_pair: derived_node_key_pair,
+            })
         }
         (None, None) => bail!("User does not exist yet"),
         (Some(_), None) => bail!(

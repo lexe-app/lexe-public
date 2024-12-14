@@ -9,7 +9,7 @@ use common::{
         auth::{BearerAuthToken, BearerAuthenticator},
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         error::BackendApiError,
-        user::{MaybeScid, Scid, User},
+        user::{MaybeScid, Scid},
         vfs::{
             MaybeVfsFile, VecVfsFile, Vfs, VfsDirectory, VfsFile, VfsFileId,
         },
@@ -87,7 +87,6 @@ pub struct NodePersister {
     authenticator: Arc<BearerAuthenticator>,
     vfs_master_key: Arc<AesMasterKey>,
     google_vfs: Option<Arc<GoogleVfs>>,
-    user: User,
     shutdown: ShutdownChannel,
     channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
 }
@@ -298,7 +297,6 @@ impl NodePersister {
         authenticator: Arc<BearerAuthenticator>,
         vfs_master_key: Arc<AesMasterKey>,
         google_vfs: Option<Arc<GoogleVfs>>,
-        user: User,
         shutdown: ShutdownChannel,
         channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
     ) -> Self {
@@ -307,7 +305,6 @@ impl NodePersister {
             authenticator,
             vfs_master_key,
             google_vfs,
-            user,
             shutdown,
             channel_monitor_persister_tx,
         }
@@ -323,7 +320,7 @@ impl NodePersister {
         debug!("Fetching scid");
         let token = self.get_token().await?;
         self.backend_api
-            .get_scid(self.user.node_pk, token)
+            .get_scid(token)
             .await
             .map(|MaybeScid { maybe_scid }| maybe_scid)
             .context("Could not fetch scid")

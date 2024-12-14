@@ -184,7 +184,7 @@ impl RootSeed {
 
     /// Convenience function to derive the Lightning node pubkey.
     pub fn derive_node_pk<R: Crng>(&self, rng: &mut R) -> NodePk {
-        NodePk(secp256k1::PublicKey::from(self.derive_node_key_pair(rng)))
+        NodePk(self.derive_node_key_pair(rng).public_key())
     }
 
     pub fn derive_vfs_master_key(&self) -> AesMasterKey {

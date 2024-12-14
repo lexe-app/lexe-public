@@ -62,8 +62,8 @@ use super::{
 };
 #[cfg(doc)]
 use crate::{
-    api::user::UserPkStruct, api::version::MeasurementStruct,
-    ln::payments::PaymentIndex,
+    api::user::NodePkStruct, api::user::UserPkStruct,
+    api::version::MeasurementStruct, ln::payments::PaymentIndex,
 };
 use crate::{
     ed25519,
@@ -116,12 +116,9 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
-    /// GET /node/v1/scid [`NodePkStruct`] -> [`MaybeScid`]
-    ///
-    /// [`NodePkStruct`]: crate::api::user::NodePkStruct
+    /// GET /node/v1/scid [`Empty`] -> [`MaybeScid`]
     async fn get_scid(
         &self,
-        node_pk: NodePk,
         auth: BearerAuthToken,
     ) -> Result<MaybeScid, BackendApiError>;
 
@@ -268,8 +265,6 @@ pub trait BearerAuthBackendApi {
 #[async_trait]
 pub trait NodeLspApi {
     /// GET /node/v1/scid [`NodePkStruct`] -> [`ScidStruct`]
-    ///
-    /// [`NodePkStruct`]: crate::api::user::NodePkStruct
     async fn get_new_scid(
         &self,
         node_pk: NodePk,
