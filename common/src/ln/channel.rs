@@ -31,38 +31,9 @@ use crate::{
 #[repr(transparent)]
 pub struct LxChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
-impl ByteArray<32> for LxChannelId {
-    fn from_array(array: [u8; 32]) -> Self {
-        Self(array)
-    }
-    fn to_array(&self) -> [u8; 32] {
-        self.0
-    }
-    fn as_array(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-
-impl FromStr for LxChannelId {
-    type Err = hex::DecodeError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from_hexstr(s)
-    }
-}
-
-impl fmt::Display for LxChannelId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Self::fmt_hexstr(self, f)
-    }
-}
-
-impl fmt::Debug for LxChannelId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("LxChannelId")
-            .field(&self.hex_display())
-            .finish()
-    }
-}
+byte_array::impl_byte_array!(LxChannelId, 32);
+byte_array::impl_fromstr_from_hexstr!(LxChannelId);
+byte_array::impl_debug_display_as_hex!(LxChannelId);
 
 impl From<ChannelId> for LxChannelId {
     fn from(cid: ChannelId) -> Self {
@@ -104,38 +75,9 @@ impl LxUserChannelId {
     }
 }
 
-impl ByteArray<16> for LxUserChannelId {
-    fn from_array(array: [u8; 16]) -> Self {
-        Self(array)
-    }
-    fn to_array(&self) -> [u8; 16] {
-        self.0
-    }
-    fn as_array(&self) -> &[u8; 16] {
-        &self.0
-    }
-}
-
-impl FromStr for LxUserChannelId {
-    type Err = hex::DecodeError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from_hexstr(s)
-    }
-}
-
-impl fmt::Display for LxUserChannelId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Self::fmt_hexstr(self, f)
-    }
-}
-
-impl fmt::Debug for LxUserChannelId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("LxUserChannelId")
-            .field(&self.hex_display())
-            .finish()
-    }
-}
+byte_array::impl_byte_array!(LxUserChannelId, 16);
+byte_array::impl_fromstr_from_hexstr!(LxUserChannelId);
+byte_array::impl_debug_display_as_hex!(LxUserChannelId);
 
 impl From<u128> for LxUserChannelId {
     fn from(value: u128) -> Self {

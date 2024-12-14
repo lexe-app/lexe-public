@@ -48,3 +48,149 @@ pub trait ByteArray<const N: usize>:
         Display::fmt(&hex::display(self.as_slice()), f)
     }
 }
+
+/// Impls [`ByteArray`] for a transparent newtype over `[u8; N]`
+///
+/// ```ignore
+/// byte_array::impl_byte_array!(Measurement, 32);
+/// ```
+#[macro_export]
+macro_rules! impl_byte_array {
+    ($type:ty, $n:expr) => {
+        impl ByteArray<$n> for $type {
+            fn from_array(array: [u8; $n]) -> Self {
+                Self(array)
+            }
+            fn to_array(&self) -> [u8; $n] {
+                self.0
+            }
+            fn as_array(&self) -> &[u8; $n] {
+                &self.0
+            }
+        }
+    };
+}
+
+/// Impls FromStr for a [`ByteArray`] type parsed from a hex string.
+///
+/// ```ignore
+/// byte_array::impl_fromstr_from_hexstr!(Measurement);
+/// ```
+#[macro_export]
+macro_rules! impl_fromstr_from_hexstr {
+    ($type:ty) => {
+        impl std::str::FromStr for $type {
+            type Err = hex::DecodeError;
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                Self::try_from_hexstr(s)
+            }
+        }
+    };
+}
+
+/// Impls Debug + Display for a [`ByteArray`] type formatted as a hex string.
+///
+/// ```ignore
+/// byte_array::impl_debug_display_hex!(Measurement);
+/// ```
+#[macro_export]
+macro_rules! impl_debug_display_as_hex {
+    ($type:ty) => {
+        impl std::fmt::Debug for $type {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                // We don't implement this like
+                // `f.debug_tuple(stringify!($type)).field(&self.0).finish()`
+                // because that includes useless newlines when pretty printing.
+                write!(f, "{}(\"{}\")", stringify!($type), self.hex_display())
+            }
+        }
+        impl std::fmt::Display for $type {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                Self::fmt_hexstr(self, f)
+            }
+        }
+    };
+}
+
+/// Impls Debug + Display with secret values redacted.
+/// Useful for preventing the accidental leakage of secrets in logs.
+/// Can technically be used for non [`ByteArray`] types as well.
+///
+/// ```ignore
+/// byte_array::impl_debug_display_redacted!(PaymentSecret);
+/// ```
+#[macro_export]
+macro_rules! impl_debug_display_redacted {
+    ($type:ty) => {
+        impl std::fmt::Debug for $type {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str(concat!(stringify!($type), "(..)"))
+            }
+        }
+        impl std::fmt::Display for $type {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("..")
+            }
+        }
+    };
+}
+
+#[cfg(test)]
+mod test {
+    use std::str::FromStr;
+
+    use super::*;
+
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast)]
+    #[repr(transparent)]
+    struct MyStruct([u8; 4]);
+
+    impl_byte_array!(MyStruct, 4);
+    impl_fromstr_from_hexstr!(MyStruct);
+    impl_debug_display_as_hex!(MyStruct);
+
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast)]
+    #[repr(transparent)]
+    struct MySecret([u8; 4]);
+
+    impl_byte_array!(MySecret, 4);
+    impl_fromstr_from_hexstr!(MySecret);
+    impl_debug_display_redacted!(MySecret);
+
+    #[test]
+    fn test_display_and_debug() {
+        let data = [0xde, 0xad, 0xbe, 0xef];
+
+        // Test regular display/debug
+        let my_struct = MyStruct(data);
+        assert_eq!(my_struct.to_string(), "deadbeef");
+        assert_eq!(format!("{my_struct}"), "deadbeef");
+        assert_eq!(format!("{my_struct:#}"), "deadbeef");
+        assert_eq!(format!("{:?}", my_struct), r#"MyStruct("deadbeef")"#);
+        assert_eq!(format!("{:#?}", my_struct), r#"MyStruct("deadbeef")"#);
+
+        // Test redacted display/debug
+        let my_secret = MySecret(data);
+        assert_eq!(my_secret.to_string(), "..");
+        assert_eq!(format!("My secret is {my_secret}"), "My secret is ..");
+        assert_eq!(format!("My secret is {my_secret:#}"), "My secret is ..");
+        assert_eq!(format!("{:?}", my_secret), r#"MySecret(..)"#);
+        assert_eq!(format!("{:#?}", my_secret), r#"MySecret(..)"#);
+    }
+
+    #[test]
+    fn basic_parse() {
+        // Valid cases
+        let my_struct = MyStruct::from_str("deadbeef").unwrap();
+        assert_eq!(my_struct.0, [0xde, 0xad, 0xbe, 0xef]);
+
+        let my_secret = MySecret::from_str("deadbeef").unwrap();
+        assert_eq!(my_secret.0, [0xde, 0xad, 0xbe, 0xef]);
+
+        // Error cases
+        MyStruct::from_str("invalid").unwrap_err();
+        MyStruct::from_str("deadbee").unwrap_err(); // Too short
+        MyStruct::from_str("deadbeefff").unwrap_err(); // Too long
+        MyStruct::from_str("wxyz").unwrap_err(); // Not hex
+    }
+}

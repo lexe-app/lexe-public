@@ -160,36 +160,9 @@ impl UserPk {
     }
 }
 
-impl ByteArray<32> for UserPk {
-    fn from_array(array: [u8; 32]) -> Self {
-        Self(array)
-    }
-    fn to_array(&self) -> [u8; 32] {
-        self.0
-    }
-    fn as_array(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-
-impl FromStr for UserPk {
-    type Err = hex::DecodeError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from_hexstr(s)
-    }
-}
-
-impl fmt::Display for UserPk {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Self::fmt_hexstr(self, f)
-    }
-}
-
-impl fmt::Debug for UserPk {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("UserPk").field(&self.hex_display()).finish()
-    }
-}
+byte_array::impl_byte_array!(UserPk, 32);
+byte_array::impl_fromstr_from_hexstr!(UserPk);
+byte_array::impl_debug_display_as_hex!(UserPk);
 
 impl From<ed25519::PublicKey> for UserPk {
     fn from(pk: ed25519::PublicKey) -> Self {

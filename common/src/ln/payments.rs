@@ -379,125 +379,21 @@ impl LxPaymentPreimage {
 
 // --- Boilerplate: ByteArray / FromStr / Display / Debug --- //
 
-impl ByteArray<32> for ClientPaymentId {
-    fn from_array(array: [u8; 32]) -> Self {
-        Self(array)
-    }
-    fn to_array(&self) -> [u8; 32] {
-        self.0
-    }
-    fn as_array(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-impl ByteArray<32> for LxPaymentHash {
-    fn from_array(array: [u8; 32]) -> Self {
-        Self(array)
-    }
-    fn to_array(&self) -> [u8; 32] {
-        self.0
-    }
-    fn as_array(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-impl ByteArray<32> for LxPaymentPreimage {
-    fn from_array(array: [u8; 32]) -> Self {
-        Self(array)
-    }
-    fn to_array(&self) -> [u8; 32] {
-        self.0
-    }
-    fn as_array(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-impl ByteArray<32> for LxPaymentSecret {
-    fn from_array(array: [u8; 32]) -> Self {
-        Self(array)
-    }
-    fn to_array(&self) -> [u8; 32] {
-        self.0
-    }
-    fn as_array(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
+byte_array::impl_byte_array!(ClientPaymentId, 32);
+byte_array::impl_byte_array!(LxPaymentHash, 32);
+byte_array::impl_byte_array!(LxPaymentPreimage, 32);
+byte_array::impl_byte_array!(LxPaymentSecret, 32);
 
-impl FromStr for ClientPaymentId {
-    type Err = hex::DecodeError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from_hexstr(s)
-    }
-}
-impl FromStr for LxPaymentHash {
-    type Err = hex::DecodeError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from_hexstr(s)
-    }
-}
-impl FromStr for LxPaymentPreimage {
-    type Err = hex::DecodeError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from_hexstr(s)
-    }
-}
-impl FromStr for LxPaymentSecret {
-    type Err = hex::DecodeError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from_hexstr(s)
-    }
-}
+byte_array::impl_fromstr_from_hexstr!(ClientPaymentId);
+byte_array::impl_fromstr_from_hexstr!(LxPaymentHash);
+byte_array::impl_fromstr_from_hexstr!(LxPaymentPreimage);
+byte_array::impl_fromstr_from_hexstr!(LxPaymentSecret);
 
-impl fmt::Display for ClientPaymentId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Self::fmt_hexstr(self, f)
-    }
-}
-impl fmt::Display for LxPaymentHash {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Self::fmt_hexstr(self, f)
-    }
-}
-impl Display for LxPaymentPreimage {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Redacted to prevent accidentally leaking secrets in logs
-        f.write_str("LxPaymentPreimage(..)")
-    }
-}
-impl Display for LxPaymentSecret {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Redacted to prevent accidentally leaking secrets in logs
-        f.write_str("LxPaymentSecret(..)")
-    }
-}
-
-impl fmt::Debug for ClientPaymentId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("ClientPaymentId")
-            .field(&self.hex_display())
-            .finish()
-    }
-}
-impl fmt::Debug for LxPaymentHash {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("LxPaymentHash")
-            .field(&self.hex_display())
-            .finish()
-    }
-}
-impl fmt::Debug for LxPaymentPreimage {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Redacted to prevent accidentally leaking secrets in logs
-        f.debug_tuple("LxPaymentPreimage").field(&"..").finish()
-    }
-}
-impl fmt::Debug for LxPaymentSecret {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Redacted to prevent accidentally leaking secrets in logs
-        f.debug_tuple("LxPaymentSecret").field(&"..").finish()
-    }
-}
+byte_array::impl_debug_display_as_hex!(ClientPaymentId);
+byte_array::impl_debug_display_as_hex!(LxPaymentHash);
+// Redacted to prevent accidentally leaking secrets in logs
+byte_array::impl_debug_display_redacted!(LxPaymentPreimage);
+byte_array::impl_debug_display_redacted!(LxPaymentSecret);
 
 // --- Newtype From impls --- //
 

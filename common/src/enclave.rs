@@ -455,38 +455,9 @@ impl Measurement {
     }
 }
 
-impl ByteArray<32> for Measurement {
-    fn from_array(array: [u8; 32]) -> Self {
-        Self(array)
-    }
-    fn to_array(&self) -> [u8; 32] {
-        self.0
-    }
-    fn as_array(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-
-impl FromStr for Measurement {
-    type Err = hex::DecodeError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from_hexstr(s)
-    }
-}
-
-impl fmt::Display for Measurement {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Self::fmt_hexstr(self, f)
-    }
-}
-
-impl fmt::Debug for Measurement {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("Measurement")
-            .field(&self.hex_display())
-            .finish()
-    }
-}
+byte_array::impl_byte_array!(Measurement, 32);
+byte_array::impl_fromstr_from_hexstr!(Measurement);
+byte_array::impl_debug_display_as_hex!(Measurement);
 
 // --- impl MrShort --- //
 
@@ -501,40 +472,13 @@ impl MrShort {
     }
 }
 
-impl ByteArray<4> for MrShort {
-    fn from_array(array: [u8; 4]) -> Self {
-        Self(array)
-    }
-    fn to_array(&self) -> [u8; 4] {
-        self.0
-    }
-    fn as_array(&self) -> &[u8; 4] {
-        &self.0
-    }
-}
+byte_array::impl_byte_array!(MrShort, 4);
+byte_array::impl_fromstr_from_hexstr!(MrShort);
+byte_array::impl_debug_display_as_hex!(MrShort);
 
 impl From<&Measurement> for MrShort {
     fn from(long: &Measurement) -> Self {
         (long.0)[..4].try_into().map(Self).unwrap()
-    }
-}
-
-impl FromStr for MrShort {
-    type Err = hex::DecodeError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from_hexstr(s)
-    }
-}
-
-impl fmt::Display for MrShort {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Self::fmt_hexstr(self, f)
-    }
-}
-
-impl fmt::Debug for MrShort {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("MrShort").field(&self.hex_display()).finish()
     }
 }
 
@@ -554,38 +498,9 @@ impl MachineId {
     }
 }
 
-impl ByteArray<16> for MachineId {
-    fn from_array(array: [u8; 16]) -> Self {
-        Self(array)
-    }
-    fn to_array(&self) -> [u8; 16] {
-        self.0
-    }
-    fn as_array(&self) -> &[u8; 16] {
-        &self.0
-    }
-}
-
-impl FromStr for MachineId {
-    type Err = hex::DecodeError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from_hexstr(s)
-    }
-}
-
-impl fmt::Display for MachineId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Self::fmt_hexstr(self, f)
-    }
-}
-
-impl fmt::Debug for MachineId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("MachineId")
-            .field(&self.hex_display())
-            .finish()
-    }
-}
+byte_array::impl_byte_array!(MachineId, 16);
+byte_array::impl_fromstr_from_hexstr!(MachineId);
+byte_array::impl_debug_display_as_hex!(MachineId);
 
 // --- impl MinCpusvn --- //
 
