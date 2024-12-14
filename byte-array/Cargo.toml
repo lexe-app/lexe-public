@@ -1,0 +1,15 @@
+[package]
+name = "byte-array"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+# --- LEXE --- #
+
+hex = { path = "../hex" }
+
+# --- WORKSPACE --- #
+
+ref-cast.workspace = true

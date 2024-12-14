@@ -9,6 +9,8 @@
 #![allow(non_local_definitions)]
 
 // Some re-exports to prevent having to re-declare dependencies
+pub use byte_array::ByteArray;
+pub use ref_cast::RefCast;
 pub use reqwest;
 pub use secrecy::{ExposeSecret, Secret};
 

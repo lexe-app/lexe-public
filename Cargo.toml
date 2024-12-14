@@ -4,6 +4,7 @@ resolver = "2"
 members = [
     "app-rs",
     "app-rs-codegen",
+    "byte-array",
     "common",
     "const-utils",
     "gdrive",

@@ -32,6 +32,7 @@ threads = 8
 
 # --- LEXE --- #
 
+byte-array = { path = "../byte-array" }
 const-utils = { path = "../const-utils" }
 hex = { path = "../hex" }
 sha256 = { path = "../sha256" }
