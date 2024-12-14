@@ -1,7 +1,7 @@
 use std::{fmt, str::FromStr};
 
 use bitcoin::{secp256k1, secp256k1::Secp256k1};
-use hex::FromHex;
+use byte_array::ByteArray;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest::{
     arbitrary::{any, Arbitrary},
@@ -39,8 +39,7 @@ pub struct MaybeUser {
 
 /// A Lexe user's primary identifier - their `ed25519::PublicKey`.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Hash, Eq, PartialEq)]
-#[derive(Serialize, Deserialize, RefCast)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct UserPk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
@@ -67,7 +66,7 @@ pub struct UserPkStruct {
 ///
 /// [`PublicKey`]: secp256k1::PublicKey
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
-#[derive(Serialize, Deserialize, RefCast)]
+#[derive(RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct NodePk(pub secp256k1::PublicKey);
 
@@ -137,10 +136,6 @@ impl UserPk {
         const_utils::const_ref_cast(inner)
     }
 
-    pub fn inner(&self) -> [u8; 32] {
-        self.0
-    }
-
     pub const fn as_ed25519(&self) -> &ed25519::PublicKey {
         ed25519::PublicKey::from_ref(&self.0)
     }
@@ -165,28 +160,40 @@ impl UserPk {
     }
 }
 
+impl ByteArray<32> for UserPk {
+    fn from_array(array: [u8; 32]) -> Self {
+        Self(array)
+    }
+    fn to_array(&self) -> [u8; 32] {
+        self.0
+    }
+    fn as_array(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
 impl FromStr for UserPk {
     type Err = hex::DecodeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        <[u8; 32]>::from_hex(s).map(Self::new)
+        Self::try_from_hexstr(s)
+    }
+}
+
+impl fmt::Display for UserPk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Self::fmt_hexstr(self, f)
+    }
+}
+
+impl fmt::Debug for UserPk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("UserPk").field(&self.hex_display()).finish()
     }
 }
 
 impl From<ed25519::PublicKey> for UserPk {
     fn from(pk: ed25519::PublicKey) -> Self {
         Self::new(pk.into_inner())
-    }
-}
-
-impl fmt::Display for UserPk {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::display(self.0.as_slice()))
-    }
-}
-
-impl fmt::Debug for UserPk {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "UserPk({self})")
     }
 }
 
@@ -199,6 +206,18 @@ impl NodePk {
 
     pub fn as_inner(&self) -> &secp256k1::PublicKey {
         &self.0
+    }
+
+    pub fn from_slice(bytes: &[u8]) -> Result<Self, secp256k1::Error> {
+        secp256k1::PublicKey::from_slice(bytes).map(Self)
+    }
+
+    pub fn to_array(&self) -> [u8; 33] {
+        self.0.serialize()
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        self.0.serialize().to_vec()
     }
 }
 

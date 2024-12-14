@@ -6,12 +6,13 @@ use std::{
 
 use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin_hashes::{sha256, Hash};
-use hex::FromHex;
+use byte_array::ByteArray;
 use lightning::ln::{
     channelmanager::PaymentId, PaymentHash, PaymentPreimage, PaymentSecret,
 };
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
+use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
@@ -228,25 +229,29 @@ pub struct VecLxPaymentId {
 ///
 /// Its primary purpose is to prevent accidental double payments. Internal
 /// structure (if any) is opaque to the node.
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
-#[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(RefCast, Serialize, Deserialize)]
+#[repr(transparent)]
 pub struct ClientPaymentId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
 /// Newtype for [`PaymentHash`] which impls [`Serialize`] / [`Deserialize`].
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
-#[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(RefCast, Serialize, Deserialize)]
+#[repr(transparent)]
 pub struct LxPaymentHash(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 /// Newtype for [`PaymentPreimage`] which impls [`Serialize`] / [`Deserialize`].
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast, Serialize, Deserialize)]
+#[repr(transparent)]
 pub struct LxPaymentPreimage(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 /// Newtype for [`PaymentSecret`] which impls [`Serialize`] / [`Deserialize`].
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast, Serialize, Deserialize)]
+#[repr(transparent)]
 pub struct LxPaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 // --- impl BasicPayment --- //
@@ -372,40 +377,125 @@ impl LxPaymentPreimage {
     }
 }
 
-// --- Debug impls for bytes types --- //
+// --- Boilerplate: ByteArray / FromStr / Display / Debug --- //
 
-impl fmt::Debug for ClientPaymentId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::display(&self.0))
+impl ByteArray<32> for ClientPaymentId {
+    fn from_array(array: [u8; 32]) -> Self {
+        Self(array)
+    }
+    fn to_array(&self) -> [u8; 32] {
+        self.0
+    }
+    fn as_array(&self) -> &[u8; 32] {
+        &self.0
     }
 }
-impl fmt::Debug for LxPaymentHash {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::display(&self.0))
+impl ByteArray<32> for LxPaymentHash {
+    fn from_array(array: [u8; 32]) -> Self {
+        Self(array)
+    }
+    fn to_array(&self) -> [u8; 32] {
+        self.0
+    }
+    fn as_array(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+impl ByteArray<32> for LxPaymentPreimage {
+    fn from_array(array: [u8; 32]) -> Self {
+        Self(array)
+    }
+    fn to_array(&self) -> [u8; 32] {
+        self.0
+    }
+    fn as_array(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+impl ByteArray<32> for LxPaymentSecret {
+    fn from_array(array: [u8; 32]) -> Self {
+        Self(array)
+    }
+    fn to_array(&self) -> [u8; 32] {
+        self.0
+    }
+    fn as_array(&self) -> &[u8; 32] {
+        &self.0
     }
 }
 
-// --- Redact secret information --- //
-// Prevent accidentally leaking secrets in logs
-
-impl fmt::Debug for LxPaymentPreimage {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self}")
+impl FromStr for ClientPaymentId {
+    type Err = hex::DecodeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from_hexstr(s)
     }
 }
-impl fmt::Debug for LxPaymentSecret {
+impl FromStr for LxPaymentHash {
+    type Err = hex::DecodeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from_hexstr(s)
+    }
+}
+impl FromStr for LxPaymentPreimage {
+    type Err = hex::DecodeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from_hexstr(s)
+    }
+}
+impl FromStr for LxPaymentSecret {
+    type Err = hex::DecodeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from_hexstr(s)
+    }
+}
+
+impl fmt::Display for ClientPaymentId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self}")
+        Self::fmt_hexstr(self, f)
+    }
+}
+impl fmt::Display for LxPaymentHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Self::fmt_hexstr(self, f)
     }
 }
 impl Display for LxPaymentPreimage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Redacted to prevent accidentally leaking secrets in logs
         f.write_str("LxPaymentPreimage(..)")
     }
 }
 impl Display for LxPaymentSecret {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Redacted to prevent accidentally leaking secrets in logs
         f.write_str("LxPaymentSecret(..)")
+    }
+}
+
+impl fmt::Debug for ClientPaymentId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("ClientPaymentId")
+            .field(&self.hex_display())
+            .finish()
+    }
+}
+impl fmt::Debug for LxPaymentHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("LxPaymentHash")
+            .field(&self.hex_display())
+            .finish()
+    }
+}
+impl fmt::Debug for LxPaymentPreimage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Redacted to prevent accidentally leaking secrets in logs
+        f.debug_tuple("LxPaymentPreimage").field(&"..").finish()
+    }
+}
+impl fmt::Debug for LxPaymentSecret {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Redacted to prevent accidentally leaking secrets in logs
+        f.debug_tuple("LxPaymentSecret").field(&"..").finish()
     }
 }
 
@@ -687,47 +777,6 @@ impl Display for LxPaymentId {
         }
     }
 }
-
-// --- Newtype FromStr / Display impls -- //
-
-impl FromStr for ClientPaymentId {
-    type Err = hex::DecodeError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        <[u8; 32]>::from_hex(s).map(Self)
-    }
-}
-impl FromStr for LxPaymentHash {
-    type Err = hex::DecodeError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        <[u8; 32]>::from_hex(s).map(Self)
-    }
-}
-impl FromStr for LxPaymentPreimage {
-    type Err = hex::DecodeError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        <[u8; 32]>::from_hex(s).map(Self)
-    }
-}
-impl FromStr for LxPaymentSecret {
-    type Err = hex::DecodeError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        <[u8; 32]>::from_hex(s).map(Self)
-    }
-}
-
-impl Display for ClientPaymentId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let hex_display = hex::display(&self.0);
-        write!(f, "{hex_display}")
-    }
-}
-impl Display for LxPaymentHash {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let hex_display = hex::display(&self.0);
-        write!(f, "{hex_display}")
-    }
-}
-// `Display` for `LxPaymentPreimage` and `LxPaymentSecret` are redacted
 
 // --- impl Ord for LxPaymentId --- //
 

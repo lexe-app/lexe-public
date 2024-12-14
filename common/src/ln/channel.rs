@@ -4,13 +4,14 @@ use std::{
 };
 
 use anyhow::Context;
-use hex::FromHex;
+use byte_array::ByteArray;
 use lightning::{
     chain::transaction::OutPoint,
     ln::{channel_state::ChannelDetails, types::ChannelId},
 };
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
+use ref_cast::RefCast;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::{Deserialize, Serialize};
@@ -25,26 +26,41 @@ use crate::{
 };
 
 /// A newtype for [`lightning::ln::types::ChannelId`].
-#[derive(Copy, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast, Serialize, Deserialize)]
+#[repr(transparent)]
 pub struct LxChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
+
+impl ByteArray<32> for LxChannelId {
+    fn from_array(array: [u8; 32]) -> Self {
+        Self(array)
+    }
+    fn to_array(&self) -> [u8; 32] {
+        self.0
+    }
+    fn as_array(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
 
 impl FromStr for LxChannelId {
     type Err = hex::DecodeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        <[u8; 32]>::from_hex(s).map(Self)
+        Self::try_from_hexstr(s)
     }
 }
 
-impl Display for LxChannelId {
+impl fmt::Display for LxChannelId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::display(&self.0))
+        Self::fmt_hexstr(self, f)
     }
 }
 
-impl Debug for LxChannelId {
+impl fmt::Debug for LxChannelId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Display::fmt(self, f)
+        f.debug_tuple("LxChannelId")
+            .field(&self.hex_display())
+            .finish()
     }
 }
 
@@ -68,7 +84,9 @@ impl From<LxChannelId> for ChannelId {
 /// actually talked to the remote node and agreed to open a channel. The second
 /// issue is that we can't easily observe and correlate any errors from channel
 /// negotiation beyond some basic checks before we send any messages.
-#[derive(Copy, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast, Serialize, Deserialize)]
+#[repr(transparent)]
 pub struct LxUserChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 16]);
 
 impl LxUserChannelId {
@@ -86,22 +104,36 @@ impl LxUserChannelId {
     }
 }
 
+impl ByteArray<16> for LxUserChannelId {
+    fn from_array(array: [u8; 16]) -> Self {
+        Self(array)
+    }
+    fn to_array(&self) -> [u8; 16] {
+        self.0
+    }
+    fn as_array(&self) -> &[u8; 16] {
+        &self.0
+    }
+}
+
 impl FromStr for LxUserChannelId {
     type Err = hex::DecodeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        <[u8; 16]>::from_hex(s).map(Self)
+        Self::try_from_hexstr(s)
     }
 }
 
-impl Display for LxUserChannelId {
+impl fmt::Display for LxUserChannelId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::display(&self.0))
+        Self::fmt_hexstr(self, f)
     }
 }
 
-impl Debug for LxUserChannelId {
+impl fmt::Debug for LxUserChannelId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Display::fmt(self, f)
+        f.debug_tuple("LxUserChannelId")
+            .field(&self.hex_display())
+            .finish()
     }
 }
 

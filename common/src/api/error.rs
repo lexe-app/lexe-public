@@ -142,7 +142,7 @@ pub trait ToHttpStatus {
 #[macro_export]
 macro_rules! api_error {
     ($api_error:ident, $api_error_kind:ident) => {
-        #[derive(Error, Clone, Debug, Eq, PartialEq, Hash)]
+        #[derive(Clone, Debug, Eq, PartialEq, Hash, Error)]
         #[error("{kind}: {msg}")]
         #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
         pub struct $api_error {

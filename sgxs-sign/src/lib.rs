@@ -28,6 +28,7 @@
 use std::fmt;
 
 use anyhow::{ensure, format_err};
+use byte_array::ByteArray;
 use common::{
     enclave,
     rng::{Crng, SysRng},
@@ -65,8 +66,7 @@ fn sign_sgxs_generic<K: SgxRsaOps, H: SgxHashOps>(
     } else {
         enclave::attributes::LEXE_FLAGS_DEBUG
     };
-    let measurement =
-        sgxs::sigstruct::EnclaveHash::new(measurement.into_inner());
+    let measurement = sgxs::sigstruct::EnclaveHash::new(measurement.to_array());
     let mut signer = sgxs::sigstruct::Signer::new(measurement);
     signer.attributes_flags(attributes, enclave::attributes::LEXE_MASK.bits());
     signer.attributes_xfrm(enclave::xfrm::LEXE_FLAGS, enclave::xfrm::LEXE_MASK);

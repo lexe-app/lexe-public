@@ -4,11 +4,12 @@
 
 use std::{borrow::Cow, fmt, io, mem, str::FromStr, sync::LazyLock};
 
+use byte_array::ByteArray;
 use bytes::{Buf, BufMut};
 use cfg_if::cfg_if;
-use hex::FromHex;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
+use ref_cast::RefCast;
 use ring::{
     aead::{
         Aad, BoundKey, Nonce, NonceSequence, OpeningKey, SealingKey,
@@ -287,12 +288,14 @@ pub enum Error {
 /// Get the current enclave measurement with [`measurement`].
 /// Get the current signer measurement with [`signer`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast, Serialize, Deserialize)]
+#[repr(transparent)]
 pub struct Measurement(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 /// A [`Measurement`] shortened to its first four bytes (8 hex chars).
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, RefCast, Serialize, Deserialize)]
+#[repr(transparent)]
 pub struct MrShort(#[serde(with = "hexstr_or_bytes")] [u8; 4]);
 
 /// A unique identifier for a particular hardware enclave.
@@ -319,12 +322,14 @@ pub struct MrShort(#[serde(with = "hexstr_or_bytes")] [u8; 4]);
 /// [CPUSVN]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#security-version-number-svn
 /// [`OWNER_EPOCH`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#owner-epoch
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, RefCast, Serialize, Deserialize)]
+#[repr(transparent)]
 pub struct MachineId(#[serde(with = "hexstr_or_bytes")] [u8; 16]);
 
 /// TODO(max): Needs docs
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, RefCast, Serialize, Deserialize)]
+#[repr(transparent)]
 pub struct MinCpusvn(#[serde(with = "hexstr_or_bytes")] [u8; 16]);
 
 /// Sealed and encrypted data
@@ -445,39 +450,41 @@ impl Measurement {
         Self(bytes)
     }
 
-    pub fn into_inner(self) -> [u8; 32] {
-        self.0
-    }
-
-    pub fn as_inner(&self) -> &[u8; 32] {
-        &self.0
-    }
-
-    pub fn as_slice(&self) -> &[u8] {
-        &self.0
-    }
-
     pub fn short(&self) -> MrShort {
         MrShort::from(self)
+    }
+}
+
+impl ByteArray<32> for Measurement {
+    fn from_array(array: [u8; 32]) -> Self {
+        Self(array)
+    }
+    fn to_array(&self) -> [u8; 32] {
+        self.0
+    }
+    fn as_array(&self) -> &[u8; 32] {
+        &self.0
     }
 }
 
 impl FromStr for Measurement {
     type Err = hex::DecodeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        <[u8; 32]>::from_hex(s).map(Self::new)
+        Self::try_from_hexstr(s)
     }
 }
 
 impl fmt::Display for Measurement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::display(self.0.as_slice()))
+        Self::fmt_hexstr(self, f)
     }
 }
 
 impl fmt::Debug for Measurement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self}")
+        f.debug_tuple("Measurement")
+            .field(&self.hex_display())
+            .finish()
     }
 }
 
@@ -494,6 +501,18 @@ impl MrShort {
     }
 }
 
+impl ByteArray<4> for MrShort {
+    fn from_array(array: [u8; 4]) -> Self {
+        Self(array)
+    }
+    fn to_array(&self) -> [u8; 4] {
+        self.0
+    }
+    fn as_array(&self) -> &[u8; 4] {
+        &self.0
+    }
+}
+
 impl From<&Measurement> for MrShort {
     fn from(long: &Measurement) -> Self {
         (long.0)[..4].try_into().map(Self).unwrap()
@@ -503,19 +522,19 @@ impl From<&Measurement> for MrShort {
 impl FromStr for MrShort {
     type Err = hex::DecodeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        <[u8; 4]>::from_hex(s).map(Self::new)
+        Self::try_from_hexstr(s)
     }
 }
 
 impl fmt::Display for MrShort {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::display(self.0.as_slice()))
+        Self::fmt_hexstr(self, f)
     }
 }
 
 impl fmt::Debug for MrShort {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self}")
+        f.debug_tuple("MrShort").field(&self.hex_display()).finish()
     }
 }
 
@@ -535,23 +554,35 @@ impl MachineId {
     }
 }
 
+impl ByteArray<16> for MachineId {
+    fn from_array(array: [u8; 16]) -> Self {
+        Self(array)
+    }
+    fn to_array(&self) -> [u8; 16] {
+        self.0
+    }
+    fn as_array(&self) -> &[u8; 16] {
+        &self.0
+    }
+}
+
 impl FromStr for MachineId {
     type Err = hex::DecodeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        <[u8; 16]>::from_hex(s).map(Self::new)
+        Self::try_from_hexstr(s)
     }
 }
 
 impl fmt::Display for MachineId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::display(&self.0))
+        Self::fmt_hexstr(self, f)
     }
 }
 
 impl fmt::Debug for MachineId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("MachineId")
-            .field(&hex::display(&self.0))
+            .field(&self.hex_display())
             .finish()
     }
 }
@@ -574,23 +605,35 @@ impl MinCpusvn {
     }
 }
 
+impl ByteArray<16> for MinCpusvn {
+    fn from_array(array: [u8; 16]) -> Self {
+        Self(array)
+    }
+    fn to_array(&self) -> [u8; 16] {
+        self.0
+    }
+    fn as_array(&self) -> &[u8; 16] {
+        &self.0
+    }
+}
+
 impl FromStr for MinCpusvn {
     type Err = hex::DecodeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        <[u8; 16]>::from_hex(s).map(Self::new)
+        Self::try_from_hexstr(s)
     }
 }
 
 impl fmt::Display for MinCpusvn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::display(&self.0))
+        Self::fmt_hexstr(self, f)
     }
 }
 
 impl fmt::Debug for MinCpusvn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("MinCpusvn")
-            .field(&hex::display(&self.0))
+            .field(&self.hex_display())
             .finish()
     }
 }

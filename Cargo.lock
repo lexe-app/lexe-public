@@ -4326,6 +4326,7 @@ name = "sgxs-sign"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "byte-array",
  "common",
  "hex 0.1.0",
  "rsa",
