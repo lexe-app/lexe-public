@@ -460,6 +460,7 @@ class WalletPageState extends State<WalletPage> {
       ),
       drawer: WalletDrawer(
         config: this.widget.config,
+        onOpenChannelsPage: this.onOpenChannelsPage,
         onNodeInfoMenuPressed: this.onNodeInfoMenuPressed,
         onDebugPressed: this.onDebugPressed,
       ),
@@ -527,6 +528,7 @@ class WalletDrawer extends StatelessWidget {
     // this.onBackupPressed,
     // this.onSecurityPressed,
     // this.onSupportPressed,
+    this.onOpenChannelsPage,
     this.onNodeInfoMenuPressed,
     this.onDebugPressed,
     // this.onInvitePressed,
@@ -538,6 +540,7 @@ class WalletDrawer extends StatelessWidget {
   // final VoidCallback? onBackupPressed;
   // final VoidCallback? onSecurityPressed;
   // final VoidCallback? onSupportPressed;
+  final VoidCallback? onOpenChannelsPage;
   final VoidCallback? onNodeInfoMenuPressed;
   final VoidCallback? onDebugPressed;
   // final VoidCallback? onInvitePressed;
@@ -560,7 +563,12 @@ class WalletDrawer extends StatelessWidget {
             const SizedBox(height: Space.s600),
 
             DrawerListItem(
-              title: "Node Info",
+              title: "Channels",
+              icon: LxIcons.openCloseChannel,
+              onTap: this.onOpenChannelsPage,
+            ),
+            DrawerListItem(
+              title: "Node info",
               icon: LxIcons.nodeInfo,
               onTap: this.onNodeInfoMenuPressed,
             ),
