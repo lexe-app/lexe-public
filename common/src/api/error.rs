@@ -855,9 +855,9 @@ impl IntoResponse for CommonApiError {
 // --- ApiError impls --- //
 
 impl BackendApiError {
-    pub fn unauthorized_user() -> Self {
+    pub fn unauthorized(error: impl fmt::Display) -> Self {
         let kind = BackendErrorKind::Unauthorized;
-        let msg = "current user is not authorized".to_owned();
+        let msg = format!("{error:#}");
         Self { kind, msg }
     }
 
