@@ -3,6 +3,7 @@ ${PODS_TARGET_SRCROOT}/../../Cargo.lock
 ${PODS_TARGET_SRCROOT}/../../Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../app-rs-codegen/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../app-rs/Cargo.toml
+${PODS_TARGET_SRCROOT}/../../byte-array/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../clippy.toml
 ${PODS_TARGET_SRCROOT}/../../common/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../const-utils/Cargo.toml
