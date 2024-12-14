@@ -7,7 +7,7 @@
 //! use common::hexstr_or_bytes;
 //! use serde::{Deserialize, Serialize};
 //!
-//! #[derive(Deserialize, Serialize)]
+//! #[derive(Serialize, Deserialize)]
 //! struct Foo(#[serde(with = "hexstr_or_bytes")] Vec<u8>);
 //! ```
 
@@ -70,7 +70,7 @@ mod test {
 
     #[test]
     fn test_hexstr_or_bytes() {
-        #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+        #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
         struct Foo {
             #[serde(with = "hexstr_or_bytes")]
             a: [u8; 32],

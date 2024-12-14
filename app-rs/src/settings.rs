@@ -17,7 +17,7 @@ use crate::ffs::Ffs;
 const SETTINGS_JSON: &str = "settings.json";
 
 /// In-memory app settings state.
-#[derive(Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Debug, Arbitrary))]
 pub(crate) struct Settings {
     /// Settings schema version.
@@ -90,7 +90,7 @@ struct SettingsPersister<F> {
 }
 
 /// Settings schema version. Used to determine whether to run migrations.
-#[derive(Copy, Clone, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Debug))]
 #[serde(transparent)]
 pub(crate) struct SchemaVersion(pub u32);

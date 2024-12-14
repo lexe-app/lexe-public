@@ -26,7 +26,7 @@ pub struct IsoCurrencyCode([u8; 3]);
 /// We just return this as an `f64`, which is kind of haram but also super
 /// convenient. Fortunately, all our accounting is done using BTC and we only
 /// use these exchange rates for display purposes, so it's probably OK?
-#[derive(Copy, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Copy, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct FiatBtcPrice(pub f64);
@@ -49,7 +49,7 @@ pub struct FiatBtcPrice(pub f64);
 ///     }
 /// }
 /// ```
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct FiatRates {
     /// The unix timestamp of the fiat<->BTC exchange rate quotes from the

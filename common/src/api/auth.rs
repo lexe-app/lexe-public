@@ -69,7 +69,7 @@ pub enum Error {
 /// [`NodePk`]: crate::api::user::NodePk
 /// [`RootSeed`]: crate::root_seed::RootSeed
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct UserSignupRequest {
     /// The lightning node pubkey in a Proof-of-Key-Possession
     pub node_pk_proof: NodePkProof,
@@ -84,14 +84,14 @@ pub struct UserSignupRequest {
 }
 
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum BearerAuthRequest {
     V1(BearerAuthRequestV1),
 }
 
 /// A user client's request for auth token with certain restrictions.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct BearerAuthRequestV1 {
     /// The timestamp of this auth request, in seconds since UTC Unix time,
     /// interpreted relative to the server clock. Used to prevent replaying old
@@ -109,7 +109,7 @@ pub struct BearerAuthRequestV1 {
     // pub btc_network: Network,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BearerAuthResponse {
     pub bearer_auth_token: BearerAuthToken,
 }
@@ -119,7 +119,7 @@ pub struct BearerAuthResponse {
 ///
 /// Most user clients should just treat this as an opaque Bearer token with a
 /// very short (~15 min) expiration.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BearerAuthToken(pub ByteStr);
 
 /// A [`BearerAuthToken`] and its expected expiration time

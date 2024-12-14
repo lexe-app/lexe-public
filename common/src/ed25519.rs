@@ -793,7 +793,7 @@ mod test {
         arb_seed().prop_map(|seed| KeyPair::from_seed(&seed))
     }
 
-    #[derive(Arbitrary, Deserialize, Serialize)]
+    #[derive(Arbitrary, Serialize, Deserialize)]
     struct SignableBytes(Vec<u8>);
 
     impl Signable for SignableBytes {
@@ -980,14 +980,14 @@ mod test {
 
     #[test]
     fn test_sign_verify_struct() {
-        #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+        #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
         struct Foo(u32);
 
         impl Signable for Foo {
             const DOMAIN_SEPARATOR: [u8; 32] = array::pad(*b"LEXE-REALM::Foo");
         }
 
-        #[derive(Debug, Deserialize, Serialize)]
+        #[derive(Debug, Serialize, Deserialize)]
         struct Bar(u32);
 
         impl Signable for Bar {

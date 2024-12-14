@@ -7,7 +7,7 @@
 //! use common::hexstr_or_bytes_opt;
 //! use serde::{Deserialize, Serialize};
 //!
-//! #[derive(Deserialize, Serialize)]
+//! #[derive(Serialize, Deserialize)]
 //! struct Foo(#[serde(with = "hexstr_or_bytes_opt")] Option<Vec<u8>>);
 //! ```
 
@@ -85,7 +85,7 @@ mod test {
 
     #[test]
     fn test_hexstr_or_bytes_opt() {
-        #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+        #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
         struct Foo {
             #[serde(with = "hexstr_or_bytes_opt")]
             a1: Option<[u8; 32]>,
