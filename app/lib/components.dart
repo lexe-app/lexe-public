@@ -2,11 +2,13 @@
 library;
 
 import 'dart:async' show unawaited;
+import 'dart:io' show Platform;
 import 'dart:math' show max;
 
 import 'package:flutter/foundation.dart' show ValueListenable, clampDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MaxLengthEnforcement;
+import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/input_formatter.dart'
     show IntInputFormatter, MaxUtf8BytesInputFormatter;
@@ -1757,8 +1759,7 @@ class InfoCard extends StatelessWidget {
       elevation: 0.0,
       margin: const EdgeInsets.all(0),
       child: Padding(
-        padding: EdgeInsets.symmetric(
-            horizontal: this.bodyPadding, vertical: Space.s300 / 2),
+        padding: const EdgeInsets.symmetric(vertical: Space.s300 / 2),
         child: Column(
           children: this.children,
         ),
@@ -1804,43 +1805,77 @@ class InfoRow extends StatelessWidget {
     super.key,
     required this.label,
     required this.value,
+    this.bodyPadding = Space.s300,
   });
 
   final String label;
   final String value;
+  final double bodyPadding;
+
+  void copyValue(BuildContext context) {}
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: Space.s300 / 2),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints.tightFor(width: Space.s925),
-              child: Text(
-                this.label,
-                style: const TextStyle(
-                  color: LxColors.grey550,
-                  fontSize: Fonts.size200,
-                  height: 1.2,
-                ),
+  Widget build(BuildContext context) {
+    const valueStyle = TextStyle(
+      color: LxColors.fgSecondary,
+      fontSize: Fonts.size200,
+      height: 1.2,
+      fontFeatures: [Fonts.featDisambugation],
+    );
+
+    final isMobile = Platform.isAndroid || Platform.isIOS;
+
+    // Mobile: we'll make the text copy-on-tap
+    // Desktop: we'll make the text selectable
+
+    final valueText = (isMobile)
+        ? Text(this.value, style: valueStyle)
+        : SelectableText(this.value, style: valueStyle);
+
+    final row = Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: this.bodyPadding,
+        vertical: Space.s300 / 2,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints.tightFor(width: Space.s925),
+            child: Text(
+              this.label,
+              style: const TextStyle(
+                color: LxColors.grey550,
+                fontSize: Fonts.size200,
+                height: 1.2,
               ),
             ),
-            const SizedBox(width: Space.s400),
-            Expanded(
-              // TODO(phlip9): just copy to clipboard on tap or hold?
-              child: SelectableText(
-                this.value,
-                style: const TextStyle(
-                  color: LxColors.fgSecondary,
-                  fontSize: Fonts.size200,
-                  height: 1.2,
-                  fontFeatures: [Fonts.featDisambugation],
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
+          ),
+          const SizedBox(width: Space.s400),
+          Expanded(child: valueText),
+        ],
+      ),
+    );
+
+    /// On mobile, user taps/holds the row => copy to clipboard.
+    /// HACK: we'll copy only the first line, since that's where the primary
+    /// content usually is. We should really have different content types here
+    /// that self-determine how they should be copied.
+    void copyValue() {
+      if (this.value.isEmpty || this.value == " ") return;
+      final toCopy = this.value.split('\n').first;
+      unawaited(LxClipboard.copyTextWithFeedback(context, toCopy));
+    }
+
+    final maybeCopyOnTapRow = (isMobile)
+        ? InkWell(
+            onTap: copyValue,
+            onLongPress: copyValue,
+            child: row,
+          )
+        : row;
+
+    return maybeCopyOnTapRow;
+  }
 }
