@@ -36,6 +36,15 @@ abstract interface class SignupApi {
   });
 }
 
+/// Collect all the context required for the Signup flow.
+final class SignupCtx {
+  const SignupCtx(this.config, this.gdriveAuth, this.signupApi);
+
+  final Config config;
+  final GDriveAuth gdriveAuth;
+  final SignupApi signupApi;
+}
+
 class _ProdSignupApi implements SignupApi {
   const _ProdSignupApi._();
 
@@ -54,39 +63,21 @@ class _ProdSignupApi implements SignupApi {
 
 /// The entry point for the signup flow.
 class SignupPage extends StatelessWidget {
-  const SignupPage({
-    super.key,
-    required this.config,
-    required this.gdriveAuth,
-    required this.signupApi,
-  });
+  const SignupPage({super.key, required this.ctx});
 
-  final Config config;
-  final GDriveAuth gdriveAuth;
-  final SignupApi signupApi;
+  final SignupCtx ctx;
 
   @override
   Widget build(BuildContext context) => MultistepFlow<AppHandle?>(
-        builder: (_) => SignupGDriveAuthPage(
-          config: config,
-          gdriveAuth: gdriveAuth,
-          signupApi: signupApi,
-        ),
+        builder: (_) => SignupGDriveAuthPage(ctx: this.ctx),
       );
 }
 
 /// This page has a button to ask for the user's consent for GDrive permissions.
 class SignupGDriveAuthPage extends StatefulWidget {
-  const SignupGDriveAuthPage({
-    super.key,
-    required this.config,
-    required this.gdriveAuth,
-    required this.signupApi,
-  });
+  const SignupGDriveAuthPage({super.key, required this.ctx});
 
-  final Config config;
-  final GDriveAuth gdriveAuth;
-  final SignupApi signupApi;
+  final SignupCtx ctx;
 
   @override
   State<StatefulWidget> createState() => _SignupGDriveAuthPageState();
@@ -102,10 +93,12 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
   }
 
   Future<void> onAuthPressed() async {
+    final ctx = this.widget.ctx;
+
     // Hide error message
     this.errorMessage.value = null;
 
-    final result = await this.widget.gdriveAuth.tryAuthCodeOnly();
+    final result = await ctx.gdriveAuth.tryAuthCodeOnly();
     if (!this.mounted) return;
 
     final GDriveServerAuthCode authInfo;
@@ -127,11 +120,7 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
     // ignore: use_build_context_synchronously
     final AppHandle? flowResult = await Navigator.of(this.context).push(
       MaterialPageRoute(
-        builder: (_) => SignupBackupPasswordPage(
-          config: this.widget.config,
-          signupApi: this.widget.signupApi,
-          authInfo: authInfo,
-        ),
+        builder: (_) => SignupBackupPasswordPage(ctx: ctx, authInfo: authInfo),
       ),
     );
     if (flowResult == null) return;
@@ -195,13 +184,11 @@ of critical data on a regular basis.
 class SignupBackupPasswordPage extends StatefulWidget {
   const SignupBackupPasswordPage({
     super.key,
-    required this.config,
-    required this.signupApi,
+    required this.ctx,
     required this.authInfo,
   });
 
-  final Config config;
-  final SignupApi signupApi;
+  final SignupCtx ctx;
   final GDriveServerAuthCode authInfo;
 
   @override
@@ -285,11 +272,12 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
   }
 
   Future<void> onSubmitInner(String password) async {
-    final result = await this.widget.signupApi.signup(
-          config: this.widget.config,
-          googleAuthCode: this.widget.authInfo.serverAuthCode,
-          password: password,
-        );
+    final ctx = this.widget.ctx;
+    final result = await ctx.signupApi.signup(
+      config: ctx.config,
+      googleAuthCode: this.widget.authInfo.serverAuthCode,
+      password: password,
+    );
     if (!this.mounted) return;
 
     final AppHandle flowResult;

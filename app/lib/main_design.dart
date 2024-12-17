@@ -73,7 +73,7 @@ import 'package:lexeapp/route/send/state.dart'
         SendState_Preflighted;
 import 'package:lexeapp/route/show_qr.dart' show ShowQrPage;
 import 'package:lexeapp/route/signup.dart'
-    show SignupBackupPasswordPage, SignupPage;
+    show SignupBackupPasswordPage, SignupCtx, SignupPage;
 import 'package:lexeapp/route/wallet.dart' show WalletPage;
 import 'package:lexeapp/service/node_info.dart';
 import 'package:lexeapp/settings.dart' show LxSettings;
@@ -173,6 +173,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
     final mockSignupApi = mocks.MockSignupApi(app: mockApp);
     final mockRestoreApi = mocks.MockRestoreApi(app: mockApp);
     final mockFiatRate = this.makeFiatRateStream();
+    final mockSignupCtx =
+        SignupCtx(this.widget.config, GDriveAuth.mock, mockSignupApi);
 
     final cidBytes = List.generate(32, (idx) => idx);
     final cid = ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
@@ -213,26 +215,20 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
             Component(
               "SignupPage (mock gdrive)",
-              (context) => SignupPage(
-                config: widget.config,
-                gdriveAuth: GDriveAuth.mock,
-                signupApi: mockSignupApi,
-              ),
+              (context) => SignupPage(ctx: mockSignupCtx),
             ),
             Component(
               "SignupPage (real gdrive)",
               (context) => SignupPage(
-                config: widget.config,
-                gdriveAuth: GDriveAuth.prod,
-                signupApi: mockSignupApi,
+                ctx: SignupCtx(
+                    this.widget.config, GDriveAuth.prod, mockSignupApi),
               ),
             ),
             Component(
               "SignupBackupPasswordPage",
               (context) => SignupBackupPasswordPage(
-                config: widget.config,
+                ctx: mockSignupCtx,
                 authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
-                signupApi: mockSignupApi,
               ),
             ),
             Component(

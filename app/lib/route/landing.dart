@@ -16,7 +16,8 @@ import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/logger.dart' show error, info, warn;
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/restore.dart' show RestoreApi, RestorePage;
-import 'package:lexeapp/route/signup.dart' show SignupApi, SignupPage;
+import 'package:lexeapp/route/signup.dart'
+    show SignupApi, SignupCtx, SignupPage;
 import 'package:lexeapp/route/wallet.dart' show WalletPage;
 import 'package:lexeapp/settings.dart';
 import 'package:lexeapp/style.dart'
@@ -70,9 +71,8 @@ class _LandingPageState extends State<LandingPage> {
     final AppHandle? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => SignupPage(
-        config: this.widget.config,
-        gdriveAuth: this.widget.gdriveAuth,
-        signupApi: this.widget.signupApi,
+        ctx: SignupCtx(
+            this.widget.config, this.widget.gdriveAuth, this.widget.signupApi),
       ),
     ));
 
