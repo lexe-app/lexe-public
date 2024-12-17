@@ -85,6 +85,7 @@ impl AppHandle {
         config: Config,
         google_auth_code: String,
         password: &str,
+        signup_code: Option<String>,
     ) -> anyhow::Result<AppHandle> {
         // Ignored in local dev.
         //
@@ -94,9 +95,6 @@ impl AppHandle {
             DeployEnv::Dev => None,
             DeployEnv::Prod | DeployEnv::Staging => Some(google_auth_code),
         };
-
-        // TODO(max): Wire this through the FFI, I had flutter version issues...
-        let signup_code = None;
 
         let mut rng = SysRng::new();
         let root_seed = RootSeedRs::from_rng(&mut rng);

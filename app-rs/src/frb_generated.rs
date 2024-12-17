@@ -491,9 +491,10 @@ fn wire__crate__ffi__app__app_handle_signup_impl(
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_config = <crate::ffi::types::Config>::sse_decode(&mut deserializer);
 let api_google_auth_code = <String>::sse_decode(&mut deserializer);
-let api_password = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+let api_password = <String>::sse_decode(&mut deserializer);
+let api_signup_code = <Option<String>>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::signup(api_config, api_google_auth_code, &api_password).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::signup(api_config, api_google_auth_code, &api_password, api_signup_code).await?;   Ok(output_ok)
                     })().await)
                 } })
 }

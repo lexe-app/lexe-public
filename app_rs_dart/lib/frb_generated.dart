@@ -166,7 +166,8 @@ abstract class AppRsApi extends BaseApi {
   Future<AppHandle> crateFfiAppAppHandleSignup(
       {required Config config,
       required String googleAuthCode,
-      required String password});
+      required String password,
+      String? signupCode});
 
   Future<bool> crateFfiAppAppHandleSyncPayments({required AppHandle that});
 
@@ -1058,13 +1059,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Future<AppHandle> crateFfiAppAppHandleSignup(
       {required Config config,
       required String googleAuthCode,
-      required String password}) {
+      required String password,
+      String? signupCode}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_config(config, serializer);
         sse_encode_String(googleAuthCode, serializer);
         sse_encode_String(password, serializer);
+        sse_encode_opt_String(signupCode, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 30, port: port_);
       },
@@ -1073,14 +1076,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeErrorData: sse_decode_AnyhowException,
       ),
       constMeta: kCrateFfiAppAppHandleSignupConstMeta,
-      argValues: [config, googleAuthCode, password],
+      argValues: [config, googleAuthCode, password, signupCode],
       apiImpl: this,
     ));
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleSignupConstMeta => const TaskConstMeta(
         debugName: "app_handle_signup",
-        argNames: ["config", "googleAuthCode", "password"],
+        argNames: ["config", "googleAuthCode", "password", "signupCode"],
       );
 
   @override

@@ -172,9 +172,13 @@ class AppHandle {
   static Future<AppHandle> signup(
           {required Config config,
           required String googleAuthCode,
-          required String password}) =>
+          required String password,
+          String? signupCode}) =>
       AppRs.instance.api.crateFfiAppAppHandleSignup(
-          config: config, googleAuthCode: googleAuthCode, password: password);
+          config: config,
+          googleAuthCode: googleAuthCode,
+          password: password,
+          signupCode: signupCode);
 
   /// Sync the local payment DB to the remote node.
   ///
