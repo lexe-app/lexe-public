@@ -56,6 +56,14 @@
     <!--   <string>lightning</string> -->
     <!--   </array> -->
 
+    <!-- For TLS, we use ciphersuite=TLS13_AES_128_GCM_SHA256, kex=X25519.
+         We use AES-256-GCM to encrypt VFS files and root seed backup passwords.
+         These are IETF standard in TLSv1.3, so should be exempt:
+         <https://developer.apple.com/help/app-store-connect/reference/export-compliance-documentation-for-encryption>
+         -->
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
+
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSCameraUsageDescription</key>
