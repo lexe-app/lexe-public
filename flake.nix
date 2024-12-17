@@ -115,6 +115,9 @@
 
       # Android app development toolchains
       app-android = lexePubDevShells.app-android;
+
+      # iOS/macOS app development toolchains
+      app-ios-macos = lexePubDevShells.app-ios-macos;
     });
 
     # The *.nix file formatter.

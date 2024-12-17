@@ -63,6 +63,54 @@
     };
   };
 
+  # iOS/macOS app development toolchains
+  app-ios-macos = pkgs.mkShell {
+    name = "app-ios-macos";
+
+    # TODO(phlip9): can we pin/package the Xcode version here?
+    packages = [
+      # flutter/dart
+      lexePubPkgs.flutter
+      # rust toolchains for iOS/macOS
+      lexePubPkgs.rustLexeToolchainiOSmacOS
+      # fastlane - app deploy tooling
+      pkgs.fastlane
+      # pod
+      pkgs.cocoapods
+    ];
+
+    env = {
+      # flutter SDK directory
+      FLUTTER_ROOT = lexePubPkgs.flutter;
+
+      # TODO(phlip9): set DEVELOPER_DIR to nix store Xcode?
+      LEXE_XCODE_VERSION = "16.2";
+    };
+
+    shellHook = ''
+      unset GEM_HOME
+
+      # Check Xcode version
+      actualXcodeVers="$(plutil -extract CFBundleShortVersionString \
+        raw -n -o - /Applications/Xcode.app/Contents/version.plist)"
+      if [[ "$actualXcodeVers" != "$LEXE_XCODE_VERSION" ]]; then
+        echo >&2 "warning: you're using a different Xcode version than we expect."
+        echo >&2 ""
+        echo >&2 "      from: /Applications/Xcode.app/Contents/version.plist"
+        echo >&2 "    actual: $actualXcodeVers"
+        echo >&2 "  expected: $LEXE_XCODE_VERSION"
+        echo >&2 ""
+        echo >&2 "Please update Xcode!"
+      fi
+    '';
+
+    meta = {
+      # Missing: aarch64-linux, x86_64-linux
+      # Reason: impossible to build iOS/macOS apps on non-Apple platforms
+      platforms = ["aarch64-darwin"];
+    };
+  };
+
   #
   # SGX
   #

@@ -346,6 +346,21 @@
     fenixPkgs.targets.x86_64-linux-android.stable.rust-std
   ];
 
+  # Rust with iOS/macOS targets
+  #
+  # NOTE(phlip9): don't need to patch this toolchain since app builds don't work
+  # inside the sandbox :'). Instead we just use a devShell.
+  rustLexeToolchainiOSmacOS = fenixPkgs.combine [
+    fenixPkgs.stable.rustc
+    fenixPkgs.stable.cargo
+
+    # TODO(phlip9): x86_64-apple-darwin?
+    fenixPkgs.targets.aarch64-apple-darwin.stable.rust-std
+    # iOS uses a different target for simulator vs real HW
+    fenixPkgs.targets.aarch64-apple-ios.stable.rust-std
+    fenixPkgs.targets.aarch64-apple-ios-sim.stable.rust-std
+  ];
+
   # Our flutter version
   flutter = pkgs.flutter324;
 
