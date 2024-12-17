@@ -229,6 +229,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (context) => SignupBackupPasswordPage(
                 ctx: mockSignupCtx,
                 authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
+                signupCode: null,
               ),
             ),
             Component(

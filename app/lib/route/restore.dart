@@ -344,7 +344,7 @@ class _RestoreChooseWalletPageState extends State<RestoreChooseWalletPage> {
       body: ScrollableSinglePageBody(
         body: [
           const HeadingText(text: "Choose wallet to restore"),
-          const SubheadingText(text: "Wallets are listed by UserPk"),
+          const SubheadingText(text: "Wallets are listed by User public key"),
           const SizedBox(height: Space.s600),
 
           // List candidates (by UserPk)

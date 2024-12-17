@@ -25,6 +25,9 @@ import 'package:lexeapp/result.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
 
+/// Require a signup code to complete signup.
+const bool requireSignupCode = true;
+
 /// A tiny interface so we can mock the [AppHandle.signup] call in design mode.
 abstract interface class SignupApi {
   static const SignupApi prod = _ProdSignupApi._();
@@ -33,6 +36,7 @@ abstract interface class SignupApi {
     required Config config,
     required String googleAuthCode,
     required String password,
+    required String? signupCode,
   });
 }
 
@@ -53,11 +57,13 @@ class _ProdSignupApi implements SignupApi {
     required Config config,
     required String googleAuthCode,
     required String password,
+    required String? signupCode,
   }) =>
       Result.tryFfiAsync(() => AppHandle.signup(
             config: config,
             googleAuthCode: googleAuthCode,
             password: password,
+            signupCode: signupCode,
           ));
 }
 
@@ -69,15 +75,117 @@ class SignupPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MultistepFlow<AppHandle?>(
-        builder: (_) => SignupGDriveAuthPage(ctx: this.ctx),
+        builder: (_) => (requireSignupCode)
+            ? SignupCodePage(ctx: this.ctx)
+            : SignupGDriveAuthPage(ctx: this.ctx, signupCode: null),
       );
+}
+
+/// Ask the user for a signup code. While we're in closed beta, we'll require a
+/// signup code to limit testers.
+class SignupCodePage extends StatefulWidget {
+  const SignupCodePage({super.key, required this.ctx});
+
+  final SignupCtx ctx;
+
+  @override
+  State<SignupCodePage> createState() => _SignupCodePageState();
+}
+
+class _SignupCodePageState extends State<SignupCodePage> {
+  final GlobalKey<FormFieldState<String>> signupCodeKey = GlobalKey();
+
+  Result<String, String?> validateSignupCode(final String? signupCode) {
+    // Ensure not empty.
+    if (signupCode == null || signupCode.isEmpty) {
+      return const Err("");
+    }
+
+    // Remove whitespace and ensure all alphanumeric or dash.
+    final trimmed = signupCode.trim();
+    final nonAlphanumDash = RegExp(r'[^a-zA-Z0-9-]');
+    if (!trimmed.contains(nonAlphanumDash)) {
+      return Ok(trimmed);
+    } else {
+      return const Err("");
+    }
+  }
+
+  Future<void> onSubmit() async {
+    final codeField = this.signupCodeKey.currentState!;
+    if (!codeField.validate()) {
+      return;
+    }
+    final String signupCode;
+    switch (this.validateSignupCode(codeField.value)) {
+      case Ok(:final ok):
+        signupCode = ok;
+      case Err():
+        return;
+    }
+
+    final AppHandle? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            SignupGDriveAuthPage(ctx: this.widget.ctx, signupCode: signupCode),
+      ),
+    );
+    if (flowResult == null) return;
+    if (!this.mounted) return;
+
+    unawaited(Navigator.of(this.context).maybePop(flowResult));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
+        leading: const LxBackButton(isLeading: true),
+        actions: const [
+          LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
+          SizedBox(width: Space.s400),
+        ],
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const HeadingText(text: "Enter signup code"),
+          const SizedBox(height: Space.s600),
+
+          // Signup code field
+          TextFormField(
+            key: this.signupCodeKey,
+            autofocus: false,
+            textInputAction: TextInputAction.done,
+            validator: (str) => this.validateSignupCode(str).err,
+            onEditingComplete: this.onSubmit,
+            decoration: baseInputDecoration.copyWith(hintText: "Signup code"),
+            obscureText: false,
+            style: Fonts.fontUI.copyWith(
+              fontSize: Fonts.size700,
+              fontVariations: [Fonts.weightMedium],
+              fontFeatures: [Fonts.featDisambugation],
+              letterSpacing: -0.5,
+            ),
+          ),
+        ],
+        bottom: LxFilledButton.strong(
+          label: const Text("Continue"),
+          icon: const Icon(LxIcons.next),
+          onTap: this.onSubmit,
+        ),
+      ),
+    );
+  }
 }
 
 /// This page has a button to ask for the user's consent for GDrive permissions.
 class SignupGDriveAuthPage extends StatefulWidget {
-  const SignupGDriveAuthPage({super.key, required this.ctx});
+  const SignupGDriveAuthPage(
+      {super.key, required this.ctx, required this.signupCode});
 
   final SignupCtx ctx;
+  final String? signupCode;
 
   @override
   State<StatefulWidget> createState() => _SignupGDriveAuthPageState();
@@ -120,7 +228,11 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
     // ignore: use_build_context_synchronously
     final AppHandle? flowResult = await Navigator.of(this.context).push(
       MaterialPageRoute(
-        builder: (_) => SignupBackupPasswordPage(ctx: ctx, authInfo: authInfo),
+        builder: (_) => SignupBackupPasswordPage(
+          ctx: ctx,
+          authInfo: authInfo,
+          signupCode: this.widget.signupCode,
+        ),
       ),
     );
     if (flowResult == null) return;
@@ -186,10 +298,12 @@ class SignupBackupPasswordPage extends StatefulWidget {
     super.key,
     required this.ctx,
     required this.authInfo,
+    required this.signupCode,
   });
 
   final SignupCtx ctx;
   final GDriveServerAuthCode authInfo;
+  final String? signupCode;
 
   @override
   State<SignupBackupPasswordPage> createState() =>
@@ -277,6 +391,7 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
       config: ctx.config,
       googleAuthCode: this.widget.authInfo.serverAuthCode,
       password: password,
+      signupCode: this.widget.signupCode,
     );
     if (!this.mounted) return;
 

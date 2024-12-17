@@ -431,6 +431,7 @@ class MockSignupApi implements SignupApi {
     required Config config,
     required String googleAuthCode,
     required String password,
+    required String? signupCode,
   }) =>
       Future.delayed(
         const Duration(milliseconds: 2000),
