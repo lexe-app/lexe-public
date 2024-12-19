@@ -64,14 +64,17 @@
   };
 
   # iOS/macOS app development toolchains
-  app-ios-macos = pkgs.mkShell {
+  #
+  # Unfortunately, the nix `stdenv` clobbers the system Xcode tools, which we
+  # need to use for production iOS/macOS releases. This hacky `mkMinShell` lets
+  # us use `nix develop` while exactly controlling which envs we modify.
+  app-ios-macos = lexePubPkgs.mkMinShell {
     name = "app-ios-macos";
 
-    # TODO(phlip9): can we pin/package the Xcode version here?
     packages = [
       # flutter/dart
       lexePubPkgs.flutter
-      # rust toolchains for iOS/macOS
+      # rustc/cargo - rust toolchains for iOS/macOS
       lexePubPkgs.rustLexeToolchainiOSmacOS
       # fastlane - app deploy tooling
       pkgs.fastlane
@@ -80,35 +83,86 @@
     ];
 
     env = {
-      # flutter SDK directory
       FLUTTER_ROOT = lexePubPkgs.flutter;
-
-      # TODO(phlip9): set DEVELOPER_DIR to nix store Xcode?
       LEXE_XCODE_VERSION = "16.2";
+      LEXE_MACOS_SDK_VERSION = "15.2";
+      LEXE_IOS_SDK_VERSION = "18.2";
     };
 
     shellHook = ''
       unset GEM_HOME
 
-      # Check Xcode version
+      if [[ ! -d /Applications/Xcode.app ]]; then
+        echo >&2 "error: Xcode is not installed (/Applications/Xcode.app is missing)"
+        echo >&2 "suggestion: install Xcode from the App Store"
+        exit 1
+      fi
+
+      # Check Xcode.app version
       actualXcodeVers="$(plutil -extract CFBundleShortVersionString \
         raw -n -o - /Applications/Xcode.app/Contents/version.plist)"
       if [[ "$actualXcodeVers" != "$LEXE_XCODE_VERSION" ]]; then
-        echo >&2 "warning: you're using a different Xcode version than we expect."
+        echo >&2 "error: you're using a different Xcode version than we expect."
         echo >&2 ""
         echo >&2 "      from: /Applications/Xcode.app/Contents/version.plist"
         echo >&2 "    actual: $actualXcodeVers"
         echo >&2 "  expected: $LEXE_XCODE_VERSION"
         echo >&2 ""
-        echo >&2 "Please update Xcode!"
+        echo >&2 "suggestion: update Xcode in the App Store"
+        exit 1
+      fi
+
+      # Check it's system xcodebuild
+      if [[ "$(command -v xcodebuild)" != "/usr/bin/xcodebuild" ]]; then
+        echo >&2 "error: xcodebuild should be using the system path"
+        echo >&2 ""
+        echo >&2 "    actual: $(command -v xcodebuild || echo ' ')"
+        echo >&2 "  expected: /usr/bin/xcodebuild"
+        echo >&2 ""
+        echo >&2 "suggestion: install Xcode CommandLineTools via 'xcode-select -install'"
+        echo >&2 "or check your PATH"
+        exit 1
+      fi
+
+      # Check xcodebuild version
+      actualXcodebuildVers="$(xcodebuild -version | head -n 1 | cut -d ' ' -f 2)"
+      if [[ "$actualXcodebuildVers" != "$LEXE_XCODE_VERSION" ]]; then
+        echo >&2 "error: you're using a different xcodebuild version than we expect."
+        echo >&2 ""
+        echo >&2 "      from: xcodebuild -version"
+        echo >&2 "    actual: $actualXcodebuildVers"
+        echo >&2 "  expected: $LEXE_XCODE_VERSION"
+        echo >&2 ""
+        echo >&2 "suggestion: update Xcode in the App Store"
+        exit 1
+      fi
+
+      # Check macOS SDK version
+      if ! xcodebuild -version -sdk "macosx$LEXE_MACOS_SDK_VERSION" >/dev/null; then
+        echo >&2 "error: couldn't find macOS SDK version $LEXE_MACOS_SDK_VERSION"
+        echo >&2 "suggestion: open Xcode and poke around? IDK"
+        exit 1
+      fi
+
+      # Check iOS SDK version
+      if ! xcodebuild -version -sdk "iphoneos$LEXE_IOS_SDK_VERSION" >/dev/null; then
+        echo >&2 "error: couldn't find iOS SDK version $LEXE_IOS_SDK_VERSION"
+        echo >&2 "suggestion: open Xcode and poke around? IDK"
+        exit 1
+      fi
+
+      # Check it's system xcrun
+      if [[ "$(command -v xcrun)" != "/usr/bin/xcrun" ]]; then
+        echo >&2 "error: xcrun should be using the system path"
+        echo >&2 ""
+        echo >&2 "    actual: $(command -v xcrun || echo ' ')"
+        echo >&2 "  expected: /usr/bin/xcrun"
+        echo >&2 ""
+        echo >&2 "suggestion: install Xcode CommandLineTools via 'xcode-select -install'"
+        echo >&2 "or check your PATH"
+        exit 1
       fi
     '';
-
-    meta = {
-      # Missing: aarch64-linux, x86_64-linux
-      # Reason: impossible to build iOS/macOS apps on non-Apple platforms
-      platforms = ["aarch64-darwin"];
-    };
   };
 
   #
