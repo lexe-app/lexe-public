@@ -1,0 +1,40 @@
+# // vim: set ft=bash:
+#
+# An ultra-minimal, fake stdenv that does just enough for `nix develop` to work.
+
+addToSearchPathWithCustomDelimiter() {
+  local delimiter="$1"
+  local varName="$2"
+  local dir="$3"
+  if [[ -d "$dir" && "${!varName:+${delimiter}${!varName}${delimiter}}" \
+    != *"${delimiter}${dir}${delimiter}"* ]]; then
+      export "${varName}=${!varName:+${!varName}${delimiter}}${dir}"
+  fi
+}
+
+addToSearchPath() {
+  addToSearchPathWithCustomDelimiter ":" "$@"
+}
+
+# remove dummy path prefix set by nix `derivation`
+export PATH="${PATH#/path-not-set:}"
+
+# for each package, add it to PATH, XDG_DATA_DIRS, etc.
+for pkg in ${packages[@]}; do
+  if [[ -f "$pkg" ]]; then
+    source "$pkg"
+  fi
+
+  # bin packages get added to $PATH
+  addToSearchPath PATH "$pkg/bin"
+  # add to XDG_DATA_DIRS so bash-completion automagically works
+  addToSearchPath XDG_DATA_DIRS "$pkg/share"
+
+  if [[ -f "$pkg/nix-support/setup-hook" ]]; then
+    source "$pkg/nix-support/setup-hook"
+  fi
+done
+
+# dump all envs to $out. `nix develop` will consume these via its `get-env.sh`
+# script that it injects.
+export >> $out
