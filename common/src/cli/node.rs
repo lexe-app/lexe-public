@@ -74,6 +74,22 @@ pub struct RunArgs {
     /// The current deploy environment passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.
     pub untrusted_deploy_env: DeployEnv,
+
+    /// The value to set for `RUST_LOG`. Does nothing if set to [`None`].
+    /// Passed as an arg since envs aren't available in SGX.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_option_simple_string()")
+    )]
+    pub rust_log: Option<String>,
+
+    /// The value to set for `RUST_BACKTRACE`. Does nothing if set to [`None`].
+    /// Passed as an arg since envs aren't available in SGX.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_option_simple_string()")
+    )]
+    pub rust_backtrace: Option<String>,
 }
 
 impl ToCommand for RunArgs {
@@ -121,6 +137,22 @@ pub struct ProvisionArgs {
     /// The current deploy network passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.
     pub untrusted_network: LxNetwork,
+
+    /// The value to set for `RUST_LOG`. Does nothing if set to [`None`].
+    /// Passed as an arg since envs aren't available in SGX.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_option_simple_string()")
+    )]
+    pub rust_log: Option<String>,
+
+    /// The value to set for `RUST_BACKTRACE`. Does nothing if set to [`None`].
+    /// Passed as an arg since envs aren't available in SGX.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_option_simple_string()")
+    )]
+    pub rust_backtrace: Option<String>,
 }
 
 impl ToCommand for ProvisionArgs {
