@@ -119,7 +119,9 @@ fn subscriber() -> SubscriberType {
     let rust_log_filter = std::env::var("RUST_LOG")
         .ok()
         .and_then(|rust_log| Targets::from_str(&rust_log).ok())
-        .unwrap_or_else(|| Targets::new().with_default(Level::INFO));
+        // TODO(max): The default should be INFO. We should make it possible to
+        // configure RUST_LOG for SGX via env.
+        .unwrap_or_else(|| Targets::new().with_default(Level::DEBUG));
 
     let stdout_log = tracing_subscriber::fmt::layer()
         .compact()
