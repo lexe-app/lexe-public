@@ -51,6 +51,22 @@ impl NodeCommand {
         }
     }
 
+    /// Gets the value for `RUST_LOG` passed from args.
+    pub fn rust_log(&self) -> Option<&str> {
+        match self {
+            Self::Run(args) => args.rust_log.as_deref(),
+            Self::Provision(args) => args.rust_log.as_deref(),
+        }
+    }
+
+    /// Gets the value for `RUST_BACKTRACE` passed from args.
+    pub fn rust_backtrace(&self) -> Option<&str> {
+        match self {
+            Self::Run(args) => args.rust_backtrace.as_deref(),
+            Self::Provision(args) => args.rust_backtrace.as_deref(),
+        }
+    }
+
     /// Run this [`NodeCommand`].
     pub fn run(self) -> anyhow::Result<()> {
         // We have 2 total threads configured in our `Cargo.toml`.

@@ -1,4 +1,4 @@
-use std::{io::Write, process::ExitCode, time::Instant};
+use std::{env, io::Write, process::ExitCode, time::Instant};
 
 use lexe_ln::logger;
 use node::cli::NodeCommand;
@@ -11,8 +11,6 @@ pub fn main() -> ExitCode {
     #[cfg(target_env = "sgx")]
     sgx_panic_backtrace::set_panic_hook();
 
-    logger::init();
-
     let command = match NodeCommand::from_env() {
         Ok(Some(cmd)) => cmd,
         Ok(None) => return ExitCode::SUCCESS,
@@ -22,6 +20,18 @@ pub fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+
+    // SAFETY: All our thread spawning is in `command.run()`, so we're in a
+    // single-threaded environment at this point.
+    // Also, in SGX, this fn is safe because there is a lock around the envs.
+    unsafe {
+        // We don't set `RUST_LOG` so `logger::init` can enforce a log policy.
+        if let Some(value) = command.rust_backtrace() {
+            env::set_var("RUST_BACKTRACE", value);
+        }
+    }
+
+    logger::init(command.rust_log());
 
     let span = match command {
         NodeCommand::Run(_) => info_span!("(node)"),
