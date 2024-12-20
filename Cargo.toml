@@ -214,10 +214,11 @@ hyper_old = { package = "hyper", git = "https://github.com/lexe-app/hyper", bran
 # * license: Add dual license information
 # * lightning-net-tokio: Propagate tracing spans
 # * lightning-transaction-sync: esplora-client -> 0.10 TODO(max): Remove
-lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2024_11_14" }
-lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2024_11_14" }
-lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2024_11_14" }
-lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2024_11_14" }
+# * lightning-net-tokio(hack): Print before any panics TODO(max): Remove
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2024_12_19" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2024_12_19" }
+lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2024_12_19" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2024_12_19" }
 # lightning = { path = "../../ldk/lightning" }
 # lightning-invoice = { path = "../../ldk/lightning-invoice" }
 # lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }
