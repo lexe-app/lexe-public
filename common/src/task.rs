@@ -430,9 +430,10 @@ impl<T> Future for LxTask<T> {
                 // HACK: Try to flush the error before propagating.
                 // This is bc backtraces are getting swallowed by SGX.
                 {
-                    println!("FATAL ERROR: {join_err:#}");
-                    eprintln!("FATAL ERROR: {join_err:#}");
-                    tracing::error!("FATAL ERROR: {join_err:#}");
+                    let name = self.name();
+                    println!("FATAL TASK ERROR: {join_err:#} {name}");
+                    eprintln!("FATAL TASK ERROR: {join_err:#} {name}");
+                    tracing::error!(%name, "FATAL TASK ERROR: {join_err:#}");
                     if let Err(e) = std::io::stdout().flush() {
                         eprintln!("Toilet clogged! {e:#}");
                     }
