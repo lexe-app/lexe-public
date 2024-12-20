@@ -132,14 +132,15 @@ impl Args {
         enclave.args(self.enclave_args);
 
         // hook stdout so we can symbolize backtraces
-        if let Some(elf_bin_path) = maybe_elf_bin_path {
-            ENCLAVE_ELF_BIN_PATH.set(elf_bin_path).expect(
-                "ENCLAVE_ELF_BIN_PATH should never be set more than once",
-            );
-            let stdout = tokio::io::stdout();
-            let stdout = backtrace_symbolizer_stream(stdout);
-            enclave.stdout(stdout);
-        }
+        // TODO(max): Reenable once we can correctly capture backtraces in SGX.
+        // if let Some(elf_bin_path) = maybe_elf_bin_path {
+        //     ENCLAVE_ELF_BIN_PATH.set(elf_bin_path).expect(
+        //         "ENCLAVE_ELF_BIN_PATH should never be set more than once",
+        //     );
+        //     let stdout = tokio::io::stdout();
+        //     let stdout = backtrace_symbolizer_stream(stdout);
+        //     enclave.stdout(stdout);
+        // }
 
         // // TODO(phlip9): for some reason, this causes the runner to hang if
         // the enclave ever panics...
@@ -152,11 +153,24 @@ impl Args {
 
         // TODO(phlip9): catch SIGBUS to print nice error msg on stack overflow?
 
-        enclave_cmd
+        let result = enclave_cmd
             .run()
             .map_err(|err| format_err!("{err:#?}"))
-            .context("SGX enclave error")?;
-        Ok(())
+            .context("SGX enclave error");
+
+        if let Err(ref error) = result {
+            println!("RUN-SGX FATAL ERROR: {error}");
+            eprintln!("RUN-SGX FATAL ERROR: {error}");
+            if let Err(e) = std::io::stdout().flush() {
+                eprintln!("stdout clogged! {e:#}");
+            }
+            if let Err(e) = std::io::stderr().flush() {
+                println!("stderr clogged! {e:#}");
+            }
+            std::thread::sleep(std::time::Duration::from_secs(1));
+        }
+
+        result
     }
 
     #[cfg(not(all(target_arch = "x86_64", target_os = "linux")))]
