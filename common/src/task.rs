@@ -417,6 +417,8 @@ impl<T> Future for LxTask<T> {
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
+        use std::io::Write;
+
         let result = match Pin::new(&mut self.task).poll(cx) {
             Poll::Ready(result) => result,
             Poll::Pending => return Poll::Pending,
@@ -424,15 +426,31 @@ impl<T> Future for LxTask<T> {
 
         let result = match result {
             Ok(val) => Ok(val),
-            Err(join_err) => match join_err.try_into_panic() {
-                // If the inner spawned task panicked, then propagate the panic
-                // to the `LxTask` poller.
-                Ok(panic_reason) => {
-                    error!("Task '{name}' panicked!", name = self.name());
-                    std::panic::resume_unwind(panic_reason)
+            Err(join_err) => {
+                // HACK: Try to flush the error before propagating.
+                // This is bc backtraces are getting swallowed by SGX.
+                {
+                    println!("FATAL ERROR: {join_err:#}");
+                    eprintln!("FATAL ERROR: {join_err:#}");
+                    tracing::error!("FATAL ERROR: {join_err:#}");
+                    if let Err(e) = std::io::stdout().flush() {
+                        eprintln!("Toilet clogged! {e:#}");
+                    }
+                    if let Err(e) = std::io::stderr().flush() {
+                        println!("Toilet clogged! {e:#}");
+                    }
                 }
-                Err(join_err) => Err(join_err),
-            },
+
+                match join_err.try_into_panic() {
+                    // If the inner spawned task panicked, then propagate the
+                    // panic to the `LxTask` poller.
+                    Ok(panic_reason) => {
+                        error!("Task '{name}' panicked!", name = self.name());
+                        std::panic::resume_unwind(panic_reason)
+                    }
+                    Err(join_err) => Err(join_err),
+                }
+            }
         };
 
         Poll::Ready(result)
