@@ -9,7 +9,7 @@ use anyhow::anyhow;
 #[cfg(doc)]
 use common::api::trace::TraceId;
 use common::{api::trace, define_trace_id_fns};
-use tracing::Level;
+use tracing::{level_filters::LevelFilter, Level};
 use tracing_subscriber::{
     filter::{Filtered, Targets},
     fmt::{
@@ -88,9 +88,18 @@ type SubscriberType = Layered<
 fn subscriber(rust_log: &str) -> SubscriberType {
     // TODO(phlip9): non-blocking writer for prod
     // see: https://docs.rs/tracing-appender/latest/tracing_appender/non_blocking/index.html
-    let rust_log_filter = Targets::from_str(rust_log)
+    let targets = Targets::from_str(rust_log)
         .inspect_err(|e| eprintln!("Invalid RUST_LOG; using INFO: {e}"))
         .unwrap_or_else(|_| Targets::new().with_default(Level::INFO));
+
+    let clamped_targets =
+        if cfg!(any(test, debug_assertions, feature = "test-utils")) {
+            // Allow TRACE logs in tests / debug builds.
+            targets
+        } else {
+            // Disallow TRACE logs in production.
+            enforce_log_policy(targets)
+        };
 
     let stdout_log = tracing_subscriber::fmt::Layer::default()
         .compact()
@@ -100,9 +109,34 @@ fn subscriber(rust_log: &str) -> SubscriberType {
         // TODO(max): This should be disabled when outputting to files - a
         //            second subscriber is probably needed.
         .with_ansi(true)
-        .with_filter(rust_log_filter);
+        .with_filter(clamped_targets);
 
     tracing_subscriber::registry().with(stdout_log)
+}
+
+/// Disallows TRACE logs as a default or for any specific target.
+fn enforce_log_policy(targets: Targets) -> Targets {
+    /// Sets a level to DEBUG if it is currently specified as TRACE.
+    fn clamp_level(level: LevelFilter) -> LevelFilter {
+        if level == LevelFilter::TRACE {
+            LevelFilter::DEBUG
+        } else {
+            level
+        }
+    }
+
+    // Disallow TRACE. Set the default level to INFO if no default is set.
+    let clamped_default = match targets.default_level() {
+        Some(level) => clamp_level(level),
+        None => LevelFilter::INFO,
+    };
+
+    let targets = targets
+        .into_iter()
+        .map(|(target, level)| (target, clamp_level(level)))
+        .collect::<Targets>();
+
+    targets.with_default(clamped_default)
 }
 
 #[cfg(test)]
