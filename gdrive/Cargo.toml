@@ -29,7 +29,7 @@ tokio = { workspace = true, features = ["sync"] }
 
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }
-logger = { path = "../logger" }
+logger = { path = "../logger", features = ["test-utils"] }
 
 proptest.workspace = true
 proptest-derive.workspace = true

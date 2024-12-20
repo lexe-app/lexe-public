@@ -36,6 +36,7 @@ pub fn init() {
 }
 
 /// Use this to initialize the global logger in tests.
+#[cfg(any(test, feature = "test-utils"))]
 pub fn init_for_testing() {
     // Don't panic if there's already a logger setup.
     // Multiple tests might try setting the global logger.

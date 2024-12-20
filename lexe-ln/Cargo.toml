@@ -6,7 +6,6 @@ license.workspace = true
 version.workspace = true
 
 [features]
-# Explicitly specify that no features should be enabled by default.
 default = []
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
 test-utils = ["common/test-utils"]
