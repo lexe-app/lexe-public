@@ -37,7 +37,7 @@ use crate::{
 #[cfg(debug_assertions)]
 const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_secs(600);
 #[cfg(not(debug_assertions))]
-const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_secs(10);
+const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_secs(60);
 const PEER_MANAGER_PING_INTERVAL: Duration = Duration::from_secs(15);
 const CHANNEL_MANAGER_TICK_INTERVAL: Duration = Duration::from_secs(60);
 const NETWORK_GRAPH_INITIAL_DELAY: Duration = Duration::from_secs(60);
@@ -89,8 +89,6 @@ impl LexeBackgroundProcessor {
                 |event| event_handler.get_ldk_handler_future(event);
 
             loop {
-                debug!("Beginning BGP loop iteration");
-
                 // A future that completes when any of the following applies:
                 //
                 // 1) We need to reprocess events
