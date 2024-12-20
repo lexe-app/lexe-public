@@ -133,6 +133,7 @@ impl Args {
 
         // hook stdout so we can symbolize backtraces
         // TODO(max): Reenable once we can correctly capture backtraces in SGX.
+        let _ = maybe_elf_bin_path;
         // if let Some(elf_bin_path) = maybe_elf_bin_path {
         //     ENCLAVE_ELF_BIN_PATH.set(elf_bin_path).expect(
         //         "ENCLAVE_ELF_BIN_PATH should never be set more than once",
