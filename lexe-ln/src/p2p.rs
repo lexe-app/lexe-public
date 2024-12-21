@@ -106,8 +106,13 @@ use std::{
 
 use anyhow::{anyhow, ensure, Context};
 use common::{
-    api::user::NodePk, backoff, ln::addr::LxSocketAddress, notify,
-    notify_once::NotifyOnce, task::LxTask, Apply,
+    api::user::NodePk,
+    backoff,
+    ln::addr::LxSocketAddress,
+    notify,
+    notify_once::NotifyOnce,
+    task::{LxTask, MaybeLxTask},
+    Apply,
 };
 use lightning::ln::peer_handler::PeerHandleError;
 #[cfg(doc)]
@@ -124,7 +129,7 @@ use tokio::{
     },
     time,
 };
-use tracing::{debug, info_span, instrument, trace, warn};
+use tracing::{debug, info, info_span, instrument, trace, warn};
 
 /// The max time we'll wait for an outbound p2p TCP connection to connect.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -145,7 +150,7 @@ pub async fn connect_peer_if_necessary<PM>(
     peer_manager: &PM,
     node_pk: &NodePk,
     addrs: &[LxSocketAddress],
-) -> anyhow::Result<()>
+) -> anyhow::Result<MaybeLxTask<()>>
 where
     PM: PeerManagerTrait,
 {
@@ -154,7 +159,7 @@ where
     // Early return if we're already connected
     // TODO(max): LDK's fn is O(n) in the # of peers...
     if peer_manager.is_connected(node_pk) {
-        return Ok(());
+        return Ok(MaybeLxTask(None));
     }
 
     // Cycle the given addresses in order
@@ -167,8 +172,7 @@ where
         let addr = addrs.next().expect("Cycling through a non-empty slice");
 
         match do_connect_peer(peer_manager, node_pk, addr).await {
-            // TODO(phlip9): propagate conn_task
-            Ok(_conn_task) => return Ok(()),
+            Ok(conn_task) => return Ok(MaybeLxTask(Some(conn_task))),
             Err(e) => warn!("Failed to connect to peer: {e:#}"),
         }
 
@@ -181,25 +185,24 @@ where
         // Right before the next attempt, check again whether we're connected in
         // case another task managed to connect while we were sleeping.
         if peer_manager.is_connected(node_pk) {
-            return Ok(());
+            return Ok(MaybeLxTask(None));
         }
     }
 
     // Do the last attempt.
     let addr = addrs.next().expect("Cycling through a non-empty slice");
-    // TODO(phlip9): propagate conn_task
-    let _conn_task = do_connect_peer(peer_manager, node_pk, addr)
+    let conn_task = do_connect_peer(peer_manager, node_pk, addr)
         .await
         .context("Failed to connect to peer")?;
 
-    Ok(())
+    Ok(MaybeLxTask(Some(conn_task)))
 }
 
 async fn do_connect_peer<PM>(
     peer_manager: &PM,
     node_pk: &NodePk,
     addr: &LxSocketAddress,
-) -> anyhow::Result<LxTask<Disconnect>>
+) -> anyhow::Result<LxTask<()>>
 where
     PM: PeerManagerTrait,
 {
@@ -270,13 +273,10 @@ where
 
 /// Spawn a task to handle a new inbound p2p TCP connection and register it with
 /// the LDK [`PeerManager`].
-pub fn spawn_inbound<PM>(
+pub fn spawn_inbound<PM: PeerManagerTrait>(
     peer_manager: &PM,
     stream: TcpStream,
-) -> LxTask<Disconnect>
-where
-    PM: PeerManagerTrait,
-{
+) -> LxTask<()> {
     let conn = Connection::setup_inbound(peer_manager, stream);
     // TODO(phlip9): find a way to set task name with node_pk after handshake?
     let task_name = format!("p2p-conn--inbound-{}", conn.ctl.id);
@@ -286,14 +286,11 @@ where
 /// Spawn a task that calls [`PeerManager::process_events`] on notification.
 // TODO(phlip9): move BGP pm_timer.tick() here?
 // TODO(phlip9): move BGP process_events -> peer_manager.process_events() here?
-pub fn spawn_process_events_task<PM>(
+pub fn spawn_process_events_task<PM: PeerManagerTrait>(
     peer_manager: PM,
     mut process_events_rx: notify::Receiver,
     mut shutdown: NotifyOnce,
-) -> LxTask<()>
-where
-    PM: PeerManagerTrait,
-{
+) -> LxTask<()> {
     const SPAN_NAME: &str = "(process-p2p)(peer-man)";
     LxTask::spawn_named_with_span(
         SPAN_NAME,
@@ -563,12 +560,12 @@ impl<PM: PeerManagerTrait> Connection<PM> {
         conn
     }
 
-    async fn run(mut self) -> Disconnect {
+    async fn run(mut self) {
         self.run_ref().await
     }
 
     #[instrument(skip_all, name = "(p2p-conn)", fields(id = self.ctl.id))]
-    async fn run_ref(&mut self) -> Disconnect {
+    async fn run_ref(&mut self) {
         trace!("start");
 
         let disconnect = loop {
@@ -680,8 +677,14 @@ impl<PM: PeerManagerTrait> Connection<PM> {
         // Close the mpsc queue
         self.write_rx.close();
 
-        trace!(?disconnect);
-        disconnect
+        match disconnect {
+            Disconnect::Socket(error) =>
+                warn!("Disconnected: Socket error: {error}"),
+            Disconnect::ReadClosed => info!("Disconnected: Read closed"),
+            Disconnect::WriteClosed => info!("Disconnected: Write closed"),
+            Disconnect::PeerManager =>
+                info!("Disconnected: PeerManager called disconnect_socket"),
+        }
     }
 
     /// Do we want to read and/or write to the socket?
@@ -956,7 +959,7 @@ impl ConnectionTx {
             // Enqueue `data` to be written
             Ok(send_permit) => {
                 let write_len = data.len();
-                trace!(write_len, "ConnectionTx => do_send_data");
+                trace!(write_len, "ConnectionTx => try_send_data");
                 send_permit.send(data.into());
                 write_len
             }
@@ -1125,6 +1128,7 @@ mod test {
         cell::Cell,
         cmp::min,
         collections::VecDeque,
+        io,
         sync::{Arc, Mutex},
     };
 

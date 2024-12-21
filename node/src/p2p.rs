@@ -1,9 +1,14 @@
 use std::time::Duration;
 
 use anyhow::Context;
-use common::{cli::LspInfo, notify_once::NotifyOnce, task::LxTask};
+use common::{
+    cli::LspInfo,
+    notify_once::NotifyOnce,
+    task::{LxTask, MaybeLxTask},
+};
 use lexe_ln::p2p;
-use tracing::{info, info_span, warn};
+use tokio::sync::mpsc;
+use tracing::{debug, info, info_span, warn};
 
 use crate::peer_manager::NodePeerManager;
 
@@ -18,15 +23,24 @@ const LSP_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
 pub(crate) async fn connect_to_lsp_then_spawn_connector_task(
     peer_manager: NodePeerManager,
     lsp: &LspInfo,
+    eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     mut shutdown: NotifyOnce,
 ) -> anyhow::Result<LxTask<()>> {
     let lsp_node_pk = lsp.node_pk;
     let lsp_addrs = [lsp.private_p2p_addr.clone()];
 
     // Do the initial connection to the LSP.
-    p2p::connect_peer_if_necessary(&peer_manager, &lsp_node_pk, &lsp_addrs)
-        .await
-        .context("Failed initial connection to LSP")?;
+    debug!("Starting initial connection to LSP");
+    let maybe_task =
+        p2p::connect_peer_if_necessary(&peer_manager, &lsp_node_pk, &lsp_addrs)
+            .await
+            .context("Failed initial connection to LSP")?;
+    if let MaybeLxTask(Some(task)) = maybe_task {
+        if eph_tasks_tx.try_send(task).is_err() {
+            warn!("Failed to send LSP connection task (1)");
+        }
+    }
+    info!("Completed initial connection to LSP");
 
     const SPAN_NAME: &str = "(lsp-connector)";
     Ok(LxTask::spawn_named_with_span(
@@ -53,7 +67,14 @@ pub(crate) async fn connect_to_lsp_then_spawn_connector_task(
                     .await;
 
                     match result {
-                        Ok(()) => info!("(Re)connected to LSP"),
+                        Ok(maybe_task) => {
+                            info!("(Re)connected to LSP");
+                            if let MaybeLxTask(Some(task)) = maybe_task {
+                                if eph_tasks_tx.try_send(task).is_err() {
+                                    warn!("Failed to send LSP conn task (2)");
+                                }
+                            }
+                        }
                         Err(e) => warn!("Couldn't (re)connect to LSP: {e:#}"),
                     }
                 };

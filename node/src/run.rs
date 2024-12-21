@@ -25,7 +25,7 @@ use common::{
     notify_once::NotifyOnce,
     rng::{Crng, SysRng},
     root_seed::RootSeed,
-    task::{self, LxTask},
+    task::{self, LxTask, MaybeLxTask},
     Apply,
 };
 use const_utils::const_assert;
@@ -86,7 +86,8 @@ pub struct UserNode {
     args: RunArgs,
     deploy_env: DeployEnv,
     ports: Ports,
-    tasks: Vec<LxTask<()>>,
+    static_tasks: Vec<LxTask<()>>,
+    eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     shutdown: NotifyOnce,
 
     // --- Actors --- //
@@ -110,6 +111,9 @@ pub struct UserNode {
 
     // --- Contexts --- //
     sync: Option<SyncContext>,
+    // This is moved out of self during `run`.
+    // TODO(max): Add RunContext if there are more fields
+    eph_tasks_rx: mpsc::Receiver<LxTask<()>>,
 }
 
 /// Fields which are "moved" out of [`UserNode`] during `sync`.
@@ -163,6 +167,7 @@ impl UserNode {
             mpsc::channel(SMALLER_CHANNEL_SIZE);
         let (test_event_tx, test_event_rx) = test_event::channel("(node)");
         let test_event_rx = Arc::new(tokio::sync::Mutex::new(test_event_rx));
+        let (eph_tasks_tx, eph_tasks_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let shutdown = NotifyOnce::new();
 
         // Version
@@ -171,8 +176,8 @@ impl UserNode {
             .apply(semver::Version::parse)
             .expect("Checked in tests");
 
-        // Collect all handles to spawned tasks
-        let mut tasks = Vec::with_capacity(10);
+        // Collect all handles to static tasks
+        let mut static_tasks = Vec::with_capacity(10);
 
         // Only accept esplora urls whitelisted in the given `network`.
         // - Note that seeing a non-whitelisted url does not necessary mean we
@@ -199,6 +204,7 @@ impl UserNode {
                 rng,
                 filtered_esplora_urls,
                 broadcast_hook,
+                eph_tasks_tx.clone(),
                 test_event_tx.clone(),
                 shutdown.clone()
             ),
@@ -211,7 +217,7 @@ impl UserNode {
         );
         let (esplora, refresh_fees_task, esplora_url) =
             try_esplora.context("Failed to init esplora")?;
-        tasks.push(refresh_fees_task);
+        static_tasks.push(refresh_fees_task);
         let ProvisionedSecrets {
             user,
             root_seed,
@@ -287,7 +293,7 @@ impl UserNode {
             )
             .await
             .context("init_google_vfs failed")?;
-            tasks.push(credentials_persister_task);
+            static_tasks.push(credentials_persister_task);
             Some(Arc::new(google_vfs))
         } else {
             None
@@ -394,7 +400,7 @@ impl UserNode {
         )
         .await
         .context("Could not init BDK wallet")?;
-        tasks.push(wallet::spawn_wallet_persister_task(
+        static_tasks.push(wallet::spawn_wallet_persister_task(
             persister.clone(),
             wallet.clone(),
             wallet_persister_rx,
@@ -534,7 +540,7 @@ impl UserNode {
             logger.clone(),
             shutdown.clone(),
         );
-        tasks.push(process_events_task);
+        static_tasks.push(process_events_task);
 
         // Init payments manager
         let (onchain_recv_tx, onchain_recv_rx) = notify::channel();
@@ -549,7 +555,7 @@ impl UserNode {
             test_event_tx.clone(),
             shutdown.clone(),
         );
-        tasks.extend(payments_tasks);
+        static_tasks.extend(payments_tasks);
 
         // Initialize the event handler
         let channel_events_bus = ChannelEventsBus::new();
@@ -566,6 +572,7 @@ impl UserNode {
                 payments_manager: payments_manager.clone(),
                 channel_events_bus: channel_events_bus.clone(),
                 scorer_persist_tx,
+                eph_tasks_tx: eph_tasks_tx.clone(),
                 test_event_tx: test_event_tx.clone(),
                 shutdown: shutdown.clone(),
             }),
@@ -574,12 +581,13 @@ impl UserNode {
         // Set up the channel monitor persistence task
         let (process_events_tx, process_events_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
-        tasks.push(channel_monitor::spawn_channel_monitor_persister_task(
+        let task = channel_monitor::spawn_channel_monitor_persister_task(
             chain_monitor.clone(),
             channel_monitor_persister_rx,
             process_events_tx,
             shutdown.clone(),
-        ));
+        );
+        static_tasks.push(task);
 
         // Start API server for app
         let app_router_state = Arc::new(AppRouterState {
@@ -601,6 +609,7 @@ impl UserNode {
             bdk_resync_tx: bdk_resync_tx.clone(),
             ldk_resync_tx: ldk_resync_tx.clone(),
             channel_events_bus,
+            eph_tasks_tx: eph_tasks_tx.clone(),
         });
         let app_listener =
             TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
@@ -624,7 +633,7 @@ impl UserNode {
                 shutdown.clone(),
             )
             .context("Failed to spawn app node run server task")?;
-        tasks.push(app_server_task);
+        static_tasks.push(app_server_task);
 
         // Start API server for Lexe operators
         // TODO(phlip9): authenticate lexe<->node
@@ -652,7 +661,7 @@ impl UserNode {
                 shutdown.clone(),
             )
             .context("Failed to spawn lexe node run server task")?;
-        tasks.push(lexe_server_task);
+        static_tasks.push(lexe_server_task);
 
         // Prepare the ports that we'll notify the runner of once we're ready
         let ports = Ports::new_run(user_pk, app_port, lexe_port);
@@ -675,7 +684,7 @@ impl UserNode {
             scorer_persist_rx,
             shutdown.clone(),
         );
-        tasks.push(bg_processor_task);
+        static_tasks.push(bg_processor_task);
 
         // Construct (but don't start) the inactivity timer
         let inactivity_timer = InactivityTimer::new(
@@ -694,7 +703,8 @@ impl UserNode {
             args,
             deploy_env,
             ports,
-            tasks,
+            static_tasks,
+            eph_tasks_tx,
             shutdown,
 
             // Actors
@@ -725,6 +735,7 @@ impl UserNode {
                 bdk_resync_rx,
                 ldk_resync_rx,
             }),
+            eph_tasks_rx,
         })
     }
 
@@ -734,7 +745,7 @@ impl UserNode {
 
         // BDK: Do initial wallet sync
         let (first_bdk_sync_tx, first_bdk_sync_rx) = oneshot::channel();
-        self.tasks.push(sync::spawn_bdk_sync_task(
+        self.static_tasks.push(sync::spawn_bdk_sync_task(
             self.wallet.clone(),
             ctxt.onchain_recv_tx,
             first_bdk_sync_tx,
@@ -746,7 +757,7 @@ impl UserNode {
 
         // LDK: Do initial tx sync
         let (first_ldk_sync_tx, first_ldk_sync_rx) = oneshot::channel();
-        self.tasks.push(sync::spawn_ldk_sync_task(
+        self.static_tasks.push(sync::spawn_ldk_sync_task(
             self.channel_manager.clone(),
             self.chain_monitor.clone(),
             ctxt.ldk_sync_client,
@@ -771,12 +782,13 @@ impl UserNode {
             self.deploy_env,
             self.args.allow_mock,
             &self.args.lsp,
+            self.eph_tasks_tx.clone(),
             self.shutdown.clone(),
         )
         .await
         .context("maybe_reconnect_to_lsp failed")?;
-        if let Some(connector_task) = maybe_connector_task {
-            self.tasks.push(connector_task);
+        if let MaybeLxTask(Some(connector_task)) = maybe_connector_task {
+            self.static_tasks.push(connector_task);
         }
 
         // NOTE: It is important that we tell the runner that we're ready only
@@ -803,10 +815,12 @@ impl UserNode {
 
         // Sync is complete; start the inactivity timer.
         debug!("Starting inactivity timer");
-        self.tasks
-            .push(LxTask::spawn_named("inactivity timer", async move {
+        self.static_tasks.push(LxTask::spawn_named(
+            "inactivity timer",
+            async move {
                 self.inactivity_timer.start().await;
-            }));
+            },
+        ));
 
         // --- Run --- //
 
@@ -816,7 +830,8 @@ impl UserNode {
         );
 
         task::try_join_tasks_and_shutdown(
-            self.tasks,
+            self.static_tasks,
+            self.eph_tasks_rx,
             self.shutdown.clone(),
             constants::USER_NODE_SHUTDOWN_TIMEOUT,
         )
@@ -1021,8 +1036,9 @@ async fn maybe_reconnect_to_lsp(
     deploy_env: DeployEnv,
     allow_mock: bool,
     lsp: &LspInfo,
+    eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     shutdown: NotifyOnce,
-) -> anyhow::Result<Option<LxTask<()>>> {
+) -> anyhow::Result<MaybeLxTask<()>> {
     if deploy_env.is_staging_or_prod() || lsp.node_api_url.is_some() {
         // If --allow-mock was set, the caller may have made an error.
         ensure!(
@@ -1034,15 +1050,16 @@ async fn maybe_reconnect_to_lsp(
         let task = p2p::connect_to_lsp_then_spawn_connector_task(
             peer_manager,
             lsp,
+            eph_tasks_tx,
             shutdown,
         )
         .await
         .context("connect_to_lsp_then_spawn_connector_task failed")?;
 
-        Ok(Some(task))
+        Ok(MaybeLxTask(Some(task)))
     } else {
         ensure!(allow_mock, "To mock the LSP, allow_mock must be set");
         info!("Skipping P2P reconnection to LSP");
-        Ok(None)
+        Ok(MaybeLxTask(None))
     }
 }

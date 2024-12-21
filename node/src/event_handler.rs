@@ -62,7 +62,8 @@ use lexe_ln::{
     wallet::LexeWallet,
 };
 use lightning::events::{Event, PaymentFailureReason, ReplayEvent};
-use tracing::{error, info, warn, Instrument};
+use tokio::sync::mpsc;
+use tracing::{error, info, info_span, warn, Instrument};
 
 use crate::{alias::PaymentsManagerType, channel_manager::NodeChannelManager};
 
@@ -83,6 +84,7 @@ pub(crate) struct EventCtx {
     pub(crate) payments_manager: PaymentsManagerType,
     pub(crate) channel_events_bus: ChannelEventsBus,
     pub(crate) scorer_persist_tx: notify::Sender,
+    pub(crate) eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     pub(crate) test_event_tx: TestEventSender,
     pub(crate) shutdown: NotifyOnce,
 }
@@ -429,14 +431,21 @@ async fn do_handle_event(
         Event::HTLCHandlingFailed { .. } => {}
 
         Event::PendingHTLCsForwardable { time_forwardable } => {
-            let forwarding_channel_manager = ctx.channel_manager.clone();
-            let millis_to_sleep = time_forwardable.as_millis() as u64;
-            LxTask::spawn(async move {
-                tokio::time::sleep(Duration::from_millis(millis_to_sleep))
-                    .await;
-                forwarding_channel_manager.process_pending_htlc_forwards();
-            })
-            .detach();
+            let channel_manager = ctx.channel_manager.clone();
+            let time_to_sleep =
+                Duration::from_millis(time_forwardable.as_millis() as u64);
+            let task = LxTask::spawn_named_with_span(
+                "PendingHTLCsForwardable handler",
+                info_span!("(pending-htlc-fwd)"),
+                async move {
+                    tokio::time::sleep(time_to_sleep).await;
+                    channel_manager.process_pending_htlc_forwards();
+                    info!("Processed pending HTLC forwards");
+                },
+            );
+            if ctx.eph_tasks_tx.try_send(task).is_err() {
+                warn!("(PendingHTLCsForwardable) Couldn't send task");
+            }
         }
 
         Event::SpendableOutputs {

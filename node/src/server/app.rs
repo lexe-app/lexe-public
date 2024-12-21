@@ -21,9 +21,11 @@ use common::{
     constants,
     ln::{amount::Amount, channel::LxUserChannelId, payments::VecBasicPayment},
     rng::SysRng,
+    task::MaybeLxTask,
 };
 use lexe_api::server::{extract::LxQuery, LxJson};
 use lexe_ln::{command::CreateInvoiceCaller, p2p};
+use tracing::warn;
 
 use super::AppRouterState;
 use crate::channel_manager;
@@ -72,10 +74,23 @@ pub(super) async fn open_channel(
     let lsp_addrs = slice::from_ref(&lsp_info.private_p2p_addr);
 
     // Callback ensures we're connected to the LSP.
+    let eph_tasks_tx = state.eph_tasks_tx.clone();
     let ensure_lsp_connected = || async move {
-        p2p::connect_peer_if_necessary(peer_manager, lsp_node_pk, lsp_addrs)
-            .await
-            .context("Could not connect to Lexe LSP")
+        let maybe_task = p2p::connect_peer_if_necessary(
+            peer_manager,
+            lsp_node_pk,
+            lsp_addrs,
+        )
+        .await
+        .context("Could not connect to Lexe LSP")?;
+
+        if let MaybeLxTask(Some(task)) = maybe_task {
+            if eph_tasks_tx.try_send(task).is_err() {
+                warn!("(open_channel) Couldn't send task");
+            }
+        }
+
+        Ok(())
     };
 
     // Open the channel and wait for `ChannelPending`.
@@ -147,11 +162,25 @@ pub(super) async fn close_channel(
     // connected to the LSP. Proactively reconnect if necessary.
     let lsp_node_pk = &lsp_info.node_pk;
     let lsp_addrs = slice::from_ref(&lsp_info.private_p2p_addr);
+    let eph_tasks_tx = state.eph_tasks_tx.clone();
     let ensure_lsp_connected = |node_pk| async move {
         ensure!(&node_pk == lsp_node_pk, "Can only connect to the Lexe LSP");
-        p2p::connect_peer_if_necessary(peer_manager, lsp_node_pk, lsp_addrs)
-            .await
-            .context("Could not connect to Lexe LSP")
+
+        let maybe_task = p2p::connect_peer_if_necessary(
+            peer_manager,
+            lsp_node_pk,
+            lsp_addrs,
+        )
+        .await
+        .context("Could not connect to Lexe LSP")?;
+
+        if let MaybeLxTask(Some(task)) = maybe_task {
+            if eph_tasks_tx.try_send(task).is_err() {
+                warn!("(close_channel) Failed to send connection task");
+            }
+        }
+
+        Ok(())
     };
 
     lexe_ln::command::close_channel(

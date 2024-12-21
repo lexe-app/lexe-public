@@ -7,6 +7,9 @@ use tokio::{
 };
 use tracing::{debug, info, trace};
 
+// TODO(max): Rewrite as a `fn spawn_inactivity_timer() -> LxTask<()>` which is
+// a lot more concise.
+
 // TODO(max): Also count Lightning Network events as activity events
 /// A simple actor that keeps track of an inactivity timer held in the stack of
 /// its `start()` fn.

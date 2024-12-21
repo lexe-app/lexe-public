@@ -8,15 +8,18 @@ use std::{
 
 use futures::{stream::FuturesUnordered, StreamExt};
 use thiserror::Error;
-use tokio::task::{JoinError, JoinHandle};
-use tracing::{error, info, warn, Instrument};
+use tokio::{
+    sync::mpsc,
+    task::{JoinError, JoinHandle},
+};
+use tracing::{debug, error, info, warn, Instrument};
 
 use crate::notify_once::NotifyOnce;
 
 /// Errors that can occur when joining [`LxTask`]s.
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("Task finished prematurely: {name}")]
+    #[error("Static task finished prematurely: {name}")]
     PrematureFinish { name: String },
     #[error("Some tasks failed to finish on time: {hung_tasks:?}")]
     Hung { hung_tasks: Vec<String> },
@@ -24,64 +27,81 @@ pub enum Error {
 
 /// Lexe's 'standard' way of handling structured task concurrency and shutdown.
 ///
-/// Given a list of [`LxTask<()>`]s and other info:
-///
-/// - Polls all tasks, ensuring any panics are propagated to this function.
-/// - Waits for a shutdown signal.
-/// - Detects any prematurely finished tasks, i.e. tasks which finish before a
-///   shutdown signal was sent. If this occurs, then we initiate a shutdown.
-/// - After a shutdown signal is sent (or a task finishes prematurely), we wait
-///   for all remaining tasks to complete, up to a `shutdown_timeout`.
+/// - "static" tasks are intended to run until the end of the program lifetime.
+///   To prevent partial failures, this helper triggers a shutdown if any static
+///   task finishes prematurely.
+/// - "ephemeral" tasks are intended to finish without causing the overall
+///   program to exit. These can be sent over the `eph_tasks_rx` channel.
+/// - All task handles are polled to ensure that any panics are propagated.
+/// - After a shutdown signal is received, this helper waits for all remaining
+///   tasks to complete (both static and ephemeral), up to a `shutdown_timeout`.
 ///
 /// # Errors
 ///
 /// - If a task finishes prematurely, an error is returned.
 /// - If some tasks hang after the shutdown signal, an error is returned.
 ///
-/// NOTE that to propagate panics beyond this function, the callsite must still
-/// poll the future returned here, and so on up to the top-level future!
+/// NOTE: To propagate panics beyond this function, the callsite must
+/// still poll the future returned here, and so on up to the top-level future!
 pub async fn try_join_tasks_and_shutdown(
-    tasks: Vec<LxTask<()>>,
+    static_tasks: Vec<LxTask<()>>,
+    // A channel over which handles to ephemeral tasks can be sent.
+    mut eph_tasks_rx: mpsc::Receiver<LxTask<()>>,
     mut shutdown: NotifyOnce,
     shutdown_timeout: Duration,
 ) -> Result<(), Error> {
     // The behavior is the same without this block, but just to be clear:
     // We want to return only after the shutdown signal is complete so outer
-    // layers don't assume that we finished prematurely (how embarrassing!)
-    if tasks.is_empty() {
+    // layers don't assume that we finished prematurely (cringe!)
+    if static_tasks.is_empty() {
         shutdown.recv().await;
         return Ok(());
     }
 
-    let mut tasks = tasks
+    let mut static_tasks = static_tasks
         .into_iter()
         .map(LxTask::logged)
         .collect::<FuturesUnordered<_>>();
+    let mut ephemeral_tasks = FuturesUnordered::new();
 
     let mut result = Ok(());
 
     // Wait for a shutdown signal and poll all tasks
-    tokio::select! {
-        // Mitigate possible select! race after a shutdown signal is sent
-        biased;
-        () = shutdown.recv() => (),
-        Some(name) = tasks.next() => {
-            // A task finished prematurely. Set our result to an error,
-            // initiate a shutdown, and wait on the remaining tasks.
-            result = Err(Error::PrematureFinish { name });
-            shutdown.send();
+    loop {
+        tokio::select! {
+            // Mitigate possible select! race after a shutdown signal is sent
+            biased;
+            () = shutdown.recv() => break,
+            Some(task) = eph_tasks_rx.recv() => {
+                debug!("Received ephemeral task: {name}", name = task.name());
+                ephemeral_tasks.push(task.logged());
+            }
+            Some(name) = ephemeral_tasks.next() => {
+                debug!("Ephemeral task finished: {name}");
+            }
+            Some(name) = static_tasks.next() => {
+                // A static task finished prematurely. Set our result to an
+                // error, initiate a shutdown, and wait on the remaining tasks.
+                result = Err(Error::PrematureFinish { name });
+                break shutdown.send();
+            }
         }
     }
+
+    let mut all_tasks = static_tasks
+        .into_iter()
+        .chain(ephemeral_tasks.into_iter())
+        .collect::<FuturesUnordered<_>>();
 
     let shutdown_timeout_fut = tokio::time::sleep(shutdown_timeout);
     tokio::pin!(shutdown_timeout_fut);
 
-    while !tasks.is_empty() {
+    while !all_tasks.is_empty() {
         tokio::select! {
-            Some(_name) = tasks.next() => (),
+            Some(_name) = all_tasks.next() => (),
             () = &mut shutdown_timeout_fut => {
                 // TODO(phlip9): How to get a backtrace of a hung task?
-                let hung_tasks = tasks
+                let hung_tasks = all_tasks
                     .iter()
                     .map(|task| task.name().to_owned())
                     .collect::<Vec<_>>();
@@ -99,14 +119,34 @@ pub async fn try_join_tasks_and_shutdown(
 /// (Otherwise the callsite needs a bunch of `async move { ... }` junk)
 pub async fn join_tasks_and_shutdown(
     name: &str,
-    tasks: Vec<LxTask<()>>,
+    static_tasks: Vec<LxTask<()>>,
+    eph_tasks_rx: mpsc::Receiver<LxTask<()>>,
     shutdown: NotifyOnce,
     max_shutdown_delta: Duration,
 ) {
-    match try_join_tasks_and_shutdown(tasks, shutdown, max_shutdown_delta).await
-    {
+    let result = try_join_tasks_and_shutdown(
+        static_tasks,
+        eph_tasks_rx,
+        shutdown,
+        max_shutdown_delta,
+    )
+    .await;
+
+    match result {
         Ok(()) => info!("{name} tasks finished."),
         Err(e) => error!("{name} tasks errored: {e:#}"),
+    }
+}
+
+/// Adds `#[must_use]` to ensure [`Option<LxTask<()>>`]s are used (or detached).
+#[must_use]
+pub struct MaybeLxTask<T>(pub Option<LxTask<T>>);
+
+impl<T> MaybeLxTask<T> {
+    pub fn detach(self) {
+        if let Some(task) = self.0 {
+            task.detach();
+        }
     }
 }
 
@@ -154,6 +194,14 @@ struct TaskOutputDisplay<'a> {
 // --- impl LxTask --- //
 
 impl<T> LxTask<T> {
+    /// Constructs a [`LxTask`] from an existing [`tokio::task::JoinHandle`].
+    pub fn from_tokio(handle: JoinHandle<T>, name: impl Into<String>) -> Self {
+        Self {
+            task: handle,
+            name: name.into(),
+        }
+    }
+
     /// Spawns a task without a name. Use this primarily for trivial tasks where
     /// you don't care about joining later (e.g. a task that makes an API call)
     #[inline]

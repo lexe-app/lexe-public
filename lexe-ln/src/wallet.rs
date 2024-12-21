@@ -868,6 +868,7 @@ mod test {
     };
     use esplora_client::AsyncClient;
     use proptest::test_runner::Config;
+    use tokio::sync::mpsc;
 
     use super::*;
 
@@ -884,13 +885,15 @@ mod test {
             let client = reqwest11::ClientBuilder::new().build().unwrap();
             let client = AsyncClient::from_client("dummy".to_owned(), client);
             let fee_estimates = ArcSwap::from_pointee(fee_estimates);
-            let (test_tx, _test_rx) = crate::test_event::channel("test");
+            let (eph_tasks_tx, _) = mpsc::channel(256);
+            let (test_event_tx, _) = crate::test_event::channel("test");
             let broadcast_hook = None;
             let esplora = Arc::new(LexeEsplora::new(
                 client,
                 fee_estimates,
                 broadcast_hook,
-                test_tx,
+                eph_tasks_tx,
+                test_event_tx,
             ));
 
             let maybe_changeset = None;

@@ -18,6 +18,7 @@ use common::{
     enclave::Measurement,
     ln::network::LxNetwork,
     notify_once::NotifyOnce,
+    task::LxTask,
 };
 use lexe_ln::{
     alias::RouterType, channel::ChannelEventsBus, esplora::LexeEsplora,
@@ -59,6 +60,7 @@ pub(crate) struct AppRouterState {
     pub bdk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
     pub ldk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
     pub channel_events_bus: ChannelEventsBus,
+    pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
 }
 
 /// Implements [`AppNodeRunApi`] - endpoints only callable by the app.

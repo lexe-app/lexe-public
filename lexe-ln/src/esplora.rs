@@ -27,8 +27,8 @@ use lightning::chain::chaininterface::{
     FEERATE_FLOOR_SATS_PER_KW,
 };
 use rand::{seq::SliceRandom, RngCore};
-use tokio::time;
-use tracing::{debug, error, info, instrument, warn};
+use tokio::{sync::mpsc, time};
+use tracing::{debug, error, info, info_span, instrument, warn};
 
 use crate::{test_event::TestEventSender, BoxedAnyhowFuture};
 
@@ -112,6 +112,7 @@ pub struct LexeEsplora {
     /// Cached map of conf targets (in number of blocks) to estimated feerates
     /// (in sats per vbyte) returned by [`AsyncClient::get_fee_estimates`].
     fee_estimates: ArcSwap<BTreeMap<u16, f64>>,
+    eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     test_event_tx: TestEventSender,
     /// An optional hook to be called just before broadcasting a tx.
     broadcast_hook: Option<PreBroadcastHook>,
@@ -125,6 +126,7 @@ impl LexeEsplora {
         rng: &mut impl RngCore,
         mut esplora_urls: Vec<String>,
         broadcast_hook: Option<PreBroadcastHook>,
+        eph_tasks_tx: mpsc::Sender<LxTask<()>>,
         test_event_tx: TestEventSender,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<(Arc<Self>, LxTask<()>, String)> {
@@ -139,6 +141,7 @@ impl LexeEsplora {
             let init_result = Self::init(
                 url.clone(),
                 broadcast_hook.clone(),
+                eph_tasks_tx.clone(),
                 test_event_tx.clone(),
                 shutdown.clone(),
             )
@@ -171,6 +174,7 @@ impl LexeEsplora {
     pub async fn init(
         esplora_url: String,
         broadcast_hook: Option<PreBroadcastHook>,
+        eph_tasks_tx: mpsc::Sender<LxTask<()>>,
         test_event_tx: TestEventSender,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<(Arc<Self>, LxTask<()>)> {
@@ -191,6 +195,7 @@ impl LexeEsplora {
             client,
             fee_estimates,
             broadcast_hook,
+            eph_tasks_tx,
             test_event_tx,
         ));
 
@@ -204,12 +209,14 @@ impl LexeEsplora {
         client: AsyncClient,
         fee_estimates: ArcSwap<BTreeMap<u16, f64>>,
         broadcast_hook: Option<PreBroadcastHook>,
+        eph_tasks_tx: mpsc::Sender<LxTask<()>>,
         test_event_tx: TestEventSender,
     ) -> Self {
         Self {
             client,
             broadcast_hook,
             fee_estimates,
+            eph_tasks_tx,
             test_event_tx,
         }
     }
@@ -527,23 +534,28 @@ impl BroadcasterInterface for LexeEsplora {
         let test_event_tx = self.test_event_tx.clone();
         let txs = txs.iter().copied().cloned().collect::<Vec<Transaction>>();
 
-        // Clippy bug; we need the `async move` to make the future static
-        #[allow(clippy::redundant_async_block)]
-        LxTask::spawn(async move {
-            let tx_refs = txs.iter().collect::<Vec<&Transaction>>();
-            let result = LexeEsplora::broadcast_txs_inner(
-                &client,
-                broadcast_hook,
-                &test_event_tx,
-                tx_refs.as_slice(),
-            )
-            .await;
-            match result {
-                Ok(()) => debug!("Broadcasted txs successfully"),
-                Err(e) => error!("Error broadcasting txs: {e:#}"),
-            }
-        })
-        .detach()
+        let task = LxTask::spawn_named_with_span(
+            "BroadcasterInterface",
+            info_span!("(broadcast-txs)"),
+            async move {
+                let tx_refs = txs.iter().collect::<Vec<&Transaction>>();
+                let result = LexeEsplora::broadcast_txs_inner(
+                    &client,
+                    broadcast_hook,
+                    &test_event_tx,
+                    tx_refs.as_slice(),
+                )
+                .await;
+                match result {
+                    Ok(()) => debug!("Broadcasted txs successfully"),
+                    Err(e) => error!("Error broadcasting txs: {e:#}"),
+                }
+            },
+        );
+
+        if self.eph_tasks_tx.try_send(task).is_err() {
+            warn!("(BroadcasterInterface) Failed to send task");
+        }
     }
 }
 
