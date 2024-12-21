@@ -274,7 +274,9 @@ codegen-units = 1
 lto = "thin"
 # opt-level = 3 # big repro diff
 opt-level = 2
-debug = "none"
+# XXX(max): Need this to get panic backtraces in SGX
+debug = "line-tables-only"
+# debug = 0
 strip = "debuginfo"
 
 # NOTE: dev includes `check`, `clippy`, `test`, etc
