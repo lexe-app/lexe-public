@@ -8,7 +8,10 @@ use std::{
 
 use futures::{stream::FuturesUnordered, StreamExt};
 use thiserror::Error;
-use tokio::task::{JoinError, JoinHandle};
+use tokio::{
+    sync::mpsc,
+    task::{JoinError, JoinHandle},
+};
 use tracing::{error, info, warn, Instrument};
 
 use crate::shutdown::ShutdownChannel;
@@ -65,6 +68,71 @@ pub async fn try_join_tasks_and_shutdown(
         // Mitigate possible select! race after a shutdown signal is sent
         biased;
         () = shutdown.recv() => (),
+        Some(name) = tasks.next() => {
+            // A task finished prematurely. Set our result to an error,
+            // initiate a shutdown, and wait on the remaining tasks.
+            result = Err(Error::PrematureFinish { name });
+            shutdown.send();
+        }
+    }
+
+    let shutdown_timeout_fut = tokio::time::sleep(shutdown_timeout);
+    tokio::pin!(shutdown_timeout_fut);
+
+    while !tasks.is_empty() {
+        tokio::select! {
+            Some(_name) = tasks.next() => (),
+            () = &mut shutdown_timeout_fut => {
+                // TODO(phlip9): How to get a backtrace of a hung task?
+                let hung_tasks = tasks
+                    .iter()
+                    .map(|task| task.name().to_owned())
+                    .collect::<Vec<_>>();
+
+                return Err(Error::Hung { hung_tasks });
+            }
+        }
+    }
+
+    result
+}
+
+/// A version of [`join_tasks_and_shutdown`] that also applies structured
+/// concurrency to additional Tokio tasks spawned during the lifetime of the
+/// program via an [`mpsc`] channel.
+// XXX(max): Cleanup, deduplicate
+pub async fn try_join_tasks_and_shutdown_with_channel(
+    tasks: Vec<LxTask<()>>,
+    mut tasks_rx: mpsc::Receiver<LxTask<()>>,
+    mut shutdown: ShutdownChannel,
+    shutdown_timeout: Duration,
+) -> Result<(), Error> {
+    // The behavior is the same without this block, but just to be clear:
+    // We want to return only after the shutdown signal is complete so outer
+    // layers don't assume that we finished prematurely (how embarrassing!)
+    if tasks.is_empty() {
+        shutdown.recv().await;
+        return Ok(());
+    }
+
+    let mut tasks = tasks
+        .into_iter()
+        .map(LxTask::logged)
+        .collect::<FuturesUnordered<_>>();
+
+    let mut result = Ok(());
+
+    // Wait for a shutdown signal and poll all tasks
+    tokio::select! {
+        // Mitigate possible select! race after a shutdown signal is sent
+        biased;
+        () = shutdown.recv() => (),
+        Some(task) = tasks_rx.recv() => {
+            // Received a task over the channel.
+            // Add it to our 'structured concurrency' queue.
+            let logged = task.logged();
+            tasks.push(logged);
+        }
         Some(name) = tasks.next() => {
             // A task finished prematurely. Set our result to an error,
             // initiate a shutdown, and wait on the remaining tasks.
@@ -154,6 +222,14 @@ struct TaskOutputDisplay<'a> {
 // --- impl LxTask --- //
 
 impl<T> LxTask<T> {
+    /// Constructs a [`LxTask`] from an existing [`tokio::task::JoinHandle`].
+    pub fn from_tokio(handle: JoinHandle<T>, name: impl Into<String>) -> Self {
+        Self {
+            task: handle,
+            name: name.into(),
+        }
+    }
+
     /// Spawns a task without a name. Use this primarily for trivial tasks where
     /// you don't care about joining later (e.g. a task that makes an API call)
     #[inline]

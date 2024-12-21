@@ -3,6 +3,7 @@ use std::time::Duration;
 use anyhow::Context;
 use common::{cli::LspInfo, shutdown::ShutdownChannel, task::LxTask};
 use lexe_ln::p2p;
+use tokio::sync::mpsc;
 use tracing::{info, info_span, warn};
 
 use crate::peer_manager::NodePeerManager;
@@ -18,6 +19,7 @@ const LSP_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
 pub(crate) async fn connect_to_lsp_then_spawn_connector_task(
     peer_manager: NodePeerManager,
     lsp: &LspInfo,
+    tasks_tx: mpsc::Sender<LxTask<()>>,
     mut shutdown: ShutdownChannel,
 ) -> anyhow::Result<LxTask<()>> {
     let lsp_node_pk = lsp.node_pk;
@@ -53,7 +55,15 @@ pub(crate) async fn connect_to_lsp_then_spawn_connector_task(
                     .await;
 
                     match result {
-                        Ok(()) => info!("(Re)connected to LSP"),
+                        Ok(maybe_task) => {
+                            info!("(Re)connected to LSP");
+                            // XXX(max): These tasks should be managed locally
+                            // instead of being sent to the main task manager.
+                            // Also, revisit whether we want backpressure here.
+                            if let Some(task) = maybe_task {
+                                let _ = tasks_tx.try_send(task);
+                            }
+                        }
                         Err(e) => warn!("Couldn't (re)connect to LSP: {e:#}"),
                     }
                 };

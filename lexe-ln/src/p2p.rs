@@ -1,7 +1,9 @@
 use std::time::Duration;
 
-use anyhow::{bail, ensure, Context};
-use common::{api::user::NodePk, backoff, ln::addr::LxSocketAddress, Apply};
+use anyhow::{anyhow, bail, ensure, Context};
+use common::{
+    api::user::NodePk, backoff, ln::addr::LxSocketAddress, task::LxTask, Apply,
+};
 use tokio::{net::TcpStream, time};
 use tracing::{debug, warn};
 
@@ -17,7 +19,7 @@ pub async fn connect_peer_if_necessary<CM, PM, PS>(
     peer_manager: &PM,
     node_pk: &NodePk,
     addrs: &[LxSocketAddress],
-) -> anyhow::Result<()>
+) -> anyhow::Result<Option<LxTask<()>>>
 where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS>,
@@ -28,7 +30,7 @@ where
     // Early return if we're already connected
     // TODO(max): LDK's fn is O(n) in the # of peers...
     if peer_manager.is_connected(node_pk) {
-        return Ok(());
+        return Ok(None);
     }
 
     // Cycle the given addresses in order
@@ -41,7 +43,7 @@ where
         let addr = addrs.next().expect("Cycling through a non-empty slice");
 
         match do_connect_peer(peer_manager, node_pk, addr).await {
-            Ok(()) => return Ok(()),
+            Ok(task) => return Ok(Some(task)),
             Err(e) => warn!("Failed to connect to peer: {e:#}"),
         }
 
@@ -54,24 +56,24 @@ where
         // Right before the next attempt, check again whether we're connected in
         // case another task managed to connect while we were sleeping.
         if peer_manager.is_connected(node_pk) {
-            return Ok(());
+            return Ok(None);
         }
     }
 
     // Do the last attempt.
     let addr = addrs.next().expect("Cycling through a non-empty slice");
-    do_connect_peer(peer_manager, node_pk, addr)
+    let task = do_connect_peer(peer_manager, node_pk, addr)
         .await
         .context("Failed to connect to peer")?;
 
-    Ok(())
+    Ok(Some(task))
 }
 
 async fn do_connect_peer<CM, PM, PS>(
     peer_manager: &PM,
     node_pk: &NodePk,
     addr: &LxSocketAddress,
-) -> anyhow::Result<()>
+) -> anyhow::Result<LxTask<()>>
 where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS>,
@@ -105,30 +107,26 @@ where
     // registered yet.
     //
     // TODO: Rewrite / replace lightning-net-tokio entirely
-    let connection_closed_fut = lightning_net_tokio::setup_outbound(
+    // XXX(max): Clean up comments after new API
+    let handle = lightning_net_tokio::setup_outbound_task(
         peer_manager.clone(),
         node_pk.0,
         stream,
-    );
-    let mut connection_closed_fut = Box::pin(connection_closed_fut);
+    )
+    .map_err(|e| anyhow!("Failed initial connection to peer: {e}"))?;
+
     // Use exponential backoff when polling so that a stalled connection
     // doesn't keep the node always in memory
     let mut backoff_durations = backoff::iter_with_initial_wait_ms(10);
     let p2p_handshake_timeout = tokio::time::sleep(HANDSHAKE_TIMEOUT);
     loop {
-        // Check if the connection has been closed.
-        match futures::poll!(&mut connection_closed_fut) {
-            std::task::Poll::Ready(_) => {
-                bail!("Failed initial connection to peer - error unknown");
-            }
-            std::task::Poll::Pending => {}
-        }
-
         // Check if the connection has been established.
         if peer_manager.is_connected(node_pk) {
             // Connection confirmed, log and return Ok
             debug!(%node_pk, %addr, "Successfully connected to peer");
-            return Ok(());
+            let name = format!("Outbound peer: {node_pk}@{addr}");
+            let task = LxTask::from_tokio(handle, name);
+            return Ok(task);
         }
 
         // Check if we've timed out waiting to complete the handshake.

@@ -18,6 +18,7 @@ use common::{
     enclave::Measurement,
     ln::network::LxNetwork,
     shutdown::ShutdownChannel,
+    task::LxTask,
 };
 use lexe_ln::{
     alias::RouterType, channel::ChannelEventsBus, esplora::LexeEsplora,
@@ -57,6 +58,7 @@ pub(crate) struct AppRouterState {
     pub measurement: Measurement,
     pub activity_tx: mpsc::Sender<()>,
     pub channel_events_bus: ChannelEventsBus,
+    pub tasks_tx: mpsc::Sender<LxTask<()>>,
 }
 
 /// Implements [`AppNodeRunApi`] - endpoints only callable by the app.
