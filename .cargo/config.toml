@@ -3,4 +3,4 @@
 runner = "run-sgx-cargo"
 # Build with AES-NI intrinsics required at compile time. Needed by `aes` crate
 # to avoid runtime feature detection (which doesn't work in an SGX enclave).
-rustflags = ["-Ctarget-feature=+aes,+ssse3"]
+rustflags = ["-Ctarget-feature=+aes,+ssse3", "-Zoom=panic"]
