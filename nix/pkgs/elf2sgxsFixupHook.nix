@@ -32,10 +32,11 @@ let
   valuesToString = attrs: (mapAttrs (_name: toString) attrs);
 
   settings = valuesToString cargoTomlParsed.package.metadata.fortanix-sgx;
-  debugFlag =
-    if isRelease
-    then ""
-    else "-d";
+  debugFlag = "-d";
+  # XXX(max): Temp compile with debug flag try to get SGX backtraces
+  # if isRelease
+  # then ""
+  # else "-d";
 in
   makeSetupHook
   {
