@@ -9,6 +9,7 @@ members = [
     "const-utils",
     "gdrive",
     "hex",
+    "lexe-api",
     "lexe-ln",
     "logger",
     "node",

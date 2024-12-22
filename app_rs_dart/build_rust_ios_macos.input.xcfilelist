@@ -9,6 +9,7 @@ ${PODS_TARGET_SRCROOT}/../../common/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../const-utils/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../gdrive/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../hex/Cargo.toml
+${PODS_TARGET_SRCROOT}/../../lexe-api/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-ln/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../logger/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../node/Cargo.toml

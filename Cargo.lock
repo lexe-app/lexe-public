@@ -2674,6 +2674,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "lexe-api"
+version = "0.1.0"
+
+[[package]]
 name = "lexe-ln"
 version = "0.1.0"
 dependencies = [
