@@ -1,10 +1,7 @@
-use common::{
-    ed25519, enclave,
-    rng::SysRng,
-    tls::attestation::{
-        self,
-        verifier::{EnclavePolicy, SgxQuoteVerifier},
-    },
+use common::{ed25519, enclave, rng::SysRng};
+use lexe_api::tls::attestation::{
+    self,
+    verifier::{EnclavePolicy, SgxQuoteVerifier},
 };
 
 fn main() {
@@ -39,7 +36,7 @@ fn main() {
     println!("SGX DER-serialized evidence:");
     println!("quote: {}", hex::display(&evidence.quote));
 
-    let now = common::tls::rustls::pki_types::UnixTime::now();
+    let now = lexe_api::tls::rustls::pki_types::UnixTime::now();
     let quote_verifier = SgxQuoteVerifier;
     let report = quote_verifier
         .verify(&evidence.quote, now)

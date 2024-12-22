@@ -4,16 +4,13 @@
 use std::{borrow::Cow, fmt, time::Duration};
 
 use anyhow::Context;
+use common::{ed25519, enclave, rng::Crng};
 use yasna::models::ObjectIdentifier;
 
 use super::quote::ReportData;
-use crate::{
-    ed25519, enclave,
-    rng::Crng,
-    tls::{
-        self,
-        types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
-    },
+use crate::tls::{
+    self,
+    types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
 };
 
 /// An x509 certificate containing remote attestation endorsements.
@@ -188,8 +185,9 @@ impl<'a> fmt::Debug for SgxAttestationExtension<'a> {
 
 #[cfg(test)]
 mod test {
+    use common::rng::WeakRng;
+
     use super::*;
-    use crate::rng::WeakRng;
 
     #[test]
     fn test_keypair_pk_len() {

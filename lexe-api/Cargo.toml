@@ -5,4 +5,82 @@ edition.workspace = true
 license.workspace = true
 version.workspace = true
 
+[features]
+# Explicitly specify that no features should be enabled by default.
+default = []
+# Enables various test hooks and utilities. Should be disabled in staging/prod.
+test-utils = [
+  "dep:proptest",
+  "dep:proptest-derive",
+  "dep:tokio",
+  "dep:tokio-rustls",
+]
+
 [dependencies]
+
+# --- LEXE --- #
+
+common = { path = "../common" }
+hex = { path = "../hex" }
+sha256 = { path = "../sha256" }
+
+# --- WORKSPACE --- #
+
+anyhow.workspace = true
+asn1-rs.workspace = true
+axum.workspace = true
+dcap-ql.workspace = true
+rcgen.workspace = true
+reqwest = { workspace = true, features = ["json"] }
+ring.workspace = true
+rustls.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+sgx-isa.workspace = true
+time.workspace = true
+tracing.workspace = true
+x509-parser.workspace = true
+
+# --- CRATE-SPECIFIC --- #
+
+# Small conversion from fixed ECDSA signature to ASN.1 format
+num-bigint = { version = "0.4", default-features = false, features = [] }
+# Deserialize PEM certs
+rustls-pemfile = "1"
+# Required to name our signature algorithms.
+# The version should match that used by rustls.
+# For some reason this breaks if we don't specify `package = "rustls-webpki"`
+rustls-webpki = { version = "0.102", package = "rustls-webpki" }
+# Verify x509 certificates
+webpki = { version = "0.22", default-features = false, features = ["std"] }
+# For constructing/parsing ASN.1 data in x509 certs
+yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
+
+# --- OPTIONAL --- #
+# These must have `optional = true` to prevent infecting production binaries.
+proptest = { optional = true, workspace = true, features = ["alloc"] }
+proptest-derive = { optional = true, workspace = true }
+tokio = { optional = true, workspace = true, features = [] }
+# Lower-level async TLS interface
+tokio-rustls = { optional = true, version = "0.25", default-features = false }
+
+[target.'cfg(target_env = "sgx")'.dependencies]
+# For verifying SGX Report MACs
+aes = { version = "0.8", features = ["zeroize"] }
+aesm-client.workspace = true
+# For casting byte buffers to/from the AESM client from/to structured data.
+bytemuck = { version = "1", default-features = false, features = ["derive", "min_const_generics"] }
+
+# For verifying SGX Report MACs
+cmac = { version = "0.7", features = ["std", "zeroize"] }
+
+[dev-dependencies]
+axum.workspace = true
+proptest = { workspace = true, features = ["alloc"] }
+proptest-derive.workspace = true
+tokio = { workspace = true, features = [
+    "test-util",
+    "time"
+] }
+# Lower-level async TLS interface
+tokio-rustls = { version = "0.25", default-features = false }

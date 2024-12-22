@@ -39,9 +39,9 @@ use common::{
     net,
     rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
-    tls::{self, attestation::NodeMode},
 };
 use gdrive::GoogleVfs;
+use lexe_api::tls::{self, attestation::NodeMode};
 use tracing::{debug, info, info_span};
 
 use crate::{

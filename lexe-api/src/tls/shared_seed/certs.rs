@@ -1,13 +1,10 @@
 //! Contains the CA cert and end-entity certs for "shared seed" mTLS.
 
-use crate::{
-    ed25519,
-    rng::Crng,
-    root_seed::RootSeed,
-    tls::{
-        self,
-        types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
-    },
+use common::{ed25519, rng::Crng, root_seed::RootSeed};
+
+use crate::tls::{
+    self,
+    types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
 };
 
 /// The derived CA cert used as the trust anchor for both client and server.
@@ -154,8 +151,9 @@ impl SharedSeedServerCert {
 
 #[cfg(test)]
 mod test {
+    use common::rng::WeakRng;
+
     use super::*;
-    use crate::rng::WeakRng;
 
     #[test]
     fn test_certs_parse_successfully() {

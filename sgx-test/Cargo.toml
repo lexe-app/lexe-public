@@ -10,6 +10,7 @@ license.workspace = true
 
 common = { path = "../common" }
 hex = { path = "../hex" }
+lexe-api = { path = "../lexe-api" }
 
 [package.metadata.fortanix-sgx]
 # Whether to enable EDP debugging features in the enclave. Default: true.

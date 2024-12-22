@@ -16,7 +16,7 @@ pub mod shared_seed;
 /// TLS newtypes, namely DER-encoded certs and cert keys.
 pub mod types;
 
-/// Allow accessing [`rustls`] via `common::tls`
+/// Allow accessing [`rustls`] via `lexe_api::tls`
 pub use rustls;
 
 use self::types::EdRcgenKeypair;
@@ -225,13 +225,7 @@ pub mod test_utils {
 
     use anyhow::Context;
     use axum::{routing::post, Router};
-    use rustls::pki_types::ServerName;
-    use serde::{Deserialize, Serialize};
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tracing::info_span;
-
-    use super::*;
-    use crate::{
+    use common::{
         api::{
             self,
             error::BackendApiError,
@@ -241,6 +235,12 @@ pub mod test_utils {
         net,
         shutdown::ShutdownChannel,
     };
+    use rustls::pki_types::ServerName;
+    use serde::{Deserialize, Serialize};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tracing::info_span;
+
+    use super::*;
 
     /// Conducts a TLS handshake without any other [`reqwest`]/[`axum`] infra,
     /// over a fake pair of connected streams. Returns the client and server

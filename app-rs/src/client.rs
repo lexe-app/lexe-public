@@ -50,8 +50,8 @@ use common::{
     ln::payments::VecBasicPayment,
     rng::Crng,
     root_seed::RootSeed,
-    tls::{self, lexe_ca},
 };
+use lexe_api::tls::{self, lexe_ca};
 use reqwest::Url;
 
 /// The client to the gateway itself, i.e. requests terminate at the gateway.

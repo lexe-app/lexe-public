@@ -69,6 +69,18 @@ use std::{
 };
 
 use anyhow::{format_err, Context};
+#[cfg(doc)]
+use common::api::def::AppNodeProvisionApi;
+#[cfg(doc)]
+use common::api::def::{
+    BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi,
+};
+use common::{
+    constants,
+    enclave::{Measurement, MrShort},
+    env::DeployEnv,
+    rng::Crng,
+};
 use rustls::{
     client::{
         danger::{
@@ -81,19 +93,7 @@ use rustls::{
 };
 
 use self::verifier::EnclavePolicy;
-#[cfg(doc)]
-use crate::api::def::AppNodeProvisionApi;
-#[cfg(doc)]
-use crate::api::def::{
-    BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi,
-};
-use crate::{
-    constants,
-    enclave::{Measurement, MrShort},
-    env::DeployEnv,
-    rng::Crng,
-    tls::{lexe_ca, types::CertWithKey},
-};
+use crate::tls::{lexe_ca, types::CertWithKey};
 
 /// Self-signed x509 cert containing enclave remote attestation endorsements.
 pub mod cert;
@@ -265,18 +265,16 @@ fn get_or_generate_node_attestation_cert(
 ///   fake provision DNS in the SNI extension to determine (1) whether we want
 ///   to connect to a running or provisioning node and (2) the [`MrShort`] of
 ///   the measurement we wish to provision so it can route accordingly.
-/// - The [`ServerName`] is given by the [`NodeClient`] reqwest client. This is
+/// - The [`ServerName`] is given by the `NodeClient` reqwest client. This is
 ///   the gateway DNS when connecting to Lexe's proxy, otherwise it is the
-///   node's fake provision DNS. See [`NodeClient::provision`] for details.
+///   node's fake provision DNS. See `NodeClient::provision` for details.
 /// - The [`AppNodeProvisionVerifier`] thus chooses between two "sub-verifiers"
 ///   according to the [`ServerName`] given to us by [`reqwest`]. We use the
 ///   public Lexe WebPKI verifier when establishing the outer TLS connection
 ///   with the gateway, and we use the remote attestation verifier for the inner
 ///   TLS connection which terminates inside the user node SGX enclave.
 ///
-/// [`MrShort`]: crate::enclave::MrShort
-/// [`NodeClient`]: crate::client::NodeClient
-/// [`NodeClient::provision`]: crate::client::NodeClient::provision
+/// [`MrShort`]: common::enclave::MrShort
 #[derive(Debug)]
 struct AppNodeProvisionVerifier {
     /// `<mr_short>.provision.lexe.app` remote attestation verifier
@@ -354,8 +352,10 @@ impl ServerCertVerifier for AppNodeProvisionVerifier {
 
 #[cfg(test)]
 mod test {
+    use common::{enclave, rng::WeakRng};
+
     use super::*;
-    use crate::{enclave, rng::WeakRng, tls::test_utils};
+    use crate::tls::test_utils;
 
     /// Sanity check an App->Node Provision TLS handshake
     #[tokio::test]

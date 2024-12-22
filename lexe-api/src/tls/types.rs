@@ -31,13 +31,12 @@
 
 use anyhow::ensure;
 #[cfg(any(test, feature = "test-utils"))]
+use common::test_utils::arbitrary;
+use common::{ed25519, hexstr_or_bytes};
+#[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use serde::{Deserialize, Serialize};
-
-#[cfg(any(test, feature = "test-utils"))]
-use crate::test_utils::arbitrary;
-use crate::{ed25519, hexstr_or_bytes};
 
 /// Convenience struct to pass around a DER-encoded cert with its private key
 /// and the DNS name it was bound to.

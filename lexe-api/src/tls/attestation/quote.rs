@@ -6,10 +6,9 @@
 #[rustfmt::skip]
 #[cfg(target_env = "sgx")]
 pub use sgx::quote_enclave;
+use common::ed25519;
 #[cfg(not(target_env = "sgx"))]
 pub use not_sgx::quote_enclave;
-
-use crate::ed25519;
 
 /// Small newtype for [`sgx_isa::Report::reportdata`] field.
 /// For now, we only use the first 32 out of 64 bytes to commit to a cert pk.
@@ -57,14 +56,12 @@ mod sgx {
     use anyhow::{ensure, format_err, Context};
     use bytemuck::{Pod, Zeroable};
     use cmac::{digest::generic_array::GenericArray, Cmac, Mac};
+    use common::rng::{Crng, RngExt};
     use sgx_isa::{Report, Targetinfo};
 
     use super::*;
-    use crate::{
-        rng::{Crng, RngExt},
-        tls::attestation::{
-            cert::SgxAttestationExtension, verifier::EnclavePolicy,
-        },
+    use crate::tls::attestation::{
+        cert::SgxAttestationExtension, verifier::EnclavePolicy,
     };
 
     #[cfg(not(target_feature = "aes"))]
@@ -321,8 +318,10 @@ mod sgx {
 
 #[cfg(not(target_env = "sgx"))]
 mod not_sgx {
+    use common::rng::Crng;
+
     use super::*;
-    use crate::{rng::Crng, tls::attestation::cert::SgxAttestationExtension};
+    use crate::tls::attestation::cert::SgxAttestationExtension;
 
     pub fn quote_enclave(
         _rng: &mut dyn Crng,

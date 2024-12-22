@@ -16,8 +16,8 @@ use common::{
     },
     env::DeployEnv,
     rng::Crng,
-    tls::attestation::NodeMode,
 };
+use lexe_api::tls::attestation::NodeMode;
 
 /// Real clients.
 pub(crate) mod client;

@@ -61,8 +61,6 @@ pub mod task;
 pub mod test_event;
 /// `TimestampMs`
 pub mod time;
-/// TLS certs and configurations.
-pub mod tls;
 
 /// Feature-gated test utilities that can be shared across crate boundaries.
 #[cfg(any(test, feature = "test-utils"))]

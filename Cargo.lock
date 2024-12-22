@@ -176,6 +176,7 @@ dependencies = [
  "hex 0.1.0",
  "http 1.1.0",
  "keyring",
+ "lexe-api",
  "payment-uri",
  "proptest",
  "proptest-derive",
@@ -1174,8 +1175,6 @@ dependencies = [
 name = "common"
 version = "0.1.0"
 dependencies = [
- "aes 0.8.3",
- "aesm-client",
  "anyhow",
  "asn1-rs",
  "async-trait",
@@ -1188,13 +1187,10 @@ dependencies = [
  "bitcoin-bech32",
  "bitcoin_hashes 0.14.0",
  "byte-array",
- "bytemuck",
  "bytes",
  "cfg-if 1.0.0",
  "chrono",
- "cmac",
  "const-utils",
- "dcap-ql",
  "dotenvy",
  "electrsd",
  "futures",
@@ -1205,7 +1201,6 @@ dependencies = [
  "hyper-util",
  "lightning",
  "lightning-invoice",
- "num-bigint",
  "proptest",
  "proptest-derive",
  "rand",
@@ -1217,8 +1212,6 @@ dependencies = [
  "rust_decimal",
  "rust_decimal_macros",
  "rustls 0.22.4",
- "rustls-pemfile 1.0.4",
- "rustls-webpki 0.102.3",
  "secrecy",
  "semver",
  "serde",
@@ -1232,16 +1225,13 @@ dependencies = [
  "thiserror",
  "time",
  "tokio",
- "tokio-rustls 0.25.0",
  "tokio-test",
  "tower",
  "tower-http",
  "tower-service",
  "tracing",
  "tracing-subscriber",
- "webpki",
  "x509-parser",
- "yasna",
 ]
 
 [[package]]
@@ -2676,6 +2666,38 @@ dependencies = [
 [[package]]
 name = "lexe-api"
 version = "0.1.0"
+dependencies = [
+ "aes 0.8.3",
+ "aesm-client",
+ "anyhow",
+ "asn1-rs",
+ "axum",
+ "bytemuck",
+ "cmac",
+ "common",
+ "dcap-ql",
+ "hex 0.1.0",
+ "num-bigint",
+ "proptest",
+ "proptest-derive",
+ "rcgen",
+ "reqwest 0.12.1",
+ "ring",
+ "rustls 0.22.4",
+ "rustls-pemfile 1.0.4",
+ "rustls-webpki 0.102.3",
+ "secrecy",
+ "serde",
+ "sgx-isa",
+ "sha256",
+ "time",
+ "tokio",
+ "tokio-rustls 0.25.0",
+ "tracing",
+ "webpki",
+ "x509-parser",
+ "yasna",
+]
 
 [[package]]
 name = "lexe-ln"
@@ -3045,6 +3067,7 @@ dependencies = [
  "futures",
  "gdrive",
  "hex 0.1.0",
+ "lexe-api",
  "lexe-ln",
  "lightning",
  "lightning-transaction-sync",
@@ -4289,6 +4312,7 @@ version = "0.1.0"
 dependencies = [
  "common",
  "hex 0.1.0",
+ "lexe-api",
 ]
 
 [[package]]

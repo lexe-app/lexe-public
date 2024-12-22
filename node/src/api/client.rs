@@ -24,8 +24,8 @@ use common::{
     env::DeployEnv,
     ln::payments::{DbPayment, MaybeDbPayment, VecDbPayment, VecLxPaymentId},
     rng::Crng,
-    tls::attestation::{self, NodeMode},
 };
+use lexe_api::tls::attestation::{self, NodeMode};
 
 use crate::api::BackendApiClient;
 

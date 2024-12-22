@@ -27,12 +27,12 @@ use common::{
     root_seed::RootSeed,
     shutdown::ShutdownChannel,
     task::{self, LxTask},
-    tls::{self, attestation::NodeMode},
     Apply,
 };
 use const_utils::const_assert;
 use futures::future::FutureExt;
 use gdrive::{gvfs::GvfsRootName, GoogleVfs};
+use lexe_api::tls::{self, attestation::NodeMode};
 use lexe_ln::{
     alias::{
         BroadcasterType, EsploraSyncClientType, FeeEstimatorType,

@@ -9,6 +9,11 @@ use std::{
 
 use anyhow::{bail, ensure, format_err, Context};
 use asn1_rs::FromDer;
+use common::{
+    ed25519,
+    enclave::{self, Measurement},
+    env::DeployEnv,
+};
 use dcap_ql::quote::{
     Qe3CertDataPckCertChain, Quote, Quote3SignatureEcdsaP256,
 };
@@ -24,12 +29,7 @@ use webpki::{TlsServerTrustAnchors, TrustAnchor};
 use x509_parser::certificate::X509Certificate;
 
 use super::quote::ReportData;
-use crate::{
-    ed25519,
-    enclave::{self, Measurement},
-    env::DeployEnv,
-    tls::{self, attestation::cert::SgxAttestationExtension},
-};
+use crate::tls::{self, attestation::cert::SgxAttestationExtension};
 
 /// The Enclave Signer Measurement (MRSIGNER) of the current Intel Quoting
 /// Enclave (QE).
@@ -841,7 +841,9 @@ mod test {
     #[cfg(not(target_env = "sgx"))]
     #[test]
     fn test_verify_dummy_server_cert() {
-        use crate::{rng::WeakRng, tls::attestation::cert::AttestationCert};
+        use common::rng::WeakRng;
+
+        use crate::tls::attestation::cert::AttestationCert;
 
         let mut rng = WeakRng::new();
         let dns_name = "run.lexe.app".to_owned();

@@ -22,11 +22,12 @@
 //! shared CA, which could only have been possible if the counterparty was also
 //! able to derive the shared CA cert and keypair.
 //!
-//! [`RootSeed`]: crate::root_seed::RootSeed
+//! [`RootSeed`]: common::root_seed::RootSeed
 
 use std::sync::Arc;
 
 use anyhow::Context;
+use common::{constants, env::DeployEnv, rng::Crng, root_seed::RootSeed};
 use rustls::{
     client::{
         danger::{
@@ -40,14 +41,11 @@ use rustls::{
 };
 
 use super::lexe_ca;
-#[cfg(doc)]
-use crate::api::def::AppNodeRunApi;
-use crate::{constants, env::DeployEnv, rng::Crng, root_seed::RootSeed};
 
 /// TLS certs for shared [`RootSeed`]-based mTLS.
 pub mod certs;
 
-/// Server-side TLS config for [`AppNodeRunApi`].
+/// Server-side TLS config for `AppNodeRunApi`.
 /// Also returns the node's DNS name.
 pub fn app_node_run_server_config(
     rng: &mut impl Crng,
@@ -94,7 +92,7 @@ pub fn app_node_run_server_config(
     Ok((config, dns_name))
 }
 
-/// Client-side TLS config for [`AppNodeRunApi`].
+/// Client-side TLS config for `AppNodeRunApi`.
 pub fn app_node_run_client_config(
     rng: &mut impl Crng,
     deploy_env: DeployEnv,
@@ -167,23 +165,21 @@ pub fn shared_seed_verifier(
     Ok(verifier)
 }
 
-/// The client's [`ServerCertVerifier`] for [`AppNodeRunApi`] TLS.
+/// The client's [`ServerCertVerifier`] for `AppNodeRunApi` TLS.
 ///
 /// - When the app wishes to connect to a running node, it will make a request
 ///   to the node using a fake run DNS [`constants::NODE_RUN_DNS`]. However,
 ///   requests are first routed through lexe's reverse proxy, which parses the
 ///   fake run DNS in the SNI extension to determine whether we want to connect
 ///   to a running or provisioning node so it can route accordingly.
-/// - The [`ServerName`] is given by the [`NodeClient`] reqwest client. This is
+/// - The [`ServerName`] is given by the `NodeClient` reqwest client. This is
 ///   the gateway DNS when connecting to Lexe's proxy, otherwise it is the
-///   node's fake run DNS. See [`NodeClient`]'s `run_url` for context.
+///   node's fake run DNS. See `NodeClient`'s `run_url` for context.
 /// - The [`AppNodeRunVerifier`] thus chooses between two "sub-verifiers"
 ///   according to the [`ServerName`] given to us by [`reqwest`]. We use the
 ///   public Lexe WebPKI verifier when establishing the outer TLS connection
 ///   with the gateway, and we use the shared seed verifier for the inner TLS
 ///   connection which terminates inside the user node SGX enclave.
-///
-/// [`NodeClient`]: crate::client::NodeClient
 #[derive(Debug)]
 struct AppNodeRunVerifier {
     /// `run.lexe.app` shared seed verifier - trusts the derived CA
@@ -261,12 +257,11 @@ impl ServerCertVerifier for AppNodeRunVerifier {
 mod test {
     use std::sync::Arc;
 
+    use common::{env::DeployEnv, rng::WeakRng, root_seed::RootSeed};
     use secrecy::Secret;
 
     use super::*;
-    use crate::{
-        env::DeployEnv, rng::WeakRng, root_seed::RootSeed, tls::test_utils,
-    };
+    use crate::tls::test_utils;
 
     /// App->Node TLS handshake should succeed when using the same seed.
     #[tokio::test]
