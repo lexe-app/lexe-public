@@ -10,13 +10,10 @@ use rustls::{
 
 use super::types::{CertWithKey, LxCertificateDer, LxPrivatePkcs8KeyDer};
 #[cfg(doc)]
-use crate::{
-    api::def::{AppBackendApi, AppGatewayApi, BearerAuthBackendApi},
-    client::GatewayClient,
-};
+use crate::api::def::{AppBackendApi, AppGatewayApi, BearerAuthBackendApi};
 use crate::{constants, ed25519, env::DeployEnv};
 
-/// Client-side TLS config for app->gateway APIs, i.e. the [`GatewayClient`].
+/// Client-side TLS config for app->gateway APIs, i.e. the `GatewayClient`.
 /// This TLS config covers:
 /// - [`AppGatewayApi`]
 /// - [`AppBackendApi`]

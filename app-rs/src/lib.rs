@@ -13,6 +13,8 @@
 
 /// The top-level App state
 pub mod app;
+/// The app's clients to the node and gateway.
+pub mod client;
 /// The flutter/rust FFI bindings.
 #[cfg(feature = "flutter")]
 pub(crate) mod ffi;

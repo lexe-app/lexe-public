@@ -13,9 +13,7 @@ use std::{
 
 use anyhow::Context;
 use async_trait::async_trait;
-use reqwest::Url;
-
-use crate::{
+use common::{
     api::{
         auth::{
             BearerAuthRequest, BearerAuthResponse, BearerAuthenticator,
@@ -54,6 +52,7 @@ use crate::{
     root_seed::RootSeed,
     tls::{self, lexe_ca},
 };
+use reqwest::Url;
 
 /// The client to the gateway itself, i.e. requests terminate at the gateway.
 #[derive(Clone)]

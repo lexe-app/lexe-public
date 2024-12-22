@@ -18,7 +18,6 @@ use common::{
         user::{NodePk, NodePkProof, UserPk},
         version::NodeRelease,
     },
-    client::{GatewayClient, NodeClient},
     constants,
     env::DeployEnv,
     ln::network::LxNetwork,
@@ -30,6 +29,7 @@ use secrecy::ExposeSecret;
 use tracing::{info, instrument, warn};
 
 use crate::{
+    client::{GatewayClient, NodeClient},
     ffs::{Ffs, FlatFileFs},
     payments::{self, PaymentDb, PaymentSyncSummary},
     secret_store::SecretStore,

@@ -29,8 +29,11 @@ payment-uri = { path = "../payment-uri" }
 
 anyhow.workspace = true
 arc-swap.workspace = true
+async-trait.workspace = true
 bitcoin.workspace = true
 cfg-if.workspace = true
+http.workspace = true
+reqwest = { workspace = true, features = ["json"] }
 secrecy.workspace = true
 serde.workspace = true
 serde_json.workspace = true

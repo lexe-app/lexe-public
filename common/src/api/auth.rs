@@ -281,9 +281,8 @@ impl BearerAuthenticator {
     /// Read the currently cached and possibly expired (!) bearer auth token.
     ///
     /// This method is only exposed to support the `reqwest::Proxy` workaround
-    /// used in [`NodeClient`](crate::client::NodeClient). Try to avoid it
-    /// otherwise.
-    pub(crate) fn get_maybe_cached_token(&self) -> Option<TokenWithExpiration> {
+    /// used in `NodeClient`. Try to avoid it otherwise.
+    pub fn get_maybe_cached_token(&self) -> Option<TokenWithExpiration> {
         self.cached_auth_token.lock().unwrap().as_ref().cloned()
     }
 

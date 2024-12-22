@@ -1,5 +1,4 @@
-//! The `common` crate contains types and functionality shared between the Lexe
-//! node and client code.
+//! `common` contains types and functionality shared between most Lexe crates.
 
 // Ignore this issue with `proptest_derive::Arbitrary`.
 #![allow(clippy::arc_with_non_send_sync)]
@@ -26,8 +25,6 @@ pub mod backoff;
 pub mod byte_str;
 /// User node CLI.
 pub mod cli;
-/// Mobile client to the node.
-pub mod client;
 /// Application-level constants.
 pub mod constants;
 /// [`dotenvy`] extensions.
