@@ -254,7 +254,9 @@ tokio = { git = "https://github.com/lexe-app/tokio",  branch = "lexe-v1.36.0-202
 # Enable "thin" LTO (link-time optimization) for better perf+binary size. "fat"
 # LTO is marginally better perf-wise but much slower linking time.
 lto = "thin"
-strip = "debuginfo"
+# XXX(max): Revert after we've fixed OOM issue
+# strip = "debuginfo"
+strip = "none"
 
 # For some reason, the `ring` build via nix + x86_64-unknown-linux-gnu is
 # failing in its `build.rs` because it's compiling the native code with `-O0`
