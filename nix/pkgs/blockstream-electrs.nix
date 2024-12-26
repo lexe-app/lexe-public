@@ -1,75 +1,88 @@
 # Blockstream/electrs - indexed BTC chain REST API server
 #
-# Used in integration tests (see `common/src/regtest.rs`)
+# Used in integration tests.
 {
-  buildRustSccache,
-  darwin ? {},
+  bitcoind,
+  electrum,
   fetchFromGitHub,
   lib,
-  rocksdb,
+  rocksdb_8_3,
   rustPlatform,
   stdenv,
-  vendorCargoDeps,
-}: let
-  # commit 2024-09-16
-  rev = "891426ab458eaf807442d8bfdb7b1b7386d358ea";
-  shortRev = builtins.substring 0 8 rev;
+}:
+rustPlatform.buildRustPackage rec {
+  pname = "blockstream-electrs";
+  version = "0.4.1-unstable-2024-11-25";
 
   src = fetchFromGitHub {
     owner = "Blockstream";
     repo = "electrs";
-    rev = rev;
-    hash = "sha256-5IBoKLfKKNc/Ju17AqQf0ALn9AvNfTfDvth5R15aq8U=";
+    rev = "680eacaa8360d5f46eaae9611a3097ba183795c6";
+    hash = "sha256-oDM4arH3aplgcS49t/hy5Rqt36glrVufd3F4tw3j1zo=";
   };
-in
-  buildRustSccache {
-    cargoToml = src + "/Cargo.toml";
-    src = src;
-    cargoVendorDir = vendorCargoDeps {
-      cargoLock = src + "/Cargo.lock";
-      gitDepOutputHashes = {
-        "git+https://github.com/Blockstream/rust-electrum-client?rev=d3792352992a539afffbe11501d1aff9fd5b919d#d3792352992a539afffbe11501d1aff9fd5b919d" = "sha256-HDRdGS7CwWsPXkA1HdurwrVu4lhEx0Ay8vHi08urjZ0=";
-        "git+https://github.com/shesek/electrumd?rev=b35d9db285d932cb3c2296beab65e571a2506349#b35d9db285d932cb3c2296beab65e571a2506349" = "sha256-QsoMD2uVDEITuYmYItfP6BJCq7ApoRztOCs7kdeRL9Y=";
-        "git+https://github.com/shesek/rust-jsonrpc?branch=202201-nonarray#aaa0af349bd4885a59f6f6ba1753e78279014f98" = "sha256-lSNkkQttb8LnJej4Vfe7MrjiNPOuJ5A6w5iLstl9O1k=";
-      };
-    };
-    skipDepsOnlyBuild = true;
 
-    pname = "electrs";
-    version = shortRev;
-    doCheck = false;
+  useFetchCargoVendor = true;
+  cargoHash = "sha256-X2C69ui3XiYP1cg9FgfBbJlLLMq1SCw+oAL20B1Fs30=";
 
-    cargoExtraArgs = builtins.concatStringsSep " " [
-      "--offline"
-      "--locked"
-      "--package=electrs"
-      "--bin=electrs"
-      "--no-default-features"
-    ];
+  nativeBuildInputs = [
+    # Needed for librocksdb-sys
+    rustPlatform.bindgenHook
+  ];
 
-    nativeBuildInputs = [
-      # needed for librocksdb-sys
-      rustPlatform.bindgenHook
-    ];
+  env = {
+    # Dynamically link rocksdb
+    ROCKSDB_INCLUDE_DIR = "${rocksdb_8_3}/include";
+    ROCKSDB_LIB_DIR = "${rocksdb_8_3}/lib";
 
-    buildInputs = lib.optionals stdenv.isDarwin [
-      darwin.apple_sdk.frameworks.Security
-    ];
+    # External binaries for integration tests are provided via nixpkgs. Skip
+    # trying to download them.
+    BITCOIND_SKIP_DOWNLOAD = true;
+    ELECTRUMD_SKIP_DOWNLOAD = true;
+    ELEMENTSD_SKIP_DOWNLOAD = true;
+  };
 
-    # link rocksdb dynamically
-    ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";
-    ROCKSDB_LIB_DIR = "${rocksdb}/lib";
+  # Only build the service
+  cargoBuildFlags = [
+    "--package=electrs"
+    "--bin=electrs"
+  ];
 
-    # make sure it at least runs
-    doInstallCheck = true;
-    installCheckPhase = ''
-      $out/bin/electrs --version
+  # Some upstream dev-dependencies (electrumd, elementsd) currently fail to
+  # build on non-x86_64-linux platforms, even if downloading is skipped.
+  # TODO(phlip9): submit a PR to fix this
+  doCheck = stdenv.hostPlatform.system == "x86_64-linux";
+
+  # Build tests in debug mode to reduce build time
+  checkType = "debug";
+
+  # Integration tests require us to pass in some external deps via env.
+  preCheck = lib.optionalString doCheck ''
+    export BITCOIND_EXE=${bitcoind}/bin/bitcoind
+    export ELECTRUMD_EXE=${electrum}/bin/electrum
+  '';
+
+  # Make sure the final binary actually runs
+  doInstallCheck = true;
+  installCheckPhase = ''
+    $out/bin/electrs --version
+  '';
+
+  meta = {
+    description = "Efficient re-implementation of Electrum Server in Rust";
+    longDescription = ''
+      A blockchain index engine and HTTP API written in Rust based on
+      [romanz/electrs](https://github.com/romanz/electrs).
+
+      Used as the backend for the [Esplora block explorer](https://github.com/Blockstream/esplora)
+      powering <https://blockstream.info>.
+
+      API documentation [is available here](https://github.com/blockstream/esplora/blob/master/API.md).
+
+      Documentation for the database schema and indexing process [is available here](https://github.com/Blockstream/electrs/blob/new-index/doc/schema.md).
     '';
-
-    meta = with lib; {
-      description = "An efficient re-implementation of Electrum Server in Rust";
-      homepage = "https://github.com/Blockstream/electrs";
-      license = licenses.mit;
-      mainProgram = "electrs";
-    };
-  }
+    homepage = "https://github.com/Blockstream/electrs";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [phlip9];
+    mainProgram = "electrs";
+  };
+}
