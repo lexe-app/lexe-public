@@ -13,7 +13,6 @@ use common::{
         def::NodeRunnerApi,
         ports::Ports,
         provision::SealedSeedId,
-        server::LayerConfig,
         user::{NodePk, User, UserPk},
     },
     cli::{node::RunArgs, LspInfo},
@@ -32,7 +31,10 @@ use common::{
 use const_utils::const_assert;
 use futures::future::FutureExt;
 use gdrive::{gvfs::GvfsRootName, GoogleVfs};
-use lexe_api::tls::{self, attestation::NodeMode};
+use lexe_api::{
+    server::LayerConfig,
+    tls::{self, attestation::NodeMode},
+};
 use lexe_ln::{
     alias::{
         BroadcasterType, EsploraSyncClientType, FeeEstimatorType,
@@ -616,7 +618,7 @@ impl UserNode {
                 .context("Failed to build owner service TLS config")?;
         const APP_SERVER_SPAN_NAME: &str = "(app-node-run-server)";
         let (app_server_task, _app_url) =
-            common::api::server::spawn_server_task_with_listener(
+            lexe_api::server::spawn_server_task_with_listener(
                 app_listener,
                 server::app_router(app_router_state),
                 LayerConfig::default(),
@@ -644,7 +646,7 @@ impl UserNode {
         const LEXE_SERVER_SPAN_NAME: &str = "(lexe-node-run-server)";
         let lexe_tls_and_dns = None;
         let (lexe_server_task, _lexe_url) =
-            common::api::server::spawn_server_task_with_listener(
+            lexe_api::server::spawn_server_task_with_listener(
                 lexe_listener,
                 server::lexe_router(lexe_router_state),
                 LayerConfig::default(),
@@ -817,7 +819,7 @@ impl UserNode {
 
         const_assert!(
             constants::USER_NODE_SHUTDOWN_TIMEOUT.as_secs()
-                > common::api::server::SERVER_SHUTDOWN_TIMEOUT.as_secs()
+                > lexe_api::server::SERVER_SHUTDOWN_TIMEOUT.as_secs()
         );
 
         task::try_join_tasks_and_shutdown_with_channel(

@@ -12,7 +12,6 @@ default = []
 test-utils = [
   "dep:proptest",
   "dep:proptest-derive",
-  "dep:tokio",
   "dep:tokio-rustls",
 ]
 
@@ -21,6 +20,7 @@ test-utils = [
 # --- LEXE --- #
 
 common = { path = "../common" }
+const-utils = { path = "../const-utils" }
 hex = { path = "../hex" }
 sha256 = { path = "../sha256" }
 
@@ -28,8 +28,12 @@ sha256 = { path = "../sha256" }
 
 anyhow.workspace = true
 asn1-rs.workspace = true
+async-trait.workspace = true
 axum.workspace = true
+axum-server = { workspace = true, features = ["tls-rustls"] }
 dcap-ql.workspace = true
+http.workspace = true
+hyper = { workspace = true, features = ["http1", "http2", "server"] }
 rcgen.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 ring.workspace = true
@@ -38,6 +42,9 @@ secrecy.workspace = true
 serde.workspace = true
 sgx-isa.workspace = true
 time.workspace = true
+tokio = { workspace = true, features = ["time"] }
+tower = { workspace = true, features = ["buffer", "limit", "load-shed", "timeout", "util"] }
+tower-http = { workspace = true, features = ["trace"] }
 tracing.workspace = true
 x509-parser.workspace = true
 
@@ -60,7 +67,6 @@ yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
 # These must have `optional = true` to prevent infecting production binaries.
 proptest = { optional = true, workspace = true, features = ["alloc"] }
 proptest-derive = { optional = true, workspace = true }
-tokio = { optional = true, workspace = true, features = [] }
 # Lower-level async TLS interface
 tokio-rustls = { optional = true, version = "0.25", default-features = false }
 

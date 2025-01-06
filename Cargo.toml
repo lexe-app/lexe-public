@@ -131,6 +131,8 @@ time = "0.3"
 toml = "0.8"
 # `Service` and `Layer`-based async middleware
 tower = "0.4"
+tower-http = "0.5"
+tower-service = "0.3"
 # Scoped, structured logging for asynchronous systems
 tracing = "0.1"
 tracing-core = "0.1"

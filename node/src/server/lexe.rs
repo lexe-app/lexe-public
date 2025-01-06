@@ -2,14 +2,10 @@ use std::sync::Arc;
 
 use axum::extract::State;
 use common::{
-    api::{
-        error::NodeApiError,
-        server::{extract::LxQuery, LxJson},
-        user::UserPkStruct,
-        Empty,
-    },
+    api::{error::NodeApiError, user::UserPkStruct, Empty},
     test_event::TestEventOp,
 };
+use lexe_api::server::{extract::LxQuery, LxJson};
 use lexe_ln::test_event;
 
 use crate::server::LexeRouterState;

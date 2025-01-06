@@ -37,7 +37,7 @@ pub mod ports;
 pub mod provision;
 /// A client and helpers that enforce common REST semantics across Lexe crates.
 pub mod rest;
-/// Webserver utilities.
+/// A subset of `lexe_api::server` which needs to stay in `common`.
 pub mod server;
 /// API tracing utilities for both client and server.
 pub mod trace;

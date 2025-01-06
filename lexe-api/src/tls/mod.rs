@@ -226,12 +226,7 @@ pub mod test_utils {
     use anyhow::Context;
     use axum::{routing::post, Router};
     use common::{
-        api::{
-            self,
-            error::BackendApiError,
-            rest::RestClient,
-            server::{LayerConfig, LxJson},
-        },
+        api::{error::BackendApiError, rest::RestClient},
         net,
         shutdown::ShutdownChannel,
     };
@@ -241,6 +236,7 @@ pub mod test_utils {
     use tracing::info_span;
 
     use super::*;
+    use crate::server::{self, LayerConfig, LxJson};
 
     /// Conducts a TLS handshake without any other [`reqwest`]/[`axum`] infra,
     /// over a fake pair of connected streams. Returns the client and server
@@ -329,7 +325,7 @@ pub mod test_utils {
         let shutdown = ShutdownChannel::new();
         let tls_and_dns = Some((server_config, server_dns));
         const TEST_SPAN_NAME: &str = "(test-server)";
-        let (server_task, server_url) = api::server::spawn_server_task(
+        let (server_task, server_url) = server::spawn_server_task(
             net::LOCALHOST_WITH_EPHEMERAL_PORT,
             router,
             LayerConfig::default(),

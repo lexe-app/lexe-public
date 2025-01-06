@@ -16,13 +16,13 @@ use common::{
             PreflightPayOnchainResponse, UpdatePaymentNote,
         },
         error::NodeApiError,
-        server::{extract::LxQuery, LxJson},
         Empty,
     },
     constants,
     ln::{amount::Amount, channel::LxUserChannelId, payments::VecBasicPayment},
     rng::SysRng,
 };
+use lexe_api::server::{extract::LxQuery, LxJson};
 use lexe_ln::{command::CreateInvoiceCaller, p2p};
 
 use super::AppRouterState;

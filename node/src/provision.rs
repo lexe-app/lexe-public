@@ -24,13 +24,11 @@ use axum::{
 };
 use common::{
     api::{
-        self,
         auth::BearerAuthenticator,
         def::{NodeBackendApi, NodeRunnerApi},
         error::{NodeApiError, NodeErrorKind},
         ports::Ports,
         provision::{NodeProvisionRequest, SealedSeed},
-        server::LayerConfig,
         version::MeasurementStruct,
         Empty,
     },
@@ -41,7 +39,10 @@ use common::{
     shutdown::ShutdownChannel,
 };
 use gdrive::GoogleVfs;
-use lexe_api::tls::{self, attestation::NodeMode};
+use lexe_api::{
+    server::{self, LayerConfig},
+    tls::{self, attestation::NodeMode},
+};
 use tracing::{debug, info, info_span};
 
 use crate::{
@@ -114,17 +115,16 @@ pub async fn provision_node(
     let (app_tls_config, app_dns) =
         tls::attestation::app_node_provision_server_config(rng, &measurement)
             .context("Failed to build TLS config for provisioning")?;
-    let (app_server_task, _app_url) =
-        api::server::spawn_server_task_with_listener(
-            app_listener,
-            app_router(ctx),
-            LayerConfig::default(),
-            Some((Arc::new(app_tls_config), app_dns.as_str())),
-            APP_SERVER_SPAN_NAME,
-            info_span!(parent: None, APP_SERVER_SPAN_NAME),
-            shutdown.clone(),
-        )
-        .context("Failed to spawn app node provision server task")?;
+    let (app_server_task, _app_url) = server::spawn_server_task_with_listener(
+        app_listener,
+        app_router(ctx),
+        LayerConfig::default(),
+        Some((Arc::new(app_tls_config), app_dns.as_str())),
+        APP_SERVER_SPAN_NAME,
+        info_span!(parent: None, APP_SERVER_SPAN_NAME),
+        shutdown.clone(),
+    )
+    .context("Failed to spawn app node provision server task")?;
 
     const LEXE_SERVER_SPAN_NAME: &str = "(lexe-node-provision-server)";
     let lexe_listener = TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
@@ -139,7 +139,7 @@ pub async fn provision_node(
         shutdown: shutdown.clone(),
     });
     let (lexe_server_task, _lexe_url) =
-        api::server::spawn_server_task_with_listener(
+        lexe_api::server::spawn_server_task_with_listener(
             lexe_listener,
             lexe_router,
             LayerConfig::default(),
@@ -192,10 +192,8 @@ fn lexe_router(state: LexeRouterState) -> Router<()> {
 /// API handlers.
 mod handlers {
     use axum::extract::State;
-    use common::api::{
-        server::{extract::LxQuery, LxJson},
-        user::UserPk,
-    };
+    use common::api::user::UserPk;
+    use lexe_api::server::{extract::LxQuery, LxJson};
 
     use super::*;
 
