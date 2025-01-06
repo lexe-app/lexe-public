@@ -1,12 +1,9 @@
 use std::{
     fmt,
-    io::{self, Write},
-    mem,
+    io::Write,
     path::PathBuf,
-    pin::Pin,
     str::{self, FromStr},
     sync::{LazyLock, OnceLock},
-    task::{ready, Context, Poll},
 };
 
 use anyhow::{format_err, Context as _, Result};
@@ -16,7 +13,6 @@ use object::{
     Object,
 };
 use rustc_demangle::{demangle, Demangle};
-use tokio::io::AsyncWrite;
 
 #[derive(Debug)]
 pub struct Args {
@@ -84,6 +80,8 @@ impl Args {
             .einittoken_provider(aesm_client)
             .build();
 
+        // use the passed ELF binary arg or look for an adjacent ELF binary
+        // ("<bin>.sgxs" -> "<bin>") that contains symbols for backtraces.
         let bin_path: &Path = &self.opts.bin;
         let maybe_elf_bin_path = self.opts.elf.clone().or_else(|| {
             let elf = bin_path.with_extension("");
@@ -93,9 +91,15 @@ impl Args {
                 None
             }
         });
+        // set the ELF binary path so we can symbolize backtraces
+        if let Some(elf_bin_path) = maybe_elf_bin_path {
+            ENCLAVE_ELF_BIN_PATH.set(elf_bin_path).expect(
+                "ENCLAVE_ELF_BIN_PATH should never be set more than once",
+            );
+        }
         let mut enclave = EnclaveBuilder::new(bin_path);
 
-        // problem: enclave can't talk to the AESM (fs access denied).
+        // problem: enclave can't talk to the AESM (no filesystem in enclave).
         // solution: proxy TCP connections from "aesm.local" to the local AESM
         // unix socket.
         enclave.usercall_extension(AesmProxy);
@@ -131,20 +135,8 @@ impl Args {
         // attach the enclave's args
         enclave.args(self.enclave_args);
 
-        // hook stdout so we can symbolize backtraces
-        // TODO(max): Reenable once we can correctly capture backtraces in SGX.
-        let _ = maybe_elf_bin_path;
-        // if let Some(elf_bin_path) = maybe_elf_bin_path {
-        //     ENCLAVE_ELF_BIN_PATH.set(elf_bin_path).expect(
-        //         "ENCLAVE_ELF_BIN_PATH should never be set more than once",
-        //     );
-        //     let stdout = tokio::io::stdout();
-        //     let stdout = backtrace_symbolizer_stream(stdout);
-        //     enclave.stdout(stdout);
-        // }
-
         // // TODO(phlip9): for some reason, this causes the runner to hang if
-        // the enclave ever panics...
+        // // the enclave ever panics...
         // enclave.forward_panics(true);
 
         let enclave_cmd = enclave
@@ -154,24 +146,43 @@ impl Args {
 
         // TODO(phlip9): catch SIGBUS to print nice error msg on stack overflow?
 
-        let result = enclave_cmd
-            .run()
-            .map_err(|err| format_err!("{err:#?}"))
-            .context("SGX enclave error");
+        // run the enclave
+        let res = enclave_cmd.run();
 
-        if let Err(ref error) = result {
-            println!("RUN-SGX FATAL ERROR: {error}");
-            eprintln!("RUN-SGX FATAL ERROR: {error}");
-            if let Err(e) = std::io::stdout().flush() {
-                eprintln!("stdout clogged! {e:#}");
-            }
-            if let Err(e) = std::io::stderr().flush() {
-                println!("stderr clogged! {e:#}");
-            }
-            std::thread::sleep(std::time::Duration::from_secs(1));
+        // if the enclave panics, return the panic message with a symbolized
+        // backtrace.
+        if let Err(err) = res {
+            use enclave_runner::EnclavePanic;
+
+            // when the enclave is built in debug mode, it will dump panics with
+            // unsymbolized backtraces into a 1000 B "debug buffer" shared with
+            // the untrusted host.
+            //
+            // On panic we'll try reading that buffer and symbolize any
+            // backtraces in the output.
+            //
+            // An enclave Cargo.toml configured to build in debug mode:
+            //
+            // ```toml
+            // [package.metadata.fortanix-sgx]
+            // debug = true
+            // ```
+            let panic_str = match err.downcast::<EnclavePanic>() {
+                Ok(EnclavePanic::NoDebugBuf) =>
+                    return Err(format_err!(
+                        "enclave panicked without writing any debug info!"
+                    )),
+                Err(err) => return Err(err),
+                Ok(EnclavePanic::DebugStr(s)) => s,
+                Ok(EnclavePanic::DebugBuf(b)) =>
+                    String::from_utf8_lossy(&b).into_owned(),
+            };
+
+            let symbolized_panic_str = symbolize_panic_output(&panic_str);
+            return Err(anyhow::Error::msg(symbolized_panic_str));
         }
 
-        result
+        Ok(())
     }
 
     #[cfg(not(all(target_arch = "x86_64", target_os = "linux")))]
@@ -211,137 +222,39 @@ fn split_args<'a>(args: &'a [&'a str]) -> (&'a [&'a str], &'a [&'a str]) {
     }
 }
 
-// -- impl AsyncLineWriter -- //
+// -- impl BacktraceFrame -- //
 
-/// Buffers writes until we hit a newline, then calls a callback on the line
-/// before writing the modified line into the wrapped [`AsyncWrite`].
-pub struct AsyncLineWriter<W, F> {
-    inner: W,
-    buf: Vec<u8>,
-    line_callback: F,
-    need_flush: bool,
-    write_offset: usize,
-}
+/// Permissively parse backtrace frame lines from the panic output buffer
+/// and symbolize them.
+///
+/// Ex:
+///    "  15:            0x25775 - <unknown>"
+/// -> "  15:            0x25775 - sgx_test::foo"
+#[cfg_attr(
+    not(all(target_arch = "x86_64", target_os = "linux")),
+    allow(dead_code)
+)]
+fn symbolize_panic_output(panic_output: &str) -> String {
+    use std::fmt::Write;
 
-impl<W, F> AsyncLineWriter<W, F>
-where
-    W: AsyncWrite + Unpin,
-    F: Fn(Vec<u8>) -> Vec<u8> + Unpin,
-{
-    pub fn new(inner: W, line_callback: F) -> Self {
-        Self {
-            inner,
-            buf: Vec::with_capacity(8192),
-            line_callback,
-            need_flush: false,
-            write_offset: 0,
-        }
-    }
-
-    /// Try to write the buffered (and maybe modified) line, `self.buf`, into
-    /// the underlying [`AsyncWrite`]. We won't accept more input until this
-    /// pending write is complete.
-    fn poll_write_pending(
-        &mut self,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
-        if !self.need_flush {
-            return Poll::Ready(Ok(()));
-        }
-
-        let write_buf = &self.buf[self.write_offset..];
-        if write_buf.is_empty() {
-            self.need_flush = false;
-            return Poll::Ready(Ok(()));
-        }
-
-        let bytes_written = match Pin::new(&mut self.inner)
-            .poll_write(cx, &self.buf[self.write_offset..])
-        {
-            Poll::Pending => return Poll::Pending,
-            Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
-            Poll::Ready(Ok(bytes_written)) => bytes_written,
-        };
-
-        self.write_offset += bytes_written;
-
-        // we've written all the pending bytes. reset.
-        if self.write_offset == self.buf.len() {
-            self.need_flush = false;
-            self.write_offset = 0;
-            self.buf.clear();
-        }
-
-        Poll::Ready(Ok(()))
-    }
-}
-
-impl<W, F> AsyncWrite for AsyncLineWriter<W, F>
-where
-    W: AsyncWrite + Unpin,
-    F: Fn(Vec<u8>) -> Vec<u8> + Unpin,
-{
-    /// 1. first try to flush any pending write we might have buffered
-    /// 2. accept and buffer more bytes from the input until we see a '\n'
-    /// 3. notify the callback of a new line, which they might modify
-    /// 4. move into flush mode to write the buffered, modified line before
-    ///    accepting more input.
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<io::Result<usize>> {
-        // finish writing any pending writes first.
-        ready!(self.poll_write_pending(cx))?;
-
-        // buffer until we find a newline byte
-        let newline_idx = memchr::memchr(b'\n', buf);
-        let newline_idx = match newline_idx {
-            None => {
-                // no newline byte yet, just keep buffering
-                self.buf.extend_from_slice(buf);
-                return Poll::Ready(Ok(buf.len()));
+    let mut buf = String::with_capacity(panic_output.len());
+    for line in panic_output.lines() {
+        let maybe_frame = BacktraceFrame::parse_from_backtrace_line(line);
+        match maybe_frame {
+            Some(mut frame) => {
+                frame.symbolize();
+                write!(&mut buf, "{frame}").unwrap();
             }
-            Some(newline_idx) => newline_idx,
-        };
-
-        // we'll only write up to and including the newline
-        let buf = &buf[..newline_idx + 1];
-        let bytes_written = buf.len();
-
-        // copy line into buf
-        self.buf.extend_from_slice(buf);
-
-        // notify the caller of the new line, they can modify it if they wish.
-        let buf = mem::take(&mut self.buf);
-        self.buf = (self.line_callback)(buf);
-
-        // set mode to flush pending write
-        self.need_flush = true;
-        self.write_offset = 0;
-
-        Poll::Ready(Ok(bytes_written))
+            None => {
+                buf.push_str(line);
+            }
+        }
+        buf.push('\n');
     }
-
-    fn poll_flush(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
-        ready!(self.poll_write_pending(cx))?;
-        Pin::new(&mut self.inner).poll_flush(cx)
-    }
-
-    fn poll_shutdown(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.inner).poll_shutdown(cx)
-    }
+    buf
 }
 
-// -- impl Backtrace -- //
-
-#[derive(Debug)]
+#[cfg_attr(test, derive(Debug))]
 struct BacktraceFrame {
     frame_idx: usize,
     instruction_ptr: usize,
@@ -350,10 +263,14 @@ struct BacktraceFrame {
 
 impl BacktraceFrame {
     fn parse_from_backtrace_line(line: &str) -> Option<Self> {
-        // just some quick and dirty parsing code
+        // quickly avoid processing long lines, which definitely aren't
+        // backtrace frames
+        if line.len() >= 40 {
+            return None;
+        }
 
         // example backtrace line:
-        // "  11: 0x3933f\n"
+        // "  11:         0x3933f - <unknown>\n"
 
         fn parse_hex(s: &str) -> Option<usize> {
             usize::from_str_radix(s, 16).ok()
@@ -363,11 +280,14 @@ impl BacktraceFrame {
             line.split_once(": ").and_then(|(prefix, rest)| {
                 let prefix = prefix.trim_start();
                 let frame_idx = usize::from_str(prefix).ok()?;
+                let rest = rest.trim_start();
                 Some((frame_idx, rest))
             })?;
 
+        let (ip, _rest) = rest.split_once(" - ").unwrap_or((rest, ""));
+
         let instruction_ptr =
-            rest.trim_end().strip_prefix("0x").and_then(parse_hex)?;
+            ip.trim_end().strip_prefix("0x").and_then(parse_hex)?;
 
         Some(Self {
             frame_idx,
@@ -375,65 +295,31 @@ impl BacktraceFrame {
             symbol_name: None,
         })
     }
+
+    // 1. Lazy load the elf binary and extract the symbol table
+    // 2. Try to resolve the symbol name.
+    // 3. The symbol name comes out mangled, e.g.
+    //    "_ZN11sgx_enclave4main17h26101c5064988311E", so we need to demangle to
+    //    make it pretty, like "sgx_enclave::main".
+    fn symbolize(&mut self) {
+        self.symbol_name = enclave_elf_symbol_map()
+            .get(self.instruction_ptr as u64)
+            .map(|symbol| demangle(symbol.name()));
+    }
 }
 
 impl fmt::Display for BacktraceFrame {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let idx = self.frame_idx;
-        let ip = self.instruction_ptr;
+        let frame_idx = self.frame_idx;
+        let frame_ip = self.instruction_ptr;
 
-        write!(f, "{idx:>4}: ip={ip:#x}")?;
-        if let Some(symbol_name) = &self.symbol_name {
-            write!(f, " : {symbol_name:#}")?;
+        write!(f, "{frame_idx:4}: {frame_ip:#18x} - ")?;
+        match &self.symbol_name {
+            Some(symbol_name) => write!(f, "{symbol_name:#}")?,
+            None => write!(f, "<unknown>")?,
         }
         Ok(())
     }
-}
-
-/// A stream that symbolizes backtrace lines. When we see a backtrace line,
-/// try to symbolize the line (convert the raw addresses to human-readable
-/// symbols).
-pub fn backtrace_symbolizer_stream<W: AsyncWrite + Unpin>(
-    stream: W,
-) -> impl AsyncWrite + Unpin {
-    AsyncLineWriter::new(stream, move |mut line_buf| {
-        // quickly avoid processing long lines, which definitely aren't
-        // backtrace frames
-        if line_buf.len() >= 32 {
-            return line_buf;
-        }
-
-        // only parse utf8-encoded lines
-        let line_str = match str::from_utf8(&line_buf) {
-            Ok(s) => s,
-            Err(_) => return line_buf,
-        };
-
-        // try to parse a backtrace frame from this line
-        let mut frame =
-            match BacktraceFrame::parse_from_backtrace_line(line_str) {
-                Some(frame) => frame,
-                None => return line_buf,
-            };
-
-        // we found a backtrace frame, try to lazily load the elf binary and
-        // extract the symbol table
-        //
-        // 1. Try to resolve the symbol name.
-        // 2. The symbol name comes out mangled, e.g.
-        //    "_ZN11sgx_enclave4main17h26101c5064988311E", so we need to
-        //    demangle to make it pretty, like "sgx_enclave::main".
-        frame.symbol_name = enclave_elf_symbol_map()
-            .get(frame.instruction_ptr as u64)
-            .map(|symbol| demangle(symbol.name()));
-
-        // in the current line, replace the raw backtrace frame with the
-        // symbolized version.
-        line_buf.clear();
-        writeln!(&mut line_buf, "{frame}")
-            .expect("Formatting into a Vec<u8> should never fail");
-        line_buf
-    })
 }
 
 // -- lazy load symbol map -- //
@@ -495,6 +381,8 @@ fn main() {
 
     if let Err(err) = result {
         eprintln!("run-sgx error: {err:#}");
+        let _ = std::io::stdout().flush();
+        let _ = std::io::stderr().flush();
         std::process::exit(1);
     }
 }
@@ -504,11 +392,42 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_parse_backtrace() {
+        let input = r#"thread 'main' panicked at public/sgx-test/src/main.rs:62:5:
+foo failed!
+stack backtrace:
+   0:            0x2104c - <unknown>
+   1:             0xdc8c - <unknown>
+   2:            0x204be - <unknown>
+   3:            0x21e85 - <unknown>
+   4:            0x230c9 - <unknown>
+   5:            0x224e1 - <unknown>
+   6:            0x21259 - <unknown>
+   7:            0x22127 - <unknown>
+   8:             0xce35 - <unknown>
+   9:            0x1878b - <unknown>
+  10:            0x18845 - <unknown>
+  11:            0x186c9 - <unknown>
+  12:            0x186ac - <unknown>
+  13:            0x1de31 - <unknown>
+  14:            0x18b04 - <unknown>
+  15:            0x25775 - <unknown>
+"#;
+
+        // parsing and symbolizing w/o symbols available will just roundtrip
+        let output = symbolize_panic_output(input);
+        assert_eq!(input, output);
+    }
+
+    #[test]
     fn test_parse_backtrace_frame() {
-        let frame = BacktraceFrame::parse_from_backtrace_line("  43: 0x2f648a")
-            .unwrap();
-        assert_eq!(frame.frame_idx, 43);
-        assert_eq!(frame.instruction_ptr, 0x2f648a);
+        let frame = BacktraceFrame::parse_from_backtrace_line(
+            "  12:            0x186ac - <unknown>",
+        )
+        .unwrap();
+        assert_eq!(frame.frame_idx, 12);
+        assert_eq!(frame.instruction_ptr, 0x186ac);
+        assert!(frame.symbol_name.is_none());
 
         assert!(BacktraceFrame::parse_from_backtrace_line("").is_none());
         assert!(BacktraceFrame::parse_from_backtrace_line("foo bar").is_none());

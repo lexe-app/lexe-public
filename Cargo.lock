@@ -3698,7 +3698,6 @@ dependencies = [
  "argh",
  "common",
  "enclave-runner",
- "memchr",
  "object 0.30.4",
  "rustc-demangle",
  "serde",

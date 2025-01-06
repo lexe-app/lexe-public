@@ -19,8 +19,6 @@ tokio = { workspace = true, features = ["net"] }
 
 # --- CRATE-SPECIFIC --- #
 
-# Efficiently find newline byte in byte array
-memchr = "2"
 # For symbolizing backtrace frames from the enclave
 object = { version = "0.30", default-features = false, features = ["read_core", "compression", "elf"] }
 # For demangling backtrace symbols into human-readable format
