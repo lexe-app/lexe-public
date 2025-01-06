@@ -11,7 +11,6 @@ default = []
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
 test-utils = [
   "dep:chrono",
-  "dep:electrsd",
   "dep:proptest",
   "dep:proptest-derive",
   "dep:serde_urlencoded",
@@ -95,12 +94,6 @@ proptest-derive = { optional = true, workspace = true }
 serde_urlencoded = { optional = true, workspace = true }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-# Bitcoind + electrum + esplora regtest
-# Note that electrsd reexports bitcoind and electrum-client in its crate root.
-# Note that this crate is additionally declared in the non-SGX dev dependencies.
-# If bitcoind init is flaking in tests, consider downgrading to 22_0:
-# https://github.com/RCasatta/bitcoind/issues/101
-electrsd = { optional = true, version = "0.28", features = ["bitcoind_23_1", "esplora_a33e97e1", "legacy"] }
 # Enable the `client-legacy-socket2` feature from our patch when outside of SGX.
 # This can be removed if our `client-legacy-socket2` patch is removed.
 # Include std impls when testing outside of SGX
@@ -108,11 +101,8 @@ hyper-util = { workspace = true, features = ["client-legacy-socket2"] }
 proptest = { optional = true, workspace = true, features = ["std"] }
 
 [dev-dependencies]
-chrono.workspace = true
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
-serde_json.workspace = true
-serde_urlencoded.workspace = true
 tokio = { workspace = true, features = [
     "io-util",
     "macros",
@@ -129,7 +119,5 @@ tokio-test = "0.4"
 sgx-panic-backtrace = "0.1"
 
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
-# Bitcoind + electrum + esplora regtest
-electrsd = { version = "0.28", features = ["bitcoind_23_1", "esplora_a33e97e1", "legacy"] }
 # Include std impls when testing outside of SGX
 proptest = { workspace = true, features = ["std"] }
