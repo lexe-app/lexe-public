@@ -1034,12 +1034,12 @@ mod test {
         script::{self, ScriptBuf},
         secp256k1,
     };
-    use common::rng::{Crng, WeakRng};
+    use common::rng::{Crng, FastRng};
 
     use super::*;
 
     fn pubkey() -> PublicKey {
-        let mut rng = WeakRng::new();
+        let mut rng = FastRng::new();
         let secp_ctx = rng.gen_secp256k1_ctx_signing();
         let secret_key = secp256k1::SecretKey::from_slice(&[
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

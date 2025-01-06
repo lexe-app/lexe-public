@@ -296,11 +296,11 @@ mod test {
     use proptest::{arbitrary::any, proptest};
 
     use super::*;
-    use crate::{enclave, rng::WeakRng, test_utils::roundtrip};
+    use crate::{enclave, rng::FastRng, test_utils::roundtrip};
 
     #[test]
     fn test_node_provision_request_sample() {
-        let mut rng = WeakRng::from_u64(12345);
+        let mut rng = FastRng::from_u64(12345);
         let req = NodeProvisionRequest {
             root_seed: RootSeed::from_rng(&mut rng),
             deploy_env: DeployEnv::Dev,
@@ -332,7 +332,7 @@ mod test {
         let machine_id = enclave::machine_id();
 
         proptest!(|(
-            mut rng in any::<WeakRng>(),
+            mut rng in any::<FastRng>(),
             (env1, network1) in DeployEnv::any_valid_network_combo(),
         )| {
             let root_seed1 = RootSeed::from_rng(&mut rng);

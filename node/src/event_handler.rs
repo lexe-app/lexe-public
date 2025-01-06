@@ -45,7 +45,7 @@ use common::{
     debug_panic_release_log,
     ln::{channel::LxChannelId, payments::LxPaymentHash},
     notify,
-    rng::{RngExt, ThreadWeakRng},
+    rng::{RngExt, ThreadFastRng},
     shutdown::ShutdownChannel,
     task::LxTask,
     test_event::TestEvent,
@@ -164,7 +164,7 @@ async fn do_handle_event(
                 }
 
                 // Checks passed, accept the (probably zero-conf) channel.
-                let user_channel_id = ThreadWeakRng::new().gen_u128();
+                let user_channel_id = ThreadFastRng::new().gen_u128();
                 ctx.channel_manager
                     .accept_inbound_channel_from_trusted_peer_0conf(
                         &temporary_channel_id,

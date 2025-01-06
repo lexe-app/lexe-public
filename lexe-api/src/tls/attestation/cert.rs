@@ -185,7 +185,7 @@ impl<'a> fmt::Debug for SgxAttestationExtension<'a> {
 
 #[cfg(test)]
 mod test {
-    use common::rng::WeakRng;
+    use common::rng::FastRng;
 
     use super::*;
 
@@ -199,7 +199,7 @@ mod test {
 
     #[test]
     fn test_gen_cert() {
-        let mut rng = WeakRng::from_u64(20240217);
+        let mut rng = FastRng::from_u64(20240217);
         let dns_name = "hello.world".to_owned();
         let lifetime = Duration::from_secs(3600);
 

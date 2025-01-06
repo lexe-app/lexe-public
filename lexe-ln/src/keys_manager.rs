@@ -250,7 +250,7 @@ impl SignerProvider for LexeKeysManager {
 
 #[cfg(test)]
 mod test {
-    use common::rng::WeakRng;
+    use common::rng::FastRng;
     use proptest::{arbitrary::any, prop_assert_eq, proptest};
 
     use super::*;
@@ -261,7 +261,7 @@ mod test {
     fn test_rootseed_keysmanager_derivation_equivalence() {
         proptest!(|(
             root_seed in any::<RootSeed>(),
-            mut rng in any::<WeakRng>()
+            mut rng in any::<FastRng>()
         )| {
             let root_seed_node_pk = root_seed.derive_node_pk(&mut rng);
 

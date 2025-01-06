@@ -218,14 +218,14 @@ mod arb {
 
     use super::*;
     use crate::{
-        rng::{Crng, RngExt, WeakRng},
+        rng::{Crng, FastRng, RngExt},
         root_seed::RootSeed,
         test_utils::arbitrary::{self, any_option_string},
     };
 
     fn any_offers_context() -> impl Strategy<Value = OffersContext> {
         fn any_nonce() -> impl Strategy<Value = Nonce> {
-            any::<WeakRng>()
+            any::<FastRng>()
                 .prop_map(|mut rng| Nonce::from_entropy_source(&mut rng))
         }
         fn any_payment_id() -> impl Strategy<Value = PaymentId> {
@@ -283,7 +283,7 @@ mod arb {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            let any_rng = any::<WeakRng>();
+            let any_rng = any::<FastRng>();
             let any_network = any::<Option<LxNetwork>>();
             let any_is_blinded = any::<bool>();
             let any_description = arbitrary::any_option_string();
@@ -345,7 +345,7 @@ mod arb {
     /// Un-builder-ify the [`OfferBuilder`] API, since the extra type parameters
     /// get in the way when generating via proptest. Only used in testing.
     pub(super) fn gen_offer(
-        mut rng: WeakRng,
+        mut rng: FastRng,
         network: Option<LxNetwork>,
         is_blinded: bool,
         description: Option<String>,
@@ -454,7 +454,7 @@ mod test {
 
     use super::*;
     use crate::{
-        rng::WeakRng,
+        rng::FastRng,
         test_utils::{arbitrary, roundtrip},
     };
 
@@ -500,7 +500,7 @@ mod test {
     #[ignore]
     #[test]
     fn offer_sample_data() {
-        let mut rng = WeakRng::from_u64(949846484986610);
+        let mut rng = FastRng::from_u64(949846484986610);
         let strategy = any::<LxOffer>();
         let value_iter = arbitrary::gen_value_iter(&mut rng, strategy);
 
@@ -515,7 +515,7 @@ mod test {
     #[ignore]
     #[test]
     fn offer_dump() {
-        let mut rng = WeakRng::from_u64(123);
+        let mut rng = FastRng::from_u64(123);
 
         // false => use node_pk to sign offer (less privacy)
         // true => derive a signing keypair per offer (add ~50 B per offer).

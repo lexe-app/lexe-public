@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use common::rng::{RngExt, ThreadWeakRng};
+use common::rng::{RngExt, ThreadFastRng};
 
 /// Abstraction over a flat file system (no subdirs), suitable for mocking.
 pub trait Ffs {
@@ -134,7 +134,7 @@ impl Ffs for FlatFileFs {
         // This way multiple threads can't partially write to the same file.
         // Only one will win, and the write will be atomic.
         let tmp_write_path = {
-            let name: [u8; 16] = ThreadWeakRng::new().gen_alphanum_bytes();
+            let name: [u8; 16] = ThreadFastRng::new().gen_alphanum_bytes();
             let name_str = std::str::from_utf8(name.as_slice())
                 .expect("ASCII is all valid UTF-8");
             self.write_dir.join(name_str)
@@ -175,7 +175,7 @@ mod fsext {
 pub(crate) mod test {
     use std::{cell::RefCell, collections::BTreeMap};
 
-    use common::rng::{shuffle, WeakRng};
+    use common::rng::{shuffle, FastRng};
 
     use super::*;
 
@@ -191,7 +191,7 @@ pub(crate) mod test {
 
     #[derive(Debug)]
     struct MockFfsInner {
-        rng: WeakRng,
+        rng: FastRng,
         files: BTreeMap<String, Vec<u8>>,
     }
 
@@ -199,13 +199,13 @@ pub(crate) mod test {
         pub(crate) fn new() -> Self {
             Self {
                 inner: RefCell::new(MockFfsInner {
-                    rng: WeakRng::new(),
+                    rng: FastRng::new(),
                     files: BTreeMap::new(),
                 }),
             }
         }
 
-        pub(crate) fn from_rng(rng: WeakRng) -> Self {
+        pub(crate) fn from_rng(rng: FastRng) -> Self {
             Self {
                 inner: RefCell::new(MockFfsInner {
                     rng,

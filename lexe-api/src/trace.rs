@@ -8,7 +8,7 @@ use std::{
 };
 
 use anyhow::{bail, ensure, Context};
-use common::rng::ThreadWeakRng;
+use common::rng::ThreadFastRng;
 use http::{HeaderName, HeaderValue};
 use rand_core::RngCore;
 use tracing::{span, warn, Dispatch};
@@ -58,9 +58,9 @@ impl TraceId {
     const LENGTH: usize = 16;
 
     /// Convenience to generate a [`TraceId`] using the thread-local
-    /// [`ThreadWeakRng`].
+    /// [`ThreadFastRng`].
     pub fn generate() -> Self {
-        Self::from_rng(&mut ThreadWeakRng::new())
+        Self::from_rng(&mut ThreadFastRng::new())
     }
 
     /// Generate a [`TraceId`] from an existing rng.
@@ -259,7 +259,7 @@ impl fmt::Debug for TraceId {
 
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
-    use common::rng::WeakRng;
+    use common::rng::FastRng;
     use proptest::{
         arbitrary::{any, Arbitrary},
         strategy::{BoxedStrategy, Strategy},
@@ -271,7 +271,7 @@ mod arbitrary_impl {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            any::<WeakRng>()
+            any::<FastRng>()
                 .prop_map(|mut rng| Self::from_rng(&mut rng))
                 .boxed()
         }

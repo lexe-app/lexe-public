@@ -257,7 +257,7 @@ impl ServerCertVerifier for AppNodeRunVerifier {
 mod test {
     use std::sync::Arc;
 
-    use common::{env::DeployEnv, rng::WeakRng, root_seed::RootSeed};
+    use common::{env::DeployEnv, rng::FastRng, root_seed::RootSeed};
     use secrecy::Secret;
 
     use super::*;
@@ -294,7 +294,7 @@ mod test {
         client_seed: &RootSeed,
         server_seed: &RootSeed,
     ) -> [Result<(), String>; 2] {
-        let mut rng = WeakRng::from_u64(20240514);
+        let mut rng = FastRng::from_u64(20240514);
         let deploy_env = DeployEnv::Dev;
 
         let client_config =

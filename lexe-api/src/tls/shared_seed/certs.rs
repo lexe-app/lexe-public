@@ -151,13 +151,13 @@ impl SharedSeedServerCert {
 
 #[cfg(test)]
 mod test {
-    use common::rng::WeakRng;
+    use common::rng::FastRng;
 
     use super::*;
 
     #[test]
     fn test_certs_parse_successfully() {
-        let mut rng = WeakRng::from_u64(20240215);
+        let mut rng = FastRng::from_u64(20240215);
         let root_seed = RootSeed::from_rng(&mut rng);
         let ca_cert = SharedSeedCaCert::from_root_seed(&root_seed);
         let ca_cert_der = ca_cert.serialize_der_self_signed().unwrap();

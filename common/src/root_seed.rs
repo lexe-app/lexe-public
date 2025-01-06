@@ -408,7 +408,7 @@ mod test {
     };
 
     use super::*;
-    use crate::{ln::network::LxNetwork, rng::WeakRng};
+    use crate::{ln::network::LxNetwork, rng::FastRng};
 
     // simple implementations of some crypto functions for equivalence testing
 
@@ -491,7 +491,7 @@ mod test {
     #[ignore]
     #[test]
     fn test_root_seed_dump() {
-        let mut rng = WeakRng::from_u64(1234);
+        let mut rng = FastRng::from_u64(1234);
         let root_seed = RootSeed::from_u64(20240506);
         let root_seed_hex = hex::encode(root_seed.expose_secret());
         let user_pk = root_seed.derive_user_pk();
@@ -588,7 +588,7 @@ mod test {
     #[test]
     fn when_does_network_matter() {
         proptest!(|(
-            mut rng in any::<WeakRng>(),
+            mut rng in any::<FastRng>(),
             root_seed in any::<RootSeed>(),
             network1 in any::<LxNetwork>(),
             network2 in any::<LxNetwork>(),
@@ -693,7 +693,7 @@ mod test {
     #[test]
     fn mnemonic_compatibility_test() {
         // This code generated the "known good" values
-        // let mut rng = WeakRng::from_u64(98592174);
+        // let mut rng = FastRng::from_u64(98592174);
         // let seed1 = RootSeed::from_rng(&mut rng);
         // let seed2 = RootSeed::from_rng(&mut rng);
         // let seed3 = RootSeed::from_rng(&mut rng);
@@ -772,7 +772,7 @@ mod test {
         // Reduce cases since we do key stretching which is quite expensive
         let config = Config::with_cases(4);
         proptest!(config, |(
-            mut rng in any::<WeakRng>(),
+            mut rng in any::<FastRng>(),
             password in any_valid_password,
         )| {
             let root_seed1 = RootSeed::from_rng(&mut rng);
@@ -789,7 +789,7 @@ mod test {
         let root_seed1 = RootSeed::new(Secret::new([69u8; 32]));
         let password1 = "password1234";
         // // Uncomment to regenerate
-        // let mut rng = WeakRng::from_u64(20231017);
+        // let mut rng = FastRng::from_u64(20231017);
         // let encrypted =
         //     root_seed1.password_encrypt(&mut rng, password1).unwrap();
         // let encrypted_hex = hex::display(&encrypted);
@@ -803,7 +803,7 @@ mod test {
         let root_seed2 = RootSeed::new(Secret::new([0u8; 32]));
         let password2 = "                ";
         // // Uncomment to regenerate
-        // let mut rng = WeakRng::from_u64(20231017);
+        // let mut rng = FastRng::from_u64(20231017);
         // let encrypted =
         //     root_seed2.password_encrypt(&mut rng, password2).unwrap();
         // let encrypted_hex = hex::display(&encrypted);

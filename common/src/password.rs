@@ -156,7 +156,7 @@ mod test {
     };
 
     use super::*;
-    use crate::rng::WeakRng;
+    use crate::rng::FastRng;
 
     #[test]
     fn encryption_roundtrip() {
@@ -167,7 +167,7 @@ mod test {
             proptest::collection::vec(any::<char>(), password_length_range)
                 .prop_map(String::from_iter);
         proptest!(config, |(
-            mut rng in any::<WeakRng>(),
+            mut rng in any::<FastRng>(),
             password in any_valid_password,
             salt in any::<[u8; 32]>(),
             data1 in any::<Vec<u8>>(),
@@ -233,7 +233,7 @@ mod test {
                 }
                 None => {
                     // Generate and print the ciphertext to build the test case
-                    let mut rng = WeakRng::from_u64(20231016);
+                    let mut rng = FastRng::from_u64(20231016);
                     let ciphertext =
                         encrypt(&mut rng, &password, &salt, data1).unwrap();
                     let cipherhext = hex::display(&ciphertext);

@@ -771,7 +771,7 @@ impl<'a> UriParam<'a> {
 mod test {
     use common::{
         ln::network::LxNetwork,
-        rng::WeakRng,
+        rng::FastRng,
         test_utils::{arbitrary, arbitrary::any_mainnet_addr_unchecked},
         time::TimestampMs,
     };
@@ -791,7 +791,7 @@ mod test {
     #[ignore]
     #[test]
     fn payment_uri_sample() {
-        let mut rng = WeakRng::from_u64(891010909651);
+        let mut rng = FastRng::from_u64(891010909651);
         let strategy = any::<PaymentUri>();
         let value_iter = arbitrary::gen_value_iter(&mut rng, strategy);
         for (idx, value) in value_iter.take(50).enumerate() {

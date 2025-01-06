@@ -841,11 +841,11 @@ mod test {
     #[cfg(not(target_env = "sgx"))]
     #[test]
     fn test_verify_dummy_server_cert() {
-        use common::rng::WeakRng;
+        use common::rng::FastRng;
 
         use crate::tls::attestation::cert::AttestationCert;
 
-        let mut rng = WeakRng::new();
+        let mut rng = FastRng::new();
         let dns_name = "run.lexe.app".to_owned();
         let lifetime = Duration::from_secs(60);
 
@@ -885,10 +885,10 @@ mod test {
         use base64::Engine;
 
         use crate::{
-            enclave, rng::WeakRng, tls::attestation::cert::AttestationCert,
+            enclave, rng::FastRng, tls::attestation::cert::AttestationCert,
         };
 
-        let mut rng = WeakRng::new();
+        let mut rng = FastRng::new();
         let dns_name = "localhost".to_owned();
         // Use a long lifetime so the test won't fail just bc the cert expired
         let lifetime = Duration::from_secs(60 * 60 * 24 * 365 * 1000);

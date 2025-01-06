@@ -956,7 +956,7 @@ mod test {
             Empty,
         },
         ln::payments::{PaymentStatus, VecBasicPayment},
-        rng::{RngExt, WeakRng},
+        rng::{FastRng, RngExt},
     };
     use proptest::{
         arbitrary::any,
@@ -1197,7 +1197,7 @@ mod test {
         let config = proptest::test_runner::Config::with_cases(10);
 
         proptest!(config, |(
-            rng: WeakRng,
+            rng: FastRng,
             payments in arb_payments(0..20),
             batch_sizes in vec(1_usize..20, 0..5),
         )| {
@@ -1328,14 +1328,14 @@ mod test {
         let config = proptest::test_runner::Config::with_cases(4);
 
         proptest!(config, |(
-            mut rng: WeakRng,
+            mut rng: FastRng,
             payments in arb_payments(1..20),
             req_batch_size in 1_u16..5,
             finalize_idxs in vec(any::<Index>(), 1..5),
         )| {
             let mut mock_node = MockNode::new(payments);
 
-            let mut rng2 = WeakRng::from_u64(rng.gen_u64());
+            let mut rng2 = FastRng::from_u64(rng.gen_u64());
             let mock_ffs = MockFfs::from_rng(rng);
             let db = Mutex::new(PaymentDb::empty(mock_ffs));
 

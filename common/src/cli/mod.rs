@@ -89,9 +89,9 @@ impl LspInfo {
     pub fn dummy() -> Self {
         use std::net::Ipv6Addr;
 
-        use crate::{rng::WeakRng, root_seed::RootSeed, test_utils};
+        use crate::{rng::FastRng, root_seed::RootSeed, test_utils};
 
-        let mut rng = WeakRng::from_u64(20230216);
+        let mut rng = FastRng::from_u64(20230216);
         let node_pk = RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng);
         let addr = LxSocketAddress::TcpIpv6 {
             ip: Ipv6Addr::LOCALHOST,

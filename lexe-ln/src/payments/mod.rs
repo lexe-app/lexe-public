@@ -584,7 +584,7 @@ impl OutboundSpontaneousPaymentStatus {
 
 #[cfg(test)]
 mod test {
-    use common::{rng::WeakRng, test_utils::roundtrip};
+    use common::{rng::FastRng, test_utils::roundtrip};
     use proptest::{
         arbitrary::any, prop_assert_eq, proptest, test_runner::Config,
     };
@@ -613,7 +613,7 @@ mod test {
     #[test]
     fn payment_encryption_roundtrip() {
         proptest!(|(
-            mut rng in any::<WeakRng>(),
+            mut rng in any::<FastRng>(),
             vfs_master_key in any::<AesMasterKey>(),
             p1 in any::<Payment>(),
         )| {

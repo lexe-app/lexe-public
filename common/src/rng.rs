@@ -199,12 +199,12 @@ impl lightning::sign::EntropySource for SysRng {
 /// [`Xoroshiro64Star`]: https://github.com/rust-random/rngs/blob/master/rand_xoshiro/src/xoroshiro64star.rs
 #[derive(Debug)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Clone))]
-pub struct WeakRng {
+pub struct FastRng {
     s0: u32,
     s1: u32,
 }
 
-impl WeakRng {
+impl FastRng {
     pub fn new() -> Self {
         Self {
             s0: 0xdeadbeef,
@@ -217,7 +217,7 @@ impl WeakRng {
     }
 }
 
-impl Default for WeakRng {
+impl Default for FastRng {
     fn default() -> Self {
         Self::new()
     }
@@ -225,9 +225,9 @@ impl Default for WeakRng {
 
 /// Only enable [`CryptoRng`] for this rng when testing.
 #[cfg(any(test, feature = "test-utils"))]
-impl CryptoRng for WeakRng {}
+impl CryptoRng for FastRng {}
 
-impl RngCore for WeakRng {
+impl RngCore for FastRng {
     #[inline]
     fn next_u32(&mut self) -> u32 {
         let (s0, s1, r) = xoroshiro64star_next_u32(self.s0, self.s1);
@@ -256,8 +256,8 @@ impl RngCore for WeakRng {
     }
 }
 
-/// The core rng step that generates the next random output for [`WeakRng`] and
-/// [`ThreadWeakRng`].
+/// The core rng step that generates the next random output for [`FastRng`] and
+/// [`ThreadFastRng`].
 #[inline(always)]
 fn xoroshiro64star_next_u32(mut s0: u32, mut s1: u32) -> (u32, u32, u32) {
     let r = s0.wrapping_mul(0x9e3779bb);
@@ -267,7 +267,7 @@ fn xoroshiro64star_next_u32(mut s0: u32, mut s1: u32) -> (u32, u32, u32) {
     (s0, s1, r)
 }
 
-impl SeedableRng for WeakRng {
+impl SeedableRng for FastRng {
     type Seed = [u8; 8];
 
     fn from_seed(seed: Self::Seed) -> Self {
@@ -287,14 +287,14 @@ impl SeedableRng for WeakRng {
 }
 
 #[cfg(any(test, feature = "test-utils"))]
-impl lightning::sign::EntropySource for WeakRng {
+impl lightning::sign::EntropySource for FastRng {
     fn get_secure_random_bytes(&self) -> [u8; 32] {
         self.clone().gen_bytes()
     }
 }
 
 #[cfg(any(test, feature = "test-utils"))]
-impl Arbitrary for WeakRng {
+impl Arbitrary for FastRng {
     type Parameters = ();
     type Strategy = BoxedStrategy<Self>;
 
@@ -304,30 +304,30 @@ impl Arbitrary for WeakRng {
         // waste time trying to shrink the rng seed.
         any::<[u8; 8]>()
             .no_shrink()
-            .prop_map(WeakRng::from_seed)
+            .prop_map(FastRng::from_seed)
             .boxed()
     }
 }
 
-/// A thread-local [`WeakRng`] that is seeded from the global [`SysRng`] the
+/// A thread-local [`FastRng`] that is seeded from the global [`SysRng`] the
 /// first time a thread uses it.
 ///
-/// Like `WeakRng`, it's a small, fast, and _non-cryptographic_ rng with decent
+/// Like `FastRng`, it's a small, fast, and _non-cryptographic_ rng with decent
 /// statistical properties. Useful for sampling non-security sensitive data.
 ///
 /// Shines in multithreaded/async scenarios where don't want to have to
-/// synchronize on a single `Mutex<WeakRng>` or deal with handing out `WeakRng`s
+/// synchronize on a single `Mutex<FastRng>` or deal with handing out `FastRng`s
 /// to each thread. Instead we let thread-locals handle all the drudgery.
-pub struct ThreadWeakRng(());
+pub struct ThreadFastRng(());
 
-impl ThreadWeakRng {
+impl ThreadFastRng {
     #[inline]
     pub fn new() -> Self {
         Self(())
     }
 }
 
-impl Default for ThreadWeakRng {
+impl Default for ThreadFastRng {
     #[inline]
     fn default() -> Self {
         Self::new()
@@ -336,9 +336,9 @@ impl Default for ThreadWeakRng {
 
 /// Only enable [`CryptoRng`] for this rng when testing.
 #[cfg(any(test, feature = "test-utils"))]
-impl CryptoRng for ThreadWeakRng {}
+impl CryptoRng for ThreadFastRng {}
 
-// Can't put a `WeakRng` here directly, since it's not `Copy`
+// Can't put a `FastRng` here directly, since it's not `Copy`
 // (and shouldn't impl `Copy`).
 //
 // Using `const { .. }` with a noop-drop type (allegedly) lets us
@@ -349,7 +349,7 @@ thread_local! {
     static THREAD_RNG_STATE: Cell<u64> = const { Cell::new(0) };
 }
 
-impl RngCore for ThreadWeakRng {
+impl RngCore for ThreadFastRng {
     fn next_u32(&mut self) -> u32 {
         let mut s01 = THREAD_RNG_STATE.get();
 
@@ -465,7 +465,7 @@ mod test {
 
     #[test]
     fn test_gen_alphanum_bytes() {
-        proptest!(|(mut rng: WeakRng)| {
+        proptest!(|(mut rng: FastRng)| {
             let alphanum = rng.gen_alphanum_bytes::<16>();
             let alphanum_str = std::str::from_utf8(alphanum.as_slice()).unwrap();
             prop_assert!(alphanum_str.chars().all(|c| c.is_ascii_alphanumeric()));

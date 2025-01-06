@@ -175,7 +175,7 @@ mod arbitrary_impl {
 
     use super::*;
     use crate::{
-        rng::{Crng, WeakRng},
+        rng::{Crng, FastRng},
         root_seed::RootSeed,
         test_utils::arbitrary,
     };
@@ -186,7 +186,7 @@ mod arbitrary_impl {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             let bytes32 = any::<[u8; 32]>().no_shrink();
 
-            let node_key_pair = any::<WeakRng>().prop_map(|mut rng| {
+            let node_key_pair = any::<FastRng>().prop_map(|mut rng| {
                 RootSeed::from_rng(&mut rng).derive_node_key_pair(&mut rng)
             });
             let network = any::<LxNetwork>();
@@ -278,7 +278,7 @@ mod arbitrary_impl {
         route_hint: RouteHint,
     ) -> LxInvoice {
         // This rng doesn't affect the output.
-        let secp_ctx = WeakRng::from_u64(981999).gen_secp256k1_ctx();
+        let secp_ctx = FastRng::from_u64(981999).gen_secp256k1_ctx();
 
         // Build invoice
 
@@ -348,7 +348,7 @@ mod test {
 
     use super::*;
     use crate::{
-        rng::WeakRng,
+        rng::FastRng,
         root_seed::RootSeed,
         test_utils::{arbitrary, roundtrip},
     };
@@ -367,7 +367,7 @@ mod test {
     #[ignore]
     #[test]
     fn invoice_sample_data() {
-        let mut rng = WeakRng::from_u64(366519812156561);
+        let mut rng = FastRng::from_u64(366519812156561);
         let strategy = any::<LxInvoice>();
         let value_iter = arbitrary::gen_value_iter(&mut rng, strategy);
 
@@ -383,7 +383,7 @@ mod test {
     #[test]
     fn invoice_dump() {
         let node_key_pair = RootSeed::from_u64(12345)
-            .derive_node_key_pair(&mut WeakRng::from_u64(123));
+            .derive_node_key_pair(&mut FastRng::from_u64(123));
 
         let network = LxNetwork::Regtest;
         let amount =

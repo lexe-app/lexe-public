@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[cfg(any(test, feature = "test-utils"))]
-use crate::rng::WeakRng;
+use crate::rng::FastRng;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::root_seed::RootSeed;
 use crate::{
@@ -233,7 +233,7 @@ impl Arbitrary for NodePk {
     type Strategy = BoxedStrategy<Self>;
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        any::<WeakRng>()
+        any::<FastRng>()
             .prop_map(|mut rng| {
                 RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng)
             })
@@ -295,7 +295,7 @@ impl Arbitrary for NodePkProof {
     type Strategy = BoxedStrategy<Self>;
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        any::<WeakRng>()
+        any::<FastRng>()
             .prop_map(|mut rng| {
                 let key_pair =
                     RootSeed::from_rng(&mut rng).derive_node_key_pair(&mut rng);
@@ -356,7 +356,7 @@ mod test {
 
     #[test]
     fn user_node_pk_ser_examples() {
-        let mut rng = WeakRng::from_u64(811011698);
+        let mut rng = FastRng::from_u64(811011698);
         let root_seed = RootSeed::from_rng(&mut rng);
         let user_pk = root_seed.derive_user_pk();
         let node_key_pair = root_seed.derive_node_key_pair(&mut rng);
@@ -421,7 +421,7 @@ mod test {
             });
 
         proptest!(|(
-            mut rng: WeakRng,
+            mut rng: FastRng,
             mut_offset in any::<usize>(),
             mut mutation in arb_mutation,
         )| {

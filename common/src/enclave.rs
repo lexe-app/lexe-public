@@ -911,7 +911,7 @@ mod test {
     use ring::aead::AES_256_GCM;
 
     use super::*;
-    use crate::{rng::WeakRng, test_utils::roundtrip};
+    use crate::{rng::FastRng, test_utils::roundtrip};
 
     // TODO(phlip9): test KeyRequest mutations
     // TODO(phlip9): test truncate/extend mutations
@@ -983,7 +983,7 @@ mod test {
 
     #[test]
     fn test_sealing_roundtrip_basic() {
-        let mut rng = WeakRng::new();
+        let mut rng = FastRng::new();
 
         let sealed = super::seal(&mut rng, b"", b"".as_slice().into()).unwrap();
         let unsealed = super::unseal(sealed, b"").unwrap();
@@ -1004,7 +1004,7 @@ mod test {
         let arb_label = any::<Vec<u8>>();
         let arb_data = any::<Vec<u8>>();
 
-        proptest!(|(mut rng in any::<WeakRng>(), label in arb_label, data in arb_data)| {
+        proptest!(|(mut rng in any::<FastRng>(), label in arb_label, data in arb_data)| {
             let sealed = super::seal(&mut rng, &label, data.clone().into()).unwrap();
             let unsealed = super::unseal(sealed, &label).unwrap();
             assert_eq!(&data, &unsealed);
@@ -1021,7 +1021,7 @@ mod test {
             });
 
         proptest!(|(
-            mut rng in any::<WeakRng>(),
+            mut rng in any::<FastRng>(),
             label in arb_label,
             data in arb_data,
             mutation in arb_mutation,

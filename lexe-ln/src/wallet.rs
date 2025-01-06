@@ -863,7 +863,7 @@ mod test {
     use bitcoin::TxOut;
     use bitcoin_hashes::Hash;
     use common::{
-        rng::WeakRng,
+        rng::FastRng,
         test_utils::{arbitrary, roundtrip},
     };
     use esplora_client::AsyncClient;
@@ -1111,7 +1111,7 @@ mod test {
     #[ignore]
     #[test]
     fn dump_changesets() {
-        let mut rng = WeakRng::from_u64(20241030);
+        let mut rng = FastRng::from_u64(20241030);
         let strategy = arbitrary_impl::any_changeset();
         let changesets = arbitrary::gen_value_iter(&mut rng, strategy)
             .take(3)

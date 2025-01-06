@@ -352,7 +352,7 @@ impl ServerCertVerifier for AppNodeProvisionVerifier {
 
 #[cfg(test)]
 mod test {
-    use common::{enclave, rng::WeakRng};
+    use common::{enclave, rng::FastRng};
 
     use super::*;
     use crate::tls::test_utils;
@@ -389,7 +389,7 @@ mod test {
     async fn do_app_node_provision_tls_handshake(
         client_measurement: Measurement,
     ) -> [Result<(), String>; 2] {
-        let mut rng = WeakRng::from_u64(20240514);
+        let mut rng = FastRng::from_u64(20240514);
         let use_sgx = cfg!(target_env = "sgx");
         let deploy_env = DeployEnv::Dev;
 

@@ -39,7 +39,7 @@ use semver::{BuildMetadata, Prerelease};
 
 use crate::{
     api::user::NodePk,
-    rng::{RngExt, WeakRng},
+    rng::{FastRng, RngExt},
 };
 
 // --- `std` types --- ///
@@ -508,7 +508,7 @@ pub fn any_invoice_route_hint_hop() -> impl Strategy<Value = RouteHintHop> {
 /// Generate a single value from a [`proptest`] [`Strategy`]. Avoid all the
 /// proptest macro junk. Useful for generating sample data.
 pub fn gen_value<T, S: Strategy<Value = T>>(
-    rng: &mut WeakRng,
+    rng: &mut FastRng,
     strategy: S,
 ) -> T {
     GenValueIter::new(rng, strategy).next().unwrap()
@@ -518,7 +518,7 @@ pub fn gen_value<T, S: Strategy<Value = T>>(
 /// proptest macro junk. Useful for generating sample data. Produces more varied
 /// data than just running [`gen_value`] in a loop.
 pub fn gen_value_iter<T, S: Strategy<Value = T>>(
-    rng: &mut WeakRng,
+    rng: &mut FastRng,
     strategy: S,
 ) -> GenValueIter<T, S> {
     GenValueIter::new(rng, strategy)
@@ -527,15 +527,15 @@ pub fn gen_value_iter<T, S: Strategy<Value = T>>(
 /// An [`Iterator`] that generates values of type `T`, according to a
 /// [`proptest`] [`Strategy`].
 pub struct GenValueIter<T, S: Strategy<Value = T>> {
-    rng: WeakRng,
+    rng: FastRng,
     strategy: S,
     proptest_runner: TestRunner,
 }
 
 impl<T, S: Strategy<Value = T>> GenValueIter<T, S> {
-    fn new(rng: &mut WeakRng, strategy: S) -> Self {
+    fn new(rng: &mut FastRng, strategy: S) -> Self {
         // Extract this to save on some code bloat.
-        fn make_proptest_runner(rng: &mut WeakRng) -> TestRunner {
+        fn make_proptest_runner(rng: &mut FastRng) -> TestRunner {
             let seed = rng.gen_bytes::<32>();
             let test_rng = TestRng::from_seed(RngAlgorithm::ChaCha, &seed);
             TestRunner::new_with_rng(Config::default(), test_rng)
