@@ -10,7 +10,6 @@ use common::{
         error::{BackendApiError, LspApiError, RunnerApiError},
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
-        rest::{RequestBuilderExt, RestClient, POST},
         user::{
             MaybeScid, MaybeUser, NodePk, NodePkStruct, ScidStruct, UserPk,
             UserPkStruct,
@@ -25,7 +24,10 @@ use common::{
     ln::payments::{DbPayment, MaybeDbPayment, VecDbPayment, VecLxPaymentId},
     rng::Crng,
 };
-use lexe_api::tls::attestation::{self, NodeMode};
+use lexe_api::{
+    rest::{RequestBuilderExt, RestClient, POST},
+    tls::attestation::{self, NodeMode},
+};
 
 use crate::api::BackendApiClient;
 

@@ -8,13 +8,13 @@ version.workspace = true
 [features]
 default = []
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
-test-utils = ["common/test-utils"]
+test-utils = ["lexe-api/test-utils"]
 
 [dependencies]
 
 # --- LEXE --- #
 
-common = { path = "../common" }
+lexe-api = { path = "../lexe-api" }
 
 # --- WORKSPACE --- #
 
@@ -30,5 +30,5 @@ tracing-subscriber = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
-# Enable common test-utils in tests
-common = { path = "../common", features = ["test-utils"] }
+# Enable lexe-api test-utils in tests
+lexe-api = { path = "../lexe-api", features = ["test-utils"] }

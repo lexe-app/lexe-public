@@ -383,13 +383,10 @@ macro_rules! api_error_kind {
 /// Errors common to all [`ApiError`]s.
 ///
 /// - This is an intermediate error type which should only be used in API
-///   library code (e.g. [`RestClient`], [`api::server`]) which cannot assume a
+///   library code (e.g. `RestClient`, `lexe_api::server`) which cannot assume a
 ///   specific API error type.
 /// - [`ApiError`]s and [`ApiErrorKind`]s must impl `From<CommonApiError>` and
 ///   `From<CommonErrorKind>` respectively to ensure all cases are covered.
-///
-/// [`RestClient`]: super::rest::RestClient
-/// [`api::server`]: super::server
 pub struct CommonApiError {
     pub kind: CommonErrorKind,
     pub msg: String,
@@ -778,12 +775,12 @@ impl ToHttpStatus for RunnerErrorKind {
 // --- CommonApiError / CommonErrorKind impls --- //
 
 impl CommonApiError {
-    pub(crate) fn new(kind: CommonErrorKind, msg: String) -> Self {
+    pub fn new(kind: CommonErrorKind, msg: String) -> Self {
         Self { kind, msg }
     }
 
     #[inline]
-    pub(crate) fn to_code(&self) -> ErrorCode {
+    pub fn to_code(&self) -> ErrorCode {
         self.kind.to_code()
     }
 }

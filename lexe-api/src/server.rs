@@ -66,7 +66,7 @@ use common::{
     api::{
         auth,
         error::{CommonApiError, CommonErrorKind},
-        server, trace,
+        server,
     },
     ed25519,
     shutdown::ShutdownChannel,
@@ -80,6 +80,8 @@ use tower::{
     Layer,
 };
 use tracing::{debug, error, info, warn, Instrument};
+
+use crate::trace;
 
 /// The grace period passed to [`axum_server::Handle::graceful_shutdown`] during
 /// which new connections are refused and we wait for existing connections to

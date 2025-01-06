@@ -39,7 +39,6 @@ use common::{
         },
         fiat_rates::FiatRates,
         provision::NodeProvisionRequest,
-        rest::{RequestBuilderExt, RestClient, GET, POST},
         version::NodeRelease,
         Empty,
     },
@@ -51,7 +50,10 @@ use common::{
     rng::Crng,
     root_seed::RootSeed,
 };
-use lexe_api::tls::{self, lexe_ca};
+use lexe_api::{
+    rest::{RequestBuilderExt, RestClient, GET, POST},
+    tls::{self, lexe_ca},
+};
 use reqwest::Url;
 
 /// The client to the gateway itself, i.e. requests terminate at the gateway.

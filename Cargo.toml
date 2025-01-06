@@ -58,6 +58,8 @@ axum = { version = "0.7", default-features = false, features = [
 ] }
 # Converting to/from base 64.
 base64 = "0.22"
+# Binary canonical serialization format
+bcs = "0.1"
 # Encoding and decoding of the Bech32 format.
 bech32 = "0.9"
 # rust-bitcoin suite of libraries

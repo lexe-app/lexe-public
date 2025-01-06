@@ -8,13 +8,13 @@ use std::{
 };
 
 use anyhow::{bail, ensure, Context};
+use common::rng::ThreadWeakRng;
 use http::{HeaderName, HeaderValue};
 use rand_core::RngCore;
 use tracing::{span, warn, Dispatch};
 
 #[cfg(doc)]
-use crate::api::rest::RestClient;
-use crate::rng::ThreadWeakRng;
+use crate::rest::RestClient;
 
 /// The `target` that should be used for request spans and events.
 // Short, greppable, low chance of collision in logs
@@ -65,7 +65,7 @@ impl TraceId {
 
     /// Generate a [`TraceId`] from an existing rng.
     pub fn from_rng(rng: &mut impl RngCore) -> Self {
-        use crate::rng::RngExt;
+        use common::rng::RngExt;
 
         // Generate a 16 byte array with alphanumeric characters
         let buf: [u8; Self::LENGTH] = rng.gen_alphanum_bytes();
@@ -259,13 +259,13 @@ impl fmt::Debug for TraceId {
 
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
+    use common::rng::WeakRng;
     use proptest::{
         arbitrary::{any, Arbitrary},
         strategy::{BoxedStrategy, Strategy},
     };
 
     use super::*;
-    use crate::rng::WeakRng;
 
     impl Arbitrary for TraceId {
         type Parameters = ();
@@ -295,10 +295,10 @@ mod arbitrary_impl {
 ///     // e.g. `Layered<Filtered<FmtLayer<Registry, ...>, ..., ...>, ...>`.
 ///     // See public/logger/src/lib.rs for an example of this.
 ///     common::define_trace_id_fns!(FmtSubscriber);
-///     common::api::trace::GET_TRACE_ID_FN
+///     lexe_api::trace::GET_TRACE_ID_FN
 ///         .set(get_trace_id_from_span)
 ///         .map_err(|_| anyhow!("GET_TRACE_ID_FN already set"))?;
-///     common::api::trace::INSERT_TRACE_ID_FN
+///     lexe_api::trace::INSERT_TRACE_ID_FN
 ///         .set(insert_trace_id_into_span)
 ///         .map_err(|_| anyhow!("INSERT_TRACE_ID_FN already set"))?;
 ///
@@ -309,7 +309,7 @@ mod arbitrary_impl {
 macro_rules! define_trace_id_fns {
     ($subscriber:ty) => {
         use anyhow::Context;
-        use common::api::trace::TraceId;
+        use lexe_api::trace::TraceId;
         use tracing_subscriber::registry::LookupSpan;
 
         /// Get the [`TraceId`] from the `Extensions` of this span or any of its
@@ -364,13 +364,13 @@ impl Display for DisplayMs {
 }
 
 /// Client tracing utilities.
-pub mod client {
+pub(crate) mod client {
     use tracing::info_span;
 
     use super::*;
 
     /// Get a [`tracing::Span`] and [`TraceId`] for a client request.
-    pub fn request_span(
+    pub(crate) fn request_span(
         req: &reqwest::Request,
         from: &'static str,
         to: &'static str,
@@ -420,7 +420,7 @@ pub mod client {
 }
 
 /// Server tracing utilities.
-pub mod server {
+pub(crate) mod server {
     use anyhow::anyhow;
     use http::header::USER_AGENT;
     use tower_http::{
@@ -449,7 +449,7 @@ pub mod server {
     ///
     /// [`Router::layer`]: axum::Router::layer
     /// [`ServiceBuilder::layer`]: tower::ServiceBuilder::layer
-    pub fn trace_layer(
+    pub(crate) fn trace_layer(
         api_span: tracing::Span,
     ) -> TraceLayer<
         SharedClassifier<LxClassifyResponse>,
@@ -477,7 +477,7 @@ pub mod server {
     /// logged by [`LxOnResponse`], so triggering [`OnFailure`] on error status
     /// codes (the default impl for HTTP) would result in redundant logs.
     #[derive(Clone)]
-    pub struct LxClassifyResponse;
+    pub(crate) struct LxClassifyResponse;
 
     impl ClassifyResponse for LxClassifyResponse {
         type FailureClass = anyhow::Error;
@@ -500,7 +500,7 @@ pub mod server {
 
     /// A [`MakeSpan`] impl which mirrors [`client::request_span`].
     #[derive(Clone)]
-    pub struct LxMakeSpan {
+    pub(crate) struct LxMakeSpan {
         /// The server API span, used as each request span's parent.
         api_span: tracing::Span,
     }
@@ -555,7 +555,7 @@ pub mod server {
 
     /// `OnRequest` impl mirroring `RestClient::send_inner`.
     #[derive(Clone)]
-    pub struct LxOnRequest;
+    pub(crate) struct LxOnRequest;
 
     impl<B> OnRequest<B> for LxOnRequest {
         fn on_request(
@@ -572,7 +572,7 @@ pub mod server {
     /// [`OnResponse`] impl which logs the completion of requests by the server.
     /// `RestClient` logs `req_time`; analogously here we log `resp_time`.
     #[derive(Clone)]
-    pub struct LxOnResponse;
+    pub(crate) struct LxOnResponse;
 
     impl<B> OnResponse<B> for LxOnResponse {
         fn on_response(
@@ -610,7 +610,7 @@ pub mod server {
 
     /// Basic [`OnEos`] impl; we don't stream atm but this will work if we do
     #[derive(Clone)]
-    pub struct LxOnEos;
+    pub(crate) struct LxOnEos;
 
     impl OnEos for LxOnEos {
         fn on_eos(
@@ -632,7 +632,7 @@ pub mod server {
     /// [`tower::Service`] future resolves to an error, or if `Body::poll_frame`
     /// returns an error. See [`tower_http::trace`] module docs for more info.
     #[derive(Clone)]
-    pub struct LxOnFailure;
+    pub(crate) struct LxOnFailure;
 
     impl<FailureClass: Display> OnFailure<FailureClass> for LxOnFailure {
         fn on_failure(

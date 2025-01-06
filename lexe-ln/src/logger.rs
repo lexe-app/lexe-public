@@ -36,7 +36,7 @@
 use std::{ops::Deref, str::FromStr, sync::LazyLock};
 
 use anyhow::anyhow;
-use common::{api::trace, define_trace_id_fns};
+use lexe_api::{define_trace_id_fns, trace};
 use lightning::util::logger::{Level as LdkLevel, Logger, Record};
 use tracing_core::{
     dispatcher,
@@ -324,7 +324,7 @@ fn loglevel_to_cs(
 mod test {
     use std::{collections::HashMap, env};
 
-    use common::api::trace::TraceId;
+    use lexe_api::trace::TraceId;
     use tracing_core::{
         span::{Attributes, Id, Record},
         Dispatch, Subscriber,

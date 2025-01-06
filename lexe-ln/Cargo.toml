@@ -8,13 +8,14 @@ version.workspace = true
 [features]
 default = []
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
-test-utils = ["common/test-utils"]
+test-utils = ["common/test-utils", "lexe-api/test-utils"]
 
 [dependencies]
 
 # --- LEXE --- #
 
 common = { path = "../common" }
+lexe-api = { path = "../lexe-api" }
 
 # --- WORKSPACE --- #
 
@@ -80,6 +81,7 @@ webpki-roots = "0.26"
 
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }
+lexe-api = { path = "../lexe-api", features = ["test-utils"] }
 
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true

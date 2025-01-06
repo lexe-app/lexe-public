@@ -7,8 +7,8 @@ use std::{env, str::FromStr};
 
 use anyhow::anyhow;
 #[cfg(doc)]
-use common::api::trace::TraceId;
-use common::{api::trace, define_trace_id_fns};
+use lexe_api::trace::TraceId;
+use lexe_api::{define_trace_id_fns, trace};
 use tracing::{level_filters::LevelFilter, Level};
 use tracing_subscriber::{
     filter::{Filtered, Targets},
@@ -143,7 +143,7 @@ fn enforce_log_policy(targets: Targets) -> Targets {
 mod test {
     use std::env;
 
-    use common::api::trace::TraceId;
+    use lexe_api::trace::TraceId;
 
     use super::*;
 

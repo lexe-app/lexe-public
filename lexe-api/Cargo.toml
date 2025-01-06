@@ -29,17 +29,21 @@ sha256 = { path = "../sha256" }
 anyhow.workspace = true
 asn1-rs.workspace = true
 async-trait.workspace = true
-axum.workspace = true
+axum = { workspace = true, features = ["json", "query"] }
 axum-server = { workspace = true, features = ["tls-rustls"] }
+bcs.workspace = true
+bytes.workspace = true
 dcap-ql.workspace = true
 http.workspace = true
 hyper = { workspace = true, features = ["http1", "http2", "server"] }
+rand_core.workspace = true
 rcgen.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 ring.workspace = true
 rustls.workspace = true
 secrecy.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 sgx-isa.workspace = true
 time.workspace = true
 tokio = { workspace = true, features = ["time"] }

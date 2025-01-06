@@ -1,6 +1,12 @@
 use std::time::Duration;
 
 use bytes::Bytes;
+use common::{
+    api::error::{
+        ApiError, CommonApiError, CommonErrorKind, ErrorCode, ErrorResponse,
+    },
+    backoff, ed25519,
+};
 use http::{
     header::{HeaderValue, CONTENT_TYPE},
     Method,
@@ -10,15 +16,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use tracing::{debug, info, warn, Instrument};
 
 use super::trace::TraceId;
-use crate::{
-    api::{
-        error::{
-            ApiError, CommonApiError, CommonErrorKind, ErrorCode, ErrorResponse,
-        },
-        trace::{self, DisplayMs},
-    },
-    backoff, ed25519,
-};
+use crate::trace::{self, DisplayMs};
 
 /// The CONTENT-TYPE header for signed BCS-serialized structs.
 pub static CONTENT_TYPE_ED25519_BCS: HeaderValue =
@@ -338,7 +336,7 @@ impl RestClient {
     /// converts the generic [`ErrorResponse`] or [`CommonApiError`] into the
     /// specific API error type, like [`BackendApiError`].
     ///
-    /// [`BackendApiError`]: crate::api::error::BackendApiError
+    /// [`BackendApiError`]: common::api::error::BackendApiError
     fn convert_rest_response<T, E>(
         response: Result<Result<Bytes, ErrorResponse>, CommonApiError>,
     ) -> Result<T, E>

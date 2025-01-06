@@ -7,7 +7,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use common::{api::trace, define_trace_id_fns};
+use lexe_api::{define_trace_id_fns, trace};
 use tracing::{field, span, Event, Level, Subscriber};
 use tracing_subscriber::{
     filter::{Filtered, Targets},
@@ -273,7 +273,7 @@ mod atomic_log_ptr {
 
 // #[cfg(test)]
 // mod test {
-//     use common::api::trace::TraceId;
+//     use lexe_api::trace::TraceId;
 //     use flutter_rust_bridge::rust2dart::Rust2Dart;
 //
 //     use super::*;

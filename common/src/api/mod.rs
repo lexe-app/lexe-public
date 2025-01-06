@@ -19,8 +19,6 @@
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-// TODO(max): Consider extracting these into a `lexe-api` crate: `error`,
-// `rest`, `server`, `trace`. Only some Lexe crates actually need these.
 /// Authentication and User Signup.
 pub mod auth;
 /// Data types used in APIs for top level commands.
@@ -35,12 +33,8 @@ pub mod fiat_rates;
 pub mod ports;
 /// Data types specific to provisioning.
 pub mod provision;
-/// A client and helpers that enforce common REST semantics across Lexe crates.
-pub mod rest;
 /// A subset of `lexe_api::server` which needs to stay in `common`.
 pub mod server;
-/// API tracing utilities for both client and server.
-pub mod trace;
 /// User ID-like types: `User`, `UserPk`, `NodePk`, `Scid`
 pub mod user;
 /// Data types which relate to node versions: `NodeRelease`, `MeasurementStruct`
