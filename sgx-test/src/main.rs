@@ -4,8 +4,46 @@ use lexe_api::tls::attestation::{
     verifier::{EnclavePolicy, SgxQuoteVerifier},
 };
 
+const HELP: &str = r#"
+sgx-test [OPTIONS] [TEST]
+
+TESTS:
+    sgx           Test SGX platform (default)
+    panic         Test backtrace on panic
+    oom           Test backtrace on OOM
+
+OPTIONS:
+    -h, --help    Print help
+
+"#;
+
 fn main() {
-    println!("SGX test");
+    std::env::set_var("RUST_BACKTRACE", "full");
+
+    let args = std::env::args().collect::<Vec<_>>();
+    if args.iter().any(|arg| arg == "-h" || arg == "--help") {
+        help();
+    }
+
+    let command = args.get(1).map(|s| s.as_str()).unwrap_or("sgx");
+    match command {
+        "sgx" => test_sgx(),
+        "panic" => test_panic(),
+        "oom" => test_oom(),
+        _ => {
+            eprintln!("unrecognized command: '{command}'");
+            help();
+        }
+    }
+}
+
+fn help() -> ! {
+    eprint!("{HELP}");
+    std::process::exit(1);
+}
+
+fn test_sgx() {
+    println!("Ensure SGX platform primitives work (sealing, attestation, etc)");
 
     println!("machine_id: {}", enclave::machine_id());
     println!("measurement: {}", enclave::measurement());
@@ -69,4 +107,41 @@ fn main() {
         &expected_reportdata,
         "SGX Quote contains extraneous data"
     );
+}
+
+#[inline(never)]
+fn test_panic() {
+    println!("This should panic and print a backtrace:");
+    // We should get panic+backtrace even with `catch_unwind` -> `resume_unwind`
+    // TODO(phlip9): Get `resume_unwind` working with `-C panic=unwind` in SGX.
+    // The panic message and backtrace is swallowed somehow.
+    let res = std::panic::catch_unwind(|| {
+        do_panic();
+    });
+    match res {
+        Ok(()) => unreachable!(),
+        Err(err) => {
+            eprintln!("caught panic");
+            std::panic::resume_unwind(err);
+        }
+    }
+}
+
+#[inline(never)]
+fn do_panic() {
+    panic!("this is a panic!");
+}
+
+fn test_oom() {
+    println!("This should OOM and print a backtrace:");
+    let mut xs = Vec::new();
+    for x in 0usize..1_000_000 {
+        xs.push((x & 0xff) as u8);
+    }
+    println!("{:?}", &xs[123_456..123_477]);
+
+    eprintln!(
+        "ERROR: we should have OOM'ed by now! Is the heap_size too large?"
+    );
+    std::process::exit(1);
 }
