@@ -126,8 +126,10 @@ impl Args {
             let measurement = Measurement::compute_from_sgxs(bin_file)
                 .context("Failed to compute SGX binary measurement")?;
             let key = sgxs_sign::KeyPair::dev_signer();
+            // SGX DEBUG mode: disables memory protections
+            let debug = false;
             let sigstruct = key
-                .sign_sgxs(measurement, true, None)
+                .sign_sgxs(measurement, debug, None)
                 .context("Failed to sign .sgxs")?;
             enclave.sigstruct(sigstruct);
         }
