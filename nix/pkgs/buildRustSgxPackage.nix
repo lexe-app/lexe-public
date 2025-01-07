@@ -119,10 +119,7 @@ in
       nativeBuildInputs =
         commonPackageArgs.nativeBuildInputs
         ++ (lib.optionals isSgx [
-          (elf2sgxsFixupHook {
-            cargoTomlParsed = cargoTomlParsed;
-            isRelease = isRelease;
-          })
+          (elf2sgxsFixupHook {cargoTomlParsed = cargoTomlParsed;})
         ]);
 
       postFixup = ''

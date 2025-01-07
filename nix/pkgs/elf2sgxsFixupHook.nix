@@ -20,9 +20,6 @@
   cargoTomlParsed ? builtins.fromTOML cargoTomlContents,
   # By default, infer the bin name from the name of the package `Cargo.toml`
   binName ? cargoTomlParsed.package.name,
-  # When this is false, the enclave will be built in "debug" mode, which will
-  # fail production remote attestation but allow debugging with e.g. `gdb`.
-  isRelease ? true,
 }:
 #
 let
@@ -32,11 +29,11 @@ let
   valuesToString = attrs: (mapAttrs (_name: toString) attrs);
 
   settings = valuesToString cargoTomlParsed.package.metadata.fortanix-sgx;
-  debugFlag = "-d";
-  # XXX(max): Temp compile with debug flag try to get SGX backtraces
-  # if isRelease
-  # then ""
-  # else "-d";
+  debugFlag =
+    # NOTE: nix coerces `true` -> `"1"`
+    if (settings.debug == "1")
+    then "--debug"
+    else "";
 in
   makeSetupHook
   {
@@ -54,7 +51,8 @@ in
         --heap-size ${settings.heap-size} \
         --ssaframesize ${settings.ssaframesize} \
         --stack-size ${settings.stack-size} \
-        --threads ${settings.threads} ${debugFlag}
+        --threads ${settings.threads} \
+        ${debugFlag}
 
       # compute the enclave measurement (SHA-256 hash of the enclave binary)
       # and dump it into `<binName>.measurement`

@@ -13,9 +13,14 @@ default = []
 test-utils = ["common/test-utils", "lexe-ln/test-utils"]
 
 [package.metadata.fortanix-sgx]
-# Whether to enable EDP debugging features in the enclave. Default: true.
-# This must be disabled in prod.
-debug = false
+# When true, return panics w/ backtraces to the host via the shared "debug
+# buffer". We need this to debug panics in prod. rust-std also currently saves
+# some registers so a debugger can reconstruct the stack.
+# NOTE: this is not the same as the SGX platform DEBUG mode, which disables all
+# memory protections.
+# TODO(phlip9): patch rust-std so it always saves panics w/ backtraces but only
+# dumps registers if `debug = true`.
+debug = true
 # Heap size in bytes. Default: 0x200_0000.
 # Current: 32MiB
 heap-size = 0x200_0000
