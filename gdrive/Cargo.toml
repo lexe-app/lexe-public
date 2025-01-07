@@ -8,9 +8,9 @@ version.workspace = true
 [dependencies]
 # --- LEXE --- #
 
-common = { path = "../common" }
-const-utils = { path = "../const-utils" }
-sha256 = { path = "../sha256" }
+common.path = "../common"
+const-utils.path = "../const-utils"
+sha256.path = "../sha256"
 
 # --- WORKSPACE --- #
 

@@ -9,8 +9,8 @@ version.workspace = true
 
 # --- LEXE --- #
 
-const-utils = { path = "../const-utils" }
-hex = { path = "../hex" }
+const-utils.path = "../const-utils"
+hex.path = "../hex"
 
 # --- WORKSPACE --- #
 

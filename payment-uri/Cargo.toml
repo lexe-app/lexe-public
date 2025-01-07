@@ -10,7 +10,7 @@ version.workspace = true
 
 # --- LEXE --- #
 
-common = { path = "../common" }
+common.path = "../common"
 
 # --- WORKSPACE --- #
 

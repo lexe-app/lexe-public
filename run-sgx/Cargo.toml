@@ -8,7 +8,7 @@ version.workspace = true
 [dependencies]
 # --- LEXE --- #
 
-sgx-toml = { path = "../sgx-toml" }
+sgx-toml.path = "../sgx-toml"
 
 # --- WORKSPACE --- #
 
@@ -27,8 +27,8 @@ object = { version = "0.30", default-features = false, features = ["read_core", 
 rustc-demangle = "0.1"
 
 [target.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.dependencies]
-common = { path = "../common" }
-sgxs-sign = { path = "../sgxs-sign" }
+common.path = "../common"
+sgxs-sign.path = "../sgxs-sign"
 
 aesm-client = { workspace = true, features = ["sgxs"] }
 enclave-runner.workspace = true

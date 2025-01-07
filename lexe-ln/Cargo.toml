@@ -14,8 +14,8 @@ test-utils = ["common/test-utils", "lexe-api/test-utils"]
 
 # --- LEXE --- #
 
-common = { path = "../common" }
-lexe-api = { path = "../lexe-api" }
+common.path = "../common"
+lexe-api.path = "../lexe-api"
 
 # --- WORKSPACE --- #
 

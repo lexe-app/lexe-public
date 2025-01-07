@@ -37,12 +37,12 @@ threads = 2
 
 # --- LEXE --- #
 
-common = { path = "../common" }
-const-utils = { path = "../const-utils" }
-gdrive = { path = "../gdrive" }
-hex = { path = "../hex" }
-lexe-api = { path = "../lexe-api" }
-lexe-ln = { path = "../lexe-ln" }
+common.path = "../common"
+const-utils.path = "../const-utils"
+gdrive.path = "../gdrive"
+hex.path = "../hex"
+lexe-api.path = "../lexe-api"
+lexe-ln.path = "../lexe-ln"
 
 # --- WORKSPACE --- #
 

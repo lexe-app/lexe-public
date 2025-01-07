@@ -19,12 +19,12 @@ flutter = [
 [dependencies]
 # --- LEXE --- #
 
-common = { path = "../common" }
-const-utils = { path = "../const-utils" }
-gdrive = { path = "../gdrive" }
-hex = { path = "../hex" }
-lexe-api = { path = "../lexe-api" }
-payment-uri = { path = "../payment-uri" }
+common.path = "../common"
+const-utils.path = "../const-utils"
+gdrive.path = "../gdrive"
+hex.path = "../hex"
+lexe-api.path = "../lexe-api"
+payment-uri.path = "../payment-uri"
 
 # --- WORKSPACE --- #
 
@@ -66,7 +66,6 @@ roaring = "0.10"
 
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }
-# logger = { path = "../logger" }
 
 async-trait.workspace = true
 proptest = { workspace = true, features = ["alloc"] }
