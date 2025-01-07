@@ -16,6 +16,8 @@
       lexePubPkgs.flutter
       lexePubPkgs.rustLexeToolchain
       pkgs.cargo-expand
+      # o.w. app-rs-codegen --check says "error: tool 'git' not found" on macOS
+      pkgs.git
     ];
   };
 
