@@ -77,10 +77,6 @@ tokio = { workspace = true, features = [
 tower = { workspace = true, features = ["util"] } 
 tracing.workspace = true
 
-[target.'cfg(target_env = "sgx")'.dependencies]
-# print backtrace on panic in SGX enclave
-sgx-panic-backtrace = "0.1"
-
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }
 

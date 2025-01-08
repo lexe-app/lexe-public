@@ -114,10 +114,6 @@ tokio = { workspace = true, features = [
 # Utilities for testing futures
 tokio-test = "0.4"
 
-[target.'cfg(target_env = "sgx")'.dev-dependencies]
-# Print backtraces in tests
-sgx-panic-backtrace = "0.1"
-
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Include std impls when testing outside of SGX
 proptest = { workspace = true, features = ["std"] }

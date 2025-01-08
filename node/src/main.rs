@@ -7,10 +7,6 @@ use tracing::{error, info, info_span};
 pub fn main() -> ExitCode {
     let start = Instant::now();
 
-    // Get useful, human-readable, symbolized backtraces even in an SGX enclave.
-    #[cfg(target_env = "sgx")]
-    sgx_panic_backtrace::set_panic_hook();
-
     let command = match NodeCommand::from_env() {
         Ok(Some(cmd)) => cmd,
         Ok(None) => return ExitCode::SUCCESS,
