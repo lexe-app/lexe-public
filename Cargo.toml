@@ -280,16 +280,16 @@ opt-level = 3
 # issues :)
 [profile.release-sgx]
 inherits = "release"
-panic = "unwind" # sometimes repro diff?
-# panic = "abort"
+# panic = "unwind" # sometimes repro diff?
+# TODO(phlip9): fix `panic` -> `catch_unwind` -> `resume_unwind` swallowing
+# panic message and backtrace in enclave.
+panic = "abort"
 codegen-units = 1
 # lto = "fat" # big repro diff
 lto = "thin"
 # opt-level = 3 # big repro diff
 opt-level = 2
-# XXX(max): Need this to get panic backtraces in SGX
-debug = "line-tables-only"
-# debug = 0
+debug = 0
 strip = "debuginfo"
 
 # NOTE: dev includes `check`, `clippy`, `test`, etc
