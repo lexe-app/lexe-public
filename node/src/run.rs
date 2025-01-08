@@ -87,7 +87,6 @@ pub struct UserNode {
     deploy_env: DeployEnv,
     ports: Ports,
     tasks: Vec<LxTask<()>>,
-    tasks_tx: mpsc::Sender<LxTask<()>>,
     shutdown: ShutdownChannel,
 
     // --- Actors --- //
@@ -111,9 +110,6 @@ pub struct UserNode {
 
     // --- Contexts --- //
     sync: Option<SyncContext>,
-    // This is moved out of self during `run`.
-    // TODO(max): Add RunContext if there are more fields
-    tasks_rx: mpsc::Receiver<LxTask<()>>,
 }
 
 /// Fields which are "moved" out of [`UserNode`] during `sync`.
@@ -167,7 +163,6 @@ impl UserNode {
             mpsc::channel(SMALLER_CHANNEL_SIZE);
         let (test_event_tx, test_event_rx) = test_event::channel("(node)");
         let test_event_rx = Arc::new(tokio::sync::Mutex::new(test_event_rx));
-        let (tasks_tx, tasks_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let shutdown = ShutdownChannel::new();
 
         // Version
@@ -604,7 +599,6 @@ impl UserNode {
             measurement,
             activity_tx,
             channel_events_bus,
-            tasks_tx: tasks_tx.clone(),
         });
         let app_listener =
             TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
@@ -699,7 +693,6 @@ impl UserNode {
             deploy_env,
             ports,
             tasks,
-            tasks_tx,
             shutdown,
 
             // Actors
@@ -730,7 +723,6 @@ impl UserNode {
                 bdk_resync_rx,
                 ldk_resync_rx,
             }),
-            tasks_rx,
         })
     }
 
@@ -777,7 +769,6 @@ impl UserNode {
             self.deploy_env,
             self.args.allow_mock,
             &self.args.lsp,
-            self.tasks_tx.clone(),
             self.shutdown.clone(),
         )
         .await
@@ -822,9 +813,8 @@ impl UserNode {
                 > lexe_api::server::SERVER_SHUTDOWN_TIMEOUT.as_secs()
         );
 
-        task::try_join_tasks_and_shutdown_with_channel(
+        task::try_join_tasks_and_shutdown(
             self.tasks,
-            self.tasks_rx,
             self.shutdown.clone(),
             constants::USER_NODE_SHUTDOWN_TIMEOUT,
         )
@@ -1029,7 +1019,6 @@ async fn maybe_reconnect_to_lsp(
     deploy_env: DeployEnv,
     allow_mock: bool,
     lsp: &LspInfo,
-    tasks_tx: mpsc::Sender<LxTask<()>>,
     shutdown: ShutdownChannel,
 ) -> anyhow::Result<Option<LxTask<()>>> {
     if deploy_env.is_staging_or_prod() || lsp.node_api_url.is_some() {
@@ -1043,7 +1032,6 @@ async fn maybe_reconnect_to_lsp(
         let task = p2p::connect_to_lsp_then_spawn_connector_task(
             peer_manager,
             lsp,
-            tasks_tx,
             shutdown,
         )
         .await

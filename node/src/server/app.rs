@@ -72,21 +72,10 @@ pub(super) async fn open_channel(
     let lsp_addrs = slice::from_ref(&lsp_info.private_p2p_addr);
 
     // Callback ensures we're connected to the LSP.
-    let tasks_tx = state.tasks_tx.clone();
     let ensure_lsp_connected = || async move {
-        let maybe_task = p2p::connect_peer_if_necessary(
-            peer_manager,
-            lsp_node_pk,
-            lsp_addrs,
-        )
-        .await
-        .context("Could not connect to Lexe LSP")?;
-
-        if let Some(task) = maybe_task {
-            tasks_tx.send(task).await?;
-        }
-
-        Ok(())
+        p2p::connect_peer_if_necessary(peer_manager, lsp_node_pk, lsp_addrs)
+            .await
+            .context("Could not connect to Lexe LSP")
     };
 
     // Open the channel and wait for `ChannelPending`.
@@ -158,23 +147,11 @@ pub(super) async fn close_channel(
     // connected to the LSP. Proactively reconnect if necessary.
     let lsp_node_pk = &lsp_info.node_pk;
     let lsp_addrs = slice::from_ref(&lsp_info.private_p2p_addr);
-    let tasks_tx = state.tasks_tx.clone();
     let ensure_lsp_connected = |node_pk| async move {
         ensure!(&node_pk == lsp_node_pk, "Can only connect to the Lexe LSP");
-
-        let maybe_task = p2p::connect_peer_if_necessary(
-            peer_manager,
-            lsp_node_pk,
-            lsp_addrs,
-        )
-        .await
-        .context("Could not connect to Lexe LSP")?;
-
-        if let Some(task) = maybe_task {
-            tasks_tx.send(task).await?;
-        }
-
-        Ok(())
+        p2p::connect_peer_if_necessary(peer_manager, lsp_node_pk, lsp_addrs)
+            .await
+            .context("Could not connect to Lexe LSP")
     };
 
     lexe_ln::command::close_channel(
