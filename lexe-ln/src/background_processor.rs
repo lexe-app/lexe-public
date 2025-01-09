@@ -199,14 +199,13 @@ impl LexeBackgroundProcessor {
                         // Relevant after we've implemented RGS.
                         let network_graph = gossip_sync.network_graph();
                         network_graph.remove_stale_channels_and_tracking();
-                        // XXX(max): See if this is source of OOM
-                        // let persist_res = persister
-                        //     .persist_graph(network_graph)
-                        //     .await;
-                        // if let Err(e) = persist_res {
-                        //     // The network graph isn't super important.
-                        //     warn!("Couldn't persist network graph: {:#}", e);
-                        // }
+                        let persist_res = persister
+                            .persist_graph(network_graph)
+                            .await;
+                        if let Err(e) = persist_res {
+                            // The network graph isn't super important.
+                            warn!("Couldn't persist network graph: {:#}", e);
+                        }
                     }
 
                     // --- Shutdown branch --- //
@@ -228,15 +227,13 @@ impl LexeBackgroundProcessor {
             //   (e.g. `shutdown_after_sync` is set), and since we're already
             //   another API call for the channel manager, we might as well
             //   concurrently persist these as well.
-            // XXX(max): See if this is source of OOM
-            // let network_graph = gossip_sync.network_graph();
+            let network_graph = gossip_sync.network_graph();
             let results = tokio::join!(
                 persister.persist_manager(channel_manager.deref()),
-                // XXX(max): See if this is source of OOM
-                // persister.persist_graph(network_graph),
+                persister.persist_graph(network_graph),
                 persister.persist_scorer(scorer.as_ref()),
             );
-            for res in <[_; 2]>::from(results) {
+            for res in <[_; 3]>::from(results) {
                 if let Err(e) = res {
                     error!("Final persistence failure: {e:#}");
                 }
