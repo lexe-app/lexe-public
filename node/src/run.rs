@@ -257,8 +257,6 @@ impl UserNode {
         )?;
 
         // Init LDK transaction sync; share LexeEsplora's connection pool
-        // XXX(max): The esplora url passed to LDK is security-critical and thus
-        // should use Blockstream.info when `Network` is `Mainnet`.
         let ldk_sync_client = Arc::new(EsploraSyncClient::from_client(
             esplora.client().clone(),
             logger.clone(),
