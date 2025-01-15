@@ -77,6 +77,7 @@ impl NodeCommand {
         //   created via `spawn_blocking`.
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
+            .max_blocking_threads(4)
             // NOTE: This should match `stack-size` in Cargo.toml.
             .thread_stack_size(0x80_0000)
             .build()

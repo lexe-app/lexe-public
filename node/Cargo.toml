@@ -38,7 +38,17 @@ stack-size = 0x80_0000
 #       rust-sgx `async_usercalls` implementation requires an extra thread, so
 #       until that changes, we're stuck with "threads=2".
 #       see: https://github.com/lexe-app/rust-sgx/blob/70d11205fed08e49886bb25a1ea3df19928e8287/async-usercalls/src/queues.rs#L46
-threads = 2
+# 
+# XXX(max): To hack around a prod deadlock, we are using `spawn_blocking` for
+# lightning-net-tokio threads. Our configured limit is 7 threads:
+# - 1 main thread
+# - 1 async_usercalls thread
+# - max 4 blocking threads:
+#   - 1 LSP connection thread
+#   - 1 LSP connection waker thread
+#   - 2 thread buffer in case LSP connection gets duplicated somehow
+# We should switch back to threads=2 when we can.
+threads = 7
 
 [dependencies]
 
