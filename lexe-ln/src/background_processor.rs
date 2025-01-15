@@ -18,27 +18,11 @@ use crate::{
     },
 };
 
-// The BGP relies on LDK's waker system which has historically caused a lot of
-// subtle and hard-to-debug bugs, so we want to use a `PROCESS_EVENTS_INTERVAL`
-// timer when running in production to mitigate any bugs which may have slipped
-// through our integration tests.
-//
-// What we really want is to remove this timer entirely, in order to maximize
-// the amount of time that nodes spend sleeping. But LDK's BGP uses a 100-1000ms
-// timer (depending on platform) to wake the BGP to process events, so they
-// aren't likely to catch any failures to wake the BGP in their tests. However,
-// LDK does trigger the `event_persist_notifier` pretty much anytime a read
-// guard on the `total_consistency_lock` is dropped. As a compromise between all
-// of the above, we'll use a 10s timer in prod.
-//
-// In debug mode, we use a very long timer so that our integration tests can
-// hopefully catch any cases where `get_event_or_persistence_needed_future`
-// isn't woken after an event needs to be processed, and thus fail the test.
-#[cfg(debug_assertions)]
-const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_secs(600);
-#[cfg(not(debug_assertions))]
+// If LDK's `get_event_or_persistence_needed_future` future is failing to wake
+// the BGP, this timer can be reduced to say ~3s in prod to ensure events are
+// handled. See the original comment here (via blame) for more info.
 const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_secs(60);
-const PEER_MANAGER_PING_INTERVAL: Duration = Duration::from_secs(15);
+const PEER_MANAGER_TICK_INTERVAL: Duration = Duration::from_secs(15);
 const CHANNEL_MANAGER_TICK_INTERVAL: Duration = Duration::from_secs(60);
 const NETWORK_GRAPH_INITIAL_DELAY: Duration = Duration::from_secs(60);
 const NETWORK_GRAPH_PRUNE_INTERVAL: Duration = Duration::from_secs(15 * 60);
@@ -59,13 +43,15 @@ impl LexeBackgroundProcessor {
         event_handler: EH,
         gossip_sync: Arc<P2PGossipSyncType>,
         scorer: Arc<Mutex<ProbabilisticScorerType>>,
-        // A `process_events` notification should be sent every time an event
-        // is generated which does not also cause
-        // get_persistable_update_future() to resolve. Currently, we only need
-        // to do this after a channel monitor persist is successfully completed
-        // (which may resume monitor updating / broadcast a funding tx). We may
-        // be able to get rid of this once LDK#2052 is implemented. See the
-        // comment above `PROCESS_EVENTS_INTERVAL` for more info.
+        // TODO(max): A `process_events` notification should be sent every time
+        // an event is generated which does not also cause the future returned
+        // by `get_event_or_persistence_needed_future()` to resolve.
+        //
+        // Ideally, we can remove this channel entirely, but a manual trigger
+        // is currently still required after every channel monitor
+        // persist (which may resume monitor updating and create more
+        // events). This was supposed to be resolved by LDK#2052 and
+        // LDK#2090, but our integration tests still fail without this channel.
         mut process_events_rx: mpsc::Receiver<oneshot::Sender<()>>,
         mut scorer_persist_rx: notify::Receiver,
         mut shutdown: ShutdownChannel,
@@ -78,7 +64,7 @@ impl LexeBackgroundProcessor {
     {
         LxTask::spawn_named("background processor", async move {
             let mut process_events_timer = interval(PROCESS_EVENTS_INTERVAL);
-            let mut pm_timer = interval(PEER_MANAGER_PING_INTERVAL);
+            let mut pm_timer = interval(PEER_MANAGER_TICK_INTERVAL);
             let mut cm_tick_timer = interval(CHANNEL_MANAGER_TICK_INTERVAL);
             let start = Instant::now() + NETWORK_GRAPH_INITIAL_DELAY;
             let mut ng_timer = interval_at(start, NETWORK_GRAPH_PRUNE_INTERVAL);
@@ -106,6 +92,9 @@ impl LexeBackgroundProcessor {
                             debug!("Triggered: Chain monitor update"),
                         _ = process_events_timer.tick() =>
                             debug!("Triggered: process_events_timer ticked"),
+                        // TODO(max): If LDK has fixed the BGP waking issue,
+                        // our integration tests should pass with this branch
+                        // commented out.
                         Some(tx) = process_events_rx.recv() => {
                             debug!("Triggered: process_events channel");
                             processed_txs.push(tx);
