@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use anyhow::{bail, ensure, Context};
+use anyhow::{anyhow, ensure, Context};
 use common::{api::user::NodePk, backoff, ln::addr::LxSocketAddress, Apply};
 use tokio::{net::TcpStream, time};
 use tracing::{debug, warn};
@@ -110,33 +110,40 @@ where
         node_pk.0,
         stream,
     );
-    let mut connection_closed_fut = Box::pin(connection_closed_fut);
-    // Use exponential backoff when polling so that a stalled connection
-    // doesn't keep the node always in memory
-    let mut backoff_durations = backoff::iter_with_initial_wait_ms(10);
-    let p2p_handshake_timeout = tokio::time::sleep(HANDSHAKE_TIMEOUT);
-    loop {
-        // Check if the connection has been closed.
-        match futures::poll!(&mut connection_closed_fut) {
-            std::task::Poll::Ready(_) => {
-                bail!("Failed initial connection to peer - error unknown");
+    tokio::pin!(connection_closed_fut);
+
+    // A future which completes iff the noise handshake successfully completes.
+    let handshake_complete_fut = async {
+        let mut backoff_durations = backoff::iter_with_initial_wait_ms(10);
+        loop {
+            tokio::time::sleep(backoff_durations.next().unwrap()).await;
+
+            debug!("Checking peer_manager.is_connected()");
+            if peer_manager.is_connected(node_pk) {
+                debug!(%node_pk, %addr, "Successfully connected to peer");
+                return;
             }
-            std::task::Poll::Pending => {}
         }
+    };
+    tokio::pin!(handshake_complete_fut);
 
-        // Check if the connection has been established.
-        if peer_manager.is_connected(node_pk) {
-            // Connection confirmed, log and return Ok
+    tokio::select! {
+        () = handshake_complete_fut => {
             debug!(%node_pk, %addr, "Successfully connected to peer");
-            return Ok(());
+            // TODO(max): Maybe should return the task handle here so we can
+            // propagate any panics without panic=abort (See `bb1f25e1`)
+            Ok(())
         }
-
-        // Check if we've timed out waiting to complete the handshake.
-        if p2p_handshake_timeout.is_elapsed() {
-            bail!("Timed out waiting to complete the noise / P2P handshake");
+        () = &mut connection_closed_fut => {
+            // TODO(max): Patch lightning-net-tokio so the error is exposed
+            let msg = "Failed connection to peer (error unknown)";
+            warn!("{msg}"); // Also log; this code is historically finicky
+            Err(anyhow!("{msg}"))
         }
-
-        // Connection not confirmed yet, wait before checking again
-        tokio::time::sleep(backoff_durations.next().unwrap()).await;
+        _ = tokio::time::sleep(HANDSHAKE_TIMEOUT) => {
+            let msg = "Timed out waiting for noise handshake to complete";
+            warn!(%node_pk, %addr, "{msg}");
+            Err(anyhow!("{msg}: {node_pk}@{addr}"))
+        }
     }
 }

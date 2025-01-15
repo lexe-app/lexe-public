@@ -19,6 +19,8 @@ disallowed-methods = [
     { path = "tokio::task::Builder::spawn_on",           reason = "Use LxTask::spawn" },
     { path = "tokio::task::join_set::JoinSet::spawn_on", reason = "Use LxTask::spawn" },
     { path = "tokio::task::join_set::Builder::spawn_on", reason = "Use LxTask::spawn" },
+    # Footgun: `.is_elapsed()` counts as 'using' the future, which may still be unpolled
+    { path = "tokio::time::Sleep::is_elapsed",           reason = "Just poll!() the sleep future instead" },
 
     { path = "secp256k1::Secp256k1::new",           reason = "Use `Crng::gen_secp256k1_ctx`" },
     { path = "secp256k1::Secp256k1::gen_new",       reason = "Use `Crng::gen_secp256k1_ctx`" },
