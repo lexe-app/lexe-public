@@ -157,6 +157,7 @@ async fn handle_update<PS: LexePersister>(
     // channel monitor update may have generated an event that can be handled,
     // such as to restore monitor updating and broadcast a funding tx.
     // Furthermore, wait for the event to be handled.
+    debug!("Triggering BGP via process_events_tx");
     let (processed_tx, processed_rx) = oneshot::channel();
     let _ = process_events_tx.try_send(processed_tx);
 
