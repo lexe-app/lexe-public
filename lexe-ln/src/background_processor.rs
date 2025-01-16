@@ -6,7 +6,7 @@ use std::{
 use common::{notify, shutdown::ShutdownChannel, task::LxTask};
 use tokio::{
     sync::{mpsc, oneshot},
-    time::{interval, interval_at, Instant},
+    time::Instant,
 };
 use tracing::{debug, error, info, info_span, instrument, warn, Instrument};
 
@@ -18,15 +18,35 @@ use crate::{
     },
 };
 
-// If LDK's `get_event_or_persistence_needed_future` future is failing to wake
-// the BGP, this timer can be reduced to say ~3s in prod to ensure events are
-// handled. See the original comment here (via blame) for more info.
-const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_secs(60);
-const PEER_MANAGER_TICK_INTERVAL: Duration = Duration::from_secs(15);
-const CHANNEL_MANAGER_TICK_INTERVAL: Duration = Duration::from_secs(60);
-const NETWORK_GRAPH_INITIAL_DELAY: Duration = Duration::from_secs(60);
-const NETWORK_GRAPH_PRUNE_INTERVAL: Duration = Duration::from_secs(15 * 60);
-const PROB_SCORER_PERSIST_INTERVAL: Duration = Duration::from_secs(5 * 60);
+/// The intervals for the timers used in the BGP.
+mod interval {
+    use std::time::Duration;
+
+    /// Channel manager ticks.
+    pub const CHANNEL_MANAGER: Duration = Duration::from_secs(60);
+    /// Network graph prunes.
+    pub const NETWORK_GRAPH: Duration = Duration::from_secs(15 * 60);
+    /// Peer manager ticks.
+    pub const PEER_MANAGER: Duration = Duration::from_secs(15);
+    /// Probabilistic scorer persists.
+    pub const PROB_SCORER: Duration = Duration::from_secs(5 * 60);
+    /// Event processing.
+    // If LDK's `get_event_or_persistence_needed_future` future is failing to
+    // wake the BGP, this timer can be reduced to say ~3s in prod to ensure
+    // events are handled. process_events_tx can also be used.
+    pub const PROCESS_EVENTS: Duration = Duration::from_secs(60);
+}
+
+/// The initial delays for the timers used in the BGP.
+mod delay {
+    use std::time::Duration;
+
+    pub const CHANNEL_MANAGER: Duration = Duration::from_millis(0);
+    pub const NETWORK_GRAPH: Duration = Duration::from_secs(60);
+    pub const PEER_MANAGER: Duration = Duration::from_millis(0);
+    pub const PROB_SCORER: Duration = Duration::from_millis(0);
+    pub const PROCESS_EVENTS: Duration = Duration::from_millis(0);
+}
 
 /// A Tokio-native background processor that runs on a single task and does not
 /// spawn any OS threads. Modeled after the lightning-background-processor crate
@@ -63,12 +83,29 @@ impl LexeBackgroundProcessor {
         EH: LexeEventHandler,
     {
         LxTask::spawn_named("background processor", async move {
-            let mut process_events_timer = interval(PROCESS_EVENTS_INTERVAL);
-            let mut pm_timer = interval(PEER_MANAGER_TICK_INTERVAL);
-            let mut cm_tick_timer = interval(CHANNEL_MANAGER_TICK_INTERVAL);
-            let start = Instant::now() + NETWORK_GRAPH_INITIAL_DELAY;
-            let mut ng_timer = interval_at(start, NETWORK_GRAPH_PRUNE_INTERVAL);
-            let mut scorer_timer = interval(PROB_SCORER_PERSIST_INTERVAL);
+            let now = Instant::now();
+
+            let mk_interval = |delay: Duration, interval: Duration| {
+                // Remove the staggering in debug mode in an attempt to catch
+                // any subtle race conditions which may arise
+                let start = if cfg!(debug_assertions) {
+                    now
+                } else {
+                    now + delay
+                };
+                tokio::time::interval_at(start, interval)
+            };
+
+            let mut process_events_timer =
+                mk_interval(delay::PROCESS_EVENTS, interval::PROCESS_EVENTS);
+            let mut pm_timer =
+                mk_interval(delay::PEER_MANAGER, interval::PEER_MANAGER);
+            let mut cm_timer =
+                mk_interval(delay::CHANNEL_MANAGER, interval::CHANNEL_MANAGER);
+            let mut ng_timer =
+                mk_interval(delay::NETWORK_GRAPH, interval::NETWORK_GRAPH);
+            let mut scorer_timer =
+                mk_interval(delay::PROB_SCORER, interval::PROB_SCORER);
 
             // This is the event handler future generator type required by LDK
             let mk_event_handler_fut =
@@ -178,7 +215,7 @@ impl LexeBackgroundProcessor {
                         debug!("Calling PeerManager::timer_tick_occurred()");
                         peer_manager.timer_tick_occurred();
                     }
-                    _ = cm_tick_timer.tick() => {
+                    _ = cm_timer.tick() => {
                         debug!("Calling ChannelManager::timer_tick_occurred()");
                         channel_manager.timer_tick_occurred();
                     }
