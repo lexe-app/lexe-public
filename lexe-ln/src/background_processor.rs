@@ -42,10 +42,10 @@ mod delay {
     use std::time::Duration;
 
     pub const CHANNEL_MANAGER: Duration = Duration::from_millis(0);
-    pub const NETWORK_GRAPH: Duration = Duration::from_secs(60);
-    pub const PEER_MANAGER: Duration = Duration::from_millis(0);
-    pub const PROB_SCORER: Duration = Duration::from_millis(0);
-    pub const PROCESS_EVENTS: Duration = Duration::from_millis(0);
+    pub const NETWORK_GRAPH: Duration = Duration::from_millis(200);
+    pub const PEER_MANAGER: Duration = Duration::from_millis(400);
+    pub const PROB_SCORER: Duration = Duration::from_millis(600);
+    pub const PROCESS_EVENTS: Duration = Duration::from_millis(800);
 }
 
 /// A Tokio-native background processor that runs on a single task and does not
