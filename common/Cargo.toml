@@ -101,8 +101,10 @@ hyper-util = { workspace = true, features = ["client-legacy-socket2"] }
 proptest = { optional = true, workspace = true, features = ["std"] }
 
 [dev-dependencies]
+chrono.workspace = true
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
+serde_urlencoded.workspace = true
 tokio = { workspace = true, features = [
     "io-util",
     "macros",

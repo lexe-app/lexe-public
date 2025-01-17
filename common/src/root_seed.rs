@@ -488,16 +488,22 @@ mod test {
         out
     }
 
+    /// ```bash
+    /// $ cargo test -p common -- dump_root_seed --ignored --show-output
+    /// ```
     #[ignore]
     #[test]
-    fn test_root_seed_dump() {
+    fn dump_root_seed() {
         let mut rng = FastRng::from_u64(1234);
         let root_seed = RootSeed::from_u64(20240506);
         let root_seed_hex = hex::encode(root_seed.expose_secret());
         let user_pk = root_seed.derive_user_pk();
         let node_pk = root_seed.derive_node_pk(&mut rng);
 
-        println!("root_seed: '{root_seed_hex}', user_pk: '{user_pk}', node_pk: '{node_pk}'");
+        println!(
+            "root_seed: '{root_seed_hex}', \
+             user_pk: '{user_pk}', node_pk: '{node_pk}'"
+        );
     }
 
     #[test]
