@@ -73,12 +73,12 @@ impl NodeCommand {
         //
         // - One thread is reserved for the main program thread
         // - One thread is reserved for async_usercalls (see Cargo.toml)
-        //
-        // NOTE: This leaves no room for additional threads spawned with
-        // [`tokio::task::spawn_blocking`] or [`std::thread::spawn`] - calling
-        // these functions will cause the program to crash.
+        // - The remaining threads are available for worker threads or threads
+        //   created via `spawn_blocking`.
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
+            // NOTE: This should match `stack-size` in Cargo.toml.
+            .thread_stack_size(0x80_0000)
             .build()
             .context("Failed to build Tokio runtime")?;
         let mut rng = SysRng::new();
