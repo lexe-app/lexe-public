@@ -2645,7 +2645,7 @@ checksum = "4ec2a862134d2a7d32d7983ddcdd1c4923530833c9f2ea1a44fc5fa473989058"
 [[package]]
 name = "lightning"
 version = "0.0.125"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.125-2024_12_19#c7a0dec3679ae2999b59b734a123377fe4796bea"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.125-2025_01_16#ad260c515c4bd8bdfb060aee80b4780024239489"
 dependencies = [
  "bech32 0.9.1",
  "bitcoin",
@@ -2657,7 +2657,7 @@ dependencies = [
 [[package]]
 name = "lightning-invoice"
 version = "0.32.0"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.125-2024_12_19#c7a0dec3679ae2999b59b734a123377fe4796bea"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.125-2025_01_16#ad260c515c4bd8bdfb060aee80b4780024239489"
 dependencies = [
  "bech32 0.9.1",
  "bitcoin",
@@ -2667,18 +2667,17 @@ dependencies = [
 [[package]]
 name = "lightning-net-tokio"
 version = "0.0.125"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.125-2024_12_19#c7a0dec3679ae2999b59b734a123377fe4796bea"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.125-2025_01_16#ad260c515c4bd8bdfb060aee80b4780024239489"
 dependencies = [
  "bitcoin",
  "lightning",
  "tokio",
- "tracing",
 ]
 
 [[package]]
 name = "lightning-transaction-sync"
 version = "0.0.125"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.125-2024_12_19#c7a0dec3679ae2999b59b734a123377fe4796bea"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.125-2025_01_16#ad260c515c4bd8bdfb060aee80b4780024239489"
 dependencies = [
  "bdk-macros",
  "bitcoin",
@@ -2690,7 +2689,7 @@ dependencies = [
 [[package]]
 name = "lightning-types"
 version = "0.1.0"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.125-2024_12_19#c7a0dec3679ae2999b59b734a123377fe4796bea"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.125-2025_01_16#ad260c515c4bd8bdfb060aee80b4780024239489"
 dependencies = [
  "bech32 0.9.1",
  "bitcoin",

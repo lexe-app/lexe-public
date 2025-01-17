@@ -1,7 +1,8 @@
-use std::time::Duration;
+use std::{future::Future, time::Duration};
 
 use anyhow::{anyhow, ensure, Context};
 use common::{api::user::NodePk, backoff, ln::addr::LxSocketAddress, Apply};
+use lightning_net_tokio::Executor;
 use tokio::{net::TcpStream, time};
 use tracing::{debug, warn};
 
@@ -10,6 +11,21 @@ use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 /// The maximum amount of time we'll allow LDK to complete the P2P handshake.
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// An [`Executor`] which propagates [`tracing`] spans.
+#[derive(Copy, Clone)]
+pub struct TracingExecutor;
+
+impl<F> Executor<F> for TracingExecutor
+where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    fn execute(&self, fut: F) -> tokio::task::JoinHandle<F::Output> {
+        #[allow(clippy::disallowed_methods)] // Have to return `JoinHandle` here
+        tokio::spawn(tracing::Instrument::in_current_span(fut))
+    }
+}
 
 /// Connects to a LN peer, returning early if we were already connected.
 /// Cycles through the given addresses until we run out of connect attempts.
@@ -105,11 +121,13 @@ where
     // registered yet.
     //
     // TODO: Rewrite / replace lightning-net-tokio entirely
-    let connection_closed_fut = lightning_net_tokio::setup_outbound(
-        peer_manager.clone(),
-        node_pk.0,
-        stream,
-    );
+    let connection_closed_fut =
+        lightning_net_tokio::setup_outbound_with_executor(
+            TracingExecutor,
+            peer_manager.clone(),
+            node_pk.0,
+            stream,
+        );
     tokio::pin!(connection_closed_fut);
 
     // A future which completes iff the noise handshake successfully completes.
