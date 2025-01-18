@@ -225,10 +225,11 @@ hyper_old = { package = "hyper", git = "https://github.com/lexe-app/hyper", bran
 # * license: Add dual license information
 # * lightning-transaction-sync: esplora-client -> 0.10  TODO(max): Remove
 # * lightning-net-tokio: Add `*_with_executor` APIs     TODO(max): Upstream
-lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2025_01_16" }
-lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2025_01_16" }
-lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2025_01_16" }
-lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2025_01_16" }
+# * lightning-net-tokio: Switch to tokio `TcpStream`s
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2025_01_17" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2025_01_17" }
+lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2025_01_17" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2025_01_17" }
 # lightning.path = "../../ldk/lightning"
 # lightning-invoice.path = "../../ldk/lightning-invoice"
 # lightning-net-tokio.path = "../../ldk/lightning-net-tokio"

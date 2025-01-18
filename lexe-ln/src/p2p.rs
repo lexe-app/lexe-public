@@ -101,9 +101,7 @@ where
         .apply(|fut| time::timeout(CONNECT_TIMEOUT, fut))
         .await
         .context("Connect request timed out")?
-        .context("TcpStream::connect() failed")?
-        .into_std()
-        .context("Couldn't convert to std TcpStream")?;
+        .context("TcpStream::connect() failed")?;
 
     // NOTE: `setup_outbound()` returns a future which completes when the
     // connection closes, which we do not need to poll because a task was
