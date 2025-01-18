@@ -56,6 +56,8 @@ pub(crate) struct AppRouterState {
     pub network: LxNetwork,
     pub measurement: Measurement,
     pub activity_tx: mpsc::Sender<()>,
+    pub bdk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
+    pub ldk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
     pub channel_events_bus: ChannelEventsBus,
 }
 

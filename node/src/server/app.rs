@@ -236,7 +236,7 @@ pub(super) async fn pay_onchain(
     State(state): State<Arc<AppRouterState>>,
     LxJson(req): LxJson<PayOnchainRequest>,
 ) -> Result<LxJson<PayOnchainResponse>, NodeApiError> {
-    lexe_ln::command::pay_onchain(
+    let response = lexe_ln::command::pay_onchain(
         req,
         state.network,
         &state.wallet,
@@ -244,8 +244,14 @@ pub(super) async fn pay_onchain(
         &state.payments_manager,
     )
     .await
-    .map(LxJson)
-    .map_err(NodeApiError::command)
+    .map_err(NodeApiError::command)?;
+
+    lexe_ln::command::resync(&state.bdk_resync_tx, &state.ldk_resync_tx)
+        .await
+        .map(LxJson)
+        .map_err(NodeApiError::command)?;
+
+    Ok(LxJson(response))
 }
 
 pub(super) async fn preflight_pay_onchain(
