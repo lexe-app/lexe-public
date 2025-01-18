@@ -21,7 +21,7 @@ use common::{
     test_event::TestEvent,
 };
 use lightning::{events::PaymentPurpose, ln::channelmanager::FailureCode};
-use tokio::sync::Mutex;
+use tokio::{sync::Mutex, time::Instant};
 use tracing::{debug, error, info, info_span, instrument};
 
 use super::outbound::LxOutboundPaymentFailure;
@@ -41,6 +41,8 @@ use crate::{
 const INVOICE_EXPIRY_CHECK_INTERVAL: Duration = Duration::from_secs(120);
 /// The interval at which we check our onchain payments for confirmations.
 const ONCHAIN_PAYMENT_CHECK_INTERVAL: Duration = Duration::from_secs(120);
+const INVOICE_EXPIRY_CHECK_DELAY: Duration = Duration::from_secs(1);
+const ONCHAIN_PAYMENT_CHECK_DELAY: Duration = Duration::from_secs(2);
 
 /// Annotates that a given [`Payment`] was returned by a `check_*` method which
 /// successfully validated a proposed state transition. [`CheckedPayment`]s
@@ -160,8 +162,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             "invoice expiry checker",
             info_span!("(invoice-expiry-checker)"),
             async move {
-                let mut check_timer =
-                    tokio::time::interval(INVOICE_EXPIRY_CHECK_INTERVAL);
+                let mut check_timer = tokio::time::interval_at(
+                    Instant::now() + INVOICE_EXPIRY_CHECK_DELAY,
+                    INVOICE_EXPIRY_CHECK_INTERVAL,
+                );
 
                 loop {
                     tokio::select! {
@@ -195,8 +199,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             "onchain confs checker",
             info_span!("(onchain-confs-checker)"),
             async move {
-                let mut check_timer =
-                    tokio::time::interval(ONCHAIN_PAYMENT_CHECK_INTERVAL);
+                let mut check_timer = tokio::time::interval_at(
+                    Instant::now() + ONCHAIN_PAYMENT_CHECK_DELAY,
+                    ONCHAIN_PAYMENT_CHECK_INTERVAL,
+                );
                 loop {
                     tokio::select! {
                         _ = check_timer.tick() => (),
