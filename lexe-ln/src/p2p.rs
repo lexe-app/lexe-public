@@ -22,18 +22,8 @@ where
     F::Output: Send + 'static,
 {
     fn execute(&self, fut: F) -> tokio::task::JoinHandle<F::Output> {
-        // XXX(max): Currently using `spawn_blocking` to hack around a prod
-        // deadlock; change this back to tokio::spawn when possible
-        let instrumented = tracing::Instrument::in_current_span(fut);
-        tokio::task::spawn_blocking(|| {
-            let rt = tokio::runtime::Handle::current();
-            rt.block_on(instrumented)
-        })
-
-        /*
         #[allow(clippy::disallowed_methods)] // Have to return `JoinHandle` here
         tokio::spawn(tracing::Instrument::in_current_span(fut))
-        */
     }
 }
 
