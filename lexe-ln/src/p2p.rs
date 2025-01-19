@@ -1,9 +1,33 @@
-use std::{future::Future, time::Duration};
+// TODO(phlip9): remove
+#![allow(dead_code)]
+
+use std::{
+    future::Future,
+    hash::Hash,
+    io,
+    marker::PhantomData,
+    mem::size_of,
+    num::NonZeroUsize,
+    sync::atomic::{AtomicU64, Ordering},
+    time::Duration,
+};
 
 use anyhow::{anyhow, ensure, Context};
-use common::{api::user::NodePk, backoff, ln::addr::LxSocketAddress, Apply};
+use common::{
+    api::user::NodePk,
+    backoff,
+    ln::addr::LxSocketAddress,
+    notify_once::{NotifyOnce, ShutdownTx},
+    Apply,
+};
+use lightning::ln::peer_handler::PeerHandleError;
 use lightning_net_tokio::Executor;
-use tokio::{net::TcpStream, time};
+use tokio::{
+    io::Interest,
+    net::TcpStream,
+    sync::mpsc::{self, error::TrySendError},
+    time,
+};
 use tracing::{debug, warn};
 
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
@@ -163,3 +187,537 @@ where
         }
     }
 }
+
+//
+// --- WIP lightning-net-tokio replacement ---
+//
+
+/// Used to generate the next unique ID for a new connection.
+static CONNECTION_ID: AtomicU64 = AtomicU64::new(0);
+
+/// A handle to a [`Connection`]. Used to request the socket to send data.
+/// Cheaply cloneable.
+#[derive(Clone)]
+struct ConnectionTx {
+    /// Send [`SendData`] requests to [`Connection`] for writing to socket.
+    tx: mpsc::Sender<SendData>,
+    /// Request [`Connection`] to disconnect.
+    shutdown: ShutdownTx,
+    /// Unique connection id. Used by `PeerManager` to compare/index by
+    /// `ConnectionTx`.
+    id: u64,
+}
+
+const _: [(); 3 * size_of::<usize>()] = [(); size_of::<ConnectionTx>()];
+
+/// A Lightning p2p connection. Wraps a tokio [`TcpStream`] in additional logic
+/// required to interface with LDK's `PeerManager`.
+struct Connection<CM, PS, PM> {
+    /// Receive [`SendData`] requests from [`ConnectionTx::send_data`].
+    rx: mpsc::Receiver<SendData>,
+
+    /// Handle to LDK PeerManager.
+    peer_manager: PM,
+
+    /// The underlying TCP socket.
+    stream: TcpStream,
+
+    /// The next enqueued write.
+    write_buf: Option<Box<[u8]>>,
+    /// If we didn't manage to fully write `write_buf` to the socket, then
+    /// we'll start our next write at this offset in `write_buf`.
+    write_offset: usize,
+
+    /// A fixed buffer to hold data read from the socket, before we immediately
+    /// pass it on to `PeerManager::read_event`.
+    read_buf: Box<[u8; 8 << 10]>,
+
+    /// If `true`, we'll avoid calling `PeerManager::read_event` until the
+    /// next `ConnectionTx::send_data(.., resume_read: true)` request.
+    pause_read: bool,
+
+    /// Receive disconnect requests from [`ConnectionTx::disconnect_socket`].
+    shutdown: NotifyOnce,
+
+    /// LDK requires us to pass a full `ConnectionTx` to `read_event` etc...,
+    /// so we have to hold onto an extra one inside `Connection`...
+    conn_tx: ConnectionTx,
+
+    // HACK: make generics work
+    phantom_cm: PhantomData<CM>,
+    phantom_ps: PhantomData<PS>,
+}
+
+/// See: [`ConnectionTx::send_data`].
+struct SendData {
+    data: Box<[u8]>,
+    resume_read: bool,
+}
+
+const _: [(); 3 * size_of::<usize>()] = [(); size_of::<SendData>()];
+
+/// The reason for a [`Connection`] disconnect.
+enum Disconnect {
+    /// Socket error (peer immediate disconnect).
+    Socket(std::io::ErrorKind),
+    /// We can't read from socket anymore--remote peer write half-close.
+    ReadClosed,
+    /// We can't write to the socket anymore--remote peer read half-close.
+    WriteClosed,
+    /// PeerManager called [`ConnectionTx::disconnect_socket`].
+    PeerManager,
+}
+
+const _: [(); 1] = [(); size_of::<Result<(), Disconnect>>()];
+
+/// A trait that encapsulates the exact interface we require from the LDK
+/// `PeerManager` as far as [`Connection`] is concerned.
+trait PeerManagerTrait<CM, PS>: Clone {
+    /// Returns `true` if we're connected to a peer with [`NodePk`].
+    fn is_connected(&self, node_pk: &NodePk) -> bool;
+
+    /// Register a new inbound connection with the `PeerManager`. Returns an
+    /// initial write that should be sent immediately. May return `Err` to
+    /// reject the new connection, which should then be disconnected.
+    fn new_outbound_connection(
+        &self,
+        node_pk: &NodePk,
+        conn_tx: ConnectionTx,
+        addr: Option<LxSocketAddress>,
+    ) -> Result<Vec<u8>, PeerHandleError>;
+
+    /// Register a new outbound connection with the `PeerManager`. May return
+    /// `Err` to reject the new connection, which should then be disconnected.
+    fn new_inbound_connection(
+        &self,
+        conn_tx: ConnectionTx,
+        addr: Option<LxSocketAddress>,
+    ) -> Result<(), PeerHandleError>;
+
+    /// Notify the `PeerManager` that the connection associated with `conn_tx`
+    /// has disconnected.
+    ///
+    /// This fn is idempotent, so it's safe to call multiple times.
+    fn socket_disconnected(&self, conn_tx: &ConnectionTx);
+
+    /// Feed the `PeerManager` new data read from the socket associated with
+    /// `conn_tx`.
+    ///
+    /// Returns `Ok(true)`, if the connection should apply backpressure on
+    /// reads. That means it should avoid calling `PeerManager::read_event`
+    /// until the next `ConnectionTx::send_data(.., resume_read: true)` request.
+    ///
+    /// Returns `Err` if the socket should be disconnected. You do not need to
+    /// call `socket_disconnected`.
+    ///
+    /// You SHOULD call `PeerManager::process_events` sometime after a
+    /// `read_event` to generate subsequent `send_data` calls.
+    ///
+    /// This will NOT call `send_data` to avoid re-entrancy reasons.
+    fn read_event(
+        &self,
+        conn_tx: &mut ConnectionTx,
+        data: &[u8],
+    ) -> Result<bool, PeerHandleError>;
+
+    /// Drive the `PeerManager` state machine to handle new `read_event`s.
+    ///
+    /// May call `send_data` on various peer `ConnectionTx`'s.
+    fn process_events(&self);
+
+    /// Notify the `PeerManager` that the connection associated with `conn_tx`
+    /// now has room for more `send_data` write requests.
+    ///
+    /// May call `send_data` on the `conn_tx` multiple times.
+    fn write_buffer_space_avail(
+        &self,
+        conn_tx: &mut ConnectionTx,
+    ) -> Result<(), PeerHandleError>;
+}
+
+//
+// --- impl Connection ---
+//
+
+impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
+    fn new(peer_manager: PM, stream: TcpStream) -> (ConnectionTx, Self) {
+        let (tx, rx) = mpsc::channel(8);
+        let shutdown = NotifyOnce::new();
+        let conn_tx = ConnectionTx {
+            tx,
+            id: CONNECTION_ID.fetch_add(1, Ordering::Relaxed),
+            shutdown: ShutdownTx::from_channel(shutdown.clone()),
+        };
+        let conn = Self {
+            rx,
+            stream,
+            peer_manager,
+            write_buf: None,
+            write_offset: 0,
+            read_buf: Box::new([0u8; 8 << 10]),
+            pause_read: false,
+            shutdown,
+            conn_tx: conn_tx.clone(),
+            phantom_cm: PhantomData,
+            phantom_ps: PhantomData,
+        };
+        (conn_tx, conn)
+    }
+
+    fn setup_outbound(
+        peer_manager: &PM,
+        stream: TcpStream,
+        addr: LxSocketAddress,
+        node_pk: &NodePk,
+    ) -> Result<Self, PeerHandleError> {
+        let (conn_tx, mut conn) = Self::new(peer_manager.clone(), stream);
+        let initial_write = peer_manager.new_outbound_connection(
+            node_pk,
+            conn_tx,
+            Some(addr),
+        )?;
+        conn.write_buf = Some(initial_write.into());
+        Ok(conn)
+    }
+
+    fn setup_inbound(
+        peer_manager: &PM,
+        stream: TcpStream,
+    ) -> Result<Self, PeerHandleError> {
+        let addr = stream
+            .peer_addr()
+            .ok()
+            .and_then(|sockaddr| LxSocketAddress::try_from(sockaddr).ok());
+        let (conn_tx, conn) = Self::new(peer_manager.clone(), stream);
+
+        // Fortanix SGX doesn't support socket half-close...
+
+        match peer_manager.new_inbound_connection(conn_tx, addr) {
+            Ok(()) => Ok(conn),
+            Err(err) => Err(err),
+        }
+    }
+
+    async fn run(mut self) {
+        let disconnect = loop {
+            // The socket events (if any) we want to be notified of in this
+            // select iter.
+            let interest = self.socket_interest();
+
+            tokio::select! {
+                // Disconnect requested from PeerManager
+                () = self.shutdown.recv() => {
+                    break Disconnect::PeerManager;
+                }
+
+                // `SendData`
+                // -> enqueue for writing to socket
+                // -> notify `PeerManager::write_buffer_space_avail`
+                // -> unpause reads if requested
+                recv = self.rx.recv(), if self.write_buf.is_none() => {
+                    if let Err(disconnect) = self.handle_recv_send_data(recv) {
+                        break disconnect;
+                    }
+                }
+
+                // Socket is ready to read or write
+                // -> is_writable => write_buf[write_offset..] -> stream.try_write
+                // -> is_readable => stream.try_read -> read_buf -> PeerManager::read_event
+                res = self.stream.ready(interest.unwrap()), if interest.is_some() => {
+                    let ready = match res {
+                        Ok(ready) => ready,
+                        Err(err) => break Disconnect::Socket(err.kind()),
+                    };
+
+                    // If socket says it's ready to write -> try to write.
+                    let _bytes_written: Option<NonZeroUsize> = if ready.is_writable() {
+                        let write_buf: &[u8] = self.write_buf.as_ref()
+                            .expect("we should only get write readiness if write_buf.is_some()");
+                        assert!(!write_buf.is_empty());
+                        let to_write = &write_buf[self.write_offset..];
+
+                        match self.stream.try_write(to_write) {
+                            // Wrote some bytes -> update `write_buf`
+                            Ok(bytes_written) => {
+                                let bytes_written = match NonZeroUsize::new(bytes_written) {
+                                    // write=0 => Remote peer read half-close
+                                    None => break Disconnect::WriteClosed,
+                                    Some(bytes_written) => bytes_written,
+                                };
+
+                                let new_write_offset = self.write_offset + bytes_written.get();
+                                assert!(new_write_offset <= write_buf.len());
+
+                                if new_write_offset == write_buf.len() {
+                                    self.write_buf = None;
+                                    self.write_offset = 0;
+                                } else {
+                                    self.write_offset = new_write_offset;
+                                }
+
+                                Some(bytes_written)
+                            },
+                            // `ready` can return false positive
+                            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => None,
+                            Err(err) => break Disconnect::Socket(err.kind()),
+                        }
+                    } else {
+                        None
+                    };
+
+                    // If socket says it's ready to read -> try to read.
+                    let bytes_read: Option<NonZeroUsize> = if ready.is_readable() {
+                        match self.stream.try_read(self.read_buf.as_mut_slice()) {
+                            Ok(bytes_read) => match NonZeroUsize::new(bytes_read) {
+                                // read=0 => Remote peer write half-close
+                                None => break Disconnect::ReadClosed,
+                                Some(bytes_read) => Some(bytes_read),
+                            },
+                            // `ready` can return false positive
+                            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => None,
+                            Err(err) => break Disconnect::Socket(err.kind()),
+                        }
+                    } else {
+                        None
+                    };
+
+                    // Tell `PeerManager` about data we just read.
+                    if let Some(bytes_read) = bytes_read {
+                        let data = &self.read_buf[..bytes_read.get()];
+                        match self.peer_manager.read_event(&mut self.conn_tx, data) {
+                            // It may want us to pause reads
+                            Ok(pause_read) => self.pause_read = pause_read,
+                            Err(PeerHandleError {}) => break Disconnect::PeerManager,
+                        }
+                        // TODO(phlip9): move into separate task
+                        self.peer_manager.process_events();
+                    }
+                }
+            }
+        };
+
+        if disconnect.is_peer_manager() {
+            self.peer_manager.socket_disconnected(&self.conn_tx);
+        }
+
+        // TODO(phlip9): log socket error
+        // TODO(phlip9): graceful shutdown
+    }
+
+    /// Do we want to read and/or write to the socket?
+    ///
+    /// ->  Read: reads are unpaused
+    /// -> Write: have a write buffered
+    fn socket_interest(&self) -> Option<Interest> {
+        // Read if reads are unpaused.
+        let want_read = !self.pause_read;
+        // Write if we have something queued up.
+        let want_write = self.write_buf.is_some();
+
+        if want_read && want_write {
+            Some(Interest::READABLE | Interest::WRITABLE)
+        } else if want_read && !want_write {
+            Some(Interest::READABLE)
+        } else if !want_read && want_write {
+            Some(Interest::WRITABLE)
+        } else {
+            None
+        }
+    }
+
+    /// Handle a [`SendData`] request from a [`ConnectionTx`].
+    ///
+    /// -> enqueue for writing to socket
+    /// -> notify `PeerManager::write_buffer_space_avail`
+    /// -> unpause reads if requested
+    fn handle_recv_send_data(
+        &mut self,
+        recv: Option<SendData>,
+    ) -> Result<(), Disconnect> {
+        assert!(self.write_buf.is_none());
+        assert_eq!(self.write_offset, 0);
+
+        let send_data = match recv {
+            Some(send_data) => send_data,
+            // case: all `ConnectionTx` dropped.
+            //
+            // Technically this is unreachable, since we currently
+            // hold on to a `ConnectionTx` at all times => the rx
+            // should never close from no live tx's...
+            None => return Err(Disconnect::PeerManager),
+        };
+
+        // Unpause reads if requested.
+        if send_data.resume_read {
+            self.pause_read = false;
+        }
+
+        // Enqueue next write (if not empty)
+        let data = send_data.data;
+        if !data.is_empty() {
+            self.write_buf = Some(data);
+            self.write_offset = 0;
+
+            // Tell `PeerManager` we have space for more writes.
+            if let Err(PeerHandleError {}) = self
+                .peer_manager
+                .write_buffer_space_avail(&mut self.conn_tx)
+            {
+                return Err(Disconnect::PeerManager);
+            }
+        }
+
+        Ok(())
+    }
+}
+
+//
+// --- impl ConnectionTx ---
+//
+
+impl ConnectionTx {
+    /// Try to send some data to a peer and/or request the connection to resume
+    /// reads.
+    ///
+    /// If there is write backpressure (i.e., we return 0), the [`Connection`]
+    /// MUST call `PeerManager::write_buffer_space_avail` when it has room for
+    /// more writes.
+    ///
+    /// TODO(phlip9): patch LDK to just pop the `Vec<u8>` from LDK
+    /// `Peer::pending_outbound_buffer: VecDeque<Vec<u8>>` and pass it here
+    /// directly, so we don't have to copy.
+    fn send_data(&mut self, data: &[u8], resume_read: bool) -> usize {
+        // Since `send_data` is not async, we first try to acquire a send permit
+        // to see if we're getting backpressure/disconnected. This also lets us
+        // avoid copying `data` until we know we can actually enqueue it.
+        match self.tx.try_reserve() {
+            // Enqueue `data` to be written
+            Ok(send_permit) => {
+                let write_len = data.len();
+                let op = SendData {
+                    // TODO(phlip9): patch LDK to remove this unnecessary copy.
+                    data: data.into(),
+                    resume_read,
+                };
+                send_permit.send(op);
+                write_len
+            }
+
+            // case: channel full => backpressure => write_len = 0
+            //
+            // NOTE: the `Connection` task MUST call `PeerManager`
+            // `write_buffer_space_avail` in the future to unpause writes!
+            Err(TrySendError::Full(())) => 0,
+
+            // case: channel closed => D/C'd => drop write => write_len = 0
+            Err(TrySendError::Closed(())) => 0,
+        }
+    }
+
+    /// Notify the [`Connection`] that the `PeerManager` wants to disconnect.
+    fn disconnect_socket(&mut self) {
+        self.shutdown.send()
+    }
+}
+
+// NOTE: use separate impl to make rust-doc links work.
+impl lightning::ln::peer_handler::SocketDescriptor for ConnectionTx {
+    #[inline]
+    fn send_data(&mut self, data: &[u8], resume_read: bool) -> usize {
+        ConnectionTx::send_data(self, data, resume_read)
+    }
+    #[inline]
+    fn disconnect_socket(&mut self) {
+        ConnectionTx::disconnect_socket(self)
+    }
+}
+
+impl PartialEq for ConnectionTx {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+impl Eq for ConnectionTx {}
+
+impl Hash for ConnectionTx {
+    #[inline]
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_u64(self.id)
+    }
+}
+
+//
+// --- impl Disconnect ---
+//
+
+impl Disconnect {
+    fn is_peer_manager(&self) -> bool {
+        matches!(self, Self::PeerManager)
+    }
+}
+
+//
+// --- impl PeerManagerTrait ---
+//
+
+// TODO(phlip9): uncomment after LexePeerManager switches to this connection
+// impl
+
+// impl<CM, PS, LPM, T> PeerManagerTrait<CM, PS> for T
+// where
+//     T: Deref<Target = LPM> + Clone,
+//     CM: LexeChannelManager<PS>,
+//     LPM: LexePeerManager<CM, PS>,
+//     PS: LexePersister,
+// {
+//     fn is_connected(&self, node_pk: &NodePk) -> bool {
+//         // TODO(max): This LDK fn is O(n) in the # of peers...
+//         self.as_ref().peer_by_node_id(&node_pk.0).is_some()
+//     }
+//
+//     fn new_outbound_connection(
+//         &self,
+//         node_pk: &NodePk,
+//         conn_tx: ConnectionTx,
+//         addr: Option<LxSocketAddress>,
+//     ) -> Result<Vec<u8>, PeerHandleError> {
+//         self.as_ref().new_outbound_connection(
+//             node_pk.0,
+//             conn_tx,
+//             addr.map(SocketAddress::from),
+//         )
+//     }
+//
+//     fn new_inbound_connection(
+//         &self,
+//         conn_tx: ConnectionTx,
+//         addr: Option<LxSocketAddress>,
+//     ) -> Result<(), PeerHandleError> {
+//         self.as_ref()
+//             .new_inbound_connection(conn_tx, addr.map(SocketAddress::from))
+//     }
+//
+//     fn socket_disconnected(&self, conn_tx: &ConnectionTx) {
+//         self.as_ref().socket_disconnected(conn_tx)
+//     }
+//
+//     fn read_event(
+//         &self,
+//         conn_tx: &mut ConnectionTx,
+//         data: &[u8],
+//     ) -> Result<bool, PeerHandleError> {
+//         self.as_ref().read_event(conn_tx, data)
+//     }
+//
+//     fn process_events(&self) {
+//         self.as_ref().process_events()
+//     }
+//
+//     fn write_buffer_space_avail(
+//         &self,
+//         conn_tx: &mut ConnectionTx,
+//     ) -> Result<(), PeerHandleError> {
+//         self.as_ref().write_buffer_space_avail(conn_tx)
+//     }
+// }
