@@ -429,6 +429,11 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
                     if let Err(disconnect) = self.handle_recv_send_data(recv) {
                         break disconnect;
                     }
+                    if let Err(disconnect) =
+                        self.notify_send_data_channel_space_avail()
+                    {
+                        break disconnect;
+                    }
                 }
 
                 // Socket is ready to read or write
@@ -441,52 +446,17 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
                     };
 
                     // If socket says it's ready to write -> try to write.
-                    let _bytes_written: Option<NonZeroUsize> = if ready.is_writable() {
-                        let write_buf: &[u8] = self.write_buf.as_ref()
-                            .expect("we should only get write readiness if write_buf.is_some()");
-                        assert!(!write_buf.is_empty());
-                        let to_write = &write_buf[self.write_offset..];
-
-                        match self.stream.try_write(to_write) {
-                            // Wrote some bytes -> update `write_buf`
-                            Ok(bytes_written) => {
-                                let bytes_written = match NonZeroUsize::new(bytes_written) {
-                                    // write=0 => Remote peer read half-close
-                                    None => break Disconnect::WriteClosed,
-                                    Some(bytes_written) => bytes_written,
-                                };
-
-                                let new_write_offset = self.write_offset + bytes_written.get();
-                                assert!(new_write_offset <= write_buf.len());
-
-                                if new_write_offset == write_buf.len() {
-                                    self.write_buf = None;
-                                    self.write_offset = 0;
-                                } else {
-                                    self.write_offset = new_write_offset;
-                                }
-
-                                Some(bytes_written)
-                            },
-                            // `ready` can return false positive
-                            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => None,
-                            Err(err) => break Disconnect::Socket(err.kind()),
+                    if ready.is_writable() {
+                        if let Err(disconnect) = self.try_write_buf() {
+                            break disconnect;
                         }
-                    } else {
-                        None
                     };
 
                     // If socket says it's ready to read -> try to read.
                     let bytes_read: Option<NonZeroUsize> = if ready.is_readable() {
-                        match self.stream.try_read(self.read_buf.as_mut_slice()) {
-                            Ok(bytes_read) => match NonZeroUsize::new(bytes_read) {
-                                // read=0 => Remote peer write half-close
-                                None => break Disconnect::ReadClosed,
-                                Some(bytes_read) => Some(bytes_read),
-                            },
-                            // `ready` can return false positive
-                            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => None,
-                            Err(err) => break Disconnect::Socket(err.kind()),
+                        match self.try_read_buf() {
+                            Ok(bytes_read) => bytes_read,
+                            Err(disconnect) => break disconnect,
                         }
                     } else {
                         None
@@ -575,17 +545,76 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
         if !data.is_empty() {
             self.write_buf = Some(data);
             self.write_offset = 0;
-
-            // Tell `PeerManager` we have space for more writes.
-            if let Err(PeerHandleError {}) = self
-                .peer_manager
-                .write_buffer_space_avail(&mut self.conn_tx)
-            {
-                return Err(Disconnect::PeerManager);
-            }
         }
 
         Ok(())
+    }
+
+    /// Tell `PeerManager` we have space for more `send_data` commands in the
+    /// `SendData` mpsc queue.
+    fn notify_send_data_channel_space_avail(
+        &mut self,
+    ) -> Result<(), Disconnect> {
+        self.peer_manager
+            .write_buffer_space_avail(&mut self.conn_tx)
+            .map_err(|PeerHandleError {}| Disconnect::PeerManager)
+    }
+
+    /// Attempt a `stream.try_write(&write_buf[write_offset..])`. Returns `true`
+    /// if another write might succeed immediately afterward.
+    fn try_write_buf(&mut self) -> Result<(), Disconnect> {
+        let write_buf: &[u8] = self.write_buf.as_ref().expect(
+            "we should only get write readiness if write_buf.is_some()",
+        );
+        assert!(!write_buf.is_empty());
+
+        let to_write = &write_buf[self.write_offset..];
+        assert!(!to_write.is_empty());
+
+        let _bytes_written = match self.stream.try_write(to_write) {
+            // Wrote some bytes -> update `write_buf`
+            Ok(bytes_written) => {
+                let bytes_written = match NonZeroUsize::new(bytes_written) {
+                    // write=0 => Remote peer read half-close
+                    None => return Err(Disconnect::WriteClosed),
+                    Some(bytes_written) => bytes_written,
+                };
+
+                trace!(%bytes_written);
+
+                let new_write_offset = self.write_offset + bytes_written.get();
+                assert!(new_write_offset <= write_buf.len());
+
+                if new_write_offset == write_buf.len() {
+                    self.write_buf = None;
+                    self.write_offset = 0;
+                } else {
+                    self.write_offset = new_write_offset;
+                }
+
+                Some(bytes_written)
+            }
+            // `ready` can return false positive
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => None,
+            Err(err) => return Err(Disconnect::Socket(err.kind())),
+        };
+
+        Ok(())
+    }
+
+    /// Attempt a `stream.try_read(&mut read_buf)`. Returns the number of bytes
+    /// read, if any.
+    fn try_read_buf(&mut self) -> Result<Option<NonZeroUsize>, Disconnect> {
+        match self.stream.try_read(self.read_buf.as_mut_slice()) {
+            Ok(bytes_read) => match NonZeroUsize::new(bytes_read) {
+                // read=0 => Remote peer write half-close
+                None => Err(Disconnect::ReadClosed),
+                Some(bytes_read) => Ok(Some(bytes_read)),
+            },
+            // `ready` can return false positive
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
+            Err(err) => Err(Disconnect::Socket(err.kind())),
+        }
     }
 }
 
