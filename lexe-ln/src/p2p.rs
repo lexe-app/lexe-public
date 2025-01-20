@@ -8,18 +8,15 @@ use std::{
     marker::PhantomData,
     mem::size_of,
     num::NonZeroUsize,
-    sync::atomic::{AtomicU64, AtomicUsize, Ordering},
+    sync::{
+        atomic::{AtomicU64, AtomicUsize, Ordering},
+        Arc,
+    },
     time::Duration,
 };
 
 use anyhow::{anyhow, ensure, Context};
-use common::{
-    api::user::NodePk,
-    backoff,
-    ln::addr::LxSocketAddress,
-    notify_once::{NotifyOnce, ShutdownTx},
-    Apply,
-};
+use common::{api::user::NodePk, backoff, ln::addr::LxSocketAddress, Apply};
 use lightning::ln::peer_handler::PeerHandleError;
 use lightning_net_tokio::Executor;
 use tokio::{
@@ -202,22 +199,22 @@ static CONNECTION_ID: AtomicU64 = AtomicU64::new(0);
 /// Cheaply cloneable.
 #[derive(Clone)]
 struct ConnectionTx {
-    /// Send [`SendData`] requests to [`Connection`] for writing to socket.
-    tx: mpsc::Sender<SendData>,
-    /// Request [`Connection`] to disconnect.
-    shutdown: ShutdownTx,
-    /// Unique connection id. Used by `PeerManager` to compare/index by
-    /// `ConnectionTx`.
-    id: u64,
+    /// Update the connection control state (disconnect/pause reads).
+    ctl: Arc<ConnectionCtl>,
+    /// Send write data requests to [`Connection`] for writing to socket.
+    tx: mpsc::Sender<Box<[u8]>>,
 }
 
-const _: [(); 3 * size_of::<usize>()] = [(); size_of::<ConnectionTx>()];
+const _: [(); 2 * size_of::<usize>()] = [(); size_of::<ConnectionTx>()];
 
 /// A Lightning p2p connection. Wraps a tokio [`TcpStream`] in additional logic
 /// required to interface with LDK's `PeerManager`.
 struct Connection<CM, PS, PM> {
-    /// Receive [`SendData`] requests from [`ConnectionTx::send_data`].
-    rx: mpsc::Receiver<SendData>,
+    /// Get notified of connection control updates (disconnect/resume_read).
+    ctl: Arc<ConnectionCtl>,
+
+    /// Receive write data requests from [`ConnectionTx::send_data`].
+    rx: mpsc::Receiver<Box<[u8]>>,
 
     /// Handle to LDK PeerManager.
     peer_manager: PM,
@@ -235,13 +232,6 @@ struct Connection<CM, PS, PM> {
     /// pass it on to `PeerManager::read_event`.
     read_buf: Box<[u8; 8 << 10]>,
 
-    /// If `true`, we'll avoid calling `PeerManager::read_event` until the
-    /// next `ConnectionTx::send_data(.., resume_read: true)` request.
-    pause_read: bool,
-
-    /// Receive disconnect requests from [`ConnectionTx::disconnect_socket`].
-    shutdown: NotifyOnce,
-
     /// LDK requires us to pass a full `ConnectionTx` to `read_event` etc...,
     /// so we have to hold onto an extra one inside `Connection`...
     conn_tx: ConnectionTx,
@@ -250,14 +240,6 @@ struct Connection<CM, PS, PM> {
     phantom_cm: PhantomData<CM>,
     phantom_ps: PhantomData<PS>,
 }
-
-/// See: [`ConnectionTx::send_data`].
-struct SendData {
-    data: Box<[u8]>,
-    resume_read: bool,
-}
-
-const _: [(); 3 * size_of::<usize>()] = [(); size_of::<SendData>()];
 
 /// [`Connection`] control state. Used to notify the [`Connection`] that it
 /// should disconnect or resume reads.
@@ -373,22 +355,20 @@ trait PeerManagerTrait<CM, PS>: Clone {
 
 impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
     fn new(peer_manager: PM, stream: TcpStream) -> (ConnectionTx, Self) {
+        let ctl = Arc::new(ConnectionCtl::new());
         let (tx, rx) = mpsc::channel(8);
-        let shutdown = NotifyOnce::new();
         let conn_tx = ConnectionTx {
+            ctl: ctl.clone(),
             tx,
-            id: CONNECTION_ID.fetch_add(1, Ordering::Relaxed),
-            shutdown: ShutdownTx::from_channel(shutdown.clone()),
         };
         let conn = Self {
+            ctl,
             rx,
             stream,
             peer_manager,
             write_buf: None,
             write_offset: 0,
             read_buf: Box::new([0u8; 8 << 10]),
-            pause_read: false,
-            shutdown,
             conn_tx: conn_tx.clone(),
             phantom_cm: PhantomData,
             phantom_ps: PhantomData,
@@ -435,29 +415,37 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
         trace!("start");
 
         let disconnect = loop {
+            // Read new control state for this iter.
+            //
+            // If `pause_read=true`, we'll avoid calling
+            // `PeerManager::read_event` until the next
+            // `ConnectionTx::send_data(.., resume_read: true)` request.
+            let pause_read = match self.read_ctl_state() {
+                Ok(pause_read) => pause_read,
+                Err(disconnect) => break disconnect,
+            };
+
             // The socket events (if any) we want to be notified of in this
             // select iter.
-            let interest = self.socket_interest();
+            let interest = self.socket_interest(pause_read);
 
             trace!(
                 write_buf = ?self.write_buf.as_ref().map(|b| b.len()),
                 write_offset = %self.write_offset,
-                pause_read = %self.pause_read,
+                %pause_read,
                 ?interest,
             );
 
             tokio::select! {
-                // Disconnect requested from PeerManager
-                () = self.shutdown.recv() => {
-                    break Disconnect::PeerManager;
-                }
+                // `ConnectionCtl` notified disconnect/resume_read
+                // -> nothing (we'll pick up the new state on the next iter)
+                () = self.ctl.notify.notified() => {},
 
-                // `SendData`
+                // `ConnectionTx::try_send_data(data=&[..])`
                 // -> enqueue for writing to socket
                 // -> notify `PeerManager::write_buffer_space_avail`
-                // -> unpause reads if requested
-                recv = self.rx.recv(), if self.write_buf.is_none() => {
-                    if let Err(disconnect) = self.handle_recv_send_data(recv) {
+                req = self.rx.recv(), if self.write_buf.is_none() => {
+                    if let Err(disconnect) = self.handle_rx_write_req(req) {
                         break disconnect;
                     }
                     if let Err(disconnect) =
@@ -498,11 +486,17 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
                         trace!(%bytes_read);
 
                         let data = &self.read_buf[..bytes_read.get()];
-                        match self.peer_manager.read_event(&mut self.conn_tx, data) {
+                        let pause_read = match self.peer_manager.read_event(&mut self.conn_tx, data) {
                             // It may want us to pause reads
-                            Ok(pause_read) => self.pause_read = pause_read,
+                            Ok(pause_read) => pause_read,
                             Err(PeerHandleError {}) => break Disconnect::PeerManager,
+                        };
+
+                        let state = if pause_read { STATE_PAUSE_READ } else { STATE_NORMAL };
+                        if let Err(disconnect) = self.set_ctl_state(state) {
+                            break disconnect;
                         }
+
                         // TODO(phlip9): move into separate task
                         self.peer_manager.process_events();
                     }
@@ -520,16 +514,37 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
         // TODO(phlip9): log socket error
         // TODO(phlip9): graceful shutdown
 
-        trace!(?disconnect, "shutdown");
+        trace!(?disconnect);
+    }
+
+    /// Read [`ConnectionCtl::state`] and maybe resume reads or disconnect.
+    fn read_ctl_state(&mut self) -> Result<bool, Disconnect> {
+        let state = self.ctl.state.load(Ordering::SeqCst);
+        if state != STATE_DISCONNECT {
+            let pause_read = state == STATE_PAUSE_READ;
+            Ok(pause_read)
+        } else {
+            Err(Disconnect::PeerManager)
+        }
+    }
+
+    /// Set [`ConnectionCtl::state`]. If we raced with a disconnect, return Err.
+    fn set_ctl_state(&mut self, state: usize) -> Result<(), Disconnect> {
+        let prev = self.ctl.state.swap(state, Ordering::SeqCst);
+        if prev != STATE_DISCONNECT {
+            Ok(())
+        } else {
+            Err(Disconnect::PeerManager)
+        }
     }
 
     /// Do we want to read and/or write to the socket?
     ///
     /// ->  Read: reads are unpaused
     /// -> Write: have a write buffered
-    fn socket_interest(&self) -> Option<Interest> {
+    fn socket_interest(&self, pause_read: bool) -> Option<Interest> {
         // Read if reads are unpaused.
-        let want_read = !self.pause_read;
+        let want_read = !pause_read;
         // Write if we have something queued up.
         let want_write = self.write_buf.is_some();
 
@@ -544,45 +559,41 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
         }
     }
 
-    /// Handle a [`SendData`] request from a [`ConnectionTx`].
+    /// Handle a write data request from a [`ConnectionTx`].
     ///
     /// -> enqueue for writing to socket
-    /// -> notify `PeerManager::write_buffer_space_avail`
-    /// -> unpause reads if requested
-    fn handle_recv_send_data(
+    fn handle_rx_write_req(
         &mut self,
-        recv: Option<SendData>,
+        rx_write_req: Option<Box<[u8]>>,
     ) -> Result<(), Disconnect> {
         assert!(self.write_buf.is_none());
         assert_eq!(self.write_offset, 0);
 
-        let send_data = match recv {
-            Some(send_data) => send_data,
+        let data = match rx_write_req {
+            Some(data) => data,
             // case: all `ConnectionTx` dropped.
             //
-            // Technically this is unreachable, since we currently
-            // hold on to a `ConnectionTx` at all times => the rx
-            // should never close from no live tx's...
-            None => return Err(Disconnect::PeerManager),
+            // Technically this is unreachable, since we hold on to a
+            // `ConnectionTx` at all times, so the rx should never close from no
+            // live tx's...
+            None =>
+                if cfg!(debug_assertions) {
+                    unreachable!()
+                } else {
+                    return Err(Disconnect::PeerManager);
+                },
         };
+        assert_ne!(data.len(), 0);
 
-        // Unpause reads if requested.
-        if send_data.resume_read {
-            self.pause_read = false;
-        }
-
-        // Enqueue next write (if not empty)
-        let data = send_data.data;
-        if !data.is_empty() {
-            self.write_buf = Some(data);
-            self.write_offset = 0;
-        }
+        // Enqueue next write
+        self.write_buf = Some(data);
+        self.write_offset = 0;
 
         Ok(())
     }
 
-    /// Tell `PeerManager` we have space for more `send_data` commands in the
-    /// `SendData` mpsc queue.
+    /// Tell `PeerManager` we have space for more write data requests in the
+    /// mpsc queue.
     fn notify_send_data_channel_space_avail(
         &mut self,
     ) -> Result<(), Disconnect> {
@@ -601,6 +612,13 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
 
         let to_write = &write_buf[self.write_offset..];
         assert!(!to_write.is_empty());
+
+        // TODO(phlip9): remove. testing partial writes.
+        #[cfg(test)]
+        let to_write = {
+            let to_write_len = std::cmp::min(512, to_write.len());
+            &to_write[..to_write_len]
+        };
 
         let _bytes_written = match self.stream.try_write(to_write) {
             // Wrote some bytes -> update `write_buf`
@@ -654,30 +672,37 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
 //
 
 impl ConnectionTx {
-    /// Try to send some data to a peer and/or request the connection to resume
-    /// reads.
+    /// Try to send some data to the connection task for writing to a remote
+    /// peer and/or request for reads to be unpaused.
     ///
-    /// If there is write backpressure (i.e., we return 0), the [`Connection`]
-    /// MUST call `PeerManager::write_buffer_space_avail` when it has room for
-    /// more writes.
+    /// Returns the number of bytes enqueued, which will be zero if the
+    /// `write_tx` channel is full, indicating write backpressure.
     ///
-    /// TODO(phlip9): patch LDK to just pop the `Vec<u8>` from LDK
-    /// `Peer::pending_outbound_buffer: VecDeque<Vec<u8>>` and pass it here
-    /// directly, so we don't have to copy.
+    /// If there is write backpressure, the [`Connection`] MUST call
+    /// `PeerManager::write_buffer_space_avail` when it has room for more
+    /// writes.
     fn send_data(&mut self, data: &[u8], resume_read: bool) -> usize {
-        // Since `send_data` is not async, we first try to acquire a send permit
-        // to see if we're getting backpressure/disconnected. This also lets us
-        // avoid copying `data` until we know we can actually enqueue it.
+        let bytes_enqueued = self.try_send_data(data);
+        if resume_read {
+            self.ctl.resume_read();
+        }
+        bytes_enqueued
+    }
+
+    fn try_send_data(&mut self, data: &[u8]) -> usize {
+        if data.is_empty() {
+            return 0;
+        }
+
+        // Since we're not async, we first try to acquire a send permit to see
+        // if we're getting backpressure/disconnected. This also lets us avoid
+        // copying `data` until we know we can actually enqueue it.
         match self.tx.try_reserve() {
             // Enqueue `data` to be written
             Ok(send_permit) => {
                 let write_len = data.len();
-                let op = SendData {
-                    // TODO(phlip9): patch LDK to remove this unnecessary copy.
-                    data: data.into(),
-                    resume_read,
-                };
-                send_permit.send(op);
+                trace!(%write_len, "ConnectionTx =>");
+                send_permit.send(data.into());
                 write_len
             }
 
@@ -694,7 +719,8 @@ impl ConnectionTx {
 
     /// Notify the [`Connection`] that the `PeerManager` wants to disconnect.
     fn disconnect_socket(&mut self) {
-        self.shutdown.send()
+        trace!("ConnectionTx => disconnect");
+        self.ctl.disconnect()
     }
 }
 
@@ -713,7 +739,7 @@ impl lightning::ln::peer_handler::SocketDescriptor for ConnectionTx {
 impl PartialEq for ConnectionTx {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
+        self.ctl.id == other.ctl.id
     }
 }
 impl Eq for ConnectionTx {}
@@ -721,7 +747,7 @@ impl Eq for ConnectionTx {}
 impl Hash for ConnectionTx {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        state.write_u64(self.id)
+        state.write_u64(self.ctl.id)
     }
 }
 
@@ -761,7 +787,10 @@ impl ConnectionCtl {
             match res {
                 // We succeeded in setting state -> `NORMAL`, notify the
                 // connection that state changed.
-                Ok(_) => self.notify.notify_one(),
+                Ok(_) => {
+                    trace!("ConnectionTx => resume read");
+                    self.notify.notify_one()
+                }
                 // NOTE: don't need to loop:
                 // case actual == STATE_NORMAL: => someone raced to resume
                 // case actual == STATE_DISCONNECT: => give up anyway
