@@ -10,6 +10,7 @@ version.workspace = true
 default = []
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
 test-utils = [
+  "common/test-utils",
   "dep:proptest",
   "dep:proptest-derive",
   "dep:tokio-rustls",
@@ -86,6 +87,7 @@ cmac = { version = "0.7", features = ["std", "zeroize"] }
 
 [dev-dependencies]
 axum.workspace = true
+common = { path = "../common", features = ["test-utils"] }
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
 tokio = { workspace = true, features = [
