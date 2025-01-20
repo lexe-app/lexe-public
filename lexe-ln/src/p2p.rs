@@ -28,7 +28,7 @@ use tokio::{
     sync::mpsc::{self, error::TrySendError},
     time,
 };
-use tracing::{debug, warn};
+use tracing::{debug, instrument, trace, warn};
 
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
@@ -257,6 +257,7 @@ struct SendData {
 const _: [(); 3 * size_of::<usize>()] = [(); size_of::<SendData>()];
 
 /// The reason for a [`Connection`] disconnect.
+#[derive(Debug)]
 enum Disconnect {
     /// Socket error (peer immediate disconnect).
     Socket(std::io::ErrorKind),
@@ -398,11 +399,21 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
         }
     }
 
+    #[instrument(skip_all, name = "(p2p-conn)")]
     async fn run(mut self) {
+        trace!("start");
+
         let disconnect = loop {
             // The socket events (if any) we want to be notified of in this
             // select iter.
             let interest = self.socket_interest();
+
+            trace!(
+                write_buf = ?self.write_buf.as_ref().map(|b| b.len()),
+                write_offset = %self.write_offset,
+                pause_read = %self.pause_read,
+                ?interest,
+            );
 
             tokio::select! {
                 // Disconnect requested from PeerManager
@@ -483,6 +494,8 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
 
                     // Tell `PeerManager` about data we just read.
                     if let Some(bytes_read) = bytes_read {
+                        trace!(%bytes_read);
+
                         let data = &self.read_buf[..bytes_read.get()];
                         match self.peer_manager.read_event(&mut self.conn_tx, data) {
                             // It may want us to pause reads
@@ -494,6 +507,9 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
                     }
                 }
             }
+
+            // TODO(phlip9): remove?
+            tokio::task::yield_now().await;
         };
 
         if !disconnect.is_peer_manager() {
@@ -502,6 +518,8 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
 
         // TODO(phlip9): log socket error
         // TODO(phlip9): graceful shutdown
+
+        trace!(?disconnect, "shutdown");
     }
 
     /// Do we want to read and/or write to the socket?
@@ -725,6 +743,240 @@ impl Disconnect {
 #[cfg(test)]
 mod test {
     use std::{
+        cmp::min,
+        collections::VecDeque,
+        sync::{Arc, Mutex},
+    };
+
+    use common::{rng::FastRng, task::LxTask};
+    use io::BufRead;
+    use rand::RngCore;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    use super::{ldk_test::make_tcp_connection, *};
+    use crate::logger;
+
+    #[tokio::test]
+    async fn test_echo() {
+        const MSG_LEN: usize = 123_456;
+        const WRITE_LEN: usize = 969;
+
+        logger::init_for_testing();
+        let mut rng = FastRng::from_u64(948298498);
+
+        let (tcp_a, tcp_b) = make_tcp_connection().await;
+        let peer_manager = Arc::new(Mutex::new(EchoPeerManager::new()));
+        let (conn_tx, conn) = Connection::new(peer_manager.clone(), tcp_a);
+
+        let addr = None;
+        peer_manager.new_inbound_connection(conn_tx, addr).unwrap();
+
+        let mut msg = vec![0u8; MSG_LEN];
+        rng.fill_bytes(&mut msg);
+
+        let write_msg = msg.clone();
+        let (mut tcp_b_read, mut tcp_b_write) = tcp_b.into_split();
+
+        let conn_task = LxTask::spawn_named("conn", conn.run());
+        let b_task = LxTask::spawn_named("b", async move {
+            let write_task = LxTask::spawn_named("write", async move {
+                let mut msg = write_msg.as_slice();
+                // let msg = write_msg.as_slice();
+                // tcp_b_write.write_all(msg).await.unwrap();
+
+                let mut total_written = 0;
+                loop {
+                    let to_write_len = min(WRITE_LEN, msg.len());
+                    if to_write_len == 0 {
+                        break;
+                    }
+                    let data = &msg[..to_write_len];
+                    let write_len = tcp_b_write.write(data).await.unwrap();
+                    if write_len == 0 {
+                        break;
+                    }
+                    msg.consume(write_len);
+                    total_written += write_len;
+
+                    // TODO(phlip9): remove?
+                    tokio::task::yield_now().await;
+                }
+                assert_eq!(total_written, write_msg.len());
+
+                // write half-close TCP stream
+                drop(tcp_b_write);
+            });
+            let read_task = LxTask::spawn_named("read", async move {
+                let mut read_msg = Vec::with_capacity(MSG_LEN);
+                tcp_b_read.read_to_end(&mut read_msg).await.unwrap();
+
+                let read_msg_len = read_msg.len();
+                let msg_len = msg.len();
+                trace!(%read_msg_len, %msg_len);
+
+                // TODO(phlip9): check that all `ConnectionTx` ACK'd writes make
+                // it through with graceful shutdown
+                assert!(
+                    read_msg_len <= msg_len,
+                    "left: {read_msg_len}, right: {msg_len}",
+                );
+                assert_eq!(&read_msg, &msg[..read_msg_len]);
+
+                drop(tcp_b_read);
+            });
+
+            // let (mut tcp_b_read, tcp_b_write) =
+            tokio::try_join!(read_task, write_task).unwrap();
+
+            // // close TCP stream
+            // drop(tcp_b_write);
+            //
+            // // read EOF
+            // let mut buf = Vec::new();
+            // tcp_b_read.read_to_end(&mut buf).await.unwrap();
+            // assert_eq!(buf.len(), 0);
+        });
+
+        tokio::try_join!(conn_task, b_task).unwrap();
+    }
+
+    /// PeerManager that just echoes back data
+    struct EchoPeerManager {
+        peer: Option<EchoPeer>,
+    }
+
+    struct EchoPeer {
+        conn_tx: ConnectionTx,
+        buf: VecDeque<u8>,
+    }
+
+    impl EchoPeerManager {
+        fn new() -> Self {
+            Self { peer: None }
+        }
+
+        fn peer_for(
+            &mut self,
+            conn_tx: &ConnectionTx,
+        ) -> Option<&mut EchoPeer> {
+            match &mut self.peer {
+                Some(peer) if &peer.conn_tx == conn_tx => Some(peer),
+                _ => None,
+            }
+        }
+    }
+
+    impl PeerManagerTrait<(), ()> for Arc<Mutex<EchoPeerManager>> {
+        fn is_connected(&self, _node_pk: &NodePk) -> bool {
+            todo!()
+        }
+
+        fn new_outbound_connection(
+            &self,
+            _node_pk: &NodePk,
+            _conn_tx: ConnectionTx,
+            _addr: Option<LxSocketAddress>,
+        ) -> Result<Vec<u8>, PeerHandleError> {
+            todo!()
+        }
+
+        fn new_inbound_connection(
+            &self,
+            conn_tx: ConnectionTx,
+            _addr: Option<LxSocketAddress>,
+        ) -> Result<(), PeerHandleError> {
+            let mut locked = self.lock().unwrap();
+            if locked.peer.is_none() {
+                locked.peer = Some(EchoPeer::new(conn_tx));
+                Ok(())
+            } else {
+                Err(PeerHandleError {})
+            }
+        }
+
+        fn socket_disconnected(&self, conn_tx: &ConnectionTx) {
+            let mut locked = self.lock().unwrap();
+            if locked.peer_for(conn_tx).is_some() {
+                locked.peer = None;
+            }
+        }
+
+        fn read_event(
+            &self,
+            conn_tx: &mut ConnectionTx,
+            data: &[u8],
+        ) -> Result<bool, PeerHandleError> {
+            if let Some(peer) = self.lock().unwrap().peer_for(conn_tx) {
+                peer.read_event(data)
+            } else {
+                Err(PeerHandleError {})
+            }
+        }
+
+        fn process_events(&self) {
+            while let Some(peer) = self.lock().unwrap().peer.as_mut() {
+                let can_send_more = peer.send_next();
+                if !can_send_more {
+                    break;
+                }
+            }
+        }
+
+        fn write_buffer_space_avail(
+            &self,
+            conn_tx: &mut ConnectionTx,
+        ) -> Result<(), PeerHandleError> {
+            loop {
+                match self.lock().unwrap().peer_for(conn_tx) {
+                    Some(peer) =>
+                        if !peer.send_next() {
+                            return Ok(());
+                        },
+                    None => return Err(PeerHandleError {}),
+                }
+            }
+        }
+    }
+
+    impl EchoPeer {
+        fn new(conn_tx: ConnectionTx) -> Self {
+            Self {
+                conn_tx,
+                buf: VecDeque::new(),
+            }
+        }
+
+        fn read_event(&mut self, data: &[u8]) -> Result<bool, PeerHandleError> {
+            self.buf.extend(data);
+            Ok(false)
+        }
+
+        fn send_next(&mut self) -> bool {
+            const WRITE_LEN: usize = 696;
+
+            let data = self.buf.fill_buf().unwrap();
+            let to_write_len = min(WRITE_LEN, data.len());
+
+            if to_write_len == 0 {
+                return false;
+            }
+
+            let data = &data[..to_write_len];
+            let resume_read = false;
+            let written_len = self.conn_tx.send_data(data, resume_read);
+
+            assert!(written_len <= to_write_len);
+
+            self.buf.consume(written_len);
+            written_len == to_write_len
+        }
+    }
+}
+
+/// lightning-net-tokio test
+#[cfg(test)]
+mod ldk_test {
+    use std::{
         mem,
         sync::{
             atomic::{AtomicBool, Ordering},
@@ -748,8 +1000,7 @@ mod test {
             features::*,
             msgs::*,
             peer_handler::{
-                IgnoringMessageHandler, MessageHandler,
-                PeerManager as LdkPeerManager,
+                IgnoringMessageHandler, MessageHandler, PeerManager,
             },
         },
         offers::{
@@ -792,7 +1043,7 @@ mod test {
             onion_message_handler: Arc::new(IgnoringMessageHandler {}),
             custom_message_handler: Arc::new(IgnoringMessageHandler {}),
         };
-        let a_manager: TestPeerManager = Arc::new(LdkPeerManager::new(
+        let a_manager: TestPeerManager = Arc::new(PeerManager::new(
             a_msg_handler,
             0,
             &[1; 32],
@@ -815,7 +1066,7 @@ mod test {
             onion_message_handler: Arc::new(IgnoringMessageHandler {}),
             custom_message_handler: Arc::new(IgnoringMessageHandler {}),
         };
-        let b_manager = Arc::new(LdkPeerManager::new(
+        let b_manager = Arc::new(PeerManager::new(
             b_msg_handler,
             0,
             &[2; 32],
@@ -869,7 +1120,7 @@ mod test {
         fut_b.await.unwrap();
     }
 
-    async fn make_tcp_connection() -> (TcpStream, TcpStream) {
+    pub async fn make_tcp_connection() -> (TcpStream, TcpStream) {
         let sock = TcpListener::bind("[::1]:0").await.unwrap();
         let addr = sock.local_addr().unwrap();
         let accept = async move {
@@ -892,7 +1143,7 @@ mod test {
     >;
 
     type TestPeerManager = Arc<
-        LdkPeerManager<
+        PeerManager<
             ConnectionTx,
             Arc<MsgHandler>,
             Arc<MsgHandler>,
@@ -958,7 +1209,7 @@ mod test {
     // --- LDK fakes ---
     //
 
-    pub struct TestNodeSigner {
+    struct TestNodeSigner {
         node_secret: secp256k1::SecretKey,
     }
     impl TestNodeSigner {
