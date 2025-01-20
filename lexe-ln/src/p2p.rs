@@ -8,7 +8,7 @@ use std::{
     marker::PhantomData,
     mem::size_of,
     num::NonZeroUsize,
-    sync::atomic::{AtomicU64, Ordering},
+    sync::atomic::{AtomicU64, AtomicUsize, Ordering},
     time::Duration,
 };
 
@@ -25,7 +25,10 @@ use lightning_net_tokio::Executor;
 use tokio::{
     io::Interest,
     net::TcpStream,
-    sync::mpsc::{self, error::TrySendError},
+    sync::{
+        mpsc::{self, error::TrySendError},
+        Notify,
+    },
     time,
 };
 use tracing::{debug, instrument, trace, warn};
@@ -255,6 +258,34 @@ struct SendData {
 }
 
 const _: [(); 3 * size_of::<usize>()] = [(); size_of::<SendData>()];
+
+/// [`Connection`] control state. Used to notify the [`Connection`] that it
+/// should disconnect or resume reads.
+///
+/// This control-plane state is intentionally separate from the `tx` data
+/// plane, since control should not be subject to backpressure. Without this
+/// separation, we can accidentally lose `resume_read=true` commands when the
+/// [`ConnectionTx`] -> [`Connection`] write queue is full.
+struct ConnectionCtl {
+    /// The connection id.
+    id: u64,
+    /// The current [`Connection`] control state.
+    ///
+    /// One of [`STATE_NORMAL`] or [`STATE_PAUSE_READ`] or [`STATE_DISCONNECT`]
+    state: AtomicUsize,
+    /// Notify the associated [`Connection`] task that `state` changed.
+    notify: Notify,
+}
+
+// NOTE: change `ConnectionCtl::resume_read` if more states are added for some
+// reason.
+
+/// Connection is running normally.
+const STATE_NORMAL: usize = 0;
+/// Connection has its reads paused.
+const STATE_PAUSE_READ: usize = 1;
+/// Connection is disconnected or in the process of disconnecting.
+const STATE_DISCONNECT: usize = 2;
 
 /// The reason for a [`Connection`] disconnect.
 #[derive(Debug)]
@@ -691,6 +722,52 @@ impl Hash for ConnectionTx {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write_u64(self.id)
+    }
+}
+
+//
+// --- impl ConnectionCtl ---
+//
+
+impl ConnectionCtl {
+    fn new() -> Self {
+        Self {
+            id: CONNECTION_ID.fetch_add(1, Ordering::Relaxed),
+            state: AtomicUsize::new(STATE_NORMAL),
+            notify: Notify::new(),
+        }
+    }
+
+    /// Tell [`Connection`] to disconnect.
+    fn disconnect(&self) {
+        self.state.store(STATE_DISCONNECT, Ordering::SeqCst);
+        self.notify.notify_one();
+    }
+
+    /// Tell [`Connection`] to resume reads (if not already resumed or
+    /// disconnected).
+    fn resume_read(&self) {
+        let curr = self.state.load(Ordering::SeqCst);
+
+        // If reads are paused, then try to resume back to `NORMAL`.
+        if curr == STATE_PAUSE_READ {
+            let new = STATE_NORMAL;
+            let res = self.state.compare_exchange(
+                curr,
+                new,
+                Ordering::SeqCst,
+                Ordering::SeqCst,
+            );
+            match res {
+                // We succeeded in setting state -> `NORMAL`, notify the
+                // connection that state changed.
+                Ok(_) => self.notify.notify_one(),
+                // NOTE: don't need to loop:
+                // case actual == STATE_NORMAL: => someone raced to resume
+                // case actual == STATE_DISCONNECT: => give up anyway
+                Err(_actual) => {}
+            }
+        }
     }
 }
 
