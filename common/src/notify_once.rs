@@ -96,23 +96,6 @@ impl Clone for NotifyOnce {
     }
 }
 
-/// A [`ShutdownChannel`] but it can only `send`. Also reduces struct size from
-/// 2 words to 1 word.
-#[derive(Clone)]
-pub struct ShutdownTx {
-    inner: Arc<Semaphore>,
-}
-
-impl ShutdownTx {
-    pub fn from_channel(chan: NotifyOnce) -> Self {
-        Self { inner: chan.inner }
-    }
-
-    pub fn send(&self) {
-        self.inner.close()
-    }
-}
-
 #[cfg(test)]
 mod test {
     use std::time::Duration;

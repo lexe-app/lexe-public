@@ -325,6 +325,17 @@ impl ThreadFastRng {
     pub fn new() -> Self {
         Self(())
     }
+
+    /// Set the current thread local rng seed.
+    pub fn seed(seed: u64) {
+        // splitmix64
+        // <https://github.com/rust-random/rngs/blob/master/rand_xoshiro/src/splitmix64.rs#L48>
+        let mut z = seed.wrapping_add(0x9e3779b97f4a7c15);
+        z = (z ^ (z >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94d049bb133111eb);
+        z = z ^ (z >> 31);
+        THREAD_RNG_STATE.set(z)
+    }
 }
 
 impl Default for ThreadFastRng {

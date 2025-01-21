@@ -232,6 +232,9 @@ struct Connection<CM, PS, PM> {
     /// pass it on to `PeerManager::read_event`.
     read_buf: Box<[u8; 8 << 10]>,
 
+    /// Connection statistics
+    stats: ConnectionStats,
+
     /// LDK requires us to pass a full `ConnectionTx` to `read_event` etc...,
     /// so we have to hold onto an extra one inside `Connection`...
     conn_tx: ConnectionTx,
@@ -268,6 +271,11 @@ const STATE_NORMAL: usize = 0;
 const STATE_PAUSE_READ: usize = 1;
 /// Connection is disconnected or in the process of disconnecting.
 const STATE_DISCONNECT: usize = 2;
+
+struct ConnectionStats {
+    total_bytes_written: usize,
+    total_bytes_read: usize,
+}
 
 /// The reason for a [`Connection`] disconnect.
 #[derive(Debug)]
@@ -369,6 +377,7 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
             write_buf: None,
             write_offset: 0,
             read_buf: Box::new([0u8; 8 << 10]),
+            stats: ConnectionStats::new(),
             conn_tx: conn_tx.clone(),
             phantom_cm: PhantomData,
             phantom_ps: PhantomData,
@@ -410,8 +419,12 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
         }
     }
 
-    #[instrument(skip_all, name = "(p2p-conn)")]
     async fn run(mut self) {
+        self.run_ref().await;
+    }
+
+    #[instrument(skip_all, name = "(p2p-conn)")]
+    async fn run_ref(&mut self) {
         trace!("start");
 
         let disconnect = loop {
@@ -431,8 +444,8 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
 
             trace!(
                 write_buf = ?self.write_buf.as_ref().map(|b| b.len()),
-                write_offset = %self.write_offset,
-                %pause_read,
+                write_offset = self.write_offset,
+                pause_read,
                 ?interest,
             );
 
@@ -483,7 +496,7 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
 
                     // Tell `PeerManager` about data we just read.
                     if let Some(bytes_read) = bytes_read {
-                        trace!(%bytes_read);
+                        trace!(bytes_read);
 
                         let data = &self.read_buf[..bytes_read.get()];
                         let pause_read = match self.peer_manager.read_event(&mut self.conn_tx, data) {
@@ -503,16 +516,13 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
                 }
             }
 
-            // TODO(phlip9): remove?
-            tokio::task::yield_now().await;
+            #[cfg(test)] // Generate different task interleavings in test
+            test::maybe_yield("conn_iter").await;
         };
 
         if !disconnect.is_peer_manager() {
             self.peer_manager.socket_disconnected(&self.conn_tx);
         }
-
-        // TODO(phlip9): log socket error
-        // TODO(phlip9): graceful shutdown
 
         trace!(?disconnect);
     }
@@ -611,14 +621,13 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
         assert!(!write_buf.is_empty());
 
         let to_write = &write_buf[self.write_offset..];
+
+        #[cfg(test)] // Sometimes inject a partial write in test
+        let to_write = test::maybe_partial_write(to_write);
+
         assert!(!to_write.is_empty());
 
-        // TODO(phlip9): remove. testing partial writes.
-        #[cfg(test)]
-        let to_write = {
-            let to_write_len = std::cmp::min(512, to_write.len());
-            &to_write[..to_write_len]
-        };
+        // TODO(phlip9): test spurrious io::ErrorKind::WouldBlock
 
         let _bytes_written = match self.stream.try_write(to_write) {
             // Wrote some bytes -> update `write_buf`
@@ -626,10 +635,13 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
                 let bytes_written = match NonZeroUsize::new(bytes_written) {
                     // write=0 => Remote peer read half-close
                     None => return Err(Disconnect::WriteClosed),
-                    Some(bytes_written) => bytes_written,
+                    Some(bytes_written) => {
+                        self.stats.total_bytes_written += bytes_written.get();
+                        bytes_written
+                    }
                 };
 
-                trace!(%bytes_written);
+                trace!(bytes_written);
 
                 let new_write_offset = self.write_offset + bytes_written.get();
                 assert!(new_write_offset <= write_buf.len());
@@ -654,11 +666,18 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
     /// Attempt a `stream.try_read(&mut read_buf)`. Returns the number of bytes
     /// read, if any.
     fn try_read_buf(&mut self) -> Result<Option<NonZeroUsize>, Disconnect> {
-        match self.stream.try_read(self.read_buf.as_mut_slice()) {
+        let read_buf = self.read_buf.as_mut_slice();
+        #[cfg(test)] // Sometimes inject partial reads in test
+        let read_buf = test::maybe_partial_read(read_buf);
+
+        match self.stream.try_read(read_buf) {
             Ok(bytes_read) => match NonZeroUsize::new(bytes_read) {
                 // read=0 => Remote peer write half-close
                 None => Err(Disconnect::ReadClosed),
-                Some(bytes_read) => Ok(Some(bytes_read)),
+                Some(bytes_read) => {
+                    self.stats.total_bytes_read += bytes_read.get();
+                    Ok(Some(bytes_read))
+                }
             },
             // `ready` can return false positive
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
@@ -701,7 +720,7 @@ impl ConnectionTx {
             // Enqueue `data` to be written
             Ok(send_permit) => {
                 let write_len = data.len();
-                trace!(%write_len, "ConnectionTx =>");
+                trace!(write_len, "ConnectionTx =>");
                 send_permit.send(data.into());
                 write_len
             }
@@ -801,6 +820,19 @@ impl ConnectionCtl {
 }
 
 //
+// --- impl ConnectionStats ---
+//
+
+impl ConnectionStats {
+    fn new() -> Self {
+        Self {
+            total_bytes_written: 0,
+            total_bytes_read: 0,
+        }
+    }
+}
+
+//
 // --- impl Disconnect ---
 //
 
@@ -883,45 +915,137 @@ mod test {
         sync::{Arc, Mutex},
     };
 
-    use common::{rng::FastRng, task::LxTask};
+    use common::{rng::ThreadFastRng, task::LxTask};
     use io::BufRead;
-    use rand::RngCore;
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use rand::{Rng, RngCore};
+    use tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        sync::oneshot,
+    };
 
     use super::{ldk_test::make_tcp_connection, *};
     use crate::logger;
 
+    // TODO(phlip9): get probabilities from thread-local `TestEchoCtx`?
+
+    pub async fn maybe_yield(label: &'static str) {
+        if ThreadFastRng::new().gen_bool(0.25) {
+            trace!("yield_now({label})");
+            tokio::task::yield_now().await
+        }
+    }
+
+    pub fn maybe_partial_write(to_write: &[u8]) -> &[u8] {
+        let mut rng = ThreadFastRng::new();
+        if rng.gen_bool(0.25) {
+            let to_write_len = to_write.len();
+            let to_write_len = rng.gen_range(1..=to_write_len);
+            &to_write[..to_write_len]
+        } else {
+            to_write
+        }
+    }
+
+    pub fn maybe_partial_read(read_buf: &mut [u8]) -> &mut [u8] {
+        let mut rng = ThreadFastRng::new();
+        if rng.gen_bool(0.25) {
+            let read_buf_len = read_buf.len();
+            let read_buf_len = rng.gen_range(1..=read_buf_len);
+            &mut read_buf[..read_buf_len]
+        } else {
+            read_buf
+        }
+    }
+
     #[tokio::test]
     async fn test_echo() {
-        const MSG_LEN: usize = 123_456;
-        const WRITE_LEN: usize = 969;
-
         logger::init_for_testing();
-        let mut rng = FastRng::from_u64(948298498);
 
+        for seed in 0..100 {
+            do_test_echo(TestEchoCtx::new(seed)).await;
+        }
+
+        // do_test_echo(TestEchoCtx::new(123)).await;
+    }
+
+    #[derive(Copy, Clone)]
+    struct TestEchoCtx {
+        /// The rng seed for this test iteration
+        seed: u64,
+        /// Size of the message we'll try to send/recv to/from the `EchoPeer`
+        msg_len: usize,
+        /// Test harness' max chunk to_write_len
+        to_write_len: usize,
+        /// Don't disconnect test harness TCP until it reads at least this much
+        /// Helps catch `pause_read` deadlocks.
+        min_read_len: usize,
+    }
+
+    impl TestEchoCtx {
+        // TODO(phlip9): proptest'ify
+        fn new(seed: u64) -> Self {
+            ThreadFastRng::seed(seed);
+            let mut rng = ThreadFastRng::new();
+            let msg_len = rng.gen_range(1..(128 << 10));
+            let to_write_len = if rng.gen_bool(0.5) {
+                rng.gen_range(1..=512)
+            } else {
+                rng.gen_range(1..=msg_len)
+            };
+            let min_read_len = if rng.gen_bool(0.5) {
+                msg_len
+            } else {
+                rng.gen_range(1..=msg_len)
+            };
+            Self {
+                seed,
+                msg_len,
+                to_write_len,
+                min_read_len,
+            }
+        }
+
+        fn print(&self) {
+            let ctx = self;
+            trace!(ctx.seed, ctx.msg_len, ctx.to_write_len, ctx.min_read_len);
+        }
+    }
+
+    async fn do_test_echo(ctx: TestEchoCtx) {
+        ctx.print();
+
+        // Setup
+        let mut rng = ThreadFastRng::new();
         let (tcp_a, tcp_b) = make_tcp_connection().await;
         let peer_manager = Arc::new(Mutex::new(EchoPeerManager::new()));
-        let (conn_tx, conn) = Connection::new(peer_manager.clone(), tcp_a);
+        let (conn_tx, mut conn) = Connection::new(peer_manager.clone(), tcp_a);
 
         let addr = None;
         peer_manager.new_inbound_connection(conn_tx, addr).unwrap();
 
-        let mut msg = vec![0u8; MSG_LEN];
+        let mut msg = vec![0u8; ctx.msg_len];
         rng.fill_bytes(&mut msg);
 
+        // TODO(phlip9): timeouts
+
+        // `Connection`
+        let conn_task = LxTask::spawn_named("conn", async move {
+            conn.run_ref().await;
+            conn.stats
+        });
+
+        // Client
         let write_msg = msg.clone();
         let (mut tcp_b_read, mut tcp_b_write) = tcp_b.into_split();
-
-        let conn_task = LxTask::spawn_named("conn", conn.run());
         let b_task = LxTask::spawn_named("b", async move {
+            let (min_read_done_tx, min_read_done_rx) = oneshot::channel::<()>();
+
             let write_task = LxTask::spawn_named("write", async move {
                 let mut msg = write_msg.as_slice();
-                // let msg = write_msg.as_slice();
-                // tcp_b_write.write_all(msg).await.unwrap();
 
                 let mut total_written = 0;
                 loop {
-                    let to_write_len = min(WRITE_LEN, msg.len());
+                    let to_write_len = min(ctx.to_write_len, msg.len());
                     if to_write_len == 0 {
                         break;
                     }
@@ -933,61 +1057,96 @@ mod test {
                     msg.consume(write_len);
                     total_written += write_len;
 
-                    // TODO(phlip9): remove?
-                    tokio::task::yield_now().await;
+                    test::maybe_yield("write_task").await;
                 }
                 assert_eq!(total_written, write_msg.len());
 
-                // write half-close TCP stream
+                // wait for `read_task` to finish reading at least
+                // `ctx.min_read_len`.
+                min_read_done_rx.await.unwrap();
+
+                // only then write half-close TCP stream
                 drop(tcp_b_write);
             });
             let read_task = LxTask::spawn_named("read", async move {
-                let mut read_msg = Vec::with_capacity(MSG_LEN);
+                let mut read_msg = vec![0u8; ctx.min_read_len];
+
+                // read at least `ctx.min_read_len`
+                tcp_b_read
+                    .read_exact(read_msg.as_mut_slice())
+                    .await
+                    .unwrap();
+
+                // signal to `write_task` that it's ok to close
+                min_read_done_tx.send(()).unwrap();
+
+                // try to read as much as possible
                 tcp_b_read.read_to_end(&mut read_msg).await.unwrap();
 
-                let read_msg_len = read_msg.len();
-                let msg_len = msg.len();
-                trace!(%read_msg_len, %msg_len);
-
-                // TODO(phlip9): check that all `ConnectionTx` ACK'd writes make
-                // it through with graceful shutdown
-                assert!(
-                    read_msg_len <= msg_len,
-                    "left: {read_msg_len}, right: {msg_len}",
-                );
-                assert_eq!(&read_msg, &msg[..read_msg_len]);
-
                 drop(tcp_b_read);
+
+                read_msg
             });
 
-            // let (mut tcp_b_read, tcp_b_write) =
-            tokio::try_join!(read_task, write_task).unwrap();
+            let (read_msg, _) =
+                tokio::try_join!(read_task, write_task).unwrap();
 
-            // // close TCP stream
-            // drop(tcp_b_write);
-            //
-            // // read EOF
-            // let mut buf = Vec::new();
-            // tcp_b_read.read_to_end(&mut buf).await.unwrap();
-            // assert_eq!(buf.len(), 0);
+            read_msg
         });
 
-        tokio::try_join!(conn_task, b_task).unwrap();
+        let (conn_stats, read_msg) =
+            tokio::try_join!(conn_task, b_task).unwrap();
+
+        let peer = {
+            let mut locked = peer_manager.lock().unwrap();
+            locked.disconnected_peer.take().unwrap()
+        };
+
+        ctx.print();
+        let read_msg_len = read_msg.len();
+        trace!(
+            conn_stats.total_bytes_read,
+            peer.total_read_event_len,
+            peer.total_write_len_queued,
+            conn_stats.total_bytes_written,
+            read_msg_len,
+        );
+
+        assert!(ctx.msg_len >= conn_stats.total_bytes_read);
+        assert!(conn_stats.total_bytes_read >= peer.total_read_event_len);
+        assert!(peer.total_read_event_len >= peer.total_write_len_queued);
+        assert!(peer.total_write_len_queued >= conn_stats.total_bytes_written);
+        assert!(conn_stats.total_bytes_written >= read_msg_len);
+        assert!(read_msg_len >= ctx.min_read_len);
+
+        // We must write a prefix of the message.
+        assert_eq!(&read_msg, &msg[..read_msg_len]);
     }
 
     /// PeerManager that just echoes back data
     struct EchoPeerManager {
         peer: Option<EchoPeer>,
+        disconnected_peer: Option<EchoPeer>,
     }
 
     struct EchoPeer {
         conn_tx: ConnectionTx,
         buf: VecDeque<u8>,
+
+        /// Total number of bytes pushed to `read_event`.
+        total_read_event_len: usize,
+
+        /// The number of bytes successfully pushed into the `ConnectionTx::tx`
+        /// write queue.
+        total_write_len_queued: usize,
     }
 
     impl EchoPeerManager {
         fn new() -> Self {
-            Self { peer: None }
+            Self {
+                peer: None,
+                disconnected_peer: None,
+            }
         }
 
         fn peer_for(
@@ -1032,7 +1191,8 @@ mod test {
         fn socket_disconnected(&self, conn_tx: &ConnectionTx) {
             let mut locked = self.lock().unwrap();
             if locked.peer_for(conn_tx).is_some() {
-                locked.peer = None;
+                // save the now disconnected per for later inspection
+                locked.disconnected_peer = locked.peer.take();
             }
         }
 
@@ -1078,11 +1238,14 @@ mod test {
             Self {
                 conn_tx,
                 buf: VecDeque::new(),
+                total_read_event_len: 0,
+                total_write_len_queued: 0,
             }
         }
 
         fn read_event(&mut self, data: &[u8]) -> Result<bool, PeerHandleError> {
             self.buf.extend(data);
+            self.total_read_event_len += data.len();
             Ok(false)
         }
 
@@ -1100,6 +1263,7 @@ mod test {
             let resume_read = false;
             let written_len = self.conn_tx.send_data(data, resume_read);
 
+            self.total_write_len_queued += written_len;
             assert!(written_len <= to_write_len);
 
             self.buf.consume(written_len);
@@ -1126,7 +1290,7 @@ mod ldk_test {
         Network,
     };
     use common::{
-        rng::{Crng, FastRng},
+        rng::{Crng, FastRng, RngExt, ThreadFastRng},
         task::LxTask,
     };
     use lightning::{
@@ -1157,6 +1321,8 @@ mod ldk_test {
         logger::init_for_testing();
 
         let mut rng = FastRng::from_u64(328974289374);
+        ThreadFastRng::seed(rng.gen_u64());
+
         let secp_ctx = rng.gen_secp256k1_ctx();
         let a_key = secp256k1::SecretKey::from_slice(&[1; 32]).unwrap();
         let b_key = secp256k1::SecretKey::from_slice(&[2; 32]).unwrap();
