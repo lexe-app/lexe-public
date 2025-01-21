@@ -18,9 +18,9 @@ use super::{
     auth,
     user::{NodePk, UserPk},
 };
-use crate::api::server;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
+use crate::{api::server, enclave::Measurement};
 
 // Associated constants can't be imported.
 pub const CLIENT_400_BAD_REQUEST: StatusCode = StatusCode::BAD_REQUEST;
@@ -663,7 +663,7 @@ api_error_kind! {
         WrongUserPk = 100,
         /// Given node pk doesn't match node pk derived from seed
         WrongNodePk = 101,
-        /// Given measurement doesn't match current enclave measurement
+        /// Request measurement doesn't match current enclave measurement
         WrongMeasurement = 102,
         /// Error occurred during provisioning
         Provision = 103,
@@ -952,6 +952,16 @@ impl NodeApiError {
         let msg =
             format!("Derived NodePk '{derived_pk}' but received '{given_pk}'");
         let kind = NodeErrorKind::WrongNodePk;
+        Self { kind, msg }
+    }
+
+    pub fn wrong_measurement(
+        req_measurement: &Measurement,
+        actual_measurement: &Measurement,
+    ) -> Self {
+        let kind = NodeErrorKind::WrongMeasurement;
+        let msg =
+            format!("Req: {req_measurement}, Actual: {actual_measurement}");
         Self { kind, msg }
     }
 

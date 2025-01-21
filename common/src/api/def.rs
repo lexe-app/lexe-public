@@ -51,6 +51,7 @@ use super::{
         RunnerApiError,
     },
     fiat_rates::FiatRates,
+    models::Status,
     ports::Ports,
     provision::{
         MaybeSealedSeed, NodeProvisionRequest, SealedSeed, SealedSeedId,
@@ -284,8 +285,9 @@ pub trait NodeRunnerApi {
 /// contain methods for limited operational and lifecycle management endpoints.
 #[async_trait]
 pub trait LexeNodeRunApi {
-    /// GET /lexe/status [`UserPkStruct`] -> [`Empty`]
-    async fn status(&self, user_pk: UserPk) -> Result<Empty, NodeApiError>;
+    /// GET /lexe/status [`UserPkStruct`] -> [`Status`]
+    async fn status_run(&self, user_pk: UserPk)
+        -> Result<Status, NodeApiError>;
 
     /// POST /lexe/resync [`Empty`] -> [`Empty`]
     ///
@@ -318,6 +320,12 @@ pub trait LexeNodeRunApi {
 /// contain methods for limited operational and lifecycle management endpoints.
 #[async_trait]
 pub trait LexeNodeProvisionApi {
+    /// GET /lexe/status [`MeasurementStruct`] -> [`Status`]
+    async fn status_provision(
+        &self,
+        measurement: Measurement,
+    ) -> Result<Status, NodeApiError>;
+
     /// GET /lexe/shutdown [`MeasurementStruct`] -> [`Empty`]
     ///
     /// Not to be confused with [`LexeNodeRunApi::shutdown_run`].

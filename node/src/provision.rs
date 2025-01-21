@@ -185,6 +185,7 @@ struct LexeRouterState {
 /// [`LexeNodeProvisionApi`]: common::api::def::LexeNodeProvisionApi
 fn lexe_router(state: LexeRouterState) -> Router<()> {
     Router::new()
+        .route("/lexe/status", get(handlers::status))
         .route("/lexe/shutdown", get(handlers::shutdown))
         .with_state(state)
 }
@@ -192,7 +193,10 @@ fn lexe_router(state: LexeRouterState) -> Router<()> {
 /// API handlers.
 mod handlers {
     use axum::extract::State;
-    use common::api::user::UserPk;
+    use common::{
+        api::{models::Status, user::UserPk},
+        time::TimestampMs,
+    };
     use lexe_api::server::{extract::LxQuery, LxJson};
 
     use super::*;
@@ -299,26 +303,37 @@ mod handlers {
         Ok(LxJson(Empty {}))
     }
 
+    pub(super) async fn status(
+        State(state): State<LexeRouterState>,
+        LxQuery(req): LxQuery<MeasurementStruct>,
+    ) -> Result<LxJson<Status>, NodeApiError> {
+        // Sanity check
+        if req.measurement != state.measurement {
+            return Err(NodeApiError::wrong_measurement(
+                &req.measurement,
+                &state.measurement,
+            ));
+        }
+
+        Ok(LxJson(Status {
+            timestamp: TimestampMs::now(),
+        }))
+    }
+
     pub(super) async fn shutdown(
         State(state): State<LexeRouterState>,
         LxQuery(req): LxQuery<MeasurementStruct>,
     ) -> Result<LxJson<Empty>, NodeApiError> {
-        let LexeRouterState {
-            measurement,
-            shutdown,
-        } = state;
-
-        // Sanity check that the caller did indeed intend to shut down this node
-        let given_measure = &req.measurement;
-        if given_measure != &measurement {
-            return Err(NodeApiError {
-                kind: NodeErrorKind::WrongMeasurement,
-                msg: format!("Given: {given_measure}, current: {measurement}"),
-            });
+        // Sanity check
+        if req.measurement != state.measurement {
+            return Err(NodeApiError::wrong_measurement(
+                &req.measurement,
+                &state.measurement,
+            ));
         }
 
         // Send a shutdown signal.
-        shutdown.send();
+        state.shutdown.send();
 
         Ok(LxJson(Empty {}))
     }

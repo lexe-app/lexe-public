@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use axum::extract::State;
 use common::{
-    api::{error::NodeApiError, user::UserPkStruct, Empty},
+    api::{error::NodeApiError, models::Status, user::UserPkStruct, Empty},
     test_event::TestEventOp,
+    time::TimestampMs,
 };
 use lexe_api::server::{extract::LxQuery, LxJson};
 use lexe_ln::test_event;
@@ -13,9 +14,10 @@ use crate::server::LexeRouterState;
 pub(super) async fn status(
     State(state): State<Arc<LexeRouterState>>,
     LxQuery(req): LxQuery<UserPkStruct>,
-) -> Result<LxJson<Empty>, NodeApiError> {
+) -> Result<LxJson<Status>, NodeApiError> {
     if state.user_pk == req.user_pk {
-        Ok(LxJson(Empty {}))
+        let timestamp = TimestampMs::now();
+        Ok(LxJson(Status { timestamp }))
     } else {
         Err(NodeApiError::wrong_user_pk(state.user_pk, req.user_pk))
     }
