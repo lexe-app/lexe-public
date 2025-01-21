@@ -81,6 +81,12 @@ impl TimestampMs {
         let subtracted = self.0.checked_sub(dur_ms)?;
         Self::try_from(subtracted).ok()
     }
+
+    /// Returns the absolute difference two timestamps as a [`Duration`].
+    #[inline]
+    pub fn absolute_diff(self, other: Self) -> Duration {
+        Duration::from_millis(self.0.abs_diff(other.0))
+    }
 }
 
 impl From<TimestampMs> for Duration {
