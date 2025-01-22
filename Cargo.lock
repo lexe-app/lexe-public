@@ -2597,7 +2597,6 @@ dependencies = [
  "lexe-api",
  "lightning",
  "lightning-invoice",
- "lightning-net-tokio",
  "lightning-transaction-sync",
  "miniscript",
  "proptest",
@@ -2663,16 +2662,6 @@ dependencies = [
  "bech32 0.9.1",
  "bitcoin",
  "lightning-types",
-]
-
-[[package]]
-name = "lightning-net-tokio"
-version = "0.0.125"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.125-2025_01_17#bd23ed3a8a59c8035309643d9dbd421f523b68df"
-dependencies = [
- "bitcoin",
- "lightning",
- "tokio",
 ]
 
 [[package]]

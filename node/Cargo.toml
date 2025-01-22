@@ -61,7 +61,6 @@ cfg-if.workspace = true
 futures.workspace = true
 lightning.workspace = true
 # lightning-invoice.workspace = true
-# lightning-net-tokio.workspace = true
 lightning-transaction-sync.workspace = true
 secrecy.workspace = true
 semver = { workspace = true, features = ["serde"] }

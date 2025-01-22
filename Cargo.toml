@@ -163,7 +163,6 @@ hyper-util = { version = "=0.1.5", default-features = false, features = ["http2"
 # LDK (rust-lightning) libraries
 lightning = { version = "=0.0.125", features = ["max_level_trace"] }
 lightning-invoice = { version = "=0.32", features = ["std"] }
-lightning-net-tokio = { version = "=0.0.125" }
 lightning-transaction-sync = { version = "=0.0.125", features = ["esplora-async"] }
 # Required by tokio
 mio = "=0.8.11"
@@ -224,15 +223,13 @@ hyper_old = { package = "hyper", git = "https://github.com/lexe-app/hyper", bran
 
 # * license: Add dual license information
 # * lightning-transaction-sync: esplora-client -> 0.10  TODO(max): Remove
-# * lightning-net-tokio: Add `*_with_executor` APIs     TODO(max): Upstream
-# * lightning-net-tokio: Switch to tokio `TcpStream`s
+# * lightning-net-tokio: Add `*_with_executor` APIs     TODO(max): Remove
+# * lightning-net-tokio: Switch to tokio `TcpStream`s   TODO(max): Remove
 lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2025_01_17" }
 lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2025_01_17" }
-lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2025_01_17" }
 lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2025_01_17" }
 # lightning.path = "../../ldk/lightning"
 # lightning-invoice.path = "../../ldk/lightning-invoice"
-# lightning-net-tokio.path = "../../ldk/lightning-net-tokio"
 # lightning-transaction-sync.path = "../../ldk/lightning-transaction-sync"
 
 # * fortanix: SGX port
@@ -258,7 +255,7 @@ ring16 = { package = "ring", git = "https://github.com/lexe-app/ring", branch = 
 # * license: Add dual license information
 # * fortanix: SGX port
 # * test: fix testing script
-# * net: add SGX `TcpStream::into_std` used by `lightning-net-tokio`
+# * net: add SGX `TcpStream::into_std` used by `lightning-net-tokio` TODO(phlip9): Remove
 tokio = { git = "https://github.com/lexe-app/tokio",  branch = "lexe-v1.36.0-2024_10_11" }
 
 [profile.release]
