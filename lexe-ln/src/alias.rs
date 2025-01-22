@@ -17,12 +17,11 @@ use lightning::{
     },
     sign::InMemorySigner,
 };
-use lightning_net_tokio::SocketDescriptor;
 use lightning_transaction_sync::EsploraSyncClient;
 
 use crate::{
     esplora::LexeEsplora, keys_manager::LexeKeysManager,
-    logger::LexeTracingLogger,
+    logger::LexeTracingLogger, p2p::ConnectionTx,
 };
 
 // --- Partial aliases --- //
@@ -66,7 +65,7 @@ pub type LexeOnionMessengerType<CHANNEL_MANAGER> = OnionMessenger<
 >;
 
 pub type LexePeerManagerType<CHANNEL_MANAGER> = PeerManager<
-    SocketDescriptor,
+    ConnectionTx,
     CHANNEL_MANAGER,
     Arc<P2PGossipSyncType>,
     Arc<LexeOnionMessengerType<CHANNEL_MANAGER>>,

@@ -1,11 +1,6 @@
-// TODO(phlip9): remove
-#![allow(dead_code)]
-
 use std::{
-    future::Future,
     hash::Hash,
     io,
-    marker::PhantomData,
     mem::size_of,
     num::NonZeroUsize,
     sync::{
@@ -16,9 +11,10 @@ use std::{
 };
 
 use anyhow::{anyhow, ensure, Context};
-use common::{api::user::NodePk, backoff, ln::addr::LxSocketAddress, Apply};
+use common::{
+    api::user::NodePk, backoff, ln::addr::LxSocketAddress, task::LxTask, Apply,
+};
 use lightning::ln::peer_handler::PeerHandleError;
-use lightning_net_tokio::Executor;
 use tokio::{
     io::Interest,
     net::TcpStream,
@@ -30,38 +26,19 @@ use tokio::{
 };
 use tracing::{debug, instrument, trace, warn};
 
-use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
-
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 /// The maximum amount of time we'll allow LDK to complete the P2P handshake.
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// An [`Executor`] which propagates [`tracing`] spans.
-#[derive(Copy, Clone)]
-pub struct TracingExecutor;
-
-impl<F> Executor<F> for TracingExecutor
-where
-    F: Future + Send + 'static,
-    F::Output: Send + 'static,
-{
-    fn execute(&self, fut: F) -> tokio::task::JoinHandle<F::Output> {
-        #[allow(clippy::disallowed_methods)] // Have to return `JoinHandle` here
-        tokio::spawn(tracing::Instrument::in_current_span(fut))
-    }
-}
-
 /// Connects to a LN peer, returning early if we were already connected.
 /// Cycles through the given addresses until we run out of connect attempts.
-pub async fn connect_peer_if_necessary<CM, PM, PS>(
+pub async fn connect_peer_if_necessary<PM>(
     peer_manager: &PM,
     node_pk: &NodePk,
     addrs: &[LxSocketAddress],
 ) -> anyhow::Result<()>
 where
-    CM: LexeChannelManager<PS>,
-    PM: LexePeerManager<CM, PS>,
-    PS: LexePersister,
+    PM: PeerManagerTrait,
 {
     ensure!(!addrs.is_empty(), "No addrs were provided");
 
@@ -81,7 +58,8 @@ where
         let addr = addrs.next().expect("Cycling through a non-empty slice");
 
         match do_connect_peer(peer_manager, node_pk, addr).await {
-            Ok(()) => return Ok(()),
+            // TODO(phlip9): propagate conn_task
+            Ok(_conn_task) => return Ok(()),
             Err(e) => warn!("Failed to connect to peer: {e:#}"),
         }
 
@@ -100,22 +78,21 @@ where
 
     // Do the last attempt.
     let addr = addrs.next().expect("Cycling through a non-empty slice");
-    do_connect_peer(peer_manager, node_pk, addr)
+    // TODO(phlip9): propagate conn_task
+    let _conn_task = do_connect_peer(peer_manager, node_pk, addr)
         .await
         .context("Failed to connect to peer")?;
 
     Ok(())
 }
 
-async fn do_connect_peer<CM, PM, PS>(
+async fn do_connect_peer<PM>(
     peer_manager: &PM,
     node_pk: &NodePk,
     addr: &LxSocketAddress,
-) -> anyhow::Result<()>
+) -> anyhow::Result<LxTask<Disconnect>>
 where
-    CM: LexeChannelManager<PS>,
-    PM: LexePeerManager<CM, PS>,
-    PS: LexePersister,
+    PM: PeerManagerTrait,
 {
     debug!(%node_pk, %addr, "Starting do_connect_peer");
 
@@ -127,32 +104,20 @@ where
         .context("Connect request timed out")?
         .context("TcpStream::connect() failed")?;
 
-    // NOTE: `setup_outbound()` returns a future which completes when the
-    // connection closes, which we do not need to poll because a task was
-    // spawned for it. However, in the case of an error, the future returned
-    // by `setup_outbound()` completes immediately, and does not propagate
-    // the error from `peer_manager.new_outbound_connection()`. So, in order
-    // to check that there was no error while establishing the connection we
-    // have to manually poll the future, and if it completed, return an
-    // error (which we don't have access to because `lightning-net-tokio`
-    // failed to surface it to us).
-    //
-    // On the other hand, since LDK's API doesn't let you know when the
-    // connection is established, you have to keep calling
-    // `peer_manager.get_peer_node_ids()` to see if the connection has been
-    // registered yet.
-    //
-    // TODO: Rewrite / replace lightning-net-tokio entirely
-    let connection_closed_fut =
-        lightning_net_tokio::setup_outbound_with_executor(
-            TracingExecutor,
-            peer_manager.clone(),
-            node_pk.0,
-            stream,
-        );
-    tokio::pin!(connection_closed_fut);
+    let (mut conn_tx, conn) =
+        Connection::setup_outbound(peer_manager, stream, addr.clone(), node_pk);
+    let task_name = format!(
+        "p2p-conn-{}-{}",
+        hex::display(&node_pk.to_array().as_slice()[..4]),
+        conn.ctl.id
+    );
+    let mut conn_task = LxTask::spawn_named(task_name, conn.run());
 
-    // A future which completes iff the noise handshake successfully completes.
+    // A future which completes once the connection is usable.
+    //
+    // Since LDK's API doesn't let you know when the connection establishes
+    // and handshake completes, you have to keep polling
+    // `peer_manager.is_connected()`. completes.
     let handshake_complete_fut = async {
         let mut backoff_durations = backoff::iter_with_initial_wait_ms(10);
         loop {
@@ -170,22 +135,44 @@ where
     tokio::select! {
         () = handshake_complete_fut => {
             debug!(%node_pk, %addr, "Successfully connected to peer");
-            // TODO(max): Maybe should return the task handle here so we can
-            // propagate any panics without panic=abort (See `bb1f25e1`)
-            Ok(())
+            Ok(conn_task)
         }
-        () = &mut connection_closed_fut => {
-            // TODO(max): Patch lightning-net-tokio so the error is exposed
-            let msg = "Failed connection to peer (error unknown)";
+        res = &mut conn_task => {
+            let msg = format!(
+                "New outbound p2p conn d/c'd before handshake complete: \
+                 {res:?}"
+            );
             warn!("{msg}"); // Also log; this code is historically finicky
             Err(anyhow!("{msg}"))
         }
         _ = tokio::time::sleep(HANDSHAKE_TIMEOUT) => {
-            let msg = "Timed out waiting for noise handshake to complete";
+            // Tell connection to d/c and unregister from PeerManager
+            conn_tx.disconnect_socket();
+            peer_manager.socket_disconnected(&conn_tx);
+            // TODO(phlip9): wait for `conn_task`?
+
+            let msg =
+                "New outbound p2p conn timed out before handshake complete";
             warn!(%node_pk, %addr, "{msg}");
             Err(anyhow!("{msg}: {node_pk}@{addr}"))
         }
     }
+}
+
+/// Spawn a task to handle a new inbound p2p TCP connection and register it with
+/// the LDK peer manager.
+pub fn spawn_inbound<PM>(
+    peer_manager: &PM,
+    stream: TcpStream,
+) -> LxTask<Disconnect>
+where
+    PM: PeerManagerTrait,
+{
+    let conn = Connection::setup_inbound(peer_manager, stream);
+    // TODO(phlip9): find a way to set task name with node_pk after handshake?
+    let task_name = format!("p2p-conn--inbound-{}", conn.ctl.id);
+    // TODO(phlip9): does LDK handle inbound handshake timeout?
+    LxTask::spawn_named(task_name, conn.run())
 }
 
 //
@@ -198,7 +185,7 @@ static CONNECTION_ID: AtomicU64 = AtomicU64::new(0);
 /// A handle to a [`Connection`]. Used to request the socket to send data.
 /// Cheaply cloneable.
 #[derive(Clone)]
-struct ConnectionTx {
+pub struct ConnectionTx {
     /// Update the connection control state (disconnect/pause reads).
     ctl: Arc<ConnectionCtl>,
     /// Send write data requests to [`Connection`] for writing to socket.
@@ -209,7 +196,7 @@ const _: [(); 2 * size_of::<usize>()] = [(); size_of::<ConnectionTx>()];
 
 /// A Lightning p2p connection. Wraps a tokio [`TcpStream`] in additional logic
 /// required to interface with LDK's `PeerManager`.
-struct Connection<CM, PS, PM> {
+struct Connection<PM> {
     /// Get notified of connection control updates (disconnect/resume_read).
     ctl: Arc<ConnectionCtl>,
 
@@ -238,10 +225,6 @@ struct Connection<CM, PS, PM> {
     /// LDK requires us to pass a full `ConnectionTx` to `read_event` etc...,
     /// so we have to hold onto an extra one inside `Connection`...
     conn_tx: ConnectionTx,
-
-    // HACK: make generics work
-    phantom_cm: PhantomData<CM>,
-    phantom_ps: PhantomData<PS>,
 }
 
 /// [`Connection`] control state. Used to notify the [`Connection`] that it
@@ -279,7 +262,7 @@ struct ConnectionStats {
 
 /// The reason for a [`Connection`] disconnect.
 #[derive(Debug)]
-enum Disconnect {
+pub enum Disconnect {
     /// Socket error (peer immediate disconnect).
     Socket(std::io::ErrorKind),
     /// We can't read from socket anymore--remote peer write half-close.
@@ -294,7 +277,7 @@ const _: [(); 1] = [(); size_of::<Result<(), Disconnect>>()];
 
 /// A trait that encapsulates the exact interface we require from the LDK
 /// `PeerManager` as far as [`Connection`] is concerned.
-trait PeerManagerTrait<CM, PS>: Clone {
+pub trait PeerManagerTrait: Clone + Send + 'static {
     /// Returns `true` if we're connected to a peer with [`NodePk`].
     fn is_connected(&self, node_pk: &NodePk) -> bool;
 
@@ -361,7 +344,7 @@ trait PeerManagerTrait<CM, PS>: Clone {
 // --- impl Connection ---
 //
 
-impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
+impl<PM: PeerManagerTrait> Connection<PM> {
     fn new(peer_manager: PM, stream: TcpStream) -> (ConnectionTx, Self) {
         let ctl = Arc::new(ConnectionCtl::new());
         let (tx, rx) = mpsc::channel(8);
@@ -379,8 +362,6 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
             read_buf: Box::new([0u8; 8 << 10]),
             stats: ConnectionStats::new(),
             conn_tx: conn_tx.clone(),
-            phantom_cm: PhantomData,
-            phantom_ps: PhantomData,
         };
         (conn_tx, conn)
     }
@@ -390,41 +371,33 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
         stream: TcpStream,
         addr: LxSocketAddress,
         node_pk: &NodePk,
-    ) -> Result<Self, PeerHandleError> {
+    ) -> (ConnectionTx, Self) {
         let (conn_tx, mut conn) = Self::new(peer_manager.clone(), stream);
-        let initial_write = peer_manager.new_outbound_connection(
-            node_pk,
-            conn_tx,
-            Some(addr),
-        )?;
+        let initial_write = peer_manager
+            .new_outbound_connection(node_pk, conn_tx.clone(), Some(addr))
+            .expect(
+                "outbound: somehow registered conn_tx multiple times with PeerManager",
+            );
         conn.write_buf = Some(initial_write.into());
-        Ok(conn)
+        (conn_tx, conn)
     }
 
-    fn setup_inbound(
-        peer_manager: &PM,
-        stream: TcpStream,
-    ) -> Result<Self, PeerHandleError> {
+    fn setup_inbound(peer_manager: &PM, stream: TcpStream) -> Self {
         let addr = stream
             .peer_addr()
             .ok()
             .and_then(|sockaddr| LxSocketAddress::try_from(sockaddr).ok());
         let (conn_tx, conn) = Self::new(peer_manager.clone(), stream);
-
-        // Fortanix SGX doesn't support socket half-close...
-
-        match peer_manager.new_inbound_connection(conn_tx, addr) {
-            Ok(()) => Ok(conn),
-            Err(err) => Err(err),
-        }
+        peer_manager.new_inbound_connection(conn_tx, addr).expect("inbound: somehow registered conn_tx multiple times with PeerManager");
+        conn
     }
 
-    async fn run(mut self) {
-        self.run_ref().await;
+    async fn run(mut self) -> Disconnect {
+        self.run_ref().await
     }
 
-    #[instrument(skip_all, name = "(p2p-conn)")]
-    async fn run_ref(&mut self) {
+    #[instrument(skip_all, name = "(p2p-conn)", fields(id = self.ctl.id))]
+    async fn run_ref(&mut self) -> Disconnect {
         trace!("start");
 
         let disconnect = loop {
@@ -535,6 +508,7 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
         }
 
         trace!(?disconnect);
+        disconnect
     }
 
     /// Read [`ConnectionCtl::state`] and maybe resume reads or disconnect.
@@ -857,71 +831,6 @@ impl Disconnect {
     }
 }
 
-//
-// --- impl PeerManagerTrait ---
-//
-
-// TODO(phlip9): uncomment after LexePeerManager switches to this connection
-// impl
-
-// impl<CM, PS, LPM, T> PeerManagerTrait<CM, PS> for T
-// where
-//     T: Deref<Target = LPM> + Clone,
-//     CM: LexeChannelManager<PS>,
-//     LPM: LexePeerManager<CM, PS>,
-//     PS: LexePersister,
-// {
-//     fn is_connected(&self, node_pk: &NodePk) -> bool {
-//         // TODO(max): This LDK fn is O(n) in the # of peers...
-//         self.as_ref().peer_by_node_id(&node_pk.0).is_some()
-//     }
-//
-//     fn new_outbound_connection(
-//         &self,
-//         node_pk: &NodePk,
-//         conn_tx: ConnectionTx,
-//         addr: Option<LxSocketAddress>,
-//     ) -> Result<Vec<u8>, PeerHandleError> {
-//         self.as_ref().new_outbound_connection(
-//             node_pk.0,
-//             conn_tx,
-//             addr.map(SocketAddress::from),
-//         )
-//     }
-//
-//     fn new_inbound_connection(
-//         &self,
-//         conn_tx: ConnectionTx,
-//         addr: Option<LxSocketAddress>,
-//     ) -> Result<(), PeerHandleError> {
-//         self.as_ref()
-//             .new_inbound_connection(conn_tx, addr.map(SocketAddress::from))
-//     }
-//
-//     fn socket_disconnected(&self, conn_tx: &ConnectionTx) {
-//         self.as_ref().socket_disconnected(conn_tx)
-//     }
-//
-//     fn read_event(
-//         &self,
-//         conn_tx: &mut ConnectionTx,
-//         data: &[u8],
-//     ) -> Result<bool, PeerHandleError> {
-//         self.as_ref().read_event(conn_tx, data)
-//     }
-//
-//     fn process_events(&self) {
-//         self.as_ref().process_events()
-//     }
-//
-//     fn write_buffer_space_avail(
-//         &self,
-//         conn_tx: &mut ConnectionTx,
-//     ) -> Result<(), PeerHandleError> {
-//         self.as_ref().write_buffer_space_avail(conn_tx)
-//     }
-// }
-
 #[cfg(test)]
 mod test {
     use std::{
@@ -1180,7 +1089,8 @@ mod test {
     struct EchoPeer {
         conn_tx: ConnectionTx,
 
-        /// `read_event` -> `buf` -> ... -> `buf` -> `send_data`
+        ///  in: read_event -> buf
+        /// out: process_events/write_buffer_space_avail -> buf -> send_data
         buf: VecDeque<u8>,
 
         /// When `true` we'll pause_read when `buf` goes above
@@ -1214,7 +1124,7 @@ mod test {
         }
     }
 
-    impl PeerManagerTrait<(), ()> for Arc<Mutex<EchoPeerManager>> {
+    impl PeerManagerTrait for Arc<Mutex<EchoPeerManager>> {
         fn is_connected(&self, _node_pk: &NodePk) -> bool {
             todo!()
         }
@@ -1485,16 +1395,15 @@ mod ldk_test {
 
         let addr_b =
             LxSocketAddress::try_from(tcp_a.peer_addr().unwrap()).unwrap();
-        let conn_a = Connection::setup_outbound(
+        let (_conn_tx_a, conn_a) = Connection::setup_outbound(
             &a_manager,
             tcp_a,
             addr_b,
             &NodePk(b_pub),
-        )
-        .unwrap();
+        );
         let fut_a = LxTask::spawn(conn_a.run());
 
-        let conn_b = Connection::setup_inbound(&b_manager, tcp_b).unwrap();
+        let conn_b = Connection::setup_inbound(&b_manager, tcp_b);
         let fut_b = LxTask::spawn(conn_b.run());
 
         tokio::time::timeout(Duration::from_secs(10), a_connected.recv())
@@ -1561,7 +1470,7 @@ mod ldk_test {
         >,
     >;
 
-    impl PeerManagerTrait<(), ()> for TestPeerManager {
+    impl PeerManagerTrait for TestPeerManager {
         fn is_connected(&self, node_pk: &NodePk) -> bool {
             self.as_ref().peer_by_node_id(&node_pk.0).is_some()
         }

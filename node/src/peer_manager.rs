@@ -4,12 +4,21 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use common::rng::{Crng, RngExt};
-use lexe_ln::{
-    alias::P2PGossipSyncType, keys_manager::LexeKeysManager,
-    logger::LexeTracingLogger,
+use common::{
+    api::user::NodePk,
+    ln::addr::LxSocketAddress,
+    rng::{Crng, RngExt},
 };
-use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
+use lexe_ln::{
+    alias::P2PGossipSyncType,
+    keys_manager::LexeKeysManager,
+    logger::LexeTracingLogger,
+    p2p::{ConnectionTx, PeerManagerTrait},
+};
+use lightning::ln::{
+    msgs::SocketAddress,
+    peer_handler::{IgnoringMessageHandler, MessageHandler, PeerHandleError},
+};
 use secrecy::zeroize::Zeroizing;
 
 use crate::{
@@ -67,5 +76,59 @@ impl NodePeerManager {
         );
 
         Self(Arc::new(peer_manager))
+    }
+}
+
+// lexe_ln::p2p::PeerManagerTrait boilerplate
+// TODO(phlip9): figure out how to make blanket trait impl work to avoid this
+impl PeerManagerTrait for NodePeerManager {
+    fn is_connected(&self, node_pk: &NodePk) -> bool {
+        self.0.as_ref().peer_by_node_id(&node_pk.0).is_some()
+    }
+
+    fn new_outbound_connection(
+        &self,
+        node_pk: &NodePk,
+        conn_tx: ConnectionTx,
+        addr: Option<LxSocketAddress>,
+    ) -> Result<Vec<u8>, PeerHandleError> {
+        self.0.as_ref().new_outbound_connection(
+            node_pk.0,
+            conn_tx,
+            addr.map(SocketAddress::from),
+        )
+    }
+
+    fn new_inbound_connection(
+        &self,
+        conn_tx: ConnectionTx,
+        addr: Option<LxSocketAddress>,
+    ) -> Result<(), PeerHandleError> {
+        self.0
+            .as_ref()
+            .new_inbound_connection(conn_tx, addr.map(SocketAddress::from))
+    }
+
+    fn socket_disconnected(&self, conn_tx: &ConnectionTx) {
+        self.0.as_ref().socket_disconnected(conn_tx)
+    }
+
+    fn read_event(
+        &self,
+        conn_tx: &mut ConnectionTx,
+        data: &[u8],
+    ) -> Result<bool, PeerHandleError> {
+        self.0.as_ref().read_event(conn_tx, data)
+    }
+
+    fn process_events(&self) {
+        self.0.as_ref().process_events()
+    }
+
+    fn write_buffer_space_avail(
+        &self,
+        conn_tx: &mut ConnectionTx,
+    ) -> Result<(), PeerHandleError> {
+        self.0.as_ref().write_buffer_space_avail(conn_tx)
     }
 }

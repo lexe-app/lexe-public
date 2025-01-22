@@ -2593,6 +2593,7 @@ dependencies = [
  "common",
  "esplora-client",
  "futures",
+ "hex 0.1.0",
  "lexe-api",
  "lightning",
  "lightning-invoice",
