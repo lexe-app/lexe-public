@@ -22,9 +22,9 @@ use common::{
     env::DeployEnv,
     ln::{channel::LxOutPoint, network::LxNetwork},
     net, notify,
+    notify_once::NotifyOnce,
     rng::{Crng, SysRng},
     root_seed::RootSeed,
-    shutdown::ShutdownChannel,
     task::{self, LxTask},
     Apply,
 };
@@ -87,7 +87,7 @@ pub struct UserNode {
     deploy_env: DeployEnv,
     ports: Ports,
     tasks: Vec<LxTask<()>>,
-    shutdown: ShutdownChannel,
+    shutdown: NotifyOnce,
 
     // --- Actors --- //
     broadcaster: Arc<BroadcasterType>,
@@ -163,7 +163,7 @@ impl UserNode {
             mpsc::channel(SMALLER_CHANNEL_SIZE);
         let (test_event_tx, test_event_rx) = test_event::channel("(node)");
         let test_event_rx = Arc::new(tokio::sync::Mutex::new(test_event_rx));
-        let shutdown = ShutdownChannel::new();
+        let shutdown = NotifyOnce::new();
 
         // Version
         let version = DEV_VERSION
@@ -921,7 +921,7 @@ async fn init_google_vfs(
     authenticator: Arc<BearerAuthenticator>,
     vfs_master_key: Arc<AesMasterKey>,
     gvfs_root_name: GvfsRootName,
-    mut shutdown: ShutdownChannel,
+    mut shutdown: NotifyOnce,
 ) -> anyhow::Result<(GoogleVfs, LxTask<()>)> {
     // Fetch the encrypted GDriveCredentials and persisted GVFS root.
     let (try_gdrive_credentials, try_persisted_gvfs_root) = tokio::join!(
@@ -1019,7 +1019,7 @@ async fn maybe_reconnect_to_lsp(
     deploy_env: DeployEnv,
     allow_mock: bool,
     lsp: &LspInfo,
-    shutdown: ShutdownChannel,
+    shutdown: NotifyOnce,
 ) -> anyhow::Result<Option<LxTask<()>>> {
     if deploy_env.is_staging_or_prod() || lsp.node_api_url.is_some() {
         // If --allow-mock was set, the caller may have made an error.

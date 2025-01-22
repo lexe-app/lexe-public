@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Instant};
 
 use anyhow::{anyhow, Context};
-use common::{notify, shutdown::ShutdownChannel, task::LxTask};
+use common::{notify, notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::Confirm;
 use tokio::{
     sync::{mpsc, oneshot},
@@ -31,7 +31,7 @@ pub fn spawn_bdk_sync_task(
     onchain_recv_tx: notify::Sender,
     first_bdk_sync_tx: oneshot::Sender<anyhow::Result<()>>,
     mut bdk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
-    mut shutdown: ShutdownChannel,
+    mut shutdown: NotifyOnce,
 ) -> LxTask<()> {
     LxTask::spawn_named("bdk sync", async move {
         let mut sync_timer = time::interval(SYNC_INTERVAL);
@@ -107,7 +107,7 @@ pub fn spawn_ldk_sync_task<CMAN, CMON, PS>(
     ldk_sync_client: Arc<EsploraSyncClientType>,
     first_ldk_sync_tx: oneshot::Sender<anyhow::Result<()>>,
     mut ldk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
-    mut shutdown: ShutdownChannel,
+    mut shutdown: NotifyOnce,
 ) -> LxTask<()>
 where
     CMAN: LexeChannelManager<PS>,

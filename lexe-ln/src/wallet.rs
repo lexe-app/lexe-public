@@ -59,8 +59,8 @@ use common::{
         priority::ConfirmationPriority,
     },
     notify,
+    notify_once::NotifyOnce,
     root_seed::RootSeed,
-    shutdown::ShutdownChannel,
     task::LxTask,
 };
 use tracing::{debug, info, instrument, warn};
@@ -663,7 +663,7 @@ pub fn spawn_wallet_persister_task<PS: LexePersister>(
     persister: PS,
     wallet: LexeWallet,
     mut wallet_persister_rx: notify::Receiver,
-    mut shutdown: ShutdownChannel,
+    mut shutdown: NotifyOnce,
 ) -> LxTask<()> {
     LxTask::spawn_named("wallet persister", async move {
         loop {

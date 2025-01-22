@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use common::shutdown::ShutdownChannel;
+use common::notify_once::NotifyOnce;
 use tokio::{
     sync::{mpsc, mpsc::error::TryRecvError},
     time::{self, Instant},
@@ -26,7 +26,7 @@ pub struct InactivityTimer {
     /// Used to receive activity events from the command server.
     activity_rx: mpsc::Receiver<()>,
     /// Used to signal the rest of the program to shut down.
-    shutdown: ShutdownChannel,
+    shutdown: NotifyOnce,
 }
 
 impl InactivityTimer {
@@ -34,7 +34,7 @@ impl InactivityTimer {
         shutdown_after_sync: bool,
         inactivity_timer_sec: u64,
         activity_rx: mpsc::Receiver<()>,
-        shutdown: ShutdownChannel,
+        shutdown: NotifyOnce,
     ) -> Self {
         let duration = Duration::from_secs(inactivity_timer_sec);
         Self {
@@ -114,7 +114,7 @@ mod tests {
     struct TestMaterials {
         actor: InactivityTimer,
         activity_tx: mpsc::Sender<()>,
-        shutdown: ShutdownChannel,
+        shutdown: NotifyOnce,
     }
 
     fn get_test_materials(
@@ -122,7 +122,7 @@ mod tests {
         inactivity_timer_sec: u64,
     ) -> TestMaterials {
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
-        let shutdown = ShutdownChannel::new();
+        let shutdown = NotifyOnce::new();
         let actor_shutdown = shutdown.clone();
         let actor = InactivityTimer::new(
             shutdown_after_sync,
@@ -142,7 +142,7 @@ mod tests {
     /// given time bounds. Also tests that it sends a shutdown signal.
     async fn bound_finish(
         actor_fut: impl Future<Output = ()>,
-        shutdown: ShutdownChannel,
+        shutdown: NotifyOnce,
         lower_bound_ms: Option<u64>,
         upper_bound_ms: Option<u64>,
     ) {

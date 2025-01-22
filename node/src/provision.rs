@@ -35,8 +35,8 @@ use common::{
     cli::node::ProvisionArgs,
     enclave::{self, MachineId, Measurement},
     net,
+    notify_once::NotifyOnce,
     rng::{Crng, SysRng},
-    shutdown::ShutdownChannel,
 };
 use gdrive::GoogleVfs;
 use lexe_api::{
@@ -103,7 +103,7 @@ pub async fn provision_node(
         // TODO(phlip9): use passed in rng
         rng: SysRng::new(),
     };
-    let shutdown = ShutdownChannel::new();
+    let shutdown = NotifyOnce::new();
 
     const APP_SERVER_SPAN_NAME: &str = "(app-node-provision-server)";
     let app_listener = TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
@@ -177,7 +177,7 @@ fn app_router(ctx: RequestContext) -> Router<()> {
 #[derive(Clone)]
 struct LexeRouterState {
     measurement: Measurement,
-    shutdown: ShutdownChannel,
+    shutdown: NotifyOnce,
 }
 
 /// Implements [`LexeNodeProvisionApi`] - only callable by the Lexe operators.

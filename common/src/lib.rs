@@ -47,14 +47,14 @@ pub mod ln;
 pub mod net;
 /// A channel for sending deduplicated notifications with no data attached.
 pub mod notify;
+/// `NotifyOnce`.
+pub mod notify_once;
 /// Password-based encryption for arbitrary bytes.
 pub mod password;
 /// Random number generation.
 pub mod rng;
 /// `RootSeed`.
 pub mod root_seed;
-/// `ShutdownChannel`.
-pub mod shutdown;
 /// `LxTask`.
 pub mod task;
 /// `TestEvent`.

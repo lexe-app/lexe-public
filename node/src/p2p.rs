@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use anyhow::Context;
-use common::{cli::LspInfo, shutdown::ShutdownChannel, task::LxTask};
+use common::{cli::LspInfo, notify_once::NotifyOnce, task::LxTask};
 use lexe_ln::p2p;
 use tracing::{info, info_span, warn};
 
@@ -18,7 +18,7 @@ const LSP_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
 pub(crate) async fn connect_to_lsp_then_spawn_connector_task(
     peer_manager: NodePeerManager,
     lsp: &LspInfo,
-    mut shutdown: ShutdownChannel,
+    mut shutdown: NotifyOnce,
 ) -> anyhow::Result<LxTask<()>> {
     let lsp_node_pk = lsp.node_pk;
     let lsp_addrs = [lsp.private_p2p_addr.clone()];

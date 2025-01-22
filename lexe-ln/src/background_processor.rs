@@ -3,7 +3,7 @@ use std::{
     time::Duration,
 };
 
-use common::{notify, shutdown::ShutdownChannel, task::LxTask};
+use common::{notify, notify_once::NotifyOnce, task::LxTask};
 use tokio::{
     sync::{mpsc, oneshot},
     time::Instant,
@@ -74,7 +74,7 @@ impl LexeBackgroundProcessor {
         // LDK#2090, but our integration tests still fail without this channel.
         mut process_events_rx: mpsc::Receiver<oneshot::Sender<()>>,
         mut scorer_persist_rx: notify::Receiver,
-        mut shutdown: ShutdownChannel,
+        mut shutdown: NotifyOnce,
     ) -> LxTask<()>
     where
         CM: LexeChannelManager<PS>,

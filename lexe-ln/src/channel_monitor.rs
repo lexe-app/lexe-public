@@ -4,9 +4,7 @@ use std::{
     time::Duration,
 };
 
-use common::{
-    ln::channel::LxOutPoint, shutdown::ShutdownChannel, task::LxTask,
-};
+use common::{ln::channel::LxOutPoint, notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::transaction::OutPoint;
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
@@ -65,7 +63,7 @@ pub fn spawn_channel_monitor_persister_task<PS>(
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
     mut channel_monitor_persister_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
     process_events_tx: mpsc::Sender<oneshot::Sender<()>>,
-    mut shutdown: ShutdownChannel,
+    mut shutdown: NotifyOnce,
 ) -> LxTask<()>
 where
     PS: LexePersister,

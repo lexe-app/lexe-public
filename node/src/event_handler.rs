@@ -45,8 +45,8 @@ use common::{
     debug_panic_release_log,
     ln::{channel::LxChannelId, payments::LxPaymentHash},
     notify,
+    notify_once::NotifyOnce,
     rng::{RngExt, ThreadFastRng},
-    shutdown::ShutdownChannel,
     task::LxTask,
     test_event::TestEvent,
 };
@@ -84,7 +84,7 @@ pub(crate) struct EventCtx {
     pub(crate) channel_events_bus: ChannelEventsBus,
     pub(crate) scorer_persist_tx: notify::Sender,
     pub(crate) test_event_tx: TestEventSender,
-    pub(crate) shutdown: ShutdownChannel,
+    pub(crate) shutdown: NotifyOnce,
 }
 
 impl LexeEventHandler for NodeEventHandler {

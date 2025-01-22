@@ -16,7 +16,7 @@ use common::{
         },
     },
     notify,
-    shutdown::ShutdownChannel,
+    notify_once::NotifyOnce,
     task::LxTask,
     test_event::TestEvent,
 };
@@ -110,7 +110,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         wallet: LexeWallet,
         onchain_recv_rx: notify::Receiver,
         test_event_tx: TestEventSender,
-        shutdown: ShutdownChannel,
+        shutdown: NotifyOnce,
     ) -> (Self, [LxTask<()>; 3]) {
         let pending = pending_payments
             .into_iter()
@@ -155,7 +155,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
     fn spawn_invoice_expiry_checker(
         &self,
-        mut shutdown: ShutdownChannel,
+        mut shutdown: NotifyOnce,
     ) -> LxTask<()> {
         let payman = self.clone();
         LxTask::spawn_named_with_span(
@@ -191,7 +191,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     fn spawn_onchain_confs_checker(
         &self,
         esplora: Arc<LexeEsplora>,
-        mut shutdown: ShutdownChannel,
+        mut shutdown: NotifyOnce,
     ) -> LxTask<()> {
         let payman = self.clone();
 
@@ -232,7 +232,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         &self,
         wallet: LexeWallet,
         mut onchain_recv_rx: notify::Receiver,
-        mut shutdown: ShutdownChannel,
+        mut shutdown: NotifyOnce,
     ) -> LxTask<()> {
         let payman = self.clone();
         LxTask::spawn_named_with_span(

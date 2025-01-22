@@ -225,7 +225,7 @@ pub mod test_utils {
 
     use anyhow::Context;
     use axum::{routing::post, Router};
-    use common::{api::error::BackendApiError, net, shutdown::ShutdownChannel};
+    use common::{api::error::BackendApiError, net, notify_once::NotifyOnce};
     use rustls::pki_types::ServerName;
     use serde::{Deserialize, Serialize};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -321,7 +321,7 @@ pub mod test_utils {
         server_dns: &str,
     ) {
         let router = Router::new().route("/test_endpoint", post(handler));
-        let shutdown = ShutdownChannel::new();
+        let shutdown = NotifyOnce::new();
         let tls_and_dns = Some((server_config, server_dns));
         const TEST_SPAN_NAME: &str = "(test-server)";
         let (server_task, server_url) = server::spawn_server_task(

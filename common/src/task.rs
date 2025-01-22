@@ -11,7 +11,7 @@ use thiserror::Error;
 use tokio::task::{JoinError, JoinHandle};
 use tracing::{error, info, warn, Instrument};
 
-use crate::shutdown::ShutdownChannel;
+use crate::notify_once::NotifyOnce;
 
 /// Errors that can occur when joining [`LxTask`]s.
 #[derive(Debug, Error)]
@@ -42,7 +42,7 @@ pub enum Error {
 /// poll the future returned here, and so on up to the top-level future!
 pub async fn try_join_tasks_and_shutdown(
     tasks: Vec<LxTask<()>>,
-    mut shutdown: ShutdownChannel,
+    mut shutdown: NotifyOnce,
     shutdown_timeout: Duration,
 ) -> Result<(), Error> {
     // The behavior is the same without this block, but just to be clear:
@@ -100,7 +100,7 @@ pub async fn try_join_tasks_and_shutdown(
 pub async fn join_tasks_and_shutdown(
     name: &str,
     tasks: Vec<LxTask<()>>,
-    shutdown: ShutdownChannel,
+    shutdown: NotifyOnce,
     max_shutdown_delta: Duration,
 ) {
     match try_join_tasks_and_shutdown(tasks, shutdown, max_shutdown_delta).await

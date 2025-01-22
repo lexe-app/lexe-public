@@ -17,7 +17,7 @@ use common::{
     cli::LspInfo,
     enclave::Measurement,
     ln::network::LxNetwork,
-    shutdown::ShutdownChannel,
+    notify_once::NotifyOnce,
 };
 use lexe_ln::{
     alias::RouterType, channel::ChannelEventsBus, esplora::LexeEsplora,
@@ -98,7 +98,7 @@ pub(crate) struct LexeRouterState {
     pub bdk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
     pub ldk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
     pub test_event_rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
-    pub shutdown: ShutdownChannel,
+    pub shutdown: NotifyOnce,
 }
 
 /// Implements [`LexeNodeRunApi`] - only callable by the Lexe operators.

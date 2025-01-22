@@ -15,7 +15,7 @@ use common::{
         network::LxNetwork,
         priority::{ConfirmationPriority, ToNumBlocks},
     },
-    shutdown::ShutdownChannel,
+    notify_once::NotifyOnce,
     task::LxTask,
     test_event::TestEvent,
     Apply,
@@ -125,7 +125,7 @@ impl LexeEsplora {
         mut esplora_urls: Vec<String>,
         broadcast_hook: Option<PreBroadcastHook>,
         test_event_tx: TestEventSender,
-        shutdown: ShutdownChannel,
+        shutdown: NotifyOnce,
     ) -> anyhow::Result<(Arc<Self>, LxTask<()>, String)> {
         // Randomize the URL ordering for some basic load balancing
         esplora_urls.shuffle(rng);
@@ -171,7 +171,7 @@ impl LexeEsplora {
         esplora_url: String,
         broadcast_hook: Option<PreBroadcastHook>,
         test_event_tx: TestEventSender,
-        shutdown: ShutdownChannel,
+        shutdown: NotifyOnce,
     ) -> anyhow::Result<(Arc<Self>, LxTask<()>)> {
         // LexeEsplora wraps AsyncClient which in turn wraps reqwest::Client.
         let reqwest_client = Self::build_reqwest_client()
@@ -260,7 +260,7 @@ impl LexeEsplora {
     /// Spawns a task that periodically calls [`Self::refresh_fee_estimates`].
     fn spawn_refresh_fees_task(
         esplora: Arc<LexeEsplora>,
-        mut shutdown: ShutdownChannel,
+        mut shutdown: NotifyOnce,
     ) -> LxTask<()> {
         LxTask::spawn_named("refresh fees", async move {
             let mut interval = time::interval(REFRESH_FEE_ESTIMATES_INTERVAL);

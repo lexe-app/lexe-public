@@ -69,7 +69,7 @@ use common::{
         server,
     },
     ed25519,
-    shutdown::ShutdownChannel,
+    notify_once::NotifyOnce,
     task::LxTask,
 };
 use http::StatusCode;
@@ -182,7 +182,7 @@ pub fn build_server_fut(
     server_span_name: &str,
     server_span: tracing::Span,
     // Send on this channel to begin a graceful shutdown of the server.
-    shutdown: ShutdownChannel,
+    shutdown: NotifyOnce,
 ) -> anyhow::Result<(impl Future<Output = ()>, String)> {
     let listener =
         TcpListener::bind(bind_addr).context("Could not bind TCP listener")?;
@@ -211,7 +211,7 @@ pub fn build_server_fut_with_listener(
     server_span_name: &str,
     server_span: tracing::Span,
     // Send on this channel to begin a graceful shutdown of the server.
-    mut shutdown: ShutdownChannel,
+    mut shutdown: NotifyOnce,
 ) -> anyhow::Result<(impl Future<Output = ()>, String)> {
     // Build the url here bc it's easy to mess up. `http[s]://{dns:port,addr}`
     let using_tls = maybe_tls_and_dns.is_some();
@@ -409,7 +409,7 @@ pub fn spawn_server_task(
     server_span_name: &str,
     server_span: tracing::Span,
     // Send on this channel to begin a graceful shutdown of the server.
-    shutdown: ShutdownChannel,
+    shutdown: NotifyOnce,
 ) -> anyhow::Result<(LxTask<()>, String)> {
     let listener = TcpListener::bind(bind_addr)
         .context(bind_addr)
@@ -439,7 +439,7 @@ pub fn spawn_server_task_with_listener(
     server_span_name: &str,
     server_span: tracing::Span,
     // Send on this channel to begin a graceful shutdown of the server.
-    shutdown: ShutdownChannel,
+    shutdown: NotifyOnce,
 ) -> anyhow::Result<(LxTask<()>, String)> {
     let (server_fut, server_url) = build_server_fut_with_listener(
         listener,

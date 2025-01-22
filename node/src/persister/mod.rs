@@ -26,8 +26,8 @@ use common::{
             VecLxPaymentId,
         },
     },
+    notify_once::NotifyOnce,
     rng::{Crng, SysRng},
-    shutdown::ShutdownChannel,
     task::LxTask,
     Apply,
 };
@@ -87,7 +87,7 @@ pub struct NodePersister {
     authenticator: Arc<BearerAuthenticator>,
     vfs_master_key: Arc<AesMasterKey>,
     google_vfs: Option<Arc<GoogleVfs>>,
-    shutdown: ShutdownChannel,
+    shutdown: NotifyOnce,
     channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
 }
 
@@ -297,7 +297,7 @@ impl NodePersister {
         authenticator: Arc<BearerAuthenticator>,
         vfs_master_key: Arc<AesMasterKey>,
         google_vfs: Option<Arc<GoogleVfs>>,
-        shutdown: ShutdownChannel,
+        shutdown: NotifyOnce,
         channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
     ) -> Self {
         Self {

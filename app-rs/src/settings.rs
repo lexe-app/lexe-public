@@ -5,7 +5,7 @@ use std::{io, sync::Arc, time::Duration};
 use anyhow::{ensure, Context};
 use common::{
     api::fiat_rates::IsoCurrencyCode, debug_panic_release_log, notify,
-    shutdown::ShutdownChannel, task::LxTask,
+    notify_once::NotifyOnce, task::LxTask,
 };
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -74,7 +74,7 @@ pub(crate) struct SettingsDb {
     /// Handle to spawned [`SettingsPersister`].
     persist_task: Option<LxTask<()>>,
     /// Trigger shutdown of [`SettingsPersister`].
-    shutdown: ShutdownChannel,
+    shutdown: NotifyOnce,
 }
 
 /// Persists settings asynchronously when notified by the [`SettingsDb`].
@@ -86,7 +86,7 @@ struct SettingsPersister<F> {
     /// Receives notifications when the settings have updated.
     persist_rx: notify::Receiver,
     /// Receives shutdown signal.
-    shutdown: ShutdownChannel,
+    shutdown: NotifyOnce,
 }
 
 /// Settings schema version. Used to determine whether to run migrations.
@@ -101,7 +101,7 @@ impl SettingsDb {
     pub(crate) fn load<F: Ffs + Send + 'static>(ffs: F) -> Self {
         let settings = Arc::new(std::sync::Mutex::new(Settings::load(&ffs)));
         let (persist_tx, persist_rx) = notify::channel();
-        let shutdown = ShutdownChannel::new();
+        let shutdown = NotifyOnce::new();
 
         // spawn a task that we can notify to write settings updates to durable
         // storage.
@@ -174,7 +174,7 @@ where
         ffs: F,
         settings: Arc<std::sync::Mutex<Settings>>,
         persist_rx: notify::Receiver,
-        shutdown: ShutdownChannel,
+        shutdown: NotifyOnce,
     ) -> Self {
         Self {
             ffs,
