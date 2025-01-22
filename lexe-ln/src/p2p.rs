@@ -19,7 +19,10 @@ use tokio::{
     io::Interest,
     net::TcpStream,
     sync::{
-        mpsc::{self, error::TrySendError},
+        mpsc::{
+            self,
+            error::{TryRecvError, TrySendError},
+        },
         Notify,
     },
     time,
@@ -182,7 +185,7 @@ where
 /// Used to generate the next unique ID for a new connection.
 static CONNECTION_ID: AtomicU64 = AtomicU64::new(0);
 
-/// A handle to a [`Connection`]. Used to request the socket to send data.
+/// A handle to a `Connection`. Used to request the socket to send data.
 /// Cheaply cloneable.
 #[derive(Clone)]
 pub struct ConnectionTx {
@@ -260,7 +263,7 @@ struct ConnectionStats {
     total_bytes_read: usize,
 }
 
-/// The reason for a [`Connection`] disconnect.
+/// The reason for a `Connection` disconnect.
 #[derive(Debug)]
 pub enum Disconnect {
     /// Socket error (peer immediate disconnect).
@@ -269,14 +272,14 @@ pub enum Disconnect {
     ReadClosed,
     /// We can't write to the socket anymore--remote peer read half-close.
     WriteClosed,
-    /// PeerManager called [`ConnectionTx::disconnect_socket`].
+    /// PeerManager called `ConnectionTx::disconnect_socket`.
     PeerManager,
 }
 
 const _: [(); 1] = [(); size_of::<Result<(), Disconnect>>()];
 
 /// A trait that encapsulates the exact interface we require from the LDK
-/// `PeerManager` as far as [`Connection`] is concerned.
+/// `PeerManager` as far as `Connection` is concerned.
 pub trait PeerManagerTrait: Clone + Send + 'static {
     /// Returns `true` if we're connected to a peer with [`NodePk`].
     fn is_connected(&self, node_pk: &NodePk) -> bool;
@@ -460,9 +463,10 @@ impl<PM: PeerManagerTrait> Connection<PM> {
                         Err(err) => break Disconnect::Socket(err.kind()),
                     };
 
-                    // If socket says it's ready to write -> try to write.
+                    // If socket says it's ready to write
+                    // -> try to write as much as we can.
                     if ready.is_writable() {
-                        if let Err(disconnect) = self.try_write_buf() {
+                        if let Err(disconnect) = self.try_write_buf_many() {
                             break disconnect;
                         }
                     };
@@ -596,8 +600,45 @@ impl<PM: PeerManagerTrait> Connection<PM> {
             .map_err(|PeerHandleError {}| Disconnect::PeerManager)
     }
 
-    /// Attempt a `stream.try_write(&write_buf[write_offset..])`. Returns `true`
-    /// if another write might succeed immediately afterward.
+    /// Loop `try_write_buf` + `rx.try_recv` until we either drain our `rx`
+    /// write queue or we get socket write backpressure.
+    fn try_write_buf_many(&mut self) -> Result<(), Disconnect> {
+        // `true` if we successfully recv from `rx`. We'll notify `PeerManager`
+        // at the end if this is `true`.
+        let mut is_send_data_space_avail = false;
+
+        loop {
+            // Try to write the current `self.write_buf` to the socket.
+            self.try_write_buf()?;
+
+            // If we can write more, try to pop off another write buffer from
+            // the `rx` queue.
+            let can_write_more = self.write_buf.is_none();
+            if can_write_more {
+                match self.rx.try_recv() {
+                    Ok(write_buf) => {
+                        self.write_buf = Some(write_buf);
+                        self.write_offset = 0;
+                        is_send_data_space_avail = true;
+                    }
+                    // No more buffers in the `rx` queue; we're done flushing.
+                    Err(TryRecvError::Empty) => break,
+                    Err(TryRecvError::Disconnected) =>
+                        return Err(Disconnect::PeerManager),
+                }
+            }
+        }
+
+        // We recv'd on `rx`
+        // ==> there's space available for `PeerManager` to `send_data`
+        if is_send_data_space_avail {
+            self.notify_send_data_channel_space_avail()?;
+        }
+
+        Ok(())
+    }
+
+    /// Attempt a `stream.try_write(&write_buf[write_offset..])`.
     fn try_write_buf(&mut self) -> Result<(), Disconnect> {
         let write_buf: &[u8] = self.write_buf.as_ref().expect(
             "we should only get write readiness if write_buf.is_some()",
@@ -605,15 +646,14 @@ impl<PM: PeerManagerTrait> Connection<PM> {
         assert!(!write_buf.is_empty());
 
         let to_write = &write_buf[self.write_offset..];
-
-        #[cfg(test)] // Sometimes inject a partial write in test
-        let to_write = test::maybe_partial_write(to_write);
-
         assert!(!to_write.is_empty());
 
-        // TODO(phlip9): test spurrious io::ErrorKind::WouldBlock
+        #[cfg(not(test))]
+        let res = self.stream.try_write(to_write);
+        #[cfg(test)] // inject partial writes and io::ErrorKind::WouldBlock
+        let res = test::maybe_stream_try_write(&mut self.stream, to_write);
 
-        let _bytes_written = match self.stream.try_write(to_write) {
+        let _bytes_written = match res {
             // Wrote some bytes -> update `write_buf`
             Ok(bytes_written) => {
                 let bytes_written = match NonZeroUsize::new(bytes_written) {
@@ -860,6 +900,18 @@ mod test {
         if maybe(0.25) {
             trace!("yield_now({label})");
             tokio::task::yield_now().await
+        }
+    }
+
+    pub fn maybe_stream_try_write(
+        stream: &mut TcpStream,
+        to_write: &[u8],
+    ) -> io::Result<usize> {
+        if maybe(0.1) {
+            Err(io::Error::from(io::ErrorKind::WouldBlock))
+        } else {
+            let to_write = maybe_partial_write(to_write);
+            stream.try_write(to_write)
         }
     }
 
