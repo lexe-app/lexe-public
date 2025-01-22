@@ -849,22 +849,24 @@ mod test {
     };
 
     use super::{ldk_test::make_tcp_connection, *};
-    use crate::logger;
 
-    // TODO(phlip9): get probabilities from thread-local `TestEchoCtx`?
+    // TODO(phlip9): get probabilities from thread-local `TestCtx`?
+
+    fn maybe(p: f64) -> bool {
+        ThreadFastRng::new().gen_bool(p)
+    }
 
     pub async fn maybe_yield(label: &'static str) {
-        if ThreadFastRng::new().gen_bool(0.25) {
+        if maybe(0.25) {
             trace!("yield_now({label})");
             tokio::task::yield_now().await
         }
     }
 
     pub fn maybe_partial_write(to_write: &[u8]) -> &[u8] {
-        let mut rng = ThreadFastRng::new();
-        if rng.gen_bool(0.25) {
+        if maybe(0.25) {
             let to_write_len = to_write.len();
-            let to_write_len = rng.gen_range(1..=to_write_len);
+            let to_write_len = ThreadFastRng::new().gen_range(1..=to_write_len);
             &to_write[..to_write_len]
         } else {
             to_write
@@ -872,10 +874,9 @@ mod test {
     }
 
     pub fn maybe_partial_read(read_buf: &mut [u8]) -> &mut [u8] {
-        let mut rng = ThreadFastRng::new();
-        if rng.gen_bool(0.25) {
+        if maybe(0.25) {
             let read_buf_len = read_buf.len();
-            let read_buf_len = rng.gen_range(1..=read_buf_len);
+            let read_buf_len = ThreadFastRng::new().gen_range(1..=read_buf_len);
             &mut read_buf[..read_buf_len]
         } else {
             read_buf
@@ -884,16 +885,25 @@ mod test {
 
     #[tokio::test]
     async fn test_echo() {
-        logger::init_for_testing();
-
         for seed in 0..100 {
             println!("seed = {seed}");
             do_test_echo(TestCtx::new(seed)).await;
         }
+    }
 
-        // do_test_echo(TestCtx::new(123)).await;
-        // do_test_echo(TestCtx::new(993)).await;
-        // do_test_echo(TestCtx::new(138)).await;
+    #[tokio::test]
+    async fn test_echo_1() {
+        do_test_echo(TestCtx::new(123)).await;
+    }
+
+    #[tokio::test]
+    async fn test_echo_2() {
+        do_test_echo(TestCtx::new(993)).await;
+    }
+
+    #[tokio::test]
+    async fn test_echo_3() {
+        do_test_echo(TestCtx::new(138)).await;
     }
 
     #[derive(Copy, Clone)]
@@ -992,6 +1002,8 @@ mod test {
         let (mut tcp_b_read, mut tcp_b_write) = tcp_b.into_split();
         let client_task = LxTask::spawn_named("client", async move {
             let (min_read_done_tx, min_read_done_rx) = oneshot::channel::<()>();
+            let (tcp_write_closed_tx, tcp_write_closed_rx) =
+                oneshot::channel::<()>();
 
             let write_task = LxTask::spawn_named("client_write", async move {
                 let mut msg = write_msg.as_slice();
@@ -1018,8 +1030,17 @@ mod test {
                 // `ctx.min_read_len`.
                 min_read_done_rx.await.unwrap();
 
-                // only then write half-close TCP stream
+                // only then write half-close TCP stream (not effective in SGX)
                 drop(tcp_b_write);
+
+                // SGX: TCP half-close does nothing. Manually terminate reader
+                // so test completes.
+                if cfg!(target_env = "sgx") || maybe(0.25) {
+                    let _ = tcp_write_closed_tx.send(());
+                    None
+                } else {
+                    Some(tcp_write_closed_tx)
+                }
             });
             let read_task = LxTask::spawn_named("client_read", async move {
                 let mut read_msg = vec![0u8; ctx.min_read_len];
@@ -1034,7 +1055,16 @@ mod test {
                 min_read_done_tx.send(()).unwrap();
 
                 // try to read as much as possible
-                tcp_b_read.read_to_end(&mut read_msg).await.unwrap();
+                tokio::select! {
+                    res = tcp_b_read.read_to_end(&mut read_msg) => {
+                        res.unwrap();
+                    }
+                    // SGX: see note above
+                    res = tcp_write_closed_rx => {
+                        trace!("tcp_write_closed_rx");
+                        res.unwrap();
+                    }
+                }
 
                 drop(tcp_b_read);
 
