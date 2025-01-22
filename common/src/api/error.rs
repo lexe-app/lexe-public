@@ -6,6 +6,7 @@
 
 use std::{error::Error, fmt};
 
+use anyhow::anyhow;
 use axum::response::IntoResponse;
 use http::status::StatusCode;
 #[cfg(any(test, feature = "test-utils"))]
@@ -990,6 +991,26 @@ impl RunnerApiError {
         let kind = RunnerErrorKind::ServiceUnavailable;
         let msg = format!("{error:#}");
         Self { kind, msg }
+    }
+}
+
+// --- Misc error utilities --- //
+
+/// Converts a [`Vec<anyhow::Result<()>>`] to an [`anyhow::Result<()>`],
+/// with any error messages joined by a semicolon.
+pub fn join_results(results: Vec<anyhow::Result<()>>) -> anyhow::Result<()> {
+    let errors = results
+        .into_iter()
+        .filter_map(|res| match res {
+            Ok(_) => None,
+            Err(e) => Some(format!("{e:#}")),
+        })
+        .collect::<Vec<String>>();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        let joined_errs = errors.join("; ");
+        Err(anyhow!("{joined_errs}"))
     }
 }
 

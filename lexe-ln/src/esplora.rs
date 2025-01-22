@@ -9,6 +9,7 @@ use anyhow::{anyhow, ensure, Context};
 use arc_swap::ArcSwap;
 use bitcoin::{blockdata::transaction::Transaction, OutPoint};
 use common::{
+    api::error,
     constants,
     ln::{
         hashes::LxTxid,
@@ -376,7 +377,7 @@ impl LexeEsplora {
                 .map(|tx| hook(tx))
                 .apply(futures::future::join_all)
                 .await
-                .apply(transpose_results)
+                .apply(error::join_results)
                 .context("Pre-broadcast hook(s) failed")?;
         }
 
@@ -393,7 +394,7 @@ impl LexeEsplora {
             })
             .apply(futures::future::join_all)
             .await
-            .apply(transpose_results)
+            .apply(error::join_results)
             .context("Batch broadcast failed")?;
 
         test_event_tx.send(TestEvent::TxBroadcasted);
@@ -602,24 +603,6 @@ fn lookup_fee_rate(
         .find(|(num_blocks, _)| *num_blocks <= &num_blocks_target)
         .map(|(_, feerate)| feerate)
         .unwrap_or(&FALLBACK_FEE_RATE)
-}
-
-/// Converts a [`Vec<anyhow::Result<()>>`] to an [`anyhow::Result<()>`],
-/// with any error messages joined by a semicolon.
-fn transpose_results(results: Vec<anyhow::Result<()>>) -> anyhow::Result<()> {
-    let errors = results
-        .into_iter()
-        .filter_map(|res| match res {
-            Ok(_) => None,
-            Err(e) => Some(format!("{e:#}")),
-        })
-        .collect::<Vec<String>>();
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        let joined_errs = errors.join("; ");
-        Err(anyhow!("Joined errors: {joined_errs}"))
-    }
 }
 
 #[cfg(all(test, not(target_env = "sgx")))]
