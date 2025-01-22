@@ -1,8 +1,27 @@
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{api::user::UserPk, enclave::Measurement};
 
 pub type Port = u16;
+
+/// Identifies a node by its [`UserPk`] (Run) or [`Measurement`] (Provision).
+#[derive(Copy, Clone)]
+pub enum NodeId {
+    UserPk(UserPk),
+    Measurement(Measurement),
+}
+
+impl fmt::Display for NodeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NodeId::UserPk(user_pk) => write!(f, "UserPk({user_pk})"),
+            NodeId::Measurement(measurement) =>
+                write!(f, "Measurement({measurement})"),
+        }
+    }
+}
 
 /// Represents the ports used by a user node.
 /// Used to (de)serialize /ready requests and responses.
@@ -51,13 +70,12 @@ impl Ports {
         })
     }
 
-    /// Returns a crude identifier which allows one to identify a node given its
-    /// [`Ports`] in logs. `UserPk(<user_pk>)` or `Measurement(<measurement>)`.
-    pub fn identifier(&self) -> String {
+    /// Returns the [`NodeId`] corresponding to this [`Ports`].
+    pub fn node_id(&self) -> NodeId {
         match self {
-            Self::Run(RunPorts { user_pk, .. }) => format!("UserPk({user_pk})"),
+            Self::Run(RunPorts { user_pk, .. }) => NodeId::UserPk(*user_pk),
             Self::Provision(ProvisionPorts { measurement, .. }) =>
-                format!("Measurement({measurement})"),
+                NodeId::Measurement(*measurement),
         }
     }
 
