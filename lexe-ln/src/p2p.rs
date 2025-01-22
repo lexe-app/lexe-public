@@ -452,12 +452,15 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
             tokio::select! {
                 // `ConnectionCtl` notified disconnect/resume_read
                 // -> nothing (we'll pick up the new state on the next iter)
-                () = self.ctl.notify.notified() => {},
+                () = self.ctl.notify.notified() => {
+                    trace!("notified");
+                },
 
                 // `ConnectionTx::try_send_data(data=&[..])`
                 // -> enqueue for writing to socket
                 // -> notify `PeerManager::write_buffer_space_avail`
                 req = self.rx.recv(), if self.write_buf.is_none() => {
+                    trace!(write_buf = req.as_ref().map(|b| b.len()), "recv");
                     if let Err(disconnect) = self.handle_rx_write_req(req) {
                         break disconnect;
                     }
@@ -471,7 +474,14 @@ impl<CM, PS, PM: PeerManagerTrait<CM, PS>> Connection<CM, PS, PM> {
                 // Socket is ready to read or write
                 // -> is_writable => write_buf[write_offset..] -> stream.try_write
                 // -> is_readable => stream.try_read -> read_buf -> PeerManager::read_event
-                res = self.stream.ready(interest.unwrap()), if interest.is_some() => {
+                //
+                // NOTE: `unwrap_or(Interest::ERROR)` is needed b/c we have to
+                // evaluate the `ready` future with _some_ interest, but the
+                // future will not be polled as `interest.is_none()`.
+                res = self.stream.ready(interest.unwrap_or(Interest::ERROR)),
+                    if interest.is_some() =>
+                {
+                    trace!(?res, "ready");
                     let ready = match res {
                         Ok(ready) => ready,
                         Err(err) => break Disconnect::Socket(err.kind()),
@@ -701,6 +711,11 @@ impl ConnectionTx {
     /// `PeerManager::write_buffer_space_avail` when it has room for more
     /// writes.
     fn send_data(&mut self, data: &[u8], resume_read: bool) -> usize {
+        trace!(
+            write_len = data.len(),
+            resume_read,
+            "ConnectionTx => send_data"
+        );
         let bytes_enqueued = self.try_send_data(data);
         if resume_read {
             self.ctl.resume_read();
@@ -720,7 +735,7 @@ impl ConnectionTx {
             // Enqueue `data` to be written
             Ok(send_permit) => {
                 let write_len = data.len();
-                trace!(write_len, "ConnectionTx =>");
+                trace!(write_len, "ConnectionTx => do_send_data");
                 send_permit.send(data.into());
                 write_len
             }
@@ -910,6 +925,7 @@ impl Disconnect {
 #[cfg(test)]
 mod test {
     use std::{
+        cell::Cell,
         cmp::min,
         collections::VecDeque,
         sync::{Arc, Mutex},
@@ -917,7 +933,7 @@ mod test {
 
     use common::{rng::ThreadFastRng, task::LxTask};
     use io::BufRead;
-    use rand::{Rng, RngCore};
+    use rand::{seq::SliceRandom, Rng, RngCore};
     use tokio::{
         io::{AsyncReadExt, AsyncWriteExt},
         sync::oneshot,
@@ -962,14 +978,17 @@ mod test {
         logger::init_for_testing();
 
         for seed in 0..100 {
-            do_test_echo(TestEchoCtx::new(seed)).await;
+            println!("seed = {seed}");
+            do_test_echo(TestCtx::new(seed)).await;
         }
 
-        // do_test_echo(TestEchoCtx::new(123)).await;
+        // do_test_echo(TestCtx::new(123)).await;
+        // do_test_echo(TestCtx::new(993)).await;
+        // do_test_echo(TestCtx::new(138)).await;
     }
 
     #[derive(Copy, Clone)]
-    struct TestEchoCtx {
+    struct TestCtx {
         /// The rng seed for this test iteration
         seed: u64,
         /// Size of the message we'll try to send/recv to/from the `EchoPeer`
@@ -979,10 +998,24 @@ mod test {
         /// Don't disconnect test harness TCP until it reads at least this much
         /// Helps catch `pause_read` deadlocks.
         min_read_len: usize,
+        /// Make `EchoPeer` pause_read when it has this many bytes buffered.
+        pause_read_threshold: usize,
     }
 
-    impl TestEchoCtx {
-        // TODO(phlip9): proptest'ify
+    thread_local! {
+        // clippy errors when built for SGX without without this lint line
+        // TODO(phlip9): incorrect lint, remove when clippy not broken
+        #[allow(clippy::missing_const_for_thread_local)]
+        static TEST_CTX: Cell<Option<TestCtx>> = const { Cell::new(None) };
+    }
+    fn ctx() -> TestCtx {
+        TEST_CTX.get().unwrap()
+    }
+    fn set_ctx(ctx: TestCtx) {
+        TEST_CTX.set(Some(ctx))
+    }
+
+    impl TestCtx {
         fn new(seed: u64) -> Self {
             ThreadFastRng::seed(seed);
             let mut rng = ThreadFastRng::new();
@@ -997,21 +1030,32 @@ mod test {
             } else {
                 rng.gen_range(1..=msg_len)
             };
-            Self {
+            let pause_read_threshold =
+                *[1, 512, 16 << 10, usize::MAX].choose(&mut rng).unwrap();
+            let ctx = Self {
                 seed,
                 msg_len,
                 to_write_len,
                 min_read_len,
-            }
+                pause_read_threshold,
+            };
+            set_ctx(ctx);
+            ctx
         }
 
         fn print(&self) {
             let ctx = self;
-            trace!(ctx.seed, ctx.msg_len, ctx.to_write_len, ctx.min_read_len);
+            trace!(
+                ctx.seed,
+                ctx.msg_len,
+                ctx.to_write_len,
+                ctx.min_read_len,
+                ctx.pause_read_threshold
+            );
         }
     }
 
-    async fn do_test_echo(ctx: TestEchoCtx) {
+    async fn do_test_echo(ctx: TestCtx) {
         ctx.print();
 
         // Setup
@@ -1037,10 +1081,10 @@ mod test {
         // Client
         let write_msg = msg.clone();
         let (mut tcp_b_read, mut tcp_b_write) = tcp_b.into_split();
-        let b_task = LxTask::spawn_named("b", async move {
+        let client_task = LxTask::spawn_named("client", async move {
             let (min_read_done_tx, min_read_done_rx) = oneshot::channel::<()>();
 
-            let write_task = LxTask::spawn_named("write", async move {
+            let write_task = LxTask::spawn_named("client_write", async move {
                 let mut msg = write_msg.as_slice();
 
                 let mut total_written = 0;
@@ -1057,7 +1101,7 @@ mod test {
                     msg.consume(write_len);
                     total_written += write_len;
 
-                    test::maybe_yield("write_task").await;
+                    test::maybe_yield("client_write").await;
                 }
                 assert_eq!(total_written, write_msg.len());
 
@@ -1068,7 +1112,7 @@ mod test {
                 // only then write half-close TCP stream
                 drop(tcp_b_write);
             });
-            let read_task = LxTask::spawn_named("read", async move {
+            let read_task = LxTask::spawn_named("client_read", async move {
                 let mut read_msg = vec![0u8; ctx.min_read_len];
 
                 // read at least `ctx.min_read_len`
@@ -1095,13 +1139,14 @@ mod test {
         });
 
         let (conn_stats, read_msg) =
-            tokio::try_join!(conn_task, b_task).unwrap();
+            tokio::try_join!(conn_task, client_task).unwrap();
 
         let peer = {
             let mut locked = peer_manager.lock().unwrap();
             locked.disconnected_peer.take().unwrap()
         };
 
+        // Print test metrics
         ctx.print();
         let read_msg_len = read_msg.len();
         trace!(
@@ -1112,14 +1157,17 @@ mod test {
             read_msg_len,
         );
 
+        // Check that each stage flows more bytes than the next stage.
         assert!(ctx.msg_len >= conn_stats.total_bytes_read);
         assert!(conn_stats.total_bytes_read >= peer.total_read_event_len);
         assert!(peer.total_read_event_len >= peer.total_write_len_queued);
         assert!(peer.total_write_len_queued >= conn_stats.total_bytes_written);
         assert!(conn_stats.total_bytes_written >= read_msg_len);
+        // The min_read_len helps ensure liveness.
         assert!(read_msg_len >= ctx.min_read_len);
 
-        // We must write a prefix of the message.
+        // The final read_msg must be a strict prefix of the original msg
+        // (no lost bytes).
         assert_eq!(&read_msg, &msg[..read_msg_len]);
     }
 
@@ -1131,7 +1179,13 @@ mod test {
 
     struct EchoPeer {
         conn_tx: ConnectionTx,
+
+        /// `read_event` -> `buf` -> ... -> `buf` -> `send_data`
         buf: VecDeque<u8>,
+
+        /// When `true` we'll pause_read when `buf` goes above
+        /// `pause_read_threshold` and resume_read when it goes below.
+        pause_read: bool,
 
         /// Total number of bytes pushed to `read_event`.
         total_read_event_len: usize,
@@ -1201,6 +1255,7 @@ mod test {
             conn_tx: &mut ConnectionTx,
             data: &[u8],
         ) -> Result<bool, PeerHandleError> {
+            trace!("PeerManager::read_event");
             if let Some(peer) = self.lock().unwrap().peer_for(conn_tx) {
                 peer.read_event(data)
             } else {
@@ -1209,11 +1264,13 @@ mod test {
         }
 
         fn process_events(&self) {
+            trace!("PeerManager::process_events");
             while let Some(peer) = self.lock().unwrap().peer.as_mut() {
                 let can_send_more = peer.send_next();
                 if !can_send_more {
                     break;
                 }
+                // TODO(phlip9): simulate yield by randomly return here
             }
         }
 
@@ -1221,12 +1278,16 @@ mod test {
             &self,
             conn_tx: &mut ConnectionTx,
         ) -> Result<(), PeerHandleError> {
+            trace!("PeerManager::write_buffer_space_avail");
             loop {
                 match self.lock().unwrap().peer_for(conn_tx) {
-                    Some(peer) =>
-                        if !peer.send_next() {
+                    Some(peer) => {
+                        let can_send_more = peer.send_next();
+                        if !can_send_more {
                             return Ok(());
-                        },
+                        }
+                        // TODO(phlip9): simulate yield by randomly return here
+                    }
                     None => return Err(PeerHandleError {}),
                 }
             }
@@ -1238,30 +1299,75 @@ mod test {
             Self {
                 conn_tx,
                 buf: VecDeque::new(),
+                pause_read: false,
                 total_read_event_len: 0,
                 total_write_len_queued: 0,
             }
         }
 
+        // Called from `Connection` task when it has read more data. Return
+        // `true` to tell `Connection` to pause read.
         fn read_event(&mut self, data: &[u8]) -> Result<bool, PeerHandleError> {
+            trace!(
+                buf_len = self.buf.len(),
+                read_len = data.len(),
+                "EchoPeer::read_event"
+            );
+            assert_ne!(data.len(), 0);
+
+            // NOTE: pause_read for LDK is just a suggestion and isn't actually
+            // enforced. We'll enforce it here to check that our logic is
+            // working.
+            assert!(!self.pause_read);
+
             self.buf.extend(data);
             self.total_read_event_len += data.len();
-            Ok(false)
+
+            self.pause_read = self.buf.len() >= ctx().pause_read_threshold;
+            Ok(self.pause_read)
         }
 
         fn send_next(&mut self) -> bool {
-            const WRITE_LEN: usize = 696;
+            let buf_len = self.buf.len();
+            trace!(
+                buf_len,
+                pause_read = self.pause_read,
+                "EchoPeer::send_next"
+            );
 
             let data = self.buf.fill_buf().unwrap();
-            let to_write_len = min(WRITE_LEN, data.len());
+            if data.is_empty() {
+                let prev_pause_read = self.pause_read;
+                self.pause_read = buf_len >= ctx().pause_read_threshold;
+                let resume_read = prev_pause_read && !self.pause_read;
 
-            if to_write_len == 0 {
+                if resume_read {
+                    let write_len = self.conn_tx.send_data(&[], resume_read);
+                    assert_eq!(write_len, 0);
+                }
                 return false;
             }
 
-            let data = &data[..to_write_len];
+            // Inject chaos
+            let data = maybe_partial_write(data);
+            let to_write_len = data.len();
+            assert_ne!(to_write_len, 0);
+
+            // NOTE: we're not guaranteed that there is actually write space
+            // available, since `process_events` is a potential caller.
+            // Therefore we can't safely `resume_read` until we know
+            // `written_len > 0`.
             let resume_read = false;
             let written_len = self.conn_tx.send_data(data, resume_read);
+            trace!(written_len, "EchoPeer::send_data ->");
+
+            // Only `resume_read` if we actually managed to queue a write that
+            // puts us under the pause_read_threshold.
+            let prev_pause_read = self.pause_read;
+            self.pause_read =
+                buf_len - written_len >= ctx().pause_read_threshold;
+            let resume_read = prev_pause_read && !self.pause_read;
+            self.conn_tx.send_data(&[], resume_read);
 
             self.total_write_len_queued += written_len;
             assert!(written_len <= to_write_len);

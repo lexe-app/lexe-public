@@ -355,6 +355,7 @@ impl CryptoRng for ThreadFastRng {}
 // Using `const { .. }` with a noop-drop type (allegedly) lets us
 // use a faster thread_local impl.
 thread_local! {
+    // clippy errors when built for SGX without without this lint line
     // TODO(phlip9): incorrect lint, remove when clippy not broken
     #[allow(clippy::missing_const_for_thread_local)]
     static THREAD_RNG_STATE: Cell<u64> = const { Cell::new(0) };
