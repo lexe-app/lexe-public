@@ -29,9 +29,14 @@ use tokio::{
 };
 use tracing::{debug, instrument, trace, warn};
 
+/// The max time we'll wait for an outbound p2p TCP connection to connect.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+
 /// The maximum amount of time we'll allow LDK to complete the P2P handshake.
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// The size of each `Connection`'s `read_buf`. LDK suggests 4 KiB.
+const READ_BUF_LEN: usize = 4 << 10; // 4 KiB
 
 /// Connects to a LN peer, returning early if we were already connected.
 /// Cycles through the given addresses until we run out of connect attempts.
@@ -220,7 +225,7 @@ struct Connection<PM> {
 
     /// A fixed buffer to hold data read from the socket, before we immediately
     /// pass it on to `PeerManager::read_event`.
-    read_buf: Box<[u8; 8 << 10]>,
+    read_buf: Box<[u8; READ_BUF_LEN]>,
 
     /// Connection statistics
     stats: ConnectionStats,
@@ -362,7 +367,7 @@ impl<PM: PeerManagerTrait> Connection<PM> {
             peer_manager,
             write_buf: None,
             write_offset: 0,
-            read_buf: Box::new([0u8; 8 << 10]),
+            read_buf: Box::new([0u8; READ_BUF_LEN]),
             stats: ConnectionStats::new(),
             conn_tx: conn_tx.clone(),
         };
@@ -448,8 +453,9 @@ impl<PM: PeerManagerTrait> Connection<PM> {
                 }
 
                 // Socket is ready to read or write
-                // -> is_writable => write_buf[write_offset..] -> stream.try_write
-                // -> is_readable => stream.try_read -> read_buf -> PeerManager::read_event
+                // -> is_writable => (xN) write_buf -> stream.try_write && rx.try_recv
+                // -> is_readable => (xN) stream.try_read -> read_buf -> PeerManager::read_event
+                //                   PeerManager::process_events
                 //
                 // NOTE: `unwrap_or(Interest::ERROR)` is needed b/c we have to
                 // evaluate the `ready` future with _some_ interest, but the
@@ -471,34 +477,12 @@ impl<PM: PeerManagerTrait> Connection<PM> {
                         }
                     };
 
-                    // If socket says it's ready to read -> try to read.
-                    let bytes_read: Option<NonZeroUsize> = if ready.is_readable() {
-                        match self.try_read_buf() {
-                            Ok(bytes_read) => bytes_read,
-                            Err(disconnect) => break disconnect,
-                        }
-                    } else {
-                        None
-                    };
-
-                    // Tell `PeerManager` about data we just read.
-                    if let Some(bytes_read) = bytes_read {
-                        trace!(bytes_read);
-
-                        let data = &self.read_buf[..bytes_read.get()];
-                        let pause_read = match self.peer_manager.read_event(&mut self.conn_tx, data) {
-                            // It may want us to pause reads
-                            Ok(pause_read) => pause_read,
-                            Err(PeerHandleError {}) => break Disconnect::PeerManager,
-                        };
-
-                        let state = if pause_read { STATE_PAUSE_READ } else { STATE_NORMAL };
-                        if let Err(disconnect) = self.set_ctl_state(state) {
+                    // If socket says it's ready to read
+                    // -> try to read a few times.
+                    if ready.is_readable() {
+                        if let Err(disconnect) = self.try_read_buf_many() {
                             break disconnect;
                         }
-
-                        // TODO(phlip9): move into separate task
-                        self.peer_manager.process_events();
                     }
                 }
             }
@@ -687,14 +671,75 @@ impl<PM: PeerManagerTrait> Connection<PM> {
         Ok(())
     }
 
+    /// Loop `try_read_buf` + `peer_manager.read_buf` until we either drain our
+    /// TCP stream read queue or we get LDK read backpressure. Then call
+    /// `PeerManager::process_events` if we read anything.
+    fn try_read_buf_many(&mut self) -> Result<(), Disconnect> {
+        // If we successfully read any data at all, we should call
+        // `PeerManager::process_events`
+        let mut any_data_read = false;
+
+        // Read up to `8 * READ_BUF_LEN` ≈ 32 KiB in one call
+        for _ in 0..8 {
+            // Try to fill `self.read_buf`
+            let bytes_read = match self.try_read_buf()? {
+                Some(bytes_read) => {
+                    any_data_read = true;
+                    bytes_read
+                }
+                None => break,
+            };
+
+            // We can read more if we completely filled `self.read_buf`.
+            let can_read_more = bytes_read.get() == READ_BUF_LEN;
+
+            // Give `PeerManager` the data we just read.
+            let data = &self.read_buf[..bytes_read.get()];
+            let pause_read =
+                match self.peer_manager.read_event(&mut self.conn_tx, data) {
+                    // LDK may apply read backpressure and ask us to pause reads
+                    Ok(pause_read) => pause_read,
+                    Err(PeerHandleError {}) =>
+                        return Err(Disconnect::PeerManager),
+                };
+
+            // Update our shared state with the `ConnectionTx` handles.
+            let state = if pause_read {
+                STATE_PAUSE_READ
+            } else {
+                STATE_NORMAL
+            };
+            self.set_ctl_state(state)?;
+
+            // Stop reading
+            if pause_read || !can_read_more {
+                break;
+            }
+        }
+
+        // Drive `PeerManager` to handle these reads.
+        // NOTE: this drives ALL peers
+        if any_data_read {
+            // TODO(phlip9): move into separate task. one connection task might
+            // get starved if it's forced to keep looping inside
+            // `process_events`.
+            self.peer_manager.process_events();
+        }
+
+        Ok(())
+    }
+
     /// Attempt a `stream.try_read(&mut read_buf)`. Returns the number of bytes
     /// read, if any.
     fn try_read_buf(&mut self) -> Result<Option<NonZeroUsize>, Disconnect> {
         let read_buf = self.read_buf.as_mut_slice();
-        #[cfg(test)] // Sometimes inject partial reads in test
-        let read_buf = test::maybe_partial_read(read_buf);
 
-        match self.stream.try_read(read_buf) {
+        #[cfg(not(test))]
+        let res = self.stream.try_read(read_buf);
+        #[cfg(test)] // inject partial reads and io::ErrorKind::WouldBlock
+        let res = test::maybe_stream_try_read(&mut self.stream, read_buf);
+
+        match res {
             Ok(bytes_read) => match NonZeroUsize::new(bytes_read) {
                 // read=0 => Remote peer write half-close
                 None => Err(Disconnect::ReadClosed),
@@ -922,6 +967,18 @@ mod test {
             &to_write[..to_write_len]
         } else {
             to_write
+        }
+    }
+
+    pub fn maybe_stream_try_read(
+        stream: &mut TcpStream,
+        read_buf: &mut [u8],
+    ) -> io::Result<usize> {
+        if maybe(0.1) {
+            Err(io::Error::from(io::ErrorKind::WouldBlock))
+        } else {
+            let read_buf = maybe_partial_read(read_buf);
+            stream.try_read(read_buf)
         }
     }
 
