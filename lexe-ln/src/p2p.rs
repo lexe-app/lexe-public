@@ -1,7 +1,6 @@
 use std::{
     hash::Hash,
     io,
-    mem::size_of,
     num::NonZeroUsize,
     sync::{
         atomic::{AtomicU64, AtomicUsize, Ordering},
@@ -15,6 +14,8 @@ use common::{
     api::user::NodePk, backoff, ln::addr::LxSocketAddress, task::LxTask, Apply,
 };
 use lightning::ln::peer_handler::PeerHandleError;
+#[cfg(doc)]
+use lightning::ln::peer_handler::PeerManager;
 use tokio::{
     io::Interest,
     net::TcpStream,
@@ -35,8 +36,12 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 /// The maximum amount of time we'll allow LDK to complete the P2P handshake.
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// The size of each `Connection`'s `read_buf`. LDK suggests 4 KiB.
+/// The size of each [`Connection::read_buf`]. LDK suggests 4 KiB.
 const READ_BUF_LEN: usize = 4 << 10; // 4 KiB
+
+//
+// --- p2p module public interface ---
+//
 
 /// Connects to a LN peer, returning early if we were already connected.
 /// Cycles through the given addresses until we run out of connect attempts.
@@ -168,7 +173,7 @@ where
 }
 
 /// Spawn a task to handle a new inbound p2p TCP connection and register it with
-/// the LDK peer manager.
+/// the LDK [`PeerManager`].
 pub fn spawn_inbound<PM>(
     peer_manager: &PM,
     stream: TcpStream,
@@ -179,19 +184,15 @@ where
     let conn = Connection::setup_inbound(peer_manager, stream);
     // TODO(phlip9): find a way to set task name with node_pk after handshake?
     let task_name = format!("p2p-conn--inbound-{}", conn.ctl.id);
-    // TODO(phlip9): does LDK handle inbound handshake timeout?
     LxTask::spawn_named(task_name, conn.run())
 }
 
 //
-// --- WIP lightning-net-tokio replacement ---
+// --- p2p module internals ---
 //
 
-/// Used to generate the next unique ID for a new connection.
-static CONNECTION_ID: AtomicU64 = AtomicU64::new(0);
-
-/// A handle to a `Connection`. Used to request the socket to send data.
-/// Cheaply cloneable.
+/// A handle to a `Connection`. Used to request the socket to send data and/or
+/// disconnect. Cheaply cloneable.
 #[derive(Clone)]
 pub struct ConnectionTx {
     /// Update the connection control state (disconnect/pause reads).
@@ -200,10 +201,8 @@ pub struct ConnectionTx {
     tx: mpsc::Sender<Box<[u8]>>,
 }
 
-const _: [(); 2 * size_of::<usize>()] = [(); size_of::<ConnectionTx>()];
-
 /// A Lightning p2p connection. Wraps a tokio [`TcpStream`] in additional logic
-/// required to interface with LDK's `PeerManager`.
+/// required to interface with LDK's [`PeerManager`].
 struct Connection<PM> {
     /// Get notified of connection control updates (disconnect/resume_read).
     ctl: Arc<ConnectionCtl>,
@@ -211,10 +210,10 @@ struct Connection<PM> {
     /// Receive write data requests from [`ConnectionTx::send_data`].
     rx: mpsc::Receiver<Box<[u8]>>,
 
-    /// Handle to LDK PeerManager.
+    /// Handle to LDK [`PeerManager`].
     peer_manager: PM,
 
-    /// The underlying TCP socket.
+    /// The underlying TCP connection.
     stream: TcpStream,
 
     /// The next enqueued write.
@@ -224,13 +223,13 @@ struct Connection<PM> {
     write_offset: usize,
 
     /// A fixed buffer to hold data read from the socket, before we immediately
-    /// pass it on to `PeerManager::read_event`.
+    /// pass it on to [`PeerManager::read_event`].
     read_buf: Box<[u8; READ_BUF_LEN]>,
 
     /// Connection statistics
     stats: ConnectionStats,
 
-    /// LDK requires us to pass a full `ConnectionTx` to `read_event` etc...,
+    /// LDK requires us to pass a full [`ConnectionTx`] to `read_event` etc...,
     /// so we have to hold onto an extra one inside `Connection`...
     conn_tx: ConnectionTx,
 }
@@ -256,13 +255,16 @@ struct ConnectionCtl {
 // NOTE: change `ConnectionCtl::resume_read` if more states are added for some
 // reason.
 
-/// Connection is running normally.
+/// [`ConnectionCtl::state`] when [`Connection`] is running normally.
 const STATE_NORMAL: usize = 0;
-/// Connection has its reads paused.
+/// [`ConnectionCtl::state`] when [`Connection`] has its reads paused.
 const STATE_PAUSE_READ: usize = 1;
-/// Connection is disconnected or in the process of disconnecting.
+/// [`ConnectionCtl::state`] when [`Connection`] is disconnected or in the
+/// process of disconnecting.
 const STATE_DISCONNECT: usize = 2;
 
+/// Track some overall per-`Connection` stats.
+// TODO(phlip9): do something with this outside of tests?
 struct ConnectionStats {
     total_bytes_written: usize,
     total_bytes_read: usize,
@@ -273,25 +275,27 @@ struct ConnectionStats {
 pub enum Disconnect {
     /// Socket error (peer immediate disconnect).
     Socket(std::io::ErrorKind),
-    /// We can't read from socket anymore--remote peer write half-close.
+    /// We can't read from the socket anymore: remote peer write half-close.
     ReadClosed,
-    /// We can't write to the socket anymore--remote peer read half-close.
+    /// We can't write to the socket anymore: remote peer read half-close.
     WriteClosed,
     /// PeerManager called `ConnectionTx::disconnect_socket`.
     PeerManager,
 }
 
-const _: [(); 1] = [(); size_of::<Result<(), Disconnect>>()];
-
 /// A trait that encapsulates the exact interface we require from the LDK
-/// `PeerManager` as far as `Connection` is concerned.
+/// [`PeerManager`] as far as `Connection` is concerned.
 pub trait PeerManagerTrait: Clone + Send + 'static {
     /// Returns `true` if we're connected to a peer with [`NodePk`].
+    /// NOTE: current [`PeerManager`] impl is O(#peers) and locks each peer
+    /// struct, which is not ideal...
     fn is_connected(&self, node_pk: &NodePk) -> bool;
 
-    /// Register a new inbound connection with the `PeerManager`. Returns an
+    /// Register a new inbound connection with the [`PeerManager`]. Returns an
     /// initial write that should be sent immediately. May return `Err` to
     /// reject the new connection, which should then be disconnected.
+    ///
+    /// See: [`PeerManager::new_outbound_connection`]
     fn new_outbound_connection(
         &self,
         node_pk: &NodePk,
@@ -299,49 +303,60 @@ pub trait PeerManagerTrait: Clone + Send + 'static {
         addr: Option<LxSocketAddress>,
     ) -> Result<Vec<u8>, PeerHandleError>;
 
-    /// Register a new outbound connection with the `PeerManager`. May return
+    /// Register a new outbound connection with the [`PeerManager`]. May return
     /// `Err` to reject the new connection, which should then be disconnected.
+    ///
+    /// See: [`PeerManager::new_inbound_connection`]
     fn new_inbound_connection(
         &self,
         conn_tx: ConnectionTx,
         addr: Option<LxSocketAddress>,
     ) -> Result<(), PeerHandleError>;
 
-    /// Notify the `PeerManager` that the connection associated with `conn_tx`
+    /// Notify the [`PeerManager`] that the connection associated with `conn_tx`
     /// has disconnected.
     ///
     /// This fn is idempotent, so it's safe to call multiple times.
+    ///
+    /// See: [`PeerManager::socket_disconnected`]
     fn socket_disconnected(&self, conn_tx: &ConnectionTx);
 
-    /// Feed the `PeerManager` new data read from the socket associated with
+    /// Feed the [`PeerManager`] new data read from the socket associated with
     /// `conn_tx`.
     ///
     /// Returns `Ok(true)`, if the connection should apply backpressure on
-    /// reads. That means it should avoid calling `PeerManager::read_event`
+    /// reads. That means it should avoid calling [`PeerManager::read_event`]
     /// until the next `ConnectionTx::send_data(.., resume_read: true)` request.
     ///
     /// Returns `Err` if the socket should be disconnected. You do not need to
     /// call `socket_disconnected`.
     ///
-    /// You SHOULD call `PeerManager::process_events` sometime after a
+    /// You SHOULD call [`PeerManager::process_events`] sometime after a
     /// `read_event` to generate subsequent `send_data` calls.
     ///
     /// This will NOT call `send_data` to avoid re-entrancy reasons.
+    ///
+    /// See: [`PeerManager::read_event`]
     fn read_event(
         &self,
         conn_tx: &mut ConnectionTx,
         data: &[u8],
     ) -> Result<bool, PeerHandleError>;
 
-    /// Drive the `PeerManager` state machine to handle new `read_event`s.
+    /// Drive the [`PeerManager`] state machine to handle new `read_event`s.
+    /// Drives ALL peers in the [`PeerManager`].
     ///
     /// May call `send_data` on various peer `ConnectionTx`'s.
+    ///
+    /// See: [`PeerManager::process_events`]
     fn process_events(&self);
 
-    /// Notify the `PeerManager` that the connection associated with `conn_tx`
+    /// Notify the [`PeerManager`] that the connection associated with `conn_tx`
     /// now has room for more `send_data` write requests.
     ///
     /// May call `send_data` on the `conn_tx` multiple times.
+    ///
+    /// See: [`PeerManager::write_buffer_space_avail`]
     fn write_buffer_space_avail(
         &self,
         conn_tx: &mut ConnectionTx,
@@ -574,7 +589,7 @@ impl<PM: PeerManagerTrait> Connection<PM> {
         Ok(())
     }
 
-    /// Tell `PeerManager` we have space for more write data requests in the
+    /// Tell [`PeerManager`] we have space for more write data requests in the
     /// mpsc queue.
     fn notify_send_data_channel_space_avail(
         &mut self,
@@ -673,7 +688,7 @@ impl<PM: PeerManagerTrait> Connection<PM> {
 
     /// Loop `try_read_buf` + `peer_manager.read_buf` until we either drain our
     /// TCP stream read queue or we get LDK read backpressure. Then call
-    /// `PeerManager::process_events` if we read anything.
+    /// [`PeerManager::process_events`] if we read anything.
     fn try_read_buf_many(&mut self) -> Result<(), Disconnect> {
         // If we successfully read any data at all, we should call
         // `PeerManager::process_events`
@@ -767,7 +782,7 @@ impl ConnectionTx {
     /// `write_tx` channel is full, indicating write backpressure.
     ///
     /// If there is write backpressure, the [`Connection`] MUST call
-    /// `PeerManager::write_buffer_space_avail` when it has room for more
+    /// [`PeerManager::write_buffer_space_avail`] when it has room for more
     /// writes.
     fn send_data(&mut self, data: &[u8], resume_read: bool) -> usize {
         trace!(
@@ -810,7 +825,7 @@ impl ConnectionTx {
         }
     }
 
-    /// Notify the [`Connection`] that the `PeerManager` wants to disconnect.
+    /// Notify the [`Connection`] that the [`PeerManager`] wants to disconnect.
     fn disconnect_socket(&mut self) {
         trace!("ConnectionTx => disconnect");
         self.ctl.disconnect()
@@ -850,6 +865,7 @@ impl Hash for ConnectionTx {
 
 impl ConnectionCtl {
     fn new() -> Self {
+        static CONNECTION_ID: AtomicU64 = AtomicU64::new(0);
         Self {
             id: CONNECTION_ID.fetch_add(1, Ordering::Relaxed),
             state: AtomicUsize::new(STATE_NORMAL),
