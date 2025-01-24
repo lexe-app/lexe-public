@@ -174,9 +174,17 @@ impl LexeBackgroundProcessor {
                             .instrument(info_span!("(event-handler)(chain-mon)"))
                             .await;
 
+                        // NOTE(phlip9): worried the `Connection` ->
+                        // `process_events` flow might starve the BGP if it
+                        // grabs the `process_events` lock and is forced to do
+                        // a neverending amount of work under load.
+                        //
+                        // TODO(phlip9): Consider sending a notification to the
+                        // new `process_events` task and waiting for that to
+                        // complete?
                         async {
                             peer_manager.process_events();
-                        }.instrument(info_span!("(process)(peer-man)")).await;
+                        }.instrument(info_span!("(process-bgp)(peer-man)")).await;
 
                         // Notify waiters that events have been processed.
                         for tx in processed_txs {

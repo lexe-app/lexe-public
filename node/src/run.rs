@@ -525,14 +525,16 @@ impl UserNode {
         ));
 
         // Initialize PeerManager
-        let peer_manager = NodePeerManager::init(
+        let (peer_manager, process_events_task) = NodePeerManager::init(
             rng,
             keys_manager.clone(),
             channel_manager.clone(),
             gossip_sync.clone(),
             onion_messenger.clone(),
             logger.clone(),
+            shutdown.clone(),
         );
+        tasks.push(process_events_task);
 
         // Init payments manager
         let (onchain_recv_tx, onchain_recv_rx) = notify::channel();

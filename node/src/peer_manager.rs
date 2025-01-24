@@ -7,13 +7,16 @@ use std::{
 use common::{
     api::user::NodePk,
     ln::addr::LxSocketAddress,
+    notify,
+    notify_once::NotifyOnce,
     rng::{Crng, RngExt},
+    task::LxTask,
 };
 use lexe_ln::{
     alias::P2PGossipSyncType,
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
-    p2p::{ConnectionTx, PeerManagerTrait},
+    p2p::{spawn_process_events_task, ConnectionTx, PeerManagerTrait},
 };
 use lightning::ln::{
     msgs::SocketAddress,
@@ -26,14 +29,18 @@ use crate::{
     channel_manager::NodeChannelManager,
 };
 
-/// An Arc is held internally, so it is fine to clone directly.
 #[derive(Clone)]
-pub struct NodePeerManager(Arc<PeerManagerType>);
+pub struct NodePeerManager(Arc<Inner>);
+
+struct Inner {
+    peer_manager: PeerManagerType,
+    process_events_tx: notify::Sender,
+}
 
 impl Deref for NodePeerManager {
     type Target = PeerManagerType;
     fn deref(&self) -> &Self::Target {
-        self.0.as_ref()
+        &self.0.peer_manager
     }
 }
 
@@ -45,7 +52,8 @@ impl NodePeerManager {
         gossip_sync: Arc<P2PGossipSyncType>,
         onion_messenger: Arc<OnionMessengerType>,
         logger: LexeTracingLogger,
-    ) -> Self {
+        shutdown: NotifyOnce,
+    ) -> (Self, LxTask<()>) {
         let lightning_msg_handler = MessageHandler {
             chan_handler: channel_manager,
             route_handler: gossip_sync,
@@ -75,7 +83,21 @@ impl NodePeerManager {
             keys_manager,
         );
 
-        Self(Arc::new(peer_manager))
+        let (process_events_tx, process_events_rx) = notify::channel();
+        let node_peer_manager = Self(Arc::new(Inner {
+            peer_manager,
+            process_events_tx,
+        }));
+
+        // Spawn task that calls `PeerManager::process_events` on
+        // `process_events_tx` notification.
+        let process_events_task = spawn_process_events_task(
+            node_peer_manager.clone(),
+            process_events_rx,
+            shutdown,
+        );
+
+        (node_peer_manager, process_events_task)
     }
 }
 
@@ -83,7 +105,11 @@ impl NodePeerManager {
 // TODO(phlip9): figure out how to make blanket trait impl work to avoid this
 impl PeerManagerTrait for NodePeerManager {
     fn is_connected(&self, node_pk: &NodePk) -> bool {
-        self.0.as_ref().peer_by_node_id(&node_pk.0).is_some()
+        self.0.peer_manager.peer_by_node_id(&node_pk.0).is_some()
+    }
+
+    fn notify_process_events_task(&self) {
+        self.0.process_events_tx.send();
     }
 
     fn new_outbound_connection(
@@ -92,7 +118,7 @@ impl PeerManagerTrait for NodePeerManager {
         conn_tx: ConnectionTx,
         addr: Option<LxSocketAddress>,
     ) -> Result<Vec<u8>, PeerHandleError> {
-        self.0.as_ref().new_outbound_connection(
+        self.0.peer_manager.new_outbound_connection(
             node_pk.0,
             conn_tx,
             addr.map(SocketAddress::from),
@@ -105,12 +131,12 @@ impl PeerManagerTrait for NodePeerManager {
         addr: Option<LxSocketAddress>,
     ) -> Result<(), PeerHandleError> {
         self.0
-            .as_ref()
+            .peer_manager
             .new_inbound_connection(conn_tx, addr.map(SocketAddress::from))
     }
 
     fn socket_disconnected(&self, conn_tx: &ConnectionTx) {
-        self.0.as_ref().socket_disconnected(conn_tx)
+        self.0.peer_manager.socket_disconnected(conn_tx)
     }
 
     fn read_event(
@@ -118,17 +144,17 @@ impl PeerManagerTrait for NodePeerManager {
         conn_tx: &mut ConnectionTx,
         data: &[u8],
     ) -> Result<bool, PeerHandleError> {
-        self.0.as_ref().read_event(conn_tx, data)
+        self.0.peer_manager.read_event(conn_tx, data)
     }
 
     fn process_events(&self) {
-        self.0.as_ref().process_events()
+        self.0.peer_manager.process_events()
     }
 
     fn write_buffer_space_avail(
         &self,
         conn_tx: &mut ConnectionTx,
     ) -> Result<(), PeerHandleError> {
-        self.0.as_ref().write_buffer_space_avail(conn_tx)
+        self.0.peer_manager.write_buffer_space_avail(conn_tx)
     }
 }

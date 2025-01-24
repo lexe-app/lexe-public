@@ -11,7 +11,8 @@ use std::{
 
 use anyhow::{anyhow, ensure, Context};
 use common::{
-    api::user::NodePk, backoff, ln::addr::LxSocketAddress, task::LxTask, Apply,
+    api::user::NodePk, backoff, ln::addr::LxSocketAddress, notify,
+    notify_once::NotifyOnce, task::LxTask, Apply,
 };
 use lightning::ln::peer_handler::PeerHandleError;
 #[cfg(doc)]
@@ -28,7 +29,7 @@ use tokio::{
     },
     time,
 };
-use tracing::{debug, instrument, trace, warn};
+use tracing::{debug, info_span, instrument, trace, warn};
 
 /// The max time we'll wait for an outbound p2p TCP connection to connect.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -187,6 +188,50 @@ where
     LxTask::spawn_named(task_name, conn.run())
 }
 
+/// Spawn a task that calls [`PeerManager::process_events`] on notification.
+// TODO(phlip9): move BGP pm_timer.tick() here?
+// TODO(phlip9): move BGP process_events -> peer_manager.process_events() here?
+pub fn spawn_process_events_task<PM>(
+    peer_manager: PM,
+    mut process_events_rx: notify::Receiver,
+    mut shutdown: NotifyOnce,
+) -> LxTask<()>
+where
+    PM: PeerManagerTrait,
+{
+    const SPAN_NAME: &str = "(process-p2p)(peer-man)";
+    LxTask::spawn_named_with_span(
+        SPAN_NAME,
+        info_span!(SPAN_NAME),
+        async move {
+            let mut iter: usize = 0;
+            loop {
+                // Cheap check
+                if shutdown.try_recv() {
+                    break;
+                }
+                // Greedily poll `process_events_rx` first since it probably
+                // has work.
+                tokio::select! {
+                    biased;
+                    () = process_events_rx.recv() => peer_manager.process_events(),
+                    () = shutdown.recv() => break,
+                }
+
+                // Yield every few iters. Reduce task starvation, since
+                // `process_events` can do lots of work each iter and
+                // `process_events_rx` won't run out of work under load. The
+                // default 128 await budget is probably too large here.
+                iter = iter.wrapping_add(1);
+                if iter % 8 == 0 {
+                    tokio::task::yield_now().await;
+                }
+            }
+            trace!("shutdown");
+        },
+    )
+}
+
 //
 // --- p2p module internals ---
 //
@@ -286,10 +331,18 @@ pub enum Disconnect {
 /// A trait that encapsulates the exact interface we require from the LDK
 /// [`PeerManager`] as far as `Connection` is concerned.
 pub trait PeerManagerTrait: Clone + Send + 'static {
+    // --- Lexe ---
+
     /// Returns `true` if we're connected to a peer with [`NodePk`].
     /// NOTE: current [`PeerManager`] impl is O(#peers) and locks each peer
     /// struct, which is not ideal...
     fn is_connected(&self, node_pk: &NodePk) -> bool;
+
+    /// Notify seperate process events task that it should call
+    /// [`PeerManager::process_events`].
+    fn notify_process_events_task(&self);
+
+    // --- LDK ---
 
     /// Register a new inbound connection with the [`PeerManager`]. Returns an
     /// initial write that should be sent immediately. May return `Err` to
@@ -438,6 +491,10 @@ impl<PM: PeerManagerTrait> Connection<PM> {
             // select iter.
             let interest = self.socket_interest(pause_read);
 
+            // True if we did some real work (read/write), so we can yield to
+            // other tasks.
+            let mut did_work = false;
+
             trace!(
                 write_buf = ?self.write_buf.as_ref().map(|b| b.len()),
                 write_offset = self.write_offset,
@@ -470,7 +527,7 @@ impl<PM: PeerManagerTrait> Connection<PM> {
                 // Socket is ready to read or write
                 // -> is_writable => (xN) write_buf -> stream.try_write && rx.try_recv
                 // -> is_readable => (xN) stream.try_read -> read_buf -> PeerManager::read_event
-                //                   PeerManager::process_events
+                //                   PeerManager::notify_process_events_task
                 //
                 // NOTE: `unwrap_or(Interest::ERROR)` is needed b/c we have to
                 // evaluate the `ready` future with _some_ interest, but the
@@ -490,6 +547,7 @@ impl<PM: PeerManagerTrait> Connection<PM> {
                         if let Err(disconnect) = self.try_write_buf_many() {
                             break disconnect;
                         }
+                        did_work = true;
                     };
 
                     // If socket says it's ready to read
@@ -498,12 +556,20 @@ impl<PM: PeerManagerTrait> Connection<PM> {
                         if let Err(disconnect) = self.try_read_buf_many() {
                             break disconnect;
                         }
+                        did_work = true;
                     }
                 }
             }
 
-            #[cfg(test)] // Generate different task interleavings in test
-            test::maybe_yield("conn_iter").await;
+            // If we did some real work (read/write), we'll yield to other tasks
+            // to avoid starvation.
+            if did_work || cfg!(test) {
+                #[cfg(not(test))]
+                tokio::task::yield_now().await;
+
+                #[cfg(test)] // Generate different task interleavings in test
+                test::maybe_yield("conn_iter").await;
+            }
         };
 
         if !disconnect.is_peer_manager() {
@@ -688,9 +754,9 @@ impl<PM: PeerManagerTrait> Connection<PM> {
 
     /// Loop `try_read_buf` + `peer_manager.read_buf` until we either drain our
     /// TCP stream read queue or we get LDK read backpressure. Then call
-    /// [`PeerManager::process_events`] if we read anything.
+    /// [`PeerManagerTrait::notify_process_events_task`] if we read anything.
     fn try_read_buf_many(&mut self) -> Result<(), Disconnect> {
-        // If we successfully read any data at all, we should call
+        // If we successfully read any data at all, we should eventually call
         // `PeerManager::process_events`
         let mut any_data_read = false;
 
@@ -732,13 +798,10 @@ impl<PM: PeerManagerTrait> Connection<PM> {
             }
         }
 
-        // Drive `PeerManager` to handle these reads.
-        // NOTE: this drives ALL peers
+        // Notify `process_events_task` that it should call
+        // `PeerManager::process_events`.
         if any_data_read {
-            // TODO(phlip9): move into separate task. one connection task might
-            // get starved if it's forced to keep looping inside
-            // `process_events`.
-            self.peer_manager.process_events();
+            self.peer_manager.notify_process_events_task();
         }
 
         Ok(())
@@ -1010,7 +1073,13 @@ mod test {
 
     #[tokio::test]
     async fn test_echo() {
-        for seed in 0..100 {
+        use std::str::FromStr;
+        crate::logger::init_for_testing();
+        let iters = std::env::var("TEST_ECHO_ITERS")
+            .map_err(|_| ())
+            .and_then(|s| u64::from_str(&s).map_err(|_| ()))
+            .unwrap_or(100);
+        for seed in 0..iters {
             println!("seed = {seed}");
             do_test_echo(TestCtx::new(seed)).await;
         }
@@ -1018,16 +1087,19 @@ mod test {
 
     #[tokio::test]
     async fn test_echo_1() {
+        crate::logger::init_for_testing();
         do_test_echo(TestCtx::new(123)).await;
     }
 
     #[tokio::test]
     async fn test_echo_2() {
+        crate::logger::init_for_testing();
         do_test_echo(TestCtx::new(993)).await;
     }
 
     #[tokio::test]
     async fn test_echo_3() {
+        crate::logger::init_for_testing();
         do_test_echo(TestCtx::new(138)).await;
     }
 
@@ -1105,7 +1177,16 @@ mod test {
         // Setup
         let mut rng = ThreadFastRng::new();
         let (tcp_a, tcp_b) = make_tcp_connection().await;
-        let peer_manager = Arc::new(Mutex::new(EchoPeerManager::new()));
+        let (process_events_tx, process_events_rx) = notify::channel();
+        let peer_manager =
+            Arc::new(Mutex::new(EchoPeerManager::new(process_events_tx)));
+        let shutdown = NotifyOnce::new();
+        let process_events_task = spawn_process_events_task(
+            peer_manager.clone(),
+            process_events_rx,
+            shutdown.clone(),
+        );
+
         let (conn_tx, mut conn) = Connection::new(peer_manager.clone(), tcp_a);
 
         let addr = None;
@@ -1160,12 +1241,16 @@ mod test {
 
                 // SGX: TCP half-close does nothing. Manually terminate reader
                 // so test completes.
-                if cfg!(target_env = "sgx") || maybe(0.25) {
+                let out = if cfg!(target_env = "sgx") || maybe(0.25) {
                     let _ = tcp_write_closed_tx.send(());
                     None
                 } else {
                     Some(tcp_write_closed_tx)
-                }
+                };
+
+                trace!("client_write: done");
+
+                out
             });
             let read_task = LxTask::spawn_named("client_read", async move {
                 let mut read_msg = vec![0u8; ctx.min_read_len];
@@ -1193,6 +1278,8 @@ mod test {
 
                 drop(tcp_b_read);
 
+                trace!("client_read: done");
+
                 read_msg
             });
 
@@ -1204,6 +1291,10 @@ mod test {
 
         let (conn_stats, read_msg) =
             tokio::try_join!(conn_task, client_task).unwrap();
+
+        // Stop process_events_task
+        shutdown.send();
+        process_events_task.await.unwrap();
 
         let peer = {
             let mut locked = peer_manager.lock().unwrap();
@@ -1239,6 +1330,7 @@ mod test {
     struct EchoPeerManager {
         peer: Option<EchoPeer>,
         disconnected_peer: Option<EchoPeer>,
+        process_events_tx: notify::Sender,
     }
 
     struct EchoPeer {
@@ -1261,10 +1353,11 @@ mod test {
     }
 
     impl EchoPeerManager {
-        fn new() -> Self {
+        fn new(process_events_tx: notify::Sender) -> Self {
             Self {
                 peer: None,
                 disconnected_peer: None,
+                process_events_tx,
             }
         }
 
@@ -1282,6 +1375,10 @@ mod test {
     impl PeerManagerTrait for Arc<Mutex<EchoPeerManager>> {
         fn is_connected(&self, _node_pk: &NodePk) -> bool {
             todo!()
+        }
+
+        fn notify_process_events_task(&self) {
+            self.lock().unwrap().process_events_tx.send();
         }
 
         fn new_outbound_connection(
@@ -1515,13 +1612,23 @@ mod ldk_test {
             onion_message_handler: Arc::new(IgnoringMessageHandler {}),
             custom_message_handler: Arc::new(IgnoringMessageHandler {}),
         };
-        let a_manager: TestPeerManager = Arc::new(PeerManager::new(
-            a_msg_handler,
-            0,
-            &[1; 32],
-            logger::LexeTracingLogger::new(),
-            Arc::new(TestNodeSigner::new(a_key)),
+        let (a_process_events_tx, a_process_events_rx) = notify::channel();
+        let a_manager: TestPeerManager = Arc::new((
+            PeerManager::new(
+                a_msg_handler,
+                0,
+                &[1; 32],
+                logger::LexeTracingLogger::new(),
+                Arc::new(TestNodeSigner::new(a_key)),
+            ),
+            a_process_events_tx,
         ));
+        let shutdown = NotifyOnce::new();
+        let a_process_events_task = spawn_process_events_task(
+            a_manager.clone(),
+            a_process_events_rx,
+            shutdown.clone(),
+        );
 
         let (b_connected_sender, mut b_connected) = mpsc::channel(1);
         let (b_disconnected_sender, mut b_disconnected) = mpsc::channel(1);
@@ -1538,13 +1645,22 @@ mod ldk_test {
             onion_message_handler: Arc::new(IgnoringMessageHandler {}),
             custom_message_handler: Arc::new(IgnoringMessageHandler {}),
         };
-        let b_manager = Arc::new(PeerManager::new(
-            b_msg_handler,
-            0,
-            &[2; 32],
-            logger::LexeTracingLogger::new(),
-            Arc::new(TestNodeSigner::new(b_key)),
+        let (b_process_events_tx, b_process_events_rx) = notify::channel();
+        let b_manager = Arc::new((
+            PeerManager::new(
+                b_msg_handler,
+                0,
+                &[2; 32],
+                logger::LexeTracingLogger::new(),
+                Arc::new(TestNodeSigner::new(b_key)),
+            ),
+            b_process_events_tx,
         ));
+        let b_process_events_task = spawn_process_events_task(
+            b_manager.clone(),
+            b_process_events_rx,
+            shutdown.clone(),
+        );
 
         let (tcp_a, tcp_b) = make_tcp_connection().await;
 
@@ -1589,6 +1705,10 @@ mod ldk_test {
 
         fut_a.await.unwrap();
         fut_b.await.unwrap();
+
+        shutdown.send();
+        a_process_events_task.await.unwrap();
+        b_process_events_task.await.unwrap();
     }
 
     pub async fn make_tcp_connection() -> (TcpStream, TcpStream) {
@@ -1613,7 +1733,7 @@ mod ldk_test {
         Arc<IgnoringMessageHandler>,
     >;
 
-    type TestPeerManager = Arc<
+    type TestPeerManager = Arc<(
         PeerManager<
             ConnectionTx,
             Arc<MsgHandler>,
@@ -1623,11 +1743,16 @@ mod ldk_test {
             Arc<IgnoringMessageHandler>,
             Arc<TestNodeSigner>,
         >,
-    >;
+        notify::Sender,
+    )>;
 
     impl PeerManagerTrait for TestPeerManager {
         fn is_connected(&self, node_pk: &NodePk) -> bool {
-            self.as_ref().peer_by_node_id(&node_pk.0).is_some()
+            self.as_ref().0.peer_by_node_id(&node_pk.0).is_some()
+        }
+
+        fn notify_process_events_task(&self) {
+            self.as_ref().1.send();
         }
 
         fn new_outbound_connection(
@@ -1636,7 +1761,7 @@ mod ldk_test {
             conn_tx: ConnectionTx,
             addr: Option<LxSocketAddress>,
         ) -> Result<Vec<u8>, PeerHandleError> {
-            self.as_ref().new_outbound_connection(
+            self.as_ref().0.new_outbound_connection(
                 node_pk.0,
                 conn_tx,
                 addr.map(SocketAddress::from),
@@ -1649,11 +1774,12 @@ mod ldk_test {
             addr: Option<LxSocketAddress>,
         ) -> Result<(), PeerHandleError> {
             self.as_ref()
+                .0
                 .new_inbound_connection(conn_tx, addr.map(SocketAddress::from))
         }
 
         fn socket_disconnected(&self, conn_tx: &ConnectionTx) {
-            self.as_ref().socket_disconnected(conn_tx)
+            self.as_ref().0.socket_disconnected(conn_tx)
         }
 
         fn read_event(
@@ -1661,18 +1787,18 @@ mod ldk_test {
             conn_tx: &mut ConnectionTx,
             data: &[u8],
         ) -> Result<bool, PeerHandleError> {
-            self.as_ref().read_event(conn_tx, data)
+            self.as_ref().0.read_event(conn_tx, data)
         }
 
         fn process_events(&self) {
-            self.as_ref().process_events()
+            self.as_ref().0.process_events()
         }
 
         fn write_buffer_space_avail(
             &self,
             conn_tx: &mut ConnectionTx,
         ) -> Result<(), PeerHandleError> {
-            self.as_ref().write_buffer_space_avail(conn_tx)
+            self.as_ref().0.write_buffer_space_avail(conn_tx)
         }
     }
 
