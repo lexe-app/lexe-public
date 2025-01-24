@@ -77,6 +77,8 @@ impl NotifyOnce {
     }
 
     /// Immediately returns whether a signal has been sent.
+    /// This bypasses the at-most-once logic; calling this function will NOT
+    /// consume the signal for a later call to [`recv`](Self::recv).
     #[must_use]
     pub fn try_recv(&self) -> bool {
         self.inner.is_closed()
