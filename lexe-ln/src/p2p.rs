@@ -1,3 +1,98 @@
+//! The core I/O logic for a single Lightning P2P connection and its interfacing
+//! with the LDK [`PeerManager`].
+//!
+//! Open a new outbound connection to a peer with [`connect_peer_if_necessary`].
+//!
+//! Handle a newly accepted connection with [`spawn_inbound`].
+//!
+//! ## Design
+//!
+//! Each `Connection` task owns the underlying [`TcpStream`] and is responsible
+//! for reading and writing bytes to and from that connection. It just handles
+//! socket I/O and sees only opaque bytes. Newly read data is pumped into
+//! [`PeerManager::read_event`]. The [`PeerManager`] writes to the connection
+//! via `ConnectionTx::send_data`, which enqueues data packets onto the
+//! associated mpsc channel. `Connection` later dequeues these data packets and
+//! writes them to the [`TcpStream`].
+//!
+//! ### Read path
+//!
+//! ```text
+//! TcpStream -> read -> Connection -> PeerManager::read_event()
+//! ```
+//!
+//! Read backpressure is applied when [`PeerManager::read_event`] returns
+//! `true`. We then wait for [`PeerManager`] to send a corresponding
+//! `ConnectionTx::send_data` with `resume_read=true` to stop applying
+//! read backpressure.
+//!
+//! After any [`PeerManager::read_event`], we're also responsible for calling
+//! [`PeerManager::process_events`]. We use a separate, shared task
+//! ([`spawn_process_events_task`]) that all `Connection` tasks can notify to
+//! call [`PeerManager::process_events`].
+//!
+//! ### Write path
+//!
+//! ```text
+//! PeerManager -> ConnectionTx::send_data -> mpsc channel -> Connection -> write -> TcpStream
+//! ```
+//!
+//! Write backpressure is applied when we can't write quickly enough to the TCP
+//! connection (e.g., remote peer is slow, connection is bad, we're overloaded).
+//! When the mpsc channel to fills up, [`PeerManager`] observes the write
+//! backpressure as `ConnectionTx::send_data` returning `0`.
+//!
+//! We call [`PeerManager::write_buffer_space_avail`] whenever there is empty
+//! space in the mpsc channel for the [`PeerManager`] to fill.
+//!
+//! ### Disconnect
+//!
+//! When the connection disconnects, we call
+//! [`PeerManager::socket_disconnected`].
+//!
+//! When the [`PeerManager`] wants to disconnect, it calls
+//! `ConnectionTx::disconnect_socket`, which notifies the `Connection` task.
+//!
+//! There is no graceful shutdown; we just close the connection immediately when
+//! we want to disconnect. Ideally we would send a Lightning protocol
+//! `DisconnectPeerWithWarning` message or something, but LDK doesn't currently
+//! do this. Graceful shutdown is also further complicated by SGX [`TcpStream`]
+//! not supporting read/write TCP half-close.
+//!
+//! ### Why does this module exist
+//!
+//! LDK already provides a crate called
+//! [`lightning-net-tokio`](https://docs.rs/lightning-net-tokio) that we used
+//! previously. Unfortunately, we ran into some serious deadlocks and strange
+//! behavior in SGX that was possibly related.
+//!
+//! With `lightning-net-tokio`, the [`TcpStream`] is shared; any task that calls
+//! into [`PeerManager`] can `write` to the [`TcpStream`]. A [`TcpStream`] is
+//! [not supposed to be shared/used between more than 2 tasks concurrently](https://github.com/tokio-rs/tokio/blob/eaf81ed324e7cca0fa9b497a6747746da37eea93/tokio/src/io/poll_evented.rs#L25-L30),
+//! and we think the SGX async impl might be handling that poorly.
+//! `lightning-net-tokio` also does some non-standard things with `Waker`s.
+//!
+//! This module instead has minimal sharing and no locking; communication
+//! happens over a channel. The `TcpStream` has a single owner and only a single
+//! task ever reads and writes to it. We think this is more likely to be
+//! correct.
+//!
+//! The major downside with this approach is the additional layer of buffering
+//! and unnecessary write-copy between the [`PeerManager`] and the connection.
+//! There is also an extra task context switch on write, which adds some small
+//! latency.
+//!
+//! [`ConnectionTx`]: crate::p2p::ConnectionTx
+//! [`PeerManager::process_events`]: lightning::ln::peer_handler::PeerManager::process_events
+//! [`PeerManager::read_event`]: lightning::ln::peer_handler::PeerManager::read_event
+//! [`PeerManager::socket_disconnected`]: lightning::ln::peer_handler::PeerManager::socket_disconnected
+//! [`PeerManager::write_buffer_space_avail`]: lightning::ln::peer_handler::PeerManager::write_buffer_space_avail
+//! [`PeerManager`]: lightning::ln::peer_handler::PeerManager
+//! [`TcpStream`]: tokio::net::TcpStream
+//! [`connect_peer_if_necessary`]: crate::p2p::connect_peer_if_necessary
+//! [`spawn_inbound`]: crate::p2p::spawn_inbound
+//! [`spawn_process_events_task`]: crate::p2p::spawn_process_events_task
+
 use std::{
     hash::Hash,
     io,
