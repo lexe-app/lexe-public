@@ -338,7 +338,7 @@ pub struct ConnectionTx {
     /// Update the connection control state (disconnect/pause reads).
     ctl: Arc<ConnectionCtl>,
     /// Send write data requests to [`Connection`] for writing to socket.
-    tx: mpsc::Sender<Box<[u8]>>,
+    write_tx: mpsc::Sender<Box<[u8]>>,
 }
 
 /// A Lightning p2p connection. Wraps a tokio [`TcpStream`] in additional logic
@@ -348,7 +348,7 @@ struct Connection<PM> {
     ctl: Arc<ConnectionCtl>,
 
     /// Receive write data requests from [`ConnectionTx::send_data`].
-    rx: mpsc::Receiver<Box<[u8]>>,
+    write_rx: mpsc::Receiver<Box<[u8]>>,
 
     /// Handle to LDK [`PeerManager`].
     peer_manager: PM,
@@ -377,7 +377,7 @@ struct Connection<PM> {
 /// [`Connection`] control state. Used to notify the [`Connection`] that it
 /// should disconnect or resume reads.
 ///
-/// This control-plane state is intentionally separate from the `tx` data
+/// This control-plane state is intentionally separate from the `write_tx` data
 /// plane, since control should not be subject to backpressure. Without this
 /// separation, we can accidentally lose `resume_read=true` commands when the
 /// [`ConnectionTx`] -> [`Connection`] write queue is full.
@@ -518,14 +518,14 @@ pub trait PeerManagerTrait: Clone + Send + 'static {
 impl<PM: PeerManagerTrait> Connection<PM> {
     fn new(peer_manager: PM, stream: TcpStream) -> (ConnectionTx, Self) {
         let ctl = Arc::new(ConnectionCtl::new());
-        let (tx, rx) = mpsc::channel(8);
+        let (write_tx, write_rx) = mpsc::channel(8);
         let conn_tx = ConnectionTx {
             ctl: ctl.clone(),
-            tx,
+            write_tx,
         };
         let conn = Self {
             ctl,
-            rx,
+            write_rx,
             stream,
             peer_manager,
             write_buf: None,
@@ -607,7 +607,7 @@ impl<PM: PeerManagerTrait> Connection<PM> {
                 // `ConnectionTx::try_send_data(data=&[..])`
                 // -> enqueue for writing to socket
                 // -> notify `PeerManager::write_buffer_space_avail`
-                req = self.rx.recv(), if self.write_buf.is_none() => {
+                req = self.write_rx.recv(), if self.write_buf.is_none() => {
                     trace!(write_buf = req.as_ref().map(|b| b.len()), "recv");
                     if let Err(disconnect) = self.handle_rx_write_req(req) {
                         break disconnect;
@@ -620,7 +620,7 @@ impl<PM: PeerManagerTrait> Connection<PM> {
                 }
 
                 // Socket is ready to read or write
-                // -> is_writable => (xN) write_buf -> stream.try_write && rx.try_recv
+                // -> is_writable => (xN) write_buf -> stream.try_write && write_rx.try_recv
                 // -> is_readable => (xN) stream.try_read -> read_buf -> PeerManager::read_event
                 //                   PeerManager::notify_process_events_task
                 //
@@ -760,11 +760,11 @@ impl<PM: PeerManagerTrait> Connection<PM> {
             .map_err(|PeerHandleError {}| Disconnect::PeerManager)
     }
 
-    /// Loop `try_write_buf` + `rx.try_recv` until we either drain our `rx`
-    /// write queue or we get socket write backpressure.
+    /// Loop `try_write_buf` + `write_rx.try_recv` until we either drain our
+    /// `write_rx` write queue or we get socket write backpressure.
     fn try_write_buf_many(&mut self) -> Result<(), Disconnect> {
-        // `true` if we successfully recv from `rx`. We'll notify `PeerManager`
-        // at the end if this is `true`.
+        // `true` if we successfully recv from `write_rx`. We'll notify
+        // `PeerManager` at the end if this is `true`.
         let mut is_send_data_space_avail = false;
 
         loop {
@@ -772,16 +772,17 @@ impl<PM: PeerManagerTrait> Connection<PM> {
             self.try_write_buf()?;
 
             // If we can write more, try to pop off another write buffer from
-            // the `rx` queue.
+            // the `write_rx` queue.
             let can_write_more = self.write_buf.is_none();
             if can_write_more {
-                match self.rx.try_recv() {
+                match self.write_rx.try_recv() {
                     Ok(write_buf) => {
                         self.write_buf = Some(write_buf);
                         self.write_offset = 0;
                         is_send_data_space_avail = true;
                     }
-                    // No more buffers in the `rx` queue; we're done flushing.
+                    // No more buffers in the `write_rx` queue; we're done
+                    // flushing.
                     Err(TryRecvError::Empty) => break,
                     Err(TryRecvError::Disconnected) =>
                         return Err(Disconnect::PeerManager),
@@ -789,7 +790,7 @@ impl<PM: PeerManagerTrait> Connection<PM> {
             }
         }
 
-        // We recv'd on `rx`
+        // We successfully recv'd on `write_rx`
         // ==> there's space available for `PeerManager` to `send_data`
         if is_send_data_space_avail {
             self.notify_send_data_channel_space_avail()?;
@@ -963,7 +964,7 @@ impl ConnectionTx {
         // Since we're not async, we first try to acquire a send permit to see
         // if we're getting backpressure/disconnected. This also lets us avoid
         // copying `data` until we know we can actually enqueue it.
-        match self.tx.try_reserve() {
+        match self.write_tx.try_reserve() {
             // Enqueue `data` to be written
             Ok(send_permit) => {
                 let write_len = data.len();
