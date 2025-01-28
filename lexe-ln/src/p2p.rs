@@ -756,24 +756,28 @@ impl<PM: PeerManagerTrait> Connection<PM> {
 
         loop {
             // Try to write the current `self.write_buf` to the socket.
-            self.try_write_buf()?;
+            let can_write_more = self.try_write_buf()?;
+            if !can_write_more {
+                break;
+            }
 
-            // If we can write more, try to pop off another write buffer from
-            // the `write_rx` queue.
-            let can_write_more = self.write_buf.is_none();
-            if can_write_more {
-                match self.write_rx.try_recv() {
-                    Ok(write_buf) => {
-                        self.write_buf = Some(write_buf);
-                        self.write_offset = 0;
-                        is_send_data_space_avail = true;
-                    }
-                    // No more buffers in the `write_rx` queue; we're done
-                    // flushing.
-                    Err(TryRecvError::Empty) => break,
-                    Err(TryRecvError::Disconnected) =>
-                        return Err(Disconnect::PeerManager),
+            // We can write more. Try to pop off another write buffer from the
+            // `write_rx` queue.
+            assert!(self.write_buf.is_none());
+            match self.write_rx.try_recv() {
+                Ok(write_buf) => {
+                    self.write_buf = Some(write_buf);
+                    self.write_offset = 0;
+                    is_send_data_space_avail = true;
                 }
+                // No more buffers in the `write_rx` queue; we're done
+                // flushing.
+                Err(TryRecvError::Empty) => {
+                    is_send_data_space_avail = true;
+                    break;
+                }
+                Err(TryRecvError::Disconnected) =>
+                    return Err(Disconnect::PeerManager),
             }
         }
 
@@ -787,7 +791,9 @@ impl<PM: PeerManagerTrait> Connection<PM> {
     }
 
     /// Attempt a `stream.try_write(&write_buf[write_offset..])`.
-    fn try_write_buf(&mut self) -> Result<(), Disconnect> {
+    ///
+    /// Returns `Ok(true)` if we can potentially write more to the socket.
+    fn try_write_buf(&mut self) -> Result<bool, Disconnect> {
         let write_buf: &[u8] = self.write_buf.as_ref().expect(
             "we should only get write readiness if write_buf.is_some()",
         );
@@ -801,7 +807,7 @@ impl<PM: PeerManagerTrait> Connection<PM> {
         #[cfg(test)] // inject partial writes and io::ErrorKind::WouldBlock
         let res = test::maybe_stream_try_write(&mut self.stream, to_write);
 
-        let _bytes_written = match res {
+        let bytes_written = match res {
             // Wrote some bytes -> update `write_buf`
             Ok(bytes_written) => {
                 let bytes_written = match NonZeroUsize::new(bytes_written) {
@@ -832,7 +838,11 @@ impl<PM: PeerManagerTrait> Connection<PM> {
             Err(err) => return Err(Disconnect::Socket(err.kind())),
         };
 
-        Ok(())
+        let can_write_more = match bytes_written {
+            Some(_bytes_written) => self.write_buf.is_none(),
+            None => false,
+        };
+        Ok(can_write_more)
     }
 
     /// Loop `try_read_buf` + `peer_manager.read_buf` until we either drain our
