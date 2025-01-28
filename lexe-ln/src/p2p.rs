@@ -667,9 +667,18 @@ impl<PM: PeerManagerTrait> Connection<PM> {
             }
         };
 
+        // Disconnect
+
+        // Tell `PeerManager`
         if !disconnect.is_peer_manager() {
             self.peer_manager.socket_disconnected(&self.conn_tx);
         }
+
+        // Set `STATE_DISCONNECT`
+        self.ctl.store_state_disconnect();
+
+        // Close the mpsc queue
+        self.write_rx.close();
 
         trace!(?disconnect);
         disconnect
@@ -1013,7 +1022,7 @@ impl ConnectionCtl {
 
     /// Tell [`Connection`] to disconnect.
     fn disconnect_and_notify(&self) {
-        self.state.store(STATE_DISCONNECT, Ordering::SeqCst);
+        self.store_state_disconnect();
         self.notify.notify_one();
     }
 
@@ -1035,6 +1044,12 @@ impl ConnectionCtl {
         } else {
             Err(Disconnect::PeerManager)
         }
+    }
+
+    /// Set [`ConnectionCtl::state`] to [`STATE_DISCONNECT`].
+    #[inline]
+    fn store_state_disconnect(&self) {
+        self.state.store(STATE_DISCONNECT, Ordering::SeqCst);
     }
 
     /// Set [`ConnectionCtl::state`] to [`STATE_NORMAL`] or
