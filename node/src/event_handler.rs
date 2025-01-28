@@ -434,7 +434,7 @@ async fn do_handle_event(
             let channel_manager = ctx.channel_manager.clone();
             let time_to_sleep =
                 Duration::from_millis(time_forwardable.as_millis() as u64);
-            let task = LxTask::spawn_named_with_span(
+            let task = LxTask::spawn_with_span(
                 "PendingHTLCsForwardable handler",
                 info_span!("(pending-htlc-fwd)"),
                 async move {

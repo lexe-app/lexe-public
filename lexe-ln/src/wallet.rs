@@ -665,7 +665,7 @@ pub fn spawn_wallet_persister_task<PS: LexePersister>(
     mut wallet_persister_rx: notify::Receiver,
     mut shutdown: NotifyOnce,
 ) -> LxTask<()> {
-    LxTask::spawn_named("wallet persister", async move {
+    LxTask::spawn("wallet persister", async move {
         loop {
             tokio::select! {
                 () = wallet_persister_rx.recv() => {

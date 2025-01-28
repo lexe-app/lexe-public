@@ -82,7 +82,7 @@ impl LexeBackgroundProcessor {
         PS: LexePersister,
         EH: LexeEventHandler,
     {
-        LxTask::spawn_named("background processor", async move {
+        LxTask::spawn("background processor", async move {
             let now = Instant::now();
 
             let mk_interval = |delay: Duration, interval: Duration| {

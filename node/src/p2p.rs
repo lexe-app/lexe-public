@@ -43,7 +43,7 @@ pub(crate) async fn connect_to_lsp_then_spawn_connector_task(
     info!("Completed initial connection to LSP");
 
     const SPAN_NAME: &str = "(lsp-connector)";
-    Ok(LxTask::spawn_named_with_span(
+    Ok(LxTask::spawn_with_span(
         SPAN_NAME,
         info_span!(SPAN_NAME),
         async move {

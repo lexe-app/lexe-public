@@ -954,7 +954,7 @@ impl Persist<SignerType> for NodePersister {
             anyhow::Ok(())
         };
 
-        LxTask::spawn_named("ephemeral monitor archive task", async move {
+        LxTask::spawn("ephemeral monitor archive task", async move {
             match archive_future.await {
                 Ok(()) =>
                     info!(%funding_txo, "Success: archived channel monitor"),

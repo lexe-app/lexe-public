@@ -33,7 +33,7 @@ pub fn spawn_bdk_sync_task(
     mut bdk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
     mut shutdown: NotifyOnce,
 ) -> LxTask<()> {
-    LxTask::spawn_named("bdk sync", async move {
+    LxTask::spawn("bdk sync", async move {
         let mut sync_timer = time::interval(SYNC_INTERVAL);
         let mut maybe_first_bdk_sync_tx = Some(first_bdk_sync_tx);
         // Holds the `oneshot::Sender`s which we'll notify when sync completes.
@@ -114,7 +114,7 @@ where
     CMON: LexeChainMonitor<PS>,
     PS: LexePersister,
 {
-    LxTask::spawn_named("ldk sync", async move {
+    LxTask::spawn("ldk sync", async move {
         let mut sync_timer = time::interval(SYNC_INTERVAL);
         let mut maybe_first_ldk_sync_tx = Some(first_ldk_sync_tx);
         // Holds the `oneshot::Sender`s which we'll notify when sync completes.

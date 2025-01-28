@@ -270,7 +270,7 @@ impl LexeEsplora {
         esplora: Arc<LexeEsplora>,
         mut shutdown: NotifyOnce,
     ) -> LxTask<()> {
-        LxTask::spawn_named("refresh fees", async move {
+        LxTask::spawn("refresh fees", async move {
             let mut interval = time::interval(REFRESH_FEE_ESTIMATES_INTERVAL);
             // Consume the first tick since fees were refreshed during init
             interval.tick().await;
@@ -534,7 +534,7 @@ impl BroadcasterInterface for LexeEsplora {
         let test_event_tx = self.test_event_tx.clone();
         let txs = txs.iter().copied().cloned().collect::<Vec<Transaction>>();
 
-        let task = LxTask::spawn_named_with_span(
+        let task = LxTask::spawn_with_span(
             "BroadcasterInterface",
             info_span!("(broadcast-txs)"),
             async move {

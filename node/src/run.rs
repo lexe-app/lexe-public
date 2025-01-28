@@ -815,12 +815,10 @@ impl UserNode {
 
         // Sync is complete; start the inactivity timer.
         debug!("Starting inactivity timer");
-        self.static_tasks.push(LxTask::spawn_named(
-            "inactivity timer",
-            async move {
+        self.static_tasks
+            .push(LxTask::spawn("inactivity timer", async move {
                 self.inactivity_timer.start().await;
-            },
-        ));
+            }));
 
         // --- Run --- //
 
@@ -985,7 +983,7 @@ async fn init_google_vfs(
     // Spawn a task that repersists the GDriveCredentials every time
     // the contained access token is updated.
     let credentials_persister_task =
-        LxTask::spawn_named("gdrive credentials persister", async move {
+        LxTask::spawn("gdrive credentials persister", async move {
             loop {
                 tokio::select! {
                     Ok(()) = credentials_rx.changed() => {

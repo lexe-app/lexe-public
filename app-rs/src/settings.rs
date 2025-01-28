@@ -112,7 +112,7 @@ impl SettingsDb {
             shutdown.clone(),
         );
         let persist_task =
-            Some(LxTask::spawn_named("settings_persist", persister.run()));
+            Some(LxTask::spawn("settings_persist", persister.run()));
 
         Self {
             settings,

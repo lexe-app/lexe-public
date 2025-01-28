@@ -69,7 +69,7 @@ where
     PS: LexePersister,
 {
     debug!("Starting channel monitor persister task");
-    LxTask::spawn_named("channel monitor persister", async move {
+    LxTask::spawn("channel monitor persister", async move {
         let mut idx = 0;
         loop {
             tokio::select! {

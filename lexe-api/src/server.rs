@@ -452,11 +452,8 @@ pub fn spawn_server_task_with_listener(
     )
     .context("Failed to build server future")?;
 
-    let server_task = LxTask::spawn_named_with_span(
-        server_span_name,
-        server_span,
-        server_fut,
-    );
+    let server_task =
+        LxTask::spawn_with_span(server_span_name, server_span, server_fut);
 
     Ok((server_task, server_url))
 }

@@ -223,7 +223,7 @@ where
         hex::display(&node_pk.to_array().as_slice()[..4]),
         conn.ctl.id
     );
-    let mut conn_task = LxTask::spawn_named(task_name, conn.run());
+    let mut conn_task = LxTask::spawn(task_name, conn.run());
 
     // A future which completes once the connection is usable.
     //
@@ -280,7 +280,7 @@ pub fn spawn_inbound<PM: PeerManagerTrait>(
     let conn = Connection::setup_inbound(peer_manager, stream);
     // TODO(phlip9): find a way to set task name with node_pk after handshake?
     let task_name = format!("p2p-conn--inbound-{}", conn.ctl.id);
-    LxTask::spawn_named(task_name, conn.run())
+    LxTask::spawn(task_name, conn.run())
 }
 
 /// Spawn a task that calls [`PeerManager::process_events`] on notification.
@@ -292,36 +292,32 @@ pub fn spawn_process_events_task<PM: PeerManagerTrait>(
     mut shutdown: NotifyOnce,
 ) -> LxTask<()> {
     const SPAN_NAME: &str = "(process-p2p)(peer-man)";
-    LxTask::spawn_named_with_span(
-        SPAN_NAME,
-        info_span!(SPAN_NAME),
-        async move {
-            let mut iter: usize = 0;
-            loop {
-                // Cheap check
-                if shutdown.try_recv() {
-                    break;
-                }
-                // Greedily poll `process_events_rx` first since it probably
-                // has work.
-                tokio::select! {
-                    biased;
-                    () = process_events_rx.recv() => peer_manager.process_events(),
-                    () = shutdown.recv() => break,
-                }
-
-                // Yield every few iters. Reduce task starvation, since
-                // `process_events` can do lots of work each iter and
-                // `process_events_rx` won't run out of work under load. The
-                // default 128 await budget is probably too large here.
-                iter = iter.wrapping_add(1);
-                if iter % 8 == 0 {
-                    tokio::task::yield_now().await;
-                }
+    LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), async move {
+        let mut iter: usize = 0;
+        loop {
+            // Cheap check
+            if shutdown.try_recv() {
+                break;
             }
-            trace!("shutdown");
-        },
-    )
+            // Greedily poll `process_events_rx` first since it probably
+            // has work.
+            tokio::select! {
+                biased;
+                () = process_events_rx.recv() => peer_manager.process_events(),
+                () = shutdown.recv() => break,
+            }
+
+            // Yield every few iters. Reduce task starvation, since
+            // `process_events` can do lots of work each iter and
+            // `process_events_rx` won't run out of work under load. The
+            // default 128 await budget is probably too large here.
+            iter = iter.wrapping_add(1);
+            if iter % 8 == 0 {
+                tokio::task::yield_now().await;
+            }
+        }
+        trace!("shutdown");
+    })
 }
 
 //
@@ -1326,7 +1322,7 @@ mod test {
         // TODO(phlip9): timeouts
 
         // `Connection`
-        let conn_task = LxTask::spawn_named("conn", async move {
+        let conn_task = LxTask::spawn("conn", async move {
             conn.run_ref().await;
             conn.stats
         });
@@ -1334,12 +1330,12 @@ mod test {
         // Client
         let write_msg = msg.clone();
         let (mut tcp_b_read, mut tcp_b_write) = tcp_b.into_split();
-        let client_task = LxTask::spawn_named("client", async move {
+        let client_task = LxTask::spawn("client", async move {
             let (min_read_done_tx, min_read_done_rx) = oneshot::channel::<()>();
             let (tcp_write_closed_tx, tcp_write_closed_rx) =
                 oneshot::channel::<()>();
 
-            let write_task = LxTask::spawn_named("client_write", async move {
+            let write_task = LxTask::spawn("client_write", async move {
                 let mut msg = write_msg.as_slice();
 
                 let mut total_written = 0;
@@ -1380,7 +1376,7 @@ mod test {
 
                 out
             });
-            let read_task = LxTask::spawn_named("client_read", async move {
+            let read_task = LxTask::spawn("client_read", async move {
                 let mut read_msg = vec![0u8; ctx.min_read_len];
 
                 // read at least `ctx.min_read_len`
@@ -1800,10 +1796,10 @@ mod ldk_test {
             addr_b,
             &NodePk(b_pub),
         );
-        let fut_a = LxTask::spawn(conn_a.run());
+        let fut_a = LxTask::spawn_unnamed(conn_a.run());
 
         let conn_b = Connection::setup_inbound(&b_manager, tcp_b);
-        let fut_b = LxTask::spawn(conn_b.run());
+        let fut_b = LxTask::spawn_unnamed(conn_b.run());
 
         tokio::time::timeout(Duration::from_secs(10), a_connected.recv())
             .await

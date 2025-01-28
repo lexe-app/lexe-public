@@ -202,23 +202,12 @@ impl<T> LxTask<T> {
         }
     }
 
-    /// Spawns a task without a name. Use this primarily for trivial tasks where
-    /// you don't care about joining later (e.g. a task that makes an API call)
-    #[inline]
-    pub fn spawn<F>(future: F) -> LxTask<F::Output>
-    where
-        F: Future<Output = T> + Send + 'static,
-        F::Output: Send + 'static,
-    {
-        Self::spawn_named(String::new(), future.in_current_span())
-    }
-
-    /// Spawns a named task which inherits the current span.
+    /// Spawns a named task which inherits from the current span.
     /// This is generally what you want to use.
     ///
     /// ```
     /// # #[tokio::test]
-    /// # async fn test_spawn_named() {
+    /// # async fn test_spawn() {
     /// use common::task::LxTask;
     /// use tracing::{info, instrument};
     ///
@@ -227,7 +216,7 @@ impl<T> LxTask<T> {
     /// async fn my_library_function() {
     ///     info!("This log msg is prefixed with (my-span)");
     ///
-    ///     let task = LxTask::spawn_named(
+    ///     let task = LxTask::spawn(
     ///         "my task name",
     ///         async move {
     ///             info!("This log msg is also prefixed with (my-span)");
@@ -241,10 +230,7 @@ impl<T> LxTask<T> {
     /// ```
     #[inline]
     #[allow(clippy::disallowed_methods)]
-    pub fn spawn_named<F>(
-        name: impl Into<String>,
-        future: F,
-    ) -> LxTask<F::Output>
+    pub fn spawn<F>(name: impl Into<String>, future: F) -> LxTask<F::Output>
     where
         F: Future<Output = T> + Send + 'static,
         F::Output: Send + 'static,
@@ -257,125 +243,31 @@ impl<T> LxTask<T> {
         }
     }
 
-    /// Spawns an unnnamed task which does NOT inherit the current span.
-    ///
-    /// Useful for quickly preventing multiple span labels `(span1) (span2)`
-    /// from showing in logs.
-    ///
-    /// ```
-    /// # #[tokio::test]
-    /// # async fn test_spawn_no_inherit() {
-    /// use common::task::LxTask;
-    /// use tracing::{info, instrument};
-    ///
-    /// // Typical library code.
-    /// #[instrument(name = "(my-span)")]
-    /// fn my_library_function() {
-    ///     info!("This is prefixed by (my-span) but may have others too");
-    /// }
-    ///
-    /// // Typical orchestration code.
-    /// #[instrument(name = "(orchestrator)")]
-    /// async fn orchestrate() {
-    ///     info!("This is prefixed by (orchestrator)");
-    ///
-    ///     let task = LxTask::spawn_no_inherit(
-    ///         async move {
-    ///             info!("This log msg does NOT have a span prefix");
-    ///             // This prints a log msg with (my-span) only
-    ///             my_library_function();
-    ///         }
-    ///     );
-    ///     task.await;
-    /// }
-    ///
-    /// # orchestrate().await;
-    /// # }
-    /// ```
+    /// Spawns a task without a name. Use this primarily for trivial tasks where
+    /// you don't care about joining later (e.g. a task that makes an API call)
     #[inline]
-    #[allow(clippy::disallowed_methods)]
-    pub fn spawn_no_inherit<F>(future: F) -> LxTask<F::Output>
+    pub fn spawn_unnamed<F>(future: F) -> LxTask<F::Output>
     where
         F: Future<Output = T> + Send + 'static,
         F::Output: Send + 'static,
     {
-        Self::spawn_named_no_inherit(String::new(), future)
+        Self::spawn(String::new(), future.in_current_span())
     }
 
-    /// Spawns a named task which does NOT inherit the current span.
-    ///
-    /// Prevents multiple span labels `(span1) (span2)` from showing in logs.
-    ///
-    /// ```
-    /// # #[tokio::test]
-    /// # async fn test_spawn_named_no_inherit() {
-    /// use common::task::LxTask;
-    /// use tracing::{info, instrument};
-    ///
-    /// // Typical library code.
-    /// #[instrument(name = "(my-span)")]
-    /// fn my_library_function() {
-    ///     info!("This is prefixed by (my-span) but may have others too");
-    /// }
-    ///
-    /// // Typical orchestration code.
-    /// #[instrument(name = "(orchestrator)")]
-    /// async fn orchestrate() {
-    ///     info!("This is prefixed by (orchestrator)");
-    ///
-    ///     let task = LxTask::spawn_named_no_inherit(
-    ///         "my task name",
-    ///         async move {
-    ///             info!("This log msg does NOT have a span prefix");
-    ///             // This prints a log msg with (my-span) only
-    ///             my_library_function();
-    ///         }
-    ///     );
-    ///     task.await;
-    /// }
-    ///
-    /// # orchestrate().await;
-    /// # }
-    /// ```
-    #[inline]
-    #[allow(clippy::disallowed_methods)]
-    pub fn spawn_named_no_inherit<F>(
-        name: impl Into<String>,
-        future: F,
-    ) -> LxTask<F::Output>
-    where
-        F: Future<Output = T> + Send + 'static,
-        F::Output: Send + 'static,
-    {
-        Self {
-            task: tokio::spawn(future),
-            name: name.into(),
-        }
-    }
-
-    /// Spawns a named task with a custom span.
+    /// Spawns a named task with a custom span. This is the most versatile API.
     ///
     /// Note that the [`tracing::Span`]s generated by the `span!` macros inherit
-    /// from the current span by default; include `parent: None` in the macro
-    /// invocation to disable this.
+    /// from the current span by default. If it is desired to prevent the span
+    /// from inheriting from the current span, include `parent: None`.
     ///
     /// ```
     /// # use tracing::info_span;
     /// let span = info_span!(parent: None, "(my-span)");
     /// ```
     ///
-    /// It is generally preferred to add spans with
-    /// [`macro@tracing::instrument`], using [`LxTask::spawn_no_inherit`] or
-    /// [`LxTask::spawn_named_no_inherit`] in orchestration code when necessary,
-    /// since the span labels will be outputted in logs regardless whether the
-    /// crate is run as a process or a task. However, sometimes this is not
-    /// possible, e.g. when defining API routes which are packaged into a
-    /// service [`Future`] elsewhere. [`LxTask::spawn_named_with_span`] is
-    /// useful for this case.
-    ///
     /// ```
     /// # #[tokio::test]
-    /// # async fn test_spawn_named_with_span() {
+    /// # async fn test_spawn_with_span() {
     /// use common::task::LxTask;
     /// use tracing::{info, instrument};
     ///
@@ -389,7 +281,7 @@ impl<T> LxTask<T> {
     /// async fn orchestrate() {
     ///     info!("This is prefixed by (orchestrator)");
     ///
-    ///     let task = LxTask::spawn_named_with_span(
+    ///     let task = LxTask::spawn_with_span(
     ///         "my task name",
     ///         info_span!(parent: None, "(my-span)"),
     ///         async move {
@@ -405,7 +297,7 @@ impl<T> LxTask<T> {
     /// ```
     #[inline]
     #[allow(clippy::disallowed_methods)]
-    pub fn spawn_named_with_span<F>(
+    pub fn spawn_with_span<F>(
         name: impl Into<String>,
         span: tracing::Span,
         future: F,

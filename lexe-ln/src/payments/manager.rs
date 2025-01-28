@@ -158,7 +158,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         mut shutdown: NotifyOnce,
     ) -> LxTask<()> {
         let payman = self.clone();
-        LxTask::spawn_named_with_span(
+        LxTask::spawn_with_span(
             "invoice expiry checker",
             info_span!("(invoice-expiry-checker)"),
             async move {
@@ -195,7 +195,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     ) -> LxTask<()> {
         let payman = self.clone();
 
-        LxTask::spawn_named_with_span(
+        LxTask::spawn_with_span(
             "onchain confs checker",
             info_span!("(onchain-confs-checker)"),
             async move {
@@ -235,7 +235,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         mut shutdown: NotifyOnce,
     ) -> LxTask<()> {
         let payman = self.clone();
-        LxTask::spawn_named_with_span(
+        LxTask::spawn_with_span(
             "onchain receive checker",
             info_span!("(onchain-recv-checker)"),
             async move {
