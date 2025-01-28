@@ -17,6 +17,24 @@
       "revision": "55719929da21a23d40a6979cc3d293fead34cdbb",
       "release-date": "2024-12-03",
       "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.5.0"
+    },
+    "0.5.1": {
+      "measurement": "b9db29fb00acd6a406ce3fef0250301c1333ead4b7ebb21aac392154d2b42ec8",
+      "revision": "9042ca799320023a0e547ec3cc12cf6334280229",
+      "release-date": "2024-12-05",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.5.1"
+    },
+    "0.6.0": {
+      "measurement": "838e618914ab3b35e7f1613123a14d91e8bec5b5849f8a58dbf952f519285199",
+      "revision": "a8f621aae80697c5820d7755cbf1371de424cf70",
+      "release-date": "2024-12-18",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.6.0"
+    },
+    "0.6.1": {
+      "measurement": "41aa7b136249f1affe2cb2dcdbc5ce47bcb77dc0b04d4123c697bdbf316556ea",
+      "revision": "783f0d2f9936ba9b0097be5c30772c9b4351a03c",
+      "release-date": "2025-01-09",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.6.1"
     }
   }
 }
