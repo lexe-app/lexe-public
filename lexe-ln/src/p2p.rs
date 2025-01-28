@@ -392,8 +392,8 @@ struct ConnectionCtl {
     notify: Notify,
 }
 
-// NOTE: change `ConnectionCtl::resume_read` if more states are added for some
-// reason.
+// NOTE: the methods that touch `ConnectionCtl::state` will all need to change
+// if another case is added.
 
 /// [`ConnectionCtl::state`] when [`Connection`] is running normally.
 const STATE_NORMAL: usize = 0;
@@ -577,7 +577,7 @@ impl<PM: PeerManagerTrait> Connection<PM> {
             // If `pause_read=true`, we'll avoid calling
             // `PeerManager::read_event` until the next
             // `ConnectionTx::send_data(.., resume_read: true)` request.
-            let pause_read = match self.read_ctl_state() {
+            let pause_read = match self.ctl.load_ctl_state() {
                 Ok(pause_read) => pause_read,
                 Err(disconnect) => break disconnect,
             };
@@ -673,27 +673,6 @@ impl<PM: PeerManagerTrait> Connection<PM> {
 
         trace!(?disconnect);
         disconnect
-    }
-
-    /// Read [`ConnectionCtl::state`] and maybe resume reads or disconnect.
-    fn read_ctl_state(&mut self) -> Result<bool, Disconnect> {
-        let state = self.ctl.state.load(Ordering::SeqCst);
-        if state != STATE_DISCONNECT {
-            let pause_read = state == STATE_PAUSE_READ;
-            Ok(pause_read)
-        } else {
-            Err(Disconnect::PeerManager)
-        }
-    }
-
-    /// Set [`ConnectionCtl::state`]. If we raced with a disconnect, return Err.
-    fn set_ctl_state(&mut self, state: usize) -> Result<(), Disconnect> {
-        let prev = self.ctl.state.swap(state, Ordering::SeqCst);
-        if prev != STATE_DISCONNECT {
-            Ok(())
-        } else {
-            Err(Disconnect::PeerManager)
-        }
     }
 
     /// Do we want to read and/or write to the socket?
@@ -886,7 +865,7 @@ impl<PM: PeerManagerTrait> Connection<PM> {
             } else {
                 STATE_NORMAL
             };
-            self.set_ctl_state(state)?;
+            self.ctl.store_state_normal_or_pause_read(state)?;
 
             // Stop reading
             if pause_read || !can_read_more {
@@ -951,7 +930,7 @@ impl ConnectionTx {
         );
         let bytes_enqueued = self.try_send_data(data);
         if resume_read {
-            self.ctl.resume_read();
+            self.ctl.resume_read_and_notify();
         }
         bytes_enqueued
     }
@@ -987,7 +966,7 @@ impl ConnectionTx {
     /// Notify the [`Connection`] that the [`PeerManager`] wants to disconnect.
     fn disconnect_socket(&mut self) {
         trace!("ConnectionTx => disconnect");
-        self.ctl.disconnect()
+        self.ctl.disconnect_and_notify()
     }
 }
 
@@ -1033,37 +1012,71 @@ impl ConnectionCtl {
     }
 
     /// Tell [`Connection`] to disconnect.
-    fn disconnect(&self) {
+    fn disconnect_and_notify(&self) {
         self.state.store(STATE_DISCONNECT, Ordering::SeqCst);
         self.notify.notify_one();
     }
 
     /// Tell [`Connection`] to resume reads (if not already resumed or
     /// disconnected).
-    fn resume_read(&self) {
-        let curr = self.state.load(Ordering::SeqCst);
+    fn resume_read_and_notify(&self) {
+        if let Ok(true) = self.store_state_normal_or_pause_read(STATE_NORMAL) {
+            trace!("ConnectionTx => resume read");
+            self.notify.notify_one()
+        }
+    }
 
-        // If reads are paused, then try to resume back to `NORMAL`.
-        if curr == STATE_PAUSE_READ {
-            let new = STATE_NORMAL;
-            let res = self.state.compare_exchange(
-                curr,
-                new,
-                Ordering::SeqCst,
-                Ordering::SeqCst,
-            );
-            match res {
-                // We succeeded in setting state -> `NORMAL`, notify the
-                // connection that state changed.
-                Ok(_) => {
-                    trace!("ConnectionTx => resume read");
-                    self.notify.notify_one()
-                }
-                // NOTE: don't need to loop:
-                // case actual == STATE_NORMAL: => someone raced to resume
-                // case actual == STATE_DISCONNECT: => give up anyway
-                Err(_actual) => {}
-            }
+    /// Read [`ConnectionCtl::state`] and maybe resume reads or disconnect.
+    fn load_ctl_state(&self) -> Result<bool, Disconnect> {
+        let state = self.state.load(Ordering::SeqCst);
+        if state != STATE_DISCONNECT {
+            let pause_read = state == STATE_PAUSE_READ;
+            Ok(pause_read)
+        } else {
+            Err(Disconnect::PeerManager)
+        }
+    }
+
+    /// Set [`ConnectionCtl::state`] to [`STATE_NORMAL`] or
+    /// [`STATE_PAUSE_READ`].
+    ///
+    /// Returns `Ok(true)` if the state changed and `Ok(false)` if the state was
+    /// already `new`. If we raced with a disconnect, return
+    /// `Err(Disconnect::PeerManager)`.
+    fn store_state_normal_or_pause_read(
+        &self,
+        new: usize,
+    ) -> Result<bool, Disconnect> {
+        // Setup `compare_exchange` so that we'll only hit `Ok(_)` if our state
+        // changes from `STATE_NORMAL` -> `STATE_PAUSE_READ` or
+        // `STATE_PAUSE_READ` -> `STATE_NORMAL`.
+        //
+        // This prevents accidentally overwriting a `STATE_DISCONNECT`.
+        let opposite = if new == STATE_NORMAL {
+            STATE_PAUSE_READ
+        } else if new == STATE_PAUSE_READ {
+            STATE_NORMAL
+        } else {
+            unreachable!()
+        };
+        let curr = opposite;
+        let res = self.state.compare_exchange(
+            curr,
+            new,
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+        );
+        match res {
+            // case 1: state was `opposite` => state changed to `new`
+            Ok(_) => Ok(true),
+            // case 2: state was already `new` => (no change)
+            // case 3: state was `STATE_DISCONNECT` => (no change)
+            Err(prev) =>
+                if prev != STATE_DISCONNECT {
+                    Ok(false)
+                } else {
+                    Err(Disconnect::PeerManager)
+                },
         }
     }
 }
