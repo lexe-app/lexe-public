@@ -6,7 +6,7 @@ use common::{
 };
 use lightning::util::ser::Writeable;
 use serde::{de::DeserializeOwned, Serialize};
-use tracing::warn;
+use tracing::info;
 
 /// Serializes a LDK [`Writeable`] to bytes, encrypts the serialized bytes, and
 /// packages everything up into a [`VfsFile`] which is ready to be persisted.
@@ -78,7 +78,7 @@ fn encrypt_file(
     // We are interested in large LDK types as well as the WalletDb.
     let data_len = data.len();
     if data_len > 1_000_000 {
-        warn!("{dirname}/{filename} is >1MB: {data_len} bytes");
+        info!("{dirname}/{filename} is >1MB: {data_len} bytes");
     }
 
     VfsFile { id: file_id, data }
