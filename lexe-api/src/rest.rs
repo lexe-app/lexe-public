@@ -23,7 +23,7 @@ pub static CONTENT_TYPE_ED25519_BCS: HeaderValue =
     HeaderValue::from_static("application/ed25519-bcs");
 
 // Default parameters
-pub const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
+pub const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 
 // Avoid `Method::` prefix. Associated constants can't be imported
 pub const GET: Method = Method::GET;
