@@ -416,7 +416,7 @@ impl UserNode {
 
         // Init keys manager.
         let keys_manager =
-            LexeKeysManager::init(rng, &root_seed, wallet.clone())
+            LexeKeysManager::new(rng, &root_seed, wallet.clone())
                 .map(Arc::new)
                 .context("Failed to construct keys manager")?;
 

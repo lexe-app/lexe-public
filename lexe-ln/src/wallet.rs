@@ -216,6 +216,26 @@ impl LexeWallet {
         ))
     }
 
+    /// Constructs a dummy [`LexeWallet`] useful for tests.
+    #[cfg(test)]
+    pub(crate) fn dummy(root_seed: &RootSeed) -> Self {
+        let esplora = LexeEsplora::dummy();
+
+        let network = LxNetwork::Regtest;
+        let maybe_changeset = None;
+        let (persist_tx, _persist_rx) = notify::channel();
+        let (wallet, _wallet_created) = LexeWallet::new(
+            root_seed,
+            network,
+            esplora,
+            maybe_changeset,
+            persist_tx,
+        )
+        .unwrap();
+
+        wallet
+    }
+
     /// Returns a read lock on the inner [`Wallet`].
     /// The caller is responsible for avoiding deadlocks.
     pub fn read(&self) -> RwLockReadGuard<'_, Wallet> {
@@ -856,9 +876,6 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use std::collections::BTreeMap;
-
-    use arc_swap::ArcSwap;
     use bdk_chain::BlockId;
     use bitcoin::TxOut;
     use bitcoin_hashes::Hash;
@@ -866,9 +883,7 @@ mod test {
         rng::FastRng,
         test_utils::{arbitrary, roundtrip},
     };
-    use esplora_client::AsyncClient;
     use proptest::test_runner::Config;
-    use tokio::sync::mpsc;
 
     use super::*;
 
@@ -878,48 +893,12 @@ mod test {
     }
 
     impl Harness {
-        fn new(fee_estimates: BTreeMap<u16, f64>) -> Self {
+        fn new() -> Self {
             let root_seed = RootSeed::from_u64(923409802);
+            let wallet = LexeWallet::dummy(&root_seed);
             let network = LxNetwork::Regtest;
 
-            let client = reqwest11::ClientBuilder::new().build().unwrap();
-            let client = AsyncClient::from_client("dummy".to_owned(), client);
-            let fee_estimates = ArcSwap::from_pointee(fee_estimates);
-            let (eph_tasks_tx, _) = mpsc::channel(256);
-            let (test_event_tx, _) = crate::test_event::channel("test");
-            let broadcast_hook = None;
-            let esplora = Arc::new(LexeEsplora::new(
-                client,
-                fee_estimates,
-                broadcast_hook,
-                eph_tasks_tx,
-                test_event_tx,
-            ));
-
-            let maybe_changeset = None;
-            let (persist_tx, _persist_rx) = notify::channel();
-            let (wallet, _wallet_created) = LexeWallet::new(
-                &root_seed,
-                network,
-                esplora,
-                maybe_changeset,
-                persist_tx,
-            )
-            .unwrap();
-
             Harness { wallet, network }
-        }
-
-        fn default() -> Self {
-            let fee_estimates = BTreeMap::from_iter([
-                (1, 2.5),
-                (3, 2.0),
-                (5, 1.5),
-                (10, 1.3),
-                (20, 1.2),
-                (1008, 1.1),
-            ]);
-            Self::new(fee_estimates)
         }
 
         fn fund(&self, amount: Amount) {
@@ -1011,7 +990,7 @@ mod test {
 
     #[test]
     fn drain_script_len_equiv() {
-        let h = Harness::default();
+        let h = Harness::new();
         let address = h.wallet.get_internal_address();
 
         let spk = address.script_pubkey();
@@ -1028,7 +1007,7 @@ mod test {
         use bitcoin::{Address, Script};
 
         // with a single large utxo
-        let mut h = Harness::default();
+        let mut h = Harness::new();
         h.fund(Amount::from_sats_u32(123_456));
 
         // preflight_open_channel
@@ -1060,7 +1039,7 @@ mod test {
         // use a fresh wallet, as coin selection is apparently
         // non-deterministic :')
         // with some smaller utxos so we get multiple inputs to the funding tx
-        let mut h = Harness::default();
+        let mut h = Harness::new();
         h.fund(Amount::from_sats_u32(11_500));
         h.fund(Amount::from_sats_u32(11_500));
 

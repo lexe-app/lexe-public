@@ -52,7 +52,7 @@ pub struct LexeKeysManager {
 
 impl LexeKeysManager {
     /// Initialize a [`LexeKeysManager`] from a [`RootSeed`] and [`LexeWallet`].
-    pub fn init(
+    pub fn new(
         rng: &mut impl Crng,
         root_seed: &RootSeed,
         wallet: LexeWallet,
@@ -73,11 +73,41 @@ impl LexeKeysManager {
         Ok(Self { inner, wallet })
     }
 
-    pub fn get_node_pk(&self) -> NodePk {
+    /// Get the "Node ID" [`NodePk`] for this [`LexeKeysManager`].
+    pub fn node_pk(&self) -> NodePk {
         self.inner
             .get_node_id(Recipient::Node)
             .map(NodePk)
             .expect("Always succeeds when called with Recipient::Node")
+    }
+
+    /// Signs a message using the "node ID" secret key.
+    /// Returns the signature corresponding to the message.
+    pub fn sign_message(&self, msg: &str) -> String {
+        // signature := zbase32(
+        //   sign-recoverable(
+        //     sha256d(“Lightning Signed Message:” || msg)
+        //   )
+        // )
+        lightning::util::message_signing::sign(
+            msg.as_bytes(),
+            &self.inner.get_node_secret_key(),
+        )
+    }
+
+    /// Verifies that a message was signed by the given public key.
+    #[must_use]
+    pub fn verify_message(
+        &self,
+        msg: &str,
+        signature: &str,
+        node_pk: &NodePk,
+    ) -> bool {
+        lightning::util::message_signing::verify(
+            msg.as_bytes(),
+            signature,
+            &node_pk.0,
+        )
     }
 
     /// Overrides [`KeysManager::spend_spendable_outputs`] so that we don't try
@@ -275,6 +305,33 @@ mod test {
                 .map(NodePk)
                 .expect("Always succeeds when called with Recipient::Node");
             prop_assert_eq!(root_seed_node_pk, keys_manager_node_pk);
+        });
+    }
+
+    /// Tests the `sign_message` and `verify_message` APIs.
+    #[test]
+    #[cfg(not(target_env = "sgx"))]
+    fn test_sign_verify_message() {
+        proptest!(|(
+            root_seed1 in any::<RootSeed>(),
+            root_seed2 in any::<RootSeed>(),
+            mut rng in any::<FastRng>(),
+            msg in ".*",
+        )| {
+            // Create users 1 and 2
+            let wallet1 = LexeWallet::dummy(&root_seed1);
+            let keys_manager1 =
+                LexeKeysManager::new(&mut rng, &root_seed1, wallet1).unwrap();
+            let node_pk1 = keys_manager1.node_pk();
+            let wallet2 = LexeWallet::dummy(&root_seed2);
+            let keys_manager2 =
+                LexeKeysManager::new(&mut rng, &root_seed2, wallet2).unwrap();
+
+            // User 1 signs
+            let sig = keys_manager1.sign_message(&msg);
+
+            // User 2 verifies
+            assert!(keys_manager2.verify_message(&msg, &sig, &node_pk1));
         });
     }
 }

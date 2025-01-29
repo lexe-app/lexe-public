@@ -221,6 +221,32 @@ impl LexeEsplora {
         }
     }
 
+    /// Constructs a dummy [`LexeEsplora`] useful for tests.
+    #[cfg(test)]
+    pub(crate) fn dummy() -> Arc<Self> {
+        let fee_estimates = BTreeMap::from_iter([
+            (1, 2.5),
+            (3, 2.0),
+            (5, 1.5),
+            (10, 1.3),
+            (20, 1.2),
+            (1008, 1.1),
+        ]);
+        let client = reqwest11::ClientBuilder::new().build().unwrap();
+        let client = AsyncClient::from_client("dummy".to_owned(), client);
+        let fee_estimates = ArcSwap::from_pointee(fee_estimates);
+        let (eph_tasks_tx, _) = mpsc::channel(256);
+        let (test_event_tx, _) = crate::test_event::channel("test");
+        let broadcast_hook = None;
+        Arc::new(Self::new(
+            client,
+            fee_estimates,
+            broadcast_hook,
+            eph_tasks_tx,
+            test_event_tx,
+        ))
+    }
+
     /// Builds the [`reqwest11::Client`] used by the [`AsyncClient`].
     ///
     /// We trust Mozilla's webpki roots because Esplora providers sometimes
