@@ -22,6 +22,7 @@ test-utils = ["common/test-utils", "lexe-ln/test-utils"]
 # dumps registers if `debug = true`.
 debug = true
 # Heap size in bytes. Default: 0x200_0000.
+# TODO(max): Switch to allocator which does heap compaction.
 # TODO(max): The network graph is taking at least 75MB of memory. User nodes
 # share a private routing enclave to reduce the amount of memory required.
 # Current: 256MiB
