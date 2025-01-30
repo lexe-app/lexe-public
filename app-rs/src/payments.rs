@@ -953,6 +953,10 @@ mod test {
                 PreflightPayOnchainRequest, PreflightPayOnchainResponse,
             },
             error::NodeApiError,
+            models::{
+                SignMsgRequest, SignMsgResponse, VerifyMsgRequest,
+                VerifyMsgResponse,
+            },
             Empty,
         },
         ln::payments::{PaymentStatus, VecBasicPayment},
@@ -994,21 +998,33 @@ mod test {
         ) -> Result<ListChannelsResponse, NodeApiError> {
             unimplemented!()
         }
+        async fn sign_message(
+            &self,
+            _req: SignMsgRequest,
+        ) -> Result<SignMsgResponse, NodeApiError> {
+            unimplemented!()
+        }
+        async fn verify_message(
+            &self,
+            _req: VerifyMsgRequest,
+        ) -> Result<VerifyMsgResponse, NodeApiError> {
+            unimplemented!()
+        }
         async fn open_channel(
             &self,
-            _data: OpenChannelRequest,
+            _req: OpenChannelRequest,
         ) -> Result<OpenChannelResponse, NodeApiError> {
             unimplemented!()
         }
         async fn preflight_open_channel(
             &self,
-            _data: PreflightOpenChannelRequest,
+            _req: PreflightOpenChannelRequest,
         ) -> Result<PreflightOpenChannelResponse, NodeApiError> {
             unimplemented!()
         }
         async fn close_channel(
             &self,
-            _data: CloseChannelRequest,
+            _req: CloseChannelRequest,
         ) -> Result<Empty, NodeApiError> {
             unimplemented!()
         }

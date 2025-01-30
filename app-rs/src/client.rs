@@ -38,6 +38,10 @@ use common::{
             BackendApiError, GatewayApiError, NodeApiError, NodeErrorKind,
         },
         fiat_rates::FiatRates,
+        models::{
+            SignMsgRequest, SignMsgResponse, VerifyMsgRequest,
+            VerifyMsgResponse,
+        },
         provision::NodeProvisionRequest,
         version::NodeRelease,
         Empty,
@@ -51,7 +55,7 @@ use common::{
     root_seed::RootSeed,
 };
 use lexe_api::{
-    rest::{RequestBuilderExt, RestClient, GET, POST},
+    rest::{RequestBuilderExt, RestClient, POST},
     tls::{self, lexe_ca},
 };
 use reqwest::Url;
@@ -352,7 +356,7 @@ impl AppNodeRunApi for NodeClient {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/node_info");
-        let req = self.run_rest.builder(GET, url);
+        let req = self.run_rest.get(url, &Empty {});
         self.run_rest.send(req).await
     }
 
@@ -362,7 +366,29 @@ impl AppNodeRunApi for NodeClient {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/list_channels");
-        let req = self.run_rest.builder(GET, url);
+        let req = self.run_rest.get(url, &Empty {});
+        self.run_rest.send(req).await
+    }
+
+    async fn sign_message(
+        &self,
+        data: SignMsgRequest,
+    ) -> Result<SignMsgResponse, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/sign_message");
+        let req = self.run_rest.post(url, &data);
+        self.run_rest.send(req).await
+    }
+
+    async fn verify_message(
+        &self,
+        data: VerifyMsgRequest,
+    ) -> Result<VerifyMsgResponse, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/verify_message");
+        let req = self.run_rest.post(url, &data);
         self.run_rest.send(req).await
     }
 

@@ -72,6 +72,8 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
     let router = Router::new()
         .route("/app/node_info", get(app::node_info))
         .route("/app/list_channels", get(app::list_channels))
+        .route("/app/sign_message", post(app::sign_message))
+        .route("/app/verify_message", post(app::verify_message))
         .route("/app/open_channel", post(app::open_channel))
         .route("/app/preflight_open_channel", post(app::preflight_open_channel))
         .route("/app/close_channel", post(app::close_channel))

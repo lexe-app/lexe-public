@@ -16,6 +16,10 @@ use common::{
             PreflightPayOnchainResponse, UpdatePaymentNote,
         },
         error::NodeApiError,
+        models::{
+            SignMsgRequest, SignMsgResponse, VerifyMsgRequest,
+            VerifyMsgResponse,
+        },
         Empty,
     },
     constants,
@@ -52,6 +56,23 @@ pub(super) async fn list_channels(
     )
     .map(LxJson)
     .map_err(NodeApiError::command)
+}
+
+pub(super) async fn sign_message(
+    State(state): State<Arc<AppRouterState>>,
+    LxJson(req): LxJson<SignMsgRequest>,
+) -> LxJson<SignMsgResponse> {
+    let sig = state.keys_manager.sign_message(&req.msg);
+    LxJson(SignMsgResponse { sig })
+}
+
+pub(super) async fn verify_message(
+    State(state): State<Arc<AppRouterState>>,
+    LxJson(req): LxJson<VerifyMsgRequest>,
+) -> LxJson<VerifyMsgResponse> {
+    let VerifyMsgRequest { msg, sig, pk } = &req;
+    let is_valid = state.keys_manager.verify_message(msg, sig, pk);
+    LxJson(VerifyMsgResponse { is_valid })
 }
 
 pub(super) async fn open_channel(

@@ -51,7 +51,10 @@ use super::{
         RunnerApiError,
     },
     fiat_rates::FiatRates,
-    models::Status,
+    models::{
+        SignMsgRequest, SignMsgResponse, Status, VerifyMsgRequest,
+        VerifyMsgResponse,
+    },
     ports::Ports,
     provision::{
         MaybeSealedSeed, NodeProvisionRequest, SealedSeed, SealedSeedId,
@@ -358,6 +361,22 @@ pub trait AppNodeRunApi {
     /// GET /app/list_channels [`Empty`] -> [`ListChannelsResponse`]
     async fn list_channels(&self)
         -> Result<ListChannelsResponse, NodeApiError>;
+
+    /// POST /app/sign_message [`SignMsgRequest`] -> [`SignMsgResponse`]
+    ///
+    /// Introduced in `node-v0.6.5`.
+    async fn sign_message(
+        &self,
+        req: SignMsgRequest,
+    ) -> Result<SignMsgResponse, NodeApiError>;
+
+    /// POST /app/verify_message [`VerifyMsgRequest`] -> [`VerifyMsgResponse`]
+    ///
+    /// Introduced in `node-v0.6.5`.
+    async fn verify_message(
+        &self,
+        req: VerifyMsgRequest,
+    ) -> Result<VerifyMsgResponse, NodeApiError>;
 
     /// POST /app/open_channel [`OpenChannelRequest`] -> [`OpenChannelResponse`]
     ///
