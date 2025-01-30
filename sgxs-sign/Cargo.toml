@@ -17,7 +17,5 @@ sha256.path = "../sha256"
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
+rsa.workspace = true
 sgxs.workspace = true
-
-# RustCrypto/rsa - flexible RSA impl used b/c SGX does non-standard enclave signing
-rsa = { version = "0.9.6", default-features = false, features = ["u64_digit"] }

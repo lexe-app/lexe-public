@@ -16,12 +16,9 @@ common.path = "../common"
 
 anyhow.workspace = true
 bitcoin.workspace = true
+percent-encoding.workspace = true
 rust_decimal.workspace = true
 rust_decimal_macros.workspace = true
-
-# --- CRATE-SPECIFIC --- #
-
-percent-encoding = "2.3"
 
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }

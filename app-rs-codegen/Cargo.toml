@@ -11,8 +11,5 @@ version.workspace = true
 anyhow.workspace = true
 argh.workspace = true
 flutter_rust_bridge_codegen.workspace = true
-
-# --- CRATE-SPECIFIC --- #
-
 # For finding all *.toml files in the workspace
-ignore = "0.4"
+ignore.workspace = true

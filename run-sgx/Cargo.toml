@@ -14,15 +14,10 @@ sgx-toml.path = "../sgx-toml"
 
 anyhow.workspace = true
 argh.workspace = true
+object.workspace = true
+rustc-demangle.workspace = true
 serde.workspace = true
 tokio = { workspace = true, features = ["net"] }
-
-# --- CRATE-SPECIFIC --- #
-
-# For symbolizing backtrace frames from the enclave
-object = { version = "0.30", default-features = false, features = ["read_core", "compression", "elf"] }
-# For demangling backtrace symbols into human-readable format
-rustc-demangle = "0.1"
 
 [target.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.dependencies]
 common.path = "../common"

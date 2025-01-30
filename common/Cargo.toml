@@ -42,6 +42,7 @@ asn1-rs.workspace = true
 async-trait.workspace = true
 axum.workspace = true
 bcs.workspace = true
+bip39.workspace = true
 bitcoin = { workspace = true, features = ["serde"] }
 bitcoin_hashes.workspace = true
 bitcoin-bech32.workspace = true
@@ -80,11 +81,6 @@ tokio = { workspace = true, features = [
 tracing.workspace = true
 x509-parser.workspace = true
 
-# --- CRATE-SPECIFIC --- #
-
-# BIP39 mnemonic codes
-bip39 = { version = "2", features = ["zeroize"] }
-
 # --- OPTIONAL --- #
 # These must have `optional = true` to prevent infecting production binaries.
 
@@ -113,8 +109,7 @@ tokio = { workspace = true, features = [
     "test-util",
     "time"
 ] }
-# Utilities for testing futures
-tokio-test = "0.4"
+tokio-test.workspace = true
 
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Include std impls when testing outside of SGX

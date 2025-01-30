@@ -37,10 +37,13 @@ bytes.workspace = true
 dcap-ql.workspace = true
 http.workspace = true
 hyper = { workspace = true, features = ["http1", "http2", "server"] }
+num-bigint.workspace = true
 rand_core.workspace = true
 rcgen.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 ring.workspace = true
+rustls-pemfile.workspace = true
+rustls-webpki.workspace = true
 rustls.workspace = true
 secrecy.workspace = true
 serde.workspace = true
@@ -51,39 +54,22 @@ tokio = { workspace = true, features = ["time"] }
 tower = { workspace = true, features = ["buffer", "limit", "load-shed", "timeout", "util"] }
 tower-http = { workspace = true, features = ["trace"] }
 tracing.workspace = true
+webpki.workspace = true
 x509-parser.workspace = true
-
-# --- CRATE-SPECIFIC --- #
-
-# Small conversion from fixed ECDSA signature to ASN.1 format
-num-bigint = { version = "0.4", default-features = false, features = [] }
-# Deserialize PEM certs
-rustls-pemfile = "1"
-# Required to name our signature algorithms.
-# The version should match that used by rustls.
-# For some reason this breaks if we don't specify `package = "rustls-webpki"`
-rustls-webpki = { version = "0.102", package = "rustls-webpki" }
-# Verify x509 certificates
-webpki = { version = "0.22", default-features = false, features = ["std"] }
-# For constructing/parsing ASN.1 data in x509 certs
-yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
+yasna.workspace = true
 
 # --- OPTIONAL --- #
+
 # These must have `optional = true` to prevent infecting production binaries.
 proptest = { optional = true, workspace = true, features = ["alloc"] }
 proptest-derive = { optional = true, workspace = true }
-# Lower-level async TLS interface
-tokio-rustls = { optional = true, version = "0.25", default-features = false }
+tokio-rustls = { optional = true, workspace = true }
 
 [target.'cfg(target_env = "sgx")'.dependencies]
-# For verifying SGX Report MACs
-aes = { version = "0.8", features = ["zeroize"] }
+aes.workspace = true
 aesm-client.workspace = true
-# For casting byte buffers to/from the AESM client from/to structured data.
-bytemuck = { version = "1", default-features = false, features = ["derive", "min_const_generics"] }
-
-# For verifying SGX Report MACs
-cmac = { version = "0.7", features = ["std", "zeroize"] }
+bytemuck.workspace = true
+cmac.workspace = true
 
 [dev-dependencies]
 axum.workspace = true
@@ -94,5 +80,4 @@ tokio = { workspace = true, features = [
     "test-util",
     "time"
 ] }
-# Lower-level async TLS interface
-tokio-rustls = { version = "0.25", default-features = false }
+tokio-rustls.workspace = true

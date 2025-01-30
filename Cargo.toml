@@ -39,6 +39,8 @@ version = "0.1.0"
 # This makes it easier to keep dependency versions in sync. More info:
 # https://doc.rust-lang.org/cargo/reference/workspaces.html#the-dependencies-table
 
+# For verifying SGX Report MACs
+aes = { version = "0.8", features = ["zeroize"] }
 # Ad hoc error definition, easy error propagation, error chains
 anyhow = "1"
 # Like `RwLock<Arc<T>>` for read-mostly, write-seldom scenarios.
@@ -66,10 +68,14 @@ bdk_chain = { version = "0.20", default-features = false, features = ["std"] }
 bdk_esplora = { version = "0.19", default-features = false, features = ["std", "async"] }
 # Encoding and decoding of the Bech32 format.
 bech32 = "0.9"
+# BIP39 mnemonic codes
+bip39 = { version = "2", features = ["zeroize"] }
 # rust-bitcoin suite of libraries
 bitcoin = { version = "0.32", features = ["serde"] }
 bitcoin-bech32 = "0.12"
 bitcoin_hashes = "0.14"
+# For casting byte buffers to/from the AESM client from/to structured data.
+bytemuck = { version = "1", default-features = false, features = ["derive", "min_const_generics"] }
 # Abstractions for working with bytes
 bytes = "1"
 # Write #[cfg(..)] if-else statements without repeating clauses
@@ -79,6 +85,8 @@ chrono = { version = "0.4", default-features = false, features = [
     "std",
     "clock"
 ] }
+# For verifying SGX Report MACs
+cmac = { version = "0.7", features = ["std", "zeroize"] }
 # Allows setting environment variables using a .env file.
 # dotenvy is a better maintained fork of dotenv
 dotenvy = "0.15"
@@ -97,6 +105,19 @@ http-body-util = "0.1"
 # Use both hyper 0.14.28 and 1.0 at the same time while we transition
 hyper = { version = "1", default-features = false, features = ["http2"] }
 hyper_old = { version = "=0.14.28", package = "hyper", default-features = false, features = ["deprecated"] }
+# Recursively walk directory, respecting .gitignore and other glob filters.
+ignore = "0.4"
+# Cross-platform access to host secret storage
+keyring = { version = "2.0", default-features = false }
+# For symbolizing backtrace frames from the enclave
+object = { version = "0.30", default-features = false, features = ["read_core", "compression", "elf"] }
+# Pieter Wuille's simpler alternative to Bitcoin Script
+# The version should match that used by BDK.
+miniscript = { version = "12", features = ["std"] }
+# Small conversion from fixed ECDSA signature to ASN.1 format
+num-bigint = { version = "0.4", default-features = false, features = [] }
+# Encode/decode URLs with %-escaped characters
+percent-encoding = "2.3"
 # Property-based testing
 proptest = { version = "1", default-features = false }
 # Arbitrary derive macro
@@ -108,11 +129,25 @@ rand_core = { version = "0.6", default-features = false, features = ["alloc"] }
 rcgen = { version = "0.12", default-features = false, features = ["ring", "zeroize"] }
 # Safely cast &T to &U when T is a single field new-type
 ref-cast = "1"
+# Efficient sparse bitmap data structure
+roaring = "0.10"
+# Pure Rust RSA implementation by RustCrypto. Used for SGX .sigstruct signing.
+rsa = { version = "0.9.6", default-features = false, features = ["u64_digit"] }
 # Decimal number representation suitable for financial calculations
 rust_decimal = { version = "1", default-features = false, features = ["serde"] }
 rust_decimal_macros = { version = "1", default-features = false }
+# For demangling backtrace symbols into human-readable format
+rustc-demangle = "0.1"
 # TLS library
 rustls = { version = "0.22", default-features = false }
+# Deserialize PEM certs
+rustls-pemfile = "1"
+# TODO(max): Remove once esplora-client no longer needs it...
+rustls21 = { package = "rustls", version = "0.21", default-features = false }
+# Required to name our signature algorithms.
+# The version should match that used by rustls.
+# For some reason this breaks if we don't specify `package = "rustls-webpki"`
+rustls-webpki = { version = "0.102", package = "rustls-webpki" }
 # Rust bindings to libsecp256k1. Implements ECDSA and BIP 340 signatures.
 # Version should match that used by the `bitcoin` crate.
 secp256k1 = "0.29"
@@ -133,6 +168,10 @@ tempfile = "3"
 thiserror = "1"
 # Datetime library used by rcgen. Should match rcgen's `time` version
 time = "0.3"
+# Lower-level async TLS interface
+tokio-rustls = { version = "0.25", default-features = false }
+# Utilities for testing futures
+tokio-test = "0.4"
 # serde-compatible TOML-parsing library
 toml = "0.8"
 # `Service` and `Layer`-based async middleware
@@ -143,9 +182,15 @@ tower-service = "0.3"
 tracing = "0.1"
 tracing-core = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["smallvec"] }
+# Verify x509 certificates
+webpki = { version = "0.22", default-features = false, features = ["std"] }
+# Mozilla's set of trusted webpki root certificates hard-coded into a const
+webpki-roots = "0.26"
 # Parsing x509 cert extensions
 # TODO(phlip9): avoid this extra dependency and just use `yasna` directly
 x509-parser = { version = "0.15", default-features = false }
+# For constructing/parsing ASN.1 data in x509 certs
+yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
 
 # --- PATCHED DEPENDENCIES --- #
 # Use this section to declare patched dependencies.
@@ -162,6 +207,8 @@ axum-server = "=0.6.0"
 dcap-ql = { version = "=0.4.0", default-features = false }
 # Fortanix EDP crate for running SGX applications, includes usercall extensions
 enclave-runner = { version = "=0.6.0", default-features = false }
+# Async Esplora client
+esplora-client = { version = "0.10", default-features = false, features = ["async", "tokio"] }
 # Hyper-related utilities
 hyper-util = { version = "=0.1.5", default-features = false, features = ["http2"] }
 # LDK (rust-lightning) libraries

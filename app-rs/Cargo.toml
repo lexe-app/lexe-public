@@ -34,7 +34,9 @@ async-trait.workspace = true
 bitcoin.workspace = true
 cfg-if.workspace = true
 http.workspace = true
+keyring = { workspace = true, default-features = false }
 reqwest = { workspace = true, features = ["json"] }
+roaring.workspace = true
 secrecy.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -56,9 +58,6 @@ flutter_rust_bridge = { workspace = true, optional = true, features = [
 ] }
 
 # --- CRATE-SPECIFIC --- #
-
-keyring = { version = "2.0", default-features = false }
-roaring = "0.10"
 
 # TODO(phlip9): uncomment when I need this
 # [target.'cfg(target_os = "android")'.dependencies]
