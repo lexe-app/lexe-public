@@ -176,6 +176,9 @@ impl LexeWallet {
                 // remove these checks for compatibility.
                 .descriptor(KeychainKind::External, Some(external.clone()))
                 .descriptor(KeychainKind::Internal, Some(internal.clone()))
+                // Extract private keys from these descriptors so we can
+                // actually sign txs.
+                .extract_keys()
                 // TODO(max): Might want to check testnet3/testnet4 hash
                 // .check_genesis_hash(genesis_hash)
                 .check_network(network)
@@ -204,6 +207,16 @@ impl LexeWallet {
         let initial_changeset = maybe_changeset
             .or_else(|| wallet.take_staged())
             .unwrap_or_default();
+
+        // Sanity check: BDK wallet should pick up our change/external signers.
+        let has_internal_signers =
+            !wallet.get_signers(KeychainKind::Internal).ids().is_empty();
+        let has_external_signers =
+            !wallet.get_signers(KeychainKind::External).ids().is_empty();
+        assert!(
+            has_internal_signers && has_external_signers,
+            "BDK wallet must have at least one External and one Internal signer"
+        );
 
         Ok((
             Self {
