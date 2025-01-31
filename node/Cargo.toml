@@ -1,6 +1,6 @@
 [package]
 name = "node"
-version = "0.6.6"
+version = "0.6.7"
 
 authors.workspace = true
 edition.workspace = true
