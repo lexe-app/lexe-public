@@ -101,12 +101,13 @@ pub fn node_provision_dns(mr_short: &MrShort) -> String {
 pub const NODE_PROVISION_DNS_SUFFIX: &str = ".provision.lexe.app";
 
 // --- Esplora --- //
+// Quickly test these by appending /fee-estimates and opening in browser,
+// e.g. "https://testnet.ltbl.io/api/fee-estimates"
 
-// Mainnet Esplora urls
 pub const MAINNET_LEXE_MEMPOOL_ESPLORA: &str = "https://lexe.mempool.space/api";
+// Introduced in node-v0.6.8, lsp-v0.6.28
 pub const MAINNET_LEXE_BLOCKSTREAM_ESPLORA: &str =
-    "https://ipwl.blockstream.info";
-// Introduced in node-v0.6.7, lsp-v0.6.27
+    "https://ipwl.blockstream.info/api";
 pub const MAINNET_PUBLIC_BLOCKSTREAM_ESPLORA: &str =
     "https://blockstream.info/api";
 pub const MAINNET_ESPLORA_WHITELIST: [&str; 3] = [
@@ -115,19 +116,19 @@ pub const MAINNET_ESPLORA_WHITELIST: [&str; 3] = [
     MAINNET_PUBLIC_BLOCKSTREAM_ESPLORA,
 ];
 
-// Testnet Esplora urls
-// Quickly test these by appending /fee-estimates and opening in browser,
-// e.g. "https://testnet.ltbl.io/api/fee-estimates"
-pub const TESTNET3_BLOCKSTREAM_ESPLORA: &str =
+// Introduced in node-v0.6.8, lsp-v0.6.28
+pub const TESTNET3_LEXE_BLOCKSTREAM_ESPLORA: &str =
+    "https://ipwl.blockstream.info/testnet/api";
+pub const TESTNET3_PUBLIC_BLOCKSTREAM_ESPLORA: &str =
     "https://blockstream.info/testnet/api";
 pub const TESTNET3_LTBL_ESPLORA: &str = "https://testnet.ltbl.io/api";
 pub const TESTNET3_LEXE_ESPLORA: &str = "http://testnet.esplora.lexe.app:3001";
-pub const TESTNET3_ESPLORA_WHITELIST: [&str; 3] = [
-    TESTNET3_BLOCKSTREAM_ESPLORA,
+pub const TESTNET3_ESPLORA_WHITELIST: [&str; 4] = [
+    TESTNET3_LEXE_BLOCKSTREAM_ESPLORA,
+    TESTNET3_PUBLIC_BLOCKSTREAM_ESPLORA,
     TESTNET3_LTBL_ESPLORA,
     TESTNET3_LEXE_ESPLORA,
 ];
-// TODO(max): Add TESTNET4_LEXE_BLOCKSTREAM_ESPLORA
 
 // --- Root CA certs --- //
 //
