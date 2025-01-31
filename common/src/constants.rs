@@ -104,9 +104,16 @@ pub const NODE_PROVISION_DNS_SUFFIX: &str = ".provision.lexe.app";
 
 // Mainnet Esplora urls
 pub const MAINNET_LEXE_MEMPOOL_ESPLORA: &str = "https://lexe.mempool.space/api";
-pub const MAINNET_BLOCKSTREAM_ESPLORA: &str = "https://blockstream.info/api";
-pub const MAINNET_ESPLORA_WHITELIST: [&str; 2] =
-    [MAINNET_LEXE_MEMPOOL_ESPLORA, MAINNET_BLOCKSTREAM_ESPLORA];
+pub const MAINNET_LEXE_BLOCKSTREAM_ESPLORA: &str =
+    "https://ipwl.blockstream.info";
+// Introduced in node-v0.6.7, lsp-v0.6.27
+pub const MAINNET_PUBLIC_BLOCKSTREAM_ESPLORA: &str =
+    "https://blockstream.info/api";
+pub const MAINNET_ESPLORA_WHITELIST: [&str; 3] = [
+    MAINNET_LEXE_MEMPOOL_ESPLORA,
+    MAINNET_LEXE_BLOCKSTREAM_ESPLORA,
+    MAINNET_PUBLIC_BLOCKSTREAM_ESPLORA,
+];
 
 // Testnet Esplora urls
 // Quickly test these by appending /fee-estimates and opening in browser,
@@ -120,6 +127,7 @@ pub const TESTNET3_ESPLORA_WHITELIST: [&str; 3] = [
     TESTNET3_LTBL_ESPLORA,
     TESTNET3_LEXE_ESPLORA,
 ];
+// TODO(max): Add TESTNET4_LEXE_BLOCKSTREAM_ESPLORA
 
 // --- Root CA certs --- //
 //
