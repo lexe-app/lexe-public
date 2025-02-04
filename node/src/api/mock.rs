@@ -20,7 +20,6 @@ use common::{
         error::{
             BackendApiError, BackendErrorKind, LspApiError, RunnerApiError,
         },
-        models::SerializedNetworkGraph,
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         user::{MaybeScid, MaybeUser, NodePk, Scid, ScidStruct, User, UserPk},
@@ -155,18 +154,14 @@ impl NodeLspApi for MockLspClient {
     ) -> Result<ScidStruct, LspApiError> {
         Ok(ScidStruct { scid: DUMMY_SCID })
     }
-    async fn get_network_graph(
-        &self,
-    ) -> Result<SerializedNetworkGraph, LspApiError> {
+    async fn get_network_graph(&self) -> Result<Bytes, LspApiError> {
         let network_graph = NetworkGraphType::new(
             self.network.to_bitcoin(),
             self.logger.clone(),
         );
         let mut buf = Vec::new();
         network_graph.write(&mut buf).unwrap();
-        Ok(SerializedNetworkGraph {
-            bytes: Bytes::from(buf),
-        })
+        Ok(Bytes::from(buf))
     }
 }
 

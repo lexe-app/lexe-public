@@ -29,6 +29,7 @@
 #![deny(missing_docs)]
 
 use async_trait::async_trait;
+use bytes::Bytes;
 
 use super::{
     auth::{
@@ -52,8 +53,8 @@ use super::{
     },
     fiat_rates::FiatRates,
     models::{
-        SerializedNetworkGraph, SignMsgRequest, SignMsgResponse, Status,
-        VerifyMsgRequest, VerifyMsgResponse,
+        SignMsgRequest, SignMsgResponse, Status, VerifyMsgRequest,
+        VerifyMsgResponse,
     },
     ports::Ports,
     provision::{
@@ -274,13 +275,10 @@ pub trait NodeLspApi {
         node_pk: NodePk,
     ) -> Result<ScidStruct, LspApiError>;
 
-    /// GET /node/v1/network_graph [`Empty`] -> [`SerializedNetworkGraph`]
+    /// GET /node/v1/network_graph [`Empty`] -> [`Bytes`] (LDK-serialized graph)
     ///
     /// Introduced in node-v0.6.7 and lsp-v0.6.29.
-    // TODO(max): This should return the node binary API instead of hex...
-    async fn get_network_graph(
-        &self,
-    ) -> Result<SerializedNetworkGraph, LspApiError>;
+    async fn get_network_graph(&self) -> Result<Bytes, LspApiError>;
 }
 
 /// Defines the api that the runner exposes to the node.

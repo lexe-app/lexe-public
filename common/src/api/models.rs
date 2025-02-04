@@ -1,8 +1,7 @@
-use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
 use super::user::NodePk;
-use crate::{hexstr_or_bytes, time::TimestampMs};
+use crate::time::TimestampMs;
 
 /// A response to a status check.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -41,11 +40,4 @@ pub struct VerifyMsgRequest {
 pub struct VerifyMsgResponse {
     /// Whether the signature for the message was valid under the given pk.
     pub is_valid: bool,
-}
-
-/// A LDK-serialized network graph.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct SerializedNetworkGraph {
-    #[serde(with = "hexstr_or_bytes")]
-    pub bytes: Bytes,
 }

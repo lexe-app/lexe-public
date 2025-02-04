@@ -1,5 +1,6 @@
 use anyhow::Context;
 use async_trait::async_trait;
+use bytes::Bytes;
 use common::{
     api::{
         auth::{BearerAuthRequest, BearerAuthResponse, BearerAuthToken},
@@ -8,7 +9,6 @@ use common::{
             BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi,
         },
         error::{BackendApiError, LspApiError, RunnerApiError},
-        models::SerializedNetworkGraph,
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         user::{
@@ -96,13 +96,11 @@ impl NodeLspApi for LspClient {
         self.rest.send(req).await
     }
 
-    async fn get_network_graph(
-        &self,
-    ) -> Result<SerializedNetworkGraph, LspApiError> {
+    async fn get_network_graph(&self) -> Result<Bytes, LspApiError> {
         let lsp = &self.lsp_url;
         let data = Empty {};
         let req = self.rest.get(format!("{lsp}/node/v1/network_graph"), &data);
-        self.rest.send(req).await
+        self.rest.send_no_deserialize::<LspApiError>(req).await
     }
 }
 

@@ -374,8 +374,7 @@ impl UserNode {
         }
         let network_graph = {
             let network_graph_bytes = try_network_graph_bytes
-                .context("Could not fetch serialized network graph")?
-                .bytes;
+                .context("Could not fetch serialized network graph")?;
             let mut reader = Cursor::new(&network_graph_bytes);
             let read_args = logger.clone();
             NetworkGraphType::read(&mut reader, read_args)
