@@ -678,7 +678,9 @@ impl UserNode {
         // Prepare the ports that we'll notify the runner of once we're ready
         let ports = Ports::new_run(user_pk, app_port, lexe_port);
 
-        // Init background processor
+        // Init background processor.
+        // We don't persist the network graph bc we just fetch it from the LSP.
+        let persist_graph = false;
         let bg_processor_task = background_processor::start(
             channel_manager.clone(),
             peer_manager.clone(),
@@ -687,6 +689,7 @@ impl UserNode {
             event_handler,
             gossip_sync.clone(),
             scorer.clone(),
+            persist_graph,
             process_events_rx,
             scorer_persist_rx,
             shutdown.clone(),
