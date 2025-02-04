@@ -73,6 +73,7 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
 
     // --- Provided methods --- //
 
+    // TODO(max): Node doesn't need this anymore
     async fn read_graph(
         &self,
         network: LxNetwork,

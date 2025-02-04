@@ -1,4 +1,5 @@
 use std::{
+    io::Cursor,
     net::TcpListener,
     sync::{Arc, Mutex},
     time::Instant,
@@ -60,6 +61,7 @@ use lightning::{
         gossip::P2PGossipSync, router::DefaultRouter,
         scoring::ProbabilisticScoringFeeParameters,
     },
+    util::ser::ReadableArgs,
 };
 use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot};
@@ -333,14 +335,14 @@ impl UserNode {
         #[rustfmt::skip] // Does not respect 80 char line width
         let (
             try_maybe_approved_versions,
-            try_network_graph,
+            try_network_graph_bytes,
             try_maybe_changeset,
             try_maybe_scid,
             try_pending_payments,
             try_finalized_payment_ids,
         ) = tokio::join!(
             read_maybe_approved_versions,
-            persister.read_graph(network, logger.clone()),
+            lsp_api.get_network_graph(),
             persister.read_wallet_changeset(),
             persister.read_scid(),
             persister.read_pending_payments(),
@@ -370,9 +372,17 @@ impl UserNode {
                 {approved_measurement}",
             );
         }
-        let network_graph = try_network_graph
-            .map(Arc::new)
-            .context("Could not read network graph")?;
+        let network_graph = {
+            let network_graph_bytes = try_network_graph_bytes
+                .context("Could not fetch serialized network graph")?
+                .graph;
+            let mut reader = Cursor::new(&network_graph_bytes);
+            let read_args = logger.clone();
+            NetworkGraphType::read(&mut reader, read_args)
+                .map(Arc::new)
+                .map_err(|e| anyhow!("{e:?}"))
+                .context("Could not deserialize network graph")?
+        };
         let maybe_changeset =
             try_maybe_changeset.context("Could not read wallet changeset")?;
         let maybe_scid = try_maybe_scid.context("Could not read scid")?;
