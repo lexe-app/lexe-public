@@ -43,6 +43,12 @@ pub struct MaybeUser {
 #[repr(transparent)]
 pub struct UserPk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
+/// A [`UserPk`] shortened to its first four bytes (8 hex chars).
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, RefCast, Serialize, Deserialize)]
+#[repr(transparent)]
+pub struct ShortUserPk(#[serde(with = "hexstr_or_bytes")] [u8; 4]);
+
 /// Upgradeable API struct for a user pk.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -140,6 +146,10 @@ impl UserPk {
         ed25519::PublicKey::from_ref(&self.0)
     }
 
+    pub fn short(&self) -> ShortUserPk {
+        ShortUserPk::from(self)
+    }
+
     /// Used to quickly construct `UserPk`s for tests.
     pub fn from_u64(v: i64) -> Self {
         // Convert i64 to [u8; 8]
@@ -163,6 +173,29 @@ impl UserPk {
 byte_array::impl_byte_array!(UserPk, 32);
 byte_array::impl_fromstr_from_hexstr!(UserPk);
 byte_array::impl_debug_display_as_hex!(UserPk);
+
+// --- impl ShortUserPk --- //
+
+impl ShortUserPk {
+    pub const fn new(bytes: [u8; 4]) -> Self {
+        Self(bytes)
+    }
+
+    /// Whether this [`ShortUserPk`] is a prefix of the given [`UserPk`].
+    pub fn is_prefix_of(&self, long: &UserPk) -> bool {
+        self.0 == long.0[..4]
+    }
+}
+
+byte_array::impl_byte_array!(ShortUserPk, 4);
+byte_array::impl_fromstr_from_hexstr!(ShortUserPk);
+byte_array::impl_debug_display_as_hex!(ShortUserPk);
+
+impl From<&UserPk> for ShortUserPk {
+    fn from(long: &UserPk) -> Self {
+        (long.0)[..4].try_into().map(Self).unwrap()
+    }
+}
 
 impl From<ed25519::PublicKey> for UserPk {
     fn from(pk: ed25519::PublicKey) -> Self {
