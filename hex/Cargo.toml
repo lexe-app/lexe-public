@@ -5,7 +5,12 @@ edition.workspace = true
 license.workspace = true
 version.workspace = true
 
+[features]
+default = []
+bytes = ["dep:bytes"]
+
 [dependencies]
+bytes = { optional = true, workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true, features = ["alloc"] }

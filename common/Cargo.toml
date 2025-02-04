@@ -32,7 +32,7 @@ threads = 8
 
 byte-array.path = "../byte-array"
 const-utils.path = "../const-utils"
-hex.path = "../hex"
+hex = { path = "../hex", features = ["bytes"] }
 sha256.path = "../sha256"
 
 # --- WORKSPACE --- #

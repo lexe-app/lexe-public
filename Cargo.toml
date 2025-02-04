@@ -77,7 +77,7 @@ bitcoin_hashes = "0.14"
 # For casting byte buffers to/from the AESM client from/to structured data.
 bytemuck = { version = "1", default-features = false, features = ["derive", "min_const_generics"] }
 # Abstractions for working with bytes
-bytes = "1"
+bytes = { version = "1", features = ["serde"] }
 # Write #[cfg(..)] if-else statements without repeating clauses
 cfg-if = "1"
 # Datetime utilities

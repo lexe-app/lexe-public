@@ -62,6 +62,7 @@ where
 mod test {
     use std::borrow::Cow;
 
+    use bytes::Bytes;
     use serde::{Deserialize, Serialize};
 
     use crate::hexstr_or_bytes;
@@ -82,6 +83,9 @@ mod test {
             c: Cow<'static, [u8]>,
 
             d: u64,
+
+            #[serde(with = "hexstr_or_bytes")]
+            e: Bytes,
         }
 
         let foo = Foo {
@@ -89,6 +93,7 @@ mod test {
             b: vec![1, 2, 5, 6, 9, 0, 0x42],
             c: Cow::Borrowed(b"asdf"),
             d: 1234,
+            e: Bytes::from(vec![5, 4, 3, 2, 1, 0, 0x42]),
         };
 
         let actual = serde_json::to_value(&foo).unwrap();
@@ -100,6 +105,7 @@ mod test {
                 "b": "01020506090042",
                 "c": "61736466",
                 "d": 1234,
+                "e": "05040302010042",
             })
         );
 

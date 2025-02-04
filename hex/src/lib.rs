@@ -131,6 +131,13 @@ impl FromHex for Vec<u8> {
     }
 }
 
+#[cfg(feature = "bytes")]
+impl FromHex for bytes::Bytes {
+    fn from_hex(s: &str) -> Result<Self, DecodeError> {
+        decode(s).map(Self::from)
+    }
+}
+
 impl FromHex for Cow<'_, [u8]> {
     fn from_hex(s: &str) -> Result<Self, DecodeError> {
         decode(s).map(Cow::Owned)

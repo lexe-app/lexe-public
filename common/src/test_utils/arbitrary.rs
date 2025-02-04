@@ -19,6 +19,7 @@ use bitcoin::{
     secp256k1, Address, Network, OutPoint, ScriptBuf, ScriptHash, Sequence,
     TxIn, TxOut, Txid, Witness,
 };
+use bytes::Bytes;
 use chrono::Utc;
 use lightning::{
     routing::{
@@ -174,6 +175,10 @@ pub fn any_option_duration() -> impl Strategy<Value = Option<Duration>> {
 }
 
 // --- General --- //
+
+pub fn any_bytes() -> impl Strategy<Value = Bytes> {
+    any::<Vec<u8>>().prop_map(Bytes::from)
+}
 
 /// Does not include prerelease or build metadata components.
 pub fn any_semver_version() -> impl Strategy<Value = semver::Version> {
