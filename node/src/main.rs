@@ -1,5 +1,6 @@
 use std::{env, io::Write, process::ExitCode, time::Instant};
 
+use common::cli::node::RunArgs;
 use lexe_ln::logger;
 use node::cli::NodeCommand;
 use tracing::{error, info, info_span};
@@ -30,7 +31,8 @@ pub fn main() -> ExitCode {
     logger::init(command.rust_log());
 
     let span = match command {
-        NodeCommand::Run(_) => info_span!("(node)"),
+        NodeCommand::Run(RunArgs { user_pk, .. }) =>
+            info_span!("(node)", user_pk = %user_pk.short()),
         NodeCommand::Provision(_) => info_span!("(node-provision)"),
     };
 
