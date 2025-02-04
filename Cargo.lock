@@ -2892,6 +2892,7 @@ dependencies = [
  "async-trait",
  "axum",
  "bitcoin",
+ "bytes",
  "cfg-if 1.0.0",
  "common",
  "const-utils",

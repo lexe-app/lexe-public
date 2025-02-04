@@ -5,6 +5,7 @@ use std::{
 };
 
 use async_trait::async_trait;
+use bytes::Bytes;
 use common::{
     api::{
         auth::{
@@ -157,13 +158,15 @@ impl NodeLspApi for MockLspClient {
     async fn get_network_graph(
         &self,
     ) -> Result<SerializedNetworkGraph, LspApiError> {
-        let graph = NetworkGraphType::new(
+        let network_graph = NetworkGraphType::new(
             self.network.to_bitcoin(),
             self.logger.clone(),
         );
         let mut buf = Vec::new();
-        graph.write(&mut buf).unwrap();
-        Ok(SerializedNetworkGraph { graph: buf })
+        network_graph.write(&mut buf).unwrap();
+        Ok(SerializedNetworkGraph {
+            bytes: Bytes::from(buf),
+        })
     }
 }
 

@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
 use super::user::NodePk;
@@ -46,5 +47,5 @@ pub struct VerifyMsgResponse {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SerializedNetworkGraph {
     #[serde(with = "hexstr_or_bytes")]
-    pub graph: Vec<u8>,
+    pub bytes: Bytes,
 }
