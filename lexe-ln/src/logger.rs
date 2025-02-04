@@ -63,8 +63,8 @@ use tracing_subscriber::{
 ///
 /// Panics if a logger is already initialized. This will fail if used in tests,
 /// since multiple test threads will compete to set the global logger.
-pub fn init(rust_log: Option<&str>) {
-    try_init(rust_log).expect("Failed to setup logger");
+pub fn init(rust_log: Option<&str>, allow_trace: bool) {
+    try_init(rust_log, allow_trace).expect("Failed to setup logger");
 }
 
 /// Use this to initialize the global logger in tests.
@@ -74,17 +74,20 @@ pub fn init_for_testing() {
 
     // Don't panic if there's already a logger setup.
     // Multiple tests might try setting the global logger.
-    let _ = try_init(rust_log.as_deref());
+    let _ = try_init(rust_log.as_deref(), true);
 }
 
 /// Try to initialize a global logger.
 /// Returns `Err` if another global logger is already set.
-pub fn try_init(rust_log: Option<&str>) -> anyhow::Result<()> {
+pub fn try_init(
+    rust_log: Option<&str>,
+    allow_trace: bool,
+) -> anyhow::Result<()> {
     // If `RUST_LOG` isn't set, use "off" to initialize a no-op subscriber so
     // that all the `TraceId` infrastructure still works somewhat normally.
     let rust_log = rust_log.unwrap_or("off");
 
-    subscriber(rust_log)
+    subscriber(rust_log, allow_trace)
         .try_init()
         .context("Logger already initialized")?;
 
@@ -119,20 +122,21 @@ type SubscriberType = Layered<
 /// This function is extracted so that we can check the correctness of the
 /// `SubscriberType` type alias, which allows us to downcast back to our
 /// subscriber to recover `TraceId`s.
-fn subscriber(rust_log: &str) -> SubscriberType {
+fn subscriber(rust_log: &str, allow_trace: bool) -> SubscriberType {
     // TODO(phlip9): non-blocking writer for prod
     // see: https://docs.rs/tracing-appender/latest/tracing_appender/non_blocking/index.html
     let targets = Targets::from_str(rust_log)
         .inspect_err(|e| eprintln!("Invalid RUST_LOG; using INFO: {e}"))
         .unwrap_or_else(|_| Targets::new().with_default(Level::INFO));
 
+    // Allow TRACE logs in debug builds or if explicitly requested
     let clamped_targets =
-        if cfg!(any(test, debug_assertions, feature = "test-utils")) {
-            // Allow TRACE logs in tests / debug builds.
+        if cfg!(any(test, debug_assertions, feature = "test-utils"))
+            || allow_trace
+        {
             targets
         } else {
-            // Disallow TRACE logs in production.
-            enforce_log_policy(targets)
+            clamp_targets(targets)
         };
 
     let stdout_log = tracing_subscriber::fmt::Layer::default()
@@ -149,7 +153,7 @@ fn subscriber(rust_log: &str) -> SubscriberType {
 }
 
 /// Disallows TRACE logs as a default or for any specific target.
-fn enforce_log_policy(targets: Targets) -> Targets {
+fn clamp_targets(targets: Targets) -> Targets {
     /// Sets a level to DEBUG if it is currently specified as TRACE.
     fn clamp_level(level: LevelFilter) -> LevelFilter {
         if level == LevelFilter::TRACE {
@@ -397,7 +401,8 @@ mod test {
             None => return,
         };
 
-        let _ = try_init(Some(&rust_log));
+        let allow_trace = false;
+        let _ = try_init(Some(&rust_log), allow_trace);
         TraceId::get_and_insert_test_impl();
     }
 }

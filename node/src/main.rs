@@ -28,7 +28,8 @@ pub fn main() -> ExitCode {
         }
     }
 
-    logger::init(command.rust_log());
+    let allow_trace = false;
+    logger::init(command.rust_log(), allow_trace);
 
     let span = match command {
         NodeCommand::Run(RunArgs { user_pk, .. }) =>
