@@ -8,7 +8,7 @@ use tokio::{
     sync::{mpsc, oneshot},
     time::Instant,
 };
-use tracing::{debug, error, info, info_span, instrument, warn, Instrument};
+use tracing::{debug, error, info, info_span, warn, Instrument};
 
 use crate::{
     alias::{LexeChainMonitorType, P2PGossipSyncType, ProbabilisticScorerType},
@@ -51,38 +51,37 @@ mod delay {
 /// A Tokio-native background processor that runs on a single task and does not
 /// spawn any OS threads. Modeled after the lightning-background-processor crate
 /// provided by LDK - see that crate's implementation for more details.
-pub struct LexeBackgroundProcessor {}
-
-impl LexeBackgroundProcessor {
-    #[instrument(skip_all, name = "(bgp)")]
-    pub fn start<CM, PM, PS, EH>(
-        channel_manager: CM,
-        peer_manager: PM,
-        persister: PS,
-        chain_monitor: Arc<LexeChainMonitorType<PS>>,
-        event_handler: EH,
-        gossip_sync: Arc<P2PGossipSyncType>,
-        scorer: Arc<Mutex<ProbabilisticScorerType>>,
-        // TODO(max): A `process_events` notification should be sent every time
-        // an event is generated which does not also cause the future returned
-        // by `get_event_or_persistence_needed_future()` to resolve.
-        //
-        // Ideally, we can remove this channel entirely, but a manual trigger
-        // is currently still required after every channel monitor
-        // persist (which may resume monitor updating and create more
-        // events). This was supposed to be resolved by LDK#2052 and
-        // LDK#2090, but our integration tests still fail without this channel.
-        mut process_events_rx: mpsc::Receiver<oneshot::Sender<()>>,
-        mut scorer_persist_rx: notify::Receiver,
-        mut shutdown: NotifyOnce,
-    ) -> LxTask<()>
-    where
-        CM: LexeChannelManager<PS>,
-        PM: LexePeerManager<CM, PS>,
-        PS: LexePersister,
-        EH: LexeEventHandler,
-    {
-        LxTask::spawn("background processor", async move {
+pub fn start<CM, PM, PS, EH>(
+    channel_manager: CM,
+    peer_manager: PM,
+    persister: PS,
+    chain_monitor: Arc<LexeChainMonitorType<PS>>,
+    event_handler: EH,
+    gossip_sync: Arc<P2PGossipSyncType>,
+    scorer: Arc<Mutex<ProbabilisticScorerType>>,
+    // TODO(max): A `process_events` notification should be sent every time
+    // an event is generated which does not also cause the future returned
+    // by `get_event_or_persistence_needed_future()` to resolve.
+    //
+    // Ideally, we can remove this channel entirely, but a manual trigger
+    // is currently still required after every channel monitor
+    // persist (which may resume monitor updating and create more
+    // events). This was supposed to be resolved by LDK#2052 and
+    // LDK#2090, but our integration tests still fail without this channel.
+    mut process_events_rx: mpsc::Receiver<oneshot::Sender<()>>,
+    mut scorer_persist_rx: notify::Receiver,
+    mut shutdown: NotifyOnce,
+) -> LxTask<()>
+where
+    CM: LexeChannelManager<PS>,
+    PM: LexePeerManager<CM, PS>,
+    PS: LexePersister,
+    EH: LexeEventHandler,
+{
+    LxTask::spawn_with_span(
+        "background processor",
+        info_span!("(bgp)"),
+        async move {
             let now = Instant::now();
 
             let mk_interval = |delay: Duration, interval: Duration| {
@@ -272,6 +271,6 @@ impl LexeBackgroundProcessor {
                     error!("Final persistence failure: {e:#}");
                 }
             }
-        })
-    }
+        },
+    )
 }

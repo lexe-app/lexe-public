@@ -42,7 +42,7 @@ use lexe_ln::{
         NetworkGraphType, P2PGossipSyncType, ProbabilisticScorerType,
         RouterType,
     },
-    background_processor::LexeBackgroundProcessor,
+    background_processor,
     channel::ChannelEventsBus,
     channel_monitor,
     esplora::{self, LexeEsplora},
@@ -679,12 +679,7 @@ impl UserNode {
         let ports = Ports::new_run(user_pk, app_port, lexe_port);
 
         // Init background processor
-        let bg_processor_task = LexeBackgroundProcessor::start::<
-            NodeChannelManager,
-            NodePeerManager,
-            Arc<NodePersister>,
-            NodeEventHandler,
-        >(
+        let bg_processor_task = background_processor::start(
             channel_manager.clone(),
             peer_manager.clone(),
             persister.clone(),
