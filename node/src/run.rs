@@ -2,7 +2,7 @@ use std::{
     io::Cursor,
     net::TcpListener,
     sync::{Arc, Mutex},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use anyhow::{anyhow, bail, ensure, Context};
@@ -602,7 +602,7 @@ impl UserNode {
 
         // Start API server for app
         let app_router_state = Arc::new(AppRouterState {
-            version,
+            version: version.clone(),
             persister: persister.clone(),
             chain_monitor: chain_monitor.clone(),
             wallet: wallet.clone(),
@@ -676,6 +676,44 @@ impl UserNode {
 
         // Prepare the ports that we'll notify the runner of once we're ready
         let ports = Ports::new_run(user_pk, app_port, lexe_port);
+
+        // Spawn a task which periodically logs the node's node_info.
+        let node_info_task = {
+            let channel_manager = channel_manager.clone();
+            let peer_manager = peer_manager.clone();
+            let wallet = wallet.clone();
+            let chain_monitor = chain_monitor.clone();
+            let mut shutdown = shutdown.clone();
+
+            LxTask::spawn_with_span(
+                "node info logger",
+                info_span!("(node-info-logger)"),
+                async move {
+                    const LOG_INTERVAL: Duration = Duration::from_secs(20);
+                    let mut interval = tokio::time::interval(LOG_INTERVAL);
+
+                    loop {
+                        tokio::select! {
+                            _ = interval.tick() => (),
+                            () = shutdown.recv() => break,
+                        }
+
+                        let node_info = lexe_ln::command::node_info(
+                            version.clone(),
+                            measurement,
+                            &channel_manager,
+                            &peer_manager,
+                            &wallet,
+                            &chain_monitor,
+                        );
+                        let node_info_json = serde_json::to_string(&node_info)
+                            .expect("Failed to serialize node info");
+                        info!("Node info: {node_info_json}");
+                    }
+                },
+            )
+        };
+        static_tasks.push(node_info_task);
 
         // Init background processor.
         // We don't persist the network graph bc we just fetch it from the LSP.
