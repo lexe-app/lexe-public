@@ -8,6 +8,7 @@ use common::{
             BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi,
         },
         error::{BackendApiError, LspApiError, RunnerApiError},
+        models::SerializedNetworkGraph,
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         user::{
@@ -92,6 +93,15 @@ impl NodeLspApi for LspClient {
         let lsp = &self.lsp_url;
         let data = NodePkStruct { node_pk };
         let req = self.rest.get(format!("{lsp}/node/v1/scid"), &data);
+        self.rest.send(req).await
+    }
+
+    async fn get_network_graph(
+        &self,
+    ) -> Result<SerializedNetworkGraph, LspApiError> {
+        let lsp = &self.lsp_url;
+        let data = Empty {};
+        let req = self.rest.get(format!("{lsp}/node/v1/network_graph"), &data);
         self.rest.send(req).await
     }
 }

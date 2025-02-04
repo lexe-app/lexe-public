@@ -258,8 +258,10 @@ impl UserNode {
             rng,
             args.allow_mock,
             deploy_env,
+            network,
             node_mode,
             args.lsp.node_api_url.clone(),
+            logger.clone(),
         )?;
 
         // Init LDK transaction sync; share LexeEsplora's connection pool

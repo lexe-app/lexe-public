@@ -15,9 +15,11 @@ use common::{
         Empty,
     },
     env::DeployEnv,
+    ln::network::LxNetwork,
     rng::Crng,
 };
 use lexe_api::tls::attestation::NodeMode;
+use lexe_ln::logger::LexeTracingLogger;
 
 /// Real clients.
 pub(crate) mod client;
@@ -83,8 +85,10 @@ pub(crate) fn new_lsp_api(
     rng: &mut impl Crng,
     allow_mock: bool,
     deploy_env: DeployEnv,
+    network: LxNetwork,
     node_mode: NodeMode,
     maybe_lsp_url: Option<String>,
+    logger: LexeTracingLogger,
 ) -> anyhow::Result<Arc<dyn NodeLspApi + Send + Sync>> {
     cfg_if::cfg_if! {
         if #[cfg(any(test, feature = "test-utils"))] {
@@ -102,13 +106,12 @@ pub(crate) fn new_lsp_api(
                         allow_mock,
                         "LSP url not supplied, or --allow-mock wasn't set"
                     );
-                    Ok(Arc::new(mock::MockLspClient))
+                    Ok(Arc::new(mock::MockLspClient { network, logger }))
                 }
             }
         } else {
             // Can only use the real lsp client in staging/prod
-            let _ = allow_mock;
-            let _ = deploy_env;
+            let _ = (allow_mock, deploy_env, network, logger);
             let lsp_url = maybe_lsp_url
                 .context("LspInfo's url field must be Some(_) in staging/prod")?;
             let lsp_client =

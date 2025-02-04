@@ -52,8 +52,8 @@ use super::{
     },
     fiat_rates::FiatRates,
     models::{
-        SignMsgRequest, SignMsgResponse, Status, VerifyMsgRequest,
-        VerifyMsgResponse,
+        SerializedNetworkGraph, SignMsgRequest, SignMsgResponse, Status,
+        VerifyMsgRequest, VerifyMsgResponse,
     },
     ports::Ports,
     provision::{
@@ -273,6 +273,14 @@ pub trait NodeLspApi {
         &self,
         node_pk: NodePk,
     ) -> Result<ScidStruct, LspApiError>;
+
+    /// GET /node/v1/network_graph [`Empty`] -> [`SerializedNetworkGraph`]
+    ///
+    /// Introduced in node-v0.6.7 and lsp-v0.6.29.
+    // TODO(max): This should return the node binary API instead of hex...
+    async fn get_network_graph(
+        &self,
+    ) -> Result<SerializedNetworkGraph, LspApiError>;
 }
 
 /// Defines the api that the runner exposes to the node.

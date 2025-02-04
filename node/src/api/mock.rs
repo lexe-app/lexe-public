@@ -19,6 +19,7 @@ use common::{
         error::{
             BackendApiError, BackendErrorKind, LspApiError, RunnerApiError,
         },
+        models::SerializedNetworkGraph,
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         user::{MaybeScid, MaybeUser, NodePk, Scid, ScidStruct, User, UserPk},
@@ -40,6 +41,8 @@ use common::{
     root_seed::RootSeed,
     time::TimestampMs,
 };
+use lexe_ln::{alias::NetworkGraphType, logger::LexeTracingLogger};
+use lightning::util::ser::Writeable;
 use tokio::sync::mpsc;
 
 use crate::api::BackendApiClient;
@@ -138,7 +141,10 @@ impl NodeRunnerApi for MockRunnerClient {
     }
 }
 
-pub(super) struct MockLspClient;
+pub(super) struct MockLspClient {
+    pub network: LxNetwork,
+    pub logger: LexeTracingLogger,
+}
 
 #[async_trait]
 impl NodeLspApi for MockLspClient {
@@ -147,6 +153,17 @@ impl NodeLspApi for MockLspClient {
         _node_pk: NodePk,
     ) -> Result<ScidStruct, LspApiError> {
         Ok(ScidStruct { scid: DUMMY_SCID })
+    }
+    async fn get_network_graph(
+        &self,
+    ) -> Result<SerializedNetworkGraph, LspApiError> {
+        let graph = NetworkGraphType::new(
+            self.network.to_bitcoin(),
+            self.logger.clone(),
+        );
+        let mut buf = Vec::new();
+        graph.write(&mut buf).unwrap();
+        Ok(SerializedNetworkGraph { graph: buf })
     }
 }
 
