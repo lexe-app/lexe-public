@@ -18,6 +18,14 @@ OPTIONS:
 "#;
 
 fn main() {
+    // Disable _non-panic_ `std::backtrace::Backtrace::capture()`.
+    //
+    // 2025-02-04: In SGX and outside a panic, `Backtrace::capture()` appears to
+    // enter an infinite loop, causing the caller to hang indefinitely.
+    //
+    // See: <https://docs.rs/anyhow/latest/anyhow/struct.Error.html#method.backtrace>
+    unsafe { std::env::set_var("RUST_LIB_BACKTRACE", "0") };
+
     std::env::set_var("RUST_BACKTRACE", "full");
 
     let args = std::env::args().collect::<Vec<_>>();
