@@ -147,16 +147,21 @@ impl RestClient {
 
     // --- Request send/recv --- //
 
-    /// Sends the built HTTP request once. Tries to JSON deserialize the
-    /// response body to `T`.
-    pub async fn send<T, E>(
+    /// Sends the built HTTP request.
+    /// Tries to JSON deserialize the response body to `T`.
+    pub async fn send<T: DeserializeOwned, E: ApiError>(
         &self,
         request_builder: reqwest::RequestBuilder,
-    ) -> Result<T, E>
-    where
-        T: DeserializeOwned,
-        E: ApiError,
-    {
+    ) -> Result<T, E> {
+        let bytes = self.send_no_deserialize::<E>(request_builder).await?;
+        Self::json_deserialize(bytes)
+    }
+
+    /// Sends the HTTP request, but *doesn't* JSON-deserialize the response.
+    pub async fn send_no_deserialize<E: ApiError>(
+        &self,
+        request_builder: reqwest::RequestBuilder,
+    ) -> Result<Bytes, E> {
         let request = request_builder.build().map_err(CommonApiError::from)?;
         let (request_span, trace_id) =
             trace::client::request_span(&request, self.from, self.to);
@@ -164,7 +169,7 @@ impl RestClient {
             .send_inner(request, &trace_id)
             .instrument(request_span)
             .await;
-        Self::convert_rest_response(response)
+        Self::map_response_errors(response)
     }
 
     /// Sends the built HTTP request, retrying up to `retries` times. Tries to
@@ -174,16 +179,12 @@ impl RestClient {
     /// will immediately stop retrying and return that error.
     ///
     /// See also: [`RestClient::send`]
-    pub async fn send_with_retries<T, E>(
+    pub async fn send_with_retries<T: DeserializeOwned, E: ApiError>(
         &self,
         request_builder: reqwest::RequestBuilder,
         retries: usize,
         stop_codes: &[ErrorCode],
-    ) -> Result<T, E>
-    where
-        T: DeserializeOwned,
-        E: ApiError,
-    {
+    ) -> Result<T, E> {
         let request = request_builder.build().map_err(CommonApiError::from)?;
         let (request_span, trace_id) =
             trace::client::request_span(&request, self.from, self.to);
@@ -191,7 +192,8 @@ impl RestClient {
             .send_with_retries_inner(request, retries, stop_codes, &trace_id)
             .instrument(request_span)
             .await;
-        Self::convert_rest_response(response)
+        let bytes = Self::map_response_errors::<E>(response)?;
+        Self::json_deserialize(bytes)
     }
 
     // the `send_inner` and `send_with_retries_inner` intentionally use zero
@@ -332,32 +334,29 @@ impl RestClient {
         }
     }
 
-    /// Converts the concrete, non-generic Rest response result to the specific
-    /// API's result type.
-    ///
-    /// On success, this json deserializes the response body. On error, this
-    /// converts the generic [`ErrorResponse`] or [`CommonApiError`] into the
-    /// specific API error type, like [`BackendApiError`].
-    ///
-    /// [`BackendApiError`]: common::api::error::BackendApiError
-    fn convert_rest_response<T, E>(
+    /// Converts the [`Result<Result<Bytes, ErrorResponse>, CommonApiError>`]
+    /// returned by [`Self::send_inner`] to [`Result<Bytes, E>`].
+    fn map_response_errors<E: ApiError>(
         response: Result<Result<Bytes, ErrorResponse>, CommonApiError>,
-    ) -> Result<T, E>
-    where
-        T: DeserializeOwned,
-        E: ApiError,
-    {
+    ) -> Result<Bytes, E> {
         match response {
-            Ok(Ok(bytes)) =>
-                Ok(serde_json::from_slice::<T>(&bytes).map_err(|err| {
-                    let kind = CommonErrorKind::Decode;
-                    let msg =
-                        format!("Failed to deser response as json: {err:#}");
-                    CommonApiError::new(kind, msg)
-                })?),
+            Ok(Ok(bytes)) => Ok(bytes),
             Ok(Err(err_api)) => Err(E::from(err_api)),
             Err(err_client) => Err(E::from(err_client)),
         }
+    }
+
+    /// JSON-deserializes the REST response bytes.
+    fn json_deserialize<T: DeserializeOwned, E: ApiError>(
+        bytes: Bytes,
+    ) -> Result<T, E> {
+        serde_json::from_slice::<T>(&bytes)
+            .map_err(|err| {
+                let kind = CommonErrorKind::Decode;
+                let msg = format!("JSON deserialization failed: {err:#}");
+                CommonApiError::new(kind, msg)
+            })
+            .map_err(E::from)
     }
 }
 
