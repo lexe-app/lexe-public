@@ -16,7 +16,8 @@ use crate::{
 
 /// How long we'll wait to receive a reply from the background processor that
 /// event processing is complete.
-const PROCESS_EVENTS_TIMEOUT: Duration = Duration::from_secs(15);
+// 45s because we've seen this timeout on the node.
+const PROCESS_EVENTS_TIMEOUT: Duration = Duration::from_secs(45);
 
 /// Represents a channel monitor update. See docs on each field for details.
 pub struct LxChannelMonitorUpdate {
