@@ -635,7 +635,7 @@
 				DEVELOPMENT_TEAM = M2MS8SZ4DR;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Lexe;
+				INFOPLIST_KEY_CFBundleDisplayName = "Lexe Dev";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -719,7 +719,7 @@
 				DEVELOPMENT_TEAM = M2MS8SZ4DR;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Lexe;
+				INFOPLIST_KEY_CFBundleDisplayName = "Lexe Staging";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -883,7 +883,7 @@
 				DEVELOPMENT_TEAM = M2MS8SZ4DR;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Lexe;
+				INFOPLIST_KEY_CFBundleDisplayName = "Lexe Dev";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -963,7 +963,7 @@
 				DEVELOPMENT_TEAM = M2MS8SZ4DR;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Lexe;
+				INFOPLIST_KEY_CFBundleDisplayName = "Lexe Staging";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1120,7 +1120,7 @@
 				DEVELOPMENT_TEAM = M2MS8SZ4DR;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Lexe;
+				INFOPLIST_KEY_CFBundleDisplayName = "Lexe Dev";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1198,7 +1198,7 @@
 				DEVELOPMENT_TEAM = M2MS8SZ4DR;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Lexe;
+				INFOPLIST_KEY_CFBundleDisplayName = "Lexe Staging";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1352,13 +1352,13 @@
 				DEVELOPMENT_TEAM = M2MS8SZ4DR;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Lexe;
+				INFOPLIST_KEY_CFBundleDisplayName = "Lexe Dev";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.lexe.lexeapp;
+				PRODUCT_BUNDLE_IDENTIFIER = app.lexe.lexeapp.dev;
 				PRODUCT_NAME = Lexe;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -1486,13 +1486,13 @@
 				DEVELOPMENT_TEAM = M2MS8SZ4DR;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Lexe;
+				INFOPLIST_KEY_CFBundleDisplayName = "Lexe Dev";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.lexe.lexeapp;
+				PRODUCT_BUNDLE_IDENTIFIER = app.lexe.lexeapp.dev;
 				PRODUCT_NAME = Lexe;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -1514,13 +1514,13 @@
 				DEVELOPMENT_TEAM = M2MS8SZ4DR;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Lexe;
+				INFOPLIST_KEY_CFBundleDisplayName = "Lexe Dev";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.lexe.lexeapp;
+				PRODUCT_BUNDLE_IDENTIFIER = app.lexe.lexeapp.dev;
 				PRODUCT_NAME = Lexe;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
