@@ -12,7 +12,7 @@ use tracing::{debug, info, info_span, warn};
 
 use crate::peer_manager::NodePeerManager;
 
-const LSP_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
+const LSP_RECONNECT_INTERVAL: Duration = Duration::from_secs(5);
 
 /// A task which makes the initial p2p connection to Lexe's LSP then spawns a
 /// task to periodically reconnect to the LSP if we somehow disconnect after.
@@ -68,7 +68,7 @@ pub(crate) async fn connect_to_lsp_then_spawn_connector_task(
 
                     match result {
                         Ok(maybe_task) => {
-                            info!("(Re)connected to LSP");
+                            warn!("(Re)connected to LSP");
                             if let MaybeLxTask(Some(task)) = maybe_task {
                                 if eph_tasks_tx.try_send(task).is_err() {
                                     warn!("Failed to send LSP conn task (2)");
