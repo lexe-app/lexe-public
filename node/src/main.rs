@@ -36,8 +36,7 @@ pub fn main() -> ExitCode {
         }
     }
 
-    // XXX(max): This should be false
-    let allow_trace = true;
+    let allow_trace = false;
     logger::init(command.rust_log(), allow_trace);
 
     let span = match command {
