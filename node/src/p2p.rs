@@ -68,7 +68,7 @@ pub(crate) async fn connect_to_lsp_then_spawn_connector_task(
 
                     match result {
                         Ok(maybe_task) => {
-                            warn!("(Re)connected to LSP");
+                            warn!("Reconnected to LSP");
                             if let MaybeLxTask(Some(task)) = maybe_task {
                                 if eph_tasks_tx.try_send(task).is_err() {
                                     warn!("Failed to send LSP conn task (2)");
