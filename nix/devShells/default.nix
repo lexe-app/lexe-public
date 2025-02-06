@@ -84,6 +84,10 @@
 
     env = {
       FLUTTER_ROOT = lexePubPkgs.flutter;
+      # fastlane claims build uploads will break without this
+      # <https://docs.fastlane.tools/getting-started/ios/setup/>
+      LANG = "en_US.UTF-8";
+      LC_ALL = "en_US.UTF-8";
       LEXE_XCODE_VERSION = "16.2";
       LEXE_MACOS_SDK_VERSION = "15.2";
       LEXE_IOS_SDK_VERSION = "18.2";
