@@ -4,7 +4,7 @@ use common::{
     Apply,
 };
 use lightning::ln::channel_state::ChannelDetails;
-use tracing::{debug, warn};
+use tracing::{trace, warn};
 
 use crate::{alias::LexeChainMonitorType, traits::LexePersister};
 
@@ -53,7 +53,7 @@ pub fn channel_balance<PS: LexePersister>(
                 .get_claimable_balances()
                 .into_iter()
                 .map(|b| {
-                    debug!("ln_balance: {b:?}");
+                    trace!("ln_balance: {b:?}");
                     match b {
                         Balance::ClaimableOnChannelClose {
                             amount_satoshis,
