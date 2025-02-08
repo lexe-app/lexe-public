@@ -25,8 +25,8 @@ debug = true
 # TODO(max): Switch to allocator which does heap compaction.
 # TODO(max): The network graph is taking at least 75MB of memory. User nodes
 # share a private routing enclave to reduce the amount of memory required.
-# Current: 256MiB
-heap-size = 0x1000_0000
+# Current: 1 GiB
+heap-size = 0x4000_0000
 # SSA frame size (in pages) for each thread. Default: 1.
 # You normally don't need to change the SSA frame size.
 ssaframesize = 1
