@@ -1,5 +1,47 @@
 {
   "node": {
+    "0.2.0": {
+      "measurement": "c9a636a908d14ebc69d51257920a8c023e10f3f73b26364090f610669c7c2aab",
+      "revision": "b94c9b1aab59cbd791e71b0bb8f55406bded7738",
+      "release-date": "2024-07-03",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.2.0"
+    },
+    "0.2.1": {
+      "measurement": "d1fcfdca49c762d9ed72901f7f1eb98c89b580b00ca0b8174d6ffaea82837707",
+      "revision": "150eeee98653a5b8bb70b89e7ed98bdd0ae9f0d5",
+      "release-date": "2024-07-20",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.2.1"
+    },
+    "0.2.2": {
+      "measurement": "8a82307a08a9917fbde12c915eeb701e39f4fe2a54d0bbd1eb410995a8f6132b",
+      "revision": "0602dd881a828ce3ae8711152ec8bc38e9ebc0f1",
+      "release-date": "2024-07-30",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.2.2"
+    },
+    "0.3.0": {
+      "measurement": "57a1f24fbbd1d80268f3f1bceb417d363a6c459a987ebb399190541f0085e0a2",
+      "revision": "9e191db04147d0d74ff39ff4e72388b056789aaa",
+      "release-date": "2024-08-06",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.3.0"
+    },
+    "0.3.1": {
+      "measurement": "f5f3b1725a74a02aed2a5e7090cd0d49bec8d745453b5b0789ed725fbfa2e493",
+      "revision": "3e1d99238af90631a628c0d8be942aa524cbc6c8",
+      "release-date": "2024-08-08",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.3.1"
+    },
+    "0.3.2": {
+      "measurement": "f879b1f5cf4ffb1cbb27a7fa05bb6b016ea95ae772a86dcf7ca1673e97b87d8e",
+      "revision": "2d74ea6208ffa76cd932bf9786c31f8a9121bd8a",
+      "release-date": "2024-08-10",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.3.2"
+    },
+    "0.3.3": {
+      "measurement": "38a9d929855707574a97d91b381860ecf2cbd7b820193e570080098838911802",
+      "revision": "f4eaae69e1146f089c5a52cea882ccb8beaf8c7c",
+      "release-date": "2024-08-13",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.3.3"
+    },
     "0.4.0": {
       "measurement": "ac018bb70a5901dedb0a7da01820f16b04044755809203783b9e4d43477269cd",
       "revision": "f53221b4a4c6c180b6d9845f2da07746f95f2828",
