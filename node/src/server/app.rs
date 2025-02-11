@@ -37,6 +37,7 @@ use crate::channel_manager;
 pub(super) async fn node_info(
     State(state): State<Arc<AppRouterState>>,
 ) -> LxJson<NodeInfo> {
+    let channels = state.channel_manager.list_channels();
     LxJson(lexe_ln::command::node_info(
         state.version.clone(),
         state.measurement,
@@ -44,6 +45,7 @@ pub(super) async fn node_info(
         &state.peer_manager,
         &state.wallet,
         &state.chain_monitor,
+        &channels,
     ))
 }
 

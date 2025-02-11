@@ -95,6 +95,7 @@ pub fn node_info<CM, PM, PS>(
     peer_manager: &PM,
     wallet: &LexeWallet,
     chain_monitor: &LexeChainMonitorType<PS>,
+    channels: &[ChannelDetails],
 ) -> NodeInfo
 where
     CM: LexeChannelManager<PS>,
@@ -103,14 +104,12 @@ where
 {
     let node_pk = NodePk(channel_manager.get_our_node_id());
 
-    let channels = channel_manager.list_channels();
+    let num_peers = peer_manager.list_peers().len();
 
     let num_channels: usize = channels.len();
 
     let (lightning_balance, num_usable_channels) =
-        balance::all_channel_balances(chain_monitor, &channels);
-
-    let num_peers = peer_manager.list_peers().len();
+        balance::all_channel_balances(chain_monitor, channels);
 
     let onchain_balance = wallet.get_balance();
 

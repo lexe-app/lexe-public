@@ -698,6 +698,7 @@ impl UserNode {
                             () = shutdown.recv() => break,
                         }
 
+                        let channels = channel_manager.list_channels();
                         let node_info = lexe_ln::command::node_info(
                             version.clone(),
                             measurement,
@@ -705,6 +706,7 @@ impl UserNode {
                             &peer_manager,
                             &wallet,
                             &chain_monitor,
+                            &channels,
                         );
                         let node_info_json = serde_json::to_string(&node_info)
                             .expect("Failed to serialize node info");

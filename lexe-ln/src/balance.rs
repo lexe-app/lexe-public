@@ -64,9 +64,8 @@ pub fn channel_balance<PS: LexePersister>(
                             inbound_htlc_rounded_msat: _,
                         } => {
                             // Add back in the "reserved"
-                            // `transaction_fee_satoshis`
-                            // to make things more intuitive, i.e., open 10_000
-                            // sat channel, get
+                            // `transaction_fee_satoshis` to make things more
+                            // intuitive, i.e., open 10_000 sat channel, get
                             // 10_000 sats balance.
                             amount_satoshis + transaction_fee_satoshis
                         }
