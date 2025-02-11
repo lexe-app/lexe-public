@@ -133,16 +133,11 @@ where
 }
 
 #[instrument(skip_all, name = "(list-channels)")]
-pub fn list_channels<CM, PS>(
-    channel_manager: &CM,
+pub fn list_channels<PS: LexePersister>(
     chain_monitor: &LexeChainMonitorType<PS>,
-) -> anyhow::Result<ListChannelsResponse>
-where
-    CM: LexeChannelManager<PS>,
-    PS: LexePersister,
-{
-    let channels = channel_manager
-        .list_channels()
+    channels: impl IntoIterator<Item = ChannelDetails>,
+) -> anyhow::Result<ListChannelsResponse> {
+    let channels = channels
         .into_iter()
         .map(|channel| {
             let channel_id = channel.channel_id;
