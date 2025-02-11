@@ -142,8 +142,8 @@ class ProdGDriveAuth extends GDriveAuth {
           DeployEnv.dev => null,
           DeployEnv.staging =>
             "495704988639-ook7rjckct44o668nt1f58sd3bharq2p.apps.googleusercontent.com",
-          // TODO(phlip9): iOS/macOS prod gdrive auth
-          DeployEnv.prod => null,
+          DeployEnv.prod =>
+            "495704988639-mh0ja8lln9q5ru2kshltpsqbb7ns2bru.apps.googleusercontent.com",
         };
       }
     } else if (Platform.isAndroid) {
