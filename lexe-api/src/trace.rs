@@ -354,7 +354,7 @@ macro_rules! define_trace_id_fns {
 
 /// [`Display`]s a [`Duration`] in ms with 3 decimal places, e.g. "123.456ms".
 /// Used to log request / response times in a consistent unit.
-pub(crate) struct DisplayMs(pub Duration);
+pub struct DisplayMs(pub Duration);
 
 impl Display for DisplayMs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
