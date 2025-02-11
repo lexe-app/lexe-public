@@ -114,13 +114,17 @@ extension StreamFilterErrExt<T, E extends Object> on Stream<Result<T, E>> {
 }
 
 extension ValueStreamExt<T> on ValueStream<T> {
-  StreamValueListenable<T> toValueListenable() {
-    final listenable = StreamValueListenable<T>(this.value);
+  /// Return a [ValueNotifier]-like object that is updated whenever this stream
+  /// updates.
+  ///
+  /// NOTE: the returned [StreamValueNotifier] is an owned type that must be
+  /// disposed!
+  StreamValueNotifier<T> streamValueNotifier() {
+    final listenable = StreamValueNotifier<T>(this.value);
     final subscription = this.listen(
       listenable._setValue,
       onDone: () {
         listenable._subscription = null;
-        listenable.dispose();
       },
       cancelOnError: false,
     );
@@ -129,8 +133,8 @@ extension ValueStreamExt<T> on ValueStream<T> {
   }
 }
 
-class StreamValueListenable<T> extends ValueNotifier<T> {
-  StreamValueListenable(super._value);
+class StreamValueNotifier<T> extends ValueNotifier<T> {
+  StreamValueNotifier(super._value);
 
   StreamSubscription<T>? _subscription;
 
@@ -141,10 +145,4 @@ class StreamValueListenable<T> extends ValueNotifier<T> {
   }
 
   void _setValue(T value) => super.value = value;
-
-  @override
-  set value(T newValue) {
-    throw UnsupportedError(
-        "StreamValueListenable doesn't support setting the value");
-  }
 }

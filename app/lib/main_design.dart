@@ -143,13 +143,13 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
 
   ValueListenable<FiatRate?> makeFiatRateStream() =>
       Stream.fromIterable(<FiatRate?>[
-        const FiatRate(fiat: "USD", rate: 73111.19),
-        const FiatRate(fiat: "USD", rate: 73222.29),
-        const FiatRate(fiat: "USD", rate: 73333.39),
+        const FiatRate(fiat: "USD", rate: 97111.19),
+        const FiatRate(fiat: "USD", rate: 97222.29),
+        const FiatRate(fiat: "USD", rate: 97333.39),
       ])
           .interval(const Duration(seconds: 2))
           .shareValueSeeded(null)
-          .toValueListenable();
+          .streamValueNotifier();
 
   /// Complete the payment after a few seconds
   ValueNotifier<Payment> makeCompletingPayment(final Payment payment) {
@@ -172,7 +172,6 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
     final mockApp = mocks.MockAppHandle();
     final mockSignupApi = mocks.MockSignupApi(app: mockApp);
     final mockRestoreApi = mocks.MockRestoreApi(app: mockApp);
-    final mockFiatRate = this.makeFiatRateStream();
     final mockSignupCtx =
         SignupCtx(this.widget.config, GDriveAuth.mock, mockSignupApi);
 
@@ -445,7 +444,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "CloseChannelPage",
               (context) => CloseChannelPage(
                 app: mockApp,
-                fiatRate: mockFiatRate,
+                fiatRate: this.makeFiatRateStream(),
                 channels: ValueNotifier(ChannelsList.fromApi(
                     ListChannelsResponse(channels: mockApp.channels))),
               ),
@@ -455,7 +454,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               subtitle: "preflight error",
               (context) => CloseChannelPage(
                 app: mocks.MockAppHandleErroring(),
-                fiatRate: mockFiatRate,
+                fiatRate: this.makeFiatRateStream(),
                 channels: ValueNotifier(ChannelsList.fromApi(
                     ListChannelsResponse(channels: mockApp.channels))),
               ),
@@ -464,7 +463,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "CloseChannelConfirmPage",
               (context) => CloseChannelConfirmPage(
                 app: mockApp,
-                fiatRate: mockFiatRate,
+                fiatRate: this.makeFiatRateStream(),
                 channelId:
                     "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",
                 channelOurBalanceSats: 300231,
