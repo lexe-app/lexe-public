@@ -100,6 +100,8 @@ pub struct LxChannelDetails {
     pub channel_id: LxChannelId,
     pub user_channel_id: LxUserChannelId,
     pub funding_txo: Option<LxOutPoint>,
+    // Introduced in node-v0.6.16, lsp-v0.6.32
+    pub counterparty_alias: Option<String>,
     pub counterparty_node_id: NodePk,
     pub channel_value: Amount,
     /// The portion of our balance that our counterparty forces us to keep in
@@ -181,15 +183,18 @@ pub struct LxChannelDetails {
 }
 
 impl LxChannelDetails {
-    /// Construct a [`LxChannelDetails`] from a LDK [`ChannelDetails`] and the
-    /// channel balance from [`ChannelMonitor::get_claimable_balances`].
-    /// Not to be confused with [`ChainMonitor::get_claimable_balances`].
+    /// Construct a [`LxChannelDetails`] from a LDK [`ChannelDetails`] and
+    /// other info.
+    ///
+    /// - The balance should be from [`ChannelMonitor::get_claimable_balances`];
+    ///   not to be confused with [`ChainMonitor::get_claimable_balances`].
     ///
     /// [`ChannelMonitor::get_claimable_balances`]: lightning::chain::channelmonitor::ChannelMonitor::get_claimable_balances
     /// [`ChainMonitor::get_claimable_balances`]: lightning::chain::chainmonitor::ChainMonitor::get_claimable_balances
-    pub fn from_details_and_balance(
+    pub fn from_ldk(
         details: ChannelDetails,
         our_balance: Amount,
+        counterparty_alias: Option<String>,
     ) -> anyhow::Result<Self> {
         // This destructuring makes clear which fields we *aren't* using,
         // in case we want to include more fields in the future.
@@ -298,6 +303,7 @@ impl LxChannelDetails {
             channel_id,
             user_channel_id,
             funding_txo,
+            counterparty_alias,
             counterparty_node_id,
             channel_value,
             punishment_reserve,

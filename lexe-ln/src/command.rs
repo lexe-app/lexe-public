@@ -42,7 +42,10 @@ use lightning::{
         types::ChannelId,
         PaymentHash,
     },
-    routing::router::{PaymentParameters, RouteHint, RouteParameters, Router},
+    routing::{
+        gossip::NodeId,
+        router::{PaymentParameters, RouteHint, RouteParameters, Router},
+    },
     sign::{NodeSigner, Recipient},
     util::config::UserConfig,
 };
@@ -51,7 +54,7 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, info, instrument};
 
 use crate::{
-    alias::{LexeChainMonitorType, RouterType, SignerType},
+    alias::{LexeChainMonitorType, NetworkGraphType, RouterType, SignerType},
     balance,
     channel::{ChannelEvent, ChannelEventsBus, ChannelEventsRx},
     esplora::LexeEsplora,
@@ -134,17 +137,33 @@ where
 
 #[instrument(skip_all, name = "(list-channels)")]
 pub fn list_channels<PS: LexePersister>(
+    network_graph: &NetworkGraphType,
     chain_monitor: &LexeChainMonitorType<PS>,
     channels: impl IntoIterator<Item = ChannelDetails>,
 ) -> anyhow::Result<ListChannelsResponse> {
+    let read_only_network_graph = network_graph.read_only();
+
     let channels = channels
         .into_iter()
         .map(|channel| {
             let channel_id = channel.channel_id;
             let channel_balance =
                 balance::channel_balance(chain_monitor, &channel)?;
-            LxChannelDetails::from_details_and_balance(channel, channel_balance)
-                .context(channel_id)
+
+            let counterparty_node_id =
+                NodeId::from_pubkey(&channel.counterparty.node_id);
+            let counterparty_alias = read_only_network_graph
+                .node(&counterparty_node_id)
+                .and_then(|node_info| node_info.announcement_info.as_ref())
+                // The Display impl here handles non-printable chars safely.
+                .map(|ann_info| ann_info.alias().to_string());
+
+            LxChannelDetails::from_ldk(
+                channel,
+                channel_balance,
+                counterparty_alias,
+            )
+            .context(channel_id)
         })
         .collect::<anyhow::Result<Vec<LxChannelDetails>>>()
         .context("Error listing channel details")?;

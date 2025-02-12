@@ -21,8 +21,11 @@ use common::{
     task::LxTask,
 };
 use lexe_ln::{
-    alias::RouterType, channel::ChannelEventsBus, esplora::LexeEsplora,
-    keys_manager::LexeKeysManager, test_event::TestEventReceiver,
+    alias::{NetworkGraphType, RouterType},
+    channel::ChannelEventsBus,
+    esplora::LexeEsplora,
+    keys_manager::LexeKeysManager,
+    test_event::TestEventReceiver,
     wallet::LexeWallet,
 };
 use tokio::sync::{mpsc, oneshot};
@@ -52,6 +55,7 @@ pub(crate) struct AppRouterState {
     pub peer_manager: NodePeerManager,
     pub keys_manager: Arc<LexeKeysManager>,
     pub payments_manager: PaymentsManagerType,
+    pub network_graph: Arc<NetworkGraphType>,
     pub lsp_info: LspInfo,
     pub scid: Scid,
     pub network: LxNetwork,

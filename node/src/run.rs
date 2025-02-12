@@ -612,6 +612,7 @@ impl UserNode {
             peer_manager: peer_manager.clone(),
             keys_manager: keys_manager.clone(),
             payments_manager: payments_manager.clone(),
+            network_graph: network_graph.clone(),
             lsp_info: args.lsp.clone(),
             scid,
             network,

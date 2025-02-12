@@ -53,9 +53,13 @@ pub(super) async fn list_channels(
     State(state): State<Arc<AppRouterState>>,
 ) -> Result<LxJson<ListChannelsResponse>, NodeApiError> {
     let channels = state.channel_manager.list_channels();
-    lexe_ln::command::list_channels(&state.chain_monitor, channels)
-        .map(LxJson)
-        .map_err(NodeApiError::command)
+    lexe_ln::command::list_channels(
+        &state.network_graph,
+        &state.chain_monitor,
+        channels,
+    )
+    .map(LxJson)
+    .map_err(NodeApiError::command)
 }
 
 pub(super) async fn sign_message(
