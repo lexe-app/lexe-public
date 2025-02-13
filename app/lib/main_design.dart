@@ -210,6 +210,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 signupApi: mockSignupApi,
                 restoreApi: mockRestoreApi,
                 uriEvents: this.widget.uriEvents,
+                fixedShaderTime: null,
               ),
             ),
             Component(
@@ -508,6 +509,18 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 }));
                 return NodeInfoPage(nodeInfo: nodeInfo, userInfo: userInfo);
               },
+            ),
+            Component(
+              "Screenshot 01",
+              subtitle: "LandingPage",
+              (context) => LandingPage(
+                config: widget.config,
+                gdriveAuth: GDriveAuth.mock,
+                signupApi: mockSignupApi,
+                restoreApi: mockRestoreApi,
+                uriEvents: this.widget.uriEvents,
+                fixedShaderTime: 8.5,
+              ),
             ),
             Component(
               "ShowQrPage",

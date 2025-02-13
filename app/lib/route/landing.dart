@@ -35,6 +35,7 @@ class LandingPage extends StatefulWidget {
     required this.signupApi,
     required this.restoreApi,
     required this.uriEvents,
+    required this.fixedShaderTime,
   });
 
   final Config config;
@@ -42,6 +43,10 @@ class LandingPage extends StatefulWidget {
   final SignupApi signupApi;
   final RestoreApi restoreApi;
   final UriEvents uriEvents;
+
+  /// If non-null, the background shader will not vary with time and instead
+  /// stay at a fixed time offset. Used for tests and screenshots.
+  final double? fixedShaderTime;
 
   @override
   State<LandingPage> createState() => _LandingPageState();
@@ -147,8 +152,9 @@ class _LandingPageState extends State<LandingPage> {
           "brought to you by",
           style: Fonts.fontUI.copyWith(
             color: LxColors.clearB700,
-            fontSize: Fonts.size100,
-            fontVariations: [Fonts.weightExtraLight],
+            fontSize: Fonts.size200,
+            fontVariations: [Fonts.weightLight],
+            letterSpacing: -0.1,
           ),
         ),
         const SizedBox(width: 4.0),
@@ -156,8 +162,9 @@ class _LandingPageState extends State<LandingPage> {
           "LEXE™",
           style: Fonts.fontHubot.copyWith(
             color: LxColors.clearB700,
-            fontSize: Fonts.size100,
+            fontSize: Fonts.size200,
             fontVariations: [Fonts.weightMedium],
+            letterSpacing: -0.2,
             height: 1.0,
           ),
         ),
@@ -222,6 +229,7 @@ Your wallet always verifies your node's software before sharing any keys.
           // Background shader.
           InkuShader(
             carouselScrollController: this.carouselScrollController,
+            fixedShaderTime: this.widget.fixedShaderTime,
             child: const Center(),
           ),
 
@@ -415,10 +423,12 @@ class InkuShader extends StatelessWidget {
   const InkuShader({
     super.key,
     required this.carouselScrollController,
+    required this.fixedShaderTime,
     this.child,
   });
 
   final PageController carouselScrollController;
+  final double? fixedShaderTime;
   final Widget? child;
 
   static Future<ui.FragmentShader> load() async {
@@ -443,6 +453,7 @@ class InkuShader extends StatelessWidget {
           return AnimatedShader(
             shader: snapshot.data!,
             carouselScrollController: this.carouselScrollController,
+            fixedShaderTime: this.fixedShaderTime,
             child: this.child,
           );
         });
@@ -454,11 +465,13 @@ class AnimatedShader extends StatefulWidget {
     super.key,
     required this.shader,
     required this.carouselScrollController,
+    required this.fixedShaderTime,
     this.child,
   });
 
   final ui.FragmentShader shader;
   final PageController carouselScrollController;
+  final double? fixedShaderTime;
   final Widget? child;
 
   @override
@@ -505,21 +518,22 @@ class AnimatedShaderState extends State<AnimatedShader>
   @override
   Widget build(BuildContext context) {
     double prevOffset = this.scrollOffset();
+    double? fixedShaderTime = this.widget.fixedShaderTime;
 
     return AnimatedBuilder(
       animation: this.animationController,
       builder: (BuildContext _, Widget? child) {
-        // Add some small EMA dampening to scroll offset.
+        // Add small EMA dampening to scroll offset.
         const a = 0.25;
         final nextOffset = a * this.scrollOffset() + (1.0 - a) * prevOffset;
         prevOffset = nextOffset;
 
+        // Current time offset, passed to the shader. Can be configured as a
+        // fixed value for tests/screenshots.
+        final time = fixedShaderTime ?? this.animationController.value;
+
         return CustomPaint(
-          painter: ShaderPainter(
-            widget.shader,
-            this.animationController.value,
-            nextOffset,
-          ),
+          painter: ShaderPainter(widget.shader, time, nextOffset),
           // raster cache probably shouldn't cache this since it changes every frame
           isComplex: false,
           willChange: true,

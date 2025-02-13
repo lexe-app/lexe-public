@@ -74,6 +74,7 @@ Future<void> main() async {
       signupApi: SignupApi.prod,
       restoreApi: RestoreApi.prod,
       uriEvents: uriEvents,
+      fixedShaderTime: null,
     );
   }
 
