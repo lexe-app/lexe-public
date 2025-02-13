@@ -80,6 +80,8 @@
       pkgs.fastlane
       # pod
       pkgs.cocoapods
+      # idevicesyslog (among others) - view logs from attached iOS device
+      pkgs.libimobiledevice
     ];
 
     env = {
