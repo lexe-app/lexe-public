@@ -1,4 +1,4 @@
-use std::{ops::Deref, sync::Arc, time::SystemTime};
+use std::{collections::HashMap, ops::Deref, sync::Arc, time::SystemTime};
 
 use anyhow::Context;
 use bitcoin::BlockHash;
@@ -18,7 +18,7 @@ use lightning::{
         MaxDustHTLCExposure, UserConfig,
     },
 };
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use crate::alias::{ChainMonitorType, ChannelManagerType};
 
@@ -168,7 +168,7 @@ const CHANNEL_CONFIG: ChannelConfig = ChannelConfig {
     // if this is set too low, causing small payments to fail to route.
     // Current setting: 100k sats
     max_dust_htlc_exposure: MaxDustHTLCExposure::FixedLimitMsat(100_000_000),
-    // Pay up to 1000 sats (50 cents assuming $50K per BTC) to avoid waiting up
+    // Pay up to 1000 sats ($1 assuming $100K per BTC) to avoid waiting up
     // to `their_to_self_delay` time (currently set to ~1 day) in the case of a
     // unilateral close initiated by us. In practice our LSP should always be
     // online so this should rarely, if ever, be paid.
@@ -239,5 +239,36 @@ impl NodeChannelManager {
         Ok(Self(Arc::new(inner)))
     }
 
-    // TODO: Closing a channel should delete a LN peer.
+    /// Ensures that all channels are using the most up-to-date channel config.
+    pub(crate) fn ensure_channel_configs_updated(&self) {
+        let channels = self.0.list_channels();
+
+        // Construct a map of `counterparty_pk -> Vec<channel_id>`
+        // corresponding to channels whose configs need to be updated
+        let to_update: HashMap<_, Vec<_>> = channels
+            .into_iter()
+            .filter(|channel| {
+                let config = channel.config.expect("Launched after v0.0.109");
+                config != CHANNEL_CONFIG
+            })
+            .fold(HashMap::new(), |mut acc, channel| {
+                acc.entry(channel.counterparty.node_id)
+                    .or_default()
+                    .push(channel.channel_id);
+                acc
+            });
+
+        // Update the configs
+        for (counterparty_pk, channel_ids) in to_update {
+            let result = self.0.update_channel_config(
+                &counterparty_pk,
+                &channel_ids,
+                &CHANNEL_CONFIG,
+            );
+            match result {
+                Ok(()) => info!("Updated channel config with LSP"),
+                Err(e) => warn!("Couldn't update channel config: {e:?}"),
+            }
+        }
+    }
 }

@@ -736,6 +736,9 @@ impl UserNode {
         );
         static_tasks.push(bg_processor_task);
 
+        // Ensure channels are using the most up-to-date config.
+        channel_manager.ensure_channel_configs_updated();
+
         // Construct (but don't start) the inactivity timer
         let inactivity_timer = InactivityTimer::new(
             args.shutdown_after_sync,
