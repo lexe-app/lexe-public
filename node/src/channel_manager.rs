@@ -1,6 +1,7 @@
 use std::{collections::HashMap, ops::Deref, sync::Arc, time::SystemTime};
 
 use anyhow::Context;
+use arc_swap::ArcSwap;
 use bitcoin::BlockHash;
 use common::{constants, ln::network::LxNetwork};
 use lexe_ln::{
@@ -46,7 +47,13 @@ const TIME_TO_CONTEST_FRAUDULENT_CLOSES: u16 = 6 * 24 * 7; // 7 days
 /// NOTE: If this value is too low, channel negotiation with the LSP will fail.
 const MAXIMUM_TIME_TO_RECLAIM_FUNDS: u16 = 6 * 24 * 4; // four days
 
-pub(crate) const fn user_config() -> UserConfig {
+// This fn prevents the rest of the crate from instantiating configs directly.
+pub(crate) fn get_config() -> Arc<ArcSwap<UserConfig>> {
+    // ArcSwap doesn't impl Clone, so we have to wrap in yet another Arc.
+    Arc::new(ArcSwap::new(Arc::new(user_config())))
+}
+
+const fn user_config() -> UserConfig {
     UserConfig {
         channel_handshake_config: channel_handshake_config(),
         channel_handshake_limits: channel_handshake_limits(),
@@ -201,6 +208,7 @@ impl Deref for NodeChannelManager {
 impl NodeChannelManager {
     pub(crate) fn init(
         network: LxNetwork,
+        config: &ArcSwap<UserConfig>,
         maybe_manager: Option<(BlockHash, ChannelManagerType)>,
         keys_manager: Arc<LexeKeysManager>,
         fee_estimator: Arc<FeeEstimatorType>,
@@ -238,7 +246,7 @@ impl NodeChannelManager {
                     keys_manager.clone(),
                     keys_manager.clone(),
                     keys_manager,
-                    user_config(),
+                    **config.load(),
                     chain_params,
                     current_timestamp_secs,
                 );
@@ -251,8 +259,9 @@ impl NodeChannelManager {
     }
 
     /// Ensures that all channels are using the most up-to-date channel config.
-    pub(crate) fn ensure_channel_configs_updated(&self) {
+    pub(crate) fn check_channel_configs(&self, config: &ArcSwap<UserConfig>) {
         let channels = self.0.list_channels();
+        let expected_config = config.load().channel_config;
 
         // Construct a map of `counterparty_pk -> Vec<channel_id>`
         // corresponding to channels whose configs need to be updated
@@ -260,7 +269,7 @@ impl NodeChannelManager {
             .into_iter()
             .filter(|channel| {
                 let config = channel.config.expect("Launched after v0.0.109");
-                config != channel_config()
+                config != expected_config
             })
             .fold(HashMap::new(), |mut acc, channel| {
                 acc.entry(channel.counterparty.node_id)
@@ -274,7 +283,7 @@ impl NodeChannelManager {
             let result = self.0.update_channel_config(
                 &counterparty_pk,
                 &channel_ids,
-                &channel_config(),
+                &expected_config,
             );
             match result {
                 Ok(()) => info!("Updated channel config with LSP"),

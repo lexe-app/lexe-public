@@ -1,6 +1,7 @@
 use std::{io::Cursor, str::FromStr, sync::Arc, time::SystemTime};
 
 use anyhow::{anyhow, ensure, Context};
+use arc_swap::ArcSwap;
 use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
 use common::{
@@ -55,7 +56,10 @@ use lightning::{
         transaction::OutPoint, ChannelMonitorUpdateStatus,
     },
     ln::channelmanager::ChannelManagerReadArgs,
-    util::ser::{ReadableArgs, Writeable},
+    util::{
+        config::UserConfig,
+        ser::{ReadableArgs, Writeable},
+    },
 };
 use secrecy::{ExposeSecret, Secret};
 use serde::Serialize;
@@ -66,7 +70,6 @@ use crate::{
     alias::{ChainMonitorType, ChannelManagerType},
     api::BackendApiClient,
     approved_versions::ApprovedVersions,
-    channel_manager,
 };
 
 /// Data discrepancy evaluation and resolution.
@@ -398,6 +401,7 @@ impl NodePersister {
 
     pub(crate) async fn read_channel_manager(
         &self,
+        config: &ArcSwap<UserConfig>,
         channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
         keys_manager: Arc<LexeKeysManager>,
         fee_estimator: Arc<FeeEstimatorType>,
@@ -437,7 +441,7 @@ impl NodePersister {
                     broadcaster,
                     router,
                     logger,
-                    channel_manager::user_config(),
+                    **config.load(),
                     channel_monitor_mut_refs,
                 );
 

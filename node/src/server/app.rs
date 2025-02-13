@@ -32,7 +32,6 @@ use lexe_ln::{command::CreateInvoiceCaller, p2p};
 use tracing::warn;
 
 use super::AppRouterState;
-use crate::channel_manager;
 
 pub(super) async fn node_info(
     State(state): State<Arc<AppRouterState>>,
@@ -128,7 +127,7 @@ pub(super) async fn open_channel(
         user_channel_id,
         req.value,
         lsp_node_pk,
-        channel_manager::user_config(),
+        **state.config.load(),
         is_jit_channel,
     )
     .await

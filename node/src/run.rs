@@ -70,7 +70,7 @@ use tracing::{debug, info, info_span, warn};
 use crate::{
     alias::{ChainMonitorType, OnionMessengerType, PaymentsManagerType},
     api::{self, BackendApiClient},
-    channel_manager::NodeChannelManager,
+    channel_manager::{self, NodeChannelManager},
     event_handler::{self, NodeEventHandler},
     inactivity_timer::InactivityTimer,
     p2p,
@@ -177,6 +177,9 @@ impl UserNode {
             .unwrap_or(SEMVER_VERSION)
             .apply(semver::Version::parse)
             .expect("Checked in tests");
+
+        // Config
+        let config = channel_manager::get_config();
 
         // Collect all handles to static tasks
         let mut static_tasks = Vec::with_capacity(10);
@@ -456,6 +459,7 @@ impl UserNode {
         // Read channel manager
         let maybe_manager = persister
             .read_channel_manager(
+                &config,
                 &mut channel_monitors,
                 keys_manager.clone(),
                 fee_estimator.clone(),
@@ -470,6 +474,7 @@ impl UserNode {
         // Init the NodeChannelManager
         let channel_manager = NodeChannelManager::init(
             network,
+            &config,
             maybe_manager,
             keys_manager.clone(),
             fee_estimator.clone(),
@@ -603,6 +608,7 @@ impl UserNode {
         // Start API server for app
         let app_router_state = Arc::new(AppRouterState {
             version: version.clone(),
+            config: config.clone(),
             persister: persister.clone(),
             chain_monitor: chain_monitor.clone(),
             wallet: wallet.clone(),
@@ -737,7 +743,7 @@ impl UserNode {
         static_tasks.push(bg_processor_task);
 
         // Ensure channels are using the most up-to-date config.
-        channel_manager.ensure_channel_configs_updated();
+        channel_manager.check_channel_configs(&config);
 
         // Construct (but don't start) the inactivity timer
         let inactivity_timer = InactivityTimer::new(

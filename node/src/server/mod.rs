@@ -8,6 +8,7 @@
 
 use std::sync::Arc;
 
+use arc_swap::ArcSwap;
 use axum::{
     routing::{get, post, put},
     Router,
@@ -28,6 +29,7 @@ use lexe_ln::{
     test_event::TestEventReceiver,
     wallet::LexeWallet,
 };
+use lightning::util::config::UserConfig;
 use tokio::sync::{mpsc, oneshot};
 use tower::util::MapRequestLayer;
 use tracing::debug;
@@ -46,6 +48,7 @@ mod lexe;
 
 pub(crate) struct AppRouterState {
     pub version: semver::Version,
+    pub config: Arc<ArcSwap<UserConfig>>,
     pub persister: Arc<NodePersister>,
     pub chain_monitor: Arc<ChainMonitorType>,
     pub wallet: LexeWallet,
