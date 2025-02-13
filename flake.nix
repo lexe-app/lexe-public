@@ -3,8 +3,8 @@
 
   inputs = {
     # NixOS/nixpkgs - nixos-stable branch for the current release
-    # nixpkgs.url = "github:nixos/nixpkgs/nixos-24.05";
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/release-24.11";
+    # nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
     # library for building rust projects. supports basic incremental cargo
     # artifact caching.
@@ -19,8 +19,10 @@
     # TODO(phlip9): Use this until I can figure out how to get sgx cross build via nixpkgs.
     fenix = {
       url = "github:nix-community/fenix";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.rust-analyzer-src.follows = "";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        rust-analyzer-src.follows = "";
+      };
     };
   };
 
