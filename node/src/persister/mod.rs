@@ -66,7 +66,7 @@ use crate::{
     alias::{ChainMonitorType, ChannelManagerType},
     api::BackendApiClient,
     approved_versions::ApprovedVersions,
-    channel_manager::USER_CONFIG,
+    channel_manager,
 };
 
 /// Data discrepancy evaluation and resolution.
@@ -437,7 +437,7 @@ impl NodePersister {
                     broadcaster,
                     router,
                     logger,
-                    USER_CONFIG,
+                    channel_manager::user_config(),
                     channel_monitor_mut_refs,
                 );
 

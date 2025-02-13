@@ -128,7 +128,7 @@ pub(super) async fn open_channel(
         user_channel_id,
         req.value,
         lsp_node_pk,
-        channel_manager::USER_CONFIG,
+        channel_manager::user_config(),
         is_jit_channel,
     )
     .await

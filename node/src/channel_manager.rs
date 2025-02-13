@@ -46,58 +46,62 @@ const TIME_TO_CONTEST_FRAUDULENT_CLOSES: u16 = 6 * 24 * 7; // 7 days
 /// NOTE: If this value is too low, channel negotiation with the LSP will fail.
 const MAXIMUM_TIME_TO_RECLAIM_FUNDS: u16 = 6 * 24 * 4; // four days
 
-pub const USER_CONFIG: UserConfig = UserConfig {
-    channel_handshake_config: CHANNEL_HANDSHAKE_CONFIG,
-    channel_handshake_limits: CHANNEL_HANDSHAKE_LIMITS,
-    channel_config: CHANNEL_CONFIG,
+pub(crate) const fn user_config() -> UserConfig {
+    UserConfig {
+        channel_handshake_config: channel_handshake_config(),
+        channel_handshake_limits: channel_handshake_limits(),
+        channel_config: channel_config(),
 
-    // Do not accept any HTLC forwarding risks
-    accept_forwards_to_priv_channels: false,
-    // We accept inbound channels, but only those initiated by the LSP.
-    accept_inbound_channels: true,
-    // Manually accepting inbound channels is required for zeroconf, and for
-    // checking that the inbound channel was initiated by Lexe's LSP.
-    // See Event::OpenChannelRequest in the event handler.
-    //
-    // NOTE(zeroconf): Zeroconf channels allow you to receive Lightning payments
-    // immediately (without having to wait for confirmations) in the case that
-    // you do not yet have a channel open with Lexe's LSP. The channel is
-    // immediately usable, meaning you can use those zeroconf funds to then make
-    // an outbound payment of your own. However, zeroconf exposes you to the
-    // following risks and caveats:
-    //
-    // - If you are a merchant, theoretically Lexe could pretend to be your
-    //   customer and purchase a good or service from you using a zeroconf
-    //   channel. If you render the good or service before the zeroconf channel
-    //   has gotten least a few confirmations (3-6), Lexe could double-spend the
-    //   funding transaction, defrauding you of your payment. If you do not
-    //   trust Lexe not to double-spend the funding tx, do not render any goods
-    //   or services until the payment has been 'finalized' in the Lexe app, or
-    //   disable zeroconf entirely in your app settings.
-    // - If you are using Lexe to accept Lightning tips, theoretically Lexe
-    //   could siphon off these tips by (1) extending the Lightning payment to
-    //   your node over a zeroconf channel, (2) collecting its payment from its
-    //   previous hop, then (3) defrauding your node by double-spending the
-    //   funding tx. If you do not trust Lexe not to do this, do not enable
-    //   zeroconf channels.
-    //
-    // TODO(max): Expose payments and channel balances to the user as pending /
-    // finalized depending on channel confirmation status.
-    // TODO(max): Expose an option for enabling / disabling zeroconf.
-    // TODO(max): Convert these notes into a blog post or help article of some
-    // kind which is accessible from the users' mobile app.
-    // TODO(max): Add more notes corresponding to the results of current
-    // research on zeroconf channels in Nuclino
-    manually_accept_inbound_channels: true,
-    // The node has no need to intercept HTLCs
-    accept_intercept_htlcs: false,
-    // Allow receiving keysend payments composed of multiple parts.
-    accept_mpp_keysend: true,
-    // For now, no need to manually pay BOLT 12 invoices when received.
-    manually_handle_bolt12_invoices: false,
-};
+        // Do not accept any HTLC forwarding risks
+        accept_forwards_to_priv_channels: false,
+        // We accept inbound channels, but only those initiated by the LSP.
+        accept_inbound_channels: true,
+        // Manually accepting inbound channels is required for zeroconf, and for
+        // checking that the inbound channel was initiated by Lexe's LSP.
+        // See Event::OpenChannelRequest in the event handler.
+        //
+        // NOTE(zeroconf): Zeroconf channels allow you to receive Lightning
+        // payments immediately (without having to wait for
+        // confirmations) in the case that you do not yet have a channel
+        // open with Lexe's LSP. The channel is immediately usable,
+        // meaning you can use those zeroconf funds to then make
+        // an outbound payment of your own. However, zeroconf exposes you to the
+        // following risks and caveats:
+        //
+        // - If you are a merchant, theoretically Lexe could pretend to be your
+        //   customer and purchase a good or service from you using a zeroconf
+        //   channel. If you render the good or service before the zeroconf
+        //   channel has gotten least a few confirmations (3-6), Lexe could
+        //   double-spend the funding transaction, defrauding you of your
+        //   payment. If you do not trust Lexe not to double-spend the funding
+        //   tx, do not render any goods or services until the payment has been
+        //   'finalized' in the Lexe app, or disable zeroconf entirely in your
+        //   app settings.
+        // - If you are using Lexe to accept Lightning tips, theoretically Lexe
+        //   could siphon off these tips by (1) extending the Lightning payment
+        //   to your node over a zeroconf channel, (2) collecting its payment
+        //   from its previous hop, then (3) defrauding your node by
+        //   double-spending the funding tx. If you do not trust Lexe not to do
+        //   this, do not enable zeroconf channels.
+        //
+        // TODO(max): Expose payments and channel balances to the user as
+        // pending / finalized depending on channel confirmation status.
+        // TODO(max): Expose an option for enabling / disabling zeroconf.
+        // TODO(max): Convert these notes into a blog post or help article of
+        // some kind which is accessible from the users' mobile app.
+        // TODO(max): Add more notes corresponding to the results of current
+        // research on zeroconf channels in Nuclino
+        manually_accept_inbound_channels: true,
+        // The node has no need to intercept HTLCs
+        accept_intercept_htlcs: false,
+        // Allow receiving keysend payments composed of multiple parts.
+        accept_mpp_keysend: true,
+        // For now, no need to manually pay BOLT 12 invoices when received.
+        manually_handle_bolt12_invoices: false,
+    }
+}
 
-const CHANNEL_HANDSHAKE_CONFIG: ChannelHandshakeConfig =
+const fn channel_handshake_config() -> ChannelHandshakeConfig {
     ChannelHandshakeConfig {
         // Wait 3 confirmations for channels to be considered locked-in.
         minimum_depth: 3,
@@ -128,9 +132,10 @@ const CHANNEL_HANDSHAKE_CONFIG: ChannelHandshakeConfig =
         // See docs on the const
         their_channel_reserve_proportional_millionths:
             constants::LSP_RESERVE_PROP_MILLIONTHS,
-    };
+    }
+}
 
-const CHANNEL_HANDSHAKE_LIMITS: ChannelHandshakeLimits =
+const fn channel_handshake_limits() -> ChannelHandshakeLimits {
     ChannelHandshakeLimits {
         // Force an incoming channel (from the LSP) to match the value we set
         // for `ChannelHandshakeConfig::announce_for_forwarding` (which is
@@ -153,28 +158,34 @@ const CHANNEL_HANDSHAKE_LIMITS: ChannelHandshakeLimits =
         min_max_accepted_htlcs: 0,
         trust_own_funding_0conf: true,
         max_minimum_depth: 144,
-    };
+    }
+}
 
-const CHANNEL_CONFIG: ChannelConfig = ChannelConfig {
-    // This allows the user node to pay the on-chain fees for JIT channel opens.
-    accept_underpaying_htlcs: true,
-    // (proportional fee) We do not forward anything so this can be 0
-    forwarding_fee_proportional_millionths: 0,
-    // (base fee) We do not forward anything so this can be 0
-    forwarding_fee_base_msat: 0,
-    // We do not forward anything so this can be the minimum
-    cltv_expiry_delta: MIN_CLTV_EXPIRY_DELTA,
-    // NOTE: This may increase ChannelDetails::next_outbound_htlc_minimum_msat
-    // if this is set too low, causing small payments to fail to route.
-    // Current setting: 100k sats
-    max_dust_htlc_exposure: MaxDustHTLCExposure::FixedLimitMsat(100_000_000),
-    // Pay up to 1000 sats ($1 assuming $100K per BTC) to avoid waiting up
-    // to `their_to_self_delay` time (currently set to ~1 day) in the case of a
-    // unilateral close initiated by us. In practice our LSP should always be
-    // online so this should rarely, if ever, be paid.
-    force_close_avoidance_max_fee_satoshis:
-        constants::FORCE_CLOSE_AVOIDANCE_MAX_FEE_SATS,
-};
+const fn channel_config() -> ChannelConfig {
+    ChannelConfig {
+        // This allows the user node to pay the on-chain fees for JIT channel
+        // opens.
+        accept_underpaying_htlcs: true,
+        // (proportional fee) We do not forward anything so this can be 0
+        forwarding_fee_proportional_millionths: 0,
+        // (base fee) We do not forward anything so this can be 0
+        forwarding_fee_base_msat: 0,
+        // We do not forward anything so this can be the minimum
+        cltv_expiry_delta: MIN_CLTV_EXPIRY_DELTA,
+        // NOTE: Increases `ChannelDetails::next_outbound_htlc_minimum_msat`
+        // if this is set too low, causing small payments to fail to route.
+        // Current setting: 100k sats
+        max_dust_htlc_exposure: MaxDustHTLCExposure::FixedLimitMsat(
+            100_000_000,
+        ),
+        // Pay up to 1000 sats ($1 assuming $100K per BTC) to avoid waiting up
+        // to `their_to_self_delay` time (currently set to ~1 day) in the case
+        // of a unilateral close initiated by us. In practice our LSP should
+        // always be online so this should rarely, if ever, be paid.
+        force_close_avoidance_max_fee_satoshis:
+            constants::FORCE_CLOSE_AVOIDANCE_MAX_FEE_SATS,
+    }
+}
 
 /// An Arc is held internally, so it is fine to clone directly.
 #[derive(Clone)]
@@ -227,7 +238,7 @@ impl NodeChannelManager {
                     keys_manager.clone(),
                     keys_manager.clone(),
                     keys_manager,
-                    USER_CONFIG,
+                    user_config(),
                     chain_params,
                     current_timestamp_secs,
                 );
@@ -249,7 +260,7 @@ impl NodeChannelManager {
             .into_iter()
             .filter(|channel| {
                 let config = channel.config.expect("Launched after v0.0.109");
-                config != CHANNEL_CONFIG
+                config != channel_config()
             })
             .fold(HashMap::new(), |mut acc, channel| {
                 acc.entry(channel.counterparty.node_id)
@@ -263,7 +274,7 @@ impl NodeChannelManager {
             let result = self.0.update_channel_config(
                 &counterparty_pk,
                 &channel_ids,
-                &CHANNEL_CONFIG,
+                &channel_config(),
             );
             match result {
                 Ok(()) => info!("Updated channel config with LSP"),
