@@ -1,0 +1,34 @@
+Get the self-custodial BITCOIN and LIGHTNING wallet that receives payments 24/7.
+
+Download the Lexe app and get started in less than a minute.
+
+RECEIVE PAYMENTS 24/7.
+Your Lexe Lightning node is always ready to stack sats. Get paid anytime,
+anywhere. Even if your phone's offline.
+
+SEND BITCOIN INSTANTLY.
+Pay anyone in the world with instant bitcoin payments to compatible wallets
+over the LIGHTNING NETWORK.
+
+YOUR BITCOIN'S SAFE, EVEN FROM US.
+Your node runs in a secure enclave in the cloud, so your funds are protected
+even if Lexe gets hacked. With Lexe, only you control your funds. Let us
+handle the infrastructure.
+
+STAY PRIVATE.
+Send and receive bitcoin privately over Lightning. Your payments are between
+you and your node; we don't know who you send or receive to.
+
+DON'T TRUST, VERIFY.
+The Lexe Lightning node is open-source and fully reproducible. Your wallet
+always verifies the node software before sharing any keys.
+
+RECOVERY MADE EASY.
+Lose your phone? Multiple devices? Your wallet is always encrypted and backed
+up to Google Drive so you can get back up and running in minutes.
+
+Need help? Got feedback? Reach us at support+ios@lexe.app.
+
+Privacy: https://lexe.app/privacy-policy
+Security: https://github.com/lexe-app/lexe-public/blob/master/SECURITY.md
+Github: https://github.com/lexe-app/lexe-public
