@@ -66,63 +66,15 @@ class MockApp extends App {
 
 // TODO(phlip9): unhack
 class MockAppHandle extends AppHandle {
-  MockAppHandle() : super(inner: MockApp());
-
-  // New user has no payments
-  // List<Payment> payments = [];
+  MockAppHandle({required this.payments, required this.channels})
+      : assert(payments.isSortedBy((payment) => payment.index.field0)),
+        super(inner: MockApp());
 
   // Some sample payments
-  List<Payment> payments = [
-    dummyOnchainInboundCompleted01,
-    dummyOnchainOutboundFailed01,
-    dummySpontaneousOutboundPending01,
-    dummyInvoiceOutboundPending01,
-    dummyInvoiceInboundPending01,
-    dummyInvoiceInboundPending02,
-    dummyInvoiceInboundCompleted01,
-    dummyInvoiceInboundFailed01,
-    dummyOnchainOutboundCompleted01,
-  ].sortedBy((payment) => payment.index.field0);
+  List<Payment> payments;
 
   // Some sample channels
-  List<LxChannelDetails> channels = [
-    const LxChannelDetails(
-      channelId:
-          "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",
-      counterpartyNodeId:
-          "03781d57bd783a2767d6cb816edd77178d61a5e2a3faf46c5958b9c249bedce274",
-      channelValueSats: 776231 + 226787,
-      isUsable: false,
-      ourBalanceSats: 776231,
-      outboundCapacitySats: 776231 - 5000,
-      theirBalanceSats: 226787,
-      inboundCapacitySats: 226787 - 5000,
-    ),
-    const LxChannelDetails(
-      channelId:
-          "eb3a2ec97707e9218491a48db1b768de3d1170f84dc8ea539a385ce5a1b68527",
-      counterpartyNodeId:
-          "030905ca4848a7ec54b1c907b5a9d9e4fd8df54db2ff1166a7f8cb34ba78374592",
-      channelValueSats: 300231 + 477788,
-      isUsable: true,
-      ourBalanceSats: 300231,
-      outboundCapacitySats: 300231 - 5000,
-      theirBalanceSats: 477788,
-      inboundCapacitySats: 477788 - 5000,
-    ),
-    const LxChannelDetails(
-      channelId:
-          "2ec634f7ae13ae3509e1044d7be014d320897d3b663e7b8e2a7d27b37ba13127",
-      counterpartyNodeId:
-          "02a9d8125bed8eebf4824bbdde91bd7805904a2cef759c123f12d6e93a899db607",
-      channelValueSats: 254116 + 43844,
-      isUsable: false,
-      ourBalanceSats: 254116,
-      outboundCapacitySats: 254116 - 5000,
-      theirBalanceSats: 43844,
-      inboundCapacitySats: 43844 - 5000,
-    ),
-  ];
+  List<LxChannelDetails> channels;
 
   @override
   SettingsDb settingsDb() => MockSettingsDb();
@@ -376,7 +328,10 @@ class MockAppHandle extends AppHandle {
 
 /// An [AppHandle] that usually errors first.
 class MockAppHandleErroring extends MockAppHandle {
-  MockAppHandleErroring();
+  MockAppHandleErroring({
+    required super.payments,
+    required super.channels,
+  });
 
   @override
   Future<CreateInvoiceResponse> createInvoice(
@@ -457,7 +412,9 @@ class MockRestoreApi implements RestoreApi {
       );
 }
 
+//
 // Dummy payments data
+//
 
 const Payment dummyOnchainInboundPending01 = Payment(
   index: PaymentIndex(
@@ -659,3 +616,63 @@ const Payment dummyInvoiceInboundFailed01 = Payment(
   note: null,
   createdAt: 1700222815000,
 );
+
+// Default set of sample payments
+List<Payment> defaultDummyPayments = [
+  dummyOnchainInboundCompleted01,
+  dummyOnchainOutboundFailed01,
+  dummySpontaneousOutboundPending01,
+  dummyInvoiceOutboundPending01,
+  dummyInvoiceInboundPending01,
+  dummyInvoiceInboundPending02,
+  dummyInvoiceInboundCompleted01,
+  dummyInvoiceInboundFailed01,
+  dummyOnchainOutboundCompleted01,
+].sortedBy((payment) => payment.index.field0);
+
+//
+// Dummy channel data
+//
+
+const LxChannelDetails dummyChannelUsable01 = LxChannelDetails(
+  channelId: "eb3a2ec97707e9218491a48db1b768de3d1170f84dc8ea539a385ce5a1b68527",
+  counterpartyNodeId:
+      "030905ca4848a7ec54b1c907b5a9d9e4fd8df54db2ff1166a7f8cb34ba78374592",
+  channelValueSats: 300231 + 477788,
+  isUsable: true,
+  ourBalanceSats: 300231,
+  outboundCapacitySats: 300231 - 5000,
+  theirBalanceSats: 477788,
+  inboundCapacitySats: 477788 - 5000,
+);
+
+const LxChannelDetails dummyChannelUnusable01 = LxChannelDetails(
+  channelId: "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",
+  counterpartyNodeId:
+      "03781d57bd783a2767d6cb816edd77178d61a5e2a3faf46c5958b9c249bedce274",
+  channelValueSats: 776231 + 226787,
+  isUsable: false,
+  ourBalanceSats: 776231,
+  outboundCapacitySats: 776231 - 5000,
+  theirBalanceSats: 226787,
+  inboundCapacitySats: 226787 - 5000,
+);
+
+const LxChannelDetails dummyChannelUnusable02 = LxChannelDetails(
+  channelId: "2ec634f7ae13ae3509e1044d7be014d320897d3b663e7b8e2a7d27b37ba13127",
+  counterpartyNodeId:
+      "02a9d8125bed8eebf4824bbdde91bd7805904a2cef759c123f12d6e93a899db607",
+  channelValueSats: 254116 + 43844,
+  isUsable: false,
+  ourBalanceSats: 254116,
+  outboundCapacitySats: 254116 - 5000,
+  theirBalanceSats: 43844,
+  inboundCapacitySats: 43844 - 5000,
+);
+
+// Default set of sample channels
+const List<LxChannelDetails> defaultDummyChannels = [
+  dummyChannelUnusable01,
+  dummyChannelUsable01,
+  dummyChannelUnusable02,
+];

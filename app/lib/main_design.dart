@@ -169,7 +169,14 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
 
   @override
   Widget build(BuildContext context) {
-    final mockApp = mocks.MockAppHandle();
+    final mockApp = mocks.MockAppHandle(
+      payments: mocks.defaultDummyPayments,
+      channels: mocks.defaultDummyChannels,
+    );
+    final mockAppErroring = mocks.MockAppHandleErroring(
+      payments: mocks.defaultDummyPayments,
+      channels: mocks.defaultDummyChannels,
+    );
     final mockSignupApi = mocks.MockSignupApi(app: mockApp);
     final mockRestoreApi = mocks.MockRestoreApi(app: mockApp);
     final mockSignupCtx =
@@ -345,7 +352,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "ReceivePaymentPage",
               subtitle: "fetch invoice error",
               (context) => ReceivePaymentPage(
-                app: mocks.MockAppHandleErroring(),
+                app: mockAppErroring,
                 fiatRate: this.makeFiatRateStream(),
               ),
             ),
@@ -454,7 +461,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "CloseChannelPage",
               subtitle: "preflight error",
               (context) => CloseChannelPage(
-                app: mocks.MockAppHandleErroring(),
+                app: mockAppErroring,
                 fiatRate: this.makeFiatRateStream(),
                 channels: ValueNotifier(ChannelsList.fromApi(
                     ListChannelsResponse(channels: mockApp.channels))),
@@ -520,6 +527,16 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 restoreApi: mockRestoreApi,
                 uriEvents: this.widget.uriEvents,
                 fixedShaderTime: 8.5,
+              ),
+            ),
+            Component(
+              "Screenshot 02",
+              subtitle: "WalletPage",
+              (_) => WalletPage(
+                app: mockApp,
+                settings: LxSettings(mockApp.settingsDb()),
+                config: widget.config,
+                uriEvents: this.widget.uriEvents,
               ),
             ),
             Component(
