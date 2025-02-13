@@ -1,17 +1,13 @@
 use std::{fmt, fmt::Display, path::Path, process::Command, str::FromStr};
 
 use anyhow::Context;
-use lightning::routing::{gossip::RoutingFees, router::RouteHintHop};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 use crate::test_utils::arbitrary;
-use crate::{
-    api::user::{NodePk, Scid},
-    ln::addr::LxSocketAddress,
-};
+use crate::{api::user::NodePk, ln::addr::LxSocketAddress};
 
 /// User node CLI args.
 pub mod node;
@@ -46,7 +42,9 @@ pub struct LspInfo {
     #[serde(rename = "addr")] // Original name needed for forward compat
     pub private_p2p_addr: LxSocketAddress,
     // - RoutingFees fields - //
+    /// The LSP's configured base fee for payments forwarded to us.
     pub base_msat: u32,
+    /// The LSP's configured proportional fee for payments forwarded to us.
     pub proportional_millionths: u32,
     // - RouteHintHop fields - //
     pub cltv_expiry_delta: u16,
@@ -70,20 +68,6 @@ pub struct OAuthConfig {
 // --- impl LspInfo --- //
 
 impl LspInfo {
-    pub fn route_hint_hop(&self, scid: Scid) -> RouteHintHop {
-        RouteHintHop {
-            src_node_id: self.node_pk.0,
-            short_channel_id: scid.0,
-            fees: RoutingFees {
-                base_msat: self.base_msat,
-                proportional_millionths: self.proportional_millionths,
-            },
-            cltv_expiry_delta: self.cltv_expiry_delta,
-            htlc_minimum_msat: Some(self.htlc_minimum_msat),
-            htlc_maximum_msat: Some(self.htlc_maximum_msat),
-        }
-    }
-
     /// Returns a dummy [`LspInfo`] which can be used in tests.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn dummy() -> Self {

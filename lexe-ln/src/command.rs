@@ -1,4 +1,4 @@
-use std::{convert::Infallible, time::Duration};
+use std::{cmp, convert::Infallible, time::Duration};
 
 use anyhow::{anyhow, bail, Context};
 use bitcoin_hashes::{sha256, Hash};
@@ -49,7 +49,9 @@ use lightning::{
     sign::{NodeSigner, Recipient},
     util::config::UserConfig,
 };
-use lightning_invoice::{Bolt11Invoice, Currency, InvoiceBuilder};
+use lightning_invoice::{
+    Bolt11Invoice, Currency, InvoiceBuilder, RouteHintHop, RoutingFees,
+};
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, info, instrument};
 
@@ -711,8 +713,85 @@ where
         // with enough balance to service the payment because it allows the LSP
         // to intercept the HTLC and wake the user if a payment comes in while
         // the user is offline.
-        CreateInvoiceCaller::UserNode { lsp_info, scid } =>
-            vec![RouteHint(vec![lsp_info.route_hint_hop(scid)])],
+        CreateInvoiceCaller::UserNode { lsp_info, scid } => {
+            let channels = channel_manager.list_channels();
+
+            // For the fee rates and CLTV delta to include in our route hint,
+            // use the maximum of the values observed in our channels and the
+            // LSP's configured value according to `LspInfo`, defaulting to the
+            // `LspInfo` value if a value is not available from our channels.
+            // Likewise for `htlc_[min|max]imum_msat`, except we take the
+            // max of the HTLC minimum and the min of the HTLC maximum.
+            let base_msat = channels
+                .iter()
+                .filter_map(|channel| {
+                    channel
+                        .counterparty
+                        .forwarding_info
+                        .as_ref()
+                        .map(|info| info.fee_base_msat)
+                })
+                .max()
+                // This ensures that we can still receive the payment over a JIT
+                // channel if the JIT channel feerate is higher than any of our
+                // current channel feerates.
+                .map(|value| cmp::max(value, lsp_info.base_msat))
+                .unwrap_or(lsp_info.base_msat);
+            let proportional_millionths = channels
+                .iter()
+                .filter_map(|channel| {
+                    channel
+                        .counterparty
+                        .forwarding_info
+                        .as_ref()
+                        .map(|info| info.fee_proportional_millionths)
+                })
+                .max()
+                // Likewise as above
+                .map(|value| cmp::max(value, lsp_info.proportional_millionths))
+                .unwrap_or(lsp_info.proportional_millionths);
+            let cltv_expiry_delta = channels
+                .iter()
+                .filter_map(|channel| {
+                    channel
+                        .counterparty
+                        .forwarding_info
+                        .as_ref()
+                        .map(|info| info.cltv_expiry_delta)
+                })
+                .max()
+                // Likewise as above
+                .map(|value| cmp::max(value, lsp_info.cltv_expiry_delta))
+                .unwrap_or(lsp_info.cltv_expiry_delta);
+            let htlc_minimum_msat = channels
+                .iter()
+                .filter_map(|channel| channel.inbound_htlc_minimum_msat)
+                .max()
+                .map(|value| cmp::max(value, lsp_info.htlc_minimum_msat))
+                .unwrap_or(lsp_info.htlc_minimum_msat);
+            let htlc_maximum_msat = channels
+                .iter()
+                .filter_map(|channel| channel.inbound_htlc_maximum_msat)
+                .min()
+                .map(|value| cmp::min(value, lsp_info.htlc_maximum_msat))
+                .unwrap_or(lsp_info.htlc_maximum_msat);
+
+            let fees = RoutingFees {
+                base_msat,
+                proportional_millionths,
+            };
+
+            let route_hint_hop = RouteHintHop {
+                src_node_id: lsp_info.node_pk.0,
+                short_channel_id: scid.0,
+                fees,
+                cltv_expiry_delta,
+                htlc_minimum_msat: Some(htlc_minimum_msat),
+                htlc_maximum_msat: Some(htlc_maximum_msat),
+            };
+
+            vec![RouteHint(vec![route_hint_hop])]
+        }
     };
     debug!("Including route hints: {route_hints:?}");
     for hint in route_hints {
