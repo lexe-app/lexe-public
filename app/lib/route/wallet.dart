@@ -623,13 +623,16 @@ class WalletDrawer extends StatelessWidget {
             // ),
             // const SizedBox(height: Space.s600),
 
-            // app version
-            Text("Lexe App · v1.2.345",
-                textAlign: TextAlign.center,
-                style: Fonts.fontUI.copyWith(
-                  color: LxColors.grey600,
-                  fontSize: Fonts.size200,
-                )),
+            // // TODO(phlip9): get app version from platform APIs
+            // // app version
+            // Text(
+            //   "Lexe App · v1.2.345",
+            //   textAlign: TextAlign.center,
+            //   style: Fonts.fontUI.copyWith(
+            //     color: LxColors.grey600,
+            //     fontSize: Fonts.size200,
+            //   ),
+            // ),
           ],
         ),
       ),
