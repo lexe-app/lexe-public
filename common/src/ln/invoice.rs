@@ -379,6 +379,9 @@ mod test {
     }
 
     // Generate example invoices with specific values.
+    // ```bash
+    // $ cargo test -p common -- --ignored invoice_dump --nocapture
+    // ```
     #[ignore]
     #[test]
     fn invoice_dump() {
@@ -386,13 +389,12 @@ mod test {
             .derive_node_key_pair(&mut FastRng::from_u64(123));
 
         let network = LxNetwork::Regtest;
-        let amount =
-            Some(Amount::from_msat(Amount::INVOICE_MAX_AMOUNT_MSATS_U64));
-        let created_at = Duration::from_millis(1700222815000);
-        let expires_at = Some(Duration::from_millis(1700225001000));
-        let description_or_hash = Ok("".to_owned());
-        let payment_secret = sha256::digest(b"iosdjfosid fjo");
-        let payment_hash = sha256::digest(b"446(54)6(54)");
+        let amount = Some(Amount::from_msat(7216000));
+        let created_at = Duration::from_millis(1739487454);
+        let expires_at = Some(Duration::from_millis(1739497454));
+        let description_or_hash = Ok("Lunch".to_owned());
+        let payment_secret = sha256::digest(b"lkdjsflkjdfldkfa");
+        let payment_hash = sha256::digest(b"41813252214)");
         let min_final_cltv_expiry_delta = MIN_FINAL_CLTV_EXPIRY_DELTA;
         let metadata = None;
         let add_pubkey = false;
@@ -433,6 +435,10 @@ mod test {
         dbg!(&invoice_str);
     }
 
+    // Decode and print an invoice
+    // ```bash
+    // $ cargo test -p common -- --ignored invoice_print --nocapture
+    // ```
     #[ignore]
     #[test]
     fn invoice_print() {
