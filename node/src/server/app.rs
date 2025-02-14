@@ -153,7 +153,7 @@ pub(super) async fn preflight_open_channel(
 fn ensure_channel_value_in_range(value: &Amount) -> Result<(), NodeApiError> {
     let value = value.sats_u64();
 
-    let min_value = constants::LSP_CHANNEL_MIN_FUNDING_SATS as u64;
+    let min_value = constants::LSP_USERNODE_CHANNEL_MIN_FUNDING_SATS as u64;
     if value < min_value {
         return Err(NodeApiError::command(format!(
             "Channel value is below limit ({min_value} sats)"
