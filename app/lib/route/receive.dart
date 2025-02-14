@@ -420,6 +420,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   }
 
   Future<void> doFetchBtc() async {
+    // TODO(phlip9): UI indicator that we're fetching
     final inputs = this.btcAddrInputs.value;
     final btcOfferNotifier = this.btcOffer();
     final prev = btcOfferNotifier.value;
@@ -429,7 +430,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     // Canceled / navigated away => ignore
     if (!this.mounted) return;
 
-    // Error => ignore (TODO: handle)
+    // Error => ignore (TODO(phlip9): handle)
     if (offer == null) return;
 
     // Stale request => ignore
@@ -443,6 +444,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   }
 
   Future<void> doFetchLn() async {
+    // TODO(phlip9): UI indicator that we're fetching
     final inputs = this.lnInvoiceInputs.value;
     final lnOfferNotifier = this.lnOffer();
     final prev = lnOfferNotifier.value;
@@ -452,7 +454,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     // Canceled / navigated away => ignore
     if (!this.mounted) return;
 
-    // Error => ignore (TODO: handle)
+    // Error => ignore (TODO(phlip9): handle)
     if (offer == null) return;
 
     // Stale request => ignore
@@ -596,6 +598,9 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
                             fiatRate: this.widget.fiatRate,
                             openSetAmountPage: () =>
                                 this.openEditPage(offer.kind),
+                            refreshPaymentOffer: offer.kind.isLightning()
+                                ? this.doFetchLn
+                                : null,
                           ),
                         ))
                     .toList(),
@@ -627,12 +632,14 @@ class PaymentOfferPage extends StatelessWidget {
     required this.paymentOffer,
     required this.fiatRate,
     required this.openSetAmountPage,
+    required this.refreshPaymentOffer,
   });
 
   final PaymentOffer paymentOffer;
   final ValueListenable<FiatRate?> fiatRate;
 
   final VoidCallback openSetAmountPage;
+  final VoidCallback? refreshPaymentOffer;
 
   void onTapSetAmount() {
     openSetAmountPage();
@@ -1083,11 +1090,11 @@ class PaymentOfferPage extends StatelessWidget {
                 ),
 
                 // Refresh
-                if (isLightning)
+                if (this.refreshPaymentOffer != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: Space.s200),
                     child: FilledButton(
-                      onPressed: () {},
+                      onPressed: this.refreshPaymentOffer,
                       child: const Icon(LxIcons.refresh),
                     ),
                   ),
