@@ -784,17 +784,19 @@ class PaymentOfferPage extends StatelessWidget {
 
                     const Expanded(child: Center()),
 
-                    Transform.translate(
-                      offset: const Offset(Space.s200, 0.0),
-                      child: IconButton(
-                        onPressed: () {},
-                        icon: const Icon(
-                          LxIcons.moreHoriz,
-                          opticalSize: LxIcons.opszSemiDense,
-                        ),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
+                    // // TODO(phlip9): use "..." to show actions w/
+                    // // human-readable labels
+                    // Transform.translate(
+                    //   offset: const Offset(Space.s200, 0.0),
+                    //   child: IconButton(
+                    //     onPressed: () {},
+                    //     icon: const Icon(
+                    //       LxIcons.moreHoriz,
+                    //       opticalSize: LxIcons.opszSemiDense,
+                    //     ),
+                    //     visualDensity: VisualDensity.compact,
+                    //   ),
+                    // ),
                   ],
                 ),
 
