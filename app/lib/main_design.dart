@@ -13,6 +13,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         NodeInfo,
         PreflightCloseChannelResponse,
         PreflightOpenChannelResponse,
+        PreflightPayInvoiceResponse,
         PreflightPayOnchainResponse;
 import 'package:app_rs_dart/ffi/app.dart' show U8Array16, U8Array32;
 import 'package:app_rs_dart/ffi/types.dart'
@@ -20,6 +21,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         AppUserInfo,
         ClientPaymentId,
         Config,
+        Invoice,
         Onchain,
         Payment,
         PaymentMethod,
@@ -66,6 +68,7 @@ import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
     show
+        PreflightedPayment_Invoice,
         PreflightedPayment_Onchain,
         SendFlowResult,
         SendState_NeedAmount,
@@ -533,10 +536,48 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "Screenshot 02",
               subtitle: "WalletPage",
               (_) => WalletPage(
-                app: mockApp,
+                app: mocks.MockAppHandleScreenshots(),
                 settings: LxSettings(mockApp.settingsDb()),
                 config: widget.config,
                 uriEvents: this.widget.uriEvents,
+              ),
+            ),
+            Component(
+              "Screenshot 03",
+              subtitle: "ReceivePage (Invoice)",
+              (_) => ReceivePaymentPage(
+                app: mocks.MockAppHandleScreenshots(),
+                fiatRate:
+                    ValueNotifier(const FiatRate(fiat: "USD", rate: 96626.76)),
+              ),
+            ),
+            Component(
+              "Screenshot 04",
+              subtitle: "SendPaymentConfirmPage (Invoice)",
+              (_) => SendPaymentPage(
+                startNewFlow: true,
+                sendCtx: SendState_Preflighted(
+                  app: mocks.MockAppHandleScreenshots(),
+                  configNetwork: widget.config.network,
+                  balance: balance,
+                  cid: cid,
+                  preflightedPayment: PreflightedPayment_Invoice(
+                    invoice: Invoice(
+                      string:
+                          mocks.dummyInvoiceOutboundPending01.invoice!.string,
+                      createdAt: 1686743442000,
+                      expiresAt: 1686745442000,
+                      payeePubkey: mocks
+                          .dummyInvoiceOutboundPending01.invoice!.payeePubkey,
+                      amountSats: 10000,
+                    ),
+                    preflight: const PreflightPayInvoiceResponse(
+                      amountSats: 10000,
+                      feesSats: 92,
+                    ),
+                    amountSats: 10092,
+                  ),
+                ),
               ),
             ),
             Component(

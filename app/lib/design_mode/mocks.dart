@@ -352,6 +352,72 @@ class MockAppHandleErroring extends MockAppHandle {
               .toFfi());
 }
 
+/// `AppHandle` used for screenshots.
+///
+/// * Mocked API requests should resolve immediately
+/// * TODO(phlip9): easily configure language and localization
+class MockAppHandleScreenshots extends MockAppHandle {
+  MockAppHandleScreenshots()
+      : super(payments: [
+          dummyOnchainInboundCompleted02,
+          dummyInvoiceOutboundCompleted01,
+          dummyInvoiceInboundCompleted02,
+        ], channels: []);
+
+  @override
+  Future<bool> syncPayments() => Future.value(false);
+
+  @override
+  Future<FiatRates> fiatRates() => Future.value(const FiatRates(
+        timestampMs: 1732136733,
+        rates: [
+          FiatRate(fiat: "USD", rate: 96626.76 /* USD/BTC */),
+          FiatRate(
+            fiat: "EUR",
+            rate: 96626.76 /* USD/BTC */ * 0.9559 /* EUR/USD */,
+          ),
+        ],
+      ));
+
+  @override
+  Future<NodeInfo> nodeInfo() => Future.value(const NodeInfo(
+        nodePk:
+            "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",
+        version: "0.6.15",
+        measurement:
+            "1d97c2c837b09ec7b0e0b26cb6fa9a211be84c8fdb53299cc9ee8884c7a25ac1",
+        balance: Balance(
+          totalSats: 233671,
+          lightningSats: 154226,
+          onchainSats: 233671 - 154226,
+        ),
+      ));
+
+  @override
+  Future<CreateInvoiceResponse> createInvoice(
+      {required CreateInvoiceRequest req}) {
+    final now = DateTime.now();
+    final createdAt = now.millisecondsSinceEpoch;
+    final expiresAt =
+        now.add(Duration(seconds: req.expirySecs)).millisecondsSinceEpoch;
+
+    final dummy = dummyInvoiceInboundPending01.invoice!;
+
+    return Future.value(
+      CreateInvoiceResponse(
+        invoice: Invoice(
+          string: dummy.string,
+          createdAt: createdAt,
+          expiresAt: expiresAt,
+          amountSats: 4670,
+          description: "pour-over coffee",
+          payeePubkey: dummy.payeePubkey,
+        ),
+      ),
+    );
+  }
+}
+
 class MockSettingsDb extends SettingsDb {
   MockSettingsDb() : super(inner: MockSettingsDbRs());
 
@@ -445,6 +511,22 @@ const Payment dummyOnchainInboundCompleted01 = Payment(
   note: "Brunch w/ friends",
   createdAt: 1670090492000,
   finalizedAt: 1670090502000,
+  replacement: null,
+);
+
+const Payment dummyOnchainInboundCompleted02 = Payment(
+  index: PaymentIndex(
+      field0:
+          "0000001739386001000-bc_70596383fb7dd5c578a5ef348ec77c5979a65ecb4b10bae0ce60e814c35f04f1"),
+  kind: PaymentKind.onchain,
+  direction: PaymentDirection.inbound,
+  amountSat: 208505,
+  feesSat: 0,
+  status: PaymentStatus.completed,
+  statusStr: "fully confirmed (6+ confirmations)",
+  note: "Exchange → Lexe wallet",
+  createdAt: 1739386001000,
+  finalizedAt: 1739386501000,
   replacement: null,
 );
 
@@ -592,6 +674,31 @@ const Payment dummyInvoiceInboundCompleted01 = Payment(
   finalizedAt: 1687100005000,
 );
 
+const Payment dummyInvoiceInboundCompleted02 = Payment(
+  index: PaymentIndex(
+      field0:
+          "0000001739490952000-ln_4ca99b7534df3a98afb69757b770faffead8b0794e5d618fbbf9b4cfd1f157cf"),
+  kind: PaymentKind.invoice,
+  direction: PaymentDirection.inbound,
+  invoice: Invoice(
+    string:
+        "lnbcrt154660n1pn6ap5xdqgf36kucmgpp5fj5ekaf5muaf3takjatmwu86ll4d3vrefewkrramlx6vl5032l8ssp50sn9getawgwsuzmlll5rfk0cqydw4hhdgct47k424f7r9s4pya9s9qyysgqcqpcxq8pn6aph2dzwjlq2vjtmducjrdgjpk6pvr23c7a3s4qrh4770a7qj00pph3vpurg0av8ps689pxt8exufuf45vd8mladjsky2rxtdqtwdpmdj38qp7k5cz7",
+    createdAt: 1739490950000,
+    expiresAt: 1739491050000,
+    amountSats: 32466,
+    description: "Lunch at Celia's",
+    payeePubkey:
+        "036d5a2631b3f1c25ef9a004973762b3c1af5fb892ad14b166e9573b93b83088926667d1c431271a8f06adf5510ac79763f0dfbf66904a449fd55aff60639905",
+  ),
+  amountSat: 32166,
+  feesSat: 300,
+  status: PaymentStatus.completed,
+  statusStr: "completed",
+  note: "Lunch at Celia's",
+  createdAt: 1739490952000,
+  finalizedAt: 1739490955000,
+);
+
 // Junk payment (failed)
 const Payment dummyInvoiceInboundFailed01 = Payment(
   index: PaymentIndex(
@@ -615,6 +722,31 @@ const Payment dummyInvoiceInboundFailed01 = Payment(
   statusStr: "expired",
   note: null,
   createdAt: 1700222815000,
+);
+
+const Payment dummyInvoiceOutboundCompleted01 = Payment(
+  index: PaymentIndex(
+      field0:
+          "0000001739487454000-ln_432ec4be62f494b0498c76145fd31b302d0be4ac8cffe7c4102ad1f1c056bec9"),
+  kind: PaymentKind.invoice,
+  direction: PaymentDirection.outbound,
+  invoice: Invoice(
+    string:
+        "lnbcrt70000n1qqp4zkldqgf36kucmgpp5gvhvf0nz7j2tqjvvwc29l5cmxqkshe9v3nl703qs9tglrszkhmyssp5v8v37rw8qkn34sxlgqh9yfcss8ru73834k4kl0xc9tcn59l2fuas9qyysgqcqpcxq9p4zhfzh9jcl8c5z8f4v3dp30hxrvy4mnjwhnk749fazx6tu28kyz0hgvq98jaallfkq6yscsrfyerv5y2c5z2c65dxuk3xlhnvchj66tlwesqrwkvga",
+    createdAt: 1739487454000,
+    expiresAt: 1739497454000,
+    amountSats: 7000,
+    description: "stacker.news",
+    payeePubkey:
+        "036d5a2631b3f1c25ef9a004973762b3c1af5fb892ad14b166e9573b93b83088926667d1c431271a8f06adf5510ac79763f0dfbf66904a449fd55aff60639905",
+  ),
+  amountSat: 7000,
+  feesSat: 0,
+  status: PaymentStatus.completed,
+  statusStr: "completed",
+  note: "stacker.news",
+  createdAt: 1739487454000,
+  finalizedAt: 1739487458000,
 );
 
 // Default set of sample payments

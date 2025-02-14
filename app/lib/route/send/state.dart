@@ -359,10 +359,11 @@ sealed class PreflightedPayment {
 
 @immutable
 class PreflightedPayment_Invoice implements PreflightedPayment {
-  const PreflightedPayment_Invoice(
-      {required this.invoice,
-      required this.amountSats,
-      required this.preflight});
+  const PreflightedPayment_Invoice({
+    required this.invoice,
+    required this.amountSats,
+    required this.preflight,
+  });
 
   final Invoice invoice;
   final int amountSats;
