@@ -607,8 +607,10 @@ impl UserNode {
 
         // Start API server for app
         let app_router_state = Arc::new(AppRouterState {
+            user_pk,
             version: version.clone(),
             config: config.clone(),
+            runner_api: runner_api.clone(),
             persister: persister.clone(),
             chain_monitor: chain_monitor.clone(),
             wallet: wallet.clone(),

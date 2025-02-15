@@ -6,7 +6,10 @@
 //! Lexe cannot spend funds on behalf of the user; Lexe's endpoints are either
 //! used purely for maintenance or only enabled in tests.
 
-use std::sync::Arc;
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use arc_swap::ArcSwap;
 use axum::{
@@ -14,7 +17,10 @@ use axum::{
     Router,
 };
 use common::{
-    api::user::{Scid, UserPk},
+    api::{
+        def::NodeRunnerApi,
+        user::{Scid, UserPk},
+    },
     cli::LspInfo,
     enclave::Measurement,
     ln::network::LxNetwork,
@@ -30,9 +36,12 @@ use lexe_ln::{
     wallet::LexeWallet,
 };
 use lightning::util::config::UserConfig;
-use tokio::sync::{mpsc, oneshot};
+use tokio::{
+    sync::{mpsc, oneshot},
+    time::Instant,
+};
 use tower::util::MapRequestLayer;
-use tracing::debug;
+use tracing::{debug, info, info_span, warn};
 
 use crate::{
     alias::{ChainMonitorType, PaymentsManagerType},
@@ -47,8 +56,10 @@ mod app;
 mod lexe;
 
 pub(crate) struct AppRouterState {
+    pub user_pk: UserPk,
     pub version: semver::Version,
     pub config: Arc<ArcSwap<UserConfig>>,
+    pub runner_api: Arc<dyn NodeRunnerApi + Send + Sync>,
     pub persister: Arc<NodePersister>,
     pub chain_monitor: Arc<ChainMonitorType>,
     pub wallet: LexeWallet,
@@ -74,7 +85,17 @@ pub(crate) struct AppRouterState {
 ///
 /// [`AppNodeRunApi`]: common::api::def::AppNodeRunApi
 pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
+    /// The minimum interval between `/node/activity` requests.
+    const MIN_ACTIVITY_CALLBACK_INTERVAL: Duration = Duration::from_secs(60);
+
+    // The last time we sent a request to runner `/node/activity`.
+    let last_activity_callback = Arc::new(Mutex::new(Instant::now()));
+
+    let user_pk = state.user_pk;
     let activity_tx = state.activity_tx.clone();
+    let runner_api = state.runner_api.clone();
+    let eph_tasks_tx = state.eph_tasks_tx.clone();
+
     #[rustfmt::skip]
     let router = Router::new()
         .route("/app/node_info", get(app::node_info))
@@ -95,10 +116,34 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
         .route("/app/payments/new", get(app::get_new_payments))
         .route("/app/payments/note", put(app::update_payment_note))
         .with_state(state)
-        // Send an activity event anytime an /app endpoint is hit
+        // Send an activity event and notify the runner anytime /app is hit
         .layer(MapRequestLayer::new(move |request| {
             debug!("Sending activity event");
             let _ = activity_tx.try_send(());
+
+            let mut locked_instant = last_activity_callback.lock().unwrap();
+
+            if locked_instant.elapsed() > MIN_ACTIVITY_CALLBACK_INTERVAL {
+                info!("Notifying runner of user activity");
+
+                *locked_instant = Instant::now();
+
+                const SPAN_NAME: &str = "(runner-activity-notif)";
+                let task = LxTask::spawn_with_span(
+                    SPAN_NAME,
+                    info_span!(SPAN_NAME),
+                    {
+                        let runner_api = runner_api.clone();
+                        async move {
+                            if let Err(e) = runner_api.activity(user_pk).await {
+                                warn!("Couldn't notify runner (active): {e:#}");
+                            }
+                        }
+                    }
+                );
+                let _ = eph_tasks_tx.try_send(task);
+            }
+
             request
         }));
     router
