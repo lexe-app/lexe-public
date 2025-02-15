@@ -286,6 +286,11 @@ pub trait NodeLspApi {
 pub trait NodeRunnerApi {
     /// POST /node/ready [`Ports`] -> [`Empty`]
     async fn ready(&self, ports: &Ports) -> Result<Empty, RunnerApiError>;
+
+    /// POST /node/activity [`UserPkStruct`] -> [`Empty`]
+    ///
+    /// Indicates the node received some activity from its user.
+    async fn activity(&self, user_pk: UserPk) -> Result<Empty, RunnerApiError>;
 }
 
 /// Defines the API the node exposes to the Lexe operators at run time.

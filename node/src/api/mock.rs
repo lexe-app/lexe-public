@@ -139,6 +139,12 @@ impl NodeRunnerApi for MockRunnerClient {
         let _ = self.notifs_tx.try_send(*ports);
         Ok(Empty {})
     }
+    async fn activity(
+        &self,
+        _user_pk: UserPk,
+    ) -> Result<Empty, RunnerApiError> {
+        Ok(Empty {})
+    }
 }
 
 pub(super) struct MockLspClient {
