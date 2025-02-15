@@ -416,6 +416,10 @@ class MockAppHandleScreenshots extends MockAppHandle {
       ),
     );
   }
+
+  @override
+  Future<String> getAddress() =>
+      Future.value("bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl");
 }
 
 class MockSettingsDb extends SettingsDb {
