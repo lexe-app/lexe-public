@@ -387,11 +387,43 @@ async fn do_handle_event(
                 .map_err(EventHandleError::Replay)?;
         }
 
-        // Handled by `handle_network_graph_update` and `handle_scorer_update`
-        Event::PaymentPathSuccessful { .. } => (),
-        Event::PaymentPathFailed { .. } => (),
-        Event::ProbeSuccessful { .. } => (),
-        Event::ProbeFailed { .. } => (),
+        // `handle_network_graph_update` and `handle_scorer_update` applied the
+        // payment updates to our local network graph and scorer, respectively.
+        // Here, we anonymize this info, then send it to the LSP.
+        Event::PaymentPathSuccessful {
+            payment_id,
+            payment_hash,
+            path,
+        } => {
+            // TODO(max): Send this to LSP
+            let _ =
+                anonymize::successful_path(ctx, payment_id, payment_hash, path);
+        }
+        Event::PaymentPathFailed {
+            payment_id,
+            payment_hash,
+            payment_failed_permanently,
+            failure,
+            path,
+            short_channel_id,
+        } => {
+            // TODO(max): Send this to LSP
+            let _ = anonymize::failed_path(
+                ctx,
+                payment_id,
+                payment_hash,
+                payment_failed_permanently,
+                failure,
+                path,
+                short_channel_id,
+            );
+        }
+
+        // The node doesn't send probes
+        Event::ProbeSuccessful { .. } =>
+            debug_panic_release_log!("Somehow received ProbeSuccessful"),
+        Event::ProbeFailed { .. } =>
+            debug_panic_release_log!("Somehow received ProbeFailed"),
 
         Event::PaymentForwarded {
             prev_channel_id,
@@ -491,4 +523,194 @@ async fn do_handle_event(
     }
 
     Ok(())
+}
+
+/// Helpers to anonymize payment paths.
+mod anonymize {
+    use std::collections::HashSet;
+
+    use lexe_api::trace::DisplayMs;
+    use lightning::{
+        events::PathFailure,
+        ln::{channelmanager::PaymentId, PaymentHash},
+        routing::{
+            gossip::{NetworkUpdate, NodeId, ReadOnlyNetworkGraph},
+            router::Path,
+        },
+    };
+    use tokio::time::Instant;
+
+    use super::*;
+
+    /// The minimum size of the anonymity set of possible receivers after a
+    /// payment path has been anonymized.
+    ///
+    /// Intended to be small enough so that most LSPs can qualify as the (N-1)th
+    /// hop, but large enough to provide good privacy.
+    // TODO(max): Increase to 50 or 100 once we have more reliable payments.
+    const MIN_ANONYMITY_SET: usize = 20;
+
+    /// Anonymizes a [`Event::PaymentPathSuccessful`].
+    pub(super) fn successful_path(
+        ctx: &EventCtx,
+        payment_id: PaymentId,
+        payment_hash: Option<PaymentHash>,
+        path: Path,
+    ) -> Option<Event> {
+        anonymize_path(ctx, path).map(|path| Event::PaymentPathSuccessful {
+            payment_id,
+            payment_hash,
+            path,
+        })
+    }
+
+    /// Anonymizes a [`Event::PaymentPathFailed`].
+    pub(super) fn failed_path(
+        ctx: &EventCtx,
+        payment_id: Option<PaymentId>,
+        payment_hash: PaymentHash,
+        payment_failed_permanently: bool,
+        failure: PathFailure,
+        path: Path,
+        short_channel_id: Option<u64>,
+    ) -> Option<Event> {
+        let path = anonymize_path(ctx, path)?;
+
+        // So that we don't penalize a subset of the path which was not the
+        // cause of the payment failure, as well as to not blow our privacy,
+        // ensure that the failed channel or node is on the anonymized path.
+        let network_graph = ctx.network_graph.read_only();
+        #[allow(clippy::collapsible_match)] // Suggestion is less readable
+        if let PathFailure::OnPath { network_update } = &failure {
+            if let Some(update) = network_update {
+                match update {
+                    NetworkUpdate::ChannelFailure {
+                        short_channel_id, ..
+                    } => {
+                        let channel =
+                            network_graph.channel(*short_channel_id)?;
+                        let node_pk1 = channel.node_one.as_pubkey().ok()?;
+                        let node_pk2 = channel.node_two.as_pubkey().ok()?;
+                        path.hops.iter().find(|hop| hop.pubkey == node_pk1)?;
+                        path.hops.iter().find(|hop| hop.pubkey == node_pk2)?;
+                    }
+                    NetworkUpdate::NodeFailure { node_id, .. } => {
+                        path.hops.iter().find(|hop| hop.pubkey == *node_id)?;
+                    }
+                }
+            }
+        }
+
+        Some(Event::PaymentPathFailed {
+            payment_id,
+            payment_hash,
+            payment_failed_permanently,
+            failure,
+            path,
+            short_channel_id,
+        })
+    }
+
+    /// Anonymizes a [`Path`] to a receiver by removing hops from the end of the
+    /// path until the size of the anonymity set of possible receivers is at
+    /// least [`MIN_ANONYMITY_SET`] (or returns [`None`] if unreachable).
+    fn anonymize_path(ctx: &EventCtx, mut path: Path) -> Option<Path> {
+        // If the tail is already blinded, the receiver is already anonymized;
+        // we can send the event to the LSP as is.
+        if path.blinded_tail.is_some() {
+            info!("Anonymized path: Blinded tail already anonymized");
+            return Some(path);
+        }
+        // From here, we know the path does not have a blinded tail.
+        let start = Instant::now();
+
+        // We need to remove the last (Nth) hop, since it is the receiver.
+        // TODO(max): Whitelist (don't pop off) custodial nodes like Strike or
+        // Coinbase, as their anonymity set is all of their users.
+        let receiver_hop = path.hops.pop();
+        if receiver_hop.is_none() {
+            debug_panic_release_log!("Path should always have at >= 1 hop!");
+            return None;
+        };
+
+        // Pop off hops and increase our search depth until we either reach the
+        // required anonymity set size or run out of hops.
+        let network_graph = ctx.network_graph.read_only();
+        let mut depth = 1;
+        while let Some(departure_hop) = path.hops.last() {
+            let departure_node_id = NodeId::from_pubkey(&departure_hop.pubkey);
+            let anonymity_set =
+                compute_anonymity_set(&network_graph, departure_node_id, depth);
+
+            if anonymity_set >= MIN_ANONYMITY_SET {
+                let elapsed = DisplayMs(start.elapsed());
+                info!(
+                    "Anonymized path: Anonymity set size = {anonymity_set}, \
+                     termination depth={depth}, elapsed={elapsed}"
+                );
+                return Some(path);
+            }
+
+            path.hops.pop();
+            depth += 1;
+        }
+
+        info!(
+            elapsed = %DisplayMs(start.elapsed()),
+            "Failed to anonymize path; skipping"
+        );
+        None
+    }
+
+    /// Computes the size of the anonymity set of receivers reachable from
+    /// `departure_node_id` within `depth` hops.
+    ///
+    /// Uses cumulative BFS to spread out from `departure_node_id`, accumulating
+    /// anonymity set members in a [`HashSet`] to ensure no duplicate nodes.
+    fn compute_anonymity_set(
+        network_graph: &ReadOnlyNetworkGraph<'_>,
+        departure_node_id: NodeId,
+        depth: usize,
+    ) -> usize {
+        // Start with departure node in both the `seen` and `frontier_ids`
+        // The `seen_ids` set ensures we don't do duplicate work.
+        let mut seen_ids = HashSet::from([departure_node_id]);
+        let mut frontier_ids = HashSet::from([departure_node_id]);
+
+        // Outer loop iterates `depth` times. At each iteration, it expands the
+        // current frontier to include all direct neighbors not seen before.
+        'outer: for _ in 0..depth {
+            let mut next_frontier_ids = HashSet::new();
+
+            // For all nodes in the current frontier:
+            'inner: for node_id in frontier_ids.drain() {
+                let node = match network_graph.node(&node_id) {
+                    Some(n) => n,
+                    None => continue 'inner,
+                };
+
+                // For each of this node's neighbors, add the neighbor to
+                // `next_frontier_ids` if it hasn't been seen before.
+                node.channels
+                    .iter()
+                    .filter_map(|scid| network_graph.channel(*scid))
+                    .flat_map(|channel| [channel.node_one, channel.node_two])
+                    .for_each(|neighbor| {
+                        let newly_seen = seen_ids.insert(neighbor);
+                        if newly_seen {
+                            next_frontier_ids.insert(neighbor);
+                        }
+                    });
+            }
+
+            // If no new nodes were discovered, we can stop early.
+            if next_frontier_ids.is_empty() {
+                break 'outer;
+            }
+
+            frontier_ids = next_frontier_ids;
+        }
+
+        seen_ids.len()
+    }
 }
