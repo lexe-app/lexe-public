@@ -62,6 +62,7 @@ use axum::{
     Router, ServiceExt as AxumServiceExt,
 };
 use axum_server::tls_rustls::RustlsConfig;
+use bytes::Bytes;
 use common::{
     api::{
         auth,
@@ -72,7 +73,7 @@ use common::{
     notify_once::NotifyOnce,
     task::LxTask,
 };
-use http::StatusCode;
+use http::{header::CONTENT_TYPE, HeaderValue, StatusCode};
 use serde::{de::DeserializeOwned, Serialize};
 use tower::{
     buffer::BufferLayer, limit::ConcurrencyLimitLayer,
@@ -464,7 +465,7 @@ pub fn spawn_server_task_with_listener(
 /// It can be used as either an extractor or a response.
 ///
 /// - As an extractor: rejections return [`LxRejection`].
-/// - As a response:
+/// - As a success response:
 ///   - Serialization success returns an [`http::Response`] with JSON body.
 ///   - Serialization failure returns a [`ErrorResponse`].
 ///
@@ -522,6 +523,76 @@ impl<T: Eq + PartialEq> Eq for LxJson<T> {}
 impl<T: PartialEq> PartialEq for LxJson<T> {
     fn eq(&self, other: &Self) -> bool {
         self.0.eq(&other.0)
+    }
+}
+
+// --- LxBytes --- //
+
+/// A version of [`Bytes`] which conforms to Lexe's (binary) API.
+/// - [`axum`] has implementations of [`FromRequest`] and [`IntoResponse`] for
+///   [`Bytes`], but these implementations are not Lexe API-conformant.
+/// - This type can be used as either an extractor or a success response, and
+///   should always be used instead of [`Bytes`] in these server contexts.
+/// - It is still fine to use [`Bytes`] on the client side.
+///
+/// - As an extractor: rejections return [`LxRejection`].
+/// - As a success response:
+///   - Returns an [`http::Response`] with a binary body.
+///
+///   - Any failure encountered in extraction or creation should produce an
+///     [`ErrorResponse`].
+///
+/// The regular impls are non-conformant because:
+///
+/// - Rejections return [`BytesRejection`] which is just a string HTTP body.
+///
+/// NOTE: This must only be used for forming *success* API responses,
+/// i.e. `LxBytes` in `Result<LxBytes, E>`, because its [`IntoResponse`] impl
+/// uses [`StatusCode::OK`]. Our API error types are serialized as JSON and
+/// have separate [`IntoResponse`] impls which return error statuses.
+///
+/// [`ErrorResponse`]: common::api::error::ErrorResponse
+#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
+pub struct LxBytes(pub Bytes);
+
+#[async_trait]
+impl<S: Send + Sync> FromRequest<S> for LxBytes {
+    type Rejection = LxRejection;
+
+    async fn from_request(
+        req: http::Request<axum::body::Body>,
+        state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        // `Bytes`'s from_request impl is fine but its rejection is not
+        Bytes::from_request(req, state)
+            .await
+            .map(Self)
+            .map_err(LxRejection::from)
+    }
+}
+
+/// The [`Bytes`] [`IntoResponse`] impl is almost exactly the same,
+/// except it returns the wrong HTTP version.
+impl IntoResponse for LxBytes {
+    fn into_response(self) -> http::Response<axum::body::Body> {
+        let http_body = http_body_util::Full::new(self.0);
+        let axum_body = axum::body::Body::new(http_body);
+
+        common::api::server::default_response_builder()
+            .header(
+                CONTENT_TYPE,
+                // Or `HeaderValue::from_static(mime::APPLICATION_OCTET_STREAM)`
+                HeaderValue::from_static("application/octet-stream"),
+            )
+            .status(StatusCode::OK)
+            .body(axum_body)
+            .expect("All operations here should be infallible")
+    }
+}
+
+impl<T: Into<Bytes>> From<T> for LxBytes {
+    fn from(t: T) -> Self {
+        Self(t.into())
     }
 }
 

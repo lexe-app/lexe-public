@@ -36,6 +36,7 @@ bcs.workspace = true
 bytes.workspace = true
 dcap-ql.workspace = true
 http.workspace = true
+http-body-util.workspace = true
 hyper = { workspace = true, features = ["http1", "http2", "server"] }
 lightning.workspace = true
 num-bigint.workspace = true

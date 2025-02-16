@@ -40,7 +40,7 @@ pub fn build_json_response(
         let http_body = http_body_util::Full::new(bytes);
         let axum_body = axum::body::Body::new(http_body);
 
-        http::Response::builder()
+        default_response_builder()
             .header(
                 CONTENT_TYPE,
                 // Can do `HeaderValue::from_static(mime::APPLICATION_JSON)`
@@ -48,10 +48,14 @@ pub fn build_json_response(
                 HeaderValue::from_static("application/json"),
             )
             .status(status)
-            .version(HTTP_VERSION)
             .body(axum_body)
             .expect("All operations here should be infallible")
     }
 
     build_json_response_inner(status, serde_json::to_vec(data))
+}
+
+/// A builder for a [`http::Response`] with Lexe's defaults set.
+pub fn default_response_builder() -> http::response::Builder {
+    http::Response::builder().version(HTTP_VERSION)
 }
