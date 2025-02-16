@@ -30,6 +30,7 @@
 
 use async_trait::async_trait;
 use bytes::Bytes;
+use lightning::events::Event;
 
 use super::{
     auth::{
@@ -279,6 +280,15 @@ pub trait NodeLspApi {
     ///
     /// Introduced in node-v0.6.8 and lsp-v0.6.29.
     async fn get_network_graph(&self) -> Result<Bytes, LspApiError>;
+
+    /// POST /node/v1/payment_path [`Bytes`] (LDK-serialized [`Event`])
+    ///                         -> [`Empty`]
+    ///
+    /// Sends an anonymized successful or failed payment path to the LSP to
+    /// update Lexe's shared network graph and improve payment reliability.
+    ///
+    /// Introduced in node-v0.6.17 and lsp-v0.6.33.
+    async fn payment_path(&self, event: &Event) -> Result<Empty, LspApiError>;
 }
 
 /// Defines the api that the runner exposes to the node.

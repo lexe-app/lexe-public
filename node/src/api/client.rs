@@ -29,6 +29,7 @@ use lexe_api::{
     rest::{RequestBuilderExt, RestClient, POST},
     tls::attestation::{self, NodeMode},
 };
+use lightning::events::Event;
 
 use crate::api::BackendApiClient;
 
@@ -110,6 +111,13 @@ impl NodeLspApi for LspClient {
         let data = Empty {};
         let req = self.rest.get(format!("{lsp}/node/v1/network_graph"), &data);
         self.rest.send_no_deserialize::<LspApiError>(req).await
+    }
+
+    async fn payment_path(&self, event: &Event) -> Result<Empty, LspApiError> {
+        let lsp = &self.lsp_url;
+        let url = format!("{lsp}/node/v1/payment_path");
+        let req = self.rest.serialize_ldk_writeable(POST, url, event);
+        self.rest.send(req).await
     }
 }
 

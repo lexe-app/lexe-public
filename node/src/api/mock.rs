@@ -42,7 +42,7 @@ use common::{
     time::TimestampMs,
 };
 use lexe_ln::{alias::NetworkGraphType, logger::LexeTracingLogger};
-use lightning::util::ser::Writeable;
+use lightning::{events::Event, util::ser::Writeable};
 use tokio::sync::mpsc;
 
 use crate::api::BackendApiClient;
@@ -168,6 +168,9 @@ impl NodeLspApi for MockLspClient {
         let mut buf = Vec::new();
         network_graph.write(&mut buf).unwrap();
         Ok(Bytes::from(buf))
+    }
+    async fn payment_path(&self, _event: &Event) -> Result<Empty, LspApiError> {
+        Ok(Empty {})
     }
 }
 
