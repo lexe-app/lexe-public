@@ -934,6 +934,12 @@ impl LspApiError {
         let kind = LspErrorKind::Command;
         Self { kind, msg }
     }
+
+    pub fn rejection(error: impl fmt::Display) -> Self {
+        let msg = format!("{error:#}");
+        let kind = LspErrorKind::Rejection;
+        Self { kind, msg }
+    }
 }
 
 impl NodeApiError {
