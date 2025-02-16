@@ -40,7 +40,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use common::{
-    api::user::NodePk,
+    api::{def::NodeLspApi, user::NodePk},
     cli::LspInfo,
     debug_panic_release_log,
     ln::{channel::LxChannelId, payments::LxPaymentHash},
@@ -74,19 +74,20 @@ pub struct NodeEventHandler {
 /// Allows all event handling context to be shared (e.g. spawned into a task)
 /// with a single [`Arc`] clone.
 pub(crate) struct EventCtx {
-    pub(crate) lsp: LspInfo,
-    pub(crate) esplora: Arc<LexeEsplora>,
-    pub(crate) wallet: LexeWallet,
-    pub(crate) channel_manager: NodeChannelManager,
-    pub(crate) keys_manager: Arc<LexeKeysManager>,
-    pub(crate) network_graph: Arc<NetworkGraphType>,
-    pub(crate) scorer: Arc<Mutex<ProbabilisticScorerType>>,
-    pub(crate) payments_manager: PaymentsManagerType,
-    pub(crate) channel_events_bus: ChannelEventsBus,
-    pub(crate) scorer_persist_tx: notify::Sender,
-    pub(crate) eph_tasks_tx: mpsc::Sender<LxTask<()>>,
-    pub(crate) test_event_tx: TestEventSender,
-    pub(crate) shutdown: NotifyOnce,
+    pub lsp: LspInfo,
+    pub lsp_api: Arc<dyn NodeLspApi + Send + Sync>,
+    pub esplora: Arc<LexeEsplora>,
+    pub wallet: LexeWallet,
+    pub channel_manager: NodeChannelManager,
+    pub keys_manager: Arc<LexeKeysManager>,
+    pub network_graph: Arc<NetworkGraphType>,
+    pub scorer: Arc<Mutex<ProbabilisticScorerType>>,
+    pub payments_manager: PaymentsManagerType,
+    pub channel_events_bus: ChannelEventsBus,
+    pub scorer_persist_tx: notify::Sender,
+    pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
+    pub test_event_tx: TestEventSender,
+    pub shutdown: NotifyOnce,
 }
 
 impl LexeEventHandler for NodeEventHandler {
@@ -395,9 +396,19 @@ async fn do_handle_event(
             payment_hash,
             path,
         } => {
-            // TODO(max): Send this to LSP
-            let _ =
+            let maybe_event =
                 anonymize::successful_path(ctx, payment_id, payment_hash, path);
+            match maybe_event {
+                Some(event) => {
+                    info!("Sending anonymized succ path to LSP");
+                    ctx.lsp_api
+                        .payment_path(&event)
+                        .await
+                        .context("Failed to call /payment_path")
+                        .map_err(EventHandleError::Discard)?;
+                }
+                None => info!("Failed to anonymize successful path; skipping"),
+            }
         }
         Event::PaymentPathFailed {
             payment_id,
@@ -407,8 +418,7 @@ async fn do_handle_event(
             path,
             short_channel_id,
         } => {
-            // TODO(max): Send this to LSP
-            let _ = anonymize::failed_path(
+            let maybe_event = anonymize::failed_path(
                 ctx,
                 payment_id,
                 payment_hash,
@@ -417,6 +427,17 @@ async fn do_handle_event(
                 path,
                 short_channel_id,
             );
+            match maybe_event {
+                Some(event) => {
+                    info!("Sending anonymized failed path to LSP");
+                    ctx.lsp_api
+                        .payment_path(&event)
+                        .await
+                        .context("Failed to call /payment_path")
+                        .map_err(EventHandleError::Discard)?;
+                }
+                None => info!("Failed to anonymize failed path; skipping"),
+            }
         }
 
         // The node doesn't send probes
