@@ -167,6 +167,7 @@ impl UserNode {
             mpsc::channel(SMALLER_CHANNEL_SIZE);
         let (ldk_resync_tx, ldk_resync_rx) =
             mpsc::channel(SMALLER_CHANNEL_SIZE);
+        let (_events_tx, events_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (test_event_tx, test_event_rx) = test_event::channel("(node)");
         let test_event_rx = Arc::new(tokio::sync::Mutex::new(test_event_rx));
         let (eph_tasks_tx, eph_tasks_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
@@ -738,6 +739,7 @@ impl UserNode {
             gossip_sync.clone(),
             scorer.clone(),
             persist_graph,
+            events_rx,
             process_events_rx,
             scorer_persist_rx,
             shutdown.clone(),
