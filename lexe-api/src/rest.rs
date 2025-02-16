@@ -11,6 +11,7 @@ use http::{
     header::{HeaderValue, CONTENT_TYPE},
     Method,
 };
+use lightning::util::ser::Writeable;
 use reqwest::IntoUrl;
 use serde::{de::DeserializeOwned, Serialize};
 use tracing::{debug, info, warn, Instrument};
@@ -98,17 +99,6 @@ impl RestClient {
 
     // --- RequestBuilder helpers --- //
 
-    /// Return a clean slate [`reqwest::RequestBuilder`] for non-standard
-    /// requests. Otherwise prefer to use the ready-made `get`, `post`, ..., etc
-    /// helpers.
-    pub fn builder(
-        &self,
-        method: Method,
-        url: impl IntoUrl,
-    ) -> reqwest::RequestBuilder {
-        self.client.request(method, url)
-    }
-
     #[inline]
     pub fn get<U, T>(&self, url: U, data: &T) -> reqwest::RequestBuilder
     where
@@ -143,6 +133,37 @@ impl RestClient {
         T: Serialize + ?Sized,
     {
         self.builder(DELETE, url).json(data)
+    }
+
+    /// Serializes a LDK [`Writeable`] object into the request body.
+    #[inline]
+    pub fn serialize_ldk_writeable<U, W>(
+        &self,
+        method: Method,
+        url: U,
+        data: &W,
+    ) -> reqwest::RequestBuilder
+    where
+        U: IntoUrl,
+        W: Writeable,
+    {
+        let bytes = {
+            let mut buf = Vec::new();
+            data.write(&mut buf)
+                .expect("Serializing into in-memory buf shouldn't fail");
+            Bytes::from(buf)
+        };
+        self.builder(method, url).body(bytes)
+    }
+
+    /// A clean slate [`reqwest::RequestBuilder`] for non-standard requests.
+    /// Otherwise prefer to use the ready-made `get`, `post`, ..., etc helpers.
+    pub fn builder(
+        &self,
+        method: Method,
+        url: impl IntoUrl,
+    ) -> reqwest::RequestBuilder {
+        self.client.request(method, url)
     }
 
     // --- Request send/recv --- //
