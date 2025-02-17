@@ -58,8 +58,12 @@ use lightning::{
     ln::{peer_handler::IgnoringMessageHandler, types::ChannelId},
     onion_message::messenger::{DefaultMessageRouter, OnionMessenger},
     routing::{
-        gossip::P2PGossipSync, router::DefaultRouter,
-        scoring::ProbabilisticScoringFeeParameters,
+        gossip::P2PGossipSync,
+        router::DefaultRouter,
+        scoring::{
+            ProbabilisticScoringDecayParameters,
+            ProbabilisticScoringFeeParameters,
+        },
     },
     util::ser::ReadableArgs,
 };
@@ -340,6 +344,7 @@ impl UserNode {
         let (
             try_maybe_approved_versions,
             try_network_graph_bytes,
+            try_scorer_bytes,
             try_maybe_changeset,
             try_maybe_scid,
             try_pending_payments,
@@ -347,6 +352,7 @@ impl UserNode {
         ) = tokio::join!(
             read_maybe_approved_versions,
             lsp_api.get_network_graph(),
+            lsp_api.get_prob_scorer(),
             persister.read_wallet_changeset(),
             persister.read_scid(),
             persister.read_pending_payments(),
@@ -383,8 +389,7 @@ impl UserNode {
             let read_args = logger.clone();
             NetworkGraphType::read(&mut reader, read_args)
                 .map(Arc::new)
-                .map_err(|e| anyhow!("{e:?}"))
-                .context("Could not deserialize network graph")?
+                .map_err(|e| anyhow!("Couldn't deser network graph: {e:#}"))?
         };
         let maybe_changeset =
             try_maybe_changeset.context("Could not read wallet changeset")?;
@@ -435,17 +440,27 @@ impl UserNode {
                 .map(Arc::new)
                 .context("Failed to construct keys manager")?;
 
-        // Read channel monitors and scorer
-        let (try_channel_monitors, try_scorer) = tokio::join!(
-            persister.read_channel_monitors(keys_manager.clone()),
-            persister.read_scorer(network_graph.clone(), logger.clone()),
-        );
-        let mut channel_monitors =
-            try_channel_monitors.context("Could not read channel monitors")?;
-        let scorer = try_scorer
-            .context("Could not read probabilistic scorer")?
-            .apply(Mutex::new)
-            .apply(Arc::new);
+        // Read channel monitors
+        // TODO(max): Split into fetch and deserialize steps so the fetching can
+        // be done concurrently with other fetches.
+        let mut channel_monitors = persister
+            .read_channel_monitors(keys_manager.clone())
+            .await
+            .context("Could not read channel monitors")?;
+
+        // Deserialize scorer
+        let scorer = {
+            let scorer_bytes = try_scorer_bytes
+                .context("Could not fetch serialized scorer")?;
+            let decay_params = ProbabilisticScoringDecayParameters::default();
+            let read_args =
+                (decay_params, network_graph.clone(), logger.clone());
+            let mut reader = Cursor::new(&scorer_bytes);
+            ProbabilisticScorerType::read(&mut reader, read_args)
+                .map(Mutex::new)
+                .map(Arc::new)
+                .map_err(|e| anyhow!("Couldn't deser prob scorer: {e:#}"))?
+        };
 
         // Initialize Router
         let scoring_fee_params = ProbabilisticScoringFeeParameters::default();

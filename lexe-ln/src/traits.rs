@@ -91,6 +91,7 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
         Ok(network_graph)
     }
 
+    // TODO(max): Node doesn't need this anymore
     async fn read_scorer(
         &self,
         graph: Arc<NetworkGraphType>,
