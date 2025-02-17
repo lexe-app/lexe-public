@@ -113,6 +113,13 @@ impl NodeLspApi for LspClient {
         self.rest.send_no_deserialize::<LspApiError>(req).await
     }
 
+    async fn get_prob_scorer(&self) -> Result<Bytes, LspApiError> {
+        let lsp = &self.lsp_url;
+        let data = Empty {};
+        let req = self.rest.get(format!("{lsp}/node/v1/prob_scorer"), &data);
+        self.rest.send_no_deserialize::<LspApiError>(req).await
+    }
+
     async fn payment_path(&self, event: &Event) -> Result<Empty, LspApiError> {
         let lsp = &self.lsp_url;
         let url = format!("{lsp}/node/v1/payment_path");

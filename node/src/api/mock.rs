@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap},
     str::FromStr,
-    sync::{LazyLock, Mutex},
+    sync::{Arc, LazyLock, Mutex},
 };
 
 use async_trait::async_trait;
@@ -41,8 +41,14 @@ use common::{
     root_seed::RootSeed,
     time::TimestampMs,
 };
-use lexe_ln::{alias::NetworkGraphType, logger::LexeTracingLogger};
-use lightning::{events::Event, util::ser::Writeable};
+use lexe_ln::{
+    alias::{NetworkGraphType, ProbabilisticScorerType},
+    logger::LexeTracingLogger,
+};
+use lightning::{
+    events::Event, routing::scoring::ProbabilisticScoringDecayParameters,
+    util::ser::Writeable,
+};
 use tokio::sync::mpsc;
 
 use crate::api::BackendApiClient;
@@ -167,6 +173,21 @@ impl NodeLspApi for MockLspClient {
         );
         let mut buf = Vec::new();
         network_graph.write(&mut buf).unwrap();
+        Ok(Bytes::from(buf))
+    }
+    async fn get_prob_scorer(&self) -> Result<Bytes, LspApiError> {
+        let decay_params = ProbabilisticScoringDecayParameters::default();
+        let network_graph = Arc::new(NetworkGraphType::new(
+            self.network.to_bitcoin(),
+            self.logger.clone(),
+        ));
+        let scorer = ProbabilisticScorerType::new(
+            decay_params,
+            network_graph,
+            self.logger.clone(),
+        );
+        let mut buf = Vec::new();
+        scorer.write(&mut buf).unwrap();
         Ok(Bytes::from(buf))
     }
     async fn payment_path(&self, _event: &Event) -> Result<Empty, LspApiError> {
