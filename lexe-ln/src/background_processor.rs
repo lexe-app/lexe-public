@@ -25,7 +25,7 @@ mod interval {
 
     /// Channel manager ticks.
     pub const CHANNEL_MANAGER: Duration = Duration::from_secs(60);
-    /// Network graph prunes.
+    /// Network graph prunes and persists.
     pub const NETWORK_GRAPH: Duration = Duration::from_secs(15 * 60);
     /// Peer manager ticks.
     pub const PEER_MANAGER: Duration = Duration::from_secs(15);
@@ -60,8 +60,8 @@ pub fn start<CM, PM, PS, EH>(
     event_handler: EH,
     gossip_sync: Arc<P2PGossipSyncType>,
     scorer: Arc<Mutex<ProbabilisticScorerType>>,
-    // Whether to persist the network graph.
-    persist_graph: bool,
+    // Whether to persist the network graph and probabilistic scorer.
+    persist_graph_and_scorer: bool,
     mut events_rx: mpsc::Receiver<Event>,
     // TODO(max): A `process_events` notification should be sent every time
     // an event is generated which does not also cause the future returned
@@ -167,6 +167,8 @@ where
 
                 // A future that completes when the scorer persist timer ticks
                 // or a notification is sent over the `scorer_persist` channel.
+                // TODO(max): We should limit persists to once every ~15s.
+                // Currently, every payment will trigger a scorer persist.
                 let scorer_persist_fut = async {
                     tokio::select! {
                         _ = scorer_timer.tick() =>
@@ -179,7 +181,6 @@ where
                 };
 
                 tokio::select! {
-                    // --- Process events + channel manager repersist --- //
                     maybe_event = process_events_fut => {
                         debug!("Processing pending events");
 
@@ -237,48 +238,24 @@ where
                         }
                     }
 
-                    // --- Scorer persist branch --- //
-                    () = scorer_persist_fut => {
-                        debug!("Persisting probabilistic scorer");
-                        let persist_res = persister
-                            .persist_scorer(scorer.as_ref())
-                            .await;
-                        if let Err(e) = persist_res {
-                            // The scorer isn't super important.
-                            warn!("Couldn't persist scorer: {e:#}");
-                        }
-                    }
+                    () = scorer_persist_fut =>
+                        maybe_persist_scorer(
+                            &persister, &scorer, persist_graph_and_scorer
+                        ).await,
 
-                    // --- Timer tick branches --- //
-                    _ = pm_timer.tick() => {
-                        debug!("Calling PeerManager::timer_tick_occurred()");
-                        peer_manager.timer_tick_occurred();
-                    }
-                    _ = cm_timer.tick() => {
-                        debug!("Calling ChannelManager::timer_tick_occurred()");
-                        channel_manager.timer_tick_occurred();
-                    }
-                    _ = ng_timer.tick() => {
-                        if persist_graph {
-                            debug!("Pruning and persisting network graph");
-                            let network_graph = gossip_sync.network_graph();
-                            // TODO(max): Don't prune during RGS. See LDK's BGP.
-                            // Relevant after we've implemented RGS.
-                            network_graph.remove_stale_channels_and_tracking();
-                            let persist_res = persister
-                                .persist_graph(network_graph)
-                                .await;
-                            if let Err(e) = persist_res {
-                                // The network graph isn't super important.
-                                warn!("Couldn't persist network graph: {:#}", e);
-                            }
-                        }
-                    }
+                    _ = pm_timer.tick() =>
+                        peer_manager.timer_tick_occurred(),
 
-                    // --- Shutdown branch --- //
-                    () = shutdown.recv() => {
-                        break info!("Background processor shutting down");
-                    }
+                    _ = cm_timer.tick() =>
+                        channel_manager.timer_tick_occurred(),
+
+                    _ = ng_timer.tick() =>
+                        maybe_persist_graph(
+                            &persister, &gossip_sync, persist_graph_and_scorer
+                        ).await,
+
+                    () = shutdown.recv() =>
+                        break info!("Background processor shutting down"),
                 }
             }
 
@@ -286,7 +263,7 @@ where
             // - For the channel manager, this may prevent some races where the
             //   node quits while channel updates were in-flight, causing
             //   ChannelMonitor updates to be persisted without corresponding
-            //   ChannelManager updating being persisted. This does not risk the
+            //   ChannelManager updates being persisted. This does not risk the
             //   loss of funds, but upon next boot the ChannelManager may
             //   accidentally trigger a force close..
             // - For the network graph and scorer, it is possible that the node
@@ -294,17 +271,62 @@ where
             //   (e.g. `shutdown_after_sync` is set), and since we're already
             //   another API call for the channel manager, we might as well
             //   concurrently persist these as well.
-            let network_graph = gossip_sync.network_graph();
-            let results = tokio::join!(
+            let (try_persist_manager, (), ()) = tokio::join!(
                 persister.persist_manager(channel_manager.deref()),
-                persister.persist_graph(network_graph),
-                persister.persist_scorer(scorer.as_ref()),
+                maybe_persist_scorer(
+                    &persister,
+                    &scorer,
+                    persist_graph_and_scorer
+                ),
+                maybe_persist_graph(
+                    &persister,
+                    &gossip_sync,
+                    persist_graph_and_scorer
+                ),
             );
-            for res in <[_; 3]>::from(results) {
-                if let Err(e) = res {
-                    error!("Final persistence failure: {e:#}");
-                }
+            if let Err(e) = try_persist_manager {
+                error!("Final channel manager persistence failure: {e:#}");
             }
         },
     )
+}
+
+// TODO(max): Scorer and network graph persistence should be handled in their
+// own tasks instead of in the main BGP loop, so that their persistence doesn't
+// block event processing.
+
+/// Persists the network graph only if `persist_graph_and_scorer` is true.
+async fn maybe_persist_graph(
+    persister: &impl LexePersister,
+    gossip_sync: &P2PGossipSyncType,
+    persist_graph_and_scorer: bool,
+) {
+    if persist_graph_and_scorer {
+        debug!("Pruning and persisting network graph");
+        let network_graph = gossip_sync.network_graph();
+        // TODO(max): Don't prune during RGS. See LDK's BGP.
+        // Relevant after we've implemented RGS.
+        network_graph.remove_stale_channels_and_tracking();
+        if let Err(e) = persister.persist_graph(network_graph).await {
+            warn!("Couldn't persist network graph: {e:#}");
+        }
+    } else {
+        debug!("Skipping network graph persist");
+    }
+}
+
+/// Persists the scorer only if `persist_graph_and_scorer` is true.
+async fn maybe_persist_scorer(
+    persister: &impl LexePersister,
+    scorer: &Mutex<ProbabilisticScorerType>,
+    persist_graph_and_scorer: bool,
+) {
+    if persist_graph_and_scorer {
+        debug!("Persisting probabilistic scorer");
+        if let Err(e) = persister.persist_scorer(scorer).await {
+            warn!("Couldn't persist scorer: {e:#}");
+        }
+    } else {
+        debug!("Skipping scorer persist");
+    }
 }

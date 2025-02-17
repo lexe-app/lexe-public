@@ -146,10 +146,10 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
             constants::SINGLETON_DIRECTORY,
             constants::SCORER_FILENAME,
         );
-        let file = self.encrypt_ldk_writeable(
-            file_id,
-            scorer_mutex.lock().unwrap().deref(),
-        );
+        let file = {
+            let locked_scorer = scorer_mutex.lock().unwrap();
+            self.encrypt_ldk_writeable(file_id, locked_scorer.deref())
+        };
         let retries = 0;
         self.persist_file(&file, retries).await
     }

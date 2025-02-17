@@ -428,9 +428,10 @@ impl UserNode {
         ));
 
         // Init gossip sync
+        let utxo_lookup = None;
         let gossip_sync = Arc::new(P2PGossipSync::new(
             network_graph.clone(),
-            None,
+            utxo_lookup,
             logger.clone(),
         ));
 
@@ -743,9 +744,9 @@ impl UserNode {
         };
         static_tasks.push(node_info_task);
 
-        // Init background processor.
-        // We don't persist the network graph bc we just fetch it from the LSP.
-        let persist_graph = false;
+        // Init background processor. We don't persist the network graph or
+        // probabilistic scorer because we just fetch those from the LSP.
+        let persist_graph_and_scorer = false;
         let bg_processor_task = background_processor::start(
             channel_manager.clone(),
             peer_manager.clone(),
@@ -754,7 +755,7 @@ impl UserNode {
             event_handler,
             gossip_sync.clone(),
             scorer.clone(),
-            persist_graph,
+            persist_graph_and_scorer,
             events_rx,
             process_events_rx,
             scorer_persist_rx,
