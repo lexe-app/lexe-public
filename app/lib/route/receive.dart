@@ -386,7 +386,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
     final req = CreateInvoiceRequest(
       // TODO(phlip9): choose a good default expiration
-      expirySecs: 3600,
+      expirySecs: 24 * 60 * 60,
       amountSats: inputs.amountSats,
       description: inputs.description,
     );
