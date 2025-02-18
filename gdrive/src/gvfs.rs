@@ -7,7 +7,7 @@
 
 use std::{collections::BTreeMap, fmt, str::FromStr};
 
-use anyhow::{anyhow, bail, ensure, Context};
+use anyhow::{anyhow, ensure, Context};
 use common::{
     api::{
         user::UserPk,
@@ -20,7 +20,7 @@ use common::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::watch;
-use tracing::{instrument, warn};
+use tracing::{info, instrument, warn};
 
 use crate::{
     api::{self, GDriveClient},
@@ -250,11 +250,16 @@ impl GoogleVfs {
         let all_gfiles = try_all_gfiles?;
 
         // Check that all gvfs files have a binary MIME type.
+        // NOTE: Here, we used to `bail!()` if the file had the wrong MIME type.
+        // However, Google started returning that ./channel_manager had MIME
+        // type "application/x-tex-tfm" (???). So now, we just accept all MIME
+        // types, since any corruption will be caught during deserialization.
         for gfile in all_gfiles.iter() {
             if gfile.mime_type != api::BINARY_MIME_TYPE {
                 let name = &gfile.name;
                 let wrong_mime = &gfile.mime_type;
-                bail!("GFile '{name}' had wrong mime type {wrong_mime}");
+                // Don't even log at WARN since this is an expected error.
+                info!("GFile '{name}' has wrong mime type {wrong_mime}");
             }
         }
 

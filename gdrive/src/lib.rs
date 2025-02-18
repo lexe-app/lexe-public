@@ -69,6 +69,7 @@
 //!   that the vars must be `export`ed for the test binary to detect them.
 //! - Some tests create and delete the `regtest` VFS dir. Use `--test-threads=1`
 //!   to avoid duplicates when running multiple ignored tests in one batch.
+//! - See `doc/GDRIVE.md` for more info on setting up the test environment.
 //!
 //! Test run template:
 //!
