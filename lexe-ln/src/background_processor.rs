@@ -4,7 +4,6 @@ use std::{
 };
 
 use common::{notify, notify_once::NotifyOnce, task::LxTask};
-use lightning::events::Event;
 use tokio::{
     sync::{mpsc, oneshot},
     time::Instant,
@@ -62,7 +61,6 @@ pub fn start<CM, PM, PS, EH>(
     scorer: Arc<Mutex<ProbabilisticScorerType>>,
     // Whether to persist the network graph and probabilistic scorer.
     persist_graph_and_scorer: bool,
-    mut events_rx: mpsc::Receiver<Event>,
     // TODO(max): A `process_events` notification should be sent every time
     // an event is generated which does not also cause the future returned
     // by `get_event_or_persistence_needed_future()` to resolve.
@@ -120,37 +118,24 @@ where
                 // 1) We need to reprocess events
                 // 2) The channel manager got an update (event or repersist)
                 // 3) The chain monitor got an update
-                // 4) An `Event` was received over the `events_rx` channel
-                // 5) The background processor was explicitly triggered
+                // 4) The background processor was explicitly triggered
                 let mut processed_txs = Vec::new();
                 let process_events_fut = async {
-                    let maybe_event;
                     tokio::select! {
                         biased;
                         () = channel_manager
-                            .get_event_or_persistence_needed_future() => {
-                            debug!("Triggered: Channel manager update");
-                            maybe_event = None;
-                        }
-                        () = chain_monitor.get_update_future() => {
-                            debug!("Triggered: Chain monitor update");
-                            maybe_event = None;
-                        }
-                        _ = process_events_timer.tick() => {
-                            debug!("Triggered: process_events_timer ticked");
-                            maybe_event = None;
-                        }
-                        Some(event) = events_rx.recv() => {
-                            debug!("Triggered: Event received over channel");
-                            maybe_event = Some(event);
-                        }
+                            .get_event_or_persistence_needed_future() =>
+                            debug!("Triggered: Channel manager update"),
+                        () = chain_monitor.get_update_future() =>
+                            debug!("Triggered: Chain monitor update"),
+                        _ = process_events_timer.tick() =>
+                            debug!("Triggered: process_events_timer ticked"),
                         // TODO(max): If LDK has fixed the BGP waking issue,
                         // our integration tests should pass with this branch
                         // commented out.
                         Some(tx) = process_events_rx.recv() => {
                             debug!("Triggered: process_events channel");
                             processed_txs.push(tx);
-                            maybe_event = None;
                         }
                     };
 
@@ -161,8 +146,6 @@ where
                     while let Ok(tx) = process_events_rx.try_recv() {
                         processed_txs.push(tx);
                     }
-
-                    maybe_event
                 };
 
                 // A future that completes when the scorer persist timer ticks
@@ -181,7 +164,7 @@ where
                 };
 
                 tokio::select! {
-                    maybe_event = process_events_fut => {
+                    () = process_events_fut => {
                         debug!("Processing pending events");
 
                         channel_manager
@@ -192,19 +175,6 @@ where
                             .process_pending_events_async(mk_event_handler_fut)
                             .instrument(info_span!("(event-handler)(chain-mon)"))
                             .await;
-                        if let Some(event) = maybe_event {
-                            let result = event_handler
-                                .get_ldk_handler_future(event)
-                                .await;
-                            if let Err(e) = result {
-                                // NOTE: If we ever receive important events here,
-                                // we can requeue them in `events_tx`.
-                                error!(
-                                    "Error handling event from `events_rx`;\
-                                     skipping replay: {e:?}"
-                                );
-                            }
-                        }
 
                         // NOTE(phlip9): worried the `Connection` ->
                         // `process_events` flow might starve the BGP if it
