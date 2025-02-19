@@ -8,6 +8,7 @@ use proptest::{
     arbitrary::{any, Arbitrary},
     strategy::{BoxedStrategy, Strategy},
 };
+pub use rand::Rng;
 use rand_core::le::read_u32_into;
 pub use rand_core::{CryptoRng, RngCore, SeedableRng};
 use ring::rand::SecureRandom;
@@ -210,6 +211,12 @@ impl FastRng {
             s0: 0xdeadbeef,
             s1: 0xf00baa44,
         }
+    }
+
+    /// Seed a new [`FastRng`] from an existing [`SysRng`].
+    pub fn from_sysrng(sys_rng: &mut SysRng) -> Self {
+        let seed = sys_rng.gen_u64();
+        Self::seed_from_u64(seed)
     }
 
     pub fn from_u64(s: u64) -> Self {
