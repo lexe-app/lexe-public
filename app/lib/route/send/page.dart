@@ -11,6 +11,7 @@ import 'package:app_rs_dart/ffi/types.dart'
 import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:flutter/material.dart';
 import 'package:lexeapp/address_format.dart' as address_format;
+import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
@@ -168,6 +169,17 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
     await Navigator.of(this.context).maybePop(flowResult);
   }
 
+  /// Called when the user taps the paste button
+  Future<void> onPaste() async {
+    // Get clipboard text
+    final text = await LxClipboard.getText();
+    if (!this.mounted) return;
+    if (text == null || text.isEmpty) return;
+
+    // Set payment URI field
+    this.paymentUriFieldKey.currentState?.didChange(text);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -198,7 +210,7 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
             textInputAction: TextInputAction.next,
             onEditingComplete: this.onNext,
             decoration: baseInputDecoration.copyWith(
-                hintText: "Address, Invoice, Node Pubkey"),
+                hintText: "bc1.. lnbc1.. bitcoin:.."),
             style: Fonts.fontUI.copyWith(
               fontSize: Fonts.size700,
               fontVariations: [Fonts.weightMedium],
@@ -224,22 +236,74 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
                   ErrorMessageSection(errorMessage),
             ),
 
-            // -> Next
+            // Bottom buttons
             ValueListenableBuilder(
               valueListenable: this.isPending,
               builder: (_context, isPending, _widget) => Padding(
                 padding: const EdgeInsets.only(top: Space.s500),
-                child: AnimatedFillButton(
-                  label: const Text("Next"),
-                  icon: const Icon(LxIcons.next),
-                  onTap: this.onNext,
-                  loading: isPending,
+                child: Row(
+                  children: [
+                    // Paste
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: this.onPaste,
+                        child: StackedButton(
+                          button: LxFilledButton(
+                            onTap: this.onPaste,
+                            icon: const Center(child: Icon(LxIcons.paste)),
+                          ),
+                          label: "Paste",
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: Space.s200),
+                    // Next ->
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: !isPending ? this.onNext : null,
+                        child: StackedButton(
+                          button: AnimatedFillButton(
+                            label: const Icon(LxIcons.next),
+                            icon: const Icon(null),
+                            onTap: this.onNext,
+                            loading: isPending,
+                          ),
+                          label: "Next",
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class StackedButton extends StatelessWidget {
+  const StackedButton({super.key, required this.button, required this.label});
+
+  final Widget button;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        button,
+        const SizedBox(height: Space.s400),
+        Text(
+          this.label,
+          style: Fonts.fontUI.copyWith(
+            fontSize: Fonts.size300,
+            color: LxColors.foreground,
+            fontVariations: [Fonts.weightSemiBold],
+          ),
+        ),
+      ],
     );
   }
 }

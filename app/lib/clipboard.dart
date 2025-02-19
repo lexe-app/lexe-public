@@ -45,4 +45,21 @@ abstract final class LxClipboard {
             const SnackBar(content: Text("Failed to copy to clipboard")));
     }
   }
+
+  /// Get current clipboard text
+  static Future<String?> getText() async {
+    // TODO(phlip9): if flutter ever supports clipboard images, we could try to
+    // QR decode here as well
+    final res = await Result.tryAsync<ClipboardData?, Exception>(
+      () => Clipboard.getData(Clipboard.kTextPlain),
+    );
+    switch (res) {
+      case Ok(:final ok):
+        if (ok == null) return null;
+        return ok.text;
+      case Err(:final err):
+        warn("Failed to get text from clipboard: $err");
+        return null;
+    }
+  }
 }
