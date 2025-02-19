@@ -178,7 +178,7 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
           app: this.widget.app,
           balanceState: this.widget.balanceState,
           channelValueSats: valueSats,
-          userChannelId: UserChannelId.gen(),
+          userChannelId: UserChannelId.genNew(),
           preflight: resp,
         ),
       ),

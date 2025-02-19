@@ -374,7 +374,7 @@ class WalletPageState extends State<WalletPage> {
         app: this.widget.app,
         configNetwork: this.widget.config.network,
         balance: nodeInfo.balance,
-        cid: ClientPaymentId.gen(),
+        cid: ClientPaymentId.genNew(),
       );
 
   /// Called after the user has successfully sent a new payment and the send

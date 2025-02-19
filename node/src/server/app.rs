@@ -93,7 +93,7 @@ pub(super) async fn open_channel(
 
     ensure_channel_value_in_range(&req.value)?;
 
-    let user_channel_id = LxUserChannelId::gen(&mut SysRng::new());
+    let user_channel_id = LxUserChannelId::from_rng(&mut SysRng::new());
     let lsp_node_pk = &lsp_info.node_pk;
     let lsp_addrs = slice::from_ref(&lsp_info.private_p2p_addr);
 

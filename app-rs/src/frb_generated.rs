@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.2.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1395421979;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -25217711;
 
 // Section: executor
 
@@ -784,17 +784,17 @@ let api_update = <crate::ffi::settings::Settings>::sse_decode(&mut deserializer)
                      let output_ok = crate::ffi::settings::SettingsDb::update(&api_that, api_update)?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__types__client_payment_id_gen_impl(
+fn wire__crate__ffi__types__client_payment_id_gen_new_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "client_payment_id_gen", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "client_payment_id_gen_new", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             deserializer.end();
                 transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::types::ClientPaymentId::gen())?;   Ok(output_ok)
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::types::ClientPaymentId::gen_new())?;   Ok(output_ok)
                 })()) })
 }
 fn wire__crate__ffi__types__deploy_env_from_str_impl(
@@ -823,17 +823,17 @@ fn wire__crate__ffi__types__network_from_str_impl(
                      let output_ok = crate::ffi::types::Network::from_str(&api_s)?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__types__user_channel_id_gen_impl(
+fn wire__crate__ffi__types__user_channel_id_gen_new_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "user_channel_id_gen", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "user_channel_id_gen_new", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             deserializer.end();
                 transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::types::UserChannelId::gen())?;   Ok(output_ok)
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::types::UserChannelId::gen_new())?;   Ok(output_ok)
                 })()) })
 }
 
@@ -2087,10 +2087,10 @@ fn pde_ffi_dispatcher_sync_impl(
 48 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
 49 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
 50 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-51 => wire__crate__ffi__types__client_payment_id_gen_impl(ptr, rust_vec_len, data_len),
+51 => wire__crate__ffi__types__client_payment_id_gen_new_impl(ptr, rust_vec_len, data_len),
 52 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
 53 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
-54 => wire__crate__ffi__types__user_channel_id_gen_impl(ptr, rust_vec_len, data_len),
+54 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }

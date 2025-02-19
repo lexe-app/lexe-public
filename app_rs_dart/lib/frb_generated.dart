@@ -69,7 +69,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.2.0';
 
   @override
-  int get rustContentHash => -1395421979;
+  int get rustContentHash => -25217711;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -222,13 +222,13 @@ abstract class AppRsApi extends BaseApi {
   void crateFfiSettingsSettingsDbUpdate(
       {required SettingsDb that, required Settings update});
 
-  ClientPaymentId crateFfiTypesClientPaymentIdGen();
+  ClientPaymentId crateFfiTypesClientPaymentIdGenNew();
 
   DeployEnv crateFfiTypesDeployEnvFromStr({required String s});
 
   Network crateFfiTypesNetworkFromStr({required String s});
 
-  UserChannelId crateFfiTypesUserChannelIdGen();
+  UserChannelId crateFfiTypesUserChannelIdGenNew();
 
   RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_App;
 
@@ -1600,7 +1600,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  ClientPaymentId crateFfiTypesClientPaymentIdGen() {
+  ClientPaymentId crateFfiTypesClientPaymentIdGenNew() {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -1610,15 +1610,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_client_payment_id,
         decodeErrorData: null,
       ),
-      constMeta: kCrateFfiTypesClientPaymentIdGenConstMeta,
+      constMeta: kCrateFfiTypesClientPaymentIdGenNewConstMeta,
       argValues: [],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiTypesClientPaymentIdGenConstMeta =>
+  TaskConstMeta get kCrateFfiTypesClientPaymentIdGenNewConstMeta =>
       const TaskConstMeta(
-        debugName: "client_payment_id_gen",
+        debugName: "client_payment_id_gen_new",
         argNames: [],
       );
 
@@ -1671,7 +1671,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  UserChannelId crateFfiTypesUserChannelIdGen() {
+  UserChannelId crateFfiTypesUserChannelIdGenNew() {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -1681,15 +1681,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         decodeSuccessData: sse_decode_user_channel_id,
         decodeErrorData: null,
       ),
-      constMeta: kCrateFfiTypesUserChannelIdGenConstMeta,
+      constMeta: kCrateFfiTypesUserChannelIdGenNewConstMeta,
       argValues: [],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiTypesUserChannelIdGenConstMeta =>
+  TaskConstMeta get kCrateFfiTypesUserChannelIdGenNewConstMeta =>
       const TaskConstMeta(
-        debugName: "user_channel_id_gen",
+        debugName: "user_channel_id_gen_new",
         argNames: [],
       );
 

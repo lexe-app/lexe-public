@@ -45,8 +45,9 @@ impl GDriveOAuth2Flow {
     /// uses `server_client_id`.
     #[frb(sync)]
     pub fn init(client_id: String, server_client_id: &str) -> Self {
-        let pkce =
-            gdrive::oauth2::OAuth2PkceCodeChallenge::gen(&mut SysRng::new());
+        let pkce = gdrive::oauth2::OAuth2PkceCodeChallenge::from_rng(
+            &mut SysRng::new(),
+        );
 
         // TODO(phlip9): Linux and Windows need to provide their own
         // `http://localhost:{port}` redirect URI.

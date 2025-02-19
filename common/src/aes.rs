@@ -204,7 +204,7 @@ impl AesMasterKey {
         write_data_cb: &dyn Fn(&mut Vec<u8>),
     ) -> Vec<u8> {
         let version = 0;
-        let key_id = KeyId::gen(rng);
+        let key_id = KeyId::from_rng(rng);
 
         let aad = Aad {
             version,
@@ -351,7 +351,7 @@ impl KeyId {
         self.0.as_slice()
     }
 
-    fn gen<R: Crng>(rng: &mut R) -> Self {
+    fn from_rng<R: Crng>(rng: &mut R) -> Self {
         Self(rng.gen_bytes())
     }
 }

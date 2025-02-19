@@ -390,7 +390,7 @@ pub struct ClientPaymentId {
 
 impl ClientPaymentId {
     #[frb(sync)]
-    pub fn gen() -> Self {
+    pub fn gen_new() -> Self {
         ClientPaymentId {
             id: ClientPaymentIdRs::from_rng(&mut SysRng::new()).0,
         }
@@ -416,9 +416,9 @@ pub struct UserChannelId {
 
 impl UserChannelId {
     #[frb(sync)]
-    pub fn gen() -> Self {
+    pub fn gen_new() -> Self {
         UserChannelId {
-            id: LxUserChannelIdRs::gen(&mut SysRng::new()).0,
+            id: LxUserChannelIdRs::from_rng(&mut SysRng::new()).0,
         }
     }
 }

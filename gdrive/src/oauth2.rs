@@ -183,7 +183,7 @@ impl OAuth2PkceCodeChallenge {
     /// code-verifier := <alphanum>*64
     /// code-challenge := base64url-unpadded(sha256(code-verifier))
     /// ```
-    pub fn gen(rng: &mut impl Crng) -> Self {
+    pub fn from_rng(rng: &mut impl Crng) -> Self {
         Self::from_code_verifier(Self::gen_code_verifier(rng))
     }
 
@@ -632,7 +632,7 @@ mod test {
     #[test]
     fn pkce_snapshot() {
         let mut rng = FastRng::from_u64(654984984);
-        let actual = OAuth2PkceCodeChallenge::gen(&mut rng);
+        let actual = OAuth2PkceCodeChallenge::from_rng(&mut rng);
         let expected = OAuth2PkceCodeChallenge {
             code_verifier: "Im1AGo673tWX11XcfKt5Aog51PV3ZTZt2qeoWXWidR5DgsfD"
                 .to_owned(),

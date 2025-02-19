@@ -388,9 +388,9 @@ mod test {
 
         dispatcher::with_default(&dispatch, || {
             let ldk_logger = LexeTracingLogger::new();
-            // LDK 0.0.125: `lightning::log_error!(ldk_logger, "hello: {}", 123);`
-            // doesn't work as it expects LDK features to be present in our own
-            // crate, which clippy now errors on.
+            // LDK 0.0.125: `lightning::log_error!(ldk_logger, "hello: {}",
+            // 123);` doesn't work as it expects LDK features to be
+            // present in our own crate, which clippy now errors on.
             //
             // TODO(phlip9): revert when we update to latest LDK master.
             ldk_logger.log(lightning::util::logger::Record {

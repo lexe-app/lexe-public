@@ -66,7 +66,7 @@ impl LxUserChannelId {
         u128::from_le_bytes(self.0)
     }
 
-    pub fn gen<R: RngCore>(rng: &mut R) -> Self {
+    pub fn from_rng<R: RngCore>(rng: &mut R) -> Self {
         Self(rng.gen_bytes())
     }
 

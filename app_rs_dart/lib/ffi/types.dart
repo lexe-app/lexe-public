@@ -35,8 +35,8 @@ class ClientPaymentId with _$ClientPaymentId {
   const factory ClientPaymentId({
     required U8Array32 id,
   }) = _ClientPaymentId;
-  static ClientPaymentId gen() =>
-      AppRs.instance.api.crateFfiTypesClientPaymentIdGen();
+  static ClientPaymentId genNew() =>
+      AppRs.instance.api.crateFfiTypesClientPaymentIdGenNew();
 }
 
 /// Dart-serializable configuration we get from the flutter side.
@@ -283,6 +283,6 @@ class UserChannelId with _$UserChannelId {
   const factory UserChannelId({
     required U8Array16 id,
   }) = _UserChannelId;
-  static UserChannelId gen() =>
-      AppRs.instance.api.crateFfiTypesUserChannelIdGen();
+  static UserChannelId genNew() =>
+      AppRs.instance.api.crateFfiTypesUserChannelIdGenNew();
 }
