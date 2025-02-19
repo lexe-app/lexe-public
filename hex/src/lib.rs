@@ -158,7 +158,7 @@ impl<const N: usize> FromHex for [u8; N] {
 /// Useful for displaying hex value without allocating via [`encode`].
 pub struct HexDisplay<'a>(&'a [u8]);
 
-impl<'a> fmt::Display for HexDisplay<'a> {
+impl fmt::Display for HexDisplay<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for byte in self.0 {
             f.write_char(encode_nibble(byte >> 4) as char)?;
@@ -168,7 +168,7 @@ impl<'a> fmt::Display for HexDisplay<'a> {
     }
 }
 
-impl<'a> fmt::Debug for HexDisplay<'a> {
+impl fmt::Debug for HexDisplay<'_> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "\"{self}\"")

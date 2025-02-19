@@ -100,7 +100,7 @@ impl AttestationCert {
 
 // -- impl SgxAttestationExtension -- //
 
-impl<'a> SgxAttestationExtension<'a> {
+impl SgxAttestationExtension<'_> {
     /// This is the Intel SGX OID prefix + 1337.7
     /// gramine uses the same but 1337.6 to embed the quote.
     pub const OID: &'static [u64] = &[1, 2, 840, 113741, 1337, 7];
@@ -175,7 +175,7 @@ impl SgxAttestationExtension<'static> {
     }
 }
 
-impl<'a> fmt::Debug for SgxAttestationExtension<'a> {
+impl fmt::Debug for SgxAttestationExtension<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SgxAttestationExtension")
             .field("quote", &hex::display(&self.quote))

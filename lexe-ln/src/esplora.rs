@@ -463,11 +463,11 @@ impl LexeEsplora {
 
     /// Given our best block height, determine the confirmation status for a
     /// single [`TxConfQuery`].
-    async fn get_tx_conf_status<'query>(
+    async fn get_tx_conf_status(
         &self,
         best_height: u32,
         now: SystemTime,
-        query: &'query TxConfQuery,
+        query: &TxConfQuery,
     ) -> anyhow::Result<TxConfStatus> {
         // Fetch the tx status.
         let tx_status = self

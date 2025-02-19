@@ -226,6 +226,7 @@ mod sgx {
         }
     }
 
+    #[allow(clippy::empty_line_after_outer_attr)]
     #[rustfmt::skip]
     // // C struct definitions from:
     // // <https://github.com/intel/linux-sgx/blob/master/common/inc/sgx_quote.h>

@@ -105,9 +105,14 @@ impl NodeEventHandler {
 
         async {
             match do_handle_event(&self.ctx, event).await {
-                Ok(()) => Ok(info!("Successfully handled event")),
-                Err(EventHandleError::Discard(e)) =>
-                    Ok(warn!("Tolerable event error, discarding event: {e:#}")),
+                Ok(()) => {
+                    info!("Successfully handled event");
+                    Ok(())
+                }
+                Err(EventHandleError::Discard(e)) => {
+                    warn!("Tolerable event error, discarding event: {e:#}");
+                    Ok(())
+                }
                 Err(EventHandleError::Replay(e)) => {
                     error!("Critical event error, will replay event: {e:#}");
                     Err(ReplayEvent())

@@ -721,7 +721,7 @@ impl<'a> Uri<'a> {
     }
 }
 
-impl<'a> fmt::Display for Uri<'a> {
+impl fmt::Display for Uri<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let scheme = self.scheme;
         let body = &self.body;

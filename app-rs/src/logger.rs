@@ -162,7 +162,7 @@ impl<'a> FieldVisitor<'a> {
     }
 }
 
-impl<'a> field::Visit for FieldVisitor<'a> {
+impl field::Visit for FieldVisitor<'_> {
     fn record_str(&mut self, field: &field::Field, value: &str) {
         if field.name() == "message" {
             self.record_debug(field, &format_args!("{}", value))

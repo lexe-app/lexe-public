@@ -739,7 +739,7 @@ fn report_try_from_truncated(bytes: &[u8]) -> anyhow::Result<sgx_isa::Report> {
 /// A small struct for pretty-printing a [`sgx_isa::Report`].
 pub struct ReportDebug<'a>(&'a sgx_isa::Report);
 
-impl<'a> Debug for ReportDebug<'a> {
+impl Debug for ReportDebug<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Report")
             .field("cpusvn", &hex::display(&self.0.cpusvn))

@@ -46,7 +46,7 @@ where
 {
     struct HexVisitor<T>(PhantomData<T>);
 
-    impl<'de, T: FromHex> de::Visitor<'de> for HexVisitor<T> {
+    impl<T: FromHex> de::Visitor<'_> for HexVisitor<T> {
         type Value = Option<T>;
 
         fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {

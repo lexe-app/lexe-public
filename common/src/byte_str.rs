@@ -140,7 +140,7 @@ impl<'de> de::Deserialize<'de> for ByteStr {
     {
         struct ByteStrVisitor;
 
-        impl<'de> de::Visitor<'de> for ByteStrVisitor {
+        impl de::Visitor<'_> for ByteStrVisitor {
             type Value = ByteStr;
 
             fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {

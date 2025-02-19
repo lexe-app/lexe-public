@@ -320,7 +320,7 @@ impl TryFrom<Mnemonic> for RootSeed {
 
 struct RootSeedVisitor;
 
-impl<'de> de::Visitor<'de> for RootSeedVisitor {
+impl de::Visitor<'_> for RootSeedVisitor {
     type Value = RootSeed;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {

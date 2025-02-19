@@ -356,7 +356,7 @@ impl KeyId {
     }
 }
 
-impl<'data, 'aad> Aad<'data, 'aad> {
+impl Aad<'_, '_> {
     fn serialize(&self) -> Vec<u8> {
         let len = bcs::serialized_size(self)
             .expect("Serializing the AAD should never fail");
