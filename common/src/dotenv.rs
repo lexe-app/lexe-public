@@ -1,7 +1,16 @@
 use std::env;
 
 /// A version of [`dotenvy::dotenv`] which only loads whitelisted keys.
-pub fn dotenv_filtered(filter_keys: &[&str]) -> Result<(), dotenvy::Error> {
+///
+/// # Safety
+///
+/// This fn calls [`std::env::set_var`] under-the-hood, which is not
+/// threadsafe on some platforms (ex: glibc Linux). The caller must ensure that
+/// this fn is called very early in the program lifetime, before any threads are
+/// spawned.
+pub unsafe fn dotenv_filtered(
+    filter_keys: &[&str],
+) -> Result<(), dotenvy::Error> {
     // `dotenv_iter` finds an .env file in the current directory (or parents),
     // then returns an iterator over it without loading the variables within.
     for try_kv in dotenvy::dotenv_iter()? {
@@ -9,7 +18,10 @@ pub fn dotenv_filtered(filter_keys: &[&str]) -> Result<(), dotenvy::Error> {
         if filter_keys.contains(&key.as_str()) {
             // Like dotenvy::dotenv(), do not override existing keys.
             if env::var(&key).is_err() {
-                env::set_var(&key, value);
+                // See SAFETY
+                unsafe {
+                    env::set_var(&key, value);
+                }
             }
         }
     }

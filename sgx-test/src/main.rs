@@ -25,8 +25,7 @@ fn main() {
     //
     // See: <https://docs.rs/anyhow/latest/anyhow/struct.Error.html#method.backtrace>
     unsafe { std::env::set_var("RUST_LIB_BACKTRACE", "0") };
-
-    std::env::set_var("RUST_BACKTRACE", "full");
+    unsafe { std::env::set_var("RUST_BACKTRACE", "full") };
 
     let args = std::env::args().collect::<Vec<_>>();
     if args.iter().any(|arg| arg == "-h" || arg == "--help") {
