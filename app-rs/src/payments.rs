@@ -938,7 +938,6 @@ async fn sync_new_payments<F: Ffs, N: AppNodeRunApi>(
 mod test {
     use std::collections::BTreeMap;
 
-    use async_trait::async_trait;
     use common::{
         api::{
             command::{
@@ -986,7 +985,6 @@ mod test {
 
     // This allows straight `unimplemented!()` w/o any match or if guards.
     #[allow(clippy::diverging_sub_expression)]
-    #[async_trait]
     impl AppNodeRunApi for MockNode {
         // these methods are not relevant
 

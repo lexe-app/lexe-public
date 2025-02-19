@@ -220,7 +220,6 @@ impl BackendApiClient for MockBackendClient {
     }
 }
 
-#[async_trait]
 impl AppBackendApi for MockBackendClient {
     async fn signup(
         &self,

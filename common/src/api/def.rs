@@ -240,7 +240,6 @@ pub trait NodeBackendApi {
 }
 
 /// Defines the api that the backend exposes to the app (via the gateway).
-#[async_trait]
 pub trait AppBackendApi {
     /// POST /app/v1/signup [`ed25519::Signed<UserSignupRequest>`] -> [`Empty`]
     async fn signup(
@@ -313,7 +312,6 @@ pub trait NodeRunnerApi {
 ///
 /// NOTE: For performance, this API does not use TLS! This API should only
 /// contain methods for limited operational and lifecycle management endpoints.
-#[async_trait]
 pub trait LexeNodeRunApi {
     /// GET /lexe/status [`UserPkStruct`] -> [`Status`]
     async fn status_run(&self, user_pk: UserPk)
@@ -348,7 +346,6 @@ pub trait LexeNodeRunApi {
 ///
 /// NOTE: For performance, this API does not use TLS! This API should only
 /// contain methods for limited operational and lifecycle management endpoints.
-#[async_trait]
 pub trait LexeNodeProvisionApi {
     /// GET /lexe/status [`MeasurementStruct`] -> [`Status`]
     async fn status_provision(
@@ -366,7 +363,6 @@ pub trait LexeNodeProvisionApi {
 }
 
 /// Defines the api that the node exposes to the app during provisioning.
-#[async_trait]
 pub trait AppNodeProvisionApi {
     /// Provision a node with the given [`Measurement`]. The provisioning node's
     /// remote attestation will be checked against the given [`Measurement`].
@@ -380,7 +376,6 @@ pub trait AppNodeProvisionApi {
 }
 
 /// Defines the api that the node exposes to the app during normal operation.
-#[async_trait]
 pub trait AppNodeRunApi {
     /// GET /app/node_info [`Empty`] -> [`NodeInfo`]
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError>;
@@ -520,7 +515,6 @@ pub trait AppNodeRunApi {
 }
 
 /// Defines the api that the gateway directly exposes to the app.
-#[async_trait]
 pub trait AppGatewayApi {
     /// GET /app/v1/fiat_rates [`Empty`] -> [`FiatRates`]
     async fn get_fiat_rates(&self) -> Result<FiatRates, GatewayApiError>;

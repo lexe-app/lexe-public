@@ -6,6 +6,8 @@
 // hopefully it gets fixed soon...
 // See: <https://github.com/proptest-rs/proptest/issues/447>
 #![allow(non_local_definitions)]
+// We don't export our traits currently so auto trait stability is not relevant.
+#![allow(async_fn_in_trait)]
 
 // Some re-exports to prevent having to re-declare dependencies
 pub use byte_array::ByteArray;

@@ -104,7 +104,6 @@ impl GatewayClient {
     }
 }
 
-#[async_trait]
 impl AppBackendApi for GatewayClient {
     async fn signup(
         &self,
@@ -136,7 +135,6 @@ impl BearerAuthBackendApi for GatewayClient {
     }
 }
 
-#[async_trait]
 impl AppGatewayApi for GatewayClient {
     async fn get_fiat_rates(&self) -> Result<FiatRates, GatewayApiError> {
         let gateway_url = &self.gateway_url;
@@ -326,7 +324,6 @@ impl NodeClient {
     }
 }
 
-#[async_trait]
 impl AppNodeProvisionApi for NodeClient {
     async fn provision(
         &self,
@@ -350,7 +347,6 @@ impl AppNodeProvisionApi for NodeClient {
     }
 }
 
-#[async_trait]
 impl AppNodeRunApi for NodeClient {
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError> {
         self.ensure_authed().await?;
