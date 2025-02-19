@@ -41,6 +41,8 @@ pub mod p2p;
 pub mod payments;
 /// Shared persister logic.
 pub mod persister;
+/// Routing-related logic.
+pub mod route;
 /// Chain sync.
 pub mod sync;
 /// `TestEvent` channels and utils.

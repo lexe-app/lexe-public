@@ -2597,6 +2597,8 @@ dependencies = [
  "bitcoin_hashes 0.14.0",
  "cfg-if 1.0.0",
  "common",
+ "const-utils",
+ "either",
  "esplora-client",
  "futures",
  "hex 0.1.0",

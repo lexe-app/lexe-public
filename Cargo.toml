@@ -90,6 +90,8 @@ cmac = { version = "0.7", features = ["std", "zeroize"] }
 # Allows setting environment variables using a .env file.
 # dotenvy is a better maintained fork of dotenv
 dotenvy = "0.15"
+# General purpose sum type with two cases (left and right)
+either = "1"
 # High-level memory-safe Rust<->Dart FFI bindings.
 # Keep this version in sync with `app_rs_dart/pubspec.yaml`.
 flutter_rust_bridge = { version = "=2.2.0", default-features = false }

@@ -44,7 +44,7 @@ use lightning::{
     },
     routing::{
         gossip::NodeId,
-        router::{PaymentParameters, RouteHint, RouteParameters, Router},
+        router::{RouteHint, RouteParameters},
     },
     sign::{NodeSigner, Recipient},
     util::config::UserConfig,
@@ -70,6 +70,7 @@ use crate::{
         },
         Payment,
     },
+    route,
     traits::{LexeChannelManager, LexePeerManager, LexePersister},
     wallet::LexeWallet,
 };
@@ -1048,46 +1049,6 @@ where
         bail!("We've already tried paying this invoice");
     }
 
-    // Construct a RouteParameters for the payment, modeled after how
-    // `lightning_invoice::payment::pay_invoice_using_amount` does it.
-    let payer_pubkey = channel_manager.get_our_node_id();
-    let payee_pubkey = invoice.payee_node_pk().0;
-    let amount = invoice
-        .amount()
-        .inspect(|_| {
-            debug_assert!(
-                req.fallback_amount.is_none(),
-                "Nit: Fallback should only be provided for amountless invoices",
-            )
-        })
-        .or(req.fallback_amount)
-        .context("Missing fallback amount for amountless invoice")?;
-    let expires_at = invoice.expires_at()?.into_duration().as_secs();
-
-    // TODO(max): Support paying BOLT12 invoices
-    let mut payment_params = PaymentParameters::from_node_id(
-        payee_pubkey,
-        invoice.min_final_cltv_expiry_delta_u32()?,
-    )
-    .with_expiry_time(expires_at)
-    .with_route_hints(invoice.0.route_hints())
-    .map_err(|()| anyhow!("(route hints) Wrong payment param kind"))?;
-
-    if let Some(features) = invoice.0.features().cloned() {
-        // TODO(max): Support paying BOLT12 invoices
-        payment_params = payment_params
-            .with_bolt11_features(features)
-            .map_err(|()| anyhow!("(features) Wrong payment param kind"))?;
-    }
-
-    // TODO(max): We may want to set a fee limit at some point
-    let max_total_routing_fee_msat = None;
-    let route_params = RouteParameters {
-        payment_params,
-        final_value_msat: amount.msat(),
-        max_total_routing_fee_msat,
-    };
-
     // TODO(phlip9): need better error messages for simpler failure cases like
     // trying to send above User<->LSP channel max outbound HTLC limit, etc...
     //
@@ -1097,15 +1058,14 @@ where
     // More generally, we could also try to compute the Max-Flow to the
     // destination and suggest that value as an upper bound.
 
-    // Find a Route so we can estimate the fees to be paid. Modeled after
-    // `lightning::ln::outbound_payment::OutboundPayments::pay_internal`.
-    let usable_channels = channel_manager.list_usable_channels();
-    let refs_usable_channels = usable_channels.iter().collect::<Vec<_>>();
-    let first_hops = Some(refs_usable_channels.as_slice());
-    let in_flight_htlcs = channel_manager.compute_inflight_htlcs();
-    let route = router
-        .find_route(&payer_pubkey, &route_params, first_hops, in_flight_htlcs)
-        .map_err(|e| anyhow!("Could not find route to recipient: {}", e.err))?;
+    // Find a Route so we can estimate the fees to be paid.
+    let (route, route_params) = route::find_route_for_bolt11_invoice(
+        channel_manager,
+        router,
+        &invoice,
+        req.fallback_amount,
+    )
+    .context("Could not find route to recipient")?;
 
     let payment_secret = invoice.payment_secret().into();
     let recipient_fields = RecipientOnionFields::secret_only(payment_secret);

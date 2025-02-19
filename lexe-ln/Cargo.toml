@@ -15,6 +15,7 @@ test-utils = ["common/test-utils", "lexe-api/test-utils"]
 # --- LEXE --- #
 
 common.path = "../common"
+const-utils.path = "../const-utils"
 hex.path = "../hex"
 lexe-api.path = "../lexe-api"
 
@@ -32,6 +33,7 @@ bitcoin.workspace = true
 bitcoin-bech32.workspace = true
 bitcoin_hashes.workspace = true
 cfg-if.workspace = true
+either.workspace = true
 esplora-client.workspace = true
 futures.workspace = true
 lightning.workspace = true
