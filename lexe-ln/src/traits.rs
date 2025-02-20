@@ -1,9 +1,4 @@
-use std::{
-    future::Future,
-    ops::Deref,
-    str::FromStr,
-    sync::{Arc, Mutex},
-};
+use std::{future::Future, ops::Deref, str::FromStr};
 
 use anyhow::Context;
 use async_trait::async_trait;
@@ -13,27 +8,20 @@ use common::{
         vfs::{Vfs, VfsDirectory, VfsFileId},
     },
     constants,
-    ln::{
-        network::LxNetwork,
-        payments::{LxPaymentId, PaymentIndex},
-    },
+    ln::payments::{LxPaymentId, PaymentIndex},
 };
 use lightning::{
     chain::chainmonitor::Persist,
     events::{Event, ReplayEvent},
-    routing::{
-        gossip::NetworkGraph, scoring::ProbabilisticScoringDecayParameters,
-    },
     util::ser::Writeable,
 };
 
 use crate::{
     alias::{
         LexeChainMonitorType, LexeChannelManagerType, LexePeerManagerType,
-        NetworkGraphType, ProbabilisticScorerType, SignerType,
+        SignerType,
     },
     event::EventId,
-    logger::LexeTracingLogger,
     payments::{
         manager::{CheckedPayment, PersistedPayment},
         Payment,
@@ -73,45 +61,6 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
 
     // --- Provided methods --- //
 
-    // TODO(max): Node doesn't need this anymore
-    async fn read_graph(
-        &self,
-        network: LxNetwork,
-        logger: LexeTracingLogger,
-    ) -> anyhow::Result<NetworkGraphType> {
-        let file_id = VfsFileId::new(
-            constants::SINGLETON_DIRECTORY,
-            constants::NETWORK_GRAPH_FILENAME,
-        );
-        let read_args = logger.clone();
-        let network_graph = self
-            .read_readableargs(&file_id, read_args)
-            .await?
-            .unwrap_or_else(|| NetworkGraph::new(network.to_bitcoin(), logger));
-        Ok(network_graph)
-    }
-
-    // TODO(max): Node doesn't need this anymore
-    async fn read_scorer(
-        &self,
-        graph: Arc<NetworkGraphType>,
-        logger: LexeTracingLogger,
-    ) -> anyhow::Result<ProbabilisticScorerType> {
-        let file_id = VfsFileId::new(
-            constants::SINGLETON_DIRECTORY,
-            constants::SCORER_FILENAME,
-        );
-        let params = ProbabilisticScoringDecayParameters::default();
-        let read_args = (params, graph.clone(), logger.clone());
-        let scorer = self
-            .read_readableargs(&file_id, read_args)
-            .await?
-            .unwrap_or_else(|| {
-                ProbabilisticScorerType::new(params, graph, logger)
-            });
-        Ok(scorer)
-    }
-
     async fn persist_manager<CM: Writeable + Send + Sync>(
         &self,
         channel_manager: &CM,
@@ -123,35 +72,6 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
         let file = self.encrypt_ldk_writeable(file_id, channel_manager);
         self.persist_file(&file, constants::IMPORTANT_PERSIST_RETRIES)
             .await
-    }
-
-    async fn persist_graph(
-        &self,
-        network_graph: &NetworkGraphType,
-    ) -> anyhow::Result<()> {
-        let file_id = VfsFileId::new(
-            constants::SINGLETON_DIRECTORY,
-            constants::NETWORK_GRAPH_FILENAME,
-        );
-        let file = self.encrypt_ldk_writeable(file_id, network_graph);
-        let retries = 0;
-        self.persist_file(&file, retries).await
-    }
-
-    async fn persist_scorer(
-        &self,
-        scorer_mutex: &Mutex<ProbabilisticScorerType>,
-    ) -> anyhow::Result<()> {
-        let file_id = VfsFileId::new(
-            constants::SINGLETON_DIRECTORY,
-            constants::SCORER_FILENAME,
-        );
-        let file = {
-            let locked_scorer = scorer_mutex.lock().unwrap();
-            self.encrypt_ldk_writeable(file_id, locked_scorer.deref())
-        };
-        let retries = 0;
-        self.persist_file(&file, retries).await
     }
 
     /// Reads all persisted events, along with their event IDs.

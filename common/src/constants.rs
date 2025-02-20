@@ -80,9 +80,7 @@ pub const SINGLETON_DIRECTORY: &str = ".";
 pub const EVENTS_DIR: &str = "events";
 
 pub const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
-pub const NETWORK_GRAPH_FILENAME: &str = "network_graph";
 pub const PW_ENC_ROOT_SEED_FILENAME: &str = "password_encrypted_root_seed";
-pub const SCORER_FILENAME: &str = "scorer";
 // Filename history:
 // - "bdk_wallet_db" for our pre BDK 1.0 wallet DB.
 // - "bdk_wallet_db_v1" for our BDK 1.0.0-alpha.X wallet DB.
