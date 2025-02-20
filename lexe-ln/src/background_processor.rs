@@ -1,17 +1,14 @@
-use std::{
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 
 use common::{notify_once::NotifyOnce, task::LxTask};
 use tokio::{
     sync::{mpsc, oneshot},
     time::Instant,
 };
-use tracing::{debug, error, info, info_span, warn, Instrument};
+use tracing::{debug, error, info_span, Instrument};
 
 use crate::{
-    alias::{LexeChainMonitorType, P2PGossipSyncType, ProbabilisticScorerType},
+    alias::LexeChainMonitorType,
     traits::{
         LexeChannelManager, LexeEventHandler, LexeInnerPersister,
         LexePeerManager, LexePersister,
@@ -24,12 +21,8 @@ mod interval {
 
     /// Channel manager ticks.
     pub const CHANNEL_MANAGER: Duration = Duration::from_secs(60);
-    /// Network graph prunes and persists.
-    pub const NETWORK_GRAPH: Duration = Duration::from_secs(15 * 60);
     /// Peer manager ticks.
     pub const PEER_MANAGER: Duration = Duration::from_secs(15);
-    /// Probabilistic scorer persists.
-    pub const PROB_SCORER: Duration = Duration::from_secs(5 * 60);
     /// Event processing.
     // If LDK's `get_event_or_persistence_needed_future` future is failing to
     // wake the BGP, this timer can be reduced to say ~3s in prod to ensure
@@ -42,9 +35,7 @@ mod delay {
     use std::time::Duration;
 
     pub const CHANNEL_MANAGER: Duration = Duration::from_millis(0);
-    pub const NETWORK_GRAPH: Duration = Duration::from_millis(200);
     pub const PEER_MANAGER: Duration = Duration::from_millis(400);
-    pub const PROB_SCORER: Duration = Duration::from_millis(600);
     pub const PROCESS_EVENTS: Duration = Duration::from_millis(800);
 }
 
@@ -57,10 +48,6 @@ pub fn start<CM, PM, PS, EH>(
     persister: PS,
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
     event_handler: EH,
-    gossip_sync: Arc<P2PGossipSyncType>,
-    scorer: Arc<Mutex<ProbabilisticScorerType>>,
-    // Whether to persist the network graph and probabilistic scorer.
-    persist_graph_and_scorer: bool,
     // TODO(max): A `process_events` notification should be sent every time
     // an event is generated which does not also cause the future returned
     // by `get_event_or_persistence_needed_future()` to resolve.
@@ -102,10 +89,6 @@ where
                 mk_interval(delay::PEER_MANAGER, interval::PEER_MANAGER);
             let mut cm_timer =
                 mk_interval(delay::CHANNEL_MANAGER, interval::CHANNEL_MANAGER);
-            let mut ng_timer =
-                mk_interval(delay::NETWORK_GRAPH, interval::NETWORK_GRAPH);
-            let mut scorer_timer =
-                mk_interval(delay::PROB_SCORER, interval::PROB_SCORER);
 
             // This is the event handler future generator type required by LDK
             let mk_event_handler_fut =
@@ -192,95 +175,26 @@ where
                         }
                     }
 
-                    _ = scorer_timer.tick() =>
-                        maybe_persist_scorer(
-                            &persister, &scorer, persist_graph_and_scorer
-                        ).await,
-
                     _ = pm_timer.tick() =>
                         peer_manager.timer_tick_occurred(),
 
                     _ = cm_timer.tick() =>
                         channel_manager.timer_tick_occurred(),
 
-                    _ = ng_timer.tick() =>
-                        maybe_persist_graph(
-                            &persister, &gossip_sync, persist_graph_and_scorer
-                        ).await,
-
                     () = shutdown.recv() =>
-                        break info!("Background processor shutting down"),
+                        break debug!("Background processor shutting down"),
                 }
             }
 
-            // Persist everything one last time.
-            // - For the channel manager, this may prevent some races where the
-            //   node quits while channel updates were in-flight, causing
-            //   ChannelMonitor updates to be persisted without corresponding
-            //   ChannelManager updates being persisted. This does not risk the
-            //   loss of funds, but upon next boot the ChannelManager may
-            //   accidentally trigger a force close..
-            // - For the network graph and scorer, it is possible that the node
-            //   is shut down before they have gotten a chance to be persisted,
-            //   (e.g. `shutdown_after_sync` is set), and since we're already
-            //   another API call for the channel manager, we might as well
-            //   concurrently persist these as well.
-            let (try_persist_manager, (), ()) = tokio::join!(
-                persister.persist_manager(channel_manager.deref()),
-                maybe_persist_scorer(
-                    &persister,
-                    &scorer,
-                    persist_graph_and_scorer
-                ),
-                maybe_persist_graph(
-                    &persister,
-                    &gossip_sync,
-                    persist_graph_and_scorer
-                ),
-            );
-            if let Err(e) = try_persist_manager {
+            // Persist the manager one last time. This may prevent some races
+            // where the node quits while channel updates were in-flight,
+            // causing ChannelMonitor updates to be persisted without
+            // corresponding ChannelManager updates being persisted.
+            // This does not risk the loss of funds, but upon next boot the
+            // ChannelManager may accidentally trigger a force close.
+            if let Err(e) = persister.persist_manager(&*channel_manager).await {
                 error!("Final channel manager persistence failure: {e:#}");
             }
         },
     )
-}
-
-// TODO(max): Scorer and network graph persistence should be handled in their
-// own tasks instead of in the main BGP loop, so that their persistence doesn't
-// block event processing.
-
-/// Persists the network graph only if `persist_graph_and_scorer` is true.
-async fn maybe_persist_graph(
-    persister: &impl LexePersister,
-    gossip_sync: &P2PGossipSyncType,
-    persist_graph_and_scorer: bool,
-) {
-    if persist_graph_and_scorer {
-        debug!("Pruning and persisting network graph");
-        let network_graph = gossip_sync.network_graph();
-        // TODO(max): Don't prune during RGS. See LDK's BGP.
-        // Relevant after we've implemented RGS.
-        network_graph.remove_stale_channels_and_tracking();
-        if let Err(e) = persister.persist_graph(network_graph).await {
-            warn!("Couldn't persist network graph: {e:#}");
-        }
-    } else {
-        debug!("Skipping network graph persist");
-    }
-}
-
-/// Persists the scorer only if `persist_graph_and_scorer` is true.
-async fn maybe_persist_scorer(
-    persister: &impl LexePersister,
-    scorer: &Mutex<ProbabilisticScorerType>,
-    persist_graph_and_scorer: bool,
-) {
-    if persist_graph_and_scorer {
-        debug!("Persisting probabilistic scorer");
-        if let Err(e) = persister.persist_scorer(scorer).await {
-            warn!("Couldn't persist scorer: {e:#}");
-        }
-    } else {
-        debug!("Skipping scorer persist");
-    }
 }

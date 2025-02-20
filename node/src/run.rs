@@ -741,18 +741,13 @@ impl UserNode {
         };
         static_tasks.push(node_info_task);
 
-        // Init background processor. We don't persist the network graph or
-        // probabilistic scorer because we just fetch those from the LSP.
-        let persist_graph_and_scorer = false;
+        // Init background processor.
         let bg_processor_task = background_processor::start(
             channel_manager.clone(),
             peer_manager.clone(),
             persister.clone(),
             chain_monitor.clone(),
             event_handler,
-            gossip_sync.clone(),
-            scorer.clone(),
-            persist_graph_and_scorer,
             process_events_rx,
             shutdown.clone(),
         );
