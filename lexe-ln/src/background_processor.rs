@@ -3,7 +3,7 @@ use std::{
     time::Duration,
 };
 
-use common::{notify, notify_once::NotifyOnce, task::LxTask};
+use common::{notify_once::NotifyOnce, task::LxTask};
 use tokio::{
     sync::{mpsc, oneshot},
     time::Instant,
@@ -71,7 +71,6 @@ pub fn start<CM, PM, PS, EH>(
     // events). This was supposed to be resolved by LDK#2052 and
     // LDK#2090, but our integration tests still fail without this channel.
     mut process_events_rx: mpsc::Receiver<oneshot::Sender<()>>,
-    mut scorer_persist_rx: notify::Receiver,
     mut shutdown: NotifyOnce,
 ) -> LxTask<()>
 where
@@ -148,21 +147,6 @@ where
                     }
                 };
 
-                // A future that completes when the scorer persist timer ticks
-                // or a notification is sent over the `scorer_persist` channel.
-                // TODO(max): We should limit persists to once every ~15s.
-                // Currently, every payment will trigger a scorer persist.
-                let scorer_persist_fut = async {
-                    tokio::select! {
-                        _ = scorer_timer.tick() =>
-                            debug!("Triggered: Scorer persist timer"),
-                        () = scorer_persist_rx.recv() => {
-                            debug!("Triggered: Scorer persist channel");
-                            scorer_timer.reset();
-                        }
-                    }
-                };
-
                 tokio::select! {
                     () = process_events_fut => {
                         debug!("Processing pending events");
@@ -208,7 +192,7 @@ where
                         }
                     }
 
-                    () = scorer_persist_fut =>
+                    _ = scorer_timer.tick() =>
                         maybe_persist_scorer(
                             &persister, &scorer, persist_graph_and_scorer
                         ).await,

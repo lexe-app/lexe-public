@@ -44,7 +44,6 @@ use common::{
     cli::LspInfo,
     debug_panic_release_log,
     ln::{channel::LxChannelId, payments::LxPaymentHash},
-    notify,
     notify_once::NotifyOnce,
     rng::{RngExt, ThreadFastRng},
     task::LxTask,
@@ -84,7 +83,6 @@ pub(crate) struct EventCtx {
     pub scorer: Arc<Mutex<ProbabilisticScorerType>>,
     pub payments_manager: PaymentsManagerType,
     pub channel_events_bus: ChannelEventsBus,
-    pub scorer_persist_tx: notify::Sender,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     pub test_event_tx: TestEventSender,
     pub shutdown: NotifyOnce,
@@ -127,7 +125,7 @@ async fn do_handle_event(
     event: Event,
 ) -> Result<(), EventHandleError> {
     event::handle_network_graph_update(&ctx.network_graph, &event);
-    event::handle_scorer_update(&ctx.scorer, &ctx.scorer_persist_tx, &event);
+    event::handle_scorer_update(&ctx.scorer, &event);
 
     match event {
         // NOTE: This event is received because manually_accept_inbound_channels

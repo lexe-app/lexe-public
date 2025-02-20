@@ -6,7 +6,6 @@ use bitcoin::{absolute, secp256k1};
 use common::test_utils::arbitrary;
 use common::{
     ln::channel::{LxChannelId, LxUserChannelId},
-    notify,
     rng::{Crng, RngExt, SysRng},
     test_event::TestEvent,
     time::TimestampMs,
@@ -311,14 +310,16 @@ pub fn handle_network_graph_update(
 }
 
 /// If the given [`Event`] contains information the [`ProbabilisticScorerType`]
-/// should be updated with, this fn updates the scorer accordingly and notifies
-/// the BGP to re-persist the scorer.
+/// should be updated with, this fn updates the scorer accordingly.
 ///
 /// Based on the `update_scorer` fn in LDK's BGP:
 /// <https://github.com/lightningdevkit/rust-lightning/blob/8da30df223d50099c75ba8251615bd2026fcea75/lightning-background-processor/src/lib.rs#L272>
+///
+/// NOTE: Unlike LDK's BGP, we don't notify the BGP if the scorer was updated,
+/// as we already have the scorer on an auto-persist interval, including a final
+/// persist at shutdown. It's OK if we lose the last ~5 min of data in a crash.
 pub fn handle_scorer_update(
     scorer: &Mutex<ProbabilisticScorerType>,
-    scorer_persist_tx: &notify::Sender,
     event: &Event,
 ) {
     let now_since_epoch = TimestampMs::now().into_duration();
@@ -330,7 +331,6 @@ pub fn handle_scorer_update(
         } => {
             let mut locked_scorer = scorer.lock().unwrap();
             locked_scorer.payment_path_failed(path, *scid, now_since_epoch);
-            scorer_persist_tx.send();
         }
         Event::PaymentPathFailed {
             ref path,
@@ -342,17 +342,14 @@ pub fn handle_scorer_update(
             // all the way to the destination with sufficient liquidity.
             let mut locked_scorer = scorer.lock().unwrap();
             locked_scorer.probe_successful(path, now_since_epoch);
-            scorer_persist_tx.send();
         }
         Event::PaymentPathSuccessful { path, .. } => {
             let mut locked_scorer = scorer.lock().unwrap();
             locked_scorer.payment_path_successful(path, now_since_epoch);
-            scorer_persist_tx.send();
         }
         Event::ProbeSuccessful { path, .. } => {
             let mut locked_scorer = scorer.lock().unwrap();
             locked_scorer.probe_successful(path, now_since_epoch);
-            scorer_persist_tx.send();
         }
         Event::ProbeFailed {
             path,
@@ -361,7 +358,6 @@ pub fn handle_scorer_update(
         } => {
             let mut locked_scorer = scorer.lock().unwrap();
             locked_scorer.probe_failed(path, *scid, now_since_epoch);
-            scorer_persist_tx.send();
         }
         _ => (),
     }
