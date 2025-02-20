@@ -5,6 +5,8 @@ PODS:
     - Flutter
   - camera_avfoundation (0.0.1):
     - Flutter
+  - device_info_plus (0.0.1):
+    - Flutter
   - Flutter (1.0.0)
   - flutter_web_auth_2 (3.0.0):
     - Flutter
@@ -26,6 +28,7 @@ DEPENDENCIES:
   - app_links (from `.symlinks/plugins/app_links/ios`)
   - app_rs_dart (from `.symlinks/plugins/app_rs_dart/ios`)
   - camera_avfoundation (from `.symlinks/plugins/camera_avfoundation/ios`)
+  - device_info_plus (from `.symlinks/plugins/device_info_plus/ios`)
   - Flutter (from `Flutter`)
   - flutter_web_auth_2 (from `.symlinks/plugins/flutter_web_auth_2/ios`)
   - flutter_zxing (from `.symlinks/plugins/flutter_zxing/ios`)
@@ -42,6 +45,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/app_rs_dart/ios"
   camera_avfoundation:
     :path: ".symlinks/plugins/camera_avfoundation/ios"
+  device_info_plus:
+    :path: ".symlinks/plugins/device_info_plus/ios"
   Flutter:
     :path: Flutter
   flutter_web_auth_2:
@@ -63,13 +68,14 @@ SPEC CHECKSUMS:
   app_links: e70ca16b4b0f88253b3b3660200d4a10b4ea9795
   app_rs_dart: a1e1f11cc54d38820b575dc2d1634810e88a4acb
   camera_avfoundation: dd002b0330f4981e1bbcb46ae9b62829237459a4
+  device_info_plus: bf2e3232933866d73fe290f2942f2156cdd10342
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   flutter_web_auth_2: 051cf9f5dc366f31b5dcc4e2952c2b954767be8a
   flutter_zxing: 19a866d17c8a87ee1026d68521c69d2f008635f6
   image_picker_ios: c560581cceedb403a6ff17f2f816d7fea1421fc1
   integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
-  share_plus: 8875f4f2500512ea181eef553c3e27dba5135aad
+  share_plus: 8b6f8b3447e494cca5317c8c3073de39b3600d1f
   url_launcher_ios: 5334b05cef931de560670eeae103fd3e431ac3fe
 
 PODFILE CHECKSUM: 08f1b9b2fa5d5ad13f5c3615928117c6a3dd311b

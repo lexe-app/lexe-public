@@ -46,6 +46,9 @@ dependencies:
   # Some useful List/Map/Set combinators
   collection: ^1.18.0
 
+  # Get current device info. Used to determine current Android OS SDK version.
+  device_info_plus: ^11.3.0
+
   # Pretty duration formatting.
   duration: ^3.0.13
 
