@@ -40,11 +40,11 @@ class DebugPage extends StatelessWidget {
         .inspectErr((err) => error(err.message));
   }
 
-  void doDeleteLatestProvisionedFile() {
-    info("Deleting latest_provisioned file");
-    Result.tryFfi(() => debug.deleteLatestProvisioned(config: this.config))
-        .inspectErr((err) => error(err.message));
-  }
+  // void doDeleteLatestProvisionedFile() {
+  //   info("Deleting latest_provisioned file");
+  //   Result.tryFfi(() => debug.deleteLatestProvisioned(config: this.config))
+  //       .inspectErr((err) => error(err.message));
+  // }
 
   void doResetSettingsDb() {
     info("Resetting SettingsDb");
@@ -67,56 +67,55 @@ class DebugPage extends StatelessWidget {
           const SubheadingText(text: "Page for manipulating app internals."),
           const SizedBox(height: Space.s600),
 
+          // Reset SettingsDb
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text("Reset settings"),
+            subtitle: const Text.rich(TextSpan(children: [
+              TextSpan(
+                  text: "Resets all settings to their default values.",
+                  style: TextStyle(color: LxColors.fgTertiary)),
+            ])),
+            onTap: this.doResetSettingsDb,
+          ),
+
           // Delete PaymentDb
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text("Delete local PaymentDb"),
+            title: const Text("Delete local payments"),
             subtitle: const Text(
-              "The PaymentDb will be recreated after the next payment sync",
+              "Your app will clear all local payment info and resync from the node",
               style: TextStyle(color: LxColors.fgTertiary),
             ),
             onTap: this.doDeleteLocalPaymentDb,
           ),
 
-          // TODO(phlip9): actually delete latest_provisioned
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text("Delete latest_provisioned file (TODO)"),
-            subtitle: const Text(
-              "On next restart, will ask the Lexe API for the most recent node "
-              "version and unconditionally provision to it.",
-              style: TextStyle(color: LxColors.fgTertiary),
-            ),
-            onTap: this.doDeleteLatestProvisionedFile,
-          ),
+          // // TODO(phlip9): actually delete latest_provisioned
+          // ListTile(
+          //   contentPadding: EdgeInsets.zero,
+          //   title: const Text("Delete latest_provisioned file (TODO)"),
+          //   subtitle: const Text(
+          //     "On next restart, will ask the Lexe API for the most recent node "
+          //     "version and unconditionally provision to it.",
+          //     style: TextStyle(color: LxColors.fgTertiary),
+          //   ),
+          //   onTap: this.doDeleteLatestProvisionedFile,
+          // ),
 
           // Delete SecretStore
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text("Delete SecretStore & RootSeed"),
+            title: const Text("Delete local secrets"),
             subtitle: const Text.rich(TextSpan(children: [
               TextSpan(
                   text: "WARNING: ",
                   style: TextStyle(color: Color(0xffeb5d47))),
               TextSpan(
                   text:
-                      "you will need a backup recovery to use the account afterwards",
+                      "you will need to recover from backup to use this wallet again",
                   style: TextStyle(color: LxColors.fgTertiary)),
             ])),
             onTap: this.doDeleteSecretStore,
-          ),
-
-          // Reset SettingsDb
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text("Reset SettingsDb"),
-            subtitle: const Text.rich(TextSpan(children: [
-              TextSpan(
-                  text:
-                      "Resets the SettingsDb and all settings to their default values.",
-                  style: TextStyle(color: LxColors.fgTertiary)),
-            ])),
-            onTap: this.doResetSettingsDb,
           ),
         ],
       ),

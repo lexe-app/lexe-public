@@ -11,7 +11,6 @@ import 'package:app_rs_dart/ffi/types.dart'
     show
         ClientPaymentId,
         Config,
-        DeployEnv,
         PaymentDirection,
         PaymentIndex,
         PaymentKind,
@@ -599,14 +598,12 @@ class WalletDrawer extends StatelessWidget {
             //   onTap: this.onSupportPressed,
             // ),
 
-            // Don't show debugging menu in prod
-            if (config.deployEnv == DeployEnv.dev ||
-                config.deployEnv == DeployEnv.staging)
-              DrawerListItem(
-                title: "Debug",
-                icon: LxIcons.debug,
-                onTap: this.onDebugPressed,
-              ),
+            // Debugging
+            DrawerListItem(
+              title: "Debug",
+              icon: LxIcons.debug,
+              onTap: this.onDebugPressed,
+            ),
 
             const SizedBox(height: Space.s600),
 

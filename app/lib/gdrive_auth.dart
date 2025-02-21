@@ -20,7 +20,6 @@ import 'package:app_rs_dart/ffi/gdrive.dart'
         GDriveRestoreClient,
         GDriveRestoreClientRs;
 import 'package:app_rs_dart/ffi/types.dart' show DeployEnv, Network, RootSeed;
-// import 'package:app_rs_dart/frb.dart' show AnyhowException;
 import 'package:flutter/services.dart' show PlatformException, appFlavor;
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart'
     show FlutterWebAuth2;
