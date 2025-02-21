@@ -162,6 +162,7 @@ Future<Config> build() async {
     gatewayUrl: gatewayUrl,
     baseAppDataDir: baseAppDataDir.path,
     useMockSecretStore: false,
+    userAgent: "app",
   );
 }
 
@@ -177,6 +178,7 @@ Future<Config> buildTest() async {
     gatewayUrl: "<no-dev-gateway-url>",
     baseAppDataDir: baseAppDataDir.path,
     useMockSecretStore: true,
+    userAgent: "app",
   );
 }
 

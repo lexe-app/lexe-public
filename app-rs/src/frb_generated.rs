@@ -1019,6 +1019,7 @@ impl SseDecode for crate::ffi::types::Config {
         let mut var_useSgx = <bool>::sse_decode(deserializer);
         let mut var_baseAppDataDir = <String>::sse_decode(deserializer);
         let mut var_useMockSecretStore = <bool>::sse_decode(deserializer);
+        let mut var_userAgent = <String>::sse_decode(deserializer);
         return crate::ffi::types::Config {
             deploy_env: var_deployEnv,
             network: var_network,
@@ -1026,6 +1027,7 @@ impl SseDecode for crate::ffi::types::Config {
             use_sgx: var_useSgx,
             base_app_data_dir: var_baseAppDataDir,
             use_mock_secret_store: var_useMockSecretStore,
+            user_agent: var_userAgent,
         };
     }
 }
@@ -2202,6 +2204,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::Config {
             self.use_sgx.into_into_dart().into_dart(),
             self.base_app_data_dir.into_into_dart().into_dart(),
             self.use_mock_secret_store.into_into_dart().into_dart(),
+            self.user_agent.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -3324,6 +3327,7 @@ impl SseEncode for crate::ffi::types::Config {
         <bool>::sse_encode(self.use_sgx, serializer);
         <String>::sse_encode(self.base_app_data_dir, serializer);
         <bool>::sse_encode(self.use_mock_secret_store, serializer);
+        <String>::sse_encode(self.user_agent, serializer);
     }
 }
 

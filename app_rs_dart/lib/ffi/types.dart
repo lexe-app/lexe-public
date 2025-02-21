@@ -49,6 +49,7 @@ class Config with _$Config {
     required bool useSgx,
     required String baseAppDataDir,
     required bool useMockSecretStore,
+    required String userAgent,
   }) = _Config;
 }
 

@@ -527,6 +527,7 @@ pub struct AppConfig {
     pub gateway_url: String,
     pub base_app_data_dir: PathBuf,
     pub use_mock_secret_store: bool,
+    pub user_agent: String,
 }
 
 impl AppConfig {
@@ -556,6 +557,7 @@ impl AppConfig {
         use_sgx: bool,
         base_app_data_dir: String,
         use_mock_secret_store: bool,
+        user_agent: String,
     ) -> Self {
         let build = BuildFlavor {
             deploy_env,
@@ -587,6 +589,7 @@ impl AppConfig {
             use_sgx,
             base_app_data_dir,
             use_mock_secret_store,
+            user_agent,
         }
     }
 }

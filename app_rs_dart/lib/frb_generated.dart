@@ -2054,8 +2054,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Config dco_decode_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return Config(
       deployEnv: dco_decode_deploy_env(arr[0]),
       network: dco_decode_network(arr[1]),
@@ -2063,6 +2063,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       useSgx: dco_decode_bool(arr[3]),
       baseAppDataDir: dco_decode_String(arr[4]),
       useMockSecretStore: dco_decode_bool(arr[5]),
+      userAgent: dco_decode_String(arr[6]),
     );
   }
 
@@ -3050,13 +3051,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_useSgx = sse_decode_bool(deserializer);
     var var_baseAppDataDir = sse_decode_String(deserializer);
     var var_useMockSecretStore = sse_decode_bool(deserializer);
+    var var_userAgent = sse_decode_String(deserializer);
     return Config(
         deployEnv: var_deployEnv,
         network: var_network,
         gatewayUrl: var_gatewayUrl,
         useSgx: var_useSgx,
         baseAppDataDir: var_baseAppDataDir,
-        useMockSecretStore: var_useMockSecretStore);
+        useMockSecretStore: var_useMockSecretStore,
+        userAgent: var_userAgent);
   }
 
   @protected
@@ -4058,6 +4061,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_bool(self.useSgx, serializer);
     sse_encode_String(self.baseAppDataDir, serializer);
     sse_encode_bool(self.useMockSecretStore, serializer);
+    sse_encode_String(self.userAgent, serializer);
   }
 
   @protected

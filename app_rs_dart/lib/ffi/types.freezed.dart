@@ -116,6 +116,7 @@ mixin _$Config {
   bool get useSgx => throw _privateConstructorUsedError;
   String get baseAppDataDir => throw _privateConstructorUsedError;
   bool get useMockSecretStore => throw _privateConstructorUsedError;
+  String get userAgent => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -127,7 +128,8 @@ class _$ConfigImpl implements _Config {
       required this.gatewayUrl,
       required this.useSgx,
       required this.baseAppDataDir,
-      required this.useMockSecretStore});
+      required this.useMockSecretStore,
+      required this.userAgent});
 
   @override
   final DeployEnv deployEnv;
@@ -141,10 +143,12 @@ class _$ConfigImpl implements _Config {
   final String baseAppDataDir;
   @override
   final bool useMockSecretStore;
+  @override
+  final String userAgent;
 
   @override
   String toString() {
-    return 'Config(deployEnv: $deployEnv, network: $network, gatewayUrl: $gatewayUrl, useSgx: $useSgx, baseAppDataDir: $baseAppDataDir, useMockSecretStore: $useMockSecretStore)';
+    return 'Config(deployEnv: $deployEnv, network: $network, gatewayUrl: $gatewayUrl, useSgx: $useSgx, baseAppDataDir: $baseAppDataDir, useMockSecretStore: $useMockSecretStore, userAgent: $userAgent)';
   }
 
   @override
@@ -161,12 +165,14 @@ class _$ConfigImpl implements _Config {
             (identical(other.baseAppDataDir, baseAppDataDir) ||
                 other.baseAppDataDir == baseAppDataDir) &&
             (identical(other.useMockSecretStore, useMockSecretStore) ||
-                other.useMockSecretStore == useMockSecretStore));
+                other.useMockSecretStore == useMockSecretStore) &&
+            (identical(other.userAgent, userAgent) ||
+                other.userAgent == userAgent));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, deployEnv, network, gatewayUrl,
-      useSgx, baseAppDataDir, useMockSecretStore);
+      useSgx, baseAppDataDir, useMockSecretStore, userAgent);
 }
 
 abstract class _Config implements Config {
@@ -176,7 +182,8 @@ abstract class _Config implements Config {
       required final String gatewayUrl,
       required final bool useSgx,
       required final String baseAppDataDir,
-      required final bool useMockSecretStore}) = _$ConfigImpl;
+      required final bool useMockSecretStore,
+      required final String userAgent}) = _$ConfigImpl;
 
   @override
   DeployEnv get deployEnv;
@@ -190,6 +197,8 @@ abstract class _Config implements Config {
   String get baseAppDataDir;
   @override
   bool get useMockSecretStore;
+  @override
+  String get userAgent;
 }
 
 /// @nodoc
