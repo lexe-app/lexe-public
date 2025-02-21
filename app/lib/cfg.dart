@@ -171,7 +171,7 @@ Future<Config> build(final UserAgent userAgent) async {
 }
 
 /// Build a [Config] suitable for unit tests or UI design mode.
-Future<Config> buildTest() async {
+Future<Config> buildTest({UserAgent? userAgent}) async {
   // Use a temp dir for unit tests, since `path_provider` doesn't work in tests.
   final baseAppDataDir = await Directory.systemTemp.createTemp("lexeapp");
 
@@ -182,7 +182,7 @@ Future<Config> buildTest() async {
     gatewayUrl: "<no-dev-gateway-url>",
     baseAppDataDir: baseAppDataDir.path,
     useMockSecretStore: true,
-    userAgent: "app",
+    userAgent: (userAgent ?? UserAgent.dummy()).toCompactApiString(),
   );
 }
 
@@ -196,6 +196,11 @@ final class UserAgent {
     required this.version,
   });
 
+  UserAgent.dummy()
+      : osName = Platform.operatingSystem,
+        appName = "Lexe",
+        version = "0.0.0+0";
+
   /// The operating system name (ex: "ios", "android", "macos", ...)
   final String osName;
 
@@ -205,6 +210,10 @@ final class UserAgent {
   /// The combined app version name and version code (ex: "0.6.2+5")
   final String version;
 
+  /// Gather the current app package info from the platform and project it into
+  /// a compact [UserAgent].
+  ///
+  /// NOTE: the platform info should be cached after the first successful attempt.
   static Future<UserAgent> fromPlatform() async {
     final res = (await Result.tryAsync<PackageInfo, Exception>(
             PackageInfo.fromPlatform))
@@ -216,11 +225,7 @@ final class UserAgent {
           version: "${ok.version}+${ok.buildNumber}",
         ),
       // Somehow platform API is not working, just return something.
-      Err() => UserAgent(
-          osName: Platform.operatingSystem,
-          appName: "Lexe",
-          version: "0.0.0+0",
-        ),
+      Err() => UserAgent.dummy(),
     };
   }
 

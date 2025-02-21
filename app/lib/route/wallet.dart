@@ -20,6 +20,7 @@ import 'package:app_rs_dart/ffi/types.dart'
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show NumberFormat;
+import 'package:lexeapp/cfg.dart' show UserAgent;
 import 'package:lexeapp/components.dart'
     show
         FilledTextPlaceholder,
@@ -620,16 +621,22 @@ class WalletDrawer extends StatelessWidget {
             // ),
             // const SizedBox(height: Space.s600),
 
-            // // TODO(phlip9): get app version from platform APIs
-            // // app version
-            // Text(
-            //   "Lexe App · v1.2.345",
-            //   textAlign: TextAlign.center,
-            //   style: Fonts.fontUI.copyWith(
-            //     color: LxColors.grey600,
-            //     fontSize: Fonts.size200,
-            //   ),
-            // ),
+            // Show currently installed app version.
+            // ex: "Lexe · v0.6.2+5"
+            FutureBuilder(
+              future: UserAgent.fromPlatform(),
+              builder: (context, out) {
+                final userAgent = out.data ?? UserAgent.dummy();
+                return Text(
+                  "${userAgent.appName} · v${userAgent.version}",
+                  textAlign: TextAlign.center,
+                  style: Fonts.fontUI.copyWith(
+                    color: LxColors.grey600,
+                    fontSize: Fonts.size200,
+                  ),
+                );
+              },
+            )
           ],
         ),
       ),

@@ -105,8 +105,8 @@ Future<void> main() async {
   Logger.init();
 
   final userAgent = await cfg.UserAgent.fromPlatform();
-  final Config config = await cfg.buildTest();
-  info("Test build config: $config, userAgent: $userAgent");
+  final Config config = await cfg.buildTest(userAgent: userAgent);
+  info("Test build config: $config");
 
   final uriEvents = await UriEvents.prod();
 
