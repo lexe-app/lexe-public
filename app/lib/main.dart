@@ -29,7 +29,8 @@ Future<void> main() async {
 
   Logger.init();
 
-  final Config config = await cfg.build();
+  final userAgent = await cfg.UserAgent.fromPlatform();
+  final Config config = await cfg.build(userAgent);
   info("Build config: $config");
 
   final maybeApp = await AppHandle.load(config: config);

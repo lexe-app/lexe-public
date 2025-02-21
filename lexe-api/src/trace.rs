@@ -372,7 +372,7 @@ pub(crate) mod client {
     /// Get a [`tracing::Span`] and [`TraceId`] for a client request.
     pub(crate) fn request_span(
         req: &reqwest::Request,
-        from: &'static str,
+        from: &str,
         to: &'static str,
     ) -> (tracing::Span, TraceId) {
         // Our client request span.

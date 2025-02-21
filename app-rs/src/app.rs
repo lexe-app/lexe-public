@@ -86,6 +86,7 @@ impl App {
         let gateway_client = GatewayClient::new(
             user_config.config.deploy_env,
             user_config.config.gateway_url.clone(),
+            user_config.config.user_agent.clone(),
         )
         .context("Failed to build GatewayClient")?;
         let node_client = NodeClient::new(
@@ -223,6 +224,7 @@ impl App {
         let gateway_client = GatewayClient::new(
             user_config.config.deploy_env,
             user_config.config.gateway_url.clone(),
+            user_config.config.user_agent.clone(),
         )
         .context("Failed to build GatewayClient")?;
         let node_client = NodeClient::new(
@@ -338,6 +340,7 @@ impl App {
         let gateway_client = GatewayClient::new(
             user_config.config.deploy_env,
             user_config.config.gateway_url.clone(),
+            user_config.config.user_agent.clone(),
         )
         .context("Failed to build GatewayClient")?;
         let node_client = NodeClient::new(

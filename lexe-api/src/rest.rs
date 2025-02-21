@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{borrow::Cow, time::Duration};
 
 use bytes::Bytes;
 use common::{
@@ -40,7 +40,7 @@ pub const DELETE: Method = Method::DELETE;
 pub struct RestClient {
     client: reqwest::Client,
     /// The process that this [`RestClient`] is being called from, e.g. "app"
-    from: &'static str,
+    from: Cow<'static, str>,
     /// The process that this [`RestClient`] is calling, e.g. "node-run"
     to: &'static str,
 }
@@ -56,45 +56,70 @@ impl RestClient {
     /// same process, and propagate the `from` field to the server via the user
     /// agent header so that servers can identify requesting clients.
     pub fn new(
-        from: &'static str,
+        from: impl Into<Cow<'static, str>>,
         to: &'static str,
         tls_config: rustls::ClientConfig,
     ) -> Self {
-        let client = Self::client_builder(from)
-            .use_preconfigured_tls(tls_config)
-            .https_only(true)
-            .build()
-            .expect("Failed to build reqwest Client");
-        Self { client, from, to }
+        fn inner(
+            from: Cow<'static, str>,
+            to: &'static str,
+            tls_config: rustls::ClientConfig,
+        ) -> RestClient {
+            let client = RestClient::client_builder(&from)
+                .use_preconfigured_tls(tls_config)
+                .https_only(true)
+                .build()
+                .expect("Failed to build reqwest Client");
+            RestClient { client, from, to }
+        }
+        inner(from.into(), to, tls_config)
     }
 
     /// [`RestClient::new`] but without TLS.
     /// This should only be used for non-security-critical endpoints.
-    pub fn new_insecure(from: &'static str, to: &'static str) -> Self {
-        let client = Self::client_builder(from)
-            .https_only(false)
-            .build()
-            .expect("Failed to build reqwest Client");
-        Self { client, from, to }
+    pub fn new_insecure(
+        from: impl Into<Cow<'static, str>>,
+        to: &'static str,
+    ) -> Self {
+        fn inner(from: Cow<'static, str>, to: &'static str) -> RestClient {
+            let client = RestClient::client_builder(&from)
+                .https_only(false)
+                .build()
+                .expect("Failed to build reqwest Client");
+            RestClient { client, from, to }
+        }
+        inner(from.into(), to)
     }
 
     /// Get a [`reqwest::ClientBuilder`] with some defaults set.
     /// NOTE that for safety, `https_only` is set to `true`, but you can
     /// override it if needed.
-    pub fn client_builder(from: &'static str) -> reqwest::ClientBuilder {
-        reqwest::Client::builder()
-            .user_agent(from)
-            .https_only(true)
-            .timeout(API_REQUEST_TIMEOUT)
+    pub fn client_builder(from: impl AsRef<str>) -> reqwest::ClientBuilder {
+        fn inner(from: &str) -> reqwest::ClientBuilder {
+            reqwest::Client::builder()
+                .user_agent(from)
+                .https_only(true)
+                .timeout(API_REQUEST_TIMEOUT)
+        }
+        inner(from.as_ref())
     }
 
     /// Construct a [`RestClient`] from a [`reqwest::Client`].
     pub fn from_inner(
         client: reqwest::Client,
-        from: &'static str,
+        from: impl Into<Cow<'static, str>>,
         to: &'static str,
     ) -> Self {
-        Self { client, from, to }
+        Self {
+            client,
+            from: from.into(),
+            to,
+        }
+    }
+
+    #[inline]
+    pub fn user_agent(&self) -> &Cow<'static, str> {
+        &self.from
     }
 
     // --- RequestBuilder helpers --- //
@@ -185,7 +210,7 @@ impl RestClient {
     ) -> Result<Bytes, E> {
         let request = request_builder.build().map_err(CommonApiError::from)?;
         let (request_span, trace_id) =
-            trace::client::request_span(&request, self.from, self.to);
+            trace::client::request_span(&request, &self.from, self.to);
         let response = self
             .send_inner(request, &trace_id)
             .instrument(request_span)
@@ -208,7 +233,7 @@ impl RestClient {
     ) -> Result<T, E> {
         let request = request_builder.build().map_err(CommonApiError::from)?;
         let (request_span, trace_id) =
-            trace::client::request_span(&request, self.from, self.to);
+            trace::client::request_span(&request, &self.from, self.to);
         let response = self
             .send_with_retries_inner(request, retries, stop_codes, &trace_id)
             .instrument(request_span)

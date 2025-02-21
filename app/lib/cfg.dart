@@ -11,8 +11,12 @@
 import 'dart:io' show Directory, Platform;
 
 import 'package:app_rs_dart/ffi/types.dart' show Config, DeployEnv, Network;
-import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
+import 'package:flutter/foundation.dart'
+    show immutable, kDebugMode, kReleaseMode;
 import 'package:flutter/services.dart' show appFlavor;
+import 'package:lexeapp/logger.dart';
+import 'package:lexeapp/result.dart';
+import 'package:package_info_plus/package_info_plus.dart' show PackageInfo;
 import 'package:path_provider/path_provider.dart' as path_provider;
 
 /// `true` when the flutter app is built in debug mode with debugging info and
@@ -135,7 +139,7 @@ const _4 = _AssertAppFlavor(
 
 /// Build a [Config] that will actually talk to the lexe backend. That could be
 /// the real production backend or just a local development version.
-Future<Config> build() async {
+Future<Config> build(final UserAgent userAgent) async {
   // Application Support is for app-specific data that is not meant to be
   // user-facing, unlike `path_provider.getApplicationDocumentsDirectory()`.
   // On Android, iOS, and macOS, this data is also sandboxed and inaccessible
@@ -162,7 +166,7 @@ Future<Config> build() async {
     gatewayUrl: gatewayUrl,
     baseAppDataDir: baseAppDataDir.path,
     useMockSecretStore: false,
-    userAgent: "app",
+    userAgent: userAgent.toCompactApiString(),
   );
 }
 
@@ -180,6 +184,53 @@ Future<Config> buildTest() async {
     useMockSecretStore: true,
     userAgent: "app",
   );
+}
+
+/// A compact identifier for a user's device platform. Used so we can roughly
+/// see where our API requests are coming from and debug issues on the backend.
+@immutable
+final class UserAgent {
+  const UserAgent({
+    required this.osName,
+    required this.appName,
+    required this.version,
+  });
+
+  /// The operating system name (ex: "ios", "android", "macos", ...)
+  final String osName;
+
+  /// The installed app name (ex: "Lexe", "Lexe Design", ...)
+  final String appName;
+
+  /// The combined app version name and version code (ex: "0.6.2+5")
+  final String version;
+
+  static Future<UserAgent> fromPlatform() async {
+    final res = (await Result.tryAsync<PackageInfo, Exception>(
+            PackageInfo.fromPlatform))
+        .inspectErr((err) => error("Failed to lookup app package info: $err"));
+    return switch (res) {
+      Ok(:final ok) => UserAgent(
+          osName: Platform.operatingSystem,
+          appName: ok.appName,
+          version: "${ok.version}+${ok.buildNumber}",
+        ),
+      // Somehow platform API is not working, just return something.
+      Err() => UserAgent(
+          osName: Platform.operatingSystem,
+          appName: "Lexe",
+          version: "0.0.0+0",
+        ),
+    };
+  }
+
+  /// Return a compact string for use as an HTTP request user agent.
+  /// ex: "app-ios-0.6.2+5"
+  String toCompactApiString() => "app-$osName-$version";
+
+  @override
+  String toString() =>
+      "UserAgent(osName: $osName, appName: $appName, version: $version)";
 }
 
 // Load the log filter from the environment. Priority:

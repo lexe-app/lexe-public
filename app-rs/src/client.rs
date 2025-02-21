@@ -7,6 +7,7 @@
 //! [`GatewayClient`]: crate::client::GatewayClient
 
 use std::{
+    borrow::Cow,
     sync::Arc,
     time::{Duration, SystemTime},
 };
@@ -97,10 +98,18 @@ impl GatewayClient {
     pub fn new(
         deploy_env: DeployEnv,
         gateway_url: String,
+        user_agent: impl Into<Cow<'static, str>>,
     ) -> anyhow::Result<Self> {
-        let tls_config = lexe_ca::app_gateway_client_config(deploy_env);
-        let rest = RestClient::new("app", "gateway", tls_config);
-        Ok(Self { rest, gateway_url })
+        fn inner(
+            deploy_env: DeployEnv,
+            gateway_url: String,
+            user_agent: Cow<'static, str>,
+        ) -> anyhow::Result<GatewayClient> {
+            let tls_config = lexe_ca::app_gateway_client_config(deploy_env);
+            let rest = RestClient::new(user_agent, "gateway", tls_config);
+            Ok(GatewayClient { rest, gateway_url })
+        }
+        inner(deploy_env, gateway_url, user_agent.into())
     }
 }
 
@@ -179,8 +188,9 @@ impl NodeClient {
                 rng, deploy_env, root_seed,
             )?;
 
-            let (from, to) = ("app", "node-run");
-            let reqwest_client = RestClient::client_builder(from)
+            let (from, to) =
+                (gateway_client.rest.user_agent().clone(), "node-run");
+            let reqwest_client = RestClient::client_builder(&from)
                 .proxy(proxy)
                 .use_preconfigured_tls(tls_config)
                 .build()
@@ -293,6 +303,7 @@ impl NodeClient {
     /// provision request to a provisioning node.
     fn provision_rest_client(
         &self,
+        user_agent: Cow<'static, str>,
         measurement: Measurement,
         provision_url: &str,
     ) -> anyhow::Result<RestClient> {
@@ -309,8 +320,8 @@ impl NodeClient {
             measurement,
         );
 
-        let (from, to) = ("app", "node-provision");
-        let reqwest_client = RestClient::client_builder(from)
+        let (from, to) = (user_agent, "node-provision");
+        let reqwest_client = RestClient::client_builder(&from)
             .proxy(proxy)
             .use_preconfigured_tls(tls_config)
             // Provision can take longer than 5 sec. <3 gdrive : )
@@ -336,7 +347,11 @@ impl AppNodeProvisionApi for NodeClient {
 
         // Create rest client on the fly
         let provision_rest = self
-            .provision_rest_client(measurement, &provision_url)
+            .provision_rest_client(
+                self.gateway_client.rest.user_agent().clone(),
+                measurement,
+                &provision_url,
+            )
             .context("Failed to build provision rest client")
             .map_err(NodeApiError::provision)?;
 
