@@ -826,24 +826,27 @@ class BalanceWidget extends StatelessWidget {
         alignment: Alignment.center,
         children: <Widget>[
           // LN/BTC sub balances
-          Padding(
-            padding: const EdgeInsets.only(
-              left: Space.s400 + Space.s500,
-              right: Space.s400 + Space.s600 + 1.0,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SubBalanceRow(
-                  kind: BalanceKind.lightning,
-                  balance: this.state,
-                ),
-                const SizedBox(height: Space.s200),
-                SubBalanceRow(
-                  kind: BalanceKind.onchain,
-                  balance: this.state,
-                ),
-              ],
+          GestureDetector(
+            onTap: this.onOpenChannelsPage,
+            child: Padding(
+              padding: const EdgeInsets.only(
+                left: Space.s400 + Space.s500,
+                right: Space.s400 + Space.s600 + 1.0,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SubBalanceRow(
+                    kind: BalanceKind.lightning,
+                    balance: this.state,
+                  ),
+                  const SizedBox(height: Space.s200),
+                  SubBalanceRow(
+                    kind: BalanceKind.onchain,
+                    balance: this.state,
+                  ),
+                ],
+              ),
             ),
           ),
           // ↑↓ - Open/close channel button on the right
