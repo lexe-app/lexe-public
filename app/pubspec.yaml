@@ -97,6 +97,9 @@ dependencies:
   # TODO(phlip9): before release, build explicit icon set.
   material_symbols_icons: ^4.2719.3
 
+  # Query app name and version.
+  package_info_plus: ^8.2.1
+
   # Platform-specific paths (used to find app data directory).
   path_provider: ^2.1.1
 
