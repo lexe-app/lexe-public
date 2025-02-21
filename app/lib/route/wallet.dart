@@ -1,7 +1,7 @@
 // The primary wallet page.
 
 import 'dart:async'
-    show StreamSubscription, TimeoutException, scheduleMicrotask, unawaited;
+    show StreamSubscription, TimeoutException, scheduleMicrotask;
 import 'dart:math' as math;
 
 import 'package:app_rs_dart/ffi/api.dart' show FiatRate, NodeInfo;
@@ -281,15 +281,21 @@ class WalletPageState extends State<WalletPage> {
 
   /// Called when the "Receive" button is pressed. Pushes the receive payment
   /// page onto the navigation stack.
-  void onReceivePressed() {
-    unawaited(Navigator.of(this.context).push(
+  Future<void> onReceivePressed() async {
+    // Navigate to receive page and wait for user to return to wallet screen.
+    await Navigator.of(this.context).push(
       MaterialPageRoute(
         builder: (context) => ReceivePaymentPage(
           app: this.widget.app,
           fiatRate: this.fiatRateService.fiatRate,
         ),
       ),
-    ));
+    );
+    if (!this.mounted) return;
+
+    // Maybe user received a payment, burst refresh to pick it up if we're lucky.
+    // TODO(phlip9): real event stream from node should make this unnecessary.
+    this.triggerBurstRefresh();
   }
 
   /// Called when the "Send" button is pressed. Pushes the send payment page

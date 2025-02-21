@@ -19,8 +19,8 @@ class RefreshService {
   /// Trigger a refresh passively, after 1 min of _inactivity_.
   late Timer _backgroundTimer = this._makeBackgroundTimer();
 
-  /// Don't allow refreshes more than once / 3 sec.
-  final ThrottleTime _throttle = ThrottleTime(const Duration(seconds: 3));
+  /// Don't allow refreshes more than once / 1 sec.
+  final ThrottleTime _throttle = ThrottleTime(const Duration(seconds: 1));
 
   /// Unconditionally trigger a refresh, without considering any throttling.
   void triggerRefreshUnthrottled() {
@@ -63,10 +63,22 @@ class RefreshService {
   Future<void> _doBurstRefresh() async {
     this._isBurstRefreshing = true;
 
+    // Start with a few quick refreshes to pick up any immediate changes. Then
+    // poll every 8 sec to catch slow LN payments that can take ~30-60 sec to
+    // finalize.
+    //
+    // TODO(phlip9): currently wasteful. need node event stream to improve.
     const delays = [
-      Duration(seconds: 3),
-      Duration(seconds: 6),
-      Duration(seconds: 9),
+      Duration(seconds: 0),
+      Duration(seconds: 1),
+      Duration(seconds: 2),
+      Duration(seconds: 4),
+      Duration(seconds: 8), // 16
+      Duration(seconds: 8), // 24
+      Duration(seconds: 8), // 32
+      Duration(seconds: 8), // 40
+      Duration(seconds: 8), // 48
+      Duration(seconds: 8), // 56
     ];
 
     for (final delay in delays) {
