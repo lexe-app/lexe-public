@@ -9,7 +9,7 @@ library;
 
 import 'dart:io' show Platform;
 
-import 'package:app_rs_dart/ffi/app.dart';
+import 'package:app_rs_dart/ffi/app.dart' show RootSeedRs;
 import 'package:app_rs_dart/ffi/gdrive.dart'
     show
         GDriveClient,
@@ -39,6 +39,7 @@ abstract class GDriveAuth {
 
   static const GDriveAuth prod = ProdGDriveAuth._();
   static const GDriveAuth mock = MockGDriveAuth._();
+  static const GDriveAuth mockError = MockErrorGDriveAuth._();
 
   /// Open a browser window to request user consent for GDrive file permissions.
   ///
@@ -175,8 +176,19 @@ class MockGDriveAuth extends GDriveAuth {
   Future<Result<GDriveClient?, Exception>> tryAuth() => Future.delayed(
         const Duration(milliseconds: 1200),
         () => const Ok(MockGDriveClient._()),
-        // () => Err(Exception(
-        //     "PlatformException(sign_in_failed, com.google.android.gms.common.api.ApiException: 10: , null, null)")),
+      );
+}
+
+/// A basic mock [GDriveAuth] impl. It unconditionally returns an error message
+/// after a delay.
+class MockErrorGDriveAuth extends GDriveAuth {
+  const MockErrorGDriveAuth._() : super._();
+
+  @override
+  Future<Result<GDriveClient?, Exception>> tryAuth() => Future.delayed(
+        const Duration(milliseconds: 1200),
+        () => const Err(FfiError(
+            "Auth code exchange failed\n\nCaused by:\n  1. stacktrace error gets cut off")),
       );
 }
 
@@ -203,15 +215,16 @@ class MockGDriveRestoreClient implements GDriveRestoreClient {
     required bool useSgx,
   }) =>
       Future.delayed(
-          const Duration(milliseconds: 1234),
-          () => [
-                const MockGDriveRestoreCandidate(
-                    userPk:
-                        "4072836db6c62f1fd07281feb1f2d6d1b8f05f8be3f0019a9205edff244017f1"),
-                const MockGDriveRestoreCandidate(
-                    userPk:
-                        "ef64652cc9fc1d79d174bb52d0ffb7ad365db842e72e056aa5c4bfe00bcb20da"),
-              ]);
+        const Duration(milliseconds: 1234),
+        () => [
+          const MockGDriveRestoreCandidate(
+              userPk:
+                  "4072836db6c62f1fd07281feb1f2d6d1b8f05f8be3f0019a9205edff244017f1"),
+          const MockGDriveRestoreCandidate(
+              userPk:
+                  "ef64652cc9fc1d79d174bb52d0ffb7ad365db842e72e056aa5c4bfe00bcb20da"),
+        ],
+      );
 
   @override
   GDriveRestoreClientRs get inner => throw UnimplementedError();

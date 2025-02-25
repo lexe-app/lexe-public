@@ -185,6 +185,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
     final mockRestoreApi = mocks.MockRestoreApi(app: mockApp);
     final mockSignupCtx =
         SignupCtx(this.widget.config, GDriveAuth.mock, mockSignupApi);
+    final mockErrorSignupCtx =
+        SignupCtx(this.widget.config, GDriveAuth.mockError, mockSignupApi);
 
     final cidBytes = List.generate(32, (idx) => idx);
     final cid = ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
@@ -227,6 +229,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             Component(
               "SignupPage (mock gdrive)",
               (context) => SignupPage(ctx: mockSignupCtx),
+            ),
+            Component(
+              "SignupPage (mock gdrive error)",
+              (context) => SignupPage(ctx: mockErrorSignupCtx),
             ),
             Component(
               "SignupPage (real gdrive)",
