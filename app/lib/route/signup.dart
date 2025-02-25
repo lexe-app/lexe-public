@@ -4,6 +4,7 @@ import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/form.dart' as form;
 import 'package:app_rs_dart/ffi/types.dart' show Config;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
 import 'package:lexeapp/components.dart'
     show
@@ -216,7 +217,17 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
         if (ok == null) return;
         authInfo = ok;
       case Err(:final err):
-        final errStr = err.toString();
+        // Pull out the error message, without too much extra formatting.
+        final String errStr;
+        switch (err) {
+          case PlatformException(:final code, :final message):
+            errStr = "$message (code=$code)";
+          case FfiError(:final message):
+            errStr = message;
+          default:
+            errStr = err.toString();
+        }
+
         error("Failed to auth user with GDrive: $errStr");
         this.errorMessage.value = ErrorMessage(
           title: "There was an error connecting your Google Drive",

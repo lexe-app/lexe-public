@@ -20,6 +20,7 @@ import 'package:app_rs_dart/ffi/gdrive.dart'
         GDriveRestoreClient,
         GDriveRestoreClientRs;
 import 'package:app_rs_dart/ffi/types.dart' show DeployEnv, Network, RootSeed;
+import 'package:app_rs_dart/frb.dart' show AnyhowException;
 import 'package:flutter/services.dart' show PlatformException, appFlavor;
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart'
     show FlutterWebAuth2;
@@ -127,6 +128,8 @@ class ProdGDriveAuth extends GDriveAuth {
       } else {
         return Err(err);
       }
+    } on AnyhowException catch (err) {
+      return Err(FfiError.fromFfi(err));
     } on Exception catch (err) {
       return Err(err);
     }
