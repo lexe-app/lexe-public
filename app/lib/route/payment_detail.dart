@@ -18,7 +18,8 @@ import 'package:lexeapp/components.dart'
         LxRefreshButton,
         PaymentNoteInput,
         ScrollableSinglePageBody,
-        SheetDragHandle;
+        SheetDragHandle,
+        SliverPullToRefresh;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/logger.dart';
@@ -267,72 +268,82 @@ class PaymentDetailPageInner extends StatelessWidget {
 
           return ScrollableSinglePageBody(
             padding: pagePaddingInsets,
-            body: [
-              const SizedBox(height: Space.s500),
-
-              // Big LN/BTC icon + status badge
-              Align(
-                alignment: Alignment.topCenter,
-                child: PaymentDetailIcon(
-                  kind: kind,
-                  status: status,
-                ),
+            bodySlivers: [
+              // Pull-to-refresh, but only when payment is pending.
+              SliverPullToRefresh(
+                onRefresh: (status == PaymentStatus.pending)
+                    ? this.triggerRefresh
+                    : null,
               ),
 
-              const SizedBox(height: Space.s500),
+              // Payment detail body
+              SliverList.list(children: [
+                const SizedBox(height: Space.s500),
 
-              // Direction + short time
-              ValueListenableBuilder(
-                valueListenable: this.paymentDateUpdates,
-                builder: (_, now, child) => PaymentDetailDirectionTime(
-                  status: status,
-                  direction: direction,
-                  createdAt: createdAt,
-                  now: now,
-                ),
-              ),
-              const SizedBox(height: Space.s400),
-
-              // TODO(phlip9): LN invoice "expires in X min" goes here?
-              // If pending or failed, show a card with more info on the current
-              // status.
-              if (status != PaymentStatus.completed)
-                Padding(
-                  // padding: const EdgeInsets.only(top: Space.s200, bottom: Space.s200),
-                  padding: const EdgeInsets.symmetric(
-                      vertical: Space.s200, horizontal: Space.s600),
-                  child: PaymentDetailStatusCard(
+                // Big LN/BTC icon + status badge
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: PaymentDetailIcon(
+                    kind: kind,
                     status: status,
-                    statusStr: payment.statusStr,
                   ),
                 ),
 
-              const SizedBox(height: Space.s700),
+                const SizedBox(height: Space.s500),
 
-              // Amount sent/received in BTC and fiat.
-              if (maybeAmountSat != null)
+                // Direction + short time
                 ValueListenableBuilder(
-                  valueListenable: this.fiatRate,
-                  builder: (_context, fiatRate, child) =>
-                      PaymentDetailPrimaryAmount(
+                  valueListenable: this.paymentDateUpdates,
+                  builder: (_, now, child) => PaymentDetailDirectionTime(
                     status: status,
                     direction: direction,
-                    amountSat: maybeAmountSat,
-                    fiatRate: fiatRate,
+                    createdAt: createdAt,
+                    now: now,
                   ),
                 ),
-              const SizedBox(height: Space.s400),
+                const SizedBox(height: Space.s400),
 
-              // The payment's note field
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: bodyPadding),
-                child: PaymentDetailNoteInput(
-                  app: this.app,
-                  paymentIndex: payment.index,
-                  initialNote: payment.note,
+                // TODO(phlip9): LN invoice "expires in X min" goes here?
+                // If pending or failed, show a card with more info on the
+                // current status.
+                if (status != PaymentStatus.completed)
+                  Padding(
+                    // padding: const EdgeInsets.only(top: Space.s200, bottom: Space.s200),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: Space.s200, horizontal: Space.s600),
+                    child: PaymentDetailStatusCard(
+                      status: status,
+                      statusStr: payment.statusStr,
+                    ),
+                  ),
+
+                const SizedBox(height: Space.s700),
+
+                // Amount sent/received in BTC and fiat.
+                if (maybeAmountSat != null)
+                  ValueListenableBuilder(
+                    valueListenable: this.fiatRate,
+                    builder: (_context, fiatRate, child) =>
+                        PaymentDetailPrimaryAmount(
+                      status: status,
+                      direction: direction,
+                      amountSat: maybeAmountSat,
+                      fiatRate: fiatRate,
+                    ),
+                  ),
+                const SizedBox(height: Space.s400),
+
+                // The payment's note field
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: bodyPadding),
+                  child: PaymentDetailNoteInput(
+                    app: this.app,
+                    paymentIndex: payment.index,
+                    initialNote: payment.note,
+                  ),
                 ),
-              ),
-              const SizedBox(height: Space.s1000),
+                const SizedBox(height: Space.s1000),
+              ]),
             ],
 
             // Payment details button

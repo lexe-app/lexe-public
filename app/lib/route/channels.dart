@@ -17,6 +17,7 @@ import 'package:lexeapp/components.dart'
         LxBackButton,
         LxRefreshButton,
         ScrollableSinglePageBody,
+        SliverPullToRefresh,
         SplitAmountText;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/logger.dart';
@@ -205,6 +206,10 @@ class _ChannelsPageState extends State<ChannelsPage> {
           children: [
             ScrollableSinglePageBody(
               bodySlivers: [
+                // Pull-to-refresh
+                SliverPullToRefresh(onRefresh: this.triggerRefresh),
+
+                // Heading + send/recv up to. Fixed extent.
                 SliverToBoxAdapter(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

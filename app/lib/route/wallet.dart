@@ -28,6 +28,7 @@ import 'package:lexeapp/components.dart'
         LxRefreshButton,
         MultistepFlow,
         ScrollableSinglePageBody,
+        SliverPullToRefresh,
         SplitAmountText,
         SubBalanceRow,
         showModalAsyncFlow;
@@ -473,6 +474,9 @@ class WalletPageState extends State<WalletPage> {
       body: ScrollableSinglePageBody(
         padding: EdgeInsets.zero,
         bodySlivers: [
+          // Pull-to-refresh
+          SliverPullToRefresh(onRefresh: this.triggerRefresh),
+
           // The primary wallet page content
           //
           // * Balance

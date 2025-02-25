@@ -5,6 +5,7 @@ import 'dart:async' show unawaited;
 import 'dart:io' show Platform;
 import 'dart:math' show max;
 
+import 'package:flutter/cupertino.dart' show CupertinoSliverRefreshControl;
 import 'package:flutter/foundation.dart' show ValueListenable, clampDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MaxLengthEnforcement;
@@ -145,6 +146,22 @@ class ScrollableSinglePageBody extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Add this sliver as the first child of a [ScrollableSinglePageBody] or
+/// [CustomScrollView] to enable pull-to-refresh in that scrollable.
+///
+/// This pull-to-refresh doesn't provide any visual feedback, just a haptic
+/// buzz when the refresh is armed.
+class SliverPullToRefresh extends CupertinoSliverRefreshControl {
+  SliverPullToRefresh({
+    super.key,
+    required VoidCallback? onRefresh,
+  }) : super(
+          builder: null,
+          refreshIndicatorExtent: 0.0,
+          onRefresh: (onRefresh != null) ? (() async => onRefresh()) : null,
+        );
 }
 
 /// Start a new multistep UI flow.
