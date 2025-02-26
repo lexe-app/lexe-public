@@ -352,6 +352,32 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               ),
             ),
             Component(
+              "SendPaymentConfirmPage",
+              subtitle: "pay invoice error",
+              (context) => SendPaymentPage(
+                startNewFlow: true,
+                sendCtx: SendState_Preflighted(
+                  app: mockAppErroring,
+                  configNetwork: widget.config.network,
+                  balance: balance,
+                  cid: cid,
+                  preflightedPayment: (() {
+                    final invoice =
+                        mocks.dummyInvoiceOutboundPending01.invoice!;
+                    final amountSats = invoice.amountSats!;
+                    return PreflightedPayment_Invoice(
+                      invoice: invoice,
+                      preflight: PreflightPayInvoiceResponse(
+                        amountSats: amountSats,
+                        feesSats: (0.0095 * amountSats).truncate(),
+                      ),
+                      amountSats: amountSats,
+                    );
+                  })(),
+                ),
+              ),
+            ),
+            Component(
               "ReceivePaymentPage",
               (context) => ReceivePaymentPage(
                 app: mockApp,

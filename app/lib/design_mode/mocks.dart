@@ -350,6 +350,14 @@ class MockAppHandleErroring extends MockAppHandle {
           const Duration(milliseconds: 1000),
           () => throw const FfiError("[106=Command] No channel with this id")
               .toFfi());
+
+  @override
+  Future<PayInvoiceResponse> payInvoice({required PayInvoiceRequest req}) =>
+      Future.delayed(
+          const Duration(milliseconds: 1000),
+          () => throw const FfiError(
+                  "[106=Command] Already tried to pay this invoice: Error handling new payment: Payment already exists: finalized")
+              .toFfi());
 }
 
 /// `AppHandle` used for screenshots.
