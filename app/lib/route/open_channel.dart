@@ -226,34 +226,27 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
           ),
 
           const SizedBox(height: Space.s700),
+
+          // Error fetching fee estimate
+          ValueListenableBuilder(
+            valueListenable: this.estimateFeeError,
+            builder: (_context, errorMessage, _widget) =>
+                ErrorMessageSection(errorMessage),
+          ),
         ],
-        bottom: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            const Expanded(child: SizedBox(height: Space.s500)),
 
-            // Error fetching fee estimate
-            ValueListenableBuilder(
-              valueListenable: this.estimateFeeError,
-              builder: (_context, errorMessage, _widget) =>
-                  ErrorMessageSection(errorMessage),
+        // Next ->
+        bottom: Padding(
+          padding: const EdgeInsets.only(top: Space.s500),
+          child: ValueListenableBuilder(
+            valueListenable: this.estimatingFee,
+            builder: (_context, estimatingFee, _widget) => AnimatedFillButton(
+              label: const Text("Next"),
+              icon: const Icon(LxIcons.next),
+              onTap: this.onNext,
+              loading: estimatingFee,
             ),
-
-            // Next ->
-            ValueListenableBuilder(
-              valueListenable: this.estimatingFee,
-              builder: (_context, estimatingFee, _widget) => Padding(
-                padding: const EdgeInsets.only(top: Space.s500),
-                child: AnimatedFillButton(
-                  label: const Text("Next"),
-                  icon: const Icon(LxIcons.next),
-                  onTap: this.onNext,
-                  loading: estimatingFee,
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -412,39 +405,32 @@ class _OpenChannelConfirmPageState extends State<OpenChannelConfirmPage> {
             },
           ),
 
-          const SizedBox(height: Space.s600),
+          const SizedBox(height: Space.s700),
+
+          // Error opening channel
+          ValueListenableBuilder(
+            valueListenable: this.openError,
+            builder: (_context, errorMessage, _widget) =>
+                ErrorMessageSection(errorMessage),
+          ),
         ],
-        bottom: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            const Expanded(child: SizedBox(height: Space.s500)),
 
-            // Error opening channel
-            ValueListenableBuilder(
-              valueListenable: this.openError,
-              builder: (_context, errorMessage, _widget) =>
-                  ErrorMessageSection(errorMessage),
-            ),
-
-            // Open channel ->
-            ValueListenableBuilder(
-              valueListenable: this.isPending,
-              builder: (_context, estimatingFee, _widget) => Padding(
-                padding: const EdgeInsets.only(top: Space.s500),
-                child: AnimatedFillButton(
-                  label: const Text("Open channel"),
-                  icon: const Icon(LxIcons.next),
-                  onTap: this.onConfirm,
-                  loading: estimatingFee,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: LxColors.moneyGoUp,
-                    foregroundColor: LxColors.grey1000,
-                  ),
-                ),
+        // Open channel ->
+        bottom: Padding(
+          padding: const EdgeInsets.only(top: Space.s500),
+          child: ValueListenableBuilder(
+            valueListenable: this.isPending,
+            builder: (_context, estimatingFee, _widget) => AnimatedFillButton(
+              label: const Text("Open channel"),
+              icon: const Icon(LxIcons.next),
+              onTap: this.onConfirm,
+              loading: estimatingFee,
+              style: FilledButton.styleFrom(
+                backgroundColor: LxColors.moneyGoUp,
+                foregroundColor: LxColors.grey1000,
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

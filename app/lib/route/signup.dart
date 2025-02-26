@@ -286,18 +286,23 @@ of critical data on a regular basis.
 ''',
             styleSheet: LxTheme.markdownStyle,
           ),
-          ValueListenableBuilder(
-            valueListenable: this.errorMessage,
-            builder: (_context, errorMessage, _widget) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: Space.s500),
-              child: ErrorMessageSection(errorMessage),
+
+          Padding(
+            padding: const EdgeInsets.only(top: Space.s500),
+            child: ValueListenableBuilder(
+              valueListenable: this.errorMessage,
+              builder: (_context, errorMessage, _widget) =>
+                  ErrorMessageSection(errorMessage),
             ),
           ),
         ],
-        bottom: LxFilledButton.strong(
-          label: const Text("Connect Google Drive"),
-          icon: const Icon(LxIcons.next),
-          onTap: this.onAuthPressed,
+        bottom: Padding(
+          padding: const EdgeInsets.only(top: Space.s500),
+          child: LxFilledButton.strong(
+            label: const Text("Connect Google Drive"),
+            icon: const Icon(LxIcons.next),
+            onTap: this.onAuthPressed,
+          ),
         ),
       ),
     );
@@ -480,37 +485,30 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
           ),
 
           // Error message
-          ValueListenableBuilder(
-            valueListenable: this.errorMessage,
-            builder: (_context, errorMessage, _widget) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: Space.s500),
-              child: ErrorMessageSection(errorMessage),
+          Padding(
+            padding: const EdgeInsets.only(top: Space.s500),
+            child: ValueListenableBuilder(
+              valueListenable: this.errorMessage,
+              builder: (_context, errorMessage, _widget) =>
+                  ErrorMessageSection(errorMessage),
             ),
           ),
         ],
-        bottom: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.end,
-          verticalDirection: VerticalDirection.down,
-          children: [
-            const Expanded(child: SizedBox(height: Space.s500)),
-
-            // Disable the button and show a loading indicator while sending the
-            // request.
-            ValueListenableBuilder(
-              valueListenable: this.isSigningUp,
-              builder: (context, isSending, widget) => AnimatedFillButton(
-                label: const Text("Sign up"),
-                icon: const Icon(LxIcons.next),
-                onTap: this.onSubmit,
-                loading: isSending,
-                style: FilledButton.styleFrom(
-                  backgroundColor: LxColors.moneyGoUp,
-                  foregroundColor: LxColors.grey1000,
-                ),
+        bottom: Padding(
+          padding: const EdgeInsets.only(top: Space.s500),
+          child: ValueListenableBuilder(
+            valueListenable: this.isSigningUp,
+            builder: (context, isSending, widget) => AnimatedFillButton(
+              label: const Text("Sign up"),
+              icon: const Icon(LxIcons.next),
+              onTap: this.onSubmit,
+              loading: isSending,
+              style: FilledButton.styleFrom(
+                backgroundColor: LxColors.moneyGoUp,
+                foregroundColor: LxColors.grey1000,
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

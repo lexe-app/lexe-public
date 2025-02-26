@@ -368,39 +368,32 @@ class _CloseChannelConfirmPageState extends State<CloseChannelConfirmPage> {
             },
           ),
 
-          const SizedBox(height: Space.s600),
+          const SizedBox(height: Space.s700),
+
+          // Error closing channel
+          ValueListenableBuilder(
+            valueListenable: this.closeError,
+            builder: (_context, errorMessage, _widget) =>
+                ErrorMessageSection(errorMessage),
+          ),
         ],
-        bottom: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            const Expanded(child: SizedBox(height: Space.s500)),
 
-            // Error closing channel
-            ValueListenableBuilder(
-              valueListenable: this.closeError,
-              builder: (_context, errorMessage, _widget) =>
-                  ErrorMessageSection(errorMessage),
-            ),
-
-            // Open channel ->
-            ValueListenableBuilder(
-              valueListenable: this.isPending,
-              builder: (_context, estimatingFee, _widget) => Padding(
-                padding: const EdgeInsets.only(top: Space.s500),
-                child: AnimatedFillButton(
-                  label: const Text("Close channel"),
-                  icon: const Icon(LxIcons.next),
-                  onTap: this.onConfirm,
-                  loading: estimatingFee,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: LxColors.moneyGoUp,
-                    foregroundColor: LxColors.grey1000,
-                  ),
-                ),
+        // Close channel ->
+        bottom: Padding(
+          padding: const EdgeInsets.only(top: Space.s500),
+          child: ValueListenableBuilder(
+            valueListenable: this.isPending,
+            builder: (_context, estimatingFee, _widget) => AnimatedFillButton(
+              label: const Text("Close channel"),
+              icon: const Icon(LxIcons.next),
+              onTap: this.onConfirm,
+              loading: estimatingFee,
+              style: FilledButton.styleFrom(
+                backgroundColor: LxColors.moneyGoUp,
+                foregroundColor: LxColors.grey1000,
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

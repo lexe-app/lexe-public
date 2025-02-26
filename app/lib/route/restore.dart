@@ -261,11 +261,12 @@ Already have a Lexe Wallet? Connect your Google Drive to restore from an existin
           ),
 
           // Error message
-          ValueListenableBuilder(
-            valueListenable: this.errorMessage,
-            builder: (_context, errorMessage, _widget) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: Space.s500),
-              child: ErrorMessageSection(errorMessage),
+          Padding(
+            padding: const EdgeInsets.only(top: Space.s500),
+            child: ValueListenableBuilder(
+              valueListenable: this.errorMessage,
+              builder: (_context, errorMessage, _widget) =>
+                  ErrorMessageSection(errorMessage),
             ),
           ),
         ],
@@ -507,11 +508,12 @@ class _RestorePasswordPageState extends State<RestorePasswordPage> {
           ),
 
           // Error message
-          ValueListenableBuilder(
-            valueListenable: this.errorMessage,
-            builder: (_context, errorMessage, _widget) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: Space.s500),
-              child: ErrorMessageSection(errorMessage),
+          Padding(
+            padding: const EdgeInsets.only(top: Space.s500),
+            child: ValueListenableBuilder(
+              valueListenable: this.errorMessage,
+              builder: (_context, errorMessage, _widget) =>
+                  ErrorMessageSection(errorMessage),
             ),
           ),
         ],

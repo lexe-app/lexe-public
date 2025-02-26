@@ -221,45 +221,46 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
               letterSpacing: -0.5,
             ),
           ),
+
           const SizedBox(height: Space.s800),
+
+          // Error parsing, resolving, and/or preflighting payment
+          ValueListenableBuilder(
+            valueListenable: this.errorMessage,
+            builder: (_context, errorMessage, _widget) =>
+                ErrorMessageSection(errorMessage),
+          ),
         ],
-        bottom: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            const Expanded(child: SizedBox(height: Space.s500)),
 
-            // Error parsing, resolving, and/or preflighting payment
-            ValueListenableBuilder(
-              valueListenable: this.errorMessage,
-              builder: (_context, errorMessage, _widget) =>
-                  ErrorMessageSection(errorMessage),
-            ),
-
-            // Bottom buttons
-            ValueListenableBuilder(
-              valueListenable: this.isPending,
-              builder: (_context, isPending, _widget) => Padding(
-                padding: const EdgeInsets.only(top: Space.s500),
-                child: Row(
-                  children: [
-                    // Paste
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: this.onPaste,
-                        child: StackedButton(
-                          button: LxFilledButton(
-                            onTap: this.onPaste,
-                            icon: const Center(child: Icon(LxIcons.paste)),
-                          ),
-                          label: "Paste",
+        // Bottom buttons (paste, next ->)
+        bottom: Padding(
+          padding: const EdgeInsets.only(top: Space.s500),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Row(
+                children: [
+                  // Paste
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: this.onPaste,
+                      child: StackedButton(
+                        button: LxFilledButton(
+                          onTap: this.onPaste,
+                          icon: const Center(child: Icon(LxIcons.paste)),
                         ),
+                        label: "Paste",
                       ),
                     ),
-                    const SizedBox(width: Space.s200),
-                    // Next ->
-                    Expanded(
-                      child: GestureDetector(
+                  ),
+                  const SizedBox(width: Space.s200),
+                  // Next ->
+                  Expanded(
+                    child: ValueListenableBuilder(
+                      valueListenable: this.isPending,
+                      builder: (_context, isPending, _widget) =>
+                          GestureDetector(
                         onTap: !isPending ? this.onNext : null,
                         child: StackedButton(
                           button: AnimatedFillButton(
@@ -272,11 +273,11 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -446,34 +447,27 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           ),
 
           const SizedBox(height: Space.s700),
+
+          // Error fetching fee estimate
+          ValueListenableBuilder(
+            valueListenable: this.estimateFeeError,
+            builder: (_context, errorMessage, _widget) =>
+                ErrorMessageSection(errorMessage),
+          ),
         ],
-        bottom: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            const Expanded(child: SizedBox(height: Space.s500)),
 
-            // Error fetching fee estimate
-            ValueListenableBuilder(
-              valueListenable: this.estimateFeeError,
-              builder: (_context, errorMessage, _widget) =>
-                  ErrorMessageSection(errorMessage),
+        // Next ->
+        bottom: Padding(
+          padding: const EdgeInsets.only(top: Space.s500),
+          child: ValueListenableBuilder(
+            valueListenable: this.estimatingFee,
+            builder: (_context, estimatingFee, _widget) => AnimatedFillButton(
+              label: const Text("Next"),
+              icon: const Icon(LxIcons.next),
+              onTap: this.onNext,
+              loading: estimatingFee,
             ),
-
-            // Next ->
-            ValueListenableBuilder(
-              valueListenable: this.estimatingFee,
-              builder: (_context, estimatingFee, _widget) => Padding(
-                padding: const EdgeInsets.only(top: Space.s500),
-                child: AnimatedFillButton(
-                  label: const Text("Next"),
-                  icon: const Icon(LxIcons.next),
-                  onTap: this.onNext,
-                  loading: estimatingFee,
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -784,7 +778,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
           ValueListenableBuilder(
             valueListenable: this.sendError,
             builder: (context, sendError, widget) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: Space.s300),
+              padding: const EdgeInsets.symmetric(vertical: Space.s400),
               child: ErrorMessageSection(sendError),
             ),
           ),
