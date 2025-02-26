@@ -179,16 +179,17 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       payments: mocks.defaultDummyPayments,
       channels: mocks.defaultDummyChannels,
     );
-    final mockAppErroring = mocks.MockAppHandleErroring(
+    final mockAppErr = mocks.MockAppHandleErr(
       payments: mocks.defaultDummyPayments,
       channels: mocks.defaultDummyChannels,
     );
     final mockSignupApi = mocks.MockSignupApi(app: mockApp);
+    const mockSignupApiErr = mocks.MockSignupApiErr();
     final mockRestoreApi = mocks.MockRestoreApi(app: mockApp);
     final mockSignupCtx =
         SignupCtx(this.widget.config, GDriveAuth.mock, mockSignupApi);
-    final mockErrorSignupCtx =
-        SignupCtx(this.widget.config, GDriveAuth.mockError, mockSignupApi);
+    final mockSignupCtxErr =
+        SignupCtx(this.widget.config, GDriveAuth.mockError, mockSignupApiErr);
 
     final cidBytes = List.generate(32, (idx) => idx);
     final cid = ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
@@ -234,7 +235,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
             Component(
               "SignupPage (mock gdrive error)",
-              (context) => SignupPage(ctx: mockErrorSignupCtx),
+              (context) => SignupPage(ctx: mockSignupCtxErr),
             ),
             Component(
               "SignupPage (real gdrive)",
@@ -247,6 +248,15 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "SignupBackupPasswordPage",
               (context) => SignupBackupPasswordPage(
                 ctx: mockSignupCtx,
+                authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
+                signupCode: null,
+              ),
+            ),
+            Component(
+              "SignupBackupPasswordPage",
+              subtitle: "signup error",
+              (context) => SignupBackupPasswordPage(
+                ctx: mockSignupCtxErr,
                 authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
                 signupCode: null,
               ),
@@ -340,7 +350,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (context) => SendPaymentPage(
                 startNewFlow: true,
                 sendCtx: SendState_NeedAmount(
-                  app: mockAppErroring,
+                  app: mockAppErr,
                   configNetwork: widget.config.network,
                   balance: balance,
                   cid: cid,
@@ -376,7 +386,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (context) => SendPaymentPage(
                 startNewFlow: true,
                 sendCtx: SendState_Preflighted(
-                  app: mockAppErroring,
+                  app: mockAppErr,
                   configNetwork: widget.config.network,
                   balance: balance,
                   cid: cid,
@@ -407,7 +417,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "ReceivePaymentPage",
               subtitle: "fetch invoice error",
               (context) => ReceivePaymentPage(
-                app: mockAppErroring,
+                app: mockAppErr,
                 fiatRate: this.makeFiatRateStream(),
               ),
             ),
@@ -489,7 +499,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "OpenChannelPage",
               subtitle: "preflight error",
               (context) => OpenChannelPage(
-                app: mockAppErroring,
+                app: mockAppErr,
                 balanceState: ValueNotifier(const BalanceState(
                   balanceSats: Balance(
                     totalSats: 123000,
@@ -522,7 +532,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "OpenChannelConfirmPage",
               subtitle: "error",
               (context) => OpenChannelConfirmPage(
-                app: mockAppErroring,
+                app: mockAppErr,
                 balanceState: ValueNotifier(const BalanceState(
                   balanceSats: Balance(
                     totalSats: 123000,
@@ -550,7 +560,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "CloseChannelPage",
               subtitle: "preflight error",
               (context) => CloseChannelPage(
-                app: mockAppErroring,
+                app: mockAppErr,
                 fiatRate: this.makeFiatRateStream(),
                 channels: ValueNotifier(ChannelsList.fromApi(
                     ListChannelsResponse(channels: mockApp.channels))),
@@ -572,7 +582,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "CloseChannelConfirmPage",
               subtitle: "error",
               (context) => CloseChannelConfirmPage(
-                app: mockAppErroring,
+                app: mockAppErr,
                 fiatRate: this.makeFiatRateStream(),
                 channelId:
                     "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",

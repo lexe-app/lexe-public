@@ -327,8 +327,8 @@ class MockAppHandle extends AppHandle {
 }
 
 /// An [AppHandle] that usually errors first.
-class MockAppHandleErroring extends MockAppHandle {
-  MockAppHandleErroring({
+class MockAppHandleErr extends MockAppHandle {
+  MockAppHandleErr({
     required super.payments,
     required super.channels,
   });
@@ -506,7 +506,22 @@ class MockSignupApi implements SignupApi {
       Future.delayed(
         const Duration(milliseconds: 2000),
         () => Ok(this.app),
-        // () => const Err(FfiError("[Connect=10] Could not connect")),
+      );
+}
+
+class MockSignupApiErr implements SignupApi {
+  const MockSignupApiErr();
+
+  @override
+  Future<FfiResult<AppHandle>> signup({
+    required Config config,
+    required String googleAuthCode,
+    required String password,
+    required String? signupCode,
+  }) =>
+      Future.delayed(
+        const Duration(milliseconds: 1000),
+        () => const Err(FfiError("[Connect=10] Could not connect")),
       );
 }
 
