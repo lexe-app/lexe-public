@@ -319,11 +319,28 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
             Component(
               "SendPaymentAmountPage",
-              subtitle: "onchain address-only",
+              subtitle: "onchain",
               (context) => SendPaymentPage(
                 startNewFlow: true,
                 sendCtx: SendState_NeedAmount(
                   app: mockApp,
+                  configNetwork: widget.config.network,
+                  balance: balance,
+                  cid: cid,
+                  paymentMethod: const PaymentMethod.onchain(
+                    Onchain(
+                        address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"),
+                  ),
+                ),
+              ),
+            ),
+            Component(
+              "SendPaymentAmountPage",
+              subtitle: "onchain (preflight error)",
+              (context) => SendPaymentPage(
+                startNewFlow: true,
+                sendCtx: SendState_NeedAmount(
+                  app: mockAppErroring,
                   configNetwork: widget.config.network,
                   balance: balance,
                   cid: cid,
@@ -469,9 +486,43 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               ),
             ),
             Component(
+              "OpenChannelPage",
+              subtitle: "preflight error",
+              (context) => OpenChannelPage(
+                app: mockAppErroring,
+                balanceState: ValueNotifier(const BalanceState(
+                  balanceSats: Balance(
+                    totalSats: 123000,
+                    lightningSats: 0,
+                    onchainSats: 123000,
+                  ),
+                  fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
+                )),
+              ),
+            ),
+            Component(
               "OpenChannelConfirmPage",
               (context) => OpenChannelConfirmPage(
                 app: mockApp,
+                balanceState: ValueNotifier(const BalanceState(
+                  balanceSats: Balance(
+                    totalSats: 123000,
+                    lightningSats: 0,
+                    onchainSats: 123000,
+                  ),
+                  fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
+                )),
+                channelValueSats: 6500,
+                userChannelId: UserChannelId(id: U8Array16.init()),
+                preflight:
+                    const PreflightOpenChannelResponse(feeEstimateSats: 122),
+              ),
+            ),
+            Component(
+              "OpenChannelConfirmPage",
+              subtitle: "error",
+              (context) => OpenChannelConfirmPage(
+                app: mockAppErroring,
                 balanceState: ValueNotifier(const BalanceState(
                   balanceSats: Balance(
                     totalSats: 123000,
@@ -509,6 +560,19 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "CloseChannelConfirmPage",
               (context) => CloseChannelConfirmPage(
                 app: mockApp,
+                fiatRate: this.makeFiatRateStream(),
+                channelId:
+                    "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",
+                channelOurBalanceSats: 300231,
+                preflight:
+                    const PreflightCloseChannelResponse(feeEstimateSats: 1100),
+              ),
+            ),
+            Component(
+              "CloseChannelConfirmPage",
+              subtitle: "error",
+              (context) => CloseChannelConfirmPage(
+                app: mockAppErroring,
                 fiatRate: this.makeFiatRateStream(),
                 channelId:
                     "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",

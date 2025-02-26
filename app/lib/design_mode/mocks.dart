@@ -344,6 +344,42 @@ class MockAppHandleErroring extends MockAppHandle {
   }
 
   @override
+  Future<PayInvoiceResponse> payInvoice({required PayInvoiceRequest req}) =>
+      Future.delayed(
+          const Duration(milliseconds: 1000),
+          () => throw const FfiError(
+                  "[106=Command] Already tried to pay this invoice: Error handling new payment: Payment already exists: finalized")
+              .toFfi());
+
+  @override
+  Future<PreflightPayOnchainResponse> preflightPayOnchain(
+          {required PreflightPayOnchainRequest req}) =>
+      Future.delayed(
+          const Duration(milliseconds: 1000),
+          () => throw const FfiError(
+                  "[106=Command] Failed to build onchain send tx: Insufficient funds: 433 sat available of 16546 sat needed")
+              .toFfi());
+
+  @override
+  Future<PreflightOpenChannelResponse> preflightOpenChannel(
+          {required PreflightOpenChannelRequest req}) =>
+      Future.delayed(
+        const Duration(milliseconds: 1000),
+        () => throw const FfiError(
+                "[106=Command] Channel value is below limit 5000 sats")
+            .toFfi(),
+      );
+
+  @override
+  Future<OpenChannelResponse> openChannel({required OpenChannelRequest req}) =>
+      Future.delayed(
+        const Duration(milliseconds: 1000),
+        () => throw const FfiError(
+                "[106=Command] Waiting for channel close event: deadline has elapsed")
+            .toFfi(),
+      );
+
+  @override
   Future<PreflightCloseChannelResponse> preflightCloseChannel(
           {required CloseChannelRequest req}) =>
       Future.delayed(
@@ -352,12 +388,13 @@ class MockAppHandleErroring extends MockAppHandle {
               .toFfi());
 
   @override
-  Future<PayInvoiceResponse> payInvoice({required PayInvoiceRequest req}) =>
+  Future<void> closeChannel({required CloseChannelRequest req}) =>
       Future.delayed(
-          const Duration(milliseconds: 1000),
-          () => throw const FfiError(
-                  "[106=Command] Already tried to pay this invoice: Error handling new payment: Payment already exists: finalized")
-              .toFfi());
+        const Duration(milliseconds: 1000),
+        () => throw const FfiError(
+                "[106=Command] Waiting for channel close event: deadline has elapsed")
+            .toFfi(),
+      );
 }
 
 /// `AppHandle` used for screenshots.
