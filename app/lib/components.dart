@@ -14,6 +14,7 @@ import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/input_formatter.dart'
     show IntInputFormatter, MaxUtf8BytesInputFormatter;
 import 'package:lexeapp/result.dart';
+import 'package:lexeapp/string_ext.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxBreakpoints, LxColors, LxIcons, LxRadius, Space;
 import 'package:lexeapp/types.dart' show BalanceKind, BalanceState, FiatAmount;
@@ -1602,57 +1603,201 @@ Future<Result<T, E>?> showModalAsyncFlow<T, E>({
   return result;
 }
 
+/// An error title and message. Used with [ErrorMessageSection].
 final class ErrorMessage {
   const ErrorMessage({this.title, this.message})
       : assert(title != null || message != null);
 
   final String? title;
   final String? message;
+
+  /// Concat the error title and message together, separated by a newline.
+  @override
+  String toString() {
+    final title = this.title;
+    final message = this.message;
+
+    if (title != null && message == null) return title;
+    if (title == null && message != null) return message;
+
+    return "$title\n$message";
+  }
+
+  @override
+  int get hashCode => this.title.hashCode ^ this.message.hashCode;
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == this.runtimeType &&
+            other is ErrorMessage &&
+            (identical(other.title, this.title) || other.title == this.title) &&
+            (identical(other.message, this.message) ||
+                other.message == this.message));
+  }
 }
 
-/// A section that fades-in error details when the [errorMessage] is set.
-class ErrorMessageSection extends StatelessWidget {
+/// A white card that fades-in error details when the [errorMessage] is set.
+///
+/// The card is also interactive.
+/// 1. If the error message is too long, we'll truncate it but allow the user
+///    to tap-to-expand.
+/// 2. The user can also long-press the card to copy the full error message to
+///    their clipboard.
+// TODO(phlip9): handle structured errors
+// TODO(phlip9): slide up/down animation
+class ErrorMessageSection extends StatefulWidget {
   const ErrorMessageSection(this.errorMessage, {super.key});
 
   final ErrorMessage? errorMessage;
 
   @override
+  State<ErrorMessageSection> createState() => _ErrorMessageSectionState();
+}
+
+class _ErrorMessageSectionState extends State<ErrorMessageSection> {
+  final ValueNotifier<bool> isExpanded = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    this.isExpanded.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant ErrorMessageSection oldWidget) {
+    // Reset isExpanded when the error message gets reset.
+    if (this.widget.errorMessage == null) {
+      this.isExpanded.value = false;
+    }
+
+    super.didUpdateWidget(oldWidget);
+  }
+
+  /// Toggle whether the error section is expanded or collapsed.
+  void toggleExpanded() {
+    this.isExpanded.value = !this.isExpanded.value;
+  }
+
+  /// Copy the combined error title and message to the clipboard.
+  void copyToClipboard() {
+    final errorMessage = this.widget.errorMessage;
+    if (errorMessage == null) return;
+
+    LxClipboard.copyTextWithFeedback(this.context, errorMessage.toString());
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final errorMessage = this.errorMessage;
+    const int maxMsgLines = 1;
+
+    final errorMessage = this.widget.errorMessage;
     final title = errorMessage?.title;
     final message = errorMessage?.message;
 
-    // TODO(phlip9): maybe tap to expand full error message?
-    // TODO(phlip9): slide up animation?
+    // The error message section is expandable if the message body is too long.
+    final expandable = message != null && message.countLines() > maxMsgLines;
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 200),
       child: (errorMessage != null)
-          ? ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: (title != null)
-                  ? Padding(
-                      padding: const EdgeInsets.only(bottom: Space.s200),
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          color: LxColors.errorText,
-                          fontVariations: [Fonts.weightMedium],
-                          height: 1.15,
+          // white card containing error title+message
+          // 1. tap to expand
+          // 2. long press to copy
+          ? Card.filled(
+              color: LxColors.grey1000,
+              margin: EdgeInsets.zero,
+              clipBehavior: Clip.hardEdge,
+              child: InkWell(
+                onTap: expandable ? this.toggleExpanded : null,
+                onLongPress: this.copyToClipboard,
+                child: Padding(
+                  padding: expandable
+                      ? const EdgeInsets.fromLTRB(
+                          Space.s300, Space.s300, Space.s300, Space.s100)
+                      : const EdgeInsets.all(Space.s300),
+                  // Outer Row(Expanded(..)) forces error card to take full
+                  // horizontal space
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // error title
+                            if (title != null)
+                              Padding(
+                                padding: (message != null)
+                                    ? const EdgeInsets.only(bottom: Space.s200)
+                                    : EdgeInsets.zero,
+                                child: ValueListenableBuilder(
+                                  valueListenable: this.isExpanded,
+                                  builder: (_context, isExpanded, _child) =>
+                                      Text(
+                                    title,
+                                    maxLines: (expandable)
+                                        ? ((isExpanded) ? 4 : 1)
+                                        : 2,
+                                    style: const TextStyle(
+                                      // color: LxColors.errorText,
+                                      fontVariations: [Fonts.weightMedium],
+                                      fontSize: Fonts.size200,
+                                      height: 1.15,
+                                      letterSpacing: -0.2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                            // not expanded: first few lines of error message body
+                            //     expanded: full error message body
+                            if (message != null)
+                              ValueListenableBuilder(
+                                valueListenable: this.isExpanded,
+                                builder: (_context, isExpanded, _child) => Text(
+                                  message,
+                                  maxLines: (expandable)
+                                      ? ((isExpanded) ? null : maxMsgLines)
+                                      : 2,
+                                  style: const TextStyle(
+                                    // color: LxColors.errorText,
+                                    fontSize: Fonts.size100,
+                                    height: 1.3,
+                                    letterSpacing: -0.1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+
+                            // v - expand hint. only shown if actually expandable.
+                            if (expandable)
+                              Center(
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.only(top: Space.s100),
+                                  child: ValueListenableBuilder(
+                                    valueListenable: this.isExpanded,
+                                    builder: (_context, isExpanded, _child) =>
+                                        Icon(
+                                      (isExpanded)
+                                          ? LxIcons.expandUpSmall
+                                          : LxIcons.expandDownSmall,
+                                      color: LxColors.errorText,
+                                      weight: LxIcons.weightLight,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                    )
-                  : null,
-              subtitle: (message != null)
-                  ? Text(
-                      message,
-                      maxLines: 3,
-                      style: const TextStyle(
-                        color: LxColors.errorText,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    )
-                  : null,
+                    ],
+                  ),
+                ),
+              ),
             )
           : null,
     );

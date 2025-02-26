@@ -35,6 +35,8 @@ import 'package:intl/intl.dart' show Intl;
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/components.dart'
     show
+        ErrorMessage,
+        ErrorMessageSection,
         FilledTextPlaceholder,
         HeadingText,
         LoadingSpinnerModal,
@@ -659,6 +661,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "ChannelBalanceBarRow",
               (context) => const ChannelBalanceBarRowPage(),
             ),
+            Component(
+              "ErrorMessageSection",
+              (context) => const ErrorMessageSectionPage(),
+            ),
             const SizedBox(height: Space.s800),
           ],
         ),
@@ -1155,6 +1161,104 @@ class ChannelBalanceBarRowPage extends StatelessWidget {
           const SizedBox(height: Space.s400),
           ...channelBars,
         ],
+      ),
+    );
+  }
+}
+
+class ErrorMessageSectionPage extends StatefulWidget {
+  const ErrorMessageSectionPage({super.key});
+
+  @override
+  State<ErrorMessageSectionPage> createState() =>
+      _ErrorMessageSectionPageState();
+}
+
+class _ErrorMessageSectionPageState extends State<ErrorMessageSectionPage> {
+  final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
+
+  @override
+  void dispose() {
+    this.errorMessage.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const short1 = ErrorMessage(
+      title: "We couldn't find any Lexe Wallet backups for this account",
+    );
+    const short2 = ErrorMessage(
+      message: "Unrecognized payment code",
+    );
+    const long1 = ErrorMessage(
+        title: "Failed to send payment",
+        message:
+            "Could not find route to recipient\n\nCaused by:\n  1. Failed to find a path to the given destination");
+    const long2 = ErrorMessage(
+      title: "There was an error connecting your Google Drive",
+      message:
+          "Auth code exchange failed\n\nCaused by:\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off",
+    );
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: const LxBackButton(isLeading: true),
+        leadingWidth: Space.appBarLeadingWidth,
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const HeadingText(text: "ErrorMessageSectionPage"),
+          const SubheadingText(text: "Design error message display"),
+          const SizedBox(height: Space.s600),
+          ValueListenableBuilder(
+            valueListenable: this.errorMessage,
+            builder: (context, errorMessage, _child) =>
+                ErrorMessageSection(errorMessage),
+          ),
+        ],
+        bottom: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                    child: LxFilledButton(
+                  onTap: () => this.errorMessage.value = null,
+                  label: const Text("None"),
+                )),
+                const SizedBox(width: Space.s200),
+                Expanded(
+                    child: LxFilledButton(
+                  onTap: () => this.errorMessage.value = short1,
+                  label: const Text("Short1"),
+                )),
+                const SizedBox(width: Space.s200),
+                Expanded(
+                    child: LxFilledButton(
+                  onTap: () => this.errorMessage.value = short2,
+                  label: const Text("Short2"),
+                )),
+              ],
+            ),
+            const SizedBox(height: Space.s200),
+            Row(
+              children: [
+                Expanded(
+                    child: LxFilledButton(
+                  onTap: () => this.errorMessage.value = long1,
+                  label: const Text("Long1"),
+                )),
+                const SizedBox(width: Space.s200),
+                Expanded(
+                    child: LxFilledButton(
+                  onTap: () => this.errorMessage.value = long2,
+                  label: const Text("Long2"),
+                )),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

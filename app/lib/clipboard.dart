@@ -38,8 +38,11 @@ abstract final class LxClipboard {
         if (!context.mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          // Make this shorter than default 4s
+          duration: const Duration(milliseconds: 2000),
           content: Text(
             "Copied: $text",
+            // TODO(phlip9): fix: breaks ellipsis for multiline.
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

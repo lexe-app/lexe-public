@@ -191,7 +191,7 @@ class MockErrorGDriveAuth extends GDriveAuth {
   Future<Result<GDriveClient?, Exception>> tryAuth() => Future.delayed(
         const Duration(milliseconds: 1200),
         () => const Err(FfiError(
-            "Auth code exchange failed\n\nCaused by:\n  1. stacktrace error gets cut off")),
+            "Auth code exchange failed\n\nCaused by:\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off")),
       );
 }
 
