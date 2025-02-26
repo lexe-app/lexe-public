@@ -176,10 +176,12 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
   @override
   Widget build(BuildContext context) {
     final mockApp = mocks.MockAppHandle(
+      balance: mocks.defaultBalance,
       payments: mocks.defaultDummyPayments,
       channels: mocks.defaultDummyChannels,
     );
     final mockAppErr = mocks.MockAppHandleErr(
+      balance: mocks.defaultBalance,
       payments: mocks.defaultDummyPayments,
       channels: mocks.defaultDummyChannels,
     );
@@ -193,12 +195,6 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
 
     final cidBytes = List.generate(32, (idx) => idx);
     final cid = ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
-
-    const balance = Balance(
-      onchainSats: 111111,
-      lightningSats: 222222,
-      totalSats: 111111 + 222222,
-    );
 
     const feeEstimates = PreflightPayOnchainResponse(
       high: FeeEstimate(amountSats: 849),
@@ -316,13 +312,27 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               ),
             ),
             Component(
+              "WalletPage",
+              subtitle: "fresh wallet with no payments",
+              (_) => WalletPage(
+                app: mocks.MockAppHandle(
+                  payments: [],
+                  channels: [],
+                  balance: mocks.zeroBalance,
+                ),
+                settings: LxSettings(mockApp.settingsDb()),
+                config: widget.config,
+                uriEvents: this.widget.uriEvents,
+              ),
+            ),
+            Component(
               "SendPaymentNeedUriPage",
               (context) => SendPaymentPage(
                 startNewFlow: true,
                 sendCtx: SendState_NeedUri(
                   app: mockApp,
                   configNetwork: widget.config.network,
-                  balance: balance,
+                  balance: mockApp.balance,
                   cid: cid,
                 ),
               ),
@@ -335,7 +345,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 sendCtx: SendState_NeedAmount(
                   app: mockApp,
                   configNetwork: widget.config.network,
-                  balance: balance,
+                  balance: mockApp.balance,
                   cid: cid,
                   paymentMethod: const PaymentMethod.onchain(
                     Onchain(
@@ -352,7 +362,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 sendCtx: SendState_NeedAmount(
                   app: mockAppErr,
                   configNetwork: widget.config.network,
-                  balance: balance,
+                  balance: mockApp.balance,
                   cid: cid,
                   paymentMethod: const PaymentMethod.onchain(
                     Onchain(
@@ -369,7 +379,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 sendCtx: SendState_Preflighted(
                   app: mockApp,
                   configNetwork: widget.config.network,
-                  balance: balance,
+                  balance: mockApp.balance,
                   cid: cid,
                   preflightedPayment: const PreflightedPayment_Onchain(
                     onchain: Onchain(
@@ -388,7 +398,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 sendCtx: SendState_Preflighted(
                   app: mockAppErr,
                   configNetwork: widget.config.network,
-                  balance: balance,
+                  balance: mockApp.balance,
                   cid: cid,
                   preflightedPayment: (() {
                     final invoice =
@@ -598,7 +608,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   sendCtx: SendState_NeedUri(
                     app: mockApp,
                     configNetwork: widget.config.network,
-                    balance: balance,
+                    balance: mockApp.balance,
                     cid: cid,
                   ),
                 ),
@@ -668,7 +678,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 sendCtx: SendState_Preflighted(
                   app: mocks.MockAppHandleScreenshots(),
                   configNetwork: widget.config.network,
-                  balance: balance,
+                  balance: mockApp.balance,
                   cid: cid,
                   preflightedPayment: PreflightedPayment_Invoice(
                     invoice: Invoice(

@@ -66,9 +66,15 @@ class MockApp extends App {
 
 // TODO(phlip9): unhack
 class MockAppHandle extends AppHandle {
-  MockAppHandle({required this.payments, required this.channels})
+  MockAppHandle(
+      {required this.balance, required this.payments, required this.channels})
       : assert(payments.isSortedBy((payment) => payment.index.field0)),
+        assert(
+            balance.totalSats == balance.lightningSats + balance.onchainSats),
         super(inner: MockApp());
+
+  // Wallet balance
+  Balance balance;
 
   // Some sample payments
   List<Payment> payments;
@@ -92,22 +98,13 @@ class MockAppHandle extends AppHandle {
   @override
   Future<NodeInfo> nodeInfo() =>
       Future.delayed(const Duration(milliseconds: 1000), () {
-        const lightningSats = 9836390;
-        const onchainSats = 3493734;
-        // const lightningSats = 0;
-        // const onchainSats = 0;
-        const totalSats = lightningSats + onchainSats;
-        return const NodeInfo(
+        return NodeInfo(
           nodePk:
               "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",
           version: "1.2.3",
           measurement:
               "1d97c2c837b09ec7b0e0b26cb6fa9a211be84c8fdb53299cc9ee8884c7a25ac1",
-          balance: Balance(
-            totalSats: totalSats,
-            lightningSats: lightningSats,
-            onchainSats: onchainSats,
-          ),
+          balance: this.balance,
         );
       });
 
@@ -329,6 +326,7 @@ class MockAppHandle extends AppHandle {
 /// An [AppHandle] that usually errors first.
 class MockAppHandleErr extends MockAppHandle {
   MockAppHandleErr({
+    required super.balance,
     required super.payments,
     required super.channels,
   });
@@ -403,11 +401,15 @@ class MockAppHandleErr extends MockAppHandle {
 /// * TODO(phlip9): easily configure language and localization
 class MockAppHandleScreenshots extends MockAppHandle {
   MockAppHandleScreenshots()
-      : super(payments: [
-          dummyOnchainInboundCompleted02,
-          dummyInvoiceOutboundCompleted01,
-          dummyInvoiceInboundCompleted02,
-        ], channels: []);
+      : super(
+          payments: [
+            dummyOnchainInboundCompleted02,
+            dummyInvoiceOutboundCompleted01,
+            dummyInvoiceInboundCompleted02,
+          ],
+          channels: [],
+          balance: defaultBalance,
+        );
 
   @override
   Future<bool> syncPayments() => Future.value(false);
@@ -541,6 +543,22 @@ class MockRestoreApi implements RestoreApi {
         () => Ok(this.app),
       );
 }
+
+//
+// Dummy balance data
+//
+
+const Balance defaultBalance = Balance(
+  lightningSats: 198466,
+  onchainSats: 21214,
+  totalSats: 198466 + 21214,
+);
+
+const Balance zeroBalance = Balance(
+  totalSats: 0,
+  lightningSats: 0,
+  onchainSats: 0,
+);
 
 //
 // Dummy payments data
