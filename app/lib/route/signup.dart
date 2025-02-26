@@ -18,7 +18,6 @@ import 'package:lexeapp/components.dart'
         LxFilledButton,
         MultistepFlow,
         ScrollableSinglePageBody,
-        SubheadingText,
         baseInputDecoration;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
 import 'package:lexeapp/logger.dart' show error, info;
@@ -284,6 +283,7 @@ of critical data on a regular basis.
 - All data in Drive is stored end-to-end encrypted and is only readable by
   you and your node.
 ''',
+            // styleSheet: LxTheme.buildMarkdownStyle(),
             styleSheet: LxTheme.markdownStyle,
           ),
 
@@ -447,9 +447,25 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
       ),
       body: ScrollableSinglePageBody(
         body: [
-          const HeadingText(text: "Enter a backup password"),
-          const SubheadingText(text: "with at least 12 characters"),
-          const SizedBox(height: Space.s600),
+          const SizedBox(height: Space.s100),
+          MarkdownBody(
+            data: '''
+## Enter a backup password
+
+Enter at least 12 characters.
+
+You **need this to recover your funds**. Store it in a safe place, like a
+password manager!
+''',
+            // styleSheet: LxTheme.buildMarkdownStyle().copyWith(
+            styleSheet: LxTheme.markdownStyle.copyWith(
+              blockSpacing: Space.s0,
+              pPadding: const EdgeInsets.symmetric(vertical: Space.s100),
+              h2Padding: const EdgeInsets.only(bottom: Space.s300),
+            ),
+            // styleSheet: LxTheme.markdownStyle,
+          ),
+          const SizedBox(height: Space.s500),
 
           // Password field
           TextFormField(
@@ -486,7 +502,7 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
 
           // Error message
           Padding(
-            padding: const EdgeInsets.only(top: Space.s500),
+            padding: const EdgeInsets.only(top: Space.s400),
             child: ValueListenableBuilder(
               valueListenable: this.errorMessage,
               builder: (_context, errorMessage, _widget) =>
@@ -494,8 +510,9 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
             ),
           ),
         ],
+        bottomPadding: EdgeInsets.zero,
         bottom: Padding(
-          padding: const EdgeInsets.only(top: Space.s500),
+          padding: const EdgeInsets.symmetric(vertical: Space.s400),
           child: ValueListenableBuilder(
             valueListenable: this.isSigningUp,
             builder: (context, isSending, widget) => AnimatedFillButton(

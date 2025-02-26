@@ -634,7 +634,7 @@ class HeadingText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: Space.s500, bottom: Space.s200),
+      padding: const EdgeInsets.only(top: Space.s400, bottom: Space.s200),
       child: Text(
         this.text,
         style: const TextStyle(
@@ -660,6 +660,7 @@ class SubheadingText extends StatelessWidget {
       style: Fonts.fontUI.copyWith(
         color: LxColors.grey600,
         fontSize: Fonts.size300,
+        height: 1.2,
       ),
     );
   }

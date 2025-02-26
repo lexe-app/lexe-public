@@ -254,14 +254,14 @@ final class LxTheme {
 
   /// The default stylesheet (fonts, typography, margins, etc...) used for
   /// rendering [Markdown] widgets.
-  static final markdownStyle = buildMarkdownStyle();
+  static final MarkdownStyleSheet markdownStyle = buildMarkdownStyle();
 
   /// Build the default stylesheet (fonts, typography, margins, etc...) used for
   /// rendering [Markdown] widgets.
   static MarkdownStyleSheet buildMarkdownStyle() {
     return MarkdownStyleSheet(
       // Spacing between all blocks
-      blockSpacing: Space.s300,
+      blockSpacing: Space.s200,
 
       // <a/>
       a: const TextStyle(
@@ -280,7 +280,7 @@ final class LxTheme {
       p: const TextStyle(
         fontSize: Fonts.size300,
         color: LxColors.foreground,
-        height: 1.5,
+        height: 1.45,
         letterSpacing: -0.5,
       ),
       pPadding: const EdgeInsets.symmetric(vertical: Space.s200),
@@ -292,7 +292,7 @@ final class LxTheme {
         height: 1.15,
         letterSpacing: -0.5,
       ),
-      h1Padding: const EdgeInsets.fromLTRB(0, Space.s500, 0, Space.s100),
+      h1Padding: const EdgeInsets.fromLTRB(0, Space.s400, 0, Space.s100),
 
       // <h2>
       h2: const TextStyle(
@@ -300,9 +300,10 @@ final class LxTheme {
         height: 1.25,
         letterSpacing: -0.5,
       ),
-      h2Padding: const EdgeInsets.fromLTRB(0, Space.s450, 0, 0),
+      h2Padding: const EdgeInsets.fromLTRB(0, Space.s400, 0, 0),
 
       listIndent: Space.s400,
+      listBulletPadding: const EdgeInsets.all(Space.s100),
     );
   }
 }
