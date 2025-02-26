@@ -1638,7 +1638,7 @@ final class ErrorMessage {
 
 /// A white card that fades-in error details when the [errorMessage] is set.
 ///
-/// The card is also interactive.
+/// The card is interactive:
 /// 1. If the error message is too long, we'll truncate it but allow the user
 ///    to tap-to-expand.
 /// 2. The user can also long-press the card to copy the full error message to
@@ -1665,12 +1665,13 @@ class _ErrorMessageSectionState extends State<ErrorMessageSection> {
 
   @override
   void didUpdateWidget(covariant ErrorMessageSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
     // Reset isExpanded when the error message gets reset.
-    if (this.widget.errorMessage == null) {
+    if (this.widget.errorMessage == null ||
+        this.widget.errorMessage != oldWidget.errorMessage) {
       this.isExpanded.value = false;
     }
-
-    super.didUpdateWidget(oldWidget);
   }
 
   /// Toggle whether the error section is expanded or collapsed.
@@ -1686,16 +1687,101 @@ class _ErrorMessageSectionState extends State<ErrorMessageSection> {
     LxClipboard.copyTextWithFeedback(this.context, errorMessage.toString());
   }
 
+  static const int titleMaxLines = 2;
+  static const TextStyle titleStyle = TextStyle(
+    // color: LxColors.errorText,
+    fontVariations: [Fonts.weightMedium],
+    fontSize: Fonts.size200,
+    height: 1.2,
+    letterSpacing: -0.2,
+    overflow: TextOverflow.ellipsis,
+  );
+
+  static const int messageMaxLines = 1;
+  static const messageStyle = TextStyle(
+    // color: LxColors.errorText,
+    fontSize: Fonts.size100,
+    height: 1.3,
+    letterSpacing: -0.1,
+    overflow: TextOverflow.ellipsis,
+  );
+
+  static bool _needsExpandable({
+    required BuildContext context,
+    required double maxWidth,
+    required String? message,
+    required String? title,
+  }) {
+    // infinite max width will never overflow
+    if (maxWidth.isInfinite) return false;
+
+    // check if the error message body overflows its maxLines
+    if (message != null) {
+      if (_doesTextOverflow(
+        context: context,
+        maxWidth: maxWidth,
+        style: messageStyle,
+        maxLines: messageMaxLines,
+        text: message,
+      )) {
+        return true;
+      }
+    }
+
+    // check if the error title overflows its maxLines
+    if (title != null) {
+      if (_doesTextOverflow(
+        context: context,
+        maxWidth: maxWidth,
+        style: titleStyle,
+        maxLines: titleMaxLines,
+        text: title,
+      )) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  static bool _doesTextOverflow({
+    required BuildContext context,
+    required double maxWidth,
+    required TextStyle style,
+    required int maxLines,
+    required String text,
+  }) {
+    // Fast check. Doesn't handle long lines that overflow the container
+    if (text.countLines() > maxLines) return true;
+
+    // Layout text with style at this `context`
+    final TextPainter textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: DefaultTextStyle.of(context).style.merge(style),
+      ),
+      maxLines: maxLines,
+      textAlign: TextAlign.start,
+      textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context),
+    );
+    textPainter.layout(maxWidth: maxWidth);
+    final didExceedMaxLines = textPainter.didExceedMaxLines;
+
+    // Clean up
+    textPainter.dispose();
+
+    return didExceedMaxLines;
+  }
+
   @override
   Widget build(BuildContext context) {
-    const int maxMsgLines = 1;
+    const double horizPad = Space.s300;
+    const double vertPad = Space.s300;
 
     final errorMessage = this.widget.errorMessage;
     final title = errorMessage?.title;
     final message = errorMessage?.message;
-
-    // The error message section is expandable if the message body is too long.
-    final expandable = message != null && message.countLines() > maxMsgLines;
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 200),
@@ -1707,96 +1793,113 @@ class _ErrorMessageSectionState extends State<ErrorMessageSection> {
               color: LxColors.grey1000,
               margin: EdgeInsets.zero,
               clipBehavior: Clip.hardEdge,
-              child: InkWell(
-                onTap: expandable ? this.toggleExpanded : null,
-                onLongPress: this.copyToClipboard,
-                child: Padding(
-                  padding: expandable
-                      ? const EdgeInsets.fromLTRB(
-                          Space.s300, Space.s300, Space.s300, Space.s100)
-                      : const EdgeInsets.all(Space.s300),
-                  // Outer Row(Expanded(..)) forces error card to take full
-                  // horizontal space
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // error title
-                            if (title != null)
-                              Padding(
-                                padding: (message != null)
-                                    ? const EdgeInsets.only(bottom: Space.s200)
-                                    : EdgeInsets.zero,
-                                child: ValueListenableBuilder(
-                                  valueListenable: this.isExpanded,
-                                  builder: (_context, isExpanded, _child) =>
-                                      Text(
-                                    title,
-                                    maxLines: (expandable)
-                                        ? ((isExpanded) ? 4 : 1)
-                                        : 2,
-                                    style: const TextStyle(
-                                      // color: LxColors.errorText,
-                                      fontVariations: [Fonts.weightMedium],
-                                      fontSize: Fonts.size200,
-                                      height: 1.15,
-                                      letterSpacing: -0.2,
-                                      overflow: TextOverflow.ellipsis,
+              child: LayoutBuilder(
+                builder: (context, size) {
+                  // The error message section needs to be expandable if the
+                  // error title or error message body are too long and overflow
+                  // the card.
+                  final needsExpandable = _needsExpandable(
+                    context: context,
+                    // account for horizontal Padding below
+                    maxWidth: (size.maxWidth - (2.0 * horizPad))
+                        .clamp(0.0, double.infinity),
+                    message: message,
+                    title: title,
+                  );
+
+                  // Make the card interactive
+                  return InkWell(
+                    onTap: needsExpandable ? this.toggleExpanded : null,
+                    onLongPress: this.copyToClipboard,
+                    child: Padding(
+                      // account for v caret icon in bottom padding
+                      padding: needsExpandable
+                          ? const EdgeInsets.fromLTRB(
+                              horizPad, vertPad, horizPad, Space.s100)
+                          : const EdgeInsets.symmetric(
+                              horizontal: horizPad, vertical: vertPad),
+
+                      // Outer Row(Expanded(..)) forces error card to take full
+                      // horizontal space
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // error title
+                                if (title != null)
+                                  Padding(
+                                    padding: (message != null)
+                                        ? const EdgeInsets.only(
+                                            bottom: Space.s200)
+                                        : EdgeInsets.zero,
+                                    child: ValueListenableBuilder(
+                                      valueListenable: this.isExpanded,
+                                      builder: (_context, isExpanded, _child) =>
+                                          Text(
+                                        title,
+                                        maxLines: (needsExpandable)
+                                            ? ((isExpanded)
+                                                // null doesn't work -- then it never wraps
+                                                ? 4
+                                                : titleMaxLines)
+                                            : titleMaxLines,
+                                        style: titleStyle,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
 
-                            // not expanded: first few lines of error message body
-                            //     expanded: full error message body
-                            if (message != null)
-                              ValueListenableBuilder(
-                                valueListenable: this.isExpanded,
-                                builder: (_context, isExpanded, _child) => Text(
-                                  message,
-                                  maxLines: (expandable)
-                                      ? ((isExpanded) ? null : maxMsgLines)
-                                      : 2,
-                                  style: const TextStyle(
-                                    // color: LxColors.errorText,
-                                    fontSize: Fonts.size100,
-                                    height: 1.3,
-                                    letterSpacing: -0.1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ),
-
-                            // v - expand hint. only shown if actually expandable.
-                            if (expandable)
-                              Center(
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets.only(top: Space.s100),
-                                  child: ValueListenableBuilder(
+                                // not expanded: first few lines of error message body
+                                //     expanded: full error message body
+                                if (message != null)
+                                  ValueListenableBuilder(
                                     valueListenable: this.isExpanded,
                                     builder: (_context, isExpanded, _child) =>
-                                        Icon(
-                                      (isExpanded)
-                                          ? LxIcons.expandUpSmall
-                                          : LxIcons.expandDownSmall,
-                                      color: LxColors.errorText,
-                                      weight: LxIcons.weightLight,
+                                        Text(
+                                      message,
+                                      maxLines: (needsExpandable)
+                                          ? ((isExpanded)
+                                              // null doesn't work -- then it never wraps
+                                              ? 100
+                                              : messageMaxLines)
+                                          : messageMaxLines,
+                                      style: messageStyle,
                                     ),
                                   ),
-                                ),
-                              ),
-                          ],
-                        ),
+
+                                // v - expand hint. only shown if actually expandable.
+                                if (needsExpandable)
+                                  Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(
+                                          top: Space.s100),
+                                      child: ValueListenableBuilder(
+                                        valueListenable: this.isExpanded,
+                                        builder:
+                                            (_context, isExpanded, _child) =>
+                                                Icon(
+                                          (isExpanded)
+                                              ? LxIcons.expandUpSmall
+                                              : LxIcons.expandDownSmall,
+                                          // color: LxColors.errorText,
+                                          color: LxColors.foreground,
+                                          weight: LxIcons.weightLight,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               ),
             )
           : null,

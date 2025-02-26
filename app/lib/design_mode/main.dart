@@ -1200,6 +1200,25 @@ class _ErrorMessageSectionPageState extends State<ErrorMessageSectionPage> {
       message:
           "Auth code exchange failed\n\nCaused by:\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off",
     );
+    const long3 = ErrorMessage(
+      title: "Failed to send payment",
+      message:
+          "[106=Command] Already tried to pay this invoice: Error handling new payment: Payment already exists: finalized",
+    );
+    // Test overflow checking at boundaries (this is device specific atm)
+    const title1 = ErrorMessage(
+      title:
+          "123456789012345678901234567890123456789012345678901234567890123456789012345",
+    );
+    const message1 = ErrorMessage(
+      message: "12345678901234567890123456789012345678901234",
+    );
+
+    Widget testButton(String name, ErrorMessage? error) => Expanded(
+            child: LxFilledButton(
+          onTap: () => this.errorMessage.value = error,
+          label: Text(name),
+        ));
 
     return Scaffold(
       appBar: AppBar(
@@ -1222,39 +1241,29 @@ class _ErrorMessageSectionPageState extends State<ErrorMessageSectionPage> {
           children: [
             Row(
               children: [
-                Expanded(
-                    child: LxFilledButton(
-                  onTap: () => this.errorMessage.value = null,
-                  label: const Text("None"),
-                )),
+                testButton("None", null),
                 const SizedBox(width: Space.s200),
-                Expanded(
-                    child: LxFilledButton(
-                  onTap: () => this.errorMessage.value = short1,
-                  label: const Text("Short1"),
-                )),
+                testButton("Short1", short1),
                 const SizedBox(width: Space.s200),
-                Expanded(
-                    child: LxFilledButton(
-                  onTap: () => this.errorMessage.value = short2,
-                  label: const Text("Short2"),
-                )),
+                testButton("Short2", short2),
               ],
             ),
             const SizedBox(height: Space.s200),
             Row(
               children: [
-                Expanded(
-                    child: LxFilledButton(
-                  onTap: () => this.errorMessage.value = long1,
-                  label: const Text("Long1"),
-                )),
+                testButton("Long1", long1),
                 const SizedBox(width: Space.s200),
-                Expanded(
-                    child: LxFilledButton(
-                  onTap: () => this.errorMessage.value = long2,
-                  label: const Text("Long2"),
-                )),
+                testButton("Long2", long2),
+                const SizedBox(width: Space.s200),
+                testButton("Long3", long3),
+              ],
+            ),
+            const SizedBox(height: Space.s200),
+            Row(
+              children: [
+                testButton("Message1", message1),
+                const SizedBox(width: Space.s200),
+                testButton("Title1", title1),
               ],
             ),
           ],
