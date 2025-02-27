@@ -1017,7 +1017,7 @@ class PaymentOfferPage extends StatelessWidget {
                         // Pay invoice once
                         TextSpan(
                             text:
-                                "Invoices can only be paid once. Reusing an invoice may result in lost payments. "),
+                                "Invoices can only be paid once.\nReusing an invoice may result in lost payments. "),
                         // TextSpan(
                         //   text: "\nRead more",
                         //   style: TextStyle(
