@@ -173,12 +173,45 @@ pub const LEXE_PROD_CA_CERT_DER: &[u8] =
 pub const LEXE_STAGING_CA_CERT_DER: &[u8] =
     include_bytes!("../data/lexe-staging-root-ca-cert.der");
 
-/// Google Trust Services Root R1, used by `googleapis.com`.
+/// Google Trust Services Root R1 (RSA), used by `googleapis.com`.
+// `curl https://i.pki.goog/r1.crt -o common/data/google-trust-services-root-r1-ca-cert.der`
 // Serial Number : 02:03:E5:93:6F:31:B0:13:49:88:6B:A2:17
 //    Not Before : Jun 22 00:00:00 2016 GMT
 //     Not After : Jun 22 00:00:00 2036 GMT
 pub const GTS_ROOT_R1_CA_CERT_DER: &[u8] =
     include_bytes!("../data/google-trust-services-root-r1-ca-cert.der");
+
+/// Google Trust Services Root R2 (RSA), used by `googleapis.com`.
+// `curl https://i.pki.goog/r2.crt -o common/data/google-trust-services-root-r2-ca-cert.der`
+// Serial Number : 02:03:E5:AE:C5:8D:04:25:1A:AB:11:25:AA
+//    Not Before : Jun 22 00:00:00 2016 GMT
+//    Not After  : Jun 22 00:00:00 2036 GMT
+pub const GTS_ROOT_R2_CA_CERT_DER: &[u8] =
+    include_bytes!("../data/google-trust-services-root-r2-ca-cert.der");
+
+/// Google Trust Services Root R3 (ECDSA), used by `googleapis.com`.
+// `curl https://i.pki.goog/r3.crt -o common/data/google-trust-services-root-r3-ca-cert.der`
+// Serial Number : 02:03:E5:B8:82:EB:20:F8:25:27:6D:3D:66
+//    Not Before : Jun 22 00:00:00 2016 GMT
+//    Not After  : Jun 22 00:00:00 2036 GMT
+pub const GTS_ROOT_R3_CA_CERT_DER: &[u8] =
+    include_bytes!("../data/google-trust-services-root-r3-ca-cert.der");
+
+/// Google Trust Services Root R4 (ECDSA), used by `googleapis.com`.
+// `curl https://i.pki.goog/r4.crt -o common/data/google-trust-services-root-r4-ca-cert.der`
+// Serial Number : 02:03:E5:C0:68:EF:63:1A:9C:72:90:50:52
+//    Not Before : Jun 22 00:00:00 2016 GMT
+//    Not After  : Jun 22 00:00:00 2036 GMT
+pub const GTS_ROOT_R4_CA_CERT_DER: &[u8] =
+    include_bytes!("../data/google-trust-services-root-r4-ca-cert.der");
+
+/// GlobalSign Root R4 (ECDSA), used by `googleapis.com`.
+// `curl https://i.pki.goog/gsr4.crt -o common/data/globalsign-root-r4-ca-cert.der`
+// Serial Number : 02:03:E5:7E:F5:3F:93:FD:A5:09:21:B2:A6
+//    Not Before : Nov 13 00:00:00 2012 GMT
+//    Not After  : Jan 19 03:14:07 2038 GMT
+pub const GS_ROOT_R4_CA_CERT_DER: &[u8] =
+    include_bytes!("../data/globalsign-root-r4-ca-cert.der");
 
 #[cfg(test)]
 mod test {

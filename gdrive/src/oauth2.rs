@@ -53,12 +53,28 @@ impl Deref for ReqwestClient {
 impl ReqwestClient {
     #[allow(clippy::new_without_default)] // TODO(max): How to disable this?
     pub fn new() -> Self {
-        let google_ca_cert =
+        let gts_r1_ca =
             reqwest::Certificate::from_der(constants::GTS_ROOT_R1_CA_CERT_DER)
+                .expect("Checked in tests");
+        let gts_r2_ca =
+            reqwest::Certificate::from_der(constants::GTS_ROOT_R2_CA_CERT_DER)
+                .expect("Checked in tests");
+        let gts_r3_ca =
+            reqwest::Certificate::from_der(constants::GTS_ROOT_R3_CA_CERT_DER)
+                .expect("Checked in tests");
+        let gts_r4_ca =
+            reqwest::Certificate::from_der(constants::GTS_ROOT_R4_CA_CERT_DER)
+                .expect("Checked in tests");
+        let gs_r4_ca =
+            reqwest::Certificate::from_der(constants::GS_ROOT_R4_CA_CERT_DER)
                 .expect("Checked in tests");
         reqwest::Client::builder()
             .https_only(true)
-            .add_root_certificate(google_ca_cert)
+            .add_root_certificate(gts_r1_ca)
+            .add_root_certificate(gts_r2_ca)
+            .add_root_certificate(gts_r3_ca)
+            .add_root_certificate(gts_r4_ca)
+            .add_root_certificate(gs_r4_ca)
             .timeout(API_REQUEST_TIMEOUT)
             .build()
             .map(Self)
