@@ -326,6 +326,21 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               ),
             ),
             Component(
+              "WalletPage",
+              subtitle: "on-chain-only wallet",
+              (_) => WalletPage(
+                app: mocks.MockAppHandle(
+                  payments: [mocks.dummyOnchainInboundCompleted01],
+                  channels: [],
+                  balance: const Balance(
+                      onchainSats: 20000, lightningSats: 0, totalSats: 20000),
+                ),
+                settings: LxSettings(mockApp.settingsDb()),
+                config: widget.config,
+                uriEvents: this.widget.uriEvents,
+              ),
+            ),
+            Component(
               "SendPaymentNeedUriPage",
               (context) => SendPaymentPage(
                 startNewFlow: true,
