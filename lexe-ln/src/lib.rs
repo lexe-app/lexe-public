@@ -13,7 +13,7 @@
 // Ignore this useless lint
 #![allow(clippy::new_without_default)]
 
-use std::{future::Future, pin::Pin};
+use std::{fmt, future::Future, pin::Pin};
 
 /// Type aliases.
 pub mod alias;
@@ -49,9 +49,29 @@ pub mod sync;
 pub mod test_event;
 /// Traits.
 pub mod traits;
+/// A transaction broadcaster task.
+pub mod tx_broadcaster;
 /// BDK wallet.
 pub mod wallet;
 
 /// The type we usually need for passing futures around.
 pub type BoxedAnyhowFuture =
     Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'static>>;
+
+/// Displays a [`Vec`] of elements using each element's [`fmt::Display`] impl.
+pub struct DisplayVec<T>(pub Vec<T>);
+
+impl<T: fmt::Display> fmt::Display for DisplayVec<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut first = true;
+        write!(f, "[")?;
+        for item in &self.0 {
+            if !first {
+                write!(f, ", ")?;
+            }
+            first = false;
+            write!(f, "{item}")?;
+        }
+        write!(f, "]")
+    }
+}

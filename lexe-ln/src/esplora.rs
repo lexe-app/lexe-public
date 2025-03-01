@@ -38,8 +38,8 @@ use crate::{test_event::TestEventSender, BoxedAnyhowFuture};
 // an hour. There is a guaranteed refresh at init.
 const REFRESH_FEE_ESTIMATES_INTERVAL: Duration = Duration::from_secs(60 * 60);
 
-/// The duration after which requests to the Esplora API will time out.
-const ESPLORA_CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
+/// The duration after which our client times out requests to the Esplora API.
+pub(crate) const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// The default `-mempoolexpiry` value in Bitcoin Core (14 days). If a
 /// [`Transaction`] is older than this and still hasn't been confirmed, it is
@@ -387,7 +387,7 @@ impl LexeEsplora {
 
         let client = reqwest11::ClientBuilder::new()
             .use_preconfigured_tls(tls_config)
-            .timeout(ESPLORA_CLIENT_TIMEOUT)
+            .timeout(CLIENT_TIMEOUT)
             .build()
             .context("reqwest::ClientBuilder::build failed")?;
 
