@@ -224,7 +224,7 @@ impl UserNode {
                 machine_id,
             ),
         );
-        let (esplora, refresh_fees_task, esplora_url) =
+        let (esplora, fee_estimates, refresh_fees_task, esplora_url) =
             try_esplora.context("Failed to init esplora")?;
         static_tasks.push(refresh_fees_task);
         let ProvisionedSecrets {
@@ -413,7 +413,8 @@ impl UserNode {
         let wallet = LexeWallet::init(
             &root_seed,
             network,
-            esplora.clone(),
+            &esplora,
+            fee_estimates,
             maybe_changeset,
             wallet_persister_tx,
         )
@@ -816,6 +817,7 @@ impl UserNode {
         // BDK: Do initial wallet sync
         let (first_bdk_sync_tx, first_bdk_sync_rx) = oneshot::channel();
         self.static_tasks.push(sync::spawn_bdk_sync_task(
+            self.esplora.clone(),
             self.wallet.clone(),
             ctxt.onchain_recv_tx,
             first_bdk_sync_tx,

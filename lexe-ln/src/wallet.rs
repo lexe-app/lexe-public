@@ -66,7 +66,9 @@ use common::{
 use tracing::{debug, info, instrument, warn};
 
 use crate::{
-    esplora::LexeEsplora, payments::onchain::OnchainSend, traits::LexePersister,
+    esplora::{FeeEstimates, LexeEsplora},
+    payments::onchain::OnchainSend,
+    traits::LexePersister,
 };
 
 /// "`stop_gap` is the maximum number of consecutive unused addresses. For
@@ -94,7 +96,7 @@ const CHANNEL_FUNDING_CONF_PRIO: ConfirmationPriority =
 /// A newtype wrapper around [`Wallet`]. Can be cloned and used directly.
 #[derive(Clone)]
 pub struct LexeWallet {
-    esplora: Arc<LexeEsplora>,
+    fee_estimates: Arc<FeeEstimates>,
     inner: Arc<std::sync::RwLock<Wallet>>,
     /// NOTE: This is the full, *aggregated* changeset, not an intermediate
     /// state diff, contrary to what the name of "[`ChangeSet`]" might suggest.
@@ -113,21 +115,22 @@ impl LexeWallet {
     pub async fn init(
         root_seed: &RootSeed,
         network: LxNetwork,
-        esplora: Arc<LexeEsplora>,
+        esplora: &LexeEsplora,
+        fee_estimates: Arc<FeeEstimates>,
         maybe_changeset: Option<ChangeSet>,
         wallet_persister_tx: notify::Sender,
     ) -> anyhow::Result<Self> {
         let (lexe_wallet, wallet_created) = Self::new(
             root_seed,
             network,
-            esplora,
+            fee_estimates,
             maybe_changeset,
             wallet_persister_tx,
         )?;
 
         if wallet_created {
             lexe_wallet
-                .full_sync()
+                .full_sync(esplora)
                 .await
                 .context("Failed to conduct initial full sync")?;
         } else {
@@ -140,7 +143,7 @@ impl LexeWallet {
     fn new(
         root_seed: &RootSeed,
         network: LxNetwork,
-        esplora: Arc<LexeEsplora>,
+        fee_estimates: Arc<FeeEstimates>,
         maybe_changeset: Option<ChangeSet>,
         wallet_persister_tx: notify::Sender,
     ) -> anyhow::Result<(Self, bool)> {
@@ -220,7 +223,7 @@ impl LexeWallet {
 
         Ok((
             Self {
-                esplora,
+                fee_estimates,
                 inner: Arc::new(std::sync::RwLock::new(wallet)),
                 changeset: Arc::new(std::sync::Mutex::new(initial_changeset)),
                 wallet_persister_tx,
@@ -232,15 +235,14 @@ impl LexeWallet {
     /// Constructs a dummy [`LexeWallet`] useful for tests.
     #[cfg(test)]
     pub(crate) fn dummy(root_seed: &RootSeed) -> Self {
-        let esplora = LexeEsplora::dummy();
-
+        let fee_estimates = FeeEstimates::dummy();
         let network = LxNetwork::Regtest;
         let maybe_changeset = None;
         let (persist_tx, _persist_rx) = notify::channel();
         let (wallet, _wallet_created) = LexeWallet::new(
             root_seed,
             network,
-            esplora,
+            fee_estimates,
             maybe_changeset,
             persist_tx,
         )
@@ -270,7 +272,7 @@ impl LexeWallet {
 
     /// Syncs the [`Wallet`] using a remote Esplora backend.
     #[instrument(skip_all, name = "(bdk-sync)")]
-    pub async fn sync(&self) -> anyhow::Result<()> {
+    pub async fn sync(&self, esplora: &LexeEsplora) -> anyhow::Result<()> {
         // Build a SyncRequest with everything we're interested in syncing.
         let sync_request = {
             let locked_wallet = self.inner.read().unwrap();
@@ -345,8 +347,7 @@ impl LexeWallet {
         };
 
         // Check for updates on everything we specified in the SyncRequest.
-        let sync_result = self
-            .esplora
+        let sync_result = esplora
             .client()
             .sync(sync_request, BDK_CONCURRENCY)
             .await
@@ -369,7 +370,7 @@ impl LexeWallet {
     ///
     /// This should be done rarely, i.e. only when creating the wallet or if we
     /// need to restore from a existing seed. See BDK's examples for more info.
-    async fn full_sync(&self) -> anyhow::Result<()> {
+    async fn full_sync(&self, esplora: &LexeEsplora) -> anyhow::Result<()> {
         let full_scan_request = {
             let locked_wallet = self.inner.read().unwrap();
             locked_wallet.start_full_scan()
@@ -377,8 +378,7 @@ impl LexeWallet {
 
         // Scan the blockchain for our keychain script pubkeys until we hit the
         // `stop_gap`.
-        let full_scan_result = self
-            .esplora
+        let full_scan_result = esplora
             .client()
             .full_scan::<KeychainKind, _>(
                 full_scan_request,
@@ -496,7 +496,7 @@ impl LexeWallet {
 
         // Build
         let conf_prio = CHANNEL_FUNDING_CONF_PRIO;
-        let feerate = self.esplora.conf_prio_to_feerate(conf_prio);
+        let feerate = self.fee_estimates.conf_prio_to_feerate(conf_prio);
         let mut tx_builder =
             Self::default_tx_builder(&mut locked_wallet, feerate);
         tx_builder
@@ -531,7 +531,7 @@ impl LexeWallet {
 
         // Build
         let conf_prio = CHANNEL_FUNDING_CONF_PRIO;
-        let feerate = self.esplora.conf_prio_to_feerate(conf_prio);
+        let feerate = self.fee_estimates.conf_prio_to_feerate(conf_prio);
         let mut tx_builder =
             Self::default_tx_builder(&mut locked_wallet, feerate);
         tx_builder.add_recipient(output_script, channel_value);
@@ -565,7 +565,7 @@ impl LexeWallet {
                 .context("Invalid network")?;
 
             // Build unsigned tx
-            let feerate = self.esplora.conf_prio_to_feerate(req.priority);
+            let feerate = self.fee_estimates.conf_prio_to_feerate(req.priority);
             let mut tx_builder =
                 Self::default_tx_builder(&mut locked_wallet, feerate);
             tx_builder
@@ -605,10 +605,11 @@ impl LexeWallet {
         let normal_prio = ConfirmationPriority::Normal;
         let background_prio = ConfirmationPriority::Background;
 
-        let high_feerate = self.esplora.conf_prio_to_feerate(high_prio);
-        let normal_feerate = self.esplora.conf_prio_to_feerate(normal_prio);
+        let high_feerate = self.fee_estimates.conf_prio_to_feerate(high_prio);
+        let normal_feerate =
+            self.fee_estimates.conf_prio_to_feerate(normal_prio);
         let background_feerate =
-            self.esplora.conf_prio_to_feerate(background_prio);
+            self.fee_estimates.conf_prio_to_feerate(background_prio);
 
         let mut locked_wallet = self.inner.write().unwrap();
 

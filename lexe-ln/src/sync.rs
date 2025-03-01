@@ -11,6 +11,7 @@ use tracing::{error, info};
 
 use crate::{
     alias::EsploraSyncClientType,
+    esplora::LexeEsplora,
     traits::{LexeChainMonitor, LexeChannelManager, LexePersister},
     wallet::LexeWallet,
 };
@@ -27,6 +28,7 @@ const SYNC_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Spawns a task that periodically restarts BDK sync.
 pub fn spawn_bdk_sync_task(
+    esplora: Arc<LexeEsplora>,
     wallet: LexeWallet,
     onchain_recv_tx: notify::Sender,
     first_bdk_sync_tx: oneshot::Sender<anyhow::Result<()>>,
@@ -61,8 +63,9 @@ pub fn spawn_bdk_sync_task(
 
                     // Give up if we time out or receive a shutdown signal
                     let timeout = time::sleep(SYNC_TIMEOUT);
-                    let sync_res = tokio::select! {
-                        res = wallet.sync() => res.context("BDK sync failed"),
+                    let sync_result = tokio::select! {
+                        res = wallet.sync(&esplora) =>
+                            res.context("BDK sync failed"),
                         _ = timeout => Err(anyhow!("BDK sync timed out")),
                         () = shutdown.recv() => break,
                     };
@@ -71,7 +74,7 @@ pub fn spawn_bdk_sync_task(
                     // Return and log the results of the first sync
                     if let Some(sync_tx) = maybe_first_bdk_sync_tx.take() {
                         // 'Clone' the sync result
-                        let first_bdk_sync_res = sync_res
+                        let first_bdk_sync_res = sync_result
                             .as_ref()
                             .map(|&()| ())
                             .map_err(|e| anyhow!("{e:#}"));
@@ -81,7 +84,7 @@ pub fn spawn_bdk_sync_task(
                         }
                     }
 
-                    match sync_res {
+                    match sync_result {
                         Ok(()) => {
                             info!("BDK sync completed <{elapsed}ms>");
                             onchain_recv_tx.send();

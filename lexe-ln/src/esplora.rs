@@ -107,11 +107,139 @@ pub enum TxConfStatus {
     Dropped,
 }
 
-pub struct LexeEsplora {
-    client: AsyncClient,
+/// Thin wrapper around cached feerate estimates fetched from Esplora.
+/// Implements [`FeeEstimator`] and provides other useful getters.
+pub struct FeeEstimates {
     /// Cached map of conf targets (in number of blocks) to estimated feerates
     /// (in sats per vbyte) returned by [`AsyncClient::get_fee_estimates`].
-    fee_estimates: ArcSwap<BTreeMap<u16, f64>>,
+    cached: ArcSwap<BTreeMap<u16, f64>>,
+}
+
+impl FeeEstimates {
+    /// Initialize from the result of [`AsyncClient::get_fee_estimates`].
+    fn from_esplora_result(estimates: HashMap<u16, f64>) -> Arc<Self> {
+        let cached = ArcSwap::from_pointee(Self::convert_estimates(estimates));
+        Arc::new(Self { cached })
+    }
+
+    /// Updates the cached feerate estimates to the given value.
+    fn update(&self, estimates: HashMap<u16, f64>) {
+        let new_estimates = Self::convert_estimates(estimates);
+        self.cached.store(Arc::new(new_estimates));
+    }
+
+    /// Convert a target # of blocks into a [`bitcoin::FeeRate`] via a cache
+    /// lookup. Since [`bitcoin::FeeRate`] is easily convertible to other units,
+    /// this is the core feerate function that others delegate to.
+    pub fn num_blocks_to_feerate(&self, num_blocks: u16) -> bitcoin::FeeRate {
+        let guarded_estimates = self.cached.load();
+        let feerate_sats_vbyte =
+            Self::lookup_fee_rate(num_blocks, &guarded_estimates);
+
+        // (X sat/1 vb) * (1 vb/4 wu) * (1000 wu/1 kwu)
+        // = (X sat/vb) * (250.0 vb/kwu)
+        let feerate_sats_kwu = (feerate_sats_vbyte * 250.0) as u64;
+        bitcoin::FeeRate::from_sat_per_kwu(feerate_sats_kwu)
+    }
+
+    /// Convert a [`ConfirmationPriority`] into a [`bitcoin::FeeRate`].
+    pub fn conf_prio_to_feerate(
+        &self,
+        conf_prio: ConfirmationPriority,
+    ) -> bitcoin::FeeRate {
+        let num_blocks = conf_prio.to_num_blocks();
+        self.num_blocks_to_feerate(num_blocks)
+    }
+
+    /// Convert a [`ConfirmationTarget`] into a [`bitcoin::FeeRate`].
+    /// This calls into the [`FeeEstimator`] impl, which as of LDK v0.0.118
+    /// requires some special post-estimation logic.
+    pub fn conf_target_to_feerate(
+        &self,
+        conf_target: ConfirmationTarget,
+    ) -> bitcoin::FeeRate {
+        let fee_for_1000_wu =
+            self.get_est_sat_per_1000_weight(conf_target) as u64;
+        bitcoin::FeeRate::from_sat_per_kwu(fee_for_1000_wu)
+    }
+
+    /// A version of [`esplora_client::convert_fee_rate`] which avoids an N *
+    /// log(N) Vec sort (and `HashMap<u16, f64>` clone) at every feerate lookup
+    /// by leveraging a parsed [`BTreeMap<u16, f64>`].
+    ///
+    /// Functionality: Given a desired target number of blocks by which a tx is
+    /// confirmed, and the parsed return value of
+    /// [`AsyncClient::get_fee_estimates`] which maps [`u16`] conf targets (in
+    /// number of blocks) to the [`f64`] estimated fee rates (in sats per
+    /// vbyte), extracts the estimated feerate whose corresponding target is the
+    /// largest of all targets less than or equal to our desired target, or
+    /// defaults to 1 sat per vbyte if our desired target was lower than the
+    /// smallest target with a fee estimate.
+    fn lookup_fee_rate(
+        num_blocks_target: u16,
+        estimates: &BTreeMap<u16, f64>,
+    ) -> f64 {
+        estimates
+            .iter()
+            .rev()
+            .find(|(num_blocks, _)| *num_blocks <= &num_blocks_target)
+            .map(|(_, feerate)| *feerate)
+            .unwrap_or(FALLBACK_FEE_RATE)
+    }
+
+    /// Converts [`HashMap<u16, f64>`] from [`AsyncClient::get_fee_estimates`]
+    /// into the [`BTreeMap<usize, f64>`] stored by this struct.
+    fn convert_estimates(estimates: HashMap<u16, f64>) -> BTreeMap<u16, f64> {
+        estimates.into_iter().collect()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn dummy() -> Arc<Self> {
+        let estimates = BTreeMap::from_iter([
+            (1, 2.5),
+            (3, 2.0),
+            (5, 1.5),
+            (10, 1.3),
+            (20, 1.2),
+            (1008, 1.1),
+        ]);
+        let cached = ArcSwap::from_pointee(estimates);
+        Arc::new(Self { cached })
+    }
+}
+
+impl FeeEstimator for FeeEstimates {
+    fn get_est_sat_per_1000_weight(
+        &self,
+        conf_target: ConfirmationTarget,
+    ) -> u32 {
+        // Munge with units to get to sats per 1000 weight unit required by LDK
+        let num_blocks = conf_target.to_num_blocks();
+        let feerate = self.num_blocks_to_feerate(num_blocks);
+
+        // LDK v0.0.118 introduced changes to `ConfirmationTarget` which require
+        // some post-estimation adjustments to the fee rates, which we do here.
+        // Our FeeEstimator implementation is based on ldk-node's. More info:
+        // https://github.com/lightningdevkit/rust-lightning/releases/tag/v0.0.118
+        let adjusted_fee_rate = match conf_target {
+            ConfirmationTarget::MinAllowedNonAnchorChannelRemoteFee => {
+                let sats_kwu = feerate.to_sat_per_kwu();
+                let adjusted_sats_kwu = sats_kwu.saturating_sub(250);
+                bitcoin::FeeRate::from_sat_per_kwu(adjusted_sats_kwu)
+            }
+            _ => feerate,
+        };
+
+        // Ensure we don't fall below the minimum feerate required by LDK.
+        let feerate_sat_kwu = adjusted_fee_rate.to_sat_per_kwu();
+        debug_assert!(feerate_sat_kwu <= u32::MAX as u64, "Feerate overflow");
+        cmp::max(feerate_sat_kwu as u32, FEERATE_FLOOR_SATS_PER_KW)
+    }
+}
+
+pub struct LexeEsplora {
+    client: AsyncClient,
+    fee_estimates: Arc<FeeEstimates>,
     eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     test_event_tx: TestEventSender,
     /// An optional hook to be called just before broadcasting a tx.
@@ -129,7 +257,8 @@ impl LexeEsplora {
         eph_tasks_tx: mpsc::Sender<LxTask<()>>,
         test_event_tx: TestEventSender,
         shutdown: NotifyOnce,
-    ) -> anyhow::Result<(Arc<Self>, LxTask<()>, String)> {
+    ) -> anyhow::Result<(Arc<Self>, Arc<FeeEstimates>, LxTask<()>, String)>
+    {
         // Randomize the URL ordering for some basic load balancing
         esplora_urls.shuffle(rng);
 
@@ -148,12 +277,12 @@ impl LexeEsplora {
             .await;
 
             match init_result {
-                Ok((client, task)) => {
+                Ok((client, fee_estimates, task)) => {
                     if !err_msgs.is_empty() {
                         let joined = err_msgs.join(", ");
                         warn!("At least one esplora init failed: [{joined}]");
                     }
-                    return Ok((client, task, url));
+                    return Ok((client, fee_estimates, task, url));
                 }
                 Err(e) => err_msgs.push(format!("({url}, {e:#})")),
             }
@@ -177,7 +306,7 @@ impl LexeEsplora {
         eph_tasks_tx: mpsc::Sender<LxTask<()>>,
         test_event_tx: TestEventSender,
         shutdown: NotifyOnce,
-    ) -> anyhow::Result<(Arc<Self>, LxTask<()>)> {
+    ) -> anyhow::Result<(Arc<Self>, Arc<FeeEstimates>, LxTask<()>)> {
         // LexeEsplora wraps AsyncClient which in turn wraps reqwest::Client.
         let reqwest_client = Self::build_reqwest_client()
             .context("Failed to build reqwest client")?;
@@ -187,13 +316,12 @@ impl LexeEsplora {
         let fee_estimates = client
             .get_fee_estimates()
             .await
-            .map(convert_fee_estimates)
-            .map(ArcSwap::from_pointee)
+            .map(FeeEstimates::from_esplora_result)
             .context("Could not fetch initial esplora fee estimates")?;
 
         let esplora = Arc::new(Self::new(
             client,
-            fee_estimates,
+            fee_estimates.clone(),
             broadcast_hook,
             eph_tasks_tx,
             test_event_tx,
@@ -202,12 +330,12 @@ impl LexeEsplora {
         // Spawn refresh fees task
         let task = Self::spawn_refresh_fees_task(esplora.clone(), shutdown);
 
-        Ok((esplora, task))
+        Ok((esplora, fee_estimates, task))
     }
 
     pub(crate) fn new(
         client: AsyncClient,
-        fee_estimates: ArcSwap<BTreeMap<u16, f64>>,
+        fee_estimates: Arc<FeeEstimates>,
         broadcast_hook: Option<PreBroadcastHook>,
         eph_tasks_tx: mpsc::Sender<LxTask<()>>,
         test_event_tx: TestEventSender,
@@ -219,32 +347,6 @@ impl LexeEsplora {
             eph_tasks_tx,
             test_event_tx,
         }
-    }
-
-    /// Constructs a dummy [`LexeEsplora`] useful for tests.
-    #[cfg(test)]
-    pub(crate) fn dummy() -> Arc<Self> {
-        let fee_estimates = BTreeMap::from_iter([
-            (1, 2.5),
-            (3, 2.0),
-            (5, 1.5),
-            (10, 1.3),
-            (20, 1.2),
-            (1008, 1.1),
-        ]);
-        let client = reqwest11::ClientBuilder::new().build().unwrap();
-        let client = AsyncClient::from_client("dummy".to_owned(), client);
-        let fee_estimates = ArcSwap::from_pointee(fee_estimates);
-        let (eph_tasks_tx, _) = mpsc::channel(256);
-        let (test_event_tx, _) = crate::test_event::channel("test");
-        let broadcast_hook = None;
-        Arc::new(Self::new(
-            client,
-            fee_estimates,
-            broadcast_hook,
-            eph_tasks_tx,
-            test_event_tx,
-        ))
     }
 
     /// Builds the [`reqwest11::Client`] used by the [`AsyncClient`].
@@ -329,51 +431,15 @@ impl LexeEsplora {
 
     /// Refreshes our cached fee estimates.
     async fn refresh_fee_estimates(&self) -> anyhow::Result<()> {
-        let fee_estimates = self
+        let estimates = self
             .client
             .get_fee_estimates()
             .await
-            .map(convert_fee_estimates)
             .context("Could not update cached Esplora fee estimates")?;
 
-        self.fee_estimates.store(Arc::new(fee_estimates));
+        self.fee_estimates.update(estimates);
 
         Ok(())
-    }
-
-    /// Convert a target # of blocks into a [`bitcoin::FeeRate`] via a cache
-    /// lookup. Since [`bitcoin::FeeRate`] is easily convertible to other units,
-    /// this is the core feerate function that others delegate to.
-    pub fn num_blocks_to_feerate(&self, num_blocks: u16) -> bitcoin::FeeRate {
-        let guarded_fee_estimates = self.fee_estimates.load();
-        let feerate_sats_vbyte =
-            lookup_fee_rate(num_blocks, &guarded_fee_estimates);
-
-        // (X sat/1 vb) * (1 vb/4 wu) * (1000 wu/1 kwu)
-        // = (X sat/vb) * (250.0 vb/kwu)
-        let feerate_sats_kwu = (feerate_sats_vbyte * 250.0) as u64;
-        bitcoin::FeeRate::from_sat_per_kwu(feerate_sats_kwu)
-    }
-
-    /// Convert a [`ConfirmationPriority`] into a [`bitcoin::FeeRate`].
-    pub fn conf_prio_to_feerate(
-        &self,
-        conf_prio: ConfirmationPriority,
-    ) -> bitcoin::FeeRate {
-        let num_blocks = conf_prio.to_num_blocks();
-        self.num_blocks_to_feerate(num_blocks)
-    }
-
-    /// Convert a [`ConfirmationTarget`] into a [`bitcoin::FeeRate`].
-    /// This calls into the [`FeeEstimator`] impl, which as of LDK v0.0.118
-    /// requires some special post-estimation logic.
-    pub fn conf_target_to_feerate(
-        &self,
-        conf_target: ConfirmationTarget,
-    ) -> bitcoin::FeeRate {
-        let fee_for_1000_wu =
-            self.get_est_sat_per_1000_weight(conf_target) as u64;
-        bitcoin::FeeRate::from_sat_per_kwu(fee_for_1000_wu)
     }
 
     /// Broadcast a [`Transaction`].
@@ -585,6 +651,7 @@ impl BroadcasterInterface for LexeEsplora {
     }
 }
 
+// TODO(max): Remove
 impl FeeEstimator for LexeEsplora {
     fn get_est_sat_per_1000_weight(
         &self,
@@ -592,7 +659,7 @@ impl FeeEstimator for LexeEsplora {
     ) -> u32 {
         // Munge with units to get to sats per 1000 weight unit required by LDK
         let num_blocks = conf_target.to_num_blocks();
-        let feerate = self.num_blocks_to_feerate(num_blocks);
+        let feerate = self.fee_estimates.num_blocks_to_feerate(num_blocks);
 
         // LDK v0.0.118 introduced changes to `ConfirmationTarget` which require
         // some post-estimation adjustments to the fee rates, which we do here.
@@ -614,43 +681,14 @@ impl FeeEstimator for LexeEsplora {
     }
 }
 
-/// Converts the [`HashMap<u16, f64>`] returned by
-/// [`AsyncClient::get_fee_estimates`] into a [`BTreeMap<usize, f64>`].
-fn convert_fee_estimates(estimates: HashMap<u16, f64>) -> BTreeMap<u16, f64> {
-    estimates.into_iter().collect()
-}
-
-/// A version of [`esplora_client::convert_fee_rate`] which avoids an N * log(N)
-/// Vec sort (and `HashMap<u16, f64>` clone) at every feerate lookup by
-/// leveraging a parsed [`BTreeMap<u16, f64>`].
-///
-/// Functionality: Given a desired target number of blocks by which a tx is
-/// confirmed, and the parsed return value of [`AsyncClient::get_fee_estimates`]
-/// which maps [`u16`] conf targets (in number of blocks) to the [`f64`]
-/// estimated fee rates (in sats per vbyte), extracts the estimated feerate
-/// whose corresponding target is the largest of all targets less than or equal
-/// to our desired target, or defaults to 1 sat per vbyte if our desired target
-/// was lower than the smallest target with a fee estimate.
-fn lookup_fee_rate(
-    num_blocks_target: u16,
-    esplora_estimates: &BTreeMap<u16, f64>,
-) -> f64 {
-    *esplora_estimates
-        .iter()
-        .rev()
-        .find(|(num_blocks, _)| *num_blocks <= &num_blocks_target)
-        .map(|(_, feerate)| feerate)
-        .unwrap_or(&FALLBACK_FEE_RATE)
-}
-
 #[cfg(all(test, not(target_env = "sgx")))]
 mod test {
     use proptest::{arbitrary::any, prop_assert_eq, proptest};
 
     use super::*;
 
-    /// Check equivalence of our [`lookup_fee_rate`] implementation and
-    /// [`esplora_client`]'s.
+    /// Check equivalence of our [`FeeEstimates::lookup_fee_rate`]
+    /// implementation and [`esplora_client`]'s.
     #[test]
     fn convert_fee_rate_equiv() {
         proptest!(|(
@@ -663,7 +701,8 @@ mod test {
                 .collect::<HashMap<u16, f64>>();
             let target_usize = usize::from(target);
 
-            let our_feerate_res = lookup_fee_rate(target, &estimates) as f32;
+            let our_feerate_res =
+                FeeEstimates::lookup_fee_rate(target, &estimates) as f32;
             let their_feerate_res =
                 esplora_client::convert_fee_rate(target_usize, hashmap_estimates)
                     .unwrap_or(FALLBACK_FEE_RATE as f32);
