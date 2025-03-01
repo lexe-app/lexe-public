@@ -52,12 +52,13 @@ use common::{
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     channel::{ChannelEvent, ChannelEventsBus},
-    esplora::{FeeEstimates, LexeEsplora},
+    esplora::FeeEstimates,
     event::{self, EventExt, EventHandleError},
     keys_manager::LexeKeysManager,
     payments::outbound::LxOutboundPaymentFailure,
     test_event::TestEventSender,
     traits::LexeEventHandler,
+    tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
 };
 use lightning::events::{Event, PaymentFailureReason, ReplayEvent};
@@ -76,7 +77,7 @@ pub(crate) struct EventCtx {
     pub lsp: LspInfo,
     pub lsp_api: Arc<dyn NodeLspApi + Send + Sync>,
     pub fee_estimates: Arc<FeeEstimates>,
-    pub esplora: Arc<LexeEsplora>,
+    pub tx_broadcaster: Arc<TxBroadcaster>,
     pub wallet: LexeWallet,
     pub channel_manager: NodeChannelManager,
     pub keys_manager: Arc<LexeKeysManager>,
@@ -514,7 +515,7 @@ async fn do_handle_event(
                 ctx.channel_manager.clone(),
                 &ctx.keys_manager,
                 &ctx.fee_estimates,
-                &ctx.esplora,
+                &ctx.tx_broadcaster,
                 &ctx.wallet,
                 &ctx.test_event_tx,
                 outputs,

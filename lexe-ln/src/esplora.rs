@@ -7,9 +7,8 @@ use std::{
 
 use anyhow::{anyhow, ensure, Context};
 use arc_swap::ArcSwap;
-use bitcoin::{blockdata::transaction::Transaction, OutPoint};
+use bitcoin::OutPoint;
 use common::{
-    api::error,
     constants,
     ln::{
         hashes::LxTxid,
@@ -18,19 +17,14 @@ use common::{
     },
     notify_once::NotifyOnce,
     task::LxTask,
-    test_event::TestEvent,
-    Apply,
 };
 use esplora_client::{api::OutputStatus, AsyncClient};
 use lightning::chain::chaininterface::{
-    BroadcasterInterface, ConfirmationTarget, FeeEstimator,
-    FEERATE_FLOOR_SATS_PER_KW,
+    ConfirmationTarget, FeeEstimator, FEERATE_FLOOR_SATS_PER_KW,
 };
 use rand::{seq::SliceRandom, RngCore};
-use tokio::{sync::mpsc, time};
-use tracing::{debug, error, info, info_span, instrument, warn};
-
-use crate::{test_event::TestEventSender, BoxedAnyhowFuture};
+use tokio::time;
+use tracing::{debug, info, instrument, warn};
 
 /// The interval at which we refresh estimated fee rates.
 // Since we want to reduce the number of API calls made to our (external)
@@ -42,7 +36,7 @@ const REFRESH_FEE_ESTIMATES_INTERVAL: Duration = Duration::from_secs(60 * 60);
 pub(crate) const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// The default `-mempoolexpiry` value in Bitcoin Core (14 days). If a
-/// [`Transaction`] is older than this and still hasn't been confirmed, it is
+/// transaction is older than this and still hasn't been confirmed, it is
 /// likely that most nodes will have evicted this tx from their mempool. Txs
 /// which have reached this age should be considered to be dropped.
 const BITCOIN_CORE_MEMPOOL_EXPIRY: Duration =
@@ -50,10 +44,6 @@ const BITCOIN_CORE_MEMPOOL_EXPIRY: Duration =
 
 /// The feerate we fall back to if fee rate lookup fails.
 const FALLBACK_FEE_RATE: f64 = 1.0;
-
-/// The type of the hook to be called just before broadcasting a tx.
-type PreBroadcastHook =
-    Arc<dyn Fn(&Transaction) -> BoxedAnyhowFuture + Send + Sync>;
 
 /// Whether this esplora url is contained in the whitelist for this network.
 #[must_use]
@@ -78,7 +68,7 @@ pub struct TxConfQuery {
     pub created_at: SystemTime,
 }
 
-/// Enumerates the possible confirmation statuses of a given [`Transaction`].
+/// The possible confirmation statuses of a given [`bitcoin::Transaction`].
 pub enum TxConfStatus {
     /// The tx has not been included in a block, or the containing block has
     /// been orphaned.
@@ -241,10 +231,6 @@ impl FeeEstimator for FeeEstimates {
 pub struct LexeEsplora {
     client: AsyncClient,
     fee_estimates: Arc<FeeEstimates>,
-    eph_tasks_tx: mpsc::Sender<LxTask<()>>,
-    test_event_tx: TestEventSender,
-    /// An optional hook to be called just before broadcasting a tx.
-    broadcast_hook: Option<PreBroadcastHook>,
 }
 
 impl LexeEsplora {
@@ -254,9 +240,6 @@ impl LexeEsplora {
     pub async fn init_any(
         rng: &mut impl RngCore,
         mut esplora_urls: Vec<String>,
-        broadcast_hook: Option<PreBroadcastHook>,
-        eph_tasks_tx: mpsc::Sender<LxTask<()>>,
-        test_event_tx: TestEventSender,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<(Arc<Self>, Arc<FeeEstimates>, LxTask<()>, String)>
     {
@@ -268,14 +251,7 @@ impl LexeEsplora {
         let mut err_msgs = Vec::new();
         for url in esplora_urls {
             info!("Initializing Esplora from url: {url}");
-            let init_result = Self::init(
-                url.clone(),
-                broadcast_hook.clone(),
-                eph_tasks_tx.clone(),
-                test_event_tx.clone(),
-                shutdown.clone(),
-            )
-            .await;
+            let init_result = Self::init(url.clone(), shutdown.clone()).await;
 
             match init_result {
                 Ok((client, fee_estimates, task)) => {
@@ -303,9 +279,6 @@ impl LexeEsplora {
     // Esplora URLs (which have likely been fixed in a later version).
     pub async fn init(
         esplora_url: String,
-        broadcast_hook: Option<PreBroadcastHook>,
-        eph_tasks_tx: mpsc::Sender<LxTask<()>>,
-        test_event_tx: TestEventSender,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<(Arc<Self>, Arc<FeeEstimates>, LxTask<()>)> {
         // LexeEsplora wraps AsyncClient which in turn wraps reqwest::Client.
@@ -320,34 +293,15 @@ impl LexeEsplora {
             .map(FeeEstimates::from_esplora_result)
             .context("Could not fetch initial esplora fee estimates")?;
 
-        let esplora = Arc::new(Self::new(
+        let esplora = Arc::new(Self {
             client,
-            fee_estimates.clone(),
-            broadcast_hook,
-            eph_tasks_tx,
-            test_event_tx,
-        ));
+            fee_estimates: fee_estimates.clone(),
+        });
 
         // Spawn refresh fees task
         let task = Self::spawn_refresh_fees_task(esplora.clone(), shutdown);
 
         Ok((esplora, fee_estimates, task))
-    }
-
-    pub(crate) fn new(
-        client: AsyncClient,
-        fee_estimates: Arc<FeeEstimates>,
-        broadcast_hook: Option<PreBroadcastHook>,
-        eph_tasks_tx: mpsc::Sender<LxTask<()>>,
-        test_event_tx: TestEventSender,
-    ) -> Self {
-        Self {
-            client,
-            broadcast_hook,
-            fee_estimates,
-            eph_tasks_tx,
-            test_event_tx,
-        }
     }
 
     /// Builds the [`reqwest11::Client`] used by the [`AsyncClient`].
@@ -440,65 +394,6 @@ impl LexeEsplora {
 
         self.fee_estimates.update(estimates);
 
-        Ok(())
-    }
-
-    /// Broadcast a [`Transaction`].
-    /// Sends a [`TestEvent::TxBroadcasted`] if successful.
-    pub async fn broadcast_tx(&self, tx: &Transaction) -> anyhow::Result<()> {
-        Self::broadcast_txs_inner(
-            &self.client,
-            self.broadcast_hook.clone(),
-            &self.test_event_tx,
-            &[tx],
-        )
-        .await
-    }
-
-    // See BroadcasterInterface impl for why this fn exists.
-    #[instrument(skip_all, name = "(broadcast-tx)")]
-    async fn broadcast_txs_inner(
-        client: &AsyncClient,
-        broadcast_hook: Option<PreBroadcastHook>,
-        test_event_tx: &TestEventSender,
-        txs: &[&Transaction],
-    ) -> anyhow::Result<()> {
-        if txs.is_empty() {
-            return Err(anyhow!("We were given no transactions to broadcast"));
-        }
-
-        let num_txs = txs.len();
-        info!("Broadcasting batch of {num_txs} txs");
-
-        // Run the pre-broadcast hook on all txs if one exists
-        if let Some(hook) = broadcast_hook {
-            // Map each tx to a hook future, then run the futures concurrently
-            txs.iter()
-                .map(|tx| hook(tx))
-                .apply(futures::future::join_all)
-                .await
-                .apply(error::join_results)
-                .context("Pre-broadcast hook(s) failed")?;
-        }
-
-        txs.iter()
-            .map(|tx| async {
-                let txid = tx.compute_txid();
-                debug!("Broadcasting tx {txid}");
-                client
-                    .broadcast(tx)
-                    .await
-                    .inspect(|()| debug!("Broadcasted tx {txid}"))
-                    .with_context(|| txid)
-                    .context("Error broadcasting tx")
-            })
-            .apply(futures::future::join_all)
-            .await
-            .apply(error::join_results)
-            .context("Batch broadcast failed")?;
-
-        test_event_tx.send(TestEvent::TxBroadcasted);
-        info!("Batch broadcast of {num_txs} txs succeeded");
         Ok(())
     }
 
@@ -613,42 +508,6 @@ impl LexeEsplora {
 
         // The tx is fresh, with no confs or replacements. It is simply 0-conf.
         Ok(TxConfStatus::ZeroConf)
-    }
-}
-
-impl BroadcasterInterface for LexeEsplora {
-    fn broadcast_transactions(&self, txs: &[&Transaction]) {
-        // We can't make LexeEsplora clonable because LDK's API requires a
-        // `Deref<Target: FeeEstimator>` and making LexeEsplora Deref to a inner
-        // version of itself is a dumb way to accomplish that. Instead, we have
-        // the `broadcast_txs_inner` static method which is good enough.
-        let client = self.client.clone();
-        let broadcast_hook = self.broadcast_hook.clone();
-        let test_event_tx = self.test_event_tx.clone();
-        let txs = txs.iter().copied().cloned().collect::<Vec<Transaction>>();
-
-        let task = LxTask::spawn_with_span(
-            "BroadcasterInterface",
-            info_span!("(broadcast-txs)"),
-            async move {
-                let tx_refs = txs.iter().collect::<Vec<&Transaction>>();
-                let result = LexeEsplora::broadcast_txs_inner(
-                    &client,
-                    broadcast_hook,
-                    &test_event_tx,
-                    tx_refs.as_slice(),
-                )
-                .await;
-                match result {
-                    Ok(()) => debug!("Broadcasted txs successfully"),
-                    Err(e) => error!("Error broadcasting txs: {e:#}"),
-                }
-            },
-        );
-
-        if self.eph_tasks_tx.try_send(task).is_err() {
-            warn!("(BroadcasterInterface) Failed to send task");
-        }
     }
 }
 

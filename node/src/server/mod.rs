@@ -30,9 +30,10 @@ use common::{
 use lexe_ln::{
     alias::{NetworkGraphType, RouterType},
     channel::ChannelEventsBus,
-    esplora::{FeeEstimates, LexeEsplora},
+    esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     test_event::TestEventReceiver,
+    tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
 };
 use lightning::util::config::UserConfig;
@@ -63,7 +64,7 @@ pub(crate) struct AppRouterState {
     pub persister: Arc<NodePersister>,
     pub chain_monitor: Arc<ChainMonitorType>,
     pub fee_estimates: Arc<FeeEstimates>,
-    pub esplora: Arc<LexeEsplora>,
+    pub tx_broadcaster: Arc<TxBroadcaster>,
     pub wallet: LexeWallet,
     pub router: Arc<RouterType>,
     pub channel_manager: NodeChannelManager,

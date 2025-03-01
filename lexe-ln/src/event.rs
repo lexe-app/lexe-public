@@ -28,10 +28,11 @@ use tracing::{debug, info, info_span, warn};
 
 use crate::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
-    esplora::{FeeEstimates, LexeEsplora},
+    esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     test_event::TestEventSender,
     traits::{LexeChannelManager, LexePersister},
+    tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
 };
 
@@ -369,7 +370,7 @@ pub async fn handle_spendable_outputs<CM, PS>(
     channel_manager: CM,
     keys_manager: &LexeKeysManager,
     fee_estimates: &FeeEstimates,
-    esplora: &LexeEsplora,
+    tx_broadcaster: &TxBroadcaster,
     wallet: &LexeWallet,
     test_event_tx: &TestEventSender,
     outputs: Vec<SpendableOutputDescriptor>,
@@ -405,8 +406,8 @@ where
     )?;
     if let Some(spending_tx) = maybe_spending_tx {
         debug!("Broadcasting tx to spend spendable outputs");
-        esplora
-            .broadcast_tx(&spending_tx)
+        tx_broadcaster
+            .broadcast_transaction(spending_tx)
             .await
             .context("Couldn't spend spendable outputs")?;
     }

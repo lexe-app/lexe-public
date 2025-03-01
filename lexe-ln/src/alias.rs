@@ -20,10 +20,9 @@ use lightning::{
 use lightning_transaction_sync::EsploraSyncClient;
 
 use crate::{
-    esplora::{FeeEstimates, LexeEsplora},
-    keys_manager::LexeKeysManager,
-    logger::LexeTracingLogger,
-    p2p::ConnectionTx,
+    esplora::FeeEstimates, keys_manager::LexeKeysManager,
+    logger::LexeTracingLogger, p2p::ConnectionTx,
+    tx_broadcaster::TxBroadcaster,
 };
 
 // --- Partial aliases --- //
@@ -80,7 +79,7 @@ pub type LexePeerManagerType<CHANNEL_MANAGER> = PeerManager<
 // - Fully concrete.
 // - Lexicographically sorted.
 
-pub type BroadcasterType = LexeEsplora;
+pub type BroadcasterType = TxBroadcaster;
 
 pub type ChannelMonitorType = ChannelMonitor<SignerType>;
 

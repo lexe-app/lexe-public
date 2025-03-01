@@ -51,6 +51,7 @@ use lexe_ln::{
     payments::manager::PaymentsManager,
     sync, test_event,
     traits::LexeInnerPersister,
+    tx_broadcaster::TxBroadcaster,
     wallet::{self, LexeWallet},
 };
 use lightning::{
@@ -97,11 +98,12 @@ pub struct UserNode {
     shutdown: NotifyOnce,
 
     // --- Actors --- //
-    broadcaster: Arc<BroadcasterType>,
     chain_monitor: Arc<ChainMonitorType>,
     channel_manager: NodeChannelManager,
     esplora: Arc<LexeEsplora>,
-    fee_estimator: Arc<FeeEstimatorType>,
+    wallet: LexeWallet,
+    fee_estimates: Arc<FeeEstimatorType>,
+    tx_broadcaster: Arc<BroadcasterType>,
     gossip_sync: Arc<P2PGossipSyncType>,
     inactivity_timer: InactivityTimer,
     keys_manager: Arc<LexeKeysManager>,
@@ -113,7 +115,6 @@ pub struct UserNode {
     persister: Arc<NodePersister>,
     router: Arc<RouterType>,
     scorer: Arc<Mutex<ProbabilisticScorerType>>,
-    wallet: LexeWallet,
 
     // --- Contexts --- //
     sync: Option<SyncContext>,
@@ -207,16 +208,8 @@ impl UserNode {
         );
 
         // Concurrently initialize esplora while fetching provisioned secrets
-        let broadcast_hook = None;
         let (try_esplora, try_fetch) = tokio::join!(
-            LexeEsplora::init_any(
-                rng,
-                filtered_esplora_urls,
-                broadcast_hook,
-                eph_tasks_tx.clone(),
-                test_event_tx.clone(),
-                shutdown.clone()
-            ),
+            LexeEsplora::init_any(rng, filtered_esplora_urls, shutdown.clone()),
             fetch_provisioned_secrets(
                 backend_api.as_ref(),
                 user_pk,
@@ -236,6 +229,16 @@ impl UserNode {
             node_key_pair: _,
         } = try_fetch.context("Failed to fetch provisioned secrets")?;
         info!(%esplora_url);
+
+        // Init tx broadcaster
+        let broadcast_hook = None;
+        let (tx_broadcaster, broadcaster_task) = TxBroadcaster::start(
+            esplora.clone(),
+            broadcast_hook,
+            test_event_tx.clone(),
+            shutdown.clone(),
+        );
+        static_tasks.push(broadcaster_task);
 
         // Validate deploy env and network
         if deploy_env.is_staging_or_prod() && cfg!(feature = "test-utils") {
@@ -279,10 +282,6 @@ impl UserNode {
             logger.clone(),
         ));
 
-        // Clone FeeEstimator and BroadcasterInterface impls
-        let fee_estimator = fee_estimates.clone();
-        let broadcaster = esplora.clone();
-
         // If we're in staging or prod, init a GoogleVfs.
         let authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
@@ -323,9 +322,9 @@ impl UserNode {
         // Initialize the chain monitor
         let chain_monitor = Arc::new(ChainMonitor::new(
             Some(ldk_sync_client.clone()),
-            broadcaster.clone(),
+            tx_broadcaster.clone(),
             logger.clone(),
-            fee_estimator.clone(),
+            fee_estimates.clone(),
             persister.clone(),
         ));
 
@@ -479,9 +478,9 @@ impl UserNode {
                 &config,
                 &mut channel_monitors,
                 keys_manager.clone(),
-                fee_estimator.clone(),
+                fee_estimates.clone(),
                 chain_monitor.clone(),
-                broadcaster.clone(),
+                tx_broadcaster.clone(),
                 router.clone(),
                 logger.clone(),
             )
@@ -494,9 +493,9 @@ impl UserNode {
             &config,
             maybe_manager,
             keys_manager.clone(),
-            fee_estimator.clone(),
+            fee_estimates.clone(),
             chain_monitor.clone(),
-            broadcaster.clone(),
+            tx_broadcaster.clone(),
             router.clone(),
             logger.clone(),
         )
@@ -597,7 +596,7 @@ impl UserNode {
                 lsp: args.lsp.clone(),
                 lsp_api: lsp_api.clone(),
                 fee_estimates: fee_estimates.clone(),
-                esplora: esplora.clone(),
+                tx_broadcaster: tx_broadcaster.clone(),
                 wallet: wallet.clone(),
                 channel_manager: channel_manager.clone(),
                 keys_manager: keys_manager.clone(),
@@ -631,7 +630,7 @@ impl UserNode {
             persister: persister.clone(),
             chain_monitor: chain_monitor.clone(),
             fee_estimates: fee_estimates.clone(),
-            esplora: esplora.clone(),
+            tx_broadcaster: tx_broadcaster.clone(),
             wallet: wallet.clone(),
             router: router.clone(),
             channel_manager: channel_manager.clone(),
@@ -781,11 +780,12 @@ impl UserNode {
             shutdown,
 
             // Actors
-            broadcaster,
             chain_monitor,
             channel_manager,
             esplora,
-            fee_estimator,
+            wallet,
+            fee_estimates,
+            tx_broadcaster,
             gossip_sync,
             inactivity_timer,
             keys_manager,
@@ -797,7 +797,6 @@ impl UserNode {
             persister,
             router,
             scorer,
-            wallet,
 
             // Contexts
             sync: Some(SyncContext {

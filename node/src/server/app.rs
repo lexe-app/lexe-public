@@ -293,7 +293,7 @@ pub(super) async fn pay_onchain(
         req,
         state.network,
         &state.wallet,
-        &state.esplora,
+        &state.tx_broadcaster,
         &state.payments_manager,
     )
     .await

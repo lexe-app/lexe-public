@@ -59,7 +59,7 @@ use crate::{
     alias::{LexeChainMonitorType, NetworkGraphType, RouterType, SignerType},
     balance,
     channel::{ChannelEvent, ChannelEventsBus, ChannelEventsRx},
-    esplora::{FeeEstimates, LexeEsplora},
+    esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     payments::{
         inbound::InboundInvoicePayment,
@@ -72,6 +72,7 @@ use crate::{
     },
     route,
     traits::{LexeChannelManager, LexePeerManager, LexePersister},
+    tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
 };
 
@@ -961,7 +962,7 @@ pub async fn pay_onchain<CM, PS>(
     req: PayOnchainRequest,
     network: LxNetwork,
     wallet: &LexeWallet,
-    esplora: &LexeEsplora,
+    tx_broadcaster: &TxBroadcaster,
     payments_manager: &PaymentsManager<CM, PS>,
 ) -> anyhow::Result<PayOnchainResponse>
 where
@@ -986,8 +987,8 @@ where
         .context("Could not register new onchain send")?;
 
     // Broadcast.
-    esplora
-        .broadcast_tx(&tx)
+    tx_broadcaster
+        .broadcast_transaction(tx)
         .await
         .context("Failed to broadcast tx")?;
 
