@@ -280,7 +280,7 @@ impl UserNode {
         ));
 
         // Clone FeeEstimator and BroadcasterInterface impls
-        let fee_estimator = esplora.clone();
+        let fee_estimator = fee_estimates.clone();
         let broadcaster = esplora.clone();
 
         // If we're in staging or prod, init a GoogleVfs.
@@ -414,7 +414,7 @@ impl UserNode {
             &root_seed,
             network,
             &esplora,
-            fee_estimates,
+            fee_estimates.clone(),
             maybe_changeset,
             wallet_persister_tx,
         )
@@ -596,6 +596,7 @@ impl UserNode {
             ctx: Arc::new(event_handler::EventCtx {
                 lsp: args.lsp.clone(),
                 lsp_api: lsp_api.clone(),
+                fee_estimates: fee_estimates.clone(),
                 esplora: esplora.clone(),
                 wallet: wallet.clone(),
                 channel_manager: channel_manager.clone(),
@@ -629,8 +630,9 @@ impl UserNode {
             runner_api: runner_api.clone(),
             persister: persister.clone(),
             chain_monitor: chain_monitor.clone(),
-            wallet: wallet.clone(),
+            fee_estimates: fee_estimates.clone(),
             esplora: esplora.clone(),
+            wallet: wallet.clone(),
             router: router.clone(),
             channel_manager: channel_manager.clone(),
             peer_manager: peer_manager.clone(),

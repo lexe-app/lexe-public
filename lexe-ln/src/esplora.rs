@@ -108,7 +108,8 @@ pub enum TxConfStatus {
 }
 
 /// Thin wrapper around cached feerate estimates fetched from Esplora.
-/// Implements [`FeeEstimator`] and provides other useful getters.
+/// - The cached feerates are periodically updated by [`LexeEsplora`].
+/// - Implements [`FeeEstimator`] and provides other useful getters.
 pub struct FeeEstimates {
     /// Cached map of conf targets (in number of blocks) to estimated feerates
     /// (in sats per vbyte) returned by [`AsyncClient::get_fee_estimates`].
@@ -648,36 +649,6 @@ impl BroadcasterInterface for LexeEsplora {
         if self.eph_tasks_tx.try_send(task).is_err() {
             warn!("(BroadcasterInterface) Failed to send task");
         }
-    }
-}
-
-// TODO(max): Remove
-impl FeeEstimator for LexeEsplora {
-    fn get_est_sat_per_1000_weight(
-        &self,
-        conf_target: ConfirmationTarget,
-    ) -> u32 {
-        // Munge with units to get to sats per 1000 weight unit required by LDK
-        let num_blocks = conf_target.to_num_blocks();
-        let feerate = self.fee_estimates.num_blocks_to_feerate(num_blocks);
-
-        // LDK v0.0.118 introduced changes to `ConfirmationTarget` which require
-        // some post-estimation adjustments to the fee rates, which we do here.
-        // Our FeeEstimator implementation is based on ldk-node's. More info:
-        // https://github.com/lightningdevkit/rust-lightning/releases/tag/v0.0.118
-        let adjusted_fee_rate = match conf_target {
-            ConfirmationTarget::MinAllowedNonAnchorChannelRemoteFee => {
-                let sats_kwu = feerate.to_sat_per_kwu();
-                let adjusted_sats_kwu = sats_kwu.saturating_sub(250);
-                bitcoin::FeeRate::from_sat_per_kwu(adjusted_sats_kwu)
-            }
-            _ => feerate,
-        };
-
-        // Ensure we don't fall below the minimum feerate required by LDK.
-        let feerate_sat_kwu = adjusted_fee_rate.to_sat_per_kwu();
-        debug_assert!(feerate_sat_kwu <= u32::MAX as u64, "Feerate overflow");
-        cmp::max(feerate_sat_kwu as u32, FEERATE_FLOOR_SATS_PER_KW)
     }
 }
 

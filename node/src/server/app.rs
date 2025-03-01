@@ -226,7 +226,7 @@ pub(super) async fn preflight_close_channel(
     lexe_ln::command::preflight_close_channel(
         &state.channel_manager,
         &state.chain_monitor,
-        &state.esplora,
+        &state.fee_estimates,
         req,
     )
     .await

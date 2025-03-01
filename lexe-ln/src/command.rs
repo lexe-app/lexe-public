@@ -59,7 +59,7 @@ use crate::{
     alias::{LexeChainMonitorType, NetworkGraphType, RouterType, SignerType},
     balance,
     channel::{ChannelEvent, ChannelEventsBus, ChannelEventsRx},
-    esplora::LexeEsplora,
+    esplora::{FeeEstimates, LexeEsplora},
     keys_manager::LexeKeysManager,
     payments::{
         inbound::InboundInvoicePayment,
@@ -437,7 +437,7 @@ where
 pub async fn preflight_close_channel<CM, PS>(
     channel_manager: &CM,
     chain_monitor: &LexeChainMonitorType<PS>,
-    esplora: &LexeEsplora,
+    fee_estimates: &FeeEstimates,
     req: PreflightCloseChannelRequest,
 ) -> anyhow::Result<PreflightCloseChannelResponse>
 where
@@ -467,7 +467,7 @@ where
     };
 
     // TODO(phlip9): handle force_close=true
-    let fee_estimate = our_close_tx_fees_sats(esplora, &channel, monitor);
+    let fee_estimate = our_close_tx_fees_sats(fee_estimates, &channel, monitor);
     let fee_estimate = Amount::try_from_sats_u64(fee_estimate)?;
 
     // TODO(phlip9): include est. blocks to confirmation? Esp. for force close.
@@ -478,7 +478,7 @@ where
 ///
 /// TODO(phlip9): support v2/anchor channels
 fn our_close_tx_fees_sats(
-    esplora: &LexeEsplora,
+    fee_estimates: &FeeEstimates,
     channel: &ChannelDetails,
     monitor: LockedChannelMonitor<'_, SignerType>,
 ) -> u64 {
@@ -522,7 +522,7 @@ fn our_close_tx_fees_sats(
     }
 
     // The current fees required for this close tx to confirm
-    let tx_fees_sats = close_tx_fees_sats(esplora, channel);
+    let tx_fees_sats = close_tx_fees_sats(fee_estimates, channel);
 
     // As the funder, if we somehow don't have enough to pay the full
     // `tx_fees_sats`, then the most we can possibly pay (without RBF / anchors)
@@ -548,10 +548,13 @@ fn our_close_tx_fees_sats(
 
 /// Estimate the total on-chain fees for a channel close, which must be paid by
 /// the channel funder.
-fn close_tx_fees_sats(esplora: &LexeEsplora, channel: &ChannelDetails) -> u64 {
+fn close_tx_fees_sats(
+    fee_estimates: &FeeEstimates,
+    channel: &ChannelDetails,
+) -> u64 {
     let conf_target = ConfirmationTarget::NonAnchorChannelFee;
     let fee_sat_per_kwu =
-        esplora.get_est_sat_per_1000_weight(conf_target) as u64;
+        fee_estimates.get_est_sat_per_1000_weight(conf_target) as u64;
 
     let close_tx_weight = CLOSE_TX_WEIGHT;
     let normal_fee_sats =

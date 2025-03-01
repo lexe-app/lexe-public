@@ -28,7 +28,7 @@ use tracing::{debug, info, info_span, warn};
 
 use crate::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
-    esplora::LexeEsplora,
+    esplora::{FeeEstimates, LexeEsplora},
     keys_manager::LexeKeysManager,
     test_event::TestEventSender,
     traits::{LexeChannelManager, LexePersister},
@@ -368,6 +368,7 @@ pub fn handle_scorer_update(
 pub async fn handle_spendable_outputs<CM, PS>(
     channel_manager: CM,
     keys_manager: &LexeKeysManager,
+    fee_estimates: &FeeEstimates,
     esplora: &LexeEsplora,
     wallet: &LexeWallet,
     test_event_tx: &TestEventSender,
@@ -384,7 +385,7 @@ where
     let destination_outputs = Vec::new();
     let destination_change_script =
         wallet.get_internal_address().script_pubkey();
-    let feerate_sat_per_1000_weight = esplora
+    let feerate_sat_per_1000_weight = fee_estimates
         .get_est_sat_per_1000_weight(ConfirmationTarget::NonAnchorChannelFee);
     let secp_ctx = SysRng::new().gen_secp256k1_ctx();
 

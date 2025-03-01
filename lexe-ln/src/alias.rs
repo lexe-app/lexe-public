@@ -20,8 +20,10 @@ use lightning::{
 use lightning_transaction_sync::EsploraSyncClient;
 
 use crate::{
-    esplora::LexeEsplora, keys_manager::LexeKeysManager,
-    logger::LexeTracingLogger, p2p::ConnectionTx,
+    esplora::{FeeEstimates, LexeEsplora},
+    keys_manager::LexeKeysManager,
+    logger::LexeTracingLogger,
+    p2p::ConnectionTx,
 };
 
 // --- Partial aliases --- //
@@ -84,7 +86,7 @@ pub type ChannelMonitorType = ChannelMonitor<SignerType>;
 
 pub type EsploraSyncClientType = EsploraSyncClient<LexeTracingLogger>;
 
-pub type FeeEstimatorType = LexeEsplora;
+pub type FeeEstimatorType = FeeEstimates;
 
 pub type MessageRouterType = DefaultMessageRouter<
     Arc<NetworkGraphType>,

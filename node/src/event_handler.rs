@@ -52,7 +52,7 @@ use common::{
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     channel::{ChannelEvent, ChannelEventsBus},
-    esplora::LexeEsplora,
+    esplora::{FeeEstimates, LexeEsplora},
     event::{self, EventExt, EventHandleError},
     keys_manager::LexeKeysManager,
     payments::outbound::LxOutboundPaymentFailure,
@@ -75,6 +75,7 @@ pub struct NodeEventHandler {
 pub(crate) struct EventCtx {
     pub lsp: LspInfo,
     pub lsp_api: Arc<dyn NodeLspApi + Send + Sync>,
+    pub fee_estimates: Arc<FeeEstimates>,
     pub esplora: Arc<LexeEsplora>,
     pub wallet: LexeWallet,
     pub channel_manager: NodeChannelManager,
@@ -512,6 +513,7 @@ async fn do_handle_event(
             event::handle_spendable_outputs(
                 ctx.channel_manager.clone(),
                 &ctx.keys_manager,
+                &ctx.fee_estimates,
                 &ctx.esplora,
                 &ctx.wallet,
                 &ctx.test_event_tx,
