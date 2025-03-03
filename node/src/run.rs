@@ -643,8 +643,6 @@ impl UserNode {
             network,
             measurement,
             activity_tx,
-            bdk_resync_tx: bdk_resync_tx.clone(),
-            ldk_resync_tx: ldk_resync_tx.clone(),
             channel_events_bus,
             eph_tasks_tx: eph_tasks_tx.clone(),
         });

@@ -299,11 +299,6 @@ pub(super) async fn pay_onchain(
     .await
     .map_err(NodeApiError::command)?;
 
-    lexe_ln::command::resync(&state.bdk_resync_tx, &state.ldk_resync_tx)
-        .await
-        .map(LxJson)
-        .map_err(NodeApiError::command)?;
-
     Ok(LxJson(response))
 }
 
