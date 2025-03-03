@@ -8,11 +8,15 @@ use std::{
 use anyhow::bail;
 use cfg_if::cfg_if;
 use common::test_event::{TestEvent, TestEventOp};
+use lexe_api::rest;
 use tokio::sync::mpsc;
 use tracing::debug;
 
-// Increase these if needed
-pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(20);
+const_utils::const_assert!(
+    rest::API_REQUEST_TIMEOUT.as_secs() > DEFAULT_TIMEOUT.as_secs()
+);
+
 const TEST_EVENT_CHANNEL_SIZE: usize = 16;
 
 /// Creates a [`TestEvent`] channel, returning a `(tx, rx)` tuple.

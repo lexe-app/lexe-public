@@ -24,10 +24,7 @@ pub static CONTENT_TYPE_ED25519_BCS: HeaderValue =
     HeaderValue::from_static("application/ed25519-bcs");
 
 // Apparently it takes >15s to open a channel with an external peer.
-#[cfg(not(debug_assertions))]
 pub const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
-#[cfg(debug_assertions)]
-pub const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 // Avoid `Method::` prefix. Associated constants can't be imported
 pub const GET: Method = Method::GET;
