@@ -27,6 +27,7 @@ import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
+import 'package:lexeapp/url.dart' as url;
 
 /// A bit of a hack so we can display "reasonable" Payment info immediately
 /// after sending a payment, but before we've synced our local payment DB.
@@ -266,6 +267,7 @@ class PaymentDetailPageInner extends StatelessWidget {
               payment.createdAt,
               isUtc: true);
           final maybeAmountSat = payment.amountSat;
+          final txid = payment.txid;
 
           return ScrollableSinglePageBody(
             padding: pagePaddingInsets,
@@ -302,7 +304,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                     now: now,
                   ),
                 ),
-                const SizedBox(height: Space.s400),
+                const SizedBox(height: Space.s200),
 
                 // TODO(phlip9): LN invoice "expires in X min" goes here?
                 // If pending or failed, show a card with more info on the
@@ -317,8 +319,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                       statusStr: payment.statusStr,
                     ),
                   ),
-
-                const SizedBox(height: Space.s700),
+                const SizedBox(height: Space.s600),
 
                 // Amount sent/received in BTC and fiat.
                 if (maybeAmountSat != null)
@@ -332,7 +333,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                       fiatRate: fiatRate,
                     ),
                   ),
-                const SizedBox(height: Space.s400),
+                const SizedBox(height: Space.s600),
 
                 // The payment's note field
                 Padding(
@@ -343,19 +344,38 @@ class PaymentDetailPageInner extends StatelessWidget {
                     initialNote: payment.note,
                   ),
                 ),
-                const SizedBox(height: Space.s1000),
+                const SizedBox(height: Space.s600),
               ]),
             ],
 
             // Payment details button
             // -> opens a modal bottom sheet with the complete payment info
-            bottom: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: pagePadding),
-              child: LxFilledButton(
-                onTap: () => this.openBottomSheet(context),
-                label: const Text("Payment Details"),
-                icon: const Icon(LxIcons.expandUp),
-              ),
+            bottomPadding: const EdgeInsets.symmetric(
+              horizontal: pagePadding,
+              vertical: Space.s600,
+            ),
+            bottom: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // View in block explorer
+                if (txid != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: Space.s200),
+                    child: LxFilledButton(
+                      onTap: () => url.open(block_explorer.txid(txid)),
+                      label: const Text("View in block explorer"),
+                      icon: const Icon(LxIcons.openLink),
+                    ),
+                  ),
+
+                // Open payment details bottom sheet
+                LxFilledButton(
+                  onTap: () => this.openBottomSheet(context),
+                  label: const Text("Payment details"),
+                  icon: const Icon(LxIcons.expandUp),
+                ),
+              ],
             ),
           );
         },

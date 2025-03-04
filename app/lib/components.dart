@@ -2121,6 +2121,7 @@ class InfoRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Label
           ConstrainedBox(
             constraints: const BoxConstraints.tightFor(width: Space.s925),
             child: Text(
@@ -2133,7 +2134,11 @@ class InfoRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: Space.s400),
+
+          // Value
           Expanded(child: valueText),
+
+          // Link icon (if linkTarget)
           if (linkTarget != null)
             Padding(
               padding: EdgeInsets.only(left: this.bodyPadding / 2, right: 2.0),
