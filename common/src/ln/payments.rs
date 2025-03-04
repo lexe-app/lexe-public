@@ -41,9 +41,17 @@ pub struct BasicPayment {
     pub direction: PaymentDirection,
 
     /// (Invoice payments only) The BOLT11 invoice used in this payment.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub invoice: Option<LxInvoice>,
 
+    /// (Onchain payments only) The original txid.
+    // NOTE: we're duplicating the txid here for onchain receives because its
+    // less error prone to use, esp. for external API consumers.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub txid: Option<LxTxid>,
+
     /// (Onchain payments only) The txid of the replacement tx, if one exists.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub replacement: Option<LxTxid>,
 
     /// The amount of this payment.
@@ -53,7 +61,9 @@ pub struct BasicPayment {
     /// - If this is a pending or failed inbound inbound invoice payment, this
     ///   is the amount encoded in our invoice, which may be null.
     /// - For all other payment types, an amount is always included.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub amount: Option<Amount>,
+
     /// The fees for this payment.
     ///
     /// - For outbound Lightning payments, these are the routing fees. If the
@@ -65,18 +75,15 @@ pub struct BasicPayment {
     pub fees: Amount,
 
     pub status: PaymentStatus,
+
+    /// The payment status as a human-readable string. These strings are
+    /// customized per payment type, e.g. "invoice generated", "timed out"
     #[cfg_attr(
         any(test, feature = "test-utils"),
         proptest(strategy = "arbitrary::any_string()")
     )]
-    /// The payment status as a human-readable string. These strings are
-    /// customized per payment type, e.g. "invoice generated", "timed out"
     pub status_str: String,
 
-    #[cfg_attr(
-        any(test, feature = "test-utils"),
-        proptest(strategy = "arbitrary::any_option_string()")
-    )]
     /// An optional personal note which a user can attach to any payment. A
     /// note can always be added or modified when a payment already exists,
     /// but this may not always be possible at creation time. These
@@ -100,8 +107,14 @@ pub struct BasicPayment {
     ///   option to add this note at the time of invoice payment.
     /// - Outbound spontaneous payment: Since there is no invoice description
     ///   field, the user has the option to set this at payment creation time.
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_option_string()")
+    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub finalized_at: Option<TimestampMs>,
 }
 
@@ -823,29 +836,29 @@ mod test {
 
 --- v2 (1) add txid for OnchainSend, (2) don't serialize empty fields
 --- OnchainSend
-{"index":"2352250271958571112-os_0c83e7486ccf8b662e1a57eaa67b3a9cf73d312625ffaf155e27e19c6896330e","kind":"onchain","direction":"outbound","txid":"f12b6bdf8ac4c166304c63777ec1f930176e2b6e743ff7f2fa4b14c97ebbd1a2","amount":"426295955721124.011","fees":"106243014155694.28","status":"pending","status_str":"partially confirmed (1-5 confirmations)","note":"foo bar","finalized_at":922031411621277542}
-{"index":"6662034773613201778-os_160d1659b347941dcf067ef4b7053355b058640a86e4fc8f3865c82da9b5a6cb","kind":"onchain","direction":"outbound","replacement":"21767abd07cfa29e6f1415ae0ea4b447b0aa212a01ac974c9d680ab199d79a28","amount":"1283455089118142.425","fees":"1195902608470070.026","status":"pending","status_str":"broadcasted","finalized_at":7724772872675692842}
-{"index":"7513172493835928492-os_189a8ddf5f0910096c5610dabce731a2a7d27100df1185f3d9c1944596c96199","kind":"onchain","direction":"outbound","amount":"2069602468658948.217","fees":"1347441650278795.035","status":"pending","status_str":"created","finalized_at":8681440472811127301}
+{"index":"2352250271958571112-os_0c83e7486ccf8b662e1a57eaa67b3a9cf73d312625ffaf155e27e19c6896330e","kind":"onchain","direction":"outbound","txid":"e911c836046ae0da0f8aef4549c7dd18da916932ef018ed7a9de6a74b42fef58","amount":"426295955721124.011","fees":"106243014155694.28","status":"pending","status_str":"partially confirmed (1-5 confirmations)","note":"foo bar","finalized_at":922031411621277542}
+{"index":"6662034773613201778-os_160d1659b347941dcf067ef4b7053355b058640a86e4fc8f3865c82da9b5a6cb","kind":"onchain","direction":"outbound","txid":"8540d62a5926e3279dbd7471f5cf81deb8049b4a7d2b58af2626583218cc3761","replacement":"21767abd07cfa29e6f1415ae0ea4b447b0aa212a01ac974c9d680ab199d79a28","amount":"1283455089118142.425","fees":"1195902608470070.026","status":"pending","status_str":"broadcasted","finalized_at":7724772872675692842}
+{"index":"7513172493835928492-os_189a8ddf5f0910096c5610dabce731a2a7d27100df1185f3d9c1944596c96199","kind":"onchain","direction":"outbound","txid":"b329dd242e2cd1716abc3ff827fde82e5ebc8f7e6db2f6585091f1f32a211f3b","amount":"2069602468658948.217","fees":"1347441650278795.035","status":"pending","status_str":"created","finalized_at":8681440472811127301}
 --- OnchainReceive
-{"index":"5806002936929143706-or_6e2a71f56aab3a33a2b0c2cfe8a092883f9783e5cb599b5d5c5b264d5c4e2669","kind":"onchain","direction":"inbound","amount":"1026373441666394.174","fees":"0","status":"pending","status_str":"partially confirmed (1-5 confirmations)","finalized_at":3872673315358973283}
-{"index":"8270747644397781506-or_805b79f828994ebb2e06b6b0a2f3fda1b52da1417335a35a826452c988be6e1c","kind":"onchain","direction":"inbound","replacement":"454737de4ff8795fb3b86b817a68701c90241190b425946cb3404232a10302f7","amount":"414234636362640.08","fees":"0","status":"failed","status_str":"dropped from mempool","finalized_at":6727882137524031451}
-{"index":"1667254218639325659-or_92ca95723279675661dc51bcacbf4bf6d7d96ab13c1fd71fcc8fbbe08aa6f81d","kind":"onchain","direction":"inbound","amount":"2077078592479909.515","fees":"0","status":"pending","status_str":"being replaced (replacement has 1-5 confirmations)","note":"foo bar","finalized_at":7581178487696199344}
+{"index":"5806002936929143706-or_6e2a71f56aab3a33a2b0c2cfe8a092883f9783e5cb599b5d5c5b264d5c4e2669","kind":"onchain","direction":"inbound","txid":"6e2a71f56aab3a33a2b0c2cfe8a092883f9783e5cb599b5d5c5b264d5c4e2669","amount":"1026373441666394.174","fees":"0","status":"pending","status_str":"partially confirmed (1-5 confirmations)","finalized_at":3872673315358973283}
+{"index":"8270747644397781506-or_805b79f828994ebb2e06b6b0a2f3fda1b52da1417335a35a826452c988be6e1c","kind":"onchain","direction":"inbound","txid":"805b79f828994ebb2e06b6b0a2f3fda1b52da1417335a35a826452c988be6e1c","replacement":"454737de4ff8795fb3b86b817a68701c90241190b425946cb3404232a10302f7","amount":"414234636362640.08","fees":"0","status":"failed","status_str":"dropped from mempool","finalized_at":6727882137524031451}
+{"index":"1667254218639325659-or_92ca95723279675661dc51bcacbf4bf6d7d96ab13c1fd71fcc8fbbe08aa6f81d","kind":"onchain","direction":"inbound","txid":"92ca95723279675661dc51bcacbf4bf6d7d96ab13c1fd71fcc8fbbe08aa6f81d","amount":"2077078592479909.515","fees":"0","status":"pending","status_str":"being replaced (replacement has 1-5 confirmations)","note":"foo bar","finalized_at":7581178487696199344}
 --- InboundInvoice
-{"index":"4725737965850879943-ln_bc29d8f882abed198ce434cd50d01b5ca840fdaef3d239289c24b4b6efb5053f","kind":"invoice","direction":"inbound","invoice":"lntb18446744073709551610p1ptueg0qdr97xtfnwlwnxdjvznl8tc6f9dg8ghzfudcn7hjw0mq72jgrgtrcwgj4u9p56tzdmamhaxn4uu2jj3h7283s75f8u5unxn08y4f5u9yspp57z23mnrrsvpehpshk4k9g6y5su4nk2ka74lts8pyc4m43g6mkvtqsp5pfg2c0wuxft2ueaqpp2n83egyjrs22mlsjqtlkcqynqrzmm3jgxs9qyysgqcqr0r9np4qdfsmtw7dv7z66qw24t4zcsdyuy07tgrelewu3ll2qsdtjdh3mfuvfppq756g7n33q4s2kym4udpnh8g4u5pxd2zvr9yqth0u8lycwzxxr8pkszl4qz035cm7knx7naly983rr3pvjkm0rn0zr9cn8utuxju02d6jzq0nz5npjvurypjlwd9t04nwpnke7mky4ajekj2gd8exnydnumra06gm390he0vldj8zhnyuhdw3jf87phmckswkmx2284s5ush5h2f7r0pwlm8pwrmlevcgecqclkflq7c7wr3dqv65g5v8wuqwgg6uynpxvstvxr4ka7janu873kqc5r36jzd0gwv8r5jl97tsdgphh5a5l","amount":"1675262874117511.115","fees":"1986679708464435.976","status":"pending","status_str":"claiming","note":"foo bar","finalized_at":null}
+{"index":"4725737965850879943-ln_bc29d8f882abed198ce434cd50d01b5ca840fdaef3d239289c24b4b6efb5053f","kind":"invoice","direction":"inbound","invoice":"lntb18446744073709551610p1ptueg0qdr97xtfnwlwnxdjvznl8tc6f9dg8ghzfudcn7hjw0mq72jgrgtrcwgj4u9p56tzdmamhaxn4uu2jj3h7283s75f8u5unxn08y4f5u9yspp57z23mnrrsvpehpshk4k9g6y5su4nk2ka74lts8pyc4m43g6mkvtqsp5pfg2c0wuxft2ueaqpp2n83egyjrs22mlsjqtlkcqynqrzmm3jgxs9qyysgqcqr0r9np4qdfsmtw7dv7z66qw24t4zcsdyuy07tgrelewu3ll2qsdtjdh3mfuvfppq756g7n33q4s2kym4udpnh8g4u5pxd2zvr9yqth0u8lycwzxxr8pkszl4qz035cm7knx7naly983rr3pvjkm0rn0zr9cn8utuxju02d6jzq0nz5npjvurypjlwd9t04nwpnke7mky4ajekj2gd8exnydnumra06gm390he0vldj8zhnyuhdw3jf87phmckswkmx2284s5ush5h2f7r0pwlm8pwrmlevcgecqclkflq7c7wr3dqv65g5v8wuqwgg6uynpxvstvxr4ka7janu873kqc5r36jzd0gwv8r5jl97tsdgphh5a5l","amount":"1675262874117511.115","fees":"1986679708464435.976","status":"pending","status_str":"claiming","note":"foo bar"}
 {"index":"2256768884000796422-ln_c34e891542810683ad1a0792f8eb783bbc8b090e469e3a91debe286d1b9e6383","kind":"invoice","direction":"inbound","invoice":"lntb1283l5kphp534m26n0hqdj7xu8cf2jjnguw46qe4485ssptyqnmq6w2e20vcvmspp57wxq77d89q6qvva3h30h9whd586uys3w8g6w5wnay9cqsc09ygvqsp5vyk5n3rppdxqfvgyzthx85ydy2pclw9e4nxxkm44khca7eehef8q9qyysgqcqrs7txq8lllllllfppjf45w7h9luhsx3m7x4zsckl9arc64yuus4xlxt9gzcnj7rmhgculj59zyh5lqa8serjpz6ltu0w9vgzyydal4h5685jn9n9m5e2je77z5uj9s9r8hkfcqhx7lftqh959p93lthpgp5xwsmd","amount":"1071637668292635.607","fees":"0","status":"pending","status_str":"claiming","finalized_at":4909338776287845535}
-{"index":"0966462693570159466-ln_f690bc3827b3de355373f3259367875a05c3dd502d726398a217989ba3e9e337","kind":"invoice","direction":"inbound","invoice":"lnbc1pw83lxzds5ts93kvmm7xgm8rf29mhml0gtp9sqpevyhujn66kghg5wlwaluz3m7f8sn72mfu9hj6v0rw5l3sxu99hjs7neyaqf7xrgmr05s6d2cf83n6ct8ay23kn0r99ch3wdr2pl7xetltwrs3au98f6vmp2tmalh5h9eeu8kmhml02ua7amluyljk6qh5dg6x5z7t207z0640hsj2k6fuucj73z2tl3szdejwnlvgdkvqp87w72fdkzjlcm9pdta7lmmmalh5lkts49yghh7q8zszhrej96yp7u8z7r30hmh0e685syls4etuuzfay95knz4malh5qxqrf27xn68yn7a7lm620j46h2tuumjxlzk7cdxsjv9ftq7w063d2fqq3z2h32w0eghzv072z2pw7r5nhml00tnw508yvns57s5uh3n74mw5327wugmd8s5z6t0j96yle2fzvdynhmh0m8gyyjfs4y7z0etdqq7zkg4zmmycdl80akntcfl9d5ycjzstey9g3nw52vp53za5dgc2yqpp5k6zathnul34ttcl5y5nq8z2rv4g8mv5ec6lfnqcxu02x4kn6sk5qsp5wkj3qnuxwsj59j26wnydu0yng77jz94dfat3zcway24dgcg4vngq9qyysgqcqrlz4fppj6pnpnz5fgvk9v8v5g0l6rqpjwywwzhhwrzjq2ju7ggyarj7f3y8yc6qpv4h3a67fnvmwy9d2w96w0y2jt9njhwg28fan3f82dfdm3kzahez2fxkdsjpycw40zvc5trq972gyhsl44plx3v66t44hhk6c2f28vzkqzqft3r9dxvvtkngl88kdljdtssmzetzrj454qy67txsffe87hhzyjt8yddyqp5hte3p","amount":"563859865662737.147","fees":"1360802405875876.968","status":"failed","status_str":"invoice expired","note":"foo bar","finalized_at":null}
+{"index":"0966462693570159466-ln_f690bc3827b3de355373f3259367875a05c3dd502d726398a217989ba3e9e337","kind":"invoice","direction":"inbound","invoice":"lnbc1pw83lxzds5ts93kvmm7xgm8rf29mhml0gtp9sqpevyhujn66kghg5wlwaluz3m7f8sn72mfu9hj6v0rw5l3sxu99hjs7neyaqf7xrgmr05s6d2cf83n6ct8ay23kn0r99ch3wdr2pl7xetltwrs3au98f6vmp2tmalh5h9eeu8kmhml02ua7amluyljk6qh5dg6x5z7t207z0640hsj2k6fuucj73z2tl3szdejwnlvgdkvqp87w72fdkzjlcm9pdta7lmmmalh5lkts49yghh7q8zszhrej96yp7u8z7r30hmh0e685syls4etuuzfay95knz4malh5qxqrf27xn68yn7a7lm620j46h2tuumjxlzk7cdxsjv9ftq7w063d2fqq3z2h32w0eghzv072z2pw7r5nhml00tnw508yvns57s5uh3n74mw5327wugmd8s5z6t0j96yle2fzvdynhmh0m8gyyjfs4y7z0etdqq7zkg4zmmycdl80akntcfl9d5ycjzstey9g3nw52vp53za5dgc2yqpp5k6zathnul34ttcl5y5nq8z2rv4g8mv5ec6lfnqcxu02x4kn6sk5qsp5wkj3qnuxwsj59j26wnydu0yng77jz94dfat3zcway24dgcg4vngq9qyysgqcqrlz4fppj6pnpnz5fgvk9v8v5g0l6rqpjwywwzhhwrzjq2ju7ggyarj7f3y8yc6qpv4h3a67fnvmwy9d2w96w0y2jt9njhwg28fan3f82dfdm3kzahez2fxkdsjpycw40zvc5trq972gyhsl44plx3v66t44hhk6c2f28vzkqzqft3r9dxvvtkngl88kdljdtssmzetzrj454qy67txsffe87hhzyjt8yddyqp5hte3p","amount":"563859865662737.147","fees":"1360802405875876.968","status":"failed","status_str":"invoice expired","note":"foo bar"}
 --- InboundSpontaneous
 {"index":"0263933984505265604-ln_2000815f864791a5d9b10e0e72f75d09096ee4800d52d3bb90e8649135e3815a","kind":"spontaneous","direction":"inbound","amount":"913120818704807.97","fees":"0","status":"completed","status_str":"completed","finalized_at":3136200261222996439}
-{"index":"0559588758736175637-ln_8b416294218b1042148a4a2715e501aad76350d8616cef3b54ca3f7de53e310e","kind":"spontaneous","direction":"inbound","amount":"658204045720138.099","fees":"1437970496572162.885","status":"pending","status_str":"claiming","note":"foo bar","finalized_at":null}
+{"index":"0559588758736175637-ln_8b416294218b1042148a4a2715e501aad76350d8616cef3b54ca3f7de53e310e","kind":"spontaneous","direction":"inbound","amount":"658204045720138.099","fees":"1437970496572162.885","status":"pending","status_str":"claiming","note":"foo bar"}
 {"index":"8251254704841858744-ln_1bd44f2cacfac849ef1657c047f890be52fd675985c9cab82038665380594863","kind":"spontaneous","direction":"inbound","amount":"534425667243574.803","fees":"0","status":"completed","status_str":"completed","finalized_at":5744690233519079911}
 --- OutboundInvoice
-{"index":"3967145603839053663-ln_c28ce106b0ec5393371dde088a91465db79137c242b993f39cbd93463d62303a","kind":"invoice","direction":"outbound","invoice":"lnbc16617464075412908110p1du587g2hp5j25fhdvhz66tctmq6xga76mdddz62xm7fk6n7alekxd4d8y2rqyspp5axv2wz5w2upckqf0exq3wwg09kkha9zushwm6tzmqsenkgafeyeqsp5usuarqswxgkpk6skvydnyaw56xpv400xy0auh8zjg3r4t9mqp8fs9qyysgqcqypvxfx04nrfq3khmpat4e9k5a2d52eup290rkts344t7z942zzhmk70h9ywtwu6kqc8hpx3af6tjakute4xq29h3rhdq50vcecjrxredxh0gqlm8nvn","amount":"1388110017620496.458","fees":"1989134516334956.22","status":"pending","status_str":"unknown error, app is likely out-of-date","finalized_at":null}
+{"index":"3967145603839053663-ln_c28ce106b0ec5393371dde088a91465db79137c242b993f39cbd93463d62303a","kind":"invoice","direction":"outbound","invoice":"lnbc16617464075412908110p1du587g2hp5j25fhdvhz66tctmq6xga76mdddz62xm7fk6n7alekxd4d8y2rqyspp5axv2wz5w2upckqf0exq3wwg09kkha9zushwm6tzmqsenkgafeyeqsp5usuarqswxgkpk6skvydnyaw56xpv400xy0auh8zjg3r4t9mqp8fs9qyysgqcqypvxfx04nrfq3khmpat4e9k5a2d52eup290rkts344t7z942zzhmk70h9ywtwu6kqc8hpx3af6tjakute4xq29h3rhdq50vcecjrxredxh0gqlm8nvn","amount":"1388110017620496.458","fees":"1989134516334956.22","status":"pending","status_str":"unknown error, app is likely out-of-date"}
 {"index":"1506781100894234982-ln_723bea0a83ee7d8f4747cabd15292d1eaaaff42fee95479d7aca41cf6f68a954","kind":"invoice","direction":"outbound","invoice":"lnbc1mmj7z2hd427xtea2gtw8et4p5ta7lm6xe02nemhxvg7zse98734qudr2pucwaz3ua647tl9tv8nsnv3whzszhv89lnhwum9u4vk284sfr6c2jnee9yhcn08qd65ghznuac4w5l9fahknyt4sugg0p22tqqdsxlrf465fwzvupw7z7tm9p97wyerp8j5676zafx8s9rlj967x4cld6dty3w9q9w7zvm8wl3kkacj4l3hkzcauutj630rx5pnp4l805v50g63ayd5w7lr8yrsvqxq3ljh6mf0uuxsjlq5fqtfsdsqrgd8unzuxl35zvgemamhu9kreu9kc7jduuq5ksdr2r4pd74ct39ytpgku6u6x5y5h8zszhrnuuqs6qz2uex7z3m9v7r5lc2lval8nhml0wrja0lp89yj4rv8gcm7xammz7rnuj7l0aap929c7rva7lmmmypk5jlrw4m5eqrmuap46szva32a7lm6fl0hwljauvrjzjj7r00hwljfuvn46vdr2x34pvjz37r3unj5ne8yshreuuxhzhphu4l46hlrvak4q3q4u40jkn9euveh2cxqhpy9me23r9neza870p67xug4qk34refmtufu2wg5wju7wlm4tjurvxlrvu8n8cfdd538tcm8z9nezar5tcm7z0etd834kkmgwny7zgt4y7ghgpp5f5a605yw4snw7vw44vdzyk9stc04t0993vqeau6f4c4qnvkmdc7ssp5hae8vd4p95e3shsu44ewsc7g0yy723htt3zgdd82dnn6agvj0ups9qyysgqcqypaqaxq8lllllllfppqsmsyt0w88nycxpxa4v8rd0yevu6e436vrzjqwjpdn2djrehkzaaydyzrk6kg5nhtsjrmdqalv4qvuvfhjg0uev9rund8d9uqxt5kadklnrf28wd4crjscqkhvztylj52y75en2z7jmsjs6pz72kujhcn46v0wvh6wcy7xsgzqkrr5m7gf35eps9pkuln0upsw6jkunmnv8ma3tqph5r8yyaj9vkgp0ymxnf","amount":"1241156895152450.411","fees":"1782501629037774.722","status":"pending","status_str":"pending","finalized_at":4218842088330302797}
-{"index":"2686775637741482092-ln_850d5861376a06b28e0b055c3f427b05c2bbab5dae1216186fadb81ddcfc818a","kind":"invoice","direction":"outbound","invoice":"lnbc17pflccndtzdgnlpdu0ns3zyhx34qq0r84ysncfl9d59ref8t9x6x5qmuyljk6x0sahymg6s0e9yfrj50rq7wxttfzdync608vvu2q2u06c7wn6nxl3sx3eufhjh7nf5mc29mpt7zsmtnetmq5gw0ct0y4ta7lm6ll3hjxg0ud5j74zdm5g38cf8guuytc6rz4sp4sr6gn9tn3gptkz5heem89yfgnzgtfkeza0rgdm5qnqhmalhhe29qagfmcctgvaysxl89vynqnxpuuj32czuf388legfg49vdek4ay0nkwv3whnk7ytuler7z0etdqm7xpmmqmu7xv28003k62ewg348gny4uyljk69jjpu0ypp5wgwlk5ax33el897jx2d5kjkm2s85v4m4ml5s56vqh8r4llt4v6pqsp59v63n2p632n6w7ynf76kegjml9htrfx823zktcqq0vpsu494a2zs9qyysgqcqrtlmxq8lllllllylgzg9qrdwku74kzfyk9xr08nc35rnt75qsqjz3r09z5tqdn6y0szunqx8uh069n7q0mnx6des82tfkgakqsehglqzq2f0srmweh39qptpn7xg","amount":"1946291676982854.935","fees":"1577512301561215.369","status":"completed","status_str":"recipient rejected our invoice request","note":"foo bar","finalized_at":null}
+{"index":"2686775637741482092-ln_850d5861376a06b28e0b055c3f427b05c2bbab5dae1216186fadb81ddcfc818a","kind":"invoice","direction":"outbound","invoice":"lnbc17pflccndtzdgnlpdu0ns3zyhx34qq0r84ysncfl9d59ref8t9x6x5qmuyljk6x0sahymg6s0e9yfrj50rq7wxttfzdync608vvu2q2u06c7wn6nxl3sx3eufhjh7nf5mc29mpt7zsmtnetmq5gw0ct0y4ta7lm6ll3hjxg0ud5j74zdm5g38cf8guuytc6rz4sp4sr6gn9tn3gptkz5heem89yfgnzgtfkeza0rgdm5qnqhmalhhe29qagfmcctgvaysxl89vynqnxpuuj32czuf388legfg49vdek4ay0nkwv3whnk7ytuler7z0etdqm7xpmmqmu7xv28003k62ewg348gny4uyljk69jjpu0ypp5wgwlk5ax33el897jx2d5kjkm2s85v4m4ml5s56vqh8r4llt4v6pqsp59v63n2p632n6w7ynf76kegjml9htrfx823zktcqq0vpsu494a2zs9qyysgqcqrtlmxq8lllllllylgzg9qrdwku74kzfyk9xr08nc35rnt75qsqjz3r09z5tqdn6y0szunqx8uh069n7q0mnx6des82tfkgakqsehglqzq2f0srmweh39qptpn7xg","amount":"1946291676982854.935","fees":"1577512301561215.369","status":"completed","status_str":"recipient rejected our invoice request","note":"foo bar"}
 --- OutboundSpontaneous
 {"index":"5088726529312448170-ln_2767ee2432d14da350e9ae60fb64184b125947540fb928fd9023b8a9d2a0923c","kind":"spontaneous","direction":"outbound","amount":"1707980374871680.224","fees":"279186991440371.32","status":"failed","status_str":"failed","note":"foo bar","finalized_at":3793002393196153970}
-{"index":"3389316343333198151-ln_299cacbe6cccedfca30d054bd0220ce7822e759ac45e6697448020e2dd56f947","kind":"spontaneous","direction":"outbound","amount":"382669342508142.204","fees":"1550387309366020.838","status":"failed","status_str":"failed","finalized_at":null}
-{"index":"5155186382553476589-ln_2877475d06893a3c833caf5a0872253ca30372d5f79241fcf917d893fd0184f6","kind":"spontaneous","direction":"outbound","amount":"1775777429636972.896","fees":"686803029182910.189","status":"pending","status_str":"pending","finalized_at":null}
+{"index":"3389316343333198151-ln_299cacbe6cccedfca30d054bd0220ce7822e759ac45e6697448020e2dd56f947","kind":"spontaneous","direction":"outbound","amount":"382669342508142.204","fees":"1550387309366020.838","status":"failed","status_str":"failed"}
+{"index":"5155186382553476589-ln_2877475d06893a3c833caf5a0872253ca30372d5f79241fcf917d893fd0184f6","kind":"spontaneous","direction":"outbound","amount":"1775777429636972.896","fees":"686803029182910.189","status":"pending","status_str":"pending"}
 "#;
 
         for input in sample_lines(inputs) {

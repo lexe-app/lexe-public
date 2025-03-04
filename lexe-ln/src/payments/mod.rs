@@ -148,6 +148,7 @@ impl From<Payment> for BasicPayment {
             kind: p.kind(),
             direction: p.direction(),
             invoice: p.invoice(),
+            txid: p.txid(),
             replacement: p.replacement(),
             amount: p.amount(),
             fees: p.fees(),
@@ -215,6 +216,18 @@ impl Payment {
             Self::OutboundInvoice(OutboundInvoicePayment {
                 invoice, ..
             }) => Some(*invoice.clone()),
+            Self::OutboundSpontaneous(_) => None,
+        }
+    }
+
+    /// Returns the original txid, if there is one.
+    pub fn txid(&self) -> Option<LxTxid> {
+        match self {
+            Self::OnchainSend(OnchainSend { txid, .. }) => Some(*txid),
+            Self::OnchainReceive(OnchainReceive { txid, .. }) => Some(*txid),
+            Self::InboundInvoice(_) => None,
+            Self::InboundSpontaneous(_) => None,
+            Self::OutboundInvoice(_) => None,
             Self::OutboundSpontaneous(_) => None,
         }
     }
