@@ -400,168 +400,177 @@ class PaymentDetailBottomSheet extends StatelessWidget {
       minChildSize: 0.0,
       expand: false,
       shouldCloseOnMinExtent: true,
-      builder: (context, scrollController) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: pagePadding),
-        child: CustomScrollView(
-          controller: scrollController,
-          slivers: [
-            ValueListenableBuilder(
-              valueListenable: this.payment,
-              builder: (context, payment, _child) {
-                final kind = payment.kind;
-                final status = payment.status;
-                final direction = payment.direction;
-                final directionLabel = (direction == PaymentDirection.inbound)
-                    ? "received"
-                    : "sent";
+      // by default, SnackBar's are covered by the bottomSheet, so wrap
+      // everything here in a Scaffold so SnackBar's actually get displayed.
+      builder: (context, scrollController) => Scaffold(
+        backgroundColor: LxColors.clearW0,
+        body: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: pagePadding),
+          child: CustomScrollView(
+            controller: scrollController,
+            slivers: [
+              ValueListenableBuilder(
+                valueListenable: this.payment,
+                builder: (context, payment, _child) {
+                  final kind = payment.kind;
+                  final status = payment.status;
+                  final direction = payment.direction;
+                  final directionLabel = (direction == PaymentDirection.inbound)
+                      ? "received"
+                      : "sent";
 
-                final invoice = payment.invoice;
-                final payeePubkey = invoice?.payeePubkey;
+                  final invoice = payment.invoice;
+                  final payeePubkey = invoice?.payeePubkey;
 
-                final txid = payment.txid;
-                final replacement = payment.replacement;
+                  final txid = payment.txid;
+                  final replacement = payment.replacement;
 
-                final amountSat = payment.amountSat;
-                final feesSat = payment.feesSat;
-                final invoiceAmountSat = invoice?.amountSats;
+                  final amountSat = payment.amountSat;
+                  final feesSat = payment.feesSat;
+                  final invoiceAmountSat = invoice?.amountSats;
 
-                final createdAt = DateTime.fromMillisecondsSinceEpoch(
-                  payment.createdAt,
-                  isUtc: true,
-                );
-                final expiresAt =
-                    (invoice != null && status != PaymentStatus.completed)
-                        ? DateTime.fromMillisecondsSinceEpoch(invoice.expiresAt,
-                            isUtc: true)
-                        : null;
-                final maybeFinalizedAt = payment.finalizedAt;
-                final finalizedAt = (maybeFinalizedAt != null)
-                    ? DateTime.fromMillisecondsSinceEpoch(maybeFinalizedAt,
-                        isUtc: true)
-                    : null;
+                  final createdAt = DateTime.fromMillisecondsSinceEpoch(
+                    payment.createdAt,
+                    isUtc: true,
+                  );
+                  final expiresAt = (invoice != null &&
+                          status != PaymentStatus.completed)
+                      ? DateTime.fromMillisecondsSinceEpoch(invoice.expiresAt,
+                          isUtc: true)
+                      : null;
+                  final maybeFinalizedAt = payment.finalizedAt;
+                  final finalizedAt = (maybeFinalizedAt != null)
+                      ? DateTime.fromMillisecondsSinceEpoch(maybeFinalizedAt,
+                          isUtc: true)
+                      : null;
 
-                // Label should be kept in sync with "common::ln::payments::LxPaymentId"
-                final InfoRow? paymentIdxRow = switch ((kind, direction)) {
-                  // Onchain receive -> we'll use the txid field
-                  (PaymentKind.onchain, PaymentDirection.inbound) => null,
-                  (PaymentKind.onchain, PaymentDirection.outbound) => InfoRow(
-                      label: "Client payment id", value: this.paymentIdxBody()),
-                  (PaymentKind.invoice, _) => InfoRow(
-                      label: "Payment hash", value: this.paymentIdxBody()),
-                  (PaymentKind.spontaneous, _) => InfoRow(
-                      label: "Payment hash", value: this.paymentIdxBody()),
-                };
+                  // Label should be kept in sync with "common::ln::payments::LxPaymentId"
+                  final InfoRow? paymentIdxRow = switch ((kind, direction)) {
+                    // Onchain receive -> we'll use the txid field
+                    (PaymentKind.onchain, PaymentDirection.inbound) => null,
+                    (PaymentKind.onchain, PaymentDirection.outbound) => InfoRow(
+                        label: "Client payment id",
+                        value: this.paymentIdxBody()),
+                    (PaymentKind.invoice, _) => InfoRow(
+                        label: "Payment hash", value: this.paymentIdxBody()),
+                    (PaymentKind.spontaneous, _) => InfoRow(
+                        label: "Payment hash", value: this.paymentIdxBody()),
+                  };
 
-                // Show on-chain txid's with link to mempool.space
-                final InfoRow? txidRow = (txid != null)
-                    ? InfoRow(
-                        label: "Txid",
-                        value: txid,
-                        linkTarget: block_explorer.txid(txid),
-                      )
-                    : null;
-                final InfoRow? replacementRow = (replacement != null)
-                    ? InfoRow(
-                        label: "Replacement txid",
-                        value: replacement,
-                        linkTarget: block_explorer.txid(replacement),
-                      )
-                    : null;
+                  // Show on-chain txid's with link to mempool.space
+                  final InfoRow? txidRow = (txid != null)
+                      ? InfoRow(
+                          label: "Txid",
+                          value: txid,
+                          linkTarget: block_explorer.txid(txid),
+                        )
+                      : null;
+                  final InfoRow? replacementRow = (replacement != null)
+                      ? InfoRow(
+                          label: "Replacement txid",
+                          value: replacement,
+                          linkTarget: block_explorer.txid(replacement),
+                        )
+                      : null;
 
-                return SliverList.list(children: [
-                  const SheetDragHandle(),
+                  return SliverList.list(children: [
+                    const SheetDragHandle(),
 
-                  // Sheet heading and close button
-                  const Padding(
-                    padding: EdgeInsets.only(
-                        left: bodyPadding, top: Space.s200, bottom: Space.s400),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          "Payment details",
-                          style: TextStyle(
-                            fontSize: Fonts.size600,
-                            fontVariations: [Fonts.weightMedium],
-                            letterSpacing: -0.5,
-                            height: 1.0,
+                    // Sheet heading and close button
+                    const Padding(
+                      padding: EdgeInsets.only(
+                          left: bodyPadding,
+                          top: Space.s200,
+                          bottom: Space.s400),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            "Payment details",
+                            style: TextStyle(
+                              fontSize: Fonts.size600,
+                              fontVariations: [Fonts.weightMedium],
+                              letterSpacing: -0.5,
+                              height: 1.0,
+                            ),
                           ),
-                        ),
-                        LxCloseButton(kind: LxCloseButtonKind.closeFromTop),
-                      ],
+                          LxCloseButton(kind: LxCloseButtonKind.closeFromTop),
+                        ],
+                      ),
                     ),
-                  ),
 
-                  // Payment date info
-                  PaymentDetailInfoCard(children: [
-                    InfoRow(
-                      label: "Created at",
-                      value: date_format.formatDateFull(createdAt),
-                    ),
-                    if (expiresAt != null)
+                    // Payment date info
+                    PaymentDetailInfoCard(children: [
                       InfoRow(
-                        label: "Expires at",
-                        value: date_format.formatDateFull(expiresAt),
+                        label: "Created at",
+                        value: date_format.formatDateFull(createdAt),
                       ),
-                    if (finalizedAt != null)
-                      InfoRow(
-                        label: "Finalized at",
-                        value: date_format.formatDateFull(finalizedAt),
-                      ),
-                  ]),
-
-                  // Full payment amount + fees info
-                  // TODO(phlip9): deemphasize fiat amount below
-                  ValueListenableBuilder(
-                    valueListenable: this.fiatRate,
-                    builder: (_context, fiatRate, child) =>
-                        PaymentDetailInfoCard(children: [
-                      if (amountSat != null)
+                      if (expiresAt != null)
                         InfoRow(
-                          label: "Amount $directionLabel",
-                          value: formatSatsAmountFiatBelow(amountSat, fiatRate),
+                          label: "Expires at",
+                          value: date_format.formatDateFull(expiresAt),
                         ),
-
-                      if (invoiceAmountSat != null)
+                      if (finalizedAt != null)
                         InfoRow(
-                          label: "Invoiced amount",
-                          value: formatSatsAmountFiatBelow(
-                              invoiceAmountSat, fiatRate),
+                          label: "Finalized at",
+                          value: date_format.formatDateFull(finalizedAt),
                         ),
-
-                      // TODO(phlip9): breakdown fees
-                      InfoRow(
-                        label: "Fees",
-                        value: formatSatsAmountFiatBelow(feesSat, fiatRate),
-                      ),
                     ]),
-                  ),
 
-                  // Low-level stuff
-                  PaymentDetailInfoCard(children: [
-                    // oneof: LN payment hash, Lx ClientPaymentId
-                    if (paymentIdxRow != null) paymentIdxRow,
+                    // Full payment amount + fees info
+                    // TODO(phlip9): deemphasize fiat amount below
+                    ValueListenableBuilder(
+                      valueListenable: this.fiatRate,
+                      builder: (_context, fiatRate, child) =>
+                          PaymentDetailInfoCard(children: [
+                        if (amountSat != null)
+                          InfoRow(
+                            label: "Amount $directionLabel",
+                            value:
+                                formatSatsAmountFiatBelow(amountSat, fiatRate),
+                          ),
 
-                    // Txid
-                    if (txidRow != null) txidRow,
-                    // Replacement Txid
-                    if (replacementRow != null) replacementRow,
+                        if (invoiceAmountSat != null)
+                          InfoRow(
+                            label: "Invoiced amount",
+                            value: formatSatsAmountFiatBelow(
+                                invoiceAmountSat, fiatRate),
+                          ),
 
-                    // LN payee pubkey
-                    if (payeePubkey != null)
-                      InfoRow(label: "Payee public key", value: payeePubkey),
+                        // TODO(phlip9): breakdown fees
+                        InfoRow(
+                          label: "Fees",
+                          value: formatSatsAmountFiatBelow(feesSat, fiatRate),
+                        ),
+                      ]),
+                    ),
 
-                    // the full invoice
-                    if (invoice != null)
-                      InfoRow(label: "Invoice", value: invoice.string),
-                  ]),
+                    // Low-level stuff
+                    PaymentDetailInfoCard(children: [
+                      // oneof: LN payment hash, Lx ClientPaymentId
+                      if (paymentIdxRow != null) paymentIdxRow,
 
-                  const SizedBox(height: Space.s400)
-                ]);
-              },
-            )
-          ],
+                      // Txid
+                      if (txidRow != null) txidRow,
+                      // Replacement Txid
+                      if (replacementRow != null) replacementRow,
+
+                      // LN payee pubkey
+                      if (payeePubkey != null)
+                        InfoRow(label: "Payee public key", value: payeePubkey),
+
+                      // the full invoice
+                      if (invoice != null)
+                        InfoRow(label: "Invoice", value: invoice.string),
+                    ]),
+
+                    const SizedBox(height: Space.s400)
+                  ]);
+                },
+              )
+            ],
+          ),
         ),
       ),
     );
