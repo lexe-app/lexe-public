@@ -354,6 +354,7 @@ mixin _$Payment {
   PaymentKind get kind => throw _privateConstructorUsedError;
   PaymentDirection get direction => throw _privateConstructorUsedError;
   Invoice? get invoice => throw _privateConstructorUsedError;
+  String? get txid => throw _privateConstructorUsedError;
   String? get replacement => throw _privateConstructorUsedError;
   int? get amountSat => throw _privateConstructorUsedError;
   int get feesSat => throw _privateConstructorUsedError;
@@ -372,6 +373,7 @@ class _$PaymentImpl implements _Payment {
       required this.kind,
       required this.direction,
       this.invoice,
+      this.txid,
       this.replacement,
       this.amountSat,
       required this.feesSat,
@@ -389,6 +391,8 @@ class _$PaymentImpl implements _Payment {
   final PaymentDirection direction;
   @override
   final Invoice? invoice;
+  @override
+  final String? txid;
   @override
   final String? replacement;
   @override
@@ -408,7 +412,7 @@ class _$PaymentImpl implements _Payment {
 
   @override
   String toString() {
-    return 'Payment(index: $index, kind: $kind, direction: $direction, invoice: $invoice, replacement: $replacement, amountSat: $amountSat, feesSat: $feesSat, status: $status, statusStr: $statusStr, note: $note, createdAt: $createdAt, finalizedAt: $finalizedAt)';
+    return 'Payment(index: $index, kind: $kind, direction: $direction, invoice: $invoice, txid: $txid, replacement: $replacement, amountSat: $amountSat, feesSat: $feesSat, status: $status, statusStr: $statusStr, note: $note, createdAt: $createdAt, finalizedAt: $finalizedAt)';
   }
 
   @override
@@ -421,6 +425,7 @@ class _$PaymentImpl implements _Payment {
             (identical(other.direction, direction) ||
                 other.direction == direction) &&
             (identical(other.invoice, invoice) || other.invoice == invoice) &&
+            (identical(other.txid, txid) || other.txid == txid) &&
             (identical(other.replacement, replacement) ||
                 other.replacement == replacement) &&
             (identical(other.amountSat, amountSat) ||
@@ -443,6 +448,7 @@ class _$PaymentImpl implements _Payment {
       kind,
       direction,
       invoice,
+      txid,
       replacement,
       amountSat,
       feesSat,
@@ -459,6 +465,7 @@ abstract class _Payment implements Payment {
       required final PaymentKind kind,
       required final PaymentDirection direction,
       final Invoice? invoice,
+      final String? txid,
       final String? replacement,
       final int? amountSat,
       required final int feesSat,
@@ -476,6 +483,8 @@ abstract class _Payment implements Payment {
   PaymentDirection get direction;
   @override
   Invoice? get invoice;
+  @override
+  String? get txid;
   @override
   String? get replacement;
   @override

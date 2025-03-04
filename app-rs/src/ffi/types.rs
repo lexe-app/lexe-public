@@ -264,6 +264,7 @@ pub struct Payment {
 
     pub invoice: Option<Invoice>,
 
+    pub txid: Option<String>,
     pub replacement: Option<String>,
 
     pub amount_sat: Option<u64>,
@@ -288,6 +289,7 @@ impl From<&BasicPaymentRs> for Payment {
 
             invoice: payment.invoice.as_ref().map(Invoice::from),
 
+            txid: payment.txid.map(|txid| txid.to_string()),
             replacement: payment.replacement.map(|txid| txid.to_string()),
 
             amount_sat: payment.amount.map(|amt| amt.sats_u64()),

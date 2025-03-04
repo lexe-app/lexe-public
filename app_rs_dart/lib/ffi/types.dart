@@ -164,6 +164,7 @@ class Payment with _$Payment {
     required PaymentKind kind,
     required PaymentDirection direction,
     Invoice? invoice,
+    String? txid,
     String? replacement,
     int? amountSat,
     required int feesSat,
