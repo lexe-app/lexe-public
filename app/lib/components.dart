@@ -2095,8 +2095,8 @@ class InfoRow extends StatelessWidget {
       fontSize: Fonts.size200,
       height: 1.2,
       fontFeatures: [Fonts.featDisambugation],
+      decorationColor: LxColors.grey500,
     );
-
     final isMobile = Platform.isAndroid || Platform.isIOS;
 
     // Mobile: we'll make the text copy-on-tap
@@ -2104,7 +2104,12 @@ class InfoRow extends StatelessWidget {
 
     final linkTarget = this.linkTarget;
     final valueText = (isMobile || linkTarget != null)
-        ? Text(this.value, style: valueStyle)
+        ? Text(
+            this.value,
+            style: (linkTarget != null)
+                ? valueStyle.copyWith(decoration: TextDecoration.underline)
+                : valueStyle,
+          )
         : SelectableText(this.value, style: valueStyle);
 
     final row = Padding(
@@ -2135,6 +2140,7 @@ class InfoRow extends StatelessWidget {
               child: const Icon(
                 LxIcons.openLink,
                 size: Fonts.size200,
+                color: LxColors.fgSecondary,
               ),
             ),
         ],
