@@ -201,6 +201,12 @@ where
     PS: LexePersister,
     F: Future<Output = anyhow::Result<()>>,
 {
+    info!(
+        %counterparty_node_pk, %user_channel_id,
+        %channel_value, %is_jit_channel,
+        "Opening channel"
+    );
+
     // Check if we've already opened a channel with this `user_channel_id`.
     //
     // NOTE(phlip9): The idempotency here is not perfect; there's still a race
