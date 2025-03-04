@@ -82,7 +82,7 @@ use tower::{
 };
 use tracing::{debug, error, info, warn, Instrument};
 
-use crate::trace;
+use crate::{rest, trace};
 
 /// The grace period passed to [`axum_server::Handle::graceful_shutdown`] during
 /// which new connections are refused and we wait for existing connections to
@@ -92,6 +92,12 @@ const SHUTDOWN_GRACE_PERIOD: Duration = Duration::from_secs(3);
 pub const SERVER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 const_utils::const_assert!(
     SHUTDOWN_GRACE_PERIOD.as_secs() < SERVER_SHUTDOWN_TIMEOUT.as_secs()
+);
+
+/// The default maximum time a server can spend handling a request.
+pub const SERVER_HANDLER_TIMEOUT: Duration = Duration::from_secs(25);
+const_utils::const_assert!(
+    rest::API_REQUEST_TIMEOUT.as_secs() > SERVER_HANDLER_TIMEOUT.as_secs()
 );
 
 /// A configuration object for Axum / Tower middleware.
@@ -108,7 +114,7 @@ const_utils::const_assert!(
 ///         load_shed: true,
 ///         buffer_size: Some(4096),
 ///         concurrency: Some(4096),
-///         handling_timeout: Some(Duration::from_secs(15)),
+///         handling_timeout: Some(Duration::from_secs(25)),
 ///         default_fallback: true,
 ///     }
 /// );
@@ -155,7 +161,7 @@ impl Default for LayerConfig {
             // load tests to profile performance and see what breaks.
             buffer_size: Some(4096),
             concurrency: Some(4096),
-            handling_timeout: Some(Duration::from_secs(15)),
+            handling_timeout: Some(SERVER_HANDLER_TIMEOUT),
             default_fallback: true,
         }
     }

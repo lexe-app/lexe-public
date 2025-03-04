@@ -8,13 +8,16 @@ use std::{
 use anyhow::bail;
 use cfg_if::cfg_if;
 use common::test_event::{TestEvent, TestEventOp};
-use lexe_api::rest;
+use lexe_api::{rest, server};
 use tokio::sync::mpsc;
 use tracing::debug;
 
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(20);
 const_utils::const_assert!(
     rest::API_REQUEST_TIMEOUT.as_secs() > DEFAULT_TIMEOUT.as_secs()
+);
+const_utils::const_assert!(
+    server::SERVER_HANDLER_TIMEOUT.as_secs() > DEFAULT_TIMEOUT.as_secs()
 );
 
 const TEST_EVENT_CHANNEL_SIZE: usize = 16;
