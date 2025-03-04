@@ -38,7 +38,7 @@ impl RootSeed {
     }
 
     /// Quickly create a `RootSeed` for tests.
-    // #[cfg(any(test, feature = "test-util"))]
+    #[cfg(any(test, feature = "test-utils"))]
     pub fn from_u64(v: u64) -> Self {
         let mut seed = [0u8; 32];
         seed[0..8].copy_from_slice(&v.to_le_bytes());
