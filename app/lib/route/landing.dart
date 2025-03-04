@@ -13,8 +13,7 @@ import 'package:flutter_markdown/flutter_markdown.dart'
 import 'package:lexeapp/components.dart'
     show CarouselIndicatorsAndButtons, LxFilledButton, LxOutlinedButton;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
-import 'package:lexeapp/logger.dart' show error, info, warn;
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/route/restore.dart' show RestoreApi, RestorePage;
 import 'package:lexeapp/route/signup.dart'
     show SignupApi, SignupCtx, SignupPage;
@@ -23,7 +22,7 @@ import 'package:lexeapp/settings.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
 import 'package:lexeapp/uri_events.dart' show UriEvents;
-import 'package:url_launcher/url_launcher.dart' as url_launcher;
+import 'package:lexeapp/url.dart' as url;
 
 const double maxWidth = 300.0;
 
@@ -337,9 +336,7 @@ Future<void> _onTapLink(String _text, String? href, String _title) async {
   if (href == null || !href.startsWith("https://")) {
     return;
   }
-  final result = await Result.tryAsync<bool, Exception>(
-      () => url_launcher.launchUrl(Uri.parse(href)));
-  result.mapErr((err) => warn("Failed to launch URL: '$href', err: $err"));
+  await url.open(href);
 }
 
 /// [MarkdownBody] but styled for the landing page.
