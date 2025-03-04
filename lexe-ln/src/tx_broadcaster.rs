@@ -16,6 +16,7 @@ use tracing::{error, info, info_span, warn, Instrument};
 use crate::{
     esplora::{self, LexeEsplora},
     test_event::TestEventSender,
+    wallet::LexeWallet,
     BoxedAnyhowFuture, DisplayVec,
 };
 
@@ -43,6 +44,7 @@ pub struct TxBroadcaster {
 impl TxBroadcaster {
     pub fn start(
         esplora: Arc<LexeEsplora>,
+        wallet: LexeWallet,
         broadcast_hook: Option<PreBroadcastHook>,
         test_event_sender: TestEventSender,
         mut shutdown: NotifyOnce,
@@ -68,6 +70,7 @@ impl TxBroadcaster {
                         // Instrument this call with the caller's span.
                         Self::do_broadcast(
                             &esplora,
+                            &wallet,
                             broadcast_hook.clone(),
                             request,
                             &test_event_sender,
@@ -113,6 +116,7 @@ impl TxBroadcaster {
     #[tracing::instrument(skip_all, name = "(broadcast)")]
     async fn do_broadcast(
         esplora: &LexeEsplora,
+        wallet: &LexeWallet,
         broadcast_hook: Option<PreBroadcastHook>,
         request: BroadcastRequest,
         test_event_sender: &TestEventSender,
@@ -143,12 +147,14 @@ impl TxBroadcaster {
         info!("Broadcasting transaction: {tx_info}");
 
         let result =
-            Self::do_broadcast_inner(esplora, broadcast_hook, &request.tx)
-                .await;
+            Self::do_broadcast_inner(esplora, broadcast_hook, tx).await;
 
         match &result {
             Ok(()) => {
                 info!("Successfully broadcasted tx: {tx_info}");
+                // Apply the transaction to BDK so we don't double spend the
+                // outputs spent by this tx
+                wallet.transaction_broadcasted(request.tx);
                 test_event_sender.send(TestEvent::TxBroadcasted);
             }
             Err(e) => warn!("Error broadcasting tx: {e:#}: {tx_info}"),

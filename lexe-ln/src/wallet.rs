@@ -62,6 +62,7 @@ use common::{
     notify_once::NotifyOnce,
     root_seed::RootSeed,
     task::LxTask,
+    time::TimestampMs,
 };
 use tracing::{debug, info, instrument, warn};
 
@@ -467,6 +468,32 @@ impl LexeWallet {
             .address;
         self.trigger_persist();
         address
+    }
+
+    /// Notifies the BDK wallet that a transaction created by us was
+    /// successfully broadcasted and exists in the mempool. This avoids the need
+    /// to resync the wallet post-broadcast just to observe the same transaction
+    /// that we already know is in the mempool in the mempool.
+    ///
+    /// NOTE: This function should be called after every successful broadcast,
+    /// otherwise BDK may double-spend the outputs spent by this tx, which
+    /// usually results in the second tx failing to be broadcasted due to not
+    /// meeting RBF requirements.
+    ///
+    /// TODO(max): If the transaction never gets confirmed, the outputs 'spent'
+    /// by this transaction might be locked forever. BDK is working on a fix.
+    ///
+    /// - Main issue: <https://github.com/bitcoindevkit/bdk/issues/1748>
+    /// - Explanation of 'inserted' vs 'unbroadcasted' vs other states: <https://github.com/bitcoindevkit/bdk/issues/1642#issuecomment-2399575535>
+    /// - tnull opened an issue which applies to our current approach: <https://github.com/bitcoindevkit/bdk/issues/1666#issue-2621291151>
+    pub(crate) fn transaction_broadcasted(&self, tx: Transaction) {
+        let now = TimestampMs::now();
+        let timestamp_secs = now.into_duration().as_secs();
+        self.inner
+            .write()
+            .unwrap()
+            .apply_unconfirmed_txs([(tx, timestamp_secs)]);
+        self.trigger_persist();
     }
 
     /// Preflight a potential channel open.

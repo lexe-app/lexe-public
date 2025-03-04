@@ -230,16 +230,6 @@ impl UserNode {
         } = try_fetch.context("Failed to fetch provisioned secrets")?;
         info!(%esplora_url);
 
-        // Init tx broadcaster
-        let broadcast_hook = None;
-        let (tx_broadcaster, broadcaster_task) = TxBroadcaster::start(
-            esplora.clone(),
-            broadcast_hook,
-            test_event_tx.clone(),
-            shutdown.clone(),
-        );
-        static_tasks.push(broadcaster_task);
-
         // Validate deploy env and network
         if deploy_env.is_staging_or_prod() && cfg!(feature = "test-utils") {
             panic!("test-utils feature must be disabled in staging/prod!!");
@@ -317,15 +307,6 @@ impl UserNode {
             maybe_google_vfs.clone(),
             shutdown.clone(),
             channel_monitor_persister_tx,
-        ));
-
-        // Initialize the chain monitor
-        let chain_monitor = Arc::new(ChainMonitor::new(
-            Some(ldk_sync_client.clone()),
-            tx_broadcaster.clone(),
-            logger.clone(),
-            fee_estimates.clone(),
-            persister.clone(),
         ));
 
         // A closure to read the approved versions list if we have a gvfs.
@@ -424,6 +405,26 @@ impl UserNode {
             wallet.clone(),
             wallet_persister_rx,
             shutdown.clone(),
+        ));
+
+        // Init tx broadcaster
+        let broadcast_hook = None;
+        let (tx_broadcaster, broadcaster_task) = TxBroadcaster::start(
+            esplora.clone(),
+            wallet.clone(),
+            broadcast_hook,
+            test_event_tx.clone(),
+            shutdown.clone(),
+        );
+        static_tasks.push(broadcaster_task);
+
+        // Initialize the chain monitor
+        let chain_monitor = Arc::new(ChainMonitor::new(
+            Some(ldk_sync_client.clone()),
+            tx_broadcaster.clone(),
+            logger.clone(),
+            fee_estimates.clone(),
+            persister.clone(),
         ));
 
         // Init gossip sync
