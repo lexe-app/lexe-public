@@ -178,9 +178,13 @@ final class LxTheme {
           backgroundColor: LxColors.clearB0,
           disabledForegroundColor: LxColors.fgTertiary,
           disabledBackgroundColor: LxColors.clearB0,
-          padding: const EdgeInsets.all(Space.s450),
-          minimumSize: const Size.square(Fonts.size400 + 2 * Space.s450),
-          maximumSize: const Size.fromHeight(Fonts.size400 + 2 * Space.s450),
+          padding: const EdgeInsets.all(Space.buttonPadding),
+          minimumSize: const Size.square(Space.buttonMinDim),
+          maximumSize: const Size.fromHeight(Space.buttonMinDim),
+          // Use visualDensity=0 to avoid touching tight min/max height
+          // constraints. Otherwise we get render overflows in some niche
+          // situations (Button in Column in ScrollableSinglePageBody.bottom).
+          visualDensity: const VisualDensity(horizontal: 0.0, vertical: 0.0),
           textStyle: Fonts.fontButton,
         ).copyWith(
           // Place dynamic styles here, i.e., styles that should change in
@@ -205,9 +209,13 @@ final class LxTheme {
           backgroundColor: LxColors.grey1000,
           disabledForegroundColor: LxColors.fgTertiary,
           disabledBackgroundColor: LxColors.grey850,
-          padding: const EdgeInsets.all(Space.s450),
-          minimumSize: const Size.square(Fonts.size400 + 2 * Space.s450),
-          maximumSize: const Size.fromHeight(Fonts.size400 + 2 * Space.s450),
+          padding: const EdgeInsets.all(Space.buttonPadding),
+          minimumSize: const Size.square(Space.buttonMinDim),
+          maximumSize: const Size.fromHeight(Space.buttonMinDim),
+          // Use visualDensity=0 to avoid touching tight min/max height
+          // constraints. Otherwise we get render overflows in some niche
+          // situations (Button in Column in ScrollableSinglePageBody.bottom).
+          visualDensity: const VisualDensity(horizontal: 0.0, vertical: 0.0),
           textStyle: Fonts.fontButton,
           side: const BorderSide(color: LxColors.clearB0, width: 0.0),
         ),
@@ -468,6 +476,16 @@ final class Space {
   /// 16 px
   static const double appBarTrailingPadding = Space.s400;
 
+  /// 3 px - Margin around the content inside the button.
+  static const double buttonContentMargin = 3.0;
+
+  /// 17 px - Padding between the button edges and the content
+  static const double buttonPadding = Space.s450 - buttonContentMargin;
+
+  /// 58 px - Button minimum dimension. The height is always this value.
+  static const double buttonMinDim =
+      Fonts.sizeButton + (2 * (buttonPadding + buttonContentMargin));
+
   /// 0 px
   static const double s0 = 0.0;
 
@@ -556,6 +574,9 @@ final class LxRadius {
 
 final class Fonts {
   Fonts._();
+
+  /// [Fonts.size400] = 18 px
+  static const double sizeButton = Fonts.size400;
 
   /// 12 px
   static const double size100 = 12.0;
@@ -650,7 +671,7 @@ final class Fonts {
   static const TextStyle fontButton = TextStyle(
     debugLabel: "Fonts.fontButton",
     fontFamily: "Inter V",
-    fontSize: Fonts.size400,
+    fontSize: Fonts.sizeButton,
     height: 1.0,
     fontVariations: [Fonts.weightMedium],
     decoration: TextDecoration.none,
