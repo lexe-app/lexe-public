@@ -519,6 +519,16 @@ pub fn gen_value<T, S: Strategy<Value = T>>(
     GenValueIter::new(rng, strategy).next().unwrap()
 }
 
+/// Generate a list of values from a [`proptest`] [`Strategy`]. Avoid all the
+/// proptest macro junk. Useful for generating sample data.
+pub fn gen_values<T, S: Strategy<Value = T>>(
+    rng: &mut FastRng,
+    strategy: S,
+    n: usize,
+) -> Vec<T> {
+    GenValueIter::new(rng, strategy).take(n).collect()
+}
+
 /// Generate an unlimited values from a [`proptest`] [`Strategy`]. Avoid all the
 /// proptest macro junk. Useful for generating sample data. Produces more varied
 /// data than just running [`gen_value`] in a loop.
