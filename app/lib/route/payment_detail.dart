@@ -7,6 +7,7 @@ import 'package:app_rs_dart/ffi/types.dart'
 import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
+import 'package:lexeapp/block_explorer.dart' as block_explorer;
 import 'package:lexeapp/components.dart'
     show
         FilledTextPlaceholder,
@@ -417,6 +418,9 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                 final invoice = payment.invoice;
                 final payeePubkey = invoice?.payeePubkey;
 
+                final txid = payment.txid;
+                final replacement = payment.replacement;
+
                 final amountSat = payment.amountSat;
                 final feesSat = payment.feesSat;
                 final invoiceAmountSat = invoice?.amountSats;
@@ -437,14 +441,32 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                     : null;
 
                 // Label should be kept in sync with "common::ln::payments::LxPaymentId"
-                final paymentIdxLabel = switch ((kind, direction)) {
-                  (PaymentKind.invoice, _) => "Payment hash",
-                  (PaymentKind.spontaneous, _) => "Payment hash",
-                  (PaymentKind.onchain, PaymentDirection.inbound) => "Txid",
-                  (PaymentKind.onchain, PaymentDirection.outbound) =>
-                    "Client payment id",
+                final InfoRow? paymentIdxRow = switch ((kind, direction)) {
+                  // Onchain receive -> we'll use the txid field
+                  (PaymentKind.onchain, PaymentDirection.inbound) => null,
+                  (PaymentKind.onchain, PaymentDirection.outbound) => InfoRow(
+                      label: "Client payment id", value: this.paymentIdxBody()),
+                  (PaymentKind.invoice, _) => InfoRow(
+                      label: "Payment hash", value: this.paymentIdxBody()),
+                  (PaymentKind.spontaneous, _) => InfoRow(
+                      label: "Payment hash", value: this.paymentIdxBody()),
                 };
-                final paymentIdxBody = this.paymentIdxBody();
+
+                // Show on-chain txid's with link to mempool.space
+                final InfoRow? txidRow = (txid != null)
+                    ? InfoRow(
+                        label: "Txid",
+                        value: txid,
+                        linkTarget: block_explorer.txid(txid),
+                      )
+                    : null;
+                final InfoRow? replacementRow = (replacement != null)
+                    ? InfoRow(
+                        label: "Replacement txid",
+                        value: replacement,
+                        linkTarget: block_explorer.txid(replacement),
+                      )
+                    : null;
 
                 return SliverList.list(children: [
                   const SheetDragHandle(),
@@ -518,9 +540,15 @@ class PaymentDetailBottomSheet extends StatelessWidget {
 
                   // Low-level stuff
                   PaymentDetailInfoCard(children: [
-                    // oneof: BTC txid, LN payment hash, Lx ClientPaymentId
-                    InfoRow(label: paymentIdxLabel, value: paymentIdxBody),
+                    // oneof: LN payment hash, Lx ClientPaymentId
+                    if (paymentIdxRow != null) paymentIdxRow,
 
+                    // Txid
+                    if (txidRow != null) txidRow,
+                    // Replacement Txid
+                    if (replacementRow != null) replacementRow,
+
+                    // LN payee pubkey
                     if (payeePubkey != null)
                       InfoRow(label: "Payee public key", value: payeePubkey),
 

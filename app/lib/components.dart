@@ -18,6 +18,7 @@ import 'package:lexeapp/string_ext.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxBreakpoints, LxColors, LxIcons, LxRadius, Space;
 import 'package:lexeapp/types.dart' show BalanceKind, BalanceState, FiatAmount;
+import 'package:lexeapp/url.dart' as url;
 import 'package:rxdart_ext/rxdart_ext.dart';
 
 // TODO(phlip9): frb no longer exposing consts?
@@ -2071,14 +2072,21 @@ class InfoRow extends StatelessWidget {
     super.key,
     required this.label,
     required this.value,
+    this.linkTarget,
     this.bodyPadding = Space.s300,
   });
 
+  /// The row label
   final String label;
-  final String value;
-  final double bodyPadding;
 
-  void copyValue(BuildContext context) {}
+  /// The row display value
+  final String value;
+
+  /// If set, tapping on the row will open this link.
+  final String? linkTarget;
+
+  /// Horizontal padding between the row and the card edge.
+  final double bodyPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -2094,7 +2102,8 @@ class InfoRow extends StatelessWidget {
     // Mobile: we'll make the text copy-on-tap
     // Desktop: we'll make the text selectable
 
-    final valueText = (isMobile)
+    final linkTarget = this.linkTarget;
+    final valueText = (isMobile || linkTarget != null)
         ? Text(this.value, style: valueStyle)
         : SelectableText(this.value, style: valueStyle);
 
@@ -2120,6 +2129,14 @@ class InfoRow extends StatelessWidget {
           ),
           const SizedBox(width: Space.s400),
           Expanded(child: valueText),
+          if (linkTarget != null)
+            Padding(
+              padding: EdgeInsets.only(left: this.bodyPadding / 2, right: 2.0),
+              child: const Icon(
+                LxIcons.openLink,
+                size: Fonts.size200,
+              ),
+            ),
         ],
       ),
     );
@@ -2134,9 +2151,21 @@ class InfoRow extends StatelessWidget {
       unawaited(LxClipboard.copyTextWithFeedback(context, toCopy));
     }
 
+    Future<void> onTap() async {
+      // Try to open link if row has one, else fallback to copy
+      if (linkTarget != null) {
+        final result = await url.open(linkTarget);
+        if (result.ok ?? false) {
+          return;
+        }
+      }
+
+      copyValue();
+    }
+
     final maybeCopyOnTapRow = (isMobile)
         ? InkWell(
-            onTap: copyValue,
+            onTap: onTap,
             onLongPress: copyValue,
             child: row,
           )

@@ -792,6 +792,9 @@ final class LxIcons {
   /// refresh icon (spin arrow)
   static const IconData refresh = Symbols.refresh_rounded;
 
+  /// open link externally icon (up-right arrow in box)
+  static const IconData openLink = Symbols.open_in_new_rounded;
+
   /// Receive payment icon (down arrow)
   static const IconData receive = Symbols.arrow_downward_rounded;
 
