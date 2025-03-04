@@ -44,12 +44,50 @@ impl OnchainBalance {
         confirmed: bitcoin::Amount::ZERO,
     };
 
-    /// Get sum of trusted pending and confirmed coins
+    /// The maximum amount that we could spend in a transaction right now.
+    ///
+    /// - This is generally what you should use, as it determines the total
+    ///   actionable balance.
+    /// - If it is necessary to partition funds by whether they are confirmed,
+    ///   use [`Self::confirmed`] and [`Self::unconfirmed`].
+    /// - "confirmed + unconfirmed = spendable"
+    /// - "spendable + immature = total"
     pub fn spendable(&self) -> bitcoin::Amount {
+        // We *can* in fact spend `untrusted_pending` outputs.
+        // This is tested in a smoketest.
+        self.confirmed + self.trusted_pending + self.untrusted_pending
+    }
+
+    /// The sum of mature but unconfirmed outputs sent to our wallet.
+    ///
+    /// - Includes trusted outputs from our own wallet (e.g. change outputs).
+    ///   Use [`Self::untrusted_pending`] to get the sum of unconfirmed outputs
+    ///   from external wallets.
+    /// - "immature + unconfirmed + confirmed = total"
+    pub fn unconfirmed(&self) -> bitcoin::Amount {
+        self.trusted_pending + self.untrusted_pending
+    }
+
+    /// The maximum amount we can spend without risk of our transaction being
+    /// cancelled by a counterparty double-spending one of our outputs.
+    ///
+    /// - Equivalent to BDK's `trusted_spendable`.
+    /// - "trusted_spendable + untrusted_pending = spendable"
+    pub fn trusted_spendable(&self) -> bitcoin::Amount {
         self.confirmed + self.trusted_pending
     }
 
-    /// Get the whole balance visible to the wallet
+    /// Sum of all unconfirmed + immature coins.
+    ///
+    /// - "pending + confirmed = total"
+    pub fn pending(&self) -> bitcoin::Amount {
+        self.immature + self.trusted_pending + self.untrusted_pending
+    }
+
+    /// The total balance visible to the wallet.
+    ///
+    /// NOTE: Generally use `spendable` instead of this, as immature outputs
+    /// are not spendable (even though we should never see them in practice)
     pub fn total(&self) -> bitcoin::Amount {
         self.confirmed
             + self.trusted_pending
