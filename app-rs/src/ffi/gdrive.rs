@@ -6,6 +6,7 @@ pub(crate) use gdrive::restore::{
     GDriveRestoreCandidate as GDriveRestoreCandidateRs,
     GDriveRestoreClient as GDriveRestoreClientRs,
 };
+use tracing::instrument;
 
 use crate::ffi::types::{DeployEnv, Network, RootSeed};
 
@@ -80,6 +81,7 @@ impl GDriveOAuth2Flow {
 
     /// After the user has authorized access and we've gotten the redirect,
     /// call this fn to exchange the client auth code for credentials + client.
+    #[instrument(skip_all, name = "(gdrive-exchange)")]
     pub async fn exchange(
         &self,
         result_uri: &str,

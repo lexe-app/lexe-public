@@ -17,6 +17,7 @@ use common::{
     root_seed::RootSeed as RootSeedRs,
 };
 use flutter_rust_bridge::{frb, RustOpaqueNom};
+use tracing::instrument;
 
 use crate::ffi::{
     api::{
@@ -126,6 +127,7 @@ impl AppHandle {
         }
     }
 
+    #[instrument(skip_all, name = "(node-info)")]
     pub async fn node_info(&self) -> anyhow::Result<NodeInfo> {
         self.inner
             .node_client()
@@ -135,6 +137,7 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
+    #[instrument(skip_all, name = "(list-channels)")]
     pub async fn list_channels(&self) -> anyhow::Result<ListChannelsResponse> {
         self.inner
             .node_client()
@@ -144,6 +147,7 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
+    #[instrument(skip_all, name = "(open-channel)")]
     pub async fn open_channel(
         &self,
         req: OpenChannelRequest,
@@ -157,6 +161,7 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
+    #[instrument(skip_all, name = "(preflight-open-channel)")]
     pub async fn preflight_open_channel(
         &self,
         req: PreflightOpenChannelRequest,
@@ -170,6 +175,7 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
+    #[instrument(skip_all, name = "(close-channel)")]
     pub async fn close_channel(
         &self,
         req: CloseChannelRequest,
@@ -182,6 +188,7 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
+    #[instrument(skip_all, name = "(preflight-close-channel)")]
     pub async fn preflight_close_channel(
         &self,
         req: PreflightCloseChannelRequest,
@@ -194,6 +201,7 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
+    #[instrument(skip_all, name = "(fiat-rates)")]
     pub async fn fiat_rates(&self) -> anyhow::Result<FiatRates> {
         self.inner
             .gateway_client()
@@ -203,6 +211,7 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
+    #[instrument(skip_all, name = "(pay-onchain)")]
     pub async fn pay_onchain(
         &self,
         req: PayOnchainRequest,
@@ -217,6 +226,7 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
+    #[instrument(skip_all, name = "(preflight-pay-onchain)")]
     pub async fn preflight_pay_onchain(
         &self,
         req: PreflightPayOnchainRequest,
@@ -229,6 +239,7 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
+    #[instrument(skip_all, name = "(get-address)")]
     pub async fn get_address(&self) -> anyhow::Result<String> {
         self.inner
             .node_client()
@@ -239,6 +250,7 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
+    #[instrument(skip_all, name = "(create-invoice)")]
     pub async fn create_invoice(
         &self,
         req: CreateInvoiceRequest,
@@ -252,6 +264,7 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
+    #[instrument(skip_all, name = "(preflight-pay-invoice)")]
     pub async fn preflight_pay_invoice(
         &self,
         req: PreflightPayInvoiceRequest,
@@ -264,6 +277,7 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
+    #[instrument(skip_all, name = "(pay-invoice)")]
     pub async fn pay_invoice(
         &self,
         req: PayInvoiceRequest,
@@ -417,6 +431,7 @@ impl AppHandle {
         db_lock.state().num_finalized_not_junk()
     }
 
+    #[instrument(skip_all, name = "(update-payment-note)")]
     pub async fn update_payment_note(
         &self,
         req: UpdatePaymentNote,

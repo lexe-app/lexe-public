@@ -437,7 +437,7 @@ impl App {
 
     // We have to hold the std Mutex lock past .await because of FRB
     #[allow(clippy::await_holding_lock)]
-    #[instrument(skip_all, name = "(sync_payments)")]
+    #[instrument(skip_all, name = "(sync-payments)")]
     pub async fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
         let start = Instant::now();
         info!("start");
