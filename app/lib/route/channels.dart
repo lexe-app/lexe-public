@@ -474,7 +474,13 @@ class TotalChannelBalanceRow extends StatelessWidget {
           );
 
     final Widget secondaryText = (this.secondaryText != null)
-        ? Text(this.secondaryText!, style: secondaryStyle)
+        ? Text(
+            this.secondaryText!,
+            style: secondaryStyle.copyWith(
+              color: primaryStyle.color,
+              fontVariations: [],
+            ),
+          )
         : const SizedBox();
 
     const dimCircle = Fonts.size500;
