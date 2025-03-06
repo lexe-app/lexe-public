@@ -20,12 +20,23 @@ pub struct OnchainBalance {
 /// Classify the lightning channel balances into different categories.
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub struct LightningBalance {
-    /// If we try to send right now, we can send at most this much (i.e., not
-    /// accounting for channel reserves, max HTLC, etc...).
+    /// The sum channel value that is usable.
     ///
     /// For example, if we have an open channel with a disconnected node, then
     /// we can't send over it; it would not be counted here.
     pub usable: Amount,
+
+    /// Our most accurate limit for how much we can currently send if we made a
+    /// MPP over all usable channels. It's the sum [`next_outbound_htlc_limit`]
+    /// of all usable channels.
+    ///
+    /// This value is bounded above by `usable`, as it accounts for channel
+    /// reserves, commitment tx fees, dust limits, counterparty constraints,
+    /// etc..., which limit how much we can actually send over our channels.
+    ///
+    /// [`next_outbound_htlc_limit`]: crate::ln::channel::LxChannelDetails::next_outbound_htlc_limit
+    pub sendable: Amount,
+
     /// The sum channel value that isn't currently usable.
     ///
     /// The channel may be (1) opening and await confirmation, (2) shutting
@@ -126,6 +137,7 @@ impl Default for OnchainBalance {
 impl LightningBalance {
     pub const ZERO: Self = Self {
         usable: Amount::ZERO,
+        sendable: Amount::ZERO,
         pending: Amount::ZERO,
     };
 

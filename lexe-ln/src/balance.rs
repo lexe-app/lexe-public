@@ -28,6 +28,8 @@ pub fn all_channel_balances<PS: LexePersister>(
 
         if channel.is_usable {
             total_balance.usable += amount;
+            total_balance.sendable +=
+                Amount::from_msat(channel.next_outbound_htlc_limit_msat);
             num_usable_channels += 1;
         } else {
             total_balance.pending += amount;
