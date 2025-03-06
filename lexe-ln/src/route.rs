@@ -5,6 +5,7 @@ use common::{
     api::user::NodePk,
     debug_panic_release_log,
     ln::{amount::Amount, invoice::LxInvoice},
+    Apply,
 };
 use const_utils::const_assert;
 use either::Either;
@@ -138,16 +139,41 @@ where
     };
 
     let route = {
+        // Collect all the info we need to route this payment
         let payer_pubkey = channel_manager.get_our_node_id();
         let usable_channels = channel_manager.list_usable_channels();
         let usable_channels_refs = usable_channels.iter().collect::<Vec<_>>();
-        let first_hops = Some(usable_channels_refs.as_slice());
+        let first_hops = usable_channels_refs.as_slice();
         let in_flight_htlcs = channel_manager.compute_inflight_htlcs();
+
+        // The most we can send right now, if we used all our channels, not
+        // including routing fees. This is the same value as
+        // `LightningBalance::sendable`.
+        let sendable = first_hops
+            .iter()
+            .map(|x| x.next_outbound_htlc_limit_msat)
+            .sum::<u64>()
+            .apply(Amount::from_msat);
+
+        // Quickly check if the amount we want to send is above the sum of
+        // all our channel `next_outbound_htlc_limit`s, so we can return a more
+        // useful error message than "route not found".
+        //
+        // TODO(phlip9): user node case should also be able to account for LSP
+        // channel fees in this limit.
+        if amount > sendable {
+            return Err(anyhow!(
+                "Can't send more than {} sats. Trying to send {} sats.",
+                sendable.sats_u64(),
+                amount.sats_u64(),
+            ));
+        }
+
         router
             .find_route(
                 &payer_pubkey,
                 &route_params,
-                first_hops,
+                Some(first_hops),
                 in_flight_htlcs,
             )
             .map_err(|LightningError { err, action: _ }| anyhow!("{err}"))?
