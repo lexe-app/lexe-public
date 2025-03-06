@@ -63,7 +63,7 @@ class BalanceState with _$BalanceState {
       const BalanceState(balanceSats: null, fiatRate: null);
 
   int? totalSats() => this.balanceSats?.totalSats;
-  int? lightningSats() => this.balanceSats?.lightningSats;
+  int? lightningSats() => this.balanceSats?.lightningUsableSats;
   int? onchainSats() => this.balanceSats?.onchainSats;
 
   int? byKindSats(BalanceKind kind) => switch (kind) {

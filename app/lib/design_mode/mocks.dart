@@ -69,8 +69,8 @@ class MockAppHandle extends AppHandle {
   MockAppHandle(
       {required this.balance, required this.payments, required this.channels})
       : assert(payments.isSortedBy((payment) => payment.index.field0)),
-        assert(
-            balance.totalSats == balance.lightningSats + balance.onchainSats),
+        assert(balance.totalSats ==
+            balance.lightningUsableSats + balance.onchainSats),
         super(inner: MockApp());
 
   // Wallet balance
@@ -435,7 +435,8 @@ class MockAppHandleScreenshots extends MockAppHandle {
             "1d97c2c837b09ec7b0e0b26cb6fa9a211be84c8fdb53299cc9ee8884c7a25ac1",
         balance: Balance(
           totalSats: 233671,
-          lightningSats: 154226,
+          lightningUsableSats: 154226,
+          lightningSendableSats: 154226 - 6878,
           onchainSats: 233671 - 154226,
         ),
       ));
@@ -549,14 +550,16 @@ class MockRestoreApi implements RestoreApi {
 //
 
 const Balance defaultBalance = Balance(
-  lightningSats: 198466,
+  lightningUsableSats: 198466,
+  lightningSendableSats: 198466 - 4354,
   onchainSats: 21214,
   totalSats: 198466 + 21214,
 );
 
 const Balance zeroBalance = Balance(
   totalSats: 0,
-  lightningSats: 0,
+  lightningUsableSats: 0,
+  lightningSendableSats: 0,
   onchainSats: 0,
 );
 

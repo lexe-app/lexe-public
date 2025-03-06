@@ -22,7 +22,8 @@ part 'api.freezed.dart';
 class Balance with _$Balance {
   const factory Balance({
     required int totalSats,
-    required int lightningSats,
+    required int lightningUsableSats,
+    required int lightningSendableSats,
     required int onchainSats,
   }) = _Balance;
 }

@@ -333,7 +333,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   payments: [mocks.dummyOnchainInboundCompleted01],
                   channels: [],
                   balance: const Balance(
-                      onchainSats: 20000, lightningSats: 0, totalSats: 20000),
+                    onchainSats: 20000,
+                    lightningUsableSats: 0,
+                    lightningSendableSats: 0,
+                    totalSats: 20000,
+                  ),
                 ),
                 settings: LxSettings(mockApp.settingsDb()),
                 config: widget.config,
@@ -513,7 +517,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 balanceState: ValueNotifier(const BalanceState(
                   balanceSats: Balance(
                     totalSats: 123000,
-                    lightningSats: 0,
+                    lightningUsableSats: 0,
+                    lightningSendableSats: 0,
                     onchainSats: 123000,
                   ),
                   fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
@@ -528,7 +533,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 balanceState: ValueNotifier(const BalanceState(
                   balanceSats: Balance(
                     totalSats: 123000,
-                    lightningSats: 0,
+                    lightningUsableSats: 0,
+                    lightningSendableSats: 0,
                     onchainSats: 123000,
                   ),
                   fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
@@ -542,7 +548,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 balanceState: ValueNotifier(const BalanceState(
                   balanceSats: Balance(
                     totalSats: 123000,
-                    lightningSats: 0,
+                    lightningUsableSats: 0,
+                    lightningSendableSats: 0,
                     onchainSats: 123000,
                   ),
                   fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
@@ -561,7 +568,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 balanceState: ValueNotifier(const BalanceState(
                   balanceSats: Balance(
                     totalSats: 123000,
-                    lightningSats: 0,
+                    lightningUsableSats: 0,
+                    lightningSendableSats: 0,
                     onchainSats: 123000,
                   ),
                   fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
@@ -647,8 +655,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     version: "1.2.3",
                     measurement:
                         "1d97c2c837b09ec7b0e0b26cb6fa9a211be84c8fdb53299cc9ee8884c7a25ac1",
-                    balance: const Balance(
-                        totalSats: 123, lightningSats: 12, onchainSats: 34),
+                    balance: mocks.zeroBalance,
                   );
                 }));
                 return NodeInfoPage(nodeInfo: nodeInfo, userInfo: userInfo);

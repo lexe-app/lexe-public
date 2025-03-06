@@ -69,9 +69,10 @@ impl From<NodeInfoRs> for NodeInfo {
 pub struct Balance {
     /// The top-level balance we'll show on the user screen.
     pub total_sats: u64,
-    /// The amount we can currently spend from our outbound LN channel
-    /// capacity.
-    pub lightning_sats: u64,
+    /// The sum channel value of all usable channels.
+    pub lightning_usable_sats: u64,
+    /// Approximately the largest send we can make right now.
+    pub lightning_sendable_sats: u64,
     /// The amount of spendable onchain funds, i.e., those that are confirmed
     /// or otherwise trusted but maybe pending (self-generated UTXOs).
     pub onchain_sats: u64,
@@ -79,14 +80,17 @@ pub struct Balance {
 
 impl From<&NodeInfoRs> for Balance {
     fn from(info: &NodeInfoRs) -> Self {
-        let lightning_sats = info.lightning_balance.usable.sats_u64();
+        let lightning_usable_sats = info.lightning_balance.usable.sats_u64();
+        let lightning_sendable_sats =
+            info.lightning_balance.sendable.sats_u64();
         let onchain_sats = info.onchain_balance.spendable().to_sat();
         let total_sats =
             info.lightning_balance.total().sats_u64() + onchain_sats;
 
         Self {
             total_sats,
-            lightning_sats,
+            lightning_usable_sats,
+            lightning_sendable_sats,
             onchain_sats,
         }
     }
