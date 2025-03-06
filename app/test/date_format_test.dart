@@ -22,6 +22,14 @@ void main() {
     // now = "Jun 21, 2023"
     final now = dateTimeFromUnix(1687385095000);
 
+    // now = "just now"
+    expect(date_format.formatDate(now: now, then: now, locale: "en_US"),
+        "just now");
+    expect(
+        date_format.formatDate(now: now, then: now, locale: "nb"), "just now");
+    expect(
+        date_format.formatDate(now: now, then: now, locale: "fr"), "just now");
+
     // -2d 15h 5m 3s = "2 days ago"
     final days2 = dateTimeFromUnix(1687157992000);
     expect(date_format.formatDate(now: now, then: days2, locale: "en_US"),
@@ -56,6 +64,15 @@ void main() {
     expect(date_format.formatDate(now: now, then: secs15, locale: "nb"),
         "just now");
     expect(date_format.formatDate(now: now, then: secs15, locale: "fr"),
+        "just now");
+
+    // +15s (in the future) = "just now"
+    final secs15Fut = dateTimeFromUnix(1687385110000);
+    expect(date_format.formatDate(now: now, then: secs15Fut, locale: "en_US"),
+        "just now");
+    expect(date_format.formatDate(now: now, then: secs15Fut, locale: "nb"),
+        "just now");
+    expect(date_format.formatDate(now: now, then: secs15Fut, locale: "fr"),
         "just now");
 
     // -5d ish = June 16, 2023 = "Jun 16"

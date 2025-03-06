@@ -60,7 +60,7 @@ String formatDateFullInner(DateTime t) {
 }
 
 /// Less-compactly format a `DateTime` that's in the past. Will return `null` if
-/// the `DateTime` is in the future.
+/// the `DateTime` is far in the future.
 ///
 /// The underlying `Intl` library will throw an error if
 /// `initializeDateLocaleData()` hasn't been called yet (and the locale isn't
@@ -83,15 +83,21 @@ String? formatDate({
 
   /// Use `locale` instead of the current configured locale. Used for testing.
   String? locale,
+
+  /// If [then] is less than this value in the future, we'll consider it
+  /// "just now".
+  Duration clockDriftTolerance = const Duration(days: 1),
 }) {
   final DateTime now2 = now ?? DateTime.now();
 
-  // Can't format dates in the future
-  if (then.isAfter(now2)) {
+  final Duration span;
+  if (then.isBefore(now2)) {
+    span = now2.difference(then);
+  } else if (then.difference(now2) < clockDriftTolerance) {
+    span = Duration.zero;
+  } else {
     return null;
   }
-
-  final span = now2.difference(then);
 
   if (span.inSeconds < 60) {
     return justNowStr(locale: locale);
