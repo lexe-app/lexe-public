@@ -860,7 +860,8 @@ const LxChannelDetails dummyChannelUsable01 = LxChannelDetails(
   channelValueSats: 300231 + 477788,
   isUsable: true,
   ourBalanceSats: 300231,
-  outboundCapacitySats: 300231 - 5000,
+  outboundCapacitySats: 300231 - 1000,
+  nextOutboundHtlcLimitSats: 300231 - 1000 - 1198,
   theirBalanceSats: 477788,
   inboundCapacitySats: 477788 - 5000,
 );
@@ -872,7 +873,8 @@ const LxChannelDetails dummyChannelUnusable01 = LxChannelDetails(
   channelValueSats: 776231 + 226787,
   isUsable: false,
   ourBalanceSats: 776231,
-  outboundCapacitySats: 776231 - 5000,
+  outboundCapacitySats: 776231 - 1000,
+  nextOutboundHtlcLimitSats: 776231 - 1000 - 1198,
   theirBalanceSats: 226787,
   inboundCapacitySats: 226787 - 5000,
 );
@@ -884,7 +886,8 @@ const LxChannelDetails dummyChannelUnusable02 = LxChannelDetails(
   channelValueSats: 254116 + 43844,
   isUsable: false,
   ourBalanceSats: 254116,
-  outboundCapacitySats: 254116 - 5000,
+  outboundCapacitySats: 254116 - 1000,
+  nextOutboundHtlcLimitSats: 254116 - 1000 - 1198,
   theirBalanceSats: 43844,
   inboundCapacitySats: 43844 - 5000,
 );

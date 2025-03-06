@@ -324,25 +324,39 @@ class ChannelsPartyChip extends StatelessWidget {
 
 class TotalChannelBalance {
   const TotalChannelBalance({
-    required this.outboundCapacitySats,
+    required this.outboundSendableSats,
     required this.inboundCapacitySats,
     required this.fiatRate,
   });
 
-  /// Roughly: `balance - punishment_reserve - pending_outbound_htlcs`
-  final int outboundCapacitySats;
+  /// The "true" point-in-time limit on what we can actually expect to send over
+  /// our outbound channels. This value is the sum of `next_outbound_htlc_limit`
+  /// over all `is_usable` channels.
+  ///
+  /// This value is different from a sum over the simpler `outbound_capacity`
+  /// values, each of which is just:
+  ///
+  /// `outbound_capacity := balance - punishment_reserve - pending_outbound_htlcs`
+  ///
+  /// Instead, a `next_outbound_htlc_limit` represents the true limit for the
+  /// next HTLC sent over that channel. It accounts for commitment tx fees, dust
+  /// limits, and counterparty constraints, on top of the base `outbound_capacity`.
+  final int outboundSendableSats;
 
-  /// A lower bound on the inbound capacity available to us.
+  /// An approximate lower bound on the inbound capacity available to us.
+  ///
+  /// We don't currently have an accurate guage on "true" next HTLC receive
+  /// limits the way we do for outbound channels.
   final int inboundCapacitySats;
 
   final FiatRate? fiatRate;
 
   factory TotalChannelBalance.fromApi(
       ListChannelsResponse channels, FiatRate? fiatRate) {
-    final outboundCapacitySats = maxInt(
+    final outboundSendableSats = maxInt(
           channels.channels
               .where((channel) => channel.isUsable)
-              .map((channel) => channel.outboundCapacitySats),
+              .map((channel) => channel.nextOutboundHtlcLimitSats),
         ) ??
         0;
     final inboundCapacitySats = maxInt(
@@ -353,7 +367,7 @@ class TotalChannelBalance {
         0;
 
     return TotalChannelBalance(
-      outboundCapacitySats: outboundCapacitySats,
+      outboundSendableSats: outboundSendableSats,
       inboundCapacitySats: inboundCapacitySats,
       fiatRate: fiatRate,
     );
@@ -361,7 +375,7 @@ class TotalChannelBalance {
 
   @override
   int get hashCode =>
-      this.outboundCapacitySats.hashCode ^
+      this.outboundSendableSats.hashCode ^
       this.inboundCapacitySats.hashCode ^
       this.fiatRate.hashCode;
 
@@ -370,7 +384,7 @@ class TotalChannelBalance {
       identical(this, other) ||
       other is TotalChannelBalance &&
           runtimeType == other.runtimeType &&
-          this.outboundCapacitySats == other.outboundCapacitySats &&
+          this.outboundSendableSats == other.outboundSendableSats &&
           this.inboundCapacitySats == other.inboundCapacitySats &&
           this.fiatRate == other.fiatRate;
 }
@@ -384,7 +398,7 @@ class TotalChannelBalanceWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fiatRate = this.totalChannelBalance?.fiatRate;
-    final ourBalanceSats = this.totalChannelBalance?.outboundCapacitySats;
+    final ourBalanceSats = this.totalChannelBalance?.outboundSendableSats;
     final theirBalanceSats = this.totalChannelBalance?.inboundCapacitySats;
 
     return Column(

@@ -128,11 +128,13 @@ pub struct LxChannelDetails {
     ///
     /// Use this for displaying our "current funds".
     pub our_balance: Amount,
-    /// Roughly: `balance - punishment_reserve - pending_outbound_htlcs`
+    /// Is: `balance - punishment_reserve - pending_outbound_htlcs`
     ///
     /// Use this as an approximate measurement of liquidity, e.g. in graphics.
     pub outbound_capacity: Amount,
-    /// Roughly: `min(outbound_capacity, per_htlc_limit)`.
+    /// Roughly: `outbound_capacity`, but accounting for all additional
+    /// protocol limits like commitment tx fees, dust limits, and
+    /// counterparty constraints.
     ///
     /// Use this for routing, including determining the maximum size of the
     /// next individual Lightning payment sent over this channel, or
@@ -142,7 +144,10 @@ pub struct LxChannelDetails {
 
     // --- Their balance --- //
     pub their_balance: Amount,
-    /// A lower bound on the inbound capacity available to us.
+    /// Approximately how much inbound capacity is available to us.
+    ///
+    /// Due to in-flight HTLCs, feerates, dust limits, etc... we cannot
+    /// receive exactly this value (likely a 1k-2k sats lower).
     pub inbound_capacity: Amount,
 
     // --- Fees and CLTV --- //
