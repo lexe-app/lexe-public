@@ -322,6 +322,18 @@ class ChannelsPartyChip extends StatelessWidget {
       );
 }
 
+/// Reduce each channel's inbound capacity by this amount when determining our
+/// top-level "receive up to" limit to avoid people receiving that exact value
+/// and then getting confused when a JIT channel had to open.
+///
+/// 2025-03-06: from Lexe LSP to user channels, `outbound_capacity - next_outbound_htlc_limit`
+/// is about 1190 sats on average, max 2400.
+const int inboundCapacityTweakSats = 1500;
+
+extension IntExt on int {
+  int saturatingSub(final int other) => (this >= other) ? this - other : 0;
+}
+
 class TotalChannelBalance {
   const TotalChannelBalance({
     required this.outboundSendableSats,
@@ -360,9 +372,12 @@ class TotalChannelBalance {
         ) ??
         0;
     final inboundCapacitySats = maxInt(
-          channels.channels
-              .where((channel) => channel.isUsable)
-              .map((channel) => channel.inboundCapacitySats),
+          channels.channels.where((channel) => channel.isUsable).map(
+              // Since we don't yet have an accurate "next_inbound_htlc_limit",
+              // we'll reduce each channel's inbound capacity by an
+              // experimentally determined value.
+              (channel) => channel.inboundCapacitySats
+                  .saturatingSub(inboundCapacityTweakSats)),
         ) ??
         0;
 

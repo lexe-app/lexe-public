@@ -859,45 +859,59 @@ List<Payment> defaultDummyPayments = [
 const LxChannelDetails dummyChannelUsable01 = LxChannelDetails(
   channelId: "eb3a2ec97707e9218491a48db1b768de3d1170f84dc8ea539a385ce5a1b68527",
   counterpartyNodeId:
-      "030905ca4848a7ec54b1c907b5a9d9e4fd8df54db2ff1166a7f8cb34ba78374592",
+      "0314a77523d1dcbc5db56081edcbc24ab820b35e343a6c6769176de707c178d457",
   channelValueSats: 300231 + 477788,
   isUsable: true,
   ourBalanceSats: 300231,
   outboundCapacitySats: 300231 - 1000,
   nextOutboundHtlcLimitSats: 300231 - 1000 - 1198,
   theirBalanceSats: 477788,
-  inboundCapacitySats: 477788 - 5000,
+  inboundCapacitySats: 477788 - 1000,
+);
+
+const LxChannelDetails dummyChannelUsable02 = LxChannelDetails(
+  channelId: "4f21130b6117cfba0b771e12e98298b2027b39e41d681726384277c935d30d7a",
+  counterpartyNodeId:
+      "0314a77523d1dcbc5db56081edcbc24ab820b35e343a6c6769176de707c178d457",
+  channelValueSats: 24350 + 1100,
+  isUsable: true,
+  ourBalanceSats: 24350,
+  outboundCapacitySats: 24350 - 1000,
+  nextOutboundHtlcLimitSats: 24350 - 1000 - 1198,
+  theirBalanceSats: 1100,
+  inboundCapacitySats: 1100 - 1000,
 );
 
 const LxChannelDetails dummyChannelUnusable01 = LxChannelDetails(
   channelId: "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",
   counterpartyNodeId:
-      "03781d57bd783a2767d6cb816edd77178d61a5e2a3faf46c5958b9c249bedce274",
+      "0314a77523d1dcbc5db56081edcbc24ab820b35e343a6c6769176de707c178d457",
   channelValueSats: 776231 + 226787,
   isUsable: false,
   ourBalanceSats: 776231,
   outboundCapacitySats: 776231 - 1000,
   nextOutboundHtlcLimitSats: 776231 - 1000 - 1198,
   theirBalanceSats: 226787,
-  inboundCapacitySats: 226787 - 5000,
+  inboundCapacitySats: 226787 - 1000,
 );
 
 const LxChannelDetails dummyChannelUnusable02 = LxChannelDetails(
   channelId: "2ec634f7ae13ae3509e1044d7be014d320897d3b663e7b8e2a7d27b37ba13127",
   counterpartyNodeId:
-      "02a9d8125bed8eebf4824bbdde91bd7805904a2cef759c123f12d6e93a899db607",
+      "0314a77523d1dcbc5db56081edcbc24ab820b35e343a6c6769176de707c178d457",
   channelValueSats: 254116 + 43844,
   isUsable: false,
   ourBalanceSats: 254116,
   outboundCapacitySats: 254116 - 1000,
   nextOutboundHtlcLimitSats: 254116 - 1000 - 1198,
   theirBalanceSats: 43844,
-  inboundCapacitySats: 43844 - 5000,
+  inboundCapacitySats: 43844 - 1000,
 );
 
 // Default set of sample channels
 const List<LxChannelDetails> defaultDummyChannels = [
   dummyChannelUnusable01,
   dummyChannelUsable01,
+  dummyChannelUsable02,
   dummyChannelUnusable02,
 ];
