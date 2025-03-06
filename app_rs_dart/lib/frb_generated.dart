@@ -2262,8 +2262,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   LxChannelDetails dco_decode_lx_channel_details(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return LxChannelDetails(
       channelId: dco_decode_String(arr[0]),
       counterpartyNodeId: dco_decode_String(arr[1]),
@@ -2271,8 +2271,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       isUsable: dco_decode_bool(arr[3]),
       ourBalanceSats: dco_decode_CastedPrimitive_u_64(arr[4]),
       outboundCapacitySats: dco_decode_CastedPrimitive_u_64(arr[5]),
-      theirBalanceSats: dco_decode_CastedPrimitive_u_64(arr[6]),
-      inboundCapacitySats: dco_decode_CastedPrimitive_u_64(arr[7]),
+      nextOutboundHtlcLimitSats: dco_decode_CastedPrimitive_u_64(arr[6]),
+      theirBalanceSats: dco_decode_CastedPrimitive_u_64(arr[7]),
+      inboundCapacitySats: dco_decode_CastedPrimitive_u_64(arr[8]),
     );
   }
 
@@ -3262,6 +3263,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_ourBalanceSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_outboundCapacitySats =
         sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_nextOutboundHtlcLimitSats =
+        sse_decode_CastedPrimitive_u_64(deserializer);
     var var_theirBalanceSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_inboundCapacitySats = sse_decode_CastedPrimitive_u_64(deserializer);
     return LxChannelDetails(
@@ -3271,6 +3274,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         isUsable: var_isUsable,
         ourBalanceSats: var_ourBalanceSats,
         outboundCapacitySats: var_outboundCapacitySats,
+        nextOutboundHtlcLimitSats: var_nextOutboundHtlcLimitSats,
         theirBalanceSats: var_theirBalanceSats,
         inboundCapacitySats: var_inboundCapacitySats);
   }
@@ -4231,6 +4235,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_bool(self.isUsable, serializer);
     sse_encode_CastedPrimitive_u_64(self.ourBalanceSats, serializer);
     sse_encode_CastedPrimitive_u_64(self.outboundCapacitySats, serializer);
+    sse_encode_CastedPrimitive_u_64(self.nextOutboundHtlcLimitSats, serializer);
     sse_encode_CastedPrimitive_u_64(self.theirBalanceSats, serializer);
     sse_encode_CastedPrimitive_u_64(self.inboundCapacitySats, serializer);
   }

@@ -1325,6 +1325,7 @@ impl SseDecode for crate::ffi::types::LxChannelDetails {
         let mut var_isUsable = <bool>::sse_decode(deserializer);
         let mut var_ourBalanceSats = <u64>::sse_decode(deserializer);
         let mut var_outboundCapacitySats = <u64>::sse_decode(deserializer);
+        let mut var_nextOutboundHtlcLimitSats = <u64>::sse_decode(deserializer);
         let mut var_theirBalanceSats = <u64>::sse_decode(deserializer);
         let mut var_inboundCapacitySats = <u64>::sse_decode(deserializer);
         return crate::ffi::types::LxChannelDetails {
@@ -1334,6 +1335,7 @@ impl SseDecode for crate::ffi::types::LxChannelDetails {
             is_usable: var_isUsable,
             our_balance_sats: var_ourBalanceSats,
             outbound_capacity_sats: var_outboundCapacitySats,
+            next_outbound_htlc_limit_sats: var_nextOutboundHtlcLimitSats,
             their_balance_sats: var_theirBalanceSats,
             inbound_capacity_sats: var_inboundCapacitySats,
         };
@@ -2495,6 +2497,9 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::LxChannelDetails {
             self.is_usable.into_into_dart().into_dart(),
             self.our_balance_sats.into_into_dart().into_dart(),
             self.outbound_capacity_sats.into_into_dart().into_dart(),
+            self.next_outbound_htlc_limit_sats
+                .into_into_dart()
+                .into_dart(),
             self.their_balance_sats.into_into_dart().into_dart(),
             self.inbound_capacity_sats.into_into_dart().into_dart(),
         ]
@@ -3600,6 +3605,7 @@ impl SseEncode for crate::ffi::types::LxChannelDetails {
         <bool>::sse_encode(self.is_usable, serializer);
         <u64>::sse_encode(self.our_balance_sats, serializer);
         <u64>::sse_encode(self.outbound_capacity_sats, serializer);
+        <u64>::sse_encode(self.next_outbound_htlc_limit_sats, serializer);
         <u64>::sse_encode(self.their_balance_sats, serializer);
         <u64>::sse_encode(self.inbound_capacity_sats, serializer);
     }

@@ -458,6 +458,7 @@ pub struct LxChannelDetails {
 
     pub our_balance_sats: u64,
     pub outbound_capacity_sats: u64,
+    pub next_outbound_htlc_limit_sats: u64,
 
     pub their_balance_sats: u64,
     pub inbound_capacity_sats: u64,
@@ -476,6 +477,9 @@ impl From<LxChannelDetailsRs> for LxChannelDetails {
             is_usable: value.is_usable,
             our_balance_sats: value.our_balance.sats_u64(),
             outbound_capacity_sats: value.outbound_capacity.sats_u64(),
+            next_outbound_htlc_limit_sats: value
+                .next_outbound_htlc_limit
+                .sats_u64(),
             their_balance_sats: value.their_balance.sats_u64(),
             inbound_capacity_sats: value.inbound_capacity.sats_u64(),
             // our_base_fee_sats: value.our_base_fee.sats_u64(),

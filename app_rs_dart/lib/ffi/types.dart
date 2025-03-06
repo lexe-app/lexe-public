@@ -92,6 +92,7 @@ class LxChannelDetails {
   final bool isUsable;
   final int ourBalanceSats;
   final int outboundCapacitySats;
+  final int nextOutboundHtlcLimitSats;
   final int theirBalanceSats;
   final int inboundCapacitySats;
 
@@ -102,6 +103,7 @@ class LxChannelDetails {
     required this.isUsable,
     required this.ourBalanceSats,
     required this.outboundCapacitySats,
+    required this.nextOutboundHtlcLimitSats,
     required this.theirBalanceSats,
     required this.inboundCapacitySats,
   });
@@ -114,6 +116,7 @@ class LxChannelDetails {
       isUsable.hashCode ^
       ourBalanceSats.hashCode ^
       outboundCapacitySats.hashCode ^
+      nextOutboundHtlcLimitSats.hashCode ^
       theirBalanceSats.hashCode ^
       inboundCapacitySats.hashCode;
 
@@ -128,6 +131,7 @@ class LxChannelDetails {
           isUsable == other.isUsable &&
           ourBalanceSats == other.ourBalanceSats &&
           outboundCapacitySats == other.outboundCapacitySats &&
+          nextOutboundHtlcLimitSats == other.nextOutboundHtlcLimitSats &&
           theirBalanceSats == other.theirBalanceSats &&
           inboundCapacitySats == other.inboundCapacitySats;
 }
