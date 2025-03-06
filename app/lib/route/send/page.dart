@@ -8,7 +8,6 @@ import 'package:app_rs_dart/ffi/api.dart'
     show FeeEstimate, PreflightPayOnchainResponse;
 import 'package:app_rs_dart/ffi/types.dart'
     show ConfirmationPriority, PaymentKind;
-import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:flutter/material.dart';
 import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
@@ -402,16 +401,13 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   }
 
   Result<(), String> validateAmount(int amount) {
-    final balanceSats = this.widget.sendCtx.balanceSats();
-    if (amount > balanceSats) {
-      final kind = this.widget.sendCtx.paymentMethod.kind();
-      final kindLabel = switch (kind) {
-        PaymentKind.onchain => "on-chain",
-        PaymentKind.invoice || PaymentKind.spontaneous => "lightning",
-      };
-      final balanceStr =
-          currency_format.formatSatsAmount(balanceSats, satsSuffix: true);
-      return Err("Can't send more than your $kindLabel balance ($balanceStr).");
+    final balanceSendableSats = this.widget.sendCtx.balanceSendableSats();
+    if (amount > balanceSendableSats) {
+      final balanceSendableStr = currency_format.formatSatsAmount(
+        balanceSendableSats,
+        satsSuffix: true,
+      );
+      return Err("Can't send more than $balanceSendableStr");
     }
 
     return const Ok(());
@@ -419,8 +415,9 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 
   @override
   Widget build(BuildContext context) {
-    final balanceStr = currency_format
-        .formatSatsAmount(this.widget.sendCtx.balanceSats(), satsSuffix: true);
+    final balanceSendableStr = currency_format.formatSatsAmount(
+        this.widget.sendCtx.balanceSendableSats(),
+        satsSuffix: true);
 
     return Scaffold(
       appBar: AppBar(
@@ -434,7 +431,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
       body: ScrollableSinglePageBody(
         body: [
           const HeadingText(text: "How much?"),
-          SubheadingText(text: "balance $balanceStr"),
+          SubheadingText(text: "Send up to $balanceSendableStr"),
           const SizedBox(height: Space.s850),
 
           // <amount> sats

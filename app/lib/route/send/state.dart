@@ -77,7 +77,8 @@ class SendState_NeedUri implements SendState {
   /// Then, if the payment already has an amount attached, try to preflight it
   /// immediately.
   Future<Result<SendState, String>> resolveAndMaybePreflight(
-      String uriStr) async {
+    String uriStr,
+  ) async {
     // Try to parse and resolve the payment URI into a single "best" PaymentMethod.
     // TODO(phlip9): this API should return a bare error enum and flutter should
     // convert that to a human-readable error message (for translations).
@@ -147,7 +148,8 @@ class SendState_NeedAmount implements SendState {
   /// URI open.
   final PaymentMethod paymentMethod;
 
-  int balanceSats() => this.balance.balanceByKind(this.paymentMethod.kind());
+  int balanceSendableSats() =>
+      this.balance.balanceSendableByKind(this.paymentMethod.kind());
 
   /// Returns Some amount if this payment method already has an amount attached
   /// and can be preflighted immediately.
@@ -240,9 +242,6 @@ class SendState_Preflighted implements SendState {
   final ClientPaymentId cid;
 
   final PreflightedPayment preflightedPayment;
-
-  int balanceSats() =>
-      this.balance.balanceByKind(this.preflightedPayment.kind());
 
   /// The user is now confirming/sending this payment
   Future<FfiResult<SendFlowResult>> pay(
