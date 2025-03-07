@@ -5,6 +5,7 @@ import 'package:app_rs_dart/ffi/api.dart'
     show FiatRate, ListChannelsResponse, NodeInfo;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart' show LxChannelDetails;
+import 'package:collection/collection.dart' show IterableIntegerExtension;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
@@ -365,21 +366,19 @@ class TotalChannelBalance {
 
   factory TotalChannelBalance.fromApi(
       ListChannelsResponse channels, FiatRate? fiatRate) {
-    final outboundSendableSats = maxInt(
-          channels.channels
-              .where((channel) => channel.isUsable)
-              .map((channel) => channel.nextOutboundHtlcLimitSats),
-        ) ??
-        0;
-    final inboundCapacitySats = maxInt(
-          channels.channels.where((channel) => channel.isUsable).map(
-              // Since we don't yet have an accurate "next_inbound_htlc_limit",
-              // we'll reduce each channel's inbound capacity by an
-              // experimentally determined value.
-              (channel) => channel.inboundCapacitySats
-                  .saturatingSub(inboundCapacityTweakSats)),
-        ) ??
-        0;
+    final outboundSendableSats = channels.channels
+        .where((channel) => channel.isUsable)
+        .map((channel) => channel.nextOutboundHtlcLimitSats)
+        .sum;
+    final inboundCapacitySats = channels.channels
+        .where((channel) => channel.isUsable)
+        .map(
+            // Since we don't yet have an accurate "next_inbound_htlc_limit",
+            // we'll reduce each channel's inbound capacity by an
+            // experimentally determined value.
+            (channel) => channel.inboundCapacitySats
+                .saturatingSub(inboundCapacityTweakSats))
+        .sum;
 
     return TotalChannelBalance(
       outboundSendableSats: outboundSendableSats,
@@ -565,7 +564,7 @@ class ChannelsList {
 
     // Get the max channel value
     final maxValueSats =
-        maxInt(channels.map((chan) => chan.channelValueSats)) ?? 0;
+        channels.map((chan) => chan.channelValueSats).maxOrNull ?? 0;
 
     return ChannelsList._(maxValueSats: maxValueSats, channels: channels);
   }
@@ -589,18 +588,6 @@ extension ListExt<T> on List<T> {
   List<U> mapFrom<U>(U Function(T t) mapper, {bool growable = false}) =>
       List.generate(this.length, (idx) => mapper(this[idx]),
           growable: growable);
-}
-
-/// Return the max int in an iterator.
-// Getting weird type error when I try to do an extension method...
-int? maxInt(Iterable<int> iter) {
-  final first = iter.firstOrNull;
-  if (first == null) return null;
-  int value = first;
-  for (final next in iter) {
-    if (next > value) value = next;
-  }
-  return value;
 }
 
 /// The channel state we care about for this page's UI.
