@@ -412,35 +412,83 @@ class TotalChannelBalanceWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fiatRate = this.totalChannelBalance?.fiatRate;
-    final ourBalanceSats = this.totalChannelBalance?.outboundSendableSats;
-    final theirBalanceSats = this.totalChannelBalance?.inboundCapacitySats;
+    final outboundSendableSats = this.totalChannelBalance?.outboundSendableSats;
+    final inboundCapacitySats = this.totalChannelBalance?.inboundCapacitySats;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Send up to sendable balance
         TotalChannelBalanceRow(
           color: LxColors.moneyGoUp,
-          primaryText: "Send up to",
-          secondaryText: null,
-          amountSats: ourBalanceSats,
-          fiatRate: fiatRate,
+          primaryText: const Text("Send up to"),
+          secondaryText: const SizedBox(),
+          primaryAmount: SplitFiatAmountTextOrPlaceholder(
+            amountFiat:
+                FiatAmount.maybeFromSats(fiatRate, outboundSendableSats),
+          ),
+          secondaryAmount:
+              SatsAmountTextOrPlaceholder(amountSats: outboundSendableSats),
         ),
         const SizedBox(height: Space.s300),
-        TotalChannelBalanceRow(
+
+        // Receive up to ∞
+        const TotalChannelBalanceRow(
           color: LxColors.moneyGoUpSecondary,
-          primaryText: "Receive up to",
-          secondaryText: "without miner fee*",
-          amountSats: theirBalanceSats,
-          fiatRate: fiatRate,
+          primaryText: Text("Receive up to"),
+          // secondaryText: "without miner fee*",
+          primaryAmount: Text.rich(
+            TextSpan(
+              children: <InlineSpan>[
+                TextSpan(text: "∞"),
+                TextSpan(
+                  text: "*",
+                  style: TextStyle(fontVariations: [Fonts.weightExtraLight]),
+                ),
+              ],
+              style: TextStyle(
+                fontSize: Fonts.size600,
+                fontVariations: [Fonts.weightNormal],
+              ),
+            ),
+          ),
         ),
-        // TODO(phlip9): remove after beta
-        const SizedBox(height: Space.s200),
-        const Text(
-          "*Lexe is paying your miner fees during beta!",
-          style: TextStyle(
+        const SizedBox(height: Space.s300),
+
+        // "Inbound liquidity limit -> warn about miner fee"
+        Text.rich(
+          // TODO(phlip9): after beta:
+          //               "Receives above $amount sats will incur a miner fee."
+          TextSpan(
+            children: <InlineSpan>[
+              const TextSpan(
+                text: "*After Lexe's beta, receives above your ",
+              ),
+              if (inboundCapacitySats != null)
+                TextSpan(
+                  text: currency_format.formatSatsAmount(inboundCapacitySats),
+                  style: const TextStyle(
+                    fontVariations: [Fonts.weightSemiBold],
+                  ),
+                )
+              else
+                const WidgetSpan(
+                  child: FilledTextPlaceholder(
+                    width: Space.s800,
+                    // TODO(phlip9): why is this not picking up the text style?
+                    style: TextStyle(fontSize: Fonts.size100, height: 1.25),
+                  ),
+                ),
+              const TextSpan(
+                text: " of inbound liquidity will incur a miner fee",
+              ),
+            ],
+          ),
+          style: const TextStyle(
             color: LxColors.grey550,
             fontSize: Fonts.size100,
-            height: 1.4,
+            height: 1.25,
+            letterSpacing: -0.1,
           ),
         ),
       ],
@@ -451,28 +499,23 @@ class TotalChannelBalanceWidget extends StatelessWidget {
 class TotalChannelBalanceRow extends StatelessWidget {
   const TotalChannelBalanceRow({
     super.key,
-    required this.color,
-    required this.primaryText,
-    required this.secondaryText,
-    required this.amountSats,
-    required this.fiatRate,
+    this.color,
+    this.primaryText,
+    this.secondaryText,
+    this.primaryAmount,
+    this.secondaryAmount,
   });
 
   final Color? color;
 
-  final String primaryText;
-  final String? secondaryText;
+  final Widget? primaryText;
+  final Widget? secondaryText;
 
-  final int? amountSats;
-  final FiatRate? fiatRate;
+  final Widget? primaryAmount;
+  final Widget? secondaryAmount;
 
   @override
   Widget build(BuildContext context) {
-    final fiatRate = this.fiatRate;
-
-    final amountSats = this.amountSats;
-    final amountFiat = FiatAmount.maybeFromSats(fiatRate, amountSats);
-
     final primaryStyle = Fonts.fontUI.copyWith(
       fontSize: Fonts.size400,
       fontVariations: [Fonts.weightMedium],
@@ -480,17 +523,6 @@ class TotalChannelBalanceRow extends StatelessWidget {
       height: 1.25,
       letterSpacing: -0.5,
     );
-
-    final Widget primaryAmount = (amountFiat != null)
-        ? SplitAmountText(
-            amount: amountFiat.amount,
-            fiatName: amountFiat.fiat,
-            style: primaryStyle,
-          )
-        : FilledTextPlaceholder(
-            width: Space.s1000,
-            style: primaryStyle,
-          );
 
     final secondaryStyle = Fonts.fontUI.copyWith(
       fontSize: Fonts.size300,
@@ -501,26 +533,6 @@ class TotalChannelBalanceRow extends StatelessWidget {
       letterSpacing: -0.5,
     );
 
-    final Widget secondaryAmount = (amountSats != null)
-        ? Text(
-            currency_format.formatSatsAmount(amountSats),
-            style: secondaryStyle,
-          )
-        : FilledTextPlaceholder(
-            width: Space.s900,
-            style: secondaryStyle,
-          );
-
-    final Widget secondaryText = (this.secondaryText != null)
-        ? Text(
-            this.secondaryText!,
-            style: secondaryStyle.copyWith(
-              color: primaryStyle.color,
-              fontVariations: [],
-            ),
-          )
-        : const SizedBox();
-
     const dimCircle = Fonts.size500;
     const padCirclePrimary = Space.s200;
 
@@ -529,34 +541,40 @@ class TotalChannelBalanceRow extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Row(
-          children: [
-            if (color != null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: padCirclePrimary),
-                  child: FilledCircle(size: dimCircle, color: color),
+        DefaultTextStyle.merge(
+          style: primaryStyle,
+          child: Row(
+            children: [
+              if (color != null)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: padCirclePrimary),
+                    child: FilledCircle(size: dimCircle, color: color),
+                  ),
+                ),
+              Expanded(
+                child: DefaultTextStyle.merge(
+                  style: const TextStyle(fontVariations: []),
+                  child: this.primaryText ?? const SizedBox(),
                 ),
               ),
-            Expanded(
-              child: Text(
-                this.primaryText,
-                style: primaryStyle.copyWith(fontVariations: []),
-              ),
-            ),
-            primaryAmount,
-          ],
+              this.primaryAmount ?? const SizedBox(),
+            ],
+          ),
         ),
         const SizedBox(height: 1.0),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            const SizedBox(width: dimCircle + padCirclePrimary),
-            Expanded(child: secondaryText),
-            secondaryAmount,
-          ],
+        DefaultTextStyle.merge(
+          style: secondaryStyle,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: <Widget>[
+              const SizedBox(width: dimCircle + padCirclePrimary),
+              Expanded(child: secondaryText ?? const SizedBox()),
+              secondaryAmount ?? const SizedBox(),
+            ],
+          ),
         ),
       ],
     );
@@ -882,16 +900,24 @@ class OnchainBottomSheet extends StatelessWidget {
                   ),
                   const SizedBox(height: Space.s400),
 
+                  // "Send up to (onchain)"
                   ValueListenableBuilder(
                     valueListenable: this.balanceState,
-                    builder: (context, balanceState, child) =>
-                        TotalChannelBalanceRow(
-                      color: null,
-                      primaryText: "Send up to",
-                      secondaryText: null,
-                      amountSats: balanceState.onchainSats(),
-                      fiatRate: balanceState.fiatRate,
-                    ),
+                    builder: (context, balanceState, child) {
+                      final amountSats = balanceState.onchainSats();
+                      final amountFiat = FiatAmount.maybeFromSats(
+                          balanceState.fiatRate, amountSats);
+
+                      return TotalChannelBalanceRow(
+                        primaryText: const Text("Send up to"),
+                        primaryAmount: SplitFiatAmountTextOrPlaceholder(
+                          amountFiat: amountFiat,
+                        ),
+                        secondaryAmount: SatsAmountTextOrPlaceholder(
+                          amountSats: amountSats,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -923,6 +949,37 @@ class OnchainBottomSheet extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class SplitFiatAmountTextOrPlaceholder extends StatelessWidget {
+  const SplitFiatAmountTextOrPlaceholder({super.key, this.amountFiat});
+
+  final FiatAmount? amountFiat;
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = this.amountFiat;
+    return (amount != null)
+        ? SplitAmountText(
+            amount: amount.amount,
+            fiatName: amount.fiat,
+          )
+        : const FilledTextPlaceholder(width: Space.s1000);
+  }
+}
+
+class SatsAmountTextOrPlaceholder extends StatelessWidget {
+  const SatsAmountTextOrPlaceholder({super.key, this.amountSats});
+
+  final int? amountSats;
+
+  @override
+  Widget build(BuildContext context) {
+    final amountSats = this.amountSats;
+    return (amountSats != null)
+        ? Text(currency_format.formatSatsAmount(amountSats))
+        : const FilledTextPlaceholder(width: Space.s900);
   }
 }
 
