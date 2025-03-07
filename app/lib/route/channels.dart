@@ -242,7 +242,7 @@ class _ChannelsPageState extends State<ChannelsPage> {
                             TotalChannelBalanceWidget(
                                 totalChannelBalance: totalChannelBalance),
                       ),
-                      const SizedBox(height: Space.s800),
+                      const SizedBox(height: Space.s650),
 
                       // You/Lexe LSP channels heading
                       const Row(
@@ -429,9 +429,19 @@ class TotalChannelBalanceWidget extends StatelessWidget {
         TotalChannelBalanceRow(
           color: LxColors.moneyGoUpSecondary,
           primaryText: "Receive up to",
-          secondaryText: "without miner fee",
+          secondaryText: "without miner fee*",
           amountSats: theirBalanceSats,
           fiatRate: fiatRate,
+        ),
+        // TODO(phlip9): remove after beta
+        const SizedBox(height: Space.s200),
+        const Text(
+          "*Lexe is paying your miner fees during beta!",
+          style: TextStyle(
+            color: LxColors.grey550,
+            fontSize: Fonts.size100,
+            height: 1.4,
+          ),
         ),
       ],
     );
