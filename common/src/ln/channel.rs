@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
-    api::user::NodePk,
+    api::user::{NodePk, Scid},
     hexstr_or_bytes,
     ln::{amount::Amount, hashes::LxTxid},
     rng::{RngCore, RngExt},
@@ -91,14 +91,31 @@ impl From<LxUserChannelId> for u128 {
     }
 }
 
-/// A version of LDK's [`ChannelDetails`] containing only fields that are likely
-/// to be of interest to a human, e.g. when checking up on one's channels.
-/// It also uses Lexe newtypes and impls the [`serde`] traits.
+/// A newtype for LDK's [`ChannelDetails`] which implements the [`serde`]
+/// traits, flattens nested structure, and contains only the fields Lexe needs.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LxChannelDetails {
     // --- Basic info --- //
     pub channel_id: LxChannelId,
     pub user_channel_id: LxUserChannelId,
+    /// The position of the funding transaction in the chain.
+    /// - Used as a short identifier in many places.
+    /// - [`None`] if the funding tx hasn't been confirmed.
+    /// - NOTE: If `inbound_scid_alias` is present, it must be used for
+    ///   invoices and inbound payments instead of this.
+    // Introduced in node-v0.6.21, lsp-v0.6.37
+    pub scid: Option<Scid>,
+    /// The result of [`ChannelDetails::get_inbound_payment_scid`].
+    /// NOTE: Use this for inbound payments and route hints instead of
+    /// [`Self::scid`]. See [`ChannelDetails::inbound_scid_alias`] for details.
+    // Introduced in node-v0.6.21, lsp-v0.6.37
+    pub inbound_payment_scid: Option<Scid>,
+    /// The result of [`ChannelDetails::get_outbound_payment_scid`].
+    /// NOTE: This should be used in `Route`s to describe the first hop and
+    /// when we send or forward a payment outbound over this channel.
+    /// See [`ChannelDetails::outbound_scid_alias`] for details.
+    // Introduced in node-v0.6.21, lsp-v0.6.37
+    pub outbound_payment_scid: Option<Scid>,
     pub funding_txo: Option<LxOutPoint>,
     // Introduced in node-v0.6.16, lsp-v0.6.32
     pub counterparty_alias: Option<String>,
@@ -201,6 +218,10 @@ impl LxChannelDetails {
         our_balance: Amount,
         counterparty_alias: Option<String>,
     ) -> anyhow::Result<Self> {
+        let inbound_payment_scid = details.get_inbound_payment_scid().map(Scid);
+        let outbound_payment_scid =
+            details.get_outbound_payment_scid().map(Scid);
+
         // This destructuring makes clear which fields we *aren't* using,
         // in case we want to include more fields in the future.
         #[allow(deprecated)]
@@ -209,7 +230,7 @@ impl LxChannelDetails {
             counterparty,
             funding_txo,
             channel_type: _,
-            short_channel_id: _,
+            short_channel_id,
             outbound_scid_alias: _,
             inbound_scid_alias: _,
             channel_value_satoshis,
@@ -239,6 +260,7 @@ impl LxChannelDetails {
 
         let channel_id = LxChannelId::from(channel_id);
         let user_channel_id = LxUserChannelId::from(user_channel_id);
+        let scid = short_channel_id.map(Scid);
         let funding_txo = funding_txo.map(LxOutPoint::from);
         let counterparty_node_id = NodePk(counterparty.node_id);
         let channel_value = Amount::try_from_sats_u64(channel_value_satoshis)
@@ -307,6 +329,9 @@ impl LxChannelDetails {
         Ok(Self {
             channel_id,
             user_channel_id,
+            scid,
+            inbound_payment_scid,
+            outbound_payment_scid,
             funding_txo,
             counterparty_alias,
             counterparty_node_id,
