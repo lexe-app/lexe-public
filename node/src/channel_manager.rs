@@ -121,6 +121,8 @@ const fn channel_handshake_config() -> ChannelHandshakeConfig {
         // LDK's default limit on the number of inflight inbound HTLCs.
         our_max_accepted_htlcs: 50,
         // Allow up to 100% of our funds to be encumbered in inbound HTLCS.
+        // Setting this to 100 minimizes the difference between the LSP's
+        // `outbound_capacity` and `next_outbound_htlc_limit`.
         max_inbound_htlc_value_in_flight_percent_of_channel: 100,
         // Attempt to use better privacy.
         negotiate_scid_privacy: true,
