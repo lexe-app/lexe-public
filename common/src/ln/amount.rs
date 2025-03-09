@@ -230,6 +230,21 @@ impl Amount {
         Self::try_from_inner(inner).ok()
     }
 
+    // --- Saturating arithmetic --- //
+
+    pub fn saturating_add(self, rhs: Self) -> Self {
+        Self::try_from_inner(self.0.saturating_add(rhs.0)).unwrap_or(Self::MAX)
+    }
+
+    pub fn saturating_sub(self, rhs: Self) -> Self {
+        Self::try_from_inner(self.0.saturating_sub(rhs.0)).unwrap_or(Self::ZERO)
+    }
+
+    // Amount * scalar => Amount
+    pub fn saturating_mul(self, rhs: Decimal) -> Self {
+        Self::try_from_inner(self.0.saturating_mul(rhs)).unwrap_or(Self::MAX)
+    }
+
     /// Checks all internal invariants, returning [`Self`] if all were OK.
     #[inline]
     fn try_from_inner(inner: Decimal) -> Result<Self, Error> {
