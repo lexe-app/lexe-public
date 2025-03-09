@@ -1,3 +1,5 @@
+use std::cmp;
+
 use anyhow::Context;
 use common::{
     cli::LspFees,
@@ -5,23 +7,50 @@ use common::{
     Apply,
 };
 use lightning::ln::channel_state::ChannelDetails;
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 use tracing::{trace, warn};
 
 use crate::{alias::LexeChainMonitorType, traits::LexePersister};
+
+/// An estimate (in millionths) of the total proportional fees a Lexe user will
+/// pay when making an outbound Lightning payment to an unspecified receiver.
+pub const EST_OUTBOUND_TOTAL_PROP_FEE_PPM: u32 = 5000;
+
+/// An estimate of the total base fees a Lexe user will pay when making an
+/// outbound Lightning payment over one shart of a MPP (or simply one path) to
+/// an unspecified receiver.
+// TODO(max): Base fees are low, but we should still get a better estimate.
+// Phoenix charges 0.4% + 4 sat, which seems on the order of what we'd pay.
+pub const EST_OUTBOUND_SHARD_BASE_FEE_SAT: u32 = 5;
 
 /// Computes our [`LightningBalance`] summed over all channels.
 /// Also returns the number of channels marked as usable.
 pub fn all_channel_balances<PS: LexePersister>(
     chain_monitor: &LexeChainMonitorType<PS>,
     channels: &[ChannelDetails],
-    _lsp_fees: LspFees,
+    lsp_fees: LspFees,
 ) -> (LightningBalance, usize) {
+    let est_total_prop_feerate =
+        Decimal::from(EST_OUTBOUND_TOTAL_PROP_FEE_PPM) / dec!(1_000_000);
+    let est_shard_base_fee =
+        Amount::from_sats_u32(EST_OUTBOUND_SHARD_BASE_FEE_SAT);
+
+    let min_lsp_prop_fee = cmp::min(
+        lsp_fees.lsp_usernode_prop_fee,
+        lsp_fees.lsp_external_prop_fee,
+    );
+    let min_lsp_base_fee = cmp::min(
+        lsp_fees.lsp_usernode_base_fee,
+        lsp_fees.lsp_external_base_fee,
+    );
+
     let mut total_balance = LightningBalance::ZERO;
-    let mut num_usable_channels: usize = 0;
+    let mut num_usable_channels = 0;
 
     for channel in channels {
-        let amount = match channel_balance(chain_monitor, channel) {
-            Ok(amt) => amt,
+        let balance = match channel_balance(chain_monitor, channel) {
+            Ok(bal) => bal,
             Err(e) => {
                 warn!("Error getting channel balance: {e:#}");
                 continue;
@@ -29,14 +58,38 @@ pub fn all_channel_balances<PS: LexePersister>(
         };
 
         if channel.is_usable {
-            total_balance.usable += amount;
-            total_balance.sendable +=
+            let next_outbound_htlc_limit =
                 Amount::from_msat(channel.next_outbound_htlc_limit_msat);
+            let sendable =
+                next_outbound_htlc_limit.saturating_sub(est_shard_base_fee);
+            let max_sendable =
+                next_outbound_htlc_limit.saturating_sub(min_lsp_base_fee);
+
+            total_balance.usable += balance;
+            total_balance.sendable += sendable;
+            total_balance.max_sendable += max_sendable;
             num_usable_channels += 1;
         } else {
-            total_balance.pending += amount;
+            total_balance.pending += balance;
         }
     }
+
+    // Tweak sendable to account for the estimated total proportional fee.
+    // sendable + sendable * prop_fee = sum(next_outbound_htlc_limit - base_fee)
+    // sendable * (1 + prop_fee) = sum(next_outbound_htlc_limit - base_fee)
+    // sendable = sum(next_outbound_htlc_limit - base_fee) / (1 + prop_fee)
+    total_balance.sendable = total_balance
+        .sendable
+        .checked_div(dec!(1) + est_total_prop_feerate)
+        .expect("Can't overflow because divisor is > 1");
+
+    // Tweak max_sendable to account for the minimum LSP prop fee that would be
+    // paid in the case of a two hop payment: Sender -> LSP -> Receiver.
+    // max_sendable = sum(next_outbound_htlc_limit - base_fee) / (1 + prop_fee)
+    total_balance.max_sendable = total_balance
+        .max_sendable
+        .checked_div(dec!(1) + min_lsp_prop_fee)
+        .expect("Can't overflow because divisor is > 1");
 
     (total_balance, num_usable_channels)
 }

@@ -26,16 +26,44 @@ pub struct LightningBalance {
     /// we can't send over it; it would not be counted here.
     pub usable: Amount,
 
-    /// Our most accurate limit for how much we can currently send if we made a
-    /// MPP over all usable channels. It's the sum [`next_outbound_htlc_limit`]
-    /// of all usable channels.
+    /// Our most accurate estimation of how much we can currently send if we
+    /// made a MPP over all usable channels to an unspecified recipient.
     ///
-    /// This value is bounded above by `usable`, as it accounts for channel
-    /// reserves, commitment tx fees, dust limits, counterparty constraints,
-    /// etc..., which limit how much we can actually send over our channels.
+    /// It's the sum of [`next_outbound_htlc_limit`] over all channels adjusted
+    /// to account for an estimate of the total fees paid to Lexe's LSP and the
+    /// broader Lightning Network.
+    ///
+    /// It's intended to be a conservative estimate, so the user should
+    /// *usually* be able to send this amount. A precise sendable upper bound
+    /// is not computable without knowledge of the recipient because routing
+    /// fees vary by path.
+    ///
+    /// This value is bounded above by [`Self::max_sendable`].
     ///
     /// [`next_outbound_htlc_limit`]: crate::ln::channel::LxChannelDetails::next_outbound_htlc_limit
     pub sendable: Amount,
+
+    /// The maximum amount that we could possibly send in a 'typical' payment,
+    /// i.e. a multi-hop payment to anyone who is not a direct counterparty.
+    ///
+    /// This is computed as the sum of [`next_outbound_htlc_limit`] over all
+    /// usable channels, then adjusted to account for the minimum fees Lexe's
+    /// LSP could charge us.
+    ///
+    /// - It should not be possible to send more than this amount over any
+    ///   multi-hop payment.
+    /// - Exactly this amount may be sendable only in very specific scenarios,
+    ///   such as paying another Lexe user.
+    /// - Technically, it is possible to send [`sum(next_outbound_htlc_limit)`]
+    ///   to our direct channel counterparties, but since User <-> LSP payments
+    ///   are a special case, we'll handle those flows differently.
+    ///
+    /// [`next_outbound_htlc_limit`]: crate::ln::channel::LxChannelDetails::next_outbound_htlc_limit
+    // TODO(max): We've confirmed we can send `next_outbound_htlc_limit`
+    // between User <-> LSP in a single path single hop payment, but
+    // sending up to `sum(next_outbound_htlc_limit)` hasn't yet been
+    // confirmed for multi-path single hop payments.
+    pub max_sendable: Amount,
 
     /// The sum channel value that isn't currently usable.
     ///
@@ -138,6 +166,7 @@ impl LightningBalance {
     pub const ZERO: Self = Self {
         usable: Amount::ZERO,
         sendable: Amount::ZERO,
+        max_sendable: Amount::ZERO,
         pending: Amount::ZERO,
     };
 
