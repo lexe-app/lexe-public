@@ -8,7 +8,7 @@ use tokio::{
 use tracing::{debug, error, info_span, Instrument};
 
 use crate::{
-    alias::LexeChainMonitorType,
+    alias::{LexeChainMonitorType, LexeOnionMessengerType},
     traits::{
         LexeChannelManager, LexeEventHandler, LexeInnerPersister,
         LexePeerManager, LexePersister,
@@ -47,6 +47,7 @@ pub fn start<CM, PM, PS, EH>(
     peer_manager: PM,
     persister: PS,
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
+    onion_messenger: Arc<LexeOnionMessengerType<CM>>,
     event_handler: EH,
     // TODO(max): A `process_events` notification should be sent every time
     // an event is generated which does not also cause the future returned
@@ -97,21 +98,24 @@ where
             loop {
                 // A future that completes when any of the following applies:
                 //
-                // 1) We need to reprocess events
-                // 2) The channel manager got an update (event or repersist)
-                // 3) The chain monitor got an update
-                // 4) The background processor was explicitly triggered
+                // - Our process events timer ticked
+                // - The channel manager got an update (event or repersist)
+                // - The chain monitor got an update
+                // - The onion messenger got an update
+                // - The background processor was explicitly triggered
                 let mut processed_txs = Vec::new();
                 let process_events_fut = async {
                     tokio::select! {
                         biased;
+                        _ = process_events_timer.tick() =>
+                            debug!("Triggered: process_events_timer ticked"),
                         () = channel_manager
                             .get_event_or_persistence_needed_future() =>
                             debug!("Triggered: Channel manager update"),
                         () = chain_monitor.get_update_future() =>
                             debug!("Triggered: Chain monitor update"),
-                        _ = process_events_timer.tick() =>
-                            debug!("Triggered: process_events_timer ticked"),
+                        _ = onion_messenger.get_update_future() =>
+                            debug!("Triggered: Onion messenger update"),
                         // TODO(max): If LDK has fixed the BGP waking issue,
                         // our integration tests should pass with this branch
                         // commented out.
