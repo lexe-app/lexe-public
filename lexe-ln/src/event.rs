@@ -53,6 +53,12 @@ pub enum EventHandleError {
     Discard(anyhow::Error),
     /// We must not lose this unhandled [`Event`].
     /// Keep replaying the event until handling succeeds.
+    ///
+    /// NOTE: Any [`Event`] kind whose handling may return this variant must be
+    /// first persisted and then managed in our own queue! LDK's default
+    /// behavior is to immediately replay any failed events, which will cause
+    /// us to busyloop and potentially spam our infrastructure providers.
+    /// See usages of `persist_and_spawn_handler` for examples.
     #[error("EventHandleError (Replay): {0:#}")]
     Replay(anyhow::Error),
 }
