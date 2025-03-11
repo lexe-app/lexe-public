@@ -462,7 +462,7 @@ class TotalChannelBalanceWidget extends StatelessWidget {
           TextSpan(
             children: <InlineSpan>[
               const TextSpan(
-                text: "*After Lexe's beta, receives above your ",
+                text: "*After Lexe's beta, receives beyond your ",
               ),
               if (inboundCapacitySats != null)
                 TextSpan(
