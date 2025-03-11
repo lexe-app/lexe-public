@@ -334,7 +334,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   channels: [],
                   balance: const Balance(
                     onchainSats: 20000,
-                    lightningUsableSats: 0,
+                    lightningSats: 0,
                     lightningSendableSats: 0,
                     totalSats: 20000,
                   ),
@@ -538,7 +538,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 balanceState: ValueNotifier(const BalanceState(
                   balanceSats: Balance(
                     totalSats: 123000,
-                    lightningUsableSats: 0,
+                    lightningSats: 0,
                     lightningSendableSats: 0,
                     onchainSats: 123000,
                   ),
@@ -554,7 +554,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 balanceState: ValueNotifier(const BalanceState(
                   balanceSats: Balance(
                     totalSats: 123000,
-                    lightningUsableSats: 0,
+                    lightningSats: 0,
                     lightningSendableSats: 0,
                     onchainSats: 123000,
                   ),
@@ -569,7 +569,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 balanceState: ValueNotifier(const BalanceState(
                   balanceSats: Balance(
                     totalSats: 123000,
-                    lightningUsableSats: 0,
+                    lightningSats: 0,
                     lightningSendableSats: 0,
                     onchainSats: 123000,
                   ),
@@ -589,7 +589,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 balanceState: ValueNotifier(const BalanceState(
                   balanceSats: Balance(
                     totalSats: 123000,
-                    lightningUsableSats: 0,
+                    lightningSats: 0,
                     lightningSendableSats: 0,
                     onchainSats: 123000,
                   ),

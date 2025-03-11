@@ -12,8 +12,8 @@ import 'package:collection/collection.dart';
 extension BalanceExt on Balance {
   int balanceByKind(final PaymentKind kind) => switch (kind) {
         PaymentKind.onchain => this.onchainSats,
-        PaymentKind.invoice => this.lightningUsableSats,
-        PaymentKind.spontaneous => this.lightningUsableSats,
+        PaymentKind.invoice => this.lightningSats,
+        PaymentKind.spontaneous => this.lightningSats,
       };
 
   int balanceSendableByKind(final PaymentKind kind) => switch (kind) {

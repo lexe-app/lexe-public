@@ -1859,9 +1859,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return Balance(
       totalSats: dco_decode_CastedPrimitive_u_64(arr[0]),
-      lightningUsableSats: dco_decode_CastedPrimitive_u_64(arr[1]),
-      lightningSendableSats: dco_decode_CastedPrimitive_u_64(arr[2]),
-      onchainSats: dco_decode_CastedPrimitive_u_64(arr[3]),
+      onchainSats: dco_decode_CastedPrimitive_u_64(arr[1]),
+      lightningSats: dco_decode_CastedPrimitive_u_64(arr[2]),
+      lightningSendableSats: dco_decode_CastedPrimitive_u_64(arr[3]),
     );
   }
 
@@ -2847,15 +2847,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Balance sse_decode_balance(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_totalSats = sse_decode_CastedPrimitive_u_64(deserializer);
-    var var_lightningUsableSats = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_onchainSats = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_lightningSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_lightningSendableSats =
         sse_decode_CastedPrimitive_u_64(deserializer);
-    var var_onchainSats = sse_decode_CastedPrimitive_u_64(deserializer);
     return Balance(
         totalSats: var_totalSats,
-        lightningUsableSats: var_lightningUsableSats,
-        lightningSendableSats: var_lightningSendableSats,
-        onchainSats: var_onchainSats);
+        onchainSats: var_onchainSats,
+        lightningSats: var_lightningSats,
+        lightningSendableSats: var_lightningSendableSats);
   }
 
   @protected
@@ -3869,9 +3869,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void sse_encode_balance(Balance self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_CastedPrimitive_u_64(self.totalSats, serializer);
-    sse_encode_CastedPrimitive_u_64(self.lightningUsableSats, serializer);
-    sse_encode_CastedPrimitive_u_64(self.lightningSendableSats, serializer);
     sse_encode_CastedPrimitive_u_64(self.onchainSats, serializer);
+    sse_encode_CastedPrimitive_u_64(self.lightningSats, serializer);
+    sse_encode_CastedPrimitive_u_64(self.lightningSendableSats, serializer);
   }
 
   @protected

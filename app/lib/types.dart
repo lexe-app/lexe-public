@@ -63,22 +63,21 @@ class BalanceState with _$BalanceState {
       const BalanceState(balanceSats: null, fiatRate: null);
 
   int? totalSats() => this.balanceSats?.totalSats;
-  int? lightningUsableSats() => this.balanceSats?.lightningUsableSats;
+  int? lightningSats() => this.balanceSats?.lightningSats;
   int? onchainSats() => this.balanceSats?.onchainSats;
 
   int? byKindSats(BalanceKind kind) => switch (kind) {
         BalanceKind.onchain => this.onchainSats(),
-        BalanceKind.lightning => this.lightningUsableSats(),
+        BalanceKind.lightning => this.lightningSats(),
       };
 
   FiatAmount? totalFiat() => this._convertFiat(this.totalSats());
-  FiatAmount? lightningUsableFiat() =>
-      this._convertFiat(this.lightningUsableSats());
+  FiatAmount? lightningFiat() => this._convertFiat(this.lightningSats());
   FiatAmount? onchainFiat() => this._convertFiat(this.onchainSats());
 
   FiatAmount? byKindFiat(BalanceKind kind) => switch (kind) {
         BalanceKind.onchain => this.onchainFiat(),
-        BalanceKind.lightning => this.lightningUsableFiat(),
+        BalanceKind.lightning => this.lightningFiat(),
       };
 
   FiatAmount? _convertFiat(final int? satsBalance) =>

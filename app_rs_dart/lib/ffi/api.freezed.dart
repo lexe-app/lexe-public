@@ -17,9 +17,9 @@ final _privateConstructorUsedError = UnsupportedError(
 /// @nodoc
 mixin _$Balance {
   int get totalSats => throw _privateConstructorUsedError;
-  int get lightningUsableSats => throw _privateConstructorUsedError;
-  int get lightningSendableSats => throw _privateConstructorUsedError;
   int get onchainSats => throw _privateConstructorUsedError;
+  int get lightningSats => throw _privateConstructorUsedError;
+  int get lightningSendableSats => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -27,22 +27,22 @@ mixin _$Balance {
 class _$BalanceImpl implements _Balance {
   const _$BalanceImpl(
       {required this.totalSats,
-      required this.lightningUsableSats,
-      required this.lightningSendableSats,
-      required this.onchainSats});
+      required this.onchainSats,
+      required this.lightningSats,
+      required this.lightningSendableSats});
 
   @override
   final int totalSats;
   @override
-  final int lightningUsableSats;
+  final int onchainSats;
+  @override
+  final int lightningSats;
   @override
   final int lightningSendableSats;
-  @override
-  final int onchainSats;
 
   @override
   String toString() {
-    return 'Balance(totalSats: $totalSats, lightningUsableSats: $lightningUsableSats, lightningSendableSats: $lightningSendableSats, onchainSats: $onchainSats)';
+    return 'Balance(totalSats: $totalSats, onchainSats: $onchainSats, lightningSats: $lightningSats, lightningSendableSats: $lightningSendableSats)';
   }
 
   @override
@@ -52,34 +52,34 @@ class _$BalanceImpl implements _Balance {
             other is _$BalanceImpl &&
             (identical(other.totalSats, totalSats) ||
                 other.totalSats == totalSats) &&
-            (identical(other.lightningUsableSats, lightningUsableSats) ||
-                other.lightningUsableSats == lightningUsableSats) &&
-            (identical(other.lightningSendableSats, lightningSendableSats) ||
-                other.lightningSendableSats == lightningSendableSats) &&
             (identical(other.onchainSats, onchainSats) ||
-                other.onchainSats == onchainSats));
+                other.onchainSats == onchainSats) &&
+            (identical(other.lightningSats, lightningSats) ||
+                other.lightningSats == lightningSats) &&
+            (identical(other.lightningSendableSats, lightningSendableSats) ||
+                other.lightningSendableSats == lightningSendableSats));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, totalSats, lightningUsableSats,
-      lightningSendableSats, onchainSats);
+  int get hashCode => Object.hash(runtimeType, totalSats, onchainSats,
+      lightningSats, lightningSendableSats);
 }
 
 abstract class _Balance implements Balance {
   const factory _Balance(
       {required final int totalSats,
-      required final int lightningUsableSats,
-      required final int lightningSendableSats,
-      required final int onchainSats}) = _$BalanceImpl;
+      required final int onchainSats,
+      required final int lightningSats,
+      required final int lightningSendableSats}) = _$BalanceImpl;
 
   @override
   int get totalSats;
   @override
-  int get lightningUsableSats;
+  int get onchainSats;
+  @override
+  int get lightningSats;
   @override
   int get lightningSendableSats;
-  @override
-  int get onchainSats;
 }
 
 /// @nodoc

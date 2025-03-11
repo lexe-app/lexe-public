@@ -1009,7 +1009,7 @@ class WalletHints extends StatelessWidget {
 
     // Only on-chain funds, prompt user to open a channel
     // TODO(phlip9): use num channels == 0?
-    if (balance.onchainSats > 0 && balance.lightningUsableSats == 0) {
+    if (balance.onchainSats > 0 && balance.lightningSats == 0) {
       return this.buildOnChainOnlyHint();
     }
 

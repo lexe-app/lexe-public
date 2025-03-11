@@ -67,31 +67,45 @@ impl From<NodeInfoRs> for NodeInfo {
 
 #[frb(dart_metadata=("freezed"))]
 pub struct Balance {
-    /// The top-level balance we'll show on the user screen.
+    /// The top-level balance we'll show on the main wallet page. Just
+    /// `onchain_sats + lightning_sats` but handles msat.
     pub total_sats: u64,
-    /// The sum channel value of all usable channels.
-    pub lightning_usable_sats: u64,
-    /// Approximately the largest send we can make right now.
-    pub lightning_sendable_sats: u64,
-    /// The amount of spendable onchain funds, i.e., those that are confirmed
-    /// or otherwise trusted but maybe pending (self-generated UTXOs).
+    /// The total amount of onchain funds.
     pub onchain_sats: u64,
+    /// The sum channel balance of all usable _and_ pending channels.
+    pub lightning_sats: u64,
+    /// Approximately the largest LN send amount we can make right now.
+    pub lightning_sendable_sats: u64,
 }
 
 impl From<&NodeInfoRs> for Balance {
     fn from(info: &NodeInfoRs) -> Self {
-        let lightning_usable_sats = info.lightning_balance.usable.sats_u64();
-        let lightning_sendable_sats =
-            info.lightning_balance.sendable.sats_u64();
-        let onchain_sats = info.onchain_balance.spendable().to_sat();
-        let total_sats =
-            info.lightning_balance.total().sats_u64() + onchain_sats;
+        // We discovered that you can in fact spend untrusted_pending outputs.
+        // The only class that technically can't be spent yet is for immature
+        // coinbase outputs, but I don't expect people to mine directly into
+        // their Lexe wallet. It's conceptually simpler to use total here.
+        let onchain = Amount::try_from(info.onchain_balance.total()).expect(
+            "We somehow have over 21 million BTC in our on-chain wallet",
+        );
+
+        // We previously showed only `usable` for the top-level LN balance, but
+        // that looks weird when you have a channel that's pending open and your
+        // top-level balance shows the correct amount but your LN balance shows
+        // 0 sats.
+        let lightning = info.lightning_balance.total();
+
+        // The total, top-level balance on the wallet page. Do this sum in Rust
+        // so we handle sub-sat (msat) amounts correctly.
+        let total = onchain + lightning;
+
+        // Separate out `sendable` for "can I pay this value" during send flow.
+        let lightning_sendable = info.lightning_balance.sendable;
 
         Self {
-            total_sats,
-            lightning_usable_sats,
-            lightning_sendable_sats,
-            onchain_sats,
+            total_sats: total.sats_u64(),
+            lightning_sats: lightning.sats_u64(),
+            lightning_sendable_sats: lightning_sendable.sats_u64(),
+            onchain_sats: onchain.sats_u64(),
         }
     }
 }
