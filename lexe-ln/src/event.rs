@@ -1,4 +1,4 @@
-use std::{fmt, str::FromStr, sync::Mutex};
+use std::{fmt, future::Future, str::FromStr, sync::Mutex, time::Duration};
 
 use anyhow::{anyhow, Context};
 use bitcoin::{absolute, secp256k1};
@@ -7,6 +7,7 @@ use common::test_utils::arbitrary;
 use common::{
     ln::channel::{LxChannelId, LxUserChannelId},
     rng::{Crng, RngExt, SysRng},
+    task::LxTask,
     test_event::TestEvent,
     time::TimestampMs,
 };
@@ -15,7 +16,7 @@ use lightning::{
         chaininterface::{ConfirmationTarget, FeeEstimator},
         transaction,
     },
-    events::{ClosureReason, Event, PathFailure},
+    events::{ClosureReason, Event, PathFailure, ReplayEvent},
     ln::{features::ChannelTypeFeatures, types::ChannelId},
     routing::scoring::ScoreUpdate,
     sign::SpendableOutputDescriptor,
@@ -24,17 +25,22 @@ use lightning::{
 use proptest_derive::Arbitrary;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 use thiserror::Error;
-use tracing::{debug, info, info_span, warn};
+use tokio::sync::oneshot;
+use tracing::{debug, error, info, info_span, warn, Instrument};
 
 use crate::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     test_event::TestEventSender,
-    traits::{LexeChannelManager, LexePersister},
+    traits::{
+        LexeChannelManager, LexeEventHandler, LexeInnerPersister, LexePersister,
+    },
     tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
 };
+
+// --- EventHandleError --- //
 
 /// Specifies what to do with a [`Event`] after getting this error handling it.
 #[derive(Debug, Error)]
@@ -125,6 +131,8 @@ impl EventExt for Event {
     }
 }
 
+// --- EventId --- //
+
 /// A unique identifier for an [`Event`].
 /// Serialized and displayed as `<timestamp_ms>-<nonce>-<event_name>`.
 #[derive(Clone, Debug, PartialEq, SerializeDisplay, DeserializeFromStr)]
@@ -178,6 +186,251 @@ impl fmt::Display for EventId {
         write!(f, "{timestamp}-{nonce}-{name}")
     }
 }
+
+// --- Event replayer task --- //
+
+/// A task which periodically replays unhandled events (then deletes them).
+pub fn spawn_event_replayer_task(handler: impl LexeEventHandler) -> LxTask<()> {
+    /// How often to replay persisted events that weren't successfully
+    /// handled. Current: once every 10 minutes.
+    const EVENT_REPLAY_INTERVAL: Duration = Duration::from_secs(10 * 60);
+
+    async fn do_event_replays(
+        handler: &impl LexeEventHandler,
+    ) -> anyhow::Result<()> {
+        let ids_and_events = handler
+            .persister()
+            .read_events()
+            .await
+            .context("Failed to read events")?;
+        let replay_futures = ids_and_events
+            .into_iter()
+            .map(|(event_id, event)| handler.replay_event(event_id, event));
+        futures::future::join_all(replay_futures).await;
+        Ok(())
+    }
+
+    let mut shutdown = handler.shutdown().clone();
+
+    LxTask::spawn("event replayer", async move {
+        let mut replay_timer = tokio::time::interval(EVENT_REPLAY_INTERVAL);
+
+        loop {
+            tokio::select! {
+                _ = replay_timer.tick() => (),
+                () = shutdown.recv() => break,
+            }
+
+            let replay_result = tokio::select! {
+                res = do_event_replays(&handler) => res,
+                () = shutdown.recv() => break,
+            };
+
+            if let Err(e) = replay_result {
+                error!("Error replaying events: {e:#}");
+            }
+        }
+
+        info!("Event replayer task shutting down");
+    })
+}
+
+// --- EventHandlerExt --- //
+
+/// Extends [`LexeEventHandler`] to provide wrappers around core handling logic.
+pub trait EventHandlerExt: LexeEventHandler + Clone {
+    /// Wraps [`LexeEventHandler::handle_event`]: Handles an event 'inline',
+    /// i.e. without spawning off to a task.
+    fn handle_inline(
+        &self,
+        event: Event,
+    ) -> impl Future<Output = Result<(), ReplayEvent>> {
+        let (event_id, span) = event.handle_prelude();
+
+        async move {
+            match self.handle_event(&event_id, event).await {
+                Ok(()) => {
+                    info!("Successfully handled event");
+                    Ok(())
+                }
+                Err(EventHandleError::Discard(e)) => {
+                    warn!("Tolerable event error, discarding event: {e:#}");
+                    Ok(())
+                }
+                Err(EventHandleError::Replay(e)) => {
+                    error!(
+                        "Got `EventHandleError::Replay` while handling an \
+                         event inline! This event kind should have been \
+                         handled with `persist_and_spawn_handler` to avoid \
+                         busylooping and potentially spamming our providers in \
+                         the case of an error. Initiating shutdown: {e:#}"
+                    );
+                    // The BGP's shutdown branch will be ready at its next
+                    // iteration, so even if we immediately replay this event a
+                    // few more times (due to `tokio::select!` choosing randomly
+                    // amongst ready futures) that's OK; we'll shut down soon.
+                    self.shutdown().send();
+                    Err(ReplayEvent())
+                }
+            }
+        }
+        // Instrument all logs for this event with the event span
+        .instrument(span)
+    }
+
+    /// Wraps [`LexeEventHandler::handle_event`]: Persists the event and spawns
+    /// a task to handle it. The handler task deletes the event once it is
+    /// successfully handled. This fn returns when persistence is complete.
+    fn persist_and_spawn_handler(
+        &self,
+        event: Event,
+    ) -> impl Future<Output = Result<(), ReplayEvent>> + Send {
+        async move {
+            let (event_id, span) = event.handle_prelude();
+
+            // Notifies the handler task when the persist attempt finishes.
+            let (persist_tx, persist_rx) = oneshot::channel();
+
+            // Immediately spawn off the handler, so as to reduce latency a bit.
+            LxTask::spawn(event_id.to_string(), {
+                let myself = self.clone();
+                let event = event.clone();
+                let event_id = event_id.clone();
+                async move {
+                    match myself.handle_event(&event_id, event).await {
+                        Ok(()) => {
+                            info!(
+                                "Successfully handled event; \
+                                 removing from Lexe event queue."
+                            );
+                            // The event was handled; we can delete it now. Wait
+                            // for persistence attempt to finish first so we
+                            // don't accidentally recreate after deletion.
+                            let _ = persist_rx.await;
+                            match myself
+                                .persister()
+                                .remove_event(&event_id)
+                                .await
+                            {
+                                Ok(()) => debug!("Deleted handled event"),
+                                Err(e) => warn!("Failed to delete event: {e}"),
+                            }
+                        }
+                        Err(EventHandleError::Discard(e)) => {
+                            warn!(
+                                "Tolerable error handling spawned event; \
+                                 discarding event: {e:#}"
+                            );
+                            // The error is tolerable; we can delete it now.
+                            // Wait for persistence attempt to finish first so
+                            // we don't accidentally recreate after deletion.
+                            let _ = persist_rx.await;
+                            match myself
+                                .persister()
+                                .remove_event(&event_id)
+                                .await
+                            {
+                                Ok(()) => debug!("Deleted tolerated event"),
+                                Err(e) =>
+                                    warn!("Failed to delete tol event: {e}"),
+                            }
+                        }
+                        // No need to return `ReplayEvent` here because this
+                        // event is managed via Lexe's own event queue. So long
+                        // as the event is persisted, our event replayer task
+                        // will just keep retrying until the event is handled.
+                        Err(EventHandleError::Replay(e)) => error!(
+                            "Critical error handling spawned event; \
+                             keeping in queue to be replayed later: {e:#}"
+                        ),
+                    }
+                }
+                .instrument(span.clone())
+            })
+            .detach();
+
+            // Ensure the event is persisted before we return.
+            let persist_result = async {
+                match self.persister().persist_event(&event, &event_id).await {
+                    Ok(()) => debug!("Persisted event"),
+                    // We failed to persist the event. We don't want to lose the
+                    // event, so we return `ReplayEvent`, but we also don't want
+                    // to busyloop and spam our infra trying to persist this
+                    // event, so we also initiate a shutdown.
+                    Err(e) => {
+                        error!(
+                            "Failed to persist event; initiating shutdown and \
+                             returning ReplayEvent to LDK: {e:#}"
+                        );
+                        // The BGP's shutdown branch will be ready at its next
+                        // iteration, so even if we immediately replay this
+                        // event a few more times (due to `tokio::select!`
+                        // polling branches randomly) that's OK; we'll be
+                        // shutting down soon.
+                        self.shutdown().send();
+                        return Err(ReplayEvent());
+                    }
+                }
+
+                Ok::<(), ReplayEvent>(())
+            }
+            .instrument(span)
+            .await;
+
+            // Notify the handler regardless of the result.
+            let _ = persist_tx.send(());
+
+            persist_result
+        }
+    }
+
+    /// Wraps [`LexeEventHandler::handle_event`]: Replays a persisted event by
+    /// re-handling it, then deletes the persisted event if successful.
+    fn replay_event(
+        &self,
+        event_id: EventId,
+        event: Event,
+    ) -> impl Future<Output = ()> + Send {
+        let span = event.handle_prelude_with_id(&event_id);
+
+        async move {
+            match self.handle_event(&event_id, event).await {
+                Ok(()) => {
+                    info!("Successfully replayed event");
+                    match self.persister().remove_event(&event_id).await {
+                        Ok(()) => debug!("Deleted replayed event"),
+                        Err(e) => warn!("Couldn't delete replayed event: {e}"),
+                    }
+                }
+                Err(EventHandleError::Discard(e)) => {
+                    info!(
+                        "Tolerable error handling replayed event; \
+                         discarding event: {e:#}"
+                    );
+                    match self.persister().remove_event(&event_id).await {
+                        Ok(()) => debug!("Deleted tolerated replayed event"),
+                        Err(e) => warn!(
+                            "Couldn't delete tolerated replayed event: {e}"
+                        ),
+                    }
+                }
+                // No need to do anything further here because this event is
+                // already in Lexe's event queue. If the handling fails, we'll
+                // just try again at the next replay timer tick.
+                Err(EventHandleError::Replay(e)) => warn!(
+                    "Critical error handling replayed event; \
+                     keeping in queue to be replayed later: {e:#}"
+                ),
+            }
+        }
+        // Instrument all logs for this event with the event span
+        .instrument(span)
+    }
+}
+
+impl<T: LexeEventHandler> EventHandlerExt for T {}
+
+// --- Shared handlers --- //
 
 /// Handles a [`Event::FundingGenerationReady`].
 pub fn handle_funding_generation_ready<CM, PS>(
