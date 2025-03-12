@@ -9,6 +9,7 @@ use common::{
     },
     constants,
     ln::payments::{LxPaymentId, PaymentIndex},
+    notify_once::NotifyOnce,
 };
 use lightning::{
     chain::chainmonitor::Persist,
@@ -21,7 +22,7 @@ use crate::{
         LexeChainMonitorType, LexeChannelManagerType, LexePeerManagerType,
         SignerType,
     },
-    event::EventId,
+    event::{EventHandleError, EventId},
     payments::{
         manager::{CheckedPayment, PersistedPayment},
         Payment,
@@ -181,11 +182,21 @@ where
 }
 
 /// A 'trait alias' defining all the requirements of a Lexe event handler.
-pub trait LexeEventHandler: Send + Sync + 'static {
+pub trait LexeEventHandler: Clone + Send + Sync + 'static {
     /// Given a LDK [`Event`], get a future which handles it.
     /// The BGP passes this future to LDK for async event handling.
     fn get_ldk_handler_future(
         &self,
         event: Event,
     ) -> impl Future<Output = Result<(), ReplayEvent>> + Send;
+
+    /// Handle an event.
+    fn handle_event(
+        &self,
+        event_id: &EventId,
+        event: Event,
+    ) -> impl Future<Output = Result<(), EventHandleError>> + Send;
+
+    fn persister(&self) -> &impl LexePersister;
+    fn shutdown(&self) -> &NotifyOnce;
 }

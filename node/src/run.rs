@@ -596,6 +596,7 @@ impl UserNode {
             ctx: Arc::new(event_handler::EventCtx {
                 lsp: args.lsp.clone(),
                 lsp_api: lsp_api.clone(),
+                persister: persister.clone(),
                 fee_estimates: fee_estimates.clone(),
                 tx_broadcaster: tx_broadcaster.clone(),
                 wallet: wallet.clone(),

@@ -53,11 +53,11 @@ use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     channel::{ChannelEvent, ChannelEventsBus},
     esplora::FeeEstimates,
-    event::{self, EventExt, EventHandleError},
+    event::{self, EventExt, EventHandleError, EventId},
     keys_manager::LexeKeysManager,
     payments::outbound::LxOutboundPaymentFailure,
     test_event::TestEventSender,
-    traits::LexeEventHandler,
+    traits::{LexeEventHandler, LexePersister},
     tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
 };
@@ -65,8 +65,12 @@ use lightning::events::{Event, PaymentFailureReason, ReplayEvent};
 use tokio::sync::mpsc;
 use tracing::{error, info, info_span, warn, Instrument};
 
-use crate::{alias::PaymentsManagerType, channel_manager::NodeChannelManager};
+use crate::{
+    alias::PaymentsManagerType, channel_manager::NodeChannelManager,
+    persister::NodePersister,
+};
 
+#[derive(Clone)]
 pub struct NodeEventHandler {
     pub(crate) ctx: Arc<EventCtx>,
 }
@@ -76,6 +80,7 @@ pub struct NodeEventHandler {
 pub(crate) struct EventCtx {
     pub lsp: LspInfo,
     pub lsp_api: Arc<dyn NodeLspApi + Send + Sync>,
+    pub persister: Arc<NodePersister>,
     pub fee_estimates: Arc<FeeEstimates>,
     pub tx_broadcaster: Arc<TxBroadcaster>,
     pub wallet: LexeWallet,
@@ -97,6 +102,21 @@ impl LexeEventHandler for NodeEventHandler {
         event: Event,
     ) -> impl Future<Output = Result<(), ReplayEvent>> {
         self.handle_inline(event)
+    }
+
+    fn handle_event(
+        &self,
+        _event_id: &EventId,
+        event: Event,
+    ) -> impl Future<Output = Result<(), EventHandleError>> + Send {
+        do_handle_event(&self.ctx, event)
+    }
+
+    fn persister(&self) -> &impl LexePersister {
+        &self.ctx.persister
+    }
+    fn shutdown(&self) -> &NotifyOnce {
+        &self.ctx.shutdown
     }
 }
 
