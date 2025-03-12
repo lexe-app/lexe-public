@@ -203,10 +203,19 @@ pub fn spawn_event_replayer_task(handler: impl LexeEventHandler) -> LxTask<()> {
             .read_events()
             .await
             .context("Failed to read events")?;
+
+        for (event_id, event) in ids_and_events {
+            handler.replay_event(event_id, event).await;
+        }
+
+        // NOTE: Consider switching back to concurrent event replays.
+        /*
         let replay_futures = ids_and_events
             .into_iter()
             .map(|(event_id, event)| handler.replay_event(event_id, event));
         futures::future::join_all(replay_futures).await;
+        */
+
         Ok(())
     }
 
