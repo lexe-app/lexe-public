@@ -46,6 +46,7 @@ use lexe_ln::{
     channel::ChannelEventsBus,
     channel_monitor,
     esplora::{self, LexeEsplora},
+    event,
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
     payments::manager::PaymentsManager,
@@ -611,6 +612,10 @@ impl UserNode {
                 shutdown: shutdown.clone(),
             }),
         };
+
+        // Spawn task to replay any unhandled events
+        static_tasks
+            .push(event::spawn_event_replayer_task(event_handler.clone()));
 
         // Set up the channel monitor persistence task
         let (process_events_tx, process_events_rx) =
