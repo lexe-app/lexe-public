@@ -53,7 +53,7 @@ use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     channel::{ChannelEvent, ChannelEventsBus},
     esplora::FeeEstimates,
-    event::{self, EventExt, EventHandleError, EventId},
+    event::{self, EventHandleError, EventHandlerExt, EventId},
     keys_manager::LexeKeysManager,
     payments::outbound::LxOutboundPaymentFailure,
     test_event::TestEventSender,
@@ -63,7 +63,7 @@ use lexe_ln::{
 };
 use lightning::events::{Event, PaymentFailureReason, ReplayEvent};
 use tokio::sync::mpsc;
-use tracing::{error, info, info_span, warn, Instrument};
+use tracing::{error, info, info_span, warn};
 
 use crate::{
     alias::PaymentsManagerType, channel_manager::NodeChannelManager,
@@ -101,7 +101,23 @@ impl LexeEventHandler for NodeEventHandler {
         &self,
         event: Event,
     ) -> impl Future<Output = Result<(), ReplayEvent>> {
-        self.handle_inline(event)
+        async {
+            // All of these events may return `EventHandleError::Replay`, but
+            // returning `ReplayEvent` to LDK causes LDK to immediately replay
+            // the event. To avoid busylooping and potentially spamming our
+            // infrastructure providers, we manage these events in our own
+            // queue, and handle event replays with the event replayer task.
+            if let Event::PaymentClaimable { .. }
+            | Event::PaymentClaimed { .. }
+            | Event::PaymentSent { .. }
+            | Event::PaymentFailed { .. }
+            | Event::SpendableOutputs { .. } = &event
+            {
+                self.persist_and_spawn_handler(event).await
+            } else {
+                self.handle_inline(event).await
+            }
+        }
     }
 
     fn handle_event(
@@ -117,33 +133,6 @@ impl LexeEventHandler for NodeEventHandler {
     }
     fn shutdown(&self) -> &NotifyOnce {
         &self.ctx.shutdown
-    }
-}
-
-impl NodeEventHandler {
-    /// Handles an event 'inline', i.e. without spawning off to a task.
-    async fn handle_inline(&self, event: Event) -> Result<(), ReplayEvent> {
-        let (_event_id, span) = event.handle_prelude();
-
-        async {
-            match do_handle_event(&self.ctx, event).await {
-                Ok(()) => {
-                    info!("Successfully handled event");
-                    Ok(())
-                }
-                Err(EventHandleError::Discard(e)) => {
-                    warn!("Tolerable event error, discarding event: {e:#}");
-                    Ok(())
-                }
-                Err(EventHandleError::Replay(e)) => {
-                    error!("Critical event error, will replay event: {e:#}");
-                    Err(ReplayEvent())
-                }
-            }
-        }
-        // Instrument all logs for this event with the event span
-        .instrument(span)
-        .await
     }
 }
 
