@@ -718,7 +718,7 @@ mod test {
     use proptest::{arbitrary::any, prop_assert_eq, proptest};
 
     use super::*;
-    use crate::test_utils::roundtrip;
+    use crate::test_utils::{roundtrip, snapshot};
 
     #[test]
     fn enums_roundtrips() {
@@ -861,18 +861,11 @@ mod test {
 {"index":"5155186382553476589-ln_2877475d06893a3c833caf5a0872253ca30372d5f79241fcf917d893fd0184f6","kind":"spontaneous","direction":"outbound","amount":"1775777429636972.896","fees":"686803029182910.189","status":"pending","status_str":"pending"}
 "#;
 
-        for input in sample_lines(inputs) {
+        for input in snapshot::parse_sample_data(inputs) {
             let value1: BasicPayment = serde_json::from_str(input).unwrap();
             let output = serde_json::to_string(&value1).unwrap();
             let value2: BasicPayment = serde_json::from_str(&output).unwrap();
             assert_eq!(value1, value2);
         }
-    }
-
-    /// Parse out the sample data json lines, ignoring comments
-    fn sample_lines(data: &str) -> impl Iterator<Item = &str> {
-        let data = data.trim();
-        data.lines()
-            .filter(|line| !line.is_empty() && !line.starts_with("---"))
     }
 }

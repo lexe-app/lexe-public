@@ -2,6 +2,8 @@
 pub mod arbitrary;
 /// Quickly create roundtrip proptest for various serialization schemes.
 pub mod roundtrip;
+/// Extremely basic snapshot testing
+pub mod snapshot;
 
 // Dummy values for some commonly appearing fields
 pub const DUMMY_BACKEND_URL: &str = "http://[::1]:3030";
