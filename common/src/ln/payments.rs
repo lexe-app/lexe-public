@@ -7,8 +7,9 @@ use std::{
 use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin_hashes::{sha256, Hash};
 use byte_array::ByteArray;
-use lightning::ln::{
-    channelmanager::PaymentId, PaymentHash, PaymentPreimage, PaymentSecret,
+use lightning::{
+    ln::channelmanager::PaymentId,
+    types::payment::{PaymentHash, PaymentPreimage, PaymentSecret},
 };
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;

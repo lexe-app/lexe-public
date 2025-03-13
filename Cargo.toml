@@ -214,9 +214,10 @@ esplora-client = { version = "0.10", default-features = false, features = ["asyn
 # Hyper-related utilities
 hyper-util = { version = "=0.1.5", default-features = false, features = ["http2"] }
 # LDK (rust-lightning) libraries
-lightning = { version = "=0.0.125", features = ["max_level_trace"] }
-lightning-invoice = { version = "=0.32", features = ["std"] }
-lightning-transaction-sync = { version = "=0.0.125", features = ["esplora-async"] }
+lightning = { version = "=0.1.0", features = [] }
+lightning-invoice = { version = "=0.33.0", features = ["std"] }
+lightning-transaction-sync = { version = "=0.1.0", features = ["esplora-async", "time"] }
+lightning-types = "=0.2.0"
 # Required by tokio
 mio = "=0.8.11"
 # High-level HTTP client
@@ -275,15 +276,16 @@ hyper-util = { git = "https://github.com/lexe-app/hyper-util", branch = "lexe-v0
 hyper_old = { package = "hyper", git = "https://github.com/lexe-app/hyper", branch = "lexe-v0.14.28-2024_10_11" }
 
 # * license: Add dual license information
-# * lightning-transaction-sync: esplora-client -> 0.10  TODO(max): Remove
-# * lightning-net-tokio: Add `*_with_executor` APIs     TODO(max): Remove
-# * lightning-net-tokio: Switch to tokio `TcpStream`s   TODO(max): Remove
-lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2025_01_17" }
-lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2025_01_17" }
-lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.125-2025_01_17" }
+# * lightning-invoice: increase max length to 7089
+# * lightning-transaction-sync: downgrade esplora-client 0.11 -> 0.10
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.0-2025_03_13" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.0-2025_03_13" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.0-2025_03_13" }
+lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.0-2025_03_13" }
 # lightning.path = "../../ldk/lightning"
 # lightning-invoice.path = "../../ldk/lightning-invoice"
 # lightning-transaction-sync.path = "../../ldk/lightning-transaction-sync"
+# lightning-types.path = "../../ldk/lightning-types"
 
 # * fortanix: SGX port
 # * license: Add dual license information
@@ -303,7 +305,6 @@ reqwest11 = { package = "reqwest", git = "https://github.com/lexe-app/reqwest", 
 # * rand: Use `RDRAND` implementation in SGX
 # * build: Always build from source
 ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.17.8-2024_10_11" }
-ring16 = { package = "ring", git = "https://github.com/lexe-app/ring", branch = "lexe-v0.16.20-2024_10_11" }
 
 # * license: Add dual license information
 # * fortanix: SGX port

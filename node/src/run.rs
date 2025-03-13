@@ -39,8 +39,8 @@ use lexe_api::{
 use lexe_ln::{
     alias::{
         BroadcasterType, EsploraSyncClientType, FeeEstimatorType,
-        NetworkGraphType, P2PGossipSyncType, ProbabilisticScorerType,
-        RouterType,
+        LexeOnionMessengerType, MessageRouterType, NetworkGraphType,
+        P2PGossipSyncType, ProbabilisticScorerType, RouterType,
     },
     background_processor,
     channel::ChannelEventsBus,
@@ -58,7 +58,6 @@ use lexe_ln::{
 use lightning::{
     chain::{chainmonitor::ChainMonitor, Watch},
     ln::{peer_handler::IgnoringMessageHandler, types::ChannelId},
-    onion_message::messenger::{DefaultMessageRouter, OnionMessenger},
     routing::{
         gossip::P2PGossipSync,
         router::DefaultRouter,
@@ -476,6 +475,10 @@ impl UserNode {
         ));
 
         // Read channel manager
+        let message_router = Arc::new(MessageRouterType::new(
+            network_graph.clone(),
+            keys_manager.clone(),
+        ));
         let maybe_manager = persister
             .read_channel_manager(
                 &config,
@@ -485,6 +488,7 @@ impl UserNode {
                 chain_monitor.clone(),
                 tx_broadcaster.clone(),
                 router.clone(),
+                message_router.clone(),
                 logger.clone(),
             )
             .await
@@ -500,6 +504,7 @@ impl UserNode {
             chain_monitor.clone(),
             tx_broadcaster.clone(),
             router.clone(),
+            message_router.clone(),
             logger.clone(),
         )
         .context("Could not init NodeChannelManager")?;
@@ -547,14 +552,11 @@ impl UserNode {
         }
 
         // Init onion messenger
-        let message_router = Arc::new(DefaultMessageRouter::new(
-            network_graph.clone(),
-            keys_manager.clone(),
-        ));
         let offers_msg_handler = IgnoringMessageHandler {};
         let async_payments_msg_handler = IgnoringMessageHandler {};
+        let dns_resolver = IgnoringMessageHandler {};
         let custom_onion_msg_handler = IgnoringMessageHandler {};
-        let onion_messenger = Arc::new(OnionMessenger::new(
+        let onion_messenger = Arc::new(LexeOnionMessengerType::new(
             keys_manager.clone(),
             keys_manager.clone(),
             logger.clone(),
@@ -562,6 +564,7 @@ impl UserNode {
             message_router,
             offers_msg_handler,
             async_payments_msg_handler,
+            dns_resolver,
             custom_onion_msg_handler,
         ));
 

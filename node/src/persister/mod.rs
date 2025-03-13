@@ -36,7 +36,7 @@ use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
 use lexe_ln::{
     alias::{
         BroadcasterType, ChannelMonitorType, FeeEstimatorType,
-        LexeChainMonitorType, RouterType, SignerType,
+        LexeChainMonitorType, MessageRouterType, RouterType, SignerType,
     },
     channel_monitor::{ChannelMonitorUpdateKind, LxChannelMonitorUpdate},
     keys_manager::LexeKeysManager,
@@ -407,6 +407,7 @@ impl NodePersister {
         chain_monitor: Arc<ChainMonitorType>,
         broadcaster: Arc<BroadcasterType>,
         router: Arc<RouterType>,
+        message_router: Arc<MessageRouterType>,
         logger: LexeTracingLogger,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         debug!("Reading channel manager");
@@ -427,10 +428,10 @@ impl NodePersister {
 
         let maybe_manager = match maybe_plaintext {
             Some(chanman_bytes) => {
-                let mut channel_monitor_mut_refs = Vec::new();
-                for (_, channel_monitor) in channel_monitors.iter_mut() {
-                    channel_monitor_mut_refs.push(channel_monitor);
-                }
+                let channel_monitor_refs = channel_monitors
+                    .iter()
+                    .map(|(_hash, monitor)| monitor)
+                    .collect::<Vec<_>>();
                 let read_args = ChannelManagerReadArgs::new(
                     keys_manager.clone(),
                     keys_manager.clone(),
@@ -439,9 +440,10 @@ impl NodePersister {
                     chain_monitor,
                     broadcaster,
                     router,
+                    message_router,
                     logger,
                     **config.load(),
-                    channel_monitor_mut_refs,
+                    channel_monitor_refs,
                 );
 
                 let mut reader = Cursor::new(chanman_bytes.expose_secret());

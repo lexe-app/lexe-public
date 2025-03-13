@@ -13,15 +13,14 @@ use common::{
 };
 use lightning::{
     ln::{
+        inbound_payment::ExpandedKey,
         msgs::{DecodeError, UnsignedGossipMessage},
         script::ShutdownScript,
     },
-    offers::{
-        invoice::UnsignedBolt12Invoice, invoice_request::UnsignedInvoiceRequest,
-    },
+    offers::invoice::UnsignedBolt12Invoice,
     sign::{
-        EntropySource, InMemorySigner, KeyMaterial, KeysManager, NodeSigner,
-        OutputSpender, Recipient, SignerProvider, SpendableOutputDescriptor,
+        EntropySource, InMemorySigner, KeysManager, NodeSigner, OutputSpender,
+        Recipient, SignerProvider, SpendableOutputDescriptor,
     },
 };
 use lightning_invoice::RawBolt11Invoice;
@@ -170,8 +169,8 @@ impl EntropySource for LexeKeysManager {
 }
 
 impl NodeSigner for LexeKeysManager {
-    fn get_inbound_payment_key_material(&self) -> KeyMaterial {
-        self.inner.get_inbound_payment_key_material()
+    fn get_inbound_payment_key(&self) -> ExpandedKey {
+        self.inner.get_inbound_payment_key()
     }
 
     fn get_node_id(&self, recipient: Recipient) -> Result<PublicKey, ()> {
@@ -193,13 +192,6 @@ impl NodeSigner for LexeKeysManager {
         recipient: Recipient,
     ) -> Result<ecdsa::RecoverableSignature, ()> {
         self.inner.sign_invoice(invoice, recipient)
-    }
-
-    fn sign_bolt12_invoice_request(
-        &self,
-        invoice_request: &UnsignedInvoiceRequest,
-    ) -> Result<schnorr::Signature, ()> {
-        self.inner.sign_bolt12_invoice_request(invoice_request)
     }
 
     fn sign_bolt12_invoice(

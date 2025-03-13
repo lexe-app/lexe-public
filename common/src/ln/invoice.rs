@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::Context;
-use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescription};
+use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescriptionRef};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
@@ -59,7 +59,7 @@ impl LxInvoice {
     /// that as a string. Otherwise return None.
     pub fn description_str(&self) -> Option<&str> {
         match self.0.description() {
-            Bolt11InvoiceDescription::Direct(description)
+            Bolt11InvoiceDescriptionRef::Direct(description)
                 if !description.as_inner().0.is_empty() =>
                 Some(description.as_inner().0.as_str()),
             // Hash description is not useful to us yet
@@ -165,7 +165,9 @@ mod arbitrary_impl {
         hashes::{sha256, Hash},
         secp256k1::{self, Message},
     };
-    use lightning::{ln::PaymentSecret, routing::router::RouteHint};
+    use lightning::{
+        routing::router::RouteHint, types::payment::PaymentSecret,
+    };
     use lightning_invoice::{Fallback, InvoiceBuilder, MAX_TIMESTAMP};
     use proptest::{
         arbitrary::{any, Arbitrary},

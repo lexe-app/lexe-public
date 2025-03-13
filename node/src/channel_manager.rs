@@ -5,7 +5,7 @@ use arc_swap::ArcSwap;
 use bitcoin::BlockHash;
 use common::{constants, ln::network::LxNetwork};
 use lexe_ln::{
-    alias::{BroadcasterType, FeeEstimatorType, RouterType},
+    alias::{BroadcasterType, FeeEstimatorType, MessageRouterType, RouterType},
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
 };
@@ -101,8 +101,6 @@ const fn user_config() -> UserConfig {
         manually_accept_inbound_channels: true,
         // The node has no need to intercept HTLCs
         accept_intercept_htlcs: false,
-        // Allow receiving keysend payments composed of multiple parts.
-        accept_mpp_keysend: true,
         // For now, no need to manually pay BOLT 12 invoices when received.
         manually_handle_bolt12_invoices: false,
     }
@@ -217,6 +215,7 @@ impl NodeChannelManager {
         chain_monitor: Arc<ChainMonitorType>,
         broadcaster: Arc<BroadcasterType>,
         router: Arc<RouterType>,
+        message_router: Arc<MessageRouterType>,
         logger: LexeTracingLogger,
     ) -> anyhow::Result<Self> {
         debug!("Initializing channel manager");
@@ -244,6 +243,7 @@ impl NodeChannelManager {
                     chain_monitor,
                     broadcaster,
                     router,
+                    message_router,
                     logger,
                     keys_manager.clone(),
                     keys_manager.clone(),

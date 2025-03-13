@@ -317,6 +317,8 @@ pub enum LxOutboundPaymentFailure {
     InvoiceRequestExpired,
     /// The recipient rejected our BOLT 12 invoice request.
     InvoiceRequestRejected,
+    /// Failed to find a reply route from the destination back to us.
+    BlindedPathCreationFailed,
     /// API misuse error. Probably a bug in Lexe code.
     LexeErr,
     /// Any unrecognized variant we might deserialize. This variant is for
@@ -340,6 +342,8 @@ impl LxOutboundPaymentFailure {
                 "recipient did not respond with the invoice in time",
             Self::InvoiceRequestRejected =>
                 "recipient rejected our invoice request",
+            Self::BlindedPathCreationFailed =>
+                "failed to find a reply route back to us",
             Self::LexeErr => "probable bug in LEXE user node payment router",
             Self::Unknown => "unknown error, app is likely out-of-date",
         }
@@ -359,6 +363,7 @@ impl From<PaymentFailureReason> for LxOutboundPaymentFailure {
             UnknownRequiredFeatures => Self::UnknownFeatures,
             InvoiceRequestExpired => Self::InvoiceRequestExpired,
             InvoiceRequestRejected => Self::InvoiceRequestRejected,
+            BlindedPathCreationFailed => Self::BlindedPathCreationFailed,
         }
     }
 }
@@ -384,7 +389,7 @@ mod test {
 
     #[test]
     fn lx_outbound_payment_failure_json_backwards_compat() {
-        let expected_ser = r#"["NoRetries","Rejected","Abandoned","Expired","NoRoute","MetadataTooLarge","UnknownFeatures","InvoiceRequestExpired","InvoiceRequestRejected","LexeErr","Unknown"]"#;
+        let expected_ser = r#"["NoRetries","Rejected","Abandoned","Expired","NoRoute","MetadataTooLarge","UnknownFeatures","InvoiceRequestExpired","InvoiceRequestRejected","BlindedPathCreationFailed","LexeErr","Unknown"]"#;
         json_unit_enum_backwards_compat::<LxOutboundPaymentFailure>(
             expected_ser,
         );

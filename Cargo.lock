@@ -622,17 +622,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bdk-macros"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81c1980e50ae23bb6efa9283ae8679d6ea2c6fa6a99fe62533f65f4a25a1a56c"
-dependencies = [
- "proc-macro2 1.0.93",
- "quote 1.0.38",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "bdk_chain"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1450,6 +1439,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "dnssec-prover"
+version = "0.6.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96487aad690d45a83f2b9876828ba856c5430bbb143cb5730d8a5d04a4805179"
+
+[[package]]
 name = "dotenvy"
 version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2006,6 +2001,12 @@ dependencies = [
  "ahash",
  "serde",
 ]
+
+[[package]]
+name = "hashbrown"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
 
 [[package]]
 name = "hashbrown"
@@ -2616,46 +2617,58 @@ checksum = "4ec2a862134d2a7d32d7983ddcdd1c4923530833c9f2ea1a44fc5fa473989058"
 
 [[package]]
 name = "lightning"
-version = "0.0.125"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.125-2025_01_17#bd23ed3a8a59c8035309643d9dbd421f523b68df"
+version = "0.1.0"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.0-2025_03_13#1f8472e0e366207c58c68bbf851a3cb6cd4d3846"
 dependencies = [
- "bech32 0.9.1",
+ "bech32 0.11.0",
  "bitcoin",
+ "dnssec-prover",
+ "hashbrown 0.13.2",
+ "libm",
  "lightning-invoice",
  "lightning-types",
  "musig2",
+ "possiblyrandom",
 ]
 
 [[package]]
 name = "lightning-invoice"
-version = "0.32.0"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.125-2025_01_17#bd23ed3a8a59c8035309643d9dbd421f523b68df"
+version = "0.33.0"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.0-2025_03_13#1f8472e0e366207c58c68bbf851a3cb6cd4d3846"
 dependencies = [
- "bech32 0.9.1",
+ "bech32 0.11.0",
  "bitcoin",
  "lightning-types",
 ]
 
 [[package]]
-name = "lightning-transaction-sync"
-version = "0.0.125"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.125-2025_01_17#bd23ed3a8a59c8035309643d9dbd421f523b68df"
+name = "lightning-macros"
+version = "0.1.0"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.0-2025_03_13#1f8472e0e366207c58c68bbf851a3cb6cd4d3846"
 dependencies = [
- "bdk-macros",
+ "proc-macro2 1.0.93",
+ "quote 1.0.38",
+ "syn 2.0.98",
+]
+
+[[package]]
+name = "lightning-transaction-sync"
+version = "0.1.0"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.0-2025_03_13#1f8472e0e366207c58c68bbf851a3cb6cd4d3846"
+dependencies = [
  "bitcoin",
  "esplora-client",
  "futures",
  "lightning",
+ "lightning-macros",
 ]
 
 [[package]]
 name = "lightning-types"
-version = "0.1.0"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.125-2025_01_17#bd23ed3a8a59c8035309643d9dbd421f523b68df"
+version = "0.2.0"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.0-2025_03_13#1f8472e0e366207c58c68bbf851a3cb6cd4d3846"
 dependencies = [
- "bech32 0.9.1",
  "bitcoin",
- "hex-conservative",
 ]
 
 [[package]]
@@ -3280,6 +3293,14 @@ name = "portable-atomic"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7170ef9988bc169ba16dd36a7fa041e5c4cbeb6a35b76d4c03daded371eae7c0"
+
+[[package]]
+name = "possiblyrandom"
+version = "0.2.0"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.0-2025_03_13#1f8472e0e366207c58c68bbf851a3cb6cd4d3846"
+dependencies = [
+ "getrandom",
+]
 
 [[package]]
 name = "powerfmt"
@@ -5367,8 +5388,3 @@ dependencies = [
  "quote 1.0.38",
  "syn 1.0.109",
 ]
-
-[[patch.unused]]
-name = "ring"
-version = "0.16.20"
-source = "git+https://github.com/lexe-app/ring?branch=lexe-v0.16.20-2024_10_11#46842781024ab26ae8d4a77ac13153bd5ec013e3"

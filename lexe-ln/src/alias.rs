@@ -47,6 +47,7 @@ pub type LexeChannelManagerType<PERSISTER> = ChannelManager<
     Arc<LexeKeysManager>,
     Arc<FeeEstimatorType>,
     Arc<RouterType>,
+    Arc<MessageRouterType>,
     LexeTracingLogger,
 >;
 
@@ -60,6 +61,9 @@ pub type LexeOnionMessengerType<CHANNEL_MANAGER> = OnionMessenger<
     // TODO(max): Need a OffersMessageHandler for BOLT 12
     IgnoringMessageHandler,
     // AsyncPaymentsMessageHandler
+    IgnoringMessageHandler,
+    // DNSResolverMessageHandler
+    // TODO(phlip9): impl for BIP 353?
     IgnoringMessageHandler,
     // CustomOnionMessageHandler
     IgnoringMessageHandler,

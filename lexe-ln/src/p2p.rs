@@ -1698,18 +1698,16 @@ mod ldk_test {
     use lightning::{
         events::*,
         ln::{
-            features::*,
+            inbound_payment::ExpandedKey,
             msgs::*,
             peer_handler::{
                 IgnoringMessageHandler, MessageHandler, PeerManager,
             },
         },
-        offers::{
-            invoice::UnsignedBolt12Invoice,
-            invoice_request::UnsignedInvoiceRequest,
-        },
+        offers::invoice::UnsignedBolt12Invoice,
         routing::gossip::NodeId,
-        sign::{KeyMaterial, NodeSigner, Recipient},
+        sign::{NodeSigner, Recipient},
+        types::features::{InitFeatures, NodeFeatures},
     };
     use lightning_invoice::RawBolt11Invoice;
     use tokio::net::TcpListener;
@@ -1977,9 +1975,8 @@ mod ldk_test {
             Ok(ecdh::SharedSecret::new(other_key, &node_secret))
         }
 
-        fn get_inbound_payment_key_material(&self) -> KeyMaterial { unreachable!() }
+        fn get_inbound_payment_key(&self) -> ExpandedKey { unreachable!() }
         fn sign_invoice(&self, _: &RawBolt11Invoice, _: Recipient) -> Result<ecdsa::RecoverableSignature, ()> { unreachable!() }
-        fn sign_bolt12_invoice_request(&self, _invoice_request: &UnsignedInvoiceRequest) -> Result<schnorr::Signature, ()> { unreachable!() }
         fn sign_bolt12_invoice(&self, _invoice: &UnsignedBolt12Invoice) -> Result<schnorr::Signature, ()> { unreachable!() }
         fn sign_gossip_message(&self, _msg: UnsignedGossipMessage) -> Result<ecdsa::Signature, ()> { unreachable!() }
     }
@@ -1993,13 +1990,13 @@ mod ldk_test {
     }
     #[rustfmt::skip]
     impl RoutingMessageHandler for MsgHandler {
-        fn handle_node_announcement(&self, _msg: &NodeAnnouncement) -> Result<bool, LightningError> {
+        fn handle_node_announcement(&self, _pk: Option<secp256k1::PublicKey>, _msg: &NodeAnnouncement) -> Result<bool, LightningError> {
             Ok(false)
         }
-        fn handle_channel_announcement(&self, _msg: &ChannelAnnouncement) -> Result<bool, LightningError> {
+        fn handle_channel_announcement(&self, _pk: Option<secp256k1::PublicKey>, _msg: &ChannelAnnouncement) -> Result<bool, LightningError> {
             Ok(false)
         }
-        fn handle_channel_update(&self, _msg: &ChannelUpdate) -> Result<bool, LightningError> {
+        fn handle_channel_update(&self, _pk: Option<secp256k1::PublicKey>, _msg: &ChannelUpdate) -> Result<bool, LightningError> {
             Ok(false)
         }
         fn get_next_channel_announcement(&self, _starting_point: u64) -> Option<(ChannelAnnouncement, Option<ChannelUpdate>, Option<ChannelUpdate>)> {
@@ -2008,44 +2005,44 @@ mod ldk_test {
         fn get_next_node_announcement(&self, _starting_point: Option<&NodeId>) -> Option<NodeAnnouncement> {
             None
         }
-        fn peer_connected(&self, _their_node_id: &secp256k1::PublicKey, _init_msg: &Init, _inbound: bool) -> Result<(), ()> {
+        fn peer_connected(&self, _their_node_id: secp256k1::PublicKey, _init_msg: &Init, _inbound: bool) -> Result<(), ()> {
             Ok(())
         }
-        fn handle_reply_channel_range(&self, _their_node_id: &secp256k1::PublicKey, _msg: ReplyChannelRange) -> Result<(), LightningError> {
+        fn handle_reply_channel_range(&self, _their_node_id: secp256k1::PublicKey, _msg: ReplyChannelRange) -> Result<(), LightningError> {
             Ok(())
         }
-        fn handle_reply_short_channel_ids_end(&self, _their_node_id: &secp256k1::PublicKey, _msg: ReplyShortChannelIdsEnd) -> Result<(), LightningError> {
+        fn handle_reply_short_channel_ids_end(&self, _their_node_id: secp256k1::PublicKey, _msg: ReplyShortChannelIdsEnd) -> Result<(), LightningError> {
             Ok(())
         }
-        fn handle_query_channel_range(&self, _their_node_id: &secp256k1::PublicKey, _msg: QueryChannelRange) -> Result<(), LightningError> {
+        fn handle_query_channel_range(&self, _their_node_id: secp256k1::PublicKey, _msg: QueryChannelRange) -> Result<(), LightningError> {
             Ok(())
         }
-        fn handle_query_short_channel_ids(&self, _their_node_id: &secp256k1::PublicKey, _msg: QueryShortChannelIds) -> Result<(), LightningError> {
+        fn handle_query_short_channel_ids(&self, _their_node_id: secp256k1::PublicKey, _msg: QueryShortChannelIds) -> Result<(), LightningError> {
             Ok(())
         }
         fn provided_node_features(&self) -> NodeFeatures {
             NodeFeatures::empty()
         }
-        fn provided_init_features( &self, _their_node_id: &secp256k1::PublicKey,) -> InitFeatures {
+        fn provided_init_features( &self, _their_node_id: secp256k1::PublicKey) -> InitFeatures {
             InitFeatures::empty()
         }
         fn processing_queue_high(&self) -> bool { false }
     }
     #[rustfmt::skip]
     impl ChannelMessageHandler for MsgHandler {
-        fn peer_disconnected(&self, their_node_id: &secp256k1::PublicKey) {
-            if *their_node_id == self.expected_pubkey {
+        fn peer_disconnected(&self, their_node_id: secp256k1::PublicKey) {
+            if their_node_id == self.expected_pubkey {
                 self.disconnected_flag.store(true, Ordering::SeqCst);
                 self.pubkey_disconnected.clone().try_send(()).unwrap();
             }
         }
         fn peer_connected(
             &self,
-            their_node_id: &secp256k1::PublicKey,
+            their_node_id: secp256k1::PublicKey,
             _init_msg: &Init,
             _inbound: bool,
         ) -> Result<(), ()> {
-            if *their_node_id == self.expected_pubkey {
+            if their_node_id == self.expected_pubkey {
                 self.pubkey_connected.clone().try_send(()).unwrap();
             }
             Ok(())
@@ -2054,38 +2051,39 @@ mod ldk_test {
             Some(vec![ChainHash::using_genesis_block(Network::Testnet)])
         }
 
-        fn handle_open_channel(&self, _their_node_id: &secp256k1::PublicKey, _msg: &OpenChannel) {}
-        fn handle_accept_channel(&self, _their_node_id: &secp256k1::PublicKey, _msg: &AcceptChannel) {}
-        fn handle_funding_created(&self, _their_node_id: &secp256k1::PublicKey, _msg: &FundingCreated) {}
-        fn handle_funding_signed(&self, _their_node_id: &secp256k1::PublicKey, _msg: &FundingSigned) {}
-        fn handle_channel_ready(&self, _their_node_id: &secp256k1::PublicKey, _msg: &ChannelReady) {}
-        fn handle_shutdown(&self, _their_node_id: &secp256k1::PublicKey, _msg: &Shutdown) {}
-        fn handle_closing_signed(&self, _their_node_id: &secp256k1::PublicKey, _msg: &ClosingSigned) {}
-        fn handle_update_add_htlc(&self, _their_node_id: &secp256k1::PublicKey, _msg: &UpdateAddHTLC) {}
-        fn handle_update_fulfill_htlc(&self, _their_node_id: &secp256k1::PublicKey, _msg: &UpdateFulfillHTLC) {}
-        fn handle_update_fail_htlc(&self, _their_node_id: &secp256k1::PublicKey, _msg: &UpdateFailHTLC) {}
-        fn handle_update_fail_malformed_htlc(&self, _their_node_id: &secp256k1::PublicKey, _msg: &UpdateFailMalformedHTLC) {}
-        fn handle_commitment_signed(&self, _their_node_id: &secp256k1::PublicKey, _msg: &CommitmentSigned) {}
-        fn handle_revoke_and_ack(&self, _their_node_id: &secp256k1::PublicKey, _msg: &RevokeAndACK) {}
-        fn handle_update_fee(&self, _their_node_id: &secp256k1::PublicKey, _msg: &UpdateFee) {}
-        fn handle_announcement_signatures(&self, _their_node_id: &secp256k1::PublicKey, _msg: &AnnouncementSignatures) {}
-        fn handle_channel_update(&self, _their_node_id: &secp256k1::PublicKey, _msg: &ChannelUpdate) {}
-        fn handle_open_channel_v2(&self, _their_node_id: &secp256k1::PublicKey, _msg: &OpenChannelV2) {}
-        fn handle_accept_channel_v2(&self, _their_node_id: &secp256k1::PublicKey, _msg: &AcceptChannelV2) {}
-        fn handle_stfu(&self, _their_node_id: &secp256k1::PublicKey, _msg: &Stfu) {}
-        fn handle_tx_add_input(&self, _their_node_id: &secp256k1::PublicKey, _msg: &TxAddInput) {}
-        fn handle_tx_add_output(&self, _their_node_id: &secp256k1::PublicKey, _msg: &TxAddOutput) {}
-        fn handle_tx_remove_input(&self, _their_node_id: &secp256k1::PublicKey, _msg: &TxRemoveInput) {}
-        fn handle_tx_remove_output(&self, _their_node_id: &secp256k1::PublicKey, _msg: &TxRemoveOutput) {}
-        fn handle_tx_complete(&self, _their_node_id: &secp256k1::PublicKey, _msg: &TxComplete) {}
-        fn handle_tx_signatures(&self, _their_node_id: &secp256k1::PublicKey, _msg: &TxSignatures) {}
-        fn handle_tx_init_rbf(&self, _their_node_id: &secp256k1::PublicKey, _msg: &TxInitRbf) {}
-        fn handle_tx_ack_rbf(&self, _their_node_id: &secp256k1::PublicKey, _msg: &TxAckRbf) {}
-        fn handle_tx_abort(&self, _their_node_id: &secp256k1::PublicKey, _msg: &TxAbort) {}
-        fn handle_channel_reestablish(&self, _their_node_id: &secp256k1::PublicKey, _msg: &ChannelReestablish) { }
-        fn handle_error(&self, _their_node_id: &secp256k1::PublicKey, _msg: &ErrorMessage) {}
+        fn handle_open_channel(&self, _their_node_id: secp256k1::PublicKey, _msg: &OpenChannel) {}
+        fn handle_accept_channel(&self, _their_node_id: secp256k1::PublicKey, _msg: &AcceptChannel) {}
+        fn handle_funding_created(&self, _their_node_id: secp256k1::PublicKey, _msg: &FundingCreated) {}
+        fn handle_funding_signed(&self, _their_node_id: secp256k1::PublicKey, _msg: &FundingSigned) {}
+        fn handle_channel_ready(&self, _their_node_id: secp256k1::PublicKey, _msg: &ChannelReady) {}
+        fn handle_shutdown(&self, _their_node_id: secp256k1::PublicKey, _msg: &Shutdown) {}
+        fn handle_closing_signed(&self, _their_node_id: secp256k1::PublicKey, _msg: &ClosingSigned) {}
+        fn handle_update_add_htlc(&self, _their_node_id: secp256k1::PublicKey, _msg: &UpdateAddHTLC) {}
+        fn handle_update_fulfill_htlc(&self, _their_node_id: secp256k1::PublicKey, _msg: &UpdateFulfillHTLC) {}
+        fn handle_update_fail_htlc(&self, _their_node_id: secp256k1::PublicKey, _msg: &UpdateFailHTLC) {}
+        fn handle_update_fail_malformed_htlc(&self, _their_node_id: secp256k1::PublicKey, _msg: &UpdateFailMalformedHTLC) {}
+        fn handle_commitment_signed(&self, _their_node_id: secp256k1::PublicKey, _msg: &CommitmentSigned) {}
+        fn handle_revoke_and_ack(&self, _their_node_id: secp256k1::PublicKey, _msg: &RevokeAndACK) {}
+        fn handle_update_fee(&self, _their_node_id: secp256k1::PublicKey, _msg: &UpdateFee) {}
+        fn handle_announcement_signatures(&self, _their_node_id: secp256k1::PublicKey, _msg: &AnnouncementSignatures) {}
+        fn handle_channel_update(&self, _their_node_id: secp256k1::PublicKey, _msg: &ChannelUpdate) {}
+        fn handle_open_channel_v2(&self, _their_node_id: secp256k1::PublicKey, _msg: &OpenChannelV2) {}
+        fn handle_accept_channel_v2(&self, _their_node_id: secp256k1::PublicKey, _msg: &AcceptChannelV2) {}
+        fn handle_stfu(&self, _their_node_id: secp256k1::PublicKey, _msg: &Stfu) {}
+        fn handle_tx_add_input(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxAddInput) {}
+        fn handle_tx_add_output(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxAddOutput) {}
+        fn handle_tx_remove_input(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxRemoveInput) {}
+        fn handle_tx_remove_output(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxRemoveOutput) {}
+        fn handle_tx_complete(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxComplete) {}
+        fn handle_tx_signatures(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxSignatures) {}
+        fn handle_tx_init_rbf(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxInitRbf) {}
+        fn handle_tx_ack_rbf(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxAckRbf) {}
+        fn handle_tx_abort(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxAbort) {}
+        fn handle_channel_reestablish(&self, _their_node_id: secp256k1::PublicKey, _msg: &ChannelReestablish) { }
+        fn handle_error(&self, _their_node_id: secp256k1::PublicKey, _msg: &ErrorMessage) {}
         fn provided_node_features(&self) -> NodeFeatures { NodeFeatures::empty() }
-        fn provided_init_features( &self, _their_node_id: &secp256k1::PublicKey,) -> InitFeatures { InitFeatures::empty() }
+        fn provided_init_features( &self, _their_node_id: secp256k1::PublicKey,) -> InitFeatures { InitFeatures::empty() }
+        fn message_received(&self) {}
     }
     impl MessageSendEventsProvider for MsgHandler {
         fn get_and_clear_pending_msg_events(&self) -> Vec<MessageSendEvent> {

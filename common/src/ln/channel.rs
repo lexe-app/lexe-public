@@ -224,7 +224,6 @@ impl LxChannelDetails {
 
         // This destructuring makes clear which fields we *aren't* using,
         // in case we want to include more fields in the future.
-        #[allow(deprecated)]
         let ChannelDetails {
             channel_id,
             counterparty,
@@ -237,8 +236,6 @@ impl LxChannelDetails {
             unspendable_punishment_reserve,
             user_channel_id,
             feerate_sat_per_1000_weight: _,
-            // Deprecated field
-            balance_msat: _,
             outbound_capacity_msat,
             next_outbound_htlc_limit_msat,
             next_outbound_htlc_minimum_msat: _,

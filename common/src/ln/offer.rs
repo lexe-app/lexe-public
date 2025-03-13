@@ -119,7 +119,7 @@ impl LxOffer {
     /// Returns the payee [`NodePk`]. May not be a real node id if the offer is
     /// blinded for recipient privacy.
     pub fn payee_node_pk(&self) -> Option<NodePk> {
-        self.0.signing_pubkey().map(NodePk)
+        self.0.issuer_signing_pubkey().map(NodePk)
     }
 
     /// Returns the Bitcoin-denominated [`Amount`], if any.
@@ -200,15 +200,12 @@ mod arb {
             BlindedMessagePath, MessageContext, MessageForwardNode,
             OffersContext,
         },
-        ln::{
-            channelmanager::PaymentId, inbound_payment::ExpandedKey,
-            PaymentHash,
-        },
+        ln::{channelmanager::PaymentId, inbound_payment::ExpandedKey},
         offers::{
             nonce::Nonce,
             offer::{OfferBuilder, Quantity},
         },
-        sign::KeyMaterial,
+        types::payment::PaymentHash,
     };
     use proptest::{
         arbitrary::{any, Arbitrary},
@@ -254,9 +251,15 @@ mod arb {
                     }
                 }
             ),
-            any_payment_hash().prop_map(|payment_hash| {
-                OffersContext::InboundPayment { payment_hash }
-            }),
+            (any_payment_hash(), any_nonce(), any_hmac_sha256()).prop_map(
+                |(payment_hash, nonce, hmac)| {
+                    OffersContext::InboundPayment {
+                        payment_hash,
+                        nonce,
+                        hmac,
+                    }
+                }
+            ),
         ]
     }
 
@@ -359,8 +362,7 @@ mod arb {
     ) -> LxOffer {
         let root_seed = RootSeed::from_rng(&mut rng);
         let node_pk = root_seed.derive_node_pk(&mut rng);
-        let expanded_key_material = KeyMaterial(rng.gen_bytes());
-        let expanded_key = ExpandedKey::new(&expanded_key_material);
+        let expanded_key = ExpandedKey::new(rng.gen_bytes());
         let secp_ctx = rng.gen_secp256k1_ctx();
 
         let network = network.map(LxNetwork::to_bitcoin);
@@ -559,7 +561,7 @@ mod test {
         let offer_str = offer.to_string();
         let offer_len = offer_str.len();
         let offer_metadata_hex = offer.0.metadata().map(|x| hex::encode(x));
-        let node_pk = NodePk(offer.0.signing_pubkey().unwrap());
+        let node_pk = NodePk(offer.0.issuer_signing_pubkey().unwrap());
 
         println!("---");
         dbg!(offer);

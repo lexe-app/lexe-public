@@ -61,7 +61,9 @@ use lexe_ln::{
     tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
 };
-use lightning::events::{Event, PaymentFailureReason, ReplayEvent};
+use lightning::events::{
+    Event, InboundChannelFunds, PaymentFailureReason, ReplayEvent,
+};
 use tokio::sync::mpsc;
 use tracing::{error, info, info_span, warn};
 
@@ -156,12 +158,21 @@ async fn do_handle_event(
             temporary_channel_id,
             counterparty_node_id,
             funding_satoshis: _,
-            push_msat: _,
+            channel_negotiation_type,
             channel_type: _,
             is_announced: _,
             params: _,
         } => {
             let handle_open_channel_request = || {
+                // TODO(phlip9): support dual-funded channels
+                match channel_negotiation_type {
+                    InboundChannelFunds::PushMsat(_) => (),
+                    InboundChannelFunds::DualFunded =>
+                        return Err(anyhow!(
+                            "We don't support dual-funded channels yet"
+                        )),
+                }
+
                 // Only accept inbound channels from Lexe's LSP
                 let counterparty_node_pk = NodePk(counterparty_node_id);
                 if counterparty_node_pk != ctx.lsp.node_pk {
@@ -290,6 +301,7 @@ async fn do_handle_event(
             counterparty_node_id,
             channel_capacity_sats,
             channel_funding_txo,
+            last_local_balance_msat: _,
         } => {
             event::log_channel_closed(
                 channel_id.into(),
@@ -318,6 +330,11 @@ async fn do_handle_event(
             via_channel_id: _,
             via_user_channel_id: _,
             claim_deadline: _,
+            // We reject duplicate payments for the same payment hash, so this
+            // unique payment id is not useful.
+            // TODO(phlip9): BOLT12: may become relevant for preventing
+            // duplicate payments to single-use offers.
+            payment_id: _,
         } => {
             ctx.payments_manager
                 .payment_claimable(payment_hash.into(), amount_msat, purpose)
@@ -336,6 +353,11 @@ async fn do_handle_event(
             // TODO(max): We probably want to use this to get JIT on-chain fees?
             sender_intended_total_msat: _,
             onion_fields: _,
+            // We reject duplicate payments for the same payment hash, so this
+            // unique payment id is not useful.
+            // TODO(phlip9): BOLT12: may become relevant for preventing
+            // duplicate payments to single-use offers.
+            payment_id: _,
         } => {
             ctx.payments_manager
                 .payment_claimed(payment_hash.into(), amount_msat, purpose)
@@ -465,6 +487,8 @@ async fn do_handle_event(
             next_channel_id,
             prev_user_channel_id,
             next_user_channel_id,
+            prev_node_id,
+            next_node_id,
             total_fee_earned_msat,
             skimmed_fee_msat,
             claim_from_onchain_tx,
@@ -484,6 +508,8 @@ async fn do_handle_event(
                 next_channel_id={next_channel_id}, \
                 prev_user_channel_id={prev_user_channel_id}, \
                 next_user_channel_id={next_user_channel_id:?}, \
+                prev_node_id={prev_node_id:?}, \
+                next_node_id={next_node_id:?}, \
                 total_fee_earned_msat={total_fee_earned_msat:?}, \
                 skimmed_fee_msat={skimmed_fee_msat:?}, \
                 claim_from_onchain_tx={claim_from_onchain_tx}, \
@@ -568,11 +594,12 @@ mod anonymize {
     use common::time::DisplayMs;
     use lightning::{
         events::PathFailure,
-        ln::{channelmanager::PaymentId, PaymentHash},
+        ln::channelmanager::PaymentId,
         routing::{
             gossip::{NetworkUpdate, NodeId, ReadOnlyNetworkGraph},
             router::Path,
         },
+        types::payment::PaymentHash,
     };
     use tokio::time::Instant;
 

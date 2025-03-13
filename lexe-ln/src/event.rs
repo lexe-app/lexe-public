@@ -17,9 +17,10 @@ use lightning::{
         transaction,
     },
     events::{ClosureReason, Event, PathFailure, ReplayEvent},
-    ln::{features::ChannelTypeFeatures, types::ChannelId},
+    ln::types::ChannelId,
     routing::scoring::ScoreUpdate,
     sign::SpendableOutputDescriptor,
+    types::features::ChannelTypeFeatures,
 };
 #[cfg(test)]
 use proptest_derive::Arbitrary;

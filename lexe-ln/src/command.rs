@@ -40,13 +40,13 @@ use lightning::{
             MIN_FINAL_CLTV_EXPIRY_DELTA,
         },
         types::ChannelId,
-        PaymentHash,
     },
     routing::{
         gossip::NodeId,
         router::{RouteHint, RouteParameters},
     },
     sign::{NodeSigner, Recipient},
+    types::payment::PaymentHash,
     util::config::UserConfig,
 };
 use lightning_invoice::{
