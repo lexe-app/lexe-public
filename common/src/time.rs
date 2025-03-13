@@ -6,6 +6,19 @@ use std::{
 
 use serde::{de, Serialize};
 
+/// [`Display`]s a [`Duration`] in ms with 3 decimal places, e.g. "123.456ms".
+///
+/// Useful to log elapsed times in a consistent unit, as [`Duration`]'s default
+/// implementation will go with seconds, ms, nanos etc depending on the value.
+pub struct DisplayMs(pub Duration);
+
+impl Display for DisplayMs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let ms = self.0.as_secs_f64() * 1000.0;
+        write!(f, "{ms:.3}ms")
+    }
+}
+
 /// The number of milliseconds since the [`UNIX_EPOCH`].
 ///
 /// - Internally represented by a non-negative [`i64`] to ease interoperability

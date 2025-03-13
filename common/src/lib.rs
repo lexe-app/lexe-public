@@ -61,7 +61,7 @@ pub mod root_seed;
 pub mod task;
 /// `TestEvent`.
 pub mod test_event;
-/// `TimestampMs`
+/// `TimestampMs` and `DisplayMs`.
 pub mod time;
 
 /// Feature-gated test utilities that can be shared across crate boundaries.

@@ -8,7 +8,7 @@ use std::{
 };
 
 use anyhow::{bail, ensure, Context};
-use common::rng::ThreadFastRng;
+use common::{rng::ThreadFastRng, time::DisplayMs};
 use http::{HeaderName, HeaderValue};
 use rand_core::RngCore;
 use tracing::{span, warn, Dispatch};
@@ -350,17 +350,6 @@ macro_rules! define_trace_id_fns {
             Ok(maybe_replaced)
         }
     };
-}
-
-/// [`Display`]s a [`Duration`] in ms with 3 decimal places, e.g. "123.456ms".
-/// Used to log request / response times in a consistent unit.
-pub struct DisplayMs(pub Duration);
-
-impl Display for DisplayMs {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let ms = self.0.as_secs_f64() * 1000.0;
-        write!(f, "{ms:.3}ms")
-    }
 }
 
 /// Client tracing utilities.

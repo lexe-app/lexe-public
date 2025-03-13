@@ -6,6 +6,7 @@ use common::{
         ApiError, CommonApiError, CommonErrorKind, ErrorCode, ErrorResponse,
     },
     backoff, ed25519,
+    time::DisplayMs,
 };
 use http::{
     header::{HeaderValue, CONTENT_TYPE},
@@ -16,8 +17,7 @@ use reqwest::IntoUrl;
 use serde::{de::DeserializeOwned, Serialize};
 use tracing::{debug, info, warn, Instrument};
 
-use super::trace::TraceId;
-use crate::trace::{self, DisplayMs};
+use crate::{trace, trace::TraceId};
 
 /// The CONTENT-TYPE header for signed BCS-serialized structs.
 pub static CONTENT_TYPE_ED25519_BCS: HeaderValue =

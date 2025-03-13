@@ -565,7 +565,7 @@ async fn do_handle_event(
 mod anonymize {
     use std::collections::HashSet;
 
-    use lexe_api::trace::DisplayMs;
+    use common::time::DisplayMs;
     use lightning::{
         events::PathFailure,
         ln::{channelmanager::PaymentId, PaymentHash},
