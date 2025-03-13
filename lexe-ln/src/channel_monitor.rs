@@ -7,31 +7,62 @@ use anyhow::{anyhow, Context};
 use common::{ln::channel::LxOutPoint, notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::transaction::OutPoint;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, info_span};
+use tracing::{debug, error, info, info_span, Instrument};
 
 use crate::{
     alias::LexeChainMonitorType, traits::LexePersister, BoxedAnyhowFuture,
 };
 
+// `api_call_fut` is a future which makes an api call (typically with
+// retries) to the backend to persist the channel monitor state, returning
+// an `anyhow::Result<()>` once either (1) persistence succeeds or (2)
+// there were too many failures to keep trying. We take this future as
+// input (instead of e.g. a `VfsFile`) because it is the cleanest and
+// easiest way to abstract over the user node and LSP's differing api
+// clients, vfs structures, and expected error types.
+//
+// TODO(max): Add a required `upsert_monitor` method to the `LexePersister`
+// trait to avoid this.
+pub type MonitorChannelItem = (LxChannelMonitorUpdate, BoxedAnyhowFuture);
+
 /// Represents a channel monitor update. See docs on each field for details.
 pub struct LxChannelMonitorUpdate {
-    pub funding_txo: LxOutPoint,
+    kind: ChannelMonitorUpdateKind,
+    funding_txo: LxOutPoint,
     /// The ID of the channel monitor update, given by
     /// [`ChannelMonitorUpdate::update_id`] or
     /// [`ChannelMonitor::get_latest_update_id`].
     ///
     /// [`ChannelMonitorUpdate::update_id`]: lightning::chain::channelmonitor::ChannelMonitorUpdate::update_id
     /// [`ChannelMonitor::get_latest_update_id`]: lightning::chain::channelmonitor::ChannelMonitor::get_latest_update_id
-    pub update_id: u64,
-    /// A future which makes an api call (typically with retries) to the
-    /// backend to persist the channel monitor state, returning an
-    /// `anyhow::Result<()>` once either (1) persistence succeeds or (2) there
-    /// were too many failures to keep trying. We take this future as input
-    /// (instead of e.g. a `VfsFile`) because it is the cleanest and easiest
-    /// way to abstract over the user node and LSP's differing api clients, vfs
-    /// structures, and expected error types.
-    pub api_call_fut: BoxedAnyhowFuture,
-    pub kind: ChannelMonitorUpdateKind,
+    update_id: u64,
+    span: tracing::Span,
+}
+
+impl LxChannelMonitorUpdate {
+    pub fn new(
+        kind: ChannelMonitorUpdateKind,
+        funding_txo: LxOutPoint,
+        update_id: u64,
+    ) -> Self {
+        let span =
+            info_span!("(monitor-update)", %kind, %funding_txo, %update_id);
+
+        Self {
+            kind,
+            funding_txo,
+            update_id,
+            span,
+        }
+    }
+
+    /// The span for this update which includes the full monitor update context.
+    ///
+    /// Logs related to this monitor update should be logged inside this span,
+    /// to ensure the log information is associated with this update.
+    pub fn span(&self) -> tracing::Span {
+        self.span.clone()
+    }
 }
 
 /// Whether the [`LxChannelMonitorUpdate`] represents a new or updated channel.
@@ -56,7 +87,7 @@ impl Display for ChannelMonitorUpdateKind {
 /// channel monitor state.
 pub fn spawn_channel_monitor_persister_task<PS>(
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
-    mut channel_monitor_persister_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
+    mut channel_monitor_persister_rx: mpsc::Receiver<MonitorChannelItem>,
     mut shutdown: NotifyOnce,
 ) -> LxTask<()>
 where
@@ -67,15 +98,22 @@ where
     LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), async move {
         loop {
             tokio::select! {
-                Some(update) = channel_monitor_persister_rx.recv() => {
+                Some((update, api_call_fut))
+                    = channel_monitor_persister_rx.recv() => {
+                    let update_span = update.span();
 
                     let handle_result = handle_update(
                         chain_monitor.as_ref(),
                         update,
-                    ).await;
+                        api_call_fut,
+                    )
+                        .instrument(update_span.clone())
+                        .await;
 
                     if let Err(e) = handle_result {
-                        error!("Monitor persist error: {e:#}");
+                        update_span.in_scope(|| {
+                            error!("Monitor persist error: {e:#}");
+                        });
 
                         // Channel monitor persistence errors are serious;
                         // all errors are considered fatal.
@@ -101,20 +139,20 @@ where
 async fn handle_update<PS: LexePersister>(
     chain_monitor: &LexeChainMonitorType<PS>,
     update: LxChannelMonitorUpdate,
+    api_call_fut: BoxedAnyhowFuture,
 ) -> anyhow::Result<()> {
     let LxChannelMonitorUpdate {
         funding_txo,
         update_id,
-        api_call_fut,
-        kind,
+        kind: _,
+        span: _,
     } = update;
 
-    debug!(%kind, %funding_txo, %update_id, "Handling channel monitor update");
+    debug!("Handling channel monitor update");
 
     // Run the persist future.
     api_call_fut
         .await
-        .with_context(|| format!("{kind} {funding_txo} {update_id}"))
         .context("Channel monitor persist API call failed")?;
 
     // Notify the chain monitor that the monitor update has been persisted.
@@ -127,10 +165,9 @@ async fn handle_update<PS: LexePersister>(
     //   monitor future.
     chain_monitor
         .channel_monitor_updated(OutPoint::from(funding_txo), update_id)
-        .map_err(|e| anyhow!("{kind} {funding_txo} {update_id}: {e:?}"))
-        .context("channel_monitor_updated returned Err")?;
+        .map_err(|e| anyhow!("channel_monitor_updated returned Err: {e:?}"))?;
 
-    info!(%kind, %funding_txo, %update_id, "Success: persisted monitor");
+    info!("Success: persisted monitor");
 
     Ok(())
 }

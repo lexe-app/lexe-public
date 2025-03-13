@@ -38,7 +38,9 @@ use lexe_ln::{
         BroadcasterType, ChannelMonitorType, FeeEstimatorType, RouterType,
         SignerType,
     },
-    channel_monitor::{ChannelMonitorUpdateKind, LxChannelMonitorUpdate},
+    channel_monitor::{
+        ChannelMonitorUpdateKind, LxChannelMonitorUpdate, MonitorChannelItem,
+    },
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
     payments::{
@@ -91,7 +93,7 @@ pub struct NodePersister {
     vfs_master_key: Arc<AesMasterKey>,
     google_vfs: Option<Arc<GoogleVfs>>,
     shutdown: NotifyOnce,
-    channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
+    channel_monitor_persister_tx: mpsc::Sender<MonitorChannelItem>,
 }
 
 /// General helper for upserting well-formed [`VfsFile`]s.
@@ -301,7 +303,7 @@ impl NodePersister {
         vfs_master_key: Arc<AesMasterKey>,
         google_vfs: Option<Arc<GoogleVfs>>,
         shutdown: NotifyOnce,
-        channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
+        channel_monitor_persister_tx: mpsc::Sender<MonitorChannelItem>,
     ) -> Self {
         Self {
             backend_api,
@@ -778,10 +780,12 @@ impl Persist<SignerType> for NodePersister {
         funding_txo: OutPoint,
         monitor: &ChannelMonitorType,
     ) -> ChannelMonitorUpdateStatus {
+        let kind = ChannelMonitorUpdateKind::New;
         let funding_txo = LxOutPoint::from(funding_txo);
         let update_id = monitor.get_latest_update_id();
-        let kind = ChannelMonitorUpdateKind::New;
-        info!(%kind, %funding_txo, %update_id, "Persisting channel monitor");
+        let update = LxChannelMonitorUpdate::new(kind, funding_txo, update_id);
+        let update_span = update.span();
+        update_span.in_scope(|| info!("Persisting channel monitor"));
 
         let file_id =
             VfsFileId::new(CHANNEL_MONITORS_DIR, funding_txo.to_string());
@@ -810,22 +814,20 @@ impl Persist<SignerType> for NodePersister {
             }
         });
 
-        let update = LxChannelMonitorUpdate {
-            funding_txo,
-            update_id,
-            api_call_fut,
-            kind,
-        };
-
         // Queue up the channel monitor update for persisting. Shut down if we
         // can't send the update for some reason.
-        if let Err(e) = self.channel_monitor_persister_tx.try_send(update) {
+        if let Err(e) = self
+            .channel_monitor_persister_tx
+            .try_send((update, api_call_fut))
+        {
             // NOTE: Although failing to send the channel monutor update to the
             // channel monitor persistence task is a serious error, we do not
             // return a PermanentFailure here because that force closes the
             // channel, when it is much more likely that it's simply just been
             // too long since the last time we synced to the chain tip.
-            error!("Fatal error: Couldn't send channel monitor update: {e:#}");
+            update_span.in_scope(|| {
+                error!("Fatal: Couldn't send channel monitor update: {e:#}");
+            });
             self.shutdown.send();
         }
 
@@ -841,13 +843,15 @@ impl Persist<SignerType> for NodePersister {
         update: Option<&ChannelMonitorUpdate>,
         monitor: &ChannelMonitorType,
     ) -> ChannelMonitorUpdateStatus {
+        let kind = ChannelMonitorUpdateKind::Updated;
         let funding_txo = LxOutPoint::from(funding_txo);
         let update_id = update
             .as_ref()
             .map(|u| u.update_id)
             .unwrap_or_else(|| monitor.get_latest_update_id());
-        let kind = ChannelMonitorUpdateKind::Updated;
-        info!(%kind, %funding_txo, %update_id, "Persisting channel monitor");
+        let update = LxChannelMonitorUpdate::new(kind, funding_txo, update_id);
+        let update_span = update.span();
+        update_span.in_scope(|| info!("Persisting channel monitor"));
 
         let file_id =
             VfsFileId::new(CHANNEL_MONITORS_DIR, funding_txo.to_string());
@@ -871,22 +875,20 @@ impl Persist<SignerType> for NodePersister {
             }
         });
 
-        let update = LxChannelMonitorUpdate {
-            funding_txo,
-            update_id,
-            api_call_fut,
-            kind,
-        };
-
         // Queue up the channel monitor update for persisting. Shut down if we
         // can't send the update for some reason.
-        if let Err(e) = self.channel_monitor_persister_tx.try_send(update) {
+        if let Err(e) = self
+            .channel_monitor_persister_tx
+            .try_send((update, api_call_fut))
+        {
             // NOTE: Although failing to send the channel monutor update to the
             // channel monitor persistence task is a serious error, we do not
             // return a PermanentFailure here because that force closes the
             // channel, when it is much more likely that it's simply just been
             // too long since the last time we synced to the chain tip.
-            error!("Fatal error: Couldn't send channel monitor update: {e:#}");
+            update_span.in_scope(|| {
+                error!("Fatal: Couldn't send channel monitor update: {e:#}");
+            });
             self.shutdown.send();
         }
 
