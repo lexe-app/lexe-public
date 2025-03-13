@@ -747,7 +747,6 @@ impl LexeInnerPersister for NodePersister {
         Ok(maybe_payment)
     }
 
-    /// Override the default since we want multi-upsert.
     async fn persist_manager<CM: Writeable + Send + Sync>(
         &self,
         channel_manager: &CM,
@@ -770,8 +769,7 @@ impl LexeInnerPersister for NodePersister {
         .context("multi::upsert failed")
     }
 
-    /// Override the default since we want multi-upsert.
-    async fn persist_monitor<PS: LexePersister>(
+    async fn persist_channel_monitor<PS: LexePersister>(
         &self,
         chain_monitor: &LexeChainMonitorType<PS>,
         funding_txo: &LxOutPoint,

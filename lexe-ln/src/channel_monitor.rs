@@ -133,7 +133,7 @@ async fn handle_update<PS: LexePersister>(
     // Persist the monitor.
     let funding_txo = OutPoint::from(update.funding_txo);
     persister
-        .persist_monitor(chain_monitor, &update.funding_txo)
+        .persist_channel_monitor(chain_monitor, &update.funding_txo)
         .await
         .context("persist_monitor failed")?;
 

@@ -1,6 +1,6 @@
 use std::{future::Future, ops::Deref, str::FromStr};
 
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use async_trait::async_trait;
 use common::{
     api::{
@@ -63,45 +63,18 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
         index: PaymentIndex,
     ) -> anyhow::Result<Option<Payment>>;
 
-    // --- Provided methods --- //
-
     async fn persist_manager<CM: Writeable + Send + Sync>(
         &self,
         channel_manager: &CM,
-    ) -> anyhow::Result<()> {
-        let file_id = VfsFileId::new(
-            constants::SINGLETON_DIRECTORY,
-            constants::CHANNEL_MANAGER_FILENAME,
-        );
-        let file = self.encrypt_ldk_writeable(file_id, channel_manager);
-        self.persist_file(&file, constants::IMPORTANT_PERSIST_RETRIES)
-            .await
-    }
+    ) -> anyhow::Result<()>;
 
-    async fn persist_monitor<PS: LexePersister>(
+    async fn persist_channel_monitor<PS: LexePersister>(
         &self,
         chain_monitor: &LexeChainMonitorType<PS>,
         funding_txo: &LxOutPoint,
-    ) -> anyhow::Result<()> {
-        let file = {
-            let locked_monitor =
-                chain_monitor.get_monitor((*funding_txo).into()).map_err(
-                    |e| anyhow!("No monitor for this funding_txo: {e:?}"),
-                )?;
+    ) -> anyhow::Result<()>;
 
-            // NOTE: The VFS filename uses the `ToString` impl of `LxOutPoint`
-            // rather than `lightning::chain::transaction::OutPoint` or
-            // `bitcoin::OutPoint`! `LxOutPoint`'s FromStr/Display impls are
-            // guaranteed to roundtrip, and will be stable across LDK versions.
-            let filename = funding_txo.to_string();
-            let file_id =
-                VfsFileId::new(constants::CHANNEL_MONITORS_DIR, filename);
-            self.encrypt_ldk_writeable(file_id, &*locked_monitor)
-        };
-
-        self.persist_file(&file, constants::IMPORTANT_PERSIST_RETRIES)
-            .await
-    }
+    // --- Provided methods --- //
 
     /// Reads all persisted events, along with their event IDs.
     async fn read_events(&self) -> anyhow::Result<Vec<(EventId, Event)>> {
