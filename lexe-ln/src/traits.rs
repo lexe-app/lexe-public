@@ -1,6 +1,6 @@
 use std::{future::Future, ops::Deref, str::FromStr};
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use common::{
     api::{
@@ -8,7 +8,10 @@ use common::{
         vfs::{Vfs, VfsDirectory, VfsFileId},
     },
     constants,
-    ln::payments::{LxPaymentId, PaymentIndex},
+    ln::{
+        channel::LxOutPoint,
+        payments::{LxPaymentId, PaymentIndex},
+    },
     notify_once::NotifyOnce,
 };
 use lightning::{
@@ -71,6 +74,31 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
             constants::CHANNEL_MANAGER_FILENAME,
         );
         let file = self.encrypt_ldk_writeable(file_id, channel_manager);
+        self.persist_file(&file, constants::IMPORTANT_PERSIST_RETRIES)
+            .await
+    }
+
+    async fn persist_monitor<PS: LexePersister>(
+        &self,
+        chain_monitor: &LexeChainMonitorType<PS>,
+        funding_txo: &LxOutPoint,
+    ) -> anyhow::Result<()> {
+        let file = {
+            let locked_monitor =
+                chain_monitor.get_monitor((*funding_txo).into()).map_err(
+                    |e| anyhow!("No monitor for this funding_txo: {e:?}"),
+                )?;
+
+            // NOTE: The VFS filename uses the `ToString` impl of `LxOutPoint`
+            // rather than `lightning::chain::transaction::OutPoint` or
+            // `bitcoin::OutPoint`! `LxOutPoint`'s FromStr/Display impls are
+            // guaranteed to roundtrip, and will be stable across LDK versions.
+            let filename = funding_txo.to_string();
+            let file_id =
+                VfsFileId::new(constants::CHANNEL_MONITORS_DIR, filename);
+            self.encrypt_ldk_writeable(file_id, &*locked_monitor)
+        };
+
         self.persist_file(&file, constants::IMPORTANT_PERSIST_RETRIES)
             .await
     }

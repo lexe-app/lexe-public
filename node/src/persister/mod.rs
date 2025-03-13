@@ -35,12 +35,10 @@ use common::{
 use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
 use lexe_ln::{
     alias::{
-        BroadcasterType, ChannelMonitorType, FeeEstimatorType, RouterType,
-        SignerType,
+        BroadcasterType, ChannelMonitorType, FeeEstimatorType,
+        LexeChainMonitorType, RouterType, SignerType,
     },
-    channel_monitor::{
-        ChannelMonitorUpdateKind, LxChannelMonitorUpdate, MonitorChannelItem,
-    },
+    channel_monitor::{ChannelMonitorUpdateKind, LxChannelMonitorUpdate},
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
     payments::{
@@ -49,7 +47,7 @@ use lexe_ln::{
         Payment,
     },
     persister,
-    traits::LexeInnerPersister,
+    traits::{LexeInnerPersister, LexePersister},
     wallet::ChangeSet,
 };
 use lightning::{
@@ -66,7 +64,7 @@ use lightning::{
 use secrecy::{ExposeSecret, Secret};
 use serde::Serialize;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, info_span, warn};
 
 use crate::{
     alias::{ChainMonitorType, ChannelManagerType},
@@ -83,17 +81,14 @@ mod multi;
 const GDRIVE_CREDENTIALS_FILENAME: &str = "gdrive_credentials";
 const GVFS_ROOT_FILENAME: &str = "gvfs_root";
 
-// Non-singleton objects use a fixed directory with dynamic filenames
-const CHANNEL_MONITORS_DIR: &str = "channel_monitors";
-const CHANNEL_MONITORS_ARCHIVE_DIR: &str = "channel_monitors_archive";
-
 pub struct NodePersister {
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
     authenticator: Arc<BearerAuthenticator>,
     vfs_master_key: Arc<AesMasterKey>,
     google_vfs: Option<Arc<GoogleVfs>>,
+    channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
+    eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     shutdown: NotifyOnce,
-    channel_monitor_persister_tx: mpsc::Sender<MonitorChannelItem>,
 }
 
 /// General helper for upserting well-formed [`VfsFile`]s.
@@ -302,16 +297,18 @@ impl NodePersister {
         authenticator: Arc<BearerAuthenticator>,
         vfs_master_key: Arc<AesMasterKey>,
         google_vfs: Option<Arc<GoogleVfs>>,
+        channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
+        eph_tasks_tx: mpsc::Sender<LxTask<()>>,
         shutdown: NotifyOnce,
-        channel_monitor_persister_tx: mpsc::Sender<MonitorChannelItem>,
     ) -> Self {
         Self {
             backend_api,
             authenticator,
             vfs_master_key,
             google_vfs,
-            shutdown,
             channel_monitor_persister_tx,
+            eph_tasks_tx,
+            shutdown,
         }
     }
 
@@ -470,7 +467,7 @@ impl NodePersister {
     ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
         debug!("Reading channel monitors");
 
-        let dir = VfsDirectory::new(CHANNEL_MONITORS_DIR);
+        let dir = VfsDirectory::new(constants::CHANNEL_MONITORS_DIR);
         let token = self.get_token().await?;
 
         let plaintext_pairs = match self.google_vfs {
@@ -772,6 +769,38 @@ impl LexeInnerPersister for NodePersister {
         .await
         .context("multi::upsert failed")
     }
+
+    /// Override the default since we want multi-upsert.
+    async fn persist_monitor<PS: LexePersister>(
+        &self,
+        chain_monitor: &LexeChainMonitorType<PS>,
+        funding_txo: &LxOutPoint,
+    ) -> anyhow::Result<()> {
+        let file = {
+            let locked_monitor =
+                chain_monitor.get_monitor((*funding_txo).into()).map_err(
+                    |e| anyhow!("No monitor for this funding_txo: {e:?}"),
+                )?;
+
+            // NOTE: The VFS filename uses the `ToString` impl of `LxOutPoint`
+            // rather than `lightning::chain::transaction::OutPoint` or
+            // `bitcoin::OutPoint`! `LxOutPoint`'s FromStr/Display impls are
+            // guaranteed to roundtrip, and will be stable across LDK versions.
+            let filename = funding_txo.to_string();
+            let file_id =
+                VfsFileId::new(constants::CHANNEL_MONITORS_DIR, filename);
+            self.encrypt_ldk_writeable(file_id, &*locked_monitor)
+        };
+
+        multi::upsert(
+            &*self.backend_api,
+            &self.authenticator,
+            self.google_vfs.as_deref(),
+            file,
+        )
+        .await
+        .context("multi::upsert failed")
+    }
 }
 
 impl Persist<SignerType> for NodePersister {
@@ -785,51 +814,21 @@ impl Persist<SignerType> for NodePersister {
         let update_id = monitor.get_latest_update_id();
         let update = LxChannelMonitorUpdate::new(kind, funding_txo, update_id);
         let update_span = update.span();
-        update_span.in_scope(|| info!("Persisting channel monitor"));
 
-        let file_id =
-            VfsFileId::new(CHANNEL_MONITORS_DIR, funding_txo.to_string());
-        let file = self.encrypt_ldk_writeable(file_id, monitor);
+        update_span.in_scope(|| {
+            info!("Persisting channel monitor");
 
-        // Generate a future for making a few attempts to persist the channel
-        // monitor. It will be executed by the channel monitor persistence task.
-        //
-        // NOTE that despite this being a new monitor, we upsert instead of
-        // create due to an occasional race where a channel monitor persist
-        // succeeds but the node shuts down before the channel manager is
-        // repersisted, causing the create_file call to fail at the next boot.
-        let api_call_fut = Box::pin({
-            let backend_api = self.backend_api.clone();
-            let authenticator = self.authenticator.clone();
-            let maybe_google_vfs = self.google_vfs.clone();
-            async move {
-                multi::upsert(
-                    &*backend_api,
-                    &authenticator,
-                    maybe_google_vfs.as_deref(),
-                    file,
-                )
-                .await
-                .context("Failed to persist new channel monitor")
+            // Queue up the channel monitor update for persisting. Shut down if
+            // we can't send the update for some reason.
+            if let Err(e) = self.channel_monitor_persister_tx.try_send(update) {
+                // NOTE: Although failing to send the channel monutor update to
+                // the channel monitor persistence task is a serious error, we
+                // do not return a PermanentFailure here because that force
+                // closes the channel.
+                error!("Fatal: Couldn't send channel monitor update: {e:#}");
+                self.shutdown.send();
             }
         });
-
-        // Queue up the channel monitor update for persisting. Shut down if we
-        // can't send the update for some reason.
-        if let Err(e) = self
-            .channel_monitor_persister_tx
-            .try_send((update, api_call_fut))
-        {
-            // NOTE: Although failing to send the channel monutor update to the
-            // channel monitor persistence task is a serious error, we do not
-            // return a PermanentFailure here because that force closes the
-            // channel, when it is much more likely that it's simply just been
-            // too long since the last time we synced to the chain tip.
-            update_span.in_scope(|| {
-                error!("Fatal: Couldn't send channel monitor update: {e:#}");
-            });
-            self.shutdown.send();
-        }
 
         // As documented in the `Persist` trait docs, return `InProgress`,
         // which freezes the channel until persistence succeeds.
@@ -851,46 +850,21 @@ impl Persist<SignerType> for NodePersister {
             .unwrap_or_else(|| monitor.get_latest_update_id());
         let update = LxChannelMonitorUpdate::new(kind, funding_txo, update_id);
         let update_span = update.span();
-        update_span.in_scope(|| info!("Persisting channel monitor"));
 
-        let file_id =
-            VfsFileId::new(CHANNEL_MONITORS_DIR, funding_txo.to_string());
-        let file = self.encrypt_ldk_writeable(file_id, monitor);
+        update_span.in_scope(|| {
+            info!("Persisting channel monitor");
 
-        // Generate a future for making a few attempts to persist the channel
-        // monitor. It will be executed by the channel monitor persistence task.
-        let api_call_fut = Box::pin({
-            let backend_api = self.backend_api.clone();
-            let authenticator = self.authenticator.clone();
-            let maybe_google_vfs = self.google_vfs.clone();
-            async move {
-                multi::upsert(
-                    &*backend_api,
-                    &authenticator,
-                    maybe_google_vfs.as_deref(),
-                    file,
-                )
-                .await
-                .context("Failed to persist updated channel monitor")
+            // Queue up the channel monitor update for persisting. Shut down if
+            // we can't send the update for some reason.
+            if let Err(e) = self.channel_monitor_persister_tx.try_send(update) {
+                // NOTE: Although failing to send the channel monutor update to
+                // the channel monitor persistence task is a serious error, we
+                // do not return a PermanentFailure here because that force
+                // closes the channel.
+                error!("Fatal: Couldn't send channel monitor update: {e:#}");
+                self.shutdown.send();
             }
         });
-
-        // Queue up the channel monitor update for persisting. Shut down if we
-        // can't send the update for some reason.
-        if let Err(e) = self
-            .channel_monitor_persister_tx
-            .try_send((update, api_call_fut))
-        {
-            // NOTE: Although failing to send the channel monutor update to the
-            // channel monitor persistence task is a serious error, we do not
-            // return a PermanentFailure here because that force closes the
-            // channel, when it is much more likely that it's simply just been
-            // too long since the last time we synced to the chain tip.
-            update_span.in_scope(|| {
-                error!("Fatal: Couldn't send channel monitor update: {e:#}");
-            });
-            self.shutdown.send();
-        }
 
         // As documented in the `Persist` trait docs, return `InProgress`,
         // which freezes the channel until persistence succeeds.
@@ -898,8 +872,6 @@ impl Persist<SignerType> for NodePersister {
     }
 
     fn archive_persisted_channel(&self, funding_txo: OutPoint) {
-        info!(%funding_txo, "Archiving channel monitor");
-
         let backend_api = self.backend_api.clone();
         let authenticator = self.authenticator.clone();
         let vfs_master_key = self.vfs_master_key.clone();
@@ -907,12 +879,16 @@ impl Persist<SignerType> for NodePersister {
 
         // LDK suggests that instead of deleting the monitor,
         // we should archive the monitor to hedge against data loss.
-        let archive_future = async move {
+        let try_archive_fut = async move {
+            info!("Archiving channel monitor");
+
             let filename = funding_txo.to_string();
             let source_file_id =
-                VfsFileId::new(CHANNEL_MONITORS_DIR, &filename);
-            let archive_file_id =
-                VfsFileId::new(CHANNEL_MONITORS_ARCHIVE_DIR, filename);
+                VfsFileId::new(constants::CHANNEL_MONITORS_DIR, &filename);
+            let archive_file_id = VfsFileId::new(
+                constants::CHANNEL_MONITORS_ARCHIVE_DIR,
+                filename,
+            );
 
             // 1) Read and decrypt the monitor from the regular monitors dir.
             // We need to decrypt since the ciphertext is bound to its path,
@@ -960,14 +936,17 @@ impl Persist<SignerType> for NodePersister {
             anyhow::Ok(())
         };
 
-        LxTask::spawn("ephemeral monitor archive task", async move {
-            match archive_future.await {
-                Ok(()) =>
-                    info!(%funding_txo, "Success: archived channel monitor"),
-                Err(e) =>
-                    warn!(%funding_txo, "Couldn't archive monitor: {e:#}"),
-            }
-        })
-        .detach();
+        const SPAN_NAME: &str = "(chan-monitor-archiver)";
+        let task = LxTask::spawn_with_span(
+            SPAN_NAME,
+            info_span!(SPAN_NAME, %funding_txo),
+            async move {
+                match try_archive_fut.await {
+                    Ok(()) => info!("Success: archived channel monitor"),
+                    Err(e) => warn!("Couldn't archive monitor: {e:#}"),
+                }
+            },
+        );
+        let _ = self.eph_tasks_tx.try_send(task);
     }
 }

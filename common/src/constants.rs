@@ -76,8 +76,10 @@ pub const IMPORTANT_PERSIST_RETRIES: usize = 5;
 
 /// The vfs directory name used by singleton objects.
 pub const SINGLETON_DIRECTORY: &str = ".";
-/// The vfs directory name used to persist events.
+
 pub const EVENTS_DIR: &str = "events";
+pub const CHANNEL_MONITORS_DIR: &str = "channel_monitors";
+pub const CHANNEL_MONITORS_ARCHIVE_DIR: &str = "channel_monitors_archive";
 
 pub const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 pub const PW_ENC_ROOT_SEED_FILENAME: &str = "password_encrypted_root_seed";

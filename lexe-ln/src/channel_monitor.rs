@@ -10,23 +10,13 @@ use tokio::sync::mpsc;
 use tracing::{debug, error, info, info_span, Instrument};
 
 use crate::{
-    alias::LexeChainMonitorType, traits::LexePersister, BoxedAnyhowFuture,
+    alias::LexeChainMonitorType,
+    traits::{LexeInnerPersister, LexePersister},
 };
-
-// `api_call_fut` is a future which makes an api call (typically with
-// retries) to the backend to persist the channel monitor state, returning
-// an `anyhow::Result<()>` once either (1) persistence succeeds or (2)
-// there were too many failures to keep trying. We take this future as
-// input (instead of e.g. a `VfsFile`) because it is the cleanest and
-// easiest way to abstract over the user node and LSP's differing api
-// clients, vfs structures, and expected error types.
-//
-// TODO(max): Add a required `upsert_monitor` method to the `LexePersister`
-// trait to avoid this.
-pub type MonitorChannelItem = (LxChannelMonitorUpdate, BoxedAnyhowFuture);
 
 /// Represents a channel monitor update. See docs on each field for details.
 pub struct LxChannelMonitorUpdate {
+    #[allow(dead_code)] // Conceptually part of the update.
     kind: ChannelMonitorUpdateKind,
     funding_txo: LxOutPoint,
     /// The ID of the channel monitor update, given by
@@ -85,27 +75,24 @@ impl Display for ChannelMonitorUpdateKind {
 /// This prevent a race conditions where two monitor updates come in quick
 /// succession and the newer channel monitor state is overwritten by the older
 /// channel monitor state.
-pub fn spawn_channel_monitor_persister_task<PS>(
+pub fn spawn_channel_monitor_persister_task<PS: LexePersister>(
+    persister: PS,
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
-    mut channel_monitor_persister_rx: mpsc::Receiver<MonitorChannelItem>,
+    mut channel_monitor_persister_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
     mut shutdown: NotifyOnce,
-) -> LxTask<()>
-where
-    PS: LexePersister,
-{
+) -> LxTask<()> {
     debug!("Starting channel monitor persister task");
     const SPAN_NAME: &str = "(chan-monitor-persister)";
     LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), async move {
         loop {
             tokio::select! {
-                Some((update, api_call_fut))
-                    = channel_monitor_persister_rx.recv() => {
+                Some(update) = channel_monitor_persister_rx.recv() => {
                     let update_span = update.span();
 
                     let handle_result = handle_update(
+                        &persister,
                         chain_monitor.as_ref(),
                         update,
-                        api_call_fut,
                     )
                         .instrument(update_span.clone())
                         .await;
@@ -137,23 +124,18 @@ where
 /// Since channel monitor persistence is very important, all [`Err`]s are
 /// considered fatal; the caller should send a shutdown signal and exit.
 async fn handle_update<PS: LexePersister>(
+    persister: &PS,
     chain_monitor: &LexeChainMonitorType<PS>,
     update: LxChannelMonitorUpdate,
-    api_call_fut: BoxedAnyhowFuture,
 ) -> anyhow::Result<()> {
-    let LxChannelMonitorUpdate {
-        funding_txo,
-        update_id,
-        kind: _,
-        span: _,
-    } = update;
-
     debug!("Handling channel monitor update");
 
-    // Run the persist future.
-    api_call_fut
+    // Persist the monitor.
+    let funding_txo = OutPoint::from(update.funding_txo);
+    persister
+        .persist_monitor(chain_monitor, &update.funding_txo)
         .await
-        .context("Channel monitor persist API call failed")?;
+        .context("persist_monitor failed")?;
 
     // Notify the chain monitor that the monitor update has been persisted.
     // - This should trigger a log like "Completed off-chain monitor update ..."
@@ -164,7 +146,7 @@ async fn handle_update<PS: LexePersister>(
     //   channel be reenabled and the BGP woken to process events via the chain
     //   monitor future.
     chain_monitor
-        .channel_monitor_updated(OutPoint::from(funding_txo), update_id)
+        .channel_monitor_updated(funding_txo, update.update_id)
         .map_err(|e| anyhow!("channel_monitor_updated returned Err: {e:?}"))?;
 
     info!("Success: persisted monitor");

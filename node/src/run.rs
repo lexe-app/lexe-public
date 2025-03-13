@@ -306,8 +306,9 @@ impl UserNode {
             authenticator,
             vfs_master_key.clone(),
             maybe_google_vfs.clone(),
-            shutdown.clone(),
             channel_monitor_persister_tx,
+            eph_tasks_tx.clone(),
+            shutdown.clone(),
         ));
 
         // A closure to read the approved versions list if we have a gvfs.
@@ -619,6 +620,7 @@ impl UserNode {
 
         // Set up the channel monitor persistence task
         let task = channel_monitor::spawn_channel_monitor_persister_task(
+            persister.clone(),
             chain_monitor.clone(),
             channel_monitor_persister_rx,
             shutdown.clone(),
