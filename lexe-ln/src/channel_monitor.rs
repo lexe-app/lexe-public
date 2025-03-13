@@ -1,23 +1,17 @@
 use std::{
     fmt::{self, Display},
     sync::Arc,
-    time::Duration,
 };
 
+use anyhow::{anyhow, Context};
 use common::{ln::channel::LxOutPoint, notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::transaction::OutPoint;
-use thiserror::Error;
-use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, error, info};
+use tokio::sync::mpsc;
+use tracing::{debug, error, info, info_span};
 
 use crate::{
     alias::LexeChainMonitorType, traits::LexePersister, BoxedAnyhowFuture,
 };
-
-/// How long we'll wait to receive a reply from the background processor that
-/// event processing is complete.
-// 45s because we've seen this timeout on the node.
-const PROCESS_EVENTS_TIMEOUT: Duration = Duration::from_secs(45);
 
 /// Represents a channel monitor update. See docs on each field for details.
 pub struct LxChannelMonitorUpdate {
@@ -63,31 +57,29 @@ impl Display for ChannelMonitorUpdateKind {
 pub fn spawn_channel_monitor_persister_task<PS>(
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
     mut channel_monitor_persister_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
-    process_events_tx: mpsc::Sender<oneshot::Sender<()>>,
     mut shutdown: NotifyOnce,
 ) -> LxTask<()>
 where
     PS: LexePersister,
 {
     debug!("Starting channel monitor persister task");
-    LxTask::spawn("channel monitor persister", async move {
-        let mut idx = 0;
+    const SPAN_NAME: &str = "(chan-monitor-persister)";
+    LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), async move {
         loop {
             tokio::select! {
                 Some(update) = channel_monitor_persister_rx.recv() => {
-                    idx += 1;
 
                     let handle_result = handle_update(
                         chain_monitor.as_ref(),
                         update,
-                        idx,
-                        &process_events_tx,
                     ).await;
 
                     if let Err(e) = handle_result {
                         error!("Monitor persist error: {e:#}");
 
-                        // All errors are considered fatal.
+                        // Channel monitor persistence errors are serious;
+                        // all errors are considered fatal.
+                        // Shut down to prevent any loss of funds.
                         shutdown.send();
                         break;
                     }
@@ -101,24 +93,6 @@ where
     })
 }
 
-/// Errors that can occur when handling a channel monitor update.
-///
-/// This enum is intentionally kept private; it exists solely to prevent the
-/// caller from having to use some variant of `err_str.contains(..)`
-#[derive(Debug, Error)]
-enum Error {
-    #[error("Couldn't persist {kind} channel #{idx}: {inner:#}")]
-    PersistFailure {
-        kind: ChannelMonitorUpdateKind,
-        idx: usize,
-        inner: anyhow::Error,
-    },
-    #[error("Chain monitor returned err: {0:?}")]
-    ChainMonitor(lightning::util::errors::APIError),
-    #[error("Timed out waiting for events to be processed")]
-    EventsProcessTimeout,
-}
-
 /// A helper to prevent [`spawn_channel_monitor_persister_task`]'s control flow
 /// from getting too complex.
 ///
@@ -127,46 +101,36 @@ enum Error {
 async fn handle_update<PS: LexePersister>(
     chain_monitor: &LexeChainMonitorType<PS>,
     update: LxChannelMonitorUpdate,
-    idx: usize,
-    process_events_tx: &mpsc::Sender<oneshot::Sender<()>>,
-) -> Result<(), Error> {
-    debug!("Handling channel monitor update #{idx}");
+) -> anyhow::Result<()> {
+    let LxChannelMonitorUpdate {
+        funding_txo,
+        update_id,
+        api_call_fut,
+        kind,
+    } = update;
+
+    debug!(%kind, %funding_txo, %update_id, "Handling channel monitor update");
 
     // Run the persist future.
-    let kind = update.kind;
-    if let Err(inner) = update.api_call_fut.await {
-        // Channel monitor persistence errors are serious;
-        // return err and shut down to prevent any loss of funds.
-        return Err(Error::PersistFailure { kind, idx, inner });
-    }
-
-    // Update the chain monitor with the update id and funding txo the channel
-    // monitor update.
-    let chain_monitor_update_res = chain_monitor.channel_monitor_updated(
-        OutPoint::from(update.funding_txo),
-        update.update_id,
-    );
-    if let Err(e) = chain_monitor_update_res {
-        // If the update wasn't accepted, the channel is disabled, so no
-        // transactions can be made. Just return err and shut down.
-        return Err(Error::ChainMonitor(e));
-    }
-
-    // Trigger the background processor to reprocess events, as the completed
-    // channel monitor update may have generated an event that can be handled,
-    // such as to restore monitor updating and broadcast a funding tx.
-    // Furthermore, wait for the event to be handled.
-    debug!("Triggering BGP via process_events_tx");
-    let (processed_tx, processed_rx) = oneshot::channel();
-    let _ = process_events_tx.try_send(processed_tx);
-
-    tokio::time::timeout(PROCESS_EVENTS_TIMEOUT, processed_rx)
+    api_call_fut
         .await
-        .map_err(|_| Error::EventsProcessTimeout)?
-        // Channel sender dropped, probably means we're shutting down.
-        .ok();
+        .with_context(|| format!("{kind} {funding_txo} {update_id}"))
+        .context("Channel monitor persist API call failed")?;
 
-    info!("Success: persisted {kind} channel #{idx}");
+    // Notify the chain monitor that the monitor update has been persisted.
+    // - This should trigger a log like "Completed off-chain monitor update ..."
+    // - NOTE: After this update, there may still be more updates to persist.
+    //   The LDK log message will say "all off-chain updates complete" or "still
+    //   have pending off-chain updates" (common during payments)
+    // - NOTE: Only after *all* channel monitor updates are handled will the
+    //   channel be reenabled and the BGP woken to process events via the chain
+    //   monitor future.
+    chain_monitor
+        .channel_monitor_updated(OutPoint::from(funding_txo), update_id)
+        .map_err(|e| anyhow!("{kind} {funding_txo} {update_id}: {e:?}"))
+        .context("channel_monitor_updated returned Err")?;
+
+    info!(%kind, %funding_txo, %update_id, "Success: persisted monitor");
 
     Ok(())
 }

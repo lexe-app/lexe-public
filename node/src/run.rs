@@ -618,12 +618,9 @@ impl UserNode {
             .push(event::spawn_event_replayer_task(event_handler.clone()));
 
         // Set up the channel monitor persistence task
-        let (process_events_tx, process_events_rx) =
-            mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let task = channel_monitor::spawn_channel_monitor_persister_task(
             chain_monitor.clone(),
             channel_monitor_persister_rx,
-            process_events_tx,
             shutdown.clone(),
         );
         static_tasks.push(task);
@@ -756,7 +753,6 @@ impl UserNode {
             chain_monitor.clone(),
             onion_messenger.clone(),
             event_handler,
-            process_events_rx,
             shutdown.clone(),
         );
         static_tasks.push(bg_processor_task);

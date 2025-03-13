@@ -1,11 +1,8 @@
 use std::{sync::Arc, time::Duration};
 
-use common::{notify_once::NotifyOnce, task::LxTask};
-use tokio::{
-    sync::{mpsc, oneshot},
-    time::Instant,
-};
-use tracing::{debug, error, info_span, Instrument};
+use common::{notify_once::NotifyOnce, task::LxTask, time::DisplayMs};
+use tokio::time::Instant;
+use tracing::{debug, error, info, info_span, warn, Instrument};
 
 use crate::{
     alias::{LexeChainMonitorType, LexeOnionMessengerType},
@@ -49,16 +46,6 @@ pub fn start<CM, PM, PS, EH>(
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
     onion_messenger: Arc<LexeOnionMessengerType<CM>>,
     event_handler: EH,
-    // TODO(max): A `process_events` notification should be sent every time
-    // an event is generated which does not also cause the future returned
-    // by `get_event_or_persistence_needed_future()` to resolve.
-    //
-    // Ideally, we can remove this channel entirely, but a manual trigger
-    // is currently still required after every channel monitor
-    // persist (which may resume monitor updating and create more
-    // events). This was supposed to be resolved by LDK#2052 and
-    // LDK#2090, but our integration tests still fail without this channel.
-    mut process_events_rx: mpsc::Receiver<oneshot::Sender<()>>,
     mut shutdown: NotifyOnce,
 ) -> LxTask<()>
 where
@@ -71,17 +58,17 @@ where
         "background processor",
         info_span!("(bgp)"),
         async move {
-            let now = Instant::now();
+            let bgp_start = Instant::now();
 
             let mk_interval = |delay: Duration, interval: Duration| {
                 // Remove the staggering in debug mode in an attempt to catch
                 // any subtle race conditions which may arise
-                let start = if cfg!(debug_assertions) {
-                    now
+                let timer_start = if cfg!(debug_assertions) {
+                    bgp_start
                 } else {
-                    now + delay
+                    bgp_start + delay
                 };
-                tokio::time::interval_at(start, interval)
+                tokio::time::interval_at(timer_start, interval)
             };
 
             let mut process_events_timer =
@@ -100,10 +87,9 @@ where
                 //
                 // - Our process events timer ticked
                 // - The channel manager got an update (event or repersist)
-                // - The chain monitor got an update
+                // - The chain monitor got an update (typically that all updates
+                //   were persisted for a channel monitor)
                 // - The onion messenger got an update
-                // - The background processor was explicitly triggered
-                let mut processed_txs = Vec::new();
                 let process_events_fut = async {
                     tokio::select! {
                         biased;
@@ -116,27 +102,18 @@ where
                             debug!("Triggered: Chain monitor update"),
                         _ = onion_messenger.get_update_future() =>
                             debug!("Triggered: Onion messenger update"),
-                        // TODO(max): If LDK has fixed the BGP waking issue,
-                        // our integration tests should pass with this branch
-                        // commented out.
-                        Some(tx) = process_events_rx.recv() => {
-                            debug!("Triggered: process_events channel");
-                            processed_txs.push(tx);
-                        }
                     };
 
                     // We're about to process events. Prevent duplicate work by
                     // resetting the process_events_timer & clearing out the
                     // process_events channel.
                     process_events_timer.reset();
-                    while let Ok(tx) = process_events_rx.try_recv() {
-                        processed_txs.push(tx);
-                    }
                 };
 
                 tokio::select! {
                     () = process_events_fut => {
                         debug!("Processing pending events");
+                        let process_start = Instant::now();
 
                         channel_manager
                             .process_pending_events_async(mk_event_handler_fut)
@@ -159,11 +136,6 @@ where
                             peer_manager.process_events();
                         }.instrument(info_span!("(process-bgp)(peer-man)")).await;
 
-                        // Notify waiters that events have been processed.
-                        for tx in processed_txs {
-                            let _ = tx.send(());
-                        }
-
                         if channel_manager.get_and_clear_needs_persistence() {
                             let try_persist = persister
                                 .persist_manager(channel_manager.deref())
@@ -176,6 +148,16 @@ where
                                 error!("Channel manager persist error: {e:#}");
                                 break shutdown.send();
                             }
+                        }
+
+                        let elapsed = process_start.elapsed();
+                        let elapsed_ms = DisplayMs(elapsed);
+                        if elapsed > Duration::from_secs(10) {
+                            warn!("Event processing took {elapsed_ms}");
+                        } else if elapsed > Duration::from_secs(1) {
+                            info!("Event processing took {elapsed_ms}");
+                        } else {
+                            debug!("Event processing took {elapsed_ms}");
                         }
                     }
 

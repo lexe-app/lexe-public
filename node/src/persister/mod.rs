@@ -780,7 +780,8 @@ impl Persist<SignerType> for NodePersister {
     ) -> ChannelMonitorUpdateStatus {
         let funding_txo = LxOutPoint::from(funding_txo);
         let update_id = monitor.get_latest_update_id();
-        info!(%funding_txo, %update_id, "Persisting new channel");
+        let kind = ChannelMonitorUpdateKind::New;
+        info!(%kind, %funding_txo, %update_id, "Persisting channel monitor");
 
         let file_id =
             VfsFileId::new(CHANNEL_MONITORS_DIR, funding_txo.to_string());
@@ -808,8 +809,6 @@ impl Persist<SignerType> for NodePersister {
                 .context("Failed to persist new channel monitor")
             }
         });
-
-        let kind = ChannelMonitorUpdateKind::New;
 
         let update = LxChannelMonitorUpdate {
             funding_txo,
@@ -847,7 +846,8 @@ impl Persist<SignerType> for NodePersister {
             .as_ref()
             .map(|u| u.update_id)
             .unwrap_or_else(|| monitor.get_latest_update_id());
-        info!(%funding_txo, %update_id, "Updating persisted channel");
+        let kind = ChannelMonitorUpdateKind::Updated;
+        info!(%kind, %funding_txo, %update_id, "Persisting channel monitor");
 
         let file_id =
             VfsFileId::new(CHANNEL_MONITORS_DIR, funding_txo.to_string());
@@ -870,8 +870,6 @@ impl Persist<SignerType> for NodePersister {
                 .context("Failed to persist updated channel monitor")
             }
         });
-
-        let kind = ChannelMonitorUpdateKind::Updated;
 
         let update = LxChannelMonitorUpdate {
             funding_txo,
@@ -898,6 +896,8 @@ impl Persist<SignerType> for NodePersister {
     }
 
     fn archive_persisted_channel(&self, funding_txo: OutPoint) {
+        info!(%funding_txo, "Archiving channel monitor");
+
         let backend_api = self.backend_api.clone();
         let authenticator = self.authenticator.clone();
         let vfs_master_key = self.vfs_master_key.clone();
