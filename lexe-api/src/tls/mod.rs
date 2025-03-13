@@ -89,6 +89,43 @@ pub fn cert_is_valid_for_at_least(cert_der: &[u8], buffer_days: u16) -> bool {
     is_valid_for_at_least(cert_der, i64::from(buffer_days)).is_some()
 }
 
+/// Mozilla's webpki roots as a lazily-initialized [`rustls::RootCertStore`].
+///
+/// In some places where we must trust Mozilla's webpki roots, we add the trust
+/// anchors manually to avoid enabling reqwest's `rustls-tls-webpki-roots`
+/// feature, which propagates to other crates via feature unification.
+///
+/// It's safer to add the Mozilla roots manually than to have to remember to set
+/// `.tls_built_in_root_certs(false)` in every [`reqwest`] client builder.
+///
+/// # Example
+///
+/// ```
+/// # use std::time::Duration;
+/// # use anyhow::Context;
+/// use lexe_api::tls;
+///
+/// fn build_reqwest_client() -> anyhow::Result<reqwest::Client> {
+///     let tls_config = tls::client_config_builder()
+///         .with_root_certificates(tls::WEBPKI_ROOT_CERTS.clone())
+///         .with_no_client_auth();
+///
+///     let client = reqwest::ClientBuilder::new()
+///         .https_only(true)
+///         .use_preconfigured_tls(tls_config)
+///         .timeout(Duration::from_secs(10))
+///         .build()
+///         .context("reqwest::ClientBuilder::build failed")?;
+///
+///     Ok(client)
+/// }
+/// ```
+pub static WEBPKI_ROOT_CERTS: LazyLock<Arc<rustls::RootCertStore>> =
+    LazyLock::new(|| {
+        let roots = webpki_roots::TLS_SERVER_ROOTS.to_vec();
+        Arc::new(rustls::RootCertStore { roots })
+    });
+
 /// Our [`rustls::crypto::CryptoProvider`].
 /// Use this instead of [`rustls::crypto::ring::default_provider`].
 pub static LEXE_CRYPTO_PROVIDER: LazyLock<Arc<rustls::crypto::CryptoProvider>> =

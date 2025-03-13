@@ -2539,6 +2539,7 @@ dependencies = [
  "tower-http",
  "tracing",
  "webpki",
+ "webpki-roots",
  "x509-parser",
  "yasna",
 ]

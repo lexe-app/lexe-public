@@ -57,6 +57,7 @@ tower = { workspace = true, features = ["buffer", "limit", "load-shed", "timeout
 tower-http = { workspace = true, features = ["trace"] }
 tracing.workspace = true
 webpki.workspace = true
+webpki-roots.workspace = true
 x509-parser.workspace = true
 yasna.workspace = true
 
