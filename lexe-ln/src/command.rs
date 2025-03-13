@@ -1,4 +1,8 @@
-use std::{cmp, convert::Infallible, time::Duration};
+use std::{
+    cmp::{self, max},
+    convert::Infallible,
+    time::Duration,
+};
 
 use anyhow::{anyhow, bail, Context};
 use bitcoin_hashes::{sha256, Hash};
@@ -746,8 +750,8 @@ where
                 // This ensures that we can still receive the payment over a JIT
                 // channel if the JIT channel feerate is higher than any of our
                 // current channel feerates.
-                .map(|value| cmp::max(value, lsp_info.base_msat))
-                .unwrap_or(lsp_info.base_msat);
+                .map(|value| max(value, lsp_info.lsp_usernode_base_fee_msat))
+                .unwrap_or(lsp_info.lsp_usernode_base_fee_msat);
             let proportional_millionths = channels
                 .iter()
                 .filter_map(|channel| {
@@ -759,8 +763,8 @@ where
                 })
                 .max()
                 // Likewise as above
-                .map(|value| cmp::max(value, lsp_info.proportional_millionths))
-                .unwrap_or(lsp_info.proportional_millionths);
+                .map(|value| max(value, lsp_info.lsp_usernode_prop_fee_ppm))
+                .unwrap_or(lsp_info.lsp_usernode_prop_fee_ppm);
             let cltv_expiry_delta = channels
                 .iter()
                 .filter_map(|channel| {
@@ -772,13 +776,13 @@ where
                 })
                 .max()
                 // Likewise as above
-                .map(|value| cmp::max(value, lsp_info.cltv_expiry_delta))
+                .map(|value| max(value, lsp_info.cltv_expiry_delta))
                 .unwrap_or(lsp_info.cltv_expiry_delta);
             let htlc_minimum_msat = channels
                 .iter()
                 .filter_map(|channel| channel.inbound_htlc_minimum_msat)
                 .max()
-                .map(|value| cmp::max(value, lsp_info.htlc_minimum_msat))
+                .map(|value| max(value, lsp_info.htlc_minimum_msat))
                 .unwrap_or(lsp_info.htlc_minimum_msat);
             let htlc_maximum_msat = channels
                 .iter()

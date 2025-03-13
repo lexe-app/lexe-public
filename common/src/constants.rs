@@ -57,7 +57,7 @@ pub const CHANNEL_MAX_FUNDING_SATS: u32 = 5 * 1_0000_0000; // 5 BTC
 /// amount to at least 1000 sats. Since the LSP can't send this amount to the
 /// user, the user's inbound liquidity is also reduced by this amount. Used for:
 /// [`lightning::util::config::ChannelHandshakeConfig::their_channel_reserve_proportional_millionths`]
-pub const LSP_RESERVE_PROP_MILLIONTHS: u32 = 10_000; // 1%
+pub const LSP_RESERVE_PROP_PPM: u32 = 10_000; // 1%
 
 /// The LSP will only accept new inbound channels with channel value at or above
 /// this limit in satoshis.

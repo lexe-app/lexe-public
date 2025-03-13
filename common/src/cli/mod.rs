@@ -41,12 +41,32 @@ pub struct LspInfo {
     /// The socket on which the LSP accepts P2P LN connections from user nodes
     #[serde(rename = "addr")] // Original name needed for forward compat
     pub private_p2p_addr: LxSocketAddress,
-    // - RoutingFees fields - //
-    /// The LSP's configured base fee for payments forwarded to us.
-    pub base_msat: u32,
-    /// The LSP's configured proportional fee for payments forwarded to us.
-    pub proportional_millionths: u32,
-    // - RouteHintHop fields - //
+
+    // -- LSP -> User fees -- //
+    /// LSP's configured base fee for forwarding over LSP -> User channels.
+    ///
+    /// - For inbound payments, this fee is encoded in the invoice route hints
+    ///   (as part of the `RoutingFees` struct)
+    /// - Also used to estimate how much can be sent to another Lexe user.
+    // Original name, needed for forward compat
+    #[serde(rename = "base_msat")]
+    pub lsp_usernode_base_fee_msat: u32,
+    /// LSP's configured prop fee for forwarding over LSP -> User channels.
+    ///
+    /// - For inbound payments, this fee is encoded in the invoice route hints
+    ///   (as part of the `RoutingFees` struct)
+    /// - Also used to estimate how much can be sent to another Lexe user.
+    // Original name, needed for forward compat
+    #[serde(rename = "proportional_millionths")]
+    pub lsp_usernode_prop_fee_ppm: u32,
+
+    // -- LSP -> External fees -- //
+    /// LSP's configured prop fee for forwarding over LSP -> External channels.
+    pub lsp_external_prop_fee_ppm: u32,
+    /// LSP's configured base fee for forwarding over LSP -> External channels.
+    pub lsp_external_base_fee_msat: u32,
+
+    // -- RouteHintHop fields -- //
     pub cltv_expiry_delta: u16,
     pub htlc_minimum_msat: u64,
     pub htlc_maximum_msat: u64,
@@ -86,8 +106,10 @@ impl LspInfo {
             node_api_url: Some(test_utils::DUMMY_LSP_URL.to_owned()),
             node_pk,
             private_p2p_addr: addr,
-            base_msat: 0,
-            proportional_millionths: 3000,
+            lsp_usernode_base_fee_msat: 0,
+            lsp_usernode_prop_fee_ppm: 4250,
+            lsp_external_base_fee_msat: 0,
+            lsp_external_prop_fee_ppm: 750,
             cltv_expiry_delta: 72,
             htlc_minimum_msat: 1,
             htlc_maximum_msat: u64::MAX,
