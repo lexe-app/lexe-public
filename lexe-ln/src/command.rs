@@ -526,7 +526,7 @@ fn our_close_tx_fees_sats(
     // our dust limit, we'll just consider our remaining channel balance as part
     // // of the close fee.
     if !channel.is_outbound {
-        let fee_sats = if our_sats <= constants::LDK_DUST_LIMIT_SATS {
+        let fee_sats = if our_sats <= constants::LDK_DUST_LIMIT_SATS.into() {
             our_sats
         } else {
             0
@@ -551,7 +551,7 @@ fn our_close_tx_fees_sats(
     // If, after paying the fees, our output would be smaller than our dust
     // limit, then we just donate our sats to the miners.
     let our_sats = our_sats - tx_fees_sats;
-    if our_sats <= constants::LDK_DUST_LIMIT_SATS {
+    if our_sats <= constants::LDK_DUST_LIMIT_SATS.into() {
         return tx_fees_sats + our_sats;
     }
 

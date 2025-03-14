@@ -37,7 +37,7 @@ pub const USER_NODE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
 /// LDK just uses a fixed value here.
 ///
 /// See: [`MIN_CHAN_DUST_LIMIT_SATOSHIS`](https://github.com/lightningdevkit/rust-lightning/blob/70add1448b5c36368b8f1c17d672d8871cee14de/lightning/src/ln/channel.rs#L697)
-pub const LDK_DUST_LIMIT_SATS: u64 = 354;
+pub const LDK_DUST_LIMIT_SATS: u32 = 354;
 
 /// The amount of liquidity (in sats) that Lexe supplies to us for free, which
 /// we are not expected to pay interest on. This is also the amount of liquidity

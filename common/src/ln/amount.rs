@@ -69,6 +69,33 @@ use rust_decimal::{prelude::ToPrimitive, Decimal};
 use rust_decimal_macros::dec;
 use serde::{Deserialize, Deserializer, Serialize};
 
+#[macro_use]
+mod amount_macros {
+    /// Shorthand macro for `Amount::try_from_btc(dec!(___)).unwrap()`
+    #[macro_export]
+    macro_rules! btc {
+        ($amount:expr) => {
+            Amount::try_from_btc(dec!($amount)).unwrap()
+        };
+    }
+
+    /// Shorthand macro for `Amount::from_sats_u32(___)`
+    #[macro_export]
+    macro_rules! sat {
+        ($amount:expr) => {
+            Amount::from_sats_u32($amount)
+        };
+    }
+
+    /// Shorthand macro for `Amount::from_msat(___)`
+    #[macro_export]
+    macro_rules! msat {
+        ($amount:expr) => {
+            Amount::from_msat($amount)
+        };
+    }
+}
+
 /// Errors that can occur when attempting to construct an [`Amount`].
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
