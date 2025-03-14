@@ -21,7 +21,7 @@ use common::{
         user::{NodePk, Scid},
         Empty,
     },
-    cli::LspInfo,
+    cli::{LspFees, LspInfo},
     constants,
     enclave::Measurement,
     ln::{
@@ -107,6 +107,7 @@ pub fn node_info<CM, PM, PS>(
     wallet: &LexeWallet,
     chain_monitor: &LexeChainMonitorType<PS>,
     channels: &[ChannelDetails],
+    lsp_fees: LspFees,
 ) -> NodeInfo
 where
     CM: LexeChannelManager<PS>,
@@ -120,7 +121,7 @@ where
     let num_channels: usize = channels.len();
 
     let (lightning_balance, num_usable_channels) =
-        balance::all_channel_balances(chain_monitor, channels);
+        balance::all_channel_balances(chain_monitor, channels, lsp_fees);
 
     let onchain_balance = wallet.get_balance();
 

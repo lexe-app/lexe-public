@@ -631,6 +631,7 @@ impl UserNode {
         static_tasks.push(task);
 
         // Start API server for app
+        let lsp_info = args.lsp.clone();
         let app_router_state = Arc::new(AppRouterState {
             user_pk,
             version: version.clone(),
@@ -647,7 +648,7 @@ impl UserNode {
             keys_manager: keys_manager.clone(),
             payments_manager: payments_manager.clone(),
             network_graph: network_graph.clone(),
-            lsp_info: args.lsp.clone(),
+            lsp_info: lsp_info.clone(),
             scid,
             network,
             measurement,
@@ -712,6 +713,7 @@ impl UserNode {
 
         // Spawn a task which periodically logs the node's node_info.
         let node_info_task = {
+            let lsp_info = lsp_info.clone();
             let channel_manager = channel_manager.clone();
             let peer_manager = peer_manager.clone();
             let wallet = wallet.clone();
@@ -740,6 +742,7 @@ impl UserNode {
                             &wallet,
                             &chain_monitor,
                             &channels,
+                            lsp_info.lsp_fees(),
                         );
                         let node_info_json = serde_json::to_string(&node_info)
                             .expect("Failed to serialize node info");

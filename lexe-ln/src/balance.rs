@@ -1,5 +1,6 @@
 use anyhow::Context;
 use common::{
+    cli::LspFees,
     ln::{amount::Amount, balance::LightningBalance},
     Apply,
 };
@@ -13,6 +14,7 @@ use crate::{alias::LexeChainMonitorType, traits::LexePersister};
 pub fn all_channel_balances<PS: LexePersister>(
     chain_monitor: &LexeChainMonitorType<PS>,
     channels: &[ChannelDetails],
+    _lsp_fees: LspFees,
 ) -> (LightningBalance, usize) {
     let mut total_balance = LightningBalance::ZERO;
     let mut num_usable_channels: usize = 0;

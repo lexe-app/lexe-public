@@ -45,6 +45,7 @@ pub(super) async fn node_info(
         &state.wallet,
         &state.chain_monitor,
         &channels,
+        state.lsp_info.lsp_fees(),
     ))
 }
 

@@ -3,11 +3,16 @@ use std::{fmt, fmt::Display, path::Path, process::Command, str::FromStr};
 use anyhow::Context;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 use crate::test_utils::arbitrary;
-use crate::{api::user::NodePk, ln::addr::LxSocketAddress};
+use crate::{
+    api::user::NodePk,
+    ln::{addr::LxSocketAddress, amount::Amount},
+};
 
 /// User node CLI args.
 pub mod node;
@@ -72,6 +77,23 @@ pub struct LspInfo {
     pub htlc_maximum_msat: u64,
 }
 
+/// Information about Lexe's LSP's fees.
+// TODO(max): It would be nice if these were included in `LspInfo` as
+// `LspInfo::lsp_fees` with `#[serde(flatten)]` for forward compatibility,
+// but this struct uses newtypes, so we'd have to write some custom serde
+// attributes to (de)serialize as msat / ppm to make that work.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct LspFees {
+    /// The Lsp -> User base fee as an [`Amount`].
+    pub lsp_usernode_base_fee: Amount,
+    /// The Lsp -> User prop fee as a [`Decimal`], i.e. ppm / 1_000_000.
+    pub lsp_usernode_prop_fee: Decimal,
+    /// The Lsp -> External base fee as an [`Amount`].
+    pub lsp_external_base_fee: Amount,
+    /// The Lsp -> External prop fee as a [`Decimal`], i.e. ppm / 1_000_000.
+    pub lsp_external_prop_fee: Decimal,
+}
+
 /// Configuration info relating to Google OAuth2. When combined with an auth
 /// `code`, can be used to obtain a GDrive access token and refresh token.
 #[cfg_attr(test, derive(Arbitrary))]
@@ -88,6 +110,30 @@ pub struct OAuthConfig {
 // --- impl LspInfo --- //
 
 impl LspInfo {
+    /// Get the [`LspFees`] from this [`LspInfo`].
+    pub fn lsp_fees(&self) -> LspFees {
+        let lsp_usernode_base_fee =
+            Amount::from_msat(u64::from(self.lsp_usernode_base_fee_msat));
+        let lsp_usernode_prop_fee =
+            Decimal::from(self.lsp_usernode_prop_fee_ppm)
+                .checked_div(dec!(1_000_000))
+                .expect("Can't overflow because divisor is > 1");
+
+        let lsp_external_base_fee =
+            Amount::from_msat(u64::from(self.lsp_external_base_fee_msat));
+        let lsp_external_prop_fee =
+            Decimal::from(self.lsp_external_prop_fee_ppm)
+                .checked_div(dec!(1_000_000))
+                .expect("Can't overflow because divisor is > 1");
+
+        LspFees {
+            lsp_usernode_base_fee,
+            lsp_usernode_prop_fee,
+            lsp_external_base_fee,
+            lsp_external_prop_fee,
+        }
+    }
+
     /// Returns a dummy [`LspInfo`] which can be used in tests.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn dummy() -> Self {
