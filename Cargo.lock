@@ -2617,8 +2617,8 @@ checksum = "4ec2a862134d2a7d32d7983ddcdd1c4923530833c9f2ea1a44fc5fa473989058"
 
 [[package]]
 name = "lightning"
-version = "0.1.0"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.0-2025_03_13#1f8472e0e366207c58c68bbf851a3cb6cd4d3846"
+version = "0.1.1"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.1-2025_03_14#31f30f8bd93f1180c1d10512add503522ce285fa"
 dependencies = [
  "bech32 0.11.0",
  "bitcoin",
@@ -2633,8 +2633,8 @@ dependencies = [
 
 [[package]]
 name = "lightning-invoice"
-version = "0.33.0"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.0-2025_03_13#1f8472e0e366207c58c68bbf851a3cb6cd4d3846"
+version = "0.33.1"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.1-2025_03_14#31f30f8bd93f1180c1d10512add503522ce285fa"
 dependencies = [
  "bech32 0.11.0",
  "bitcoin",
@@ -2644,7 +2644,7 @@ dependencies = [
 [[package]]
 name = "lightning-macros"
 version = "0.1.0"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.0-2025_03_13#1f8472e0e366207c58c68bbf851a3cb6cd4d3846"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.1-2025_03_14#31f30f8bd93f1180c1d10512add503522ce285fa"
 dependencies = [
  "proc-macro2 1.0.93",
  "quote 1.0.38",
@@ -2654,7 +2654,7 @@ dependencies = [
 [[package]]
 name = "lightning-transaction-sync"
 version = "0.1.0"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.0-2025_03_13#1f8472e0e366207c58c68bbf851a3cb6cd4d3846"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.1-2025_03_14#31f30f8bd93f1180c1d10512add503522ce285fa"
 dependencies = [
  "bitcoin",
  "esplora-client",
@@ -2666,7 +2666,7 @@ dependencies = [
 [[package]]
 name = "lightning-types"
 version = "0.2.0"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.0-2025_03_13#1f8472e0e366207c58c68bbf851a3cb6cd4d3846"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.1-2025_03_14#31f30f8bd93f1180c1d10512add503522ce285fa"
 dependencies = [
  "bitcoin",
 ]
@@ -3297,7 +3297,7 @@ checksum = "7170ef9988bc169ba16dd36a7fa041e5c4cbeb6a35b76d4c03daded371eae7c0"
 [[package]]
 name = "possiblyrandom"
 version = "0.2.0"
-source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.0-2025_03_13#1f8472e0e366207c58c68bbf851a3cb6cd4d3846"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.1-2025_03_14#31f30f8bd93f1180c1d10512add503522ce285fa"
 dependencies = [
  "getrandom",
 ]

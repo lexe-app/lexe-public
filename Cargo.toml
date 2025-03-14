@@ -214,8 +214,8 @@ esplora-client = { version = "0.10", default-features = false, features = ["asyn
 # Hyper-related utilities
 hyper-util = { version = "=0.1.5", default-features = false, features = ["http2"] }
 # LDK (rust-lightning) libraries
-lightning = { version = "=0.1.0", features = [] }
-lightning-invoice = { version = "=0.33.0", features = ["std"] }
+lightning = { version = "=0.1.1", features = [] }
+lightning-invoice = { version = "=0.33.1", features = ["std"] }
 lightning-transaction-sync = { version = "=0.1.0", features = ["esplora-async", "time"] }
 lightning-types = "=0.2.0"
 # Required by tokio
@@ -278,10 +278,10 @@ hyper_old = { package = "hyper", git = "https://github.com/lexe-app/hyper", bran
 # * license: Add dual license information
 # * lightning-invoice: increase max length to 7089
 # * lightning-transaction-sync: downgrade esplora-client 0.11 -> 0.10
-lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.0-2025_03_13" }
-lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.0-2025_03_13" }
-lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.0-2025_03_13" }
-lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.0-2025_03_13" }
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_14" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_14" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_14" }
+lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_14" }
 # lightning.path = "../../ldk/lightning"
 # lightning-invoice.path = "../../ldk/lightning-invoice"
 # lightning-transaction-sync.path = "../../ldk/lightning-transaction-sync"
