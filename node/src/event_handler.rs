@@ -35,7 +35,6 @@
 use std::{
     future::Future,
     sync::{Arc, Mutex},
-    time::Duration,
 };
 
 use anyhow::{anyhow, Context};
@@ -65,7 +64,7 @@ use lightning::events::{
     Event, InboundChannelFunds, PaymentFailureReason, ReplayEvent,
 };
 use tokio::sync::mpsc;
-use tracing::{error, info, info_span, warn};
+use tracing::{error, info, warn};
 
 use crate::{
     alias::PaymentsManagerType, channel_manager::NodeChannelManager,
@@ -92,6 +91,7 @@ pub(crate) struct EventCtx {
     pub scorer: Arc<Mutex<ProbabilisticScorerType>>,
     pub payments_manager: PaymentsManagerType,
     pub channel_events_bus: ChannelEventsBus,
+    #[allow(dead_code)] // We might need this later
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     pub test_event_tx: TestEventSender,
     pub shutdown: NotifyOnce,
@@ -523,22 +523,12 @@ async fn do_handle_event(
 
         Event::HTLCHandlingFailed { .. } => {}
 
-        Event::PendingHTLCsForwardable { time_forwardable } => {
-            let channel_manager = ctx.channel_manager.clone();
-            let time_to_sleep =
-                Duration::from_millis(time_forwardable.as_millis() as u64);
-            let task = LxTask::spawn_with_span(
-                "PendingHTLCsForwardable handler",
-                info_span!("(pending-htlc-fwd)"),
-                async move {
-                    tokio::time::sleep(time_to_sleep).await;
-                    channel_manager.process_pending_htlc_forwards();
-                    info!("Processed pending HTLC forwards");
-                },
-            );
-            if ctx.eph_tasks_tx.try_send(task).is_err() {
-                warn!("(PendingHTLCsForwardable) Couldn't send task");
-            }
+        Event::PendingHTLCsForwardable { .. } => {
+            // The node does in fact forward (its own) HTLCs. However, there's
+            // no point in adding a delay here, since the LSP can trivially
+            // correlate our payments (because it is forwarding them).
+            ctx.channel_manager.process_pending_htlc_forwards();
+            info!("Forwarded pending HTLCs");
         }
 
         Event::SpendableOutputs {
