@@ -265,6 +265,8 @@ pub(super) async fn pay_invoice(
         &state.router,
         &state.channel_manager,
         &state.payments_manager,
+        &state.chain_monitor,
+        state.lsp_info.lsp_fees(),
     )
     .await
     .map(LxJson)
@@ -280,6 +282,8 @@ pub(super) async fn preflight_pay_invoice(
         &state.router,
         &state.channel_manager,
         &state.payments_manager,
+        &state.chain_monitor,
+        state.lsp_info.lsp_fees(),
     )
     .await
     .map(LxJson)

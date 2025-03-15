@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, bail, Context};
+use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin_hashes::{sha256, Hash};
 use common::{
     api::{
@@ -22,7 +22,7 @@ use common::{
         Empty,
     },
     cli::{LspFees, LspInfo},
-    constants,
+    constants, debug_panic_release_log,
     enclave::Measurement,
     ln::{
         amount::Amount,
@@ -31,6 +31,7 @@ use common::{
         network::LxNetwork,
     },
 };
+use either::Either;
 use futures::Future;
 use lightning::{
     chain::{
@@ -74,7 +75,7 @@ use crate::{
         },
         Payment,
     },
-    route,
+    route::{self, RoutingContext},
     traits::{LexeChannelManager, LexePeerManager, LexePersister},
     tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
@@ -850,6 +851,8 @@ pub async fn pay_invoice<CM, PS>(
     router: &RouterType,
     channel_manager: &CM,
     payments_manager: &PaymentsManager<CM, PS>,
+    chain_monitor: &LexeChainMonitorType<PS>,
+    lsp_fees: LspFees,
 ) -> anyhow::Result<PayInvoiceResponse>
 where
     CM: LexeChannelManager<PS>,
@@ -865,6 +868,8 @@ where
         router,
         channel_manager,
         payments_manager,
+        chain_monitor,
+        lsp_fees,
     )
     .await?;
     let hash = payment.hash;
@@ -944,6 +949,8 @@ pub async fn preflight_pay_invoice<CM, PS>(
     router: &RouterType,
     channel_manager: &CM,
     payments_manager: &PaymentsManager<CM, PS>,
+    chain_monitor: &LexeChainMonitorType<PS>,
+    lsp_fees: LspFees,
 ) -> anyhow::Result<PreflightPayInvoiceResponse>
 where
     CM: LexeChannelManager<PS>,
@@ -960,6 +967,8 @@ where
         router,
         channel_manager,
         payments_manager,
+        chain_monitor,
+        lsp_fees,
     )
     .await?;
     Ok(PreflightPayInvoiceResponse {
@@ -1044,6 +1053,8 @@ async fn preflight_pay_invoice_inner<CM, PS>(
     router: &RouterType,
     channel_manager: &CM,
     payments_manager: &PaymentsManager<CM, PS>,
+    chain_monitor: &LexeChainMonitorType<PS>,
+    lsp_fees: LspFees,
 ) -> anyhow::Result<PreflightedPayInvoice>
 where
     CM: LexeChannelManager<PS>,
@@ -1052,9 +1063,7 @@ where
     let invoice = req.invoice;
 
     // Fail expired invoices early.
-    if invoice.is_expired() {
-        bail!("Invoice has expired");
-    }
+    ensure!(!invoice.is_expired(), "Invoice has expired");
 
     // Fail invoice double-payment early.
     if payments_manager
@@ -1064,23 +1073,130 @@ where
         bail!("We've already tried paying this invoice");
     }
 
-    // TODO(phlip9): need better error messages for simpler failure cases like
-    // trying to send above User<->LSP channel max outbound HTLC limit, etc...
-    //
-    // Right now we just get "Could not find route to recipient", which is
-    // completely useless and not actionable.
-    //
-    // More generally, we could also try to compute the Max-Flow to the
-    // destination and suggest that value as an upper bound.
+    // Compute the amount; handle amountless invoices
+    let amount = {
+        if invoice.amount().is_some() && req.fallback_amount.is_some() {
+            // Not a serious error, but better to be unambiguous.
+            debug_panic_release_log!(
+                "Nit: Only provide fallback amount for amountless invoices",
+            );
+        }
 
-    // Find a Route so we can estimate the fees to be paid.
-    let (route, route_params) = route::find_route_for_bolt11_invoice(
-        channel_manager,
-        router,
-        &invoice,
-        req.fallback_amount,
-    )
-    .context("Could not find route to recipient")?;
+        invoice
+            .amount()
+            .or(req.fallback_amount)
+            .context("Missing fallback amount for amountless invoice")?
+    };
+
+    // Construct payment parameters, which are amount-agnostic.
+    let payment_params = route::build_payment_params(Either::Right(&invoice))
+        .context("Couldn't build payment parameters")?;
+
+    // Construct payment routing context
+    let routing_context =
+        RoutingContext::from_payment_params(channel_manager, payment_params);
+
+    // Compute Lightning balances
+    let channels = channel_manager.list_channels();
+    let num_channels = channels.len();
+    let (lightning_balance, num_usable_channels) =
+        balance::all_channel_balances(chain_monitor, &channels, lsp_fees);
+    let max_sendable = lightning_balance.max_sendable;
+
+    // Check that the user has at least one usable channel.
+    if num_channels == 0 {
+        // Noob error: Take the opportunity to teach the user about LN channels.
+        return Err(anyhow!(
+            "You don't have any Lightning channels, which are required to \
+             send funds. Consider opening a new channel using on-chain funds, \
+             or receiving funds to your wallet directly via Lightning."
+        ));
+    } else if num_usable_channels == 0 {
+        // The user has at least one channel, but none of them are usable.
+        // Maybe their channel is being closed or something.
+        return Err(anyhow!(
+            "You don't have any usable Lightning channels. Consider opening a \
+             new channel using on-chain funds, or receiving funds to your \
+             wallet directly via Lightning."
+        ));
+    }
+
+    // Check that we're not trying to send over `max_sendable`.
+    if amount > max_sendable {
+        // Since we know the recipient, we can compute a more accurate maximum
+        // sendable amount to this recipient (i.e. max flow) and expose that to
+        // the user as a suggestion.
+        //
+        // TODO(max): We should also calculate the max flow from the *LSP*, so
+        // we can tell whether (1) `max_flow` is limited by the user's balance
+        // or (2) there simply isn't enough liquidity from LSP to recipient.
+        let max_flow_result = route::compute_max_flow_to_recipient(
+            router,
+            &routing_context,
+            amount,
+        );
+
+        let error = match max_flow_result {
+            Ok(max_flow) => anyhow!(
+                "Insufficient balance: Tried to pay {amount} sats, but the \
+                 maximum amount you can send is {max_sendable} sats. \
+                 We estimate that the maximum amount that you can route to \
+                 this recipient is {max_flow} sats. Consider adding to your \
+                 Lightning balance or sending a smaller amount.",
+            ),
+            Err(e) => anyhow!(
+                "Couldn't route to this recipient with any amount: {e:#}"
+            ),
+        };
+
+        return Err(error);
+    }
+
+    // Try to find a Route with the full intended amount.
+    let route_result = routing_context.find_route(router, amount);
+    let (route, route_params) = match route_result {
+        Ok((r, p)) => (r, p),
+        Err(e) => {
+            // We couldn't find a route with the full intended amount.
+            // But since we know the recipient, we can compute a more accurate
+            // maximum sendable amount to this recipient (i.e. max flow).
+            //
+            let max_flow_result = route::compute_max_flow_to_recipient(
+                router,
+                &routing_context,
+                amount,
+            );
+
+            let error = match max_flow_result {
+                Ok(max_flow) => {
+                    // TODO(max): We should also calculate the max flow from the
+                    // *LSP*, so we can tell whether (1) `max_flow` is limited
+                    // by the user's balance or (2) there simply isn't enough
+                    // liquidity from the LSP to the recipient.
+                    //
+                    // This call to action could then be one of:
+                    // 1) "You must add to your Lightning balance in order to
+                    //    send this amount to this recipient"
+                    // 2) "Consider sending a smaller amount or asking the
+                    //    recipient to increase their inbound liquidity."
+                    let call_to_action =
+                        "Consider adding to your Lightning balance \
+                         or sending a smaller amount";
+
+                    anyhow!(
+                        "Tried to pay {amount} sats. The maximum amount that \
+                         you can route to this recipient is {max_flow} sats. \
+                         {call_to_action}: {e:#}",
+                    )
+                }
+                Err(e) => anyhow!(
+                    "Couldn't route to this recipient with any amount: {e:#}"
+                ),
+            };
+
+            return Err(error);
+        }
+    };
 
     let payment_secret = invoice.payment_secret().into();
     let recipient_fields = RecipientOnionFields::secret_only(payment_secret);

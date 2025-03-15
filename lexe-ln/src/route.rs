@@ -1,70 +1,100 @@
 //! Routing logic.
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, ensure};
 use common::{
     api::user::NodePk,
-    debug_panic_release_log,
     ln::{amount::Amount, invoice::LxInvoice},
-    Apply,
+    time::DisplayMs,
 };
 use const_utils::const_assert;
 use either::Either;
 use lightning::{
-    ln::msgs::LightningError,
+    ln::{channel_state::ChannelDetails, msgs::LightningError},
     routing::router::{
-        Payee, PaymentParameters, Route, RouteParameters, Router,
-        DEFAULT_MAX_PATH_COUNT, DEFAULT_MAX_TOTAL_CLTV_EXPIRY_DELTA,
+        InFlightHtlcs, Payee, PaymentParameters, Route, RouteParameters,
+        Router, DEFAULT_MAX_PATH_COUNT, DEFAULT_MAX_TOTAL_CLTV_EXPIRY_DELTA,
         MAX_PATH_LENGTH_ESTIMATE,
     },
 };
 use lightning_invoice::DEFAULT_MIN_FINAL_CLTV_EXPIRY_DELTA;
+use rust_decimal_macros::dec;
+use tracing::{debug, info};
 
 use crate::{
     alias::RouterType,
     traits::{LexeChannelManager, LexePersister},
 };
 
-/// Finds a route for the given [`LxInvoice`].
+/// Amount-agnostic context for routing to a known payee.
+/// (The payee is specified in [`PaymentParameters`]).
 ///
-/// `fallback_amount` specifies the amount we will pay if the invoice to be paid
-/// is amountless, and must be [`Some`] for amountless invoices.
-pub fn find_route_for_bolt11_invoice<CM, PS>(
-    channel_manager: &CM,
-    router: &RouterType,
-    invoice: &LxInvoice,
-    fallback_amount: Option<Amount>,
-) -> anyhow::Result<(Route, RouteParameters)>
-where
-    CM: LexeChannelManager<PS>,
-    PS: LexePersister,
-{
-    if invoice.amount().is_some() && fallback_amount.is_some() {
-        // Not a serious error, but better to be unambiguous.
-        debug_panic_release_log!(
-            "Nit: Only provide fallback amount for amountless invoices",
-        );
+/// - Can be reused for multiple routing attempts to the given payee for a
+///   single payment, e.g. within [`compute_max_flow_to_recipient`].
+/// - However, since this caches `usable_channels` and `in_flight_htlcs`, it
+///   should not be reused for multiple payments, nor for other payees.
+pub struct RoutingContext {
+    payment_params: PaymentParameters,
+    payer_pk: NodePk,
+    usable_channels: Vec<ChannelDetails>,
+    in_flight_htlcs: InFlightHtlcs,
+}
+
+impl RoutingContext {
+    pub fn from_payment_params<CM, PS>(
+        channel_manager: &CM,
+        payment_params: PaymentParameters,
+    ) -> Self
+    where
+        CM: LexeChannelManager<PS>,
+        PS: LexePersister,
+    {
+        let payer_pk = NodePk(channel_manager.get_our_node_id());
+        let usable_channels = channel_manager.list_usable_channels();
+        let in_flight_htlcs = channel_manager.compute_inflight_htlcs();
+
+        Self {
+            payment_params,
+
+            payer_pk,
+            usable_channels,
+            in_flight_htlcs,
+        }
     }
 
-    let payment_params = build_payment_params(Either::Right(invoice))
-        .context("Couldn't build payment parameters")?;
+    pub fn find_route(
+        &self,
+        router: &RouterType,
+        amount: Amount,
+    ) -> anyhow::Result<(Route, RouteParameters)> {
+        // TODO(max): We may want to set a fee limit at some point
+        let max_total_routing_fee_msat = None;
+        let route_params = RouteParameters {
+            payment_params: self.payment_params.clone(),
+            final_value_msat: amount.msat(),
+            max_total_routing_fee_msat,
+        };
 
-    let amount = invoice
-        .amount()
-        .or(fallback_amount)
-        .context("Missing fallback amount for amountless invoice")?;
+        let usable_channels_refs =
+            self.usable_channels.iter().collect::<Vec<_>>();
+        let first_hops = Some(usable_channels_refs.as_slice());
 
-    find_route_from_payment_params(
-        channel_manager,
-        router,
-        payment_params,
-        amount,
-    )
+        let route = router
+            .find_route(
+                &self.payer_pk.0,
+                &route_params,
+                first_hops,
+                self.in_flight_htlcs.clone(),
+            )
+            .map_err(|LightningError { err, action: _ }| anyhow!("{err}"))?;
+
+        Ok((route, route_params))
+    }
 }
 
 /// Get a [`PaymentParameters`] from a payee or invoice in Lexe's default way.
-///
-/// LDK's builder API is unergonomic and hides a lot of details, so we
-/// 'unbuilderify' it to make clear how each field modifies the final result.
+/// Payment parameters are amount-agnostic.
+// LDK's builder API is unergonomic and hides a lot of details, so we
+// 'unbuilderify' it to make clear how each field modifies the final result.
 pub fn build_payment_params(
     payee_pk_or_invoice: Either<NodePk, &LxInvoice>,
 ) -> anyhow::Result<PaymentParameters> {
@@ -118,68 +148,95 @@ pub fn build_payment_params(
     })
 }
 
-/// Finds a route from our node to the payee in the given [`PaymentParameters`]
-/// for the given [`Amount`].
-pub fn find_route_from_payment_params<CM, PS>(
-    channel_manager: &CM,
+/// Computes an accurate estimate of the maximum amount that is sendable to
+/// this recipient specified in the given [`PaymentParameters`], given a
+/// `starting_amount` which failed to find a route.
+///
+/// The estimate here is much more accurate than `max_sendable` since the
+/// recipient is known.
+// - TODO(max): We should actually compute the max flow to this recipient, but
+//   there are significant complications because `Route` may be multi-path and
+//   each `Path` does not expose the prop and base fee for each hop, so we'd
+//   have to munge around the network graph. A dumb binary search should be good
+//   enough to unblock us for now.
+// - TODO(max): Expose an endpoint which computes the max flow and simply
+//   returns it to the caller. We can then call this endpoint while the user is
+//   presented with an amountless invoice to suggest an accurate maximum amount,
+//   which they can also pay using a 'send all' button.
+// - TODO(max): We should build out some prop tests for this function:
+//   - This function never panics
+//   - satoshi precision: For all "for all network graphs, for any two distinct
+//     nodes, if this function finds a `max_flow`, routing to `max_flow` + 1
+//     should fail"
+//  - `max_flow` to a neighbor is just sum of `next_outbound_htlc_limit` over
+//    all channels with this neighbor.
+pub fn compute_max_flow_to_recipient(
     router: &RouterType,
-    payment_params: PaymentParameters,
-    amount: Amount,
-) -> anyhow::Result<(Route, RouteParameters)>
-where
-    CM: LexeChannelManager<PS>,
-    PS: LexePersister,
-{
-    // TODO(max): We may want to set a fee limit at some point
-    let max_total_routing_fee_msat = None;
-    let route_params = RouteParameters {
-        payment_params,
-        final_value_msat: amount.msat(),
-        max_total_routing_fee_msat,
-    };
+    routing_context: &RoutingContext,
+    starting_amount: Amount,
+) -> anyhow::Result<Amount> {
+    /// Max # of binary search iterations.
+    // Routing is done locally so it should be pretty fast, and more iterations
+    // gives better accuracy. TODO(max): Revisit after seeing `elapsed` in prod.
+    const MAX_ITERATIONS: usize = 30;
+    let start = tokio::time::Instant::now();
 
-    let route = {
-        // Collect all the info we need to route this payment
-        let payer_pubkey = channel_manager.get_our_node_id();
-        let usable_channels = channel_manager.list_usable_channels();
-        let usable_channels_refs = usable_channels.iter().collect::<Vec<_>>();
-        let first_hops = usable_channels_refs.as_slice();
-        let in_flight_htlcs = channel_manager.compute_inflight_htlcs();
+    info!(%starting_amount, "Computing max flow");
 
-        // The most we can send right now, if we used all our channels, not
-        // including routing fees. This is the same value as
-        // `LightningBalance::sendable`.
-        let sendable = first_hops
-            .iter()
-            .map(|x| x.next_outbound_htlc_limit_msat)
-            .sum::<u64>()
-            .apply(Amount::from_msat);
+    let one_sat = Amount::from_sats_u32(1);
 
-        // Quickly check if the amount we want to send is above the sum of
-        // all our channel `next_outbound_htlc_limit`s, so we can return a more
-        // useful error message than "route not found".
-        //
-        // TODO(phlip9): user node case should also be able to account for LSP
-        // channel fees in this limit.
-        if amount > sendable {
-            return Err(anyhow!(
-                "Can't send more than {} sats. Trying to send {} sats.",
-                sendable.sats_u64(),
-                amount.sats_u64(),
-            ));
+    ensure!(
+        starting_amount >= one_sat,
+        "`starting_amount` must be non-zero for binary search"
+    );
+
+    let mut low = one_sat;
+    let mut high = starting_amount.round_sat();
+    let mut best_succ: Option<Amount> = None;
+    let mut last_err = anyhow!("Placeholder: initial error");
+
+    let mut iter = 1;
+    loop {
+        debug!(%iter, %low, %high, ?best_succ, %last_err, "Max flow iteration");
+
+        if low == high {
+            break;
         }
 
-        router
-            .find_route(
-                &payer_pubkey,
-                &route_params,
-                Some(first_hops),
-                in_flight_htlcs,
-            )
-            .map_err(|LightningError { err, action: _ }| anyhow!("{err}"))?
+        let mid = (low + high) / dec!(2);
+
+        let route_result = routing_context.find_route(router, mid);
+
+        match route_result {
+            Ok(_) => {
+                // Successfully routed mid, store succ and try larger
+                best_succ = Some(mid);
+                low = mid.saturating_add(one_sat).min(high);
+            }
+            Err(e) => {
+                // Could not route mid, store error and try smaller
+                last_err = e;
+                high = mid.saturating_sub(one_sat).max(low);
+            }
+        }
+
+        if iter >= MAX_ITERATIONS {
+            break;
+        } else {
+            iter += 1;
+        }
+    }
+
+    let max_flow_result = match best_succ {
+        Some(succ) => Ok(succ.round_sat()),
+        // No route found at all
+        None => Err(last_err),
     };
 
-    Ok((route, route_params))
+    let elapsed_ms = DisplayMs(start.elapsed());
+    info!("Max flow result ({iter} iters) <{elapsed_ms}>: {max_flow_result:?}");
+
+    max_flow_result
 }
 
 #[cfg(test)]
