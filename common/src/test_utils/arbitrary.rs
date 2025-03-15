@@ -36,6 +36,7 @@ use proptest::{
     test_runner::{Config, RngAlgorithm, TestRng, TestRunner},
 };
 use rand::Rng;
+use rust_decimal::Decimal;
 use semver::{BuildMetadata, Prerelease};
 
 use crate::{
@@ -206,6 +207,20 @@ pub fn any_chrono_datetime() -> impl Strategy<Value = chrono::DateTime<Utc>> {
     (secs_range, nanos_range)
         .prop_filter_map("Invalid chrono::DateTime<Utc>", |(secs, nanos)| {
             chrono::DateTime::from_timestamp(secs, nanos)
+        })
+}
+
+pub fn any_decimal() -> impl Strategy<Value = Decimal> {
+    (
+        any::<u32>(),
+        any::<u32>(),
+        any::<u32>(),
+        any::<bool>(),
+        // Scale must be between 0 and 28 (inclusive).
+        0u32..=28,
+    )
+        .prop_map(|(lo, mid, hi, negative, scale)| {
+            Decimal::from_parts(lo, mid, hi, negative, scale)
         })
 }
 
