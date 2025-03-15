@@ -39,12 +39,14 @@ pub struct LspInfo {
     /// The protocol://host:port of the LSP's HTTP server. The node will
     /// default to a mock client if not supplied, provided that
     /// `--allow-mock` is set and we are not in prod.
-    #[serde(rename = "url")] // Original name needed for forward compat
+    // compat: alias added in {node,lsp}-v0.7.0
+    #[serde(rename = "url", alias = "node_api_url")]
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
     pub node_api_url: Option<String>,
     pub node_pk: NodePk,
     /// The socket on which the LSP accepts P2P LN connections from user nodes
-    #[serde(rename = "addr")] // Original name needed for forward compat
+    // compat: alias added in {node,lsp}-v0.7.0
+    #[serde(rename = "addr", alias = "private_p2p_addr")]
     pub private_p2p_addr: LxSocketAddress,
 
     // -- LSP -> User fees -- //
@@ -53,16 +55,19 @@ pub struct LspInfo {
     /// - For inbound payments, this fee is encoded in the invoice route hints
     ///   (as part of the `RoutingFees` struct)
     /// - Also used to estimate how much can be sent to another Lexe user.
-    // Original name, needed for forward compat
-    #[serde(rename = "base_msat")]
+    // compat: alias added in {node,lsp}-v0.7.0
+    #[serde(rename = "base_msat", alias = "lsp_usernode_base_fee_msat")]
     pub lsp_usernode_base_fee_msat: u32,
     /// LSP's configured prop fee for forwarding over LSP -> User channels.
     ///
     /// - For inbound payments, this fee is encoded in the invoice route hints
     ///   (as part of the `RoutingFees` struct)
     /// - Also used to estimate how much can be sent to another Lexe user.
-    // Original name, needed for forward compat
-    #[serde(rename = "proportional_millionths")]
+    // compat: alias added in {node,lsp}-v0.7.0
+    #[serde(
+        rename = "proportional_millionths",
+        alias = "lsp_usernode_prop_fee_ppm"
+    )]
     pub lsp_usernode_prop_fee_ppm: u32,
 
     // -- LSP -> External fees -- //
