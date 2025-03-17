@@ -1,3 +1,5 @@
+/// Macros for API clients/servers.
+pub mod macros;
 /// A client and helpers that enforce common REST semantics across Lexe crates.
 pub mod rest;
 /// Webserver utilities.

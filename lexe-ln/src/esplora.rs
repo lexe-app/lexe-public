@@ -236,6 +236,7 @@ impl LexeEsplora {
     /// trying all of the URLs until one succeeds or all fail. If successful,
     /// returns the client, the fee refresher task, and the chosen esplora url.
     pub async fn init_any(
+        user_agent: &'static str,
         rng: &mut impl RngCore,
         mut esplora_urls: Vec<String>,
         shutdown: NotifyOnce,
@@ -249,7 +250,8 @@ impl LexeEsplora {
         let mut err_msgs = Vec::new();
         for url in esplora_urls {
             info!("Initializing Esplora from url: {url}");
-            let init_result = Self::init(url.clone(), shutdown.clone()).await;
+            let init_result =
+                Self::init(user_agent, url.clone(), shutdown.clone()).await;
 
             match init_result {
                 Ok((client, fee_estimates, task)) => {
@@ -276,6 +278,7 @@ impl LexeEsplora {
     // [`LexeEsplora::init_any`] relies on (2) to gracefully recover from 'bad'
     // Esplora URLs (which have likely been fixed in a later version).
     pub async fn init(
+        user_agent: &'static str,
         esplora_url: String,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<(Arc<Self>, Arc<FeeEstimates>, LxTask<()>)> {
@@ -287,7 +290,7 @@ impl LexeEsplora {
 
         // LexeEsplora wraps AsyncClient which in turn wraps reqwest::Client.
         let reqwest_client = {
-            let builder = rest::RestClient::client_builder("TODO")
+            let builder = rest::RestClient::client_builder(user_agent)
                 .use_preconfigured_tls(tls_config);
 
             // Only allow http in tests

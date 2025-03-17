@@ -27,6 +27,9 @@ pub(crate) mod client;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod mock;
 
+/// The user agent string for external requests.
+pub static USER_AGENT_EXTERNAL: &str = lexe_api::user_agent_external!();
+
 /// A trait for a client that implements both backend API traits, plus a
 /// method which allows the caller to specify the number of retries.
 #[async_trait]
