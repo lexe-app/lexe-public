@@ -35,6 +35,12 @@
       "revision": "6ec7a66f9b7c5125a2ff09d396fd04db7d093364",
       "release-date": "2025-03-13",
       "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.6.21"
+    },
+    "0.7.0": {
+      "measurement": "6515ce67aa3d17e18ffcfb1856f6167c38f8d0f70d45e254e1bd8985b6bd2299",
+      "revision": "0c96993d5db2e0712c02d2b6d5eb719810842849",
+      "release-date": "2025-03-17",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.7.0"
     }
   }
 }
