@@ -967,12 +967,12 @@ impl SseDecode for crate::ffi::api::Balance {
         let mut var_totalSats = <u64>::sse_decode(deserializer);
         let mut var_onchainSats = <u64>::sse_decode(deserializer);
         let mut var_lightningSats = <u64>::sse_decode(deserializer);
-        let mut var_lightningSendableSats = <u64>::sse_decode(deserializer);
+        let mut var_lightningMaxSendableSats = <u64>::sse_decode(deserializer);
         return crate::ffi::api::Balance {
             total_sats: var_totalSats,
             onchain_sats: var_onchainSats,
             lightning_sats: var_lightningSats,
-            lightning_sendable_sats: var_lightningSendableSats,
+            lightning_max_sendable_sats: var_lightningMaxSendableSats,
         };
     }
 }
@@ -2151,7 +2151,9 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::Balance {
             self.total_sats.into_into_dart().into_dart(),
             self.onchain_sats.into_into_dart().into_dart(),
             self.lightning_sats.into_into_dart().into_dart(),
-            self.lightning_sendable_sats.into_into_dart().into_dart(),
+            self.lightning_max_sendable_sats
+                .into_into_dart()
+                .into_dart(),
         ]
         .into_dart()
     }
@@ -3293,7 +3295,7 @@ impl SseEncode for crate::ffi::api::Balance {
         <u64>::sse_encode(self.total_sats, serializer);
         <u64>::sse_encode(self.onchain_sats, serializer);
         <u64>::sse_encode(self.lightning_sats, serializer);
-        <u64>::sse_encode(self.lightning_sendable_sats, serializer);
+        <u64>::sse_encode(self.lightning_max_sendable_sats, serializer);
     }
 }
 

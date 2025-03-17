@@ -1861,7 +1861,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       totalSats: dco_decode_CastedPrimitive_u_64(arr[0]),
       onchainSats: dco_decode_CastedPrimitive_u_64(arr[1]),
       lightningSats: dco_decode_CastedPrimitive_u_64(arr[2]),
-      lightningSendableSats: dco_decode_CastedPrimitive_u_64(arr[3]),
+      lightningMaxSendableSats: dco_decode_CastedPrimitive_u_64(arr[3]),
     );
   }
 
@@ -2849,13 +2849,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_totalSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_onchainSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_lightningSats = sse_decode_CastedPrimitive_u_64(deserializer);
-    var var_lightningSendableSats =
+    var var_lightningMaxSendableSats =
         sse_decode_CastedPrimitive_u_64(deserializer);
     return Balance(
         totalSats: var_totalSats,
         onchainSats: var_onchainSats,
         lightningSats: var_lightningSats,
-        lightningSendableSats: var_lightningSendableSats);
+        lightningMaxSendableSats: var_lightningMaxSendableSats);
   }
 
   @protected
@@ -3871,7 +3871,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_CastedPrimitive_u_64(self.totalSats, serializer);
     sse_encode_CastedPrimitive_u_64(self.onchainSats, serializer);
     sse_encode_CastedPrimitive_u_64(self.lightningSats, serializer);
-    sse_encode_CastedPrimitive_u_64(self.lightningSendableSats, serializer);
+    sse_encode_CastedPrimitive_u_64(self.lightningMaxSendableSats, serializer);
   }
 
   @protected

@@ -6,7 +6,6 @@ import 'dart:async' show unawaited;
 import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
 import 'package:app_rs_dart/ffi/api.dart'
     show
-        Balance,
         FeeEstimate,
         FiatRate,
         ListChannelsResponse,
@@ -176,12 +175,12 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
   @override
   Widget build(BuildContext context) {
     final mockApp = mocks.MockAppHandle(
-      balance: mocks.defaultBalance,
+      balance: mocks.balanceDefault,
       payments: mocks.defaultDummyPayments,
       channels: mocks.defaultDummyChannels,
     );
     final mockAppErr = mocks.MockAppHandleErr(
-      balance: mocks.defaultBalance,
+      balance: mocks.balanceDefault,
       payments: mocks.defaultDummyPayments,
       channels: mocks.defaultDummyChannels,
     );
@@ -318,7 +317,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 app: mocks.MockAppHandle(
                   payments: [],
                   channels: [],
-                  balance: mocks.zeroBalance,
+                  balance: mocks.balanceZero,
                 ),
                 settings: LxSettings(mockApp.settingsDb()),
                 config: widget.config,
@@ -332,12 +331,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 app: mocks.MockAppHandle(
                   payments: [mocks.dummyOnchainInboundCompleted01],
                   channels: [],
-                  balance: const Balance(
-                    onchainSats: 20000,
-                    lightningSats: 0,
-                    lightningSendableSats: 0,
-                    totalSats: 20000,
-                  ),
+                  balance: mocks.balanceOnchainOnly,
                 ),
                 settings: LxSettings(mockApp.settingsDb()),
                 config: widget.config,
@@ -536,12 +530,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (context) => OpenChannelPage(
                 app: mockApp,
                 balanceState: ValueNotifier(const BalanceState(
-                  balanceSats: Balance(
-                    totalSats: 123000,
-                    lightningSats: 0,
-                    lightningSendableSats: 0,
-                    onchainSats: 123000,
-                  ),
+                  balanceSats: mocks.balanceOnchainOnly,
                   fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
                 )),
               ),
@@ -552,12 +541,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (context) => OpenChannelPage(
                 app: mockAppErr,
                 balanceState: ValueNotifier(const BalanceState(
-                  balanceSats: Balance(
-                    totalSats: 123000,
-                    lightningSats: 0,
-                    lightningSendableSats: 0,
-                    onchainSats: 123000,
-                  ),
+                  balanceSats: mocks.balanceOnchainOnly,
                   fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
                 )),
               ),
@@ -567,12 +551,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (context) => OpenChannelConfirmPage(
                 app: mockApp,
                 balanceState: ValueNotifier(const BalanceState(
-                  balanceSats: Balance(
-                    totalSats: 123000,
-                    lightningSats: 0,
-                    lightningSendableSats: 0,
-                    onchainSats: 123000,
-                  ),
+                  balanceSats: mocks.balanceOnchainOnly,
                   fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
                 )),
                 channelValueSats: 6500,
@@ -587,12 +566,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (context) => OpenChannelConfirmPage(
                 app: mockAppErr,
                 balanceState: ValueNotifier(const BalanceState(
-                  balanceSats: Balance(
-                    totalSats: 123000,
-                    lightningSats: 0,
-                    lightningSendableSats: 0,
-                    onchainSats: 123000,
-                  ),
+                  balanceSats: mocks.balanceOnchainOnly,
                   fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
                 )),
                 channelValueSats: 6500,
@@ -676,7 +650,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     version: "1.2.3",
                     measurement:
                         "1d97c2c837b09ec7b0e0b26cb6fa9a211be84c8fdb53299cc9ee8884c7a25ac1",
-                    balance: mocks.zeroBalance,
+                    balance: mocks.balanceZero,
                   );
                 }));
                 return NodeInfoPage(nodeInfo: nodeInfo, userInfo: userInfo);

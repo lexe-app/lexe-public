@@ -74,8 +74,10 @@ pub struct Balance {
     pub onchain_sats: u64,
     /// The sum channel balance of all usable _and_ pending channels.
     pub lightning_sats: u64,
-    /// Approximately the largest LN send amount we can make right now.
-    pub lightning_sendable_sats: u64,
+    /// Upper-bound on the largest LN send amount we can make right now.
+    /// Accounts for required Lexe fees. The user is unlikely to successfully
+    /// send this value to any non-Lexe recipient.
+    pub lightning_max_sendable_sats: u64,
 }
 
 impl From<&NodeInfoRs> for Balance {
@@ -98,13 +100,13 @@ impl From<&NodeInfoRs> for Balance {
         // so we handle sub-sat (msat) amounts correctly.
         let total = onchain + lightning;
 
-        // Separate out `sendable` for "can I pay this value" during send flow.
-        let lightning_sendable = info.lightning_balance.sendable;
+        // Separate out `max_sendable`.
+        let lightning_max_sendable = info.lightning_balance.max_sendable;
 
         Self {
             total_sats: total.sats_u64(),
             lightning_sats: lightning.sats_u64(),
-            lightning_sendable_sats: lightning_sendable.sats_u64(),
+            lightning_max_sendable_sats: lightning_max_sendable.sats_u64(),
             onchain_sats: onchain.sats_u64(),
         }
     }

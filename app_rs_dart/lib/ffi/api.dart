@@ -24,7 +24,7 @@ class Balance with _$Balance {
     required int totalSats,
     required int onchainSats,
     required int lightningSats,
-    required int lightningSendableSats,
+    required int lightningMaxSendableSats,
   }) = _Balance;
 }
 

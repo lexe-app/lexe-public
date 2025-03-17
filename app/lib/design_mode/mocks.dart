@@ -408,7 +408,7 @@ class MockAppHandleScreenshots extends MockAppHandle {
             dummyInvoiceInboundCompleted02,
           ],
           channels: [],
-          balance: defaultBalance,
+          balance: balanceDefault,
         );
 
   @override
@@ -436,7 +436,7 @@ class MockAppHandleScreenshots extends MockAppHandle {
         balance: Balance(
           totalSats: 233671,
           lightningSats: 154226,
-          lightningSendableSats: 154226 - 6878,
+          lightningMaxSendableSats: 154226 - 4500,
           onchainSats: 233671 - 154226,
         ),
       ));
@@ -549,18 +549,25 @@ class MockRestoreApi implements RestoreApi {
 // Dummy balance data
 //
 
-const Balance defaultBalance = Balance(
+const Balance balanceDefault = Balance(
   lightningSats: 198466,
-  lightningSendableSats: 198466 - 4354,
+  lightningMaxSendableSats: 198466 - 2300,
   onchainSats: 21214,
   totalSats: 198466 + 21214,
 );
 
-const Balance zeroBalance = Balance(
+const Balance balanceZero = Balance(
   totalSats: 0,
   lightningSats: 0,
-  lightningSendableSats: 0,
+  lightningMaxSendableSats: 0,
   onchainSats: 0,
+);
+
+const Balance balanceOnchainOnly = Balance(
+  totalSats: 123000,
+  lightningSats: 0,
+  lightningMaxSendableSats: 0,
+  onchainSats: 123000,
 );
 
 //
