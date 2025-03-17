@@ -982,8 +982,16 @@ mod test {
                 },
             );
 
-            // persist tx
-            wallet.insert_tx(tx);
+            // Persist `tx`
+            wallet
+                .apply_update(bdk_wallet::Update {
+                    tx_update: bdk_chain::TxUpdate {
+                        txs: vec![Arc::new(tx)],
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .unwrap();
             wallet
                 .apply_update(bdk_wallet::Update {
                     tx_update: bdk_chain::tx_graph::TxUpdate {
@@ -1104,10 +1112,6 @@ mod test {
         });
     }
 
-    // Snapshot taken 2024-11-14
-    const CHANGESET_SNAPSHOT: &str =
-        include_str!("../data/changeset-snapshot.json");
-
     #[test]
     fn default_changeset_is_empty() {
         assert!(ChangeSet::default().is_empty());
@@ -1121,9 +1125,20 @@ mod test {
         );
     }
 
+    // Snapshot taken 2024-11-14 @ bdk-v1.0.0-beta.5
+    const CHANGESET_SNAPSHOT_1_0_0_BETA_5: &str =
+        include_str!("../data/changeset-snapshot.v1.0.0-beta.5.json");
+
+    // Snapshot taken 2025-03-16 @ bdk-v1.1.0
+    const CHANGESET_SNAPSHOT_1_1_0: &str =
+        include_str!("../data/changeset-snapshot.v1.1.0.json");
+
     #[test]
-    fn test_changeset_snapshot() {
-        serde_json::from_str::<Vec<ChangeSet>>(CHANGESET_SNAPSHOT).unwrap();
+    fn test_changeset_snapshots() {
+        serde_json::from_str::<Vec<ChangeSet>>(CHANGESET_SNAPSHOT_1_0_0_BETA_5)
+            .unwrap();
+        serde_json::from_str::<Vec<ChangeSet>>(CHANGESET_SNAPSHOT_1_1_0)
+            .unwrap();
     }
 
     /// Dumps a JSON array of three `ChangeSet`s using the proptest strategy.
@@ -1134,7 +1149,7 @@ mod test {
     #[ignore]
     #[test]
     fn dump_changesets() {
-        let mut rng = FastRng::from_u64(20241030);
+        let mut rng = FastRng::from_u64(20250316);
         let strategy = arbitrary_impl::any_changeset();
         let changesets = arbitrary::gen_value_iter(&mut rng, strategy)
             .take(3)

@@ -63,9 +63,9 @@ base64 = "0.22"
 # Binary canonical serialization format
 bcs = "0.1"
 # BDK (Bitcoin Dev Kit) libraries
-bdk_wallet = { version = "=1.0.0-beta.5", default-features = false, features = ["std"] }
-bdk_chain = { version = "0.20", default-features = false, features = ["std"] }
-bdk_esplora = { version = "0.19", default-features = false, features = ["std", "async"] }
+bdk_wallet = { version = "1.1.0", default-features = false, features = ["std"] }
+bdk_chain = { version = "0.21", default-features = false, features = ["std"] }
+bdk_esplora = { version = "0.20", default-features = false, features = ["std", "async"] }
 # Encoding and decoding of the Bech32 format.
 bech32 = "0.9"
 # BIP39 mnemonic codes
@@ -104,9 +104,7 @@ futures = "0.3"
 http = "1"
 http-body-util = "0.1"
 # Low-level async HTTP library and server
-# Use both hyper 0.14.28 and 1.0 at the same time while we transition
 hyper = { version = "1", default-features = false, features = ["http2"] }
-hyper_old = { version = "=0.14.28", package = "hyper", default-features = false, features = ["deprecated"] }
 # Recursively walk directory, respecting .gitignore and other glob filters.
 ignore = "0.4"
 # Cross-platform access to host secret storage
@@ -144,8 +142,6 @@ rustc-demangle = "0.1"
 rustls = { version = "0.22", default-features = false }
 # Deserialize PEM certs
 rustls-pemfile = "1"
-# TODO(max): Remove once esplora-client no longer needs it...
-rustls21 = { package = "rustls", version = "0.21", default-features = false }
 # Required to name our signature algorithms.
 # The version should match that used by rustls.
 # For some reason this breaks if we don't specify `package = "rustls-webpki"`
@@ -210,7 +206,7 @@ dcap-ql = { version = "=0.4.0", default-features = false }
 # Fortanix EDP crate for running SGX applications, includes usercall extensions
 enclave-runner = { version = "=0.6.0", default-features = false }
 # Async Esplora client
-esplora-client = { version = "0.10", default-features = false, features = ["async", "tokio"] }
+esplora-client = { version = "0.11", default-features = false, features = ["async", "tokio"] }
 # Hyper-related utilities
 hyper-util = { version = "=0.1.5", default-features = false, features = ["http2"] }
 # LDK (rust-lightning) libraries
@@ -222,11 +218,8 @@ lightning-types = "=0.2.0"
 mio = "=0.8.11"
 # High-level HTTP client
 reqwest = { version = "=0.12.1", default-features = false, features = ["http2", "rustls-tls-manual-roots"] }
-# TODO(max): Remove once esplora-client no longer needs it
-reqwest11 = { version = "=0.11.26", package = "reqwest", default-features = false }
 # Safe and small crypto primitives based on BoringSSL
 ring = "=0.17.8"
-ring16 = { version = "=0.16.20", package = "ring" } # TODO(max): Remove
 # Core SGX types and platform intrinsics (for sealing, reports, etc...)
 sgx-isa = "=0.4.1"
 sgxs = "=0.8.0"
@@ -258,11 +251,9 @@ sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30
 axum-server = { git = "https://github.com/lexe-app/axum-server", branch = "lexe-v0.6.0-2024_10_11" }
 
 # * license: Add dual license information
-# * refactor(async)!: remove async-std dependency, allow custom runtime
-#   - TODO(max): Remove once merged
-# * cargo: Reduce `tokio` requirement to 1.36
-#   - TODO(max): Remove
-esplora-client = { git = "https://github.com/lexe-app/rust-esplora-client", branch = "lexe-v0.10.0-2024_11_14" }
+# * chore(deps): update `reqwest` to `0.12`
+#   PR: <https://github.com/bitcoindevkit/rust-esplora-client/pull/118>
+esplora-client = { git = "https://github.com/lexe-app/rust-esplora-client", branch = "lexe-v0.11.0-2025_03_11" }
 # esplora-client.path = "../../forks/rust-esplora-client"
 
 # * license: Add dual license information
@@ -271,17 +262,11 @@ esplora-client = { git = "https://github.com/lexe-app/rust-esplora-client", bran
 hyper-util = { git = "https://github.com/lexe-app/hyper-util", branch = "lexe-v0.1.5-2024_10_11" }
 
 # * license: Add dual license information
-# * support sgx: Remove socket2 dependency. Just use tokio APIs directly. 
-# TODO(max): Remove this patch once everything updates to hyper 1.0
-hyper_old = { package = "hyper", git = "https://github.com/lexe-app/hyper", branch = "lexe-v0.14.28-2024_10_11" }
-
-# * license: Add dual license information
 # * lightning-invoice: increase max length to 7089
-# * lightning-transaction-sync: downgrade esplora-client 0.11 -> 0.10
-lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_14" }
-lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_14" }
-lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_14" }
-lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_14" }
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_16" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_16" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_16" }
+lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_16" }
 # lightning.path = "../../ldk/lightning"
 # lightning-invoice.path = "../../ldk/lightning-invoice"
 # lightning-transaction-sync.path = "../../ldk/lightning-transaction-sync"
@@ -298,7 +283,6 @@ mio = { git = "https://github.com/lexe-app/mio", branch = "lexe-v0.8.11-2024_10_
 # * proxy: Expose `ProxyScheme`, `set_custom_http_auth`
 # * lib: Fail compilation if using insecure TLS roots
 reqwest = { git = "https://github.com/lexe-app/reqwest", branch = "lexe-v0.12.1-2024_10_11" }
-reqwest11 = { package = "reqwest", git = "https://github.com/lexe-app/reqwest", branch = "lexe-v0.11.26-2024_10_11" }
 
 # * license: Add dual license information
 # * cpu: use static cpuid feature set in SGX enclaves

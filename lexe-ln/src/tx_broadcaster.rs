@@ -6,6 +6,7 @@ use common::{
     test_event::TestEvent, Apply,
 };
 use const_utils::const_assert;
+use lexe_api::rest;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use tokio::sync::{
     mpsc::{self, error::TrySendError},
@@ -14,15 +15,13 @@ use tokio::sync::{
 use tracing::{error, info, info_span, warn, Instrument};
 
 use crate::{
-    esplora::{self, LexeEsplora},
-    test_event::TestEventSender,
-    wallet::LexeWallet,
+    esplora::LexeEsplora, test_event::TestEventSender, wallet::LexeWallet,
     BoxedAnyhowFuture, DisplayVec,
 };
 
 /// Maximum time we'll wait for a response from the broadcaster task.
-const RESPONSE_TIMEOUT: Duration = Duration::from_secs(15);
-const_assert!(RESPONSE_TIMEOUT.as_secs() > esplora::CLIENT_TIMEOUT.as_secs());
+const RESPONSE_TIMEOUT: Duration = Duration::from_secs(35);
+const_assert!(RESPONSE_TIMEOUT.as_secs() > rest::API_REQUEST_TIMEOUT.as_secs());
 
 /// The type of the hook to be called just before broadcasting a tx.
 type PreBroadcastHook =

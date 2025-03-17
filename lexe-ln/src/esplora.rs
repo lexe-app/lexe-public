@@ -19,6 +19,7 @@ use common::{
     task::LxTask,
 };
 use esplora_client::{api::OutputStatus, AsyncClient};
+use lexe_api::{rest, tls};
 use lightning::chain::chaininterface::{
     ConfirmationTarget, FeeEstimator, FEERATE_FLOOR_SATS_PER_KW,
 };
@@ -31,9 +32,6 @@ use tracing::{debug, info, instrument, warn};
 // Esplora backend, we set this to a fairly high value of refreshing just once
 // an hour. There is a guaranteed refresh at init.
 const REFRESH_FEE_ESTIMATES_INTERVAL: Duration = Duration::from_secs(60 * 60);
-
-/// The duration after which our client times out requests to the Esplora API.
-pub(crate) const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// The default `-mempoolexpiry` value in Bitcoin Core (14 days). If a
 /// transaction is older than this and still hasn't been confirmed, it is
@@ -281,9 +279,25 @@ impl LexeEsplora {
         esplora_url: String,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<(Arc<Self>, Arc<FeeEstimates>, LxTask<()>)> {
+        // Use WebPKI certs to avoid production outages when external Esplora
+        // providers change their CA certs.
+        let tls_config = tls::client_config_builder()
+            .with_root_certificates(tls::WEBPKI_ROOT_CERTS.clone())
+            .with_no_client_auth();
+
         // LexeEsplora wraps AsyncClient which in turn wraps reqwest::Client.
-        let reqwest_client = Self::build_reqwest_client()
-            .context("Failed to build reqwest client")?;
+        let reqwest_client = {
+            let builder = rest::RestClient::client_builder("TODO")
+                .use_preconfigured_tls(tls_config);
+
+            // Only allow http in tests
+            #[cfg(any(test, feature = "test-utils"))]
+            let builder = builder.https_only(false);
+
+            builder
+                .build()
+                .expect("Failed to build esplora reqwest client")
+        };
         let client = AsyncClient::from_client(esplora_url, reqwest_client);
 
         // Initial cached fee estimates
@@ -302,50 +316,6 @@ impl LexeEsplora {
         let task = Self::spawn_refresh_fees_task(esplora.clone(), shutdown);
 
         Ok((esplora, fee_estimates, task))
-    }
-
-    /// Builds the [`reqwest11::Client`] used by the [`AsyncClient`].
-    ///
-    /// We trust Mozilla's webpki roots because Esplora providers sometimes
-    /// change their root CAs, which has historically caused our esplora clients
-    /// to break. Since user nodes might be updated very infrequently, it is
-    /// more practical to just trust the Mozilla set of CA roots.
-    fn build_reqwest_client() -> anyhow::Result<reqwest11::Client> {
-        use rustls21::OwnedTrustAnchor;
-
-        let mut root_cert_store = rustls21::RootCertStore::empty();
-
-        // We add the trust anchors manually to avoid enabling reqwest's
-        // `rustls-tls-webpki-roots` feature, which propagates to other crates
-        // via feature unification. Safer to use this workaround than to have to
-        // remember to set `.tls_built_in_root_certs(false)` in every builder.
-        let mozilla_roots = webpki_roots::TLS_SERVER_ROOTS.iter().map(|root| {
-            OwnedTrustAnchor::from_subject_spki_name_constraints(
-                root.subject.to_vec(),
-                root.subject_public_key_info.to_vec(),
-                root.name_constraints.as_ref().map(|nc| nc.to_vec()),
-            )
-        });
-        root_cert_store.add_trust_anchors(mozilla_roots);
-
-        // TODO(max): Switch to common::tls::client_config_builder() once
-        // esplora-client updates reqwest / rustls to the same version we use.
-        #[allow(clippy::disallowed_methods)]
-        let tls_config = rustls21::ClientConfig::builder()
-            .with_safe_default_cipher_suites()
-            .with_safe_default_kx_groups()
-            .with_safe_default_protocol_versions()
-            .context("Failed to specify TLS config versions")?
-            .with_root_certificates(root_cert_store)
-            .with_no_client_auth();
-
-        let client = reqwest11::ClientBuilder::new()
-            .use_preconfigured_tls(tls_config)
-            .timeout(CLIENT_TIMEOUT)
-            .build()
-            .context("reqwest::ClientBuilder::build failed")?;
-
-        Ok(client)
     }
 
     /// Spawns a task that periodically calls [`Self::refresh_fee_estimates`].
@@ -539,14 +509,5 @@ mod test {
 
             prop_assert_eq!(our_feerate_res, their_feerate_res);
         })
-    }
-
-    /// Tests that we can build the reqwest client. This test exists mostly
-    /// because `ClientBuilder::use_preconfigured_tls` takes `impl Any` as its
-    /// parameter, so if we build the TLS config with the wrong rustls version,
-    /// it won't be caught at compile time.
-    #[test]
-    fn test_build_reqwest_client() {
-        LexeEsplora::build_reqwest_client().unwrap();
     }
 }

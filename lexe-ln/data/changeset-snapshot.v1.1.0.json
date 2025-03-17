@@ -1,0 +1,308 @@
+[
+  {
+    "descriptor": null,
+    "change_descriptor": null,
+    "network": "signet",
+    "local_chain": {
+      "blocks": {
+        "48029303": "40190aee56b075258c769119f642bbb020a051bd37ea08a66369b431d4936074",
+        "74419109": "8ab26a4fbecfc0f3f2bd3b317255d76ab43205eac2689a072150ef3183fb327e",
+        "1234329043": "27f17fc065aa4a187ac5fcedf4c85d48c5b878a5ba3ab35ed18901aa2cd74975"
+      }
+    },
+    "tx_graph": {
+      "txs": [
+        {
+          "version": -1350745386,
+          "lock_time": 4266714838,
+          "input": [
+            {
+              "previous_output": "05ed553ce36a298e3398149408d80edc14b33f2763865d516c02c096e22e1940:2906842572",
+              "script_sig": "20059a82536317a14107cbf159315c389c273298302e80350806ed1abecd3b39623d1e8dc76145dc3420c4a407cc5df830e75593a7291c0a8f3d8083ba0311483b08459aa104964a8bf36920eaf783f2f26d33d15684807ae5153a5004e4389210527fa85aa66549503a2a3369",
+              "sequence": 1057143513,
+              "witness": [
+                "",
+                "abf7993dc1d86b",
+                "d52397",
+                ""
+              ]
+            }
+          ],
+          "output": [
+            {
+              "value": 15283338366686229996,
+              "script_pubkey": "692504cdcc7c3b0862e1771d85c6befb"
+            },
+            {
+              "value": 14562803006048141188,
+              "script_pubkey": "169234b234d6f97942e3f8b561905d402fe42b18b9baf0"
+            }
+          ]
+        },
+        {
+          "version": 315856140,
+          "lock_time": 229757297,
+          "input": [
+            {
+              "previous_output": "929196b6f1aa9a9ff319b520e25730fd90405553011d971c1f81285433750196:2282903979",
+              "script_sig": "20ee9c721b82eb6e62fa20b0ffc6e5b964b70e57dee38bbf1db41667284d6a12aa791cb39fdc661fa9cb655074309c479d51fb34d080b9a9297a6a48eaa7381f22058a6b6fa66fa62051248cd78b04d4e40565c5519786a3629564ab51deaf08705c4585494a03aa",
+              "sequence": 3917085256,
+              "witness": [
+                "78344b4e",
+                "56ca",
+                "7d43c3a4",
+                "98a026",
+                "7fe4"
+              ]
+            }
+          ],
+          "output": [
+            {
+              "value": 3917540306095119079,
+              "script_pubkey": ""
+            },
+            {
+              "value": 9565148797203094193,
+              "script_pubkey": "692708681d7530ea233305047c818838202babf52137959c129bd031f088458d126beb111b024ea90fd7ed210043189b90"
+            }
+          ]
+        }
+      ],
+      "txouts": {},
+      "anchors": [
+        [
+          {
+            "block_id": {
+              "height": 102576108,
+              "hash": "2ad75dd8b7e955e93c1f5588dd38014f965b06a0399ab1b97d0142ebd3d196ef"
+            },
+            "confirmation_time": 13861374165236564253
+          },
+          "b55cc5b2a996f7fdc00e00bf639ae772c2bf24763dbfe033852c05db7134ca9c"
+        ],
+        [
+          {
+            "block_id": {
+              "height": 827472657,
+              "hash": "8ad1a4910022f9b30c0974a259246ab711b3aa8d1e67e9196bfe4662a8a5fd50"
+            },
+            "confirmation_time": 4302480161462830059
+          },
+          "05b103fb4a9d71d2edbb9264940980f64005983124d9edc7abece0759ce0d775"
+        ],
+        [
+          {
+            "block_id": {
+              "height": 1824011078,
+              "hash": "ad3275896b15f28ba67f2c02f39fe7c5350ae6f625bbf9453c291e96c37e25d1"
+            },
+            "confirmation_time": 18112056676471315630
+          },
+          "49efa2d3bb11eb82d5631f2ea787777306501a9f4172031e1c4cfff46ab9db28"
+        ]
+      ],
+      "last_seen": {}
+    },
+    "indexer": {
+      "last_revealed": {
+        "5fdd40903880afd92ee299ea38a45b849703338baf5aa6813749b95daabe4eca": 3946485565,
+        "f90355e8b0f85a5bf156335fabba39b4f4beffcfd758ba092336ad06d9790315": 12958290
+      }
+    }
+  },
+  {
+    "descriptor": null,
+    "change_descriptor": null,
+    "network": null,
+    "local_chain": {
+      "blocks": {}
+    },
+    "tx_graph": {
+      "txs": [
+        {
+          "version": -1865247514,
+          "lock_time": 708127749,
+          "input": [
+            {
+              "previous_output": "10ca09cb62fa11fa1947513a60f31c0e03e7c8b528781e7b581fad39e8e11576:4280015504",
+              "script_sig": "0e299dae9b234e272e9e7597f5348821034399076d5fc9ed8cc24f732db60f036cdd5b700c34e9b08e17bca3cd8adde12f0406f22f0805130e9ff6a205f44312f400",
+              "sequence": 804603594,
+              "witness": [
+                "0d",
+                "1d24",
+                "",
+                ""
+              ]
+            }
+          ],
+          "output": [
+            {
+              "value": 5644096693184391134,
+              "script_pubkey": "053d2e14e90008835e3f549b44563e08af605e30648de3c6"
+            },
+            {
+              "value": 1129147515900046499,
+              "script_pubkey": "05a1e388d80020e0adeb57f5c441680fb547f2a22f247e2eb9df11348c4e0a95f2cd5f2ad1932c048ce4452020f001b27887914446b2d0c867cd54126c7e67f64d179472861abeafd939016d8268"
+            }
+          ]
+        }
+      ],
+      "txouts": {},
+      "anchors": [
+        [
+          {
+            "block_id": {
+              "height": 1265215507,
+              "hash": "16d629918f6cb3e798fc34b4c0520bd6ccf983a7eb826c4785d2cbb228ffda33"
+            },
+            "confirmation_time": 5829728355892364996
+          },
+          "55db117bcf0c8acb48fc4731436ba9b5b3dd0e65dae411f1ae065312d9b09fb1"
+        ],
+        [
+          {
+            "block_id": {
+              "height": 3459638103,
+              "hash": "fa3ad16a9364e1a255d82dae77ae06e91ca812e7b7ea6da68201fc6e1d950f6b"
+            },
+            "confirmation_time": 11333722647474182799
+          },
+          "f03f8d45895a3c5fb7def12e759daa7ace279b11e1cdc5f12ffa105530cbab73"
+        ]
+      ],
+      "last_seen": {
+        "f4390dff7113087c6f93bbb69fbe5bf6db4ca5f477cab8b3e0a4c4cf54b1594e": 3164441989123097166,
+        "3efc5747d5658aa4c6aeb127fea6277d41ede1b5e4ac14737f7d35118eab8c93": 1800945440062134431
+      }
+    },
+    "indexer": {
+      "last_revealed": {}
+    }
+  },
+  {
+    "descriptor": null,
+    "change_descriptor": null,
+    "network": "bitcoin",
+    "local_chain": {
+      "blocks": {
+        "840624891": null,
+        "3814582863": null
+      }
+    },
+    "tx_graph": {
+      "txs": [
+        {
+          "version": -443664281,
+          "lock_time": 3940453615,
+          "input": [
+            {
+              "previous_output": "02f37ec501848ce2ef1c5ef2b1ce027e2e9d6556acc8c415df139a8735d055d3:2201976094",
+              "script_sig": "",
+              "sequence": 1848869741,
+              "witness": [
+                "a6ac90cc",
+                "44468d99"
+              ]
+            },
+            {
+              "previous_output": "0e74d1f592b82804a1fb563178f3a3a9fa721c37fb9d7e50e91d41f22365f1ca:2210676961",
+              "script_sig": "2103686c62376719c5bbba38531eee308f3ad35a4837a5327f5782a30ee31eb44fdfd50a73c68264581401c6c6e61ed28010bb686573fa79566f6ef2158cb97b3d20b36110669ef85b754be59ab304e5d22a5605273364f000",
+              "sequence": 3200072984,
+              "witness": [
+                "b85b",
+                "c752f9bd",
+                "6f",
+                "d8ed22cd7d",
+                "4c8e3842",
+                "f1c3491cf9a8",
+                "f2e7"
+              ]
+            }
+          ],
+          "output": [
+            {
+              "value": 17393095118672806025,
+              "script_pubkey": "04489c074a"
+            },
+            {
+              "value": 15969149965440897170,
+              "script_pubkey": "97210213b4f87d5f83fb5a34d157747eca49b22b3b4d8c7c1cededcfd833e4460155a021027bc7e21922da309d64b8947631412857fcb8287d30e89e1c025ec6c252c5066d05b211d7b100046d0c1e0420759e61fe76f0042406146e3d785238f3eb7d9f344c7fa8f4a17a889fabea5104"
+            }
+          ]
+        },
+        {
+          "version": 2060999971,
+          "lock_time": 84432814,
+          "input": [
+            {
+              "previous_output": "77bdc8ca60cab346416917edc7f3d35f6b5bf1c98cdd49ed1fd44c6733cfcb35:1016965700",
+              "script_sig": "",
+              "sequence": 3758669581,
+              "witness": []
+            },
+            {
+              "previous_output": "a5bc58de740cf7b33ba9a92c2bb91122450d01ee25d4a19eeea535de9f48cb93:519697532",
+              "script_sig": "",
+              "sequence": 2079060293,
+              "witness": [
+                "",
+                "6003eb99a58099",
+                "cd",
+                "8acb324ea9"
+              ]
+            }
+          ],
+          "output": [
+            {
+              "value": 3495401004840224472,
+              "script_pubkey": "73058c40c8f600047722591d21033186ce3b084e45cd0816795e07a59259dde4a34ead2a5a092dd096178be0afc969047730cf44046acc34352073538e712ec993fb7528490a4e47e9bbbbb5adad3b0b611f72ad3a4047c721ef"
+            }
+          ]
+        }
+      ],
+      "txouts": {
+        "610ebee4a12bdc1ac375a47acc24a6b9640b9d8be2d3c04def0583dea6d81682:802431518": {
+          "value": 2645725322482432692,
+          "script_pubkey": "207e43f991bdb06ebcae4dde7511b08f263b16cb712433af59a916ffebb840956804f4c433072102183d29c16c6cd5b74d7d5fca16cb439c10788cbe538c7c9f28bf46fdabcd3f7f"
+        },
+        "f9a2ec4e1b31b394a51cb322102c4b2b0b473889a3915921046830776d8186e6:2067007970": {
+          "value": 9198205933453295949,
+          "script_pubkey": "6915b3eded38a8058f18df91d82850c8802fe6964d10096920876b1e51bbfa6182142127b1d529924e737040b23fb2f92a0aabfac5b005bd520507518ec50008f7a4b2e50242bdb104a27fff13055635d6c300"
+        }
+      },
+      "anchors": [
+        [
+          {
+            "block_id": {
+              "height": 1974429750,
+              "hash": "68398a4000a49a8f0aed13aee136e80b865da635fb79dc2156a61ccf4d03ebf0"
+            },
+            "confirmation_time": 17497517533451780918
+          },
+          "2f65f38bf39ba165e881909e729819d345179dee589569c858c7ae99ab4cc0c4"
+        ],
+        [
+          {
+            "block_id": {
+              "height": 2163134773,
+              "hash": "b6d233592bf63be1947ef79cd8ec7bcaa1c47eb14f78ce81d1417df36e75cfdc"
+            },
+            "confirmation_time": 7827505404569726751
+          },
+          "c7777e8030d5719456be5eb686968a459c46142a9751ce4049a1472b9f52d47d"
+        ]
+      ],
+      "last_seen": {
+        "2006566e28c0655e9f2bea845106a2993c2655ca6a471bb3cab0e3c913daaeac": 4060685816120668665,
+        "f1b66391728c72d8db1393be589ee2cd04c1f4730c9245033d4f27f575e4ebd8": 11162662411951178713
+      }
+    },
+    "indexer": {
+      "last_revealed": {
+        "7143bb33c789f7ae28268fd7a246efdcd8d42f2f305ddb0774968cbea18707f7": 3328848883,
+        "b0a0283e71233eb7c3807a9752e79657fea2e75dfdc6be108485a82ce012a1ed": 1767014310,
+        "c06cfeef4fd9149c5933234319c40a0bc8234cf1d99f81c1bae6f9d33ce99ead": 1919199202
+      }
+    }
+  }
+]
