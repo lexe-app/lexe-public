@@ -74,13 +74,18 @@ pub fn all_channel_balances<PS: LexePersister>(
         }
     }
 
+    let num_usable_channels_dec = Decimal::from(num_usable_channels);
+
     // Tweak sendable to account for the estimated total proportional fee.
     // sendable + sendable * prop_fee = sum(next_outbound_htlc_limit - base_fee)
     // sendable * (1 + prop_fee) = sum(next_outbound_htlc_limit - base_fee)
     // sendable = sum(next_outbound_htlc_limit - base_fee) / (1 + prop_fee)
     total_balance.sendable = total_balance
         .sendable
-        .checked_div(dec!(1) + est_total_prop_feerate)
+        .checked_div(dec!(1) + num_usable_channels_dec * est_total_prop_feerate)
+        // TODO(max): LDK appears to reapply the prop fee for each MPP shard
+        // when it should be `.checked_div(dec!(1) + est_total_prop_feerate)`
+        // https://github.com/lightningdevkit/rust-lightning/issues/3675
         .expect("Can't overflow because divisor is > 1");
 
     // Tweak max_sendable to account for the minimum LSP prop fee that would be
@@ -88,7 +93,10 @@ pub fn all_channel_balances<PS: LexePersister>(
     // max_sendable = sum(next_outbound_htlc_limit - base_fee) / (1 + prop_fee)
     total_balance.max_sendable = total_balance
         .max_sendable
-        .checked_div(dec!(1) + min_lsp_prop_fee)
+        // TODO(max): LDK appears to reapply the prop fee for each MPP shard
+        // when it should be `.checked_div(dec!(1) + min_lsp_prop_fee)`.
+        // https://github.com/lightningdevkit/rust-lightning/issues/3675
+        .checked_div(dec!(1) + num_usable_channels_dec * min_lsp_prop_fee)
         .expect("Can't overflow because divisor is > 1");
 
     (total_balance, num_usable_channels)
