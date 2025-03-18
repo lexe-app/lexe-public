@@ -11,7 +11,6 @@ import 'package:app_rs_dart/ffi/api.dart'
         PreflightPayInvoiceResponse,
         PreflightPayOnchainRequest,
         PreflightPayOnchainResponse;
-import 'package:app_rs_dart/ffi/api.ext.dart';
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/payment_uri.dart' as payment_uri;
 import 'package:app_rs_dart/ffi/types.dart'
@@ -29,7 +28,6 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentMethod_Offer,
         PaymentMethod_Onchain,
         PaymentStatus;
-import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:flutter/material.dart' show immutable;
 import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/logger.dart' show error, info;
@@ -147,9 +145,6 @@ class SendState_NeedAmount implements SendState {
   /// Otherwise, this will be non-null if we're coming from a QR code scan or
   /// URI open.
   final PaymentMethod paymentMethod;
-
-  int balanceMaxSendableSats() =>
-      this.balance.balanceMaxSendableByKind(this.paymentMethod.kind());
 
   /// Returns Some amount if this payment method already has an amount attached
   /// and can be preflighted immediately.

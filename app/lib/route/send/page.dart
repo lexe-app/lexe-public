@@ -6,8 +6,10 @@ import 'dart:async' show unawaited;
 
 import 'package:app_rs_dart/ffi/api.dart'
     show FeeEstimate, PreflightPayOnchainResponse;
+import 'package:app_rs_dart/ffi/api.ext.dart';
 import 'package:app_rs_dart/ffi/types.dart'
     show ConfirmationPriority, PaymentKind;
+import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:flutter/material.dart';
 import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
@@ -401,7 +403,9 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   }
 
   Result<(), String> validateAmount(int amount) {
-    final balanceMaxSendableSats = this.widget.sendCtx.balanceMaxSendableSats();
+    final kind = this.widget.sendCtx.paymentMethod.kind();
+    final balance = this.widget.sendCtx.balance;
+    final balanceMaxSendableSats = balance.maxSendableByKind(kind);
     if (amount > balanceMaxSendableSats) {
       final balanceMaxSendableStr = currency_format.formatSatsAmount(
         balanceMaxSendableSats,
@@ -415,9 +419,12 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 
   @override
   Widget build(BuildContext context) {
+    final kind = this.widget.sendCtx.paymentMethod.kind();
+    final balance = this.widget.sendCtx.balance;
     final balanceMaxSendableStr = currency_format.formatSatsAmount(
-        this.widget.sendCtx.balanceMaxSendableSats(),
-        satsSuffix: true);
+      balance.maxSendableByKind(kind),
+      satsSuffix: true,
+    );
 
     return Scaffold(
       appBar: AppBar(

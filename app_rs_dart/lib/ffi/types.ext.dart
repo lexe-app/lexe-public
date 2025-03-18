@@ -110,3 +110,11 @@ extension PaymentMethodExt on PaymentMethod {
         PaymentMethod_Offer() => throw UnimplementedError(),
       };
 }
+
+extension PaymentKindExt on PaymentKind {
+  bool isLightning() => switch (this) {
+        PaymentKind.onchain => false,
+        PaymentKind.invoice => true,
+        PaymentKind.spontaneous => true,
+      };
+}

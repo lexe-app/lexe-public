@@ -75,8 +75,8 @@ class _ChannelsPageState extends State<ChannelsPage> {
   /// The current sorted and projected lightning channels list.
   late final ComputedValueListenable<ChannelsList?> channels;
 
-  /// The current total lightning channel balance.
-  late final ComputedValueListenable<TotalChannelBalance?> totalChannelBalance;
+  /// The current total lightning channels balance.
+  late final ComputedValueListenable<TotalChannelsBalance> totalChannelsBalance;
 
   /// When the refresh button shows a loading spinner.
   late final ComputedValueListenable<bool> isRefreshing;
@@ -85,7 +85,7 @@ class _ChannelsPageState extends State<ChannelsPage> {
   void dispose() {
     // Dispose in reverse field order.
     this.isRefreshing.dispose();
-    this.totalChannelBalance.dispose();
+    this.totalChannelsBalance.dispose();
     this.channels.dispose();
     this.listChannelsOnRefresh.dispose();
     this.listChannelsService.dispose();
@@ -113,13 +113,11 @@ class _ChannelsPageState extends State<ChannelsPage> {
         .listChannels
         .map((resp) => (resp != null) ? ChannelsList.fromApi(resp) : null);
 
-    // Build [TotalChannelBalance].
-    this.totalChannelBalance = combine2(
+    // Build [TotalChannelsBalance].
+    this.totalChannelsBalance = combine2(
       this.listChannelsService.listChannels,
-      this.widget.fiatRate,
-      (channels, fiatRate) => (channels != null)
-          ? TotalChannelBalance.fromApi(channels, fiatRate)
-          : null,
+      this.widget.balanceState,
+      TotalChannelsBalance.fromApis,
     );
 
     // When the refresh button shows a loading spinner.
@@ -237,10 +235,10 @@ class _ChannelsPageState extends State<ChannelsPage> {
 
                       // Send up to/Receive up to
                       ValueListenableBuilder(
-                        valueListenable: this.totalChannelBalance,
-                        builder: (context, totalChannelBalance, child) =>
-                            TotalChannelBalanceWidget(
-                                totalChannelBalance: totalChannelBalance),
+                        valueListenable: this.totalChannelsBalance,
+                        builder: (context, totalChannelsBalance, child) =>
+                            TotalChannelsBalanceWidget(
+                                totalChannelsBalance: totalChannelsBalance),
                       ),
                       const SizedBox(height: Space.s650),
 
@@ -335,105 +333,92 @@ extension IntExt on int {
   int saturatingSub(final int other) => (this >= other) ? this - other : 0;
 }
 
-class TotalChannelBalance {
-  const TotalChannelBalance({
-    required this.outboundSendableSats,
+class TotalChannelsBalance {
+  const TotalChannelsBalance({
     required this.inboundCapacitySats,
-    required this.fiatRate,
+    required this.balance,
   });
-
-  /// The "true" point-in-time limit on what we can actually expect to send over
-  /// our outbound channels. This value is the sum of `next_outbound_htlc_limit`
-  /// over all `is_usable` channels.
-  ///
-  /// This value is different from a sum over the simpler `outbound_capacity`
-  /// values, each of which is just:
-  ///
-  /// `outbound_capacity := balance - punishment_reserve - pending_outbound_htlcs`
-  ///
-  /// Instead, a `next_outbound_htlc_limit` represents the true limit for the
-  /// next HTLC sent over that channel. It accounts for commitment tx fees, dust
-  /// limits, and counterparty constraints, on top of the base `outbound_capacity`.
-  final int outboundSendableSats;
 
   /// An approximate lower bound on the inbound capacity available to us.
   ///
   /// We don't currently have an accurate guage on "true" next HTLC receive
   /// limits the way we do for outbound channels.
-  final int inboundCapacitySats;
+  final int? inboundCapacitySats;
 
-  final FiatRate? fiatRate;
+  /// The total top-level wallet balance from [NodeInfo].
+  final BalanceState? balance;
 
-  factory TotalChannelBalance.fromApi(
-      ListChannelsResponse channels, FiatRate? fiatRate) {
-    final outboundSendableSats = channels.channels
-        .where((channel) => channel.isUsable)
-        .map((channel) => channel.nextOutboundHtlcLimitSats)
-        .sum;
-    final inboundCapacitySats = channels.channels
-        .where((channel) => channel.isUsable)
-        .map(
-            // Since we don't yet have an accurate "next_inbound_htlc_limit",
-            // we'll reduce each channel's inbound capacity by an
-            // experimentally determined value.
-            (channel) => channel.inboundCapacitySats
-                .saturatingSub(inboundCapacityTweakSats))
-        .sum;
+  factory TotalChannelsBalance.fromApis(
+    ListChannelsResponse? channels,
+    BalanceState? balance,
+  ) {
+    final inboundCapacitySats = (channels != null)
+        ? channels.channels
+            .where((channel) => channel.isUsable)
+            .map(
+              // Since we don't yet have an accurate "next_inbound_htlc_limit",
+              // we'll reduce each channel's inbound capacity by an
+              // experimentally determined value.
+              (channel) => channel.inboundCapacitySats
+                  .saturatingSub(inboundCapacityTweakSats),
+            )
+            .sum
+        : null;
 
-    return TotalChannelBalance(
-      outboundSendableSats: outboundSendableSats,
+    return TotalChannelsBalance(
       inboundCapacitySats: inboundCapacitySats,
-      fiatRate: fiatRate,
+      balance: balance,
     );
   }
 
   @override
-  int get hashCode =>
-      this.outboundSendableSats.hashCode ^
-      this.inboundCapacitySats.hashCode ^
-      this.fiatRate.hashCode;
+  int get hashCode => this.inboundCapacitySats.hashCode ^ this.balance.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is TotalChannelBalance &&
+      other is TotalChannelsBalance &&
           runtimeType == other.runtimeType &&
-          this.outboundSendableSats == other.outboundSendableSats &&
           this.inboundCapacitySats == other.inboundCapacitySats &&
-          this.fiatRate == other.fiatRate;
+          this.balance == other.balance;
 }
 
-class TotalChannelBalanceWidget extends StatelessWidget {
-  const TotalChannelBalanceWidget(
-      {super.key, required this.totalChannelBalance});
+class TotalChannelsBalanceWidget extends StatelessWidget {
+  const TotalChannelsBalanceWidget({
+    super.key,
+    required this.totalChannelsBalance,
+  });
 
-  final TotalChannelBalance? totalChannelBalance;
+  final TotalChannelsBalance? totalChannelsBalance;
 
   @override
   Widget build(BuildContext context) {
-    final fiatRate = this.totalChannelBalance?.fiatRate;
-    final outboundSendableSats = this.totalChannelBalance?.outboundSendableSats;
-    final inboundCapacitySats = this.totalChannelBalance?.inboundCapacitySats;
+    final balance = this.totalChannelsBalance?.balance;
+
+    // Show the max sendable amount.
+    final maxSendableSats = balance?.lightningMaxSendableSats();
+    final maxSendableFiat = balance?.lightningMaxSendableFiat();
+
+    // Hint that you will need to pay on-chain fees on receives above this value.
+    final inboundCapacitySats = this.totalChannelsBalance?.inboundCapacitySats;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         // Send up to sendable balance
-        TotalChannelBalanceRow(
+        TotalChannelsBalanceRow(
           color: LxColors.moneyGoUp,
           primaryText: const Text("Send up to"),
           secondaryText: const SizedBox(),
-          primaryAmount: SplitFiatAmountTextOrPlaceholder(
-            amountFiat:
-                FiatAmount.maybeFromSats(fiatRate, outboundSendableSats),
-          ),
+          primaryAmount:
+              SplitFiatAmountTextOrPlaceholder(amountFiat: maxSendableFiat),
           secondaryAmount:
-              SatsAmountTextOrPlaceholder(amountSats: outboundSendableSats),
+              SatsAmountTextOrPlaceholder(amountSats: maxSendableSats),
         ),
         const SizedBox(height: Space.s300),
 
         // Receive up to ∞
-        const TotalChannelBalanceRow(
+        const TotalChannelsBalanceRow(
           color: LxColors.moneyGoUpSecondary,
           primaryText: Text("Receive up to"),
           // secondaryText: "without miner fee*",
@@ -496,8 +481,8 @@ class TotalChannelBalanceWidget extends StatelessWidget {
   }
 }
 
-class TotalChannelBalanceRow extends StatelessWidget {
-  const TotalChannelBalanceRow({
+class TotalChannelsBalanceRow extends StatelessWidget {
+  const TotalChannelsBalanceRow({
     super.key,
     this.color,
     this.primaryText,
@@ -908,7 +893,7 @@ class OnchainBottomSheet extends StatelessWidget {
                       final amountFiat = FiatAmount.maybeFromSats(
                           balanceState.fiatRate, amountSats);
 
-                      return TotalChannelBalanceRow(
+                      return TotalChannelsBalanceRow(
                         primaryText: const Text("Send up to"),
                         primaryAmount: SplitFiatAmountTextOrPlaceholder(
                           amountFiat: amountFiat,

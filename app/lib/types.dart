@@ -64,6 +64,7 @@ class BalanceState with _$BalanceState {
 
   int? totalSats() => this.balanceSats?.totalSats;
   int? lightningSats() => this.balanceSats?.lightningSats;
+  int? lightningMaxSendableSats() => this.balanceSats?.lightningMaxSendableSats;
   int? onchainSats() => this.balanceSats?.onchainSats;
 
   int? byKindSats(BalanceKind kind) => switch (kind) {
@@ -73,6 +74,8 @@ class BalanceState with _$BalanceState {
 
   FiatAmount? totalFiat() => this._convertFiat(this.totalSats());
   FiatAmount? lightningFiat() => this._convertFiat(this.lightningSats());
+  FiatAmount? lightningMaxSendableFiat() =>
+      this._convertFiat(this.lightningMaxSendableSats());
   FiatAmount? onchainFiat() => this._convertFiat(this.onchainSats());
 
   FiatAmount? byKindFiat(BalanceKind kind) => switch (kind) {
