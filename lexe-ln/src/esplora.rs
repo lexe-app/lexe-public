@@ -19,10 +19,7 @@ use common::{
     task::LxTask,
 };
 use esplora_client::{api::OutputStatus, AsyncClient};
-use lexe_api::{
-    rest,
-    tls::{self, rustls},
-};
+use lexe_api::tls::{self, rustls};
 use lightning::chain::chaininterface::{
     ConfirmationTarget, FeeEstimator, FEERATE_FLOOR_SATS_PER_KW,
 };
@@ -45,6 +42,9 @@ const BITCOIN_CORE_MEMPOOL_EXPIRY: Duration =
 
 /// The feerate we fall back to if fee rate lookup fails.
 const FALLBACK_FEE_RATE: f64 = 1.0;
+
+/// The timeout we'll use for requests to our Esplora backends.
+pub const ESPLORA_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Whether this esplora url is contained in the whitelist for this network.
 #[must_use]
@@ -299,7 +299,10 @@ impl LexeEsplora {
 
         // LexeEsplora wraps AsyncClient which in turn wraps reqwest::Client.
         let reqwest_client = {
-            let builder = rest::RestClient::client_builder(user_agent)
+            let builder = reqwest::Client::builder()
+                .user_agent(user_agent)
+                .https_only(true)
+                .timeout(ESPLORA_REQUEST_TIMEOUT)
                 .use_preconfigured_tls(tls_config);
 
             // Only allow http in tests

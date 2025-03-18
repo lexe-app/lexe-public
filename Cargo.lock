@@ -2488,6 +2488,7 @@ dependencies = [
  "proptest",
  "proptest-derive",
  "rand",
+ "reqwest",
  "rust_decimal",
  "rust_decimal_macros",
  "secrecy",

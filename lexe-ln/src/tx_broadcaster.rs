@@ -6,7 +6,6 @@ use common::{
     test_event::TestEvent, Apply,
 };
 use const_utils::const_assert;
-use lexe_api::rest;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use tokio::sync::{
     mpsc::{self, error::TrySendError},
@@ -15,13 +14,18 @@ use tokio::sync::{
 use tracing::{error, info, info_span, warn, Instrument};
 
 use crate::{
-    esplora::LexeEsplora, test_event::TestEventSender, wallet::LexeWallet,
+    esplora::{self, LexeEsplora},
+    test_event::TestEventSender,
+    wallet::LexeWallet,
     BoxedAnyhowFuture, DisplayVec,
 };
 
 /// Maximum time we'll wait for a response from the broadcaster task.
-const RESPONSE_TIMEOUT: Duration = Duration::from_secs(35);
-const_assert!(RESPONSE_TIMEOUT.as_secs() > rest::API_REQUEST_TIMEOUT.as_secs());
+const BROADCAST_RESPONSE_TIMEOUT: Duration = Duration::from_secs(15);
+const_assert!(
+    BROADCAST_RESPONSE_TIMEOUT.as_secs()
+        > esplora::ESPLORA_REQUEST_TIMEOUT.as_secs()
+);
 
 /// The type of the hook to be called just before broadcasting a tx.
 type PreBroadcastHook =
@@ -104,7 +108,7 @@ impl TxBroadcaster {
             .try_send(request)
             .context("Couldn't queue tx for broadcast")?;
 
-        match tokio::time::timeout(RESPONSE_TIMEOUT, receiver).await {
+        match tokio::time::timeout(BROADCAST_RESPONSE_TIMEOUT, receiver).await {
             Ok(Ok(Ok(()))) => Ok(()),
             Ok(Ok(Err(e))) => Err(e.context("Broadcast failed")),
             Ok(Err(_)) => Err(anyhow!("Sender dropped")),
