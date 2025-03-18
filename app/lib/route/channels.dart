@@ -228,7 +228,7 @@ class _ChannelsPageState extends State<ChannelsPage> {
                         ),
                       ),
                       const Text(
-                        "Open channels to send payments instantly over the Lightning network",
+                        "Open channels to send payments instantly over the Lightning Network",
                         style: Fonts.fontSubheading,
                       ),
                       const SizedBox(height: Space.s600),
