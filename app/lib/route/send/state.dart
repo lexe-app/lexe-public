@@ -148,8 +148,8 @@ class SendState_NeedAmount implements SendState {
   /// URI open.
   final PaymentMethod paymentMethod;
 
-  int balanceSendableSats() =>
-      this.balance.balanceSendableByKind(this.paymentMethod.kind());
+  int balanceMaxSendableSats() =>
+      this.balance.balanceMaxSendableByKind(this.paymentMethod.kind());
 
   /// Returns Some amount if this payment method already has an amount attached
   /// and can be preflighted immediately.

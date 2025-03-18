@@ -16,7 +16,7 @@ extension BalanceExt on Balance {
         PaymentKind.spontaneous => this.lightningSats,
       };
 
-  int balanceSendableByKind(final PaymentKind kind) => switch (kind) {
+  int balanceMaxSendableByKind(final PaymentKind kind) => switch (kind) {
         PaymentKind.onchain => this.onchainSats,
         PaymentKind.invoice => this.lightningMaxSendableSats,
         PaymentKind.spontaneous => this.lightningMaxSendableSats,

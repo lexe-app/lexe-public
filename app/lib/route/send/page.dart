@@ -401,13 +401,13 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   }
 
   Result<(), String> validateAmount(int amount) {
-    final balanceSendableSats = this.widget.sendCtx.balanceSendableSats();
-    if (amount > balanceSendableSats) {
-      final balanceSendableStr = currency_format.formatSatsAmount(
-        balanceSendableSats,
+    final balanceMaxSendableSats = this.widget.sendCtx.balanceMaxSendableSats();
+    if (amount > balanceMaxSendableSats) {
+      final balanceMaxSendableStr = currency_format.formatSatsAmount(
+        balanceMaxSendableSats,
         satsSuffix: true,
       );
-      return Err("Can't send more than $balanceSendableStr");
+      return Err("Can't send more than $balanceMaxSendableStr");
     }
 
     return const Ok(());
@@ -415,8 +415,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 
   @override
   Widget build(BuildContext context) {
-    final balanceSendableStr = currency_format.formatSatsAmount(
-        this.widget.sendCtx.balanceSendableSats(),
+    final balanceMaxSendableStr = currency_format.formatSatsAmount(
+        this.widget.sendCtx.balanceMaxSendableSats(),
         satsSuffix: true);
 
     return Scaffold(
@@ -431,7 +431,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
       body: ScrollableSinglePageBody(
         body: [
           const HeadingText(text: "How much?"),
-          SubheadingText(text: "Send up to $balanceSendableStr"),
+          SubheadingText(text: "Send up to $balanceMaxSendableStr"),
           const SizedBox(height: Space.s850),
 
           // <amount> sats
