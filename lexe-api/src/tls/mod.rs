@@ -164,7 +164,7 @@ pub static LEXE_SIGNATURE_ALGORITHMS: WebPkiSupportedAlgorithms =
     };
 
 /// Lexe TLS protocol version: TLSv1.3
-static LEXE_TLS_PROTOCOL_VERSIONS: &[&rustls::SupportedProtocolVersion] =
+pub static LEXE_TLS_PROTOCOL_VERSIONS: &[&rustls::SupportedProtocolVersion] =
     &[&rustls::version::TLS13];
 /// Lexe cipher suite: specifically `TLS13_AES_128_GCM_SHA256`
 static LEXE_CIPHER_SUITES: &[rustls::SupportedCipherSuite] =
