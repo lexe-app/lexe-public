@@ -19,7 +19,10 @@ use common::{
     task::LxTask,
 };
 use esplora_client::{api::OutputStatus, AsyncClient};
-use lexe_api::{rest, tls};
+use lexe_api::{
+    rest,
+    tls::{self, rustls},
+};
 use lightning::chain::chaininterface::{
     ConfirmationTarget, FeeEstimator, FEERATE_FLOOR_SATS_PER_KW,
 };
@@ -282,11 +285,17 @@ impl LexeEsplora {
         esplora_url: String,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<(Arc<Self>, Arc<FeeEstimates>, LxTask<()>)> {
-        // Use WebPKI certs to avoid production outages when external Esplora
-        // providers change their CA certs.
-        let tls_config = tls::client_config_builder()
-            .with_root_certificates(tls::WEBPKI_ROOT_CERTS.clone())
-            .with_no_client_auth();
+        // - Use WebPKI certs to avoid production outages when external Esplora
+        //   providers change their CA certs.
+        // - We must also use the default ring `CryptoProvider` because our
+        //   providers may not support our specific ciphersuite, but we can at
+        //   least enforce use of TLSv1.3.
+        #[allow(clippy::disallowed_methods)]
+        let tls_config = rustls::ClientConfig::builder_with_protocol_versions(
+            tls::LEXE_TLS_PROTOCOL_VERSIONS,
+        )
+        .with_root_certificates(tls::WEBPKI_ROOT_CERTS.clone())
+        .with_no_client_auth();
 
         // LexeEsplora wraps AsyncClient which in turn wraps reqwest::Client.
         let reqwest_client = {
