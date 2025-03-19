@@ -15,7 +15,7 @@ use http::{
 use lightning::util::ser::Writeable;
 use reqwest::IntoUrl;
 use serde::{de::DeserializeOwned, Serialize};
-use tracing::{debug, info, warn, Instrument};
+use tracing::{debug, warn, Instrument};
 
 use crate::{trace, trace::TraceId};
 
@@ -348,7 +348,9 @@ impl RestClient {
             })?;
 
             let req_time = DisplayMs(start.elapsed());
-            info!(target: trace::TARGET, %req_time, %status, "Done (success)");
+            // NOTE: This client request log can be at INFO.
+            // It's cluttering our logs though, so we're suppressing.
+            debug!(target: trace::TARGET, %req_time, %status, "Done (success)");
             Ok(Ok(bytes))
         } else {
             // http error => await response json and convert to ErrorResponse

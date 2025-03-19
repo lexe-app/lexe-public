@@ -421,7 +421,7 @@ pub(crate) mod server {
             MakeSpan, OnEos, OnFailure, OnRequest, OnResponse, TraceLayer,
         },
     };
-    use tracing::{debug, error, info, info_span, warn};
+    use tracing::{debug, error, info_span, warn};
 
     use super::*;
 
@@ -576,7 +576,9 @@ pub(crate) mod server {
             let resp_time = DisplayMs(resp_time);
 
             if status.is_success() {
-                info!(target: TARGET, %resp_time, ?status, "Done (success)");
+                // NOTE: This server request log can be at INFO.
+                // It's cluttering our logs though, so we're suppressing.
+                debug!(target: TARGET, %resp_time, ?status, "Done (success)");
             } else if status.is_client_error() {
                 warn!(target: TARGET, %resp_time, ?status, "Done (client error)");
             } else if status.is_server_error() && status.as_u16() == 503 {
@@ -586,7 +588,9 @@ pub(crate) mod server {
             } else if status.is_server_error() {
                 error!(target: TARGET, %resp_time, ?status, "Done (server error)");
             } else {
-                info!(target: TARGET, %resp_time, ?status, "Done (other)");
+                // NOTE: This server request log can be at INFO.
+                // It's cluttering our logs though, so we're suppressing.
+                debug!(target: TARGET, %resp_time, ?status, "Done (other)");
             }
 
             // Log the headers too, but only at DEBUG.
@@ -611,7 +615,7 @@ pub(crate) mod server {
         ) {
             let num_trailers = trailers.map(|trailers| trailers.len());
             let stream_time = DisplayMs(stream_time);
-            info!(target: TARGET, %stream_time, ?num_trailers, "Stream ended");
+            debug!(target: TARGET, %stream_time, ?num_trailers, "Stream ended");
         }
     }
 
