@@ -668,6 +668,11 @@ impl UserNode {
             .local_addr()
             .context("Couldn't get app addr")?
             .port();
+        // `[preflight_]pay_invoice` may call `max_flow`.
+        let app_layer_config = LayerConfig {
+            handling_timeout: Some(constants::MAX_FLOW_TIMEOUT),
+            ..Default::default()
+        };
         let (app_tls_config, app_dns) =
             tls::shared_seed::app_node_run_server_config(rng, &root_seed)
                 .context("Failed to build owner service TLS config")?;
@@ -676,7 +681,7 @@ impl UserNode {
             lexe_api::server::spawn_server_task_with_listener(
                 app_listener,
                 server::app_router(app_router_state),
-                LayerConfig::default(),
+                app_layer_config,
                 Some((Arc::new(app_tls_config), app_dns.as_str())),
                 APP_SERVER_SPAN_NAME,
                 info_span!(APP_SERVER_SPAN_NAME),

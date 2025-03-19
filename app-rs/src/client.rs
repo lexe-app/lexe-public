@@ -465,7 +465,11 @@ impl AppNodeRunApi for NodeClient {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/pay_invoice");
-        let req = self.run_rest.post(url, &req);
+        // `pay_invoice` may call `max_flow` which takes a long time.
+        let req = self
+            .run_rest
+            .post(url, &req)
+            .timeout(constants::MAX_FLOW_TIMEOUT + Duration::from_secs(2));
         self.run_rest.send(req).await
     }
 
@@ -476,7 +480,11 @@ impl AppNodeRunApi for NodeClient {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/preflight_pay_invoice");
-        let req = self.run_rest.post(url, &req);
+        // `preflight_pay_invoice` may call `max_flow` which takes a long time.
+        let req = self
+            .run_rest
+            .post(url, &req)
+            .timeout(constants::MAX_FLOW_TIMEOUT + Duration::from_secs(2));
         self.run_rest.send(req).await
     }
 

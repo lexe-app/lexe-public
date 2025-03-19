@@ -28,6 +28,12 @@ pub const MAX_PAYMENT_NOTE_BYTES: usize = 512;
 /// signal is received before the program is forced to exit.
 pub const USER_NODE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// Computing `max_flow` takes ~30s at 10 iterations and ~50s at 17 iterations.
+/// Set `LayerConfig::handling_timeout` and `reqwest::RequestBuilder::timeout`
+/// to this value to ensure that callers can get a response.
+/// See `compute_max_flow_to_recipient` for more details.
+pub const MAX_FLOW_TIMEOUT: Duration = Duration::from_secs(60);
+
 // --- Channels and liquidity --- //
 
 /// Our dust limit for e.g. our channel close txo's. If our channel balance,

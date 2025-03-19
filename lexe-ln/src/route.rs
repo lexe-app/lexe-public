@@ -182,8 +182,8 @@ pub fn compute_max_flow_to_recipient(
             const MAX_ITERATIONS: usize = 30;
         } else {
             /// Max # of binary search iterations.
-            // 10 iterations allows us to search ~1M amounts to
-            // an accuracy of about 1000 sat.
+            // 10 iterations allows us to search ~1M amounts to an accuracy of
+            // about 1000 sat.
             //
             // Some timing samples from prod (mainnet):
             // - best_succ=64604: 17 iters, 50.052s (2025-03-18)
