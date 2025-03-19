@@ -1197,9 +1197,9 @@ where
             Ok(max_flow) => anyhow!(
                 "Insufficient balance: Tried to pay {amount} sats, but the \
                  maximum amount you can send is {max_sendable} sats. \
-                 We estimate that the maximum amount that you can route to \
-                 this recipient is {max_flow} sats. Consider adding to your \
-                 Lightning balance or sending a smaller amount.",
+                 The maximum amount that you can route to this recipient is \
+                 {max_flow} sats. Consider adding to your Lightning balance \
+                 or sending a smaller amount.",
             ),
             Err(e) => anyhow!(
                 "Couldn't route to this recipient with any amount: {e:#}"
@@ -1213,11 +1213,12 @@ where
     let route_result = routing_context.find_route(router, amount);
     let (route, route_params) = match route_result {
         Ok((r, p)) => (r, p),
-        Err(e) => {
+        // This error is just "Failed to find a path to the given destination",
+        // which is not helpful, so we don't include it in our error message.
+        Err(_) => {
             // We couldn't find a route with the full intended amount.
             // But since we know the recipient, we can compute a more accurate
             // maximum sendable amount to this recipient (i.e. max flow).
-            //
             let max_flow_result = route::compute_max_flow_to_recipient(
                 router,
                 &routing_context,
@@ -1238,12 +1239,12 @@ where
                     //    recipient to increase their inbound liquidity."
                     let call_to_action =
                         "Consider adding to your Lightning balance \
-                         or sending a smaller amount";
+                         or sending a smaller amount.";
 
                     anyhow!(
                         "Tried to pay {amount} sats. The maximum amount that \
                          you can route to this recipient is {max_flow} sats. \
-                         {call_to_action}: {e:#}",
+                         {call_to_action}",
                     )
                 }
                 Err(e) => anyhow!(
