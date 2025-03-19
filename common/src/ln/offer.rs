@@ -260,15 +260,21 @@ mod arb {
         ]
     }
 
-    fn any_vec_message_forward_node(
-    ) -> impl Strategy<Value = Vec<MessageForwardNode>> {
-        let any_message_forward_node =
-            (arbitrary::any_secp256k1_pubkey(), option::of(any::<u64>()))
-                .prop_map(|(node_id, short_channel_id)| MessageForwardNode {
-                    node_id,
-                    short_channel_id,
-                });
-        proptest::collection::vec(any_message_forward_node, 0..4)
+    fn any_message_forward_node() -> impl Strategy<Value = MessageForwardNode> {
+        (arbitrary::any_secp256k1_pubkey(), option::of(any::<u64>())).prop_map(
+            |(node_id, short_channel_id)| MessageForwardNode {
+                node_id,
+                short_channel_id,
+            },
+        )
+    }
+
+    fn any_path(
+    ) -> impl Strategy<Value = (Vec<MessageForwardNode>, MessageContext)> {
+        (
+            proptest::collection::vec(any_message_forward_node(), 0..=4),
+            any_message_context(),
+        )
     }
 
     impl Arbitrary for LxOffer {
@@ -288,9 +294,7 @@ mod arb {
                 Just(Quantity::Unbounded),
                 Just(Quantity::One),
             ]);
-            let any_message_context = any_message_context();
-            // TODO(phlip9): technically there could be more than one path...
-            let any_intermediate_nodes = any_vec_message_forward_node();
+            let any_paths = proptest::collection::vec(any_path(), 0..3);
 
             (
                 any_rng,
@@ -301,8 +305,7 @@ mod arb {
                 any_expiry,
                 any_issuer,
                 any_quantity,
-                any_message_context,
-                any_intermediate_nodes,
+                any_paths,
             )
                 .prop_map(
                     |(
@@ -314,8 +317,7 @@ mod arb {
                         expiry,
                         issuer,
                         quantity,
-                        message_context,
-                        intermediate_nodes,
+                        paths,
                     )| {
                         gen_offer(
                             rng,
@@ -326,8 +328,7 @@ mod arb {
                             expiry,
                             issuer,
                             quantity,
-                            message_context,
-                            intermediate_nodes.as_slice(),
+                            paths,
                         )
                     },
                 )
@@ -346,9 +347,7 @@ mod arb {
         expiry: Option<Duration>,
         issuer: Option<String>,
         quantity: Option<Quantity>,
-        message_context: MessageContext,
-        // NOTE: len <= 1 will not set a path
-        intermediate_nodes: &[MessageForwardNode],
+        paths: Vec<(Vec<MessageForwardNode>, MessageContext)>,
     ) -> LxOffer {
         let root_seed = RootSeed::from_rng(&mut rng);
         let node_pk = root_seed.derive_node_pk(&mut rng);
@@ -357,20 +356,21 @@ mod arb {
 
         let network = network.map(LxNetwork::to_bitcoin);
         let amount = amount.map(|x| x.msat());
-        let path = if intermediate_nodes.len() >= 2 {
-            let recipient_node_id = node_pk.inner();
-            let path = BlindedMessagePath::new(
-                intermediate_nodes,
-                recipient_node_id,
-                message_context,
-                &mut rng,
-                &secp_ctx,
-            )
-            .unwrap();
-            Some(path)
-        } else {
-            None
-        };
+
+        let paths = paths
+            .into_iter()
+            .map(|(intermediate_nodes, message_context)| {
+                let recipient_node_id = node_pk.inner();
+                BlindedMessagePath::new(
+                    intermediate_nodes.as_slice(),
+                    recipient_node_id,
+                    message_context,
+                    &mut rng,
+                    &secp_ctx,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
 
         // each builder constructor returns a different type, hence the copying
         let offer = if is_blinded {
@@ -399,7 +399,7 @@ mod arb {
             if let Some(quantity) = quantity {
                 offer = offer.supported_quantity(quantity);
             }
-            if let Some(path) = path {
+            for path in paths {
                 offer = offer.path(path);
             }
             offer.build()
@@ -423,7 +423,7 @@ mod arb {
             if let Some(quantity) = quantity {
                 offer = offer.supported_quantity(quantity);
             }
-            if let Some(path) = path {
+            for path in paths {
                 offer = offer.path(path);
             }
             offer.build()
@@ -542,6 +542,7 @@ mod test {
                 short_channel_id: None,
             },
         ];
+        let paths = vec![(intermediate_nodes, message_context)];
 
         let offer = gen_offer(
             rng,
@@ -552,8 +553,7 @@ mod test {
             expiry,
             issuer,
             quantity,
-            message_context,
-            intermediate_nodes.as_slice(),
+            paths,
         );
         let offer_str = offer.to_string();
         let offer_len = offer_str.len();
