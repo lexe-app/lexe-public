@@ -6,14 +6,15 @@ use common::{
     api::{
         command::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-            GetAddressResponse, GetNewPayments, ListChannelsResponse, NodeInfo,
-            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
-            PaymentIndexes, PreflightCloseChannelRequest,
-            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse, UpdatePaymentNote,
+            CreateOfferRequest, CreateOfferResponse, GetAddressResponse,
+            GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
+            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentIndexes,
+            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            UpdatePaymentNote,
         },
         error::NodeApiError,
         models::{
@@ -288,6 +289,16 @@ pub(super) async fn preflight_pay_invoice(
     .await
     .map(LxJson)
     .map_err(NodeApiError::command)
+}
+
+pub(super) async fn create_offer(
+    State(state): State<Arc<AppRouterState>>,
+    LxJson(req): LxJson<CreateOfferRequest>,
+) -> Result<LxJson<CreateOfferResponse>, NodeApiError> {
+    lexe_ln::command::create_offer(req, &state.channel_manager)
+        .await
+        .map(LxJson)
+        .map_err(NodeApiError::command)
 }
 
 pub(super) async fn pay_onchain(

@@ -14,6 +14,7 @@ use crate::{
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
         hashes::LxTxid,
         invoice::LxInvoice,
+        offer::LxOffer,
         payments::{ClientPaymentId, PaymentIndex},
         priority::ConfirmationPriority,
     },
@@ -204,6 +205,25 @@ pub struct PreflightPayInvoiceResponse {
     pub amount: Amount,
     /// The total amount of fees to-be-paid for the pre-flighted [`LxInvoice`].
     pub fees: Amount,
+}
+
+// --- BOLT12 Offer payments --- //
+
+#[derive(Serialize, Deserialize)]
+pub struct CreateOfferRequest {
+    pub expiry_secs: Option<u32>,
+    pub amount: Option<Amount>,
+    /// The description to be encoded into the invoice.
+    ///
+    /// If `None`, the `description` field inside the invoice will be an empty
+    /// string (""), as lightning _requires_ a description to be set.
+    pub description: Option<String>,
+    // TODO(phlip9): allow setting `quantity` field. when is that useful?
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CreateOfferResponse {
+    pub offer: LxOffer,
 }
 
 // --- On-chain payments --- //

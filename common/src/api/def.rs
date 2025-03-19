@@ -39,10 +39,11 @@ use super::{
     },
     command::{
         CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-        GetAddressResponse, GetNewPayments, ListChannelsResponse, NodeInfo,
-        OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-        PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
-        PaymentIndexStruct, PaymentIndexes, PreflightCloseChannelRequest,
+        CreateOfferRequest, CreateOfferResponse, GetAddressResponse,
+        GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
+        OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+        PayOnchainRequest, PayOnchainResponse, PaymentIndexStruct,
+        PaymentIndexes, PreflightCloseChannelRequest,
         PreflightCloseChannelResponse, PreflightOpenChannelRequest,
         PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
@@ -461,6 +462,20 @@ pub trait AppNodeRunApi {
         &self,
         req: PreflightPayInvoiceRequest,
     ) -> Result<PreflightPayInvoiceResponse, NodeApiError>;
+
+    /// POST /app/create_offer [`CreateOfferRequest`] -> [`CreateOfferResponse`]
+    ///
+    /// Create a new BOLT12 offer.
+    ///
+    /// - Added in `node-v0.7.3`.
+    async fn create_offer(
+        &self,
+        req: CreateOfferRequest,
+    ) -> Result<CreateOfferResponse, NodeApiError>;
+
+    // TODO(phlip9): BOLT12: /app/pay_offer
+    // TODO(phlip9): BOLT12: /app/preflight_pay_offer
+    // TODO(phlip9): BOLT12: /app/request_refund
 
     /// POST /app/get_address [`Empty`] -> [`GetAddressResponse`]
     ///

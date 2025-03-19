@@ -942,10 +942,10 @@ mod test {
         api::{
             command::{
                 CloseChannelRequest, CreateInvoiceRequest,
-                CreateInvoiceResponse, GetAddressResponse,
-                ListChannelsResponse, NodeInfo, OpenChannelRequest,
-                OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-                PayOnchainRequest, PayOnchainResponse,
+                CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
+                GetAddressResponse, ListChannelsResponse, NodeInfo,
+                OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+                PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
                 PreflightCloseChannelRequest, PreflightCloseChannelResponse,
                 PreflightOpenChannelRequest, PreflightOpenChannelResponse,
                 PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
@@ -1048,6 +1048,12 @@ mod test {
             &self,
             _req: PreflightPayInvoiceRequest,
         ) -> Result<PreflightPayInvoiceResponse, NodeApiError> {
+            unimplemented!()
+        }
+        async fn create_offer(
+            &self,
+            _req: CreateOfferRequest,
+        ) -> Result<CreateOfferResponse, NodeApiError> {
             unimplemented!()
         }
         async fn pay_onchain(

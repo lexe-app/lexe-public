@@ -10,13 +10,13 @@ use common::{
     api::{
         command::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-            ListChannelsResponse, NodeInfo, OpenChannelResponse,
-            PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
-            PayOnchainResponse, PreflightCloseChannelRequest,
-            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse,
+            CreateOfferRequest, CreateOfferResponse, ListChannelsResponse,
+            NodeInfo, OpenChannelResponse, PayInvoiceRequest,
+            PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
+            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
         },
         user::{NodePk, Scid},
         Empty,
@@ -29,7 +29,9 @@ use common::{
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
         invoice::LxInvoice,
         network::LxNetwork,
+        offer::LxOffer,
     },
+    time::TimestampMs,
 };
 use either::Either;
 use futures::Future;
@@ -975,6 +977,48 @@ where
         amount: preflight.payment.amount,
         fees: preflight.payment.fees,
     })
+}
+
+#[instrument(skip_all, name = "(create-offer)")]
+pub async fn create_offer<CM, PS>(
+    req: CreateOfferRequest,
+    channel_manager: &CM,
+) -> anyhow::Result<CreateOfferResponse>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
+    // Make absolute expiry deadline.
+    let absolute_expiry = req.expiry_secs.map(|secs| {
+        let expiry = Duration::from_secs(u64::from(secs));
+        let expires_at = TimestampMs::now().saturating_add(expiry);
+        expires_at.into_duration()
+    });
+
+    let mut builder = channel_manager
+        .create_offer_builder(absolute_expiry)
+        .map_err(|err| anyhow!("Failed to create offer builder: {err:?}"))?;
+
+    // TODO(phlip9): Probably need to build the blinded path ourselves. It's
+    // not clear how the channel manager would pick the right blinded path
+    // params / route hints the same way as `create_invoice`. How could it
+    // possibly know the LSP info if the user has no channels?
+
+    // TODO(phlip9): what happens to long-lived offers after the LSP changes
+    // the fee rates?
+
+    if let Some(amount) = req.amount {
+        builder = builder.amount_msats(amount.msat());
+    }
+    if let Some(description) = req.description {
+        builder = builder.description(description);
+    }
+
+    let offer: LxOffer = builder
+        .build()
+        .map(LxOffer)
+        .map_err(|err| anyhow!("Failed to build offer: {err:?}"))?;
+    Ok(CreateOfferResponse { offer })
 }
 
 #[instrument(skip_all, name = "(pay-onchain)")]

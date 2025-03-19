@@ -22,14 +22,15 @@ use common::{
         },
         command::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-            GetAddressResponse, GetNewPayments, ListChannelsResponse, NodeInfo,
-            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
-            PaymentIndexes, PreflightCloseChannelRequest,
-            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse, UpdatePaymentNote,
+            CreateOfferRequest, CreateOfferResponse, GetAddressResponse,
+            GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
+            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentIndexes,
+            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            UpdatePaymentNote,
         },
         def::{
             AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
@@ -506,6 +507,17 @@ impl AppNodeRunApi for NodeClient {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/preflight_pay_onchain");
+        let req = self.run_rest.post(url, &req);
+        self.run_rest.send(req).await
+    }
+
+    async fn create_offer(
+        &self,
+        req: CreateOfferRequest,
+    ) -> Result<CreateOfferResponse, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/create_offer");
         let req = self.run_rest.post(url, &req);
         self.run_rest.send(req).await
     }
