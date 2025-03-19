@@ -999,13 +999,26 @@ where
         .create_offer_builder(absolute_expiry)
         .map_err(|err| anyhow!("Failed to create offer builder: {err:?}"))?;
 
+    // TODO(phlip9): don't add `chains` param when mainnet to save space
+
     // TODO(phlip9): Probably need to build the blinded path ourselves. It's
     // not clear how the channel manager would pick the right blinded path
     // params / route hints the same way as `create_invoice`. How could it
     // possibly know the LSP info if the user has no channels?
 
+    // TODO(phlip9): can we condense the blinded path? default offer is ~489B.
+    // right now the default offer blinded path has
+    //   + ~  54B (1) introductory node pk (LSP NodePk, clear)
+    //   + ~  54B (2) blinding point pk
+    //   + ~  54B (3) blinded issuer signing pk (user NodePk, blinded)
+    //   + ~ 137B (4) hop 1: blinded pk + 51 B encrypted payload
+    //   + ~ 137B (5) hop 2: blinded pk + 51 B encrypted payload
+    //   = ~ 436B blinded path overhead
+
     // TODO(phlip9): what happens to long-lived offers after the LSP changes
     // the fee rates?
+
+    // TODO(phlip9): LSP should not use blinded path at all
 
     if let Some(amount) = req.amount {
         builder = builder.amount_msats(amount.msat());
