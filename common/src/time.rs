@@ -95,6 +95,14 @@ impl TimestampMs {
         Self::try_from(subtracted).ok()
     }
 
+    pub fn saturating_add(self, duration: Duration) -> Self {
+        self.checked_add(duration).unwrap_or(Self::MAX)
+    }
+
+    pub fn saturating_sub(self, duration: Duration) -> Self {
+        self.checked_sub(duration).unwrap_or(Self::MIN)
+    }
+
     /// Returns the absolute difference two timestamps as a [`Duration`].
     #[inline]
     pub fn absolute_diff(self, other: Self) -> Duration {
@@ -217,7 +225,7 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use proptest::proptest;
+    use proptest::{prop_assert_eq, proptest};
 
     use super::*;
     use crate::test_utils::roundtrip;
@@ -268,10 +276,32 @@ mod test {
                 Duration::from_millis(greater.into_u64() - lesser.into_u64());
 
             let added = lesser.checked_add(diff).unwrap();
-            assert_eq!(added, greater);
+            prop_assert_eq!(added, greater);
 
             let subtracted = greater.checked_sub(diff).unwrap();
-            assert_eq!(subtracted, lesser);
+            prop_assert_eq!(subtracted, lesser);
+        })
+    }
+
+    #[test]
+    fn timestamp_saturating_ops() {
+        proptest!(|(ts: TimestampMs)| {
+            prop_assert_eq!(
+                ts.saturating_add(TimestampMs::MAX.into_duration()),
+                TimestampMs::MAX
+            );
+            prop_assert_eq!(
+                ts.saturating_sub(TimestampMs::MAX.into_duration()),
+                TimestampMs::MIN
+            );
+            prop_assert_eq!(
+                ts.saturating_add(TimestampMs::MIN.into_duration()),
+                ts
+            );
+            prop_assert_eq!(
+                ts.saturating_sub(TimestampMs::MIN.into_duration()),
+                ts
+            );
         })
     }
 }
