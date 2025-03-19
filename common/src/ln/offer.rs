@@ -452,11 +452,18 @@ mod test {
 
     #[test]
     fn offer_parse_examples() {
+        #[track_caller]
+        fn parse_ok(s: &str) -> LxOffer {
+            let offer = LxOffer::from_str(s).unwrap();
+            // Also check that it roundtrips.
+            assert_eq!(offer.to_string(), s);
+            offer
+        }
+
         // basically the smallest possible offer (just a node pubkey)
-        let o = LxOffer::from_str(
+        let o = parse_ok(
             "lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q",
-        )
-        .unwrap();
+        );
         assert_eq!(
             o.payee_node_pk().unwrap(),
             NodePk::from_str("024900c3a10f2daa08d178a6edb10fc3caa7b53d0ea00346bce38ba90d085caae8").unwrap(),
@@ -466,16 +473,16 @@ mod test {
         assert_eq!(o.fiat_amount(), None);
         assert_eq!(o.description(), None);
 
-        let o = LxOffer::from_str("lno1pg257enxv4ezqcneype82um50ynhxgrwdajx293pqglnyxw6q0hzngfdusg8umzuxe8kquuz7pjl90ldj8wadwgs0xlmc").unwrap();
+        let o = parse_ok("lno1pg257enxv4ezqcneype82um50ynhxgrwdajx293pqglnyxw6q0hzngfdusg8umzuxe8kquuz7pjl90ldj8wadwgs0xlmc");
         assert!(o.supports_network(LxNetwork::Mainnet));
         assert_eq!(o.amount(), None);
         assert_eq!(o.fiat_amount(), None);
         assert_eq!(o.description(), Some("Offer by rusty's node"));
 
-        Offer::from_str("lno1qgsyxjtl6luzd9t3pr62xr7eemp6awnejusgf6gw45q75vcfqqqqqqq2p32x2um5ypmx2cm5dae8x93pqthvwfzadd7jejes8q9lhc4rvjxd022zv5l44g6qah82ru5rdpnpj").unwrap();
-        Offer::from_str("lno1pqqnyzsmx5cx6umpwssx6atvw35j6ut4v9h8g6t50ysx7enxv4epyrmjw4ehgcm0wfczucm0d5hxzag5qqtzzq3lxgva5qlw9xsjmeqs0ek9cdj0vpec9ur972l7mywa66u3q7dlhs").unwrap();
-        Offer::from_str("lno1qsgqqqqqqqqqqqqqqqqqqqqqqqqqqzsv23jhxapqwejkxar0wfe3vggzamrjghtt05kvkvpcp0a79gmy3nt6jsn98ad2xs8de6sl9qmgvcvs").unwrap();
-        Offer::from_str("lno1pqpzwyq2p32x2um5ypmx2cm5dae8x93pqthvwfzadd7jejes8q9lhc4rvjxd022zv5l44g6qah82ru5rdpnpj").unwrap();
+        parse_ok("lno1qgsyxjtl6luzd9t3pr62xr7eemp6awnejusgf6gw45q75vcfqqqqqqq2p32x2um5ypmx2cm5dae8x93pqthvwfzadd7jejes8q9lhc4rvjxd022zv5l44g6qah82ru5rdpnpj");
+        parse_ok("lno1pqqnyzsmx5cx6umpwssx6atvw35j6ut4v9h8g6t50ysx7enxv4epyrmjw4ehgcm0wfczucm0d5hxzag5qqtzzq3lxgva5qlw9xsjmeqs0ek9cdj0vpec9ur972l7mywa66u3q7dlhs");
+        parse_ok("lno1qsgqqqqqqqqqqqqqqqqqqqqqqqqqqzsv23jhxapqwejkxar0wfe3vggzamrjghtt05kvkvpcp0a79gmy3nt6jsn98ad2xs8de6sl9qmgvcvs");
+        parse_ok("lno1pqpzwyq2p32x2um5ypmx2cm5dae8x93pqthvwfzadd7jejes8q9lhc4rvjxd022zv5l44g6qah82ru5rdpnpj");
     }
 
     #[test]
