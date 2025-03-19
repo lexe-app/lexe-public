@@ -100,7 +100,7 @@ use crate::{
 ///     },
 /// },
 /// ```
-#[derive(Clone, Debug, SerializeDisplay, DeserializeFromStr)]
+#[derive(Clone, Debug, Eq, PartialEq, SerializeDisplay, DeserializeFromStr)]
 pub struct LxOffer(pub Offer);
 
 impl LxOffer {
@@ -169,16 +169,6 @@ impl FromStr for LxOffer {
         Offer::from_str(s).map(LxOffer).map_err(LxBolt12ParseError)
     }
 }
-
-// TODO(phlip9): ldk master has Eq/PartialEq impl'd. remove after we update.
-impl PartialEq for LxOffer {
-    fn eq(&self, other: &Self) -> bool {
-        let self_bytes: &[u8] = self.as_bytes();
-        let other_bytes: &[u8] = other.as_bytes();
-        self_bytes == other_bytes
-    }
-}
-impl Eq for LxOffer {}
 
 // TODO(phlip9): remove when ldk upstream impls Display
 #[derive(Clone, Debug, PartialEq)]
