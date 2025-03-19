@@ -144,7 +144,6 @@ pub trait ToHttpStatus {
 macro_rules! api_error {
     ($api_error:ident, $api_error_kind:ident) => {
         #[derive(Clone, Debug, Eq, PartialEq, Hash, Error)]
-        #[error("{kind}: {msg}")]
         #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
         pub struct $api_error {
             pub kind: $api_error_kind,
@@ -153,6 +152,14 @@ macro_rules! api_error {
                 proptest(strategy = "arbitrary::any_string()")
             )]
             pub msg: String,
+        }
+
+        impl fmt::Display for $api_error {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let kind_msg = self.kind.to_msg();
+                let msg = &self.msg;
+                write!(f, "{kind_msg}: {msg}")
+            }
         }
 
         impl From<ErrorResponse> for $api_error {
@@ -280,12 +287,12 @@ macro_rules! api_error_kind {
                 }
             }
 
-            // FIXME(max): The returned kind msg has a " " at the beginning
             fn to_msg(self) -> &'static str {
-                match self {
+                let kind_msg = match self {
                     $( Self::$item_name => concat!($( $item_msg, )*), )*
                     Self::Unknown(_) => concat!($( $unknown_msg, )*),
-                }
+                };
+                kind_msg.trim_start()
             }
 
             fn to_code(self) -> ErrorCode {
@@ -318,12 +325,13 @@ macro_rules! api_error_kind {
 
         impl fmt::Display for $error_kind_name {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                let name = (*self).to_name();
                 let msg = (*self).to_msg();
-                let code = (*self).to_code();
-                // ex: "[102=Duplicate] Resource was duplicate"
+
                 // No ':' because the ApiError's Display impl adds it.
-                write!(f, "[{code}={name}]{msg}")
+                //
+                // NOTE: We used to prefix with `[<code>=<kind_name>]` like
+                // "[106=Command]", but this was not helpful, so we removed it.
+                write!(f, "{msg}")
             }
         }
 
@@ -545,7 +553,7 @@ api_error_kind! {
 
         // --- Gateway --- //
 
-        /// Missing fiat exchange rates; issue with upstream data source.
+        /// Missing fiat exchange rates; issue with upstream data source
         FiatRatesMissing = 100,
     }
 }
@@ -602,9 +610,9 @@ api_error_kind! {
         Provision = 100,
         /// Error occurred while fetching new scid
         Scid = 101,
-        // Error while executing command
-        // NOTE(phlip9): intentionally NOT a doc-comment. These get displayed on
-        // the app UI frequently and should be concise.
+        /// Error
+        // NOTE: Intentionally NOT descriptive.
+        // These get displayed on the app UI frequently and should be concise.
         Command = 102,
     }
 }
@@ -671,9 +679,9 @@ api_error_kind! {
         BadAuth = 104,
         /// Could not proxy request to node
         Proxy = 105,
-        // Error while executing command
-        // NOTE(phlip9): intentionally NOT a doc-comment. These get displayed on
-        // the app UI frequently and should be concise.
+        /// Error
+        // NOTE: Intentionally NOT descriptive.
+        // These get displayed on the app UI frequently and should be concise.
         Command = 106,
     }
 }
@@ -1036,18 +1044,18 @@ pub fn join_results(results: Vec<anyhow::Result<()>>) -> anyhow::Result<()> {
 pub mod invariants {
     use proptest::{
         arbitrary::{any, Arbitrary},
-        prop_assert_eq, proptest,
+        prop_assert, prop_assert_eq, proptest,
     };
 
     use super::*;
 
-    pub fn assert_error_kind_invariants<T>()
+    pub fn assert_error_kind_invariants<K>()
     where
-        T: ApiErrorKind + Arbitrary,
+        K: ApiErrorKind + Arbitrary,
     {
         // error code 0 and default error code must be unknown
-        assert!(T::from_code(0).is_unknown());
-        assert!(T::default().is_unknown());
+        assert!(K::from_code(0).is_unknown());
+        assert!(K::default().is_unknown());
 
         // CommonErrorKind is a strict subset of ApiErrorKind
         //
@@ -1058,7 +1066,7 @@ pub mod invariants {
         for common_kind in CommonErrorKind::KINDS {
             let common_code = common_kind.to_code();
             let common_status = common_kind.to_http_status();
-            let api_kind = T::from_code(common_kind.to_code());
+            let api_kind = K::from_code(common_kind.to_code());
             let api_code = api_kind.to_code();
             let api_status = api_kind.to_http_status();
             assert_eq!(common_code, api_code, "Error codes must match");
@@ -1075,9 +1083,9 @@ pub mod invariants {
 
         // error kind enum isomorphic to error code representation
         // kind -> code -> kind2 -> code2
-        for kind in T::KINDS {
+        for kind in K::KINDS {
             let code = kind.to_code();
-            let kind2 = T::from_code(code);
+            let kind2 = K::from_code(code);
             let code2 = kind2.to_code();
             assert_eq!(code, code2);
             assert_eq!(kind, &kind2);
@@ -1086,20 +1094,29 @@ pub mod invariants {
         // try the first 200 error codes to ensure isomorphic
         // code -> kind -> code2 -> kind2
         for code in 0_u16..200 {
-            let kind = T::from_code(code);
+            let kind = K::from_code(code);
             let code2 = kind.to_code();
-            let kind2 = T::from_code(code2);
+            let kind2 = K::from_code(code2);
             assert_eq!(code, code2);
             assert_eq!(kind, kind2);
         }
 
         // ensure proptest generator is also well-behaved
-        proptest!(|(kind in any::<T>())| {
+        proptest!(|(kind in any::<K>())| {
             let code = kind.to_code();
-            let kind2 = T::from_code(code);
+            let kind2 = K::from_code(code);
             let code2 = kind2.to_code();
             prop_assert_eq!(code, code2);
             prop_assert_eq!(kind, kind2);
+        });
+
+        // - Ensure the error kind message is non-empty, otherwise the error is
+        //   displayed like ": Here's my extra info" (with leading ": ")
+        // - Ensure the error kind message doesn't end with '.', otherwise the
+        //   error is displayed like "Service is at capacity.: Extra info"
+        proptest!(|(kind in any::<K>())| {
+            prop_assert!(!kind.to_msg().is_empty());
+            prop_assert!(!kind.to_msg().ends_with('.'));
         });
     }
 
@@ -1121,7 +1138,10 @@ pub mod invariants {
         });
 
         // Check that the ApiError Display impl is of form
-        // `[<code>=<kind_name>] <kind_msg>: <main_msg>`
+        // `<kind_msg>: <main_msg>`
+        //
+        // NOTE: We used to prefix with `[<code>=<kind_name>]` like
+        // "[106=Command]", but this was not helpful, so we removed it.
         proptest!(|(
             kind in any::<K>(),
             main_msg in arbitrary::any_string()
@@ -1130,13 +1150,11 @@ pub mod invariants {
             let msg = main_msg.clone();
             let err_resp = ErrorResponse { code, msg };
             let api_error = E::from(err_resp);
-            let kind_name = kind.to_name();
             let kind_msg = kind.to_msg();
 
             let actual_display = format!("{api_error}");
-            // e.g. "[0=Unknown] Unknown error: Additional context"
             let expected_display =
-                format!("[{code}={kind_name}]{kind_msg}: {main_msg}");
+                format!("{kind_msg}: {main_msg}");
             prop_assert_eq!(actual_display, expected_display);
         });
     }
@@ -1181,11 +1199,11 @@ mod test {
     }
 
     #[test]
-    fn node_lsp_command_error_is_clean() {
+    fn node_lsp_command_error_is_concise() {
         let err1 = format!("{:#}", NodeApiError::command("Oops!"));
         let err2 = format!("{:#}", LspApiError::command("Oops!"));
 
-        assert_eq!(err1, "[106=Command]: Oops!");
-        assert_eq!(err2, "[102=Command]: Oops!");
+        assert_eq!(err1, "Error: Oops!");
+        assert_eq!(err2, "Error: Oops!");
     }
 }
