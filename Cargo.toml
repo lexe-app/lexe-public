@@ -253,7 +253,8 @@ axum-server = { git = "https://github.com/lexe-app/axum-server", branch = "lexe-
 # * license: Add dual license information
 # * chore(deps): update `reqwest` to `0.12`
 #   PR: <https://github.com/bitcoindevkit/rust-esplora-client/pull/118>
-esplora-client = { git = "https://github.com/lexe-app/rust-esplora-client", branch = "lexe-v0.11.0-2025_03_11" }
+# * async: Log every request
+esplora-client = { git = "https://github.com/lexe-app/rust-esplora-client", branch = "lexe-v0.11.0-2025_03_18" }
 # esplora-client.path = "../../forks/rust-esplora-client"
 
 # * license: Add dual license information
