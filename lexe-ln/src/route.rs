@@ -240,7 +240,7 @@ pub fn compute_max_flow_to_recipient(
     }
 
     let max_flow_result = match best_succ {
-        Some(succ) => Ok(succ.round_sat()),
+        Some(succ) => Ok(succ.floor_sat()),
         // No route found at all
         None => Err(last_err),
     };
