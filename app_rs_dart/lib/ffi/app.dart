@@ -42,6 +42,9 @@ class AppHandle {
       AppRs.instance.api
           .crateFfiAppAppHandleCreateInvoice(that: this, req: req);
 
+  Future<CreateOfferResponse> createOffer({required CreateOfferRequest req}) =>
+      AppRs.instance.api.crateFfiAppAppHandleCreateOffer(that: this, req: req);
+
   /// Delete both the local payment state and the on-disk payment db.
   Future<void> deletePaymentDb() =>
       AppRs.instance.api.crateFfiAppAppHandleDeletePaymentDb(

@@ -16,7 +16,7 @@ import 'types.dart';
 part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_cid_and_response`, `from_id_and_response`, `validate_note`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
 @freezed
 class Balance with _$Balance {
@@ -51,6 +51,24 @@ class CreateInvoiceResponse with _$CreateInvoiceResponse {
   const factory CreateInvoiceResponse({
     required Invoice invoice,
   }) = _CreateInvoiceResponse;
+}
+
+/// See [`common::api::command::CreateOfferRequest`].
+@freezed
+class CreateOfferRequest with _$CreateOfferRequest {
+  const factory CreateOfferRequest({
+    int? expirySecs,
+    int? amountSats,
+    String? description,
+  }) = _CreateOfferRequest;
+}
+
+/// See [`common::api::command::CreateOfferResponse`].
+@freezed
+class CreateOfferResponse with _$CreateOfferResponse {
+  const factory CreateOfferResponse({
+    required Offer offer,
+  }) = _CreateOfferResponse;
 }
 
 /// See [`common::api::command::FeeEstimate`].

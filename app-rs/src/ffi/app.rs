@@ -22,7 +22,8 @@ use tracing::instrument;
 use crate::ffi::{
     api::{
         CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-        FiatRates, ListChannelsResponse, NodeInfo, OpenChannelRequest,
+        CreateOfferRequest, CreateOfferResponse, FiatRates,
+        ListChannelsResponse, NodeInfo, OpenChannelRequest,
         OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
         PayOnchainRequest, PayOnchainResponse, PreflightCloseChannelRequest,
         PreflightCloseChannelResponse, PreflightOpenChannelRequest,
@@ -289,6 +290,19 @@ impl AppHandle {
             .pay_invoice(req)
             .await
             .map(|resp| PayInvoiceResponse::from_id_and_response(id, resp))
+            .map_err(anyhow::Error::new)
+    }
+
+    #[instrument(skip_all, name = "(create-offer)")]
+    pub async fn create_offer(
+        &self,
+        req: CreateOfferRequest,
+    ) -> anyhow::Result<CreateOfferResponse> {
+        self.inner
+            .node_client()
+            .create_offer(req.try_into()?)
+            .await
+            .map(CreateOfferResponse::from)
             .map_err(anyhow::Error::new)
     }
 

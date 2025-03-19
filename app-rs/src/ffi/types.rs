@@ -11,6 +11,7 @@ use common::{
         },
         invoice::LxInvoice,
         network::LxNetwork as NetworkRs,
+        offer::LxOffer,
         payments::{
             BasicPayment as BasicPaymentRs,
             ClientPaymentId as ClientPaymentIdRs,
@@ -21,6 +22,7 @@ use common::{
         priority::ConfirmationPriority as ConfirmationPriorityRs,
     },
     rng::SysRng,
+    time::TimestampMs,
 };
 use flutter_rust_bridge::{frb, RustOpaqueNom};
 
@@ -381,6 +383,36 @@ impl From<&LxInvoice> for Invoice {
 impl From<LxInvoice> for Invoice {
     #[inline]
     fn from(value: LxInvoice) -> Self {
+        Self::from(&value)
+    }
+}
+
+#[frb(dart_metadata=("freezed"))]
+pub struct Offer {
+    pub string: String,
+
+    pub description: Option<String>,
+
+    pub expires_at: Option<i64>,
+    pub amount_sats: Option<u64>,
+}
+
+impl From<&LxOffer> for Offer {
+    fn from(offer: &LxOffer) -> Self {
+        Self {
+            string: offer.to_string(),
+
+            description: offer.description().map(String::from),
+
+            expires_at: offer.expires_at().map(TimestampMs::as_i64),
+            amount_sats: offer.amount().map(|amt| amt.sats_u64()),
+        }
+    }
+}
+
+impl From<LxOffer> for Offer {
+    #[inline]
+    fn from(value: LxOffer) -> Self {
         Self::from(&value)
     }
 }

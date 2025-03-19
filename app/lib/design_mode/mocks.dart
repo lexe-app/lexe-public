@@ -10,6 +10,8 @@ import 'package:app_rs_dart/ffi/api.dart'
         CloseChannelRequest,
         CreateInvoiceRequest,
         CreateInvoiceResponse,
+        CreateOfferRequest,
+        CreateOfferResponse,
         FeeEstimate,
         FiatRate,
         FiatRates,
@@ -37,6 +39,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         Config,
         Invoice,
         LxChannelDetails,
+        Offer,
         Payment,
         PaymentDirection,
         PaymentIndex,
@@ -232,6 +235,29 @@ class MockAppHandle extends AppHandle {
           feesSats: 123,
         ),
       );
+
+  @override
+  Future<CreateOfferResponse> createOffer({required CreateOfferRequest req}) {
+    final expirySecs = req.expirySecs;
+    final expiresAt = (expirySecs != null)
+        ? DateTime.now()
+            .add(Duration(seconds: expirySecs))
+            .millisecondsSinceEpoch
+        : null;
+
+    return Future.delayed(
+      const Duration(milliseconds: 1000),
+      () => CreateOfferResponse(
+        offer: Offer(
+          string:
+              "lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q",
+          expiresAt: expiresAt,
+          amountSats: req.amountSats,
+          description: req.description,
+        ),
+      ),
+    );
+  }
 
   @override
   Future<bool> syncPayments() =>

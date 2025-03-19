@@ -218,6 +218,101 @@ abstract class _CreateInvoiceResponse implements CreateInvoiceResponse {
 }
 
 /// @nodoc
+mixin _$CreateOfferRequest {
+  int? get expirySecs => throw _privateConstructorUsedError;
+  int? get amountSats => throw _privateConstructorUsedError;
+  String? get description => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$CreateOfferRequestImpl implements _CreateOfferRequest {
+  const _$CreateOfferRequestImpl(
+      {this.expirySecs, this.amountSats, this.description});
+
+  @override
+  final int? expirySecs;
+  @override
+  final int? amountSats;
+  @override
+  final String? description;
+
+  @override
+  String toString() {
+    return 'CreateOfferRequest(expirySecs: $expirySecs, amountSats: $amountSats, description: $description)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$CreateOfferRequestImpl &&
+            (identical(other.expirySecs, expirySecs) ||
+                other.expirySecs == expirySecs) &&
+            (identical(other.amountSats, amountSats) ||
+                other.amountSats == amountSats) &&
+            (identical(other.description, description) ||
+                other.description == description));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, expirySecs, amountSats, description);
+}
+
+abstract class _CreateOfferRequest implements CreateOfferRequest {
+  const factory _CreateOfferRequest(
+      {final int? expirySecs,
+      final int? amountSats,
+      final String? description}) = _$CreateOfferRequestImpl;
+
+  @override
+  int? get expirySecs;
+  @override
+  int? get amountSats;
+  @override
+  String? get description;
+}
+
+/// @nodoc
+mixin _$CreateOfferResponse {
+  Offer get offer => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$CreateOfferResponseImpl implements _CreateOfferResponse {
+  const _$CreateOfferResponseImpl({required this.offer});
+
+  @override
+  final Offer offer;
+
+  @override
+  String toString() {
+    return 'CreateOfferResponse(offer: $offer)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$CreateOfferResponseImpl &&
+            (identical(other.offer, offer) || other.offer == offer));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, offer);
+}
+
+abstract class _CreateOfferResponse implements CreateOfferResponse {
+  const factory _CreateOfferResponse({required final Offer offer}) =
+      _$CreateOfferResponseImpl;
+
+  @override
+  Offer get offer;
+}
+
+/// @nodoc
 mixin _$FeeEstimate {
   int get amountSats => throw _privateConstructorUsedError;
 }

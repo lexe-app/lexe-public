@@ -287,6 +287,73 @@ abstract class _Invoice implements Invoice {
 }
 
 /// @nodoc
+mixin _$Offer {
+  String get string => throw _privateConstructorUsedError;
+  String? get description => throw _privateConstructorUsedError;
+  int? get expiresAt => throw _privateConstructorUsedError;
+  int? get amountSats => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$OfferImpl implements _Offer {
+  const _$OfferImpl(
+      {required this.string,
+      this.description,
+      this.expiresAt,
+      this.amountSats});
+
+  @override
+  final String string;
+  @override
+  final String? description;
+  @override
+  final int? expiresAt;
+  @override
+  final int? amountSats;
+
+  @override
+  String toString() {
+    return 'Offer(string: $string, description: $description, expiresAt: $expiresAt, amountSats: $amountSats)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$OfferImpl &&
+            (identical(other.string, string) || other.string == string) &&
+            (identical(other.description, description) ||
+                other.description == description) &&
+            (identical(other.expiresAt, expiresAt) ||
+                other.expiresAt == expiresAt) &&
+            (identical(other.amountSats, amountSats) ||
+                other.amountSats == amountSats));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, string, description, expiresAt, amountSats);
+}
+
+abstract class _Offer implements Offer {
+  const factory _Offer(
+      {required final String string,
+      final String? description,
+      final int? expiresAt,
+      final int? amountSats}) = _$OfferImpl;
+
+  @override
+  String get string;
+  @override
+  String? get description;
+  @override
+  int? get expiresAt;
+  @override
+  int? get amountSats;
+}
+
+/// @nodoc
 mixin _$Onchain {
   String get address => throw _privateConstructorUsedError;
   int? get amountSats => throw _privateConstructorUsedError;

@@ -9,6 +9,8 @@ use common::{
             CloseChannelRequest as CloseChannelRequestRs,
             CreateInvoiceRequest as CreateInvoiceRequestRs,
             CreateInvoiceResponse as CreateInvoiceResponseRs,
+            CreateOfferRequest as CreateOfferRequestRs,
+            CreateOfferResponse as CreateOfferResponseRs,
             FeeEstimate as FeeEstimateRs,
             ListChannelsResponse as ListChannelsResponseRs,
             NodeInfo as NodeInfoRs, OpenChannelRequest as OpenChannelRequestRs,
@@ -41,7 +43,7 @@ use common::{
 use flutter_rust_bridge::frb;
 
 use crate::ffi::types::{
-    ClientPaymentId, ConfirmationPriority, Invoice, LxChannelDetails,
+    ClientPaymentId, ConfirmationPriority, Invoice, LxChannelDetails, Offer,
     PaymentIndex, UserChannelId,
 };
 
@@ -501,6 +503,42 @@ impl From<PreflightPayInvoiceResponseRs> for PreflightPayInvoiceResponse {
         Self {
             amount_sats: value.amount.sats_u64(),
             fees_sats: value.fees.sats_u64(),
+        }
+    }
+}
+
+/// See [`common::api::command::CreateOfferRequest`].
+#[frb(dart_metadata=("freezed"))]
+pub struct CreateOfferRequest {
+    pub expiry_secs: Option<u32>,
+    pub amount_sats: Option<u64>,
+    pub description: Option<String>,
+}
+
+impl TryFrom<CreateOfferRequest> for CreateOfferRequestRs {
+    type Error = anyhow::Error;
+    fn try_from(value: CreateOfferRequest) -> Result<Self, Self::Error> {
+        Ok(Self {
+            expiry_secs: value.expiry_secs,
+            amount: value
+                .amount_sats
+                .map(Amount::try_from_sats_u64)
+                .transpose()?,
+            description: value.description,
+        })
+    }
+}
+
+/// See [`common::api::command::CreateOfferResponse`].
+#[frb(dart_metadata=("freezed"))]
+pub struct CreateOfferResponse {
+    pub offer: Offer,
+}
+
+impl From<CreateOfferResponseRs> for CreateOfferResponse {
+    fn from(value: CreateOfferResponseRs) -> Self {
+        Self {
+            offer: Offer::from(value.offer),
         }
     }
 }

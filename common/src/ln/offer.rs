@@ -9,6 +9,7 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 use crate::{
     api::user::NodePk,
     ln::{amount::Amount, network::LxNetwork},
+    time::TimestampMs,
 };
 
 /// A Lightning BOLT12 offer.
@@ -120,6 +121,14 @@ impl LxOffer {
     /// blinded for recipient privacy.
     pub fn payee_node_pk(&self) -> Option<NodePk> {
         self.0.issuer_signing_pubkey().map(NodePk)
+    }
+
+    /// The absolute expiration time of the offer, if any.
+    pub fn expires_at(&self) -> Option<TimestampMs> {
+        self.0.absolute_expiry().map(|duration_since_epoch| {
+            TimestampMs::try_from(duration_since_epoch)
+                .unwrap_or(TimestampMs::MAX)
+        })
     }
 
     /// Returns the Bitcoin-denominated [`Amount`], if any.

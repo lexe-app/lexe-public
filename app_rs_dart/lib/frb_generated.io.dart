@@ -120,6 +120,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       dynamic raw);
 
   @protected
+  CreateOfferRequest dco_decode_box_autoadd_create_offer_request(dynamic raw);
+
+  @protected
   FeeEstimate dco_decode_box_autoadd_fee_estimate(dynamic raw);
 
   @protected
@@ -183,6 +186,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       dynamic raw);
 
   @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw);
+
+  @protected
   UpdatePaymentNote dco_decode_box_autoadd_update_payment_note(dynamic raw);
 
   @protected
@@ -202,6 +208,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   CreateInvoiceResponse dco_decode_create_invoice_response(dynamic raw);
+
+  @protected
+  CreateOfferRequest dco_decode_create_offer_request(dynamic raw);
+
+  @protected
+  CreateOfferResponse dco_decode_create_offer_response(dynamic raw);
 
   @protected
   DeployEnv dco_decode_deploy_env(dynamic raw);
@@ -265,6 +277,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   NodeInfo dco_decode_node_info(dynamic raw);
 
   @protected
+  Offer dco_decode_offer(dynamic raw);
+
+  @protected
   Onchain dco_decode_onchain(dynamic raw);
 
   @protected
@@ -303,6 +318,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   ShortPaymentAndIndex? dco_decode_opt_box_autoadd_short_payment_and_index(
       dynamic raw);
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
   PayInvoiceRequest dco_decode_pay_invoice_request(dynamic raw);
@@ -474,6 +492,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       SseDeserializer deserializer);
 
   @protected
+  CreateOfferRequest sse_decode_box_autoadd_create_offer_request(
+      SseDeserializer deserializer);
+
+  @protected
   FeeEstimate sse_decode_box_autoadd_fee_estimate(SseDeserializer deserializer);
 
   @protected
@@ -546,6 +568,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       SseDeserializer deserializer);
 
   @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
   UpdatePaymentNote sse_decode_box_autoadd_update_payment_note(
       SseDeserializer deserializer);
 
@@ -569,6 +594,14 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   CreateInvoiceResponse sse_decode_create_invoice_response(
+      SseDeserializer deserializer);
+
+  @protected
+  CreateOfferRequest sse_decode_create_offer_request(
+      SseDeserializer deserializer);
+
+  @protected
+  CreateOfferResponse sse_decode_create_offer_response(
       SseDeserializer deserializer);
 
   @protected
@@ -638,6 +671,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   NodeInfo sse_decode_node_info(SseDeserializer deserializer);
 
   @protected
+  Offer sse_decode_offer(SseDeserializer deserializer);
+
+  @protected
   Onchain sse_decode_onchain(SseDeserializer deserializer);
 
   @protected
@@ -680,6 +716,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   ShortPaymentAndIndex? sse_decode_opt_box_autoadd_short_payment_and_index(
       SseDeserializer deserializer);
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   PayInvoiceRequest sse_decode_pay_invoice_request(
@@ -861,6 +900,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       CreateInvoiceRequest self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_create_offer_request(
+      CreateOfferRequest self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_fee_estimate(
       FeeEstimate self, SseSerializer serializer);
 
@@ -933,6 +976,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       ShortPaymentAndIndex self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_update_payment_note(
       UpdatePaymentNote self, SseSerializer serializer);
 
@@ -958,6 +1004,14 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_create_invoice_response(
       CreateInvoiceResponse self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_create_offer_request(
+      CreateOfferRequest self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_create_offer_response(
+      CreateOfferResponse self, SseSerializer serializer);
 
   @protected
   void sse_encode_deploy_env(DeployEnv self, SseSerializer serializer);
@@ -1028,6 +1082,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_node_info(NodeInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_offer(Offer self, SseSerializer serializer);
+
+  @protected
   void sse_encode_onchain(Onchain self, SseSerializer serializer);
 
   @protected
@@ -1073,6 +1130,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_opt_box_autoadd_short_payment_and_index(
       ShortPaymentAndIndex? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
   void sse_encode_pay_invoice_request(
