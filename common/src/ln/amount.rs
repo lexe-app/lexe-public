@@ -65,7 +65,7 @@ use std::{
 };
 
 use anyhow::format_err;
-use rust_decimal::{prelude::ToPrimitive, Decimal};
+use rust_decimal::{prelude::ToPrimitive, Decimal, RoundingStrategy};
 use rust_decimal_macros::dec;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -212,14 +212,22 @@ impl Amount {
         self.0 / dec!(1_0000_0000)
     }
 
-    /// Round out the sub-satoshi precision part of the [`Amount`].
+    /// Rounds to the nearest satoshi.
     ///
     /// e.g. 123.456 sats => 123 sats
     pub fn round_sat(&self) -> Self {
         Self(self.0.round())
     }
 
-    /// Round out the sub-millisatoshi precision part of the [`Amount`].
+    /// Rounds to the nearest satoshi, rounding towards zero.
+    pub fn floor_sat(&self) -> Self {
+        // Decimal::floor rounds negative numbers towards negative infinity.
+        // To be future-proof just in case we ever allow negative amounts,
+        // we'll round with `round_dp_with_strategy` instead.
+        Self(self.0.round_dp_with_strategy(0, RoundingStrategy::ToZero))
+    }
+
+    /// Rounds to the nearest millisatoshi.
     ///
     /// Since being rounded to the nearest msat is an invariant, this function
     /// should have no effect, but it is still useful in tests.
@@ -658,6 +666,22 @@ mod test {
             assert_whole_msat(Amount::from_str(&bounded_decimal_str).unwrap())?;
 
         })
+    }
+
+    /// Tests [`Amount::floor_sat`].
+    #[test]
+    fn test_floor_sat() {
+        proptest!(|(amount in any::<Amount>())| {
+            let floored = amount.floor_sat();
+            prop_assert!(floored <= amount);
+            // This relies on `Amount` being non-negative,
+            // as `Decimal::floor` rounds towards negative infinity.
+            prop_assert_eq!(floored, Amount(amount.0.floor()));
+            prop_assert_eq!(
+                floored,
+                Amount::try_from_sats(Decimal::from(amount.sats_u64())).unwrap()
+            );
+        });
     }
 
     /// Test rounding to the nearest satoshi.
