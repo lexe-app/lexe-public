@@ -1,6 +1,7 @@
 //! Routing logic.
 
 use anyhow::{anyhow, ensure};
+use cfg_if::cfg_if;
 use common::{
     api::user::NodePk,
     ln::{amount::Amount, invoice::LxInvoice},
@@ -175,10 +176,21 @@ pub fn compute_max_flow_to_recipient(
     routing_context: &RoutingContext,
     starting_amount: Amount,
 ) -> anyhow::Result<Amount> {
-    /// Max # of binary search iterations.
-    // Routing is done locally so it should be pretty fast, and more iterations
-    // gives better accuracy. TODO(max): Revisit after seeing `elapsed` in prod.
-    const MAX_ITERATIONS: usize = 30;
+    cfg_if! {
+        if #[cfg(any(test, feature = "test-utils"))] {
+            // Use satoshi-precise values in tests for better debugging.
+            const MAX_ITERATIONS: usize = 30;
+        } else {
+            /// Max # of binary search iterations.
+            // 10 iterations allows us to search ~1M amounts to
+            // an accuracy of about 1000 sat.
+            //
+            // Some timing samples from prod (mainnet):
+            // - best_succ=64604: 17 iters, 50.052s (2025-03-18)
+            // - best_succ=87681: 17 iters, 47.668s (2025-03-18)
+            const MAX_ITERATIONS: usize = 10;
+        }
+    }
     let start = tokio::time::Instant::now();
 
     info!(%starting_amount, "Computing max flow");
