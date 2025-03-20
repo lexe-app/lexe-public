@@ -123,6 +123,10 @@ case "$CONFIGURATION" in
   APP_RS__CARGO_PROFILE="release"
   APP_RS__CARGO_PROFILE_ARG=("--release")
   ;;
+"Profile"*)
+  APP_RS__CARGO_PROFILE="release"
+  APP_RS__CARGO_PROFILE_ARG=("--release")
+  ;;
 "Debug"*)
   APP_RS__CARGO_PROFILE="debug"
   APP_RS__CARGO_PROFILE_ARG=()
