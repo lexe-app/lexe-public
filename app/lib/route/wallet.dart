@@ -43,7 +43,7 @@ import 'package:lexeapp/route/debug.dart' show DebugPage;
 import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
 import 'package:lexeapp/route/payment_detail.dart'
     show PaymentDetailPage, PaymentSource;
-import 'package:lexeapp/route/receive.dart' show ReceivePaymentPage;
+import 'package:lexeapp/route/receive/page.dart' show ReceivePaymentPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'

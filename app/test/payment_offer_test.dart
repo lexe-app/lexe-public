@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart' show expect, test;
 
-import 'package:lexeapp/route/receive.dart' show PaymentOffer, PaymentOfferKind;
+import 'package:lexeapp/route/receive/page.dart'
+    show PaymentOffer, PaymentOfferKind;
 
 void main() {
   test("PaymentOffer.uri() (invoice)", () {
