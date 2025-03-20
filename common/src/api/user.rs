@@ -122,11 +122,11 @@ pub struct MaybeScid {
     pub maybe_scid: Option<Scid>,
 }
 
-/// Represents an entry in the `node_scid` table.
+/// Represents an entry in the `user_scid` table.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
-pub struct NodeScid {
+pub struct UserScid {
     pub node_pk: NodePk,
     pub scid: Scid,
 }
@@ -515,8 +515,8 @@ mod test {
     }
 
     #[test]
-    fn node_scid_roundtrips() {
-        roundtrip::json_value_roundtrip_proptest::<NodeScid>();
+    fn user_scid_roundtrips() {
+        roundtrip::json_value_roundtrip_proptest::<UserScid>();
     }
 
     #[test]
