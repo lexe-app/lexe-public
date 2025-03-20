@@ -31,27 +31,27 @@ import 'package:lexeapp/style.dart'
 
 const double minViewportWidth = 365.0;
 
-const int lnPageIdx = 0;
+const int lnInvoicePageIdx = 0;
 const int btcPageIdx = 1;
 
 /// The kind of payment to receive, across both BTC and LN.
 enum PaymentOfferKind {
   lightningInvoice,
+  lightningOffer,
   btcAddress,
 
   // TODO(phlip9): impl
   // lightningSpontaneous,
-  // lightningOffer,
   // btcTaproot,
   ;
 
   bool isLightning() => switch (this) {
         PaymentOfferKind.lightningInvoice => true,
+        PaymentOfferKind.lightningOffer => true,
         PaymentOfferKind.btcAddress => false,
 
         // TODO(phlip9): impl
         // PaymentOfferKind.lightningSpontaneous => true,
-        // PaymentOfferKind.lightningOffer => true,
         // PaymentOfferKind.btcTaproot => false,
       };
 
@@ -83,7 +83,38 @@ class LnInvoiceInputs {
 
   @override
   String toString() {
-    return 'InvoiceInputs(amountSats: $amountSats, description: $description)';
+    return "LnInvoiceInputs(amountSats: $amountSats, description: $description)";
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == this.runtimeType &&
+            other is LnInvoiceInputs &&
+            (identical(other.amountSats, this.amountSats) ||
+                other.amountSats == this.amountSats) &&
+            (identical(other.description, this.description) ||
+                other.description == this.description));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(this.runtimeType, this.amountSats, this.description);
+}
+
+@immutable
+class LnOfferInputs {
+  const LnOfferInputs({
+    required this.amountSats,
+    required this.description,
+  });
+
+  final int? amountSats;
+  final String? description;
+
+  @override
+  String toString() {
+    return "LnOfferInputs(amountSats: $amountSats, description: $description)";
   }
 
   @override
@@ -111,7 +142,7 @@ class BtcAddrInputs {
 
   @override
   String toString() {
-    return 'BitcoinAddressInputs(kind: $kind)';
+    return "BitcoinAddressInputs(kind: $kind)";
   }
 
   @override
@@ -144,22 +175,22 @@ class PaymentOffer {
 
   String titleStr() => switch (this.kind) {
         PaymentOfferKind.lightningInvoice => "Lightning invoice",
+        PaymentOfferKind.lightningOffer => "Lightning offer (BOLT12)",
         PaymentOfferKind.btcAddress => "Bitcoin address",
 
         // PaymentOfferKind.lightningSpontaneous => "Lightning spontaneous payment",
-        // PaymentOfferKind.lightningOffer => "Lightning offer",
         // PaymentOfferKind.btcTaproot => "Bitcoin taproot address",
       };
 
   String subtitleStr() => switch (this.kind) {
         PaymentOfferKind.lightningInvoice =>
           "Receive Bitcoin instantly with Lightning",
+        PaymentOfferKind.lightningOffer => "Reusable payment request",
         PaymentOfferKind.btcAddress =>
           "Receive Bitcoin from anywhere. Slower and more expensive than via Lightning.",
 
         // TODO(phlip9): impl
         // PaymentOfferKind.btcTaproot => "",
-        // PaymentOfferKind.lightningOffer => "",
         // PaymentOfferKind.lightningSpontaneous => "",
       };
 
@@ -171,6 +202,7 @@ class PaymentOffer {
 
     return switch (this.kind) {
       PaymentOfferKind.lightningInvoice => Uri(scheme: "lightning", path: code),
+      PaymentOfferKind.lightningOffer => Uri(scheme: "lightning", path: code),
       PaymentOfferKind.btcAddress => Uri(scheme: "bitcoin", path: code),
     };
   }
@@ -256,6 +288,14 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     ),
   );
 
+  /// Inputs that determine when we should fetch a new lightning offer.
+  final ValueNotifier<LnOfferInputs> lnOfferInputs = ValueNotifier(
+    const LnOfferInputs(
+      amountSats: null,
+      description: null,
+    ),
+  );
+
   /// Inputs that determine when we should fetch a new bitcoin address.
   final ValueNotifier<BtcAddrInputs> btcAddrInputs = ValueNotifier(
     const BtcAddrInputs(
@@ -274,6 +314,15 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
         expiresAt: null,
       ),
     ),
+    // ValueNotifier(
+    //   const PaymentOffer(
+    //     kind: PaymentOfferKind.lightningOffer,
+    //     code: null,
+    //     amountSats: null,
+    //     description: null,
+    //     expiresAt: null,
+    //   ),
+    // ),
     ValueNotifier(
       const PaymentOffer(
         kind: PaymentOfferKind.btcAddress,
@@ -289,15 +338,19 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   void initState() {
     super.initState();
 
-    // Fetch a new invoice when certain LN inputs change.
-    this.lnInvoiceInputs.addListener(this.doFetchLn);
+    // Fetch a new lightning invoice when its inputs change.
+    this.lnInvoiceInputs.addListener(this.doFetchLnInvoice);
+
+    // // Fetch a new lightning offer when its inputs change.
+    // this.lnOfferInputs.addListener(this.doFetchLnOffer);
 
     // Fetch a new btc address when certain BTC inputs change.
     this.btcAddrInputs.addListener(this.doFetchBtc);
 
     // Kick us off by fetching an initial zero-amount invoice and a btc address.
 
-    unawaited(this.doFetchLn());
+    unawaited(this.doFetchLnInvoice());
+    // unawaited(this.doFetchLnOffer());
     unawaited(this.doFetchBtc());
   }
 
@@ -307,6 +360,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     this.selectedPageIndex.dispose();
 
     this.lnInvoiceInputs.dispose();
+    this.lnOfferInputs.dispose();
     this.btcAddrInputs.dispose();
 
     for (final paymentOffer in this.paymentOffers) {
@@ -336,7 +390,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
   ValueNotifier<PaymentOffer> currentOffer() =>
       this.paymentOffers[this.selectedPageIndex.value];
-  ValueNotifier<PaymentOffer> lnOffer() => this.paymentOffers[lnPageIdx];
+  ValueNotifier<PaymentOffer> lnOffer() => this.paymentOffers[lnInvoicePageIdx];
   ValueNotifier<PaymentOffer> btcOffer() => this.paymentOffers[btcPageIdx];
 
   /// Fetch a bitcoin address for the given [PaymentOfferInputs] and return a
@@ -344,14 +398,14 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   ///
   /// Will skip actually sending a new request if only the `inputs.amountSats`
   /// or `inputs.description` changed.
-  Future<PaymentOffer?> fetchBtcOffer(
+  Future<PaymentOffer?> fetchBtc(
     BtcAddrInputs inputs,
     PaymentOffer prev,
   ) async {
     // TODO(phlip9): actually add ability to fetch a taproot address
     // assert(btcKind != PaymentOfferKind.btcTaproot);
 
-    info("ReceivePaymentPage: fetchBtcOffer: inputs: $inputs, prev: $prev");
+    info("ReceivePaymentPage: fetchBtc: inputs: $inputs, prev: $prev");
 
     final result = await Result.tryFfiAsync(this.widget.app.getAddress);
 
@@ -359,12 +413,12 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     switch (result) {
       case Err(:final err):
         // TODO(phlip9): error display
-        error("ReceivePaymentPage: fetchBtcOffer: failed to getAddress: $err");
+        error("ReceivePaymentPage: fetchBtc: failed to getAddress: $err");
         return null;
 
       case Ok(:final ok):
         address = ok;
-        info("ReceivePaymentPage: fetchBtcOffer: getAddress => '$address'");
+        info("ReceivePaymentPage: fetchBtc: getAddress => '$address'");
     }
 
     return PaymentOffer(
@@ -381,11 +435,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     LnInvoiceInputs inputs,
     PaymentOffer prev,
   ) async {
-    // TODO(phlip9): actually support BOLT12 offers.
-    // assert(lnKind == PaymentOfferKind.lightningInvoice);
-
     final req = CreateInvoiceRequest(
-      // TODO(phlip9): choose a good default expiration
       expirySecs: 24 * 60 * 60,
       amountSats: inputs.amountSats,
       description: inputs.description,
@@ -425,7 +475,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     final btcOfferNotifier = this.btcOffer();
     final prev = btcOfferNotifier.value;
 
-    final offer = await this.fetchBtcOffer(inputs, prev);
+    final offer = await this.fetchBtc(inputs, prev);
 
     // Canceled / navigated away => ignore
     if (!this.mounted) return;
@@ -443,7 +493,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     btcOfferNotifier.value = offer;
   }
 
-  Future<void> doFetchLn() async {
+  Future<void> doFetchLnInvoice() async {
     // TODO(phlip9): UI indicator that we're fetching
     final inputs = this.lnInvoiceInputs.value;
     final lnOfferNotifier = this.lnOffer();
@@ -599,7 +649,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
                             openSetAmountPage: () =>
                                 this.openEditPage(offer.kind),
                             refreshPaymentOffer: offer.kind.isLightning()
-                                ? this.doFetchLn
+                                ? this.doFetchLnInvoice
                                 : null,
                           ),
                         ))
