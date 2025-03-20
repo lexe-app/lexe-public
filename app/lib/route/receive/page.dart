@@ -23,7 +23,8 @@ import 'package:lexeapp/components.dart'
         LxFilledButton,
         PaymentAmountInput,
         PaymentNoteInput,
-        ScrollableSinglePageBody;
+        ScrollableSinglePageBody,
+        VoidContextCallback;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/logger.dart';
@@ -681,42 +682,11 @@ class PaymentOfferPage extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    // raw code string + copy button
-                    if (code != null)
-                      Transform.translate(
-                        offset: const Offset(-Space.s300, Space.s0),
-                        child: TextButton.icon(
-                          onPressed: () => this.onTapCopy(context),
-                          icon: Text(
-                            address_format.ellipsizeBtcAddress(code),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: Fonts.size100,
-                              color: LxColors.grey550,
-                            ),
-                          ),
-                          label: const Icon(
-                            LxIcons.copy,
-                            opticalSize: LxIcons.opszDense,
-                            weight: LxIcons.weightNormal,
-                            size: Fonts.size300,
-                            color: LxColors.grey550,
-                          ),
-                        ),
-                      ),
-                    if (code == null)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12.0),
-                        child: FilledTextPlaceholder(
-                          width: Space.s950,
-                          color: LxColors.background,
-                          style: TextStyle(
-                            fontSize: Fonts.size100,
-                            color: LxColors.grey550,
-                          ),
-                        ),
-                      ),
+                    // `<code> <copy-icon>` button
+                    CopyCodeButtonOrPlaceholder(
+                      code: code,
+                      onTapCopy: this.onTapCopy,
+                    ),
 
                     const Expanded(child: Center()),
 
@@ -735,6 +705,7 @@ class PaymentOfferPage extends StatelessWidget {
                     // ),
                   ],
                 ),
+                const SizedBox(height: Space.s100),
 
                 // QR code
                 LayoutBuilder(
@@ -1059,13 +1030,91 @@ class CardBox extends StatelessWidget {
         ),
         padding: const EdgeInsets.fromLTRB(
           Space.s450,
-          Space.s100,
+          Space.s200,
           Space.s450,
           Space.s450,
         ),
         clipBehavior: Clip.antiAlias,
         child: child,
       );
+}
+
+/// The button at the top of the PaymentOfferPage that copies the code to the
+/// clipboard. Displays a loading placeholder if the code is not yet available.
+class CopyCodeButtonOrPlaceholder extends StatelessWidget {
+  const CopyCodeButtonOrPlaceholder(
+      {super.key, this.code, required this.onTapCopy});
+
+  final String? code;
+  final VoidContextCallback onTapCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    const double buttonWidth = Space.s950;
+    const double buttonHeight = Space.s600;
+    const double buttonPadHoriz = Space.s300;
+
+    const double fontSize = Fonts.size100;
+    const Color fontColor = LxColors.grey550;
+
+    final code = this.code;
+
+    // raw code string + copy button
+    if (code != null) {
+      // align text with QR code
+      return Transform.translate(
+        offset: const Offset(-buttonPadHoriz, Space.s0),
+        child: TextButton.icon(
+          onPressed: () => this.onTapCopy(context),
+          icon: Text(
+            address_format.ellipsizeBtcAddress(code),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: fontSize,
+              color: fontColor,
+            ),
+          ),
+          label: const Icon(
+            LxIcons.copy,
+            opticalSize: LxIcons.opszDense,
+            weight: LxIcons.weightNormal,
+            size: Fonts.size300,
+            color: fontColor,
+          ),
+          // Make button sizing more deterministic so we can
+          // size the placeholder more accurately.
+          style: const ButtonStyle(
+            padding: WidgetStatePropertyAll(
+              EdgeInsets.symmetric(
+                vertical: Space.s0,
+                horizontal: buttonPadHoriz,
+              ),
+            ),
+            minimumSize:
+                WidgetStatePropertyAll(Size(buttonWidth, buttonHeight)),
+            maximumSize: WidgetStatePropertyAll(Size.fromHeight(buttonHeight)),
+            visualDensity: VisualDensity(horizontal: 0.0, vertical: 0.0),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      );
+    } else {
+      return const SizedBox(
+        width: buttonWidth,
+        height: buttonHeight,
+        child: Center(
+          child: FilledTextPlaceholder(
+            color: LxColors.background,
+            style: TextStyle(
+              fontSize: fontSize,
+              color: fontColor,
+            ),
+          ),
+        ),
+      );
+    }
+  }
 }
 
 // const bottomSheetBodyPadding = Space.s600;
