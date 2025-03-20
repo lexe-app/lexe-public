@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart' show expect, test;
 
-import 'package:lexeapp/route/receive/page.dart'
+import 'package:lexeapp/route/receive/state.dart'
     show PaymentOffer, PaymentOfferKind;
 
 void main() {

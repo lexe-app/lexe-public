@@ -63,7 +63,8 @@ import 'package:lexeapp/route/node_info.dart';
 import 'package:lexeapp/route/open_channel.dart';
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
 import 'package:lexeapp/route/receive/page.dart'
-    show LnInvoiceInputs, ReceivePaymentEditInvoicePage, ReceivePaymentPage;
+    show ReceivePaymentEditInvoicePage, ReceivePaymentPage;
+import 'package:lexeapp/route/receive/state.dart' show LnInvoiceInputs;
 import 'package:lexeapp/route/restore.dart';
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
