@@ -121,31 +121,13 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   /// Each page offer.
   final List<ValueNotifier<PaymentOffer>> paymentOffers = [
     ValueNotifier(
-      const PaymentOffer(
-        kind: PaymentOfferKind.lightningInvoice,
-        code: null,
-        amountSats: null,
-        description: null,
-        expiresAt: null,
-      ),
+      const PaymentOffer.unloaded(kind: PaymentOfferKind.lightningInvoice),
     ),
     ValueNotifier(
-      const PaymentOffer(
-        kind: PaymentOfferKind.lightningOffer,
-        code: null,
-        amountSats: null,
-        description: null,
-        expiresAt: null,
-      ),
+      const PaymentOffer.unloaded(kind: PaymentOfferKind.lightningOffer),
     ),
     ValueNotifier(
-      const PaymentOffer(
-        kind: PaymentOfferKind.btcAddress,
-        code: null,
-        amountSats: null,
-        description: null,
-        expiresAt: null,
-      ),
+      const PaymentOffer.unloaded(kind: PaymentOfferKind.btcAddress),
     ),
   ];
 
@@ -276,6 +258,18 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
     // Everything's good -> update our current BTC page offer
     btcPaymentOffer.value = offer;
+  }
+
+  /// When the user hits the refresh button, we fetch a new invoice. Keep the
+  /// amount and description set in the UI.
+  Future<void> doRefreshLnInvoice() async {
+    // Reset invoice
+    final lnInvoicePaymentOffer = this.lnInvoicePaymentOffer();
+    final prev = lnInvoicePaymentOffer.value;
+    lnInvoicePaymentOffer.value = prev.resetForRefresh();
+
+    // Fetch new invoice w/ same inputs
+    await this.doFetchLnInvoice();
   }
 
   Future<void> doFetchLnInvoice() async {
@@ -540,7 +534,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
                                 this.openEditPage(offer.kind),
                             refreshPaymentOffer:
                                 offer.kind == PaymentOfferKind.lightningInvoice
-                                    ? this.doFetchLnInvoice
+                                    ? this.doRefreshLnInvoice
                                     : null,
                           ),
                         ))

@@ -126,11 +126,29 @@ class PaymentOffer {
     required this.expiresAt,
   });
 
+  /// An initial, unloaded PaymentOffer.
+  const PaymentOffer.unloaded({required this.kind})
+      : code = null,
+        amountSats = null,
+        description = null,
+        expiresAt = null;
+
   final PaymentOfferKind kind;
   final String? code;
   final int? amountSats;
   final String? description;
   final DateTime? expiresAt;
+
+  /// When refreshing a payment offer, we want to reset it back to the default
+  /// unloaded state first. However, we also want to keep displaying the
+  /// amount/description to avoid the UI reflowing and jumping around.
+  PaymentOffer resetForRefresh() => PaymentOffer(
+        kind: this.kind,
+        code: null,
+        amountSats: this.amountSats,
+        description: this.description,
+        expiresAt: null,
+      );
 
   String titleStr() => switch (this.kind) {
         PaymentOfferKind.lightningInvoice => "Lightning invoice",
