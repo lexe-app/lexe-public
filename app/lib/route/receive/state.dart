@@ -13,18 +13,6 @@ enum PaymentOfferKind {
   // lightningSpontaneous,
   // btcTaproot,
   ;
-
-  bool isLightning() => switch (this) {
-        PaymentOfferKind.lightningInvoice => true,
-        PaymentOfferKind.lightningOffer => true,
-        PaymentOfferKind.btcAddress => false,
-
-        // TODO(phlip9): impl
-        // PaymentOfferKind.lightningSpontaneous => true,
-        // PaymentOfferKind.btcTaproot => false,
-      };
-
-  bool isBtc() => !this.isLightning();
 }
 
 /// The Bitcoin address type to receive with.
@@ -91,7 +79,7 @@ class LnOfferInputs {
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == this.runtimeType &&
-            other is LnInvoiceInputs &&
+            other is LnOfferInputs &&
             (identical(other.amountSats, this.amountSats) ||
                 other.amountSats == this.amountSats) &&
             (identical(other.description, this.description) ||
@@ -156,7 +144,8 @@ class PaymentOffer {
   String subtitleStr() => switch (this.kind) {
         PaymentOfferKind.lightningInvoice =>
           "Receive Bitcoin instantly with Lightning",
-        PaymentOfferKind.lightningOffer => "Reusable payment request",
+        PaymentOfferKind.lightningOffer =>
+          "Reusable payment request. May not be supported by all wallets.",
         PaymentOfferKind.btcAddress =>
           "Receive Bitcoin from anywhere. Slower and more expensive than via Lightning.",
 

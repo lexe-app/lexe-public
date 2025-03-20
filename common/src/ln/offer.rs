@@ -580,11 +580,14 @@ mod test {
         println!("---");
     }
 
+    /// ```bash
+    /// $ cargo test -p common --lib -- offer_decode --ignored --nocapture
+    /// ```
     #[ignore]
     #[test]
     fn offer_decode() {
         let offer_str =
-            "lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q";
+            "lno1zrxq8pjw7qjlm68mtp7e3yvxee4y5xrgjhhyf2fxhlphpckrvevh50u0qdp2nyl5lh362fu4r6ycw59tul97ptq57j9mhusk4dyqed0nytnzyqsz0qduahca4eryls267a72a4rtcnk4p6ululyvg7a7pdczg8ha8e6qqval7cremj65ut2k087xdhay6qvv0dtljppyd80zyj68f748jt569nutyznpf9qms39a06ecl0tw9w6ky9xpqd4k7hl4phttq9lkdrhjffv08tc04yxf4pfexypwt0e8zlmdeuf4qqqsdt4qevd84nlmks62nzzz9swwpu";
         let offer = LxOffer::from_str(offer_str).unwrap();
         dbg!(&offer);
         dbg!(offer.payee_node_pk());

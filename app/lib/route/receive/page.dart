@@ -4,9 +4,10 @@ library;
 import 'dart:async' show unawaited;
 import 'dart:math' show max;
 
-import 'package:app_rs_dart/ffi/api.dart' show CreateInvoiceRequest, FiatRate;
+import 'package:app_rs_dart/ffi/api.dart'
+    show CreateInvoiceRequest, CreateOfferRequest, FiatRate;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
-import 'package:app_rs_dart/ffi/types.dart' show Invoice;
+import 'package:app_rs_dart/ffi/types.dart' show Invoice, Offer;
 import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -43,7 +44,8 @@ import 'package:lexeapp/style.dart'
 const double minViewportWidth = 365.0;
 
 const int lnInvoicePageIdx = 0;
-const int btcPageIdx = 1;
+const int lnOfferPageIdx = 1;
+const int btcPageIdx = 2;
 
 class ReceivePaymentPage extends StatelessWidget {
   const ReceivePaymentPage({
@@ -127,15 +129,15 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
         expiresAt: null,
       ),
     ),
-    // ValueNotifier(
-    //   const PaymentOffer(
-    //     kind: PaymentOfferKind.lightningOffer,
-    //     code: null,
-    //     amountSats: null,
-    //     description: null,
-    //     expiresAt: null,
-    //   ),
-    // ),
+    ValueNotifier(
+      const PaymentOffer(
+        kind: PaymentOfferKind.lightningOffer,
+        code: null,
+        amountSats: null,
+        description: null,
+        expiresAt: null,
+      ),
+    ),
     ValueNotifier(
       const PaymentOffer(
         kind: PaymentOfferKind.btcAddress,
@@ -154,16 +156,17 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     // Fetch a new lightning invoice when its inputs change.
     this.lnInvoiceInputs.addListener(this.doFetchLnInvoice);
 
-    // // Fetch a new lightning offer when its inputs change.
-    // this.lnOfferInputs.addListener(this.doFetchLnOffer);
+    // Fetch a new lightning offer when its inputs change.
+    this.lnOfferInputs.addListener(this.doFetchLnOffer);
 
     // Fetch a new btc address when certain BTC inputs change.
     this.btcAddrInputs.addListener(this.doFetchBtc);
 
-    // Kick us off by fetching an initial zero-amount invoice and a btc address.
+    // Kick us off by fetching an initial zero-amount invoice, offer, and btc
+    // address.
 
     unawaited(this.doFetchLnInvoice());
-    // unawaited(this.doFetchLnOffer());
+    unawaited(this.doFetchLnOffer());
     unawaited(this.doFetchBtc());
   }
 
@@ -195,30 +198,38 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     }
   }
 
+  /// Create a new inner [PageController] for the carousel of [PaymentOfferPage]s.
   PageController newPageController() => PageController(
         initialPage: this.selectedPageIndex.value,
         viewportFraction:
+            // TODO(phlip9): We need a smarter approach for `viewportFraction`.
+            //   - We want to show ~20 px of the next page on either side to
+            //     hint to the user that there are more pages to swipe to.
+            //   - However, above a certain width (ex: tablet, laptop, etc) the
+            //     page gets too large, so we then need to uncap the
+            //     `viewportFraction`.
             minViewportWidth / max(minViewportWidth, this.widget.viewportWidth),
       );
 
-  ValueNotifier<PaymentOffer> currentOffer() =>
+  ValueNotifier<PaymentOffer> currentPaymentOffer() =>
       this.paymentOffers[this.selectedPageIndex.value];
-  ValueNotifier<PaymentOffer> lnOffer() => this.paymentOffers[lnInvoicePageIdx];
-  ValueNotifier<PaymentOffer> btcOffer() => this.paymentOffers[btcPageIdx];
 
-  /// Fetch a bitcoin address for the given [PaymentOfferInputs] and return a
+  ValueNotifier<PaymentOffer> lnInvoicePaymentOffer() =>
+      this.paymentOffers[lnInvoicePageIdx];
+  ValueNotifier<PaymentOffer> lnOfferPaymentOffer() =>
+      this.paymentOffers[lnOfferPageIdx];
+  ValueNotifier<PaymentOffer> btcPaymentOffer() =>
+      this.paymentOffers[btcPageIdx];
+
+  /// Fetch a bitcoin address for the given [BtcAddrInputs] and return a
   /// full [PaymentOffer].
-  ///
-  /// Will skip actually sending a new request if only the `inputs.amountSats`
-  /// or `inputs.description` changed.
   Future<PaymentOffer?> fetchBtc(
     BtcAddrInputs inputs,
-    PaymentOffer prev,
   ) async {
     // TODO(phlip9): actually add ability to fetch a taproot address
     // assert(btcKind != PaymentOfferKind.btcTaproot);
 
-    info("ReceivePaymentPage: fetchBtc: inputs: $inputs, prev: $prev");
+    info("ReceivePaymentPage: fetchBtc: inputs: $inputs");
 
     final result = await Result.tryFfiAsync(this.widget.app.getAddress);
 
@@ -231,22 +242,70 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
       case Ok(:final ok):
         address = ok;
-        info("ReceivePaymentPage: fetchBtc: getAddress => '$address'");
+        info("ReceivePaymentPage: fetchBtc: getAddress => done");
     }
 
     return PaymentOffer(
-      kind: inputs.kind.toOfferKind(),
+      kind: PaymentOfferKind.btcAddress,
       code: address,
-      amountSats: prev.amountSats,
-      description: prev.description,
-      expiresAt: prev.expiresAt,
+      amountSats: null,
+      description: null,
+      expiresAt: null,
     );
   }
 
-  /// Fetch the Lightning invoice/offer for the given `PaymentOfferInputs`.
-  Future<PaymentOffer?> fetchLnInvoiceOffer(
+  Future<void> doFetchBtc() async {
+    // TODO(phlip9): UI indicator that we're fetching
+    final inputs = this.btcAddrInputs.value;
+    final btcPaymentOffer = this.btcPaymentOffer();
+    final prev = btcPaymentOffer.value;
+
+    final offer = await this.fetchBtc(inputs);
+
+    // Canceled / navigated away => ignore
+    if (!this.mounted) return;
+
+    // Error => ignore (TODO(phlip9): handle)
+    if (offer == null) return;
+
+    // Stale request => ignore
+    if (prev != btcPaymentOffer.value) {
+      info("ReceivePaymentPage: doFetchBtc: stale request, ignoring response");
+      return;
+    }
+
+    // Everything's good -> update our current BTC page offer
+    btcPaymentOffer.value = offer;
+  }
+
+  Future<void> doFetchLnInvoice() async {
+    // TODO(phlip9): UI indicator that we're fetching
+    final inputs = this.lnInvoiceInputs.value;
+    final lnInvoicePaymentOffer = this.lnInvoicePaymentOffer();
+    final prev = lnInvoicePaymentOffer.value;
+
+    final invoice = await this.fetchLnInvoice(inputs);
+
+    // Canceled / navigated away => ignore
+    if (!this.mounted) return;
+
+    // Error => ignore (TODO(phlip9): handle)
+    if (invoice == null) return;
+
+    // Stale request => ignore
+    if (prev != lnInvoicePaymentOffer.value) {
+      info(
+          "ReceivePaymentPage: doFetchLnInvoice: stale request, ignoring response");
+      return;
+    }
+
+    // Everything's good -> update our current LN page offer
+    lnInvoicePaymentOffer.value = invoice;
+  }
+
+  /// Fetch the Lightning invoice for the given inputs.
+  Future<PaymentOffer?> fetchLnInvoice(
     LnInvoiceInputs inputs,
-    PaymentOffer prev,
   ) async {
     final req = CreateInvoiceRequest(
       expirySecs: 24 * 60 * 60,
@@ -254,8 +313,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       description: inputs.description,
     );
 
-    info(
-        "ReceivePaymentPage: doFetchLn: inputs: $inputs, req: { amountSats: ${req.amountSats}, exp: ${req.expirySecs} }");
+    info("ReceivePaymentPage: fetchLnInvoice: inputs: $inputs");
 
     final result =
         await Result.tryFfiAsync(() => this.widget.app.createInvoice(req: req));
@@ -265,12 +323,12 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       case Err(:final err):
         // TODO(phlip9): error display
         error(
-            "ReceivePaymentPage: doFetchLn: failed to create invoice: $err, req: req: { amountStas: ${req.amountSats}, exp: ${req.expirySecs} }");
+            "ReceivePaymentPage: doFetchLnInvoice: failed to create invoice: $err");
         return null;
 
       case Ok(:final ok):
         invoice = ok.invoice;
-        info("ReceivePaymentPage: doFetchLn: createInvoice => done");
+        info("ReceivePaymentPage: doFetchLnInvoice: createInvoice => done");
     }
 
     return PaymentOffer(
@@ -282,13 +340,13 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     );
   }
 
-  Future<void> doFetchBtc() async {
+  Future<void> doFetchLnOffer() async {
     // TODO(phlip9): UI indicator that we're fetching
-    final inputs = this.btcAddrInputs.value;
-    final btcOfferNotifier = this.btcOffer();
-    final prev = btcOfferNotifier.value;
+    final inputs = this.lnOfferInputs.value;
+    final lnOfferPaymentOffer = this.lnOfferPaymentOffer();
+    final prev = lnOfferPaymentOffer.value;
 
-    final offer = await this.fetchBtc(inputs, prev);
+    final offer = await this.fetchLnOffer(inputs);
 
     // Canceled / navigated away => ignore
     if (!this.mounted) return;
@@ -297,37 +355,55 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     if (offer == null) return;
 
     // Stale request => ignore
-    if (prev != btcOfferNotifier.value) {
-      info("ReceivePaymentPage: doFetchBtc: stale request, ignoring response");
-      return;
-    }
-
-    // Everything's good -> update our current BTC page offer
-    btcOfferNotifier.value = offer;
-  }
-
-  Future<void> doFetchLnInvoice() async {
-    // TODO(phlip9): UI indicator that we're fetching
-    final inputs = this.lnInvoiceInputs.value;
-    final lnOfferNotifier = this.lnOffer();
-    final prev = lnOfferNotifier.value;
-
-    final offer = await this.fetchLnInvoiceOffer(inputs, prev);
-
-    // Canceled / navigated away => ignore
-    if (!this.mounted) return;
-
-    // Error => ignore (TODO(phlip9): handle)
-    if (offer == null) return;
-
-    // Stale request => ignore
-    if (prev != lnOfferNotifier.value) {
-      info("ReceivePaymentPage: doFetchLn: stale request, ignoring response");
+    if (prev != lnOfferPaymentOffer.value) {
+      info(
+          "ReceivePaymentPage: doFetchLnOffer: stale request, ignoring response");
       return;
     }
 
     // Everything's good -> update our current LN page offer
-    lnOfferNotifier.value = offer;
+    lnOfferPaymentOffer.value = offer;
+  }
+
+  /// Fetch the Lightning offer for the given inputs.
+  Future<PaymentOffer?> fetchLnOffer(
+    LnOfferInputs inputs,
+  ) async {
+    final req = CreateOfferRequest(
+      expirySecs: null,
+      amountSats: inputs.amountSats,
+      description: inputs.description,
+    );
+
+    info("ReceivePaymentPage: fetchLnOffer: inputs: $inputs");
+
+    final result =
+        await Result.tryFfiAsync(() => this.widget.app.createOffer(req: req));
+
+    final Offer offer;
+    switch (result) {
+      case Err(:final err):
+        // TODO(phlip9): error display
+        error(
+            "ReceivePaymentPage: fetchLnOffer: failed to create offer: $err, req: req: { amountStas: ${req.amountSats}, exp: ${req.expirySecs} }");
+        return null;
+
+      case Ok(:final ok):
+        offer = ok.offer;
+        info("ReceivePaymentPage: fetchLnOffer: createOffer => done");
+    }
+
+    final expiresAt = offer.expiresAt;
+
+    return PaymentOffer(
+      kind: PaymentOfferKind.lightningOffer,
+      code: offer.string,
+      amountSats: offer.amountSats,
+      description: offer.description,
+      expiresAt: (expiresAt != null)
+          ? DateTime.fromMillisecondsSinceEpoch(expiresAt)
+          : null,
+    );
   }
 
   // /// Open the [ReceiveSettingsBottomSheet] for the user to modify the current
@@ -401,9 +477,10 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     if (!this.mounted || flowResult == null || flowResult == prev) return;
 
     // Clear LN invoice code so it's clear we're fetching a new one.
-    final lnOffer = this.lnOffer().value;
-    this.lnOffer().value = PaymentOffer(
-      kind: lnOffer.kind,
+    final lnInvoicePaymentOffer = this.lnInvoicePaymentOffer();
+    final lnInvoice = lnInvoicePaymentOffer.value;
+    lnInvoicePaymentOffer.value = PaymentOffer(
+      kind: lnInvoice.kind,
       code: null,
       expiresAt: null,
       amountSats: flowResult.amountSats,
@@ -461,9 +538,10 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
                             fiatRate: this.widget.fiatRate,
                             openSetAmountPage: () =>
                                 this.openEditPage(offer.kind),
-                            refreshPaymentOffer: offer.kind.isLightning()
-                                ? this.doFetchLnInvoice
-                                : null,
+                            refreshPaymentOffer:
+                                offer.kind == PaymentOfferKind.lightningInvoice
+                                    ? this.doFetchLnInvoice
+                                    : null,
                           ),
                         ))
                     .toList(),
@@ -556,7 +634,8 @@ class PaymentOfferPage extends StatelessWidget {
     // final description = "the rice house 🍕";
     // final description = null;
 
-    final isLightning = this.paymentOffer.kind.isLightning();
+    final isInvoice =
+        this.paymentOffer.kind == PaymentOfferKind.lightningInvoice;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: Space.s300),
@@ -709,7 +788,7 @@ class PaymentOfferPage extends StatelessWidget {
                 // We only allow editing the amount for LN, since we can't yet
                 // accurately correlate info we put in a BIP21 URI with the
                 // actual tx that comes in.
-                if (isLightning && amountSatsStr == null && description == null)
+                if (isInvoice && amountSatsStr == null && description == null)
                   Padding(
                     padding: const EdgeInsets.only(top: Space.s400),
                     child: Row(
