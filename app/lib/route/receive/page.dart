@@ -2,7 +2,7 @@
 library;
 
 import 'dart:async' show unawaited;
-import 'dart:math' show max;
+import 'dart:math' show min;
 
 import 'package:app_rs_dart/ffi/api.dart'
     show CreateInvoiceRequest, CreateOfferRequest, FiatRate;
@@ -42,8 +42,20 @@ import 'package:lexeapp/share.dart' show LxShare;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxRadius, Space;
 
-const double minViewportWidth = 365.0;
+/// The viewport breakpoint at which we cap the inner page width and possibly
+/// show multiple [PaymentOfferPage]s on-screen simultaneously.
+const double maxViewportWidth = 450.0;
 
+/// Each [PaymentOfferPage] should occupy at most this proportion of the screen
+/// width. This value is chosen so that a sliver of the next/prev page is always
+/// visible to hint to the user that they can swipe left/right.
+const double targetPagePropWidth = 0.9;
+
+/// The computed max width of a [PaymentOfferPage] on-screen. Ensure this is a
+/// whole number.
+const double maxPageWidth = targetPagePropWidth * maxViewportWidth;
+
+/// The index of each [PaymentOfferPage] kind in the [PageView].
 const int lnInvoicePageIdx = 0;
 const int lnOfferPageIdx = 1;
 const int btcPageIdx = 2;
@@ -64,8 +76,7 @@ class ReceivePaymentPage extends StatelessWidget {
   Widget build(BuildContext context) => ReceivePaymentPageInner(
         app: this.app,
         fiatRate: this.fiatRate,
-        viewportWidth:
-            MediaQuery.maybeSizeOf(context)?.width ?? minViewportWidth,
+        viewportWidth: MediaQuery.sizeOf(context).width,
       );
 }
 
@@ -184,14 +195,10 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   /// Create a new inner [PageController] for the carousel of [PaymentOfferPage]s.
   PageController newPageController() => PageController(
         initialPage: this.selectedPageIndex.value,
+        // Use at most `targetPagePropWidth` of the screen width to ensure
+        // we always show a small sliver of the next page.
         viewportFraction:
-            // TODO(phlip9): We need a smarter approach for `viewportFraction`.
-            //   - We want to show ~20 px of the next page on either side to
-            //     hint to the user that there are more pages to swipe to.
-            //   - However, above a certain width (ex: tablet, laptop, etc) the
-            //     page gets too large, so we then need to uncap the
-            //     `viewportFraction`.
-            minViewportWidth / max(minViewportWidth, this.widget.viewportWidth),
+            min(targetPagePropWidth, maxPageWidth / this.widget.viewportWidth),
       );
 
   ValueNotifier<PaymentOffer> currentPaymentOffer() =>
@@ -516,6 +523,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
               // height: 575.0,
               child: PageView(
                 controller: this.pageController,
+                clipBehavior: Clip.none,
                 scrollBehavior: const CupertinoScrollBehavior(),
                 padEnds: true,
                 allowImplicitScrolling: false,
@@ -534,6 +542,8 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
                             openSetAmountPage: () =>
                                 this.openEditPage(offer.kind),
                             refreshPaymentOffer:
+                                // Only invoices need to be refresh-able since
+                                // they're single-use.
                                 offer.kind == PaymentOfferKind.lightningInvoice
                                     ? this.doRefreshLnInvoice
                                     : null,
@@ -635,7 +645,7 @@ class PaymentOfferPage extends StatelessWidget {
     final String? warningStr = this.paymentOffer.warningStr();
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: Space.s300),
+      margin: const EdgeInsets.symmetric(horizontal: Space.s200),
       constraints: const BoxConstraints(maxWidth: 350.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
@@ -715,6 +725,9 @@ class PaymentOfferPage extends StatelessWidget {
                     final double dim = constraints.maxWidth;
                     final key = ValueKey(uri ?? "");
 
+                    // TODO(phlip9): likely perf issue with `clipBehavior` and
+                    // AnimatedSwitcher. Pre-render QR with borderRadius?
+                    // Use `FadeInImage`? Build custom `ImageProvider` for QR?
                     return AnimatedSwitcher(
                       duration: const Duration(milliseconds: 250),
                       child: (uri != null)
