@@ -5,7 +5,7 @@ use crate::ln::amount::Amount;
 /// Basically `bdk::Balance`, so that `common` doesn't need to depend on `bdk`.
 ///
 /// Partitions a wallet balance into different categories.
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OnchainBalance {
     /// All coinbase outputs not yet matured
     pub immature: bitcoin::Amount,
@@ -18,7 +18,7 @@ pub struct OnchainBalance {
 }
 
 /// Classify the lightning channel balances into different categories.
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LightningBalance {
     /// The sum channel value that is usable.
     ///
