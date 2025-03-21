@@ -116,6 +116,13 @@ pub struct ScidStruct {
     pub scid: Scid,
 }
 
+/// Upgradeable API struct for multiple scids.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct Scids {
+    pub scids: Vec<Scid>,
+}
+
 /// An upgradeable version of [`Option<Scid>`].
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct MaybeScid {
@@ -124,11 +131,17 @@ pub struct MaybeScid {
 
 /// Represents an entry in the `user_scid` table.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct UserScid {
     pub node_pk: NodePk,
     pub scid: Scid,
+}
+
+/// Upgradable API struct representing multiple `user_scid` entries.
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct UserScids {
+    pub user_scids: Vec<UserScid>,
 }
 
 // --- impl UserPk --- //
