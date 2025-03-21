@@ -58,14 +58,14 @@ pub mod wallet;
 pub type BoxedAnyhowFuture =
     Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'static>>;
 
-/// Displays a [`Vec`] of elements using each element's [`fmt::Display`] impl.
-pub struct DisplayVec<T>(pub Vec<T>);
+/// Displays a slice of elements using each element's [`fmt::Display`] impl.
+pub struct DisplaySlice<'a, T>(pub &'a [T]);
 
-impl<T: fmt::Display> fmt::Display for DisplayVec<T> {
+impl<T: fmt::Display> fmt::Display for DisplaySlice<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut first = true;
         write!(f, "[")?;
-        for item in &self.0 {
+        for item in self.0 {
             if !first {
                 write!(f, ", ")?;
             }

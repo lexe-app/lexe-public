@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use anyhow::{anyhow, Context};
 use common::{
     constants::DEFAULT_CHANNEL_SIZE, notify_once::NotifyOnce, task::LxTask,
-    test_event::TestEvent, Apply,
+    test_event::TestEvent,
 };
 use const_utils::const_assert;
 use lightning::chain::chaininterface::BroadcasterInterface;
@@ -17,7 +17,7 @@ use crate::{
     esplora::{self, LexeEsplora},
     test_event::TestEventSender,
     wallet::LexeWallet,
-    BoxedAnyhowFuture, DisplayVec,
+    BoxedAnyhowFuture, DisplaySlice,
 };
 
 /// Maximum time we'll wait for a response from the broadcaster task.
@@ -134,8 +134,8 @@ impl TxBroadcaster {
                 .input
                 .iter()
                 .map(|i| &i.previous_output)
-                .collect::<Vec<_>>()
-                .apply(DisplayVec);
+                .collect::<Vec<_>>();
+            let inputs_display = DisplaySlice(&inputs);
             let outputs = tx
                 .output
                 .iter()
@@ -144,7 +144,7 @@ impl TxBroadcaster {
             format!(
                 "txid={txid}, \
                  num_inputs={num_inputs}, num_outputs={num_outputs}, \
-                 inputs={inputs}, outputs={outputs:?}",
+                 inputs={inputs_display}, outputs={outputs:?}",
             )
         };
         info!("Broadcasting transaction: {tx_info}");
