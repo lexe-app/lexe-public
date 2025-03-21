@@ -105,7 +105,7 @@ pub struct InvalidNodePkProofSignature;
 
 /// A newtype for the `short_channel_id` (`scid`) used throughout LDK.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[derive(Serialize, Deserialize)]
 pub struct Scid(pub u64);
 
