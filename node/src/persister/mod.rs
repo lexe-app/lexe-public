@@ -10,7 +10,7 @@ use common::{
         auth::{BearerAuthToken, BearerAuthenticator},
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         error::BackendApiError,
-        user::{MaybeScid, Scid},
+        user::{Scid, Scids},
         vfs::{
             MaybeVfsFile, VecVfsFile, Vfs, VfsDirectory, VfsFile, VfsFileId,
         },
@@ -318,14 +318,14 @@ impl NodePersister {
             .await
     }
 
-    pub(crate) async fn read_scid(&self) -> anyhow::Result<Option<Scid>> {
-        debug!("Fetching scid");
+    pub(crate) async fn read_scids(&self) -> anyhow::Result<Vec<Scid>> {
+        debug!("Fetching scids");
         let token = self.get_token().await?;
         self.backend_api
-            .get_scid(token)
+            .get_scids(token)
             .await
-            .map(|MaybeScid { maybe_scid }| maybe_scid)
-            .context("Could not fetch scid")
+            .map(|Scids { scids }| scids)
+            .context("Could not fetch scids")
     }
 
     pub(crate) async fn read_wallet_changeset(

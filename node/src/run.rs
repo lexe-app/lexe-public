@@ -331,7 +331,7 @@ impl UserNode {
             try_network_graph_bytes,
             try_scorer_bytes,
             try_maybe_changeset,
-            try_maybe_scid,
+            try_scids,
             try_pending_payments,
             try_finalized_payment_ids,
         ) = tokio::join!(
@@ -339,7 +339,7 @@ impl UserNode {
             lsp_api.get_network_graph(),
             lsp_api.get_prob_scorer(),
             persister.read_wallet_changeset(),
-            persister.read_scid(),
+            persister.read_scids(),
             persister.read_pending_payments(),
             persister.read_finalized_payment_ids(),
         );
@@ -378,17 +378,20 @@ impl UserNode {
         };
         let maybe_changeset =
             try_maybe_changeset.context("Could not read wallet changeset")?;
-        let maybe_scid = try_maybe_scid.context("Could not read scid")?;
-        let scid = match maybe_scid {
-            Some(s) => s,
-            // We has not been assigned an scid yet; ask the LSP for one
-            None =>
-                lsp_api
-                    .get_new_scid(user.node_pk)
-                    .await
-                    .context("Could not get new scid from LSP")?
-                    .scid,
+        let scids = try_scids.context("Could not read scid")?;
+        let scids = if scids.is_empty() {
+            // We have not been assigned any scids yet; ask the LSP for some
+            let scid = lsp_api
+                .get_new_scid(user.node_pk)
+                .await
+                .context("Could not get new scid from LSP")?
+                .scid;
+            vec![scid]
+        } else {
+            scids
         };
+        // TODO(max): Use multiple scids
+        let scid = scids[0];
         let pending_payments =
             try_pending_payments.context("Could not read pending payments")?;
         let finalized_payment_ids = try_finalized_payment_ids

@@ -12,8 +12,8 @@ use common::{
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         user::{
-            MaybeScid, MaybeUser, NodePk, NodePkStruct, ScidStruct, UserPk,
-            UserPkStruct,
+            MaybeScid, MaybeUser, NodePk, NodePkStruct, ScidStruct, Scids,
+            UserPk, UserPkStruct,
         },
         version::MeasurementStruct,
         vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
@@ -230,6 +230,18 @@ impl NodeBackendApi for BackendClient {
         let req = self
             .rest
             .delete(format!("{backend}/node/v1/sealed_seed"), &data)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn get_scids(
+        &self,
+        auth: BearerAuthToken,
+    ) -> Result<Scids, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .get(format!("{backend}/node/v1/scids"), &Empty {})
             .bearer_auth(&auth);
         self.rest.send(req).await
     }

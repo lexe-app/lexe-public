@@ -22,7 +22,9 @@ use common::{
         },
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
-        user::{MaybeScid, MaybeUser, NodePk, Scid, ScidStruct, User, UserPk},
+        user::{
+            MaybeScid, MaybeUser, NodePk, Scid, ScidStruct, Scids, User, UserPk,
+        },
         vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
         Empty,
     },
@@ -282,6 +284,15 @@ impl NodeBackendApi for MockBackendClient {
         _auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
         Ok(Empty {})
+    }
+
+    async fn get_scids(
+        &self,
+        _auth: BearerAuthToken,
+    ) -> Result<Scids, BackendApiError> {
+        Ok(Scids {
+            scids: vec![DUMMY_SCID],
+        })
     }
 
     async fn get_scid(

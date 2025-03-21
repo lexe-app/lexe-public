@@ -62,7 +62,7 @@ use super::{
     provision::{
         MaybeSealedSeed, NodeProvisionRequest, SealedSeed, SealedSeedId,
     },
-    user::{MaybeScid, MaybeUser, NodePk, ScidStruct, UserPk},
+    user::{MaybeScid, MaybeUser, NodePk, ScidStruct, Scids, UserPk},
     version::NodeRelease,
     vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
     Empty,
@@ -123,7 +123,15 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
+    /// GET /node/v1/scids [`Empty`] -> [`Scids`]
+    async fn get_scids(
+        &self,
+        auth: BearerAuthToken,
+    ) -> Result<Scids, BackendApiError>;
+
     /// GET /node/v1/scid [`Empty`] -> [`MaybeScid`]
+    // NOTE: Keep this def around until we can remove the backend handler.
+    #[deprecated(note = "since lsp-v0.7.3: Use multi scid version instead")]
     async fn get_scid(
         &self,
         auth: BearerAuthToken,
