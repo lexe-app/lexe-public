@@ -144,6 +144,21 @@ pub struct UserScids {
     pub user_scids: Vec<UserScid>,
 }
 
+/// A request to get at least `min_scids` [`Scid`]s from the LSP, inclusive
+/// of any existing [`Scid`]s. The node requests this from the LSP when it
+/// detects that it needs the LSP to generate a few more.
+///
+/// Example:
+/// - Node detects it has 3 [`Scid`]s, but it wants 2 new scids to make 5 total.
+/// - Node sets `min_scids` to 5.
+/// - LSP sees that the node already has 3, generates 2 new ones, and returns 5.
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct GetNewScidsRequest {
+    pub node_pk: NodePk,
+    pub min_scids: usize,
+}
+
 // --- impl UserPk --- //
 
 impl UserPk {
@@ -543,7 +558,8 @@ mod test {
     }
 
     #[test]
-    fn scid_struct_roundtrip() {
+    fn scid_qs_roundtrip() {
         roundtrip::query_string_roundtrip_proptest::<ScidStruct>();
+        roundtrip::query_string_roundtrip_proptest::<GetNewScidsRequest>();
     }
 }

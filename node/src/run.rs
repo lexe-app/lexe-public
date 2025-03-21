@@ -14,7 +14,7 @@ use common::{
         def::NodeRunnerApi,
         ports::Ports,
         provision::SealedSeedId,
-        user::{NodePk, User, UserPk},
+        user::{GetNewScidsRequest, NodePk, User, UserPk},
     },
     cli::{node::RunArgs, LspInfo},
     constants::{self, DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
@@ -84,6 +84,9 @@ use crate::{
     server::{self, AppRouterState, LexeRouterState},
     DEV_VERSION, SEMVER_VERSION,
 };
+
+/// The minimum # of intercept scids we want (for inserting into invoices).
+const MIN_INTERCEPT_SCIDS: usize = 3;
 
 /// A user's node.
 #[allow(dead_code)] // Many unread fields are used as type annotations
@@ -331,7 +334,7 @@ impl UserNode {
             try_network_graph_bytes,
             try_scorer_bytes,
             try_maybe_changeset,
-            try_scids,
+            try_existing_scids,
             try_pending_payments,
             try_finalized_payment_ids,
         ) = tokio::join!(
@@ -378,17 +381,28 @@ impl UserNode {
         };
         let maybe_changeset =
             try_maybe_changeset.context("Could not read wallet changeset")?;
-        let scids = try_scids.context("Could not read scid")?;
-        let scids = if scids.is_empty() {
-            // We have not been assigned any scids yet; ask the LSP for some
-            let scid = lsp_api
-                .get_new_scid(user.node_pk)
+        let existing_scids =
+            try_existing_scids.context("Could not read scid")?;
+        let scids = if existing_scids.len() < MIN_INTERCEPT_SCIDS {
+            // We don't have enough scids; ask the LSP to give us enough.
+            let req = GetNewScidsRequest {
+                node_pk: user.node_pk,
+                min_scids: MIN_INTERCEPT_SCIDS,
+            };
+
+            let scids_from_lsp = lsp_api
+                .get_new_scids(&req)
                 .await
                 .context("Could not get new scid from LSP")?
-                .scid;
-            vec![scid]
+                .scids;
+
+            if scids_from_lsp.len() < MIN_INTERCEPT_SCIDS {
+                warn!("LSP didn't give us enough scids; using what we have");
+            }
+
+            scids_from_lsp
         } else {
-            scids
+            existing_scids
         };
         // TODO(max): Use multiple scids
         let scid = scids[0];

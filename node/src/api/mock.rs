@@ -23,7 +23,8 @@ use common::{
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         user::{
-            MaybeScid, MaybeUser, NodePk, Scid, ScidStruct, Scids, User, UserPk,
+            GetNewScidsRequest, MaybeScid, MaybeUser, NodePk, Scid, ScidStruct,
+            Scids, User, UserPk,
         },
         vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
         Empty,
@@ -162,6 +163,14 @@ pub(super) struct MockLspClient {
 
 #[async_trait]
 impl NodeLspApi for MockLspClient {
+    async fn get_new_scids(
+        &self,
+        _req: &GetNewScidsRequest,
+    ) -> Result<Scids, LspApiError> {
+        Ok(Scids {
+            scids: vec![DUMMY_SCID],
+        })
+    }
     async fn get_new_scid(
         &self,
         _node_pk: NodePk,

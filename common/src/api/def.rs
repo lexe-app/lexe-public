@@ -62,7 +62,10 @@ use super::{
     provision::{
         MaybeSealedSeed, NodeProvisionRequest, SealedSeed, SealedSeedId,
     },
-    user::{MaybeScid, MaybeUser, NodePk, ScidStruct, Scids, UserPk},
+    user::{
+        GetNewScidsRequest, MaybeScid, MaybeUser, NodePk, ScidStruct, Scids,
+        UserPk,
+    },
     version::NodeRelease,
     vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
     Empty,
@@ -278,7 +281,15 @@ pub trait BearerAuthBackendApi {
 /// Defines the api that the LSP exposes to user nodes.
 #[async_trait]
 pub trait NodeLspApi {
+    /// GET /node/v1/scids [`GetNewScidsRequest`] -> [`Scids`]
+    async fn get_new_scids(
+        &self,
+        req: &GetNewScidsRequest,
+    ) -> Result<Scids, LspApiError>;
+
     /// GET /node/v1/scid [`NodePkStruct`] -> [`ScidStruct`]
+    // NOTE: Keep this def around until we can remove the LSP handler.
+    #[deprecated(note = "since node-v0.7.3: Use multi scid version instead")]
     async fn get_new_scid(
         &self,
         node_pk: NodePk,

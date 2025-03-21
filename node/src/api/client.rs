@@ -12,8 +12,8 @@ use common::{
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         user::{
-            MaybeScid, MaybeUser, NodePk, NodePkStruct, ScidStruct, Scids,
-            UserPk, UserPkStruct,
+            GetNewScidsRequest, MaybeScid, MaybeUser, NodePk, NodePkStruct,
+            ScidStruct, Scids, UserPk, UserPkStruct,
         },
         version::MeasurementStruct,
         vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
@@ -96,6 +96,15 @@ impl LspClient {
 
 #[async_trait]
 impl NodeLspApi for LspClient {
+    async fn get_new_scids(
+        &self,
+        req: &GetNewScidsRequest,
+    ) -> Result<Scids, LspApiError> {
+        let lsp = &self.lsp_url;
+        let req = self.rest.get(format!("{lsp}/node/v1/scids"), &req);
+        self.rest.send(req).await
+    }
+
     async fn get_new_scid(
         &self,
         node_pk: NodePk,
