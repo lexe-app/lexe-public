@@ -632,6 +632,8 @@ class PaymentOfferPage extends StatelessWidget {
     final isInvoice =
         this.paymentOffer.kind == PaymentOfferKind.lightningInvoice;
 
+    final String? warningStr = this.paymentOffer.warningStr();
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: Space.s300),
       constraints: const BoxConstraints(maxWidth: 350.0),
@@ -913,26 +915,16 @@ class PaymentOfferPage extends StatelessWidget {
           // Under-card section
 
           // Warning/info block
-          if (this.paymentOffer.kind == PaymentOfferKind.lightningInvoice)
-            const Padding(
-              padding: EdgeInsets.only(left: Space.s450, right: Space.s200),
+          if (warningStr != null)
+            Padding(
+              padding:
+                  const EdgeInsets.only(left: Space.s450, right: Space.s200),
               child: Row(
                 children: [
                   Expanded(
                     child: Text.rich(
                       TextSpan(children: [
-                        // Pay invoice once
-                        TextSpan(
-                            text:
-                                "Invoices can only be paid once.\nReusing an invoice may result in lost payments. "),
-                        // TextSpan(
-                        //   text: "\nRead more",
-                        //   style: TextStyle(
-                        //     decoration: TextDecoration.underline,
-                        //     decorationColor: LxColors.grey550,
-                        //     decorationThickness: 1.0,
-                        //   ),
-                        // ),
+                        TextSpan(text: warningStr),
 
                         // // Zero-conf ()
                         // TextSpan(text: "Receiving more than "),
@@ -951,18 +943,13 @@ class PaymentOfferPage extends StatelessWidget {
                         // ),
                         // TextSpan(text: "."),
                       ]),
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: LxColors.grey550,
                         fontSize: Fonts.size100,
                         // letterSpacing: -0.2,
                       ),
                     ),
                   ),
-                  // IconButton(
-                  //   onPressed: () {},
-                  //   icon: const Icon(LxIcons.close),
-                  //   color: LxColors.grey650,
-                  // )
                 ],
               ),
             ),

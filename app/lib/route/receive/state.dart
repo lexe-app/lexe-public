@@ -152,7 +152,7 @@ class PaymentOffer {
 
   String titleStr() => switch (this.kind) {
         PaymentOfferKind.lightningInvoice => "Lightning invoice",
-        PaymentOfferKind.lightningOffer => "Lightning offer (BOLT12)",
+        PaymentOfferKind.lightningOffer => "Lightning offer",
         PaymentOfferKind.btcAddress => "Bitcoin address",
 
         // PaymentOfferKind.lightningSpontaneous => "Lightning spontaneous payment",
@@ -162,14 +162,24 @@ class PaymentOffer {
   String subtitleStr() => switch (this.kind) {
         PaymentOfferKind.lightningInvoice =>
           "Receive Bitcoin instantly with Lightning",
+        // PaymentOfferKind.lightningOffer => "Reusable Lightning payment code",
+        // PaymentOfferKind.lightningOffer => "Reusable Lightning payment request",
         PaymentOfferKind.lightningOffer =>
-          "Reusable payment request. May not be supported by all wallets.",
+          "Receive Bitcoin over Lightning many times with one reusable code",
         PaymentOfferKind.btcAddress =>
           "Receive Bitcoin from anywhere. Slower and more expensive than via Lightning.",
 
         // TODO(phlip9): impl
         // PaymentOfferKind.btcTaproot => "",
         // PaymentOfferKind.lightningSpontaneous => "",
+      };
+
+  String? warningStr() => switch (this.kind) {
+        PaymentOfferKind.lightningInvoice =>
+          "Invoices can only be paid once.\nReusing an invoice may result in lost payments.",
+        PaymentOfferKind.lightningOffer =>
+          "Lightning offers (BOLT12) are new and may not be supported by all wallets.",
+        PaymentOfferKind.btcAddress => null,
       };
 
   // TODO(phlip9): do this in rust, more robustly. Also uppercase for QR
