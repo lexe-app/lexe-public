@@ -73,7 +73,7 @@ pub(crate) struct AppRouterState {
     pub payments_manager: PaymentsManagerType,
     pub network_graph: Arc<NetworkGraphType>,
     pub lsp_info: LspInfo,
-    pub scid: Scid,
+    pub intercept_scids: Vec<Scid>,
     pub network: LxNetwork,
     pub measurement: Measurement,
     pub activity_tx: mpsc::Sender<()>,

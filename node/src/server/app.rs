@@ -242,7 +242,7 @@ pub(super) async fn create_invoice(
 ) -> Result<LxJson<CreateInvoiceResponse>, NodeApiError> {
     let caller = CreateInvoiceCaller::UserNode {
         lsp_info: state.lsp_info.clone(),
-        scid: state.scid,
+        intercept_scids: state.intercept_scids.clone(),
     };
     lexe_ln::command::create_invoice(
         req,

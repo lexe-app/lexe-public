@@ -87,6 +87,8 @@ use crate::{
 
 /// The minimum # of intercept scids we want (for inserting into invoices).
 const MIN_INTERCEPT_SCIDS: usize = 3;
+// Ensure we don't request more than we'll ever use.
+const_assert!(MIN_INTERCEPT_SCIDS <= lexe_ln::command::MAX_INTERCEPT_HINTS);
 
 /// A user's node.
 #[allow(dead_code)] // Many unread fields are used as type annotations
@@ -383,7 +385,7 @@ impl UserNode {
             try_maybe_changeset.context("Could not read wallet changeset")?;
         let existing_scids =
             try_existing_scids.context("Could not read scid")?;
-        let scids = if existing_scids.len() < MIN_INTERCEPT_SCIDS {
+        let intercept_scids = if existing_scids.len() < MIN_INTERCEPT_SCIDS {
             // We don't have enough scids; ask the LSP to give us enough.
             let req = GetNewScidsRequest {
                 node_pk: user.node_pk,
@@ -404,8 +406,6 @@ impl UserNode {
         } else {
             existing_scids
         };
-        // TODO(max): Use multiple scids
-        let scid = scids[0];
         let pending_payments =
             try_pending_payments.context("Could not read pending payments")?;
         let finalized_payment_ids = try_finalized_payment_ids
@@ -671,7 +671,7 @@ impl UserNode {
             payments_manager: payments_manager.clone(),
             network_graph: network_graph.clone(),
             lsp_info: lsp_info.clone(),
-            scid,
+            intercept_scids,
             network,
             measurement,
             activity_tx,

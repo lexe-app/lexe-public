@@ -84,6 +84,9 @@ use crate::{
     wallet::LexeWallet,
 };
 
+/// The max # of route hints containing intercept scids we'll add to invoices.
+pub const MAX_INTERCEPT_HINTS: usize = 3;
+
 /// Specifies whether it is the user node or the LSP calling the
 /// [`create_invoice`] fn. There are some differences between how the user node
 /// and LSP generate invoices which this tiny enum makes clearer.
@@ -97,7 +100,7 @@ pub enum CreateInvoiceCaller {
     /// [`RouteHintHop`]: lightning::routing::router::RouteHintHop
     UserNode {
         lsp_info: LspInfo,
-        scid: Scid,
+        intercept_scids: Vec<Scid>,
     },
     Lsp,
 }
@@ -731,17 +734,30 @@ where
         builder = builder.amount_milli_satoshis(amount.invoice_safe_msat()?);
     }
 
+    if let CreateInvoiceCaller::UserNode {
+        intercept_scids, ..
+    } = &caller
+    {
+        ensure!(
+            !intercept_scids.is_empty(),
+            "User node must include intercept hints to receive payments"
+        );
+    }
+
     // Construct the route hints.
     let route_hints = match caller {
         // If the LSP is calling create_invoice, include no hints and let
         // the sender route to us by looking at the lightning network graph.
         CreateInvoiceCaller::Lsp => Vec::new(),
-        // If a user node is calling create_invoice, always include just an
-        // intercept hint. We do this even when the user already has a channel
-        // with enough balance to service the payment because it allows the LSP
-        // to intercept the HTLC and wake the user if a payment comes in while
-        // the user is offline.
-        CreateInvoiceCaller::UserNode { lsp_info, scid } => {
+        // If a user node is calling create_invoice, always include intercept
+        // hints. We do this even when the user already has a channel with
+        // enough balance to service the payment because it allows the LSP to
+        // intercept the HTLC and wake the user if a payment comes in while the
+        // user is offline.
+        CreateInvoiceCaller::UserNode {
+            lsp_info,
+            intercept_scids,
+        } => {
             let channels = channel_manager.list_channels();
 
             // For the fee rates and CLTV delta to include in our route hint,
@@ -809,16 +825,28 @@ where
                 proportional_millionths,
             };
 
-            let route_hint_hop = RouteHintHop {
-                src_node_id: lsp_info.node_pk.0,
-                short_channel_id: scid.0,
-                fees,
-                cltv_expiry_delta,
-                htlc_minimum_msat: Some(htlc_minimum_msat),
-                htlc_maximum_msat: Some(htlc_maximum_msat),
-            };
-
-            vec![RouteHint(vec![route_hint_hop])]
+            // TODO(max): Right now, we're including multiple intercept hints
+            // because LDK's routing algorithm apparently fails to find a route
+            // in some two-hop User -> LSP -> User MPP scenarios if we only
+            // include one hint. These tend to bloat the invoice though, so
+            // ideally we should fix this and go back to just one hint.
+            // Tip: To reproduce the routing error, just change to `.take(1)`
+            // and run the payments smoketests.
+            intercept_scids
+                .into_iter()
+                .take(MAX_INTERCEPT_HINTS)
+                .map(|scid| {
+                    let route_hint_hop = RouteHintHop {
+                        src_node_id: lsp_info.node_pk.0,
+                        short_channel_id: scid.0,
+                        fees,
+                        cltv_expiry_delta,
+                        htlc_minimum_msat: Some(htlc_minimum_msat),
+                        htlc_maximum_msat: Some(htlc_maximum_msat),
+                    };
+                    RouteHint(vec![route_hint_hop])
+                })
+                .collect::<Vec<RouteHint>>()
         }
     };
     debug!("Including route hints: {route_hints:?}");
