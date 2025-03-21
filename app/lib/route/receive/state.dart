@@ -161,13 +161,19 @@ class PaymentOffer {
 
   String subtitleStr() => switch (this.kind) {
         PaymentOfferKind.lightningInvoice =>
-          "Receive Bitcoin instantly with Lightning",
-        // PaymentOfferKind.lightningOffer => "Reusable Lightning payment code",
-        // PaymentOfferKind.lightningOffer => "Reusable Lightning payment request",
+          "Single-use code to receive Bitcoin instantly over Lightning",
+        // "Receive Bitcoin instantly over Lightning.",
         PaymentOfferKind.lightningOffer =>
-          "Receive Bitcoin over Lightning many times with one reusable code",
+          "Reusable code to receive 24/7 over Lightning.\nPost it on your social media or website!",
+        // "Reusable code to receive over Lightning. Post it on your social media or website to receive payments 24/7.",
+        // "Share this reusable code to receive over Lightning 24/7",
+        // "Reusable code to receive over Lightning. Share it on social media! Get paid 24/7.",
+        // "Receive payments 24/7 over Lightning with this reusable code. Share it on social media!",
+        // "Receive over Lightning multiple times with this reusable code",
         PaymentOfferKind.btcAddress =>
-          "Receive Bitcoin from anywhere. Slower and more expensive than via Lightning.",
+          "Receive on-chain Bitcoin from any wallet.\nSlower and more expensive.",
+        // "Receive Bitcoin from anywhere. Slower and more expensive.",
+        // "Receive Bitcoin from anywhere. Slower and more expensive than via Lightning.",
 
         // TODO(phlip9): impl
         // PaymentOfferKind.btcTaproot => "",
@@ -178,7 +184,7 @@ class PaymentOffer {
         PaymentOfferKind.lightningInvoice =>
           "Invoices can only be paid once.\nReusing an invoice may result in lost payments.",
         PaymentOfferKind.lightningOffer =>
-          "Lightning offers (BOLT12) are new and may not be supported by all wallets.",
+          "Offers (BOLT 12) are new and may not be supported by all wallets.",
         PaymentOfferKind.btcAddress => null,
       };
 
