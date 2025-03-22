@@ -18,6 +18,7 @@ import 'ffi/form.dart';
 import 'ffi/gdrive.dart';
 import 'ffi/logger.dart';
 import 'ffi/payment_uri.dart';
+import 'ffi/qr.dart';
 import 'ffi/settings.dart';
 import 'ffi/types.dart';
 import 'frb_generated.dart';

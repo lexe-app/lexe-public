@@ -67,6 +67,8 @@ pub mod gdrive;
 pub mod logger;
 /// [`payment_uri`] interface
 pub mod payment_uri;
+/// QR code generation.
+pub mod qr;
 /// Dart interface for app settings.
 pub mod settings;
 /// Data types to expose to Dart.
