@@ -16,3 +16,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// Uses RGBA pixel format with opaque white BG and `LxColors.foreground` FG.
 Future<Uint8List> encode({required String data}) =>
     AppRs.instance.api.crateFfiQrEncode(data: data);
+
+/// Return the size of the encoded QR code for the given data length in bytes.
+int encodedSize({required int dataLen}) =>
+    AppRs.instance.api.crateFfiQrEncodedSize(dataLen: dataLen);
