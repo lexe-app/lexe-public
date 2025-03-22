@@ -46,13 +46,35 @@ use std::fmt;
 
 use fast_qr::{qr::QRBuilder, Mode, QRCode, Version, ECL};
 
+// --- public API --- //
+
+/// Encode `data` as a QR code, then render it as a raw bitmap image.
+///
+/// Uses RGBA pixel format with opaque white BG and `LxColors.foreground` FG.
+pub fn encode(data: &[u8]) -> Result<Vec<u8>, DataTooLongError> {
+    let qr = encode_qr_code(data)?;
+    Ok(qr_code_to_image(&qr))
+}
+
+/// Error when the data is too long to fit in a QR code (input data is longer
+/// than 2953 B).
+pub struct DataTooLongError;
+
+// --- constants --- //
+
+// color format: RRGGBBAA
+//   background: opaque white
+//   foreground: LxColors.foreground
+const BG: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
+const FG: [u8; 4] = [0x1c, 0x21, 0x23, 0xff];
+
 /// Target a specific QR code dimension (17 + 4 * v15 = 77 modules) so that
 /// the generated codes look roughly the same, in the normal case.
 const TARGET_VERSION: Version = Version::V15;
 const TARGET_VERSION_USIZE: usize = 15;
 
-// The maximum data length that can be encoded in a QR code with different ECL
-// and versions, assuming Byte encoding.
+// The max data length that can be encoded in a QR code with different ECL and
+// versions, assuming Byte encoding.
 //
 // ```bash
 // $ curl -o ecl.json https://web.archive.org/web/20230927043017/https://fast-qr.com/blog/ECL.json
@@ -73,7 +95,8 @@ const MAX_DATA_LEN_M_B_V15: usize = 412;
 const MAX_DATA_LEN_M_B_V40: usize = 2331;
 const MAX_DATA_LEN_L_B_V40: usize = 2953;
 
-pub fn encode_qr_code(data: &[u8]) -> Result<QRCode, DataTooLongError> {
+/// Encode `data` as a QR code that's at least [`TARGET_VERSION`] in size.
+fn encode_qr_code(data: &[u8]) -> Result<QRCode, DataTooLongError> {
     let (ecl, maybe_version) = len_to_params(data.len())?;
 
     let mut qr_builder = QRBuilder::new(data);
@@ -102,23 +125,6 @@ pub fn encode_qr_code(data: &[u8]) -> Result<QRCode, DataTooLongError> {
     Ok(qr)
 }
 
-/// Error when the data is too long to fit in a QR code (input data is longer
-/// than 2953 B).
-pub struct DataTooLongError;
-
-impl fmt::Display for DataTooLongError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("the data is too long to fit in a QR code")
-    }
-}
-impl fmt::Debug for DataTooLongError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(self, f)
-    }
-}
-
-impl std::error::Error for DataTooLongError {}
-
 /// Given the length of the data, return the ECL and version that can encode it.
 ///
 /// We target a specific version [`TARGET_VERSION`] (which determines the
@@ -144,11 +150,50 @@ const fn len_to_params(
     }
 }
 
+/// Encode a QR code as an a bitmap image in RGBA pixel format.
+fn qr_code_to_image(qr: &QRCode) -> Vec<u8> {
+    let len = qr.size * qr.size;
+    let data = &qr.data[..len];
+
+    // Use this iterator chain specifically because it auto-vectorizes properly:
+    // <https://godbolt.org/z/P9Kafd89Y>
+    #[allow(clippy::map_flatten)]
+    data.iter()
+        .map(|module| if module.value() { FG } else { BG })
+        .flatten()
+        .collect()
+}
+
+// --- impl DataTooLongError --- //
+
+impl fmt::Display for DataTooLongError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("the data is too long to fit in a QR code")
+    }
+}
+impl fmt::Debug for DataTooLongError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+impl std::error::Error for DataTooLongError {}
+
 #[cfg(test)]
 mod test {
     use proptest::{arbitrary::any, proptest};
 
     use super::*;
+
+    /// Sanity check that `fast_qr` layout is as we expect.
+    #[test]
+    fn test_qr_data_layout() {
+        let data = "hello";
+        let qr = QRBuilder::new(data.as_bytes()).build().unwrap();
+
+        let layout_by_row = (0..qr.size).flat_map(|row_idx| &qr[row_idx]);
+        let layout_flat = &qr.data[0..(qr.size * qr.size)];
+        assert!(layout_by_row.eq(layout_flat.iter()));
+    }
 
     #[test]
     fn test_encode_qr_btc_address() {
@@ -249,29 +294,29 @@ mod test {
     }
 
     #[test]
-    fn test_encode_qr_never_panics_with_valid_len() {
+    fn test_encode_never_panics_with_valid_len() {
         let arb_data =
             proptest::collection::vec(any::<u8>(), 0..=MAX_DATA_LEN_L_B_V40);
 
         let config = proptest::test_runner::Config::with_cases(10);
         proptest!(config, |(data in arb_data)| {
-            let _ = encode_qr_code(&data).unwrap();
+            let _ = encode(&data).unwrap();
         });
     }
 
     /// ```bash
-    /// $ cargo test -p app-rs --lib -- test_encode_qr_exhaustive_lens --ignored
+    /// $ cargo test -p app-rs --lib -- test_encode_exhaustive_lens --ignored
     /// ```
     #[test]
-    #[ignore = "takes 35+ seconds to run so only run manually"]
-    fn test_encode_qr_exhaustive_lens() {
+    #[ignore = "takes 40+ seconds to run so only run manually"]
+    fn test_encode_exhaustive_lens() {
         for len in 0..=MAX_DATA_LEN_L_B_V40 {
             let data = vec![0x69; len];
-            let _ = encode_qr_code(&data).unwrap();
+            let _ = encode(&data).unwrap();
         }
         for len in (MAX_DATA_LEN_L_B_V40 + 1)..=(MAX_DATA_LEN_L_B_V40 + 100) {
             let data = vec![0x69; len];
-            let _ = encode_qr_code(&data).unwrap_err();
+            let _ = encode(&data).unwrap_err();
         }
     }
 }
