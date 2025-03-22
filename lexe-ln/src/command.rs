@@ -32,6 +32,7 @@ use common::{
         offer::LxOffer,
     },
     time::TimestampMs,
+    Apply,
 };
 use either::Either;
 use futures::Future;
@@ -313,24 +314,32 @@ async fn wait_for_our_channel_open_event(
     is_jit_channel: bool,
     user_channel_id: &LxUserChannelId,
 ) -> anyhow::Result<OpenChannelResponse> {
-    let channel_event = tokio::time::timeout(
-        Duration::from_secs(15),
-        channel_events_rx.next_filtered(|event| {
+    let channel_event = channel_events_rx
+        .next_filtered(|event| {
+            if event.user_channel_id() != user_channel_id {
+                return false;
+            }
+
             if is_jit_channel {
-                matches!(event,
+                matches!(
+                    event,
                     ChannelEvent::Ready { .. } | ChannelEvent::Closed { .. }
-                    if event.user_channel_id() == user_channel_id
                 )
             } else {
-                event.user_channel_id() == user_channel_id
+                matches!(event, ChannelEvent::Pending { .. })
             }
-        }),
-    )
-    .await
-    .context("Waiting for channel event")?;
+        })
+        .apply(|fut| tokio::time::timeout(Duration::from_secs(15), fut))
+        .await
+        .context("Waiting for channel event")?;
 
-    if let ChannelEvent::Closed { reason, .. } = channel_event {
-        return Err(anyhow!("Channel open failed: {reason}"));
+    match channel_event {
+        ChannelEvent::Pending { .. } =>
+            debug!(%user_channel_id, "Received ChannelEvent::Pending"),
+        ChannelEvent::Ready { .. } =>
+            debug!(%user_channel_id, "Received ChannelEvent::Ready"),
+        ChannelEvent::Closed { reason, .. } =>
+            return Err(anyhow!("Channel open failed: {reason}")),
     }
 
     Ok(OpenChannelResponse {
