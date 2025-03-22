@@ -56,6 +56,12 @@ pub fn encode(data: &[u8]) -> Result<Vec<u8>, DataTooLongError> {
     Ok(qr_code_to_image(&qr))
 }
 
+/// Return the size of the encoded QR code for `data.len()`.
+pub fn encoded_size(data_len: usize) -> Result<usize, DataTooLongError> {
+    let (_, version) = len_to_params(data_len)?;
+    Ok(version_to_size(version))
+}
+
 /// Error when the data is too long to fit in a QR code (input data is longer
 /// than 2953 B).
 pub struct DataTooLongError;
@@ -71,7 +77,7 @@ const FG: [u8; 4] = [0x1c, 0x21, 0x23, 0xff];
 /// Target a specific QR code dimension (17 + 4 * v15 = 77 modules) so that
 /// the generated codes look roughly the same, in the normal case.
 const TARGET_VERSION: Version = Version::V15;
-const TARGET_VERSION_USIZE: usize = 15;
+const TARGET_SIZE: usize = version_to_size(TARGET_VERSION);
 
 // The max data length that can be encoded in a QR code with different ECL and
 // versions, assuming Byte encoding.
@@ -97,30 +103,20 @@ const MAX_DATA_LEN_L_B_V40: usize = 2953;
 
 /// Encode `data` as a QR code that's at least [`TARGET_VERSION`] in size.
 fn encode_qr_code(data: &[u8]) -> Result<QRCode, DataTooLongError> {
-    let (ecl, maybe_version) = len_to_params(data.len())?;
-
-    let mut qr_builder = QRBuilder::new(data);
-    qr_builder.ecl(ecl);
+    let (ecl, version) = len_to_params(data.len())?;
 
     // We always use Byte encoding. In theory you can uppercase bech32 addresses
     // and invoices so they can use the more efficient Alphanumeric encoding,
     // but many wallets don't decode that properly.
-    qr_builder.mode(Mode::Byte);
+    let qr = QRBuilder::new(data)
+        .mode(Mode::Byte)
+        .ecl(ecl)
+        .version(version)
+        .build()
+        .expect("Encoding should never fail");
 
-    if let Some(version) = maybe_version {
-        qr_builder.version(version);
-    }
-
-    let qr = qr_builder.build().expect("Encoding should never fail");
-
-    //       N = 17 + 4 * version
-    // version = (N - 17) / 4
-    let version = (qr.size - 17) / 4;
-    if maybe_version.is_some() {
-        assert_eq!(version, TARGET_VERSION_USIZE);
-    } else {
-        assert!((TARGET_VERSION_USIZE..=40).contains(&version));
-    }
+    // QR dimension should always be >= our target size
+    assert!(qr.size >= TARGET_SIZE);
 
     Ok(qr)
 }
@@ -132,22 +128,129 @@ fn encode_qr_code(data: &[u8]) -> Result<QRCode, DataTooLongError> {
 /// normal case.
 ///
 /// Shorter input data (like a BTC address) will just get more error correction.
-const fn len_to_params(
-    len: usize,
-) -> Result<(ECL, Option<Version>), DataTooLongError> {
+const fn len_to_params(len: usize) -> Result<(ECL, Version), DataTooLongError> {
     if len <= MAX_DATA_LEN_H_B_V15 {
-        Ok((ECL::H, Some(TARGET_VERSION)))
+        Ok((ECL::H, TARGET_VERSION))
     } else if len <= MAX_DATA_LEN_Q_B_V15 {
-        Ok((ECL::Q, Some(TARGET_VERSION)))
+        Ok((ECL::Q, TARGET_VERSION))
     } else if len <= MAX_DATA_LEN_M_B_V15 {
-        Ok((ECL::M, Some(TARGET_VERSION)))
+        Ok((ECL::M, TARGET_VERSION))
     } else if len <= MAX_DATA_LEN_M_B_V40 {
-        Ok((ECL::M, None))
+        let ecl = ECL::M;
+        Ok((ecl, len_ecl_to_version(len, ecl).unwrap()))
     } else if len <= MAX_DATA_LEN_L_B_V40 {
-        Ok((ECL::L, None))
+        let ecl = ECL::L;
+        Ok((ecl, len_ecl_to_version(len, ecl).unwrap()))
     } else {
         Err(DataTooLongError)
     }
+}
+
+/// Given the length of the input data and the ECL, return the smallest version
+/// that can encode it.
+const fn len_ecl_to_version(len: usize, ecl: ECL) -> Option<Version> {
+    use Version::{
+        V01, V02, V03, V04, V05, V06, V07, V08, V09, V10, V11, V12, V13, V14,
+        V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28,
+        V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40,
+    };
+
+    match ecl {
+        ECL::L => match len {
+            0..=17 => Some(V01),
+            18..=32 => Some(V02),
+            33..=53 => Some(V03),
+            54..=78 => Some(V04),
+            79..=106 => Some(V05),
+            107..=134 => Some(V06),
+            135..=154 => Some(V07),
+            155..=192 => Some(V08),
+            193..=230 => Some(V09),
+            231..=271 => Some(V10),
+            272..=321 => Some(V11),
+            322..=367 => Some(V12),
+            368..=425 => Some(V13),
+            426..=458 => Some(V14),
+            459..=520 => Some(V15),
+            521..=586 => Some(V16),
+            587..=644 => Some(V17),
+            645..=718 => Some(V18),
+            719..=792 => Some(V19),
+            793..=858 => Some(V20),
+            859..=929 => Some(V21),
+            930..=1003 => Some(V22),
+            1004..=1091 => Some(V23),
+            1092..=1171 => Some(V24),
+            1172..=1273 => Some(V25),
+            1274..=1367 => Some(V26),
+            1368..=1465 => Some(V27),
+            1466..=1528 => Some(V28),
+            1529..=1628 => Some(V29),
+            1629..=1732 => Some(V30),
+            1733..=1840 => Some(V31),
+            1841..=1952 => Some(V32),
+            1953..=2068 => Some(V33),
+            2069..=2188 => Some(V34),
+            2189..=2303 => Some(V35),
+            2304..=2431 => Some(V36),
+            2432..=2563 => Some(V37),
+            2564..=2699 => Some(V38),
+            2700..=2809 => Some(V39),
+            2810..=2953 => Some(V40),
+            _ => None,
+        },
+        ECL::M => match len {
+            0..=14 => Some(V01),
+            15..=26 => Some(V02),
+            27..=42 => Some(V03),
+            43..=62 => Some(V04),
+            63..=84 => Some(V05),
+            85..=106 => Some(V06),
+            107..=122 => Some(V07),
+            123..=152 => Some(V08),
+            153..=180 => Some(V09),
+            181..=213 => Some(V10),
+            214..=251 => Some(V11),
+            252..=287 => Some(V12),
+            288..=331 => Some(V13),
+            332..=362 => Some(V14),
+            363..=412 => Some(V15),
+            413..=450 => Some(V16),
+            451..=504 => Some(V17),
+            505..=560 => Some(V18),
+            561..=624 => Some(V19),
+            625..=666 => Some(V20),
+            667..=711 => Some(V21),
+            712..=779 => Some(V22),
+            780..=857 => Some(V23),
+            858..=911 => Some(V24),
+            912..=997 => Some(V25),
+            998..=1059 => Some(V26),
+            1060..=1125 => Some(V27),
+            1126..=1190 => Some(V28),
+            1191..=1264 => Some(V29),
+            1265..=1370 => Some(V30),
+            1371..=1452 => Some(V31),
+            1453..=1538 => Some(V32),
+            1539..=1628 => Some(V33),
+            1629..=1722 => Some(V34),
+            1723..=1809 => Some(V35),
+            1810..=1911 => Some(V36),
+            1912..=1989 => Some(V37),
+            1990..=2099 => Some(V38),
+            2100..=2213 => Some(V39),
+            2214..=2331 => Some(V40),
+            _ => None,
+        },
+        ECL::Q => unimplemented!(),
+        ECL::H => unimplemented!(),
+    }
+}
+
+/// Convert a QR code version to the number of modules per side.
+const fn version_to_size(version: Version) -> usize {
+    // NOTE: `fast_qr::Version::V1 as usize == 0`
+    17 + 4 * (version as usize + 1)
 }
 
 /// Encode a QR code as an a bitmap image in RGBA pixel format.
