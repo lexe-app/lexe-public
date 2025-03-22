@@ -14,7 +14,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// Encode `data` as a QR code, then render it as a raw bitmap image.
 ///
 /// Uses RGBA pixel format with opaque white BG and `LxColors.foreground` FG.
-Future<Uint8List> encode({required String data}) =>
+Future<Uint8List> encode({required List<int> data}) =>
     AppRs.instance.api.crateFfiQrEncode(data: data);
 
 /// Return the size of the encoded QR code for the given data length in bytes.

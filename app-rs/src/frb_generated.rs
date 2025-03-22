@@ -619,9 +619,9 @@ fn wire__crate__ffi__qr__encode_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "encode", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_data = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
+            let api_data = <Vec<u8>>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move ||  {
-                         let output_ok = crate::ffi::qr::encode(&api_data)?;   Ok(output_ok)
+                         let output_ok = crate::ffi::qr::encode(api_data)?;   Ok(output_ok)
                     })())
                 } })
 }

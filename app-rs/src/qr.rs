@@ -51,7 +51,7 @@ use fast_qr::{qr::QRBuilder, Mode, QRCode, Version, ECL};
 /// Encode `data` as a QR code, then render it as a raw bitmap image.
 ///
 /// Uses RGBA pixel format with opaque white BG and `LxColors.foreground` FG.
-pub fn encode(data: &[u8]) -> Result<Vec<u8>, DataTooLongError> {
+pub fn encode(data: Vec<u8>) -> Result<Vec<u8>, DataTooLongError> {
     let qr = encode_qr_code(data)?;
     Ok(qr_code_to_image(&qr))
 }
@@ -102,7 +102,7 @@ const MAX_DATA_LEN_M_B_V40: usize = 2331;
 const MAX_DATA_LEN_L_B_V40: usize = 2953;
 
 /// Encode `data` as a QR code that's at least [`TARGET_VERSION`] in size.
-fn encode_qr_code(data: &[u8]) -> Result<QRCode, DataTooLongError> {
+fn encode_qr_code(data: Vec<u8>) -> Result<QRCode, DataTooLongError> {
     let (ecl, version) = len_to_params(data.len())?;
 
     // We always use Byte encoding. In theory you can uppercase bech32 addresses
@@ -343,7 +343,7 @@ mod test {
 █ █▄▄▄█ █▄██ █▀▄█  █▄█▀█  ▀▄  ▀  ▀█▀▄ ▀ ▄█ ▀▀▀▀▄ █▀ ▀▀▀▀▄▀▄▄▄▄▀▄▀▀ ▄▄▄▄▀▀ ▀  ██
 █▄▄▄▄▄▄▄███████▄██████▄▄▄▄▄█▄▄▄█▄█▄▄█▄▄▄▄▄████▄▄██▄███▄█▄██▄▄▄▄▄██▄█▄▄▄▄█▄█████
 "#;
-        let qr = encode_qr_code(data.as_bytes()).unwrap();
+        let qr = encode_qr_code(data.into()).unwrap();
         assert_eq!(qr.to_str(), expected.trim());
     }
 
@@ -392,7 +392,7 @@ mod test {
 █ █▄▄▄█ █▄▀█▄█▀ ▀▀▀▀▄▀▀▀▀▄▀▀▄▄▀▄  ▄▄▄██ ▄▀▀▄▀▀█▄▄▄▄█▄▀ ▀▀ ▀ ▀▀▄▀█  █▀ ▀▄▄▄ ▄ ██
 █▄▄▄▄▄▄▄█▄███▄███▄██▄██▄██▄▄████▄█▄▄▄▄▄▄▄█▄▄████▄██▄▄▄▄▄█▄▄██▄█▄▄▄█████▄▄█▄▄███
 "#;
-        let qr = encode_qr_code(data.as_bytes()).unwrap();
+        let qr = encode_qr_code(data.into()).unwrap();
         assert_eq!(qr.to_str(), expected.trim());
     }
 
@@ -403,7 +403,7 @@ mod test {
 
         let config = proptest::test_runner::Config::with_cases(10);
         proptest!(config, |(data in arb_data)| {
-            let _ = encode(&data).unwrap();
+            let _ = encode(data).unwrap();
         });
     }
 
@@ -415,11 +415,11 @@ mod test {
     fn test_encode_exhaustive_lens() {
         for len in 0..=MAX_DATA_LEN_L_B_V40 {
             let data = vec![0x69; len];
-            let _ = encode(&data).unwrap();
+            let _ = encode(data).unwrap();
         }
         for len in (MAX_DATA_LEN_L_B_V40 + 1)..=(MAX_DATA_LEN_L_B_V40 + 100) {
             let data = vec![0x69; len];
-            let _ = encode(&data).unwrap_err();
+            let _ = encode(data).unwrap_err();
         }
     }
 }
