@@ -92,6 +92,8 @@ cmac = { version = "0.7", features = ["std", "zeroize"] }
 dotenvy = "0.15"
 # General purpose sum type with two cases (left and right)
 either = "1"
+# QR code generation on the app
+fast_qr = { version = "0.12", default-features = false }
 # High-level memory-safe Rust<->Dart FFI bindings.
 # Keep this version in sync with `app_rs_dart/pubspec.yaml`.
 flutter_rust_bridge = { version = "=2.7.1", default-features = false }

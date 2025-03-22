@@ -10,6 +10,7 @@ default = ["flutter"]
 # This feature enables flutter-only dependencies.
 # Disabling this feature removes a lot of gunk from our smoketests.
 flutter = [
+    "dep:fast_qr",
     "dep:flutter_rust_bridge",
     "keyring/platform-macos",
     "keyring/platform-ios",
@@ -58,6 +59,9 @@ flutter_rust_bridge = { workspace = true, optional = true, features = [
 ] }
 
 # --- CRATE-SPECIFIC --- #
+
+# Only enable QR code generation when actually building for app
+fast_qr = { workspace = true, optional = true }
 
 # TODO(phlip9): uncomment when I need this
 # [target.'cfg(target_os = "android")'.dependencies]
