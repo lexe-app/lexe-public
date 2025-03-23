@@ -44,19 +44,20 @@
 
 use std::fmt;
 
-use fast_qr::{qr::QRBuilder, Mode, QRCode, Version, ECL};
+use fast_qr::{qr::QRBuilder, Mode, Module, QRCode, Version, ECL};
 
 // --- public API --- //
 
-/// Encode `data` as a QR code, then render it as a raw bitmap image.
+/// Encode `data` as a QR code, then render it as a .bmp image.
 ///
-/// Uses RGBA pixel format with opaque white BG and `LxColors.foreground` FG.
+/// Renders with an opaque white BG and `LxColors.foreground` FG.
 pub fn encode(data: Vec<u8>) -> Result<Vec<u8>, DataTooLongError> {
     let qr = encode_qr_code(data)?;
-    Ok(qr_code_to_image(&qr))
+    Ok(qr_code_to_bmp_image(&qr))
 }
 
-/// Return the size of the encoded QR code for `data.len()`.
+/// Return the size in pixels of one side of the encoded QR code for a given
+/// input `data.len()`.
 pub fn encoded_size(data_len: usize) -> Result<usize, DataTooLongError> {
     let (_, version) = len_to_params(data_len)?;
     Ok(version_to_size(version))
@@ -67,12 +68,6 @@ pub fn encoded_size(data_len: usize) -> Result<usize, DataTooLongError> {
 pub struct DataTooLongError;
 
 // --- constants --- //
-
-// color format: RRGGBBAA
-//   background: opaque white
-//   foreground: LxColors.foreground
-const BG: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
-const FG: [u8; 4] = [0x1c, 0x21, 0x23, 0xff];
 
 /// Target a specific QR code dimension (17 + 4 * v15 = 77 modules) so that
 /// the generated codes look roughly the same, in the normal case.
@@ -100,6 +95,17 @@ const MAX_DATA_LEN_Q_B_V15: usize = 292;
 const MAX_DATA_LEN_M_B_V15: usize = 412;
 const MAX_DATA_LEN_M_B_V40: usize = 2331;
 const MAX_DATA_LEN_L_B_V40: usize = 2953;
+
+// color format: BBGGRR (bmp)
+//   background: opaque white
+//   foreground: LxColors.foreground
+const BG: [u8; 3] = [0xff, 0xff, 0xff];
+const FG: [u8; 3] = [0x23, 0x21, 0x1c];
+
+/// The length of the .bmp header in bytes.
+const BMP_HEADER_LEN: usize = 54;
+
+// --- encode --- //
 
 /// Encode `data` as a QR code that's at least [`TARGET_VERSION`] in size.
 fn encode_qr_code(data: Vec<u8>) -> Result<QRCode, DataTooLongError> {
@@ -253,18 +259,83 @@ const fn version_to_size(version: Version) -> usize {
     17 + 4 * (version as usize + 1)
 }
 
-/// Encode a QR code as an a bitmap image in RGBA pixel format.
-fn qr_code_to_image(qr: &QRCode) -> Vec<u8> {
-    let len = qr.size * qr.size;
-    let data = &qr.data[..len];
+// --- encode to .bmp image --- //
 
-    // Use this iterator chain specifically because it auto-vectorizes properly:
-    // <https://godbolt.org/z/P9Kafd89Y>
-    #[allow(clippy::map_flatten)]
-    data.iter()
-        .map(|module| if module.value() { FG } else { BG })
-        .flatten()
-        .collect()
+/// Encode a QR code as a .bmp image.
+fn qr_code_to_bmp_image(qr: &QRCode) -> Vec<u8> {
+    let size = qr.size;
+    let data = &qr.data[..size * size];
+
+    let (_pixel_data_len, file_len) = bmp_image_lens(size);
+    let mut buf: Vec<u8> = vec![0u8; file_len];
+
+    // write bmp header
+    buf[0..BMP_HEADER_LEN].copy_from_slice(&bmp_header(size));
+
+    // write pixel data
+    bmp_write_qr_pixels(data, size, &mut buf[BMP_HEADER_LEN..]);
+
+    buf
+}
+
+fn bmp_write_qr_pixels(data: &[Module], size: usize, out: &mut [u8]) {
+    assert!(data.len() == size * size);
+
+    // output rows need to be padded to 4-byte multiples with 24bpp
+    let row_stride = (size * 3).next_multiple_of(4);
+    assert!(out.len() == row_stride * size);
+    let out_rows = out.chunks_exact_mut(row_stride);
+
+    // write rows in reverse order since bmp stores them bottom-to-top (whhyyy)
+    let in_rows = data.chunks_exact(size).rev();
+
+    for (out_row, in_row) in out_rows.zip(in_rows) {
+        let out_pixels = out_row.chunks_exact_mut(3);
+        for (out_pixel, module) in out_pixels.zip(in_row.iter()) {
+            // .copy_from_slice seems to confuse the auto-vectorizer...
+            let is_fg = module.value();
+            out_pixel[0] = if is_fg { FG[0] } else { BG[0] };
+            out_pixel[1] = if is_fg { FG[1] } else { BG[1] };
+            out_pixel[2] = if is_fg { FG[2] } else { BG[2] };
+        }
+    }
+}
+
+/// Return the length of the pixel data segment and the overall file length
+/// of a square .bmp image file with 24bpp.
+const fn bmp_image_lens(size: usize) -> (usize, usize) {
+    // rows need to be padded to 4-byte multiples with 24bpp
+    let row_stride = (size * 3).next_multiple_of(4);
+    let pixel_data_len = size * row_stride;
+    let file_size = BMP_HEADER_LEN + pixel_data_len;
+    (pixel_data_len, file_size)
+}
+
+/// Build the .bmp file header for a square image with 24bpp.
+fn bmp_header(size: usize) -> [u8; BMP_HEADER_LEN] {
+    let (pixel_data_len, file_size) = bmp_image_lens(size);
+
+    let mut header = [0_u8; BMP_HEADER_LEN];
+
+    // File header
+    header[0..2].copy_from_slice(b"BM"); // magic
+    header[2..6].copy_from_slice(&(file_size as u32).to_le_bytes());
+    header[10..14].copy_from_slice(&(BMP_HEADER_LEN as u32).to_le_bytes()); // pixel data offset
+
+    // DIB header (BITMAPINFOHEADER)
+    header[14..18].copy_from_slice(&40_u32.to_le_bytes()); // DIB header size
+    header[18..22].copy_from_slice(&(size as i32).to_le_bytes()); // width
+    header[22..26].copy_from_slice(&(size as i32).to_le_bytes()); // height
+    header[26..28].copy_from_slice(&1_u16.to_le_bytes()); // one plane
+    header[28..30].copy_from_slice(&24_u16.to_le_bytes()); // 24 bits per pixel
+    header[30..34].copy_from_slice(&0_u32.to_le_bytes()); // no compression
+    header[34..38].copy_from_slice(&(pixel_data_len as u32).to_le_bytes());
+    header[38..42].copy_from_slice(&1000_u32.to_le_bytes()); // h: 1000 px/meter
+    header[42..46].copy_from_slice(&1000_u32.to_le_bytes()); // v: 1000 px/meter
+    header[46..50].copy_from_slice(&0_u32.to_le_bytes()); // no palette
+    header[50..54].copy_from_slice(&0_u32.to_le_bytes()); // all colors important
+
+    header
 }
 
 // --- impl DataTooLongError --- //
@@ -394,6 +465,9 @@ mod test {
 "#;
         let qr = encode_qr_code(data.into()).unwrap();
         assert_eq!(qr.to_str(), expected.trim());
+
+        // let img = encode(data.into()).unwrap();
+        // std::fs::write("qr.bmp", img).unwrap();
     }
 
     #[test]
