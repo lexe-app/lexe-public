@@ -76,7 +76,7 @@ import 'package:lexeapp/route/send/state.dart'
         SendState_NeedAmount,
         SendState_NeedUri,
         SendState_Preflighted;
-import 'package:lexeapp/route/show_qr.dart' show ShowQrPage, ShowQrPage2;
+import 'package:lexeapp/route/show_qr.dart' show ShowQrPage;
 import 'package:lexeapp/route/signup.dart'
     show SignupBackupPasswordPage, SignupCtx, SignupPage;
 import 'package:lexeapp/route/wallet.dart' show WalletPage;
@@ -721,14 +721,6 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "ShowQrPage",
               subtitle: "standard bip21",
               (_) => const ShowQrPage(
-                value:
-                    "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday",
-              ),
-            ),
-            Component(
-              "ShowQrPage2",
-              subtitle: "standard bip21",
-              (_) => const ShowQrPage2(
                 value:
                     "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday",
               ),

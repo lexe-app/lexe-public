@@ -734,13 +734,13 @@ class PaymentOfferPage extends StatelessWidget {
                           ? Container(
                               decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(6.0)),
-                              clipBehavior: Clip.hardEdge,
+                              clipBehavior: Clip.antiAlias,
                               child: InteractiveQrImage(
                                 // `AnimatedSwitcher` should also run the switch
                                 // animation when the QR code contents change.
                                 key: key,
                                 value: uri.toString(),
-                                dimension: dim.toInt(),
+                                dimension: dim,
                               ),
                             )
                           : FilledPlaceholder(
