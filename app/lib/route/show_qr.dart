@@ -6,16 +6,17 @@
 library;
 
 import 'dart:async' show Completer, unawaited;
+import 'dart:convert' show utf8;
 import 'dart:developer' as dev;
 import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:app_rs_dart/ffi/qr.dart' as qr;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart' as zx;
-
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
@@ -500,3 +501,137 @@ int qrScrimSize(final Uint8List data, final int dimension) {
 //     s.clear();
 //   }
 // }
+
+class ShowQrPage2 extends StatelessWidget {
+  const ShowQrPage2({super.key, required this.value});
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
+        leading: const LxCloseButton(isLeading: true),
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const SizedBox(height: Space.s900),
+          Center(
+            child: Image(
+              image: QrImageProvider.utf8(this.value),
+              width: 300,
+              height: 300,
+              filterQuality: FilterQuality.none,
+              isAntiAlias: false,
+              fit: BoxFit.none,
+              alignment: Alignment.center,
+            ),
+          )
+        ],
+      ),
+    );
+  }
+}
+
+/// An [ImageProvider] that generates a QR code image.
+///
+/// + The image is decoded to fit the target box.
+/// + Using an [ImageProvider] ensures the decoded image is cached in the
+///   global image cache.
+class QrImageProvider extends ImageProvider<QrImageKey> {
+  /// Create a new [QrImageProvider] from bytes.
+  const QrImageProvider(this.value);
+
+  /// Create a new [QrImageProvider] from a UTF-8 encoded string.
+  QrImageProvider.utf8(final String value) : this.value = utf8.encode(value);
+
+  /// The bytes that will be encoded into a QR code image.
+  final Uint8List value;
+
+  /// Generate the cache key for the QR image that uniquely identifies it in the
+  /// global image cache.
+  ///
+  /// The `configuration` parameter may contain the target size of final decoded
+  /// image. Since we decode to this size, it must also be included in the cache
+  /// key.
+  @override
+  Future<QrImageKey> obtainKey(ImageConfiguration configuration) {
+    final len = this.value.length;
+    final size = configuration.size;
+
+    // Compute the scale factor to decode the QR image to the correct target size.
+    // Flutter already appears to scale the base image as if reading logical
+    // pixels, so no need to account for device pixel ratio.
+    final scale = (size != null)
+        ? qr.encodedSize(dataLen: len).toDouble() / size.shortestSide
+        : 1.0;
+
+    return SynchronousFuture<QrImageKey>(
+      QrImageKey(
+        value: this.value,
+        scale: scale,
+      ),
+    );
+  }
+
+  @override
+  ImageStreamCompleter loadImage(
+    QrImageKey key,
+    ImageDecoderCallback decode,
+  ) {
+    // Technically this could use `OneFrameImageStreamCompleter` but it seems
+    // more complicated...
+    return MultiFrameImageStreamCompleter(
+      // Generate the QR image and decode it to the target size.
+      codec: qr
+          .encode(data: key.value)
+          .then<ui.ImmutableBuffer>(ui.ImmutableBuffer.fromUint8List)
+          .then<ui.Codec>(decode),
+      scale: key.scale,
+      debugLabel: "QrImageProvider",
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == this.runtimeType &&
+            other is QrImageProvider &&
+            (identical(other.value, this.value) || other.value == this.value));
+  }
+
+  @override
+  int get hashCode => Object.hash(this.runtimeType, this.value);
+}
+
+/// Uniquely identifies a QR image in the global image cache.
+@immutable
+class QrImageKey {
+  const QrImageKey({
+    required this.value,
+    required this.scale,
+  });
+
+  /// The UTF-8 encoded string that will be encoded into a QR code image.
+  final Uint8List value;
+
+  /// The scale factor to decode the QR image to the correct target size.
+  final double scale;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == this.runtimeType &&
+            other is QrImageKey &&
+            (identical(other.value, this.value) || other.value == this.value) &&
+            (other.scale == this.scale));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        this.runtimeType,
+        this.value,
+        this.scale,
+      );
+}
