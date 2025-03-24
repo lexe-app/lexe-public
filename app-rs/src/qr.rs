@@ -50,6 +50,9 @@ use fast_qr::{qr::QRBuilder, Mode, Module, QRCode, Version, ECL};
 
 /// Encode `data` as a QR code, then render it as a .bmp image.
 ///
+/// Returns a self-describing image format (.bmp) and not raw pixel data since
+/// that's easier to consume on the Dart side.
+///
 /// Renders with an opaque white BG and `LxColors.foreground` FG.
 pub fn encode(data: Vec<u8>) -> Result<Vec<u8>, DataTooLongError> {
     let qr = encode_qr_code(data)?;
@@ -57,7 +60,7 @@ pub fn encode(data: Vec<u8>) -> Result<Vec<u8>, DataTooLongError> {
 }
 
 /// Return the size in pixels of one side of the encoded QR code for a given
-/// input `data.len()`.
+/// input `data.len()` in bytes.
 pub fn encoded_size(data_len: usize) -> Result<usize, DataTooLongError> {
     let (_, version) = len_to_params(data_len)?;
     Ok(version_to_size(version))
