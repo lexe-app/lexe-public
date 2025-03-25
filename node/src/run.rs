@@ -86,7 +86,9 @@ use crate::{
 };
 
 /// The minimum # of intercept scids we want (for inserting into invoices).
-const MIN_INTERCEPT_SCIDS: usize = 3;
+///
+/// See NOTE above [`lexe_ln::command::MAX_INTERCEPT_HINTS`] for why this is 1.
+const MIN_INTERCEPT_SCIDS: usize = 1;
 // Ensure we don't request more than we'll ever use.
 const_assert!(MIN_INTERCEPT_SCIDS <= lexe_ln::command::MAX_INTERCEPT_HINTS);
 

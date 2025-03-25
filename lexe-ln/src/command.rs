@@ -85,7 +85,18 @@ use crate::{
 };
 
 /// The max # of route hints containing intercept scids we'll add to invoices.
-pub const MAX_INTERCEPT_HINTS: usize = 3;
+// NOTE: We previously had issues failing to route Lexe -> Lexe MPPs with only
+// one route hint because LDK's routing algorithm includes a hack which disables
+// the central hop in any found routes for subsequent MPP iterations, which
+// happens to be the LSP -> Payee hop in a two hop path. A lot of work was done
+// to migrate to multiple SCIDs per user, but it turns out we can just comment
+// out the hack in LDK to fix the Lexe -> Lexe MPP routing issue. Removing the
+// hack should also make Lexe user -> External MPPs more reliable as well, as
+// multiple shards can use the same (reliable) path, instead of being forced to
+// diversify to longer, higher cost, less liquid paths.
+//
+// Issue: https://github.com/lightningdevkit/rust-lightning/issues/3685
+pub const MAX_INTERCEPT_HINTS: usize = 1;
 
 /// Specifies whether it is the user node or the LSP calling the
 /// [`create_invoice`] fn. There are some differences between how the user node
@@ -744,23 +755,23 @@ where
         );
     }
 
-    // Construct the route hints.
+    // Construct the route hint(s).
     let route_hints = match caller {
         // If the LSP is calling create_invoice, include no hints and let
         // the sender route to us by looking at the lightning network graph.
         CreateInvoiceCaller::Lsp => Vec::new(),
-        // If a user node is calling create_invoice, always include intercept
-        // hints. We do this even when the user already has a channel with
-        // enough balance to service the payment because it allows the LSP to
-        // intercept the HTLC and wake the user if a payment comes in while the
-        // user is offline.
+        // If a user node is calling create_invoice, always include at least one
+        // intercept hint. We do this even when the user already has a channel
+        // with enough balance to service the payment, because it allows the LSP
+        // to intercept the HTLC and wake the user if a payment comes in while
+        // the user is offline.
         CreateInvoiceCaller::UserNode {
             lsp_info,
             intercept_scids,
         } => {
             let channels = channel_manager.list_channels();
 
-            // For the fee rates and CLTV delta to include in our route hint,
+            // For the fee rates and CLTV delta to include in our route hint(s),
             // use the maximum of the values observed in our channels and the
             // LSP's configured value according to `LspInfo`, defaulting to the
             // `LspInfo` value if a value is not available from our channels.
@@ -844,13 +855,8 @@ where
                 proportional_millionths,
             };
 
-            // TODO(max): Right now, we're including multiple intercept hints
-            // because LDK's routing algorithm apparently fails to find a route
-            // in some two-hop User -> LSP -> User MPP scenarios if we only
-            // include one hint. These tend to bloat the invoice though, so
-            // ideally we should fix this and go back to just one hint.
-            // Tip: To reproduce the routing error, just change to `.take(1)`
-            // and run the payments smoketests.
+            // Multi-hint impl, in case we switch back
+            /*
             intercept_scids
                 .into_iter()
                 .take(MAX_INTERCEPT_HINTS)
@@ -866,6 +872,22 @@ where
                     RouteHint(vec![route_hint_hop])
                 })
                 .collect::<Vec<RouteHint>>()
+            */
+
+            // If there are multiple intercept scids, just pick the last one, as
+            // it is likely the most recently generated.
+            let scid = intercept_scids
+                .last()
+                .context("No intercept hints provided")?;
+            let route_hint_hop = RouteHintHop {
+                src_node_id: lsp_info.node_pk.0,
+                short_channel_id: scid.0,
+                fees,
+                cltv_expiry_delta,
+                htlc_minimum_msat: Some(htlc_minimum_msat),
+                htlc_maximum_msat: Some(htlc_maximum_msat),
+            };
+            vec![RouteHint(vec![route_hint_hop])]
         }
     };
     debug!("Including route hints: {route_hints:?}");
