@@ -187,13 +187,19 @@ pub struct LxChannelDetails {
     pub their_cltv_expiry_delta: Option<u16>,
 
     // --- HTLC limits --- //
-    /// The smallest inbound HTLC we will accept.
+    /// The smallest inbound HTLC we will accept. Generally determined by our
+    /// [`ChannelHandshakeConfig::our_htlc_minimum_msat`](lightning::util::config::ChannelHandshakeConfig).
     pub inbound_htlc_minimum: Amount,
-    /// The largest inbound HTLC we will accept.
+    /// The largest inbound HTLC we will accept. This is bounded above by
+    /// [`Self::channel_value`] (NOT [`Self::inbound_capacity`]).
     pub inbound_htlc_maximum: Option<Amount>,
-    /// The smallest outbound HTLC our counterparty will accept.
+    /// The smallest outbound HTLC our counterparty will accept. Assuming the
+    /// counterparty is a Lexe user or Lexe's LSP, this is determined by their
+    /// [`ChannelHandshakeConfig::our_htlc_minimum_msat`](lightning::util::config::ChannelHandshakeConfig).
     pub outbound_htlc_minimum: Option<Amount>,
-    /// The largest outbound HTLC our counterparty will accept.
+    /// The largest outbound HTLC our counterparty will accept. Assuming the
+    /// counterparty is a Lexe user or Lexe's LSP, this appears to be bounded
+    /// above by [`Self::channel_value`] (NOT [`Self::outbound_capacity`]).
     pub outbound_htlc_maximum: Option<Amount>,
 
     // --- Features of interest that our counterparty supports --- //
