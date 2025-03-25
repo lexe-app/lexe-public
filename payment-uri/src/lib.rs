@@ -3,6 +3,10 @@
 //! This module parses various BTC-related payment methods permissively. That
 //! means we should parse inputs that are not strictly well-formed.
 //!
+//! Standards:
+//! + [BIP21 - URI Scheme](https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki)
+//! + [BIP321 - URI Scheme (draft, replaces BIP 21)](https://github.com/bitcoin/bips/pull/1555/files)
+//!
 //! Other wallet parsers for comparison:
 //! + [ACINQ/phoenix - Parser](https://github.com/ACINQ/phoenix/blob/master/phoenix-shared/src/commonMain/kotlin/fr.acinq.phoenix/utils/Parser.kt)
 //! + [breez/breez-sdk - input_parser.rs](https://github.com/breez/breez-sdk-greenlight/blob/main/libs/sdk-common/src/input_parser.rs)
@@ -1075,5 +1079,62 @@ mod test {
             let actual = LightningUri::parse(&uri.to_string());
             prop_assert_eq!(Some(uri), actual);
         });
+    }
+
+    #[rustfmt::skip] // Stop breaking comments
+    #[test]
+    fn test_bip321_test_vectors() {
+        // Must parse and roundtrip
+        #[track_caller]
+        fn parse_ok_rt(s: &str) -> PaymentUri {
+            let uri = PaymentUri::parse(s).unwrap();
+            // Ensure it roundtrips
+            assert_eq!(s, uri.to_string());
+            uri
+        }
+
+        // It'll at least parse
+        #[track_caller]
+        fn parse_ok(s: &str) -> PaymentUri {
+            PaymentUri::parse(s).unwrap()
+        }
+
+        // // Does not parse
+        // #[track_caller]
+        // fn parse_err(s: &str) {
+        //     let uri = PaymentUri::parse(s);
+        //     assert_eq!(None, uri);
+        // }
+
+        // NOTE: these are edited to use valid addresses/invoices/offers/etc
+        // otherwise we don't parse them.
+        parse_ok_rt("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU");
+        parse_ok_rt("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?label=Luke-Jr");
+        parse_ok_rt("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?label=Luke-Jr");
+        parse_ok_rt("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?amount=50&label=Luke-Jr&message=Donation%20for%20project%20xyz");
+        parse_ok_rt("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?lightning=lnbc1gcssw9pdqqpp54dkfmzgm5cqz4hzz24mpl7xtgz55dsuh430ap4rlugvywlm4syhqsp5qqtk8n0x2wa6ajl32mp6hj8u9vs55s5lst4s2rws3he4622w08es9qyysgqcqypt3ffpp36sw424yacusmj3hy32df9g97nlwm0a3e0yxw4nd8uau2zdw85lfl5w0h3mggd5g3qswxr9lje0el8g98vul9yec59gf0zxu3eg9rhda09ducxpupsfh36ks9jez7aamsn7hpkxqpw2xyek");
+        parse_ok_rt("bitcoin:?lightning=lnbc1gcssw9pdqqpp54dkfmzgm5cqz4hzz24mpl7xtgz55dsuh430ap4rlugvywlm4syhqsp5qqtk8n0x2wa6ajl32mp6hj8u9vs55s5lst4s2rws3he4622w08es9qyysgqcqypt3ffpp36sw424yacusmj3hy32df9g97nlwm0a3e0yxw4nd8uau2zdw85lfl5w0h3mggd5g3qswxr9lje0el8g98vul9yec59gf0zxu3eg9rhda09ducxpupsfh36ks9jez7aamsn7hpkxqpw2xyek");
+        parse_ok_rt("bitcoin:?lno=lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q");
+
+        // TODO(phlip9): decimal amount
+        // parse_ok_rt("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?amount=20.3&label=Luke-Jr");
+
+        // TODO(phlip9): "parse" silent payments
+        // parse_ok("bitcoin:?lno=lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q&sp=sp1qsilentpayment");
+        // parse_ok("bitcoin:?sp=sp1qsilentpayment");
+        // parse_ok("bitcoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?sp=sp1qsilentpayment");
+
+        // TODO(phlip9): handle other bech32 hrp
+        parse_ok("bitcoin:?tb=tb1qkkxnp5zm6wpfyjufdznh38vm03u4w8q8awuggp");
+
+        // TODO(phlip9): handle multiple addresses
+        parse_ok("bitcoin:?bc=bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw&bc=bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh");
+
+        parse_ok("BITCOIN:BC1QM9R9X9H2C9WPTAZ0873VYFV8CKX2LCDX8F48UCTTZQFT7R0Q2YASXKT2LW?BC=BC1QFJEYFL9PHSDANZ5YAYLAS3P393MU9Z99YA9MNH");
+        parse_ok("BITCOIN:?BC=BC1QM9R9X9H2C9WPTAZ0873VYFV8CKX2LCDX8F48UCTTZQFT7R0Q2YASXKT2LW&BC=BC1QFJEYFL9PHSDANZ5YAYLAS3P393MU9Z99YA9MNH");
+        parse_ok("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?somethingyoudontunderstand=50&somethingelseyoudontget=999");
+
+        // TODO(phlip9): empty bip21 should -> None
+        // parse_err("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?req-somethingyoudontunderstand=50&req-somethingelseyoudontget=999");
     }
 }
