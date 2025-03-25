@@ -39,5 +39,21 @@ void main() {
     );
   });
 
-  //
+  test("PaymentOffer.uri() (offer)", () {
+    const code =
+        "lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q";
+
+    const payment = PaymentOffer(
+      kind: PaymentOfferKind.lightningOffer,
+      code: code,
+      amountSats: null,
+      description: null,
+      expiresAt: null,
+    );
+
+    expect(
+      payment.uri()!.toString(),
+      "bitcoin:?lno=$code",
+    );
+  });
 }

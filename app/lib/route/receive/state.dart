@@ -196,7 +196,8 @@ class PaymentOffer {
 
     return switch (this.kind) {
       PaymentOfferKind.lightningInvoice => Uri(scheme: "lightning", path: code),
-      PaymentOfferKind.lightningOffer => Uri(scheme: "lightning", path: code),
+      PaymentOfferKind.lightningOffer =>
+        Uri(scheme: "bitcoin", query: "lno=$code"),
       PaymentOfferKind.btcAddress => Uri(scheme: "bitcoin", path: code),
     };
   }
