@@ -413,6 +413,8 @@ impl Bip21Uri {
         let mut message = None;
 
         for param in uri.params {
+            use bitcoin::Network;
+
             let key = param.key_parsed();
 
             if key.is("lightning") {
@@ -433,6 +435,39 @@ impl Bip21Uri {
             } else if key.is("lno") || /* legacy */ key.is("b12") {
                 if out.offer.is_none() {
                     out.offer = LxOffer::from_str(&param.value).ok();
+                }
+            } else if key.is("bc") {
+                if out.onchain.is_none() {
+                    if let Ok(address) =
+                        bitcoin::Address::from_str(&param.value)
+                    {
+                        if address.is_valid_for_network(Network::Bitcoin) {
+                            out.onchain = Some(Onchain::from(address));
+                        }
+                    }
+                }
+            } else if key.is("tb") {
+                if out.onchain.is_none() {
+                    if let Ok(address) =
+                        bitcoin::Address::from_str(&param.value)
+                    {
+                        if address.is_valid_for_network(Network::Testnet)
+                            || address.is_valid_for_network(Network::Testnet4)
+                            || address.is_valid_for_network(Network::Signet)
+                        {
+                            out.onchain = Some(Onchain::from(address));
+                        }
+                    }
+                }
+            } else if key.is("bcrt") {
+                if out.onchain.is_none() {
+                    if let Ok(address) =
+                        bitcoin::Address::from_str(&param.value)
+                    {
+                        if address.is_valid_for_network(Network::Regtest) {
+                            out.onchain = Some(Onchain::from(address));
+                        }
+                    }
                 }
             } else if key.is("amount") {
                 if amount.is_none() {
@@ -1152,6 +1187,10 @@ mod test {
         parse_ok_rt("bitcoin:?lightning=lnbc1gcssw9pdqqpp54dkfmzgm5cqz4hzz24mpl7xtgz55dsuh430ap4rlugvywlm4syhqsp5qqtk8n0x2wa6ajl32mp6hj8u9vs55s5lst4s2rws3he4622w08es9qyysgqcqypt3ffpp36sw424yacusmj3hy32df9g97nlwm0a3e0yxw4nd8uau2zdw85lfl5w0h3mggd5g3qswxr9lje0el8g98vul9yec59gf0zxu3eg9rhda09ducxpupsfh36ks9jez7aamsn7hpkxqpw2xyek");
         parse_ok_rt("bitcoin:?lno=lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q");
 
+        parse_ok("bitcoin:?bc=bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh");
+        parse_ok("bitcoin:?tb=tb1qkkxnp5zm6wpfyjufdznh38vm03u4w8q8awuggp");
+        parse_ok("bitcoin:?bcrt=bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk");
+
         // TODO(phlip9): decimal amount
         // parse_ok_rt("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?amount=20.3&label=Luke-Jr");
 
@@ -1161,7 +1200,6 @@ mod test {
         // parse_ok("bitcoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?sp=sp1qsilentpayment");
 
         // TODO(phlip9): handle other bech32 hrp
-        parse_ok("bitcoin:?tb=tb1qkkxnp5zm6wpfyjufdznh38vm03u4w8q8awuggp");
 
         // TODO(phlip9): handle multiple addresses
         parse_ok("bitcoin:?bc=bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw&bc=bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh");
