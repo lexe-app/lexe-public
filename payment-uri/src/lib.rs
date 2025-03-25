@@ -400,21 +400,22 @@ impl Bip21Uri {
             offer: None,
         };
 
-        // Skip the `Onchain` method if we see any `req-` parameters, as per the
-        // spec. However, we're going to partially ignore the spec and
-        // unconditionally parse out BOLT11 and BOLT12 pieces, since they're
-        // fully self-contained formats. This probably won't be an issue
-        // regardless, since `req-` params aren't used much in practice.
+        // Skip the `Onchain` method if we see any unrecognized `req-`
+        // parameters, as per the spec. However, we're going to partially ignore
+        // the spec and unconditionally parse out BOLT11 and BOLT12 pieces,
+        // since they're fully self-contained formats. This probably won't be an
+        // issue regardless, since `req-` params aren't used much in practice.
         let mut skip_onchain = false;
 
-        // (Unified QR) Parse BOLT11 invoice and/or BOLT12 offer
-        // <https://bitcoinqr.dev/>
-        for param in &uri.params {
+        // BIP21 on-chain params
+        let mut amount = None;
+        let mut label = None;
+        let mut message = None;
+
+        for param in uri.params {
             let key = param.key_parsed();
 
-            if key.is("lightning")
-                && (out.invoice.is_none() || out.offer.is_none())
-            {
+            if key.is("lightning") {
                 if out.invoice.is_none() {
                     if let Ok(invoice) = LxInvoice::from_str(&param.value) {
                         out.invoice = Some(invoice);
@@ -429,47 +430,47 @@ impl Bip21Uri {
                         continue;
                     }
                 }
-            } else if key.is("lno") && out.offer.is_none() {
-                out.offer = LxOffer::from_str(&param.value).ok();
+            } else if key.is("lno") || /* legacy */ key.is("b12") {
+                if out.offer.is_none() {
+                    out.offer = LxOffer::from_str(&param.value).ok();
+                }
+            } else if key.is("amount") {
+                if amount.is_none() {
+                    amount = parse_onchain_btc_amount(&param.value);
+                }
+            } else if key.is("label") {
+                if label.is_none() {
+                    label = Some(param.value.into_owned());
+                }
+            } else if key.is("message") {
+                if message.is_none() {
+                    message = Some(param.value.into_owned());
+                }
             } else if key.is_req {
                 // We'll respect required && unrecognized bip21 params by
                 // throwing out the whole onchain method.
                 skip_onchain = true;
-                // TODO(phlip9): amount/label/message should be parsed in this
-                // loop to avoid throwing out e.g. "req-amount"
             }
 
             // ignore duplicates or other keys
         }
 
-        // Parse `Onchain` payment method
         if !skip_onchain {
-            if let Ok(address) = bitcoin::Address::from_str(&uri.body) {
-                let mut amount = None;
-                let mut label = None;
-                let mut message = None;
-
-                for param in uri.params {
-                    let key = param.key_parsed();
-
-                    if key.is("amount") && amount.is_none() {
-                        amount = parse_onchain_btc_amount(&param.value);
-                    } else if key.is("label") && label.is_none() {
-                        label = Some(param.value.into_owned());
-                    } else if key.is("message") && message.is_none() {
-                        message = Some(param.value.into_owned());
-                    }
-
-                    // ignore duplicates or other keys
+            // Parse "bitcoin:{address}" after params
+            if out.onchain.is_none() {
+                if let Ok(address) = bitcoin::Address::from_str(&uri.body) {
+                    out.onchain = Some(Onchain::from(address));
                 }
-
-                out.onchain = Some(Onchain {
-                    address,
-                    amount,
-                    label,
-                    message,
-                });
             }
+
+            // Add any "metadata" params to the onchain method
+            if let Some(onchain) = out.onchain.as_mut() {
+                onchain.amount = amount;
+                onchain.label = label;
+                onchain.message = message;
+            }
+        } else {
+            out.onchain = None;
         }
 
         out
@@ -608,7 +609,7 @@ impl LightningUri {
             if key.is("lightning") && out.invoice.is_none() {
                 // non-standard
                 out.invoice = LxInvoice::from_str(&param.value).ok();
-            } else if key.is("lno") && out.offer.is_none() {
+            } else if (key.is("lno") || key.is("b12")) && out.offer.is_none() {
                 // non-standard
                 out.offer = LxOffer::from_str(&param.value).ok();
             }
