@@ -4,9 +4,9 @@
 //! means we should parse inputs that are not strictly well-formed.
 //!
 //! Other wallet parsers for comparison:
-//! + [MutinyWallet/bitcoin_waila](https://github.com/MutinyWallet/bitcoin-waila/blob/master/waila/src/lib.rs)
-//! + [breez/breez-sdk - input_parser.rs](https://github.com/breez/breez-sdk/blob/main/libs/sdk-core/src/input_parser.rs)
 //! + [ACINQ/phoenix - Parser](https://github.com/ACINQ/phoenix/blob/master/phoenix-shared/src/commonMain/kotlin/fr.acinq.phoenix/utils/Parser.kt)
+//! + [breez/breez-sdk - input_parser.rs](https://github.com/breez/breez-sdk-greenlight/blob/main/libs/sdk-common/src/input_parser.rs)
+//! + [MutinyWallet/bitcoin_waila (unmaintained)](https://github.com/MutinyWallet/bitcoin-waila/blob/master/waila/src/lib.rs)
 
 // `proptest_derive::Arbitrary` issue. This will hard-error for edition 2024 so
 // hopefully it gets fixed soon...
@@ -41,6 +41,7 @@ pub enum PaymentUri {
     /// BOLT11 invoice and/or BOLT12 offer.
     ///
     /// ex: "bitcoin:bc1qfj..."
+    ///     "bitcoin:?lno=lno1pqps7..."
     Bip21Uri(Bip21Uri),
 
     /// A Lightning URI, containing a BOLT11 invoice or BOLT12 offer.
@@ -341,7 +342,7 @@ fn parse_onchain_btc_amount(s: &str) -> Option<Amount> {
 /// Encodes an onchain address plus some extra metadata.
 ///
 /// Wallets that use [Unified QRs](https://bitcoinqr.dev/) may also include a
-/// BOLT11 invoice or BOLT12 offer as `lightning` or `b12` query params.
+/// BOLT11 invoice or BOLT12 offer as `lightning` or `lno` query params.
 ///
 /// Examples:
 ///
@@ -424,7 +425,7 @@ impl Bip21Uri {
                     }
                 }
 
-                "b12" if out.offer.is_none() =>
+                "lno" if out.offer.is_none() =>
                     out.offer = LxOffer::from_str(&param.value).ok(),
 
                 // We'll respect required && unrecognized bip21 params by
@@ -517,7 +518,7 @@ impl Bip21Uri {
         // BOLT12 offer param
         if let Some(offer) = &self.offer {
             out.params.push(UriParam {
-                key: Cow::Borrowed("b12"),
+                key: Cow::Borrowed("lno"),
                 value: Cow::Owned(offer.to_string()),
             });
         }
@@ -613,7 +614,7 @@ impl LightningUri {
                     }
                 }
 
-                "b12" if out.offer.is_none() =>
+                "lno" if out.offer.is_none() =>
                     out.offer = LxOffer::from_str(&param.value).ok(),
 
                 // ignore duplicates or other keys
@@ -637,10 +638,10 @@ impl LightningUri {
         if let Some(invoice) = &self.invoice {
             out.body = Cow::Owned(invoice.to_string());
 
-            // If we also have an offer, put it in the "b12" param I guess.
+            // If we also have an offer, put it in the "lno" param I guess.
             if let Some(offer) = &self.offer {
                 out.params.push(UriParam {
-                    key: Cow::Borrowed("b12"),
+                    key: Cow::Borrowed("lno"),
                     value: Cow::Owned(offer.to_string()),
                 });
             }
@@ -927,9 +928,9 @@ mod test {
             invoice: None,
             offer: Some(offer.clone()),
         });
-        // Support both `lightning=<offer>` and `b12=<offer>` params.
+        // Support both `lightning=<offer>` and `lno=<offer>` params.
         let actual1 =
-            Bip21Uri::parse(&format!("bitcoin:{address_str}?b12={offer_str}"));
+            Bip21Uri::parse(&format!("bitcoin:{address_str}?lno={offer_str}"));
         let actual2 = Bip21Uri::parse(&format!(
             "bitcoin:{address_str}?lightning={offer_str}"
         ));
