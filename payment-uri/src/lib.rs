@@ -215,9 +215,8 @@ impl fmt::Display for PaymentUri {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use std::fmt::Display;
         match self {
-            // TODO(max): Use `assume_checked_ref` once bitcoin@0.31.0
             Self::Address(address) =>
-                Display::fmt(&address.clone().assume_checked(), f),
+                Display::fmt(&address.assume_checked_ref(), f),
             Self::Invoice(invoice) => Display::fmt(invoice, f),
             Self::Offer(offer) => Display::fmt(offer, f),
             Self::LightningUri(ln_uri) => Display::fmt(ln_uri, f),
@@ -411,34 +410,36 @@ impl Bip21Uri {
         // (Unified QR) Parse BOLT11 invoice and/or BOLT12 offer
         // <https://bitcoinqr.dev/>
         for param in &uri.params {
-            match param.key.as_ref() {
-                "lightning" if out.invoice.is_none() || out.offer.is_none() => {
-                    if out.invoice.is_none() {
-                        if let Ok(invoice) = LxInvoice::from_str(&param.value) {
-                            out.invoice = Some(invoice);
-                            continue;
-                        }
-                    }
-                    if out.offer.is_none() {
-                        if let Ok(offer) = LxOffer::from_str(&param.value) {
-                            // bitcoinqr.dev showcases an offer inside a
-                            // `lightning` parameter
-                            out.offer = Some(offer);
-                            continue;
-                        }
+            let key = param.key_parsed();
+
+            if key.is("lightning")
+                && (out.invoice.is_none() || out.offer.is_none())
+            {
+                if out.invoice.is_none() {
+                    if let Ok(invoice) = LxInvoice::from_str(&param.value) {
+                        out.invoice = Some(invoice);
+                        continue;
                     }
                 }
-
-                "lno" if out.offer.is_none() =>
-                    out.offer = LxOffer::from_str(&param.value).ok(),
-
+                if out.offer.is_none() {
+                    if let Ok(offer) = LxOffer::from_str(&param.value) {
+                        // bitcoinqr.dev showcases an offer inside a
+                        // `lightning` parameter
+                        out.offer = Some(offer);
+                        continue;
+                    }
+                }
+            } else if key.is("lno") && out.offer.is_none() {
+                out.offer = LxOffer::from_str(&param.value).ok();
+            } else if key.is_req {
                 // We'll respect required && unrecognized bip21 params by
                 // throwing out the whole onchain method.
-                _ if param.key.starts_with("req-") => skip_onchain = true,
-
-                // ignore duplicates or other keys
-                _ => {}
+                skip_onchain = true;
+                // TODO(phlip9): amount/label/message should be parsed in this
+                // loop to avoid throwing out e.g. "req-amount"
             }
+
+            // ignore duplicates or other keys
         }
 
         // Parse `Onchain` payment method
@@ -449,17 +450,17 @@ impl Bip21Uri {
                 let mut message = None;
 
                 for param in uri.params {
-                    match param.key.as_ref() {
-                        "amount" if amount.is_none() =>
-                            amount = parse_onchain_btc_amount(&param.value),
-                        "label" if label.is_none() =>
-                            label = Some(param.value.into_owned()),
-                        "message" if message.is_none() =>
-                            message = Some(param.value.into_owned()),
+                    let key = param.key_parsed();
 
-                        // ignore duplicates or other keys
-                        _ => {}
+                    if key.is("amount") && amount.is_none() {
+                        amount = parse_onchain_btc_amount(&param.value);
+                    } else if key.is("label") && label.is_none() {
+                        label = Some(param.value.into_owned());
+                    } else if key.is("message") && message.is_none() {
+                        message = Some(param.value.into_owned());
                     }
+
+                    // ignore duplicates or other keys
                 }
 
                 out.onchain = Some(Onchain {
@@ -483,8 +484,7 @@ impl Bip21Uri {
 
         // BIP21 onchain portion
         if let Some(onchain) = &self.onchain {
-            // TODO(max): Use `assume_checked_ref` once bitcoin@0.31.0
-            let address = onchain.address.clone().assume_checked();
+            let address = onchain.address.assume_checked_ref();
             out.body = Cow::Owned(address.to_string());
 
             if let Some(amount) = &onchain.amount {
@@ -596,34 +596,23 @@ impl LightningUri {
         if let Ok(invoice) = LxInvoice::from_str(&uri.body) {
             out.invoice = Some(invoice);
         } else if let Ok(offer) = LxOffer::from_str(&uri.body) {
+            // non-standard
             out.offer = Some(offer);
         }
 
         // Try parsing from the query params
 
         for param in uri.params {
-            match param.key.as_ref() {
-                "lightning" if out.invoice.is_none() || out.offer.is_none() => {
-                    if out.invoice.is_none() {
-                        if let Ok(invoice) = LxInvoice::from_str(&param.value) {
-                            out.invoice = Some(invoice);
-                            continue;
-                        }
-                    }
-                    if out.offer.is_none() {
-                        if let Ok(offer) = LxOffer::from_str(&param.value) {
-                            out.offer = Some(offer);
-                            continue;
-                        }
-                    }
-                }
+            let key = param.key_parsed();
 
-                "lno" if out.offer.is_none() =>
-                    out.offer = LxOffer::from_str(&param.value).ok(),
-
-                // ignore duplicates or other keys
-                _ => {}
+            if key.is("lightning") && out.invoice.is_none() {
+                // non-standard
+                out.invoice = LxInvoice::from_str(&param.value).ok();
+            } else if key.is("lno") && out.offer.is_none() {
+                // non-standard
+                out.offer = LxOffer::from_str(&param.value).ok();
             }
+            // ignore duplicates or other keys
         }
 
         out
@@ -726,6 +715,7 @@ impl<'a> Uri<'a> {
     }
 }
 
+// "{scheme}:{body}?{key1}={value1}&{key2}={value2}&..."
 impl fmt::Display for Uri<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let scheme = self.scheme;
@@ -735,24 +725,16 @@ impl fmt::Display for Uri<'_> {
 
         let mut sep: char = '?';
         for param in &self.params {
-            let key = percent_encoding::utf8_percent_encode(
-                &param.key,
-                &Self::PERCENT_ENCODE_ASCII_SET,
-            );
-            let value = percent_encoding::utf8_percent_encode(
-                &param.value,
-                &Self::PERCENT_ENCODE_ASCII_SET,
-            );
-
-            write!(f, "{sep}{key}={value}")?;
+            write!(f, "{sep}{param}")?;
             sep = '&';
         }
         Ok(())
     }
 }
 
-/// A single `<key>=<value>` URI parameter. Both `key` and `value` are
-/// percent-encoded.
+/// A single `<key>=<value>` URI parameter.
+///
+/// + Both `key` and `value` are percent-encoded when displayed.
 #[derive(Debug)]
 struct UriParam<'a> {
     key: Cow<'a, str>,
@@ -769,6 +751,59 @@ impl<'a> UriParam<'a> {
             .decode_utf8()
             .ok()?;
         Some(Self { key, value })
+    }
+
+    fn key_parsed(&'a self) -> UriParamKey<'a> {
+        UriParamKey::parse(&self.key)
+    }
+}
+
+// "{key}={value}"
+impl fmt::Display for UriParam<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let key = percent_encoding::utf8_percent_encode(
+            &self.key,
+            &Uri::PERCENT_ENCODE_ASCII_SET,
+        );
+        let value = percent_encoding::utf8_percent_encode(
+            &self.value,
+            &Uri::PERCENT_ENCODE_ASCII_SET,
+        );
+        write!(f, "{key}={value}")
+    }
+}
+
+/// Parsed key from a URI "{key}={value}" parameter.
+struct UriParamKey<'a> {
+    /// The key name. This is case-insensitive.
+    ///
+    /// ex:     "amount" -> `name = "amount"`
+    /// ex:     "AmOuNt" -> `name = "AmOuNt"`
+    /// ex: "req-amount" -> `name = "amount"`
+    /// ex: "REQ-AMOUNT" -> `name = "AMOUNT"`
+    name: &'a str,
+    /// Whether this key is a required parameter. Required parameters are
+    /// prefixed by "req-" (potentially mixed case).
+    is_req: bool,
+}
+
+impl<'a> UriParamKey<'a> {
+    fn parse(key: &'a str) -> Self {
+        match key.split_at_checked(4) {
+            Some((prefix, rest)) if prefix.eq_ignore_ascii_case("req-") =>
+                Self {
+                    name: rest,
+                    is_req: true,
+                },
+            _ => Self {
+                name: key,
+                is_req: false,
+            },
+        }
+    }
+
+    fn is(&self, name: &str) -> bool {
+        self.name.eq_ignore_ascii_case(name)
     }
 }
 
@@ -1130,7 +1165,12 @@ mod test {
         // TODO(phlip9): handle multiple addresses
         parse_ok("bitcoin:?bc=bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw&bc=bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh");
 
-        parse_ok("BITCOIN:BC1QM9R9X9H2C9WPTAZ0873VYFV8CKX2LCDX8F48UCTTZQFT7R0Q2YASXKT2LW?BC=BC1QFJEYFL9PHSDANZ5YAYLAS3P393MU9Z99YA9MNH");
+        // Lowercase
+        assert_eq!(
+            parse_ok("BITCOIN:BC1QM9R9X9H2C9WPTAZ0873VYFV8CKX2LCDX8F48UCTTZQFT7R0Q2YASXKT2LW?BC=BC1QFJEYFL9PHSDANZ5YAYLAS3P393MU9Z99YA9MNH"),
+            parse_ok("bitcoin:bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw?bc=bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh"),
+        );
+
         parse_ok("BITCOIN:?BC=BC1QM9R9X9H2C9WPTAZ0873VYFV8CKX2LCDX8F48UCTTZQFT7R0Q2YASXKT2LW&BC=BC1QFJEYFL9PHSDANZ5YAYLAS3P393MU9Z99YA9MNH");
         parse_ok("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?somethingyoudontunderstand=50&somethingelseyoudontget=999");
 
