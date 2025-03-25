@@ -1,5 +1,5 @@
 use std::{
-    cmp::{self, max},
+    cmp::{max, min},
     convert::Infallible,
     time::Duration,
 };
@@ -764,8 +764,6 @@ where
             // use the maximum of the values observed in our channels and the
             // LSP's configured value according to `LspInfo`, defaulting to the
             // `LspInfo` value if a value is not available from our channels.
-            // Likewise for `htlc_[min|max]imum_msat`, except we take the
-            // max of the HTLC minimum and the min of the HTLC maximum.
             let base_msat = channels
                 .iter()
                 .filter_map(|channel| {
@@ -807,18 +805,39 @@ where
                 // Likewise as above
                 .map(|value| max(value, lsp_info.cltv_expiry_delta))
                 .unwrap_or(lsp_info.cltv_expiry_delta);
+
+            // Take the min HTLC minimum across all our channels and the LSP's
+            // configured value, even though it's currently 1 msat everywhere.
+            //
+            // Rationale:
+            // - If we have any channels open, we can most likely receive a
+            //   value equal to the minimum of the `htlc_minimum_msat`s across
+            //   our channels (unless we have absolutely 0 liquidity left).
+            // - If we have no channels open, we have to use the LSP's
+            //   configured value for JIT channels. This may come in play in a
+            //   scerario where (1) Lexe *isn't* subsidizing channel open costs
+            //   but (2) we haven't implemented Ark/Spark/etc for handling small
+            //   amounts, and thus need the user's first receive to be beyond 3k
+            //   sats or whatever the prevailing on-chain fee is. In this case,
+            //   the JIT hint with a higher HTLC minimum would alert the sender
+            //   that such a small payment is not routable.
             let htlc_minimum_msat = channels
                 .iter()
                 .filter_map(|channel| channel.inbound_htlc_minimum_msat)
-                .max()
-                .map(|value| max(value, lsp_info.htlc_minimum_msat))
-                .unwrap_or(lsp_info.htlc_minimum_msat);
-            let htlc_maximum_msat = channels
-                .iter()
-                .filter_map(|channel| channel.inbound_htlc_maximum_msat)
                 .min()
-                .map(|value| cmp::min(value, lsp_info.htlc_maximum_msat))
-                .unwrap_or(lsp_info.htlc_maximum_msat);
+                .map(|value| min(value, lsp_info.htlc_minimum_msat))
+                .unwrap_or(lsp_info.htlc_minimum_msat);
+
+            // Our capacity to receive is effectively infinite, bounded only by
+            // the largest HTLCs Lexe's LSP is willing to forward to us. An
+            // alternative approach would set one intercept hint with the LSP's
+            // HTLC maximum, with the remaining hints set to the largest
+            // `inbound_capacity` amounts available in existing channels. But
+            // we can't incentivize the sender to use our existing channels by
+            // setting the feerate higher in the JIT hint, because this would
+            // cause them to overpay fees if they actually do use the JIT hint.
+            // Thus, we just uniformly use the LSP's configured HTLC maximum.
+            let htlc_maximum_msat = lsp_info.htlc_maximum_msat;
 
             let fees = RoutingFees {
                 base_msat,
