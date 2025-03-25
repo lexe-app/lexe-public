@@ -54,16 +54,26 @@ use fast_qr::{qr::QRBuilder, Mode, Module, QRCode, Version, ECL};
 /// that's easier to consume on the Dart side.
 ///
 /// Renders with an opaque white BG and `LxColors.foreground` FG.
+///
+/// Returns an error if the data is too long to fit in a QR code (input data is
+/// longer than 2953 B).
 pub fn encode(data: Vec<u8>) -> Result<Vec<u8>, DataTooLongError> {
     let qr = encode_qr_code(data)?;
     Ok(qr_code_to_bmp_image(&qr))
 }
 
-/// Return the size in pixels of one side of the encoded QR code for a given
-/// input `data.len()` in bytes.
-pub fn encoded_size(data_len: usize) -> Result<usize, DataTooLongError> {
-    let (_, version) = len_to_params(data_len)?;
-    Ok(version_to_size(version))
+/// Return the size in pixels of one side of the encoded QR code .bmp image for
+/// a given input `data.len()` in bytes.
+pub fn encoded_pixels_per_side(
+    data_len_bytes: usize,
+) -> Result<usize, DataTooLongError> {
+    let (_, version) = len_bytes_to_params(data_len_bytes)?;
+    let modules_per_side = version_to_modules_per_side(version);
+
+    // We currently always generate images with one pixel per module.
+    let pixels_per_side = modules_per_side;
+
+    Ok(pixels_per_side)
 }
 
 /// Error when the data is too long to fit in a QR code (input data is longer
@@ -72,10 +82,10 @@ pub struct DataTooLongError;
 
 // --- constants --- //
 
-/// Target a specific QR code dimension (17 + 4 * v15 = 77 modules) so that
+/// Use a minimum QR code dimension (17 + 4 * v15 = 77 modules) so that
 /// the generated codes look roughly the same, in the normal case.
-const TARGET_VERSION: Version = Version::V15;
-const TARGET_SIZE: usize = version_to_size(TARGET_VERSION);
+const MIN_VERSION: Version = Version::V15;
+const MIN_MODULES_PER_SIDE: usize = version_to_modules_per_side(MIN_VERSION);
 
 // The max data length that can be encoded in a QR code with different ECL and
 // versions, assuming Byte encoding.
@@ -106,13 +116,13 @@ const BG: [u8; 3] = [0xff, 0xff, 0xff];
 const FG: [u8; 3] = [0x23, 0x21, 0x1c];
 
 /// The length of the .bmp header in bytes.
-const BMP_HEADER_LEN: usize = 54;
+const BMP_HEADER_LEN_BYTES: usize = 54;
 
 // --- encode --- //
 
-/// Encode `data` as a QR code that's at least [`TARGET_VERSION`] in size.
+/// Encode `data` as a QR code that's at least [`MIN_VERSION`] in size.
 fn encode_qr_code(data: Vec<u8>) -> Result<QRCode, DataTooLongError> {
-    let (ecl, version) = len_to_params(data.len())?;
+    let (ecl, version) = len_bytes_to_params(data.len())?;
 
     // We always use Byte encoding. In theory you can uppercase bech32 addresses
     // and invoices so they can use the more efficient Alphanumeric encoding,
@@ -124,40 +134,44 @@ fn encode_qr_code(data: Vec<u8>) -> Result<QRCode, DataTooLongError> {
         .build()
         .expect("Encoding should never fail");
 
-    // QR dimension should always be >= our target size
-    assert!(qr.size >= TARGET_SIZE);
+    // QR dimension should always be >= our minimum size
+    assert!(qr.size >= MIN_MODULES_PER_SIDE);
 
     Ok(qr)
 }
 
-/// Given the length of the data, return the ECL and version that can encode it.
+/// Given the input data length in bytes, return the [`ECL`] and [`Version`]
+/// that can encode it.
 ///
-/// We target a specific version [`TARGET_VERSION`] (which determines the
-/// dimension) so that the generated codes look roughly the same, in the
-/// normal case.
+/// We use a minimum version [`MIN_VERSION`] (which determines the dimension)
+/// so that the generated codes look roughly the same, in the normal case.
 ///
 /// Shorter input data (like a BTC address) will just get more error correction.
-const fn len_to_params(len: usize) -> Result<(ECL, Version), DataTooLongError> {
+const fn len_bytes_to_params(
+    len: usize,
+) -> Result<(ECL, Version), DataTooLongError> {
     if len <= MAX_DATA_LEN_H_B_V15 {
-        Ok((ECL::H, TARGET_VERSION))
+        Ok((ECL::H, MIN_VERSION))
     } else if len <= MAX_DATA_LEN_Q_B_V15 {
-        Ok((ECL::Q, TARGET_VERSION))
+        Ok((ECL::Q, MIN_VERSION))
     } else if len <= MAX_DATA_LEN_M_B_V15 {
-        Ok((ECL::M, TARGET_VERSION))
+        Ok((ECL::M, MIN_VERSION))
     } else if len <= MAX_DATA_LEN_M_B_V40 {
         let ecl = ECL::M;
-        Ok((ecl, len_ecl_to_version(len, ecl).unwrap()))
+        Ok((ecl, len_bytes_ecl_to_version(len, ecl).unwrap()))
     } else if len <= MAX_DATA_LEN_L_B_V40 {
         let ecl = ECL::L;
-        Ok((ecl, len_ecl_to_version(len, ecl).unwrap()))
+        Ok((ecl, len_bytes_ecl_to_version(len, ecl).unwrap()))
     } else {
         Err(DataTooLongError)
     }
 }
 
-/// Given the length of the input data and the ECL, return the smallest version
-/// that can encode it.
-const fn len_ecl_to_version(len: usize, ecl: ECL) -> Option<Version> {
+/// Given the input data length in bytes and the ECL, return the smallest
+/// version that can encode it.
+//
+// Copied from [`Version::get`]
+const fn len_bytes_ecl_to_version(len: usize, ecl: ECL) -> Option<Version> {
     use Version::{
         V01, V02, V03, V04, V05, V06, V07, V08, V09, V10, V11, V12, V13, V14,
         V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28,
@@ -256,15 +270,15 @@ const fn len_ecl_to_version(len: usize, ecl: ECL) -> Option<Version> {
     }
 }
 
-/// Convert a QR code version to the number of modules per side.
-const fn version_to_size(version: Version) -> usize {
+/// Convert a QR code [`Version`] to the number of modules per side.
+const fn version_to_modules_per_side(version: Version) -> usize {
     // NOTE: `fast_qr::Version::V1 as usize == 0`
     17 + 4 * (version as usize + 1)
 }
 
 // --- encode to .bmp image --- //
 
-/// Encode a QR code as a .bmp image.
+/// Encode a QR code as a square .bmp image.
 fn qr_code_to_bmp_image(qr: &QRCode) -> Vec<u8> {
     let size = qr.size;
     let data = &qr.data[..size * size];
@@ -273,10 +287,10 @@ fn qr_code_to_bmp_image(qr: &QRCode) -> Vec<u8> {
     let mut buf: Vec<u8> = vec![0u8; file_len];
 
     // write bmp header
-    buf[0..BMP_HEADER_LEN].copy_from_slice(&bmp_header(size));
+    buf[0..BMP_HEADER_LEN_BYTES].copy_from_slice(&bmp_header(size));
 
     // write pixel data
-    bmp_write_qr_pixels(data, size, &mut buf[BMP_HEADER_LEN..]);
+    bmp_write_qr_pixels(data, size, &mut buf[BMP_HEADER_LEN_BYTES..]);
 
     buf
 }
@@ -309,21 +323,22 @@ fn bmp_write_qr_pixels(data: &[Module], size: usize, out: &mut [u8]) {
 const fn bmp_image_lens(size: usize) -> (usize, usize) {
     // rows need to be padded to 4-byte multiples with 24bpp
     let row_stride = (size * 3).next_multiple_of(4);
-    let pixel_data_len = size * row_stride;
-    let file_size = BMP_HEADER_LEN + pixel_data_len;
-    (pixel_data_len, file_size)
+    let pixel_data_len_bytes = size * row_stride;
+    let file_len_bytes = BMP_HEADER_LEN_BYTES + pixel_data_len_bytes;
+    (pixel_data_len_bytes, file_len_bytes)
 }
 
 /// Build the .bmp file header for a square image with 24bpp.
-fn bmp_header(size: usize) -> [u8; BMP_HEADER_LEN] {
-    let (pixel_data_len, file_size) = bmp_image_lens(size);
+fn bmp_header(size: usize) -> [u8; BMP_HEADER_LEN_BYTES] {
+    let (pixel_data_len_bytes, file_len_bytes) = bmp_image_lens(size);
 
-    let mut header = [0_u8; BMP_HEADER_LEN];
+    let mut header = [0_u8; BMP_HEADER_LEN_BYTES];
 
     // File header
     header[0..2].copy_from_slice(b"BM"); // magic
-    header[2..6].copy_from_slice(&(file_size as u32).to_le_bytes());
-    header[10..14].copy_from_slice(&(BMP_HEADER_LEN as u32).to_le_bytes()); // pixel data offset
+    header[2..6].copy_from_slice(&(file_len_bytes as u32).to_le_bytes());
+    header[10..14]
+        .copy_from_slice(&(BMP_HEADER_LEN_BYTES as u32).to_le_bytes()); // pixel data offset
 
     // DIB header (BITMAPINFOHEADER)
     header[14..18].copy_from_slice(&40_u32.to_le_bytes()); // DIB header size
@@ -332,7 +347,8 @@ fn bmp_header(size: usize) -> [u8; BMP_HEADER_LEN] {
     header[26..28].copy_from_slice(&1_u16.to_le_bytes()); // one plane
     header[28..30].copy_from_slice(&24_u16.to_le_bytes()); // 24 bits per pixel
     header[30..34].copy_from_slice(&0_u32.to_le_bytes()); // no compression
-    header[34..38].copy_from_slice(&(pixel_data_len as u32).to_le_bytes());
+    header[34..38]
+        .copy_from_slice(&(pixel_data_len_bytes as u32).to_le_bytes());
     header[38..42].copy_from_slice(&1000_u32.to_le_bytes()); // h: 1000 px/meter
     header[42..46].copy_from_slice(&1000_u32.to_le_bytes()); // v: 1000 px/meter
     header[46..50].copy_from_slice(&0_u32.to_le_bytes()); // no palette

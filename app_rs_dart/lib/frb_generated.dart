@@ -80,7 +80,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.7.1';
 
   @override
-  int get rustContentHash => -431922079;
+  int get rustContentHash => -64452470;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -200,7 +200,7 @@ abstract class AppRsApi extends BaseApi {
 
   Future<Uint8List> crateFfiQrEncode({required List<int> data});
 
-  int crateFfiQrEncodedSize({required int dataLen});
+  int crateFfiQrEncodedPixelsPerSide({required int dataLenBytes});
 
   GDriveRestoreClient crateFfiGdriveGDriveClientIntoRestoreClient(
       {required GDriveClient that});
@@ -1327,26 +1327,27 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  int crateFfiQrEncodedSize({required int dataLen}) {
+  int crateFfiQrEncodedPixelsPerSide({required int dataLenBytes}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_CastedPrimitive_usize(dataLen, serializer);
+        sse_encode_CastedPrimitive_usize(dataLenBytes, serializer);
         return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 40)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_CastedPrimitive_usize,
         decodeErrorData: sse_decode_AnyhowException,
       ),
-      constMeta: kCrateFfiQrEncodedSizeConstMeta,
-      argValues: [dataLen],
+      constMeta: kCrateFfiQrEncodedPixelsPerSideConstMeta,
+      argValues: [dataLenBytes],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateFfiQrEncodedSizeConstMeta => const TaskConstMeta(
-        debugName: "encoded_size",
-        argNames: ["dataLen"],
+  TaskConstMeta get kCrateFfiQrEncodedPixelsPerSideConstMeta =>
+      const TaskConstMeta(
+        debugName: "encoded_pixels_per_side",
+        argNames: ["dataLenBytes"],
       );
 
   @override

@@ -17,10 +17,13 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// that's easier to consume on the Dart side.
 ///
 /// Renders with an opaque white BG and `LxColors.foreground` FG.
+///
+/// Returns an error if the data is too long to fit in a QR code (input data is
+/// longer than 2953 B).
 Future<Uint8List> encode({required List<int> data}) =>
     AppRs.instance.api.crateFfiQrEncode(data: data);
 
 /// Return the size in pixels of one side of the encoded QR code for a given
 /// input `data.len()` in bytes.
-int encodedSize({required int dataLen}) =>
-    AppRs.instance.api.crateFfiQrEncodedSize(dataLen: dataLen);
+int encodedPixelsPerSide({required int dataLenBytes}) => AppRs.instance.api
+    .crateFfiQrEncodedPixelsPerSide(dataLenBytes: dataLenBytes);

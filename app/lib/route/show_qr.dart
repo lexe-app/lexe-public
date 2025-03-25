@@ -190,7 +190,8 @@ class QrImageProvider extends ImageProvider<QrImageKey> {
     // Flutter already appears to scale the base image as if reading logical
     // pixels, so no need to account for device pixel ratio.
     final scale = (size != null)
-        ? qr.encodedSize(dataLen: len).toDouble() / size.shortestSide
+        ? qr.encodedPixelsPerSide(dataLenBytes: len).toDouble() /
+            size.shortestSide
         : 1.0;
 
     return SynchronousFuture<QrImageKey>(

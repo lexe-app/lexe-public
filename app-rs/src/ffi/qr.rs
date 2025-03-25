@@ -10,6 +10,9 @@ use crate::qr;
 /// that's easier to consume on the Dart side.
 ///
 /// Renders with an opaque white BG and `LxColors.foreground` FG.
+///
+/// Returns an error if the data is too long to fit in a QR code (input data is
+/// longer than 2953 B).
 pub fn encode(data: Vec<u8>) -> anyhow::Result<Vec<u8>> {
     qr::encode(data).map_err(anyhow::Error::new)
 }
@@ -17,6 +20,6 @@ pub fn encode(data: Vec<u8>) -> anyhow::Result<Vec<u8>> {
 /// Return the size in pixels of one side of the encoded QR code for a given
 /// input `data.len()` in bytes.
 #[frb(sync)]
-pub fn encoded_size(data_len: usize) -> anyhow::Result<usize> {
-    qr::encoded_size(data_len).map_err(anyhow::Error::new)
+pub fn encoded_pixels_per_side(data_len_bytes: usize) -> anyhow::Result<usize> {
+    qr::encoded_pixels_per_side(data_len_bytes).map_err(anyhow::Error::new)
 }
