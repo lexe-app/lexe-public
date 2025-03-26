@@ -165,7 +165,6 @@ impl PaymentUri {
         // Filter out all methods that aren't valid for our current network
         // (e.g., ignore all testnet addresses when we're cfg'd for mainnet).
         payment_methods.retain(|method| method.supports_network(network));
-
         ensure!(
             !payment_methods.is_empty(),
             "Payment code is not valid for {network}"
@@ -175,10 +174,13 @@ impl PaymentUri {
         let best = payment_methods
             .into_iter()
             .max_by_key(|x| match x {
-                PaymentMethod::Invoice(_) => 2,
-                PaymentMethod::Onchain(_) => 1,
+                PaymentMethod::Invoice(_) => 20,
+                PaymentMethod::Onchain(o) => 10 + o.relative_priority(),
                 // TODO(phlip9): increase priority when BOLT12 support
-                PaymentMethod::Offer(_) => 0,
+                PaymentMethod::Offer(_) => {
+                    debug_assert!(false, "BOLT12 not supported yet");
+                    0
+                }
             })
             .expect("We just checked there's at least one method");
 
@@ -309,6 +311,32 @@ impl Onchain {
     #[inline]
     pub fn supports_network(&self, network: LxNetwork) -> bool {
         self.address.is_valid_for_network(network.to_bitcoin())
+    }
+
+    /// Returns the relative priority for this onchain address. Higher = better.
+    fn relative_priority(&self) -> usize {
+        use bitcoin::AddressType::*;
+        let address_type =
+            match self.address.assume_checked_ref().address_type() {
+                Some(x) => x,
+                // Non-standard
+                None => return 0,
+            };
+        match address_type {
+            // Pay to pubkey hash.
+            P2pkh => 2,
+            // Pay to script hash.
+            P2sh => 2,
+            // Pay to witness pubkey hash.
+            P2wpkh => 4,
+            // Pay to witness script hash.
+            P2wsh => 4,
+            // Pay to taproot.
+            // TODO(phlip9): can we pay to taproot yet?
+            P2tr => 3,
+            // Unknown standard
+            _ => 1,
+        }
     }
 }
 
