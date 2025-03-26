@@ -32,6 +32,9 @@ use proptest::strategy::Strategy;
 use proptest_derive::Arbitrary;
 use rust_decimal::Decimal;
 
+/// Refuse to parse any input longer than this many KiB.
+const MAX_LEN_KIB: usize = 8;
+
 /// A decoded "Payment URI", usually from a scanned QR code, manually pasted
 /// code, or handling a URI open (like tapping a `bitcoin:bc1qfjeyfl...` URI in
 /// your mobile browser or in another app).
@@ -76,6 +79,9 @@ pub enum PaymentUri {
     )]
     Address(bitcoin::Address<NetworkUnchecked>),
     //
+    // Bip353Address(Bip353Address),
+    // EmailLookingAddress(EmailLookingAddress),
+    //
     //
     // NOTE: adding support for a new URI scheme? Remember to add it in these
     // places!
@@ -86,7 +92,12 @@ pub enum PaymentUri {
 }
 
 impl PaymentUri {
-    pub fn parse(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Result<Self, ParseError> {
+        // Refuse to parse anything longer than `MAX_LEN_KIB` KiB
+        if s.len() > (MAX_LEN_KIB << 10) {
+            return Err(ParseError::TooLong);
+        }
+
         let s = s.trim();
 
         // Try parsing a URI-looking thing
@@ -97,36 +108,54 @@ impl PaymentUri {
         if let Some(uri) = Uri::parse(s) {
             // ex: "bitcoin:bc1qfj..."
             if Bip21Uri::matches_scheme(uri.scheme) {
-                return Some(Self::Bip21Uri(Bip21Uri::parse_uri_inner(uri)));
+                return Ok(Self::Bip21Uri(Bip21Uri::parse_uri_inner(uri)));
             }
 
             // ex: "lightning:lnbc1pvjlue..." or
             //     "lightning:lno1pqps7..."
             if LightningUri::matches_scheme(uri.scheme) {
-                return Some(Self::LightningUri(
-                    LightningUri::parse_uri_inner(uri),
-                ));
+                return Ok(Self::LightningUri(LightningUri::parse_uri_inner(
+                    uri,
+                )));
             }
 
-            return None;
+            return Err(ParseError::BadScheme);
+        }
+
+        // TODO(phlip9): support BIP353
+        // TODO(phlip9): phoenix parser also attempts to strip "%E2%82%BF"
+        //               %-encoded BTC symbol.
+        // The unicode here is the B bitcoin currency symbol.
+        // ex: "₿philip@lexe.app"
+        if let Some(_hrn) = Bip353Address::matches(s) {
+            return Err(ParseError::Bip353Unsupported);
+        }
+
+        // TODO(phlip9): support BIP353 / Lightning Address
+        // ex: "philip@lexe.app"
+        if let Some((_local, _domain)) = EmailLookingAddress::matches(s) {
+            return Err(ParseError::EmailLookingUnsupported);
         }
 
         // ex: "lnbc1pvjlue..."
+        // TODO(phlip9): parse hrp first for better errors
         if let Ok(invoice) = LxInvoice::from_str(s) {
-            return Some(Self::Invoice(invoice));
+            return Ok(Self::Invoice(invoice));
         }
 
         // ex: "lno1pqps7sj..."
+        // TODO(phlip9): parse hrp first for better errors
         if let Ok(offer) = LxOffer::from_str(s) {
-            return Some(Self::Offer(offer));
+            return Ok(Self::Offer(offer));
         }
 
         // ex: "bc1qfjeyfl..."
+        // TODO(phlip9): parse hrp first for better errors
         if let Ok(address) = bitcoin::Address::from_str(s) {
-            return Some(Self::Address(address));
+            return Ok(Self::Address(address));
         }
 
-        None
+        Err(ParseError::UnknownCode)
     }
 
     /// "Flatten" the [`PaymentUri`] into its component [`PaymentMethod`]s.
@@ -246,6 +275,35 @@ fn flatten_invoice_into(invoice: LxInvoice, out: &mut Vec<PaymentMethod>) {
     }
 
     out.push(PaymentMethod::Invoice(invoice));
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum ParseError {
+    TooLong,
+    BadScheme,
+    UnknownCode,
+    EmailLookingUnsupported,
+    Bip353Unsupported,
+}
+
+impl std::error::Error for ParseError {}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TooLong => write!(
+                f,
+                "Payment code is too long to parse (>{MAX_LEN_KIB} KiB)"
+            ),
+            Self::BadScheme => write!(f, "Unrecognized payment URI scheme"),
+            Self::UnknownCode => write!(f, "Unrecognized payment code"),
+            Self::EmailLookingUnsupported => write!(
+                f,
+                "Lightning Addresses and BIP353 are not supported yet"
+            ),
+            Self::Bip353Unsupported => write!(f, "BIP353 is not supported yet"),
+        }
+    }
 }
 
 /// A single "payment method" -- each kind here should correspond with a single
@@ -968,6 +1026,32 @@ impl<'a> UriParamKey<'a> {
     }
 }
 
+// TODO(phlip9): support BIP353
+// TODO(phlip9): punycode decode?
+struct Bip353Address<'a> {
+    _user: &'a str,
+    _domain: &'a str,
+}
+
+impl Bip353Address<'_> {
+    fn matches(s: &str) -> Option<&str> {
+        s.strip_prefix("₿")
+    }
+}
+
+/// Indeterminate email-looking human-readable payment address.
+/// Either BIP353 without the BTC currency prefix or Lightning Address.
+struct EmailLookingAddress<'a> {
+    _local: &'a str,
+    _domain: &'a str,
+}
+
+impl EmailLookingAddress<'_> {
+    fn matches(s: &str) -> Option<(&str, &str)> {
+        s.split_once('@')
+    }
+}
+
 trait AddressExt {
     /// Returns `true` if this address type is supported in a BIP21 URI body.
     fn is_supported_in_uri_body(&self) -> bool;
@@ -1067,10 +1151,17 @@ mod test {
         proptest!(|(uri: PaymentUri)| {
             let any_usable = uri.any_usable();
             let actual = PaymentUri::parse(&uri.to_string());
-            prop_assert_eq!(Some(&uri), actual.as_ref());
+            prop_assert_eq!(Ok(&uri), actual.as_ref());
 
             let any_usable_via_flatten = !uri.flatten().is_empty();
             prop_assert_eq!(any_usable, any_usable_via_flatten);
+        });
+    }
+
+    #[test]
+    fn test_payment_uri_parse_doesnt_panic() {
+        proptest!(|(s: String)| {
+            let _ = PaymentUri::parse(&s);
         });
     }
 
@@ -1427,6 +1518,18 @@ mod test {
         assert_eq!(
             parse_ok("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?req-somethingyoudontunderstand=50&lightning=lnbc1gcssw9pdqqpp54dkfmzgm5cqz4hzz24mpl7xtgz55dsuh430ap4rlugvywlm4syhqsp5qqtk8n0x2wa6ajl32mp6hj8u9vs55s5lst4s2rws3he4622w08es9qyysgqcqypt3ffpp36sw424yacusmj3hy32df9g97nlwm0a3e0yxw4nd8uau2zdw85lfl5w0h3mggd5g3qswxr9lje0el8g98vul9yec59gf0zxu3eg9rhda09ducxpupsfh36ks9jez7aamsn7hpkxqpw2xyek&somethingelseyoudontget=999"),
             parse_ok("bitcoin:?lightning=lnbc1gcssw9pdqqpp54dkfmzgm5cqz4hzz24mpl7xtgz55dsuh430ap4rlugvywlm4syhqsp5qqtk8n0x2wa6ajl32mp6hj8u9vs55s5lst4s2rws3he4622w08es9qyysgqcqypt3ffpp36sw424yacusmj3hy32df9g97nlwm0a3e0yxw4nd8uau2zdw85lfl5w0h3mggd5g3qswxr9lje0el8g98vul9yec59gf0zxu3eg9rhda09ducxpupsfh36ks9jez7aamsn7hpkxqpw2xyek"),
+        );
+    }
+
+    #[test]
+    fn test_email_looking_manual() {
+        assert_eq!(
+            PaymentUri::parse("philip@lexe.app"),
+            Err(ParseError::EmailLookingUnsupported),
+        );
+        assert_eq!(
+            PaymentUri::parse("₿philip@lexe.app"),
+            Err(ParseError::Bip353Unsupported),
         );
     }
 }
