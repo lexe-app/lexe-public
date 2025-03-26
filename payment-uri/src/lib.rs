@@ -131,37 +131,18 @@ impl PaymentUri {
 
     /// "Flatten" the [`PaymentUri`] into its component [`PaymentMethod`]s.
     pub fn flatten(self) -> Vec<PaymentMethod> {
-        let mut out = Vec::new();
         match self {
-            Self::Bip21Uri(Bip21Uri {
-                onchain,
-                invoice,
-                offer,
-            }) => {
-                if let Some(onchain) = onchain {
-                    out.push(PaymentMethod::Onchain(onchain));
-                }
-                if let Some(invoice) = invoice {
-                    flatten_invoice_into(invoice, &mut out);
-                }
-                if let Some(offer) = offer {
-                    out.push(PaymentMethod::Offer(offer));
-                }
+            Self::Bip21Uri(bip21) => bip21.flatten(),
+            Self::LightningUri(lnuri) => lnuri.flatten(),
+            Self::Invoice(invoice) => {
+                let mut out = Vec::with_capacity(1);
+                flatten_invoice_into(invoice, &mut out);
+                out
             }
-            Self::LightningUri(LightningUri { invoice, offer }) => {
-                if let Some(invoice) = invoice {
-                    flatten_invoice_into(invoice, &mut out);
-                }
-                if let Some(offer) = offer {
-                    out.push(PaymentMethod::Offer(offer));
-                }
-            }
-            Self::Invoice(invoice) => flatten_invoice_into(invoice, &mut out),
-            Self::Offer(offer) => out.push(PaymentMethod::Offer(offer)),
+            Self::Offer(offer) => vec![PaymentMethod::Offer(offer)],
             Self::Address(address) =>
-                out.push(PaymentMethod::Onchain(Onchain::from(address))),
+                vec![PaymentMethod::Onchain(Onchain::from(address))],
         }
-        out
     }
 
     /// Resolve the `PaymentUri` into a single, "best" [`PaymentMethod`].
@@ -362,6 +343,9 @@ fn parse_onchain_btc_amount(s: &str) -> Option<Amount> {
 /// payment requests, but also Lightning invoices and offers, slient payments,
 /// future bitcoin address types, etc...
 ///
+/// If you want a BIP21 URI with a legacy P2PKH or P2SH address, it must be the
+/// first `onchain` address. It will be placed in the URI body.
+///
 /// Examples:
 ///
 /// ```not_rust
@@ -378,9 +362,29 @@ fn parse_onchain_btc_amount(s: &str) -> Option<Amount> {
 #[derive(Debug, Default, Eq, PartialEq)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct Bip21Uri {
-    pub onchain: Option<Onchain>,
+    #[cfg_attr(test, proptest(strategy = "test::arb_bip21_addrs()"))]
+    pub onchain: Vec<bitcoin::Address<NetworkUnchecked>>,
+
+    // TODO(phlip9): support multiple invoices?
     pub invoice: Option<LxInvoice>,
+
+    // TODO(phlip9): support multiple offers?
     pub offer: Option<LxOffer>,
+
+    /// On-chain amount
+    #[cfg_attr(
+        test,
+        proptest(strategy = "amount::arb::sats_amount().prop_map(Some)")
+    )]
+    pub amount: Option<Amount>,
+
+    /// On-chain label / vendor
+    pub label: Option<String>,
+
+    /// On-chain message / payment note
+    pub message: Option<String>,
+    //
+    // TODO(phlip9): "pop" (proof-of-payment) callback param
 }
 
 impl Bip21Uri {
@@ -388,7 +392,9 @@ impl Bip21Uri {
 
     /// See: [`PaymentUri::any_usable`]
     pub fn any_usable(&self) -> bool {
-        self.onchain.is_some() || self.invoice.is_some() || self.offer.is_some()
+        !self.onchain.is_empty()
+            || self.invoice.is_some()
+            || self.offer.is_some()
     }
 
     pub fn matches_scheme(scheme: &str) -> bool {
@@ -415,9 +421,12 @@ impl Bip21Uri {
         debug_assert!(Self::matches_scheme(uri.scheme));
 
         let mut out = Self {
-            onchain: None,
+            onchain: Vec::new(),
             invoice: None,
             offer: None,
+            amount: None,
+            label: None,
+            message: None,
         };
 
         // Skip the `Onchain` method if we see any unrecognized `req-`
@@ -427,11 +436,12 @@ impl Bip21Uri {
         // issue regardless, since `req-` params aren't used much in practice.
         let mut skip_onchain = false;
 
-        // BIP21 on-chain params
-        let mut amount = None;
-        let mut label = None;
-        let mut message = None;
+        // Parse "bitcoin:{address}" from URI body
+        if let Ok(address) = bitcoin::Address::from_str(&uri.body) {
+            out.onchain.push(address);
+        }
 
+        // Parse URI parameters
         for param in uri.params {
             use bitcoin::Network;
 
@@ -457,75 +467,54 @@ impl Bip21Uri {
                     out.offer = LxOffer::from_str(&param.value).ok();
                 }
             } else if key.is("bc") {
-                if out.onchain.is_none() {
-                    if let Ok(address) =
-                        bitcoin::Address::from_str(&param.value)
-                    {
-                        if address.is_valid_for_network(Network::Bitcoin) {
-                            out.onchain = Some(Onchain::from(address));
-                        }
+                if let Ok(address) = bitcoin::Address::from_str(&param.value) {
+                    if address.is_valid_for_network(Network::Bitcoin) {
+                        out.onchain.push(address);
                     }
                 }
             } else if key.is("tb") {
-                if out.onchain.is_none() {
-                    if let Ok(address) =
-                        bitcoin::Address::from_str(&param.value)
+                if let Ok(address) = bitcoin::Address::from_str(&param.value) {
+                    if address.is_valid_for_network(Network::Testnet)
+                        || address.is_valid_for_network(Network::Testnet4)
+                        || address.is_valid_for_network(Network::Signet)
                     {
-                        if address.is_valid_for_network(Network::Testnet)
-                            || address.is_valid_for_network(Network::Testnet4)
-                            || address.is_valid_for_network(Network::Signet)
-                        {
-                            out.onchain = Some(Onchain::from(address));
-                        }
+                        out.onchain.push(address);
                     }
                 }
             } else if key.is("bcrt") {
-                if out.onchain.is_none() {
-                    if let Ok(address) =
-                        bitcoin::Address::from_str(&param.value)
-                    {
-                        if address.is_valid_for_network(Network::Regtest) {
-                            out.onchain = Some(Onchain::from(address));
-                        }
+                if let Ok(address) = bitcoin::Address::from_str(&param.value) {
+                    if address.is_valid_for_network(Network::Regtest) {
+                        out.onchain.push(address);
                     }
                 }
             } else if key.is("amount") {
-                if amount.is_none() {
-                    amount = parse_onchain_btc_amount(&param.value);
+                if out.amount.is_none() {
+                    out.amount = parse_onchain_btc_amount(&param.value);
                 }
             } else if key.is("label") {
-                if label.is_none() {
-                    label = Some(param.value.into_owned());
+                if out.label.is_none() {
+                    out.label = Some(param.value.into_owned());
                 }
             } else if key.is("message") {
-                if message.is_none() {
-                    message = Some(param.value.into_owned());
+                if out.message.is_none() {
+                    out.message = Some(param.value.into_owned());
                 }
             } else if key.is_req {
                 // We'll respect required && unrecognized bip21 params by
-                // throwing out the whole onchain method.
+                // throwing out all onchain methods.
                 skip_onchain = true;
             }
 
             // ignore duplicates or other keys
         }
 
-        if !skip_onchain {
-            // Parse "bitcoin:{address}" after params
-            if out.onchain.is_none() {
-                if let Ok(address) = bitcoin::Address::from_str(&uri.body) {
-                    out.onchain = Some(Onchain::from(address));
-                }
-            }
-
-            // Add any "metadata" params to the onchain method
-            if let Some(onchain) = out.onchain.as_mut() {
-                onchain.amount = amount;
-                onchain.label = label;
-                onchain.message = message;
-            }
-        } else {
-            out.onchain = None;
+        // Throw out all on-chain methods if we see any unrecognized &&
+        // required bip21 params.
+        if skip_onchain {
+            out.onchain = Vec::new();
+            out.amount = None;
+            out.label = None;
+            out.message = None;
         }
 
         out
@@ -538,33 +527,72 @@ impl Bip21Uri {
             params: Vec::new(),
         };
 
-        // BIP21 onchain portion
-        if let Some(onchain) = &self.onchain {
-            let address = onchain.address.assume_checked_ref();
-            out.body = Cow::Owned(address.to_string());
+        // If the first address is supported in the URI body, use it as the
+        // body.
+        let onchain = match self.onchain.split_first() {
+            Some((address, rest)) if address.is_supported_in_uri_body() => {
+                out.body = Cow::Owned(address.assume_checked_ref().to_string());
+                rest
+            }
+            _ => self.onchain.as_slice(),
+        };
 
-            if let Some(amount) = &onchain.amount {
-                out.params.push(UriParam {
-                    key: Cow::Borrowed("amount"),
-                    // We need to round to satoshi-precision for this to be a
-                    // valid on-chain amount.
-                    value: Cow::Owned(amount.round_sat().btc().to_string()),
-                });
+        // Add all remaining onchain addresses as URI params
+        for address in onchain {
+            use bitcoin::Network;
+
+            // P2PKH and P2SH addresses don't have an HRP and so can't go in
+            // the URI query params.
+            if !address.is_supported_in_uri_query_param() {
+                debug_assert!(false, "Should have been placed in URI body");
+                continue;
             }
 
-            if let Some(label) = &onchain.label {
-                out.params.push(UriParam {
-                    key: Cow::Borrowed("label"),
-                    value: Cow::Borrowed(label),
-                });
-            }
+            // Get the HRP for this address
+            let hrp = if address.is_valid_for_network(Network::Bitcoin) {
+                "bc"
+            } else if address.is_valid_for_network(Network::Testnet)
+                || address.is_valid_for_network(Network::Testnet4)
+                || address.is_valid_for_network(Network::Signet)
+            {
+                "tb"
+            } else if address.is_valid_for_network(Network::Regtest) {
+                "bcrt"
+            } else {
+                debug_assert!(false, "Unsupported network");
+                continue;
+            };
 
-            if let Some(message) = &onchain.message {
-                out.params.push(UriParam {
-                    key: Cow::Borrowed("message"),
-                    value: Cow::Borrowed(message),
-                });
-            }
+            out.params.push(UriParam {
+                key: Cow::Borrowed(hrp),
+                value: Cow::Owned(address.assume_checked_ref().to_string()),
+            });
+        }
+
+        // BIP21 onchain amount
+        if let Some(amount) = &self.amount {
+            out.params.push(UriParam {
+                key: Cow::Borrowed("amount"),
+                // We need to round to satoshi-precision for this to be a
+                // valid on-chain amount.
+                value: Cow::Owned(amount.round_sat().btc().to_string()),
+            });
+        }
+
+        // BIP21 onchain label
+        if let Some(label) = &self.label {
+            out.params.push(UriParam {
+                key: Cow::Borrowed("label"),
+                value: Cow::Borrowed(label),
+            });
+        }
+
+        // BIP21 onchain message
+        if let Some(message) = &self.message {
+            out.params.push(UriParam {
+                key: Cow::Borrowed("message"),
+                value: Cow::Borrowed(message),
+            });
         }
 
         // BOLT11 invoice param
@@ -581,6 +609,34 @@ impl Bip21Uri {
                 key: Cow::Borrowed("lno"),
                 value: Cow::Owned(offer.to_string()),
             });
+        }
+
+        out
+    }
+
+    /// "Flatten" the [`Bip21Uri`] into its component [`PaymentMethod`]s.
+    fn flatten(self) -> Vec<PaymentMethod> {
+        let mut out = Vec::with_capacity(
+            self.onchain.len()
+                + self.invoice.is_some() as usize
+                + self.offer.is_some() as usize,
+        );
+
+        for address in self.onchain {
+            out.push(PaymentMethod::Onchain(Onchain {
+                address,
+                amount: self.amount,
+                label: self.label.clone(),
+                message: self.message.clone(),
+            }));
+        }
+
+        if let Some(invoice) = self.invoice {
+            out.push(PaymentMethod::Invoice(invoice));
+        }
+
+        if let Some(offer) = self.offer {
+            out.push(PaymentMethod::Offer(offer));
         }
 
         out
@@ -702,6 +758,22 @@ impl LightningUri {
         } else if let Some(offer) = &self.offer {
             // If we just have an offer, put it in the body
             out.body = Cow::Owned(offer.to_string());
+        }
+
+        out
+    }
+
+    fn flatten(self) -> Vec<PaymentMethod> {
+        let mut out = Vec::with_capacity(
+            self.invoice.is_some() as usize + self.offer.is_some() as usize,
+        );
+
+        if let Some(invoice) = self.invoice {
+            flatten_invoice_into(invoice, &mut out);
+        }
+
+        if let Some(offer) = self.offer {
+            out.push(PaymentMethod::Offer(offer));
         }
 
         out
@@ -868,6 +940,63 @@ impl<'a> UriParamKey<'a> {
     }
 }
 
+trait AddressExt {
+    /// Returns `true` if this address type is supported in a BIP21 URI body.
+    fn is_supported_in_uri_body(&self) -> bool;
+
+    /// Returns `true` if this address type is supported in a BIP321 URI query
+    /// param.
+    fn is_supported_in_uri_query_param(&self) -> bool;
+}
+
+impl AddressExt for bitcoin::Address<NetworkUnchecked> {
+    fn is_supported_in_uri_body(&self) -> bool {
+        use bitcoin::AddressType::*;
+        let address_type = match self.assume_checked_ref().address_type() {
+            Some(x) => x,
+            // Non-standard
+            None => return true,
+        };
+        match address_type {
+            // Pay to pubkey hash.
+            P2pkh => true,
+            // Pay to script hash.
+            P2sh => true,
+            // Pay to witness pubkey hash.
+            P2wpkh => true,
+            // Pay to witness script hash.
+            P2wsh => true,
+            // Pay to taproot.
+            P2tr => false,
+            // Unknown standard
+            _ => false,
+        }
+    }
+
+    fn is_supported_in_uri_query_param(&self) -> bool {
+        use bitcoin::AddressType::*;
+        let address_type = match self.assume_checked_ref().address_type() {
+            Some(x) => x,
+            // Non-standard
+            None => return true,
+        };
+        match address_type {
+            // Pay to pubkey hash.
+            P2pkh => false,
+            // Pay to script hash.
+            P2sh => false,
+            // Pay to witness pubkey hash.
+            P2wpkh => true,
+            // Pay to witness script hash.
+            P2wsh => true,
+            // Pay to taproot.
+            P2tr => true,
+            // Unknown standard
+            _ => true,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use common::{
@@ -876,9 +1005,34 @@ mod test {
         test_utils::{arbitrary, arbitrary::any_mainnet_addr_unchecked},
         time::TimestampMs,
     };
-    use proptest::{arbitrary::any, prop_assert_eq, proptest, sample::Index};
+    use proptest::{
+        arbitrary::any, prop_assert_eq, proptest, sample::Index,
+        strategy::Strategy,
+    };
 
     use super::*;
+
+    // Generate a list of BIP21 address to go in a [`Bip21Uri`]. To support
+    // roundtripping, we filter out any P2PKH or P2SH addresses that aren't in
+    // the first position.
+    pub(crate) fn arb_bip21_addrs(
+    ) -> impl Strategy<Value = Vec<bitcoin::Address<NetworkUnchecked>>> {
+        proptest::collection::vec(any_mainnet_addr_unchecked(), 0..3).prop_map(
+            |addrs| {
+                addrs
+                    .into_iter()
+                    .enumerate()
+                    .filter_map(|(idx, addr)| {
+                        if idx != 0 && !addr.is_supported_in_uri_query_param() {
+                            None
+                        } else {
+                            Some(addr)
+                        }
+                    })
+                    .collect()
+            },
+        )
+    }
 
     #[test]
     fn test_payment_uri_roundtrip() {
@@ -915,14 +1069,8 @@ mod test {
         assert_eq!(
             Bip21Uri::parse("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU"),
             Some(Bip21Uri {
-                onchain: Some(Onchain {
-                    address: address.clone(),
-                    amount: None,
-                    label: None,
-                    message: None,
-                }),
-                invoice: None,
-                offer: None,
+                onchain: vec![address.clone()],
+                ..Bip21Uri::default()
             }),
         );
 
@@ -932,14 +1080,8 @@ mod test {
                 "bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?foo=%aA"
             ),
             Some(Bip21Uri {
-                onchain: Some(Onchain {
-                    address: address.clone(),
-                    amount: None,
-                    label: None,
-                    message: None,
-                }),
-                invoice: None,
-                offer: None,
+                onchain: vec![address.clone()],
+                ..Bip21Uri::default()
             }),
         );
 
@@ -949,17 +1091,12 @@ mod test {
                 "BItCoIn:3Hk4jJkZkzzGe7oKHw8awFBz9YhRcQ4iAV?amount=23.456"
             ),
             Some(Bip21Uri {
-                onchain: Some(Onchain {
-                    address: bitcoin::Address::from_str(
-                        "3Hk4jJkZkzzGe7oKHw8awFBz9YhRcQ4iAV"
-                    )
-                    .unwrap(),
-                    amount: Some(Amount::from_sats_u32(23_4560_0000)),
-                    label: None,
-                    message: None,
-                }),
-                invoice: None,
-                offer: None,
+                onchain: vec![bitcoin::Address::from_str(
+                    "3Hk4jJkZkzzGe7oKHw8awFBz9YhRcQ4iAV"
+                )
+                .unwrap()],
+                amount: Some(Amount::from_sats_u32(23_4560_0000)),
+                ..Bip21Uri::default()
             }),
         );
 
@@ -969,17 +1106,11 @@ mod test {
                 "BITCOIN:BC1QFJEYFL9PHSDANZ5YAYLAS3P393MU9Z99YA9MNH?label=Luke%20Jr"
             ),
             Some(Bip21Uri {
-                onchain: Some(Onchain {
-                    address: bitcoin::Address::from_str(
-                        "bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh"
-                    )
-                    .unwrap(),
-                    amount: None,
-                    label: Some("Luke Jr".to_owned()),
-                    message: None,
-                }),
-                invoice: None,
-                offer: None,
+                onchain: vec![
+                    bitcoin::Address::from_str("bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh").unwrap(),
+                ],
+                label: Some("Luke Jr".to_owned()),
+                ..Bip21Uri::default()
             }),
         );
 
@@ -989,17 +1120,12 @@ mod test {
                 "bitcoin:bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw?asdf-dfjsijdf=sodifjoisdjf&message=hello%20world&amount=0.00000001&message=ignored"
             ),
             Some(Bip21Uri {
-                onchain: Some(Onchain {
-                    address: bitcoin::Address::from_str(
-                        "bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw"
-                    )
-                    .unwrap(),
-                    amount: Some(Amount::from_sats_u32(1)),
-                    label: None,
-                    message: Some("hello world".to_owned()),
-                }),
-                invoice: None,
-                offer: None,
+                onchain: vec![
+                    bitcoin::Address::from_str("bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw").unwrap(),
+                ],
+                amount: Some(Amount::from_sats_u32(1)),
+                message: Some("hello world".to_owned()),
+                ..Bip21Uri::default()
             }),
         );
 
@@ -1008,11 +1134,7 @@ mod test {
             Bip21Uri::parse(
                 "bitcoin:bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw?asdf-dfjsijdf=sodifjoisdjf&req-foo=bar&message=hello%20world&amount=0.00000001&message=ignored"
             ),
-            Some(Bip21Uri {
-                onchain: None,
-                invoice: None,
-                offer: None,
-            }),
+            Some(Bip21Uri::default()),
         );
 
         // BOLT12 offer
@@ -1023,14 +1145,9 @@ mod test {
             "lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q";
         let offer = LxOffer::from_str(offer_str).unwrap();
         let expected = Some(Bip21Uri {
-            onchain: Some(Onchain {
-                address: address.clone(),
-                amount: None,
-                label: None,
-                message: None,
-            }),
-            invoice: None,
+            onchain: vec![address.clone()],
             offer: Some(offer.clone()),
+            ..Bip21Uri::default()
         });
         // Support both `lightning=<offer>` and `lno=<offer>` params.
         let actual1 =
@@ -1056,17 +1173,16 @@ mod test {
     fn test_bip21_uri_prop_append_junk() {
         proptest!(|(address in any_mainnet_addr_unchecked(), junk: String)| {
             let uri = Bip21Uri {
-                onchain: Some(Onchain { address, amount: None, label: None, message: None }),
-                invoice: None,
-                offer: None,
+                onchain: vec![address],
+                ..Bip21Uri::default()
             };
             let uri_str = uri.to_string();
             let uri_str_with_junk = format!("{uri_str}?{junk}");
             let uri_parsed = Bip21Uri::parse(&uri_str_with_junk).unwrap();
 
             prop_assert_eq!(
-                uri.onchain.unwrap().address,
-                uri_parsed.onchain.unwrap().address
+                uri.onchain.first().unwrap(),
+                uri_parsed.onchain.first().unwrap()
             );
         });
     }
@@ -1085,7 +1201,10 @@ mod test {
             let actual1 = Bip21Uri::parse(&uri_raw.to_string()).unwrap();
             let actual2 = Bip21Uri::parse_uri(uri_raw).unwrap();
             prop_assert_eq!(&actual1, &actual2);
-            prop_assert_eq!(None, actual1.onchain);
+            prop_assert_eq!(
+                Vec::<bitcoin::Address<NetworkUnchecked>>::new(),
+                actual1.onchain
+            );
             prop_assert_eq!(uri.invoice, actual1.invoice);
         });
     }
@@ -1220,10 +1339,9 @@ mod test {
         parse_ok_rt("bitcoin:?lightning=lnbc1gcssw9pdqqpp54dkfmzgm5cqz4hzz24mpl7xtgz55dsuh430ap4rlugvywlm4syhqsp5qqtk8n0x2wa6ajl32mp6hj8u9vs55s5lst4s2rws3he4622w08es9qyysgqcqypt3ffpp36sw424yacusmj3hy32df9g97nlwm0a3e0yxw4nd8uau2zdw85lfl5w0h3mggd5g3qswxr9lje0el8g98vul9yec59gf0zxu3eg9rhda09ducxpupsfh36ks9jez7aamsn7hpkxqpw2xyek");
         parse_ok_rt("bitcoin:?lno=lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q");
 
-        // TODO(phlip9): handle multiple addresses
         assert_eq!(
             parse_ok("bitcoin:?bc=bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw&bc=bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh"),
-            parse_ok("bitcoin:bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw"),
+            parse_ok("bitcoin:bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw?bc=bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh"),
         );
         assert_eq!(
             parse_ok("bitcoin:?bc=bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh"),
@@ -1262,7 +1380,7 @@ mod test {
         );
         assert_eq!(
             parse_ok("BITCOIN:?BC=BC1QM9R9X9H2C9WPTAZ0873VYFV8CKX2LCDX8F48UCTTZQFT7R0Q2YASXKT2LW&BC=BC1QFJEYFL9PHSDANZ5YAYLAS3P393MU9Z99YA9MNH"),
-            parse_ok("bitcoin:?bc=bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw"),
+            parse_ok("bitcoin:bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw?bc=bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh"),
         );
 
         // ignore unrecognized, not-required params
