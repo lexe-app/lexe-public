@@ -142,12 +142,29 @@ impl LxInvoice {
     pub fn onchain_fallbacks(&self) -> Vec<bitcoin::Address> {
         self.0.fallback_addresses()
     }
+
+    /// Returns `true` if the input string starts with a valid bech32 hrp prefix
+    /// for a BOLT11 invoice.
+    pub fn matches_hrp_prefix(s: &str) -> bool {
+        const HRPS: [&[u8]; 5] = [
+            b"lnbc",   // mainnet
+            b"lntb",   // testnet
+            b"lnsb",   // simnet
+            b"lntbs",  // signet
+            b"lnbcrt", // regtest
+        ];
+        let s = s.as_bytes();
+        HRPS.iter().any(|hrp| match s.split_at_checked(hrp.len()) {
+            Some((prefix, _)) => prefix.eq_ignore_ascii_case(hrp),
+            None => false,
+        })
+    }
 }
 
 impl FromStr for LxInvoice {
-    type Err = lightning_invoice::ParseOrSemanticError;
+    type Err = ParseError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Bolt11Invoice::from_str(s).map(Self)
+        Bolt11Invoice::from_str(s).map(Self).map_err(ParseError)
     }
 }
 
@@ -156,6 +173,18 @@ impl Display for LxInvoice {
         Display::fmt(&self.0, f)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ParseError(pub lightning_invoice::ParseOrSemanticError);
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let err = &self.0;
+        write!(f, "Failed to parse Lightning invoice: {err}")
+    }
+}
+
+impl std::error::Error for ParseError {}
 
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
@@ -345,7 +374,7 @@ mod test {
         ln::channelmanager::MIN_FINAL_CLTV_EXPIRY_DELTA,
         routing::router::RouteHint,
     };
-    use proptest::arbitrary::any;
+    use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest};
     use test::arbitrary_impl::gen_invoice;
 
     use super::*;
@@ -392,6 +421,19 @@ lnbc1mmj7z2hd427xtea2gtw8et4p5ta7lm6xe02nemhxvg7zse98734qudr2pucwaz3ua647tl9tv8n
     #[test]
     fn invoice_fromstr_display_roundtrip() {
         roundtrip::fromstr_display_roundtrip_proptest::<LxInvoice>();
+    }
+
+    #[test]
+    fn invoice_matches_hrp_prefix() {
+        proptest!(|(invoice: LxInvoice)| {
+            let mut invoice_str = invoice.to_string();
+            prop_assert!(LxInvoice::matches_hrp_prefix(&invoice_str));
+
+            // uppercase
+            invoice_str.make_ascii_uppercase();
+            prop_assert!(LxInvoice::matches_hrp_prefix(&invoice_str));
+            prop_assert_eq!(LxInvoice::from_str(&invoice_str).unwrap(), invoice);
+        });
     }
 
     // Generate example invoices using the proptest strategy.
@@ -473,7 +515,7 @@ lnbc1mmj7z2hd427xtea2gtw8et4p5ta7lm6xe02nemhxvg7zse98734qudr2pucwaz3ua647tl9tv8n
     #[ignore]
     #[test]
     fn invoice_print() {
-        let s = "lnbcrt280u1pnxywwgdqqpp52t2fd5p8kuqn370uae3f3vezj6mjlzsuynfgkd9533xqp3vyd44scqpcsp5truuwxdmk38t9zad3al685uw6a4yg0gncg8p8yzy69asy7rz3uyq9qyysgqxqrrssnp4qfjfnyxh2n3yh2d9fqt293lfahnzfllg4qj2cu9lz04e97u2njx6vrzjqdd8p4z7a3l0kfcrr8c3d2tggfg2ed809q4zd5scwjrculzs3rmnkqqqqyqqrasqq5qqqqqqqqqqhwqqfqkqddwf80knvfd5naznztzzfm9glx7v8lhchjljjxnhknre9rwd6y3qcjn92ewl9dquc60jxhh8e0d6pd9ejsskutyr6rp6xpc0ex36spnalh5l";
+        let s = "lnbc1pn79l2rdqqpp5y3u8cttsjvusa34xnx9ceh8watmrvy99qw7pwpsvxjq3zl2mm8wscqpcsp5p4wrl7xfrgxj3w05ksjv2qtccyt0feg2c0suwcjc5pyrawxvlt0q9qyysgqxqyz5vqnp4q0vzagw8x7r9eyalw35t0u6syql8rtqf9tejep0z6xrwkqrua5advrzjqv22wafr68wtchd4vzq7mj7zf2uzpv67xsaxcemfzak7wp7p0r29wrf0egqqy2sqqcqqqqqqqqqqhwqqfqrzjqv22wafr68wtchd4vzq7mj7zf2uzpv67xsaxcemfzak7wp7p0r29wzmk4uqqj5sqqyqqqqqqqqqqhwqqfqrzjqv22wafr68wtchd4vzq7mj7zf2uzpv67xsaxcemfzak7wp7p0r29wz2g6uqqt5cqqcqqqqqqqqqqhwqqfqd5xs0luhzmmdmevhqtcyuwrcr43pq3xpmtdvdenvcsslg8vuhmfyqtcs3y54yxpsw8wlt5epz0y0y64ul7fc37zt5cklumx0u6at2dcphm9mhh";
         let invoice = LxInvoice::from_str(s).unwrap();
 
         dbg!(&invoice);

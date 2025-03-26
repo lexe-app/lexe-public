@@ -157,6 +157,17 @@ impl LxOffer {
     pub fn description(&self) -> Option<&str> {
         self.0.description().map(|s| s.0).filter(|s| !s.is_empty())
     }
+
+    /// Returns `true` if the input string starts with a valid bech32 hrp prefix
+    /// for a BOLT12 offer.
+    pub fn matches_hrp_prefix(s: &str) -> bool {
+        const HRP: &[u8; 4] = b"lno1";
+        const HRP_LEN: usize = HRP.len();
+        match s.as_bytes().split_first_chunk::<HRP_LEN>() {
+            Some((s_hrp, _)) => s_hrp.eq_ignore_ascii_case(HRP),
+            _ => false,
+        }
+    }
 }
 
 impl From<Offer> for LxOffer {
@@ -173,21 +184,24 @@ impl fmt::Display for LxOffer {
 }
 
 impl FromStr for LxOffer {
-    type Err = LxBolt12ParseError;
+    type Err = ParseError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Offer::from_str(s).map(LxOffer).map_err(LxBolt12ParseError)
+        Offer::from_str(s).map(LxOffer).map_err(ParseError)
     }
 }
 
 // TODO(phlip9): remove when ldk upstream impls Display
 #[derive(Clone, Debug, PartialEq)]
-pub struct LxBolt12ParseError(Bolt12ParseError);
+pub struct ParseError(pub Bolt12ParseError);
 
-impl fmt::Display for LxBolt12ParseError {
+impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Failed to parse BOLT12 offer: {:?}", &self.0)
+        let err = &self.0;
+        write!(f, "Failed to parse Lightning offer: {err:?}")
     }
 }
+
+impl std::error::Error for ParseError {}
 
 #[cfg(any(test, feature = "test-utils"))]
 mod arb {
@@ -450,7 +464,7 @@ mod test {
         },
         offers::nonce::Nonce,
     };
-    use proptest::arbitrary::any;
+    use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest};
     use test::arb::gen_offer;
 
     use super::*;
@@ -502,6 +516,19 @@ mod test {
     #[test]
     fn offer_fromstr_display_roundtrip() {
         roundtrip::fromstr_display_roundtrip_proptest::<LxOffer>();
+    }
+
+    #[test]
+    fn offer_matches_hrp_prefix() {
+        proptest!(|(offer: LxOffer)| {
+            let mut offer_str = offer.to_string();
+            prop_assert!(LxOffer::matches_hrp_prefix(&offer_str));
+
+            // uppercase
+            offer_str.make_ascii_uppercase();
+            prop_assert!(LxOffer::matches_hrp_prefix(&offer_str));
+            prop_assert_eq!(LxOffer::from_str(&offer_str).unwrap(), offer);
+        });
     }
 
     // Generate example offers using the proptest strategy.

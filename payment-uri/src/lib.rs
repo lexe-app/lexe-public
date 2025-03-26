@@ -17,12 +17,19 @@
 // See: <https://github.com/proptest-rs/proptest/issues/447>
 #![allow(non_local_definitions)]
 
-use std::{borrow::Cow, fmt, str::FromStr};
+use std::{
+    borrow::Cow,
+    fmt::{self, Display},
+    str::FromStr,
+};
 
 use anyhow::ensure;
 use bitcoin::address::{NetworkUnchecked, NetworkValidation};
 use common::ln::{
-    amount::Amount, invoice::LxInvoice, network::LxNetwork, offer::LxOffer,
+    amount::Amount,
+    invoice::{self, LxInvoice},
+    network::LxNetwork,
+    offer::{self, LxOffer},
 };
 #[cfg(test)]
 use common::{ln::amount, test_utils::arbitrary};
@@ -138,15 +145,17 @@ impl PaymentUri {
         }
 
         // ex: "lnbc1pvjlue..."
-        // TODO(phlip9): parse hrp first for better errors
-        if let Ok(invoice) = LxInvoice::from_str(s) {
-            return Ok(Self::Invoice(invoice));
+        if LxInvoice::matches_hrp_prefix(s) {
+            return LxInvoice::from_str(s)
+                .map(Self::Invoice)
+                .map_err(ParseError::InvalidInvoice);
         }
 
         // ex: "lno1pqps7sj..."
-        // TODO(phlip9): parse hrp first for better errors
-        if let Ok(offer) = LxOffer::from_str(s) {
-            return Ok(Self::Offer(offer));
+        if LxOffer::matches_hrp_prefix(s) {
+            return LxOffer::from_str(s)
+                .map(Self::Offer)
+                .map_err(ParseError::InvalidOffer);
         }
 
         // ex: "bc1qfjeyfl..."
@@ -277,13 +286,15 @@ fn flatten_invoice_into(invoice: LxInvoice, out: &mut Vec<PaymentMethod>) {
     out.push(PaymentMethod::Invoice(invoice));
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ParseError {
     TooLong,
     BadScheme,
     UnknownCode,
     EmailLookingUnsupported,
     Bip353Unsupported,
+    InvalidInvoice(invoice::ParseError),
+    InvalidOffer(offer::ParseError),
 }
 
 impl std::error::Error for ParseError {}
@@ -302,6 +313,8 @@ impl fmt::Display for ParseError {
                 "Lightning Addresses and BIP353 are not supported yet"
             ),
             Self::Bip353Unsupported => write!(f, "BIP353 is not supported yet"),
+            Self::InvalidInvoice(err) => Display::fmt(err, f),
+            Self::InvalidOffer(err) => Display::fmt(err, f),
         }
     }
 }
