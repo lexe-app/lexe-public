@@ -209,6 +209,20 @@ impl PaymentUri {
 
         Ok(best)
     }
+
+    /// Returns true if there are any usable [`PaymentMethod`]s in this URI.
+    ///
+    /// This method is equivalent to `!self.flatten().is_empty()`, but doesn't
+    /// require consuming the `PaymentUri` and flattening.
+    pub fn any_usable(&self) -> bool {
+        match self {
+            Self::Bip21Uri(uri) => uri.any_usable(),
+            Self::LightningUri(uri) => uri.any_usable(),
+            Self::Invoice(_) => true,
+            Self::Offer(_) => true,
+            Self::Address(_) => true,
+        }
+    }
 }
 
 impl fmt::Display for PaymentUri {
@@ -341,11 +355,12 @@ fn parse_onchain_btc_amount(s: &str) -> Option<Amount> {
         .map(|amount| amount.round_sat())
 }
 
-/// A [BIP21 URI](https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki).
-/// Encodes an onchain address plus some extra metadata.
+/// A [BIP21](https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki) /
+/// [BIP321](https://github.com/bitcoin/bips/pull/1555/files) URI.
 ///
-/// Wallets that use [Unified QRs](https://bitcoinqr.dev/) may also include a
-/// BOLT11 invoice or BOLT12 offer as `lightning` or `lno` query params.
+/// Wallets are aligning on BIP321 as the standard to encode not just on-chain
+/// payment requests, but also Lightning invoices and offers, slient payments,
+/// future bitcoin address types, etc...
 ///
 /// Examples:
 ///
@@ -370,6 +385,11 @@ pub struct Bip21Uri {
 
 impl Bip21Uri {
     const URI_SCHEME: &'static str = "bitcoin";
+
+    /// See: [`PaymentUri::any_usable`]
+    pub fn any_usable(&self) -> bool {
+        self.onchain.is_some() || self.invoice.is_some() || self.offer.is_some()
+    }
 
     pub fn matches_scheme(scheme: &str) -> bool {
         // Use `eq_ignore_ascii_case` as it's technically in-spec for the scheme
@@ -599,6 +619,11 @@ pub struct LightningUri {
 
 impl LightningUri {
     const URI_SCHEME: &'static str = "lightning";
+
+    /// See: [`PaymentUri::any_usable`]
+    pub fn any_usable(&self) -> bool {
+        self.invoice.is_some() || self.offer.is_some()
+    }
 
     fn matches_scheme(scheme: &str) -> bool {
         // Use `eq_ignore_ascii_case` as it's technically in-spec for the scheme
@@ -858,8 +883,12 @@ mod test {
     #[test]
     fn test_payment_uri_roundtrip() {
         proptest!(|(uri: PaymentUri)| {
+            let any_usable = uri.any_usable();
             let actual = PaymentUri::parse(&uri.to_string());
-            prop_assert_eq!(Some(uri), actual);
+            prop_assert_eq!(Some(&uri), actual.as_ref());
+
+            let any_usable_via_flatten = !uri.flatten().is_empty();
+            prop_assert_eq!(any_usable, any_usable_via_flatten);
         });
     }
 
@@ -1164,21 +1193,25 @@ mod test {
             uri
         }
 
-        // It'll at least parse
+        // It'll at least parse with some usable `PaymentMethod`s
         #[track_caller]
         fn parse_ok(s: &str) -> PaymentUri {
-            PaymentUri::parse(s).unwrap()
+            let uri = PaymentUri::parse(s).unwrap();
+            assert!(uri.any_usable());
+            uri
         }
 
-        // // Does not parse
-        // #[track_caller]
-        // fn parse_err(s: &str) {
-        //     let uri = PaymentUri::parse(s);
-        //     assert_eq!(None, uri);
-        // }
+        // Parses but no usable `PaymentMethod`
+        #[track_caller]
+        fn parse_ok_unusable(s: &str) {
+            let uri = PaymentUri::parse(s).unwrap();
+            assert!(!uri.any_usable());
+        }
 
-        // NOTE: these are edited to use valid addresses/invoices/offers/etc
-        // otherwise we don't parse them.
+        // NOTE: these test vectors are edited to use valid
+        // addresses/invoices/offers/etc, otherwise we don't parse them.
+
+        // basic, well-formed URIs that we can fully roundtrip
         parse_ok_rt("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU");
         parse_ok_rt("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?label=Luke-Jr");
         parse_ok_rt("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?label=Luke-Jr");
@@ -1187,33 +1220,67 @@ mod test {
         parse_ok_rt("bitcoin:?lightning=lnbc1gcssw9pdqqpp54dkfmzgm5cqz4hzz24mpl7xtgz55dsuh430ap4rlugvywlm4syhqsp5qqtk8n0x2wa6ajl32mp6hj8u9vs55s5lst4s2rws3he4622w08es9qyysgqcqypt3ffpp36sw424yacusmj3hy32df9g97nlwm0a3e0yxw4nd8uau2zdw85lfl5w0h3mggd5g3qswxr9lje0el8g98vul9yec59gf0zxu3eg9rhda09ducxpupsfh36ks9jez7aamsn7hpkxqpw2xyek");
         parse_ok_rt("bitcoin:?lno=lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q");
 
-        parse_ok("bitcoin:?bc=bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh");
-        parse_ok("bitcoin:?tb=tb1qkkxnp5zm6wpfyjufdznh38vm03u4w8q8awuggp");
-        parse_ok("bitcoin:?bcrt=bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk");
+        // TODO(phlip9): handle multiple addresses
+        assert_eq!(
+            parse_ok("bitcoin:?bc=bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw&bc=bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh"),
+            parse_ok("bitcoin:bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw"),
+        );
+        assert_eq!(
+            parse_ok("bitcoin:?bc=bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh"),
+            parse_ok("bitcoin:bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh"),
+        );
+        assert_eq!(
+            parse_ok("bitcoin:?tb=tb1qkkxnp5zm6wpfyjufdznh38vm03u4w8q8awuggp"),
+            parse_ok("bitcoin:tb1qkkxnp5zm6wpfyjufdznh38vm03u4w8q8awuggp"),
+        );
+        assert_eq!(
+            parse_ok("bitcoin:?bcrt=bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk"),
+            parse_ok("bitcoin:bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk"),
+        );
 
-        // TODO(phlip9): decimal amount
-        // parse_ok_rt("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?amount=20.3&label=Luke-Jr");
+        // TODO(phlip9): why does decimal amount 20.3 - roundtrip -> 20.30
+        assert_eq!(
+            parse_ok("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?amount=20.3&label=Luke-Jr"),
+            parse_ok("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?amount=20.30&label=Luke-Jr"),
+        );
 
         // TODO(phlip9): "parse" silent payments
-        // parse_ok("bitcoin:?lno=lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q&sp=sp1qsilentpayment");
-        // parse_ok("bitcoin:?sp=sp1qsilentpayment");
-        // parse_ok("bitcoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?sp=sp1qsilentpayment");
+        assert_eq!(
+            parse_ok("bitcoin:?lno=lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q&sp=sp1qsilentpayment"),
+            parse_ok("bitcoin:?lno=lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q"),
+        );
+        parse_ok_unusable("bitcoin:?sp=sp1qsilentpayment");
+        assert_eq!(
+            parse_ok("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?sp=sp1qsilentpayment"),
+            parse_ok("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU"),
+        );
 
-        // TODO(phlip9): handle other bech32 hrp
-
-        // TODO(phlip9): handle multiple addresses
-        parse_ok("bitcoin:?bc=bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw&bc=bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh");
-
-        // Lowercase
+        // we currently normalize to lowercase
         assert_eq!(
             parse_ok("BITCOIN:BC1QM9R9X9H2C9WPTAZ0873VYFV8CKX2LCDX8F48UCTTZQFT7R0Q2YASXKT2LW?BC=BC1QFJEYFL9PHSDANZ5YAYLAS3P393MU9Z99YA9MNH"),
             parse_ok("bitcoin:bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw?bc=bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh"),
         );
+        assert_eq!(
+            parse_ok("BITCOIN:?BC=BC1QM9R9X9H2C9WPTAZ0873VYFV8CKX2LCDX8F48UCTTZQFT7R0Q2YASXKT2LW&BC=BC1QFJEYFL9PHSDANZ5YAYLAS3P393MU9Z99YA9MNH"),
+            parse_ok("bitcoin:?bc=bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw"),
+        );
 
-        parse_ok("BITCOIN:?BC=BC1QM9R9X9H2C9WPTAZ0873VYFV8CKX2LCDX8F48UCTTZQFT7R0Q2YASXKT2LW&BC=BC1QFJEYFL9PHSDANZ5YAYLAS3P393MU9Z99YA9MNH");
-        parse_ok("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?somethingyoudontunderstand=50&somethingelseyoudontget=999");
+        // ignore unrecognized, not-required params
+        assert_eq!(
+            parse_ok("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?somethingyoudontunderstand=50&somethingelseyoudontget=999"),
+            parse_ok("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU"),
+        );
 
-        // TODO(phlip9): empty bip21 should -> None
-        // parse_err("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?req-somethingyoudontunderstand=50&req-somethingelseyoudontget=999");
+        // unrecognized req- params => whole on-chain method is unusable
+        parse_ok_unusable("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?req-somethingyoudontunderstand=50&req-somethingelseyoudontget=999");
+        // but still parse out offers/invoices
+        assert_eq!(
+            parse_ok("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?req-somethingyoudontunderstand=50&lno=lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q&somethingelseyoudontget=999"),
+            parse_ok("bitcoin:?lno=lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q"),
+        );
+        assert_eq!(
+            parse_ok("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?req-somethingyoudontunderstand=50&lightning=lnbc1gcssw9pdqqpp54dkfmzgm5cqz4hzz24mpl7xtgz55dsuh430ap4rlugvywlm4syhqsp5qqtk8n0x2wa6ajl32mp6hj8u9vs55s5lst4s2rws3he4622w08es9qyysgqcqypt3ffpp36sw424yacusmj3hy32df9g97nlwm0a3e0yxw4nd8uau2zdw85lfl5w0h3mggd5g3qswxr9lje0el8g98vul9yec59gf0zxu3eg9rhda09ducxpupsfh36ks9jez7aamsn7hpkxqpw2xyek&somethingelseyoudontget=999"),
+            parse_ok("bitcoin:?lightning=lnbc1gcssw9pdqqpp54dkfmzgm5cqz4hzz24mpl7xtgz55dsuh430ap4rlugvywlm4syhqsp5qqtk8n0x2wa6ajl32mp6hj8u9vs55s5lst4s2rws3he4622w08es9qyysgqcqypt3ffpp36sw424yacusmj3hy32df9g97nlwm0a3e0yxw4nd8uau2zdw85lfl5w0h3mggd5g3qswxr9lje0el8g98vul9yec59gf0zxu3eg9rhda09ducxpupsfh36ks9jez7aamsn7hpkxqpw2xyek"),
+        );
     }
 }
