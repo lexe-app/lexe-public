@@ -47,16 +47,16 @@ const MAX_LEN_KIB: usize = 8;
 /// your mobile browser or in another app).
 ///
 /// Many variants give multiple ways to pay, with e.g. BOLT11 invoices including
-/// an onchain fallback, or BIP21 URIs including an optional BOLT11 invoice.
+/// an onchain fallback, or BIP321 URIs including an optional BOLT11 invoice.
 #[derive(Debug, Eq, PartialEq)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum PaymentUri {
-    /// An BIP21 URI, containing an onchain payment description, plus optional
+    /// An BIP321 URI, containing an onchain payment description, plus optional
     /// BOLT11 invoice and/or BOLT12 offer.
     ///
     /// ex: "bitcoin:bc1qfj..."
     ///     "bitcoin:?lno=lno1pqps7..."
-    Bip21Uri(Bip21Uri),
+    Bip321Uri(Bip321Uri),
 
     /// A Lightning URI, containing a BOLT11 invoice or BOLT12 offer.
     ///
@@ -115,8 +115,8 @@ impl PaymentUri {
         //     "lightning:lno1pqps7..." or ...
         if let Some(uri) = Uri::parse(s) {
             // ex: "bitcoin:bc1qfj..."
-            if Bip21Uri::matches_scheme(uri.scheme) {
-                return Ok(Self::Bip21Uri(Bip21Uri::parse_uri_inner(uri)));
+            if Bip321Uri::matches_scheme(uri.scheme) {
+                return Ok(Self::Bip321Uri(Bip321Uri::parse_uri_inner(uri)));
             }
 
             // ex: "lightning:lnbc1pvjlue..." or
@@ -188,7 +188,7 @@ impl PaymentUri {
     /// "Flatten" the [`PaymentUri`] into its component [`PaymentMethod`]s.
     pub fn flatten(self) -> Vec<PaymentMethod> {
         match self {
-            Self::Bip21Uri(bip21) => bip21.flatten(),
+            Self::Bip321Uri(bip321) => bip321.flatten(),
             Self::LightningUri(lnuri) => lnuri.flatten(),
             Self::Invoice(invoice) => {
                 let mut out = Vec::with_capacity(1);
@@ -255,7 +255,7 @@ impl PaymentUri {
     /// require consuming the `PaymentUri` and flattening.
     pub fn any_usable(&self) -> bool {
         match self {
-            Self::Bip21Uri(uri) => uri.any_usable(),
+            Self::Bip321Uri(uri) => uri.any_usable(),
             Self::LightningUri(uri) => uri.any_usable(),
             Self::Invoice(_) => true,
             Self::Offer(_) => true,
@@ -273,7 +273,7 @@ impl fmt::Display for PaymentUri {
             Self::Invoice(invoice) => Display::fmt(invoice, f),
             Self::Offer(offer) => Display::fmt(offer, f),
             Self::LightningUri(ln_uri) => Display::fmt(ln_uri, f),
-            Self::Bip21Uri(bip21_uri) => Display::fmt(bip21_uri, f),
+            Self::Bip321Uri(bip321_uri) => Display::fmt(bip321_uri, f),
         }
     }
 }
@@ -345,9 +345,9 @@ impl fmt::Display for ParseError {
 /// A single "payment method" -- each kind here should correspond with a single
 /// linear payment flow for a user, where there are no other alternate methods.
 ///
-/// For example, a Unified BTC QR code contains a single [`Bip21Uri`], which may
-/// contain _multiple_ discrete payment methods (an onchain address, a BOLT11
-/// invoice, a BOLT12 offer).
+/// For example, a Unified BTC QR code contains a single [`Bip321Uri`], which
+/// may contain _multiple_ discrete payment methods (an onchain address, a
+/// BOLT11 invoice, a BOLT12 offer).
 #[allow(clippy::large_enum_variant)]
 pub enum PaymentMethod {
     Onchain(Onchain),
@@ -378,7 +378,7 @@ impl PaymentMethod {
 }
 
 /// An onchain payment method, usually parsed from a standalone BTC address or
-/// BIP21 URI.
+/// BIP321 URI.
 #[derive(Debug, Eq, PartialEq)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct Onchain {
@@ -458,8 +458,8 @@ fn parse_onchain_btc_amount(s: &str) -> Option<Amount> {
         .map(|amount| amount.round_sat())
 }
 
-/// A [BIP21](https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki) /
-/// [BIP321](https://github.com/bitcoin/bips/pull/1555/files) URI.
+/// A [BIP321](https://github.com/bitcoin/bips/pull/1555/files) /
+/// [BIP21](https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki) URI
 ///
 /// Wallets are aligning on BIP321 as the standard to encode not just on-chain
 /// payment requests, but also Lightning invoices and offers, slient payments,
@@ -483,8 +483,8 @@ fn parse_onchain_btc_amount(s: &str) -> Option<Amount> {
 /// ```
 #[derive(Debug, Default, Eq, PartialEq)]
 #[cfg_attr(test, derive(Arbitrary))]
-pub struct Bip21Uri {
-    #[cfg_attr(test, proptest(strategy = "test::arb_bip21_addrs()"))]
+pub struct Bip321Uri {
+    #[cfg_attr(test, proptest(strategy = "test::arb_bip321_addrs()"))]
     pub onchain: Vec<bitcoin::Address<NetworkUnchecked>>,
 
     // TODO(phlip9): support multiple invoices?
@@ -509,7 +509,7 @@ pub struct Bip21Uri {
     // TODO(phlip9): "pop" (proof-of-payment) callback param
 }
 
-impl Bip21Uri {
+impl Bip321Uri {
     const URI_SCHEME: &'static str = "bitcoin";
 
     /// See: [`PaymentUri::any_usable`]
@@ -736,7 +736,7 @@ impl Bip21Uri {
         out
     }
 
-    /// "Flatten" the [`Bip21Uri`] into its component [`PaymentMethod`]s.
+    /// "Flatten" the [`Bip321Uri`] into its component [`PaymentMethod`]s.
     fn flatten(self) -> Vec<PaymentMethod> {
         let mut out = Vec::with_capacity(
             self.onchain.len()
@@ -765,7 +765,7 @@ impl Bip21Uri {
     }
 }
 
-impl fmt::Display for Bip21Uri {
+impl fmt::Display for Bip321Uri {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.to_uri(), f)
     }
@@ -1315,10 +1315,10 @@ mod test {
 
     use super::*;
 
-    // Generate a list of BIP21 address to go in a [`Bip21Uri`]. To support
+    // Generate a list of BIP321 address to go in a [`Bip321Uri`]. To support
     // roundtripping, we filter out any P2PKH or P2SH addresses that aren't in
     // the first position.
-    pub(crate) fn arb_bip21_addrs(
+    pub(crate) fn arb_bip321_addrs(
     ) -> impl Strategy<Value = Vec<bitcoin::Address<NetworkUnchecked>>> {
         proptest::collection::vec(any_mainnet_addr_unchecked(), 0..3).prop_map(
             |addrs| {
@@ -1369,7 +1369,7 @@ mod test {
     }
 
     #[test]
-    fn test_bip21_uri_manual() {
+    fn test_bip321_uri_manual() {
         // manual test cases
 
         // just an address
@@ -1377,74 +1377,74 @@ mod test {
             bitcoin::Address::from_str("13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU")
                 .unwrap();
         assert_eq!(
-            Bip21Uri::parse("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU"),
-            Some(Bip21Uri {
+            Bip321Uri::parse("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU"),
+            Some(Bip321Uri {
                 onchain: vec![address.clone()],
-                ..Bip21Uri::default()
+                ..Bip321Uri::default()
             }),
         );
 
         // (proptest regression) funky extra arg
         assert_eq!(
-            Bip21Uri::parse(
+            Bip321Uri::parse(
                 "bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?foo=%aA"
             ),
-            Some(Bip21Uri {
+            Some(Bip321Uri {
                 onchain: vec![address.clone()],
-                ..Bip21Uri::default()
+                ..Bip321Uri::default()
             }),
         );
 
         // weird mixed case `bitcoin:` scheme
         assert_eq!(
-            Bip21Uri::parse(
+            Bip321Uri::parse(
                 "BItCoIn:3Hk4jJkZkzzGe7oKHw8awFBz9YhRcQ4iAV?amount=23.456"
             ),
-            Some(Bip21Uri {
+            Some(Bip321Uri {
                 onchain: vec![bitcoin::Address::from_str(
                     "3Hk4jJkZkzzGe7oKHw8awFBz9YhRcQ4iAV"
                 )
                 .unwrap()],
                 amount: Some(Amount::from_sats_u32(23_4560_0000)),
-                ..Bip21Uri::default()
+                ..Bip321Uri::default()
             }),
         );
 
         // all caps QR code style
         assert_eq!(
-            Bip21Uri::parse(
+            Bip321Uri::parse(
                 "BITCOIN:BC1QFJEYFL9PHSDANZ5YAYLAS3P393MU9Z99YA9MNH?label=Luke%20Jr"
             ),
-            Some(Bip21Uri {
+            Some(Bip321Uri {
                 onchain: vec![
                     bitcoin::Address::from_str("bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh").unwrap(),
                 ],
                 label: Some("Luke Jr".to_owned()),
-                ..Bip21Uri::default()
+                ..Bip321Uri::default()
             }),
         );
 
         // ignore extra param & duplicate param
         assert_eq!(
-            Bip21Uri::parse(
+            Bip321Uri::parse(
                 "bitcoin:bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw?asdf-dfjsijdf=sodifjoisdjf&message=hello%20world&amount=0.00000001&message=ignored"
             ),
-            Some(Bip21Uri {
+            Some(Bip321Uri {
                 onchain: vec![
                     bitcoin::Address::from_str("bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw").unwrap(),
                 ],
                 amount: Some(Amount::from_sats_u32(1)),
                 message: Some("hello world".to_owned()),
-                ..Bip21Uri::default()
+                ..Bip321Uri::default()
             }),
         );
 
         // ignore onchain if unrecognized req- param
         assert_eq!(
-            Bip21Uri::parse(
+            Bip321Uri::parse(
                 "bitcoin:bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw?asdf-dfjsijdf=sodifjoisdjf&req-foo=bar&message=hello%20world&amount=0.00000001&message=ignored"
             ),
-            Some(Bip21Uri::default()),
+            Some(Bip321Uri::default()),
         );
 
         // BOLT12 offer
@@ -1454,41 +1454,41 @@ mod test {
         let offer_str =
             "lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q";
         let offer = LxOffer::from_str(offer_str).unwrap();
-        let expected = Some(Bip21Uri {
+        let expected = Some(Bip321Uri {
             onchain: vec![address.clone()],
             offer: Some(offer.clone()),
-            ..Bip21Uri::default()
+            ..Bip321Uri::default()
         });
         // Support both `lightning=<offer>` and `lno=<offer>` params.
         let actual1 =
-            Bip21Uri::parse(&format!("bitcoin:{address_str}?lno={offer_str}"));
-        let actual2 = Bip21Uri::parse(&format!(
+            Bip321Uri::parse(&format!("bitcoin:{address_str}?lno={offer_str}"));
+        let actual2 = Bip321Uri::parse(&format!(
             "bitcoin:{address_str}?lightning={offer_str}"
         ));
         assert_eq!(actual1, expected);
         assert_eq!(actual2, expected);
     }
 
-    // roundtrip: Bip21Uri -> String -> Bip21Uri
+    // roundtrip: Bip321Uri -> String -> Bip321Uri
     #[test]
-    fn test_bip21_uri_prop_roundtrip() {
-        proptest!(|(uri: Bip21Uri)| {
-            let actual = Bip21Uri::parse(&uri.to_string());
+    fn test_bip321_uri_prop_roundtrip() {
+        proptest!(|(uri: Bip321Uri)| {
+            let actual = Bip321Uri::parse(&uri.to_string());
             prop_assert_eq!(Some(uri), actual);
         });
     }
 
     // appending junk after the `<address>?` should be fine
     #[test]
-    fn test_bip21_uri_prop_append_junk() {
+    fn test_bip321_uri_prop_append_junk() {
         proptest!(|(address in any_mainnet_addr_unchecked(), junk: String)| {
-            let uri = Bip21Uri {
+            let uri = Bip321Uri {
                 onchain: vec![address],
-                ..Bip21Uri::default()
+                ..Bip321Uri::default()
             };
             let uri_str = uri.to_string();
             let uri_str_with_junk = format!("{uri_str}?{junk}");
-            let uri_parsed = Bip21Uri::parse(&uri_str_with_junk).unwrap();
+            let uri_parsed = Bip321Uri::parse(&uri_str_with_junk).unwrap();
 
             prop_assert_eq!(
                 uri.onchain.first().unwrap(),
@@ -1499,8 +1499,8 @@ mod test {
 
     // inserting a `req-` URI param should make us to skip the onchain method
     #[test]
-    fn test_bip21_uri_prop_req_param() {
-        proptest!(|(uri: Bip21Uri, key: String, value: String, param_idx: Index)| {
+    fn test_bip321_uri_prop_req_param() {
+        proptest!(|(uri: Bip321Uri, key: String, value: String, param_idx: Index)| {
 
             let mut uri_raw = uri.to_uri();
             let param_idx = param_idx.index(uri_raw.params.len() + 1);
@@ -1508,8 +1508,8 @@ mod test {
             let param = UriParam { key: key.into(), value: value.into() };
             uri_raw.params.insert(param_idx, param);
 
-            let actual1 = Bip21Uri::parse(&uri_raw.to_string()).unwrap();
-            let actual2 = Bip21Uri::parse_uri(uri_raw).unwrap();
+            let actual1 = Bip321Uri::parse(&uri_raw.to_string()).unwrap();
+            let actual2 = Bip321Uri::parse_uri(uri_raw).unwrap();
             prop_assert_eq!(&actual1, &actual2);
             prop_assert_eq!(
                 Vec::<bitcoin::Address<NetworkUnchecked>>::new(),
@@ -1521,14 +1521,14 @@ mod test {
 
     // support `lightning=<offer>` param
     #[test]
-    fn test_bip21_uri_prop_lightning_offer_param() {
-        proptest!(|(uri: Bip21Uri, offer: LxOffer)| {
+    fn test_bip321_uri_prop_lightning_offer_param() {
+        proptest!(|(uri: Bip321Uri, offer: LxOffer)| {
             let mut uri_raw = uri.to_uri();
             let offer_str = Cow::Owned(offer.to_string());
             let param = UriParam { key: "lightning".into(), value: offer_str };
             uri_raw.params.insert(0, param);
 
-            let actual = Bip21Uri::parse_uri(uri_raw).unwrap();
+            let actual = Bip321Uri::parse_uri(uri_raw).unwrap();
             let mut expected = uri;
             expected.offer = Some(offer);
 
