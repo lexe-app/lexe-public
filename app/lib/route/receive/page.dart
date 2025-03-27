@@ -57,8 +57,10 @@ const double maxPageWidth = targetPagePropWidth * maxViewportWidth;
 
 /// The index of each [PaymentOfferPage] kind in the [PageView].
 const int lnInvoicePageIdx = 0;
-const int lnOfferPageIdx = 1;
-const int btcPageIdx = 2;
+// TODO(phlip9): enable BOLT12
+const int lnOfferPageIdx = 2;
+// const int btcPageIdx = 2;
+const int btcPageIdx = 1;
 
 class ReceivePaymentPage extends StatelessWidget {
   const ReceivePaymentPage({
@@ -135,9 +137,10 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     ValueNotifier(
       const PaymentOffer.unloaded(kind: PaymentOfferKind.lightningInvoice),
     ),
-    ValueNotifier(
-      const PaymentOffer.unloaded(kind: PaymentOfferKind.lightningOffer),
-    ),
+    // TODO(phlip9): enable BOLT12
+    // ValueNotifier(
+    //   const PaymentOffer.unloaded(kind: PaymentOfferKind.lightningOffer),
+    // ),
     ValueNotifier(
       const PaymentOffer.unloaded(kind: PaymentOfferKind.btcAddress),
     ),
@@ -150,8 +153,9 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     // Fetch a new lightning invoice when its inputs change.
     this.lnInvoiceInputs.addListener(this.doFetchLnInvoice);
 
-    // Fetch a new lightning offer when its inputs change.
-    this.lnOfferInputs.addListener(this.doFetchLnOffer);
+    // TODO(phlip9): enable BOLT12
+    // // Fetch a new lightning offer when its inputs change.
+    // this.lnOfferInputs.addListener(this.doFetchLnOffer);
 
     // Fetch a new btc address when certain BTC inputs change.
     this.btcAddrInputs.addListener(this.doFetchBtc);
@@ -160,7 +164,8 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     // address.
 
     unawaited(this.doFetchLnInvoice());
-    unawaited(this.doFetchLnOffer());
+    // TODO(phlip9): enable BOLT12
+    // unawaited(this.doFetchLnOffer());
     unawaited(this.doFetchBtc());
   }
 
