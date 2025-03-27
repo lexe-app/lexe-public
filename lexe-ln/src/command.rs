@@ -1269,7 +1269,8 @@ where
             router,
             &routing_context,
             amount,
-        );
+        )
+        .await;
 
         let error = match max_flow_result {
             Ok(max_flow) => anyhow!(
@@ -1301,7 +1302,8 @@ where
                 router,
                 &routing_context,
                 amount,
-            );
+            )
+            .await;
 
             let error = match max_flow_result {
                 Ok(max_flow) => {

@@ -171,7 +171,7 @@ pub fn build_payment_params(
 //     should fail"
 //  - `max_flow` to a neighbor is just sum of `next_outbound_htlc_limit` over
 //    all channels with this neighbor.
-pub fn compute_max_flow_to_recipient(
+pub async fn compute_max_flow_to_recipient(
     router: &RouterType,
     routing_context: &RoutingContext,
     starting_amount: Amount,
@@ -236,6 +236,10 @@ pub fn compute_max_flow_to_recipient(
             break;
         } else {
             iter += 1;
+
+            // Each route found takes a few seconds.
+            // Yield so that we don't starve other tasks of CPU time.
+            tokio::task::yield_now().await;
         }
     }
 
