@@ -161,6 +161,8 @@ class _SignupCodePageState extends State<SignupCodePage> {
             onEditingComplete: this.onSubmit,
             decoration: baseInputDecoration.copyWith(hintText: "Signup code"),
             obscureText: false,
+            enableSuggestions: false,
+            autocorrect: false,
             style: Fonts.fontUI.copyWith(
               fontSize: Fonts.size700,
               fontVariations: [Fonts.weightMedium],
