@@ -169,7 +169,15 @@ impl PaymentUri {
         }
 
         // ex: "bc1qfjeyfl..."
-        // TODO(phlip9): parse hrp first for better errors
+        if bitcoin::Address::matches_hrp_prefix(s) {
+            return bitcoin::Address::from_str(s)
+                .map(Self::Address)
+                .map_err(ParseError::InvalidBtcAddress);
+        }
+        // The block above only handles modern bech32 segwit+taproot addresses.
+        // We don't have a good way to know ahead of time if this is a legacy
+        // bitcoin address or not, so we just have to try but throw away the
+        // error.
         if let Ok(address) = bitcoin::Address::from_str(s) {
             return Ok(Self::Address(address));
         }
@@ -306,6 +314,7 @@ pub enum ParseError {
     LnurlUnsupported,
     InvalidInvoice(invoice::ParseError),
     InvalidOffer(offer::ParseError),
+    InvalidBtcAddress(bitcoin::address::ParseError),
 }
 
 impl std::error::Error for ParseError {}
@@ -327,6 +336,8 @@ impl fmt::Display for ParseError {
             Self::LnurlUnsupported => write!(f, "LNURL is not supported yet"),
             Self::InvalidInvoice(err) => Display::fmt(err, f),
             Self::InvalidOffer(err) => Display::fmt(err, f),
+            Self::InvalidBtcAddress(err) =>
+                write!(f, "Failed to parse on-chain address: {err}"),
         }
     }
 }
@@ -1110,6 +1121,10 @@ impl Lnurl<'_> {
 }
 
 trait AddressExt {
+    /// Returns `true` if the given string matches any HRP prefix for BTC
+    /// addresses.
+    fn matches_hrp_prefix(s: &str) -> bool;
+
     /// Returns `true` if this address type is supported in a BIP21 URI body.
     fn is_supported_in_uri_body(&self) -> bool;
 
@@ -1119,6 +1134,15 @@ trait AddressExt {
 }
 
 impl AddressExt for bitcoin::Address<NetworkUnchecked> {
+    fn matches_hrp_prefix(s: &str) -> bool {
+        const HRPS: [&[u8]; 3] = [b"bc1", b"tb1", b"bcrt1"];
+        let s = s.as_bytes();
+        HRPS.iter().any(|hrp| match s.split_at_checked(hrp.len()) {
+            Some((prefix, _)) => hrp.eq_ignore_ascii_case(prefix),
+            _ => false,
+        })
+    }
+
     fn is_supported_in_uri_body(&self) -> bool {
         use bitcoin::AddressType::*;
         let address_type = match self.assume_checked_ref().address_type() {
