@@ -266,10 +266,11 @@ hyper-util = { git = "https://github.com/lexe-app/hyper-util", branch = "lexe-v0
 
 # * license: Add dual license information
 # * lightning-invoice: increase max length to 7089
-lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_16" }
-lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_16" }
-lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_16" }
-lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_16" }
+# * router: Don't disable central hops in found paths
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_26" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_26" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_26" }
+lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_03_26" }
 # lightning.path = "../../ldk/lightning"
 # lightning-invoice.path = "../../ldk/lightning-invoice"
 # lightning-transaction-sync.path = "../../ldk/lightning-transaction-sync"
