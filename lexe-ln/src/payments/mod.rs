@@ -47,11 +47,42 @@ pub mod outbound;
 
 // --- The top-level payment type --- //
 
-/// The top level [`Payment`] type which abstracts over all types of payments,
+/// The top level `Payment` type which abstracts over all types of payments,
 /// including both onchain and off-chain (Lightning) payments.
+///
+/// Each variant in `Payment` typically implements a state machine that
+/// ingests events from [`PaymentsManager`] to transition between states in
+/// that payment type's lifecycle.
+///
+/// For example, we create an [`OnchainSend`] payment in its initial state,
+/// `Created`. After we successfully broadcast the tx, the payment transitions
+/// to `Broadcasted`. Once the tx confirms, the payment transitions to
+/// `PartiallyConfirmed`, then `FullyConfirmed` with 6+ confs.
+///
+/// ### State machine idempotency
+///
+/// In certain situations, payment state machines updates have to be idempotent
+/// to handle replays of (1) the latest `EventHandler` event, or, for certain
+/// types of events, (2) any previous (relevant) event.
+///
+/// We experience (1) if the node crashes while the `EventHandler` is
+/// processing a payment event, specifically after the payment update is saved
+/// but before the event log persists. In this case, the event will be replayed
+/// on next startup.
+///
+/// For (2), the `EventHandler` may replay certain events that return a
+/// [`Replay`] error. These will keep getting replayed until the event returns
+/// `Ok` or [`Discard`]. These may even be replayed long after the payment
+/// has finalized.
+///
+/// ### Backwards compatibility
 ///
 /// NOTE: Everything in this enum impls [`Serialize`] and [`Deserialize`], so be
 /// mindful of backwards compatibility.
+///
+/// [`PaymentsManager`]: crate::payments::manager::PaymentsManager
+/// [`Replay`]: crate::event::EventHandleError::Replay
+/// [`Discard`]: crate::event::EventHandleError::Discard
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum Payment {
