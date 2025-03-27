@@ -25,12 +25,13 @@ use common::{
             CreateOfferRequest, CreateOfferResponse, GetAddressResponse,
             GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
             OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentIndexes,
-            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            UpdatePaymentNote,
+            PayOfferRequest, PayOfferResponse, PayOnchainRequest,
+            PayOnchainResponse, PaymentIndexes, PreflightCloseChannelRequest,
+            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
+            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOfferRequest,
+            PreflightPayOfferResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse, UpdatePaymentNote,
         },
         def::{
             AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
@@ -518,6 +519,28 @@ impl AppNodeRunApi for NodeClient {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/create_offer");
+        let req = self.run_rest.post(url, &req);
+        self.run_rest.send(req).await
+    }
+
+    async fn pay_offer(
+        &self,
+        req: PayOfferRequest,
+    ) -> Result<PayOfferResponse, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/pay_offer");
+        let req = self.run_rest.post(url, &req);
+        self.run_rest.send(req).await
+    }
+
+    async fn preflight_pay_offer(
+        &self,
+        req: PreflightPayOfferRequest,
+    ) -> Result<PreflightPayOfferResponse, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/preflight_pay_offer");
         let req = self.run_rest.post(url, &req);
         self.run_rest.send(req).await
     }

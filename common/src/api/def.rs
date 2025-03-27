@@ -42,12 +42,14 @@ use super::{
         CreateOfferRequest, CreateOfferResponse, GetAddressResponse,
         GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
         OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-        PayOnchainRequest, PayOnchainResponse, PaymentIndexStruct,
-        PaymentIndexes, PreflightCloseChannelRequest,
-        PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-        PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-        PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse, UpdatePaymentNote,
+        PayOfferRequest, PayOfferResponse, PayOnchainRequest,
+        PayOnchainResponse, PaymentIndexStruct, PaymentIndexes,
+        PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+        PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+        PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+        PreflightPayOfferRequest, PreflightPayOfferResponse,
+        PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+        UpdatePaymentNote,
     },
     error::{
         BackendApiError, GatewayApiError, LspApiError, NodeApiError,
@@ -484,16 +486,37 @@ pub trait AppNodeRunApi {
 
     /// POST /app/create_offer [`CreateOfferRequest`] -> [`CreateOfferResponse`]
     ///
-    /// Create a new BOLT12 offer.
-    ///
-    /// - Added in `node-v0.7.3`.
+    /// Create a new Lightning offer (BOLT12).
+    //
+    // Added in `node-v0.7.3`.
     async fn create_offer(
         &self,
         req: CreateOfferRequest,
     ) -> Result<CreateOfferResponse, NodeApiError>;
 
-    // TODO(phlip9): BOLT12: /app/pay_offer
-    // TODO(phlip9): BOLT12: /app/preflight_pay_offer
+    /// POST /app/pay_offer [`PayOfferRequest`] -> [`PayOfferResponse`]
+    ///
+    /// Pay a Lightning offer (BOLT12).
+    //
+    // Added in `node-v0.7.4`.
+    async fn pay_offer(
+        &self,
+        req: PayOfferRequest,
+    ) -> Result<PayOfferResponse, NodeApiError>;
+
+    /// POST /app/preflight_pay_offer [`PreflightPayOfferRequest`]
+    ///                               -> [`PreflightPayOfferResponse`]
+    ///
+    /// This endpoint lets the app ask its node to "pre-flight" a Lightning
+    /// offer (BOLT12) payment without going through with the actual payment. We
+    /// verify as much as we can, find a route, and get the fee estimates.
+    //
+    // Added in `node-v0.7.4`.
+    async fn preflight_pay_offer(
+        &self,
+        req: PreflightPayOfferRequest,
+    ) -> Result<PreflightPayOfferResponse, NodeApiError>;
+
     // TODO(phlip9): BOLT12: /app/request_refund
 
     /// POST /app/get_address [`Empty`] -> [`GetAddressResponse`]

@@ -9,12 +9,13 @@ use common::{
             CreateOfferRequest, CreateOfferResponse, GetAddressResponse,
             GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
             OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentIndexes,
-            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            UpdatePaymentNote,
+            PayOfferRequest, PayOfferResponse, PayOnchainRequest,
+            PayOnchainResponse, PaymentIndexes, PreflightCloseChannelRequest,
+            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
+            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOfferRequest,
+            PreflightPayOfferResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse, UpdatePaymentNote,
         },
         error::NodeApiError,
         models::{
@@ -299,6 +300,22 @@ pub(super) async fn create_offer(
         .await
         .map(LxJson)
         .map_err(NodeApiError::command)
+}
+
+pub(super) async fn pay_offer(
+    State(_state): State<Arc<AppRouterState>>,
+    LxJson(_req): LxJson<PayOfferRequest>,
+) -> Result<LxJson<PayOfferResponse>, NodeApiError> {
+    // TODO(phlip9): impl
+    Err(NodeApiError::command("pay_offer not implemented"))
+}
+
+pub(super) async fn preflight_pay_offer(
+    State(_state): State<Arc<AppRouterState>>,
+    LxJson(_req): LxJson<PreflightPayOfferRequest>,
+) -> Result<LxJson<PreflightPayOfferResponse>, NodeApiError> {
+    // TODO(phlip9): impl
+    Err(NodeApiError::command("preflight_pay_offer not implemented"))
 }
 
 pub(super) async fn pay_onchain(

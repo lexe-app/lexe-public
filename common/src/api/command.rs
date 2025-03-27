@@ -200,7 +200,7 @@ pub struct PreflightPayInvoiceResponse {
     /// The total amount to-be-paid for the pre-flighted [`LxInvoice`],
     /// excluding the fees.
     ///
-    /// This value may be different from the value originally requested if some
+    /// This value may be different from the value originally requested if
     /// we had to reach `htlc_minimum_msat` for some intermediate hops.
     pub amount: Amount,
     /// The total amount of fees to-be-paid for the pre-flighted [`LxInvoice`].
@@ -224,6 +224,47 @@ pub struct CreateOfferRequest {
 #[derive(Serialize, Deserialize)]
 pub struct CreateOfferResponse {
     pub offer: LxOffer,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PreflightPayOfferRequest {
+    /// The offer we want to pay.
+    pub offer: LxOffer,
+    /// Specifies the amount we will pay if the offer to be paid is
+    /// amountless. This field must be [`Some`] for amountless offers.
+    pub fallback_amount: Option<Amount>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PreflightPayOfferResponse {
+    /// The total amount to-be-paid for the pre-flighted [`LxOffer`],
+    /// excluding the fees.
+    ///
+    /// This value may be different from the value originally requested if
+    /// we had to reach `htlc_minimum_msat` for some intermediate hops.
+    pub amount: Amount,
+    /// The total amount of fees to-be-paid for the pre-flighted [`LxOffer`].
+    pub fees: Amount,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PayOfferRequest {
+    /// The offer we want to pay.
+    pub offer: LxOffer,
+    /// Specifies the amount we will pay if the offer to be paid is
+    /// amountless. This field must be [`Some`] for amountless offers.
+    pub fallback_amount: Option<Amount>,
+    /// An optional personal note for this payment, useful if the
+    /// receiver-provided description is insufficient.
+    pub note: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PayOfferResponse {
+    /// When the node registered this payment. Used in the [`PaymentIndex`].
+    ///
+    /// [`PaymentIndex`]: crate::ln::payments::PaymentIndex
+    pub created_at: TimestampMs,
 }
 
 // --- On-chain payments --- //

@@ -945,10 +945,12 @@ mod test {
                 CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
                 GetAddressResponse, ListChannelsResponse, NodeInfo,
                 OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-                PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
+                PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+                PayOnchainRequest, PayOnchainResponse,
                 PreflightCloseChannelRequest, PreflightCloseChannelResponse,
                 PreflightOpenChannelRequest, PreflightOpenChannelResponse,
                 PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+                PreflightPayOfferRequest, PreflightPayOfferResponse,
                 PreflightPayOnchainRequest, PreflightPayOnchainResponse,
             },
             error::NodeApiError,
@@ -1054,6 +1056,18 @@ mod test {
             &self,
             _req: CreateOfferRequest,
         ) -> Result<CreateOfferResponse, NodeApiError> {
+            unimplemented!()
+        }
+        async fn pay_offer(
+            &self,
+            _req: PayOfferRequest,
+        ) -> Result<PayOfferResponse, NodeApiError> {
+            unimplemented!()
+        }
+        async fn preflight_pay_offer(
+            &self,
+            _req: PreflightPayOfferRequest,
+        ) -> Result<PreflightPayOfferResponse, NodeApiError> {
             unimplemented!()
         }
         async fn pay_onchain(
