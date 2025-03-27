@@ -88,6 +88,7 @@ pub enum PaymentUri {
     //
     // Bip353Address(Bip353Address),
     // EmailLookingAddress(EmailLookingAddress),
+    // Lnurl(Lnurl),
     //
     //
     // NOTE: adding support for a new URI scheme? Remember to add it in these
@@ -126,6 +127,10 @@ impl PaymentUri {
                 )));
             }
 
+            if Lnurl::matches_scheme(uri.scheme) {
+                return Err(ParseError::LnurlUnsupported);
+            }
+
             return Err(ParseError::BadScheme);
         }
 
@@ -156,6 +161,11 @@ impl PaymentUri {
             return LxOffer::from_str(s)
                 .map(Self::Offer)
                 .map_err(ParseError::InvalidOffer);
+        }
+
+        // ex: "lnurl1dp68g..."
+        if Lnurl::matches_hrp_prefix(s) {
+            return Err(ParseError::LnurlUnsupported);
         }
 
         // ex: "bc1qfjeyfl..."
@@ -293,6 +303,7 @@ pub enum ParseError {
     UnknownCode,
     EmailLookingUnsupported,
     Bip353Unsupported,
+    LnurlUnsupported,
     InvalidInvoice(invoice::ParseError),
     InvalidOffer(offer::ParseError),
 }
@@ -313,6 +324,7 @@ impl fmt::Display for ParseError {
                 "Lightning Addresses and BIP353 are not supported yet"
             ),
             Self::Bip353Unsupported => write!(f, "BIP353 is not supported yet"),
+            Self::LnurlUnsupported => write!(f, "LNURL is not supported yet"),
             Self::InvalidInvoice(err) => Display::fmt(err, f),
             Self::InvalidOffer(err) => Display::fmt(err, f),
         }
@@ -1065,6 +1077,38 @@ impl EmailLookingAddress<'_> {
     }
 }
 
+// TODO(phlip9): support LNURL pay
+struct Lnurl<'a> {
+    _url: &'a str,
+}
+
+impl Lnurl<'_> {
+    // LUD-01: base LNURL bech32 encoding
+    fn matches_hrp_prefix(s: &str) -> bool {
+        const HRP: &[u8; 6] = b"lnurl1";
+        const HRP_LEN: usize = HRP.len();
+        match s.as_bytes().split_first_chunk::<HRP_LEN>() {
+            Some((s_hrp, _)) => s_hrp.eq_ignore_ascii_case(HRP),
+            _ => false,
+        }
+
+        // TODO(phlip9): look for "http(s):" scheme with smuggled "lightning"
+        // query parameter containing bech32 LNURL
+
+        // TODO(phlip9): look for "lightning:" scheme with bech32 LNURL
+    }
+
+    // LUD-17: protocol schemes
+    fn matches_scheme(s: &str) -> bool {
+        s.eq_ignore_ascii_case("lnurl")
+            // LUD-17: fine-grained protocol schemes
+            || s.eq_ignore_ascii_case("lnurlc")
+            || s.eq_ignore_ascii_case("lnurlw")
+            || s.eq_ignore_ascii_case("lnurlp")
+            || s.eq_ignore_ascii_case("keyauth")
+    }
+}
+
 trait AddressExt {
     /// Returns `true` if this address type is supported in a BIP21 URI body.
     fn is_supported_in_uri_body(&self) -> bool;
@@ -1535,7 +1579,7 @@ mod test {
     }
 
     #[test]
-    fn test_email_looking_manual() {
+    fn test_parse_err_manual() {
         assert_eq!(
             PaymentUri::parse("philip@lexe.app"),
             Err(ParseError::EmailLookingUnsupported),
@@ -1543,6 +1587,22 @@ mod test {
         assert_eq!(
             PaymentUri::parse("₿philip@lexe.app"),
             Err(ParseError::Bip353Unsupported),
+        );
+        assert_eq!(
+            PaymentUri::parse("lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns"),
+            Err(ParseError::LnurlUnsupported),
+        );
+        assert_eq!(
+            PaymentUri::parse("lnurl:lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns"),
+            Err(ParseError::LnurlUnsupported),
+        );
+        assert_eq!(
+            PaymentUri::parse("lnurlp:lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns"),
+            Err(ParseError::LnurlUnsupported),
+        );
+        assert_eq!(
+            PaymentUri::parse("lnurlp://lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns"),
+            Err(ParseError::LnurlUnsupported),
         );
     }
 }
