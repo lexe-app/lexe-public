@@ -54,6 +54,9 @@ pub struct OnchainSend {
 pub enum OnchainSendStatus {
     /// (Pending, not broadcasted) The tx has been created and signed but
     /// hasn't been broadcasted yet.
+    //
+    // TODO(phlip9): handle the case where we create a new `OnchainSend` but
+    // crash before we broadcast the tx.
     Created,
 
     /// (Pending, zeroconf) The tx has been broadcasted and is awaiting its
@@ -92,6 +95,8 @@ pub enum OnchainSendStatus {
 }
 
 impl OnchainSend {
+    // Event sources:
+    // - `pay_onchain` API
     pub fn new(tx: Transaction, req: PayOnchainRequest, fees: Amount) -> Self {
         Self {
             cid: req.cid,
@@ -113,6 +118,8 @@ impl OnchainSend {
         LxPaymentId::OnchainSend(self.cid)
     }
 
+    // Event sources:
+    // - `pay_onchain` API
     pub fn broadcasted(
         &self,
         broadcasted_txid: &LxTxid,
@@ -137,6 +144,8 @@ impl OnchainSend {
         Ok(clone)
     }
 
+    // Event sources:
+    // - `PaymentsManager::spawn_onchain_confs_checker` task
     pub(crate) fn check_onchain_conf(
         &self,
         conf_status: TxConfStatus,
@@ -281,6 +290,8 @@ pub enum OnchainReceiveStatus {
 }
 
 impl OnchainReceive {
+    // Event sources:
+    // - `PaymentsManager::spawn_onchain_recv_checker` task
     pub(crate) fn new(tx: Arc<Transaction>, amount: Amount) -> Self {
         Self {
             txid: LxTxid(tx.compute_txid()),
@@ -300,6 +311,8 @@ impl OnchainReceive {
         LxPaymentId::OnchainRecv(self.txid)
     }
 
+    // Event sources:
+    // - `PaymentsManager::spawn_onchain_confs_checker` task
     pub(crate) fn check_onchain_conf(
         &self,
         conf_status: TxConfStatus,

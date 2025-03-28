@@ -99,6 +99,8 @@ pub enum OutboundInvoicePaymentStatus {
 }
 
 impl OutboundInvoicePayment {
+    // Event sources:
+    // - `pay_invoice` API
     pub fn new(
         invoice: LxInvoice,
         route: &Route,
@@ -126,6 +128,9 @@ impl OutboundInvoicePayment {
         LxPaymentId::Lightning(self.hash)
     }
 
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentSent` (replayable)
+    // TODO(phlip9): idempotency audit
     pub(crate) fn check_payment_sent(
         &self,
         hash: LxPaymentHash,
@@ -176,6 +181,10 @@ impl OutboundInvoicePayment {
         Ok(clone)
     }
 
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentFailed` (replayable)
+    // - `pay_invoice` API
+    // TODO(phlip9): idempotency audit
     pub(crate) fn check_payment_failed(
         &self,
         id: LxPaymentId,
@@ -207,6 +216,9 @@ impl OutboundInvoicePayment {
     ///
     /// `unix_duration` is the current time expressed as a [`Duration`] since
     /// the unix epoch.
+    //
+    // Event sources:
+    // - `PaymentsManager::spawn_invoice_expiry_checker` task
     pub(crate) fn check_invoice_expiry(
         &self,
         unix_duration: Duration,

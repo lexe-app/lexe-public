@@ -146,6 +146,9 @@ impl TryFrom<PaymentPurpose> for LxPaymentPurpose {
 // doing lots of ugly matching (at a higher abstraction level), so in this case
 // the separation makes both functions cleaner and easier to read.
 impl Payment {
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
+    // TODO(phlip9): idempotency audit
     pub(crate) fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
@@ -274,6 +277,8 @@ pub enum InboundInvoicePaymentStatus {
 }
 
 impl InboundInvoicePayment {
+    // Event sources:
+    // - `create_invoice` API
     pub fn new(
         invoice: LxInvoice,
         hash: LxPaymentHash,
@@ -302,6 +307,9 @@ impl InboundInvoicePayment {
         LxPaymentId::Lightning(self.hash)
     }
 
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
+    // TODO(phlip9): idempotency audit
     fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
@@ -343,6 +351,9 @@ impl InboundInvoicePayment {
         Ok(clone)
     }
 
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
+    // TODO(phlip9): idempotency audit
     pub(crate) fn check_payment_claimed(
         &self,
         hash: LxPaymentHash,
@@ -398,6 +409,9 @@ impl InboundInvoicePayment {
     ///
     /// `unix_duration` is the current time expressed as a [`Duration`] since
     /// the unix epoch.
+    //
+    // Event sources:
+    // - `PaymentsManager::spawn_invoice_expiry_checker` task
     pub(crate) fn check_invoice_expiry(
         &self,
         unix_duration: Duration,
@@ -474,6 +488,8 @@ pub enum InboundSpontaneousPaymentStatus {
 }
 
 impl InboundSpontaneousPayment {
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     pub(crate) fn new(
         hash: LxPaymentHash,
         preimage: LxPaymentPreimage,
@@ -497,6 +513,9 @@ impl InboundSpontaneousPayment {
         LxPaymentId::Lightning(self.hash)
     }
 
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
+    // TODO(phlip9): idempotency audit
     fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
@@ -518,6 +537,9 @@ impl InboundSpontaneousPayment {
         Ok(self.clone())
     }
 
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
+    // TODO(phlip9): idempotency audit
     pub(crate) fn check_payment_claimed(
         &self,
         hash: LxPaymentHash,

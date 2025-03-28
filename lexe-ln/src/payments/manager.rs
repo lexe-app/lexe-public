@@ -337,6 +337,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// Handles a [`PaymentClaimable`] event.
     ///
     /// [`PaymentClaimable`]: lightning::events::Event::PaymentClaimable
+    //
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
+    // TODO(phlip9): idempotency audit
     #[instrument(skip_all, name = "(payment-claimable)")]
     pub async fn payment_claimable(
         &self,
@@ -422,6 +426,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// Handles a [`PaymentClaimed`] event.
     ///
     /// [`PaymentClaimed`]: lightning::events::Event::PaymentClaimed
+    //
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
+    // TODO(phlip9): idempotency audit
     #[instrument(skip_all, name = "(payment-claimed)")]
     pub async fn payment_claimed(
         &self,
@@ -454,9 +462,13 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         Ok(())
     }
 
-    /// Handles a [`PaymentSent`] event.
+    /// Handles an `EventHandler` -> [`PaymentSent`] event (replayable).
     ///
     /// [`PaymentSent`]: lightning::events::Event::PaymentSent
+    //
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentSent` (replayable)
+    // TODO(phlip9): idempotency audit
     #[instrument(skip_all, name = "(payment-sent)")]
     pub async fn payment_sent(
         &self,
@@ -497,6 +509,11 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// [`pay_invoice`]: crate::command::pay_invoice
     /// [`PaymentSent`]: lightning::events::Event::PaymentSent
     /// [`PaymentFailed`]: lightning::events::Event::PaymentFailed
+    //
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentFailed` (replayable)
+    // - `pay_invoice` API
+    // TODO(phlip9): idempotency audit
     #[instrument(skip_all, name = "(payment-failed)")]
     pub async fn payment_failed(
         &self,
@@ -527,6 +544,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
     /// Times out any pending inbound or outbound invoice payments whose
     /// invoices have expired. This function should be called regularly.
+    //
+    // Event sources:
+    // - `PaymentsManager::spawn_invoice_expiry_checker` task
     #[instrument(skip_all, name = "(check-invoice-expiries)")]
     pub async fn check_invoice_expiries(&self) -> anyhow::Result<()> {
         debug!("Checking invoice expiries");
@@ -573,6 +593,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         debug!(%id, "Registering that an onchain send has been broadcasted");
         let mut locked_data = self.data.lock().await;
 
+        // TODO(phlip9): races with sync after broadcast
         ensure!(
             !locked_data.finalized.contains(id),
             "Onchain send was already finalized",
@@ -781,6 +802,9 @@ impl PaymentsData {
         Ok(CheckedPayment(payment))
     }
 
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
+    // TODO(phlip9): idempotency audit
     fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
@@ -842,6 +866,9 @@ impl PaymentsData {
         Ok(checked)
     }
 
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
+    // TODO(phlip9): idempotency audit
     fn check_payment_claimed(
         &self,
         hash: LxPaymentHash,
@@ -883,6 +910,9 @@ impl PaymentsData {
         Ok(checked)
     }
 
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentSent` (replayable)
+    // TODO(phlip9): idempotency audit
     fn check_payment_sent(
         &self,
         hash: LxPaymentHash,
@@ -914,6 +944,10 @@ impl PaymentsData {
         Ok(checked)
     }
 
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentFailed` (replayable)
+    // - `pay_invoice` API
+    // TODO(phlip9): idempotency audit
     fn check_payment_failed(
         &self,
         id: LxPaymentId,
@@ -949,6 +983,9 @@ impl PaymentsData {
     /// the work (persistence + [`abandon_payment`]) has already been done.
     ///
     /// [`abandon_payment`]: lightning::ln::channelmanager::ChannelManager::abandon_payment
+    //
+    // Event sources:
+    // - `PaymentsManager::spawn_invoice_expiry_checker` task
     fn check_invoice_expiries(
         &self,
         // The current time expressed as a Duration since the unix epoch.
@@ -975,6 +1012,8 @@ impl PaymentsData {
         Ok((all_expired, oip_hashes))
     }
 
+    // Event sources:
+    // - `PaymentsManager::spawn_onchain_confs_checker` task
     fn check_onchain_confs<'id>(
         &self,
         ids: impl Iterator<Item = &'id LxPaymentId>,
