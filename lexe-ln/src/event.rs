@@ -635,6 +635,10 @@ pub fn handle_scorer_update(
 
 /// Handles a [`Event::SpendableOutputs`] by spending any non-static outputs to
 /// our BDK wallet.
+//
+// Event sources:
+// - `EventHandler` -> `Event::SpendableOutputs` (replayable)
+// TODO(phlip9): idempotency audit
 pub async fn handle_spendable_outputs<CM, PS>(
     channel_manager: CM,
     keys_manager: &LexeKeysManager,
@@ -648,6 +652,8 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
+    // TODO(phlip9): idempotency: do nothing if outputs already spent
+
     // The tx only includes a 'change' output, which is actually just a
     // new internal address fetched from our wallet.
     // TODO(max): Maybe we should add another output for privacy?

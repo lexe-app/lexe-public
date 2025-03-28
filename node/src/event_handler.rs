@@ -13,10 +13,12 @@
 //! - In practice, depending on the event kind, sometimes we will handle the
 //!   event 'inline' (without spawning a task), and sometimes we'll persist the
 //!   event in our own queue and handle or replay it later.
-//! - Event handling must be *idempotent*. It must be okay to handle the same
-//!   event twice, since events may be redundantly replayed due to various race
-//!   conditions such as the program crashing before the event is deleted from
-//!   the channel manager / Lexe's own event queue.
+//! - Event handling must be *idempotent* to varying degrees. Events handled
+//!   inline must support that same event getting partially handled and then
+//!   replayed after a crash. Events handled in a task must additionally support
+//!   that same event getting replayed out-of-order and at a potentially much
+//!   later date. See [`NodeEventHandler::get_ldk_handler_future`] for which
+//!   events are handled inline vs in a task.
 //! - The event handler must avoid reentrancy by avoiding direct calls to
 //!   [`ChannelManager::process_pending_events_async`] or
 //!   [`ChainMonitor::process_pending_events_async`]. Otherwise, there may be a
@@ -109,6 +111,10 @@ impl LexeEventHandler for NodeEventHandler {
             // the event. To avoid busylooping and potentially spamming our
             // infrastructure providers, we manage these events in our own
             // queue, and handle event replays with the event replayer task.
+            //
+            // - Take care that `Payment{Claimable,Claimed,Sent,Failed}` events
+            //   are handled idempotently in the `PaymentsManager` and `Payment`
+            //   state machines. See the reqs on `Payment`.
             if let Event::PaymentClaimable { .. }
             | Event::PaymentClaimed { .. }
             | Event::PaymentSent { .. }
@@ -336,6 +342,7 @@ async fn do_handle_event(
             // duplicate payments to single-use offers.
             payment_id: _,
         } => {
+            // NOTE: must be handled idempotently
             ctx.payments_manager
                 .payment_claimable(payment_hash.into(), amount_msat, purpose)
                 .await
@@ -359,6 +366,7 @@ async fn do_handle_event(
             // duplicate payments to single-use offers.
             payment_id: _,
         } => {
+            // NOTE: must be handled idempotently
             ctx.payments_manager
                 .payment_claimed(payment_hash.into(), amount_msat, purpose)
                 .await
@@ -391,6 +399,7 @@ async fn do_handle_event(
             payment_preimage,
             fee_paid_msat,
         } => {
+            // NOTE: Err(Replay) ==> must be handled idempotently
             ctx.payments_manager
                 .payment_sent(
                     payment_hash.into(),
@@ -408,6 +417,7 @@ async fn do_handle_event(
             reason,
             payment_hash,
         } => {
+            // NOTE: Err(Replay) ==> must be handled idempotently
             let reason =
                 reason.unwrap_or(PaymentFailureReason::RetriesExhausted);
             let failure = LxOutboundPaymentFailure::from(reason);
@@ -535,6 +545,7 @@ async fn do_handle_event(
             outputs,
             channel_id,
         } => {
+            // NOTE: Err(Replay) ==> must be handled idempotently
             let channel_id = channel_id.map(LxChannelId::from);
             event::handle_spendable_outputs(
                 ctx.channel_manager.clone(),
