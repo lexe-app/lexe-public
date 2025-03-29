@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use anyhow::{bail, ensure};
+use anyhow::ensure;
 #[cfg(test)]
 use common::test_utils::arbitrary;
 use common::{
@@ -141,9 +141,14 @@ impl OutboundInvoicePayment {
         LxPaymentId::Lightning(self.hash)
     }
 
+    /// Handle a [`PaymentSent`] event for this payment.
+    ///
+    /// ## Precondition
+    ///
+    /// - The payment must not be finalized (Completed | Failed).
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentSent` (replayable)
-    // TODO(phlip9): idempotency audit
     pub(crate) fn check_payment_sent(
         &self,
         hash: LxPaymentHash,
@@ -176,13 +181,18 @@ impl OutboundInvoicePayment {
                 *estimated_fees
             });
 
+        let status = self.status;
         match self.status {
             Pending => (),
-            Abandoning => warn!(
-                %hash,
-                "Attempted to abandon this OIP but it succeeded anyway",
-            ),
-            Completed | Failed => bail!("OIP was already finel"),
+            Abandoning =>
+                warn!("Attempted to abandon this OIP but it succeeded anyway"),
+            Completed | Failed => {
+                let id = LxPaymentId::Lightning(hash);
+                unreachable!(
+                    "caller ensures payment is not already finalized. \
+                     {id} is already {status:?}"
+                );
+            }
         }
 
         let mut clone = self.clone();

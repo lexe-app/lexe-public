@@ -187,13 +187,14 @@ impl fmt::Display for ParseError {
 impl std::error::Error for ParseError {}
 
 #[cfg(any(test, feature = "test-utils"))]
-mod arbitrary_impl {
+pub mod arbitrary_impl {
     use std::time::Duration;
 
     use bitcoin::{
         hashes::{sha256, Hash},
         secp256k1::{self, Message},
     };
+    use byte_array::ByteArray;
     use lightning::{
         routing::router::RouteHint, types::payment::PaymentSecret,
     };
@@ -206,15 +207,21 @@ mod arbitrary_impl {
 
     use super::*;
     use crate::{
+        ln::payments::LxPaymentPreimage,
         rng::{Crng, FastRng},
         root_seed::RootSeed,
         test_utils::arbitrary,
     };
 
+    #[derive(Default)]
+    pub struct LxInvoiceParams {
+        pub payment_preimage: Option<LxPaymentPreimage>,
+    }
+
     impl Arbitrary for LxInvoice {
-        type Parameters = ();
+        type Parameters = LxInvoiceParams;
         type Strategy = BoxedStrategy<Self>;
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             let bytes32 = any::<[u8; 32]>().no_shrink();
 
             let node_key_pair = any::<FastRng>().prop_map(|mut rng| {
@@ -226,7 +233,15 @@ mod arbitrary_impl {
             let timestamp = (0..MAX_TIMESTAMP).prop_map(Duration::from_secs);
 
             let payment_secret = bytes32;
-            let payment_hash = bytes32;
+            // Allow the caller to override the payment preimage. If the caller
+            // overrides the payment preimage, generate the actual payment hash
+            // from that preimage.
+            let payment_hash = bytes32.prop_map(move |bytes| {
+                args.payment_preimage
+                    .map(|preimage| preimage.compute_hash().to_array())
+                    .unwrap_or(bytes)
+            });
+
             let min_final_cltv_expiry_delta = any::<u16>();
             let amount = any::<Option<Amount>>();
             let expiry_duration = arbitrary::any_option_duration();

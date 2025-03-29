@@ -472,8 +472,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentSent` (replayable)
-    // TODO(phlip9): idempotency audit
-    #[instrument(skip_all, name = "(payment-sent)")]
+    #[instrument(skip_all, name = "(payment-sent)", fields(%hash), err)]
     pub async fn payment_sent(
         &self,
         hash: LxPaymentHash,
@@ -481,26 +480,26 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         maybe_fees_paid_msat: Option<u64>,
     ) -> anyhow::Result<()> {
         let maybe_fees_paid = maybe_fees_paid_msat.map(Amount::from_msat);
-        info!(%hash, ?maybe_fees_paid, "Handling PaymentSent");
+        info!(?maybe_fees_paid, "handling PaymentSent");
 
         // Check
         let mut locked_data = self.data.lock().await;
-        let checked = locked_data
+        if let Some(checked) = locked_data
             .check_payment_sent(hash, preimage, maybe_fees_paid)
-            .context("Error validating PaymentSent")?;
+            .context("Error validating PaymentSent")?
+        {
+            // Persist
+            let persisted = self
+                .persister
+                .persist_payment(checked)
+                .await
+                .context("Could not persist payment")?;
 
-        // Persist
-        let persisted = self
-            .persister
-            .persist_payment(checked)
-            .await
-            .context("Could not persist payment")?;
+            // Commit
+            locked_data.commit(persisted);
 
-        // Commit
-        locked_data.commit(persisted);
-
-        info!("Handled PaymentSent");
-        self.test_event_tx.send(TestEvent::PaymentSent);
+            self.test_event_tx.send(TestEvent::PaymentSent);
+        }
         Ok(())
     }
 
@@ -937,27 +936,29 @@ impl PaymentsData {
         Ok(checked)
     }
 
+    /// For idempotency, returns `None` if the payment was already finalized and
+    /// therefore does not need to be re-persisted.
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentSent` (replayable)
-    // TODO(phlip9): idempotency audit
     fn check_payment_sent(
         &self,
         hash: LxPaymentHash,
         preimage: LxPaymentPreimage,
         maybe_fees_paid: Option<Amount>,
-    ) -> anyhow::Result<CheckedPayment> {
+    ) -> anyhow::Result<Option<CheckedPayment>> {
         let id = LxPaymentId::from(hash);
-
-        ensure!(
-            !self.finalized.contains(&id),
-            "Payment was already finalized"
-        );
+        if self.finalized.contains(&id) {
+            warn!("already finalized");
+            return Ok(None);
+        }
 
         let pending_payment = self
             .pending
             .get(&id)
             .context("Pending payment does not exist")?;
 
+        // Precondition: payment is not finalized (Completed | Failed).
         let checked = match pending_payment {
             Payment::OutboundInvoice(oip) => oip
                 .check_payment_sent(hash, preimage, maybe_fees_paid)
@@ -968,7 +969,7 @@ impl PaymentsData {
             _ => bail!("Not an outbound Lightning payment"),
         };
 
-        Ok(checked)
+        Ok(Some(checked))
     }
 
     /// For idempotency, returns `None` if the payment was already finalized and
@@ -992,6 +993,7 @@ impl PaymentsData {
             .get(&id)
             .context("Pending payment does not exist")?;
 
+        // Precondition: payment is not finalized (Completed | Failed).
         let checked = match pending_payment {
             Payment::OutboundInvoice(oip) => oip
                 .check_payment_failed(id, failure)
@@ -1025,6 +1027,7 @@ impl PaymentsData {
             .pending
             .values()
             .filter_map(|payment| match payment {
+                // Precondition: payment is not finalized (Completed | Failed).
                 Payment::InboundInvoice(iip) => iip
                     .check_invoice_expiry(unix_duration)
                     .map(Payment::from)
@@ -1083,16 +1086,19 @@ impl PaymentsData {
 #[cfg(test)]
 mod test {
     use common::{
-        ln::invoice::LxInvoice, rng::FastRng, sat,
+        ln::invoice::{arbitrary_impl::LxInvoiceParams, LxInvoice},
+        rng::FastRng,
+        sat,
         test_utils::arbitrary::gen_value,
+        ByteArray,
     };
-    use proptest::arbitrary::any;
+    use proptest::arbitrary::any_with;
 
     use super::*;
     use crate::payments::outbound::OutboundInvoicePayment;
 
     impl CheckedPayment {
-        fn persisted_unchecked(self) -> PersistedPayment {
+        fn persisted(self) -> PersistedPayment {
             PersistedPayment(self.0)
         }
     }
@@ -1106,46 +1112,151 @@ mod test {
             finalized: HashSet::default(),
         };
 
-        let invoice = gen_value(&mut rng, any::<LxInvoice>());
-        let amount = sat!(2_500);
+        let payment_preimage = LxPaymentPreimage::from_array([0x42; 32]);
+        let invoice = gen_value(
+            &mut rng,
+            any_with::<LxInvoice>(LxInvoiceParams {
+                payment_preimage: Some(payment_preimage),
+            }),
+        );
+
+        let amount = invoice.amount().unwrap_or(sat!(2_500));
         let fees = sat!(2);
         let note = None;
 
-        // New outbound invoice payment
+        // init -> Pending
         let oip_new = Payment::OutboundInvoice(OutboundInvoicePayment::new(
             invoice, amount, fees, note,
         ));
+        let payment_hash = oip_new.invoice().unwrap().payment_hash();
+        let failure = LxOutboundPaymentFailure::NoRetries;
         let id = oip_new.id();
-        data.commit(
-            data.check_new_payment(oip_new)
-                .unwrap()
-                .persisted_unchecked(),
-        );
+        data.commit(data.check_new_payment(oip_new).unwrap().persisted());
 
         // Pending -> Failed
         {
             let mut data = data.clone();
 
             // (Pending, PaymentFailed event) -> Failed
-            data.commit(
-                data.check_payment_failed(
-                    id,
-                    LxOutboundPaymentFailure::NoRetries,
-                )
-                .unwrap()
-                .unwrap()
-                .persisted_unchecked(),
-            );
+            let checked =
+                data.check_payment_failed(id, failure).unwrap().unwrap();
+            data.commit(checked.persisted());
 
             // [Idempotency]
             // (Failed, PaymentFailed event retry) -> do nothing
+            let maybe_checked = data.check_payment_failed(id, failure).unwrap();
+            assert_eq!(None, maybe_checked);
+
+            // [Idempotency]
+            // (Failed, PaymentSent event retry) -> do nothing
             let maybe_checked = data
-                .check_payment_failed(id, LxOutboundPaymentFailure::NoRetries)
+                .check_payment_sent(payment_hash, payment_preimage, Some(fees))
                 .unwrap();
             assert_eq!(None, maybe_checked);
+
+            // [Idempotency]
+            // (Failed, Invoice expires) -> no nothing
+            let (checked_payments, _ids) =
+                data.check_invoice_expiries(Duration::MAX).unwrap();
+            assert_eq!(0, checked_payments.len());
         }
 
-        // TODO(phlip9): invoice expiry
-        // TODO(phlip9): payment sent
+        // Pending -> Completed
+        {
+            let mut data = data.clone();
+
+            // (Pending, PaymentSent event) -> Completed
+            let checked = data
+                .check_payment_sent(payment_hash, payment_preimage, Some(fees))
+                .unwrap()
+                .unwrap();
+            data.commit(checked.persisted());
+
+            // [Idempotency]
+            // (Completed, PaymentSent event retry) -> do nothing
+            let maybe_checked = data
+                .check_payment_sent(payment_hash, payment_preimage, Some(fees))
+                .unwrap();
+            assert_eq!(None, maybe_checked);
+
+            // [Idempotency]
+            // (Completed, PaymentFailed event retry) -> do nothing
+            let maybe_checked = data.check_payment_failed(id, failure).unwrap();
+            assert_eq!(None, maybe_checked);
+
+            // [Idempotency]
+            // (Completed, Invoice expires) -> no nothing
+            let (checked_payments, _ids) =
+                data.check_invoice_expiries(Duration::MAX).unwrap();
+            assert_eq!(0, checked_payments.len());
+        }
+
+        // Pending -> Abandoning
+        {
+            let mut data = data.clone();
+
+            // (Pending, Invoice expires) -> Abandoning
+            let (checked_payments, _ids) =
+                data.check_invoice_expiries(Duration::MAX).unwrap();
+            assert_eq!(1, checked_payments.len());
+            for checked in checked_payments {
+                data.commit(checked.persisted());
+            }
+
+            // [Idempotency]
+            // (Abandoning, Invoice expires) -> no nothing
+            let (checked_payments, _ids) =
+                data.check_invoice_expiries(Duration::MAX).unwrap();
+            assert_eq!(0, checked_payments.len());
+
+            // Abandoning -> Completed
+            {
+                let mut data = data.clone();
+
+                // (Completed, PaymentSent event) -> Completed
+                let checked = data
+                    .check_payment_sent(
+                        payment_hash,
+                        payment_preimage,
+                        Some(fees),
+                    )
+                    .unwrap()
+                    .unwrap();
+                data.commit(checked.persisted());
+
+                // [Idempotency]
+                // (Completed, PaymentFailed event retry) -> do nothing
+                let maybe_checked =
+                    data.check_payment_failed(id, failure).unwrap();
+                assert_eq!(None, maybe_checked);
+            }
+
+            // Abandoning -> Failed
+            {
+                let mut data = data.clone();
+
+                // (Abandoning, PaymentFailed event) -> Failed
+                let checked =
+                    data.check_payment_failed(id, failure).unwrap().unwrap();
+                data.commit(checked.persisted());
+
+                // [Idempotency]
+                // (Failed, PaymentFailed event retry) -> do nothing
+                let maybe_checked =
+                    data.check_payment_failed(id, failure).unwrap();
+                assert_eq!(None, maybe_checked);
+
+                // [Idempotency]
+                // (Failed, PaymentSent event retry) -> do nothing
+                let maybe_checked = data
+                    .check_payment_sent(
+                        payment_hash,
+                        payment_preimage,
+                        Some(fees),
+                    )
+                    .unwrap();
+                assert_eq!(None, maybe_checked);
+            }
+        }
     }
 }
