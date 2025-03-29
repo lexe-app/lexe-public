@@ -66,7 +66,7 @@ use lightning::events::{
     Event, InboundChannelFunds, PaymentFailureReason, ReplayEvent,
 };
 use tokio::sync::mpsc;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 use crate::{
     alias::PaymentsManagerType, channel_manager::NodeChannelManager,
@@ -421,11 +421,9 @@ async fn do_handle_event(
             let reason =
                 reason.unwrap_or(PaymentFailureReason::RetriesExhausted);
             let failure = LxOutboundPaymentFailure::from(reason);
-            warn!("Payment failed: {failure:?}");
             // TODO(max): Remove .expect() for BOLT 12, handle bolt 12 client id
             let hash = payment_hash.expect("Only None for BOLT 12");
             let hash = LxPaymentHash::from(hash);
-            ctx.test_event_tx.send(TestEvent::PaymentFailed);
             ctx.payments_manager
                 .payment_failed(hash.into(), failure)
                 .await

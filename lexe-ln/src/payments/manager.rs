@@ -20,9 +20,11 @@ use common::{
     task::LxTask,
     test_event::TestEvent,
 };
+#[cfg(doc)]
+use lightning::events::Event::PaymentFailed;
 use lightning::{events::PaymentPurpose, ln::channelmanager::FailureCode};
 use tokio::{sync::Mutex, time::Instant};
-use tracing::{debug, error, info, info_span, instrument};
+use tracing::{debug, error, info, info_span, instrument, warn};
 
 use super::outbound::LxOutboundPaymentFailure;
 use crate::{
@@ -48,6 +50,7 @@ const ONCHAIN_PAYMENT_CHECK_DELAY: Duration = Duration::from_secs(2);
 /// successfully validated a proposed state transition. [`CheckedPayment`]s
 /// should be persisted in order to transform into [`PersistedPayment`]s.
 #[must_use]
+#[cfg_attr(test, derive(Debug, Eq, PartialEq))]
 pub struct CheckedPayment(pub Payment);
 
 /// Annotates that a given [`Payment`] was successfully persisted.
@@ -94,6 +97,7 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
 ///
 /// [`create_payment`]: crate::traits::LexeInnerPersister::create_payment
 /// [`persist_payment`]: crate::traits::LexeInnerPersister::persist_payment
+#[cfg_attr(test, derive(Clone))]
 struct PaymentsData {
     pending: HashMap<LxPaymentId, Payment>,
     finalized: HashSet<LxPaymentId>,
@@ -513,32 +517,36 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     // Event sources:
     // - `EventHandler` -> `Event::PaymentFailed` (replayable)
     // - `pay_invoice` API
-    // TODO(phlip9): idempotency audit
-    #[instrument(skip_all, name = "(payment-failed)")]
+    #[instrument(skip_all, name = "(payment-failed)", fields(?failure, %id), err)]
     pub async fn payment_failed(
         &self,
         id: LxPaymentId,
         failure: LxOutboundPaymentFailure,
     ) -> anyhow::Result<()> {
-        info!(%id, "Handling PaymentFailed");
+        warn!("handling PaymentFailed");
 
         // Check
         let mut locked_data = self.data.lock().await;
-        let checked = locked_data
+        if let Some(checked) = locked_data
             .check_payment_failed(id, failure)
-            .context("Error validating PaymentFailed")?;
+            .context("Error validating PaymentFailed")?
+        {
+            // Persist
+            let persisted = self
+                .persister
+                .persist_payment(checked)
+                .await
+                .context("Could not persist payment")?;
 
-        // Persist
-        let persisted = self
-            .persister
-            .persist_payment(checked)
-            .await
-            .context("Could not persist payment")?;
+            // Commit
+            locked_data.commit(persisted);
 
-        // Commit
-        locked_data.commit(persisted);
+            drop(locked_data);
 
-        info!("Handled PaymentFailed");
+            // TODO(phlip9): test event is not the right approach for observing
+            // a payment's status.
+            self.test_event_tx.send(TestEvent::PaymentFailed);
+        }
         Ok(())
     }
 
@@ -761,9 +769,8 @@ impl PaymentsData {
         let payment = persisted.0;
         let id = payment.id();
 
-        if cfg!(debug_assertions) {
-            payment.assert_invariants();
-        }
+        payment.debug_assert_invariants();
+        self.debug_assert_invariants();
 
         match payment.status() {
             PaymentStatus::Pending => {
@@ -773,6 +780,26 @@ impl PaymentsData {
                 self.pending.remove(&id);
                 self.finalized.insert(id);
             }
+        }
+
+        self.debug_assert_invariants();
+    }
+
+    /// Assert invariants about the internal state of the [`PaymentsData`] when
+    /// `cfg!(debug_assertions)` is enabled. This is a no-op in production.
+    fn debug_assert_invariants(&self) {
+        if cfg!(not(debug_assertions)) {
+            return;
+        }
+
+        for (id, payment) in &self.pending {
+            assert_eq!(payment.id(), *id);
+            assert_eq!(payment.status(), PaymentStatus::Pending);
+            payment.debug_assert_invariants();
+        }
+
+        for id in &self.finalized {
+            assert!(!self.pending.contains_key(id));
         }
     }
 
@@ -944,19 +971,21 @@ impl PaymentsData {
         Ok(checked)
     }
 
+    /// For idempotency, returns `None` if the payment was already finalized and
+    /// therefore does not need to be re-persisted.
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentFailed` (replayable)
     // - `pay_invoice` API
-    // TODO(phlip9): idempotency audit
     fn check_payment_failed(
         &self,
         id: LxPaymentId,
         failure: LxOutboundPaymentFailure,
-    ) -> anyhow::Result<CheckedPayment> {
-        ensure!(
-            !self.finalized.contains(&id),
-            "Payment was already finalized"
-        );
+    ) -> anyhow::Result<Option<CheckedPayment>> {
+        if self.finalized.contains(&id) {
+            warn!("already finalized");
+            return Ok(None);
+        }
 
         let pending_payment = self
             .pending
@@ -973,7 +1002,7 @@ impl PaymentsData {
             _ => bail!("Not an outbound Lightning payment"),
         };
 
-        Ok(checked)
+        Ok(Some(checked))
     }
 
     /// Returns all expired invoice payments`*`, as well as the hashes of all
@@ -1048,5 +1077,75 @@ impl PaymentsData {
             })
             .collect::<anyhow::Result<Vec<CheckedPayment>>>()
             .context("Error while checking onchain confs in PaymentsData")
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use common::{
+        ln::invoice::LxInvoice, rng::FastRng, sat,
+        test_utils::arbitrary::gen_value,
+    };
+    use proptest::arbitrary::any;
+
+    use super::*;
+    use crate::payments::outbound::OutboundInvoicePayment;
+
+    impl CheckedPayment {
+        fn persisted_unchecked(self) -> PersistedPayment {
+            PersistedPayment(self.0)
+        }
+    }
+
+    #[test]
+    fn outbound_invoice_payment_idempotency() {
+        let mut rng = FastRng::from_u64(202503281432);
+
+        let mut data = PaymentsData {
+            pending: HashMap::default(),
+            finalized: HashSet::default(),
+        };
+
+        let invoice = gen_value(&mut rng, any::<LxInvoice>());
+        let amount = sat!(2_500);
+        let fees = sat!(2);
+        let note = None;
+
+        // New outbound invoice payment
+        let oip_new = Payment::OutboundInvoice(OutboundInvoicePayment::new(
+            invoice, amount, fees, note,
+        ));
+        let id = oip_new.id();
+        data.commit(
+            data.check_new_payment(oip_new)
+                .unwrap()
+                .persisted_unchecked(),
+        );
+
+        // Pending -> Failed
+        {
+            let mut data = data.clone();
+
+            // (Pending, PaymentFailed event) -> Failed
+            data.commit(
+                data.check_payment_failed(
+                    id,
+                    LxOutboundPaymentFailure::NoRetries,
+                )
+                .unwrap()
+                .unwrap()
+                .persisted_unchecked(),
+            );
+
+            // [Idempotency]
+            // (Failed, PaymentFailed event retry) -> do nothing
+            let maybe_checked = data
+                .check_payment_failed(id, LxOutboundPaymentFailure::NoRetries)
+                .unwrap();
+            assert_eq!(None, maybe_checked);
+        }
+
+        // TODO(phlip9): invoice expiry
+        // TODO(phlip9): payment sent
     }
 }

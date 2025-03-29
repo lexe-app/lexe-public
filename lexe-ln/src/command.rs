@@ -1339,7 +1339,9 @@ where
     let payment_secret = invoice.payment_secret().into();
     let recipient_fields = RecipientOnionFields::secret_only(payment_secret);
 
-    let payment = OutboundInvoicePayment::new(invoice, &route, req.note);
+    let amount = Amount::from_msat(route.get_total_amount());
+    let fees = Amount::from_msat(route.get_total_fees());
+    let payment = OutboundInvoicePayment::new(invoice, amount, fees, req.note);
     Ok(PreflightedPayInvoice {
         payment,
         route_params,

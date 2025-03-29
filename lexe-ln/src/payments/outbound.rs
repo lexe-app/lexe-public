@@ -18,18 +18,16 @@ use lightning::{
     events::Event::{PaymentFailed, PaymentSent},
     events::PaymentPurpose,
     ln::channelmanager::ChannelManager,
-};
-use lightning::{
-    events::PaymentFailureReason, ln::channelmanager::Retry,
     routing::router::Route,
 };
+use lightning::{events::PaymentFailureReason, ln::channelmanager::Retry};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
 #[cfg(doc)]
-use crate::command::pay_invoice;
+use crate::{command::pay_invoice, payments::manager::PaymentsManager};
 
 /// The retry strategy we pass to LDK for outbound Lightning payments.
 pub const OUTBOUND_PAYMENT_RETRY_STRATEGY: Retry = Retry::Attempts(3);
@@ -38,6 +36,13 @@ pub const OUTBOUND_PAYMENT_RETRY_STRATEGY: Retry = Retry::Attempts(3);
 
 /// A 'conventional' outbound payment where we pay an invoice provided to us by
 /// our recipient.
+///
+/// ## Relevant events
+///
+/// - [`pay_invoice`] API
+/// - [`PaymentFailed`] event
+/// - [`PaymentSent`] event
+/// - [`PaymentsManager::check_invoice_expiries`] task
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct OutboundInvoicePayment {
@@ -99,11 +104,19 @@ pub enum OutboundInvoicePaymentStatus {
 }
 
 impl OutboundInvoicePayment {
+    /// Create a new outbound invoice payment.
+    ///
+    /// - `amount` is the total amount paid, excluding fees. May be greater than
+    ///   the invoiced amount if the payer had to reach `htlc_minimum_msat`
+    ///   limits.
+    /// - `fees` is the total Lightning routing fees paid.
+    //
     // Event sources:
     // - `pay_invoice` API
     pub fn new(
         invoice: LxInvoice,
-        route: &Route,
+        amount: Amount,
+        fees: Amount,
         note: Option<String>,
     ) -> Self {
         let hash = invoice.payment_hash();
@@ -113,8 +126,8 @@ impl OutboundInvoicePayment {
             hash,
             secret,
             preimage: None,
-            amount: Amount::from_msat(route.get_total_amount()),
-            fees: Amount::from_msat(route.get_total_fees()),
+            amount,
+            fees,
             status: OutboundInvoicePaymentStatus::Pending,
             failure: None,
             note,
@@ -181,10 +194,15 @@ impl OutboundInvoicePayment {
         Ok(clone)
     }
 
+    /// Handle a [`PaymentFailed`] event for this payment.
+    ///
+    /// ## Precondition
+    ///
+    /// - The payment must not be finalized (Completed | Failed).
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentFailed` (replayable)
     // - `pay_invoice` API
-    // TODO(phlip9): idempotency audit
     pub(crate) fn check_payment_failed(
         &self,
         id: LxPaymentId,
@@ -197,9 +215,13 @@ impl OutboundInvoicePayment {
             "Id doesn't match hash",
         );
 
-        match self.status {
+        let status = self.status;
+        match status {
             Pending | Abandoning => (),
-            Completed | Failed => bail!("OIP was already final"),
+            Completed | Failed => unreachable!(
+                "caller ensures payment is not already finalized. \
+                 {id} is already {status:?}"
+            ),
         }
 
         let mut clone = self.clone();
