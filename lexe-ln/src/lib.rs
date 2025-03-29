@@ -27,6 +27,8 @@ pub mod channel;
 pub mod channel_monitor;
 /// Top level commands that can be initiated by the user.
 pub mod command;
+/// Bitcoin and Lightning-specific constants
+pub mod constants;
 /// Esplora client.
 pub mod esplora;
 /// Event helpers.

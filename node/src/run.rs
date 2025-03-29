@@ -59,12 +59,8 @@ use lightning::{
     chain::{chainmonitor::ChainMonitor, Watch},
     ln::{peer_handler::IgnoringMessageHandler, types::ChannelId},
     routing::{
-        gossip::P2PGossipSync,
-        router::DefaultRouter,
-        scoring::{
-            ProbabilisticScoringDecayParameters,
-            ProbabilisticScoringFeeParameters,
-        },
+        gossip::P2PGossipSync, router::DefaultRouter,
+        scoring::ProbabilisticScoringFeeParameters,
     },
     util::ser::ReadableArgs,
 };
@@ -478,7 +474,7 @@ impl UserNode {
         let scorer = {
             let scorer_bytes = try_scorer_bytes
                 .context("Could not fetch serialized scorer")?;
-            let decay_params = ProbabilisticScoringDecayParameters::default();
+            let decay_params = lexe_ln::constants::LEXE_SCORER_PARAMS;
             let read_args =
                 (decay_params, network_graph.clone(), logger.clone());
             let mut reader = Cursor::new(&scorer_bytes);
