@@ -44,7 +44,10 @@ use common::{
     api::{def::NodeLspApi, user::NodePk},
     cli::LspInfo,
     debug_panic_release_log,
-    ln::{channel::LxChannelId, payments::LxPaymentHash},
+    ln::{
+        channel::LxChannelId,
+        payments::{LnClaimId, LxPaymentHash},
+    },
     notify_once::NotifyOnce,
     rng::{RngExt, ThreadFastRng},
     task::LxTask,
@@ -336,15 +339,19 @@ async fn do_handle_event(
             via_channel_id: _,
             via_user_channel_id: _,
             claim_deadline: _,
-            // We reject duplicate payments for the same payment hash, so this
-            // unique payment id is not useful.
-            // TODO(phlip9): BOLT12: may become relevant for preventing
-            // duplicate payments to single-use offers.
-            payment_id: _,
+            payment_id,
         } => {
+            // TODO(phlip9): unwrap once all replaying PaymentClaimable events
+            // drain in prod.
+            let claim_id = payment_id.map(LnClaimId::from);
             // NOTE: must be handled idempotently
             ctx.payments_manager
-                .payment_claimable(payment_hash.into(), amount_msat, purpose)
+                .payment_claimable(
+                    payment_hash.into(),
+                    claim_id,
+                    amount_msat,
+                    purpose,
+                )
                 .await
                 .context("Error handling PaymentClaimable")
                 // Want to ensure we always claim funds
@@ -360,10 +367,7 @@ async fn do_handle_event(
             // TODO(max): We probably want to use this to get JIT on-chain fees?
             sender_intended_total_msat: _,
             onion_fields: _,
-            // We reject duplicate payments for the same payment hash, so this
-            // unique payment id is not useful.
-            // TODO(phlip9): BOLT12: may become relevant for preventing
-            // duplicate payments to single-use offers.
+            // TODO(phlip9): use this with BOLT12
             payment_id: _,
         } => {
             // NOTE: must be handled idempotently

@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use anyhow::{bail, ensure, Context};
+use anyhow::{anyhow, bail, ensure, Context};
 #[cfg(test)]
 use common::test_utils::arbitrary;
 use common::{
@@ -31,6 +31,31 @@ use tracing::warn;
 #[cfg(doc)]
 use crate::command::create_invoice;
 use crate::payments::{manager::CheckedPayment, Payment};
+
+// --- ClaimableError --- //
+
+/// Errors that can happen while handling a [`PaymentClaimable`] event.
+#[derive(Debug)]
+pub enum ClaimableError {
+    /// A correctness error that should cause the payment to retry so we can
+    /// investigate.
+    Replay(anyhow::Error),
+    /// We may have persisted after [`PaymentClaimable`] but crashed before
+    /// the `channel_manager.claim_funds`. When the event replays, we can
+    /// ignore re-persist but still attempt to reclaim.
+    IgnoreAndReclaim,
+    /// Fail the HTLCs back and tell them it's their fault.
+    FailBackHtlcsTheirFault,
+    /// Persist failed.
+    Persist(anyhow::Error),
+}
+
+impl ClaimableError {
+    #[cfg(test)]
+    pub(crate) fn is_replay(&self) -> bool {
+        matches!(self, Self::Replay(_))
+    }
+}
 
 // --- LxPaymentPurpose --- //
 
@@ -146,33 +171,38 @@ impl TryFrom<PaymentPurpose> for LxPaymentPurpose {
 // doing lots of ugly matching (at a higher abstraction level), so in this case
 // the separation makes both functions cleaner and easier to read.
 impl Payment {
+    /// ## Precondition
+    /// - The payment must not be finalized (`Completed` or `Expired`).
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
-    // TODO(phlip9): idempotency audit
     pub(crate) fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
+        claim_id: Option<LnClaimId>,
         amount: Amount,
         purpose: LxPaymentPurpose,
-    ) -> anyhow::Result<CheckedPayment> {
+    ) -> Result<CheckedPayment, ClaimableError> {
         // TODO(max): Update this
 
-        ensure!(
-            purpose.kind() == self.kind(),
-            "Purpose kind doesn't match payment kind: {purkind} != {paykind}",
-            purkind = purpose.kind(),
-            paykind = self.kind(),
-        );
+        if purpose.kind() != self.kind() {
+            return Err(ClaimableError::Replay(anyhow!(
+                "Purpose kind doesn't match payment kind: {purkind} != {paykind}",
+                purkind = purpose.kind(),
+                paykind = self.kind(),
+            )));
+        }
 
         match (self, purpose) {
             (
                 Self::InboundInvoice(iip),
                 LxPaymentPurpose::Bolt11Invoice { preimage, secret },
             ) => iip
-                .check_payment_claimable(hash, secret, preimage, amount)
+                .check_payment_claimable(
+                    hash, secret, preimage, claim_id, amount,
+                )
                 .map(Payment::from)
-                .map(CheckedPayment)
-                .context("Error claiming inbound invoice payment"),
+                .map(CheckedPayment),
             // TODO(max): Implement for BOLT 12
             // (
             //     Self::Bolt12Offer(b12o),
@@ -206,9 +236,10 @@ impl Payment {
             ) => isp
                 .check_payment_claimable(hash, preimage, amount)
                 .map(Payment::from)
-                .map(CheckedPayment)
-                .context("Error claiming inbound spontaneous payment"),
-            _ => bail!("Not an inbound LN payment, or purpose didn't match"),
+                .map(CheckedPayment),
+            _ => Err(ClaimableError::Replay(anyhow!(
+                "Not an inbound LN payment, or purpose didn't match"
+            ))),
         }
     }
 }
@@ -318,37 +349,96 @@ impl InboundInvoicePayment {
         LxPaymentId::Lightning(self.hash)
     }
 
+    /// ## Precondition
+    /// - The payment must not be finalized (`Completed` or `Expired`).
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
-    // TODO(phlip9): idempotency audit
     fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
         secret: LxPaymentSecret,
         preimage: LxPaymentPreimage,
+        // TODO(phlip9): make non-Option once all replaying Claimable events
+        // drain in prod.
+        claim_id: Option<LnClaimId>,
         amount: Amount,
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self, ClaimableError> {
         use InboundInvoicePaymentStatus::*;
 
-        ensure!(hash == self.hash, "Hashes don't match");
-        ensure!(preimage == self.preimage, "Preimages don't match");
-        ensure!(secret == self.secret, "Secrets don't match");
-        // BOLT11: "A payee: after the timestamp plus expiry has passed: SHOULD
-        // NOT accept a payment."
-        ensure!(!self.invoice.0.is_expired(), "Invoice has already expired");
+        // Payment state machine errors
+        if hash != self.hash {
+            return Err(ClaimableError::Replay(anyhow::anyhow!(
+                "Hashes don't match"
+            )));
+        }
+        if preimage != self.preimage {
+            return Err(ClaimableError::Replay(anyhow::anyhow!(
+                "Preimages don't match"
+            )));
+        }
+        if secret != self.secret {
+            return Err(ClaimableError::Replay(anyhow::anyhow!(
+                "Secrets don't match"
+            )));
+        }
 
-        match self.status {
-            InvoiceGenerated => (),
-            Claiming => warn!("Re-claiming inbound invoice payment"),
-            Completed | Expired => {
-                bail!("Payment already final")
+        // The PaymentClaimable docs have a note that LDK will not stop an
+        // inbound payment from being paid multiple times. We should fail the
+        // payment in this case because:
+        // - This messes up (or significantly complicates) our accounting
+        // - This likely reflects an error on the receiver's part (reusing the
+        //   same invoice for multiple payments, which would allow any nodes
+        //   along the first payment path to steal subsequent payments)
+        // - We should not allow payments to go through, in order to teach users
+        //   that this is not an acceptable way to use lightning, because it is
+        //   not safe. It is not hard to imagine users developing the
+        //   misconception that it is safe to reuse invoices if duplicate
+        //   payments actually do succeed.
+
+        // Fail the HTLCs back if the payer is trying to pay the same invoice
+        // twice, i.e., the same payment hash is paid with a different LnClaimId
+        if let Some(claim_id) = claim_id {
+            if let Some(this_claim_id) = self.claim_id {
+                if this_claim_id != claim_id {
+                    warn!("payer is trying to pay the same payment hash twice");
+                    return Err(ClaimableError::FailBackHtlcsTheirFault);
+                }
             }
         }
 
+        match self.status {
+            InvoiceGenerated => (),
+            // [Idempotency]
+            // We may have persisted after `PaymentClaimable` but crashed before
+            // the `channel_manager.claim_funds`. In the event replay, we can
+            // ignore re-persist but still attempt to reclaim.
+            Claiming => {
+                warn!("claimable on invoice payment that's already claiming");
+                return Err(ClaimableError::IgnoreAndReclaim);
+            }
+            Completed | Expired => unreachable!(
+                "caller ensures payment is not already finalized. \
+                 {id} is already {status:?}",
+                id = self.id(),
+                status = self.status
+            ),
+        }
+
+        // BOLT11: "A payee: after the timestamp plus expiry has passed: SHOULD
+        // NOT accept a payment."
+        // TODO(phlip9): take `now` param for test determinism
+        if self.invoice.is_expired() {
+            // Ignore and let the invoice expiry checker handle this.
+            warn!("claimable on invoice payment after it expired");
+            return Err(ClaimableError::FailBackHtlcsTheirFault);
+        }
+
+        // TODO(phlip9): charge the user for LSP fees on inbound as a skimmed
+        // amount, but only up to the expected fee rate and no more.
         if let Some(invoice_amount) = self.invoice_amount {
             if amount < invoice_amount {
                 warn!("Requested {invoice_amount} but claiming {amount}");
-                // TODO(max): In the future, we might want to bail! instead
             }
         }
 
@@ -356,8 +446,9 @@ impl InboundInvoicePayment {
 
         // Everything ok; return a clone with the updated state
         let mut clone = self.clone();
-        clone.recvd_amount = Some(amount);
         clone.status = InboundInvoicePaymentStatus::Claiming;
+        clone.claim_id = claim_id;
+        clone.recvd_amount = Some(amount);
 
         Ok(clone)
     }
@@ -524,28 +615,49 @@ impl InboundSpontaneousPayment {
         LxPaymentId::Lightning(self.hash)
     }
 
+    /// ## Precondition
+    /// - The payment must not be finalized (`Completed` or `Expired`).
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
-    // TODO(phlip9): idempotency audit
     fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
         preimage: LxPaymentPreimage,
         amount: Amount,
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self, ClaimableError> {
         use InboundSpontaneousPaymentStatus::*;
 
-        ensure!(hash == self.hash, "Hashes don't match");
-        ensure!(amount == self.amount, "Amounts don't match");
-        ensure!(preimage == self.preimage, "Preimages don't match");
-        ensure!(matches!(self.status, Claiming), "Payment already finalized");
+        // Payment state machine errors
+        if hash != self.hash {
+            return Err(ClaimableError::Replay(anyhow::anyhow!(
+                "Hashes don't match"
+            )));
+        }
+        if preimage != self.preimage {
+            return Err(ClaimableError::Replay(anyhow::anyhow!(
+                "Preimages don't match"
+            )));
+        }
+        if amount != self.amount {
+            return Err(ClaimableError::Replay(anyhow::anyhow!(
+                "Amounts don't match"
+            )));
+        }
 
-        // We handled the PaymentClaimable event twice, which should only happen
-        // rarely (requires persistence race). Log a warning to make some noise.
-        warn!("Reclaiming existing spontaneous payment");
+        match self.status {
+            Claiming => (),
+            Completed => unreachable!(
+                "caller ensures payment is not already finalized. \
+                 {id} is already {status:?}",
+                id = self.id(),
+                status = self.status
+            ),
+        }
 
-        // There is no state to update, just return a clone of self.
-        Ok(self.clone())
+        // There is no state to update, but this may be a replay after crash,
+        // so try to reclaim
+        Err(ClaimableError::IgnoreAndReclaim)
     }
 
     // Event sources:

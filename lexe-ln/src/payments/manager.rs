@@ -4,7 +4,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use anyhow::{bail, ensure, Context};
+use anyhow::{anyhow, bail, ensure, Context};
 use bdk_wallet::KeychainKind;
 use common::{
     api::command::UpdatePaymentNote,
@@ -12,7 +12,8 @@ use common::{
         amount::Amount,
         hashes::LxTxid,
         payments::{
-            LxPaymentHash, LxPaymentId, LxPaymentPreimage, PaymentStatus,
+            LnClaimId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
+            PaymentStatus,
         },
     },
     notify,
@@ -26,12 +27,14 @@ use lightning::{events::PaymentPurpose, ln::channelmanager::FailureCode};
 use tokio::{sync::Mutex, time::Instant};
 use tracing::{debug, error, info, info_span, instrument, warn};
 
-use super::outbound::LxOutboundPaymentFailure;
 use crate::{
     esplora::{LexeEsplora, TxConfStatus},
     payments::{
-        inbound::{InboundSpontaneousPayment, LxPaymentPurpose},
+        inbound::{
+            ClaimableError, InboundSpontaneousPayment, LxPaymentPurpose,
+        },
         onchain::OnchainReceive,
+        outbound::LxOutboundPaymentFailure,
         Payment,
     },
     test_event::TestEventSender,
@@ -344,19 +347,25 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
-    // TODO(phlip9): idempotency audit
     #[instrument(skip_all, name = "(payment-claimable)")]
     pub async fn payment_claimable(
         &self,
         hash: LxPaymentHash,
+        // TODO(phlip9): make non-Option once replaying events drain in prod
+        claim_id: Option<LnClaimId>,
         amt_msat: u64,
         purpose: PaymentPurpose,
     ) -> anyhow::Result<()> {
+        // Call one of these before this function returns:
+        // - `channel_manager.claim_funds*`
+        // - `channel_manager.fail_htlc_backwards*`
+
         let amount = Amount::from_msat(amt_msat);
         info!(%amount, %hash, "Handling PaymentClaimable");
-        let purpose = LxPaymentPurpose::try_from(purpose)
-            // The conversion can only fail if the preimage is unknown.
-            .inspect_err(|_| {
+
+        // The conversion can only fail if the preimage is unknown.
+        let purpose =
+            LxPaymentPurpose::try_from(purpose).inspect_err(|_| {
                 self.channel_manager.fail_htlc_backwards_with_reason(
                     &hash.into(),
                     FailureCode::IncorrectOrUnknownPaymentDetails,
@@ -364,45 +373,61 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             })?;
         let preimage = purpose.preimage();
 
-        // Check
-        let mut locked_data = self.data.lock().await;
-        let checked = locked_data
-            .check_payment_claimable(hash, amount, purpose)
-            // If validation failed, permanently fail the HTLC.
-            .inspect_err(|_| {
+        // NOTE: avoid touching the ChannelManager while holding the lock
+        let handle_claimable = || async {
+            let mut locked_data = self.data.lock().await;
+
+            // Check
+            let checked = locked_data
+                .check_payment_claimable(hash, claim_id, amount, purpose)?;
+
+            // Persist
+            let persisted = self
+                .persister
+                .persist_payment(checked)
+                .await
+                .map_err(ClaimableError::Persist)?;
+
+            // Commit
+            locked_data.commit(persisted);
+
+            Ok::<(), ClaimableError>(())
+        };
+
+        // Callback into the channel manager
+        let hash = hash.into();
+        match handle_claimable().await {
+            Ok(()) => {
+                // Everything ok; claim the payment.
+                self.channel_manager.claim_funds(preimage.into());
+                self.test_event_tx.send(TestEvent::PaymentClaimable);
+            }
+            Err(ClaimableError::IgnoreAndReclaim) => {
+                // Maybe we crashed before channel manager could persist;
+                // re-claim the payment.
+                self.channel_manager.claim_funds(preimage.into());
+            }
+            Err(ClaimableError::Replay(e)) => {
                 self.channel_manager.fail_htlc_backwards_with_reason(
-                    &hash.into(),
+                    &hash,
                     FailureCode::IncorrectOrUnknownPaymentDetails,
-                )
-            })
-            .context("Error validating PaymentClaimable")?;
-
-        // Persist
-        let persisted = self
-            .persister
-            .persist_payment(checked)
-            .await
-            // If persistence failed, fail the HTLC with a temporary error so
-            // that the sender can retry at a loter point in time.
-            .inspect_err(|_| {
+                );
+                return Err(e);
+            }
+            Err(ClaimableError::Persist(e)) => {
+                warn!("Failed to persist payment after claimable: {e:#}");
                 self.channel_manager.fail_htlc_backwards_with_reason(
-                    &hash.into(),
+                    &hash,
                     FailureCode::TemporaryNodeFailure,
-                )
-            })
-            .context("Could not persist payment")?;
-
-        // Commit
-        locked_data.commit(persisted);
-
-        // Everything ok; claim the payment
-        // TODO(max): `claim_funds` docs state that we must check that the
-        // amount we received matches our expectation, relevant if
-        // we're receiving payment for e.g. an order of some sort.
-        // Otherwise, we will have given the sender a proof-of-payment
-        // when they did not fulfill the full expected payment.
-        // Implement this once it becomes relevant.
-        self.channel_manager.claim_funds(preimage.into());
+                );
+            }
+            Err(ClaimableError::FailBackHtlcsTheirFault) => {
+                self.channel_manager.fail_htlc_backwards_with_reason(
+                    &hash,
+                    FailureCode::IncorrectOrUnknownPaymentDetails,
+                );
+            }
+        }
 
         // Q: What about if we handle a `PaymentClaimable` event, call
         // claim_funds, handle a `PaymentClaimed` event, then crash before the
@@ -423,7 +448,6 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // called again.
 
         info!("Handled PaymentClaimable");
-        self.test_event_tx.send(TestEvent::PaymentClaimable);
         Ok(())
     }
 
@@ -830,13 +854,13 @@ impl PaymentsData {
 
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
-    // TODO(phlip9): idempotency audit
     fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
+        claim_id: Option<LnClaimId>,
         amount: Amount,
         purpose: LxPaymentPurpose,
-    ) -> anyhow::Result<CheckedPayment> {
+    ) -> Result<CheckedPayment, ClaimableError> {
         let id = LxPaymentId::from(hash);
 
         // The PaymentClaimable docs have a note that LDK will not stop an
@@ -851,30 +875,31 @@ impl PaymentsData {
         //   not safe. It is not hard to imagine users developing the
         //   misconception that it is safe to reuse invoices if duplicate
         //   payments actually do succeed.
-        //
-        // TODO(max): If LDK implements the regeneration of PaymentClaimable
-        // events upon restart, we'll need a way to differentiate between these
-        // regenerated events and duplicate payments to the same invoice.
-        // https://discord.com/channels/915026692102316113/978829624635195422/1085427966986690570
-        ensure!(
-            !self.finalized.contains(&id),
-            "Payment was a duplicate, or was already finalized"
-        );
+        if self.finalized.contains(&id) {
+            warn!("Inbound payment was a duplicate, or was already finalized");
+            // Clear these pending HTLCs (if they still exist) so they don't
+            // stick around until expiration
+            return Err(ClaimableError::FailBackHtlcsTheirFault);
+        }
 
         let maybe_pending_payment = self.pending.get(&id);
 
-        // TODO(max): Implement for BOLT 12
-        let checked = match maybe_pending_payment {
+        // Precondition: payment is not finalized (Completed | Failed).
+        match maybe_pending_payment {
             // Pending payment exists; update it
             Some(pending_payment) => pending_payment
-                .check_payment_claimable(hash, amount, purpose)?,
+                .check_payment_claimable(hash, claim_id, amount, purpose),
             None => match purpose {
                 LxPaymentPurpose::Bolt11Invoice { .. } =>
-                    bail!("Tried to claim non-existent invoice payment"),
+                    Err(ClaimableError::Replay(anyhow!(
+                        "Tried to claim non-existent inbound invoice payment"
+                    ))),
+                // TODO(phlip9): impl BOLT 12
                 LxPaymentPurpose::Bolt12Offer { .. } =>
-                    todo!("TODO(max): Revisit when implementing BOLT 12"),
+                    todo!("TODO(phlip9): Revisit when implementing BOLT 12"),
+                // TODO(phlip9): impl BOLT 12
                 LxPaymentPurpose::Bolt12Refund { .. } =>
-                    todo!("TODO(max): Revisit when implementing BOLT 12"),
+                    todo!("TODO(phlip9): Revisit when implementing BOLT 12"),
                 LxPaymentPurpose::Spontaneous { preimage } => {
                     // We just got a new spontaneous payment!
                     // Create the new payment.
@@ -884,12 +909,10 @@ impl PaymentsData {
 
                     // Validate the new payment.
                     self.check_new_payment(payment)
-                        .context("Error creating new spontaneous payment")?
+                        .map_err(ClaimableError::Replay)
                 }
             },
-        };
-
-        Ok(checked)
+        }
     }
 
     // Event sources:
@@ -1166,13 +1189,12 @@ mod test {
         }
     }
 
-    #[ignore = "TODO(phlip9): failing test. make IIP handling idempotent."]
-    #[allow(unused_must_use)] // TODO(phlip9): remove
     #[test]
     fn prop_inbound_invoice_payment_idempotency() {
         proptest!(|(
             iip in any::<InboundInvoicePayment>(),
             recvd_amount in any::<Amount>(),
+            claim_id in any::<Option<Option<LnClaimId>>>(),
         )| {
             let payment = Payment::InboundInvoice(iip.clone());
             let data = PaymentsData::from_vec(vec![payment.clone()]);
@@ -1184,11 +1206,26 @@ mod test {
                 secret: iip.secret,
             };
 
-            assert!(data.check_new_payment(payment).is_err());
-            data.check_payment_claimable(hash, recvd_amount, purpose.clone())
-                .unwrap();
-            data.check_payment_claimed(hash, recvd_amount, purpose)
-                .unwrap();
+            // Support 3 cases:
+            // 1. same claim_id as the payment
+            // 2. different claim_id from the payment
+            // 3. pre- node-v0.7.0 with no claim_id
+            let claim_id = claim_id.unwrap_or(iip.claim_id);
+
+            prop_assert!(data.check_new_payment(payment).is_err());
+
+            let _ = data.check_payment_claimable(
+                    hash,
+                    claim_id,
+                    recvd_amount,
+                    purpose.clone(),
+                )
+                .inspect_err(|err| assert!(!err.is_replay()));
+
+            // TODO(phlip9): reenable once idempotency is fixed
+            // let _ = data.check_payment_claimed(hash, recvd_amount, purpose)
+            //     .unwrap();
+
             data.check_invoice_expiries(Duration::MAX).unwrap();
         });
     }
