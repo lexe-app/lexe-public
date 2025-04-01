@@ -259,7 +259,7 @@ pub struct InboundInvoicePayment {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
+#[cfg_attr(test, derive(Arbitrary, strum::VariantArray, Hash))]
 pub enum InboundInvoicePaymentStatus {
     /// We generated an invoice, but it hasn't been paid yet.
     InvoiceGenerated,
@@ -568,14 +568,13 @@ impl InboundSpontaneousPayment {
 
 #[cfg(test)]
 mod arb {
-    use arbitrary::any_duration;
+    use arbitrary::{any_duration, any_option_simple_string};
     use common::{
         ln::{
             invoice::arbitrary_impl::LxInvoiceParams,
             payments::{LxPaymentPreimage, PaymentStatus},
         },
         sat,
-        test_utils::arbitrary::any_option_string,
     };
     use proptest::{
         arbitrary::{any, any_with, Arbitrary},
@@ -598,7 +597,7 @@ mod arb {
 
             let recvd_amount = any::<Option<Amount>>();
             let status = any::<InboundInvoicePaymentStatus>();
-            let note = any_option_string();
+            let note = any_option_simple_string();
             let created_at = any::<TimestampMs>();
             let finalized_after = any_duration();
 
@@ -661,7 +660,14 @@ mod arb {
 
 #[cfg(test)]
 mod test {
-    use common::test_utils::roundtrip::json_unit_enum_backwards_compat;
+    use std::collections::HashMap;
+
+    use arbitrary::gen_values;
+    use common::{
+        rng::FastRng,
+        test_utils::{roundtrip::json_unit_enum_backwards_compat, snapshot},
+    };
+    use proptest::arbitrary::any;
 
     use super::*;
 
@@ -677,5 +683,40 @@ mod test {
         json_unit_enum_backwards_compat::<InboundSpontaneousPaymentStatus>(
             expected_ser,
         );
+    }
+
+    #[test]
+    fn inbound_invoice_deser_compat() {
+        let inputs = r#"
+--- InvoiceGenerated
+{"InboundInvoice":{"invoice":"lnbc7363509714019145550p1fh8xlrthp5y0ud564d7780074s2pllju2ap7jns0pfqtta9aku6t8mhwvm0j8qpp576k5h3sgt39apacz2ur7k9p50ghhjnvahmtkwuejp2309nrpwsgssp5p3wwm4cmm3a3j6uwaayhuawqf4lf290md8wjmdhpse8p9785sa3q9qyysgqcqrkyf3yxm6n8qklnqh4e3vud7wnx3rp3759up5kc3dulnvz84a0ws25qp0kh8ayymarg8qjn2cawytgztul68vf8s6zscu4x5jfpu03du2qsql3n0ea","hash":"f6ad4bc6085c4bd0f7025707eb14347a2f794d9dbed76773320aa2f2cc617411","secret":"0c5cedd71bdc7b196b8eef497e75c04d7e9515fb69dd2db6e1864e12f8f48762","preimage":"3338296898b6b57ff4bd3526977fd6bc433e5678779334bc4720239fa34214d4","invoice_amount":"736350971401914.555","recvd_amount":null,"onchain_fees":null,"status":"invoice_generated","note":null,"created_at":2395485827019270500,"finalized_at":null}}
+--- Claiming
+{"InboundInvoice":{"invoice":"lnbcrt14315814875280385750p1jjk2hgxhp59f9glq0mx9xw3yvec466jjrd445rxgefj4h72agwfglale6fkl3spp5q8g0z3rpe2f6tgenkc8e0yymfdvdppt9fvsjj4kweytpz49lvzwssp5e3jdlpgvqm5jy8ffarzp4a8qgqzyrantvefdn0p9navpn88dz82q9q2sqqqqqysgqcqrr48r9yqfteetvkhuv5pc2un4605raj7zdvn055vkkpmpsvl24s04mzcvleg2m6z6mjqw93ndyaw3ufq8j8t2hkkgp60tuhjmh54h2mxygrcyquapr40gs43rad3k3thjnymarjndcl3hhwrvp4dk3vg5027gw4s6z28t596upqmrvl3n0k6hu97p97lhsu73k4jt7yn6wqmcjjxaagggeg8h2s0jxvkgx3qfgzztzuvcsn6y7je33awak9kdsmtlj29aqf25rggt582cc8tx83r0qlnwef6etnzfws9zffd7553yxl2azn5k89fwqj4a4f7tgn5xflm2q60d6zth32h5v9yaa8qyzezgmsfkn7g44gzmn9km7scd0jgm4etgpkhcq2u","hash":"01d0f14461ca93a5a333b60f97909b4b58d085654b212956cec9161154bf609d","secret":"cc64df850c06e9221d29e8c41af4e0400441f66b6652d9bc259f58199ced11d4","preimage":"780a5c91bb7dc7e6dc531cc6fc5560108e00a41b26cb4c5635fffea620589cf6","invoice_amount":"1431581487528038.575","recvd_amount":"631803834701528.778","onchain_fees":null,"status":"claiming","note":null,"created_at":1543439437847952694,"finalized_at":null}}
+--- Expired
+{"InboundInvoice":{"invoice":"lntb14e0n6q4dz9xumhjup3x9j9xw26wpq5563s2dzkcdm0wuck5v35wfk8qj6kxsurz3m9xfg8yj2rwserzpp5yzwmvkcq55hdfrvjhptswwzgpw0lx9jj7s6pwpsp8pgsd885sspqsp5rzvqgh4e767pj5sw82qdy5a8hha92j8wmaa5khtjt2jype525qvs9qyysgqcqre32r9yq2y0jqz9nstk27c7khlytgt8tvffelnxmv3390uc9k9wl487p20sxew42s3m0hq8hpegg3tr5u53n5qdsypndt8h348355z546tprdkn94hlxdgrp9ggnsksqa7e96tl38k8rdggjxhykujewj6u2auydhc5r3dctfvsr4fmq4cj9hjqdgfykv4eqeujlgldu5tlkzwm3zg8gdm67kr6p8hhy63kwt85rxga2ktu4lkmzkf222udt44y37utqrkfe206wlyyu3sq285nms","hash":"209db65b00a52ed48d92b8570738480b9ff31652f4341706013851069cf48402","secret":"1898045eb9f6bc19520e3a80d253a7bdfa5548eedf7b4b5d725aa440e68aa019","preimage":"11ecd0c5af67c11fd03036c91b30a95db2ec97b2dd2ac4b8da39865215ed745a","invoice_amount":null,"recvd_amount":"1549527423313541.737","onchain_fees":null,"status":"expired","note":null,"created_at":5209058120350254120,"finalized_at":9223372036854775807}}
+--- Completed
+{"InboundInvoice":{"invoice":"lntbs575933122507938450p17zdsk3uhp5hkwcx7t29pmgr9a9c2qapr994ag7fn920mz7zvs98nu20wzcgv5spp5yuq7s8fl6j56vga6806en6zvwyq28xyfx75y0v5dtuf9rau3h4gqsp5l4r892flu83tmc5apkvyrcsz5ems5222wc6wyq5m35kmxgx32kss9qyysgqcqypu4jxq8lllllllr9yqgz2dq9lhhxfau7kq0gdvm2trf0kf8th9va2flzrxvcjrwfep0zvaajemp576zdx2jhdktt3cxravhqa5qpjmfdwf49g3vakzf64t0ulppsx5c058rmsmeprtjyq7h976r4grn2mpa03xcp42yw655h4cz9pcauwcrjs6pac02yjg0hy4dy7k6eekd5vpv423u70ypp738zc8m3ze7m56d255vn96n5dugkmww32adexzx9kvk9hy8s46ngx8f6dxc4mxvas5vgptckxsl","hash":"2701e81d3fd4a9a623ba3bf599e84c7100a3988937a847b28d5f1251f791bd50","secret":"fd4672a93fe1e2bde29d0d9841e202a6770a294a7634e2029b8d2db320d155a1","preimage":"1e444fb7d12ca78ef4028adc85fd0e50f4ad51a8c12df6362a68fad4e5f60d39","invoice_amount":"57593312250793.845","recvd_amount":"57593312250793.845","onchain_fees":null,"status":"completed","note":"ZTCC2PqaX1yiZNOhvyaF618obYh0c3lGX3G5aAMf0a87pw420f4O078RKAn53C2E1hMKc1b","created_at":7040449765819823150,"finalized_at":9223372036854775807}}
+"#;
+        for input in snapshot::parse_sample_data(inputs) {
+            let iip: Payment = serde_json::from_str(input).unwrap();
+            let _ = serde_json::to_string(&iip).unwrap();
+        }
+    }
+
+    #[ignore]
+    #[test]
+    fn inbound_invoice_sample_data() {
+        let mut rng = FastRng::from_u64(202503311959);
+        let values = gen_values(&mut rng, any::<InboundInvoicePayment>(), 100);
+
+        // Just give me one per status
+        let values = values
+            .into_iter()
+            .map(|iip| (iip.status, Payment::from(iip)))
+            .collect::<HashMap<_, _>>();
+
+        for iip in values.values() {
+            println!("{}", serde_json::to_string(&iip).unwrap());
+        }
     }
 }
