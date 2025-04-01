@@ -44,7 +44,6 @@ pub const OUTBOUND_PAYMENT_RETRY_STRATEGY: Retry = Retry::Attempts(3);
 /// - [`PaymentSent`] event
 /// - [`PaymentsManager::check_invoice_expiries`] task
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
 pub struct OutboundInvoicePayment {
     /// The invoice given by our recipient which we want to pay.
     // LxInvoice is ~300 bytes, Box to avoid the enum variant lint
@@ -73,7 +72,6 @@ pub struct OutboundInvoicePayment {
     /// invoice description, which might just be an unhelpful 🍆 emoji, the
     /// user has the option to add this note at the time of invoice
     /// payment.
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
     pub note: Option<String>,
     /// When we initiated this payment.
     pub created_at: TimestampMs,
@@ -408,6 +406,108 @@ impl From<PaymentFailureReason> for LxOutboundPaymentFailure {
             InvoiceRequestExpired => Self::InvoiceRequestExpired,
             InvoiceRequestRejected => Self::InvoiceRequestRejected,
             BlindedPathCreationFailed => Self::BlindedPathCreationFailed,
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod arb {
+    use arbitrary::any_duration;
+    use common::{
+        ln::{
+            invoice::arbitrary_impl::LxInvoiceParams,
+            payments::LxPaymentPreimage,
+        },
+        test_utils::arbitrary::any_option_string,
+    };
+    use proptest::{
+        arbitrary::{any, any_with, Arbitrary},
+        strategy::{BoxedStrategy, Just, Strategy},
+    };
+
+    use super::*;
+
+    #[derive(Default)]
+    pub struct OipParams {
+        pub payment_preimage: Option<LxPaymentPreimage>,
+    }
+
+    impl Arbitrary for OutboundInvoicePayment {
+        type Parameters = OipParams;
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            let status = any::<OutboundInvoicePaymentStatus>();
+            let preimage_invoice = any::<LxPaymentPreimage>()
+                .no_shrink()
+                .prop_map(move |preimage| {
+                    args.payment_preimage.unwrap_or(preimage)
+                })
+                .prop_flat_map(|preimage| {
+                    (
+                        Just(preimage),
+                        any_with::<LxInvoice>(LxInvoiceParams {
+                            payment_preimage: Some(preimage),
+                        }),
+                    )
+                });
+
+            let amount = any::<Amount>();
+            let fees = any::<Amount>();
+            let failure = any::<LxOutboundPaymentFailure>();
+            let note = any_option_string();
+            let created_at = any::<TimestampMs>();
+            let finalized_after = any_duration();
+
+            let gen_oip = |(
+                status,
+                preimage_invoice,
+                amount,
+                fees,
+                failure,
+                note,
+                created_at,
+                finalized_after,
+            )| {
+                use OutboundInvoicePaymentStatus::*;
+                let (preimage, invoice): (LxPaymentPreimage, LxInvoice) =
+                    preimage_invoice;
+                let preimage = (status == Completed).then_some(preimage);
+                let hash = invoice.payment_hash();
+                let secret = invoice.payment_secret();
+                let invoice = Box::new(invoice);
+                let failure = (status == Failed).then_some(failure);
+                let created_at: TimestampMs = created_at;
+                let finalized_at = created_at.saturating_add(finalized_after);
+                let finalized_at = matches!(status, Completed | Failed)
+                    .then_some(finalized_at);
+                OutboundInvoicePayment {
+                    invoice,
+                    hash,
+                    secret,
+                    preimage,
+                    amount,
+                    fees,
+                    status,
+                    failure,
+                    note,
+                    created_at,
+                    finalized_at,
+                }
+            };
+
+            (
+                status,
+                preimage_invoice,
+                amount,
+                fees,
+                failure,
+                note,
+                created_at,
+                finalized_after,
+            )
+                .prop_map(gen_oip)
+                .boxed()
         }
     }
 }

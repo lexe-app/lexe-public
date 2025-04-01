@@ -97,7 +97,7 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
 ///
 /// [`create_payment`]: crate::traits::LexeInnerPersister::create_payment
 /// [`persist_payment`]: crate::traits::LexeInnerPersister::persist_payment
-#[cfg_attr(test, derive(Clone))]
+#[cfg_attr(test, derive(Clone, Debug))]
 struct PaymentsData {
     pending: HashMap<LxPaymentId, Payment>,
     finalized: HashSet<LxPaymentId>,
@@ -1084,179 +1084,184 @@ impl PaymentsData {
 }
 
 #[cfg(test)]
-mod test {
-    use common::{
-        ln::invoice::{arbitrary_impl::LxInvoiceParams, LxInvoice},
-        rng::FastRng,
-        sat,
-        test_utils::arbitrary::gen_value,
-        ByteArray,
+mod arb {
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
     };
-    use proptest::arbitrary::any_with;
 
     use super::*;
-    use crate::payments::outbound::OutboundInvoicePayment;
+
+    impl Arbitrary for PaymentsData {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            proptest::collection::vec(any::<Payment>(), 0..10)
+                .prop_map(PaymentsData::from_vec)
+                .boxed()
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use common::ByteArray;
+    use proptest::{
+        arbitrary::{any, any_with},
+        prop_assert, prop_assert_eq, proptest,
+    };
+
+    use super::*;
+    use crate::payments::outbound::{
+        arb::OipParams, OutboundInvoicePayment, OutboundInvoicePaymentStatus,
+    };
+
+    impl PaymentsData {
+        pub(super) fn from_vec(mut payments: Vec<Payment>) -> Self {
+            // Remove duplicates
+            payments.sort_unstable_by_key(Payment::id);
+            payments.dedup_by_key(|p| p.id());
+
+            let num_payments = payments.len();
+            let pending = HashMap::default();
+            let finalized = HashSet::default();
+
+            // Insert all payments into `pending` and `finalized`
+            let mut out = Self { pending, finalized };
+            for payment in payments {
+                out.insert_payment(payment);
+            }
+
+            // Make sure we didn't lose any payments somehow
+            out.debug_assert_invariants();
+            assert_eq!(num_payments, out.pending.len() + out.finalized.len());
+
+            out
+        }
+
+        /// Forcibly insert a payment into the `PaymentsData` without running
+        /// through the full state machine.
+        fn insert_payment(&mut self, payment: Payment) {
+            match payment.status() {
+                PaymentStatus::Pending => {
+                    self.pending.insert(payment.id(), payment);
+                }
+                PaymentStatus::Completed | PaymentStatus::Failed => {
+                    self.finalized.insert(payment.id());
+                }
+            }
+        }
+    }
 
     impl CheckedPayment {
+        /// Assert that a `CheckedPayment` was persisted without actually
+        /// persisting.
         fn persisted(self) -> PersistedPayment {
             PersistedPayment(self.0)
         }
     }
 
     #[test]
-    fn outbound_invoice_payment_idempotency() {
-        let mut rng = FastRng::from_u64(202503281432);
-
-        let mut data = PaymentsData {
-            pending: HashMap::default(),
-            finalized: HashSet::default(),
-        };
-
-        let payment_preimage = LxPaymentPreimage::from_array([0x42; 32]);
-        let invoice = gen_value(
-            &mut rng,
-            any_with::<LxInvoice>(LxInvoiceParams {
-                payment_preimage: Some(payment_preimage),
+    fn prop_outbound_invoice_payment_idempotency() {
+        let preimage = LxPaymentPreimage::from_array([0x42; 32]);
+        proptest!(|(
+            // mut data in any::<PaymentsData>(),
+            oip in any_with::<OutboundInvoicePayment>(OipParams {
+                payment_preimage: Some(preimage),
             }),
-        );
+            failure in any::<LxOutboundPaymentFailure>(),
+        )| {
+            let payment = Payment::OutboundInvoice(oip.clone());
+            let data = PaymentsData::from_vec(vec![payment.clone()]);
+            // TODO(phlip9): fix other Payment arbitrary impls generating
+            // malformed instances that fail `Payment::debug_assert_invariants`.
+            // data.insert_payment(payment.clone());
 
-        let amount = invoice.amount().unwrap_or(sat!(2_500));
-        let fees = sat!(2);
-        let note = None;
+            data.check_payment_sent(oip.hash, preimage, Some(oip.fees))
+                .unwrap();
+            data.check_payment_failed(payment.id(), failure).unwrap();
+            data.check_invoice_expiries(Duration::MAX).unwrap();
+        });
+    }
 
-        // init -> Pending
-        let oip_new = Payment::OutboundInvoice(OutboundInvoicePayment::new(
-            invoice, amount, fees, note,
-        ));
-        let payment_hash = oip_new.invoice().unwrap().payment_hash();
-        let failure = LxOutboundPaymentFailure::NoRetries;
-        let id = oip_new.id();
-        data.commit(data.check_new_payment(oip_new).unwrap().persisted());
+    #[test]
+    fn prop_outbound_invoice_payment() {
+        use OutboundInvoicePaymentStatus::*;
 
-        // Pending -> Failed
-        {
-            let mut data = data.clone();
+        let preimage = LxPaymentPreimage::from_array([0x42; 32]);
+        proptest!(|(
+            oip in any_with::<OutboundInvoicePayment>(OipParams {
+                payment_preimage: Some(preimage),
+            }),
+            failure in any::<LxOutboundPaymentFailure>(),
+        )| {
 
-            // (Pending, PaymentFailed event) -> Failed
-            let checked =
-                data.check_payment_failed(id, failure).unwrap().unwrap();
-            data.commit(checked.persisted());
+            let hash = oip.hash;
+            let fees = oip.fees;
+            let status = oip.status;
 
-            // [Idempotency]
-            // (Failed, PaymentFailed event retry) -> do nothing
-            let maybe_checked = data.check_payment_failed(id, failure).unwrap();
-            assert_eq!(None, maybe_checked);
+            let payment = Payment::OutboundInvoice(oip.clone());
+            let id = payment.id();
+            let data = PaymentsData::from_vec(vec![payment.clone()]);
 
-            // [Idempotency]
-            // (Failed, PaymentSent event retry) -> do nothing
+            // duplicate payment -> Err
+            prop_assert!(data.check_new_payment(payment.clone()).is_err());
+
+            // (_, PaymentSent event) -> _
             let maybe_checked = data
-                .check_payment_sent(payment_hash, payment_preimage, Some(fees))
+                .check_payment_sent(hash, preimage, Some(fees))
                 .unwrap();
-            assert_eq!(None, maybe_checked);
+            match status {
+                Pending | Abandoning => {
+                    let checked = maybe_checked.unwrap();
+                    prop_assert_eq!(PaymentStatus::Completed, checked.0.status());
+                    data.clone().commit(checked.persisted());
+                }
+                // [Idempotency]
+                Completed | Failed => prop_assert_eq!(maybe_checked, None),
+            }
 
-            // [Idempotency]
-            // (Failed, Invoice expires) -> no nothing
-            let (checked_payments, _ids) =
-                data.check_invoice_expiries(Duration::MAX).unwrap();
-            assert_eq!(0, checked_payments.len());
-        }
-
-        // Pending -> Completed
-        {
-            let mut data = data.clone();
-
-            // (Pending, PaymentSent event) -> Completed
-            let checked = data
-                .check_payment_sent(payment_hash, payment_preimage, Some(fees))
-                .unwrap()
+            // (_, PaymentFailed event) -> _
+            let maybe_checked = data.check_payment_failed(id, failure)
                 .unwrap();
-            data.commit(checked.persisted());
+            match status {
+                Pending | Abandoning => {
+                    let checked = maybe_checked.unwrap();
+                    prop_assert_eq!(PaymentStatus::Failed, checked.0.status());
+                    data.clone().commit(checked.persisted());
+                }
+                // [Idempotency]
+                Completed | Failed => prop_assert_eq!(maybe_checked, None),
+            }
 
-            // [Idempotency]
-            // (Completed, PaymentSent event retry) -> do nothing
-            let maybe_checked = data
-                .check_payment_sent(payment_hash, payment_preimage, Some(fees))
+            // (_, Invoice expires) -> _
+            let (mut checked_payments, _ids) = data
+                .check_invoice_expiries(Duration::MAX)
                 .unwrap();
-            assert_eq!(None, maybe_checked);
-
-            // [Idempotency]
-            // (Completed, PaymentFailed event retry) -> do nothing
-            let maybe_checked = data.check_payment_failed(id, failure).unwrap();
-            assert_eq!(None, maybe_checked);
-
-            // [Idempotency]
-            // (Completed, Invoice expires) -> no nothing
-            let (checked_payments, _ids) =
-                data.check_invoice_expiries(Duration::MAX).unwrap();
-            assert_eq!(0, checked_payments.len());
-        }
-
-        // Pending -> Abandoning
-        {
-            let mut data = data.clone();
-
-            // (Pending, Invoice expires) -> Abandoning
-            let (checked_payments, _ids) =
-                data.check_invoice_expiries(Duration::MAX).unwrap();
-            assert_eq!(1, checked_payments.len());
-            for checked in checked_payments {
-                data.commit(checked.persisted());
+            match status {
+                Pending => {
+                    assert_eq!(1, checked_payments.len());
+                    let checked = checked_payments.pop().unwrap();
+                    match &checked.0 {
+                        Payment::OutboundInvoice(oip) =>
+                            prop_assert_eq!(Abandoning, oip.status),
+                        _ => unreachable!(),
+                    }
+                    data.clone().commit(checked.persisted());
+                }
+                // [Idempotency]
+                Abandoning | Completed | Failed =>
+                    prop_assert_eq!(0, checked_payments.len()),
             }
 
             // [Idempotency]
-            // (Abandoning, Invoice expires) -> no nothing
-            let (checked_payments, _ids) =
-                data.check_invoice_expiries(Duration::MAX).unwrap();
-            assert_eq!(0, checked_payments.len());
-
-            // Abandoning -> Completed
-            {
-                let mut data = data.clone();
-
-                // (Completed, PaymentSent event) -> Completed
-                let checked = data
-                    .check_payment_sent(
-                        payment_hash,
-                        payment_preimage,
-                        Some(fees),
-                    )
-                    .unwrap()
-                    .unwrap();
-                data.commit(checked.persisted());
-
-                // [Idempotency]
-                // (Completed, PaymentFailed event retry) -> do nothing
-                let maybe_checked =
-                    data.check_payment_failed(id, failure).unwrap();
-                assert_eq!(None, maybe_checked);
-            }
-
-            // Abandoning -> Failed
-            {
-                let mut data = data.clone();
-
-                // (Abandoning, PaymentFailed event) -> Failed
-                let checked =
-                    data.check_payment_failed(id, failure).unwrap().unwrap();
-                data.commit(checked.persisted());
-
-                // [Idempotency]
-                // (Failed, PaymentFailed event retry) -> do nothing
-                let maybe_checked =
-                    data.check_payment_failed(id, failure).unwrap();
-                assert_eq!(None, maybe_checked);
-
-                // [Idempotency]
-                // (Failed, PaymentSent event retry) -> do nothing
-                let maybe_checked = data
-                    .check_payment_sent(
-                        payment_hash,
-                        payment_preimage,
-                        Some(fees),
-                    )
-                    .unwrap();
-                assert_eq!(None, maybe_checked);
-            }
-        }
+            // (_, Invoice not expired) -> do nothing
+            let expires_at = oip.invoice.expires_at().unwrap().into_duration();
+            let (checked_payments, _ids) = data
+                .check_invoice_expiries(expires_at)
+                .unwrap();
+            prop_assert_eq!(0, checked_payments.len());
+        });
     }
 }
