@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use anyhow::{anyhow, bail, ensure, Context};
+use anyhow::{anyhow, ensure, Context};
 #[cfg(test)]
 use common::test_utils::arbitrary;
 use common::{
@@ -453,9 +453,11 @@ impl InboundInvoicePayment {
         Ok(clone)
     }
 
+    /// ## Precondition
+    /// - The payment must not be finalized (`Completed` or `Expired`).
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
-    // TODO(phlip9): idempotency audit
     pub(crate) fn check_payment_claimed(
         &self,
         hash: LxPaymentHash,
@@ -475,22 +477,24 @@ impl InboundInvoicePayment {
                 // be rare because it requires a channel manager persist race.
                 warn!(
                     "Inbound invoice payment was claimed without a \
-                      corresponding PaymentClaimable event"
+                     corresponding PaymentClaimable event"
                 );
             }
             Claiming => (),
-            Completed => {
-                // We will never claim the same payment twice, so LDK's docs on
-                // PaymentClaimed don't apply here.
-                bail!("Payment already claimed")
+            Completed | Expired => {
+                unreachable!(
+                    "caller ensures payment is not already finalized. \
+                     {id} is already {status:?}",
+                    id = self.id(),
+                    status = self.status
+                );
             }
-            Expired => bail!("Payment already expired"),
         }
 
+        // TODO(phlip9): don't accept underpaying payments
         if let Some(invoice_amount) = self.invoice_amount {
             if amount < invoice_amount {
                 warn!("Requested {invoice_amount} but claimed {amount}");
-                // TODO(max): In the future, we might want to bail! instead
             }
         }
 
@@ -658,9 +662,11 @@ impl InboundSpontaneousPayment {
         Err(ClaimableError::IgnoreAndReclaim)
     }
 
+    /// ## Precondition
+    /// - The payment must not be finalized (`Completed` or `Expired`).
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
-    // TODO(phlip9): idempotency audit
     pub(crate) fn check_payment_claimed(
         &self,
         hash: LxPaymentHash,
@@ -675,7 +681,12 @@ impl InboundSpontaneousPayment {
 
         match self.status {
             Claiming => (),
-            Completed => bail!("Payment already claimed"),
+            Completed => unreachable!(
+                "caller ensures payment is not already finalized. \
+                 {id} is already {status:?}",
+                id = self.id(),
+                status = self.status
+            ),
         }
 
         // TODO(max): In the future, check for on-chain fees here

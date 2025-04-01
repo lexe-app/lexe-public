@@ -457,7 +457,6 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
-    // TODO(phlip9): idempotency audit
     #[instrument(skip_all, name = "(payment-claimed)")]
     pub async fn payment_claimed(
         &self,
@@ -471,22 +470,24 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // Check
         let mut locked_data = self.data.lock().await;
-        let checked = locked_data
+        if let Some(checked) = locked_data
             .check_payment_claimed(hash, amount, purpose)
-            .context("Error validating PaymentClaimed")?;
+            .context("Error validating PaymentClaimed")?
+        {
+            // Persist
+            let persisted = self
+                .persister
+                .persist_payment(checked)
+                .await
+                .context("Could not persist payment")?;
 
-        // Persist
-        let persisted = self
-            .persister
-            .persist_payment(checked)
-            .await
-            .context("Could not persist payment")?;
+            // Commit
+            locked_data.commit(persisted);
 
-        // Commit
-        locked_data.commit(persisted);
-
-        info!("Handled PaymentClaimed");
-        self.test_event_tx.send(TestEvent::PaymentClaimed);
+            // TODO(phlip9): test event is not the right approach for observing
+            // a payment's status.
+            self.test_event_tx.send(TestEvent::PaymentClaimed);
+        }
         Ok(())
     }
 
@@ -522,6 +523,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             // Commit
             locked_data.commit(persisted);
 
+            // TODO(phlip9): test event is not the right approach for observing
+            // a payment's status.
             self.test_event_tx.send(TestEvent::PaymentSent);
         }
         Ok(())
@@ -563,8 +566,6 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
             // Commit
             locked_data.commit(persisted);
-
-            drop(locked_data);
 
             // TODO(phlip9): test event is not the right approach for observing
             // a payment's status.
@@ -876,7 +877,7 @@ impl PaymentsData {
         //   misconception that it is safe to reuse invoices if duplicate
         //   payments actually do succeed.
         if self.finalized.contains(&id) {
-            warn!("Inbound payment was a duplicate, or was already finalized");
+            warn!("already finalized");
             // Clear these pending HTLCs (if they still exist) so they don't
             // stick around until expiration
             return Err(ClaimableError::FailBackHtlcsTheirFault);
@@ -915,27 +916,32 @@ impl PaymentsData {
         }
     }
 
+    /// For idempotency, returns `None` if the payment was already finalized and
+    /// therefore does not need to be re-persisted.
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
-    // TODO(phlip9): idempotency audit
     fn check_payment_claimed(
         &self,
         hash: LxPaymentHash,
         amount: Amount,
         purpose: LxPaymentPurpose,
-    ) -> anyhow::Result<CheckedPayment> {
+    ) -> anyhow::Result<Option<CheckedPayment>> {
         let id = LxPaymentId::from(hash);
 
-        ensure!(
-            !self.finalized.contains(&id),
-            "Payment was already finalized"
-        );
+        // Idempotency: if the payment was already finalized, we don't need to
+        // do anything.
+        if self.finalized.contains(&id) {
+            warn!("already finalized");
+            return Ok(None);
+        }
 
         let pending_payment = self
             .pending
             .get(&id)
             .context("Pending payment does not exist")?;
 
+        // Precondition: payment is not finalized (Completed | Failed).
         let checked = match (pending_payment, purpose) {
             (
                 Payment::InboundInvoice(iip),
@@ -953,10 +959,11 @@ impl PaymentsData {
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error finalizing inbound spontaneous payment")?,
+            // TODO(phlip9): impl BOLT 12
             _ => bail!("Not an inbound LN payment, or purpose didn't match"),
         };
 
-        Ok(checked)
+        Ok(Some(checked))
     }
 
     /// For idempotency, returns `None` if the payment was already finalized and
@@ -971,6 +978,9 @@ impl PaymentsData {
         maybe_fees_paid: Option<Amount>,
     ) -> anyhow::Result<Option<CheckedPayment>> {
         let id = LxPaymentId::from(hash);
+
+        // Idempotency: if the payment was already finalized, we don't need to
+        // do anything.
         if self.finalized.contains(&id) {
             warn!("already finalized");
             return Ok(None);
@@ -1006,6 +1016,8 @@ impl PaymentsData {
         id: LxPaymentId,
         failure: LxOutboundPaymentFailure,
     ) -> anyhow::Result<Option<CheckedPayment>> {
+        // Idempotency: if the payment was already finalized, we don't need to
+        // do anything.
         if self.finalized.contains(&id) {
             warn!("already finalized");
             return Ok(None);
@@ -1193,6 +1205,8 @@ mod test {
     fn prop_inbound_spontaneous_payment_idempotency() {
         proptest!(|(
             isp in any::<InboundSpontaneousPayment>(),
+            // currently does nothing for spontaneous payments, but could catch
+            // an unintended change.
             claim_id in any::<Option<LnClaimId>>(),
         )| {
             let payment = Payment::InboundSpontaneous(isp.clone());
@@ -1204,14 +1218,17 @@ mod test {
 
             prop_assert!(data.check_new_payment(payment).is_err());
 
-            let purpose2 = purpose.clone();
             let _ = data
-                .check_payment_claimable(isp.hash, claim_id, amount, purpose2)
+                .check_payment_claimable(
+                    isp.hash,
+                    claim_id,
+                    amount,
+                    purpose.clone(),
+                )
                 .inspect_err(|err| assert!(!err.is_replay()));
 
-            // TODO(phlip9): reenable once idempotency is fixed
-            // let _ = data.check_payment_claimed(isp.hash, amount, purpose)
-            //     .unwrap();
+            data.check_payment_claimed(isp.hash, amount, purpose)
+                .unwrap();
         });
     }
 
@@ -1240,7 +1257,8 @@ mod test {
 
             prop_assert!(data.check_new_payment(payment).is_err());
 
-            let _ = data.check_payment_claimable(
+            let _ = data
+                .check_payment_claimable(
                     hash,
                     claim_id,
                     recvd_amount,
@@ -1248,9 +1266,8 @@ mod test {
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
 
-            // TODO(phlip9): reenable once idempotency is fixed
-            // let _ = data.check_payment_claimed(hash, recvd_amount, purpose)
-            //     .unwrap();
+            data.check_payment_claimed(hash, recvd_amount, purpose)
+                .unwrap();
 
             data.check_invoice_expiries(Duration::MAX).unwrap();
         });
