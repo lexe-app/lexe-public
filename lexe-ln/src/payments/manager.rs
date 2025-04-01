@@ -1179,17 +1179,28 @@ mod test {
             out
         }
 
-        /// Forcibly insert a payment into the `PaymentsData` without running
+        /// Insert a payment into the `PaymentsData` without running
         /// through the full state machine.
         fn insert_payment(&mut self, payment: Payment) {
+            let id = payment.id();
             match payment.status() {
                 PaymentStatus::Pending => {
-                    self.pending.insert(payment.id(), payment);
+                    self.pending.insert(id, payment);
                 }
                 PaymentStatus::Completed | PaymentStatus::Failed => {
-                    self.finalized.insert(payment.id());
+                    self.finalized.insert(id);
                 }
             }
+        }
+
+        /// Forcibly insert a payment into the `PaymentsData`, removing any
+        /// existing payment with the same ID.
+        fn force_insert_payment(&mut self, payment: Payment) {
+            let id = payment.id();
+            self.pending.remove(&id);
+            self.finalized.remove(&id);
+            self.insert_payment(payment);
+            self.debug_assert_invariants();
         }
     }
 
@@ -1204,13 +1215,15 @@ mod test {
     #[test]
     fn prop_inbound_spontaneous_payment_idempotency() {
         proptest!(|(
+            mut data in any::<PaymentsData>(),
             isp in any::<InboundSpontaneousPayment>(),
             // currently does nothing for spontaneous payments, but could catch
             // an unintended change.
             claim_id in any::<Option<LnClaimId>>(),
         )| {
             let payment = Payment::InboundSpontaneous(isp.clone());
-            let data = PaymentsData::from_vec(vec![payment.clone()]);
+            data.force_insert_payment(payment.clone());
+
             let amount = isp.amount;
             let purpose = LxPaymentPurpose::Spontaneous {
                 preimage: isp.preimage,
@@ -1235,12 +1248,14 @@ mod test {
     #[test]
     fn prop_inbound_invoice_payment_idempotency() {
         proptest!(|(
+            mut data in any::<PaymentsData>(),
             iip in any::<InboundInvoicePayment>(),
             recvd_amount in any::<Amount>(),
             claim_id in any::<Option<Option<LnClaimId>>>(),
         )| {
             let payment = Payment::InboundInvoice(iip.clone());
-            let data = PaymentsData::from_vec(vec![payment.clone()]);
+            data.force_insert_payment(payment.clone());
+
             let recvd_amount = iip.recvd_amount.unwrap_or(recvd_amount);
             let hash = iip.hash;
 
@@ -1277,21 +1292,19 @@ mod test {
     fn prop_outbound_invoice_payment_idempotency() {
         let preimage = LxPaymentPreimage::from_array([0x42; 32]);
         proptest!(|(
-            // mut data in any::<PaymentsData>(),
+            mut data in any::<PaymentsData>(),
             oip in any_with::<OutboundInvoicePayment>(OipParams {
                 payment_preimage: Some(preimage),
             }),
             failure in any::<LxOutboundPaymentFailure>(),
         )| {
             let payment = Payment::OutboundInvoice(oip.clone());
-            let data = PaymentsData::from_vec(vec![payment.clone()]);
-            // TODO(phlip9): fix other Payment arbitrary impls generating
-            // malformed instances that fail `Payment::debug_assert_invariants`.
-            // data.insert_payment(payment.clone());
+            let id = payment.id();
+            data.force_insert_payment(payment);
 
             data.check_payment_sent(oip.hash, preimage, Some(oip.fees))
                 .unwrap();
-            data.check_payment_failed(payment.id(), failure).unwrap();
+            data.check_payment_failed(id, failure).unwrap();
             data.check_invoice_expiries(Duration::MAX).unwrap();
         });
     }
