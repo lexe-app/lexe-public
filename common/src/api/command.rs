@@ -280,10 +280,15 @@ pub struct GetAddressResponse {
 }
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary, Debug))]
 pub struct PayOnchainRequest {
     /// The identifier to use for this payment.
     pub cid: ClientPaymentId,
     /// The address we want to send funds to.
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_mainnet_addr_unchecked()")
+    )]
     pub address: bitcoin::Address<NetworkUnchecked>,
     /// How much Bitcoin we want to send.
     pub amount: Amount,
@@ -292,6 +297,10 @@ pub struct PayOnchainRequest {
     // See LexeEsplora for the conversion to the target number of blocks
     pub priority: ConfirmationPriority,
     /// An optional personal note for this payment.
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_option_string()")
+    )]
     pub note: Option<String>,
 }
 

@@ -2,8 +2,6 @@ use std::sync::Arc;
 
 use anyhow::{bail, ensure};
 use bitcoin::Transaction;
-#[cfg(test)]
-use common::test_utils::arbitrary;
 use common::{
     api::command::PayOnchainRequest,
     ln::{
@@ -14,8 +12,6 @@ use common::{
     },
     time::TimestampMs,
 };
-#[cfg(test)]
-use proptest::strategy::Strategy;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -29,11 +25,9 @@ const ONCHAIN_CONFIRMATION_THRESHOLD: u32 = 6;
 // --- Onchain send --- //
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
 pub struct OnchainSend {
     pub cid: ClientPaymentId,
     pub txid: LxTxid,
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_raw_tx()"))]
     pub tx: Transaction,
     /// The txid of the replacement tx, if one exists.
     pub replacement: Option<LxTxid>,
@@ -43,7 +37,6 @@ pub struct OnchainSend {
     pub status: OnchainSendStatus,
     pub created_at: TimestampMs,
     /// An optional personal note for this payment.
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
     pub note: Option<String>,
     pub finalized_at: Option<TimestampMs>,
 }
@@ -384,13 +377,46 @@ mod arb {
 
     use super::*;
 
+    impl Arbitrary for OnchainSend {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let tx = arbitrary::any_raw_tx();
+            let req = any::<PayOnchainRequest>();
+            let fees = any::<Amount>();
+            let is_broadcasted = proptest::bool::weighted(0.8);
+            let conf_status =
+                proptest::option::weighted(0.8, any::<TxConfStatus>());
+
+            // Generate valid `OnchainSend` instances by actually running
+            // through the state machine.
+            (tx, req, fees, is_broadcasted, conf_status)
+                .prop_map(|(tx, req, fees, is_broadcasted, conf_status)| {
+                    let os = OnchainSend::new(tx, req, fees);
+                    if !is_broadcasted {
+                        return os;
+                    }
+                    let os = os.broadcasted(&os.txid).unwrap();
+                    if let Some(conf_status) = conf_status {
+                        os.check_onchain_conf(conf_status)
+                            .unwrap()
+                            .unwrap_or(os)
+                    } else {
+                        os
+                    }
+                })
+                .boxed()
+        }
+    }
+
     impl Arbitrary for OnchainReceive {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             let tx = arbitrary::any_raw_tx();
             let amount = any::<Amount>();
-            let conf_status = any::<Option<TxConfStatus>>();
+            let conf_status =
+                proptest::option::weighted(0.8, any::<TxConfStatus>());
 
             // Generate valid `OnchainReceive` instances by actually running
             // through the state machine.
