@@ -1190,6 +1190,32 @@ mod test {
     }
 
     #[test]
+    fn prop_inbound_spontaneous_payment_idempotency() {
+        proptest!(|(
+            isp in any::<InboundSpontaneousPayment>(),
+            claim_id in any::<Option<LnClaimId>>(),
+        )| {
+            let payment = Payment::InboundSpontaneous(isp.clone());
+            let data = PaymentsData::from_vec(vec![payment.clone()]);
+            let amount = isp.amount;
+            let purpose = LxPaymentPurpose::Spontaneous {
+                preimage: isp.preimage,
+            };
+
+            prop_assert!(data.check_new_payment(payment).is_err());
+
+            let purpose2 = purpose.clone();
+            let _ = data
+                .check_payment_claimable(isp.hash, claim_id, amount, purpose2)
+                .inspect_err(|err| assert!(!err.is_replay()));
+
+            // TODO(phlip9): reenable once idempotency is fixed
+            // let _ = data.check_payment_claimed(isp.hash, amount, purpose)
+            //     .unwrap();
+        });
+    }
+
+    #[test]
     fn prop_inbound_invoice_payment_idempotency() {
         proptest!(|(
             iip in any::<InboundInvoicePayment>(),

@@ -548,7 +548,6 @@ impl InboundInvoicePayment {
 /// get a [`PaymentClaimable`] event, where the [`PaymentPurpose`] is of the
 /// `SpontaneousPayment` variant.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
 pub struct InboundSpontaneousPayment {
     /// Given by [`PaymentClaimable`] and [`PaymentClaimed`].
     pub hash: LxPaymentHash,
@@ -565,7 +564,6 @@ pub struct InboundSpontaneousPayment {
     /// An optional personal note for this payment. Since there is no way for
     /// users to add the note at the time of receiving an inbound spontaneous
     /// payment, this field can only be added or updated later.
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
     pub note: Option<String>,
     /// When we first learned of this payment via [`PaymentClaimable`].
     pub created_at: TimestampMs,
@@ -776,6 +774,49 @@ mod arb {
                 finalized_after,
             )
                 .prop_map(gen_iip)
+                .boxed()
+        }
+    }
+
+    impl Arbitrary for InboundSpontaneousPayment {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let preimage = any::<LxPaymentPreimage>();
+            let amount = any::<Amount>();
+            let status = any::<InboundSpontaneousPaymentStatus>();
+            let note = any_option_simple_string();
+            let created_at = any::<TimestampMs>();
+            let finalized_after = any_duration();
+
+            (preimage, amount, status, note, created_at, finalized_after)
+                .prop_map(
+                    |(
+                        preimage,
+                        amount,
+                        status,
+                        note,
+                        created_at,
+                        finalized_after,
+                    )| {
+                        InboundSpontaneousPayment {
+                            hash: preimage.compute_hash(),
+                            preimage,
+                            amount,
+                            // TODO(phlip9): it looks like we don't implement
+                            // this yet
+                            onchain_fees: None,
+                            status,
+                            note,
+                            created_at,
+                            finalized_at: PaymentStatus::from(status)
+                                .is_finalized()
+                                .then_some(
+                                    created_at.saturating_add(finalized_after),
+                                ),
+                        }
+                    },
+                )
                 .boxed()
         }
     }
