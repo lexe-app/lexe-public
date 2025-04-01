@@ -453,6 +453,17 @@ pub fn any_mainnet_addr_unchecked(
     any_mainnet_addr().prop_map(|addr| addr.as_unchecked().clone())
 }
 
+/// Generate an on-chain confirmations value that's in a reasonable range more
+/// frequently.
+pub fn any_tx_confs() -> impl Strategy<Value = u32> {
+    prop_oneof![
+        3 => Just(0_u32),
+        3 => 1_u32..=12,
+        3 => 13_u32..=1008,
+        1 => 1009_u32..=u32::MAX,
+    ]
+}
+
 // --- LDK types --- //
 
 pub fn any_onchain_fallback() -> impl Strategy<Value = Fallback> {

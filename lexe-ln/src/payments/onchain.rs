@@ -233,13 +233,8 @@ impl OnchainSend {
 // --- Onchain receive --- //
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
 pub struct OnchainReceive {
     pub txid: LxTxid,
-    #[cfg_attr(
-        test,
-        proptest(strategy = "arbitrary::any_raw_tx().prop_map(Arc::new)")
-    )]
     pub tx: Arc<Transaction>,
     /// The txid of the replacement tx, if one exists.
     pub replacement: Option<LxTxid>,
@@ -248,7 +243,6 @@ pub struct OnchainReceive {
     pub created_at: TimestampMs,
     /// An optional personal note for this payment. Is set to [`None`] when the
     /// payment is first detected, but the user can add or modify it later.
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
     pub note: Option<String>,
     pub finalized_at: Option<TimestampMs>,
 }
@@ -376,6 +370,42 @@ impl OnchainReceive {
                 .map(|txin| txin.previous_output)
                 .collect(),
             created_at: self.created_at.into(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod arb {
+    use common::test_utils::arbitrary;
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
+    };
+
+    use super::*;
+
+    impl Arbitrary for OnchainReceive {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let tx = arbitrary::any_raw_tx();
+            let amount = any::<Amount>();
+            let conf_status = any::<Option<TxConfStatus>>();
+
+            // Generate valid `OnchainReceive` instances by actually running
+            // through the state machine.
+            (tx, amount, conf_status)
+                .prop_map(|(tx, amount, conf_status)| {
+                    let orp = OnchainReceive::new(Arc::new(tx), amount);
+                    if let Some(conf_status) = conf_status {
+                        orp.check_onchain_conf(conf_status)
+                            .unwrap()
+                            .unwrap_or(orp)
+                    } else {
+                        orp
+                    }
+                })
+                .boxed()
         }
     }
 }

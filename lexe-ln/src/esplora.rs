@@ -70,6 +70,7 @@ pub struct TxConfQuery {
 }
 
 /// The possible confirmation statuses of a given [`bitcoin::Transaction`].
+#[cfg_attr(test, derive(Debug))]
 pub enum TxConfStatus {
     /// The tx has not been included in a block, or the containing block has
     /// been orphaned.
@@ -493,6 +494,41 @@ impl LexeEsplora {
 
         // The tx is fresh, with no confs or replacements. It is simply 0-conf.
         Ok(TxConfStatus::ZeroConf)
+    }
+}
+
+#[cfg(test)]
+mod arb {
+    use common::test_utils::arbitrary;
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
+    };
+
+    use super::*;
+
+    impl Arbitrary for TxConfStatus {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let confs = arbitrary::any_tx_confs();
+            let rp_txid = proptest::option::weighted(0.2, any::<LxTxid>());
+            let is_dropped = proptest::bool::weighted(0.2);
+
+            (confs, rp_txid, is_dropped)
+                .prop_map(|(confs, rp_txid, is_dropped)| {
+                    if confs == 0 {
+                        TxConfStatus::ZeroConf
+                    } else if let Some(rp_txid) = rp_txid {
+                        TxConfStatus::HasReplacement { confs, rp_txid }
+                    } else if is_dropped {
+                        TxConfStatus::Dropped
+                    } else {
+                        TxConfStatus::InBestChain { confs }
+                    }
+                })
+                .boxed()
+        }
     }
 }
 
