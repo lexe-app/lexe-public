@@ -283,7 +283,6 @@ impl OutboundInvoicePayment {
 
 /// An outbound spontaneous (`keysend`) payment.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
 pub struct OutboundSpontaneousPayment {
     /// The hash of this payment.
     pub hash: LxPaymentHash,
@@ -300,7 +299,6 @@ pub struct OutboundSpontaneousPayment {
     /// An optional personal note for this payment. Since there is no invoice
     /// description field, the user has the option to set this at payment
     /// creation time.
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
     pub note: Option<String>,
     /// When we initiated this payment.
     pub created_at: TimestampMs,
@@ -503,6 +501,60 @@ pub(crate) mod arb {
                 finalized_after,
             )
                 .prop_map(gen_oip)
+                .boxed()
+        }
+    }
+
+    impl Arbitrary for OutboundSpontaneousPayment {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            use OutboundSpontaneousPaymentStatus::*;
+            let preimage = any::<LxPaymentPreimage>();
+            let amount = any::<Amount>();
+            let fees = any::<Amount>();
+            let status = any::<OutboundSpontaneousPaymentStatus>();
+            let note = any_option_string();
+            let created_at = any::<TimestampMs>();
+            let finalized_after = any_duration();
+
+            let gen_osp = |(
+                preimage,
+                amount,
+                fees,
+                status,
+                note,
+                created_at,
+                finalized_after,
+            )| {
+                let preimage: LxPaymentPreimage = preimage;
+                let hash = preimage.compute_hash();
+                let created_at: TimestampMs = created_at;
+                let finalized_at = matches!(status, Completed | Failed)
+                    .then_some(created_at.saturating_add(finalized_after));
+                OutboundSpontaneousPayment {
+                    hash,
+                    preimage,
+                    amount,
+                    fees,
+                    status,
+                    note,
+                    created_at,
+                    finalized_at,
+                }
+            };
+
+            (
+                preimage,
+                amount,
+                fees,
+                status,
+                note,
+                created_at,
+                finalized_after,
+            )
+                .prop_map(gen_osp)
                 .boxed()
         }
     }
