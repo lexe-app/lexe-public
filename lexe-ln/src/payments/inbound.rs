@@ -218,7 +218,6 @@ impl Payment {
 /// A 'conventional' inbound payment which is facilitated by an invoice.
 /// This struct is created when we call [`create_invoice`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
 pub struct InboundInvoicePayment {
     /// Created in [`create_invoice`].
     // LxInvoice is ~300 bytes, Box to avoid the enum variant lint
@@ -251,7 +250,6 @@ pub struct InboundInvoicePayment {
     /// creation time this field is not exposed to the user and is simply
     /// initialized to [`None`]. Useful primarily if a user wants to update
     /// their note later.
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
     pub note: Option<String>,
     /// When we created the invoice for this payment.
     pub created_at: TimestampMs,
@@ -565,6 +563,99 @@ impl InboundSpontaneousPayment {
         clone.finalized_at = Some(TimestampMs::now());
 
         Ok(clone)
+    }
+}
+
+#[cfg(test)]
+mod arb {
+    use arbitrary::any_duration;
+    use common::{
+        ln::{
+            invoice::arbitrary_impl::LxInvoiceParams,
+            payments::{LxPaymentPreimage, PaymentStatus},
+        },
+        sat,
+        test_utils::arbitrary::any_option_string,
+    };
+    use proptest::{
+        arbitrary::{any, any_with, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
+    };
+
+    use super::*;
+
+    impl Arbitrary for InboundInvoicePayment {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let preimage = any::<LxPaymentPreimage>();
+            let preimage_invoice = preimage.prop_ind_flat_map2(|preimage| {
+                any_with::<LxInvoice>(LxInvoiceParams {
+                    payment_preimage: Some(preimage),
+                })
+            });
+
+            let recvd_amount = any::<Option<Amount>>();
+            let status = any::<InboundInvoicePaymentStatus>();
+            let note = any_option_string();
+            let created_at = any::<TimestampMs>();
+            let finalized_after = any_duration();
+
+            let gen_iip = |(
+                preimage_invoice,
+                recvd_amount,
+                status,
+                note,
+                created_at,
+                finalized_after,
+            )| {
+                use InboundInvoicePaymentStatus::*;
+                let (preimage, invoice): (LxPaymentPreimage, LxInvoice) =
+                    preimage_invoice;
+                let hash = invoice.payment_hash();
+                let secret = invoice.payment_secret();
+                let invoice_amount = invoice.amount();
+                let recvd_amount: Option<Amount> = recvd_amount;
+                let recvd_amount = match status {
+                    InvoiceGenerated => None,
+                    Claiming | Completed => Some(
+                        recvd_amount
+                            .or(invoice_amount)
+                            // handle amount-less invoice
+                            .unwrap_or(sat!(1_234)),
+                    ),
+                    Expired => recvd_amount,
+                };
+                InboundInvoicePayment {
+                    invoice: Box::new(invoice),
+                    hash,
+                    secret,
+                    preimage,
+                    invoice_amount,
+                    recvd_amount,
+                    // TODO(phlip9): it looks like we don't implement this yet
+                    onchain_fees: None,
+                    status,
+                    note,
+                    created_at,
+                    finalized_at: PaymentStatus::from(status)
+                        .is_finalized()
+                        .then_some(created_at.saturating_add(finalized_after)),
+                }
+            };
+
+            (
+                preimage_invoice,
+                recvd_amount,
+                status,
+                note,
+                created_at,
+                finalized_after,
+            )
+                .prop_map(gen_iip)
+                .boxed()
+        }
     }
 }
 

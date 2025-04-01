@@ -1113,8 +1113,12 @@ mod test {
     };
 
     use super::*;
-    use crate::payments::outbound::{
-        arb::OipParams, OutboundInvoicePayment, OutboundInvoicePaymentStatus,
+    use crate::payments::{
+        inbound::InboundInvoicePayment,
+        outbound::{
+            arb::OipParams, OutboundInvoicePayment,
+            OutboundInvoicePaymentStatus,
+        },
     };
 
     impl PaymentsData {
@@ -1160,6 +1164,33 @@ mod test {
         fn persisted(self) -> PersistedPayment {
             PersistedPayment(self.0)
         }
+    }
+
+    #[ignore = "TODO(phlip9): failing test. make IIP handling idempotent."]
+    #[allow(unused_must_use)] // TODO(phlip9): remove
+    #[test]
+    fn prop_inbound_invoice_payment_idempotency() {
+        proptest!(|(
+            iip in any::<InboundInvoicePayment>(),
+            recvd_amount in any::<Amount>(),
+        )| {
+            let payment = Payment::InboundInvoice(iip.clone());
+            let data = PaymentsData::from_vec(vec![payment.clone()]);
+            let recvd_amount = iip.recvd_amount.unwrap_or(recvd_amount);
+            let hash = iip.hash;
+
+            let purpose = LxPaymentPurpose::Bolt11Invoice {
+                preimage: iip.preimage,
+                secret: iip.secret,
+            };
+
+            assert!(data.check_new_payment(payment).is_err());
+            data.check_payment_claimable(hash, recvd_amount, purpose.clone())
+                .unwrap();
+            data.check_payment_claimed(hash, recvd_amount, purpose)
+                .unwrap();
+            data.check_invoice_expiries(Duration::MAX).unwrap();
+        });
     }
 
     #[test]

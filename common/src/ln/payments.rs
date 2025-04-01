@@ -580,6 +580,13 @@ impl PaymentStatus {
             Self::Failed => "failed",
         }
     }
+
+    pub fn is_finalized(&self) -> bool {
+        match self {
+            Self::Pending => false,
+            Self::Completed | Self::Failed => true,
+        }
+    }
 }
 impl FromStr for PaymentStatus {
     type Err = anyhow::Error;

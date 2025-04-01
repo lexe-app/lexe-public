@@ -422,7 +422,7 @@ pub(crate) mod arb {
     };
     use proptest::{
         arbitrary::{any, any_with, Arbitrary},
-        strategy::{BoxedStrategy, Just, Strategy},
+        strategy::{BoxedStrategy, Strategy},
     };
 
     use super::*;
@@ -438,19 +438,15 @@ pub(crate) mod arb {
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             let status = any::<OutboundInvoicePaymentStatus>();
-            let preimage_invoice = any::<LxPaymentPreimage>()
-                .no_shrink()
-                .prop_map(move |preimage| {
+            let preimage =
+                any::<LxPaymentPreimage>().prop_map(move |preimage| {
                     args.payment_preimage.unwrap_or(preimage)
-                })
-                .prop_flat_map(|preimage| {
-                    (
-                        Just(preimage),
-                        any_with::<LxInvoice>(LxInvoiceParams {
-                            payment_preimage: Some(preimage),
-                        }),
-                    )
                 });
+            let preimage_invoice = preimage.prop_ind_flat_map2(|preimage| {
+                any_with::<LxInvoice>(LxInvoiceParams {
+                    payment_preimage: Some(preimage),
+                })
+            });
 
             let amount = any::<Amount>();
             let fees = any::<Amount>();
