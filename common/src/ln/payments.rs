@@ -268,6 +268,24 @@ pub struct LxPaymentPreimage(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 #[repr(transparent)]
 pub struct LxPaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
+/// Newtype for LDK's [`PaymentId`] but used specifically for inbound lightning
+/// payment idempotency.
+///
+/// It is the hash of the HTLC(s) paying for a specific payment hash. There can
+/// be multiple `LnClaimId`s for a single payment hash if e.g. a payer
+/// mistakenly pays the same invoice twice.
+///
+/// We get this value from LDK's [`PaymentClaimable`] and [`PaymentClaimed`]
+/// events.
+///
+/// [`PaymentId`]: lightning::ln::channelmanager::PaymentId
+/// [`PaymentClaimable`]: lightning::events::Event::PaymentClaimable
+/// [`PaymentClaimed`]: lightning::events::Event::PaymentClaimed
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast, Serialize, Deserialize)]
+#[repr(transparent)]
+pub struct LnClaimId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
+
 // --- impl BasicPayment --- //
 
 impl BasicPayment {
@@ -397,14 +415,17 @@ byte_array::impl_byte_array!(ClientPaymentId, 32);
 byte_array::impl_byte_array!(LxPaymentHash, 32);
 byte_array::impl_byte_array!(LxPaymentPreimage, 32);
 byte_array::impl_byte_array!(LxPaymentSecret, 32);
+byte_array::impl_byte_array!(LnClaimId, 32);
 
 byte_array::impl_fromstr_from_hexstr!(ClientPaymentId);
 byte_array::impl_fromstr_from_hexstr!(LxPaymentHash);
 byte_array::impl_fromstr_from_hexstr!(LxPaymentPreimage);
 byte_array::impl_fromstr_from_hexstr!(LxPaymentSecret);
+byte_array::impl_fromstr_from_hexstr!(LnClaimId);
 
 byte_array::impl_debug_display_as_hex!(ClientPaymentId);
 byte_array::impl_debug_display_as_hex!(LxPaymentHash);
+byte_array::impl_debug_display_as_hex!(LnClaimId);
 // Redacted to prevent accidentally leaking secrets in logs
 byte_array::impl_debug_display_redacted!(LxPaymentPreimage);
 byte_array::impl_debug_display_redacted!(LxPaymentSecret);
@@ -473,6 +494,11 @@ impl From<PaymentSecret> for LxPaymentSecret {
         Self(secret.0)
     }
 }
+impl From<lightning::ln::channelmanager::PaymentId> for LnClaimId {
+    fn from(id: lightning::ln::channelmanager::PaymentId) -> Self {
+        Self(id.0)
+    }
+}
 
 // Lexe -> LDK
 impl From<LxPaymentHash> for PaymentHash {
@@ -488,6 +514,11 @@ impl From<LxPaymentPreimage> for PaymentPreimage {
 impl From<LxPaymentSecret> for PaymentSecret {
     fn from(secret: LxPaymentSecret) -> Self {
         Self(secret.0)
+    }
+}
+impl From<LnClaimId> for lightning::ln::channelmanager::PaymentId {
+    fn from(id: LnClaimId) -> Self {
+        Self(id.0)
     }
 }
 
@@ -753,6 +784,7 @@ mod test {
         roundtrip::json_string_roundtrip_proptest::<LxPaymentHash>();
         roundtrip::json_string_roundtrip_proptest::<LxPaymentPreimage>();
         roundtrip::json_string_roundtrip_proptest::<LxPaymentSecret>();
+        roundtrip::json_string_roundtrip_proptest::<LnClaimId>();
     }
 
     #[test]
@@ -760,6 +792,7 @@ mod test {
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentIndex>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentId>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentHash>();
+        roundtrip::fromstr_display_roundtrip_proptest::<LnClaimId>();
         // `Display` for `LxPaymentPreimage` and `LxPaymentSecret` are redacted
         // roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentPreimage>();
         // roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentSecret>();
