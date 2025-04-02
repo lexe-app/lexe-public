@@ -27,6 +27,7 @@ use lightning::{events::PaymentPurpose, ln::channelmanager::FailureCode};
 use tokio::{sync::Mutex, time::Instant};
 use tracing::{debug, error, info, info_span, instrument, warn};
 
+use super::outbound::ExpireError;
 use crate::{
     esplora::{LexeEsplora, TxConfStatus},
     payments::{
@@ -588,27 +589,35 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             .duration_since(SystemTime::UNIX_EPOCH)
             .expect("System time is before UNIX timestamp");
 
-        // Check
-        let mut locked_data = self.data.lock().await;
-        let (all_checked, oip_hashes) = locked_data
-            .check_invoice_expiries(unix_duration)
-            .context("Error checking invoice expiries")?;
+        // NOTE: avoid touching the ChannelManager while holding the lock
+        let oips_to_abandon = {
+            // Check
+            let mut locked_data = self.data.lock().await;
+            let (all_checked, oips_to_abandon) = locked_data
+                .check_invoice_expiries(unix_duration)
+                .context("Error checking invoice expiries")?;
 
-        // Abandon all newly expired outbound invoice payments.
-        for oip_hash in oip_hashes {
+            // Persist
+            let all_persisted = self
+                .persister
+                .persist_payment_batch(all_checked)
+                .await
+                .context("Couldn't persist payment batch")?;
+
+            // Commit
+            for persisted in all_persisted {
+                locked_data.commit(persisted);
+            }
+
+            oips_to_abandon
+        };
+
+        // Abandon all expired outbound invoice payments.
+        // We'll also abandon any abandoning payments to handle the case where
+        // we crash after persisting above, but before the channel manager
+        // persists.
+        for oip_hash in oips_to_abandon {
             self.channel_manager.abandon_payment(oip_hash.into());
-        }
-
-        // Persist
-        let all_persisted = self
-            .persister
-            .persist_payment_batch(all_checked)
-            .await
-            .context("Couldn't persist payment batch")?;
-
-        // Commit
-        for persisted in all_persisted {
-            locked_data.commit(persisted);
         }
 
         debug!("Successfully checked invoice expiries");
@@ -1042,11 +1051,8 @@ impl PaymentsData {
         Ok(Some(checked))
     }
 
-    /// Returns all expired invoice payments`*`, as well as the hashes of all
+    /// Returns all _newly_ expired invoice payments and the hashes of all
     /// outbound invoice payments which should be passed to [`abandon_payment`].
-    ///
-    /// `*` We don't return already-abandoning outbound invoice payments, since
-    /// the work (persistence + [`abandon_payment`]) has already been done.
     ///
     /// [`abandon_payment`]: lightning::ln::channelmanager::ChannelManager::abandon_payment
     //
@@ -1057,7 +1063,7 @@ impl PaymentsData {
         // The current time expressed as a Duration since the unix epoch.
         unix_duration: Duration,
     ) -> anyhow::Result<(Vec<CheckedPayment>, Vec<LxPaymentHash>)> {
-        let mut oip_hashes = Vec::new();
+        let mut oips_to_abandon = Vec::new();
         let all_expired = self
             .pending
             .values()
@@ -1067,16 +1073,24 @@ impl PaymentsData {
                     .check_invoice_expiry(unix_duration)
                     .map(Payment::from)
                     .map(CheckedPayment),
-                Payment::OutboundInvoice(oip) => oip
-                    .check_invoice_expiry(unix_duration)
-                    .inspect(|oip| oip_hashes.push(oip.hash))
-                    .map(Payment::from)
-                    .map(CheckedPayment),
+                Payment::OutboundInvoice(oip) => {
+                    match oip.check_invoice_expiry(unix_duration) {
+                        Ok(oip) => {
+                            oips_to_abandon.push(oip.hash);
+                            Some(CheckedPayment(Payment::from(oip)))
+                        }
+                        Err(ExpireError::Ignore) => None,
+                        Err(ExpireError::IgnoreAndAbandon) => {
+                            oips_to_abandon.push(oip.hash);
+                            None
+                        }
+                    }
+                }
                 _ => None,
             })
             .collect::<Vec<_>>();
 
-        Ok((all_expired, oip_hashes))
+        Ok((all_expired, oips_to_abandon))
     }
 
     // Event sources:

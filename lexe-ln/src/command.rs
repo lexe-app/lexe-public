@@ -964,6 +964,15 @@ where
         .await
         .context("Already tried to pay this invoice")?;
 
+    // TODO(phlip9): handle the case where we crash here before the channel
+    // manager persists. We'll be left with a payment that gets stuck `Pending`
+    // -> `Abandoning` forever, since the `channel_manager` doesn't know about
+    // it and so won't emit a `PaymentFailed` event to finalize.
+    //
+    // Maybe we can check `channel_manager.list_recent_payments()` sometime
+    // after startup to see if we have any `Pending` or `Abandoning` LN payments
+    // that aren't tracked by the CM?
+
     // Send the payment, letting LDK handle payment retries, and match on the
     // result, registering a failure with the payments manager if appropriate.
     match channel_manager.send_payment(

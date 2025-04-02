@@ -515,6 +515,9 @@ impl InboundInvoicePayment {
     ///
     /// `unix_duration` is the current time expressed as a [`Duration`] since
     /// the unix epoch.
+    ///
+    /// ## Precondition
+    /// - The payment must not be finalized (Completed | Failed).
     //
     // Event sources:
     // - `PaymentsManager::spawn_invoice_expiry_checker` task
@@ -524,6 +527,7 @@ impl InboundInvoicePayment {
     ) -> Option<Self> {
         use InboundInvoicePaymentStatus::*;
 
+        // Not expired yet, do nothing.
         if !self.invoice.0.would_expire(unix_duration) {
             return None;
         }
@@ -532,8 +536,12 @@ impl InboundInvoicePayment {
             InvoiceGenerated => (),
             // We are already claiming the payment; too late to time it out now.
             Claiming => return None,
-            // Don't time out finalized payments.
-            Completed | Expired => return None,
+            Completed | Expired => unreachable!(
+                "caller ensures payment is not already finalized. \
+                 {id} is already {status:?}",
+                id = self.id(),
+                status = self.status,
+            ),
         }
 
         // Validation complete; invoice expired and Expired transition is valid

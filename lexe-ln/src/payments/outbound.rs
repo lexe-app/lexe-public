@@ -32,6 +32,17 @@ use crate::{command::pay_invoice, payments::manager::PaymentsManager};
 /// The retry strategy we pass to LDK for outbound Lightning payments.
 pub const OUTBOUND_PAYMENT_RETRY_STRATEGY: Retry = Retry::Attempts(3);
 
+// --- ExpireError --- //
+
+/// Errors that can occur when expiring an outbound invoice payment.
+pub enum ExpireError {
+    /// The payment is already finalized or expired. Do nothing.
+    Ignore,
+    /// The payment was marked to expire. We don't need to persist but we
+    /// should re-abandon in case we're coming up after a crash.
+    IgnoreAndAbandon,
+}
+
 // --- Outbound invoice payments --- //
 
 /// A 'conventional' outbound payment where we pay an invoice provided to us by
@@ -246,36 +257,43 @@ impl OutboundInvoicePayment {
     ///
     /// `unix_duration` is the current time expressed as a [`Duration`] since
     /// the unix epoch.
+    ///
+    /// ## Precondition
+    /// - The payment must not be finalized (Completed | Failed).
     //
     // Event sources:
     // - `PaymentsManager::spawn_invoice_expiry_checker` task
     pub(crate) fn check_invoice_expiry(
         &self,
         unix_duration: Duration,
-    ) -> Option<Self> {
+    ) -> Result<Self, ExpireError> {
         use OutboundInvoicePaymentStatus::*;
 
+        // Not expired yet, do nothing.
         if !self.invoice.0.would_expire(unix_duration) {
-            return None;
+            return Err(ExpireError::Ignore);
         }
 
         match self.status {
             Pending => (),
-            // Since Abandoning is a pending state, the invoice expiry checker
-            // will frequently check already-abandoning payments to see if they
-            // have expired. To prevent the PaymentsManager from constantly
-            // re-persisting already-abandoning payments during these checks,
-            // return None here.
-            Abandoning => return None,
-            Completed | Failed => return None,
+            // We may crash after persisting the payment but before the channel
+            // manager persists. Don't persist anything new, but re-abandon the
+            // payment.
+            Abandoning => return Err(ExpireError::IgnoreAndAbandon),
+            Completed | Failed => unreachable!(
+                "caller ensures payment is not already finalized. \
+                 {id} is already {status:?}",
+                id = self.id(),
+                status = self.status,
+            ),
         }
 
-        // Validation complete; invoice expired and state transition is valid
+        // Validation complete; invoice newly expired
 
         let mut clone = self.clone();
         clone.status = Abandoning;
 
-        Some(clone)
+        Ok(clone)
     }
 }
 
