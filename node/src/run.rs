@@ -39,8 +39,8 @@ use lexe_api::{
 use lexe_ln::{
     alias::{
         BroadcasterType, EsploraSyncClientType, FeeEstimatorType,
-        LexeOnionMessengerType, MessageRouterType, NetworkGraphType,
-        P2PGossipSyncType, ProbabilisticScorerType, RouterType,
+        LexeOnionMessengerType, NetworkGraphType, P2PGossipSyncType,
+        ProbabilisticScorerType, RouterType,
     },
     background_processor,
     channel::ChannelEventsBus,
@@ -49,6 +49,7 @@ use lexe_ln::{
     event,
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
+    message_router::LexeMessageRouter,
     payments::manager::PaymentsManager,
     sync, test_event,
     traits::LexeInnerPersister,
@@ -495,9 +496,9 @@ impl UserNode {
         ));
 
         // Read channel manager
-        let message_router = Arc::new(MessageRouterType::new(
+        let message_router = Arc::new(LexeMessageRouter::new_user_node(
             network_graph.clone(),
-            keys_manager.clone(),
+            args.lsp.clone(),
         ));
         let maybe_manager = persister
             .read_channel_manager(

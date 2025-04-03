@@ -246,6 +246,10 @@ impl NodePk {
         secp256k1::PublicKey::from_slice(bytes).map(Self)
     }
 
+    pub fn from_inner_ref(pk: &secp256k1::PublicKey) -> &Self {
+        Self::ref_cast(pk)
+    }
+
     pub fn to_array(&self) -> [u8; 33] {
         self.0.serialize()
     }

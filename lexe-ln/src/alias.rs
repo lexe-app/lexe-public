@@ -8,7 +8,7 @@ use lightning::{
         channelmanager::ChannelManager,
         peer_handler::{IgnoringMessageHandler, PeerManager},
     },
-    onion_message::messenger::{DefaultMessageRouter, OnionMessenger},
+    onion_message::messenger::OnionMessenger,
     routing::{
         gossip::{NetworkGraph, P2PGossipSync},
         router::DefaultRouter,
@@ -21,8 +21,8 @@ use lightning_transaction_sync::EsploraSyncClient;
 
 use crate::{
     esplora::FeeEstimates, keys_manager::LexeKeysManager,
-    logger::LexeTracingLogger, p2p::ConnectionTx,
-    tx_broadcaster::TxBroadcaster,
+    logger::LexeTracingLogger, message_router::LexeMessageRouter,
+    p2p::ConnectionTx, tx_broadcaster::TxBroadcaster,
 };
 
 // --- Partial aliases --- //
@@ -91,11 +91,7 @@ pub type EsploraSyncClientType = EsploraSyncClient<LexeTracingLogger>;
 
 pub type FeeEstimatorType = FeeEstimates;
 
-pub type MessageRouterType = DefaultMessageRouter<
-    Arc<NetworkGraphType>,
-    LexeTracingLogger,
-    Arc<LexeKeysManager>,
->;
+pub type MessageRouterType = LexeMessageRouter;
 
 pub type NetworkGraphType = NetworkGraph<LexeTracingLogger>;
 

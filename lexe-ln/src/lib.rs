@@ -37,6 +37,8 @@ pub mod event;
 pub mod keys_manager;
 /// LDK + SGX compatible logger
 pub mod logger;
+/// Route onion messages. Create blinded paths to self.
+pub mod message_router;
 /// Shared functionality relating to LN P2P.
 pub mod p2p;
 /// Payments types.

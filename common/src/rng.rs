@@ -191,6 +191,29 @@ impl lightning::sign::EntropySource for SysRng {
     }
 }
 
+/// Dumb hack so we can pass `SysRng` as an `EntropySource` without wrapping
+/// in an Arc/Box.
+pub struct SysRngDerefHack(pub SysRng);
+
+impl SysRngDerefHack {
+    pub fn new() -> Self {
+        Self(SysRng::new())
+    }
+}
+
+impl Default for SysRngDerefHack {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl std::ops::Deref for SysRngDerefHack {
+    type Target = SysRng;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 /// A small, fast, _non-cryptographic_ rng with decent statistical properties.
 /// Useful for sampling non-security sensitive data or as a deterministic RNG
 /// for tests (instead of the [`SysRng`] above, which uses the global OS RNG).
