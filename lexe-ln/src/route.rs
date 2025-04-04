@@ -6,7 +6,7 @@ use anyhow::{anyhow, ensure};
 use bitcoin::secp256k1;
 use cfg_if::cfg_if;
 use common::{
-    api::user::NodePk,
+    api::user::{NodePk, Scid},
     cli::LspInfo,
     ln::{amount::Amount, invoice::LxInvoice},
     rng::SysRngDerefHack,
@@ -15,8 +15,14 @@ use common::{
 use const_utils::const_assert;
 use either::Either;
 use lightning::{
-    blinded_path::payment::{BlindedPaymentPath, ReceiveTlvs},
-    ln::{channel_state::ChannelDetails, msgs::LightningError},
+    blinded_path::payment::{
+        BlindedPaymentPath, ForwardTlvs, PaymentConstraints,
+        PaymentForwardNode, PaymentRelay, ReceiveTlvs,
+    },
+    ln::{
+        channel_state::ChannelDetails,
+        channelmanager::MIN_FINAL_CLTV_EXPIRY_DELTA, msgs::LightningError,
+    },
     routing::{
         router::{
             DefaultRouter, InFlightHtlcs, Payee, PaymentParameters, Route,
@@ -25,6 +31,7 @@ use lightning::{
         },
         scoring::ProbabilisticScoringFeeParameters,
     },
+    types::features::BlindedHopFeatures,
 };
 use lightning_invoice::DEFAULT_MIN_FINAL_CLTV_EXPIRY_DELTA;
 use rust_decimal_macros::dec;
@@ -53,7 +60,9 @@ type DefaultRouterType = DefaultRouter<
 pub enum LexeRouter {
     Node {
         default_router: DefaultRouterType,
+        // TODO(phlip9): unify with `CreateInvoiceCaller`
         lsp_info: LspInfo,
+        intercept_scids: Vec<Scid>,
     },
     Lsp {
         default_router: DefaultRouterType,
@@ -67,6 +76,7 @@ impl LexeRouter {
         logger: LexeTracingLogger,
         scorer: Arc<Mutex<ProbabilisticScorerType>>,
         lsp_info: LspInfo,
+        intercept_scids: Vec<Scid>,
     ) -> Self {
         let default_router = DefaultRouter::new(
             network_graph,
@@ -79,6 +89,7 @@ impl LexeRouter {
         Self::Node {
             default_router,
             lsp_info,
+            intercept_scids,
         }
     }
 
@@ -131,25 +142,93 @@ impl Router for LexeRouter {
         )
     }
 
+    // Create a blinded _payment_ path back to us with payment forwarding info
+    // for the payer to route with. This is roughly analogous to a BOLT11
+    // invoice route hint.
     fn create_blinded_payment_paths<
         T: secp256k1::Signing + secp256k1::Verification,
     >(
         &self,
         recipient: secp256k1::PublicKey,
-        first_hops: Vec<ChannelDetails>,
+        _first_hops: Vec<ChannelDetails>,
         tlvs: ReceiveTlvs,
-        amount_msats: u64,
+        _amount_msats: u64,
         secp_ctx: &secp256k1::Secp256k1<T>,
     ) -> Result<Vec<BlindedPaymentPath>, ()> {
-        // TODO(phlip9): need to impl this ourselves, LDK is returning nothing
-        Router::create_blinded_payment_paths(
-            self.default_router(),
-            recipient,
-            first_hops,
-            tlvs,
-            amount_msats,
-            secp_ctx,
-        )
+        let result = match self {
+            // Node => create a blinded path from LSP -> Node, that includes
+            // - our node's magic intercept SCID
+            // - the LSP's payment forwarding info
+            Self::Node {
+                lsp_info,
+                intercept_scids,
+                ..
+            } => {
+                tracing::info!(?lsp_info);
+
+                let intercept_scid = intercept_scids.last().unwrap();
+
+                // TODO(phlip9): logic should be roughly the same as
+                // `create_invoice`, we should unify
+
+                let cltv_expiry_delta = lsp_info.cltv_expiry_delta;
+                let max_cltv_expiry =
+                    tlvs.tlvs().payment_constraints.max_cltv_expiry
+                        + u32::from(cltv_expiry_delta);
+
+                // TODO(phlip9): don't charge payer Lexe fees, instead charge
+                // payee via skimmed value.
+                let payment_relay = PaymentRelay {
+                    cltv_expiry_delta,
+                    fee_proportional_millionths: lsp_info
+                        .lsp_usernode_prop_fee_ppm,
+                    fee_base_msat: lsp_info.lsp_usernode_base_fee_msat,
+                };
+                let payment_constraints = PaymentConstraints {
+                    max_cltv_expiry,
+                    htlc_minimum_msat: lsp_info.htlc_minimum_msat,
+                };
+
+                let lsp_fwd = PaymentForwardNode {
+                    tlvs: ForwardTlvs {
+                        short_channel_id: intercept_scid.0,
+                        payment_relay,
+                        payment_constraints,
+                        // TODO(phlip9): LDK value. do we need to get this from
+                        // LSP? why does LDK always set this to empty?
+                        features: BlindedHopFeatures::empty(),
+                        next_blinding_override: None,
+                    },
+                    node_id: lsp_info.node_pk.inner(),
+                    htlc_maximum_msat: lsp_info.htlc_maximum_msat,
+                };
+
+                BlindedPaymentPath::new(
+                    &[lsp_fwd],
+                    recipient,
+                    tlvs,
+                    // "self" htlc_maximum_msat?, not used for route?
+                    // TODO(phlip9): LDK value. why does LDK default to this?
+                    u64::MAX,
+                    // "self" min_final_cltv_expiry_delta?, not used for route?
+                    // TODO(phlip9): LDK value. is this the right value?
+                    MIN_FINAL_CLTV_EXPIRY_DELTA,
+                    SysRngDerefHack::new(),
+                    secp_ctx,
+                )
+            }
+            // LSP => just a one-hop "blinded" path to us.
+            Self::Lsp { .. } => BlindedPaymentPath::one_hop(
+                recipient,
+                tlvs,
+                // TODO(phlip9): LDK value. is this the right value?
+                MIN_FINAL_CLTV_EXPIRY_DELTA,
+                SysRngDerefHack::new(),
+                secp_ctx,
+            ),
+        };
+
+        result.map(|path| vec![path])
     }
 }
 

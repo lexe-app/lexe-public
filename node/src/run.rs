@@ -489,6 +489,7 @@ impl UserNode {
             logger.clone(),
             scorer.clone(),
             args.lsp.clone(),
+            intercept_scids.clone(),
         ));
 
         // Read channel manager
