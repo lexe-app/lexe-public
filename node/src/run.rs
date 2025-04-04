@@ -40,7 +40,7 @@ use lexe_ln::{
     alias::{
         BroadcasterType, EsploraSyncClientType, FeeEstimatorType,
         LexeOnionMessengerType, NetworkGraphType, P2PGossipSyncType,
-        ProbabilisticScorerType, RouterType,
+        ProbabilisticScorerType,
     },
     background_processor,
     channel::ChannelEventsBus,
@@ -51,6 +51,7 @@ use lexe_ln::{
     logger::LexeTracingLogger,
     message_router::LexeMessageRouter,
     payments::manager::PaymentsManager,
+    route::LexeRouter,
     sync, test_event,
     traits::LexeInnerPersister,
     tx_broadcaster::TxBroadcaster,
@@ -59,10 +60,7 @@ use lexe_ln::{
 use lightning::{
     chain::{chainmonitor::ChainMonitor, Watch},
     ln::{peer_handler::IgnoringMessageHandler, types::ChannelId},
-    routing::{
-        gossip::P2PGossipSync, router::DefaultRouter,
-        scoring::ProbabilisticScoringFeeParameters,
-    },
+    routing::gossip::P2PGossipSync,
     util::ser::ReadableArgs,
 };
 use lightning_transaction_sync::EsploraSyncClient;
@@ -117,7 +115,7 @@ pub struct UserNode {
     payments_manager: PaymentsManagerType,
     peer_manager: NodePeerManager,
     persister: Arc<NodePersister>,
-    router: Arc<RouterType>,
+    router: Arc<LexeRouter>,
     scorer: Arc<Mutex<ProbabilisticScorerType>>,
 
     // --- Contexts --- //
@@ -486,13 +484,11 @@ impl UserNode {
         };
 
         // Initialize Router
-        let scoring_fee_params = ProbabilisticScoringFeeParameters::default();
-        let router = Arc::new(DefaultRouter::new(
+        let router = Arc::new(LexeRouter::new_user_node(
             network_graph.clone(),
             logger.clone(),
-            keys_manager.clone(),
             scorer.clone(),
-            scoring_fee_params,
+            args.lsp.clone(),
         ));
 
         // Read channel manager

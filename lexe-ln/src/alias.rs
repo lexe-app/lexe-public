@@ -1,6 +1,6 @@
 //! Type aliases which prevent most LDK generics from infecting Lexe APIs.
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use lightning::{
     chain::{chainmonitor::ChainMonitor, channelmonitor::ChannelMonitor},
@@ -11,8 +11,7 @@ use lightning::{
     onion_message::messenger::OnionMessenger,
     routing::{
         gossip::{NetworkGraph, P2PGossipSync},
-        router::DefaultRouter,
-        scoring::{ProbabilisticScorer, ProbabilisticScoringFeeParameters},
+        scoring::ProbabilisticScorer,
         utxo::UtxoLookup,
     },
     sign::InMemorySigner,
@@ -22,7 +21,7 @@ use lightning_transaction_sync::EsploraSyncClient;
 use crate::{
     esplora::FeeEstimates, keys_manager::LexeKeysManager,
     logger::LexeTracingLogger, message_router::LexeMessageRouter,
-    p2p::ConnectionTx, tx_broadcaster::TxBroadcaster,
+    p2p::ConnectionTx, route::LexeRouter, tx_broadcaster::TxBroadcaster,
 };
 
 // --- Partial aliases --- //
@@ -104,14 +103,7 @@ pub type P2PGossipSyncType = P2PGossipSync<
 pub type ProbabilisticScorerType =
     ProbabilisticScorer<Arc<NetworkGraphType>, LexeTracingLogger>;
 
-pub type RouterType = DefaultRouter<
-    Arc<NetworkGraphType>,
-    LexeTracingLogger,
-    Arc<LexeKeysManager>,
-    Arc<Mutex<ProbabilisticScorerType>>,
-    ProbabilisticScoringFeeParameters,
-    ProbabilisticScorerType,
->;
+pub type RouterType = LexeRouter;
 
 pub type SignerType = InMemorySigner;
 

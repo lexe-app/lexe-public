@@ -1,20 +1,29 @@
-//! Routing logic.
+//! Payment routing.
+
+use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, ensure};
+use bitcoin::secp256k1;
 use cfg_if::cfg_if;
 use common::{
     api::user::NodePk,
+    cli::LspInfo,
     ln::{amount::Amount, invoice::LxInvoice},
+    rng::SysRngDerefHack,
     time::DisplayMs,
 };
 use const_utils::const_assert;
 use either::Either;
 use lightning::{
+    blinded_path::payment::{BlindedPaymentPath, ReceiveTlvs},
     ln::{channel_state::ChannelDetails, msgs::LightningError},
-    routing::router::{
-        InFlightHtlcs, Payee, PaymentParameters, Route, RouteParameters,
-        Router, DEFAULT_MAX_PATH_COUNT, DEFAULT_MAX_TOTAL_CLTV_EXPIRY_DELTA,
-        MAX_PATH_LENGTH_ESTIMATE,
+    routing::{
+        router::{
+            DefaultRouter, InFlightHtlcs, Payee, PaymentParameters, Route,
+            RouteParameters, Router, DEFAULT_MAX_PATH_COUNT,
+            DEFAULT_MAX_TOTAL_CLTV_EXPIRY_DELTA, MAX_PATH_LENGTH_ESTIMATE,
+        },
+        scoring::ProbabilisticScoringFeeParameters,
     },
 };
 use lightning_invoice::DEFAULT_MIN_FINAL_CLTV_EXPIRY_DELTA;
@@ -22,9 +31,127 @@ use rust_decimal_macros::dec;
 use tracing::{debug, info};
 
 use crate::{
-    alias::RouterType,
+    alias::{NetworkGraphType, ProbabilisticScorerType},
+    logger::LexeTracingLogger,
     traits::{LexeChannelManager, LexePersister},
 };
+
+/// The default LDK [`Router`] impl with concrete Lexe types filled in.
+type DefaultRouterType = DefaultRouter<
+    Arc<NetworkGraphType>,
+    LexeTracingLogger,
+    SysRngDerefHack,
+    Arc<Mutex<ProbabilisticScorerType>>,
+    ProbabilisticScoringFeeParameters,
+    ProbabilisticScorerType,
+>;
+
+/// The Lexe payment [`Router`] impl for both the Lexe LSP and our user nodes.
+///
+/// Ideally these variants would be separated into different impls, but the
+/// resulting generics hell is absolutely not worth it.
+pub enum LexeRouter {
+    Node {
+        default_router: DefaultRouterType,
+        lsp_info: LspInfo,
+    },
+    Lsp {
+        default_router: DefaultRouterType,
+    },
+}
+
+impl LexeRouter {
+    /// Create a new [`LexeRouter`] for user nodes.
+    pub fn new_user_node(
+        network_graph: Arc<NetworkGraphType>,
+        logger: LexeTracingLogger,
+        scorer: Arc<Mutex<ProbabilisticScorerType>>,
+        lsp_info: LspInfo,
+    ) -> Self {
+        let default_router = DefaultRouter::new(
+            network_graph,
+            logger,
+            SysRngDerefHack::new(),
+            scorer,
+            Self::default_scoring_fee_params(),
+        );
+
+        Self::Node {
+            default_router,
+            lsp_info,
+        }
+    }
+
+    /// Create a new [`LexeRouter`] for LSP.
+    pub fn new_lsp(
+        network_graph: Arc<NetworkGraphType>,
+        logger: LexeTracingLogger,
+        scorer: Arc<Mutex<ProbabilisticScorerType>>,
+    ) -> Self {
+        let default_router = DefaultRouter::new(
+            network_graph,
+            logger,
+            SysRngDerefHack::new(),
+            scorer,
+            Self::default_scoring_fee_params(),
+        );
+
+        Self::Lsp { default_router }
+    }
+
+    fn default_scoring_fee_params() -> ProbabilisticScoringFeeParameters {
+        ProbabilisticScoringFeeParameters::default()
+    }
+
+    fn default_router(&self) -> &DefaultRouterType {
+        match self {
+            LexeRouter::Node { default_router, .. } => default_router,
+            LexeRouter::Lsp { default_router } => default_router,
+        }
+    }
+}
+
+impl Router for LexeRouter {
+    // Finds a `Route` for a payment between the given `payer` and a payee (in
+    // the `RouteParameters`).
+    fn find_route(
+        &self,
+        payer: &secp256k1::PublicKey,
+        route_params: &RouteParameters,
+        first_hops: Option<&[&ChannelDetails]>,
+        inflight_htlcs: InFlightHtlcs,
+    ) -> Result<Route, LightningError> {
+        // Just delegate to the default LDK impl.
+        Router::find_route(
+            self.default_router(),
+            payer,
+            route_params,
+            first_hops,
+            inflight_htlcs,
+        )
+    }
+
+    fn create_blinded_payment_paths<
+        T: secp256k1::Signing + secp256k1::Verification,
+    >(
+        &self,
+        recipient: secp256k1::PublicKey,
+        first_hops: Vec<ChannelDetails>,
+        tlvs: ReceiveTlvs,
+        amount_msats: u64,
+        secp_ctx: &secp256k1::Secp256k1<T>,
+    ) -> Result<Vec<BlindedPaymentPath>, ()> {
+        // TODO(phlip9): need to impl this ourselves, LDK is returning nothing
+        Router::create_blinded_payment_paths(
+            self.default_router(),
+            recipient,
+            first_hops,
+            tlvs,
+            amount_msats,
+            secp_ctx,
+        )
+    }
+}
 
 /// Amount-agnostic context for routing to a known payee.
 /// (The payee is specified in [`PaymentParameters`]).
@@ -64,7 +191,7 @@ impl RoutingContext {
 
     pub fn find_route(
         &self,
-        router: &RouterType,
+        router: &LexeRouter,
         amount: Amount,
     ) -> anyhow::Result<(Route, RouteParameters)> {
         // TODO(max): We may want to set a fee limit at some point
@@ -172,7 +299,7 @@ pub fn build_payment_params(
 //  - `max_flow` to a neighbor is just sum of `next_outbound_htlc_limit` over
 //    all channels with this neighbor.
 pub async fn compute_max_flow_to_recipient(
-    router: &RouterType,
+    router: &LexeRouter,
     routing_context: &RoutingContext,
     starting_amount: Amount,
 ) -> anyhow::Result<Amount> {
