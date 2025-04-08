@@ -303,11 +303,13 @@ pub(super) async fn create_offer(
 }
 
 pub(super) async fn pay_offer(
-    State(_state): State<Arc<AppRouterState>>,
-    LxJson(_req): LxJson<PayOfferRequest>,
+    State(state): State<Arc<AppRouterState>>,
+    LxJson(req): LxJson<PayOfferRequest>,
 ) -> Result<LxJson<PayOfferResponse>, NodeApiError> {
-    // TODO(phlip9): impl
-    Err(NodeApiError::command("pay_offer not implemented"))
+    lexe_ln::command::pay_offer(req, &state.channel_manager)
+        .await
+        .map(LxJson)
+        .map_err(NodeApiError::command)
 }
 
 pub(super) async fn preflight_pay_offer(

@@ -8,7 +8,8 @@ use common::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
             CreateOfferRequest, CreateOfferResponse, ListChannelsResponse,
             NodeInfo, OpenChannelResponse, PayInvoiceRequest,
-            PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
+            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+            PayOnchainRequest, PayOnchainResponse,
             PreflightCloseChannelRequest, PreflightCloseChannelResponse,
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
@@ -27,6 +28,7 @@ use common::{
         network::LxNetwork,
         offer::LxOffer,
     },
+    rng::{RngExt, SysRng},
     time::TimestampMs,
     Apply,
 };
@@ -40,7 +42,7 @@ use lightning::{
     ln::{
         channel_state::ChannelDetails,
         channelmanager::{
-            PaymentId, RecipientOnionFields, RetryableSendFailure,
+            PaymentId, RecipientOnionFields, Retry, RetryableSendFailure,
         },
         types::ChannelId,
     },
@@ -51,7 +53,7 @@ use lightning::{
 };
 use lightning_invoice::{Bolt11Invoice, Currency, InvoiceBuilder};
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, info, instrument};
+use tracing::{debug, info, instrument, warn};
 
 use crate::{
     alias::{LexeChainMonitorType, NetworkGraphType, RouterType, SignerType},
@@ -1009,6 +1011,61 @@ where
         .map(LxOffer)
         .map_err(|err| anyhow!("Failed to build offer: {err:?}"))?;
     Ok(CreateOfferResponse { offer })
+}
+
+#[instrument(skip_all, name = "(pay-offer)")]
+pub async fn pay_offer<CM, PS>(
+    req: PayOfferRequest,
+    channel_manager: &CM,
+) -> anyhow::Result<PayOfferResponse>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
+    // TODO(phlip9): impl for real
+    let offer = req.offer;
+    // TODO(phlip9): how does this work?
+    let quantity = None;
+
+    let amount = match offer.amount() {
+        Some(_) => None,
+        None => req
+            .fallback_amount
+            .context("Missing fallback_amount for variable-amount offer")?
+            .apply(Some),
+    };
+    let amount_msats = amount.map(|amt| amt.msat());
+    // TODO(phlip9): user should choose whether to show their note to recipient
+    let payer_note = req.note;
+    // TODO(phlip9): make nicer
+    let payment_id = SysRng::new().gen_bytes::<32>();
+    let payment_id = lightning::ln::channelmanager::PaymentId(payment_id);
+    let retry = Retry::Attempts(1);
+    // Use default
+    let max_total_routing_fee_msat = None;
+
+    channel_manager
+        .pay_for_offer(
+            &offer.0,
+            quantity,
+            amount_msats,
+            payer_note,
+            payment_id,
+            retry,
+            max_total_routing_fee_msat,
+        )
+        .map_err(|err| anyhow::anyhow!("Failed to pay offer: {err:?}"))?;
+
+    let created_at = TimestampMs::now();
+
+    // TODO(phlip9): remove after debugging
+    for _ in 0..30 {
+        let payments = channel_manager.list_recent_payments();
+        warn!("{payments:?}");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+
+    Ok(PayOfferResponse { created_at })
 }
 
 #[instrument(skip_all, name = "(pay-onchain)")]
