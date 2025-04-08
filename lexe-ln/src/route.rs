@@ -1,6 +1,9 @@
 //! Payment routing.
 
-use std::sync::{Arc, Mutex};
+use std::{
+    cmp::{max, min},
+    sync::{Arc, Mutex},
+};
 
 use anyhow::{anyhow, ensure};
 use bitcoin::secp256k1;
@@ -8,6 +11,7 @@ use cfg_if::cfg_if;
 use common::{
     api::user::{NodePk, Scid},
     cli::LspInfo,
+    debug_panic_release_log,
     ln::{amount::Amount, invoice::LxInvoice},
     rng::SysRngDerefHack,
     time::DisplayMs,
@@ -19,10 +23,7 @@ use lightning::{
         BlindedPaymentPath, ForwardTlvs, PaymentConstraints,
         PaymentForwardNode, PaymentRelay, ReceiveTlvs,
     },
-    ln::{
-        channel_state::ChannelDetails,
-        channelmanager::MIN_FINAL_CLTV_EXPIRY_DELTA, msgs::LightningError,
-    },
+    ln::{channel_state::ChannelDetails, msgs::LightningError},
     routing::{
         router::{
             DefaultRouter, InFlightHtlcs, Payee, PaymentParameters, Route,
@@ -33,7 +34,9 @@ use lightning::{
     },
     types::features::BlindedHopFeatures,
 };
-use lightning_invoice::DEFAULT_MIN_FINAL_CLTV_EXPIRY_DELTA;
+use lightning_invoice::{
+    RouteHint, RouteHintHop, RoutingFees, DEFAULT_MIN_FINAL_CLTV_EXPIRY_DELTA,
+};
 use rust_decimal_macros::dec;
 use tracing::{debug, info};
 
@@ -60,7 +63,6 @@ type DefaultRouterType = DefaultRouter<
 pub enum LexeRouter {
     Node {
         default_router: DefaultRouterType,
-        // TODO(phlip9): unify with `CreateInvoiceCaller`
         lsp_info: LspInfo,
         intercept_scids: Vec<Scid>,
     },
@@ -150,7 +152,7 @@ impl Router for LexeRouter {
     >(
         &self,
         recipient: secp256k1::PublicKey,
-        _first_hops: Vec<ChannelDetails>,
+        first_hops: Vec<ChannelDetails>,
         tlvs: ReceiveTlvs,
         _amount_msats: u64,
         secp_ctx: &secp256k1::Secp256k1<T>,
@@ -164,55 +166,24 @@ impl Router for LexeRouter {
                 intercept_scids,
                 ..
             } => {
-                tracing::info!(?lsp_info);
+                // If there are multiple intercept scids, just pick the last
+                // one, as it is likely the most recently generated.
+                let intercept_scid =
+                    intercept_scids.last().ok_or(()).inspect_err(|()| {
+                        debug_panic_release_log!("No intercept SCID provided")
+                    })?;
 
-                let intercept_scid = intercept_scids.last().unwrap();
-
-                // TODO(phlip9): logic should be roughly the same as
-                // `create_invoice`, we should unify
-
-                let cltv_expiry_delta = lsp_info.cltv_expiry_delta;
-                let max_cltv_expiry =
-                    tlvs.tlvs().payment_constraints.max_cltv_expiry
-                        + u32::from(cltv_expiry_delta);
-
-                // TODO(phlip9): don't charge payer Lexe fees, instead charge
-                // payee via skimmed value.
-                let payment_relay = PaymentRelay {
-                    cltv_expiry_delta,
-                    fee_proportional_millionths: lsp_info
-                        .lsp_usernode_prop_fee_ppm,
-                    fee_base_msat: lsp_info.lsp_usernode_base_fee_msat,
-                };
-                let payment_constraints = PaymentConstraints {
-                    max_cltv_expiry,
-                    htlc_minimum_msat: lsp_info.htlc_minimum_msat,
-                };
-
-                let lsp_fwd = PaymentForwardNode {
-                    tlvs: ForwardTlvs {
-                        short_channel_id: intercept_scid.0,
-                        payment_relay,
-                        payment_constraints,
-                        // TODO(phlip9): LDK value. do we need to get this from
-                        // LSP? why does LDK always set this to empty?
-                        features: BlindedHopFeatures::empty(),
-                        next_blinding_override: None,
-                    },
-                    node_id: lsp_info.node_pk.inner(),
-                    htlc_maximum_msat: lsp_info.htlc_maximum_msat,
-                };
+                // Build the last hop hint for the payer to route with
+                let last_hop_hint =
+                    LastHopHint::new(lsp_info, *intercept_scid, &first_hops);
+                let offer_route_hints = last_hop_hint.offer_route_hints(&tlvs);
 
                 BlindedPaymentPath::new(
-                    &[lsp_fwd],
+                    &offer_route_hints,
                     recipient,
                     tlvs,
-                    // "self" htlc_maximum_msat?, not used for route?
-                    // TODO(phlip9): LDK value. why does LDK default to this?
-                    u64::MAX,
-                    // "self" min_final_cltv_expiry_delta?, not used for route?
-                    // TODO(phlip9): LDK value. is this the right value?
-                    MIN_FINAL_CLTV_EXPIRY_DELTA,
+                    last_hop_hint.htlc_maximum_msat,
+                    crate::constants::USER_MIN_FINAL_CLTV_EXPIRY_DELTA,
                     SysRngDerefHack::new(),
                     secp_ctx,
                 )
@@ -221,14 +192,167 @@ impl Router for LexeRouter {
             Self::Lsp { .. } => BlindedPaymentPath::one_hop(
                 recipient,
                 tlvs,
-                // TODO(phlip9): LDK value. is this the right value?
-                MIN_FINAL_CLTV_EXPIRY_DELTA,
+                crate::constants::LSP_MIN_FINAL_CLTV_EXPIRY_DELTA,
                 SysRngDerefHack::new(),
                 secp_ctx,
             ),
         };
 
         result.map(|path| vec![path])
+    }
+}
+
+/// Unified logic for building a last hop route hint from the LSP to a user node
+/// for payers to route with. Supports both BOLT 11 invoices and BOLT 12 offers.
+pub(crate) struct LastHopHint<'a> {
+    lsp_info: &'a LspInfo,
+    intercept_scid: Scid,
+    base_fee_msat: u32,
+    prop_fee_ppm: u32,
+    htlc_minimum_msat: u64,
+    htlc_maximum_msat: u64,
+    cltv_expiry_delta: u16,
+}
+
+impl<'a> LastHopHint<'a> {
+    /// Create a new last hop route hint for a payer to route a payment via the
+    /// LSP to our user node.
+    ///
+    /// * base fee = max(base fee from channels, base fee from LSP)
+    /// * prop fee = max(prop fee from channels, prop fee from LSP)
+    /// * cltv delta = max(cltv delta from channels, cltv delta from LSP)
+    /// * htlc min = min(htlc min from channels, htlc min from LSP)
+    /// * htlc max = htlc max from LSP
+    pub fn new(
+        lsp_info: &'a LspInfo,
+        scid: Scid,
+        channels: &'a [ChannelDetails],
+    ) -> Self {
+        let base = Self {
+            lsp_info,
+            intercept_scid: scid,
+            base_fee_msat: lsp_info.lsp_usernode_base_fee_msat,
+            prop_fee_ppm: lsp_info.lsp_usernode_prop_fee_ppm,
+            htlc_minimum_msat: lsp_info.htlc_minimum_msat,
+            htlc_maximum_msat: lsp_info.htlc_maximum_msat,
+            cltv_expiry_delta: lsp_info.cltv_expiry_delta,
+        };
+
+        channels.iter().fold(base, |acc, channel| {
+            let fwd = &channel.counterparty.forwarding_info;
+
+            // For the fee rates and CLTV delta to include in our route hint(s),
+            // use the maximum of the values observed in our channels and the
+            // LSP's configured value according to `LspInfo`, defaulting to the
+            // `LspInfo` value if a value is not available from our channels.
+            let base_fee_msat = max(
+                acc.base_fee_msat,
+                fwd.as_ref().map(|f| f.fee_base_msat).unwrap_or(0),
+            );
+            let prop_fee_ppm = max(
+                acc.prop_fee_ppm,
+                fwd.as_ref()
+                    .map(|f| f.fee_proportional_millionths)
+                    .unwrap_or(0),
+            );
+            let cltv_expiry_delta = max(
+                acc.cltv_expiry_delta,
+                fwd.as_ref().map(|f| f.cltv_expiry_delta).unwrap_or(0),
+            );
+
+            // Take the min HTLC minimum across all our channels and the LSP's
+            // configured value, even though it's currently 1 msat everywhere.
+            //
+            // Rationale:
+            // - If we have any channels open, we can most likely receive a
+            //   value equal to the minimum of the `htlc_minimum_msat`s across
+            //   our channels (unless we have absolutely 0 liquidity left).
+            // - If we have no channels open, we have to use the LSP's
+            //   configured value for JIT channels. This may come in play in a
+            //   scerario where (1) Lexe *isn't* subsidizing channel open costs
+            //   but (2) we haven't implemented Ark/Spark/etc for handling small
+            //   amounts, and thus need the user's first receive to be beyond 3k
+            //   sats or whatever the prevailing on-chain fee is. In this case,
+            //   the JIT hint with a higher HTLC minimum would alert the sender
+            //   that such a small payment is not routable.
+            let htlc_minimum_msat = min(
+                acc.htlc_minimum_msat,
+                channel.inbound_htlc_minimum_msat.unwrap_or(u64::MAX),
+            );
+
+            // Our capacity to receive is effectively infinite, bounded only by
+            // the largest HTLCs Lexe's LSP is willing to forward to us. An
+            // alternative approach would set one intercept hint with the LSP's
+            // HTLC maximum, with the remaining hints set to the largest
+            // `inbound_capacity` amounts available in existing channels. But
+            // we can't incentivize the sender to use our existing channels by
+            // setting the feerate higher in the JIT hint, because this would
+            // cause them to overpay fees if they actually do use the JIT hint.
+            // Thus, we just uniformly use the LSP's configured HTLC maximum.
+            let htlc_maximum_msat = acc.htlc_maximum_msat;
+
+            Self {
+                lsp_info: acc.lsp_info,
+                intercept_scid: acc.intercept_scid,
+                base_fee_msat,
+                prop_fee_ppm,
+                cltv_expiry_delta,
+                htlc_minimum_msat,
+                htlc_maximum_msat,
+            }
+        })
+    }
+
+    /// Return a BOLT 12 offer style last hop route hint.
+    fn offer_route_hints(&self, tlvs: &ReceiveTlvs) -> Vec<PaymentForwardNode> {
+        let max_cltv_expiry = tlvs
+            .tlvs()
+            .payment_constraints
+            .max_cltv_expiry
+            .saturating_add(u32::from(self.cltv_expiry_delta));
+
+        let last_hop_hint = PaymentForwardNode {
+            tlvs: ForwardTlvs {
+                // Use our magic intercept SCID so LSP can JIT open channels
+                short_channel_id: self.intercept_scid.0,
+                payment_relay: PaymentRelay {
+                    cltv_expiry_delta: self.cltv_expiry_delta,
+                    // TODO(phlip9): don't charge payer Lexe fees, instead
+                    // charge payee via skimmed value.
+                    fee_proportional_millionths: self.prop_fee_ppm,
+                    fee_base_msat: self.base_fee_msat,
+                },
+                payment_constraints: PaymentConstraints {
+                    max_cltv_expiry,
+                    htlc_minimum_msat: self.htlc_minimum_msat,
+                },
+                // TODO(phlip9): LDK value. do we need to get this from LSP?
+                // why does LDK always set this to empty?
+                features: BlindedHopFeatures::empty(),
+                next_blinding_override: None,
+            },
+            node_id: self.lsp_info.node_pk.inner(),
+            htlc_maximum_msat: self.htlc_maximum_msat,
+        };
+        vec![last_hop_hint]
+    }
+
+    /// Return a BOLT 11 invoice style last hop route hint.
+    pub(crate) fn invoice_route_hints(&self) -> Vec<RouteHint> {
+        let last_hop_hint = RouteHintHop {
+            src_node_id: self.lsp_info.node_pk.inner(),
+            short_channel_id: self.intercept_scid.0,
+            // TODO(phlip9): don't charge payer Lexe fees, instead charge payee
+            // via skimmed value.
+            fees: RoutingFees {
+                base_msat: self.base_fee_msat,
+                proportional_millionths: self.prop_fee_ppm,
+            },
+            cltv_expiry_delta: self.cltv_expiry_delta,
+            htlc_minimum_msat: Some(self.htlc_minimum_msat),
+            htlc_maximum_msat: Some(self.htlc_maximum_msat),
+        };
+        vec![RouteHint(vec![last_hop_hint])]
     }
 }
 

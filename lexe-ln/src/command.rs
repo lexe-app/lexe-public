@@ -1,8 +1,4 @@
-use std::{
-    cmp::{max, min},
-    convert::Infallible,
-    time::Duration,
-};
+use std::{convert::Infallible, time::Duration};
 
 use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin_hashes::{sha256, Hash};
@@ -45,21 +41,15 @@ use lightning::{
         channel_state::ChannelDetails,
         channelmanager::{
             PaymentId, RecipientOnionFields, RetryableSendFailure,
-            MIN_FINAL_CLTV_EXPIRY_DELTA,
         },
         types::ChannelId,
     },
-    routing::{
-        gossip::NodeId,
-        router::{RouteHint, RouteParameters},
-    },
+    routing::{gossip::NodeId, router::RouteParameters},
     sign::{NodeSigner, Recipient},
     types::payment::PaymentHash,
     util::config::UserConfig,
 };
-use lightning_invoice::{
-    Bolt11Invoice, Currency, InvoiceBuilder, RouteHintHop, RoutingFees,
-};
+use lightning_invoice::{Bolt11Invoice, Currency, InvoiceBuilder};
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, info, instrument};
 
@@ -78,7 +68,7 @@ use crate::{
         },
         Payment,
     },
-    route::{self, RoutingContext},
+    route::{self, LastHopHint, RoutingContext},
     traits::{LexeChannelManager, LexePeerManager, LexePersister},
     tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
@@ -697,8 +687,14 @@ where
     PS: LexePersister,
 {
     let amount = &req.amount;
-    let cltv_expiry = MIN_FINAL_CLTV_EXPIRY_DELTA;
     info!("Handling create_invoice command for {amount:?} msats");
+
+    let cltv_expiry = match caller {
+        CreateInvoiceCaller::UserNode { .. } =>
+            crate::constants::USER_MIN_FINAL_CLTV_EXPIRY_DELTA,
+        CreateInvoiceCaller::Lsp { .. } =>
+            crate::constants::LSP_MIN_FINAL_CLTV_EXPIRY_DELTA,
+    };
 
     // TODO(max): We should set some sane maximum for the invoice expiry time,
     // e.g. 180 days. This will not cause LDK state to blow up since
@@ -771,123 +767,17 @@ where
         } => {
             let channels = channel_manager.list_channels();
 
-            // For the fee rates and CLTV delta to include in our route hint(s),
-            // use the maximum of the values observed in our channels and the
-            // LSP's configured value according to `LspInfo`, defaulting to the
-            // `LspInfo` value if a value is not available from our channels.
-            let base_msat = channels
-                .iter()
-                .filter_map(|channel| {
-                    channel
-                        .counterparty
-                        .forwarding_info
-                        .as_ref()
-                        .map(|info| info.fee_base_msat)
-                })
-                .max()
-                // This ensures that we can still receive the payment over a JIT
-                // channel if the JIT channel feerate is higher than any of our
-                // current channel feerates.
-                .map(|value| max(value, lsp_info.lsp_usernode_base_fee_msat))
-                .unwrap_or(lsp_info.lsp_usernode_base_fee_msat);
-            let proportional_millionths = channels
-                .iter()
-                .filter_map(|channel| {
-                    channel
-                        .counterparty
-                        .forwarding_info
-                        .as_ref()
-                        .map(|info| info.fee_proportional_millionths)
-                })
-                .max()
-                // Likewise as above
-                .map(|value| max(value, lsp_info.lsp_usernode_prop_fee_ppm))
-                .unwrap_or(lsp_info.lsp_usernode_prop_fee_ppm);
-            let cltv_expiry_delta = channels
-                .iter()
-                .filter_map(|channel| {
-                    channel
-                        .counterparty
-                        .forwarding_info
-                        .as_ref()
-                        .map(|info| info.cltv_expiry_delta)
-                })
-                .max()
-                // Likewise as above
-                .map(|value| max(value, lsp_info.cltv_expiry_delta))
-                .unwrap_or(lsp_info.cltv_expiry_delta);
-
-            // Take the min HTLC minimum across all our channels and the LSP's
-            // configured value, even though it's currently 1 msat everywhere.
-            //
-            // Rationale:
-            // - If we have any channels open, we can most likely receive a
-            //   value equal to the minimum of the `htlc_minimum_msat`s across
-            //   our channels (unless we have absolutely 0 liquidity left).
-            // - If we have no channels open, we have to use the LSP's
-            //   configured value for JIT channels. This may come in play in a
-            //   scerario where (1) Lexe *isn't* subsidizing channel open costs
-            //   but (2) we haven't implemented Ark/Spark/etc for handling small
-            //   amounts, and thus need the user's first receive to be beyond 3k
-            //   sats or whatever the prevailing on-chain fee is. In this case,
-            //   the JIT hint with a higher HTLC minimum would alert the sender
-            //   that such a small payment is not routable.
-            let htlc_minimum_msat = channels
-                .iter()
-                .filter_map(|channel| channel.inbound_htlc_minimum_msat)
-                .min()
-                .map(|value| min(value, lsp_info.htlc_minimum_msat))
-                .unwrap_or(lsp_info.htlc_minimum_msat);
-
-            // Our capacity to receive is effectively infinite, bounded only by
-            // the largest HTLCs Lexe's LSP is willing to forward to us. An
-            // alternative approach would set one intercept hint with the LSP's
-            // HTLC maximum, with the remaining hints set to the largest
-            // `inbound_capacity` amounts available in existing channels. But
-            // we can't incentivize the sender to use our existing channels by
-            // setting the feerate higher in the JIT hint, because this would
-            // cause them to overpay fees if they actually do use the JIT hint.
-            // Thus, we just uniformly use the LSP's configured HTLC maximum.
-            let htlc_maximum_msat = lsp_info.htlc_maximum_msat;
-
-            let fees = RoutingFees {
-                base_msat,
-                proportional_millionths,
-            };
-
-            // Multi-hint impl, in case we switch back
-            /*
-            intercept_scids
-                .into_iter()
-                .take(MAX_INTERCEPT_HINTS)
-                .map(|scid| {
-                    let route_hint_hop = RouteHintHop {
-                        src_node_id: lsp_info.node_pk.0,
-                        short_channel_id: scid.0,
-                        fees,
-                        cltv_expiry_delta,
-                        htlc_minimum_msat: Some(htlc_minimum_msat),
-                        htlc_maximum_msat: Some(htlc_maximum_msat),
-                    };
-                    RouteHint(vec![route_hint_hop])
-                })
-                .collect::<Vec<RouteHint>>()
-            */
-
             // If there are multiple intercept scids, just pick the last one, as
             // it is likely the most recently generated.
-            let scid = intercept_scids
+            let intercept_scid = intercept_scids
                 .last()
-                .context("No intercept hints provided")?;
-            let route_hint_hop = RouteHintHop {
-                src_node_id: lsp_info.node_pk.0,
-                short_channel_id: scid.0,
-                fees,
-                cltv_expiry_delta,
-                htlc_minimum_msat: Some(htlc_minimum_msat),
-                htlc_maximum_msat: Some(htlc_maximum_msat),
-            };
-            vec![RouteHint(vec![route_hint_hop])]
+                .context("No intercept SCID provided")
+                .inspect_err(|err| debug_panic_release_log!("{err:#}"))?;
+
+            // Build the last hop hint for the payer to route with.
+            let last_hop_hint =
+                LastHopHint::new(&lsp_info, *intercept_scid, &channels);
+            last_hop_hint.invoice_route_hints()
         }
     };
     debug!("Including route hints: {route_hints:?}");
