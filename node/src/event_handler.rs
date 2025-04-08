@@ -421,12 +421,21 @@ async fn do_handle_event(
             reason,
             payment_hash,
         } => {
+            // TODO(phlip9): remove
+            let hash = match payment_hash {
+                Some(hash) => hash,
+                None => {
+                    // TODO(phlip9): BOLT 12
+                    error!("unhandled BOLT12 PaymentFailed");
+                    return Ok(());
+                }
+            };
+
             // NOTE: Err(Replay) ==> must be handled idempotently
             let reason =
                 reason.unwrap_or(PaymentFailureReason::RetriesExhausted);
             let failure = LxOutboundPaymentFailure::from(reason);
-            // TODO(max): Remove .expect() for BOLT 12, handle bolt 12 client id
-            let hash = payment_hash.expect("Only None for BOLT 12");
+
             let hash = LxPaymentHash::from(hash);
             ctx.payments_manager
                 .payment_failed(hash.into(), failure)

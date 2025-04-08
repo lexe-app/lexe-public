@@ -372,6 +372,19 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                     FailureCode::IncorrectOrUnknownPaymentDetails,
                 )
             })?;
+        // TODO(phlip9): remove
+        match purpose {
+            LxPaymentPurpose::Bolt12Offer { .. }
+            | LxPaymentPurpose::Bolt12Refund { .. } => {
+                // TODO(phlip9): BOLT12
+                error!("unhandled PaymentClaimable for BOLT12 payment");
+                // claim_funds so test makes progress
+                self.channel_manager.claim_funds(purpose.preimage().into());
+                return Ok(());
+            }
+            _ => (),
+        }
+
         let preimage = purpose.preimage();
 
         // NOTE: avoid touching the ChannelManager while holding the lock
@@ -468,6 +481,17 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         let amount = Amount::from_msat(amt_msat);
         info!(%amount, %hash, "Handling PaymentClaimed");
         let purpose = LxPaymentPurpose::try_from(purpose)?;
+
+        // TODO(phlip9): remove
+        match purpose {
+            LxPaymentPurpose::Bolt12Offer { .. }
+            | LxPaymentPurpose::Bolt12Refund { .. } => {
+                // TODO(phlip9): BOLT12
+                error!("unhandled BOLT12 PaymentClaimed");
+                return Ok(());
+            }
+            _ => (),
+        }
 
         // Check
         let mut locked_data = self.data.lock().await;
