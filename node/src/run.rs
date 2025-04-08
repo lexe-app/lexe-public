@@ -570,7 +570,7 @@ impl UserNode {
         }
 
         // Init onion messenger
-        let offers_msg_handler = IgnoringMessageHandler {};
+        let offers_msg_handler = channel_manager.clone();
         let async_payments_msg_handler = IgnoringMessageHandler {};
         let dns_resolver = IgnoringMessageHandler {};
         let custom_onion_msg_handler = IgnoringMessageHandler {};

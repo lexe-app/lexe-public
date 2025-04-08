@@ -57,8 +57,7 @@ pub type LexeOnionMessengerType<CHANNEL_MANAGER> = OnionMessenger<
     CHANNEL_MANAGER,
     Arc<MessageRouterType>,
     // OffersMessageHandler
-    // TODO(max): Need a OffersMessageHandler for BOLT 12
-    IgnoringMessageHandler,
+    CHANNEL_MANAGER,
     // AsyncPaymentsMessageHandler
     IgnoringMessageHandler,
     // DNSResolverMessageHandler
