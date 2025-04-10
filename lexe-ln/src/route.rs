@@ -467,9 +467,20 @@ pub fn build_payment_params(
 
     // Hard limit: Don't allow more MPP paths than our # of usable channels.
     // Default to max 5 paths if num_usable_channels isn't supplied.
-    let max_path_count = num_usable_channels
-        .map(|num_usable| u8::try_from(num_usable).unwrap_or(255))
-        .unwrap_or(5);
+    // let max_path_count = num_usable_channels
+    //     .map(|num_usable| u8::try_from(num_usable).unwrap_or(255))
+    //     .unwrap_or(5);
+    //
+    // TODO(max): Our MPP smoketests currently break if we use the code just
+    // above (which is what we want). I've opened an issue for this:
+    // https://github.com/lightningdevkit/rust-lightning/issues/3727
+    //
+    // two_shard_two_hop_max_sendable_to_existing_channel:
+    // "Error: Tried to pay 490974.155 sats. The maximum amount that you can
+    // route to this recipient is 392564 sats. Consider adding to your Lightning
+    // balance or sending a smaller amount."
+    let _ = num_usable_channels;
+    let max_path_count = lightning::routing::router::DEFAULT_MAX_PATH_COUNT;
 
     // One week (measured in blocks). This is also LDK's default.
     let max_total_cltv_expiry_delta = 1008;
