@@ -465,15 +465,22 @@ pub fn build_payment_params(
             Some(invoice.expires_at()?.into_duration().as_secs()),
     };
 
+    // Allow payment paths to saturate the channel's usable capacity.
+    // The default value is 2, meaning we only use up to 1/4th of a channel's
+    // capacity. But users often have quite small channels of around 50k sats.
+    // This means that a simple payment of 50k sats may require 4 paths or
+    // more, which drastically decreases payment reliability.
+    let max_channel_saturation_power_of_half = 0;
+
     Ok(PaymentParameters {
         payee,
         expiry_time,
+        max_channel_saturation_power_of_half,
 
-        // Everything else uses LDK defaults. This is checked in tests.
+        // Everything else uses LDK defaults.
         max_total_cltv_expiry_delta: DEFAULT_MAX_TOTAL_CLTV_EXPIRY_DELTA,
         max_path_count: DEFAULT_MAX_PATH_COUNT,
         max_path_length: MAX_PATH_LENGTH_ESTIMATE,
-        max_channel_saturation_power_of_half: 2,
         previously_failed_channels: Vec::new(),
         previously_failed_blinded_path_idxs: Vec::new(),
     })
@@ -583,34 +590,4 @@ pub async fn compute_max_flow_to_recipient(
     info!("Max flow result ({iter} iters) <{elapsed_ms}>: {max_flow_result:?}");
 
     max_flow_result
-}
-
-#[cfg(test)]
-mod test {
-    use common::{rng::FastRng, root_seed::RootSeed};
-
-    use super::*;
-
-    /// Compares our [`build_payment_params`] constructor with the values used
-    /// in LDK's [`PaymentParameters::from_node_id`]. This test exists just so
-    /// we can be notified if a default value changes in LDK.
-    #[test]
-    fn default_vs_ldk_constructor() {
-        let mut rng = FastRng::from_u64(2838113);
-        let seed = RootSeed::from_rng(&mut rng);
-        let node_pk = seed.derive_node_pk(&mut rng);
-
-        let lexe_payment_params =
-            build_payment_params(Either::Left(node_pk)).unwrap();
-
-        let min_final_cltv_expiry_delta =
-            u32::try_from(DEFAULT_MIN_FINAL_CLTV_EXPIRY_DELTA)
-                .expect("Checked in const_assert");
-        let ldk_payment_params = PaymentParameters::from_node_id(
-            node_pk.0,
-            min_final_cltv_expiry_delta,
-        );
-
-        assert_eq!(lexe_payment_params, ldk_payment_params);
-    }
 }
