@@ -27,8 +27,7 @@ use lightning::{
     routing::{
         router::{
             DefaultRouter, InFlightHtlcs, Payee, PaymentParameters, Route,
-            RouteParameters, Router, DEFAULT_MAX_PATH_COUNT,
-            DEFAULT_MAX_TOTAL_CLTV_EXPIRY_DELTA, MAX_PATH_LENGTH_ESTIMATE,
+            RouteParameters, Router, MAX_PATH_LENGTH_ESTIMATE,
         },
         scoring::ProbabilisticScoringFeeParameters,
     },
@@ -428,6 +427,7 @@ impl RoutingContext {
 // 'unbuilderify' it to make clear how each field modifies the final result.
 pub fn build_payment_params(
     payee_pk_or_invoice: Either<NodePk, &LxInvoice>,
+    num_usable_channels: Option<usize>,
 ) -> anyhow::Result<PaymentParameters> {
     let maybe_invoice = payee_pk_or_invoice.right();
 
@@ -465,6 +465,15 @@ pub fn build_payment_params(
             Some(invoice.expires_at()?.into_duration().as_secs()),
     };
 
+    // Hard limit: Don't allow more MPP paths than our # of usable channels.
+    // Default to max 5 paths if num_usable_channels isn't supplied.
+    let max_path_count = num_usable_channels
+        .map(|num_usable| u8::try_from(num_usable).unwrap_or(255))
+        .unwrap_or(5);
+
+    // One week (measured in blocks). This is also LDK's default.
+    let max_total_cltv_expiry_delta = 1008;
+
     // Allow payment paths to saturate the channel's usable capacity.
     // The default value is 2, meaning we only use up to 1/4th of a channel's
     // capacity. But users often have quite small channels of around 50k sats.
@@ -475,11 +484,11 @@ pub fn build_payment_params(
     Ok(PaymentParameters {
         payee,
         expiry_time,
+        max_path_count,
+        max_total_cltv_expiry_delta,
         max_channel_saturation_power_of_half,
 
         // Everything else uses LDK defaults.
-        max_total_cltv_expiry_delta: DEFAULT_MAX_TOTAL_CLTV_EXPIRY_DELTA,
-        max_path_count: DEFAULT_MAX_PATH_COUNT,
         max_path_length: MAX_PATH_LENGTH_ESTIMATE,
         previously_failed_channels: Vec::new(),
         previously_failed_blinded_path_idxs: Vec::new(),

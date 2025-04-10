@@ -1179,20 +1179,23 @@ where
             .context("Missing fallback amount for amountless invoice")?
     };
 
-    // Construct payment parameters, which are amount-agnostic.
-    let payment_params = route::build_payment_params(Either::Right(&invoice))
-        .context("Couldn't build payment parameters")?;
-
-    // Construct payment routing context
-    let routing_context =
-        RoutingContext::from_payment_params(channel_manager, payment_params);
-
     // Compute Lightning balances
     let channels = channel_manager.list_channels();
     let num_channels = channels.len();
     let (lightning_balance, num_usable_channels) =
         balance::all_channel_balances(chain_monitor, &channels, lsp_fees);
     let max_sendable = lightning_balance.max_sendable;
+
+    // Construct payment parameters, which are amount-agnostic.
+    let payment_params = route::build_payment_params(
+        Either::Right(&invoice),
+        Some(num_usable_channels),
+    )
+    .context("Couldn't build payment parameters")?;
+
+    // Construct payment routing context
+    let routing_context =
+        RoutingContext::from_payment_params(channel_manager, payment_params);
 
     // Check that the user has at least one usable channel.
     if num_channels == 0 {
