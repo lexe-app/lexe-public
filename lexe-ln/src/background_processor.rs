@@ -5,7 +5,7 @@ use tokio::time::Instant;
 use tracing::{debug, error, info, info_span, warn, Instrument};
 
 use crate::{
-    alias::{LexeChainMonitorType, LexeOnionMessengerType},
+    alias::LexeChainMonitorType,
     traits::{
         LexeChannelManager, LexeEventHandler, LexeInnerPersister,
         LexePeerManager, LexePersister,
@@ -44,7 +44,6 @@ pub fn start<CM, PM, PS, EH>(
     peer_manager: PM,
     persister: PS,
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
-    onion_messenger: Arc<LexeOnionMessengerType<CM>>,
     event_handler: EH,
     mut shutdown: NotifyOnce,
 ) -> LxTask<()>
@@ -100,8 +99,6 @@ where
                             debug!("Triggered: Channel manager update"),
                         () = chain_monitor.get_update_future() =>
                             debug!("Triggered: Chain monitor update"),
-                        _ = onion_messenger.get_update_future() =>
-                            debug!("Triggered: Onion messenger update"),
                     };
 
                     // We're about to process events. Prevent duplicate work by

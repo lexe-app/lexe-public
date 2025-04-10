@@ -782,7 +782,6 @@ impl UserNode {
             peer_manager.clone(),
             persister.clone(),
             chain_monitor.clone(),
-            onion_messenger.clone(),
             event_handler,
             shutdown.clone(),
         );
