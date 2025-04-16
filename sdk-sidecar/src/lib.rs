@@ -45,14 +45,11 @@
 //  PUT  /app/payments/note
 //
 // Basic prototype sdk API:
-//  GET  /sdk/health
-//  GET  /sdk/node_info
-// POST  /sdk/create_invoice
-// POST  /sdk/pay_invoice
-// POST  /sdk/preflight_pay_invoice
-// POST  /sdk/payments/indexes
-//  GET  /sdk/payments/new
-//  PUT  /sdk/payments/note
+//  GET  /sidecar/health
+//  GET  /node/node_info
+// POST  /node/create_invoice
+// POST  /node/pay_invoice
+//  GET  /node/payment
 
 // design decisions:
 //
@@ -60,17 +57,8 @@
 //   1. docker container (amd64, arm64)
 //   2. standalone binary (x86_64, aarch64)
 //
-// - if it has root seed available, sidecar does NOT need a data volume
-//   + we can just blindly reprovision at startup
-//     + also reprovision automatically every day, handles long running sidecar
-// - if we don't have root seed available (fine-grained auth), we can
-//   + (1) bad - blindly trust whatever node version is currently provisioned.
-//     allows rollbacks to vulnerable versions.
-//   + (2) prone to outages - only trust explicit `TRUSTED_NODE_MEASUREMENT`.
-//     imagine app provisions a new version, the sidecar won't be synced on the
-//     measurement and will fail to connect.
-//   + (3) alright - trust any node version as long as it's >= a version we
-//     currently trust.
+// - with fine-grained auth, the sidecar can't (re-)provision. it just has an
+//   mTLS client cert that can connect to the node.
 //
 // - if we remove the gDrive requirement, a user could also operate without a
 //   mobile app by generating the root seed locally and having the sidecar
@@ -116,14 +104,13 @@
 //
 // - envs:
 //   - (mandatory)
-//   + ROOT_SEED_PATH=<path/root_seed> (default=/run/secrets/root_seed)
-//   + API_KEY_PATH=<path/api_key> (default=/run/secrets/api_key)
+//   + NODE_CERTS=<base64-encoded root seed cert+key+CA json>
 //
 //   - (optional)
-//   + LISTEN_ADDR=<ip:port> (default=[::1]:8080)
+//   + SIDECAR_API_KEY=<path/api_key> (optional)
+//   + LISTEN_ADDR=<ip:port> (default=[::1]:5393)
 //   + NETWORK=<mainnet|testnet|regtest> (default=mainnet)
 //   + DEPLOY_ENV=<prod|staging|dev> (default=prod)
-//   + TRUSTED_NODE_MEASUREMENT=<measurement> (optional)
 //
 // - future:
 //   + fine-grained auth and non-root-seed derived mTLS to node so users don't
@@ -137,35 +124,17 @@
 //
 // ```bash
 // $ cargo install lexe-sdk-sidecar
-// $ mkdir .secrets
-// $ head -c 16 /dev/urandom | base64 | tr -d '\n' > .secrets/api_key \
-//     && chmod 600 .secrets/api_key
-//
-// # TODO(phlip9): copying root seed from mobile app is not secure...
-// # (macOS)
-// $ pbpaste > .secrets/root_seed
-// # (Linux)
-// $ wl-paste -n > .secrets/root_seed
-// $ chmod 600 .secrets/root_seed
-//
-// $ ROOT_SEED_PATH=<.secrets/root_seed> API_KEY_PATH=<.secrets/api_key> \
-//     lexe-sdk-sidecar
+// $ NODE_CERTS=<..> lexe-sdk-sidecar
 // ```
 //
 // Run the sidecar as a docker container:
 //
 // ```bash
-// # TODO(phlip9): copying root seed from mobile app is not secure...
-// # (macOS)
-// $ pbpaste | docker secret create root_seed -
-// # (Linux)
-// $ wl-paste -n | docker secret create root_seed -
+// docker secret create node_certs "<..>"
 //
-// $ head -c 16 /dev/urandom | base64 | tr -d '\n' | docker secret create api_key -
 // $ docker service create \
 //     --name lexe-sdk-sidecar \
-//     --secret api_key \
-//     --secret root_seed \
+//     --secret node_certs \
 //     lexe/sdk-sidecar:latest
 // ```
 //
@@ -176,22 +145,15 @@
 //   lexe:
 //     image: lexe/sdk-sidecar:latest
 //     ports:
-//       - "8080:8080"
-//     secrets:
-//       - root_seed
-//       - api_key
-//
-// secrets:
-//   root_seed:
-//     file: .secrets/root_seed
-//   api_key:
-//     file: .secrets/api_key
+//       - "5393:5393"
 // ```
 //
 // test:
 //
 // ```bash
-// $ curl http://localhost:8080/sdk/node_info \
-//     --accept "application/json" \
-//     --header "x-api-key: $(cat .secrets/api_key)"
+// $ curl http://localhost:5393/node/node_info
 // ```
+
+// mod cli;
+// mod run;
+// mod server;
