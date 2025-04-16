@@ -51,6 +51,8 @@ pub mod net;
 pub mod notify;
 /// `NotifyOnce`.
 pub mod notify_once;
+/// `OrEnvExt` utility trait.
+pub mod or_env;
 /// Password-based encryption for arbitrary bytes.
 pub mod password;
 /// Random number generation.
