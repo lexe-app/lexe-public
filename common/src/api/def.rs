@@ -544,7 +544,7 @@ pub trait AppNodeRunApi {
         req: PreflightPayOnchainRequest,
     ) -> Result<PreflightPayOnchainResponse, NodeApiError>;
 
-    /// POST /v1/payments/indexes [`PaymentIndexes`] -> [`VecDbPayment`]
+    /// POST /app/payments/indexes [`PaymentIndexes`] -> [`VecDbPayment`]
     ///
     /// Fetch a batch of payments by their [`PaymentIndex`]s. This is typically
     /// used by a mobile client to poll for updates on payments which it
