@@ -150,6 +150,7 @@ Future<Config> build(final UserAgent userAgent) async {
   // See: `app-rs::app::AppConfig`
   final baseAppDataDir = await path_provider.getApplicationSupportDirectory();
 
+  // Keep in sync with `sdk-sidecar/src/run.rs`.
   final gatewayUrl = switch (deployEnv) {
     DeployEnv.prod => "https://lexe-prod.uswest2.prod.lexe.app",
     DeployEnv.staging => "https://lexe-staging-sgx.uswest2.staging.lexe.app",

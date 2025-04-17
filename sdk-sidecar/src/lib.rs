@@ -45,11 +45,11 @@
 //  PUT  /app/payments/note
 //
 // Basic prototype sdk API:
-//  GET  /sidecar/health
-//  GET  /node/node_info
-// POST  /node/create_invoice
-// POST  /node/pay_invoice
-//  GET  /node/payment
+//  GET  /v1/health
+//  GET  /v1/node/node_info
+// POST  /v1/node/create_invoice
+// POST  /v1/node/pay_invoice
+//  GET  /v1/node/payment
 
 // design decisions:
 //
@@ -154,6 +154,6 @@
 // $ curl http://localhost:5393/node/node_info
 // ```
 
-// mod cli;
-// mod run;
-// mod server;
+pub mod cli;
+pub mod run;
+mod server;

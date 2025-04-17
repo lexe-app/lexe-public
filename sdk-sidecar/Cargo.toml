@@ -4,3 +4,26 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 version.workspace = true
+
+[dependencies]
+
+# --- LEXE --- #
+
+app-rs = { path = "../app-rs", default-features = false }
+common = { path = "../common" }
+const-utils = { path = "../const-utils" }
+logger = { path = "../logger" }
+lexe-api = { path = "../lexe-api" }
+
+# --- WORKSPACE --- #
+
+anyhow.workspace = true
+argh.workspace = true
+axum.workspace = true
+dotenvy.workspace = true
+serde.workspace = true
+tokio = { workspace = true, features = [
+    "rt",
+    "signal",
+] }
+tracing.workspace = true
