@@ -151,12 +151,15 @@ fn derive_aes_key(password: &str, salt: &[u8; 32]) -> AesMasterKey {
 
 #[cfg(test)]
 mod test {
+    use std::path::Path;
+
     use proptest::{
         arbitrary::any, proptest, strategy::Strategy, test_runner::Config,
     };
+    use secrecy::ExposeSecret;
 
     use super::*;
-    use crate::rng::FastRng;
+    use crate::{rng::FastRng, root_seed::RootSeed};
 
     #[test]
     fn encryption_roundtrip() {
@@ -241,5 +244,28 @@ mod test {
                 }
             }
         }
+    }
+
+    // ```bash
+    // $ nix shell .#secretctl
+    // $ PASSWORD=".." IN_PATH=".." \
+    //     cargo test -p common --lib -- test_decrypt_root_seed --nocapture --ignored
+    // ```
+    #[test]
+    #[ignore]
+    fn test_decrypt_root_seed() {
+        let password = std::env::var("PASSWORD").expect("`$PASSWORD` not set");
+        let in_path = std::env::var_os("IN_PATH").expect("`$IN_PATH` not set");
+        let in_path = Path::new(&in_path);
+
+        let ciphertext = std::fs::read(in_path).unwrap();
+        let root_seed = RootSeed::password_decrypt(&password, ciphertext)
+            .expect("Failed to decrypt");
+
+        let root_seed_bytes = root_seed.expose_secret().as_slice();
+        let mut root_seed_hex = hex::encode(root_seed_bytes);
+        println!("{root_seed_hex}");
+
+        root_seed_hex.zeroize();
     }
 }
