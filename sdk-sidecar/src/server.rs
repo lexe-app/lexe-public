@@ -43,7 +43,7 @@ mod node {
         api::{
             command::{
                 CreateInvoiceRequest, GetNewPayments, NodeInfo,
-                PayInvoiceRequest, PayInvoiceResponse, PaymentIndexes,
+                PayInvoiceRequest, PaymentIndexes,
             },
             def::AppNodeRunApi,
             error::NodeApiError,
@@ -55,7 +55,7 @@ mod node {
     use super::{
         model::{
             CreateInvoiceResponse, GetPaymentByIndexRequest,
-            GetPaymentByIndexResponse,
+            GetPaymentByIndexResponse, PayInvoiceResponse,
         },
         RouterState,
     };
@@ -118,7 +118,13 @@ mod node {
         state: State<Arc<RouterState>>,
         LxJson(req): LxJson<PayInvoiceRequest>,
     ) -> Result<LxJson<PayInvoiceResponse>, NodeApiError> {
-        state.node_client.pay_invoice(req).await.map(LxJson)
+        let id = req.invoice.payment_id();
+        state
+            .node_client
+            .pay_invoice(req)
+            .await
+            .map(|resp| PayInvoiceResponse::new(id, resp.created_at))
+            .map(LxJson)
     }
 
     pub(crate) async fn payment(
@@ -138,8 +144,8 @@ mod model {
             amount::Amount,
             invoice::LxInvoice,
             payments::{
-                BasicPayment, LxPaymentHash, LxPaymentSecret, PaymentIndex,
-                VecBasicPayment,
+                BasicPayment, LxPaymentHash, LxPaymentId, LxPaymentSecret,
+                PaymentIndex, VecBasicPayment,
             },
         },
         time::TimestampMs,
@@ -161,6 +167,14 @@ mod model {
         pub expires_at: TimestampMs,
         pub payment_hash: LxPaymentHash,
         pub payment_secret: LxPaymentSecret,
+    }
+
+    /// The response to a `pay_invoice` request. Contains the payment index
+    /// and `created_at` timestamp.
+    #[derive(Serialize)]
+    pub(crate) struct PayInvoiceResponse {
+        pub index: PaymentIndex,
+        pub created_at: TimestampMs,
     }
 
     #[derive(Deserialize)]
@@ -193,6 +207,15 @@ mod model {
                 expires_at,
                 payment_hash,
                 payment_secret,
+            }
+        }
+    }
+
+    impl PayInvoiceResponse {
+        pub fn new(id: LxPaymentId, created_at: TimestampMs) -> Self {
+            Self {
+                index: PaymentIndex { id, created_at },
+                created_at,
             }
         }
     }
