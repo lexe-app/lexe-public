@@ -39,31 +39,20 @@ mod node {
     use std::sync::Arc;
 
     use axum::extract::State;
-    use common::{
-        api::{
-            command::{
-                CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
-                PayInvoiceRequest, PayInvoiceResponse, PaymentIndexes,
-            },
-            def::AppNodeRunApi,
-            error::NodeApiError,
+    use common::api::{
+        command::{
+            CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
+            PayInvoiceRequest, PayInvoiceResponse, PaymentIndexes,
         },
-        ln::payments::{BasicPayment, PaymentIndex},
+        def::AppNodeRunApi,
+        error::NodeApiError,
     };
     use lexe_api::server::{extract::LxQuery, LxJson};
-    use serde::{Deserialize, Serialize};
 
-    use super::RouterState;
-
-    #[derive(Deserialize)]
-    pub(crate) struct GetPaymentByIndexRequest {
-        index: PaymentIndex,
-    }
-
-    #[derive(Serialize)]
-    pub(crate) struct GetPaymentByIndexResponse {
-        payment: Option<BasicPayment>,
-    }
+    use super::{
+        model::{GetPaymentByIndexRequest, GetPaymentByIndexResponse},
+        RouterState,
+    };
 
     pub(crate) async fn node_info(
         state: State<Arc<RouterState>>,
@@ -89,14 +78,46 @@ mod node {
         state: State<Arc<RouterState>>,
         LxQuery(req): LxQuery<GetPaymentByIndexRequest>,
     ) -> Result<LxJson<GetPaymentByIndexResponse>, NodeApiError> {
-        let req = PaymentIndexes {
-            indexes: vec![req.index],
-        };
-        let mut resp = state.node_client.get_payments_by_indexes(req).await?;
+        let req = PaymentIndexes::from(req);
+        let resp = state.node_client.get_payments_by_indexes(req).await?;
+        Ok(LxJson(GetPaymentByIndexResponse::from(resp)))
+    }
+}
 
-        resp.payments.truncate(1);
-        let payment = resp.payments.pop();
+mod model {
+    use common::{
+        api::command::PaymentIndexes,
+        ln::payments::{BasicPayment, PaymentIndex, VecBasicPayment},
+    };
+    use serde::{Deserialize, Serialize};
 
-        Ok(LxJson(GetPaymentByIndexResponse { payment }))
+    // --- enriched request/response types for dumb clients --- //
+
+    #[derive(Deserialize)]
+    pub(crate) struct GetPaymentByIndexRequest {
+        index: PaymentIndex,
+    }
+
+    #[derive(Serialize)]
+    pub(crate) struct GetPaymentByIndexResponse {
+        payment: Option<BasicPayment>,
+    }
+
+    // --- Conversions --- //
+
+    impl From<GetPaymentByIndexRequest> for PaymentIndexes {
+        fn from(req: GetPaymentByIndexRequest) -> Self {
+            Self {
+                indexes: vec![req.index],
+            }
+        }
+    }
+
+    impl From<VecBasicPayment> for GetPaymentByIndexResponse {
+        fn from(mut resp: VecBasicPayment) -> Self {
+            resp.payments.truncate(1);
+            let payment = resp.payments.pop();
+            Self { payment }
+        }
     }
 }
