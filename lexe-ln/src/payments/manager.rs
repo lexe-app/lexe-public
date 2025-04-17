@@ -275,6 +275,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         let id = payment.id();
         info!(%id, "Registering new payment");
         let mut locked_data = self.data.lock().await;
+
+        // TODO(phlip9): might be clearer semantics if we assign the
+        // new payment's `created_at` _inside_ the lock... this would make
+        // payments properly append-only with a strictly increasing `created_at`
         let checked = locked_data
             .check_new_payment(payment)
             .context("Error handling new payment")?;

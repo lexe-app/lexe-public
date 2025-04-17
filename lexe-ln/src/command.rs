@@ -722,6 +722,8 @@ where
     let currency = Currency::from(network);
     let sha256_hash = sha256::Hash::from_slice(&hash.0)
         .expect("Should never fail with [u8;32]");
+
+    // TODO(phlip9): set maximum invoice expiry duration
     let expiry_time = Duration::from_secs(u64::from(req.expiry_secs));
     let our_node_pk = channel_manager.get_our_node_id();
 

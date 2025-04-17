@@ -124,7 +124,7 @@ impl Sidecar {
         let router_state = Arc::new(crate::server::RouterState { node_client });
         let maybe_tls_and_dns = None;
         const SERVER_SPAN_NAME: &str = "(server)";
-        let (server_task, server_url) = lexe_api::server::spawn_server_task(
+        let (server_task, _server_url) = lexe_api::server::spawn_server_task(
             self.listen_addr,
             crate::server::router(router_state),
             LayerConfig::default(),
@@ -135,8 +135,6 @@ impl Sidecar {
         )
         .context("Failed to spawn server task")?;
         static_tasks.push(server_task);
-
-        info!("Listening on: {server_url}");
 
         // Wait for graceful shutdown (with time limit)
         const SHUTDOWN_TIME_LIMIT: Duration = Duration::from_secs(10);

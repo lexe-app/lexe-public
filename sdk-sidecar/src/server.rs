@@ -39,18 +39,24 @@ mod node {
     use std::sync::Arc;
 
     use axum::extract::State;
-    use common::api::{
-        command::{
-            CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
-            PayInvoiceRequest, PayInvoiceResponse, PaymentIndexes,
+    use common::{
+        api::{
+            command::{
+                CreateInvoiceRequest, GetNewPayments, NodeInfo,
+                PayInvoiceRequest, PayInvoiceResponse, PaymentIndexes,
+            },
+            def::AppNodeRunApi,
+            error::NodeApiError,
         },
-        def::AppNodeRunApi,
-        error::NodeApiError,
+        ln::payments::{LxPaymentId, PaymentIndex},
     };
     use lexe_api::server::{extract::LxQuery, LxJson};
 
     use super::{
-        model::{GetPaymentByIndexRequest, GetPaymentByIndexResponse},
+        model::{
+            CreateInvoiceResponse, GetPaymentByIndexRequest,
+            GetPaymentByIndexResponse,
+        },
         RouterState,
     };
 
@@ -64,7 +70,48 @@ mod node {
         state: State<Arc<RouterState>>,
         LxJson(req): LxJson<CreateInvoiceRequest>,
     ) -> Result<LxJson<CreateInvoiceResponse>, NodeApiError> {
-        state.node_client.create_invoice(req).await.map(LxJson)
+        let resp = state.node_client.create_invoice(req).await?;
+
+        // HACK: temporary hack to lookup `PaymentIndex` for new invoice.
+        // TODO(phlip9): original response should include the PaymentIndex.
+        let invoice = resp.invoice;
+        let resp = state
+            .node_client
+            .get_new_payments(GetNewPayments {
+                // `start_index` is exclusive. use the invoice `created_at`
+                // (which is different from the payment `created_at` and
+                // currently guaranteed to be before the payment `created_at`)
+                // to get us close to the newly registered payment.
+                start_index: Some(PaymentIndex {
+                    created_at: invoice.saturating_created_at(),
+                    id: LxPaymentId::MIN,
+                }),
+                // Lookup a few payments just in case we raced with other new
+                // payments.
+                limit: Some(3),
+            })
+            .await?;
+
+        // Look for the newly registered invoice payment in the response by
+        // it's payment id.
+        let id = invoice.payment_id();
+        let index = resp
+            .payments
+            .into_iter()
+            .find_map(|p| {
+                if p.index.id == id {
+                    Some(p.index)
+                } else {
+                    None
+                }
+            })
+            .ok_or_else(|| {
+                NodeApiError::command(
+                    "Failed to lookup payment index for invoice",
+                )
+            })?;
+
+        Ok(LxJson(CreateInvoiceResponse::new(index, invoice)))
     }
 
     pub(crate) async fn pay_invoice(
@@ -87,11 +134,34 @@ mod node {
 mod model {
     use common::{
         api::command::PaymentIndexes,
-        ln::payments::{BasicPayment, PaymentIndex, VecBasicPayment},
+        ln::{
+            amount::Amount,
+            invoice::LxInvoice,
+            payments::{
+                BasicPayment, LxPaymentHash, LxPaymentSecret, PaymentIndex,
+                VecBasicPayment,
+            },
+        },
+        time::TimestampMs,
     };
     use serde::{Deserialize, Serialize};
 
     // --- enriched request/response types for dumb clients --- //
+
+    /// The response to a `create_invoice` request. Contains the encoded
+    /// invoice, the payment index, and various decoded fields from the
+    /// invoice for convenience.
+    #[derive(Serialize)]
+    pub(crate) struct CreateInvoiceResponse {
+        pub index: PaymentIndex,
+        pub invoice: LxInvoice,
+        pub description: Option<String>,
+        pub amount: Option<Amount>,
+        pub created_at: TimestampMs,
+        pub expires_at: TimestampMs,
+        pub payment_hash: LxPaymentHash,
+        pub payment_secret: LxPaymentSecret,
+    }
 
     #[derive(Deserialize)]
     pub(crate) struct GetPaymentByIndexRequest {
@@ -104,6 +174,28 @@ mod model {
     }
 
     // --- Conversions --- //
+
+    impl CreateInvoiceResponse {
+        pub fn new(index: PaymentIndex, invoice: LxInvoice) -> Self {
+            let description = invoice.description_str().map(|s| s.to_owned());
+            let amount_sats = invoice.amount();
+            let created_at = invoice.saturating_created_at();
+            let expires_at = invoice.saturating_expires_at();
+            let payment_hash = invoice.payment_hash();
+            let payment_secret = invoice.payment_secret();
+
+            Self {
+                index,
+                invoice,
+                description,
+                amount: amount_sats,
+                created_at,
+                expires_at,
+                payment_hash,
+                payment_secret,
+            }
+        }
+    }
 
     impl From<GetPaymentByIndexRequest> for PaymentIndexes {
         fn from(req: GetPaymentByIndexRequest) -> Self {
