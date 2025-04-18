@@ -24,12 +24,14 @@ mod sidecar {
     use common::api::error::NodeApiError;
     use lexe_api::server::LxJson;
     use serde::Serialize;
+    use tracing::instrument;
 
     #[derive(Serialize)]
     pub(crate) struct HealthCheck {
         status: &'static str,
     }
 
+    #[instrument(skip_all, name = "(health)")]
     pub(crate) async fn health() -> Result<LxJson<HealthCheck>, NodeApiError> {
         Ok(LxJson(HealthCheck { status: "ok" }))
     }
@@ -51,6 +53,7 @@ mod node {
         ln::payments::{LxPaymentId, PaymentIndex},
     };
     use lexe_api::server::{extract::LxQuery, LxJson};
+    use tracing::instrument;
 
     use super::{
         model::{
@@ -60,12 +63,14 @@ mod node {
         RouterState,
     };
 
+    #[instrument(skip_all, name = "(node-info)")]
     pub(crate) async fn node_info(
         state: State<Arc<RouterState>>,
     ) -> Result<LxJson<NodeInfo>, NodeApiError> {
         state.node_client.node_info().await.map(LxJson)
     }
 
+    #[instrument(skip_all, name = "(create-invoice)")]
     pub(crate) async fn create_invoice(
         state: State<Arc<RouterState>>,
         LxJson(req): LxJson<CreateInvoiceRequest>,
@@ -114,6 +119,7 @@ mod node {
         Ok(LxJson(CreateInvoiceResponse::new(index, invoice)))
     }
 
+    #[instrument(skip_all, name = "(pay-invoice)")]
     pub(crate) async fn pay_invoice(
         state: State<Arc<RouterState>>,
         LxJson(req): LxJson<PayInvoiceRequest>,
@@ -127,6 +133,7 @@ mod node {
             .map(LxJson)
     }
 
+    #[instrument(skip_all, name = "(payment)")]
     pub(crate) async fn payment(
         state: State<Arc<RouterState>>,
         LxQuery(req): LxQuery<GetPaymentByIndexRequest>,
