@@ -1,9 +1,10 @@
-use std::{fmt, str::FromStr};
+use std::{fmt, num::NonZeroU64, str::FromStr};
 
 use lightning::offers::{
     offer::{self, CurrencyCode, Offer},
     parse::Bolt12ParseError,
 };
+use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
@@ -190,6 +191,63 @@ impl FromStr for LxOffer {
     }
 }
 
+/// The max number of items that can be purchased in one payment with the offer.
+///
+/// The expected amount paid for this offer is `offer.amount * quantity`,
+/// where `offer.amount` is the amount per item and `quantity` is the
+/// number of items chosen by the payer. The payer's chosen `quantity` must be
+/// in the range: `0 < quantity <= offer.max_quantity`.
+///
+/// NOTE: this is NOT related to reusable vs single-use offers.
+///
+/// This type is effectively LDK's [`Quantity`] type but serde serializable. We
+/// also use `u64::MAX` to represent "unbounded" quantity. This makes the
+/// `CreateOfferRequest` serialization simpler, since `max_quantity` should be
+/// an optional field and `Option<Option<NonZeroU64>>` has a strange
+/// serialization.
+///
+/// See: [`CreateOfferRequest::max_quantity`](crate::api::command::CreateOfferRequest::max_quantity)
+///
+/// [`Quantity`]: lightning::offers::offer::Quantity
+/// [`CreateOfferRequest::max_quantity`]: crate::api::command::CreateOfferRequest::max_quantity
+#[derive(Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Debug))]
+#[repr(transparent)]
+pub struct MaxQuantity(pub NonZeroU64);
+
+impl MaxQuantity {
+    pub const ONE: Self = Self(const { NonZeroU64::new(1).unwrap() });
+    pub const UNBOUNDED: Self = Self(NonZeroU64::MAX);
+}
+
+impl Default for MaxQuantity {
+    fn default() -> Self {
+        Self::ONE
+    }
+}
+
+impl From<lightning::offers::offer::Quantity> for MaxQuantity {
+    fn from(value: lightning::offers::offer::Quantity) -> Self {
+        use lightning::offers::offer::Quantity;
+        match value {
+            Quantity::One => Self::ONE,
+            Quantity::Unbounded => Self::UNBOUNDED,
+            Quantity::Bounded(n) if n == Self::UNBOUNDED.0 => Self::UNBOUNDED,
+            Quantity::Bounded(n) => MaxQuantity(n),
+        }
+    }
+}
+
+impl From<MaxQuantity> for lightning::offers::offer::Quantity {
+    fn from(value: MaxQuantity) -> Self {
+        match value {
+            MaxQuantity::ONE => Self::One,
+            MaxQuantity::UNBOUNDED => Self::Unbounded,
+            MaxQuantity(n) => Self::Bounded(n),
+        }
+    }
+}
+
 // TODO(phlip9): remove when ldk upstream impls Display
 #[derive(Clone, Debug, PartialEq)]
 pub struct ParseError(pub Bolt12ParseError);
@@ -214,10 +272,7 @@ mod arb {
             OffersContext,
         },
         ln::{channelmanager::PaymentId, inbound_payment::ExpandedKey},
-        offers::{
-            nonce::Nonce,
-            offer::{OfferBuilder, Quantity},
-        },
+        offers::{nonce::Nonce, offer::OfferBuilder},
         types::payment::PaymentHash,
     };
     use proptest::{
@@ -312,11 +367,7 @@ mod arb {
             let any_amount = any::<Option<Amount>>();
             let any_expiry = arbitrary::any_option_duration();
             let any_issuer = any_option_string();
-            let any_quantity = option::of(prop_oneof![
-                any::<NonZeroU64>().prop_map(Quantity::Bounded),
-                Just(Quantity::Unbounded),
-                Just(Quantity::One),
-            ]);
+            let any_max_quantity = any::<MaxQuantity>();
             let any_paths = proptest::collection::vec(any_path(), 0..3);
 
             (
@@ -327,7 +378,7 @@ mod arb {
                 any_amount,
                 any_expiry,
                 any_issuer,
-                any_quantity,
+                any_max_quantity,
                 any_paths,
             )
                 .prop_map(
@@ -339,7 +390,7 @@ mod arb {
                         amount,
                         expiry,
                         issuer,
-                        quantity,
+                        max_quantity,
                         paths,
                     )| {
                         gen_offer(
@@ -350,7 +401,7 @@ mod arb {
                             amount,
                             expiry,
                             issuer,
-                            quantity,
+                            max_quantity,
                             paths,
                         )
                     },
@@ -369,7 +420,7 @@ mod arb {
         amount: Option<Amount>,
         expiry: Option<Duration>,
         issuer: Option<String>,
-        quantity: Option<Quantity>,
+        max_quantity: MaxQuantity,
         paths: Vec<(Vec<MessageForwardNode>, MessageContext)>,
     ) -> LxOffer {
         let root_seed = RootSeed::from_rng(&mut rng);
@@ -403,7 +454,8 @@ mod arb {
                 &expanded_key,
                 nonce,
                 &secp_ctx,
-            );
+            )
+            .supported_quantity(max_quantity.into());
             if let Some(network) = network {
                 offer = offer.chain(network);
             }
@@ -418,16 +470,14 @@ mod arb {
             }
             if let Some(issuer) = issuer {
                 offer = offer.issuer(issuer);
-            }
-            if let Some(quantity) = quantity {
-                offer = offer.supported_quantity(quantity);
             }
             for path in paths {
                 offer = offer.path(path);
             }
             offer.build()
         } else {
-            let mut offer = OfferBuilder::new(node_pk.inner());
+            let mut offer = OfferBuilder::new(node_pk.inner())
+                .supported_quantity(max_quantity.into());
             if let Some(network) = network {
                 offer = offer.chain(network);
             }
@@ -442,9 +492,6 @@ mod arb {
             }
             if let Some(issuer) = issuer {
                 offer = offer.issuer(issuer);
-            }
-            if let Some(quantity) = quantity {
-                offer = offer.supported_quantity(quantity);
             }
             for path in paths {
                 offer = offer.path(path);
@@ -453,6 +500,22 @@ mod arb {
         };
 
         LxOffer(offer.expect("Failed to build BOLT12 offer"))
+    }
+
+    impl Arbitrary for MaxQuantity {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            // prefer generating `MaxQuantity::ONE` and to a lesser extent,
+            // `MaxQuantity::UNBOUNDED`, since these are by far the most common.
+            prop_oneof![
+                10 => Just(MaxQuantity::ONE),
+                2 => Just(MaxQuantity::UNBOUNDED),
+                1 => any::<NonZeroU64>().prop_map(MaxQuantity),
+            ]
+            .boxed()
+        }
     }
 }
 
@@ -531,6 +594,22 @@ mod test {
         });
     }
 
+    #[test]
+    fn offer_max_quantity_serde_roundtrip() {
+        roundtrip::json_string_roundtrip_proptest::<MaxQuantity>();
+    }
+
+    #[test]
+    fn offer_max_quantity_ldk_roundtrip() {
+        proptest!(|(max_quantity1: MaxQuantity)| {
+            let ldk_quantity1 = lightning::offers::offer::Quantity::from(max_quantity1);
+            let max_quantity2 = MaxQuantity::from(ldk_quantity1);
+            let ldk_quantity2 = lightning::offers::offer::Quantity::from(max_quantity2);
+            prop_assert_eq!(ldk_quantity1, ldk_quantity2);
+            prop_assert_eq!(max_quantity1, max_quantity2);
+        });
+    }
+
     // Generate example offers using the proptest strategy.
     #[ignore]
     #[test]
@@ -561,7 +640,7 @@ mod test {
         // duration since Unix epoch
         let expiry = None;
         let issuer = Some("this is the issuer".to_owned());
-        let quantity = None;
+        let max_quantity = MaxQuantity::ONE;
         let message_context =
             MessageContext::Offers(OffersContext::InvoiceRequest {
                 nonce: Nonce::from_entropy_source(&mut rng),
@@ -588,7 +667,7 @@ mod test {
             amount,
             expiry,
             issuer,
-            quantity,
+            max_quantity,
             paths,
         );
         let offer_str = offer.to_string();
