@@ -223,13 +223,15 @@ pub struct PaymentIndex {
 ///
 /// NOTE that this is NOT a drop-in replacement for LDK's [`PaymentId`], since
 /// [`PaymentId`] is Lightning-specific, whereas [`LxPaymentId`] is not.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum LxPaymentId {
-    OnchainSend(ClientPaymentId),
-    OnchainRecv(LxTxid),
+    // NOTE: the enum order is important. `LxPaymentId::prefix()` determines
+    // the order ("ln" < "or" < "os").
     Lightning(LxPaymentHash),
+    OnchainRecv(LxTxid),
+    OnchainSend(ClientPaymentId),
 }
 
 /// An upgradeable version of [`Vec<LxPaymentId>`].
@@ -391,9 +393,9 @@ impl LxPaymentId {
     /// Returns the prefix to use when serializing this payment id to a string.
     pub fn prefix(&self) -> &'static str {
         match self {
-            Self::OnchainSend(_) => "os",
-            Self::OnchainRecv(_) => "or",
             Self::Lightning(_) => "ln",
+            Self::OnchainRecv(_) => "or",
+            Self::OnchainSend(_) => "os",
         }
     }
 }
@@ -709,15 +711,15 @@ impl FromStr for LxPaymentId {
             "Wrong format; should be <kind>_<id>"
         );
         match kind_str {
-            "os" => ClientPaymentId::from_str(id_str)
-                .map(Self::OnchainSend)
-                .context("Invalid ClientPaymentId"),
-            "or" => LxTxid::from_str(id_str)
-                .map(Self::OnchainRecv)
-                .context("Invalid Txid"),
             "ln" => LxPaymentHash::from_str(id_str)
                 .map(Self::Lightning)
                 .context("Invalid payment hash"),
+            "or" => LxTxid::from_str(id_str)
+                .map(Self::OnchainRecv)
+                .context("Invalid Txid"),
+            "os" => ClientPaymentId::from_str(id_str)
+                .map(Self::OnchainSend)
+                .context("Invalid ClientPaymentId"),
             _ => bail!("<kind> should be 'os', 'or', or 'ln'"),
         }
     }
@@ -728,36 +730,10 @@ impl Display for LxPaymentId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let prefix = self.prefix();
         match self {
-            Self::OnchainSend(client_id) => write!(f, "{prefix}_{client_id}"),
-            Self::OnchainRecv(txid) => write!(f, "{prefix}_{txid}"),
             Self::Lightning(hash) => write!(f, "{prefix}_{hash}"),
+            Self::OnchainRecv(txid) => write!(f, "{prefix}_{txid}"),
+            Self::OnchainSend(client_id) => write!(f, "{prefix}_{client_id}"),
         }
-    }
-}
-
-// --- impl Ord for LxPaymentId --- //
-
-/// Defines an ordering such that the string-serialized and unserialized
-/// orderings are equivalent.
-impl Ord for LxPaymentId {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match (self, other) {
-            // If the kinds match, use their inner orderings
-            (Self::OnchainSend(self_cid), Self::OnchainSend(other_cid)) =>
-                self_cid.cmp(other_cid),
-            (Self::OnchainRecv(self_txid), Self::OnchainRecv(other_txid)) =>
-                self_txid.cmp(other_txid),
-            (Self::Lightning(self_hash), Self::Lightning(other_hash)) =>
-                self_hash.cmp(other_hash),
-            // Otherwise, use the string prefix ordering 'ln' < 'or' < 'os'
-            (s, o) => s.prefix().cmp(o.prefix()),
-        }
-    }
-}
-
-impl PartialOrd for LxPaymentId {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
     }
 }
 
