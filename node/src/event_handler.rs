@@ -347,10 +347,10 @@ async fn do_handle_event(
             // NOTE: must be handled idempotently
             ctx.payments_manager
                 .payment_claimable(
+                    purpose,
                     payment_hash.into(),
                     claim_id,
                     amount_msat,
-                    purpose,
                 )
                 .await
                 .context("Error handling PaymentClaimable")
@@ -367,12 +367,19 @@ async fn do_handle_event(
             // TODO(max): We probably want to use this to get JIT on-chain fees?
             sender_intended_total_msat: _,
             onion_fields: _,
-            // TODO(phlip9): use this with BOLT12
-            payment_id: _,
+            payment_id,
         } => {
+            // TODO(phlip9): unwrap once all replaying PaymentClaimable events
+            // drain in prod.
+            let claim_id = payment_id.map(LnClaimId::from);
             // NOTE: must be handled idempotently
             ctx.payments_manager
-                .payment_claimed(payment_hash.into(), amount_msat, purpose)
+                .payment_claimed(
+                    purpose,
+                    payment_hash.into(),
+                    claim_id,
+                    amount_msat,
+                )
                 .await
                 .context("Error handling PaymentClaimed")
                 // Don't want to end up with a 'hung' payment state
@@ -393,9 +400,10 @@ async fn do_handle_event(
             );
         }
 
-        // TODO(max): Revisit for BOLT 12
-        Event::InvoiceReceived { payment_id, .. } =>
-            error!(%payment_id, "Somehow received InvoiceReceived"),
+        // We don't enable `UserConfig::manually_handle_bolt12_invoices` so we
+        // should never see this event.
+        Event::InvoiceReceived { .. } =>
+            debug_panic_release_log!("Unexpected InvoiceReceived event"),
 
         Event::PaymentSent {
             payment_id: _,

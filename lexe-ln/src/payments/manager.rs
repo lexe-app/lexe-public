@@ -32,7 +32,7 @@ use crate::{
     esplora::{LexeEsplora, TxConfStatus},
     payments::{
         inbound::{
-            ClaimableError, InboundSpontaneousPayment, LxPaymentPurpose,
+            ClaimableError, InboundSpontaneousPayment, LnPaymentClaimCtx,
         },
         onchain::OnchainReceive,
         outbound::LxOutboundPaymentFailure,
@@ -355,13 +355,13 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     #[instrument(skip_all, name = "(payment-claimable)")]
     pub async fn payment_claimable(
         &self,
+        purpose: PaymentPurpose,
         hash: LxPaymentHash,
         // TODO(phlip9): make non-Option once replaying events drain in prod
         claim_id: Option<LnClaimId>,
         amt_msat: u64,
-        purpose: PaymentPurpose,
     ) -> anyhow::Result<()> {
-        // Call one of these before this function returns:
+        // MUST call one of these before this function returns:
         // - `channel_manager.claim_funds*`
         // - `channel_manager.fail_htlc_backwards*`
 
@@ -369,35 +369,23 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         info!(%amount, %hash, "Handling PaymentClaimable");
 
         // The conversion can only fail if the preimage is unknown.
-        let purpose =
-            LxPaymentPurpose::try_from(purpose).inspect_err(|_| {
+        let claim_ctx = LnPaymentClaimCtx::new(purpose, hash, claim_id)
+            .inspect_err(|_| {
                 self.channel_manager.fail_htlc_backwards_with_reason(
                     &hash.into(),
                     FailureCode::IncorrectOrUnknownPaymentDetails,
                 )
             })?;
-        // TODO(phlip9): remove
-        match purpose {
-            LxPaymentPurpose::Bolt12Offer { .. }
-            | LxPaymentPurpose::Bolt12Refund { .. } => {
-                // TODO(phlip9): BOLT12
-                error!("unhandled PaymentClaimable for BOLT12 payment");
-                // claim_funds so test makes progress
-                self.channel_manager.claim_funds(purpose.preimage().into());
-                return Ok(());
-            }
-            _ => (),
-        }
 
-        let preimage = purpose.preimage();
+        let preimage = claim_ctx.preimage();
 
         // NOTE: avoid touching the ChannelManager while holding the lock
         let handle_claimable = || async {
             let mut locked_data = self.data.lock().await;
 
             // Check
-            let checked = locked_data
-                .check_payment_claimable(hash, claim_id, amount, purpose)?;
+            let checked =
+                locked_data.check_payment_claimable(claim_ctx, amount)?;
 
             // Persist
             let persisted = self
@@ -478,29 +466,19 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     #[instrument(skip_all, name = "(payment-claimed)")]
     pub async fn payment_claimed(
         &self,
-        hash: LxPaymentHash,
-        amt_msat: u64,
         purpose: PaymentPurpose,
+        hash: LxPaymentHash,
+        claim_id: Option<LnClaimId>,
+        amt_msat: u64,
     ) -> anyhow::Result<()> {
         let amount = Amount::from_msat(amt_msat);
         info!(%amount, %hash, "Handling PaymentClaimed");
-        let purpose = LxPaymentPurpose::try_from(purpose)?;
-
-        // TODO(phlip9): remove
-        match purpose {
-            LxPaymentPurpose::Bolt12Offer { .. }
-            | LxPaymentPurpose::Bolt12Refund { .. } => {
-                // TODO(phlip9): BOLT12
-                error!("unhandled BOLT12 PaymentClaimed");
-                return Ok(());
-            }
-            _ => (),
-        }
+        let claim_ctx = LnPaymentClaimCtx::new(purpose, hash, claim_id)?;
 
         // Check
         let mut locked_data = self.data.lock().await;
         if let Some(checked) = locked_data
-            .check_payment_claimed(hash, amount, purpose)
+            .check_payment_claimed(claim_ctx, amount)
             .context("Error validating PaymentClaimed")?
         {
             // Persist
@@ -894,12 +872,10 @@ impl PaymentsData {
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     fn check_payment_claimable(
         &self,
-        hash: LxPaymentHash,
-        claim_id: Option<LnClaimId>,
+        claim_ctx: LnPaymentClaimCtx,
         amount: Amount,
-        purpose: LxPaymentPurpose,
     ) -> Result<CheckedPayment, ClaimableError> {
-        let id = LxPaymentId::from(hash);
+        let id = claim_ctx.id();
 
         // The PaymentClaimable docs have a note that LDK will not stop an
         // inbound payment from being paid multiple times. We should fail the
@@ -925,20 +901,21 @@ impl PaymentsData {
         // Precondition: payment is not finalized (Completed | Failed).
         match maybe_pending_payment {
             // Pending payment exists; update it
-            Some(pending_payment) => pending_payment
-                .check_payment_claimable(hash, claim_id, amount, purpose),
-            None => match purpose {
-                LxPaymentPurpose::Bolt11Invoice { .. } =>
+            Some(pending_payment) =>
+                pending_payment.check_payment_claimable(claim_ctx, amount),
+            None => match claim_ctx {
+                LnPaymentClaimCtx::Bolt11Invoice { .. } =>
                     Err(ClaimableError::Replay(anyhow!(
                         "Tried to claim non-existent inbound invoice payment"
                     ))),
                 // TODO(phlip9): impl BOLT 12
-                LxPaymentPurpose::Bolt12Offer { .. } =>
+                LnPaymentClaimCtx::Bolt12Offer { .. } =>
                     todo!("TODO(phlip9): Revisit when implementing BOLT 12"),
-                // TODO(phlip9): impl BOLT 12
-                LxPaymentPurpose::Bolt12Refund { .. } =>
-                    todo!("TODO(phlip9): Revisit when implementing BOLT 12"),
-                LxPaymentPurpose::Spontaneous { preimage } => {
+                LnPaymentClaimCtx::Spontaneous {
+                    hash,
+                    preimage,
+                    claim_id: _,
+                } => {
                     // We just got a new spontaneous payment!
                     // Create the new payment.
                     let isp =
@@ -960,11 +937,10 @@ impl PaymentsData {
     // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
     fn check_payment_claimed(
         &self,
-        hash: LxPaymentHash,
+        claim_ctx: LnPaymentClaimCtx,
         amount: Amount,
-        purpose: LxPaymentPurpose,
     ) -> anyhow::Result<Option<CheckedPayment>> {
-        let id = LxPaymentId::from(hash);
+        let id = claim_ctx.id();
 
         // Idempotency: if the payment was already finalized, we don't need to
         // do anything.
@@ -979,10 +955,15 @@ impl PaymentsData {
             .context("Pending payment does not exist")?;
 
         // Precondition: payment is not finalized (Completed | Failed).
-        let checked = match (pending_payment, purpose) {
+        let checked = match (pending_payment, claim_ctx) {
             (
                 Payment::InboundInvoice(iip),
-                LxPaymentPurpose::Bolt11Invoice { preimage, secret },
+                LnPaymentClaimCtx::Bolt11Invoice {
+                    preimage,
+                    hash,
+                    secret,
+                    claim_id: _,
+                },
             ) => iip
                 .check_payment_claimed(hash, secret, preimage, amount)
                 .map(Payment::from)
@@ -990,7 +971,11 @@ impl PaymentsData {
                 .context("Error finalizing inbound invoice payment")?,
             (
                 Payment::InboundSpontaneous(isp),
-                LxPaymentPurpose::Spontaneous { preimage },
+                LnPaymentClaimCtx::Spontaneous {
+                    preimage,
+                    hash,
+                    claim_id: _,
+                },
             ) => isp
                 .check_payment_claimed(hash, preimage, amount)
                 .map(Payment::from)
@@ -1267,22 +1252,22 @@ mod test {
             data.force_insert_payment(payment.clone());
 
             let amount = isp.amount;
-            let purpose = LxPaymentPurpose::Spontaneous {
+            let claim_ctx = LnPaymentClaimCtx::Spontaneous {
                 preimage: isp.preimage,
+                hash: isp.hash,
+                claim_id,
             };
 
             prop_assert!(data.check_new_payment(payment).is_err());
 
             let _ = data
                 .check_payment_claimable(
-                    isp.hash,
-                    claim_id,
+                    claim_ctx.clone(),
                     amount,
-                    purpose.clone(),
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
 
-            data.check_payment_claimed(isp.hash, amount, purpose)
+            data.check_payment_claimed(claim_ctx, amount)
                 .unwrap();
         });
     }
@@ -1299,12 +1284,6 @@ mod test {
             data.force_insert_payment(payment.clone());
 
             let recvd_amount = iip.recvd_amount.unwrap_or(recvd_amount);
-            let hash = iip.hash;
-
-            let purpose = LxPaymentPurpose::Bolt11Invoice {
-                preimage: iip.preimage,
-                secret: iip.secret,
-            };
 
             // Support 3 cases:
             // 1. same claim_id as the payment
@@ -1312,18 +1291,23 @@ mod test {
             // 3. pre- node-v0.7.0 with no claim_id
             let claim_id = claim_id.unwrap_or(iip.claim_id);
 
+            let claim_ctx = LnPaymentClaimCtx::Bolt11Invoice {
+                preimage: iip.preimage,
+                hash: iip.hash,
+                secret: iip.secret,
+                claim_id,
+            };
+
             prop_assert!(data.check_new_payment(payment).is_err());
 
             let _ = data
                 .check_payment_claimable(
-                    hash,
-                    claim_id,
+                    claim_ctx.clone(),
                     recvd_amount,
-                    purpose.clone(),
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
 
-            data.check_payment_claimed(hash, recvd_amount, purpose)
+            data.check_payment_claimed(claim_ctx, recvd_amount)
                 .unwrap();
 
             data.check_invoice_expiries(Duration::MAX).unwrap();

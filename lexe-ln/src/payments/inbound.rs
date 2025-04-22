@@ -15,8 +15,7 @@ use common::{
     time::TimestampMs,
 };
 use lightning::{
-    blinded_path::payment::{Bolt12OfferContext, Bolt12RefundContext},
-    events::PaymentPurpose,
+    blinded_path::payment::Bolt12OfferContext, events::PaymentPurpose,
 };
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::{
@@ -57,66 +56,49 @@ impl ClaimableError {
     }
 }
 
-// --- LxPaymentPurpose --- //
+// --- LnPaymentClaimCtx --- //
 
-/// A newtype for [`PaymentPurpose`] which
-///
-/// 1) Changes the BOLT 11 [`payment_preimage`] field to be non-[`Option`] given
-///    we expect the field to always be [`Some`] (which is because we want LDK
-///    to handle preimages for us by using [`create_inbound_payment`] instead of
-///    [`create_inbound_payment_for_hash`]).
-/// 2) Converts LDK payment types to Lexe payment types.
-/// 3) Exposes a convenience method to get the contained [`LxPaymentPreimage`].
-///
-/// [`payment_preimage`]: lightning::events::PaymentPurpose::Bolt11InvoicePayment::payment_preimage
-/// [`create_inbound_payment`]: lightning::ln::channelmanager::ChannelManager::create_inbound_payment
-/// [`create_inbound_payment_for_hash`]: lightning::ln::channelmanager::ChannelManager::create_inbound_payment_for_hash
+/// Common data used to handle a [`PaymentClaimable`]/[`PaymentClaimed`] event.
 #[derive(Clone)]
-pub enum LxPaymentPurpose {
+pub enum LnPaymentClaimCtx {
     Bolt11Invoice {
         preimage: LxPaymentPreimage,
+        hash: LxPaymentHash,
         secret: LxPaymentSecret,
+        // TODO(phlip9): make non-Option once we don't have replaying Claimed
+        claim_id: Option<LnClaimId>,
     },
     Bolt12Offer {
         preimage: LxPaymentPreimage,
+        hash: LxPaymentHash,
         secret: LxPaymentSecret,
+        // We don't have any BOLT12 offers pending, so we can assume claim id
+        // is present.
+        claim_id: LnClaimId,
         context: Bolt12OfferContext,
     },
-    Bolt12Refund {
-        preimage: LxPaymentPreimage,
-        secret: LxPaymentSecret,
-        context: Bolt12RefundContext,
-    },
+    // // TODO(phlip9): BOLT12 refund
+    // Bolt12Refund {
+    //     preimage: LxPaymentPreimage,
+    //     hash: LxPaymentHash,
+    //     secret: LxPaymentSecret,
+    //     claim_id: Option<LnClaimId>,
+    //     context: Bolt12RefundContext,
+    // },
     Spontaneous {
         preimage: LxPaymentPreimage,
+        hash: LxPaymentHash,
+        // TODO(phlip9): make non-Option once we don't have replaying Claimed
+        claim_id: Option<LnClaimId>,
     },
 }
 
-impl LxPaymentPurpose {
-    pub fn preimage(&self) -> LxPaymentPreimage {
-        match self {
-            Self::Bolt11Invoice { preimage, .. } => *preimage,
-            Self::Bolt12Offer { preimage, .. } => *preimage,
-            Self::Bolt12Refund { preimage, .. } => *preimage,
-            Self::Spontaneous { preimage } => *preimage,
-        }
-    }
-
-    /// Get the [`PaymentKind`] which corresponds to this [`LxPaymentPurpose`].
-    pub fn kind(&self) -> PaymentKind {
-        // TODO(max): Implement for BOLT 12
-        match self {
-            Self::Bolt11Invoice { .. } => PaymentKind::Invoice,
-            Self::Bolt12Offer { .. } => todo!("Not sure of new variant yet"),
-            Self::Bolt12Refund { .. } => todo!("Not sure of new variant yet"),
-            Self::Spontaneous { .. } => PaymentKind::Spontaneous,
-        }
-    }
-}
-
-impl TryFrom<PaymentPurpose> for LxPaymentPurpose {
-    type Error = anyhow::Error;
-    fn try_from(purpose: PaymentPurpose) -> anyhow::Result<Self> {
+impl LnPaymentClaimCtx {
+    pub fn new(
+        purpose: PaymentPurpose,
+        hash: LxPaymentHash,
+        claim_id: Option<LnClaimId>,
+    ) -> anyhow::Result<Self> {
         let no_preimage_msg =
             "We should always let LDK handle payment preimages for us by \
              always using `ChannelManager::create_inbound_payment` instead of \
@@ -132,7 +114,12 @@ impl TryFrom<PaymentPurpose> for LxPaymentPurpose {
                 payment_secret,
             } => {
                 let secret = LxPaymentSecret::from(payment_secret);
-                Ok(Self::Bolt11Invoice { preimage, secret })
+                Ok(Self::Bolt11Invoice {
+                    preimage,
+                    hash,
+                    secret,
+                    claim_id,
+                })
             }
             PaymentPurpose::Bolt12OfferPayment {
                 payment_preimage: _,
@@ -140,26 +127,56 @@ impl TryFrom<PaymentPurpose> for LxPaymentPurpose {
                 payment_context: context,
             } => {
                 let secret = LxPaymentSecret::from(payment_secret);
+                debug_assert!(claim_id.is_some());
+                let claim_id = claim_id
+                    .context("BOLT12 offer payment must have a claim id")?;
                 Ok(Self::Bolt12Offer {
                     preimage,
+                    hash,
                     secret,
+                    claim_id,
                     context,
                 })
             }
-            PaymentPurpose::Bolt12RefundPayment {
-                payment_preimage: _,
-                payment_secret,
-                payment_context: context,
-            } => {
-                let secret = LxPaymentSecret::from(payment_secret);
-                Ok(Self::Bolt12Refund {
-                    preimage,
-                    secret,
-                    context,
-                })
+            // TODO(phlip9): BOLT12 refunds
+            PaymentPurpose::Bolt12RefundPayment { .. } => {
+                debug_assert!(false, "TODO: BOLT12 refunds");
+                Err(anyhow!("We don't support BOLT12 refunds yet"))
             }
             PaymentPurpose::SpontaneousPayment(_payment_preimage) =>
-                Ok(Self::Spontaneous { preimage }),
+                Ok(Self::Spontaneous {
+                    preimage,
+                    hash,
+                    claim_id,
+                }),
+        }
+    }
+
+    pub fn id(&self) -> LxPaymentId {
+        match self {
+            Self::Bolt11Invoice { hash, .. } => LxPaymentId::Lightning(*hash),
+            // TODO(phlip9): how to disambiguate single-use BOLT12 offer
+            Self::Bolt12Offer { claim_id, .. } =>
+                LxPaymentId::OfferRecvReuse(*claim_id),
+            Self::Spontaneous { hash, .. } => LxPaymentId::Lightning(*hash),
+        }
+    }
+
+    pub fn preimage(&self) -> LxPaymentPreimage {
+        match self {
+            Self::Bolt11Invoice { preimage, .. } => *preimage,
+            Self::Bolt12Offer { preimage, .. } => *preimage,
+            Self::Spontaneous { preimage, .. } => *preimage,
+        }
+    }
+
+    /// Get the [`PaymentKind`] which corresponds to this [`LxPaymentPurpose`].
+    pub fn kind(&self) -> PaymentKind {
+        // TODO(max): Implement for BOLT 12
+        match self {
+            Self::Bolt11Invoice { .. } => PaymentKind::Invoice,
+            Self::Bolt12Offer { .. } => todo!("Not sure of new variant yet"),
+            Self::Spontaneous { .. } => PaymentKind::Spontaneous,
         }
     }
 }
@@ -178,25 +195,28 @@ impl Payment {
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     pub(crate) fn check_payment_claimable(
         &self,
-        hash: LxPaymentHash,
-        claim_id: Option<LnClaimId>,
+        claim_ctx: LnPaymentClaimCtx,
         amount: Amount,
-        purpose: LxPaymentPurpose,
     ) -> Result<CheckedPayment, ClaimableError> {
         // TODO(max): Update this
 
-        if purpose.kind() != self.kind() {
+        if claim_ctx.kind() != self.kind() {
             return Err(ClaimableError::Replay(anyhow!(
-                "Purpose kind doesn't match payment kind: {purkind} != {paykind}",
-                purkind = purpose.kind(),
+                "Claim kind doesn't match stored payment kind: {claimkind} != {paykind}",
+                claimkind = claim_ctx.kind(),
                 paykind = self.kind(),
             )));
         }
 
-        match (self, purpose) {
+        match (self, claim_ctx) {
             (
                 Self::InboundInvoice(iip),
-                LxPaymentPurpose::Bolt11Invoice { preimage, secret },
+                LnPaymentClaimCtx::Bolt11Invoice {
+                    preimage,
+                    hash,
+                    secret,
+                    claim_id,
+                },
             ) => iip
                 .check_payment_claimable(
                     hash, secret, preimage, claim_id, amount,
@@ -232,7 +252,11 @@ impl Payment {
             // }
             (
                 Self::InboundSpontaneous(isp),
-                LxPaymentPurpose::Spontaneous { preimage },
+                LnPaymentClaimCtx::Spontaneous {
+                    preimage,
+                    hash,
+                    claim_id: _claim_id,
+                },
             ) => isp
                 .check_payment_claimable(hash, preimage, amount)
                 .map(Payment::from)
@@ -557,8 +581,7 @@ impl InboundInvoicePayment {
 // --- Inbound spontaneous payments --- //
 
 /// An inbound spontaneous (`keysend`) payment. This struct is created when we
-/// get a [`PaymentClaimable`] event, where the [`PaymentPurpose`] is of the
-/// `SpontaneousPayment` variant.
+/// get a [`PaymentClaimable`] event, with [`PaymentPurpose::Spontaneous`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct InboundSpontaneousPayment {
     /// Given by [`PaymentClaimable`] and [`PaymentClaimed`].
