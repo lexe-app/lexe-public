@@ -46,7 +46,7 @@ use common::{
     debug_panic_release_log,
     ln::{
         channel::LxChannelId,
-        payments::{LnClaimId, LxPaymentHash},
+        payments::{LnClaimId, LxPaymentHash, LxPaymentId},
     },
     notify_once::NotifyOnce,
     rng::{RngExt, ThreadFastRng},
@@ -429,11 +429,10 @@ async fn do_handle_event(
             reason,
             payment_hash,
         } => {
-            // TODO(phlip9): remove
-            let hash = match payment_hash {
-                Some(hash) => hash,
+            // TODO(phlip9): BOLT 12
+            let id = match payment_hash {
+                Some(hash) => LxPaymentId::Lightning(LxPaymentHash::from(hash)),
                 None => {
-                    // TODO(phlip9): BOLT 12
                     error!("unhandled BOLT12 PaymentFailed");
                     return Ok(());
                 }
@@ -444,9 +443,8 @@ async fn do_handle_event(
                 reason.unwrap_or(PaymentFailureReason::RetriesExhausted);
             let failure = LxOutboundPaymentFailure::from(reason);
 
-            let hash = LxPaymentHash::from(hash);
             ctx.payments_manager
-                .payment_failed(hash.into(), failure)
+                .payment_failed(id, failure)
                 .await
                 .context("Error handling PaymentFailed")
                 // Don't want to end up with a 'hung' payment state

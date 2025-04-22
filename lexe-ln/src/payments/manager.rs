@@ -999,7 +999,8 @@ impl PaymentsData {
         preimage: LxPaymentPreimage,
         maybe_fees_paid: Option<Amount>,
     ) -> anyhow::Result<Option<CheckedPayment>> {
-        let id = LxPaymentId::from(hash);
+        // TODO(phlip9): BOLT12 offer send
+        let id = LxPaymentId::Lightning(hash);
 
         // Idempotency: if the payment was already finalized, we don't need to
         // do anything.

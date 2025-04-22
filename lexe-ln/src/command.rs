@@ -853,6 +853,7 @@ where
     let hash = payment.hash;
 
     let payment = Payment::from(payment);
+    let id = payment.id();
     let created_at = payment.created_at();
 
     // Pre-flight looks good, now we can register this payment in the Lexe
@@ -897,7 +898,7 @@ where
             // returned, LDK does not track the payment and thus will not emit a
             // PaymentFailed later, so we should fail the payment now.
             payments_manager
-                .payment_failed(hash.into(), LxOutboundPaymentFailure::Expired)
+                .payment_failed(id, LxOutboundPaymentFailure::Expired)
                 .await
                 .context("(PaymentExpired) Could not register failure")?;
             Err(anyhow!("LDK returned PaymentExpired (OIP {hash})"))
@@ -908,7 +909,7 @@ where
             // If the user wants to retry, they'll need to ask the recipient to
             // generate a new invoice. TODO(max): Is this really what we want?
             payments_manager
-                .payment_failed(hash.into(), LxOutboundPaymentFailure::NoRoute)
+                .payment_failed(id, LxOutboundPaymentFailure::NoRoute)
                 .await
                 .context("(RouteNotFound) Could not register failure")?;
             Err(anyhow!("LDK returned RouteNotFound (OIP {hash})"))
@@ -917,10 +918,7 @@ where
             // If the metadata causes us to exceed the maximum onion packet
             // size, it probably isn't possible to pay this. Fail the payment.
             payments_manager
-                .payment_failed(
-                    hash.into(),
-                    LxOutboundPaymentFailure::MetadataTooLarge,
-                )
+                .payment_failed(id, LxOutboundPaymentFailure::MetadataTooLarge)
                 .await
                 .context(
                     "(OnionPacketSizeExceeded) Could not register failure",

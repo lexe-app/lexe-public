@@ -476,23 +476,6 @@ byte_array::impl_debug_display_redacted!(LxPaymentSecret);
 
 // --- Newtype From impls --- //
 
-// NOTE(phlip9): previously we had conversions for:
-//      ClientPaymentId -> LxPaymentId::OnchainSend
-//               LxTxid -> LxPaymentId::OnchainRecv
-//
-// but this ended up causing some bugs after refactoring:
-//  OnchainSend(LxTxid) -> OnchainSend(ClientPaymentId)
-//
-// on that note... <eyes emoji>
-// ...we should probably reevalute this conversion, since OutboundSpontaneous
-// will probably need a separate idempotency id.
-
-impl From<LxPaymentHash> for LxPaymentId {
-    fn from(hash: LxPaymentHash) -> Self {
-        Self::Lightning(hash)
-    }
-}
-
 // LxPaymentId -> ClientPaymentId / Txid / LxPaymentHash
 impl TryFrom<LxPaymentId> for ClientPaymentId {
     type Error = anyhow::Error;
