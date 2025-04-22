@@ -9,6 +9,7 @@ use bitcoin_hashes::{sha256, Hash};
 use byte_array::ByteArray;
 use lightning::{
     ln::channelmanager::PaymentId,
+    offers::offer::OfferId,
     types::payment::{PaymentHash, PaymentPreimage, PaymentSecret},
 };
 #[cfg(any(test, feature = "test-utils"))]
@@ -44,7 +45,10 @@ pub struct BasicPayment {
     /// (Invoice payments only) The BOLT11 invoice used in this payment.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invoice: Option<LxInvoice>,
-
+    //
+    // TODO(phlip9): bolt12
+    // pub offer: Option<LxOffer>,
+    ///
     /// (Onchain payments only) The original txid.
     // NOTE: we're duplicating the txid here for onchain receives because its
     // less error prone to use, esp. for external API consumers.
@@ -155,6 +159,7 @@ pub enum PaymentKind {
     Onchain,
     Invoice,
     Spontaneous,
+    // TODO(phlip9): bolt12
 }
 
 /// Specifies whether a payment is inbound or outbound.
@@ -199,7 +204,7 @@ pub enum PaymentStatus {
 /// 0002683862736062841-os_95cc800f4f3b5669c71c85f7096be45a172ca86aef460e0e584affff3ea80bee
 /// 0009557253037960566-ln_3ddcfd0e0b1eba77292c23a7de140c1e71327ac97486cc414b6826c434c560cc
 /// 4237937319278351047-or_3f6d2153bde1a0878717f46a1cbc63c48f7b4231224d78a50eb9e94b5d29f674
-/// 6206503357534413026-bc_063a5be0218332a84f9a4f7f4160a7dcf8e9362b9f5043ad47360c7440037fa8
+/// 6206503357534413026-ln_063a5be0218332a84f9a4f7f4160a7dcf8e9362b9f5043ad47360c7440037fa8
 /// 6450440432938623603-or_0db1f1ebed6f99574c7a048e6bbf68c7db69c6da328f0b6d699d4dc1cd477017
 /// 7774176661032219027-or_215ef16c8192c8d674b519a34b7b65454e1e18d48bf060bdc333df433ada0137
 /// 8468903867373394879-ln_b8cbf827292c2b498e74763290012ed92a0f946d67e733e94a5fedf7f82710d5
@@ -216,22 +221,35 @@ pub struct PaymentIndex {
 /// A globally-unique identifier for any type of payment, including both
 /// on-chain and Lightning payments.
 ///
+/// - Lightning inbound+outbound invoice+spontaneous payments use their
+///   [`LxPaymentHash`] as their id. TODO(phlip9): inbound spontaneous payments
+///   should use `LnClaimId` as their id.
+/// - Lightning _reusable_ inbound offer payments use the [`LnClaimId`] as their
+///   id.
+/// - Lightning _single-use_ inbound offer payments use the [`OfferId`] as their
+///   id. TODO(phlip9): impl
+/// - Lightning outbound offer payments use a [`ClientPaymentId`] as their id.
 /// - On-chain sends use a [`ClientPaymentId`] as their id.
 /// - On-chain receives use their [`LxTxid`] as their id.
-/// - Lightning payments use their [`LxPaymentHash`] as their id.
-/// - TODO(max): Revisit most appropriate ID type for BOLT 12
 ///
 /// NOTE that this is NOT a drop-in replacement for LDK's [`PaymentId`], since
 /// [`PaymentId`] is Lightning-specific, whereas [`LxPaymentId`] is not.
+///
+/// [`PaymentId`]: lightning::ln::channelmanager::PaymentId
+// TODO(phlip9): bolt12 refunds
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum LxPaymentId {
     // NOTE: the enum order is important. `LxPaymentId::prefix()` determines
-    // the order ("ln" < "or" < "os").
-    Lightning(LxPaymentHash),
-    OnchainRecv(LxTxid),
-    OnchainSend(ClientPaymentId),
+    // the order ("fi" < .. < "os").
+    // Added `Offer*` variants in `node-v0.7.8`
+    OfferRecvInvoice(LxOfferId),  // "fi"
+    OfferRecvReuse(LnClaimId),    // "fr"
+    OfferSend(ClientPaymentId),   // "fs"
+    Lightning(LxPaymentHash),     // "ln"
+    OnchainRecv(LxTxid),          // "or"
+    OnchainSend(ClientPaymentId), // "os"
 }
 
 /// An upgradeable version of [`Vec<LxPaymentId>`].
@@ -266,9 +284,17 @@ pub struct LxPaymentPreimage(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 /// Newtype for [`PaymentSecret`] which impls [`Serialize`] / [`Deserialize`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct LxPaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
+
+/// Newtype for [`OfferId`] which impls [`Serialize`] / [`Deserialize`].
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(RefCast, Serialize, Deserialize)]
+#[repr(transparent)]
+pub struct LxOfferId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 /// Newtype for LDK's [`PaymentId`] but used specifically for inbound lightning
 /// payment idempotency.
@@ -284,7 +310,8 @@ pub struct LxPaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 /// [`PaymentClaimable`]: lightning::events::Event::PaymentClaimable
 /// [`PaymentClaimed`]: lightning::events::Event::PaymentClaimed
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct LnClaimId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
@@ -388,11 +415,14 @@ impl PaymentIndex {
 
 impl LxPaymentId {
     /// The `LxPaymentId` that is lexicographically <= all other ids.
-    pub const MIN: Self = Self::Lightning(LxPaymentHash([0; 32]));
+    pub const MIN: Self = Self::OfferRecvInvoice(LxOfferId([0; 32]));
 
     /// Returns the prefix to use when serializing this payment id to a string.
     pub fn prefix(&self) -> &'static str {
         match self {
+            Self::OfferRecvInvoice(_) => "fi",
+            Self::OfferRecvReuse(_) => "fr",
+            Self::OfferSend(_) => "fs",
             Self::Lightning(_) => "ln",
             Self::OnchainRecv(_) => "or",
             Self::OnchainSend(_) => "os",
@@ -426,16 +456,19 @@ byte_array::impl_byte_array!(ClientPaymentId, 32);
 byte_array::impl_byte_array!(LxPaymentHash, 32);
 byte_array::impl_byte_array!(LxPaymentPreimage, 32);
 byte_array::impl_byte_array!(LxPaymentSecret, 32);
+byte_array::impl_byte_array!(LxOfferId, 32);
 byte_array::impl_byte_array!(LnClaimId, 32);
 
 byte_array::impl_fromstr_from_hexstr!(ClientPaymentId);
 byte_array::impl_fromstr_from_hexstr!(LxPaymentHash);
 byte_array::impl_fromstr_from_hexstr!(LxPaymentPreimage);
 byte_array::impl_fromstr_from_hexstr!(LxPaymentSecret);
+byte_array::impl_fromstr_from_hexstr!(LxOfferId);
 byte_array::impl_fromstr_from_hexstr!(LnClaimId);
 
 byte_array::impl_debug_display_as_hex!(ClientPaymentId);
 byte_array::impl_debug_display_as_hex!(LxPaymentHash);
+byte_array::impl_debug_display_as_hex!(LxOfferId);
 byte_array::impl_debug_display_as_hex!(LnClaimId);
 // Redacted to prevent accidentally leaking secrets in logs
 byte_array::impl_debug_display_redacted!(LxPaymentPreimage);
@@ -466,8 +499,9 @@ impl TryFrom<LxPaymentId> for ClientPaymentId {
     fn try_from(id: LxPaymentId) -> anyhow::Result<Self> {
         use LxPaymentId::*;
         match id {
-            OnchainSend(cid) => Ok(cid),
-            OnchainRecv(_) | Lightning(_) => bail!("Not an onchain send"),
+            OnchainSend(cid) | OfferSend(cid) => Ok(cid),
+            OfferRecvReuse(_) | OfferRecvInvoice(_) | OnchainRecv(_)
+            | Lightning(_) => bail!("Not an onchain send"),
         }
     }
 }
@@ -477,7 +511,9 @@ impl TryFrom<LxPaymentId> for LxPaymentHash {
         use LxPaymentId::*;
         match id {
             Lightning(hash) => Ok(hash),
-            OnchainSend(_) | OnchainRecv(_) => bail!("Not a lightning payment"),
+            OnchainSend(_) | OfferSend(_) | OfferRecvReuse(_)
+            | OfferRecvInvoice(_) | OnchainRecv(_) =>
+                bail!("Not a lightning payment"),
         }
     }
 }
@@ -505,6 +541,11 @@ impl From<PaymentSecret> for LxPaymentSecret {
         Self(secret.0)
     }
 }
+impl From<OfferId> for LxOfferId {
+    fn from(id: OfferId) -> Self {
+        Self(id.0)
+    }
+}
 impl From<lightning::ln::channelmanager::PaymentId> for LnClaimId {
     fn from(id: lightning::ln::channelmanager::PaymentId) -> Self {
         Self(id.0)
@@ -525,6 +566,11 @@ impl From<LxPaymentPreimage> for PaymentPreimage {
 impl From<LxPaymentSecret> for PaymentSecret {
     fn from(secret: LxPaymentSecret) -> Self {
         Self(secret.0)
+    }
+}
+impl From<LxOfferId> for OfferId {
+    fn from(id: LxOfferId) -> Self {
+        Self(id.0)
     }
 }
 impl From<LnClaimId> for lightning::ln::channelmanager::PaymentId {
@@ -711,6 +757,15 @@ impl FromStr for LxPaymentId {
             "Wrong format; should be <kind>_<id>"
         );
         match kind_str {
+            "fi" => LxOfferId::from_str(id_str)
+                .map(Self::OfferRecvInvoice)
+                .context("Invalid offer id"),
+            "fr" => LnClaimId::from_str(id_str)
+                .map(Self::OfferRecvReuse)
+                .context("Invalid claim id"),
+            "fs" => ClientPaymentId::from_str(id_str)
+                .map(Self::OfferSend)
+                .context("Invalid ClientPaymentId"),
             "ln" => LxPaymentHash::from_str(id_str)
                 .map(Self::Lightning)
                 .context("Invalid payment hash"),
@@ -720,7 +775,7 @@ impl FromStr for LxPaymentId {
             "os" => ClientPaymentId::from_str(id_str)
                 .map(Self::OnchainSend)
                 .context("Invalid ClientPaymentId"),
-            _ => bail!("<kind> should be 'os', 'or', or 'ln'"),
+            _ => bail!("<kind> should be fi|fr|fs|ln|or|os"),
         }
     }
 }
@@ -730,9 +785,13 @@ impl Display for LxPaymentId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let prefix = self.prefix();
         match self {
+            Self::OfferRecvInvoice(offer_id) =>
+                write!(f, "{prefix}_{offer_id}"),
+            Self::OfferRecvReuse(claim_id) => write!(f, "{prefix}_{claim_id}"),
+            Self::OfferSend(cid) => write!(f, "{prefix}_{cid}"),
             Self::Lightning(hash) => write!(f, "{prefix}_{hash}"),
             Self::OnchainRecv(txid) => write!(f, "{prefix}_{txid}"),
-            Self::OnchainSend(client_id) => write!(f, "{prefix}_{client_id}"),
+            Self::OnchainSend(cid) => write!(f, "{prefix}_{cid}"),
         }
     }
 }
@@ -742,7 +801,10 @@ mod test {
     use proptest::{arbitrary::any, prop_assert_eq, prop_assert_ne, proptest};
 
     use super::*;
-    use crate::test_utils::{roundtrip, snapshot};
+    use crate::{
+        rng::FastRng,
+        test_utils::{arbitrary, roundtrip, snapshot},
+    };
 
     #[test]
     fn enums_roundtrips() {
@@ -769,6 +831,7 @@ mod test {
         roundtrip::json_string_roundtrip_proptest::<LxPaymentHash>();
         roundtrip::json_string_roundtrip_proptest::<LxPaymentPreimage>();
         roundtrip::json_string_roundtrip_proptest::<LxPaymentSecret>();
+        roundtrip::json_string_roundtrip_proptest::<LxOfferId>();
         roundtrip::json_string_roundtrip_proptest::<LnClaimId>();
     }
 
@@ -777,6 +840,7 @@ mod test {
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentIndex>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentId>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentHash>();
+        roundtrip::fromstr_display_roundtrip_proptest::<LxOfferId>();
         roundtrip::fromstr_display_roundtrip_proptest::<LnClaimId>();
         // `Display` for `LxPaymentPreimage` and `LxPaymentSecret` are redacted
         // roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentPreimage>();
@@ -847,6 +911,43 @@ mod test {
             let string_serialized_order = id1_str.cmp(&id2_str);
             prop_assert_eq!(unserialized_order, string_serialized_order);
         });
+    }
+
+    // ```bash
+    // cargo test -p common --lib -- payment_id_gen_sample_data --ignored --nocapture
+    // ```
+    #[ignore]
+    #[test]
+    fn payment_id_gen_sample_data() {
+        let mut rng = FastRng::from_u64(202504212022);
+        let mut ids =
+            arbitrary::gen_values(&mut rng, any::<LxPaymentId>(), 100);
+        // only need one of each prefix
+        ids.sort_unstable();
+        ids.dedup_by_key(|id| id.prefix());
+        for id in ids {
+            println!("{id}");
+        }
+    }
+
+    #[test]
+    fn payment_id_deser_compat() {
+        let inputs = r#"
+--- v1
+ln_003690453dac3e6c29db4e930c80f797fe0a05bc43ed2d9cff2a62fb7407d3e0
+or_3045b3cf002d40b2ae2e2f0f4b3d657cad3d2d8995988fb78ce488d9ec7d8f30
+os_0a19f5f961bc67b109ce060743141b59dad6cd1edc28a7dd72241fe97da407b3
+--- v2 (bolt12 offers)
+fi_03bbfc08ab3fdac9d24b7a92736986f6cf769bad52bfab28b7b2d7d1c09ec335
+fr_00e32fe42d1249bd1299a2839c017584b09a924f935a5da5b121346950d2676d
+fs_00996e6b999900e8e7273934a7f272eb367fd2ac394f10b3ea1c7164d212c5c5
+"#;
+        for input in snapshot::parse_sample_data(inputs) {
+            let value1 = LxPaymentId::from_str(input).unwrap();
+            let output = value1.to_string();
+            let value2 = LxPaymentId::from_str(&output).unwrap();
+            assert_eq!(value1, value2);
+        }
     }
 
     // NOTE: see `lexe_ln::payments::test::gen_basic_payment_sample_data` to
