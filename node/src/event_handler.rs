@@ -585,15 +585,16 @@ async fn do_handle_event(
         }
 
         // We don't use this
-        Event::OnionMessageIntercepted { peer_node_id, .. } => error!(
-            %peer_node_id,
-            "Somehow received OnionMessageIntercepted"
-        ),
-        // We don't use this
-        Event::OnionMessagePeerConnected { peer_node_id } => error!(
-            %peer_node_id,
-            "Somehow received OnionMessagePeerConnected"
-        ),
+        Event::OnionMessageIntercepted { peer_node_id, .. } =>
+            debug_panic_release_log!(
+                "Unexpected `OnionMessageIntercepted` event: \
+                 peer_node_id={peer_node_id}"
+            ),
+        Event::OnionMessagePeerConnected { peer_node_id } =>
+            debug_panic_release_log!(
+                "Unexpected `OnionMessagePeerConnected`: \
+                 peer_node_id={peer_node_id}"
+            ),
     }
 
     Ok(())
