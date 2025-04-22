@@ -34,6 +34,7 @@ use common::{
         amount::Amount,
         channel::{LxChannelId, LxUserChannelId as LxUserChannelIdRs},
         invoice::LxInvoice,
+        offer::MaxQuantity,
         payments::{
             ClientPaymentId as ClientPaymentIdRs, LxPaymentId as LxPaymentIdRs,
             PaymentIndex as PaymentIndexRs,
@@ -525,6 +526,9 @@ impl TryFrom<CreateOfferRequest> for CreateOfferRequestRs {
                 .map(Amount::try_from_sats_u64)
                 .transpose()?,
             description: value.description,
+            // TODO(phlip9): user settable max_quantity probably doesn't provide
+            // much value in a p2p payments app.
+            max_quantity: Some(MaxQuantity::ONE),
         })
     }
 }

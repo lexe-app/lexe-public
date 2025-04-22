@@ -26,7 +26,7 @@ use common::{
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
         invoice::LxInvoice,
         network::LxNetwork,
-        offer::LxOffer,
+        offer::{LxOffer, MaxQuantity},
         route::LxRoute,
     },
     rng::{RngExt, SysRng},
@@ -983,16 +983,20 @@ where
         expires_at.into_duration()
     });
 
+    // Create the initial `OfferBuilder` with:
+    // + the given `absolute_expiry` deadline (if any).
+    // + a blinded message path to us. built via
+    //   `LexeMessageRouter::create_blinded_paths`.
+    // + automatically derived offer metadata and signing keys.
+    // + the given `max_quantity` (if unset, defaults to 1).
     let mut builder = channel_manager
         .create_offer_builder(absolute_expiry)
-        .map_err(|err| anyhow!("Failed to create offer builder: {err:?}"))?;
+        .map_err(|err| anyhow!("Failed to create offer builder: {err:?}"))?
+        .supported_quantity(
+            req.max_quantity.unwrap_or(MaxQuantity::ONE).into(),
+        );
 
     // TODO(phlip9): don't add `chains` param when mainnet to save space
-
-    // TODO(phlip9): Probably need to build the blinded path ourselves. It's
-    // not clear how the channel manager would pick the right blinded path
-    // params / route hints the same way as `create_invoice`. How could it
-    // possibly know the LSP info if the user has no channels?
 
     // TODO(phlip9): can we condense the blinded path? default offer is ~489B.
     // right now the default offer blinded path has
@@ -1002,11 +1006,6 @@ where
     //   + ~ 137B (4) hop 1: blinded pk + 51 B encrypted payload
     //   + ~ 137B (5) hop 2: blinded pk + 51 B encrypted payload
     //   = ~ 436B blinded path overhead
-
-    // TODO(phlip9): what happens to long-lived offers after the LSP changes
-    // the fee rates?
-
-    // TODO(phlip9): LSP should not use blinded path at all
 
     if let Some(amount) = req.amount {
         builder = builder.amount_msats(amount.msat());

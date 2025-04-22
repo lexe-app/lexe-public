@@ -14,7 +14,7 @@ use crate::{
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
         hashes::LxTxid,
         invoice::LxInvoice,
-        offer::LxOffer,
+        offer::{LxOffer, MaxQuantity},
         payments::{ClientPaymentId, PaymentIndex},
         priority::ConfirmationPriority,
         route::LxRoute,
@@ -217,13 +217,35 @@ pub struct PreflightPayInvoiceResponse {
 #[derive(Serialize, Deserialize)]
 pub struct CreateOfferRequest {
     pub expiry_secs: Option<u32>,
+    /// The `amount` we're requesting for payments using this offer.
+    ///
+    /// If `None`, the offer is variable amount and the payer can choose any
+    /// value.
+    ///
+    /// If `Some`, the offer amount is fixed and the payer must pay exactly
+    /// this value (per item, see `max_quantity`).
     pub amount: Option<Amount>,
     /// The description to be encoded into the invoice.
     ///
     /// If `None`, the `description` field inside the invoice will be an empty
     /// string (""), as lightning _requires_ a description to be set.
     pub description: Option<String>,
-    // TODO(phlip9): allow setting `quantity` field. when is that useful?
+    /// The max number of items that can be purchased in any one payment for
+    /// the offer.
+    ///
+    /// NOTE: this is not related to single-use vs reusable offers.
+    ///                                                                        
+    /// The expected amount paid for this offer is `offer.amount * quantity`,
+    /// where `offer.amount` is the value per item and `quantity` is the number
+    /// of items chosen _by the payer_. The payer's chosen `quantity` must be
+    /// in the range: `0 < quantity <= offer.max_quantity`.
+    ///
+    /// If `None`, defaults to `MaxQuantity::ONE`, i.e., the expected paid
+    /// `amount` is just `offer.amount`.
+    pub max_quantity: Option<MaxQuantity>,
+    //
+    // TODO(phlip9): add a `single_use` field to the offer request? right now
+    // all offers are reusable.
 }
 
 #[derive(Serialize, Deserialize)]
