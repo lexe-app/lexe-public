@@ -17,6 +17,7 @@ use crate::{
         offer::LxOffer,
         payments::{ClientPaymentId, PaymentIndex},
         priority::ConfirmationPriority,
+        route::LxRoute,
     },
     time::TimestampMs,
 };
@@ -205,6 +206,10 @@ pub struct PreflightPayInvoiceResponse {
     pub amount: Amount,
     /// The total amount of fees to-be-paid for the pre-flighted [`LxInvoice`].
     pub fees: Amount,
+    /// The route this invoice will be paid over.
+    // Added in node,lsp-v0.7.8
+    // TODO(max): We don't actually pay over this route.
+    pub route: LxRoute,
 }
 
 // --- BOLT12 Offer payments --- //
@@ -245,6 +250,10 @@ pub struct PreflightPayOfferResponse {
     pub amount: Amount,
     /// The total amount of fees to-be-paid for the pre-flighted [`LxOffer`].
     pub fees: Amount,
+    /// The route this offer will be paid over.
+    // Added in node,lsp-v0.7.8
+    // TODO(max): We don't actually pay over this route.
+    pub route: LxRoute,
 }
 
 #[derive(Serialize, Deserialize)]

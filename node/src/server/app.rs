@@ -267,6 +267,7 @@ pub(super) async fn pay_invoice(
         &state.router,
         &state.channel_manager,
         &state.payments_manager,
+        &state.network_graph,
         &state.chain_monitor,
         state.lsp_info.lsp_fees(),
     )
@@ -284,6 +285,7 @@ pub(super) async fn preflight_pay_invoice(
         &state.router,
         &state.channel_manager,
         &state.payments_manager,
+        &state.network_graph,
         &state.chain_monitor,
         state.lsp_info.lsp_fees(),
     )

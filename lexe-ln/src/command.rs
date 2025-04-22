@@ -27,6 +27,7 @@ use common::{
         invoice::LxInvoice,
         network::LxNetwork,
         offer::LxOffer,
+        route::LxRoute,
     },
     rng::{RngExt, SysRng},
     time::TimestampMs,
@@ -825,6 +826,7 @@ pub async fn pay_invoice<CM, PS>(
     router: &RouterType,
     channel_manager: &CM,
     payments_manager: &PaymentsManager<CM, PS>,
+    network_graph: &NetworkGraphType,
     chain_monitor: &LexeChainMonitorType<PS>,
     lsp_fees: LspFees,
 ) -> anyhow::Result<PayInvoiceResponse>
@@ -837,11 +839,13 @@ where
         payment,
         route_params,
         recipient_fields,
+        ..
     } = preflight_pay_invoice_inner(
         req,
         router,
         channel_manager,
         payments_manager,
+        network_graph,
         chain_monitor,
         lsp_fees,
     )
@@ -932,6 +936,7 @@ pub async fn preflight_pay_invoice<CM, PS>(
     router: &RouterType,
     channel_manager: &CM,
     payments_manager: &PaymentsManager<CM, PS>,
+    network_graph: &NetworkGraphType,
     chain_monitor: &LexeChainMonitorType<PS>,
     lsp_fees: LspFees,
 ) -> anyhow::Result<PreflightPayInvoiceResponse>
@@ -950,6 +955,7 @@ where
         router,
         channel_manager,
         payments_manager,
+        network_graph,
         chain_monitor,
         lsp_fees,
     )
@@ -957,6 +963,7 @@ where
     Ok(PreflightPayInvoiceResponse {
         amount: preflight.payment.amount,
         fees: preflight.payment.fees,
+        route: preflight.route,
     })
 }
 
@@ -1135,6 +1142,7 @@ pub fn preflight_pay_onchain(
 // validating and routing a BOLT11 invoice, without actually paying yet.
 struct PreflightedPayInvoice {
     payment: OutboundInvoicePayment,
+    route: LxRoute,
     route_params: RouteParameters,
     recipient_fields: RecipientOnionFields,
 }
@@ -1146,6 +1154,7 @@ async fn preflight_pay_invoice_inner<CM, PS>(
     router: &RouterType,
     channel_manager: &CM,
     payments_manager: &PaymentsManager<CM, PS>,
+    network_graph: &NetworkGraphType,
     chain_monitor: &LexeChainMonitorType<PS>,
     lsp_fees: LspFees,
 ) -> anyhow::Result<PreflightedPayInvoice>
@@ -1300,11 +1309,16 @@ where
     let payment_secret = invoice.payment_secret().into();
     let recipient_fields = RecipientOnionFields::secret_only(payment_secret);
 
-    let amount = Amount::from_msat(route.get_total_amount());
-    let fees = Amount::from_msat(route.get_total_fees());
+    let route = LxRoute::from_ldk(route, network_graph);
+    info!("Preflighted route: {route}");
+
+    let amount = route.amount();
+    let fees = route.fees();
     let payment = OutboundInvoicePayment::new(invoice, amount, fees, req.note);
+
     Ok(PreflightedPayInvoice {
         payment,
+        route,
         route_params,
         recipient_fields,
     })
