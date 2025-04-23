@@ -13,6 +13,7 @@ use http::status::StatusCode;
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::{error, warn};
 
 use super::{
     auth,
@@ -154,6 +155,26 @@ macro_rules! api_error {
             pub msg: String,
         }
 
+        impl $api_error {
+            /// Log this error and get its HTTP [`StatusCode`].
+            fn log_and_status(&self) -> StatusCode {
+                let status = self.to_http_status();
+
+                if status.is_server_error() {
+                    tracing::error!("{self}");
+                } else if status.is_client_error() {
+                    tracing::warn!("{self}");
+                } else {
+                    // All other statuses are unexpected. Log these at error.
+                    tracing::error!(
+                        "Unexpected status code {status} for error: {self}"
+                    );
+                }
+
+                status
+            }
+        }
+
         impl fmt::Display for $api_error {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 let kind_msg = self.kind.to_msg();
@@ -191,7 +212,10 @@ macro_rules! api_error {
 
         impl IntoResponse for $api_error {
             fn into_response(self) -> http::Response<axum::body::Body> {
-                let status = self.to_http_status();
+                // Server-side errors need to be logged here, since the error
+                // will have been converted to an `http::Response` by the time
+                // `axum`'s layers can access it.
+                let status = self.log_and_status();
                 let error_response = ErrorResponse::from(self);
                 server::build_json_response(status, &error_response)
             }
@@ -792,6 +816,32 @@ impl CommonApiError {
     pub fn to_code(&self) -> ErrorCode {
         self.kind.to_code()
     }
+
+    /// Log this error and get its HTTP [`StatusCode`].
+    fn log_and_status(&self) -> StatusCode {
+        let status = self.kind.to_http_status();
+
+        if status.is_server_error() {
+            error!("{self}");
+        } else if status.is_client_error() {
+            warn!("{self}");
+        } else {
+            // All other statuses are unexpected. Log these at error.
+            error!("Unexpected status code {status} for error: {self}");
+        }
+
+        status
+    }
+}
+
+impl fmt::Display for CommonApiError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let kind = &self.kind;
+        let msg = &self.msg;
+        // This just uses the `Debug` impl for the kind, since we don't have a
+        // `kind_msg` provided by the `api_error_kind!` macro.
+        write!(f, "{kind:?}: {msg}")
+    }
 }
 
 impl CommonErrorKind {
@@ -852,7 +902,9 @@ impl From<CommonApiError> for ErrorResponse {
 
 impl IntoResponse for CommonApiError {
     fn into_response(self) -> http::Response<axum::body::Body> {
-        let status = self.kind.to_http_status();
+        // Server-side errors need to be logged here, since the error is
+        // converted to an `http::Response` by the time `axum` can access it.
+        let status = self.log_and_status();
         let error_response = ErrorResponse::from(self);
         server::build_json_response(status, &error_response)
     }
