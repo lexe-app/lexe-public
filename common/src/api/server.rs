@@ -29,7 +29,11 @@ pub fn build_json_response(
                 let error_kind = CommonErrorKind::Server;
                 let code = error_kind.to_code();
                 let status = error_kind.to_http_status();
-                let err_resp = ErrorResponse { code, msg };
+                let err_resp = ErrorResponse {
+                    code,
+                    msg,
+                    ..Default::default()
+                };
                 let json_bytes = serde_json::to_vec(&err_resp)
                     .expect("Serializing ErrorResponse really shouldn't fail");
                 (status, json_bytes)

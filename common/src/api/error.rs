@@ -44,12 +44,30 @@ pub type ErrorCode = u16;
 ///
 /// For displaying the full human-readable message to the user, convert
 /// `ErrorResponse` to the corresponding API error type first.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct ErrorResponse {
     pub code: ErrorCode,
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
+
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_string()")
+    )]
     pub msg: String,
+
+    /// Structured data associated with this error.
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_json_value()")
+    )]
+    #[serde(default)] // For backwards compat
+    pub data: serde_json::Value,
+
+    /// Whether `data` contains sensitive information that Lexe shouldn't see
+    /// (e.g. a route). Such data may still be logged by the app or in SDKs but
+    /// shouldn't be logged inside of Lexe infra.
+    #[serde(default)] // For backwards compat
+    pub sensitive: bool,
 }
 
 /// A 'trait alias' defining all the supertraits an API error type must impl
@@ -184,7 +202,7 @@ macro_rules! api_error {
         }
 
         impl From<ErrorResponse> for $api_error {
-            fn from(ErrorResponse { code, msg }: ErrorResponse) -> Self {
+            fn from(ErrorResponse { code, msg, .. }: ErrorResponse) -> Self {
                 let kind = $api_error_kind::from_code(code);
                 Self { kind, msg }
             }
@@ -193,7 +211,12 @@ macro_rules! api_error {
         impl From<$api_error> for ErrorResponse {
             fn from($api_error { kind, msg }: $api_error) -> Self {
                 let code = kind.to_code();
-                Self { code, msg }
+                // TODO(max): Use new fields from API error
+                Self {
+                    code,
+                    msg,
+                    ..Default::default()
+                }
             }
         }
 
@@ -896,7 +919,12 @@ impl From<reqwest::Error> for CommonApiError {
 impl From<CommonApiError> for ErrorResponse {
     fn from(CommonApiError { kind, msg }: CommonApiError) -> Self {
         let code = kind.to_code();
-        Self { code, msg }
+        // TODO(max): Maybe use new fields from common error
+        Self {
+            code,
+            msg,
+            ..Default::default()
+        }
     }
 }
 
@@ -1200,7 +1228,10 @@ pub mod invariants {
         )| {
             let code = kind.to_code();
             let msg = main_msg.clone();
-            let err_resp = ErrorResponse { code, msg };
+            // Insert structured data which should not appear in the output
+            let data = serde_json::Value::String(String::from("dummy"));
+            let sensitive = false;
+            let err_resp = ErrorResponse { code, msg, data, sensitive };
             let api_error = E::from(err_resp);
             let kind_msg = kind.to_msg();
 
@@ -1216,13 +1247,10 @@ pub mod invariants {
 
 #[cfg(test)]
 mod test {
+    use proptest::{prelude::any, prop_assert_eq, proptest};
+
     use super::*;
     use crate::test_utils::roundtrip;
-
-    #[test]
-    fn error_response_serde_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<ErrorResponse>();
-    }
 
     #[test]
     fn client_error_kinds_non_zero() {
@@ -1257,5 +1285,33 @@ mod test {
 
         assert_eq!(err1, "Error: Oops!");
         assert_eq!(err2, "Error: Oops!");
+    }
+
+    #[test]
+    fn error_response_serde_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<ErrorResponse>();
+    }
+
+    /// Check that we can deserialize old [`ErrorResponse`]s.
+    #[test]
+    fn error_response_compat() {
+        /// The old version of [`ErrorResponse`].
+        #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+        #[derive(Arbitrary)]
+        pub struct OldErrorResponse {
+            pub code: ErrorCode,
+            #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
+            pub msg: String,
+        }
+
+        proptest!(|(old in any::<OldErrorResponse>())| {
+            let json_str = serde_json::to_string(&old).unwrap();
+            let new =
+                serde_json::from_str::<ErrorResponse>(&json_str).unwrap();
+            prop_assert_eq!(old.code, new.code);
+            prop_assert_eq!(old.msg, new.msg);
+            prop_assert_eq!(new.data, serde_json::Value::Null);
+            prop_assert_eq!(new.sensitive, false);
+        });
     }
 }
