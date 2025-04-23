@@ -25,3 +25,5 @@ pub mod offer;
 pub mod payments;
 /// Confirmation priorities.
 pub mod priority;
+/// `LxRoute`.
+pub mod route;
