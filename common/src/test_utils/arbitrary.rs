@@ -31,6 +31,7 @@ use lightning::{
 use lightning_invoice::Fallback;
 use proptest::{
     arbitrary::any,
+    collection::vec,
     option, prop_oneof,
     strategy::{Just, Strategy, ValueTree},
     test_runner::{Config, RngAlgorithm, TestRng, TestRunner},
@@ -62,8 +63,7 @@ use crate::{
 /// ```
 pub fn any_string() -> impl Strategy<Value = String> {
     // Maximum length = 256
-    proptest::collection::vec(any::<char>(), 0..=256)
-        .prop_map(String::from_iter)
+    vec(any::<char>(), 0..=256).prop_map(String::from_iter)
 }
 
 /// An [`Option`] version of [`any_string`].
@@ -91,8 +91,7 @@ pub fn any_simple_string() -> impl Strategy<Value = String> {
 
     let any_alphanum_char = proptest::char::ranges(RANGES.into());
 
-    proptest::collection::vec(any_alphanum_char, 0..=256)
-        .prop_map(String::from_iter)
+    vec(any_alphanum_char, 0..=256).prop_map(String::from_iter)
 }
 
 /// An [`Option`] version of [`any_simple_string`].
@@ -104,7 +103,7 @@ pub fn any_option_simple_string() -> impl Strategy<Value = Option<String>> {
 
 /// A [`Vec`] version of [`any_simple_string`]. Contains 0-8 strings.
 pub fn any_vec_simple_string() -> impl Strategy<Value = Vec<String>> {
-    proptest::collection::vec(any_simple_string(), 0..=8)
+    vec(any_simple_string(), 0..=8)
 }
 
 /// `Hostname` is a DNS-like string with 1..=255 alphanumeric + '-' + '.' chars.
@@ -119,7 +118,7 @@ pub fn any_hostname() -> impl Strategy<Value = Hostname> {
 
     let any_valid_char = proptest::char::ranges(RANGES.into());
 
-    proptest::collection::vec(any_valid_char, 1..=255)
+    vec(any_valid_char, 1..=255)
         .prop_map(String::from_iter)
         .prop_map(|s| Hostname::try_from(s).unwrap())
 }
@@ -298,7 +297,7 @@ pub fn any_script() -> impl Strategy<Value = ScriptBuf> {
         }
     }
 
-    let any_slice = proptest::collection::vec(any::<u8>(), 0..=32);
+    let any_slice = vec(any::<u8>(), 0..=32);
 
     let any_push_op = prop_oneof![
         any::<i64>().prop_map(PushOp::Int),
@@ -314,7 +313,7 @@ pub fn any_script() -> impl Strategy<Value = ScriptBuf> {
     ];
 
     // Include anywhere from 0 to 8 instructions in the script
-    proptest::collection::vec(any_push_op, 0..=8).prop_map(|vec_of_push_ops| {
+    vec(any_push_op, 0..=8).prop_map(|vec_of_push_ops| {
         let mut builder = script::Builder::new();
         for push_op in vec_of_push_ops {
             builder = push_op.push_into(builder);
@@ -326,8 +325,8 @@ pub fn any_script() -> impl Strategy<Value = ScriptBuf> {
 pub fn any_witness() -> impl Strategy<Value = Witness> {
     // The `Vec<Vec<u8>>`s from any::<Vec<u8>>() are too big,
     // so we limit to 8x8 = 64 bytes.
-    let any_vec_u8 = proptest::collection::vec(any::<u8>(), 0..=8);
-    let any_vec_vec_u8 = proptest::collection::vec(any_vec_u8, 0..=8);
+    let any_vec_u8 = vec(any::<u8>(), 0..=8);
+    let any_vec_vec_u8 = vec(any_vec_u8, 0..=8);
     any_vec_vec_u8.prop_map(|vec_vec| Witness::from_slice(vec_vec.as_slice()))
 }
 
@@ -371,8 +370,8 @@ pub fn any_raw_tx() -> impl Strategy<Value = bitcoin::Transaction> {
     let any_version = any_tx_version();
     let any_lock_time = any_locktime();
     // Txns include anywhere from 1 to 2 inputs / outputs
-    let any_vec_of_txins = proptest::collection::vec(any_txin(), 1..=2);
-    let any_vec_of_txouts = proptest::collection::vec(any_txout(), 1..=2);
+    let any_vec_of_txins = vec(any_txin(), 1..=2);
+    let any_vec_of_txouts = vec(any_txout(), 1..=2);
     (
         any_version,
         any_lock_time,
@@ -491,8 +490,7 @@ pub fn any_onchain_fallback() -> impl Strategy<Value = Fallback> {
 
 /// Invoice [`RouteHint`]s don't include HTLC min/max msat amounts.
 pub fn any_invoice_route_hint() -> impl Strategy<Value = RouteHint> {
-    proptest::collection::vec(any_invoice_route_hint_hop(), 0..=2)
-        .prop_map(RouteHint)
+    vec(any_invoice_route_hint_hop(), 0..=2).prop_map(RouteHint)
 }
 
 /// Invoice [`RouteHintHop`]s don't include HTLC min/max msat amounts.
