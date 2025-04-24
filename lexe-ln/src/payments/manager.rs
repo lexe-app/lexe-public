@@ -20,6 +20,7 @@ use common::{
     notify_once::NotifyOnce,
     task::LxTask,
     test_event::TestEvent,
+    time::TimestampMs,
 };
 #[cfg(doc)]
 use lightning::events::Event::PaymentFailed;
@@ -27,7 +28,7 @@ use lightning::{events::PaymentPurpose, ln::channelmanager::FailureCode};
 use tokio::{sync::Mutex, time::Instant};
 use tracing::{debug, error, info, info_span, instrument, warn};
 
-use super::outbound::ExpireError;
+use super::{inbound::InboundOfferReusePayment, outbound::ExpireError};
 use crate::{
     esplora::{LexeEsplora, TxConfStatus},
     payments::{
@@ -908,9 +909,13 @@ impl PaymentsData {
                     Err(ClaimableError::Replay(anyhow!(
                         "Tried to claim non-existent inbound invoice payment"
                     ))),
-                // TODO(phlip9): impl BOLT 12
-                LnPaymentClaimCtx::Bolt12Offer { .. } =>
-                    todo!("TODO(phlip9): Revisit when implementing BOLT 12"),
+                LnPaymentClaimCtx::Bolt12Offer(ctx) => {
+                    let now = TimestampMs::now();
+                    let iorp = InboundOfferReusePayment::new(ctx, amount, now);
+                    let payment = Payment::from(iorp);
+                    self.check_new_payment(payment)
+                        .map_err(ClaimableError::Replay)
+                }
                 LnPaymentClaimCtx::Spontaneous {
                     hash,
                     preimage,
@@ -970,6 +975,14 @@ impl PaymentsData {
                 .map(CheckedPayment)
                 .context("Error finalizing inbound invoice payment")?,
             (
+                Payment::InboundOfferReuse(iorp),
+                LnPaymentClaimCtx::Bolt12Offer(ctx),
+            ) => iorp
+                .check_payment_claimed(ctx, amount)
+                .map(Payment::from)
+                .map(CheckedPayment)
+                .context("Error finalizing reusable inbound offer payment")?,
+            (
                 Payment::InboundSpontaneous(isp),
                 LnPaymentClaimCtx::Spontaneous {
                     preimage,
@@ -981,7 +994,7 @@ impl PaymentsData {
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error finalizing inbound spontaneous payment")?,
-            // TODO(phlip9): impl BOLT 12
+            // TODO(phlip9): impl BOLT 12 refunds
             _ => bail!("Not an inbound LN payment, or purpose didn't match"),
         };
 
@@ -1177,7 +1190,7 @@ mod test {
 
     use super::*;
     use crate::payments::{
-        inbound::InboundInvoicePayment,
+        inbound::{InboundInvoicePayment, OfferClaimCtx},
         outbound::{
             arb::OipParams, OutboundInvoicePayment,
             OutboundInvoicePaymentStatus,
@@ -1312,6 +1325,38 @@ mod test {
                 .unwrap();
 
             data.check_invoice_expiries(Duration::MAX).unwrap();
+        });
+    }
+
+    #[test]
+    fn prop_inbound_offer_reuse_payment_idempotency() {
+        proptest!(|(
+            mut data in any::<PaymentsData>(),
+            iorp in any::<InboundOfferReusePayment>(),
+        )| {
+            let payment = Payment::InboundOfferReuse(iorp.clone());
+            data.force_insert_payment(payment.clone());
+
+            let claim_ctx = LnPaymentClaimCtx::Bolt12Offer(OfferClaimCtx {
+                preimage: iorp.preimage,
+                claim_id: iorp.claim_id,
+                offer_id: iorp.offer_id,
+                quantity: iorp.quantity,
+                payer_note: iorp.payer_note,
+                payer_name: iorp.payer_name,
+            });
+
+            prop_assert!(data.check_new_payment(payment).is_err());
+
+            let _ = data
+                .check_payment_claimable(
+                    claim_ctx.clone(),
+                    iorp.amount,
+                )
+                .inspect_err(|err| assert!(!err.is_replay()));
+
+            data.check_payment_claimed(claim_ctx, iorp.amount)
+                .unwrap();
         });
     }
 

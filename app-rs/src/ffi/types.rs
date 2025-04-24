@@ -190,6 +190,7 @@ impl From<PaymentKindRs> for PaymentKind {
             PaymentKindRs::Onchain => Self::Onchain,
             PaymentKindRs::Invoice => Self::Invoice,
             PaymentKindRs::Spontaneous => Self::Spontaneous,
+            PaymentKindRs::Offer => todo!("TODO(phlip9): BOLT12"),
         }
     }
 }

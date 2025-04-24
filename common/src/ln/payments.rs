@@ -47,7 +47,7 @@ pub struct BasicPayment {
     pub invoice: Option<LxInvoice>,
     //
     // TODO(phlip9): bolt12
-    // pub offer: Option<LxOffer>,
+    // pub offer_id: Option<LxOfferId>,
     ///
     /// (Onchain payments only) The original txid.
     // NOTE: we're duplicating the txid here for onchain receives because its
@@ -158,8 +158,8 @@ pub struct VecDbPayment {
 pub enum PaymentKind {
     Onchain,
     Invoice,
+    Offer,
     Spontaneous,
-    // TODO(phlip9): bolt12
 }
 
 /// Specifies whether a payment is inbound or outbound.
@@ -578,6 +578,7 @@ impl PaymentKind {
         match self {
             Self::Onchain => "onchain",
             Self::Invoice => "invoice",
+            Self::Offer => "offer",
             Self::Spontaneous => "spontaneous",
         }
     }
@@ -586,8 +587,9 @@ impl FromStr for PaymentKind {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "onchain" => Ok(Self::Onchain),
             "invoice" => Ok(Self::Invoice),
+            "offer" => Ok(Self::Offer),
+            "onchain" => Ok(Self::Onchain),
             "spontaneous" => Ok(Self::Spontaneous),
             _ => Err(anyhow!("Must be onchain|invoice|spontaneous")),
         }
@@ -799,7 +801,7 @@ mod test {
         roundtrip::json_unit_enum_backwards_compat::<PaymentStatus>(
             expected_ser,
         );
-        let expected_ser = r#"["onchain","invoice","spontaneous"]"#;
+        let expected_ser = r#"["onchain","invoice","offer","spontaneous"]"#;
         roundtrip::json_unit_enum_backwards_compat::<PaymentKind>(expected_ser);
 
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentDirection>();

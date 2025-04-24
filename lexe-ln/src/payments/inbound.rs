@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{num::NonZeroU64, time::Duration};
 
 use anyhow::{anyhow, ensure, Context};
 #[cfg(test)]
@@ -8,15 +8,13 @@ use common::{
         amount::Amount,
         invoice::LxInvoice,
         payments::{
-            LnClaimId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
-            LxPaymentSecret, PaymentKind,
+            LnClaimId, LxOfferId, LxPaymentHash, LxPaymentId,
+            LxPaymentPreimage, LxPaymentSecret, PaymentKind,
         },
     },
     time::TimestampMs,
 };
-use lightning::{
-    blinded_path::payment::Bolt12OfferContext, events::PaymentPurpose,
-};
+use lightning::events::PaymentPurpose;
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::{
     events::Event::{PaymentClaimable, PaymentClaimed},
@@ -68,15 +66,7 @@ pub enum LnPaymentClaimCtx {
         // TODO(phlip9): make non-Option once we don't have replaying Claimed
         claim_id: Option<LnClaimId>,
     },
-    Bolt12Offer {
-        preimage: LxPaymentPreimage,
-        hash: LxPaymentHash,
-        secret: LxPaymentSecret,
-        // We don't have any BOLT12 offers pending, so we can assume claim id
-        // is present.
-        claim_id: LnClaimId,
-        context: Bolt12OfferContext,
-    },
+    Bolt12Offer(OfferClaimCtx),
     // // TODO(phlip9): BOLT12 refund
     // Bolt12Refund {
     //     preimage: LxPaymentPreimage,
@@ -91,6 +81,21 @@ pub enum LnPaymentClaimCtx {
         // TODO(phlip9): make non-Option once we don't have replaying Claimed
         claim_id: Option<LnClaimId>,
     },
+}
+
+/// Data used to handle a [`PaymentClaimable`]/[`PaymentClaimed`] event for an
+/// [`InboundOfferReusePayment`].
+#[derive(Clone)]
+pub struct OfferClaimCtx {
+    pub preimage: LxPaymentPreimage,
+    // We don't have any BOLT12 offers pending, so we can assume claim id
+    // is present.
+    pub claim_id: LnClaimId,
+    pub offer_id: LxOfferId,
+    pub quantity: Option<NonZeroU64>,
+    pub payer_note: Option<String>,
+    // TODO(phlip9): use newtype
+    pub payer_name: Option<String>,
 }
 
 impl LnPaymentClaimCtx {
@@ -123,20 +128,30 @@ impl LnPaymentClaimCtx {
             }
             PaymentPurpose::Bolt12OfferPayment {
                 payment_preimage: _,
-                payment_secret,
+                payment_secret: _,
                 payment_context: context,
             } => {
-                let secret = LxPaymentSecret::from(payment_secret);
                 debug_assert!(claim_id.is_some());
                 let claim_id = claim_id
                     .context("BOLT12 offer payment must have a claim id")?;
-                Ok(Self::Bolt12Offer {
+                let offer_id = LxOfferId::from(context.offer_id);
+                let quantity =
+                    context.invoice_request.quantity.and_then(NonZeroU64::new);
+                let payer_note =
+                    context.invoice_request.payer_note_truncated.map(|s| s.0);
+                // TODO(phlip9): use newtype
+                let payer_name = context
+                    .invoice_request
+                    .human_readable_name
+                    .map(|hrn| format!("{}@{}", hrn.user(), hrn.domain()));
+                Ok(Self::Bolt12Offer(OfferClaimCtx {
                     preimage,
-                    hash,
-                    secret,
                     claim_id,
-                    context,
-                })
+                    offer_id,
+                    quantity,
+                    payer_note,
+                    payer_name,
+                }))
             }
             // TODO(phlip9): BOLT12 refunds
             PaymentPurpose::Bolt12RefundPayment { .. } => {
@@ -156,7 +171,7 @@ impl LnPaymentClaimCtx {
         match self {
             Self::Bolt11Invoice { hash, .. } => LxPaymentId::Lightning(*hash),
             // TODO(phlip9): how to disambiguate single-use BOLT12 offer
-            Self::Bolt12Offer { claim_id, .. } =>
+            Self::Bolt12Offer(OfferClaimCtx { claim_id, .. }) =>
                 LxPaymentId::OfferRecvReuse(*claim_id),
             Self::Spontaneous { hash, .. } => LxPaymentId::Lightning(*hash),
         }
@@ -165,7 +180,7 @@ impl LnPaymentClaimCtx {
     pub fn preimage(&self) -> LxPaymentPreimage {
         match self {
             Self::Bolt11Invoice { preimage, .. } => *preimage,
-            Self::Bolt12Offer { preimage, .. } => *preimage,
+            Self::Bolt12Offer(OfferClaimCtx { preimage, .. }) => *preimage,
             Self::Spontaneous { preimage, .. } => *preimage,
         }
     }
@@ -175,7 +190,7 @@ impl LnPaymentClaimCtx {
         // TODO(max): Implement for BOLT 12
         match self {
             Self::Bolt11Invoice { .. } => PaymentKind::Invoice,
-            Self::Bolt12Offer { .. } => todo!("Not sure of new variant yet"),
+            Self::Bolt12Offer(_) => PaymentKind::Offer,
             Self::Spontaneous { .. } => PaymentKind::Spontaneous,
         }
     }
@@ -223,20 +238,11 @@ impl Payment {
                 )
                 .map(Payment::from)
                 .map(CheckedPayment),
-            // TODO(max): Implement for BOLT 12
-            // (
-            //     Self::Bolt12Offer(b12o),
-            //     LxPaymentPurpose::Bolt12Offer {
-            //         preimage,
-            //         secret,
-            //         context,
-            //     },
-            // ) => {
-            //     let _ = preimage;
-            //     let _ = secret;
-            //     let _ = context;
-            //     todo!();
-            // }
+            (
+                Self::InboundOfferReuse(iorp),
+                LnPaymentClaimCtx::Bolt12Offer(ctx),
+            ) => Err(iorp.check_payment_claimable(ctx, amount)),
+            // TODO(max): Implement for BOLT 12 refunds
             // (
             //     Self::Bolt12Refund(b12r),
             //     LxPaymentPurpose::Bolt12Refund {
@@ -257,10 +263,7 @@ impl Payment {
                     hash,
                     claim_id: _claim_id,
                 },
-            ) => isp
-                .check_payment_claimable(hash, preimage, amount)
-                .map(Payment::from)
-                .map(CheckedPayment),
+            ) => Err(isp.check_payment_claimable(hash, preimage, amount)),
             _ => Err(ClaimableError::Replay(anyhow!(
                 "Not an inbound LN payment, or purpose didn't match"
             ))),
@@ -578,6 +581,197 @@ impl InboundInvoicePayment {
     }
 }
 
+// --- Inbound BOLT12 offer payments --- //
+
+// TODO(phlip9): single-use BOLT12 offer payments
+
+/// An inbound, _reusable_ BOLT12 offer payment. This struct is created when we
+/// get a [`PaymentClaimable`] event, with [`PaymentPurpose::Bolt12Offer`].
+//
+// TODO(phlip9): we'll need to maintain a separate `Offer` metadata store to
+// correlate `offer_id` with the actual offer. This is mostly useful to get our
+// original offer `description`. This would need to be optional though to
+// support externally generated offers (e.g. dumb shopify plugin generates an
+// offer without letting the node know).
+//
+// Added in `node-v0.7.8`
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct InboundOfferReusePayment {
+    /// The claim id uniquely identifies a single payment for this offer.
+    /// It is the hash of the HTLC(s) paying a payment hash.
+    pub claim_id: LnClaimId,
+    /// Unique identifier for the original offer, which may be paid multiple
+    /// times.
+    pub offer_id: LxOfferId,
+    /// The payment preimage for this offer payment.
+    pub preimage: LxPaymentPreimage,
+    /// The amount we received for this payment.
+    pub amount: Amount,
+    // TODO(phlip9): impl
+    // /// The fees skimmed by the LSP for forwarding this payment.
+    // pub lsp_fees: Amount,
+    // /// The amount we paid for a JIT channel open.
+    // pub onchain_fees: Option<Amount>,
+    /// The number of items the payer bought.
+    pub quantity: Option<NonZeroU64>,
+    /// The current payment status.
+    pub status: InboundOfferReusePaymentStatus,
+    /// An optional personal note for this payment.
+    pub note: Option<String>,
+    /// A payer-provided note for this payment. LDK truncates this to
+    /// [`PAYER_NOTE_LIMIT`](lightning::offers::invoice_request::PAYER_NOTE_LIMIT)
+    /// bytes (512 B as of 2025-04-22).
+    pub payer_note: Option<String>,
+    /// The payer's self-reported human-readable name.
+    // TODO(phlip9): newtype
+    pub payer_name: Option<String>,
+    /// When we first learned of this payment via [`PaymentClaimable`].
+    pub created_at: TimestampMs,
+    /// When this payment reached the `Completed` state.
+    pub finalized_at: Option<TimestampMs>,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(Arbitrary, strum::VariantArray, Hash))]
+pub enum InboundOfferReusePaymentStatus {
+    /// We received a [`PaymentClaimable`] event.
+    Claiming,
+    /// We received a [`PaymentClaimed`] event.
+    Completed,
+    // NOTE: We don't have a "Failed" case here because (as Matt says) if you
+    // call ChannelManager::claim_funds we should always get the
+    // PaymentClaimed event back. If for some reason this turns out not to
+    // be true (i.e. we observe a number of inbound reusable offer payments
+    // stuck in the "claiming" state), then we can add a "Failed" state
+    // here. https://discord.com/channels/915026692102316113/978829624635195422/1085427776070365214
+}
+
+impl InboundOfferReusePayment {
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
+    pub(crate) fn new(
+        ctx: OfferClaimCtx,
+        amount: Amount,
+        now: TimestampMs,
+    ) -> Self {
+        Self {
+            claim_id: ctx.claim_id,
+            offer_id: ctx.offer_id,
+            preimage: ctx.preimage,
+            amount,
+            quantity: ctx.quantity,
+            status: InboundOfferReusePaymentStatus::Claiming,
+            note: None,
+            payer_note: ctx.payer_note,
+            payer_name: ctx.payer_name,
+            created_at: now,
+            finalized_at: None,
+        }
+    }
+
+    /// ## Precondition
+    /// - The payment must not be finalized (`Completed`).
+    //
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
+    //
+    // We're likely replaying a `PaymentClaimable` event that we partially
+    // handled before crashing.
+    pub(crate) fn check_payment_claimable(
+        &self,
+        ctx: OfferClaimCtx,
+        amount: Amount,
+    ) -> ClaimableError {
+        use InboundOfferReusePaymentStatus::*;
+
+        // Catch payment state machine errors
+        if ctx.preimage != self.preimage {
+            return ClaimableError::Replay(anyhow::anyhow!(
+                "Preimages don't match"
+            ));
+        }
+        if ctx.offer_id != self.offer_id {
+            return ClaimableError::Replay(anyhow::anyhow!(
+                "Offer ids don't match"
+            ));
+        }
+        if ctx.claim_id != self.claim_id {
+            return ClaimableError::Replay(anyhow::anyhow!(
+                "Claim ids don't match"
+            ));
+        }
+        if amount != self.amount {
+            return ClaimableError::Replay(anyhow::anyhow!(
+                "Amounts don't match"
+            ));
+        }
+
+        match self.status {
+            Claiming => (),
+            Completed => {
+                unreachable!(
+                    "caller ensures payment is not already finalized. \
+                     {id} is already {status:?}",
+                    id = self.id(),
+                    status = self.status
+                );
+            }
+        }
+
+        // There is no state to update, but this may be a replay after crash,
+        // so try to reclaim
+        ClaimableError::IgnoreAndReclaim
+    }
+
+    /// ## Precondition
+    /// - The payment must not be finalized (`Completed` or `Expired`).
+    //
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
+    pub(crate) fn check_payment_claimed(
+        &self,
+        ctx: OfferClaimCtx,
+        amount: Amount,
+    ) -> anyhow::Result<Self> {
+        use InboundOfferReusePaymentStatus::*;
+
+        ensure!(ctx.preimage == self.preimage, "Preimages don't match");
+        ensure!(ctx.claim_id == self.claim_id, "Claim ids don't match");
+        ensure!(ctx.offer_id == self.offer_id, "Offer ids don't match");
+        ensure!(amount == self.amount, "Amounts don't match");
+
+        match self.status {
+            Claiming => (),
+            Completed => unreachable!(
+                "caller ensures payment is not already finalized. \
+                 {id} is already {status:?}",
+                id = self.id(),
+                status = self.status
+            ),
+        }
+
+        // Everything ok; return a clone with the updated state
+        let mut clone = self.clone();
+        clone.status = Completed;
+        clone.finalized_at = Some(TimestampMs::now());
+
+        Ok(clone)
+    }
+
+    #[inline]
+    pub fn id(&self) -> LxPaymentId {
+        LxPaymentId::OfferRecvReuse(self.claim_id)
+    }
+
+    /// The total fees we paid to receive this payment
+    #[inline]
+    pub(crate) const fn fees(&self) -> Amount {
+        // TODO(phlip9): impl LSP skimming to charge receiver for fees
+        Amount::ZERO
+    }
+}
+
 // --- Inbound spontaneous payments --- //
 
 /// An inbound spontaneous (`keysend`) payment. This struct is created when we
@@ -658,24 +852,24 @@ impl InboundSpontaneousPayment {
         hash: LxPaymentHash,
         preimage: LxPaymentPreimage,
         amount: Amount,
-    ) -> Result<Self, ClaimableError> {
+    ) -> ClaimableError {
         use InboundSpontaneousPaymentStatus::*;
 
         // Payment state machine errors
         if hash != self.hash {
-            return Err(ClaimableError::Replay(anyhow::anyhow!(
+            return ClaimableError::Replay(anyhow::anyhow!(
                 "Hashes don't match"
-            )));
+            ));
         }
         if preimage != self.preimage {
-            return Err(ClaimableError::Replay(anyhow::anyhow!(
+            return ClaimableError::Replay(anyhow::anyhow!(
                 "Preimages don't match"
-            )));
+            ));
         }
         if amount != self.amount {
-            return Err(ClaimableError::Replay(anyhow::anyhow!(
+            return ClaimableError::Replay(anyhow::anyhow!(
                 "Amounts don't match"
-            )));
+            ));
         }
 
         match self.status {
@@ -690,7 +884,7 @@ impl InboundSpontaneousPayment {
 
         // There is no state to update, but this may be a replay after crash,
         // so try to reclaim
-        Err(ClaimableError::IgnoreAndReclaim)
+        ClaimableError::IgnoreAndReclaim
     }
 
     /// ## Precondition
@@ -736,6 +930,7 @@ mod arb {
     use arbitrary::{any_duration, any_option_simple_string};
     use common::ln::{
         invoice::arbitrary_impl::LxInvoiceParams,
+        offer::MaxQuantity,
         payments::{LxPaymentPreimage, PaymentStatus},
     };
     use proptest::{
@@ -820,6 +1015,73 @@ mod arb {
         }
     }
 
+    impl Arbitrary for InboundOfferReusePayment {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let preimage = any::<LxPaymentPreimage>();
+            let claim_id = any::<LnClaimId>();
+            let offer_id = any::<LxOfferId>();
+            let amount = any::<Amount>();
+            let quantity = any::<Option<MaxQuantity>>()
+                .prop_map(|opt_q| opt_q.map(|q| q.0));
+            let status = any::<InboundOfferReusePaymentStatus>();
+            let note = any_option_simple_string();
+            let payer_note = any_option_simple_string();
+            // TODO(phlip9): use newtype
+            let payer_name = any_option_simple_string();
+            let created_at = any::<TimestampMs>();
+            let finalized_after = any_duration();
+
+            let gen_iip = |(
+                preimage,
+                claim_id,
+                offer_id,
+                amount,
+                quantity,
+                status,
+                note,
+                payer_note,
+                payer_name,
+                created_at,
+                finalized_after,
+            )| {
+                InboundOfferReusePayment {
+                    preimage,
+                    claim_id,
+                    offer_id,
+                    amount,
+                    quantity,
+                    status,
+                    note,
+                    payer_note,
+                    payer_name,
+                    created_at,
+                    finalized_at: PaymentStatus::from(status)
+                        .is_finalized()
+                        .then_some(created_at.saturating_add(finalized_after)),
+                }
+            };
+
+            (
+                preimage,
+                claim_id,
+                offer_id,
+                amount,
+                quantity,
+                status,
+                note,
+                payer_note,
+                payer_name,
+                created_at,
+                finalized_after,
+            )
+                .prop_map(gen_iip)
+                .boxed()
+        }
+    }
+
     impl Arbitrary for InboundSpontaneousPayment {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
@@ -886,6 +1148,11 @@ mod test {
         );
 
         let expected_ser = r#"["claiming","completed"]"#;
+        json_unit_enum_backwards_compat::<InboundOfferReusePaymentStatus>(
+            expected_ser,
+        );
+
+        let expected_ser = r#"["claiming","completed"]"#;
         json_unit_enum_backwards_compat::<InboundSpontaneousPaymentStatus>(
             expected_ser,
         );
@@ -934,6 +1201,35 @@ mod test {
 
         for iip in values.values() {
             println!("{}", serde_json::to_string(&iip).unwrap());
+        }
+    }
+
+    #[test]
+    fn inbound_offer_reuse_deser_compat() {
+        let inputs = r#"
+--- node-v0.7.8+ (added reusable inbound offer payments)
+--- Claiming
+{"InboundOfferReuse":{"claim_id":"ee937f93c40da447b849274371cfe3455074b44e086999ee346105a185a65c36","offer_id":"f2106017b82ff71cd2fdeb0d12b25044ad062dd645b29b013e1f5362ff7e8c2d","preimage":"31fd7e8e51ce64bbe3e8afe4623c7ee648e8195e48dcae073ef42b12c2bfb793","amount":"76041142920849.20","quantity":1,"status":"claiming","note":"KmAm1jofsE64T3lg0dGA1pH9Iio7x70sEZmZu2KaOQa25i1CySWEBtQIpzo5WGZIMiq8B2549ux2M15XNY1PIQYMfUq6f84Gq58xTdLfvGsR0oyio2kyfq57aJuiZOjCO","payer_note":"Mu8BiJSC4A1Z0Q3jOYI3SR9k3eRN1HT1z1eED8QY7m0o4h4wARXjaq5Jq9H","payer_name":"phlip9@lexe.app","created_at":5788173274934005161,"finalized_at":null}}
+{"InboundOfferReuse":{"claim_id":"3df77a8027283eb8fca6ef0060adf7d7d26d50f1edb10f8ed8ab092f41abaa0f","offer_id":"9f8e66486e5ced9c3adc2719e4f063987dd9d9b4922379cb6c45a6a18fccc109","preimage":"18855c455c0548c97a914c29e361c204c04d61d359a3d8967af4f4105a5ba85f","amount":"1571893076260348.227","quantity":null,"status":"claiming","note":"CdVQGd0GILKXGI9EBw9BLdLJAstN8oyFPD322E9o39Gvj4613n67zvRyeMaoAHCO3FbhRZKn45N9c3gIc77F59YYDHffsZ2zkwWj7ayJeq5639uCRIwXVvz8L9kF","payer_note":null,"payer_name":null,"created_at":8939796962861345022,"finalized_at":null}}
+--- Completed
+{"InboundOfferReuse":{"claim_id":"64a97a464679b7c855907bae53113ec098900b7440be9f443b4c0b24f956fe6f","offer_id":"4f38b21130a76e4a4b45ba8bf9a78cc880f5d63823b74502b264128b2f5b9743","preimage":"697605eba6a3f651f559fb2f6a9462bac35bbbe9804f75c2e452df8ea12f3ca6","amount":"986264035966401.277","quantity":123,"status":"completed","note":"w5C2","payer_note":"TCCpwAbfiLHPot2hQT9hvTIj71jF61dIr4","payer_name":"hello@world.com","created_at":398528583856145275,"finalized_at":9223372036854775807}}
+{"InboundOfferReuse":{"claim_id":"eb96fda6879dc37b5ac94cd4fb51fcd46207a5419ba8421e28b6e76eef65432b","offer_id":"7b75825b79f00475d020cf434fdc959f0c0e0cdd9f615c721a06f7a4583dbf58","preimage":"001818bfb88429270827996589fdfa0ab71eea380a3cae294ff8071133b57917","amount":"587897171687152.022","quantity":null,"status":"completed","note":"jIsDb3GkqmGSD0XabFkhbNCIo53jaH92A63t8sNR48bh39797pygoJNLd2oINmIyCS6WP3sp5farGwvt44R4YCNgOYRGH3S3RjKYWLBs2nJPv4TsR8H6qg8xinjxD5eFT0amtJw1VDRC3Y83rOgf0b","payer_note":null,"payer_name":null,"created_at":2100409163582470665,"finalized_at":9223372036854775807}}
+"#;
+        for input in snapshot::parse_sample_data(inputs) {
+            let iorp: Payment = serde_json::from_str(input).unwrap();
+            let _ = serde_json::to_string(&iorp).unwrap();
+        }
+    }
+
+    #[ignore]
+    #[test]
+    fn inbound_offer_reuse_sample_data() {
+        let mut rng = FastRng::from_u64(202504231920);
+        let values =
+            gen_values(&mut rng, any::<InboundOfferReusePayment>(), 100);
+        for iorp in values {
+            let payment = Payment::from(iorp);
+            println!("{}", serde_json::to_string(&payment).unwrap());
         }
     }
 }
