@@ -21,7 +21,10 @@ use super::{
 };
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
-use crate::{api::server, enclave::Measurement};
+use crate::{
+    api::server,
+    enclave::{self, Measurement},
+};
 
 // Associated constants can't be imported.
 pub const CLIENT_400_BAD_REQUEST: StatusCode = StatusCode::BAD_REQUEST;
@@ -162,15 +165,29 @@ pub trait ToHttpStatus {
 #[macro_export]
 macro_rules! api_error {
     ($api_error:ident, $api_error_kind:ident) => {
-        #[derive(Clone, Debug, Eq, PartialEq, Hash, Error)]
+        #[derive(Clone, Debug, Default, Eq, PartialEq, Error)]
         #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
         pub struct $api_error {
             pub kind: $api_error_kind,
+
             #[cfg_attr(
                 any(test, feature = "test-utils"),
                 proptest(strategy = "arbitrary::any_string()")
             )]
             pub msg: String,
+
+            /// Structured data associated with this error.
+            #[cfg_attr(
+                any(test, feature = "test-utils"),
+                proptest(strategy = "arbitrary::any_json_value()")
+            )]
+            pub data: serde_json::Value,
+
+            /// Whether `data` contains sensitive information that Lexe
+            /// shouldn't see (e.g. a route). Such data may still be logged by
+            /// the app or in SDKs but shouldn't be logged inside of Lexe
+            /// infra.
+            pub sensitive: bool,
         }
 
         impl $api_error {
@@ -202,28 +219,54 @@ macro_rules! api_error {
         }
 
         impl From<ErrorResponse> for $api_error {
-            fn from(ErrorResponse { code, msg, .. }: ErrorResponse) -> Self {
+            fn from(err_resp: ErrorResponse) -> Self {
+                let ErrorResponse {
+                    code,
+                    msg,
+                    data,
+                    sensitive,
+                } = err_resp;
+
                 let kind = $api_error_kind::from_code(code);
-                Self { kind, msg }
+
+                Self {
+                    kind,
+                    msg,
+                    data,
+                    sensitive,
+                }
             }
         }
 
         impl From<$api_error> for ErrorResponse {
-            fn from($api_error { kind, msg }: $api_error) -> Self {
+            fn from(api_error: $api_error) -> Self {
+                let $api_error {
+                    kind,
+                    msg,
+                    data,
+                    sensitive,
+                } = api_error;
+
                 let code = kind.to_code();
-                // TODO(max): Use new fields from API error
+
                 Self {
                     code,
                     msg,
-                    ..Default::default()
+                    data,
+                    sensitive,
                 }
             }
         }
 
         impl From<CommonApiError> for $api_error {
-            fn from(CommonApiError { kind, msg }: CommonApiError) -> Self {
+            fn from(common_error: CommonApiError) -> Self {
+                let CommonApiError { kind, msg } = common_error;
                 let kind = $api_error_kind::from(kind);
-                Self { kind, msg }
+                Self {
+                    kind,
+                    msg,
+                    ..Default::default()
+                }
             }
         }
 
@@ -446,6 +489,7 @@ macro_rules! api_error_kind {
 pub struct CommonApiError {
     pub kind: CommonErrorKind,
     pub msg: String,
+    // `data` and `sensitive` can be added here if necessary.
 }
 
 api_error!(BackendApiError, BackendErrorKind);
@@ -789,7 +833,8 @@ api_error_kind! {
 
         /// General Runner error
         Runner = 100,
-        /// Caller provided an unknown or unserviceable measurement
+        /// Unknown or unserviceable measurement
+        // The measurement is provided by the caller
         UnknownMeasurement = 101,
         /// Caller requested a version which is too old
         OldVersion = 102,
@@ -941,46 +986,94 @@ impl IntoResponse for CommonApiError {
 // --- ApiError impls --- //
 
 impl BackendApiError {
+    pub fn database(error: impl fmt::Display) -> Self {
+        let kind = BackendErrorKind::Database;
+        let msg = format!("{error:#}");
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
+
+    pub fn not_found(error: impl fmt::Display) -> Self {
+        let kind = BackendErrorKind::NotFound;
+        let msg = format!("{error:#}");
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
+
+    pub fn duplicate(error: impl fmt::Display) -> Self {
+        let kind = BackendErrorKind::Duplicate;
+        let msg = format!("{error:#}");
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
+
     pub fn unauthorized(error: impl fmt::Display) -> Self {
         let kind = BackendErrorKind::Unauthorized;
         let msg = format!("{error:#}");
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 
     pub fn unauthenticated(error: impl fmt::Display) -> Self {
         let kind = BackendErrorKind::Unauthenticated;
         let msg = format!("{error:#}");
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 
     pub fn invalid_parsed_req(msg: impl Into<String>) -> Self {
         let kind = BackendErrorKind::InvalidParsedRequest;
         let msg = msg.into();
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 
     pub fn bcs_serialize(err: bcs::Error) -> Self {
         let kind = BackendErrorKind::Building;
         let msg = format!("Failed to serialize bcs request: {err:#}");
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 
     pub fn batch_size_too_large() -> Self {
         let kind = BackendErrorKind::BatchSizeOverLimit;
         let msg = kind.to_msg().to_owned();
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 
     pub fn conversion(error: impl fmt::Display) -> Self {
         let kind = BackendErrorKind::Conversion;
         let msg = format!("{error:#}");
-        Self { kind, msg }
-    }
-
-    pub fn database(error: impl fmt::Display) -> Self {
-        let kind = BackendErrorKind::Database;
-        let msg = format!("{error:#}");
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 }
 
@@ -992,7 +1085,11 @@ impl From<auth::Error> for BackendApiError {
             _ => BackendErrorKind::Unauthenticated,
         };
         let msg = format!("{error:#}");
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 }
 
@@ -1000,7 +1097,11 @@ impl GatewayApiError {
     pub fn fiat_rates_missing() -> Self {
         let kind = GatewayErrorKind::FiatRatesMissing;
         let msg = kind.to_string();
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 }
 
@@ -1008,25 +1109,41 @@ impl LspApiError {
     pub fn provision(error: impl fmt::Display) -> Self {
         let msg = format!("{error:#}");
         let kind = LspErrorKind::Provision;
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 
     pub fn scid(error: impl fmt::Display) -> Self {
         let msg = format!("{error:#}");
         let kind = LspErrorKind::Scid;
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 
     pub fn command(error: impl fmt::Display) -> Self {
         let msg = format!("{error:#}");
         let kind = LspErrorKind::Command;
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 
     pub fn rejection(error: impl fmt::Display) -> Self {
         let msg = format!("{error:#}");
         let kind = LspErrorKind::Rejection;
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 }
 
@@ -1037,7 +1154,11 @@ impl NodeApiError {
         let msg =
             format!("Node has UserPk '{current_pk}' but received '{given_pk}'");
         let kind = NodeErrorKind::WrongUserPk;
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 
     pub fn wrong_node_pk(derived_pk: NodePk, given_pk: NodePk) -> Self {
@@ -1046,7 +1167,11 @@ impl NodeApiError {
         let msg =
             format!("Derived NodePk '{derived_pk}' but received '{given_pk}'");
         let kind = NodeErrorKind::WrongNodePk;
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 
     pub fn wrong_measurement(
@@ -1056,25 +1181,51 @@ impl NodeApiError {
         let kind = NodeErrorKind::WrongMeasurement;
         let msg =
             format!("Req: {req_measurement}, Actual: {actual_measurement}");
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 
     pub fn proxy(error: impl fmt::Display) -> Self {
         let msg = format!("{error:#}");
         let kind = NodeErrorKind::Proxy;
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 
     pub fn provision(error: impl fmt::Display) -> Self {
         let msg = format!("{error:#}");
         let kind = NodeErrorKind::Provision;
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 
     pub fn command(error: impl fmt::Display) -> Self {
         let msg = format!("{error:#}");
         let kind = NodeErrorKind::Command;
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
+
+    pub fn bad_auth(error: impl fmt::Display) -> Self {
+        let msg = format!("{error:#}");
+        let kind = NodeErrorKind::BadAuth;
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 }
 
@@ -1082,19 +1233,41 @@ impl RunnerApiError {
     pub fn at_capacity(error: impl fmt::Display) -> Self {
         let kind = RunnerErrorKind::AtCapacity;
         let msg = format!("{error:#}");
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 
     pub fn temporarily_unavailable(error: impl fmt::Display) -> Self {
         let kind = RunnerErrorKind::TemporarilyUnavailable;
         let msg = format!("{error:#}");
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 
     pub fn service_unavailable(error: impl fmt::Display) -> Self {
         let kind = RunnerErrorKind::ServiceUnavailable;
         let msg = format!("{error:#}");
-        Self { kind, msg }
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
+
+    pub fn unknown_measurement(measurement: enclave::Measurement) -> Self {
+        let kind = RunnerErrorKind::UnknownMeasurement;
+        let msg = format!("{measurement}");
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
     }
 }
 

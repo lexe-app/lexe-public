@@ -26,7 +26,7 @@ use common::{
     api::{
         auth::BearerAuthenticator,
         def::{NodeBackendApi, NodeRunnerApi},
-        error::{NodeApiError, NodeErrorKind},
+        error::NodeApiError,
         ports::Ports,
         provision::{NodeProvisionRequest, SealedSeed},
         version::MeasurementStruct,
@@ -247,10 +247,7 @@ mod handlers {
         let token = authenticator
             .get_token(ctx.backend_client.as_ref(), SystemTime::now())
             .await
-            .map_err(|err| NodeApiError {
-                kind: NodeErrorKind::BadAuth,
-                msg: format!("{err:#}"),
-            })?;
+            .map_err(NodeApiError::bad_auth)?;
 
         // If we're in staging/prod, we need to handle gDrive. We'll save the
         // gDrive credentials (so we can get access after the token expires)
@@ -559,10 +556,7 @@ mod helpers {
                             SystemTime::now(),
                         )
                         .await
-                        .map_err(|e| NodeApiError {
-                            kind: NodeErrorKind::BadAuth,
-                            msg: format!("{e:#}"),
-                        })?;
+                        .map_err(NodeApiError::bad_auth)?;
                     let try_delete = ctx
                         .backend_client
                         .delete_sealed_seeds(revoked_measurement, token.clone())
@@ -576,18 +570,16 @@ mod helpers {
                         Err(BackendApiError {
                             kind: BackendErrorKind::NotFound,
                             msg,
+                            ..
                         }) => warn!(
                             %user_pk, %revoked_version, %revoked_measurement,
                             "Failed to delete revoked sealed seeds: \
                              revoked measurement wasn't found in DB: {msg}"
                         ),
                         Err(e) =>
-                            return Err(NodeApiError {
-                                kind: NodeErrorKind::Provision,
-                                msg: format!(
-                                    "Error deleting revoked sealed seeds: {e:#}"
-                                ),
-                            }),
+                            return Err(NodeApiError::provision(format!(
+                                "Error deleting revoked sealed seeds: {e:#}"
+                            ))),
                     }
                 }
             }

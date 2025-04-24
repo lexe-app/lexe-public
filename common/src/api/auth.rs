@@ -333,6 +333,7 @@ impl BearerAuthenticator {
             .map_err(|err| BackendApiError {
                 kind: BackendErrorKind::Building,
                 msg: format!("Error signing auth request: {err:#}"),
+                ..Default::default()
             })?;
 
         let resp = api.bearer_auth(&signed_req).await?;

@@ -17,9 +17,7 @@ use common::{
             AppBackendApi, BearerAuthBackendApi, NodeBackendApi, NodeLspApi,
             NodeRunnerApi,
         },
-        error::{
-            BackendApiError, BackendErrorKind, LspApiError, RunnerApiError,
-        },
+        error::{BackendApiError, LspApiError, RunnerApiError},
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         user::{
@@ -329,10 +327,7 @@ impl NodeBackendApi for MockBackendClient {
     ) -> Result<Empty, BackendApiError> {
         let mut locked_vfs = self.vfs.lock().unwrap();
         if locked_vfs.get(file.id.clone()).is_some() {
-            return Err(BackendApiError {
-                kind: BackendErrorKind::Duplicate,
-                msg: String::new(),
-            });
+            return Err(BackendApiError::duplicate(&file.id));
         }
 
         let file_opt = locked_vfs.insert(file.clone());
@@ -359,10 +354,7 @@ impl NodeBackendApi for MockBackendClient {
         if file_opt.is_some() {
             Ok(Empty {})
         } else {
-            Err(BackendApiError {
-                kind: BackendErrorKind::NotFound,
-                msg: String::new(),
-            })
+            Err(BackendApiError::not_found(file_id))
         }
     }
 
@@ -402,10 +394,7 @@ impl NodeBackendApi for MockBackendClient {
         let key = PaymentIndex { created_at, id };
 
         if locked_payments.get(&key).is_some() {
-            return Err(BackendApiError {
-                kind: BackendErrorKind::Duplicate,
-                msg: String::new(),
-            });
+            return Err(BackendApiError::duplicate(key));
         }
         let maybe_payment = locked_payments.insert(key, payment);
         assert!(maybe_payment.is_none());

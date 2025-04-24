@@ -291,12 +291,21 @@ impl NodeClient {
             .get_token(&self.gateway_client, SystemTime::now())
             .await
             .map(|_token| ())
-            .map_err(|err| {
-                // TODO(phlip9): how to best convert `BackendApiError` to
-                //               `NodeApiError`?
+            // TODO(phlip9): how to best convert `BackendApiError` to
+            //               `NodeApiError`?
+            .map_err(|backend_error| {
+                // Contains backend kind msg and regular msg
+                let msg = format!("{backend_error:#}");
+
+                let BackendApiError {
+                    data, sensitive, ..
+                } = backend_error;
+
                 NodeApiError {
                     kind: NodeErrorKind::BadAuth,
-                    msg: format!("{err:#}"),
+                    msg,
+                    data,
+                    sensitive,
                 }
             })
     }
