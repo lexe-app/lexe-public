@@ -223,6 +223,44 @@ pub fn any_decimal() -> impl Strategy<Value = Decimal> {
         })
 }
 
+pub fn any_json_value() -> impl Strategy<Value = serde_json::Value> {
+    use serde_json::Value;
+
+    // Each collection is up to 3 elements long
+    const MAX_COLLECTION_LEN: usize = 3;
+
+    // Adapted from the `Strategy::prop_recursive` example.
+    prop_oneof![
+        Just(Value::Null),
+        any::<bool>().prop_map(Value::Bool),
+        any_json_number().prop_map(Value::Number),
+        any_string().prop_map(Value::String),
+    ]
+    .prop_recursive(
+        3, // No more than 3 branch levels deep
+        8, // Target around 8 total elements
+        MAX_COLLECTION_LEN as u32,
+        |element| {
+            prop_oneof![
+                vec(element.clone(), 0..MAX_COLLECTION_LEN)
+                    .prop_map(Value::Array),
+                vec((any_string(), element), 0..MAX_COLLECTION_LEN)
+                    .prop_map(serde_json::value::Map::from_iter)
+                    .prop_map(Value::Object),
+            ]
+        },
+    )
+}
+
+pub fn any_json_number() -> impl Strategy<Value = serde_json::value::Number> {
+    use serde_json::value::Number;
+    prop_oneof![
+        any::<i64>().prop_map(Number::from),
+        any::<u64>().prop_map(Number::from),
+        any::<usize>().prop_map(Number::from),
+    ]
+}
+
 // --- Bitcoin types --- //
 
 pub fn any_network() -> impl Strategy<Value = bitcoin::Network> {
