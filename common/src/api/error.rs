@@ -166,27 +166,14 @@ pub trait ToHttpStatus {
 macro_rules! api_error {
     ($api_error:ident, $api_error_kind:ident) => {
         #[derive(Clone, Debug, Default, Eq, PartialEq, Error)]
-        #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-        pub struct $api_error {
+        pub struct $api_error<D = serde_json::Value> {
             pub kind: $api_error_kind,
-
-            #[cfg_attr(
-                any(test, feature = "test-utils"),
-                proptest(strategy = "arbitrary::any_string()")
-            )]
             pub msg: String,
-
             /// Structured data associated with this error.
-            #[cfg_attr(
-                any(test, feature = "test-utils"),
-                proptest(strategy = "arbitrary::any_json_value()")
-            )]
-            pub data: serde_json::Value,
-
+            pub data: D,
             /// Whether `data` contains sensitive information that Lexe
             /// shouldn't see (e.g. a route). Such data may still be logged by
-            /// the app or in SDKs but shouldn't be logged inside of Lexe
-            /// infra.
+            /// the app or in SDKs but shouldn't be logged inside Lexe infra.
             pub sensitive: bool,
         }
 
@@ -284,6 +271,29 @@ macro_rules! api_error {
                 let status = self.log_and_status();
                 let error_response = ErrorResponse::from(self);
                 server::build_json_response(status, &error_response)
+            }
+        }
+
+        #[cfg(any(test, feature = "test-utils"))]
+        impl proptest::arbitrary::Arbitrary for $api_error {
+            type Parameters = ();
+            type Strategy = proptest::strategy::BoxedStrategy<Self>;
+            fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+                use proptest::{arbitrary::any, strategy::Strategy};
+
+                (
+                    any::<$api_error_kind>(),
+                    arbitrary::any_string(),
+                    arbitrary::any_json_value(),
+                    any::<bool>(),
+                )
+                    .prop_map(|(kind, msg, data, sensitive)| Self {
+                        kind,
+                        msg,
+                        data,
+                        sensitive,
+                    })
+                    .boxed()
             }
         }
     };
