@@ -11,7 +11,7 @@ use common::{
         hashes::LxTxid,
         invoice::LxInvoice,
         payments::{
-            BasicPayment, DbPayment, LxPaymentId, PaymentDirection,
+            BasicPayment, DbPayment, LxOfferId, LxPaymentId, PaymentDirection,
             PaymentIndex, PaymentKind, PaymentStatus,
         },
     },
@@ -188,6 +188,7 @@ impl From<Payment> for BasicPayment {
             kind: p.kind(),
             direction: p.direction(),
             invoice: p.invoice(),
+            offer_id: p.offer_id(),
             txid: p.txid(),
             replacement: p.replacement(),
             amount: p.amount(),
@@ -262,6 +263,23 @@ impl Payment {
             Self::OutboundInvoice(OutboundInvoicePayment {
                 invoice, ..
             }) => Some(*invoice.clone()),
+            Self::OutboundSpontaneous(_) => None,
+        }
+    }
+
+    /// Returns the id of the BOLT12 offer associated with this payment, if
+    /// there is one.
+    pub fn offer_id(&self) -> Option<LxOfferId> {
+        match self {
+            Self::OnchainSend(_) => None,
+            Self::OnchainReceive(_) => None,
+            Self::InboundInvoice(_) => None,
+            Self::InboundOfferReuse(InboundOfferReusePayment {
+                offer_id,
+                ..
+            }) => Some(*offer_id),
+            Self::InboundSpontaneous(_) => None,
+            Self::OutboundInvoice(_) => None,
             Self::OutboundSpontaneous(_) => None,
         }
     }

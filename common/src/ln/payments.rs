@@ -45,10 +45,11 @@ pub struct BasicPayment {
     /// (Invoice payments only) The BOLT11 invoice used in this payment.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invoice: Option<LxInvoice>,
-    //
-    // TODO(phlip9): bolt12
-    // pub offer_id: Option<LxOfferId>,
-    ///
+
+    /// (Offer payments only) The id of the BOLT12 offer used in this payment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offer_id: Option<LxOfferId>,
+
     /// (Onchain payments only) The original txid.
     // NOTE: we're duplicating the txid here for onchain receives because its
     // less error prone to use, esp. for external API consumers.
@@ -103,8 +104,8 @@ pub struct BasicPayment {
     ///   this field is not exposed to the user and is simply initialized to
     ///   [`None`]. Useful primarily if a user wants to update their note
     ///   later.
-    /// - Inbound spontaneous payment: There is no way for users to add the
-    ///   note at the time of receiving an inbound spontaneous payment, so this
+    /// - Inbound offer reusable payments and Inbound spontaneous payment:
+    ///   There is no way for users to add the note at receive time, so this
     ///   field can only be added or updated later.
     ///
     /// - Outbound invoice payments: Since the receiver sets the invoice
@@ -122,6 +123,9 @@ pub struct BasicPayment {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub finalized_at: Option<TimestampMs>,
 }
+
+// Debug the size_of `BasicPayment`
+const _: [(); 424] = [(); std::mem::size_of::<BasicPayment>()];
 
 /// An upgradeable version of [`Vec<BasicPayment>`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -991,6 +995,12 @@ fs_00996e6b999900e8e7273934a7f272eb367fd2ac394f10b3ea1c7164d212c5c5
 {"index":"5088726529312448170-ln_2767ee2432d14da350e9ae60fb64184b125947540fb928fd9023b8a9d2a0923c","kind":"spontaneous","direction":"outbound","amount":"1707980374871680.224","fees":"279186991440371.32","status":"failed","status_str":"failed","note":"foo bar","finalized_at":3793002393196153970}
 {"index":"3389316343333198151-ln_299cacbe6cccedfca30d054bd0220ce7822e759ac45e6697448020e2dd56f947","kind":"spontaneous","direction":"outbound","amount":"382669342508142.204","fees":"1550387309366020.838","status":"failed","status_str":"failed"}
 {"index":"5155186382553476589-ln_2877475d06893a3c833caf5a0872253ca30372d5f79241fcf917d893fd0184f6","kind":"spontaneous","direction":"outbound","amount":"1775777429636972.896","fees":"686803029182910.189","status":"pending","status_str":"pending"}
+
+--- v3 (1) add reusable inbound offer payments with `offer_id` field
+--- InboundOfferReuse
+{"index":"0870319857298190164-fr_2e403bdaf6be3a8fc208a7e8ee177c1f4b6405bc606c42885c862d8b35dad5a7","kind":"offer","direction":"inbound","offer_id":"589fe7249b2fbeb910c1f4f7789562a4ed0ca165ee348a6b740b89963baa8c6e","amount":"305165919706291.021","fees":"0","status":"completed","status_str":"completed","note":"foo bar","finalized_at":9223372036854775807}
+{"index":"0320982514608657806-fr_f32df95de6804946f702cff99c872e123b7b654df3652b7602e034e07739021d","kind":"offer","direction":"inbound","offer_id":"d4762578418194038c9ae80dca5ff3071084fb9199fa08d47f4c261d1d4b47c9","amount":"1295988938230871.815","fees":"0","status":"pending","status_str":"claiming"}
+{"index":"5715056060555261255-fr_bdbd9228541fd56faf846bef968521136f0092a7f425e8d6d13088953ceb9c3a","kind":"offer","direction":"inbound","offer_id":"fa6e60485f5d4245d95cc705d7b11cc086134528b8d8c46ff9bf0fd37ea0d501","amount":"88113465240976.639","fees":"0","status":"pending","status_str":"claiming","note":"foo bar"}
 "#;
 
         for input in snapshot::parse_sample_data(inputs) {
