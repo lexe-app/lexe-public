@@ -27,6 +27,7 @@ use common::{
         invoice::LxInvoice,
         network::LxNetwork,
         offer::{LxOffer, MaxQuantity},
+        payments::LxPaymentId,
         route::LxRoute,
     },
     rng::{RngExt, SysRng},
@@ -1165,27 +1166,14 @@ where
     ensure!(!invoice.is_expired(), "Invoice has expired");
 
     // Fail invoice double-payment early.
-    if payments_manager
-        .contains_payment_id(&invoice.payment_id())
-        .await
-    {
+    let payment_id = LxPaymentId::Lightning(invoice.payment_hash());
+    if payments_manager.contains_payment_id(&payment_id).await {
         bail!("We've already tried paying this invoice");
     }
 
-    // Compute the amount; handle amountless invoices
-    let amount = {
-        if invoice.amount().is_some() && req.fallback_amount.is_some() {
-            // Not a serious error, but better to be unambiguous.
-            debug_panic_release_log!(
-                "Nit: Only provide fallback amount for amountless invoices",
-            );
-        }
-
-        invoice
-            .amount()
-            .or(req.fallback_amount)
-            .context("Missing fallback amount for amountless invoice")?
-    };
+    // Compute the amount; handle amountless invoices.
+    let amount =
+        validate_pay_amount("invoices", invoice.amount(), req.fallback_amount)?;
 
     // Compute Lightning balances
     let channels = channel_manager.list_channels();
@@ -1193,6 +1181,9 @@ where
     let (lightning_balance, num_usable_channels) =
         balance::all_channel_balances(chain_monitor, &channels, lsp_fees);
     let max_sendable = lightning_balance.max_sendable;
+
+    // Check that the user has at least one usable channel.
+    validate_has_usable_channels(num_channels, num_usable_channels)?;
 
     // Construct payment parameters, which are amount-agnostic.
     let payment_params = route::build_payment_params(
@@ -1205,7 +1196,57 @@ where
     let routing_context =
         RoutingContext::from_payment_params(channel_manager, payment_params);
 
-    // Check that the user has at least one usable channel.
+    // Check that we're not trying to send over `max_sendable`.
+    validate_under_max_sendable(router, &routing_context, amount, max_sendable)
+        .await?;
+
+    // Try to find a Route with the full intended amount.
+    let (route, route_params) = validate_can_route_amount(
+        router,
+        network_graph,
+        &routing_context,
+        amount,
+    )
+    .await?;
+
+    let payment_secret = invoice.payment_secret().into();
+    let recipient_fields = RecipientOnionFields::secret_only(payment_secret);
+
+    let amount = route.amount();
+    let fees = route.fees();
+    let payment = OutboundInvoicePayment::new(invoice, amount, fees, req.note);
+    Ok(PreflightedPayInvoice {
+        payment,
+        route,
+        route_params,
+        recipient_fields,
+    })
+}
+
+/// Get the final amount we should pay for an invoice/offer, accounting for
+/// amountless invoices/offers with `fallback_amount` set/unset.
+fn validate_pay_amount(
+    kind: &'static str,
+    amount: Option<Amount>,
+    fallback_amount: Option<Amount>,
+) -> anyhow::Result<Amount> {
+    if amount.is_some() && fallback_amount.is_some() {
+        // Not a serious error, but better to be unambiguous.
+        debug_panic_release_log!(
+            "Nit: Only provide fallback amount for amountless {kind}",
+        );
+    }
+
+    amount.or(fallback_amount).with_context(|| {
+        format!("Missing fallback amount for amountless {kind}")
+    })
+}
+
+/// Check that the user has at least one usable channel.
+fn validate_has_usable_channels(
+    num_channels: usize,
+    num_usable_channels: usize,
+) -> anyhow::Result<()> {
     if num_channels == 0 {
         // Noob error: Take the opportunity to teach the user about LN channels.
         return Err(anyhow!(
@@ -1213,7 +1254,8 @@ where
              send funds. Consider opening a new channel using on-chain funds, \
              or receiving funds to your wallet directly via Lightning."
         ));
-    } else if num_usable_channels == 0 {
+    }
+    if num_usable_channels == 0 {
         // The user has at least one channel, but none of them are usable.
         // Maybe their channel is being closed or something.
         return Err(anyhow!(
@@ -1222,40 +1264,52 @@ where
              wallet directly via Lightning."
         ));
     }
+    Ok(())
+}
 
-    // Check that we're not trying to send over `max_sendable`.
-    if amount > max_sendable {
-        // Since we know the recipient, we can compute a more accurate maximum
-        // sendable amount to this recipient (i.e. max flow) and expose that to
-        // the user as a suggestion.
-        //
-        // TODO(max): We should also calculate the max flow from the *LSP*, so
-        // we can tell whether (1) `max_flow` is limited by the user's balance
-        // or (2) there simply isn't enough liquidity from LSP to recipient.
-        let max_flow_result = route::compute_max_flow_to_recipient(
-            router,
-            &routing_context,
-            amount,
-        )
-        .await;
-
-        let error = match max_flow_result {
-            Ok(max_flow) => anyhow!(
-                "Insufficient balance: Tried to pay {amount} sats, but the \
-                 maximum amount you can send is {max_sendable} sats. \
-                 The maximum amount that you can route to this recipient is \
-                 {max_flow} sats. Consider adding to your Lightning balance \
-                 or sending a smaller amount.",
-            ),
-            Err(e) => anyhow!(
-                "Couldn't route to this recipient with any amount: {e:#}"
-            ),
-        };
-
-        return Err(error);
+/// Check that we're not trying to send over `max_sendable`.
+async fn validate_under_max_sendable(
+    router: &RouterType,
+    routing_context: &RoutingContext,
+    amount: Amount,
+    max_sendable: Amount,
+) -> anyhow::Result<()> {
+    if amount <= max_sendable {
+        return Ok(());
     }
 
-    // Try to find a Route with the full intended amount.
+    // Since we know the recipient, we can compute a more accurate maximum
+    // sendable amount to this recipient (i.e. max flow) and expose that to
+    // the user as a suggestion.
+    //
+    // TODO(max): We should also calculate the max flow from the *LSP*, so
+    // we can tell whether (1) `max_flow` is limited by the user's balance
+    // or (2) there simply isn't enough liquidity from LSP to recipient.
+    let max_flow_result =
+        route::compute_max_flow_to_recipient(router, routing_context, amount)
+            .await;
+
+    match max_flow_result {
+        Ok(max_flow) => Err(anyhow!(
+            "Insufficient balance: Tried to pay {amount} sats, but the \
+             maximum amount you can send is {max_sendable} sats. \
+             The maximum amount that you can route to this recipient is \
+             {max_flow} sats. Consider adding to your Lightning balance \
+             or sending a smaller amount.",
+        )),
+        Err(e) => Err(anyhow!(
+            "Couldn't route to this recipient with any amount: {e:#}"
+        )),
+    }
+}
+
+// Ensure we can find a Route with the full intended amount.
+async fn validate_can_route_amount(
+    router: &RouterType,
+    network_graph: &NetworkGraphType,
+    routing_context: &RoutingContext,
+    amount: Amount,
+) -> anyhow::Result<(LxRoute, RouteParameters)> {
     let route_result = routing_context.find_route(router, amount);
     let (route, route_params) = match route_result {
         Ok((r, p)) => (r, p),
@@ -1267,7 +1321,7 @@ where
             // maximum sendable amount to this recipient (i.e. max flow).
             let max_flow_result = route::compute_max_flow_to_recipient(
                 router,
-                &routing_context,
+                routing_context,
                 amount,
             )
             .await;
@@ -1303,22 +1357,9 @@ where
         }
     };
 
-    let payment_secret = invoice.payment_secret().into();
-    let recipient_fields = RecipientOnionFields::secret_only(payment_secret);
-
     let route = LxRoute::from_ldk(route, network_graph);
     info!("Preflighted route: {route}");
-
-    let amount = route.amount();
-    let fees = route.fees();
-    let payment = OutboundInvoicePayment::new(invoice, amount, fees, req.note);
-
-    Ok(PreflightedPayInvoice {
-        payment,
-        route,
-        route_params,
-        recipient_fields,
-    })
+    Ok((route, route_params))
 }
 
 #[cfg(test)]
