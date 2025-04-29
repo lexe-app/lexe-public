@@ -7,6 +7,7 @@ use std::{
 use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin_hashes::{sha256, Hash};
 use byte_array::ByteArray;
+use const_utils::{const_assert_mem_size, const_assert_usize_eq};
 use lightning::{
     offers::offer::OfferId,
     types::payment::{PaymentHash, PaymentPreimage, PaymentSecret},
@@ -43,7 +44,7 @@ pub struct BasicPayment {
 
     /// (Invoice payments only) The BOLT11 invoice used in this payment.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub invoice: Option<LxInvoice>,
+    pub invoice: Option<Box<LxInvoice>>,
 
     /// (Offer payments only) The id of the BOLT12 offer used in this payment.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -124,7 +125,7 @@ pub struct BasicPayment {
 }
 
 // Debug the size_of `BasicPayment`
-const _: [(); 424] = [(); std::mem::size_of::<BasicPayment>()];
+const_assert_mem_size!(BasicPayment, 264);
 
 /// An upgradeable version of [`Vec<BasicPayment>`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -384,8 +385,9 @@ impl BasicPayment {
     pub fn note_or_description(&self) -> Option<&str> {
         let maybe_note = self.note.as_deref().filter(|s| !s.is_empty());
 
+        // TODO(phlip9): BOLT12 offer description
         maybe_note.or_else(|| {
-            self.invoice.as_ref().and_then(LxInvoice::description_str)
+            self.invoice.as_deref().and_then(LxInvoice::description_str)
         })
     }
 }

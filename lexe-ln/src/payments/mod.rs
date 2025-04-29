@@ -263,17 +263,17 @@ impl Payment {
 
     /// Returns the BOLT11 invoice corresponding to this payment, if there is
     /// one.
-    pub fn invoice(&self) -> Option<LxInvoice> {
+    pub fn invoice(&self) -> Option<Box<LxInvoice>> {
         match self {
             Self::OnchainSend(_) => None,
             Self::OnchainReceive(_) => None,
             Self::InboundInvoice(InboundInvoicePayment { invoice, .. }) =>
-                Some(*invoice.clone()),
+                Some(invoice.clone()),
             Self::InboundOfferReuse(_) => None,
             Self::InboundSpontaneous(_) => None,
             Self::OutboundInvoice(OutboundInvoicePayment {
                 invoice, ..
-            }) => Some(*invoice.clone()),
+            }) => Some(invoice.clone()),
             Self::OutboundOffer(_) => None,
             Self::OutboundSpontaneous(_) => None,
         }

@@ -290,7 +290,7 @@ impl From<&BasicPaymentRs> for Payment {
             kind: PaymentKind::from(payment.kind),
             direction: PaymentDirection::from(payment.direction),
 
-            invoice: payment.invoice.as_ref().map(Invoice::from),
+            invoice: payment.invoice.as_deref().map(Invoice::from),
 
             txid: payment.txid.map(|txid| txid.to_string()),
             replacement: payment.replacement.map(|txid| txid.to_string()),
