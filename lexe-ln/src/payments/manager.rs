@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
-    time::{Duration, SystemTime},
+    time::Duration,
 };
 
 use anyhow::{anyhow, bail, ensure, Context};
@@ -593,17 +593,16 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     pub async fn check_invoice_expiries(&self) -> anyhow::Result<()> {
         debug!("Checking invoice expiries");
 
-        // Call SystemTime::now() just once then pass it in everywhere else.
-        let unix_duration = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .expect("System time is before UNIX timestamp");
-
         // NOTE: avoid touching the ChannelManager while holding the lock
         let oips_to_abandon = {
             // Check
             let mut locked_data = self.data.lock().await;
+
+            // Call TimestampMs::now() just once then pass it in everywhere.
+            let now = TimestampMs::now();
+
             let (all_checked, oips_to_abandon) = locked_data
-                .check_invoice_expiries(unix_duration)
+                .check_invoice_expiries(now)
                 .context("Error checking invoice expiries")?;
 
             // Persist
@@ -1097,8 +1096,7 @@ impl PaymentsData {
     // - `PaymentsManager::spawn_invoice_expiry_checker` task
     fn check_invoice_expiries(
         &self,
-        // The current time expressed as a Duration since the unix epoch.
-        unix_duration: Duration,
+        now: TimestampMs,
     ) -> anyhow::Result<(Vec<CheckedPayment>, Vec<LxPaymentHash>)> {
         let mut oips_to_abandon = Vec::new();
         let all_expired = self
@@ -1107,11 +1105,11 @@ impl PaymentsData {
             .filter_map(|payment| match payment {
                 // Precondition: payment is not finalized (Completed | Failed).
                 Payment::InboundInvoice(iip) => iip
-                    .check_invoice_expiry(unix_duration)
+                    .check_invoice_expiry(now)
                     .map(Payment::from)
                     .map(CheckedPayment),
                 Payment::OutboundInvoice(oip) => {
-                    match oip.check_invoice_expiry(unix_duration) {
+                    match oip.check_invoice_expiry(now) {
                         Ok(oip) => {
                             oips_to_abandon.push(oip.hash);
                             Some(CheckedPayment(Payment::from(oip)))
@@ -1334,7 +1332,7 @@ mod test {
             data.check_payment_claimed(claim_ctx, recvd_amount)
                 .unwrap();
 
-            data.check_invoice_expiries(Duration::MAX).unwrap();
+            data.check_invoice_expiries(TimestampMs::MAX).unwrap();
         });
     }
 
@@ -1387,7 +1385,7 @@ mod test {
             data.check_payment_sent(id, oip.hash, preimage, Some(oip.fees))
                 .unwrap();
             data.check_payment_failed(id, failure).unwrap();
-            data.check_invoice_expiries(Duration::MAX).unwrap();
+            data.check_invoice_expiries(TimestampMs::MAX).unwrap();
         });
     }
 
@@ -1408,7 +1406,7 @@ mod test {
             data.check_payment_sent(id, hash, preimage, Some(fees))
                 .unwrap();
             data.check_payment_failed(id, failure).unwrap();
-            // data.check_invoice_expiries(Duration::MAX).unwrap();
+            // data.check_invoice_expiries(TimestampMs::MAX).unwrap();
         });
     }
 
@@ -1464,7 +1462,7 @@ mod test {
 
             // (_, Invoice expires) -> _
             let (mut checked_payments, _ids) = data
-                .check_invoice_expiries(Duration::MAX)
+                .check_invoice_expiries(TimestampMs::MAX)
                 .unwrap();
             match status {
                 Pending => {
@@ -1484,7 +1482,7 @@ mod test {
 
             // [Idempotency]
             // (_, Invoice not expired) -> do nothing
-            let expires_at = oip.invoice.expires_at().unwrap().into_duration();
+            let expires_at = oip.invoice.saturating_expires_at();
             let (checked_payments, _ids) = data
                 .check_invoice_expiries(expires_at)
                 .unwrap();

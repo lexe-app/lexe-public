@@ -1,4 +1,4 @@
-use std::{num::NonZeroU64, time::Duration};
+use std::num::NonZeroU64;
 
 use anyhow::{anyhow, ensure, Context};
 #[cfg(test)]
@@ -550,12 +550,12 @@ impl InboundInvoicePayment {
     // - `PaymentsManager::spawn_invoice_expiry_checker` task
     pub(crate) fn check_invoice_expiry(
         &self,
-        unix_duration: Duration,
+        now: TimestampMs,
     ) -> Option<Self> {
         use InboundInvoicePaymentStatus::*;
 
         // Not expired yet, do nothing.
-        if !self.invoice.0.would_expire(unix_duration) {
+        if !self.invoice.is_expired_at(now) {
             return None;
         }
 
@@ -575,7 +575,7 @@ impl InboundInvoicePayment {
 
         let mut clone = self.clone();
         clone.status = Expired;
-        clone.finalized_at = Some(TimestampMs::now());
+        clone.finalized_at = Some(now);
 
         Some(clone)
     }

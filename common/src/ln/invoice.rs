@@ -91,9 +91,16 @@ impl LxInvoice {
         self.created_at().unwrap_or(TimestampMs::MAX)
     }
 
+    /// `Returns` true if the invoice has expired.
     #[inline]
     pub fn is_expired(&self) -> bool {
-        self.0.is_expired()
+        self.is_expired_at(TimestampMs::now())
+    }
+
+    /// Returns `true` if the invoice expires before the given timestamp.
+    #[inline]
+    pub fn is_expired_at(&self, ts: TimestampMs) -> bool {
+        self.saturating_expires_at() < ts
     }
 
     /// Get the invoice expiration timestamp. Returns an error if the timestamp
