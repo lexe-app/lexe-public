@@ -406,18 +406,16 @@ async fn do_handle_event(
             debug_panic_release_log!("Unexpected InvoiceReceived event"),
 
         Event::PaymentSent {
-            payment_id: _,
+            payment_id,
             payment_hash,
             payment_preimage,
             fee_paid_msat,
         } => {
             // NOTE: Err(Replay) ==> must be handled idempotently
+            let hash = LxPaymentHash::from(payment_hash);
+            let id = LxPaymentId::from_payment_sent(payment_id, hash);
             ctx.payments_manager
-                .payment_sent(
-                    payment_hash.into(),
-                    payment_preimage.into(),
-                    fee_paid_msat,
-                )
+                .payment_sent(id, hash, payment_preimage.into(), fee_paid_msat)
                 .await
                 .context("Error handling PaymentSent")
                 // Don't want to end up with a 'hung' payment state
@@ -425,18 +423,12 @@ async fn do_handle_event(
         }
 
         Event::PaymentFailed {
-            payment_id: _,
+            payment_id,
             reason,
             payment_hash,
         } => {
-            // TODO(phlip9): BOLT 12
-            let id = match payment_hash {
-                Some(hash) => LxPaymentId::Lightning(LxPaymentHash::from(hash)),
-                None => {
-                    error!("unhandled BOLT12 PaymentFailed");
-                    return Ok(());
-                }
-            };
+            let maybe_hash = payment_hash.map(LxPaymentHash::from);
+            let id = LxPaymentId::from_payment_failed(payment_id, maybe_hash);
 
             // NOTE: Err(Replay) ==> must be handled idempotently
             let reason =

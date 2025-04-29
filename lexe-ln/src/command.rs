@@ -872,12 +872,16 @@ where
     // after startup to see if we have any `Pending` or `Abandoning` LN payments
     // that aren't tracked by the CM?
 
+    // NOTE(phlip9): we rely on `payment_id == payment_hash` to disambiguate
+    // invoice/spontaneous payments from offer payments.
+    let payment_id = PaymentId::from(hash);
+
     // Send the payment, letting LDK handle payment retries, and match on the
     // result, registering a failure with the payments manager if appropriate.
     match channel_manager.send_payment(
         PaymentHash::from(hash),
         recipient_fields,
-        PaymentId::from(hash),
+        payment_id,
         route_params,
         OUTBOUND_PAYMENT_RETRY_STRATEGY,
     ) {

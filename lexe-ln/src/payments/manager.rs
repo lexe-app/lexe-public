@@ -508,6 +508,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     #[instrument(skip_all, name = "(payment-sent)", fields(%hash), err)]
     pub async fn payment_sent(
         &self,
+        id: LxPaymentId,
         hash: LxPaymentHash,
         preimage: LxPaymentPreimage,
         maybe_fees_paid_msat: Option<u64>,
@@ -518,7 +519,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Check
         let mut locked_data = self.data.lock().await;
         if let Some(checked) = locked_data
-            .check_payment_sent(hash, preimage, maybe_fees_paid)
+            .check_payment_sent(id, hash, preimage, maybe_fees_paid)
             .context("Error validating PaymentSent")?
         {
             // Persist
@@ -555,6 +556,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     pub async fn payment_failed(
         &self,
         id: LxPaymentId,
+        // TODO(phlip9): Option<LxPaymentHash>,
         failure: LxOutboundPaymentFailure,
     ) -> anyhow::Result<()> {
         warn!("handling PaymentFailed");
@@ -1008,13 +1010,11 @@ impl PaymentsData {
     // - `EventHandler` -> `Event::PaymentSent` (replayable)
     fn check_payment_sent(
         &self,
+        id: LxPaymentId,
         hash: LxPaymentHash,
         preimage: LxPaymentPreimage,
         maybe_fees_paid: Option<Amount>,
     ) -> anyhow::Result<Option<CheckedPayment>> {
-        // TODO(phlip9): BOLT12 offer send
-        let id = LxPaymentId::Lightning(hash);
-
         // Idempotency: if the payment was already finalized, we don't need to
         // do anything.
         if self.finalized.contains(&id) {
@@ -1034,6 +1034,10 @@ impl PaymentsData {
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error checking outbound invoice payment")?,
+            // Payment::OutboundOffer(_) => {
+            //     // TODO(phlip9): implement offer payments
+            //     bail!("Offer payments not yet implemented")
+            // }
             Payment::OutboundSpontaneous(_) => todo!(),
             _ => bail!("Not an outbound Lightning payment"),
         };
@@ -1374,7 +1378,7 @@ mod test {
             let id = payment.id();
             data.force_insert_payment(payment);
 
-            data.check_payment_sent(oip.hash, preimage, Some(oip.fees))
+            data.check_payment_sent(id, oip.hash, preimage, Some(oip.fees))
                 .unwrap();
             data.check_payment_failed(id, failure).unwrap();
             data.check_invoice_expiries(Duration::MAX).unwrap();
@@ -1406,7 +1410,7 @@ mod test {
 
             // (_, PaymentSent event) -> _
             let maybe_checked = data
-                .check_payment_sent(hash, preimage, Some(fees))
+                .check_payment_sent(id, hash, preimage, Some(fees))
                 .unwrap();
             match status {
                 Pending | Abandoning => {

@@ -8,7 +8,6 @@ use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin_hashes::{sha256, Hash};
 use byte_array::ByteArray;
 use lightning::{
-    ln::channelmanager::PaymentId,
     offers::offer::OfferId,
     types::payment::{PaymentHash, PaymentPreimage, PaymentSecret},
 };
@@ -21,7 +20,7 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
 use crate::{
-    hexstr_or_bytes,
+    debug_panic_release_log, hexstr_or_bytes,
     ln::{amount::Amount, hashes::LxTxid, invoice::LxInvoice},
     rng::{RngCore, RngExt},
     time::TimestampMs,
@@ -432,6 +431,55 @@ impl LxPaymentId {
             Self::OnchainSend(_) => "os",
         }
     }
+
+    /// From the data we get in a `PaymentSent` event, determine the payment id
+    /// for this outbound lightning payment.
+    pub fn from_payment_sent(
+        ldk_payment_id: Option<lightning::ln::channelmanager::PaymentId>,
+        payment_hash: LxPaymentHash,
+    ) -> Self {
+        match ldk_payment_id {
+            Some(ldk_payment_id) => {
+                // BOLT11 invoice and spontaneous should always use the payment
+                // hash as the payment id
+                if &ldk_payment_id.0 == payment_hash.as_array() {
+                    LxPaymentId::Lightning(payment_hash)
+                } else {
+                    LxPaymentId::OfferSend(ClientPaymentId(ldk_payment_id.0))
+                }
+            }
+            None => {
+                // We should always be setting a payment id, but maybe this is
+                // just an ancient event?
+                debug_panic_release_log!("event did not include a PaymentId");
+                LxPaymentId::Lightning(payment_hash)
+            }
+        }
+    }
+
+    /// From the data we get in a `PaymentFailed` event, determine the payment
+    /// id for this outbound lightning payment.
+    pub fn from_payment_failed(
+        ldk_payment_id: lightning::ln::channelmanager::PaymentId,
+        payment_hash: Option<LxPaymentHash>,
+    ) -> Self {
+        match payment_hash {
+            Some(payment_hash) => {
+                // BOLT11 invoice and spontaneous should always use the payment
+                // hash as the payment id
+                if &ldk_payment_id.0 == payment_hash.as_array() {
+                    LxPaymentId::Lightning(payment_hash)
+                } else {
+                    LxPaymentId::OfferSend(ClientPaymentId(ldk_payment_id.0))
+                }
+            }
+            None => {
+                // Payment hash is `None` if this was an offer payment and it
+                // failed before we managed to fetch the BOLT12 invoice.
+                LxPaymentId::OfferSend(ClientPaymentId(ldk_payment_id.0))
+            }
+        }
+    }
 }
 
 // --- impl ClientPaymentId --- //
@@ -566,12 +614,15 @@ impl From<LnClaimId> for lightning::ln::channelmanager::PaymentId {
     }
 }
 
-// For BOLT11 payments, we use LxPaymentHash as our PaymentId.
-// For BOLT12 payments, we use a client-generated id.
-// TODO(max): Revisit for BOLT 12: Use separate Bolt12PaymentId?
-impl From<LxPaymentHash> for PaymentId {
+impl From<LxPaymentHash> for lightning::ln::channelmanager::PaymentId {
     fn from(hash: LxPaymentHash) -> Self {
         Self(hash.0)
+    }
+}
+
+impl From<ClientPaymentId> for lightning::ln::channelmanager::PaymentId {
+    fn from(cid: ClientPaymentId) -> Self {
+        Self(cid.0)
     }
 }
 

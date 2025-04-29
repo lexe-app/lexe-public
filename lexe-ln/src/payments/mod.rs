@@ -96,7 +96,7 @@ pub enum Payment {
     InboundOfferReuse(InboundOfferReusePayment),
     InboundSpontaneous(InboundSpontaneousPayment),
     OutboundInvoice(OutboundInvoicePayment),
-    // TODO(phlip9): OutboundOffer
+    // OutboundOffer(OutboundOfferPayment),
     OutboundSpontaneous(OutboundSpontaneousPayment),
 }
 
