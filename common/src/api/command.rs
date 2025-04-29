@@ -280,6 +280,8 @@ pub struct PreflightPayOfferResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct PayOfferRequest {
+    /// The user-provided idempotency id for this payment.
+    pub cid: ClientPaymentId,
     /// The offer we want to pay.
     pub offer: LxOffer,
     /// Specifies the amount we will pay if the offer to be paid is

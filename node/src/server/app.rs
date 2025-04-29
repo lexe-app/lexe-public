@@ -308,10 +308,18 @@ pub(super) async fn pay_offer(
     State(state): State<Arc<AppRouterState>>,
     LxJson(req): LxJson<PayOfferRequest>,
 ) -> Result<LxJson<PayOfferResponse>, NodeApiError> {
-    lexe_ln::command::pay_offer(req, &state.channel_manager)
-        .await
-        .map(LxJson)
-        .map_err(NodeApiError::command)
+    lexe_ln::command::pay_offer(
+        req,
+        &state.router,
+        &state.channel_manager,
+        &state.payments_manager,
+        &state.chain_monitor,
+        &state.network_graph,
+        state.lsp_info.lsp_fees(),
+    )
+    .await
+    .map(LxJson)
+    .map_err(NodeApiError::command)
 }
 
 pub(super) async fn preflight_pay_offer(

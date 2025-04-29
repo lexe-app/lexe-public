@@ -628,6 +628,67 @@ pub(crate) mod arb {
         }
     }
 
+    impl Arbitrary for OutboundOfferPayment {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let status = any::<OutboundOfferPaymentStatus>();
+            let cid = any::<ClientPaymentId>();
+            let offer = any::<Box<LxOffer>>();
+
+            let amount = any::<Amount>();
+            let quantity = any::<Option<NonZeroU64>>();
+            let fees = any::<Amount>();
+            let note = any_option_string();
+            let created_at = any::<TimestampMs>();
+            let finalized_after = any_duration();
+
+            let gen_oop = |(
+                status,
+                cid,
+                offer,
+                amount,
+                quantity,
+                fees,
+                note,
+                created_at,
+                finalized_after,
+            )| {
+                use OutboundOfferPaymentStatus::*;
+                let created_at: TimestampMs = created_at;
+                let finalized_at = created_at.saturating_add(finalized_after);
+                let finalized_at = matches!(status, Completed | Failed)
+                    .then_some(finalized_at);
+                OutboundOfferPayment {
+                    cid,
+                    offer,
+                    amount,
+                    quantity,
+                    fees,
+                    status,
+                    note,
+                    created_at,
+                    finalized_at,
+                }
+            };
+
+            (
+                status,
+                cid,
+                offer,
+                amount,
+                quantity,
+                fees,
+                note,
+                created_at,
+                finalized_after,
+            )
+                .prop_map(gen_oop)
+                .boxed()
+        }
+    }
+
     impl Arbitrary for OutboundSpontaneousPayment {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;

@@ -1,4 +1,4 @@
-use std::{convert::Infallible, time::Duration};
+use std::{convert::Infallible, num::NonZeroU64, time::Duration};
 
 use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin_hashes::{sha256, Hash};
@@ -30,7 +30,6 @@ use common::{
         payments::LxPaymentId,
         route::LxRoute,
     },
-    rng::{RngExt, SysRng},
     time::TimestampMs,
     Apply,
 };
@@ -44,7 +43,7 @@ use lightning::{
     ln::{
         channel_state::ChannelDetails,
         channelmanager::{
-            PaymentId, RecipientOnionFields, Retry, RetryableSendFailure,
+            PaymentId, RecipientOnionFields, RetryableSendFailure,
         },
         types::ChannelId,
     },
@@ -68,7 +67,7 @@ use crate::{
         manager::PaymentsManager,
         outbound::{
             LxOutboundPaymentFailure, OutboundInvoicePayment,
-            OUTBOUND_PAYMENT_RETRY_STRATEGY,
+            OutboundOfferPayment, OUTBOUND_PAYMENT_RETRY_STRATEGY,
         },
         Payment,
     },
@@ -895,7 +894,7 @@ where
         }
         Err(RetryableSendFailure::PaymentExpired) => {
             // We've already checked the expiry of the invoice to be paid, but
-            // perhaps there was a TOCTTOU race? Regardless, if this variant is
+            // perhaps there was a TOCTOU race? Regardless, if this variant is
             // returned, LDK does not track the payment and thus will not emit a
             // PaymentFailed later, so we should fail the payment now.
             payments_manager
@@ -1023,56 +1022,91 @@ where
 #[instrument(skip_all, name = "(pay-offer)")]
 pub async fn pay_offer<CM, PS>(
     req: PayOfferRequest,
+    router: &RouterType,
     channel_manager: &CM,
+    payments_manager: &PaymentsManager<CM, PS>,
+    chain_monitor: &LexeChainMonitorType<PS>,
+    network_graph: &NetworkGraphType,
+    lsp_fees: LspFees,
 ) -> anyhow::Result<PayOfferResponse>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
-    // TODO(phlip9): impl for real
-    let offer = req.offer;
-    // TODO(phlip9): how does this work?
-    let quantity = None;
+    // Pre-flight the offer payment (verify and partially route).
+    let PreflightedPayOffer { payment } = preflight_pay_offer_inner(
+        req,
+        router,
+        channel_manager,
+        payments_manager,
+        chain_monitor,
+        network_graph,
+        lsp_fees,
+    )
+    .await?;
 
-    let amount = match offer.amount() {
-        Some(_) => None,
-        None => req
-            .fallback_amount
-            .context("Missing fallback_amount for variable-amount offer")?
-            .apply(Some),
-    };
-    let amount_msats = amount.map(|amt| amt.msat());
     // TODO(phlip9): user should choose whether to show their note to recipient
-    let payer_note = req.note;
-    // TODO(phlip9): make nicer
-    let payment_id = SysRng::new().gen_bytes::<32>();
-    let payment_id = lightning::ln::channelmanager::PaymentId(payment_id);
-    let retry = Retry::Attempts(1);
+    let payer_note = None;
     // Use default
     let max_total_routing_fee_msat = None;
 
-    channel_manager
-        .pay_for_offer(
-            &offer.0,
-            quantity,
-            amount_msats,
-            payer_note,
-            payment_id,
-            retry,
-            max_total_routing_fee_msat,
-        )
-        .map_err(|err| anyhow::anyhow!("Failed to pay offer: {err:?}"))?;
+    // TODO(phlip9): payments manager should return this
+    let created_at = payment.created_at;
+    let id = payment.id();
 
-    let created_at = TimestampMs::now();
+    // TODO(phlip9): payment state machine
+    // // Pre-flight looks good, now we can register this payment in the Lexe
+    // // payments manager.
+    // payments_manager
+    //     .new_payment(Payment::Out payment)
+    //     .await
+    //     .context("Already tried to pay this offer")?;
 
-    // TODO(phlip9): remove after debugging
-    for _ in 0..30 {
-        let payments = channel_manager.list_recent_payments();
-        warn!("{payments:?}");
-        tokio::time::sleep(Duration::from_millis(100)).await;
+    // Instruct the LDK channel manager to pay this offer, letting LDK handle
+    // fetching the BOLT12 Invoice, routing, and retrying.
+    let result = channel_manager.pay_for_offer(
+        &payment.offer.0,
+        payment.quantity.map(NonZeroU64::get),
+        Some(payment.amount.msat()),
+        payer_note,
+        payment.ldk_id(),
+        OUTBOUND_PAYMENT_RETRY_STRATEGY,
+        max_total_routing_fee_msat,
+    );
+
+    // Channel manager returned an error
+    if let Err(err) = result {
+        use lightning::offers::parse::Bolt12SemanticError as LdkErr;
+
+        use crate::payments::outbound::LxOutboundPaymentFailure as LxErr;
+        let reason = match err {
+            // This should never happen, since we already checked for this
+            // payment id in the payments manager.
+            LdkErr::DuplicatePaymentId => {
+                debug_panic_release_log!(
+                    "LDK believes offer payment is a duplicate, but we don't"
+                );
+                LxErr::LexeErr
+            }
+            // Should be very rare, but may be a TOCTOU issue
+            LdkErr::AlreadyExpired => LxErr::Expired,
+            // Offer uses unknown features
+            LdkErr::UnknownRequiredFeatures => LxErr::UnknownFeatures,
+            // LDK didn't like something about the offer
+            _ => LxErr::InvalidOffer,
+        };
+
+        // Fail the payment
+        payments_manager
+            .payment_failed(id, reason)
+            .await
+            .context("Could not register failure")?;
+
+        return Err(anyhow!("Invalid offer: {err:?}"));
     }
 
-    Ok(PayOfferResponse { created_at })
+    info!("Success: outbound offer payment initiated");
+    return Ok(PayOfferResponse { created_at });
 }
 
 #[instrument(skip_all, name = "(pay-onchain)")]
@@ -1221,6 +1255,94 @@ where
         route_params,
         recipient_fields,
     })
+}
+
+/// An outbound offer payment that we preflighted (validated and routed) but
+/// haven't paid yet.
+struct PreflightedPayOffer {
+    payment: OutboundOfferPayment,
+}
+
+async fn preflight_pay_offer_inner<CM, PS>(
+    req: PayOfferRequest,
+    router: &RouterType,
+    channel_manager: &CM,
+    payments_manager: &PaymentsManager<CM, PS>,
+    chain_monitor: &LexeChainMonitorType<PS>,
+    network_graph: &NetworkGraphType,
+    lsp_fees: LspFees,
+) -> anyhow::Result<PreflightedPayOffer>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
+    let offer = req.offer;
+
+    // Fail expired offers early.
+    ensure!(!offer.is_expired(), "Offer has expired");
+
+    // Fail offer double-payment early.
+    let payment_id = LxPaymentId::OfferSend(req.cid);
+    if payments_manager.contains_payment_id(&payment_id).await {
+        bail!("We've already tried paying this offer");
+    }
+
+    // TODO(phlip9): support user choosing quantity.
+    // TODO(phlip9): actual_amount = amount * quantity
+    let quanity = Some(const { NonZeroU64::new(1).unwrap() });
+    // Compute the amount; handle amountless offers.
+    let amount =
+        validate_pay_amount("offers", offer.amount(), req.fallback_amount)?;
+
+    // Compute Lightning balances
+    let channels = channel_manager.list_channels();
+    let num_channels = channels.len();
+    let (lightning_balance, num_usable_channels) =
+        balance::all_channel_balances(chain_monitor, &channels, lsp_fees);
+    let max_sendable = lightning_balance.max_sendable;
+
+    // Check that the user has at least one usable channel.
+    validate_has_usable_channels(num_channels, num_usable_channels)?;
+
+    // Construct payment parameters, which are amount-agnostic.
+    //
+    // Since we don't fetch the BOLT12 invoice in preflight yet, we can only
+    // simulate routing to the first public node in the offer. We also don't
+    // have the blinded path info yet, so this is clearly imperfect as we don't
+    // know the full routing fees, min/max htlc, etc...
+    let route_target =
+        offer.preflight_routable_node(&network_graph.read_only())?;
+    let payment_params = route::build_payment_params(
+        Either::Left(route_target),
+        Some(num_usable_channels),
+    )
+    .context("Couldn't build payment parameters")?;
+
+    // Construct payment routing context
+    let routing_context =
+        RoutingContext::from_payment_params(channel_manager, payment_params);
+
+    // Check that we're not trying to send over `max_sendable`.
+    validate_under_max_sendable(router, &routing_context, amount, max_sendable)
+        .await?;
+
+    // Try to find a Route with the full intended amount (well, to the first
+    // publicly routable node so this will underestimate the route cost by
+    // whatever the blinded hops charge).
+    let (route, _route_params) = validate_can_route_amount(
+        router,
+        network_graph,
+        &routing_context,
+        amount,
+    )
+    .await?;
+
+    let amount = route.amount();
+    let fees = route.fees();
+    let payment = OutboundOfferPayment::new(
+        req.cid, offer, amount, quanity, fees, req.note,
+    );
+    Ok(PreflightedPayOffer { payment })
 }
 
 /// Get the final amount we should pay for an invoice/offer, accounting for

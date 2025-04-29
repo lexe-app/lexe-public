@@ -1,8 +1,13 @@
 use std::{fmt, num::NonZeroU64, str::FromStr};
 
-use lightning::offers::{
-    offer::{self, CurrencyCode, Offer},
-    parse::Bolt12ParseError,
+use anyhow::Context;
+use const_utils::{const_assert_mem_size, const_assert_usize_eq};
+use lightning::{
+    offers::{
+        offer::{self, CurrencyCode, Offer},
+        parse::Bolt12ParseError,
+    },
+    routing::gossip::ReadOnlyNetworkGraph,
 };
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
@@ -132,6 +137,14 @@ impl LxOffer {
         })
     }
 
+    /// Returns `true` if the offer has an expiration and is expired.
+    pub fn is_expired(&self) -> bool {
+        match self.expires_at() {
+            Some(expires_at) => expires_at < TimestampMs::now(),
+            None => false,
+        }
+    }
+
     /// Returns the Bitcoin-denominated [`Amount`], if any.
     pub fn amount(&self) -> Option<Amount> {
         match self.0.amount()? {
@@ -169,7 +182,38 @@ impl LxOffer {
             _ => false,
         }
     }
+
+    /// Some node we can route to during preflight.
+    pub fn preflight_routable_node(
+        &self,
+        network_graph: &ReadOnlyNetworkGraph,
+    ) -> anyhow::Result<NodePk> {
+        let paths = self.0.paths();
+        if paths.is_empty() {
+            // When there are no blinded paths, the offer MUST use a public
+            // routable node as its issuer signing key.
+            return self
+                .0
+                .issuer_signing_pubkey()
+                .map(NodePk)
+                .context("Offer is missing an issuer signing key");
+        }
+
+        // Look for a blinded path with a public routable node.
+        for path in self.0.paths() {
+            if let Some(node_pk) = path
+                .public_introduction_node_id(network_graph)
+                .and_then(|node_id| node_id.as_pubkey().ok())
+            {
+                return Ok(NodePk(node_pk));
+            }
+        }
+
+        Err(anyhow::anyhow!("Offer is missing a public routable node"))
+    }
 }
+
+const_assert_mem_size!(LxOffer, 568);
 
 impl From<Offer> for LxOffer {
     #[inline]
