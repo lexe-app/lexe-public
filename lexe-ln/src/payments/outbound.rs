@@ -319,6 +319,13 @@ pub struct OutboundOfferPayment {
     /// The offer we're paying.
     // LxOffer is ~568 bytes, Box to avoid the enum variant lint
     pub offer: Box<LxOffer>,
+    /// The payment hash encoded in the BOLT12 invoice. Since we don't fetch
+    /// the BOLT12 invoice before registering the offer payment, this field
+    /// is populated iff. the status is `Completed`.
+    pub hash: Option<LxPaymentHash>,
+    /// The payment preimage, which serves as proof-of-payment.
+    /// This field is populated iff. the status is `Completed`.
+    pub preimage: Option<LxPaymentPreimage>,
     /// The amount sent in this payment excluding fees. May be greater than the
     /// intended value to meet htlc min. limits along the route.
     pub amount: Amount,
@@ -329,6 +336,8 @@ pub struct OutboundOfferPayment {
     pub fees: Amount,
     /// The current status of the payment.
     pub status: OutboundOfferPaymentStatus,
+    /// For a failed payment, the reason why it failed.
+    pub failure: Option<LxOutboundPaymentFailure>,
     /// An optional personal note for this payment.
     pub note: Option<String>,
     /// When we initiated this payment.
@@ -361,14 +370,103 @@ impl OutboundOfferPayment {
         Self {
             cid,
             offer: Box::new(offer),
+            hash: None,
+            preimage: None,
             amount,
             quantity,
             fees,
             note,
             status: OutboundOfferPaymentStatus::Pending,
+            failure: None,
             created_at: TimestampMs::now(),
             finalized_at: None,
         }
+    }
+
+    /// Handle a [`PaymentSent`] event for this payment.
+    ///
+    /// ## Precondition
+    ///
+    /// - The payment must not be finalized (Completed | Failed).
+    //
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentSent` (replayable)
+    pub fn check_payment_sent(
+        &self,
+        hash: LxPaymentHash,
+        preimage: LxPaymentPreimage,
+        maybe_fees_paid: Option<Amount>,
+    ) -> anyhow::Result<Self> {
+        use OutboundOfferPaymentStatus::*;
+
+        let computed_hash = preimage.compute_hash();
+        ensure!(hash == computed_hash, "Preimage doesn't correspond to hash");
+
+        // TODO(phlip9): LDK-v0.2 adds `amount_msat` to `PaymentSent` event,
+        // which we should use to get the _actual_ amount sent for this offer.
+
+        let estimated_fees = &self.fees;
+        let final_fees = maybe_fees_paid.unwrap_or_else(|| {
+            warn!(
+                "Did not hear back on final fees paid for OOP; the \
+                    estimated fee will be included with the finalized payment."
+            );
+            *estimated_fees
+        });
+
+        let status = self.status;
+        match self.status {
+            Pending => (),
+            Abandoning =>
+                warn!("Attempted to abandon this OOP but it succeeded anyway"),
+            Completed | Failed => unreachable!(
+                "caller ensures payment is not already finalized. \
+                 {} is already {status:?}",
+                self.id(),
+            ),
+        }
+
+        let mut clone = self.clone();
+        clone.hash = Some(hash);
+        clone.preimage = Some(preimage);
+        clone.fees = final_fees;
+        clone.status = Completed;
+        clone.finalized_at = Some(TimestampMs::now());
+
+        Ok(clone)
+    }
+
+    /// Handle a [`PaymentFailed`] event for this payment.
+    ///
+    /// ## Precondition
+    ///
+    /// - The payment must not be finalized (Completed | Failed).
+    //
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentFailed` (replayable)
+    // - `pay_offer` API
+    pub(crate) fn check_payment_failed(
+        &self,
+        failure: LxOutboundPaymentFailure,
+    ) -> anyhow::Result<Self> {
+        use OutboundOfferPaymentStatus::*;
+
+        let status = self.status;
+        match status {
+            Pending | Abandoning => (),
+            Completed | Failed => unreachable!(
+                "caller ensures payment is not already finalized. \
+                 {} is already {status:?}",
+                self.id(),
+            ),
+        }
+
+        let mut clone = self.clone();
+        clone.status = Failed;
+        clone.failure = Some(failure);
+        clone.finalized_at = Some(TimestampMs::now());
+
+        Ok(clone)
     }
 
     #[inline]
@@ -636,10 +734,12 @@ pub(crate) mod arb {
             let status = any::<OutboundOfferPaymentStatus>();
             let cid = any::<ClientPaymentId>();
             let offer = any::<Box<LxOffer>>();
+            let preimage = any::<LxPaymentPreimage>();
 
             let amount = any::<Amount>();
             let quantity = any::<Option<NonZeroU64>>();
             let fees = any::<Amount>();
+            let failure = any::<LxOutboundPaymentFailure>();
             let note = any_option_string();
             let created_at = any::<TimestampMs>();
             let finalized_after = any_duration();
@@ -648,14 +748,21 @@ pub(crate) mod arb {
                 status,
                 cid,
                 offer,
+                preimage,
                 amount,
                 quantity,
                 fees,
+                failure,
                 note,
                 created_at,
                 finalized_after,
             )| {
                 use OutboundOfferPaymentStatus::*;
+                let preimage: LxPaymentPreimage = preimage;
+                let hash = matches!(status, Completed | Failed)
+                    .then_some(preimage.compute_hash());
+                let preimage = (status == Completed).then_some(preimage);
+                let failure = (status == Failed).then_some(failure);
                 let created_at: TimestampMs = created_at;
                 let finalized_at = created_at.saturating_add(finalized_after);
                 let finalized_at = matches!(status, Completed | Failed)
@@ -663,10 +770,13 @@ pub(crate) mod arb {
                 OutboundOfferPayment {
                     cid,
                     offer,
+                    hash,
+                    preimage,
                     amount,
                     quantity,
                     fees,
                     status,
+                    failure,
                     note,
                     created_at,
                     finalized_at,
@@ -677,9 +787,11 @@ pub(crate) mod arb {
                 status,
                 cid,
                 offer,
+                preimage,
                 amount,
                 quantity,
                 fees,
+                failure,
                 note,
                 created_at,
                 finalized_after,

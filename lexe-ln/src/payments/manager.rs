@@ -1034,10 +1034,11 @@ impl PaymentsData {
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error checking outbound invoice payment")?,
-            // Payment::OutboundOffer(_) => {
-            //     // TODO(phlip9): implement offer payments
-            //     bail!("Offer payments not yet implemented")
-            // }
+            Payment::OutboundOffer(oop) => oop
+                .check_payment_sent(hash, preimage, maybe_fees_paid)
+                .map(Payment::from)
+                .map(CheckedPayment)
+                .context("Error checking outbound offer payment")?,
             Payment::OutboundSpontaneous(_) => todo!(),
             _ => bail!("Not an outbound Lightning payment"),
         };
@@ -1075,6 +1076,11 @@ impl PaymentsData {
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error checking outbound invoice payment")?,
+            Payment::OutboundOffer(oop) => oop
+                .check_payment_failed(failure)
+                .map(Payment::from)
+                .map(CheckedPayment)
+                .context("Error checking outbound offer payment")?,
             Payment::OutboundSpontaneous(_) => todo!(),
             _ => bail!("Not an outbound Lightning payment"),
         };
@@ -1197,7 +1203,7 @@ mod test {
         inbound::{InboundInvoicePayment, OfferClaimCtx},
         outbound::{
             arb::OipParams, OutboundInvoicePayment,
-            OutboundInvoicePaymentStatus,
+            OutboundInvoicePaymentStatus, OutboundOfferPayment,
         },
     };
 
@@ -1382,6 +1388,27 @@ mod test {
                 .unwrap();
             data.check_payment_failed(id, failure).unwrap();
             data.check_invoice_expiries(Duration::MAX).unwrap();
+        });
+    }
+
+    #[test]
+    fn prop_outbound_offer_payment_idempotency() {
+        proptest!(|(
+            mut data in any::<PaymentsData>(),
+            oop in any::<OutboundOfferPayment>(),
+            preimage in any::<LxPaymentPreimage>(),
+            fees in any::<Amount>(),
+            failure in any::<LxOutboundPaymentFailure>(),
+        )| {
+            let payment = Payment::OutboundOffer(oop.clone());
+            let id = payment.id();
+            data.force_insert_payment(payment);
+
+            let hash = preimage.compute_hash();
+            data.check_payment_sent(id, hash, preimage, Some(fees))
+                .unwrap();
+            data.check_payment_failed(id, failure).unwrap();
+            // data.check_invoice_expiries(Duration::MAX).unwrap();
         });
     }
 
