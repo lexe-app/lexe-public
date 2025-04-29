@@ -185,7 +185,7 @@ impl LnPaymentClaimCtx {
         }
     }
 
-    /// Get the [`PaymentKind`] which corresponds to this [`LxPaymentPurpose`].
+    /// Get the [`PaymentKind`] which corresponds to this [`LnPaymentClaimCtx`].
     pub fn kind(&self) -> PaymentKind {
         // TODO(max): Implement for BOLT 12
         match self {
@@ -198,7 +198,7 @@ impl LnPaymentClaimCtx {
 
 // --- Helpers to delegate to the inner type --- //
 
-/// Helper to handle the [`Payment`] and [`LxPaymentPurpose`] matching.
+/// Helper to handle the [`Payment`] and [`LnPaymentClaimCtx`] matching.
 // Normally we don't want this much indirection, but the calling code is already
 // doing lots of ugly matching (at a higher abstraction level), so in this case
 // the separation makes both functions cleaner and easier to read.
@@ -245,7 +245,7 @@ impl Payment {
             // TODO(max): Implement for BOLT 12 refunds
             // (
             //     Self::Bolt12Refund(b12r),
-            //     LxPaymentPurpose::Bolt12Refund {
+            //     LnPaymentClaimCtx::Bolt12Refund {
             //         preimage,
             //         secret,
             //         context,
@@ -547,7 +547,7 @@ impl InboundInvoicePayment {
     /// - The payment must not be finalized (Completed | Failed).
     //
     // Event sources:
-    // - `PaymentsManager::spawn_invoice_expiry_checker` task
+    // - `PaymentsManager::spawn_payment_expiry_checker` task
     pub(crate) fn check_invoice_expiry(
         &self,
         now: TimestampMs,
@@ -586,7 +586,8 @@ impl InboundInvoicePayment {
 // TODO(phlip9): single-use BOLT12 offer payments
 
 /// An inbound, _reusable_ BOLT12 offer payment. This struct is created when we
-/// get a [`PaymentClaimable`] event, with [`PaymentPurpose::Bolt12Offer`].
+/// get a [`PaymentClaimable`] event, with
+/// [`PaymentPurpose::Bolt12OfferPayment`].
 //
 // TODO(phlip9): we'll need to maintain a separate `Offer` metadata store to
 // correlate `offer_id` with the actual offer. This is mostly useful to get our
@@ -775,7 +776,8 @@ impl InboundOfferReusePayment {
 // --- Inbound spontaneous payments --- //
 
 /// An inbound spontaneous (`keysend`) payment. This struct is created when we
-/// get a [`PaymentClaimable`] event, with [`PaymentPurpose::Spontaneous`].
+/// get a [`PaymentClaimable`] event, with
+/// [`PaymentPurpose::SpontaneousPayment`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct InboundSpontaneousPayment {
     /// Given by [`PaymentClaimable`] and [`PaymentClaimed`].

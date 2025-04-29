@@ -58,7 +58,7 @@ pub enum ExpireError {
 /// - [`pay_invoice`] API
 /// - [`PaymentFailed`] event
 /// - [`PaymentSent`] event
-/// - [`PaymentsManager::check_invoice_expiries`] task
+/// - [`PaymentsManager::check_payment_expiries`] task
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OutboundInvoicePayment {
     /// The invoice given by our recipient which we want to pay.
@@ -267,7 +267,7 @@ impl OutboundInvoicePayment {
     /// - The payment must not be finalized (Completed | Failed).
     //
     // Event sources:
-    // - `PaymentsManager::spawn_invoice_expiry_checker` task
+    // - `PaymentsManager::spawn_payment_expiry_checker` task
     pub(crate) fn check_invoice_expiry(
         &self,
         now: TimestampMs,
@@ -311,7 +311,7 @@ impl OutboundInvoicePayment {
 /// - [`pay_offer`] API
 /// - [`PaymentFailed`] event
 /// - [`PaymentSent`] event
-/// - [`PaymentsManager::check_invoice_expiries`] task
+/// - [`PaymentsManager::check_payment_expiries`] task
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OutboundOfferPayment {
     /// The unique idempotency id for this payment.

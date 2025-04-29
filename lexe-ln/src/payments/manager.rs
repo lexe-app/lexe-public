@@ -44,11 +44,12 @@ use crate::{
     wallet::LexeWallet,
 };
 
-/// The interval at which we check our pending payments for expired invoices.
-const INVOICE_EXPIRY_CHECK_INTERVAL: Duration = Duration::from_secs(120);
+/// The interval at which we check our pending payments for expired
+/// invoices/offers.
+const PAYMENT_EXPIRY_CHECK_INTERVAL: Duration = Duration::from_secs(120);
 /// The interval at which we check our onchain payments for confirmations.
 const ONCHAIN_PAYMENT_CHECK_INTERVAL: Duration = Duration::from_secs(120);
-const INVOICE_EXPIRY_CHECK_DELAY: Duration = Duration::from_secs(1);
+const PAYMENT_EXPIRY_CHECK_DELAY: Duration = Duration::from_secs(1);
 const ONCHAIN_PAYMENT_CHECK_DELAY: Duration = Duration::from_secs(2);
 
 /// Annotates that a given [`Payment`] was returned by a `check_*` method which
@@ -150,7 +151,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         };
 
         let payments_tasks = [
-            myself.spawn_invoice_expiry_checker(shutdown.clone()),
+            myself.spawn_payment_expiry_checker(shutdown.clone()),
             myself.spawn_onchain_confs_checker(esplora, shutdown.clone()),
             myself.spawn_onchain_recv_checker(
                 wallet,
@@ -162,18 +163,18 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         (myself, payments_tasks)
     }
 
-    fn spawn_invoice_expiry_checker(
+    fn spawn_payment_expiry_checker(
         &self,
         mut shutdown: NotifyOnce,
     ) -> LxTask<()> {
         let payman = self.clone();
         LxTask::spawn_with_span(
-            "invoice expiry checker",
-            info_span!("(invoice-expiry-checker)"),
+            "payment expiry checker",
+            info_span!("(payment-expiry-checker)"),
             async move {
                 let mut check_timer = tokio::time::interval_at(
-                    Instant::now() + INVOICE_EXPIRY_CHECK_DELAY,
-                    INVOICE_EXPIRY_CHECK_INTERVAL,
+                    Instant::now() + PAYMENT_EXPIRY_CHECK_DELAY,
+                    PAYMENT_EXPIRY_CHECK_INTERVAL,
                 );
 
                 loop {
@@ -183,16 +184,16 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                     }
 
                     let check_result = tokio::select! {
-                        res = payman.check_invoice_expiries() => res,
+                        res = payman.check_payment_expiries() => res,
                         () = shutdown.recv() => break,
                     };
 
                     if let Err(e) = check_result {
-                        error!("Error checking invoice expiries: {e:#}");
+                        error!("Error checking payment expiries: {e:#}");
                     }
                 }
 
-                info!("Invoice expiry checker task shutting down");
+                info!("Invoice payment checker task shutting down");
             },
         )
     }
@@ -584,14 +585,14 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         Ok(())
     }
 
-    /// Times out any pending inbound or outbound invoice payments whose
-    /// invoices have expired. This function should be called regularly.
+    /// Times out any pending inbound or outbound payments that have expired.
+    /// This function should be called regularly.
     //
     // Event sources:
-    // - `PaymentsManager::spawn_invoice_expiry_checker` task
-    #[instrument(skip_all, name = "(check-invoice-expiries)")]
-    pub async fn check_invoice_expiries(&self) -> anyhow::Result<()> {
-        debug!("Checking invoice expiries");
+    // - `PaymentsManager::spawn_payment_expiry_checker` task
+    #[instrument(skip_all, name = "(check-payment-expiries)")]
+    pub async fn check_payment_expiries(&self) -> anyhow::Result<()> {
+        debug!("Checking payment expiries");
 
         // NOTE: avoid touching the ChannelManager while holding the lock
         let oips_to_abandon = {
@@ -602,8 +603,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             let now = TimestampMs::now();
 
             let (all_checked, oips_to_abandon) = locked_data
-                .check_invoice_expiries(now)
-                .context("Error checking invoice expiries")?;
+                .check_payment_expiries(now)
+                .context("Error checking payment expiries")?;
 
             // Persist
             let all_persisted = self
@@ -620,7 +621,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             oips_to_abandon
         };
 
-        // Abandon all expired outbound invoice payments.
+        // Abandon all expired outbound payments.
         // We'll also abandon any abandoning payments to handle the case where
         // we crash after persisting above, but before the channel manager
         // persists.
@@ -628,7 +629,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             self.channel_manager.abandon_payment(oip_hash.into());
         }
 
-        debug!("Successfully checked invoice expiries");
+        debug!("Successfully checked payment expiries");
         Ok(())
     }
 
@@ -1087,14 +1088,14 @@ impl PaymentsData {
         Ok(Some(checked))
     }
 
-    /// Returns all _newly_ expired invoice payments and the hashes of all
-    /// outbound invoice payments which should be passed to [`abandon_payment`].
+    /// Returns all _newly_ expired payments and the hashes of all outbound
+    /// payments which should be passed to [`abandon_payment`].
     ///
     /// [`abandon_payment`]: lightning::ln::channelmanager::ChannelManager::abandon_payment
     //
     // Event sources:
-    // - `PaymentsManager::spawn_invoice_expiry_checker` task
-    fn check_invoice_expiries(
+    // - `PaymentsManager::spawn_payment_expiry_checker` task
+    fn check_payment_expiries(
         &self,
         now: TimestampMs,
     ) -> anyhow::Result<(Vec<CheckedPayment>, Vec<LxPaymentHash>)> {
@@ -1332,7 +1333,7 @@ mod test {
             data.check_payment_claimed(claim_ctx, recvd_amount)
                 .unwrap();
 
-            data.check_invoice_expiries(TimestampMs::MAX).unwrap();
+            data.check_payment_expiries(TimestampMs::MAX).unwrap();
         });
     }
 
@@ -1385,7 +1386,7 @@ mod test {
             data.check_payment_sent(id, oip.hash, preimage, Some(oip.fees))
                 .unwrap();
             data.check_payment_failed(id, failure).unwrap();
-            data.check_invoice_expiries(TimestampMs::MAX).unwrap();
+            data.check_payment_expiries(TimestampMs::MAX).unwrap();
         });
     }
 
@@ -1406,7 +1407,7 @@ mod test {
             data.check_payment_sent(id, hash, preimage, Some(fees))
                 .unwrap();
             data.check_payment_failed(id, failure).unwrap();
-            // data.check_invoice_expiries(TimestampMs::MAX).unwrap();
+            // data.check_payment_expiries(TimestampMs::MAX).unwrap();
         });
     }
 
@@ -1462,7 +1463,7 @@ mod test {
 
             // (_, Invoice expires) -> _
             let (mut checked_payments, _ids) = data
-                .check_invoice_expiries(TimestampMs::MAX)
+                .check_payment_expiries(TimestampMs::MAX)
                 .unwrap();
             match status {
                 Pending => {
@@ -1484,7 +1485,7 @@ mod test {
             // (_, Invoice not expired) -> do nothing
             let expires_at = oip.invoice.saturating_expires_at();
             let (checked_payments, _ids) = data
-                .check_invoice_expiries(expires_at)
+                .check_payment_expiries(expires_at)
                 .unwrap();
             prop_assert_eq!(0, checked_payments.len());
         });
