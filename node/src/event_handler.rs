@@ -542,13 +542,12 @@ async fn do_handle_event(
 
         Event::HTLCHandlingFailed { .. } => {}
 
-        Event::PendingHTLCsForwardable { .. } => {
-            // The node does in fact forward (its own) HTLCs. However, there's
-            // no point in adding a delay here, since the LSP can trivially
-            // correlate our payments (because it is forwarding them).
-            ctx.channel_manager.process_pending_htlc_forwards();
-            info!("Forwarded pending HTLCs");
-        }
+        // The node does in fact forward (its own) HTLCs.
+        Event::PendingHTLCsForwardable { .. } =>
+            event::handle_pending_htlcs_forwardable(
+                ctx.channel_manager.clone(),
+                &ctx.eph_tasks_tx,
+            ),
 
         Event::SpendableOutputs {
             outputs,
