@@ -23,6 +23,16 @@ macro_rules! const_assert_usize_eq {
     };
 }
 
+/// Assert at compile time that a type has a specific in-memory size in bytes.
+///
+/// Usage: `const_assert_mem_size!(u64, 8);`
+#[macro_export]
+macro_rules! const_assert_mem_size {
+    ($type:ty, $size:expr $(,)?) => {
+        const_assert_usize_eq!(::core::mem::size_of::<$type>(), $size);
+    };
+}
+
 /// Compile-time cast from `&T::From` to `&T`, where `T` is just a struct with
 /// a single field of type `T::From` and `T` is `#[repr(transparent)]`.
 ///
