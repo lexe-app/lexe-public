@@ -12,6 +12,7 @@ use lightning::{
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
+use super::payments::LxOfferId;
 use crate::{
     api::user::NodePk,
     ln::{amount::Amount, network::LxNetwork},
@@ -111,6 +112,12 @@ use crate::{
 pub struct LxOffer(pub Offer);
 
 impl LxOffer {
+    /// Return the [`LxOfferId`] of this offer.
+    #[inline]
+    pub fn id(&self) -> LxOfferId {
+        LxOfferId::from(self.0.id())
+    }
+
     /// Return the serialized offer.
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {

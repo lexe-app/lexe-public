@@ -18,7 +18,6 @@ use common::{
     rng::Crng,
     time::TimestampMs,
 };
-use inbound::{InboundOfferReusePayment, InboundOfferReusePaymentStatus};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -26,6 +25,7 @@ use serde::{Deserialize, Serialize};
 use crate::payments::{
     inbound::{
         InboundInvoicePayment, InboundInvoicePaymentStatus,
+        InboundOfferReusePayment, InboundOfferReusePaymentStatus,
         InboundSpontaneousPayment, InboundSpontaneousPaymentStatus,
     },
     onchain::{
@@ -33,6 +33,7 @@ use crate::payments::{
     },
     outbound::{
         OutboundInvoicePayment, OutboundInvoicePaymentStatus,
+        OutboundOfferPayment, OutboundOfferPaymentStatus,
         OutboundSpontaneousPayment, OutboundSpontaneousPaymentStatus,
     },
 };
@@ -93,10 +94,12 @@ pub enum Payment {
     // TODO(max): Implement SpliceOut
     InboundInvoice(InboundInvoicePayment),
     // TODO(phlip9): InboundOffer (single-use)
+    // Added in `node-v0.7.8`
     InboundOfferReuse(InboundOfferReusePayment),
     InboundSpontaneous(InboundSpontaneousPayment),
     OutboundInvoice(OutboundInvoicePayment),
-    // OutboundOffer(OutboundOfferPayment),
+    // Added in `node-v0.7.8`
+    OutboundOffer(OutboundOfferPayment),
     OutboundSpontaneous(OutboundSpontaneousPayment),
 }
 
@@ -173,6 +176,11 @@ impl From<OutboundInvoicePayment> for Payment {
         Self::OutboundInvoice(p)
     }
 }
+impl From<OutboundOfferPayment> for Payment {
+    fn from(p: OutboundOfferPayment) -> Self {
+        Self::OutboundOffer(p)
+    }
+}
 impl From<OutboundSpontaneousPayment> for Payment {
     fn from(p: OutboundSpontaneousPayment) -> Self {
         Self::OutboundSpontaneous(p)
@@ -220,6 +228,7 @@ impl Payment {
                 LxPaymentId::OfferRecvReuse(iorp.claim_id),
             Self::InboundSpontaneous(isp) => LxPaymentId::Lightning(isp.hash),
             Self::OutboundInvoice(oip) => LxPaymentId::Lightning(oip.hash),
+            Self::OutboundOffer(oop) => LxPaymentId::OfferSend(oop.cid),
             Self::OutboundSpontaneous(osp) => LxPaymentId::Lightning(osp.hash),
         }
     }
@@ -233,6 +242,7 @@ impl Payment {
             Self::InboundOfferReuse(_) => PaymentKind::Offer,
             Self::InboundSpontaneous(_) => PaymentKind::Spontaneous,
             Self::OutboundInvoice(_) => PaymentKind::Invoice,
+            Self::OutboundOffer(_) => PaymentKind::Offer,
             Self::OutboundSpontaneous(_) => PaymentKind::Spontaneous,
         }
     }
@@ -246,6 +256,7 @@ impl Payment {
             Self::InboundOfferReuse(_) => PaymentDirection::Inbound,
             Self::InboundSpontaneous(_) => PaymentDirection::Inbound,
             Self::OutboundInvoice(_) => PaymentDirection::Outbound,
+            Self::OutboundOffer(_) => PaymentDirection::Outbound,
             Self::OutboundSpontaneous(_) => PaymentDirection::Outbound,
         }
     }
@@ -263,6 +274,7 @@ impl Payment {
             Self::OutboundInvoice(OutboundInvoicePayment {
                 invoice, ..
             }) => Some(*invoice.clone()),
+            Self::OutboundOffer(_) => None,
             Self::OutboundSpontaneous(_) => None,
         }
     }
@@ -280,6 +292,8 @@ impl Payment {
             }) => Some(*offer_id),
             Self::InboundSpontaneous(_) => None,
             Self::OutboundInvoice(_) => None,
+            Self::OutboundOffer(OutboundOfferPayment { offer, .. }) =>
+                Some(offer.id()),
             Self::OutboundSpontaneous(_) => None,
         }
     }
@@ -293,6 +307,7 @@ impl Payment {
             Self::InboundOfferReuse(_) => None,
             Self::InboundSpontaneous(_) => None,
             Self::OutboundInvoice(_) => None,
+            Self::OutboundOffer(_) => None,
             Self::OutboundSpontaneous(_) => None,
         }
     }
@@ -307,6 +322,7 @@ impl Payment {
             Self::InboundOfferReuse(_) => None,
             Self::InboundSpontaneous(_) => None,
             Self::OutboundInvoice(_) => None,
+            Self::OutboundOffer(_) => None,
             Self::OutboundSpontaneous(_) => None,
         }
     }
@@ -339,6 +355,8 @@ impl Payment {
             Self::OutboundInvoice(OutboundInvoicePayment {
                 amount, ..
             }) => Some(*amount),
+            Self::OutboundOffer(OutboundOfferPayment { amount, .. }) =>
+                Some(*amount),
             Self::OutboundSpontaneous(OutboundSpontaneousPayment {
                 amount,
                 ..
@@ -362,6 +380,7 @@ impl Payment {
                 ..
             }) => onchain_fees.unwrap_or(Amount::from_msat(0)),
             Self::OutboundInvoice(OutboundInvoicePayment { fees, .. }) => *fees,
+            Self::OutboundOffer(OutboundOfferPayment { fees, .. }) => *fees,
             Self::OutboundSpontaneous(OutboundSpontaneousPayment {
                 fees,
                 ..
@@ -389,6 +408,8 @@ impl Payment {
             Self::OutboundInvoice(OutboundInvoicePayment {
                 status, ..
             }) => PaymentStatus::from(*status),
+            Self::OutboundOffer(OutboundOfferPayment { status, .. }) =>
+                PaymentStatus::from(*status),
             Self::OutboundSpontaneous(OutboundSpontaneousPayment {
                 status,
                 ..
@@ -419,6 +440,8 @@ impl Payment {
             }) => failure
                 .map(|f| f.as_str())
                 .unwrap_or_else(|| status.as_str()),
+            Self::OutboundOffer(OutboundOfferPayment { status, .. }) =>
+                status.as_str(),
             Self::OutboundSpontaneous(OutboundSpontaneousPayment {
                 status,
                 ..
@@ -440,6 +463,7 @@ impl Payment {
                 ..
             }) => note,
             Self::OutboundInvoice(OutboundInvoicePayment { note, .. }) => note,
+            Self::OutboundOffer(OutboundOfferPayment { note, .. }) => note,
             Self::OutboundSpontaneous(OutboundSpontaneousPayment {
                 note,
                 ..
@@ -451,7 +475,7 @@ impl Payment {
 
     /// Set the payment note to a new value.
     pub fn set_note(&mut self, note: Option<String>) {
-        let mut_ref_note = match self {
+        let mut_ref_note: &mut Option<String> = match self {
             Self::OnchainSend(OnchainSend { note, .. }) => note,
             Self::OnchainReceive(OnchainReceive { note, .. }) => note,
             Self::InboundInvoice(InboundInvoicePayment { note, .. }) => note,
@@ -463,6 +487,7 @@ impl Payment {
                 ..
             }) => note,
             Self::OutboundInvoice(OutboundInvoicePayment { note, .. }) => note,
+            Self::OutboundOffer(OutboundOfferPayment { note, .. }) => note,
             Self::OutboundSpontaneous(OutboundSpontaneousPayment {
                 note,
                 ..
@@ -493,6 +518,9 @@ impl Payment {
                 created_at,
                 ..
             }) => *created_at,
+            Self::OutboundOffer(OutboundOfferPayment {
+                created_at, ..
+            }) => *created_at,
             Self::OutboundSpontaneous(OutboundSpontaneousPayment {
                 created_at,
                 ..
@@ -522,6 +550,9 @@ impl Payment {
             Self::OutboundInvoice(OutboundInvoicePayment {
                 finalized_at,
                 ..
+            }) => *finalized_at,
+            Self::OutboundOffer(OutboundOfferPayment {
+                finalized_at, ..
             }) => *finalized_at,
             Self::OutboundSpontaneous(OutboundSpontaneousPayment {
                 finalized_at,
@@ -616,6 +647,17 @@ impl From<OutboundInvoicePaymentStatus> for PaymentStatus {
     }
 }
 
+impl From<OutboundOfferPaymentStatus> for PaymentStatus {
+    fn from(specific_status: OutboundOfferPaymentStatus) -> Self {
+        match specific_status {
+            OutboundOfferPaymentStatus::Pending => Self::Pending,
+            OutboundOfferPaymentStatus::Abandoning => Self::Pending,
+            OutboundOfferPaymentStatus::Completed => Self::Completed,
+            OutboundOfferPaymentStatus::Failed => Self::Failed,
+        }
+    }
+}
+
 impl From<OutboundSpontaneousPaymentStatus> for PaymentStatus {
     fn from(specific_status: OutboundSpontaneousPaymentStatus) -> Self {
         match specific_status {
@@ -702,6 +744,17 @@ impl OutboundInvoicePaymentStatus {
     }
 }
 
+impl OutboundOfferPaymentStatus {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Pending => "pending",
+            Self::Abandoning => "abandoning",
+            Self::Completed => "completed",
+            Self::Failed => "failed",
+        }
+    }
+}
+
 impl OutboundSpontaneousPaymentStatus {
     pub fn as_str(&self) -> &str {
         match self {
@@ -773,6 +826,12 @@ mod test {
                     .boxed(),
             ),
             (
+                "OutboundOfferPayment",
+                any::<OutboundOfferPayment>()
+                    .prop_map(Payment::OutboundOffer)
+                    .boxed(),
+            ),
+            (
                 "OutboundSpontaneous",
                 any::<OutboundSpontaneousPayment>()
                     .prop_map(Payment::OutboundSpontaneous)
@@ -814,6 +873,7 @@ mod test {
         json_value_custom(any::<InboundOfferReusePayment>(), config.clone());
         json_value_custom(any::<InboundSpontaneousPayment>(), config.clone());
         json_value_custom(any::<OutboundInvoicePayment>(), config.clone());
+        json_value_custom(any::<OutboundOfferPayment>(), config.clone());
         json_value_custom(any::<OutboundSpontaneousPayment>(), config);
     }
 
@@ -842,6 +902,7 @@ mod test {
                 Payment::InboundOfferReuse(x) => x.id(),
                 Payment::InboundSpontaneous(x) => x.id(),
                 Payment::OutboundInvoice(x) => x.id(),
+                Payment::OutboundOffer(x) => x.id(),
                 Payment::OutboundSpontaneous(x) => x.id(),
             };
             prop_assert_eq!(id, payment.id());
