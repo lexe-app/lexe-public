@@ -22,7 +22,7 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 use crate::test_utils::arbitrary;
 use crate::{
     debug_panic_release_log, hexstr_or_bytes,
-    ln::{amount::Amount, hashes::LxTxid, invoice::LxInvoice},
+    ln::{amount::Amount, hashes::LxTxid, invoice::LxInvoice, offer::LxOffer},
     rng::{RngCore, RngExt},
     time::TimestampMs,
 };
@@ -49,6 +49,12 @@ pub struct BasicPayment {
     /// (Offer payments only) The id of the BOLT12 offer used in this payment.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub offer_id: Option<LxOfferId>,
+
+    /// (Outbound offer payments only) The BOLT12 offer used in this payment.
+    /// Until we store offers out-of-line, this is not yet available for
+    /// inbound offer payments.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offer: Option<Box<LxOffer>>,
 
     /// (Onchain payments only) The original txid.
     // NOTE: we're duplicating the txid here for onchain receives because its
@@ -125,7 +131,7 @@ pub struct BasicPayment {
 }
 
 // Debug the size_of `BasicPayment`
-const_assert_mem_size!(BasicPayment, 264);
+const_assert_mem_size!(BasicPayment, 272);
 
 /// An upgradeable version of [`Vec<BasicPayment>`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -385,10 +391,11 @@ impl BasicPayment {
     pub fn note_or_description(&self) -> Option<&str> {
         let maybe_note = self.note.as_deref().filter(|s| !s.is_empty());
 
-        // TODO(phlip9): BOLT12 offer description
-        maybe_note.or_else(|| {
-            self.invoice.as_deref().and_then(LxInvoice::description_str)
-        })
+        maybe_note
+            .or_else(|| {
+                self.invoice.as_deref().and_then(LxInvoice::description_str)
+            })
+            .or_else(|| self.offer.as_deref().and_then(LxOffer::description))
     }
 }
 
@@ -1050,10 +1057,15 @@ fs_00996e6b999900e8e7273934a7f272eb367fd2ac394f10b3ea1c7164d212c5c5
 {"index":"5155186382553476589-ln_2877475d06893a3c833caf5a0872253ca30372d5f79241fcf917d893fd0184f6","kind":"spontaneous","direction":"outbound","amount":"1775777429636972.896","fees":"686803029182910.189","status":"pending","status_str":"pending"}
 
 --- v3 (1) add reusable inbound offer payments with `offer_id` field
+---    (2) outbound offer payments with `offer_id` and `offer` fields
 --- InboundOfferReuse
 {"index":"0870319857298190164-fr_2e403bdaf6be3a8fc208a7e8ee177c1f4b6405bc606c42885c862d8b35dad5a7","kind":"offer","direction":"inbound","offer_id":"589fe7249b2fbeb910c1f4f7789562a4ed0ca165ee348a6b740b89963baa8c6e","amount":"305165919706291.021","fees":"0","status":"completed","status_str":"completed","note":"foo bar","finalized_at":9223372036854775807}
 {"index":"0320982514608657806-fr_f32df95de6804946f702cff99c872e123b7b654df3652b7602e034e07739021d","kind":"offer","direction":"inbound","offer_id":"d4762578418194038c9ae80dca5ff3071084fb9199fa08d47f4c261d1d4b47c9","amount":"1295988938230871.815","fees":"0","status":"pending","status_str":"claiming"}
 {"index":"5715056060555261255-fr_bdbd9228541fd56faf846bef968521136f0092a7f425e8d6d13088953ceb9c3a","kind":"offer","direction":"inbound","offer_id":"fa6e60485f5d4245d95cc705d7b11cc086134528b8d8c46ff9bf0fd37ea0d501","amount":"88113465240976.639","fees":"0","status":"pending","status_str":"claiming","note":"foo bar"}
+--- OutboundOffer
+{"index":"2509040687264777400-fs_e336d74f53456720877063b26f2c4ea0e9542d5fe6719fd141c05c4a1de40455","kind":"offer","direction":"outbound","offer_id":"8c081a8222ef0357826955236e728f48cbaa4463ded06420b1cd36bd9fbb9c9e","offer":"lno1pqyp3xwrvz2sf9tupgqp9t8jh766auae327nfuye42mjgnwrs0cfrqa7u2q2uj03sjp6vflj5xgmdua54jsnslct7wzmawm4003gpthsn72mgsxrne6z55h0hwl7lwal7xff8dpzqpzhhuv74wml8pyr5qa0pt4unhctaf54ylkedv0n3jteweg27z4cpq2k7xyt4000hwll98455pljm6uj5hc692a2854qkc8j3zt66j0nnxstpc5q4mc24yut9g9jzfpdya30rdvh542j4uuw5k7zns490vyl8xa2ny2qq93pqfhj6mya8nsglrp0qxah5whhca4gyl9s94kupt0wy34vqyu3u52rg","amount":"1525338626413282.908","fees":"1754834518003737.711","status":"pending","status_str":"pending"}
+{"index":"6607865636190568280-fs_6016a108f039c0f284b5cec4fda413e2c84085a7b712401bc5108845bbf11e2c","kind":"offer","direction":"outbound","offer_id":"b8b8cab739ef2e23878c305c9be8b5377f8b76ad2b472ee8492cb6fce42bc196","offer":"lno1ptqxasuc8hcftf9mvgjj0uussw3l8x5xkeq0rp4c3v90rw4snhg6shqf6x5z7hgf72ft3200h77lpdufkre6mr5vyg94cfjzu2q2audwkkg93uahhwdh9c5q4mce8g45ync6dza5yulkxczmc2jspu59kxg0p85p5qjlpv9kknpe4mamhlccdtd27xf6agrz7z0etdq2p97zfu5gj7487fh3sxlmlua65xt5g7hj52setay2szxz0u57h7n0r05tnmyt5fgdpg9ypuyljk6rjxlzszh0pt9ah4ll8fa755d7l0aac2jj5agsl5q3xqk9533q5c8zqe8pxvkhhfqus3akvdpxt04xsujkvrzcfrld9gsf7upeel6a9hey99xn32m6uh75ptj8fj40tzjrwgcvrnfu2yk2c6j9caszqtvjggardn7qc53mmxmku59ktves9txqcl768u4femuqyj9z3hntvqq6yjgnpxxuqyewd0dmxpvla6nfpg0rqwsy0l5wwxyp0gprjrv7j8g8furqnvpm3z3m6a0th2plxzq2rqsxnu0kkj0lu3d5hdsqwp7qenvl7lycllwxe49zdk03s6eakqjwzmsywrx6l8zzpujkg67vpr4wcvfedhdhxe2vmne9fdfhhljnunksuvx7rqfxu96cj9sczdz3p748mxnahcx8m30hemxvx2ejw6nfj48jtslffw54hltj4ct54ewgnmuag59ajpr0fzu55lsqkd6as93pq0dew5s8umuk85us8ry9y76pkzp8f5umxqjpvkqaqyw9evfgfsu8z","amount":"296204857507365.363","fees":"441146041094570.642","status":"failed","status_str":"failed","note":"foo bar","finalized_at":9223372036854775807}
+{"index":"1133936948640248554-fs_c6ad53c802e4fe7ff78bf6c3c00a40270acbf997195b68c0a5b473a67b7c09cf","kind":"offer","direction":"outbound","offer_id":"645b49f3d2e15e9ecf236dcee869f01e1c8560f91d1eb048065d411895c63a69","offer":"lno1qscy66m9auzekl7kj8s9xnry6qanssxwm4mht7grcz46jg87khtv8rqna9g27dq9r6gkg243xdgtwv87pt7spl05swgc8s4z7xsg9vem7w4eryhzszhwlwal72zmf0jf7wycd8fm7w8m80ls523fwtljsz52wgju8yyn7rt08gj0rpu65qhlrxuan0ce304jwn6g9pvg7xvc9tkghtyt4u9r5k5qkfgd2dwv8f2uth3gpt36tnet8pujd59wp25sqq7snmalh5nwlwalukpeuhx34q9z5qp8x0pcdsuz00cmnq53p8eedyyxcwmzamamhujjwxln3w2c7gl3hz66dc5q4mc2rfaw7jxelg0n4w06uqp67xhcapmly4gkqvfyc2jl8pv8kudlfrax33eqhu4f56sr50c22qyu8pnm72mfmg7ghteepza4fav5kxlnhwzc9uv6s7xnxqp2u2q2u2nltskxgfl3nkq6y2f2yv93vggzwnhrmwyqun8dr48gqa2amnsq9m2syen29w8qyl0p2je8v0gpxqjq","amount":"502906609031791.046","fees":"406207226917865.226","status":"pending","status_str":"pending","note":"foo bar"}
 "#;
 
         for input in snapshot::parse_sample_data(inputs) {

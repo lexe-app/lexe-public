@@ -267,6 +267,7 @@ pub struct Payment {
 
     pub invoice: Option<Invoice>,
 
+    // TODO(phlip9): BOLT12 offers
     pub txid: Option<String>,
     pub replacement: Option<String>,
 
