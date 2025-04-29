@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{num::NonZeroU64, time::Duration};
 
 use anyhow::ensure;
 #[cfg(test)]
@@ -7,8 +7,10 @@ use common::{
     ln::{
         amount::Amount,
         invoice::LxInvoice,
+        offer::LxOffer,
         payments::{
-            LxPaymentHash, LxPaymentId, LxPaymentPreimage, LxPaymentSecret,
+            ClientPaymentId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
+            LxPaymentSecret,
         },
     },
     time::TimestampMs,
@@ -27,7 +29,10 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
 #[cfg(doc)]
-use crate::{command::pay_invoice, payments::manager::PaymentsManager};
+use crate::{
+    command::{pay_invoice, pay_offer},
+    payments::manager::PaymentsManager,
+};
 
 /// The retry strategy we pass to LDK for outbound Lightning payments.
 pub const OUTBOUND_PAYMENT_RETRY_STRATEGY: Retry = Retry::Attempts(3);
@@ -297,6 +302,103 @@ impl OutboundInvoicePayment {
     }
 }
 
+// --- Outbound offer payments --- //
+
+/// An outbound payment for a BOLT12 offer.
+///
+/// ## Relevant events
+///
+/// - [`pay_offer`] API
+/// - [`PaymentFailed`] event
+/// - [`PaymentSent`] event
+/// - [`PaymentsManager::check_invoice_expiries`] task
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct OutboundOfferPayment {
+    /// The unique idempotency id for this payment.
+    pub cid: ClientPaymentId,
+    /// The offer we're paying.
+    // LxOffer is ~568 bytes, Box to avoid the enum variant lint
+    pub offer: Box<LxOffer>,
+    /// The amount sent in this payment excluding fees. May be greater than the
+    /// intended value to meet htlc min. limits along the route.
+    pub amount: Amount,
+    /// The number of "units" purchased.
+    pub quantity: Option<NonZeroU64>,
+    /// The routing fees paid for this payment. If the payment hasn't completed
+    /// yet, then this is just an estimate based on the preflight route.
+    pub fees: Amount,
+    /// The current status of the payment.
+    pub status: OutboundOfferPaymentStatus,
+    /// An optional personal note for this payment.
+    pub note: Option<String>,
+    /// When we initiated this payment.
+    pub created_at: TimestampMs,
+    /// When this payment either `Completed` or `Failed`.
+    pub finalized_at: Option<TimestampMs>,
+}
+
+impl OutboundOfferPayment {
+    /// Create a new outbound invoice payment.
+    ///
+    /// - `amount` is the total amount paid, excluding fees. May be greater than
+    ///   the invoiced amount if the payer had to reach `htlc_minimum_msat`
+    ///   limits.
+    /// - `fees` is (currently) an underestimate of the total Lightning routing
+    ///   fees paid, since we can't completely route the payment before actually
+    ///   fetching the BOLT12 Invoice. Instead these are only the fees required
+    ///   to reach last public node on the route, before the blinded hops.
+    //
+    // Event sources:
+    // - `pay_offer` API
+    pub fn new(
+        cid: ClientPaymentId,
+        offer: LxOffer,
+        amount: Amount,
+        quantity: Option<NonZeroU64>,
+        fees: Amount,
+        note: Option<String>,
+    ) -> Self {
+        Self {
+            cid,
+            offer: Box::new(offer),
+            amount,
+            quantity,
+            fees,
+            note,
+            status: OutboundOfferPaymentStatus::Pending,
+            created_at: TimestampMs::now(),
+            finalized_at: None,
+        }
+    }
+
+    #[inline]
+    pub fn id(&self) -> LxPaymentId {
+        LxPaymentId::OfferSend(self.cid)
+    }
+
+    #[inline]
+    pub fn ldk_id(&self) -> lightning::ln::channelmanager::PaymentId {
+        lightning::ln::channelmanager::PaymentId(self.cid.0)
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(Arbitrary, strum::VariantArray, Hash))]
+pub enum OutboundOfferPaymentStatus {
+    /// We initiated this payment with [`pay_offer`].
+    Pending,
+    /// The offer expired and we called [`ChannelManager::abandon_payment`],
+    /// but we haven't yet received a [`PaymentFailed`] (or [`PaymentSent`])
+    /// event to finalize the payment.
+    Abandoning,
+    /// We received a [`PaymentSent`] event.
+    Completed,
+    /// We received a [`PaymentFailed`] event, or the initial send in
+    /// [`pay_offer`] "failed outright".
+    Failed,
+}
+
 // --- Outbound spontaneous payments --- //
 
 /// An outbound spontaneous (`keysend`) payment.
@@ -377,6 +479,8 @@ pub enum LxOutboundPaymentFailure {
     InvoiceRequestRejected,
     /// Failed to find a reply route from the destination back to us.
     BlindedPathCreationFailed,
+    /// Something about the BOLT12 offer was invalid.
+    InvalidOffer,
     /// API misuse error. Probably a bug in Lexe code.
     LexeErr,
     /// Any unrecognized variant we might deserialize. This variant is for
@@ -402,6 +506,7 @@ impl LxOutboundPaymentFailure {
                 "recipient rejected our invoice request",
             Self::BlindedPathCreationFailed =>
                 "failed to find a reply route back to us",
+            Self::InvalidOffer => "invalid offer",
             Self::LexeErr => "probable bug in LEXE user node payment router",
             Self::Unknown => "unknown error, app is likely out-of-date",
         }
@@ -591,6 +696,11 @@ mod test {
             expected_ser,
         );
 
+        let expected_ser = r#"["pending","abandoning","completed","failed"]"#;
+        json_unit_enum_backwards_compat::<OutboundOfferPaymentStatus>(
+            expected_ser,
+        );
+
         let expected_ser = r#"["pending","completed","failed"]"#;
         json_unit_enum_backwards_compat::<OutboundSpontaneousPaymentStatus>(
             expected_ser,
@@ -599,7 +709,7 @@ mod test {
 
     #[test]
     fn lx_outbound_payment_failure_json_backwards_compat() {
-        let expected_ser = r#"["NoRetries","Rejected","Abandoned","Expired","NoRoute","MetadataTooLarge","UnknownFeatures","InvoiceRequestExpired","InvoiceRequestRejected","BlindedPathCreationFailed","LexeErr","Unknown"]"#;
+        let expected_ser = r#"["NoRetries","Rejected","Abandoned","Expired","NoRoute","MetadataTooLarge","UnknownFeatures","InvoiceRequestExpired","InvoiceRequestRejected","BlindedPathCreationFailed","InvalidOffer","LexeErr","Unknown"]"#;
         json_unit_enum_backwards_compat::<LxOutboundPaymentFailure>(
             expected_ser,
         );
