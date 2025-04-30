@@ -145,9 +145,16 @@ impl LxOffer {
     }
 
     /// Returns `true` if the offer has an expiration and is expired.
+    #[inline]
     pub fn is_expired(&self) -> bool {
+        self.is_expired_at(TimestampMs::now())
+    }
+
+    /// Returns `true` if the offer has an expiration and its expiration is
+    /// before the given timestamp.
+    pub fn is_expired_at(&self, ts: TimestampMs) -> bool {
         match self.expires_at() {
-            Some(expires_at) => expires_at < TimestampMs::now(),
+            Some(expires_at) => expires_at < ts,
             None => false,
         }
     }

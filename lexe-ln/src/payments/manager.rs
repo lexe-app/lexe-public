@@ -595,14 +595,14 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         debug!("Checking payment expiries");
 
         // NOTE: avoid touching the ChannelManager while holding the lock
-        let oips_to_abandon = {
+        let ops_to_abandon = {
             // Check
             let mut locked_data = self.data.lock().await;
 
             // Call TimestampMs::now() just once then pass it in everywhere.
             let now = TimestampMs::now();
 
-            let (all_checked, oips_to_abandon) = locked_data
+            let (all_checked, ops_to_abandon) = locked_data
                 .check_payment_expiries(now)
                 .context("Error checking payment expiries")?;
 
@@ -618,15 +618,15 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                 locked_data.commit(persisted);
             }
 
-            oips_to_abandon
+            ops_to_abandon
         };
 
         // Abandon all expired outbound payments.
         // We'll also abandon any abandoning payments to handle the case where
         // we crash after persisting above, but before the channel manager
         // persists.
-        for oip_hash in oips_to_abandon {
-            self.channel_manager.abandon_payment(oip_hash.into());
+        for payment_id in ops_to_abandon {
+            self.channel_manager.abandon_payment(payment_id);
         }
 
         debug!("Successfully checked payment expiries");
@@ -1098,8 +1098,11 @@ impl PaymentsData {
     fn check_payment_expiries(
         &self,
         now: TimestampMs,
-    ) -> anyhow::Result<(Vec<CheckedPayment>, Vec<LxPaymentHash>)> {
-        let mut oips_to_abandon = Vec::new();
+    ) -> anyhow::Result<(
+        Vec<CheckedPayment>,
+        Vec<lightning::ln::channelmanager::PaymentId>,
+    )> {
+        let mut ops_to_abandon = Vec::new();
         let all_expired = self
             .pending
             .values()
@@ -1112,12 +1115,25 @@ impl PaymentsData {
                 Payment::OutboundInvoice(oip) => {
                     match oip.check_invoice_expiry(now) {
                         Ok(oip) => {
-                            oips_to_abandon.push(oip.hash);
+                            ops_to_abandon.push(oip.ldk_id());
                             Some(CheckedPayment(Payment::from(oip)))
                         }
                         Err(ExpireError::Ignore) => None,
                         Err(ExpireError::IgnoreAndAbandon) => {
-                            oips_to_abandon.push(oip.hash);
+                            ops_to_abandon.push(oip.ldk_id());
+                            None
+                        }
+                    }
+                }
+                Payment::OutboundOffer(oop) => {
+                    match oop.check_offer_expiry(now) {
+                        Ok(oop) => {
+                            ops_to_abandon.push(oop.ldk_id());
+                            Some(CheckedPayment(Payment::from(oop)))
+                        }
+                        Err(ExpireError::Ignore) => None,
+                        Err(ExpireError::IgnoreAndAbandon) => {
+                            ops_to_abandon.push(oop.ldk_id());
                             None
                         }
                     }
@@ -1126,7 +1142,7 @@ impl PaymentsData {
             })
             .collect::<Vec<_>>();
 
-        Ok((all_expired, oips_to_abandon))
+        Ok((all_expired, ops_to_abandon))
     }
 
     // Event sources:
@@ -1407,7 +1423,7 @@ mod test {
             data.check_payment_sent(id, hash, preimage, Some(fees))
                 .unwrap();
             data.check_payment_failed(id, failure).unwrap();
-            // data.check_payment_expiries(TimestampMs::MAX).unwrap();
+            data.check_payment_expiries(TimestampMs::MAX).unwrap();
         });
     }
 

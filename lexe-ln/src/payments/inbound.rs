@@ -540,9 +540,6 @@ impl InboundInvoicePayment {
     /// state transition to `Expired` is valid, returns a clone with the state
     /// transition applied.
     ///
-    /// `unix_duration` is the current time expressed as a [`Duration`] since
-    /// the unix epoch.
-    ///
     /// ## Precondition
     /// - The payment must not be finalized (Completed | Failed).
     //

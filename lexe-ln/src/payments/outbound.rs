@@ -14,6 +14,7 @@ use common::{
         },
     },
     time::TimestampMs,
+    ByteArray,
 };
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::{
@@ -155,6 +156,11 @@ impl OutboundInvoicePayment {
         LxPaymentId::Lightning(self.hash)
     }
 
+    #[inline]
+    pub fn ldk_id(&self) -> lightning::ln::channelmanager::PaymentId {
+        lightning::ln::channelmanager::PaymentId(self.hash.to_array())
+    }
+
     /// Handle a [`PaymentSent`] event for this payment.
     ///
     /// ## Precondition
@@ -259,9 +265,6 @@ impl OutboundInvoicePayment {
     /// Checks whether this payment's invoice has expired. If so, and if the
     /// state transition to `Abandoning` is valid, returns a clone with the
     /// state transition applied.
-    ///
-    /// `unix_duration` is the current time expressed as a [`Duration`] since
-    /// the unix epoch.
     ///
     /// ## Precondition
     /// - The payment must not be finalized (Completed | Failed).
@@ -383,6 +386,16 @@ impl OutboundOfferPayment {
         }
     }
 
+    #[inline]
+    pub fn id(&self) -> LxPaymentId {
+        LxPaymentId::OfferSend(self.cid)
+    }
+
+    #[inline]
+    pub fn ldk_id(&self) -> lightning::ln::channelmanager::PaymentId {
+        lightning::ln::channelmanager::PaymentId(self.cid.0)
+    }
+
     /// Handle a [`PaymentSent`] event for this payment.
     ///
     /// ## Precondition
@@ -469,14 +482,46 @@ impl OutboundOfferPayment {
         Ok(clone)
     }
 
-    #[inline]
-    pub fn id(&self) -> LxPaymentId {
-        LxPaymentId::OfferSend(self.cid)
-    }
+    /// Checks whether this payment's offer has expired. If so, and if the
+    /// state transition to `Abandoning` is valid, returns a clone with the
+    /// state transition applied.
+    ///
+    /// ## Precondition
+    /// - The payment must not be finalized (Completed | Failed).
+    //
+    // Event sources:
+    // - `PaymentsManager::spawn_payment_expiry_checker` task
+    pub(crate) fn check_offer_expiry(
+        &self,
+        now: TimestampMs,
+    ) -> Result<Self, ExpireError> {
+        use OutboundOfferPaymentStatus::*;
 
-    #[inline]
-    pub fn ldk_id(&self) -> lightning::ln::channelmanager::PaymentId {
-        lightning::ln::channelmanager::PaymentId(self.cid.0)
+        // Not expired yet, do nothing.
+        if !self.offer.is_expired_at(now) {
+            return Err(ExpireError::Ignore);
+        }
+
+        match self.status {
+            Pending => (),
+            // We may crash after persisting the payment but before the channel
+            // manager persists. Don't persist anything new, but re-abandon the
+            // payment.
+            Abandoning => return Err(ExpireError::IgnoreAndAbandon),
+            Completed | Failed => unreachable!(
+                "caller ensures payment is not already finalized. \
+                 {id} is already {status:?}",
+                id = self.id(),
+                status = self.status,
+            ),
+        }
+
+        // Validation complete; invoice newly expired
+
+        let mut clone = self.clone();
+        clone.status = Abandoning;
+
+        Ok(clone)
     }
 }
 
