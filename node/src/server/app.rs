@@ -315,7 +315,7 @@ pub(super) async fn pay_offer(
         &state.payments_manager,
         &state.chain_monitor,
         &state.network_graph,
-        state.lsp_info.lsp_fees(),
+        &state.lsp_info,
     )
     .await
     .map(LxJson)

@@ -1031,7 +1031,7 @@ pub async fn pay_offer<CM, PS>(
     payments_manager: &PaymentsManager<CM, PS>,
     chain_monitor: &LexeChainMonitorType<PS>,
     network_graph: &NetworkGraphType,
-    lsp_fees: LspFees,
+    lsp_info: &LspInfo,
 ) -> anyhow::Result<PayOfferResponse>
 where
     CM: LexeChannelManager<PS>,
@@ -1045,7 +1045,7 @@ where
         payments_manager,
         chain_monitor,
         network_graph,
-        lsp_fees,
+        lsp_info,
     )
     .await?;
 
@@ -1058,13 +1058,12 @@ where
     let created_at = payment.created_at;
     let id = payment.id();
 
-    // TODO(phlip9): payment state machine
-    // // Pre-flight looks good, now we can register this payment in the Lexe
-    // // payments manager.
-    // payments_manager
-    //     .new_payment(Payment::Out payment)
-    //     .await
-    //     .context("Already tried to pay this offer")?;
+    // Pre-flight looks good, now we can register this payment in the Lexe
+    // payments manager.
+    payments_manager
+        .new_payment(Payment::OutboundOffer(payment.clone()))
+        .await
+        .context("Already tried to pay this offer")?;
 
     // Instruct the LDK channel manager to pay this offer, letting LDK handle
     // fetching the BOLT12 Invoice, routing, and retrying.
@@ -1274,7 +1273,7 @@ async fn preflight_pay_offer_inner<CM, PS>(
     payments_manager: &PaymentsManager<CM, PS>,
     chain_monitor: &LexeChainMonitorType<PS>,
     network_graph: &NetworkGraphType,
-    lsp_fees: LspFees,
+    lsp_info: &LspInfo,
 ) -> anyhow::Result<PreflightedPayOffer>
 where
     CM: LexeChannelManager<PS>,
@@ -1291,9 +1290,14 @@ where
         bail!("We've already tried paying this offer");
     }
 
-    // TODO(phlip9): support user choosing quantity.
+    // TODO(phlip9): support user choosing quantity. For now just assume
+    // quantity=1, but in a way that works.
+    let quantity = if offer.expects_quantity() {
+        Some(const { NonZeroU64::new(1).unwrap() })
+    } else {
+        None
+    };
     // TODO(phlip9): actual_amount = amount * quantity
-    let quanity = Some(const { NonZeroU64::new(1).unwrap() });
     // Compute the amount; handle amountless offers.
     let amount =
         validate_pay_amount("offers", offer.amount(), req.fallback_amount)?;
@@ -1302,7 +1306,11 @@ where
     let channels = channel_manager.list_channels();
     let num_channels = channels.len();
     let (lightning_balance, num_usable_channels) =
-        balance::all_channel_balances(chain_monitor, &channels, lsp_fees);
+        balance::all_channel_balances(
+            chain_monitor,
+            &channels,
+            lsp_info.lsp_fees(),
+        );
     let max_sendable = lightning_balance.max_sendable;
 
     // Check that the user has at least one usable channel.
@@ -1314,8 +1322,10 @@ where
     // simulate routing to the first public node in the offer. We also don't
     // have the blinded path info yet, so this is clearly imperfect as we don't
     // know the full routing fees, min/max htlc, etc...
-    let route_target =
-        offer.preflight_routable_node(&network_graph.read_only())?;
+    let route_target = offer.preflight_routable_node(
+        &network_graph.read_only(),
+        &lsp_info.node_pk,
+    )?;
     let payment_params = route::build_payment_params(
         Either::Left(route_target),
         Some(num_usable_channels),
@@ -1344,7 +1354,7 @@ where
     let amount = route.amount();
     let fees = route.fees();
     let payment = OutboundOfferPayment::new(
-        req.cid, offer, amount, quanity, fees, req.note,
+        req.cid, offer, amount, quantity, fees, req.note,
     );
     Ok(PreflightedPayOffer { payment })
 }

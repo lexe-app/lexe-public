@@ -3,6 +3,7 @@ use std::{fmt, num::NonZeroU64, str::FromStr};
 use anyhow::Context;
 use const_utils::{const_assert_mem_size, const_assert_usize_eq};
 use lightning::{
+    blinded_path::IntroductionNode,
     offers::{
         offer::{self, CurrencyCode, Offer},
         parse::Bolt12ParseError,
@@ -181,6 +182,11 @@ impl LxOffer {
         }
     }
 
+    #[inline]
+    pub fn expects_quantity(&self) -> bool {
+        self.0.expects_quantity()
+    }
+
     /// Returns the offer description, if any.
     pub fn description(&self) -> Option<&str> {
         self.0.description().map(|s| s.0).filter(|s| !s.is_empty())
@@ -201,6 +207,7 @@ impl LxOffer {
     pub fn preflight_routable_node(
         &self,
         network_graph: &ReadOnlyNetworkGraph,
+        lsp_node_pk: &NodePk,
     ) -> anyhow::Result<NodePk> {
         let paths = self.0.paths();
         if paths.is_empty() {
@@ -215,6 +222,16 @@ impl LxOffer {
 
         // Look for a blinded path with a public routable node.
         for path in self.0.paths() {
+            // Need to special case Lexe LSP to make smoketests pass where there
+            // are no public channels.
+            if let IntroductionNode::NodeId(node_id) = path.introduction_node()
+            {
+                if node_id == lsp_node_pk.as_inner() {
+                    return Ok(NodePk(*node_id));
+                }
+            }
+
+            // Look for a public node
             if let Some(node_pk) = path
                 .public_introduction_node_id(network_graph)
                 .and_then(|node_id| node_id.as_pubkey().ok())
