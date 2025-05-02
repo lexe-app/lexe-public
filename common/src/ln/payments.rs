@@ -254,7 +254,8 @@ pub enum LxPaymentId {
     // NOTE: the enum order is important. `LxPaymentId::prefix()` determines
     // the order ("fi" < .. < "os").
     // Added `Offer*` variants in `node-v0.7.8`
-    OfferRecvInvoice(LxOfferId),  // "fi"
+    // TODO(phlip9): single-use offer payments would require a different id
+    // OfferRecvInvoice(LxOfferId),  // "fi"
     OfferRecvReusable(LnClaimId), // "fr"
     OfferSend(ClientPaymentId),   // "fs"
     Lightning(LxPaymentHash),     // "ln"
@@ -427,12 +428,11 @@ impl PaymentIndex {
 
 impl LxPaymentId {
     /// The `LxPaymentId` that is lexicographically <= all other ids.
-    pub const MIN: Self = Self::OfferRecvInvoice(LxOfferId([0; 32]));
+    pub const MIN: Self = Self::OfferRecvReusable(LnClaimId([0; 32]));
 
     /// Returns the prefix to use when serializing this payment id to a string.
     pub fn prefix(&self) -> &'static str {
         match self {
-            Self::OfferRecvInvoice(_) => "fi",
             Self::OfferRecvReusable(_) => "fr",
             Self::OfferSend(_) => "fs",
             Self::Lightning(_) => "ln",
@@ -544,8 +544,8 @@ impl TryFrom<LxPaymentId> for ClientPaymentId {
         use LxPaymentId::*;
         match id {
             OnchainSend(cid) | OfferSend(cid) => Ok(cid),
-            OfferRecvReusable(_) | OfferRecvInvoice(_) | OnchainRecv(_)
-            | Lightning(_) => bail!("Not an onchain send"),
+            OfferRecvReusable(_) | OnchainRecv(_) | Lightning(_) =>
+                bail!("Not an onchain send"),
         }
     }
 }
@@ -556,8 +556,7 @@ impl TryFrom<LxPaymentId> for LxPaymentHash {
         match id {
             Lightning(hash) => Ok(hash),
             OnchainSend(_) | OfferSend(_) | OfferRecvReusable(_)
-            | OfferRecvInvoice(_) | OnchainRecv(_) =>
-                bail!("Not a lightning payment"),
+            | OnchainRecv(_) => bail!("Not a lightning payment"),
         }
     }
 }
@@ -806,9 +805,6 @@ impl FromStr for LxPaymentId {
             "Wrong format; should be <kind>_<id>"
         );
         match kind_str {
-            "fi" => LxOfferId::from_str(id_str)
-                .map(Self::OfferRecvInvoice)
-                .context("Invalid offer id"),
             "fr" => LnClaimId::from_str(id_str)
                 .map(Self::OfferRecvReusable)
                 .context("Invalid claim id"),
@@ -834,8 +830,6 @@ impl Display for LxPaymentId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let prefix = self.prefix();
         match self {
-            Self::OfferRecvInvoice(offer_id) =>
-                write!(f, "{prefix}_{offer_id}"),
             Self::OfferRecvReusable(claim_id) =>
                 write!(f, "{prefix}_{claim_id}"),
             Self::OfferSend(cid) => write!(f, "{prefix}_{cid}"),
@@ -988,7 +982,6 @@ ln_003690453dac3e6c29db4e930c80f797fe0a05bc43ed2d9cff2a62fb7407d3e0
 or_3045b3cf002d40b2ae2e2f0f4b3d657cad3d2d8995988fb78ce488d9ec7d8f30
 os_0a19f5f961bc67b109ce060743141b59dad6cd1edc28a7dd72241fe97da407b3
 --- v2 (bolt12 offers)
-fi_03bbfc08ab3fdac9d24b7a92736986f6cf769bad52bfab28b7b2d7d1c09ec335
 fr_00e32fe42d1249bd1299a2839c017584b09a924f935a5da5b121346950d2676d
 fs_00996e6b999900e8e7273934a7f272eb367fd2ac394f10b3ea1c7164d212c5c5
 "#;
