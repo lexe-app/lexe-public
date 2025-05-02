@@ -84,7 +84,7 @@ pub enum LnClaimCtx {
 }
 
 /// Data used to handle a [`PaymentClaimable`]/[`PaymentClaimed`] event for an
-/// [`InboundOfferReusePayment`].
+/// [`InboundOfferReusablePayment`].
 #[derive(Clone)]
 pub struct OfferClaimCtx {
     pub preimage: LxPaymentPreimage,
@@ -172,7 +172,7 @@ impl LnClaimCtx {
             Self::Bolt11Invoice { hash, .. } => LxPaymentId::Lightning(*hash),
             // TODO(phlip9): how to disambiguate single-use BOLT12 offer
             Self::Bolt12Offer(OfferClaimCtx { claim_id, .. }) =>
-                LxPaymentId::OfferRecvReuse(*claim_id),
+                LxPaymentId::OfferRecvReusable(*claim_id),
             Self::Spontaneous { hash, .. } => LxPaymentId::Lightning(*hash),
         }
     }
@@ -238,8 +238,10 @@ impl Payment {
                 )
                 .map(Payment::from)
                 .map(CheckedPayment),
-            (Self::InboundOfferReuse(iorp), LnClaimCtx::Bolt12Offer(ctx)) =>
-                Err(iorp.check_payment_claimable(ctx, amount)),
+            (
+                Self::InboundOfferReusable(iorp),
+                LnClaimCtx::Bolt12Offer(ctx),
+            ) => Err(iorp.check_payment_claimable(ctx, amount)),
             // TODO(max): Implement for BOLT 12 refunds
             // (
             //     Self::Bolt12Refund(b12r),
@@ -592,7 +594,7 @@ impl InboundInvoicePayment {
 //
 // Added in `node-v0.7.8`
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct InboundOfferReusePayment {
+pub struct InboundOfferReusablePayment {
     /// The claim id uniquely identifies a single payment for this offer.
     /// It is the hash of the HTLC(s) paying a payment hash.
     pub claim_id: LnClaimId,
@@ -611,7 +613,7 @@ pub struct InboundOfferReusePayment {
     /// The number of items the payer bought.
     pub quantity: Option<NonZeroU64>,
     /// The current payment status.
-    pub status: InboundOfferReusePaymentStatus,
+    pub status: InboundOfferReusablePaymentStatus,
     /// An optional personal note for this payment.
     pub note: Option<String>,
     /// A payer-provided note for this payment. LDK truncates this to
@@ -630,7 +632,7 @@ pub struct InboundOfferReusePayment {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(test, derive(Arbitrary, strum::VariantArray, Hash))]
-pub enum InboundOfferReusePaymentStatus {
+pub enum InboundOfferReusablePaymentStatus {
     /// We received a [`PaymentClaimable`] event.
     Claiming,
     /// We received a [`PaymentClaimed`] event.
@@ -643,7 +645,7 @@ pub enum InboundOfferReusePaymentStatus {
     // here. https://discord.com/channels/915026692102316113/978829624635195422/1085427776070365214
 }
 
-impl InboundOfferReusePayment {
+impl InboundOfferReusablePayment {
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     pub(crate) fn new(
@@ -657,7 +659,7 @@ impl InboundOfferReusePayment {
             preimage: ctx.preimage,
             amount,
             quantity: ctx.quantity,
-            status: InboundOfferReusePaymentStatus::Claiming,
+            status: InboundOfferReusablePaymentStatus::Claiming,
             note: None,
             payer_note: ctx.payer_note,
             payer_name: ctx.payer_name,
@@ -679,7 +681,7 @@ impl InboundOfferReusePayment {
         ctx: OfferClaimCtx,
         amount: Amount,
     ) -> ClaimableError {
-        use InboundOfferReusePaymentStatus::*;
+        use InboundOfferReusablePaymentStatus::*;
 
         // Catch payment state machine errors
         if ctx.preimage != self.preimage {
@@ -730,7 +732,7 @@ impl InboundOfferReusePayment {
         ctx: OfferClaimCtx,
         amount: Amount,
     ) -> anyhow::Result<Self> {
-        use InboundOfferReusePaymentStatus::*;
+        use InboundOfferReusablePaymentStatus::*;
 
         ensure!(ctx.preimage == self.preimage, "Preimages don't match");
         ensure!(ctx.claim_id == self.claim_id, "Claim ids don't match");
@@ -757,7 +759,7 @@ impl InboundOfferReusePayment {
 
     #[inline]
     pub fn id(&self) -> LxPaymentId {
-        LxPaymentId::OfferRecvReuse(self.claim_id)
+        LxPaymentId::OfferRecvReusable(self.claim_id)
     }
 
     /// The total fees we paid to receive this payment
@@ -1012,7 +1014,7 @@ mod arb {
         }
     }
 
-    impl Arbitrary for InboundOfferReusePayment {
+    impl Arbitrary for InboundOfferReusablePayment {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
@@ -1023,7 +1025,7 @@ mod arb {
             let amount = any::<Amount>();
             let quantity = any::<Option<MaxQuantity>>()
                 .prop_map(|opt_q| opt_q.map(|q| q.0));
-            let status = any::<InboundOfferReusePaymentStatus>();
+            let status = any::<InboundOfferReusablePaymentStatus>();
             let note = any_option_simple_string();
             let payer_note = any_option_simple_string();
             // TODO(phlip9): use newtype
@@ -1044,7 +1046,7 @@ mod arb {
                 created_at,
                 finalized_after,
             )| {
-                InboundOfferReusePayment {
+                InboundOfferReusablePayment {
                     preimage,
                     claim_id,
                     offer_id,
@@ -1145,7 +1147,7 @@ mod test {
         );
 
         let expected_ser = r#"["claiming","completed"]"#;
-        json_unit_enum_backwards_compat::<InboundOfferReusePaymentStatus>(
+        json_unit_enum_backwards_compat::<InboundOfferReusablePaymentStatus>(
             expected_ser,
         );
 
@@ -1202,15 +1204,15 @@ mod test {
     }
 
     #[test]
-    fn inbound_offer_reuse_deser_compat() {
+    fn inbound_offer_reusable_deser_compat() {
         let inputs = r#"
 --- node-v0.7.8+ (added reusable inbound offer payments)
 --- Claiming
-{"InboundOfferReuse":{"claim_id":"ee937f93c40da447b849274371cfe3455074b44e086999ee346105a185a65c36","offer_id":"f2106017b82ff71cd2fdeb0d12b25044ad062dd645b29b013e1f5362ff7e8c2d","preimage":"31fd7e8e51ce64bbe3e8afe4623c7ee648e8195e48dcae073ef42b12c2bfb793","amount":"76041142920849.20","quantity":1,"status":"claiming","note":"KmAm1jofsE64T3lg0dGA1pH9Iio7x70sEZmZu2KaOQa25i1CySWEBtQIpzo5WGZIMiq8B2549ux2M15XNY1PIQYMfUq6f84Gq58xTdLfvGsR0oyio2kyfq57aJuiZOjCO","payer_note":"Mu8BiJSC4A1Z0Q3jOYI3SR9k3eRN1HT1z1eED8QY7m0o4h4wARXjaq5Jq9H","payer_name":"phlip9@lexe.app","created_at":5788173274934005161,"finalized_at":null}}
-{"InboundOfferReuse":{"claim_id":"3df77a8027283eb8fca6ef0060adf7d7d26d50f1edb10f8ed8ab092f41abaa0f","offer_id":"9f8e66486e5ced9c3adc2719e4f063987dd9d9b4922379cb6c45a6a18fccc109","preimage":"18855c455c0548c97a914c29e361c204c04d61d359a3d8967af4f4105a5ba85f","amount":"1571893076260348.227","quantity":null,"status":"claiming","note":"CdVQGd0GILKXGI9EBw9BLdLJAstN8oyFPD322E9o39Gvj4613n67zvRyeMaoAHCO3FbhRZKn45N9c3gIc77F59YYDHffsZ2zkwWj7ayJeq5639uCRIwXVvz8L9kF","payer_note":null,"payer_name":null,"created_at":8939796962861345022,"finalized_at":null}}
+{"InboundOfferReusable":{"claim_id":"ee937f93c40da447b849274371cfe3455074b44e086999ee346105a185a65c36","offer_id":"f2106017b82ff71cd2fdeb0d12b25044ad062dd645b29b013e1f5362ff7e8c2d","preimage":"31fd7e8e51ce64bbe3e8afe4623c7ee648e8195e48dcae073ef42b12c2bfb793","amount":"76041142920849.20","quantity":1,"status":"claiming","note":"KmAm1jofsE64T3lg0dGA1pH9Iio7x70sEZmZu2KaOQa25i1CySWEBtQIpzo5WGZIMiq8B2549ux2M15XNY1PIQYMfUq6f84Gq58xTdLfvGsR0oyio2kyfq57aJuiZOjCO","payer_note":"Mu8BiJSC4A1Z0Q3jOYI3SR9k3eRN1HT1z1eED8QY7m0o4h4wARXjaq5Jq9H","payer_name":"phlip9@lexe.app","created_at":5788173274934005161,"finalized_at":null}}
+{"InboundOfferReusable":{"claim_id":"3df77a8027283eb8fca6ef0060adf7d7d26d50f1edb10f8ed8ab092f41abaa0f","offer_id":"9f8e66486e5ced9c3adc2719e4f063987dd9d9b4922379cb6c45a6a18fccc109","preimage":"18855c455c0548c97a914c29e361c204c04d61d359a3d8967af4f4105a5ba85f","amount":"1571893076260348.227","quantity":null,"status":"claiming","note":"CdVQGd0GILKXGI9EBw9BLdLJAstN8oyFPD322E9o39Gvj4613n67zvRyeMaoAHCO3FbhRZKn45N9c3gIc77F59YYDHffsZ2zkwWj7ayJeq5639uCRIwXVvz8L9kF","payer_note":null,"payer_name":null,"created_at":8939796962861345022,"finalized_at":null}}
 --- Completed
-{"InboundOfferReuse":{"claim_id":"64a97a464679b7c855907bae53113ec098900b7440be9f443b4c0b24f956fe6f","offer_id":"4f38b21130a76e4a4b45ba8bf9a78cc880f5d63823b74502b264128b2f5b9743","preimage":"697605eba6a3f651f559fb2f6a9462bac35bbbe9804f75c2e452df8ea12f3ca6","amount":"986264035966401.277","quantity":123,"status":"completed","note":"w5C2","payer_note":"TCCpwAbfiLHPot2hQT9hvTIj71jF61dIr4","payer_name":"hello@world.com","created_at":398528583856145275,"finalized_at":9223372036854775807}}
-{"InboundOfferReuse":{"claim_id":"eb96fda6879dc37b5ac94cd4fb51fcd46207a5419ba8421e28b6e76eef65432b","offer_id":"7b75825b79f00475d020cf434fdc959f0c0e0cdd9f615c721a06f7a4583dbf58","preimage":"001818bfb88429270827996589fdfa0ab71eea380a3cae294ff8071133b57917","amount":"587897171687152.022","quantity":null,"status":"completed","note":"jIsDb3GkqmGSD0XabFkhbNCIo53jaH92A63t8sNR48bh39797pygoJNLd2oINmIyCS6WP3sp5farGwvt44R4YCNgOYRGH3S3RjKYWLBs2nJPv4TsR8H6qg8xinjxD5eFT0amtJw1VDRC3Y83rOgf0b","payer_note":null,"payer_name":null,"created_at":2100409163582470665,"finalized_at":9223372036854775807}}
+{"InboundOfferReusable":{"claim_id":"64a97a464679b7c855907bae53113ec098900b7440be9f443b4c0b24f956fe6f","offer_id":"4f38b21130a76e4a4b45ba8bf9a78cc880f5d63823b74502b264128b2f5b9743","preimage":"697605eba6a3f651f559fb2f6a9462bac35bbbe9804f75c2e452df8ea12f3ca6","amount":"986264035966401.277","quantity":123,"status":"completed","note":"w5C2","payer_note":"TCCpwAbfiLHPot2hQT9hvTIj71jF61dIr4","payer_name":"hello@world.com","created_at":398528583856145275,"finalized_at":9223372036854775807}}
+{"InboundOfferReusable":{"claim_id":"eb96fda6879dc37b5ac94cd4fb51fcd46207a5419ba8421e28b6e76eef65432b","offer_id":"7b75825b79f00475d020cf434fdc959f0c0e0cdd9f615c721a06f7a4583dbf58","preimage":"001818bfb88429270827996589fdfa0ab71eea380a3cae294ff8071133b57917","amount":"587897171687152.022","quantity":null,"status":"completed","note":"jIsDb3GkqmGSD0XabFkhbNCIo53jaH92A63t8sNR48bh39797pygoJNLd2oINmIyCS6WP3sp5farGwvt44R4YCNgOYRGH3S3RjKYWLBs2nJPv4TsR8H6qg8xinjxD5eFT0amtJw1VDRC3Y83rOgf0b","payer_note":null,"payer_name":null,"created_at":2100409163582470665,"finalized_at":9223372036854775807}}
 "#;
         for input in snapshot::parse_sample_data(inputs) {
             let iorp: Payment = serde_json::from_str(input).unwrap();
@@ -1220,10 +1222,10 @@ mod test {
 
     #[ignore]
     #[test]
-    fn inbound_offer_reuse_sample_data() {
+    fn inbound_offer_reusable_sample_data() {
         let mut rng = FastRng::from_u64(202504231920);
         let values =
-            gen_values(&mut rng, any::<InboundOfferReusePayment>(), 100);
+            gen_values(&mut rng, any::<InboundOfferReusablePayment>(), 100);
         for iorp in values {
             let payment = Payment::from(iorp);
             println!("{}", serde_json::to_string(&payment).unwrap());

@@ -28,7 +28,7 @@ use lightning::{events::PaymentPurpose, ln::channelmanager::FailureCode};
 use tokio::{sync::Mutex, time::Instant};
 use tracing::{debug, error, info, info_span, instrument, warn};
 
-use super::{inbound::InboundOfferReusePayment, outbound::ExpireError};
+use super::{inbound::InboundOfferReusablePayment, outbound::ExpireError};
 use crate::{
     esplora::{LexeEsplora, TxConfStatus},
     payments::{
@@ -911,7 +911,8 @@ impl PaymentsData {
                     ))),
                 LnClaimCtx::Bolt12Offer(ctx) => {
                     let now = TimestampMs::now();
-                    let iorp = InboundOfferReusePayment::new(ctx, amount, now);
+                    let iorp =
+                        InboundOfferReusablePayment::new(ctx, amount, now);
                     let payment = Payment::from(iorp);
                     self.check_new_payment(payment)
                         .map_err(ClaimableError::Replay)
@@ -975,7 +976,7 @@ impl PaymentsData {
                 .map(CheckedPayment)
                 .context("Error finalizing inbound invoice payment")?,
             (
-                Payment::InboundOfferReuse(iorp),
+                Payment::InboundOfferReusable(iorp),
                 LnClaimCtx::Bolt12Offer(ctx),
             ) => iorp
                 .check_payment_claimed(ctx, amount)
@@ -1357,9 +1358,9 @@ mod test {
     fn prop_inbound_offer_reuse_payment_idempotency() {
         proptest!(|(
             mut data in any::<PaymentsData>(),
-            iorp in any::<InboundOfferReusePayment>(),
+            iorp in any::<InboundOfferReusablePayment>(),
         )| {
-            let payment = Payment::InboundOfferReuse(iorp.clone());
+            let payment = Payment::InboundOfferReusable(iorp.clone());
             data.force_insert_payment(payment.clone());
 
             let claim_ctx = LnClaimCtx::Bolt12Offer(OfferClaimCtx {

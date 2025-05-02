@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use crate::payments::{
     inbound::{
         InboundInvoicePayment, InboundInvoicePaymentStatus,
-        InboundOfferReusePayment, InboundOfferReusePaymentStatus,
+        InboundOfferReusablePayment, InboundOfferReusablePaymentStatus,
         InboundSpontaneousPayment, InboundSpontaneousPaymentStatus,
     },
     onchain::{
@@ -96,7 +96,7 @@ pub enum Payment {
     InboundInvoice(InboundInvoicePayment),
     // TODO(phlip9): InboundOffer (single-use)
     // Added in `node-v0.7.8`
-    InboundOfferReuse(InboundOfferReusePayment),
+    InboundOfferReusable(InboundOfferReusablePayment),
     InboundSpontaneous(InboundSpontaneousPayment),
     OutboundInvoice(OutboundInvoicePayment),
     // Added in `node-v0.7.8`
@@ -162,9 +162,9 @@ impl From<InboundInvoicePayment> for Payment {
         Self::InboundInvoice(p)
     }
 }
-impl From<InboundOfferReusePayment> for Payment {
-    fn from(p: InboundOfferReusePayment) -> Self {
-        Self::InboundOfferReuse(p)
+impl From<InboundOfferReusablePayment> for Payment {
+    fn from(p: InboundOfferReusablePayment) -> Self {
+        Self::InboundOfferReusable(p)
     }
 }
 impl From<InboundSpontaneousPayment> for Payment {
@@ -226,8 +226,8 @@ impl Payment {
             Self::OnchainSend(os) => LxPaymentId::OnchainSend(os.cid),
             Self::OnchainReceive(or) => LxPaymentId::OnchainRecv(or.txid),
             Self::InboundInvoice(iip) => LxPaymentId::Lightning(iip.hash),
-            Self::InboundOfferReuse(iorp) =>
-                LxPaymentId::OfferRecvReuse(iorp.claim_id),
+            Self::InboundOfferReusable(iorp) =>
+                LxPaymentId::OfferRecvReusable(iorp.claim_id),
             Self::InboundSpontaneous(isp) => LxPaymentId::Lightning(isp.hash),
             Self::OutboundInvoice(oip) => LxPaymentId::Lightning(oip.hash),
             Self::OutboundOffer(oop) => LxPaymentId::OfferSend(oop.cid),
@@ -241,7 +241,7 @@ impl Payment {
             Self::OnchainSend(_) => PaymentKind::Onchain,
             Self::OnchainReceive(_) => PaymentKind::Onchain,
             Self::InboundInvoice(_) => PaymentKind::Invoice,
-            Self::InboundOfferReuse(_) => PaymentKind::Offer,
+            Self::InboundOfferReusable(_) => PaymentKind::Offer,
             Self::InboundSpontaneous(_) => PaymentKind::Spontaneous,
             Self::OutboundInvoice(_) => PaymentKind::Invoice,
             Self::OutboundOffer(_) => PaymentKind::Offer,
@@ -255,7 +255,7 @@ impl Payment {
             Self::OnchainSend(_) => PaymentDirection::Outbound,
             Self::OnchainReceive(_) => PaymentDirection::Inbound,
             Self::InboundInvoice(_) => PaymentDirection::Inbound,
-            Self::InboundOfferReuse(_) => PaymentDirection::Inbound,
+            Self::InboundOfferReusable(_) => PaymentDirection::Inbound,
             Self::InboundSpontaneous(_) => PaymentDirection::Inbound,
             Self::OutboundInvoice(_) => PaymentDirection::Outbound,
             Self::OutboundOffer(_) => PaymentDirection::Outbound,
@@ -271,7 +271,7 @@ impl Payment {
             Self::OnchainReceive(_) => None,
             Self::InboundInvoice(InboundInvoicePayment { invoice, .. }) =>
                 Some(invoice.clone()),
-            Self::InboundOfferReuse(_) => None,
+            Self::InboundOfferReusable(_) => None,
             Self::InboundSpontaneous(_) => None,
             Self::OutboundInvoice(OutboundInvoicePayment {
                 invoice, ..
@@ -288,7 +288,7 @@ impl Payment {
             Self::OnchainSend(_) => None,
             Self::OnchainReceive(_) => None,
             Self::InboundInvoice(_) => None,
-            Self::InboundOfferReuse(InboundOfferReusePayment {
+            Self::InboundOfferReusable(InboundOfferReusablePayment {
                 offer_id,
                 ..
             }) => Some(*offer_id),
@@ -308,7 +308,7 @@ impl Payment {
             Self::OnchainReceive(_) => None,
             Self::InboundInvoice(_) => None,
             // TODO(phlip9): out-of-line offer metadata storage
-            Self::InboundOfferReuse(_) => None,
+            Self::InboundOfferReusable(_) => None,
             Self::InboundSpontaneous(_) => None,
             Self::OutboundInvoice(_) => None,
             Self::OutboundOffer(OutboundOfferPayment { offer, .. }) =>
@@ -323,7 +323,7 @@ impl Payment {
             Self::OnchainSend(OnchainSend { txid, .. }) => Some(*txid),
             Self::OnchainReceive(OnchainReceive { txid, .. }) => Some(*txid),
             Self::InboundInvoice(_) => None,
-            Self::InboundOfferReuse(_) => None,
+            Self::InboundOfferReusable(_) => None,
             Self::InboundSpontaneous(_) => None,
             Self::OutboundInvoice(_) => None,
             Self::OutboundOffer(_) => None,
@@ -338,7 +338,7 @@ impl Payment {
             Self::OnchainReceive(OnchainReceive { replacement, .. }) =>
                 *replacement,
             Self::InboundInvoice(_) => None,
-            Self::InboundOfferReuse(_) => None,
+            Self::InboundOfferReusable(_) => None,
             Self::InboundSpontaneous(_) => None,
             Self::OutboundInvoice(_) => None,
             Self::OutboundOffer(_) => None,
@@ -363,7 +363,7 @@ impl Payment {
                 recvd_amount,
                 ..
             }) => recvd_amount.or(*invoice_amount),
-            Self::InboundOfferReuse(InboundOfferReusePayment {
+            Self::InboundOfferReusable(InboundOfferReusablePayment {
                 amount,
                 ..
             }) => Some(*amount),
@@ -393,7 +393,7 @@ impl Payment {
                 onchain_fees,
                 ..
             }) => onchain_fees.unwrap_or(Amount::from_msat(0)),
-            Self::InboundOfferReuse(iorp) => iorp.fees(),
+            Self::InboundOfferReusable(iorp) => iorp.fees(),
             Self::InboundSpontaneous(InboundSpontaneousPayment {
                 onchain_fees,
                 ..
@@ -416,7 +416,7 @@ impl Payment {
                 PaymentStatus::from(*status),
             Self::InboundInvoice(InboundInvoicePayment { status, .. }) =>
                 PaymentStatus::from(*status),
-            Self::InboundOfferReuse(InboundOfferReusePayment {
+            Self::InboundOfferReusable(InboundOfferReusablePayment {
                 status,
                 ..
             }) => PaymentStatus::from(*status),
@@ -444,7 +444,7 @@ impl Payment {
                 status.as_str(),
             Self::InboundInvoice(InboundInvoicePayment { status, .. }) =>
                 status.as_str(),
-            Self::InboundOfferReuse(InboundOfferReusePayment {
+            Self::InboundOfferReusable(InboundOfferReusablePayment {
                 status,
                 ..
             }) => status.as_str(),
@@ -474,8 +474,9 @@ impl Payment {
             Self::OnchainSend(OnchainSend { note, .. }) => note,
             Self::OnchainReceive(OnchainReceive { note, .. }) => note,
             Self::InboundInvoice(InboundInvoicePayment { note, .. }) => note,
-            Self::InboundOfferReuse(InboundOfferReusePayment {
-                note, ..
+            Self::InboundOfferReusable(InboundOfferReusablePayment {
+                note,
+                ..
             }) => note,
             Self::InboundSpontaneous(InboundSpontaneousPayment {
                 note,
@@ -498,8 +499,9 @@ impl Payment {
             Self::OnchainSend(OnchainSend { note, .. }) => note,
             Self::OnchainReceive(OnchainReceive { note, .. }) => note,
             Self::InboundInvoice(InboundInvoicePayment { note, .. }) => note,
-            Self::InboundOfferReuse(InboundOfferReusePayment {
-                note, ..
+            Self::InboundOfferReusable(InboundOfferReusablePayment {
+                note,
+                ..
             }) => note,
             Self::InboundSpontaneous(InboundSpontaneousPayment {
                 note,
@@ -525,7 +527,7 @@ impl Payment {
             Self::InboundInvoice(InboundInvoicePayment {
                 created_at, ..
             }) => *created_at,
-            Self::InboundOfferReuse(InboundOfferReusePayment {
+            Self::InboundOfferReusable(InboundOfferReusablePayment {
                 created_at,
                 ..
             }) => *created_at,
@@ -558,7 +560,7 @@ impl Payment {
                 finalized_at,
                 ..
             }) => *finalized_at,
-            Self::InboundOfferReuse(InboundOfferReusePayment {
+            Self::InboundOfferReusable(InboundOfferReusablePayment {
                 finalized_at,
                 ..
             }) => *finalized_at,
@@ -637,11 +639,11 @@ impl From<InboundInvoicePaymentStatus> for PaymentStatus {
     }
 }
 
-impl From<InboundOfferReusePaymentStatus> for PaymentStatus {
-    fn from(specific_status: InboundOfferReusePaymentStatus) -> Self {
+impl From<InboundOfferReusablePaymentStatus> for PaymentStatus {
+    fn from(specific_status: InboundOfferReusablePaymentStatus) -> Self {
         match specific_status {
-            InboundOfferReusePaymentStatus::Claiming => Self::Pending,
-            InboundOfferReusePaymentStatus::Completed => Self::Completed,
+            InboundOfferReusablePaymentStatus::Claiming => Self::Pending,
+            InboundOfferReusablePaymentStatus::Completed => Self::Completed,
         }
     }
 }
@@ -734,7 +736,7 @@ impl InboundInvoicePaymentStatus {
     }
 }
 
-impl InboundOfferReusePaymentStatus {
+impl InboundOfferReusablePaymentStatus {
     pub fn as_str(&self) -> &str {
         match self {
             Self::Claiming => "claiming",
@@ -827,9 +829,9 @@ mod test {
                     .boxed(),
             ),
             (
-                "InboundOfferReuse",
-                any::<InboundOfferReusePayment>()
-                    .prop_map(Payment::InboundOfferReuse)
+                "InboundOfferReusable",
+                any::<InboundOfferReusablePayment>()
+                    .prop_map(Payment::InboundOfferReusable)
                     .boxed(),
             ),
             (
@@ -889,7 +891,7 @@ mod test {
         // TODO(max): Add SpliceIn
         // TODO(max): Add SpliceOut
         json_value_custom(any::<InboundInvoicePayment>(), config.clone());
-        json_value_custom(any::<InboundOfferReusePayment>(), config.clone());
+        json_value_custom(any::<InboundOfferReusablePayment>(), config.clone());
         json_value_custom(any::<InboundSpontaneousPayment>(), config.clone());
         json_value_custom(any::<OutboundInvoicePayment>(), config.clone());
         json_value_custom(any::<OutboundOfferPayment>(), config.clone());
@@ -918,7 +920,7 @@ mod test {
                 Payment::OnchainSend(x) => x.id(),
                 Payment::OnchainReceive(x) => x.id(),
                 Payment::InboundInvoice(x) => x.id(),
-                Payment::InboundOfferReuse(x) => x.id(),
+                Payment::InboundOfferReusable(x) => x.id(),
                 Payment::InboundSpontaneous(x) => x.id(),
                 Payment::OutboundInvoice(x) => x.id(),
                 Payment::OutboundOffer(x) => x.id(),

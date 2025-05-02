@@ -29,7 +29,7 @@ macro_rules! const_assert_usize_eq {
 #[macro_export]
 macro_rules! const_assert_mem_size {
     ($type:ty, $size:expr $(,)?) => {
-        const_assert_usize_eq!(::core::mem::size_of::<$type>(), $size);
+        $crate::const_assert_usize_eq!(::core::mem::size_of::<$type>(), $size);
     };
 }
 

@@ -7,7 +7,7 @@ use std::{
 use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin_hashes::{sha256, Hash};
 use byte_array::ByteArray;
-use const_utils::{const_assert_mem_size, const_assert_usize_eq};
+use const_utils::const_assert_mem_size;
 use lightning::{
     offers::offer::OfferId,
     types::payment::{PaymentHash, PaymentPreimage, PaymentSecret},
@@ -255,7 +255,7 @@ pub enum LxPaymentId {
     // the order ("fi" < .. < "os").
     // Added `Offer*` variants in `node-v0.7.8`
     OfferRecvInvoice(LxOfferId),  // "fi"
-    OfferRecvReuse(LnClaimId),    // "fr"
+    OfferRecvReusable(LnClaimId), // "fr"
     OfferSend(ClientPaymentId),   // "fs"
     Lightning(LxPaymentHash),     // "ln"
     OnchainRecv(LxTxid),          // "or"
@@ -433,7 +433,7 @@ impl LxPaymentId {
     pub fn prefix(&self) -> &'static str {
         match self {
             Self::OfferRecvInvoice(_) => "fi",
-            Self::OfferRecvReuse(_) => "fr",
+            Self::OfferRecvReusable(_) => "fr",
             Self::OfferSend(_) => "fs",
             Self::Lightning(_) => "ln",
             Self::OnchainRecv(_) => "or",
@@ -544,7 +544,7 @@ impl TryFrom<LxPaymentId> for ClientPaymentId {
         use LxPaymentId::*;
         match id {
             OnchainSend(cid) | OfferSend(cid) => Ok(cid),
-            OfferRecvReuse(_) | OfferRecvInvoice(_) | OnchainRecv(_)
+            OfferRecvReusable(_) | OfferRecvInvoice(_) | OnchainRecv(_)
             | Lightning(_) => bail!("Not an onchain send"),
         }
     }
@@ -555,7 +555,7 @@ impl TryFrom<LxPaymentId> for LxPaymentHash {
         use LxPaymentId::*;
         match id {
             Lightning(hash) => Ok(hash),
-            OnchainSend(_) | OfferSend(_) | OfferRecvReuse(_)
+            OnchainSend(_) | OfferSend(_) | OfferRecvReusable(_)
             | OfferRecvInvoice(_) | OnchainRecv(_) =>
                 bail!("Not a lightning payment"),
         }
@@ -810,7 +810,7 @@ impl FromStr for LxPaymentId {
                 .map(Self::OfferRecvInvoice)
                 .context("Invalid offer id"),
             "fr" => LnClaimId::from_str(id_str)
-                .map(Self::OfferRecvReuse)
+                .map(Self::OfferRecvReusable)
                 .context("Invalid claim id"),
             "fs" => ClientPaymentId::from_str(id_str)
                 .map(Self::OfferSend)
@@ -836,7 +836,8 @@ impl Display for LxPaymentId {
         match self {
             Self::OfferRecvInvoice(offer_id) =>
                 write!(f, "{prefix}_{offer_id}"),
-            Self::OfferRecvReuse(claim_id) => write!(f, "{prefix}_{claim_id}"),
+            Self::OfferRecvReusable(claim_id) =>
+                write!(f, "{prefix}_{claim_id}"),
             Self::OfferSend(cid) => write!(f, "{prefix}_{cid}"),
             Self::Lightning(hash) => write!(f, "{prefix}_{hash}"),
             Self::OnchainRecv(txid) => write!(f, "{prefix}_{txid}"),
@@ -1058,7 +1059,7 @@ fs_00996e6b999900e8e7273934a7f272eb367fd2ac394f10b3ea1c7164d212c5c5
 
 --- v3 (1) add reusable inbound offer payments with `offer_id` field
 ---    (2) outbound offer payments with `offer_id` and `offer` fields
---- InboundOfferReuse
+--- InboundOfferReusable
 {"index":"0870319857298190164-fr_2e403bdaf6be3a8fc208a7e8ee177c1f4b6405bc606c42885c862d8b35dad5a7","kind":"offer","direction":"inbound","offer_id":"589fe7249b2fbeb910c1f4f7789562a4ed0ca165ee348a6b740b89963baa8c6e","amount":"305165919706291.021","fees":"0","status":"completed","status_str":"completed","note":"foo bar","finalized_at":9223372036854775807}
 {"index":"0320982514608657806-fr_f32df95de6804946f702cff99c872e123b7b654df3652b7602e034e07739021d","kind":"offer","direction":"inbound","offer_id":"d4762578418194038c9ae80dca5ff3071084fb9199fa08d47f4c261d1d4b47c9","amount":"1295988938230871.815","fees":"0","status":"pending","status_str":"claiming"}
 {"index":"5715056060555261255-fr_bdbd9228541fd56faf846bef968521136f0092a7f425e8d6d13088953ceb9c3a","kind":"offer","direction":"inbound","offer_id":"fa6e60485f5d4245d95cc705d7b11cc086134528b8d8c46ff9bf0fd37ea0d501","amount":"88113465240976.639","fees":"0","status":"pending","status_str":"claiming","note":"foo bar"}
