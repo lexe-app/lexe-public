@@ -13,6 +13,7 @@ use common::{
             PreflightCloseChannelRequest, PreflightCloseChannelResponse,
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOfferRequest, PreflightPayOfferResponse,
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
         },
         user::{NodePk, Scid},
@@ -1031,21 +1032,23 @@ pub async fn pay_offer<CM, PS>(
     payments_manager: &PaymentsManager<CM, PS>,
     chain_monitor: &LexeChainMonitorType<PS>,
     network_graph: &NetworkGraphType,
-    lsp_info: &LspInfo,
+    lsp_fees: LspFees,
+    lsp_node_pk: &NodePk,
 ) -> anyhow::Result<PayOfferResponse>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
     // Pre-flight the offer payment (verify and partially route).
-    let PreflightedPayOffer { payment } = preflight_pay_offer_inner(
+    let PreflightedPayOffer { payment, route: _ } = preflight_pay_offer_inner(
         req,
         router,
         channel_manager,
         payments_manager,
         chain_monitor,
         network_graph,
-        lsp_info,
+        lsp_fees,
+        lsp_node_pk,
     )
     .await?;
 
@@ -1110,6 +1113,46 @@ where
 
     info!("Success: outbound offer payment initiated");
     return Ok(PayOfferResponse { created_at });
+}
+
+#[instrument(skip_all, name = "(preflight-pay-offer)")]
+pub async fn preflight_pay_offer<CM, PS>(
+    req: PreflightPayOfferRequest,
+    router: &RouterType,
+    channel_manager: &CM,
+    payments_manager: &PaymentsManager<CM, PS>,
+    chain_monitor: &LexeChainMonitorType<PS>,
+    network_graph: &NetworkGraphType,
+    lsp_fees: LspFees,
+    lsp_node_pk: &NodePk,
+) -> anyhow::Result<PreflightPayOfferResponse>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
+    let req = PayOfferRequest {
+        cid: req.cid,
+        offer: req.offer,
+        fallback_amount: req.fallback_amount,
+        // User note not relevant for pre-flight.
+        note: None,
+    };
+    let PreflightedPayOffer { payment, route } = preflight_pay_offer_inner(
+        req,
+        router,
+        channel_manager,
+        payments_manager,
+        chain_monitor,
+        network_graph,
+        lsp_fees,
+        lsp_node_pk,
+    )
+    .await?;
+    Ok(PreflightPayOfferResponse {
+        amount: payment.amount,
+        fees: payment.fees,
+        route,
+    })
 }
 
 #[instrument(skip_all, name = "(pay-onchain)")]
@@ -1264,6 +1307,7 @@ where
 /// haven't paid yet.
 struct PreflightedPayOffer {
     payment: OutboundOfferPayment,
+    route: LxRoute,
 }
 
 async fn preflight_pay_offer_inner<CM, PS>(
@@ -1273,7 +1317,8 @@ async fn preflight_pay_offer_inner<CM, PS>(
     payments_manager: &PaymentsManager<CM, PS>,
     chain_monitor: &LexeChainMonitorType<PS>,
     network_graph: &NetworkGraphType,
-    lsp_info: &LspInfo,
+    lsp_fees: LspFees,
+    lsp_node_pk: &NodePk,
 ) -> anyhow::Result<PreflightedPayOffer>
 where
     CM: LexeChannelManager<PS>,
@@ -1306,11 +1351,7 @@ where
     let channels = channel_manager.list_channels();
     let num_channels = channels.len();
     let (lightning_balance, num_usable_channels) =
-        balance::all_channel_balances(
-            chain_monitor,
-            &channels,
-            lsp_info.lsp_fees(),
-        );
+        balance::all_channel_balances(chain_monitor, &channels, lsp_fees);
     let max_sendable = lightning_balance.max_sendable;
 
     // Check that the user has at least one usable channel.
@@ -1322,10 +1363,8 @@ where
     // simulate routing to the first public node in the offer. We also don't
     // have the blinded path info yet, so this is clearly imperfect as we don't
     // know the full routing fees, min/max htlc, etc...
-    let route_target = offer.preflight_routable_node(
-        &network_graph.read_only(),
-        &lsp_info.node_pk,
-    )?;
+    let route_target = offer
+        .preflight_routable_node(&network_graph.read_only(), lsp_node_pk)?;
     let payment_params = route::build_payment_params(
         Either::Left(route_target),
         Some(num_usable_channels),
@@ -1356,7 +1395,7 @@ where
     let payment = OutboundOfferPayment::new(
         req.cid, offer, amount, quantity, fees, req.note,
     );
-    Ok(PreflightedPayOffer { payment })
+    Ok(PreflightedPayOffer { payment, route })
 }
 
 /// Get the final amount we should pay for an invoice/offer, accounting for

@@ -315,7 +315,8 @@ pub(super) async fn pay_offer(
         &state.payments_manager,
         &state.chain_monitor,
         &state.network_graph,
-        &state.lsp_info,
+        state.lsp_info.lsp_fees(),
+        &state.lsp_info.node_pk,
     )
     .await
     .map(LxJson)
@@ -323,11 +324,22 @@ pub(super) async fn pay_offer(
 }
 
 pub(super) async fn preflight_pay_offer(
-    State(_state): State<Arc<AppRouterState>>,
-    LxJson(_req): LxJson<PreflightPayOfferRequest>,
+    State(state): State<Arc<AppRouterState>>,
+    LxJson(req): LxJson<PreflightPayOfferRequest>,
 ) -> Result<LxJson<PreflightPayOfferResponse>, NodeApiError> {
-    // TODO(phlip9): impl
-    Err(NodeApiError::command("preflight_pay_offer not implemented"))
+    lexe_ln::command::preflight_pay_offer(
+        req,
+        &state.router,
+        &state.channel_manager,
+        &state.payments_manager,
+        &state.chain_monitor,
+        &state.network_graph,
+        state.lsp_info.lsp_fees(),
+        &state.lsp_info.node_pk,
+    )
+    .await
+    .map(LxJson)
+    .map_err(NodeApiError::command)
 }
 
 pub(super) async fn pay_onchain(

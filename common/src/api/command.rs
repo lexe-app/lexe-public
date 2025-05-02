@@ -255,6 +255,8 @@ pub struct CreateOfferResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct PreflightPayOfferRequest {
+    /// The user-provided idempotency id for this payment.
+    pub cid: ClientPaymentId,
     /// The offer we want to pay.
     pub offer: LxOffer,
     /// Specifies the amount we will pay if the offer to be paid is
@@ -271,8 +273,15 @@ pub struct PreflightPayOfferResponse {
     /// we had to reach `htlc_minimum_msat` for some intermediate hops.
     pub amount: Amount,
     /// The total amount of fees to-be-paid for the pre-flighted [`LxOffer`].
+    ///
+    /// Since we only approximate the route atm, we likely underestimate the
+    /// actual fee.
     pub fees: Amount,
     /// The route this offer will be paid over.
+    ///
+    /// Because we don't yet fetch the actual BOLT 12 invoice during preflight,
+    /// this route is only an approximation of the final route (we can only
+    /// route to the last public node before the offer's blinded path begins).
     // Added in node,lsp-v0.7.8
     // TODO(max): We don't actually pay over this route.
     pub route: LxRoute,
