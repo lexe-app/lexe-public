@@ -214,7 +214,7 @@ pub struct PreflightPayInvoiceResponse {
 
 // --- BOLT12 Offer payments --- //
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct CreateOfferRequest {
     pub expiry_secs: Option<u32>,
     /// The `amount` we're requesting for payments using this offer.
