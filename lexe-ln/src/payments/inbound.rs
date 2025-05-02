@@ -54,11 +54,11 @@ impl ClaimableError {
     }
 }
 
-// --- LnPaymentClaimCtx --- //
+// --- LnClaimCtx --- //
 
 /// Common data used to handle a [`PaymentClaimable`]/[`PaymentClaimed`] event.
 #[derive(Clone)]
-pub enum LnPaymentClaimCtx {
+pub enum LnClaimCtx {
     Bolt11Invoice {
         preimage: LxPaymentPreimage,
         hash: LxPaymentHash,
@@ -98,7 +98,7 @@ pub struct OfferClaimCtx {
     pub payer_name: Option<String>,
 }
 
-impl LnPaymentClaimCtx {
+impl LnClaimCtx {
     pub fn new(
         purpose: PaymentPurpose,
         hash: LxPaymentHash,
@@ -185,7 +185,7 @@ impl LnPaymentClaimCtx {
         }
     }
 
-    /// Get the [`PaymentKind`] which corresponds to this [`LnPaymentClaimCtx`].
+    /// Get the [`PaymentKind`] which corresponds to this [`LnClaimCtx`].
     pub fn kind(&self) -> PaymentKind {
         // TODO(max): Implement for BOLT 12
         match self {
@@ -198,7 +198,7 @@ impl LnPaymentClaimCtx {
 
 // --- Helpers to delegate to the inner type --- //
 
-/// Helper to handle the [`Payment`] and [`LnPaymentClaimCtx`] matching.
+/// Helper to handle the [`Payment`] and [`LnClaimCtx`] matching.
 // Normally we don't want this much indirection, but the calling code is already
 // doing lots of ugly matching (at a higher abstraction level), so in this case
 // the separation makes both functions cleaner and easier to read.
@@ -210,7 +210,7 @@ impl Payment {
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     pub(crate) fn check_payment_claimable(
         &self,
-        claim_ctx: LnPaymentClaimCtx,
+        claim_ctx: LnClaimCtx,
         amount: Amount,
     ) -> Result<CheckedPayment, ClaimableError> {
         // TODO(max): Update this
@@ -226,7 +226,7 @@ impl Payment {
         match (self, claim_ctx) {
             (
                 Self::InboundInvoice(iip),
-                LnPaymentClaimCtx::Bolt11Invoice {
+                LnClaimCtx::Bolt11Invoice {
                     preimage,
                     hash,
                     secret,
@@ -238,14 +238,12 @@ impl Payment {
                 )
                 .map(Payment::from)
                 .map(CheckedPayment),
-            (
-                Self::InboundOfferReuse(iorp),
-                LnPaymentClaimCtx::Bolt12Offer(ctx),
-            ) => Err(iorp.check_payment_claimable(ctx, amount)),
+            (Self::InboundOfferReuse(iorp), LnClaimCtx::Bolt12Offer(ctx)) =>
+                Err(iorp.check_payment_claimable(ctx, amount)),
             // TODO(max): Implement for BOLT 12 refunds
             // (
             //     Self::Bolt12Refund(b12r),
-            //     LnPaymentClaimCtx::Bolt12Refund {
+            //     LnClaimCtx::Bolt12Refund {
             //         preimage,
             //         secret,
             //         context,
@@ -258,7 +256,7 @@ impl Payment {
             // }
             (
                 Self::InboundSpontaneous(isp),
-                LnPaymentClaimCtx::Spontaneous {
+                LnClaimCtx::Spontaneous {
                     preimage,
                     hash,
                     claim_id: _claim_id,

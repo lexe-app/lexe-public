@@ -32,9 +32,7 @@ use super::{inbound::InboundOfferReusePayment, outbound::ExpireError};
 use crate::{
     esplora::{LexeEsplora, TxConfStatus},
     payments::{
-        inbound::{
-            ClaimableError, InboundSpontaneousPayment, LnPaymentClaimCtx,
-        },
+        inbound::{ClaimableError, InboundSpontaneousPayment, LnClaimCtx},
         onchain::OnchainReceive,
         outbound::LxOutboundPaymentFailure,
         Payment,
@@ -371,8 +369,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         info!(%amount, %hash, "Handling PaymentClaimable");
 
         // The conversion can only fail if the preimage is unknown.
-        let claim_ctx = LnPaymentClaimCtx::new(purpose, hash, claim_id)
-            .inspect_err(|_| {
+        let claim_ctx =
+            LnClaimCtx::new(purpose, hash, claim_id).inspect_err(|_| {
                 self.channel_manager.fail_htlc_backwards_with_reason(
                     &hash.into(),
                     FailureCode::IncorrectOrUnknownPaymentDetails,
@@ -475,7 +473,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     ) -> anyhow::Result<()> {
         let amount = Amount::from_msat(amt_msat);
         info!(%amount, %hash, "Handling PaymentClaimed");
-        let claim_ctx = LnPaymentClaimCtx::new(purpose, hash, claim_id)?;
+        let claim_ctx = LnClaimCtx::new(purpose, hash, claim_id)?;
 
         // Check
         let mut locked_data = self.data.lock().await;
@@ -875,7 +873,7 @@ impl PaymentsData {
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     fn check_payment_claimable(
         &self,
-        claim_ctx: LnPaymentClaimCtx,
+        claim_ctx: LnClaimCtx,
         amount: Amount,
     ) -> Result<CheckedPayment, ClaimableError> {
         let id = claim_ctx.id();
@@ -907,18 +905,18 @@ impl PaymentsData {
             Some(pending_payment) =>
                 pending_payment.check_payment_claimable(claim_ctx, amount),
             None => match claim_ctx {
-                LnPaymentClaimCtx::Bolt11Invoice { .. } =>
+                LnClaimCtx::Bolt11Invoice { .. } =>
                     Err(ClaimableError::Replay(anyhow!(
                         "Tried to claim non-existent inbound invoice payment"
                     ))),
-                LnPaymentClaimCtx::Bolt12Offer(ctx) => {
+                LnClaimCtx::Bolt12Offer(ctx) => {
                     let now = TimestampMs::now();
                     let iorp = InboundOfferReusePayment::new(ctx, amount, now);
                     let payment = Payment::from(iorp);
                     self.check_new_payment(payment)
                         .map_err(ClaimableError::Replay)
                 }
-                LnPaymentClaimCtx::Spontaneous {
+                LnClaimCtx::Spontaneous {
                     hash,
                     preimage,
                     claim_id: _,
@@ -944,7 +942,7 @@ impl PaymentsData {
     // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
     fn check_payment_claimed(
         &self,
-        claim_ctx: LnPaymentClaimCtx,
+        claim_ctx: LnClaimCtx,
         amount: Amount,
     ) -> anyhow::Result<Option<CheckedPayment>> {
         let id = claim_ctx.id();
@@ -965,7 +963,7 @@ impl PaymentsData {
         let checked = match (pending_payment, claim_ctx) {
             (
                 Payment::InboundInvoice(iip),
-                LnPaymentClaimCtx::Bolt11Invoice {
+                LnClaimCtx::Bolt11Invoice {
                     preimage,
                     hash,
                     secret,
@@ -978,7 +976,7 @@ impl PaymentsData {
                 .context("Error finalizing inbound invoice payment")?,
             (
                 Payment::InboundOfferReuse(iorp),
-                LnPaymentClaimCtx::Bolt12Offer(ctx),
+                LnClaimCtx::Bolt12Offer(ctx),
             ) => iorp
                 .check_payment_claimed(ctx, amount)
                 .map(Payment::from)
@@ -986,7 +984,7 @@ impl PaymentsData {
                 .context("Error finalizing reusable inbound offer payment")?,
             (
                 Payment::InboundSpontaneous(isp),
-                LnPaymentClaimCtx::Spontaneous {
+                LnClaimCtx::Spontaneous {
                     preimage,
                     hash,
                     claim_id: _,
@@ -997,7 +995,9 @@ impl PaymentsData {
                 .map(CheckedPayment)
                 .context("Error finalizing inbound spontaneous payment")?,
             // TODO(phlip9): impl BOLT 12 refunds
-            _ => bail!("Not an inbound LN payment, or purpose didn't match"),
+            _ => bail!(
+                "Not an inbound LN payment, or claim context didn't match"
+            ),
         };
 
         Ok(Some(checked))
@@ -1291,7 +1291,7 @@ mod test {
             data.force_insert_payment(payment.clone());
 
             let amount = isp.amount;
-            let claim_ctx = LnPaymentClaimCtx::Spontaneous {
+            let claim_ctx = LnClaimCtx::Spontaneous {
                 preimage: isp.preimage,
                 hash: isp.hash,
                 claim_id,
@@ -1330,7 +1330,7 @@ mod test {
             // 3. pre- node-v0.7.0 with no claim_id
             let claim_id = claim_id.unwrap_or(iip.claim_id);
 
-            let claim_ctx = LnPaymentClaimCtx::Bolt11Invoice {
+            let claim_ctx = LnClaimCtx::Bolt11Invoice {
                 preimage: iip.preimage,
                 hash: iip.hash,
                 secret: iip.secret,
@@ -1362,7 +1362,7 @@ mod test {
             let payment = Payment::InboundOfferReuse(iorp.clone());
             data.force_insert_payment(payment.clone());
 
-            let claim_ctx = LnPaymentClaimCtx::Bolt12Offer(OfferClaimCtx {
+            let claim_ctx = LnClaimCtx::Bolt12Offer(OfferClaimCtx {
                 preimage: iorp.preimage,
                 claim_id: iorp.claim_id,
                 offer_id: iorp.offer_id,
