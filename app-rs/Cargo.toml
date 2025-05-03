@@ -32,6 +32,7 @@ payment-uri.path = "../payment-uri"
 anyhow.workspace = true
 arc-swap.workspace = true
 async-trait.workspace = true
+base64.workspace = true
 bitcoin.workspace = true
 cfg-if.workspace = true
 http.workspace = true

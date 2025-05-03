@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.7.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -64452470;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -647698019;
 
 // Section: executor
 
@@ -637,6 +637,25 @@ fn wire__crate__ffi__qr__encoded_pixels_per_side_impl(
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || {
                      let output_ok = crate::ffi::qr::encoded_pixels_per_side(api_data_len_bytes)?;   Ok(output_ok)
                 })()) })
+}
+fn wire__crate__ffi__gdrive__g_drive_client_dump_state_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "g_drive_client_dump_state", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::gdrive::GDriveClient>::sse_decode(&mut deserializer);
+let api_deploy_env = <crate::ffi::types::DeployEnv>::sse_decode(&mut deserializer);
+let api_network = <crate::ffi::types::Network>::sse_decode(&mut deserializer);
+let api_use_sgx = <bool>::sse_decode(&mut deserializer);
+let api_root_seed = <crate::ffi::types::RootSeed>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
+                         let output_ok = crate::ffi::gdrive::GDriveClient::dump_state(&api_that, api_deploy_env, api_network, api_use_sgx, api_root_seed).await?;   Ok(output_ok)
+                    })().await)
+                } })
 }
 fn wire__crate__ffi__gdrive__g_drive_client_into_restore_client_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -2157,12 +2176,13 @@ fn pde_ffi_dispatcher_primary_impl(
 32 => wire__crate__ffi__app__app_handle_sync_payments_impl(port, ptr, rust_vec_len, data_len),
 33 => wire__crate__ffi__app__app_handle_update_payment_note_impl(port, ptr, rust_vec_len, data_len),
 39 => wire__crate__ffi__qr__encode_impl(port, ptr, rust_vec_len, data_len),
-43 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_exchange_impl(port, ptr, rust_vec_len, data_len),
-47 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
-48 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
-50 => wire__crate__ffi__payment_uri__resolve_best_impl(port, ptr, rust_vec_len, data_len),
-54 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
-55 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
+41 => wire__crate__ffi__gdrive__g_drive_client_dump_state_impl(port, ptr, rust_vec_len, data_len),
+44 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_exchange_impl(port, ptr, rust_vec_len, data_len),
+48 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
+49 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
+51 => wire__crate__ffi__payment_uri__resolve_best_impl(port, ptr, rust_vec_len, data_len),
+55 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
+56 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -2193,17 +2213,17 @@ fn pde_ffi_dispatcher_sync_impl(
 37 => wire__crate__ffi__debug__delete_secret_store_impl(ptr, rust_vec_len, data_len),
 38 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
 40 => wire__crate__ffi__qr__encoded_pixels_per_side_impl(ptr, rust_vec_len, data_len),
-41 => wire__crate__ffi__gdrive__g_drive_client_into_restore_client_impl(ptr, rust_vec_len, data_len),
-42 => wire__crate__ffi__gdrive__g_drive_client_server_code_impl(ptr, rust_vec_len, data_len),
-44 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_init_impl(ptr, rust_vec_len, data_len),
-45 => wire__crate__ffi__gdrive__g_drive_restore_candidate_try_decrypt_impl(ptr, rust_vec_len, data_len),
-46 => wire__crate__ffi__gdrive__g_drive_restore_candidate_user_pk_impl(ptr, rust_vec_len, data_len),
-49 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
-51 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
-52 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
-53 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-56 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
-57 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
+42 => wire__crate__ffi__gdrive__g_drive_client_into_restore_client_impl(ptr, rust_vec_len, data_len),
+43 => wire__crate__ffi__gdrive__g_drive_client_server_code_impl(ptr, rust_vec_len, data_len),
+45 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_init_impl(ptr, rust_vec_len, data_len),
+46 => wire__crate__ffi__gdrive__g_drive_restore_candidate_try_decrypt_impl(ptr, rust_vec_len, data_len),
+47 => wire__crate__ffi__gdrive__g_drive_restore_candidate_user_pk_impl(ptr, rust_vec_len, data_len),
+50 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
+52 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
+53 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
+54 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
+57 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
+58 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }

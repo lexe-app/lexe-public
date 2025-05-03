@@ -1,12 +1,24 @@
 use anyhow::Context;
-use common::rng::SysRng;
+use base64::Engine;
 pub(crate) use common::root_seed::RootSeed as RootSeedRs;
+use common::{
+    api::{
+        user::{NodePk, UserPk},
+        vfs::{VfsDirectory, VfsFile, VfsFileId},
+    },
+    constants::{
+        CHANNEL_MANAGER_FILENAME, CHANNEL_MONITORS_DIR, SINGLETON_DIRECTORY,
+    },
+    rng::SysRng,
+};
 use flutter_rust_bridge::{frb, RustOpaqueNom};
 pub(crate) use gdrive::restore::{
     GDriveRestoreCandidate as GDriveRestoreCandidateRs,
     GDriveRestoreClient as GDriveRestoreClientRs,
 };
-use tracing::instrument;
+use gdrive::{gvfs::GvfsRootName, GoogleVfs};
+use serde::Serialize;
+use tracing::{error, instrument};
 
 use crate::ffi::types::{DeployEnv, Network, RootSeed};
 
@@ -137,6 +149,102 @@ impl GDriveClient {
     #[frb(sync)]
     pub fn server_code(&self) -> Option<String> {
         self.inner.credentials.server_code.clone()
+    }
+
+    /// Read the core persisted Node state from the user's Google Drive VFS
+    /// and dump it as a JSON blob.
+    ///
+    /// Used for debugging.
+    pub async fn dump_state(
+        &self,
+        deploy_env: DeployEnv,
+        network: Network,
+        use_sgx: bool,
+        root_seed: RootSeed,
+    ) -> anyhow::Result<String> {
+        #[derive(Serialize)]
+        struct NodeStateDump {
+            user_pk: UserPk,
+            node_pk: NodePk,
+            channel_manager: Option<Blob>,
+            channel_monitors: Option<Vec<Blob>>,
+        }
+
+        #[derive(Serialize)]
+        struct Blob {
+            ciphertext: String,
+            data: Option<String>,
+        }
+
+        let vfs_master_key = root_seed.inner.derive_vfs_master_key();
+        let user_pk = root_seed.inner.derive_user_pk();
+        let credentials = self.inner.credentials.clone();
+
+        // A closure to decrypt and base64-encode blobs
+        let base64 = base64::engine::general_purpose::STANDARD;
+        let decrypt_blob_fn = |file: VfsFile| -> Blob {
+            let ciphertext = base64.encode(&file.data);
+
+            let aad =
+                &[file.id.dir.dirname.as_bytes(), file.id.filename.as_bytes()];
+            let data = vfs_master_key
+                .decrypt(aad, file.data)
+                .context("Failed to decrypt VFS file")
+                .inspect_err(|err| error!("{:?} {err:#?}", file.id))
+                .ok()
+                .map(|data| base64.encode(data));
+
+            Blob { ciphertext, data }
+        };
+
+        // Try to init the GDrive VFS
+        let gvfs_root_name = GvfsRootName {
+            deploy_env: deploy_env.into(),
+            network: network.into(),
+            use_sgx,
+            user_pk,
+        };
+        let gvfs_cache = None;
+        let (gvfs, _maybe_gvfs_root, _credentials_rx) =
+            GoogleVfs::init(credentials, gvfs_root_name, gvfs_cache)
+                .await
+                .context("Failed to init GoogleVfs")?;
+
+        // Try to read the channel manager
+        let chanmgr_file_id = VfsFileId::new(
+            SINGLETON_DIRECTORY.to_owned(),
+            CHANNEL_MANAGER_FILENAME.to_owned(),
+        );
+        let maybe_chanmgr_file = gvfs
+            .get_file(&chanmgr_file_id)
+            .await
+            .context("Failed to get channel_manager file")
+            .inspect_err(|err| error!("{err:#?}"))
+            .ok()
+            .flatten();
+        let channel_manager = maybe_chanmgr_file.map(decrypt_blob_fn);
+
+        // Try to read the channel monitors
+        let chanmons_dir = VfsDirectory::new(CHANNEL_MONITORS_DIR);
+        let maybe_chanmon_files = gvfs
+            .get_directory(&chanmons_dir)
+            .await
+            .context("Failed to get channel_monitors dir")
+            .inspect_err(|err| error!("{err:#?}"))
+            .ok();
+        let channel_monitors = maybe_chanmon_files.map(|files| {
+            files.into_iter().map(decrypt_blob_fn).collect::<Vec<_>>()
+        });
+
+        // Serialize the state dump to JSON
+        let node_state_dump = NodeStateDump {
+            user_pk,
+            node_pk: root_seed.inner.derive_node_pk(&mut SysRng::new()),
+            channel_manager,
+            channel_monitors,
+        };
+        serde_json::to_string_pretty(&node_state_dump)
+            .context("Failed to serialize node state dump")
     }
 }
 

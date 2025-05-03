@@ -173,6 +173,7 @@ dependencies = [
  "anyhow",
  "arc-swap",
  "async-trait",
+ "base64 0.22.1",
  "bitcoin",
  "cfg-if 1.0.0",
  "common",

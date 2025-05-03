@@ -31,6 +31,22 @@ class GDriveClient {
     required this.inner,
   });
 
+  /// Read the core persisted Node state from the user's Google Drive VFS
+  /// and dump it as a JSON blob.
+  ///
+  /// Used for debugging.
+  Future<String> dumpState(
+          {required DeployEnv deployEnv,
+          required Network network,
+          required bool useSgx,
+          required RootSeed rootSeed}) =>
+      AppRs.instance.api.crateFfiGdriveGDriveClientDumpState(
+          that: this,
+          deployEnv: deployEnv,
+          network: network,
+          useSgx: useSgx,
+          rootSeed: rootSeed);
+
   GDriveRestoreClient intoRestoreClient() =>
       AppRs.instance.api.crateFfiGdriveGDriveClientIntoRestoreClient(
         that: this,
