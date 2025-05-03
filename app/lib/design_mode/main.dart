@@ -2,6 +2,7 @@
 // and components in isolation, without actually touching any real backends.
 
 import 'dart:async' show unawaited;
+import 'dart:convert' show utf8;
 
 import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
 import 'package:app_rs_dart/ffi/api.dart'
@@ -80,6 +81,7 @@ import 'package:lexeapp/route/show_qr.dart' show ShowQrPage;
 import 'package:lexeapp/route/signup.dart'
     show SignupBackupPasswordPage, SignupCtx, SignupPage;
 import 'package:lexeapp/route/wallet.dart' show WalletPage;
+import 'package:lexeapp/save_file.dart' as save_file;
 import 'package:lexeapp/service/node_info.dart';
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/stream_ext.dart';
@@ -767,6 +769,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "ErrorMessageSection",
               (context) => const ErrorMessageSectionPage(),
             ),
+            Component(
+              "SaveFile",
+              (context) => const SaveFilePage(),
+            ),
             const SizedBox(height: Space.s800),
           ],
         ),
@@ -1369,6 +1375,48 @@ class _ErrorMessageSectionPageState extends State<ErrorMessageSectionPage> {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Test the [save_file.openDialog] function
+class SaveFilePage extends StatelessWidget {
+  const SaveFilePage({super.key});
+
+  Future<void> saveFile(BuildContext context) async {
+    info("Saving file...");
+
+    const dataStr = '{"foo": "bar"}';
+    final res = await save_file.openDialog(
+        filename: "foo.json", data: utf8.encode(dataStr));
+
+    info("File save result: $res");
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: LxTheme.light(),
+      child: Scaffold(
+        appBar: AppBar(
+          leadingWidth: Space.appBarLeadingWidth,
+          leading: const LxBackButton(isLeading: true),
+        ),
+        body: Builder(
+          builder: (context) => ScrollableSinglePageBody(
+            body: [
+              const SizedBox(height: Space.s800),
+
+              // Save file button
+              LxOutlinedButton(
+                onTap: () => this.saveFile(context),
+                label: const Text("Save file"),
+              ),
+              const SizedBox(height: Space.s400),
+            ],
+          ),
         ),
       ),
     );

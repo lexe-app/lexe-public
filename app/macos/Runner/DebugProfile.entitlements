@@ -8,6 +8,10 @@
     <true/>
     <key>com.apple.security.device.camera</key>
     <true/>
+    <!-- Required for `flutter_file_saver` to open platform file save dialog.
+         Used to save node state dump from gDrive. -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
     <key>com.apple.security.network.client</key>
     <true/>
     <key>com.apple.security.network.server</key>

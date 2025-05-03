@@ -137,10 +137,10 @@ packages:
     dependency: "direct dev"
     description:
       name: build_runner
-      sha256: dd09dd4e2b078992f42aac7f1a622f01882a8492fef08486b27ddde929c19f04
+      sha256: "028819cfb90051c6b5440c7e574d1896f8037e3c96cf17aaeb054c9311cfbf4d"
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.12"
+    version: "2.4.13"
   build_runner_core:
     dependency: transitive
     description:
@@ -391,6 +391,54 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_file_manager_android:
+    dependency: transitive
+    description:
+      name: flutter_file_manager_android
+      sha256: d3dd615fb786e45bc1bb7857ac3ac98d8c6ecd73f5ea6910e2e1c71b4ab9f2e4
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.0"
+  flutter_file_manager_ios:
+    dependency: transitive
+    description:
+      name: flutter_file_manager_ios
+      sha256: "27113ea24199c6109b55687e052a952b2612af347503187d90b5a1b9ccbf266a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.0"
+  flutter_file_manager_macos:
+    dependency: transitive
+    description:
+      name: flutter_file_manager_macos
+      sha256: "1d1b13b9c060bfa00cdeff877386c5e3c6b5a19b3f3314fdd83d454015e93496"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.0"
+  flutter_file_manager_platform_interface:
+    dependency: transitive
+    description:
+      name: flutter_file_manager_platform_interface
+      sha256: abaf89c0f77022ba2815ee4791f8d9aedb5ac0d1a97a4fc574d4aad703ce1360
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.0"
+  flutter_file_manager_web:
+    dependency: transitive
+    description:
+      name: flutter_file_manager_web
+      sha256: b1be154e2d48da92bf19fea74e7f18f1a531a33885d751f91ca40092477176a9
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.2.0"
+  flutter_file_saver:
+    dependency: "direct main"
+    description:
+      name: flutter_file_saver
+      sha256: ef7dc306dcce6c3258fee51baed523693ce11b3fa8ee51a435c512195623f63d
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.9.0"
   flutter_lints:
     dependency: "direct dev"
     description:
@@ -563,10 +611,10 @@ packages:
     dependency: transitive
     description:
       name: image_picker_for_web
-      sha256: "65d94623e15372c5c51bebbcb820848d7bcb323836e12dfdba60b5d3a8b39e50"
+      sha256: "717eb042ab08c40767684327be06a5d8dbb341fe791d514e4b92c7bbe1b7bb83"
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.5"
+    version: "3.0.6"
   image_picker_ios:
     dependency: transitive
     description:
@@ -736,10 +784,10 @@ packages:
     dependency: transitive
     description:
       name: mime
-      sha256: "2e123074287cc9fd6c09de8336dae606d1ddb88d9ac47358826db698c176a1f2"
+      sha256: "41a20518f0cb1256669420fdba0cd90d21561e560ac240f26ef8322e45bb7ed6"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.5"
+    version: "2.0.0"
   package_config:
     dependency: transitive
     description:
@@ -1125,10 +1173,10 @@ packages:
     dependency: transitive
     description:
       name: web
-      sha256: cd3543bd5798f6ad290ea73d210f423502e71900302dde696f8bff84bf89a1cb
+      sha256: "868d88a33d8a87b18ffc05f9f030ba328ffefba92d6c127917a2ba740f9cfe4a"
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.0"
+    version: "1.1.1"
   web_socket:
     dependency: transitive
     description:

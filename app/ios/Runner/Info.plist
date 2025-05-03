@@ -64,6 +64,15 @@
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
 
+    <!-- Required for `flutter_file_saver` to open platform file save dialog.
+         Used to save node state dump from gDrive. -->
+    <key>UISupportsDocumentBrowser</key>
+    <true/>
+    <key>UIFileSharingEnabled</key>
+    <true/>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
+
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSCameraUsageDescription</key>
