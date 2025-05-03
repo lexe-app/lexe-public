@@ -18,11 +18,13 @@ import 'ffi/gdrive.dart';
 import 'ffi/logger.dart';
 import 'ffi/payment_uri.dart';
 import 'ffi/qr.dart';
+import 'ffi/secret_store.dart';
 import 'ffi/settings.dart';
 import 'ffi/types.dart';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
+import 'lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API
@@ -80,7 +82,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.7.1';
 
   @override
-  int get rustContentHash => -647698019;
+  int get rustContentHash => 1347045166;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -240,6 +242,11 @@ abstract class AppRsApi extends BaseApi {
   Future<PaymentMethod> crateFfiPaymentUriResolveBest(
       {required Network network, required String uriStr});
 
+  SecretStore crateFfiSecretStoreSecretStoreNew({required Config config});
+
+  RootSeed? crateFfiSecretStoreSecretStoreReadRootSeed(
+      {required SecretStore that});
+
   Settings crateFfiSettingsSettingsDbRead({required SettingsDb that});
 
   void crateFfiSettingsSettingsDbReset({required SettingsDb that});
@@ -295,6 +302,15 @@ abstract class AppRsApi extends BaseApi {
       get rust_arc_decrement_strong_count_RootSeedRs;
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_RootSeedRsPtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_SecretStoreRs;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_SecretStoreRs;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_SecretStoreRsPtr;
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_SettingsDbRs;
@@ -1659,12 +1675,61 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
+  SecretStore crateFfiSecretStoreSecretStoreNew({required Config config}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_box_autoadd_config(config, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 52)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_secret_store,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateFfiSecretStoreSecretStoreNewConstMeta,
+      argValues: [config],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateFfiSecretStoreSecretStoreNewConstMeta =>
+      const TaskConstMeta(
+        debugName: "secret_store_new",
+        argNames: ["config"],
+      );
+
+  @override
+  RootSeed? crateFfiSecretStoreSecretStoreReadRootSeed(
+      {required SecretStore that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_box_autoadd_secret_store(that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 53)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_opt_box_autoadd_root_seed,
+        decodeErrorData: sse_decode_AnyhowException,
+      ),
+      constMeta: kCrateFfiSecretStoreSecretStoreReadRootSeedConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateFfiSecretStoreSecretStoreReadRootSeedConstMeta =>
+      const TaskConstMeta(
+        debugName: "secret_store_read_root_seed",
+        argNames: ["that"],
+      );
+
+  @override
   Settings crateFfiSettingsSettingsDbRead({required SettingsDb that}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_settings_db(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 52)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 54)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_settings,
@@ -1688,7 +1753,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_settings_db(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 53)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 55)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1714,7 +1779,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_box_autoadd_settings_db(that, serializer);
         sse_encode_box_autoadd_settings(update, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 54)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 56)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1738,7 +1803,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 55, port: port_);
+            funcId: 57, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1762,7 +1827,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 56, port: port_);
+            funcId: 58, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -1785,7 +1850,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 57)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 59)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_user_channel_id,
@@ -1809,7 +1874,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(password, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 58)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 60)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_opt_String,
@@ -1864,6 +1929,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   RustArcDecrementStrongCountFnType
       get rust_arc_decrement_strong_count_RootSeedRs =>
           wire.rust_arc_decrement_strong_count_RustOpaque_RootSeedRs;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_SecretStoreRs =>
+          wire.rust_arc_increment_strong_count_RustOpaque_SecretStoreRs;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_SecretStoreRs =>
+          wire.rust_arc_decrement_strong_count_RustOpaque_SecretStoreRs;
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_SettingsDbRs =>
@@ -1931,6 +2004,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   RootSeedRs dco_decode_RustOpaque_RootSeedRs(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return RootSeedRsImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  SecretStoreRs dco_decode_RustOpaque_SecretStoreRs(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SecretStoreRsImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -2132,6 +2211,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   RootSeed dco_decode_box_autoadd_root_seed(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_root_seed(raw);
+  }
+
+  @protected
+  SecretStore dco_decode_box_autoadd_secret_store(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_secret_store(raw);
   }
 
   @protected
@@ -2570,6 +2655,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  RootSeed? dco_decode_opt_box_autoadd_root_seed(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_root_seed(raw);
+  }
+
+  @protected
   ShortPaymentAndIndex? dco_decode_opt_box_autoadd_short_payment_and_index(
       dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -2807,6 +2898,17 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  SecretStore dco_decode_secret_store(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return SecretStore.raw(
+      inner: dco_decode_RustOpaque_SecretStoreRs(arr[0]),
+    );
+  }
+
+  @protected
   Settings dco_decode_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -2987,6 +3089,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   RootSeedRs sse_decode_RustOpaque_RootSeedRs(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return RootSeedRsImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  SecretStoreRs sse_decode_RustOpaque_SecretStoreRs(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return SecretStoreRsImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -3198,6 +3308,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   RootSeed sse_decode_box_autoadd_root_seed(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_root_seed(deserializer));
+  }
+
+  @protected
+  SecretStore sse_decode_box_autoadd_secret_store(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_secret_store(deserializer));
   }
 
   @protected
@@ -3679,6 +3796,17 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  RootSeed? sse_decode_opt_box_autoadd_root_seed(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_root_seed(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   ShortPaymentAndIndex? sse_decode_opt_box_autoadd_short_payment_and_index(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -3902,6 +4030,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  SecretStore sse_decode_secret_store(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_inner = sse_decode_RustOpaque_SecretStoreRs(deserializer);
+    return SecretStore.raw(inner: var_inner);
+  }
+
+  @protected
   Settings sse_decode_settings(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_locale = sse_decode_opt_String(deserializer);
@@ -4073,6 +4208,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
         (self as RootSeedRsImpl).frbInternalSseEncode(move: null), serializer);
+  }
+
+  @protected
+  void sse_encode_RustOpaque_SecretStoreRs(
+      SecretStoreRs self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as SecretStoreRsImpl).frbInternalSseEncode(move: null),
+        serializer);
   }
 
   @protected
@@ -4279,6 +4423,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       RootSeed self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_root_seed(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_secret_store(
+      SecretStore self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_secret_store(self, serializer);
   }
 
   @protected
@@ -4681,6 +4832,17 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_root_seed(
+      RootSeed? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_root_seed(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_short_payment_and_index(
       ShortPaymentAndIndex? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -4852,6 +5014,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void sse_encode_root_seed(RootSeed self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_RustOpaque_RootSeedRs(self.inner, serializer);
+  }
+
+  @protected
+  void sse_encode_secret_store(SecretStore self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_RustOpaque_SecretStoreRs(self.inner, serializer);
   }
 
   @protected
@@ -5047,6 +5215,26 @@ class RootSeedRsImpl extends RustOpaque implements RootSeedRs {
         AppRs.instance.api.rust_arc_decrement_strong_count_RootSeedRs,
     rustArcDecrementStrongCountPtr:
         AppRs.instance.api.rust_arc_decrement_strong_count_RootSeedRsPtr,
+  );
+}
+
+@sealed
+class SecretStoreRsImpl extends RustOpaque implements SecretStoreRs {
+  // Not to be used by end users
+  SecretStoreRsImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  SecretStoreRsImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        AppRs.instance.api.rust_arc_increment_strong_count_SecretStoreRs,
+    rustArcDecrementStrongCount:
+        AppRs.instance.api.rust_arc_decrement_strong_count_SecretStoreRs,
+    rustArcDecrementStrongCountPtr:
+        AppRs.instance.api.rust_arc_decrement_strong_count_SecretStoreRsPtr,
   );
 }
 

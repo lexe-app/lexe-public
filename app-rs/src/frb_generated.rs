@@ -33,7 +33,10 @@ use flutter_rust_bridge::{
     Handler, IntoIntoDart,
 };
 
-use crate::ffi::{app::*, gdrive::*};
+use crate::{
+    ffi::{app::*, gdrive::*, secret_store::*},
+    *,
+};
 
 // Section: boilerplate
 
@@ -43,7 +46,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.7.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -647698019;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1347045166;
 
 // Section: executor
 
@@ -803,6 +806,32 @@ let api_uri_str = <String>::sse_decode(&mut deserializer);deserializer.end(); mo
                     })())
                 } })
 }
+fn wire__crate__ffi__secret_store__secret_store_new_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "secret_store_new", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_config = <crate::ffi::types::Config>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, ()>((move || {
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::secret_store::SecretStore::new(api_config))?;   Ok(output_ok)
+                })()) })
+}
+fn wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "secret_store_read_root_seed", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::secret_store::SecretStore>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || {
+                     let output_ok = crate::ffi::secret_store::SecretStore::read_root_seed(&api_that)?;   Ok(output_ok)
+                })()) })
+}
 fn wire__crate__ffi__settings__settings_db_read_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -955,6 +984,16 @@ impl SseDecode for RustOpaqueNom<GDriveRestoreClientRs> {
 }
 
 impl SseDecode for RustOpaqueNom<RootSeedRs> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut inner = <usize>::sse_decode(deserializer);
+        return unsafe { decode_rust_opaque_nom(inner) };
+    }
+}
+
+impl SseDecode for RustOpaqueNom<SecretStoreRs> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -1657,6 +1696,21 @@ impl SseDecode for Option<crate::ffi::types::Payment> {
     }
 }
 
+impl SseDecode for Option<crate::ffi::types::RootSeed> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::ffi::types::RootSeed>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::ffi::types::ShortPaymentAndIndex> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -1985,6 +2039,17 @@ impl SseDecode for crate::ffi::types::RootSeed {
     }
 }
 
+impl SseDecode for crate::ffi::secret_store::SecretStore {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_inner =
+            <RustOpaqueNom<SecretStoreRs>>::sse_decode(deserializer);
+        return crate::ffi::secret_store::SecretStore { inner: var_inner };
+    }
+}
+
 impl SseDecode for crate::ffi::settings::Settings {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -2181,8 +2246,8 @@ fn pde_ffi_dispatcher_primary_impl(
 48 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
 49 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
 51 => wire__crate__ffi__payment_uri__resolve_best_impl(port, ptr, rust_vec_len, data_len),
-55 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
-56 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
+57 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
+58 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -2219,11 +2284,13 @@ fn pde_ffi_dispatcher_sync_impl(
 46 => wire__crate__ffi__gdrive__g_drive_restore_candidate_try_decrypt_impl(ptr, rust_vec_len, data_len),
 47 => wire__crate__ffi__gdrive__g_drive_restore_candidate_user_pk_impl(ptr, rust_vec_len, data_len),
 50 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
-52 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
-53 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
-54 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-57 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
-58 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
+52 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
+53 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
+54 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
+55 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
+56 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
+59 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
+60 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -3223,6 +3290,23 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::RootSeed>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::secret_store::SecretStore {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.inner.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::secret_store::SecretStore
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::secret_store::SecretStore>
+    for crate::ffi::secret_store::SecretStore
+{
+    fn into_into_dart(self) -> crate::ffi::secret_store::SecretStore {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::settings::Settings {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -3406,6 +3490,18 @@ impl SseEncode for RustOpaqueNom<GDriveRestoreClientRs> {
 }
 
 impl SseEncode for RustOpaqueNom<RootSeedRs> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        let (ptr, size) = self.sse_encode_raw();
+        <usize>::sse_encode(ptr, serializer);
+        <i32>::sse_encode(size, serializer);
+    }
+}
+
+impl SseEncode for RustOpaqueNom<SecretStoreRs> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -4027,6 +4123,19 @@ impl SseEncode for Option<crate::ffi::types::Payment> {
     }
 }
 
+impl SseEncode for Option<crate::ffi::types::RootSeed> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::ffi::types::RootSeed>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::ffi::types::ShortPaymentAndIndex> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -4314,6 +4423,16 @@ impl SseEncode for crate::ffi::types::RootSeed {
     }
 }
 
+impl SseEncode for crate::ffi::secret_store::SecretStore {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <RustOpaqueNom<SecretStoreRs>>::sse_encode(self.inner, serializer);
+    }
+}
+
 impl SseEncode for crate::ffi::settings::Settings {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -4487,7 +4606,10 @@ mod io {
     };
 
     use super::*;
-    use crate::ffi::{app::*, gdrive::*};
+    use crate::{
+        ffi::{app::*, gdrive::*, secret_store::*},
+        *,
+    };
 
     // Section: boilerplate
 
@@ -4584,6 +4706,24 @@ mod io {
     ) {
         unsafe {
             StdArc::<RootSeedRs>::decrement_strong_count(ptr as _);
+        }
+    }
+
+    #[no_mangle]
+    pub extern "C" fn frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_SecretStoreRs(
+        ptr: *const std::ffi::c_void,
+    ) {
+        unsafe {
+            StdArc::<SecretStoreRs>::increment_strong_count(ptr as _);
+        }
+    }
+
+    #[no_mangle]
+    pub extern "C" fn frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_SecretStoreRs(
+        ptr: *const std::ffi::c_void,
+    ) {
+        unsafe {
+            StdArc::<SecretStoreRs>::decrement_strong_count(ptr as _);
         }
     }
 

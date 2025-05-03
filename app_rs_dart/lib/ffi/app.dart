@@ -9,6 +9,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import '../lib.dart';
 import 'api.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
@@ -19,9 +20,6 @@ import 'types.dart';
 
 // Rust type: RustOpaqueNom<App>
 abstract class App implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueNom<RootSeedRs>
-abstract class RootSeedRs implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueNom<SettingsDbRs>
 abstract class SettingsDbRs implements RustOpaqueInterface {}

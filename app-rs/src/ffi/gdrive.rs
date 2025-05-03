@@ -281,8 +281,6 @@ impl GDriveRestoreCandidate {
             password,
             self.inner.pw_enc_root_seed.data.clone(),
         )?;
-        Ok(RootSeed {
-            inner: RustOpaqueNom::new(root_seed),
-        })
+        Ok(RootSeed::from(root_seed))
     }
 }

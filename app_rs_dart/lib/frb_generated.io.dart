@@ -19,9 +19,11 @@ import 'ffi/gdrive.dart';
 import 'ffi/logger.dart';
 import 'ffi/payment_uri.dart';
 import 'ffi/qr.dart';
+import 'ffi/secret_store.dart';
 import 'ffi/settings.dart';
 import 'ffi/types.dart';
 import 'frb_generated.dart';
+import 'lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 
 abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
@@ -49,6 +51,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_RootSeedRsPtr =>
       wire._rust_arc_decrement_strong_count_RustOpaque_RootSeedRsPtr;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_SecretStoreRsPtr =>
+          wire._rust_arc_decrement_strong_count_RustOpaque_SecretStoreRsPtr;
 
   CrossPlatformFinalizerArg
       get rust_arc_decrement_strong_count_SettingsDbRsPtr =>
@@ -82,6 +88,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   RootSeedRs dco_decode_RustOpaque_RootSeedRs(dynamic raw);
+
+  @protected
+  SecretStoreRs dco_decode_RustOpaque_SecretStoreRs(dynamic raw);
 
   @protected
   SettingsDbRs dco_decode_RustOpaque_SettingsDbRs(dynamic raw);
@@ -175,6 +184,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   RootSeed dco_decode_box_autoadd_root_seed(dynamic raw);
+
+  @protected
+  SecretStore dco_decode_box_autoadd_secret_store(dynamic raw);
 
   @protected
   Settings dco_decode_box_autoadd_settings(dynamic raw);
@@ -320,6 +332,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Payment? dco_decode_opt_box_autoadd_payment(dynamic raw);
 
   @protected
+  RootSeed? dco_decode_opt_box_autoadd_root_seed(dynamic raw);
+
+  @protected
   ShortPaymentAndIndex? dco_decode_opt_box_autoadd_short_payment_and_index(
       dynamic raw);
 
@@ -386,6 +401,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   RootSeed dco_decode_root_seed(dynamic raw);
+
+  @protected
+  SecretStore dco_decode_secret_store(dynamic raw);
 
   @protected
   Settings dco_decode_settings(dynamic raw);
@@ -455,6 +473,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   RootSeedRs sse_decode_RustOpaque_RootSeedRs(SseDeserializer deserializer);
+
+  @protected
+  SecretStoreRs sse_decode_RustOpaque_SecretStoreRs(
+      SseDeserializer deserializer);
 
   @protected
   SettingsDbRs sse_decode_RustOpaque_SettingsDbRs(SseDeserializer deserializer);
@@ -560,6 +582,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   RootSeed sse_decode_box_autoadd_root_seed(SseDeserializer deserializer);
+
+  @protected
+  SecretStore sse_decode_box_autoadd_secret_store(SseDeserializer deserializer);
 
   @protected
   Settings sse_decode_box_autoadd_settings(SseDeserializer deserializer);
@@ -721,6 +746,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Payment? sse_decode_opt_box_autoadd_payment(SseDeserializer deserializer);
 
   @protected
+  RootSeed? sse_decode_opt_box_autoadd_root_seed(SseDeserializer deserializer);
+
+  @protected
   ShortPaymentAndIndex? sse_decode_opt_box_autoadd_short_payment_and_index(
       SseDeserializer deserializer);
 
@@ -791,6 +819,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   RootSeed sse_decode_root_seed(SseDeserializer deserializer);
+
+  @protected
+  SecretStore sse_decode_secret_store(SseDeserializer deserializer);
 
   @protected
   Settings sse_decode_settings(SseDeserializer deserializer);
@@ -864,6 +895,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_RustOpaque_RootSeedRs(
       RootSeedRs self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_RustOpaque_SecretStoreRs(
+      SecretStoreRs self, SseSerializer serializer);
 
   @protected
   void sse_encode_RustOpaque_SettingsDbRs(
@@ -970,6 +1005,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_box_autoadd_root_seed(
       RootSeed self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_secret_store(
+      SecretStore self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_settings(Settings self, SseSerializer serializer);
@@ -1138,6 +1177,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       Payment? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_root_seed(
+      RootSeed? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_short_payment_and_index(
       ShortPaymentAndIndex? self, SseSerializer serializer);
 
@@ -1209,6 +1252,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_root_seed(RootSeed self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_secret_store(SecretStore self, SseSerializer serializer);
 
   @protected
   void sse_encode_settings(Settings self, SseSerializer serializer);
@@ -1414,6 +1460,36 @@ class AppRsWire implements BaseWire {
       'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_RootSeedRs');
   late final _rust_arc_decrement_strong_count_RustOpaque_RootSeedRs =
       _rust_arc_decrement_strong_count_RustOpaque_RootSeedRsPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void rust_arc_increment_strong_count_RustOpaque_SecretStoreRs(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_SecretStoreRs(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_SecretStoreRsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_SecretStoreRs');
+  late final _rust_arc_increment_strong_count_RustOpaque_SecretStoreRs =
+      _rust_arc_increment_strong_count_RustOpaque_SecretStoreRsPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void rust_arc_decrement_strong_count_RustOpaque_SecretStoreRs(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_SecretStoreRs(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_SecretStoreRsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_SecretStoreRs');
+  late final _rust_arc_decrement_strong_count_RustOpaque_SecretStoreRs =
+      _rust_arc_decrement_strong_count_RustOpaque_SecretStoreRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void rust_arc_increment_strong_count_RustOpaque_SettingsDbRs(

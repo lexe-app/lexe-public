@@ -9,7 +9,6 @@ library;
 
 import 'dart:io' show Platform;
 
-import 'package:app_rs_dart/ffi/app.dart' show RootSeedRs;
 import 'package:app_rs_dart/ffi/gdrive.dart'
     show
         GDriveClient,
@@ -21,6 +20,7 @@ import 'package:app_rs_dart/ffi/gdrive.dart'
         GDriveRestoreClientRs;
 import 'package:app_rs_dart/ffi/types.dart' show DeployEnv, Network, RootSeed;
 import 'package:app_rs_dart/frb.dart' show AnyhowException;
+import 'package:app_rs_dart/lib.dart' show RootSeedRs;
 import 'package:flutter/services.dart' show PlatformException, appFlavor;
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart'
     show FlutterWebAuth2;

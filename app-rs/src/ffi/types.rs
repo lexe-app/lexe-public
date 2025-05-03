@@ -136,6 +136,14 @@ pub struct RootSeed {
     pub(crate) inner: RustOpaqueNom<RootSeedRs>,
 }
 
+impl From<RootSeedRs> for RootSeed {
+    fn from(inner: RootSeedRs) -> Self {
+        Self {
+            inner: RustOpaqueNom::new(inner),
+        }
+    }
+}
+
 /// Some assorted user/node info. This is kinda hacked together currently just
 /// to support account deletion requests.
 #[frb(dart_metadata=("freezed"))]

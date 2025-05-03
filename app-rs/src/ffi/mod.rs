@@ -69,6 +69,8 @@ pub mod logger;
 pub mod payment_uri;
 /// QR code generation.
 pub mod qr;
+/// Dart interface to app secret store
+pub mod secret_store;
 /// Dart interface for app settings.
 pub mod settings;
 /// Data types to expose to Dart.
