@@ -240,6 +240,12 @@ class RootSeed {
     required this.inner,
   });
 
+  /// Hex-encode the root seed secret. Should only be used for debugging.
+  String exposeSecretHex() =>
+      AppRs.instance.api.crateFfiTypesRootSeedExposeSecretHex(
+        that: this,
+      );
+
   @override
   int get hashCode => inner.hashCode;
 

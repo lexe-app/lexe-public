@@ -10,6 +10,7 @@ import 'package:app_rs_dart/ffi/debug.dart' as debug;
 import 'package:app_rs_dart/ffi/secret_store.dart' show SecretStore;
 import 'package:app_rs_dart/ffi/types.dart' show Config;
 import 'package:flutter/material.dart';
+import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
         HeadingText,
@@ -62,6 +63,17 @@ class _DebugPageState extends State<DebugPage> {
   void doResetSettingsDb() {
     info("Resetting SettingsDb");
     this.widget.settings.reset();
+  }
+
+  Future<void> copyRootSeed() async {
+    final secretStore = SecretStore(config: this.widget.config);
+    final rootSeed = secretStore.readRootSeed();
+    if (rootSeed == null) return;
+
+    return LxClipboard.copyTextWithFeedback(
+      this.context,
+      rootSeed.exposeSecretHex(),
+    );
   }
 
   /// Re-auth the user with GDrive and then dump the persisted node state
@@ -184,6 +196,22 @@ class _DebugPageState extends State<DebugPage> {
                   style: TextStyle(color: LxColors.fgTertiary)),
             ])),
             onTap: this.doDeleteSecretStore,
+          ),
+
+          // Copy RootSeed to clipboard
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text("Copy RootSeed to clipboard"),
+            subtitle: const Text.rich(TextSpan(children: [
+              TextSpan(
+                  text: "WARNING: ",
+                  style: TextStyle(color: Color(0xffeb5d47))),
+              TextSpan(
+                  text: "this is the root seed for your wallet. Anyone "
+                      "with this secret also controls your funds.",
+                  style: TextStyle(color: LxColors.fgTertiary)),
+            ])),
+            onTap: this.copyRootSeed,
           ),
 
           // Dump node state from GDrive

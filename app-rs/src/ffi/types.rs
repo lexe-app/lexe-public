@@ -23,6 +23,7 @@ use common::{
     },
     rng::SysRng,
     time::TimestampMs,
+    ExposeSecret,
 };
 use flutter_rust_bridge::{frb, RustOpaqueNom};
 
@@ -134,6 +135,14 @@ impl From<Config> for AppConfig {
 /// The user's root seed from which we derive all child secrets.
 pub struct RootSeed {
     pub(crate) inner: RustOpaqueNom<RootSeedRs>,
+}
+
+impl RootSeed {
+    /// Hex-encode the root seed secret. Should only be used for debugging.
+    #[frb(sync)]
+    pub fn expose_secret_hex(&self) -> String {
+        hex::encode(self.inner.expose_secret().as_slice())
+    }
 }
 
 impl From<RootSeedRs> for RootSeed {
