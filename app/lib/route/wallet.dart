@@ -35,6 +35,7 @@ import 'package:lexeapp/components.dart'
         showModalAsyncFlow;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
+import 'package:lexeapp/gdrive_auth.dart';
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/result.dart';
@@ -65,12 +66,14 @@ class WalletPage extends StatefulWidget {
     required this.app,
     required this.settings,
     required this.uriEvents,
+    required this.gdriveAuth,
   });
 
   final Config config;
   final AppHandle app;
   final LxSettings settings;
   final UriEvents uriEvents;
+  final GDriveAuth gdriveAuth;
 
   @override
   WalletPageState createState() => WalletPageState();
@@ -441,6 +444,7 @@ class WalletPageState extends State<WalletPage> {
         config: this.widget.config,
         app: this.widget.app,
         settings: this.widget.settings,
+        gdriveAuth: this.widget.gdriveAuth,
       ),
     ));
   }

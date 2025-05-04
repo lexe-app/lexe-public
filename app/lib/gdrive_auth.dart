@@ -206,6 +206,15 @@ class MockGDriveClient implements GDriveClient {
 
   @override
   GDriveRestoreClient intoRestoreClient() => const MockGDriveRestoreClient._();
+
+  @override
+  Future<String> dumpState({
+    required DeployEnv deployEnv,
+    required Network network,
+    required bool useSgx,
+    required RootSeed rootSeed,
+  }) =>
+      Future.value('{"channel_manager": null, channel_monitors: null}');
 }
 
 class MockGDriveRestoreClient implements GDriveRestoreClient {

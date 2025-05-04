@@ -311,6 +311,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 settings: LxSettings(mockApp.settingsDb()),
                 config: widget.config,
                 uriEvents: this.widget.uriEvents,
+                gdriveAuth: GDriveAuth.mock,
               ),
             ),
             Component(
@@ -325,6 +326,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 settings: LxSettings(mockApp.settingsDb()),
                 config: widget.config,
                 uriEvents: this.widget.uriEvents,
+                gdriveAuth: GDriveAuth.mock,
               ),
             ),
             Component(
@@ -339,6 +341,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 settings: LxSettings(mockApp.settingsDb()),
                 config: widget.config,
                 uriEvents: this.widget.uriEvents,
+                gdriveAuth: GDriveAuth.mock,
               ),
             ),
             Component(
@@ -679,6 +682,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 settings: LxSettings(mockApp.settingsDb()),
                 config: widget.config,
                 uriEvents: this.widget.uriEvents,
+                gdriveAuth: GDriveAuth.mock,
               ),
             ),
             Component(

@@ -43,6 +43,12 @@ Future<void> main() async {
   // to binary size, but much simpler.
   await date_format.initializeDateLocaleData();
 
+  // Skip GDrive auth in local dev.
+  final gdriveAuth = switch (config.deployEnv) {
+    DeployEnv.dev => GDriveAuth.mock,
+    DeployEnv.prod || DeployEnv.staging => GDriveAuth.prod,
+  };
+
   final Widget child;
   if (maybeApp != null) {
     final app = maybeApp;
@@ -60,14 +66,9 @@ Future<void> main() async {
       app: app,
       settings: settings,
       uriEvents: uriEvents,
+      gdriveAuth: gdriveAuth,
     );
   } else {
-    // Skip GDrive auth in local dev.
-    final gdriveAuth = switch (config.deployEnv) {
-      DeployEnv.dev => GDriveAuth.mock,
-      DeployEnv.prod || DeployEnv.staging => GDriveAuth.prod,
-    };
-
     // no wallet persisted => first run -> show landing
     child = LandingPage(
       config: config,

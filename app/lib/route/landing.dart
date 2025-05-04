@@ -92,6 +92,7 @@ class _LandingPageState extends State<LandingPage> {
         app: app,
         settings: LxSettings(app.settingsDb()),
         uriEvents: this.widget.uriEvents,
+        gdriveAuth: this.widget.gdriveAuth,
       ),
     )));
   }
@@ -121,6 +122,7 @@ class _LandingPageState extends State<LandingPage> {
         app: app,
         settings: LxSettings(app.settingsDb()),
         uriEvents: this.widget.uriEvents,
+        gdriveAuth: this.widget.gdriveAuth,
       ),
     )));
   }
