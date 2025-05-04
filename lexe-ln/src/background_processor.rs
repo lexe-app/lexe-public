@@ -45,6 +45,7 @@ pub fn start<CM, PM, PS, EH>(
     persister: PS,
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
     event_handler: EH,
+    monitor_persister_shutdown: NotifyOnce,
     mut shutdown: NotifyOnce,
 ) -> LxTask<()>
 where
@@ -114,11 +115,11 @@ where
 
                         channel_manager
                             .process_pending_events_async(mk_event_handler_fut)
-                            .instrument(info_span!("(event-handler)(chan-man)"))
+                            .instrument(info_span!("(events)(chan-man)"))
                             .await;
                         chain_monitor
                             .process_pending_events_async(mk_event_handler_fut)
-                            .instrument(info_span!("(event-handler)(chain-mon)"))
+                            .instrument(info_span!("(events)(chain-mon)"))
                             .await;
 
                         // NOTE(phlip9): worried the `Connection` ->
@@ -131,7 +132,7 @@ where
                         // complete?
                         async {
                             peer_manager.process_events();
-                        }.instrument(info_span!("(process-bgp)(peer-man)")).await;
+                        }.instrument(info_span!("(events)(peer-man)")).await;
 
                         if channel_manager.get_and_clear_needs_persistence() {
                             let try_persist = persister
@@ -175,9 +176,15 @@ where
             // corresponding ChannelManager updates being persisted.
             // This does not risk the loss of funds, but upon next boot the
             // ChannelManager may accidentally trigger a force close.
+            channel_manager.get_and_clear_needs_persistence();
             if let Err(e) = persister.persist_manager(&*channel_manager).await {
                 error!("Final channel manager persistence failure: {e:#}");
             }
+
+            // The monitor persister task should only begin shutdown once the
+            // BGP has shut down, in case this final channel manager persist (or
+            // peer disconnect at shutdown) triggers more monitor updates.
+            monitor_persister_shutdown.send();
         },
     )
 }

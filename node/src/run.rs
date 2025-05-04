@@ -640,10 +640,13 @@ impl UserNode {
             .push(event::spawn_event_replayer_task(event_handler.clone()));
 
         // Set up the channel monitor persistence task
+        let monitor_persister_shutdown = NotifyOnce::new();
         let task = channel_monitor::spawn_channel_monitor_persister_task(
             persister.clone(),
+            channel_manager.clone(),
             chain_monitor.clone(),
             channel_monitor_persister_rx,
+            monitor_persister_shutdown.clone(),
             shutdown.clone(),
         );
         static_tasks.push(task);
@@ -783,6 +786,7 @@ impl UserNode {
             persister.clone(),
             chain_monitor.clone(),
             event_handler,
+            monitor_persister_shutdown,
             shutdown.clone(),
         );
         static_tasks.push(bg_processor_task);

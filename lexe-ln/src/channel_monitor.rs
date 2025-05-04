@@ -1,6 +1,7 @@
 use std::{
     fmt::{self, Display},
     sync::Arc,
+    time::Duration,
 };
 
 use anyhow::{anyhow, Context};
@@ -11,7 +12,7 @@ use tracing::{debug, error, info, info_span, Instrument};
 
 use crate::{
     alias::LexeChainMonitorType,
-    traits::{LexeInnerPersister, LexePersister},
+    traits::{LexeChannelManager, LexeInnerPersister, LexePersister},
 };
 
 /// Represents a channel monitor update. See docs on each field for details.
@@ -75,12 +76,31 @@ impl Display for ChannelMonitorUpdateKind {
 /// This prevent a race conditions where two monitor updates come in quick
 /// succession and the newer channel monitor state is overwritten by the older
 /// channel monitor state.
-pub fn spawn_channel_monitor_persister_task<PS: LexePersister>(
+///
+/// # Shutdown
+///
+/// The shutdown sequence for this task is special. LDK has noted that it may be
+/// possible to generate monitor updates to be persisted after disconnecting
+/// from a peer. However, we also disconnect from all peers in our peer
+/// connector task in response to a shutdown signal, meaning that if the monitor
+/// persister task is scheduled first and shuts down immediately, it won't be
+/// around anymore when those monitor updates are queued. Thus, we trigger the
+/// shutdown for the monitor persister task only *after* the BGP has completed
+/// its shutdown sequence (during which it repersists the channel manager).
+///
+/// <https://discord.com/channels/915026692102316113/1367736643100086374/1367952226269663262>
+pub fn spawn_channel_monitor_persister_task<CM, PS>(
     persister: PS,
+    channel_manager: CM,
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
     mut channel_monitor_persister_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
-    mut shutdown: NotifyOnce,
-) -> LxTask<()> {
+    mut monitor_persister_shutdown: NotifyOnce,
+    shutdown: NotifyOnce,
+) -> LxTask<()>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
     debug!("Starting channel monitor persister task");
     const SPAN_NAME: &str = "(chan-monitor-persister)";
     LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), async move {
@@ -99,21 +119,70 @@ pub fn spawn_channel_monitor_persister_task<PS: LexePersister>(
 
                     if let Err(e) = handle_result {
                         update_span.in_scope(|| {
-                            error!("Monitor persist error: {e:#}");
+                            error!("Fatal: Monitor persist error: {e:#}");
                         });
 
-                        // Channel monitor persistence errors are serious;
-                        // all errors are considered fatal.
-                        // Shut down to prevent any loss of funds.
+                        // Channel monitor persistence errors are fatal.
+                        // Return immediately to prevent further monitor
+                        // persists (which may skip the current monitor update
+                        // if using incremental persist)
                         shutdown.send();
-                        break;
+                        return;
                     }
                 }
-                () = shutdown.recv() => {
-                    info!("channel monitor persister task shutting down");
+                () = monitor_persister_shutdown.recv() => {
+                    debug!("channel monitor persister task beginning shutdown");
                     break;
                 }
             }
+        }
+
+        // After we've received a shutdown signal, ensure both the channel
+        // manager and channel monitors have reached a quiescent state.
+        // Wait for channel monitor updates or channel manager persists until
+        // neither do anything for a full 10ms. The 10ms delay allows other
+        // tasks which may trigger these persists to be scheduled.
+        const QUIESCENT_TIMEOUT: Duration = Duration::from_millis(10);
+        loop {
+            tokio::select! {
+                biased;
+                () = channel_manager
+                    .get_event_or_persistence_needed_future() => {
+                    if channel_manager.get_and_clear_needs_persistence() {
+                        let try_persist = persister
+                            .persist_manager(channel_manager.deref())
+                            .await;
+                        if let Err(e) = try_persist {
+                            error!("(Quiescence) manager persist error: {e:#}");
+                            // Nothing to do if persist fails, so just shutdown.
+                            return;
+                        }
+                    }
+                }
+                Some(update) = channel_monitor_persister_rx.recv() => {
+                    let update_span = update.span();
+
+                    let handle_result = handle_update(
+                        &persister,
+                        chain_monitor.as_ref(),
+                        update,
+                    )
+                        .instrument(update_span.clone())
+                        .await;
+
+                    if let Err(e) = handle_result {
+                        update_span.in_scope(|| {
+                            error!("(Quiescence) Monitor persist error: {e:#}");
+                        });
+                        // Nothing to do if persist fails, so just shutdown.
+                        return;
+                    }
+                }
+                _ = tokio::time::sleep(QUIESCENT_TIMEOUT) => {
+                    info!("Channel mgr and monitors quiescent; shutting down.");
+                    return;
+                }
+            };
         }
     })
 }
