@@ -349,7 +349,7 @@ impl BearerAuthenticator {
 mod test {
     use super::*;
     use crate::test_utils::roundtrip::{
-        bcs_roundtrip_proptest, signed_roundtrip_proptest,
+        bcs_roundtrip_ok, bcs_roundtrip_proptest, signed_roundtrip_proptest,
     };
 
     #[test]
@@ -370,5 +370,15 @@ mod test {
     #[test]
     fn test_bearer_auth_request_sign_verify() {
         signed_roundtrip_proptest::<BearerAuthRequest>();
+    }
+
+    #[test]
+    fn test_bearer_auth_request_snapshot() {
+        let input = "00d20296490000000058020000";
+        let req = BearerAuthRequest::V1(BearerAuthRequestV1 {
+            request_timestamp_secs: 1234567890,
+            lifetime_secs: 10 * 60,
+        });
+        bcs_roundtrip_ok(&hex::decode(input).unwrap(), &req);
     }
 }

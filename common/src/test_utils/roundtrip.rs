@@ -23,13 +23,27 @@ where
     T: Arbitrary + PartialEq + Serialize + DeserializeOwned,
 {
     proptest!(|(value1: T)| {
-        let bcs_value1 = bcs::to_bytes(&value1).unwrap();
-        let value2 = bcs::from_bytes::<T>(&bcs_value1).unwrap();
-        let bcs_value2 = bcs::to_bytes(&value2).unwrap();
-        prop_assert_eq!(&value1, &value2);
-        // Serialized form should be canonical too
-        prop_assert_eq!(&bcs_value1, &bcs_value2);
+        let bytes1 = bcs::to_bytes(&value1).unwrap();
+        bcs_roundtrip_ok(&bytes1, &value1);
     });
+}
+
+/// Assert that a `T` value canonically roundtrips to/from BCS.
+/// 1. `bcs::to_bytes(expected_value) == expected_bytes`
+/// 2. `bcs::from_bytes(expected_bytes) == expected_value`
+#[track_caller]
+pub fn bcs_roundtrip_ok<T>(expected_bytes: &[u8], expected_value: &T)
+where
+    T: Debug + PartialEq + Serialize + DeserializeOwned,
+{
+    let actual_bytes = bcs::to_bytes(expected_value).unwrap();
+    if actual_bytes != expected_bytes {
+        // print hex-encoded bytes for easier debugging
+        assert_eq!(hex::encode(&actual_bytes), hex::encode(expected_bytes));
+    }
+
+    let actual_value = bcs::from_bytes::<T>(expected_bytes).unwrap();
+    assert_eq!(&actual_value, expected_value);
 }
 
 /// Quickly create a [`serde_json::Value`] canonical roundtrip proptest. This
