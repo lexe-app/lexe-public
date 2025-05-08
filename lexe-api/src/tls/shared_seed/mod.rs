@@ -17,9 +17,9 @@
 //! 2) "Revocable": Node (server) deterministically derives a "revocable cert
 //!    issuing" CA. The app requests the node to issue an "revocable" client
 //!    cert. The issued client cert does not encode an expiration. Instead, its
-//!    expiration is managed at the application level via a cert whitelist which
-//!    tracks each client cert's serial number and expiration. These client
-//!    certs can be given to SDK clients and revoked at any time.
+//!    expiration is managed at the application level via a cert store which
+//!    tracks each client cert's pubkey and expiration. These client certs can
+//!    be given to SDK clients and revoked at any time.
 //!
 //! ## Client and server cert verification
 //!
@@ -69,10 +69,18 @@
 // TODO(max): Only the app (not an SDK) should have the power to call the "issue
 // new cert" endpoint.
 
-use std::sync::Arc;
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    sync::{Arc, RwLock},
+};
 
 use anyhow::Context;
-use common::{constants, env::DeployEnv, rng::Crng, root_seed::RootSeed};
+use asn1_rs::{nom::AsBytes, FromDer};
+use common::{
+    api::auth::Scope, constants, ed25519, env::DeployEnv, rng::Crng,
+    root_seed::RootSeed, time::TimestampMs,
+};
 use rustls::{
     client::{
         danger::{
@@ -81,11 +89,20 @@ use rustls::{
         WebPkiServerVerifier,
     },
     pki_types::{CertificateDer, ServerName, UnixTime},
-    server::WebPkiClientVerifier,
-    DigitallySignedStruct, RootCertStore,
+    server::{
+        danger::{ClientCertVerified, ClientCertVerifier},
+        WebPkiClientVerifier,
+    },
+    DigitallySignedStruct, DistinguishedName, RootCertStore,
 };
+use serde::{Deserialize, Serialize};
+use x509_parser::prelude::X509Certificate;
 
-use super::lexe_ca;
+use super::{
+    lexe_ca,
+    types::{CertWithKey, LxCertificateDer},
+};
+use crate::tls;
 
 /// TLS certs for shared [`RootSeed`]-based mTLS.
 pub mod certs;
@@ -96,38 +113,36 @@ pub fn app_node_run_server_config(
     rng: &mut impl Crng,
     root_seed: &RootSeed,
 ) -> anyhow::Result<(rustls::ServerConfig, String)> {
-    // Derive ephemeral issuing CA cert
-    let ca_cert = certs::EphemeralIssuingCaCert::from_root_seed(root_seed);
-    let ca_cert_der = ca_cert
-        .serialize_der_self_signed()
-        .context("Failed to sign and serialize ephemeral CA cert")?;
+    // Derive CA certs
+    let eph_ca_cert = certs::EphemeralIssuingCaCert::from_root_seed(root_seed);
+    let rev_ca_cert = certs::RevocableIssuingCaCert::from_root_seed(root_seed);
 
     // Build ephemeral server cert and sign with derived CA
     let dns_name = constants::NODE_RUN_DNS.to_owned();
-    let server_cert =
+    let eph_server_cert =
         certs::EphemeralServerCert::from_rng(rng, dns_name.clone());
-    let server_cert_der = server_cert
-        .serialize_der_ca_signed(&ca_cert)
+    let eph_server_cert_der = eph_server_cert
+        .serialize_der_ca_signed(&eph_ca_cert)
         .context("Failed to sign and serialize ephemeral server cert")?;
-    let server_cert_key_der = server_cert.serialize_key_der();
+    let eph_server_cert_key_der = eph_server_cert.serialize_key_der();
 
-    // Build our ClientCertVerifier which trusts our derived CA
-    let mut roots = rustls::RootCertStore::empty();
-    roots
-        .add(ca_cert_der.into())
-        .context("rustls failed to deserialize CA cert DER bytes")?;
-    let client_cert_verifier = WebPkiClientVerifier::builder_with_provider(
-        Arc::new(roots),
-        super::LEXE_CRYPTO_PROVIDER.clone(),
+    // TODO(max): This should be passed in
+    let revocable_certs =
+        Arc::new(RwLock::new(RevocableClientCerts::default()));
+
+    // Construct our custom `SharedSeedClientCertVerifier`
+    let client_cert_verifier = SharedSeedClientCertVerifier::new(
+        &eph_ca_cert,
+        &rev_ca_cert,
+        revocable_certs,
     )
-    .build()
-    .context("Failed to build client cert verifier")?;
+    .context("Failed to build shared seed client cert verifier")?;
 
     let mut config = super::server_config_builder()
-        .with_client_cert_verifier(client_cert_verifier)
+        .with_client_cert_verifier(Arc::new(client_cert_verifier))
         .with_single_cert(
-            vec![server_cert_der.into()],
-            server_cert_key_der.into(),
+            vec![eph_server_cert_der.into()],
+            eph_server_cert_key_der.into(),
         )
         .context("Failed to build rustls::ServerConfig")?;
     config
@@ -137,19 +152,22 @@ pub fn app_node_run_server_config(
     Ok((config, dns_name))
 }
 
-/// Client-side TLS config for `AppNodeRunApi`.
+/// Client-side TLS config for app (with root seed) -> node connections.
 pub fn app_node_run_client_config(
     rng: &mut impl Crng,
     deploy_env: DeployEnv,
     root_seed: &RootSeed,
 ) -> anyhow::Result<rustls::ClientConfig> {
     // Derive ephemeral issuing CA cert
-    let ca_cert = certs::EphemeralIssuingCaCert::from_root_seed(root_seed);
+    let eph_ca_cert = certs::EphemeralIssuingCaCert::from_root_seed(root_seed);
+    let eph_ca_cert_der = eph_ca_cert
+        .serialize_der_self_signed()
+        .context("Failed to sign and serialize ephemeral CA cert")?;
 
     // Build the client's server cert verifier:
     // - Ephemeral CA verifier trusts the ephemeral issuing CA
     // - Public Lexe verifier trusts the hard-coded Lexe cert.
-    let ephemeral_ca_verifier = ephemeral_ca_verifier(&ca_cert)
+    let ephemeral_ca_verifier = ephemeral_ca_verifier(&eph_ca_cert_der)
         .context("Failed to build ephemeral CA verifier")?;
     let lexe_server_verifier = lexe_ca::lexe_server_verifier(deploy_env);
     let server_cert_verifier = AppNodeRunVerifier {
@@ -160,7 +178,7 @@ pub fn app_node_run_client_config(
     // Generate ephemeral client cert and sign with derived CA
     let client_cert = certs::EphemeralClientCert::generate_from_rng(rng);
     let client_cert_der = client_cert
-        .serialize_der_ca_signed(&ca_cert)
+        .serialize_der_ca_signed(&eph_ca_cert)
         .context("Failed to sign and serialize ephemeral client cert")?;
     let client_cert_key_der = client_cert.serialize_key_der();
 
@@ -190,16 +208,58 @@ pub fn app_node_run_client_config(
     Ok(config)
 }
 
+/// Client-side TLS config for SDK (no root seed; client cert only)
+/// -> node connections.
+pub fn sdk_node_run_client_config(
+    deploy_env: DeployEnv,
+    ephemeral_ca_cert_der: LxCertificateDer,
+    revocable_client_cert: CertWithKey,
+) -> anyhow::Result<rustls::ClientConfig> {
+    // Build the client's server cert verifier:
+    // - Ephemeral CA verifier trusts the ephemeral issuing CA
+    // - Public Lexe verifier trusts the hard-coded Lexe cert.
+    let ephemeral_ca_verifier =
+        ephemeral_ca_verifier(&ephemeral_ca_cert_der)
+            .context("Failed to build ephemeral CA verifier")?;
+    let lexe_server_verifier = lexe_ca::lexe_server_verifier(deploy_env);
+    let server_cert_verifier = AppNodeRunVerifier {
+        ephemeral_ca_verifier,
+        lexe_server_verifier,
+    };
+
+    let mut config = super::client_config_builder()
+        .dangerous()
+        .with_custom_certificate_verifier(Arc::new(server_cert_verifier))
+        // NOTE: .with_single_cert() uses a client cert resolver which always
+        // presents our client cert when asked. Does this introduce overhead by
+        // needlessly presenting our ephemeral client cert to the proxy which
+        // doesn't actually require client auth? The answer is no, because the
+        // proxy would then not send a CertificateRequest message during the
+        // handshake, which is what actually prompts the client to send its
+        // client cert. So the client never sends its cert to the proxy at all,
+        // and defaults to a regular TLS handshake, with no mTLS overhead.
+        // A custom client cert resolver is only needed if the proxy *also*
+        // requires client auth, meaning we'd need to choose the correct cert to
+        // present depending on whether the end entity is the proxy or the node.
+        .with_client_auth_cert(
+            vec![revocable_client_cert.cert_der.into()],
+            revocable_client_cert.key_der.into(),
+        )
+        .context("Failed to build rustls::ClientConfig")?;
+    config
+        .alpn_protocols
+        .clone_from(&super::LEXE_ALPN_PROTOCOLS);
+
+    Ok(config)
+}
+
 /// Build a [`ServerCertVerifier`] which trusts the "ephemeral issuing" CA.
 pub fn ephemeral_ca_verifier(
-    ca_cert: &certs::EphemeralIssuingCaCert,
+    ephemeral_ca_cert_der: &LxCertificateDer,
 ) -> anyhow::Result<Arc<WebPkiServerVerifier>> {
-    let ca_cert_der = ca_cert
-        .serialize_der_self_signed()
-        .context("Failed to sign and serialize ephemeral CA cert")?;
     let mut roots = RootCertStore::empty();
     roots
-        .add(ca_cert_der.into())
+        .add(ephemeral_ca_cert_der.into())
         .context("Failed to re-parse ephemeral CA cert")?;
     let verifier = WebPkiServerVerifier::builder_with_provider(
         Arc::new(roots),
@@ -208,6 +268,62 @@ pub fn ephemeral_ca_verifier(
     .build()
     .context("Could not build ephemeral server verifier")?;
     Ok(verifier)
+}
+
+/// All revocable client certs which have ever been issued.
+///
+/// This struct must be persisted in a rollback-resistant data store.
+// We don't *really* need to persist revoked certs but might as well keep them
+// around for historical reference. We can prune them later if needed.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct RevocableClientCerts {
+    pub certs: HashMap<ed25519::PublicKey, RevocableClientCertInfo>,
+}
+
+/// Information about a revocable client cert. We track the cert's pubkey hash
+/// instead of the serial number, as we don't have a way to obtain the serial
+/// number without serializing and re-parsing the cert.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RevocableClientCertInfo {
+    /// The cert's pubkey.
+    ///
+    /// We use the cert pubkey instead of the serial number to pin certs in the
+    /// whitelist because serial numbers are just low entropy mutable metadata
+    /// set by the CA with a maximum length of 20 bytes.
+    pub cert_pubkey: ed25519::PublicKey,
+    /// When we first issued this cert.
+    pub created_at: TimestampMs,
+    /// The time after which the server will no longer accept this cert.
+    /// [`None`] indicates that the cert will never expire (use carefully!).
+    /// This expiration time can be extended at any time.
+    pub expiration: Option<TimestampMs>,
+    /// User-provided label for this cert, similar to naming API keys.
+    pub label: String,
+    /// The authorization scopes allowed for this cert.
+    pub scope: Scope,
+    /// Whether this cert has been revoked. Revocation should be permanent,
+    /// so this metadata can be pruned if needed.
+    pub is_revoked: bool,
+}
+
+impl RevocableClientCertInfo {
+    /// Whether the cert is expired right now.
+    #[must_use]
+    pub fn is_expired(&self) -> bool {
+        self.is_expired_at(TimestampMs::now())
+    }
+
+    /// Whether the cert is expired at the given time.
+    #[must_use]
+    pub fn is_expired_at(&self, now: TimestampMs) -> bool {
+        if let Some(expiration) = self.expiration {
+            if now > expiration {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 /// The client's [`ServerCertVerifier`] for `AppNodeRunApi` TLS.
@@ -295,6 +411,168 @@ impl ServerCertVerifier for AppNodeRunVerifier {
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
         super::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
+    }
+}
+
+/// A [`ClientCertVerifier`] which trusts either the "ephemeral issuing" or
+/// "revocable issuing" CA.
+///
+/// - All certs signed by the ephemeral issuing CA are automatically trusted.
+/// - Certs signed by the revocable issuing must additionally appear in the
+///   client cert whitelist, must not be expired, and must and not be revoked.
+#[derive(Debug)]
+pub struct SharedSeedClientCertVerifier {
+    /// Trusts the "ephemeral issuing" CA
+    ephemeral_ca_verifier: Arc<dyn ClientCertVerifier>,
+    /// Trusts the "revocable issuing" CA
+    revocable_ca_verifier: Arc<dyn ClientCertVerifier>,
+    /// A handle to our list of revocable client certs.
+    revocable_certs: Arc<RwLock<RevocableClientCerts>>,
+}
+
+impl SharedSeedClientCertVerifier {
+    pub fn new(
+        eph_ca_cert: &certs::EphemeralIssuingCaCert,
+        rev_ca_cert: &certs::RevocableIssuingCaCert,
+        revocable_certs: Arc<RwLock<RevocableClientCerts>>,
+    ) -> anyhow::Result<Self> {
+        let ephemeral_ca_verifier = {
+            let eph_ca_cert_der = eph_ca_cert
+                .serialize_der_self_signed()
+                .context("Failed to sign and serialize ephemeral CA cert")?;
+
+            let mut eph_roots = rustls::RootCertStore::empty();
+            eph_roots
+                .add(eph_ca_cert_der.into())
+                .context("rustls failed to deserialize CA cert DER bytes")?;
+
+            WebPkiClientVerifier::builder_with_provider(
+                Arc::new(eph_roots),
+                super::LEXE_CRYPTO_PROVIDER.clone(),
+            )
+            .build()
+            .context("Failed to build ephemeral CA verifier")?
+        };
+
+        let revocable_ca_verifier = {
+            let rev_ca_cert_der = rev_ca_cert
+                .serialize_der_self_signed()
+                .context("Failed to sign and serialize revocable CA cert")?;
+
+            let mut rev_roots = rustls::RootCertStore::empty();
+            rev_roots
+                .add(rev_ca_cert_der.into())
+                .context("rustls failed to deserialize CA cert DER bytes")?;
+
+            WebPkiClientVerifier::builder_with_provider(
+                Arc::new(rev_roots),
+                super::LEXE_CRYPTO_PROVIDER.clone(),
+            )
+            .build()
+            .context("Failed to build ephemeral CA verifier")?
+        };
+
+        Ok(Self {
+            ephemeral_ca_verifier,
+            revocable_ca_verifier,
+            revocable_certs,
+        })
+    }
+}
+
+impl ClientCertVerifier for SharedSeedClientCertVerifier {
+    fn root_hint_subjects(&self) -> &[DistinguishedName] {
+        &[]
+    }
+
+    fn verify_client_cert(
+        &self,
+        end_entity_der: &CertificateDer,
+        intermediates: &[CertificateDer],
+        now: UnixTime,
+    ) -> Result<ClientCertVerified, rustls::Error> {
+        /// Shorthand to create a [`rustls::Error`].
+        ///
+        /// Better to use our own error strings so grepping our codebase for
+        /// observed errors brings us right to this function.
+        fn rustls_err(s: impl Display) -> rustls::Error {
+            rustls::Error::General(s.to_string())
+        }
+
+        // If it's signed by the ephemeral issuing CA, automatically trust it.
+        if let Ok(verified) = self.ephemeral_ca_verifier.verify_client_cert(
+            end_entity_der,
+            intermediates,
+            now,
+        ) {
+            return Ok(verified);
+        }
+
+        // Ensure it is signed by the revocable issuing CA.
+        self.revocable_ca_verifier.verify_client_cert(
+            end_entity_der,
+            intermediates,
+            now,
+        )?;
+
+        // Great, it was signed by the revocable issuing CA.
+
+        // Parse the cert and get the SubjectPublicKeyInfo
+        let (_remaining, end_entity) =
+            X509Certificate::from_der(end_entity_der.as_bytes())
+                .map_err(|_| rustls_err("Cert was not encoded correctly"))?;
+        let end_entity_pk = ed25519::PublicKey::try_from(
+            &end_entity.tbs_certificate.subject_pki,
+        )
+        .map_err(|e| rustls_err(format!("Not an ed25519 pk: {e}")))?;
+
+        // Check that the cert is in our client cert store.
+        let locked_client_certs = self.revocable_certs.read().unwrap();
+        let client_cert = locked_client_certs
+            .certs
+            .get(&end_entity_pk)
+            .ok_or_else(|| rustls_err("Unrecognized cert pk"))?;
+
+        // Ensure the cert hasn't been revoked and isn't expired.
+        let now = TimestampMs::from_secs(now.as_secs())
+            .map_err(|_| rustls_err("Clock overflow"))?;
+        if client_cert.is_revoked {
+            return Err(rustls_err("Client cert was previously revoked"));
+        }
+        if client_cert.is_expired_at(now) {
+            return Err(rustls_err("Client cert is expired"));
+        }
+
+        Ok(ClientCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        // We intentionally do not support TLSv1.2.
+        let error = rustls::PeerIncompatible::ServerDoesNotSupportTls12Or13;
+        Err(rustls::Error::PeerIncompatible(error))
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        rustls::crypto::verify_tls13_signature(
+            message,
+            cert,
+            dss,
+            &tls::LEXE_SIGNATURE_ALGORITHMS,
+        )
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        tls::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
     }
 }
 
