@@ -109,9 +109,10 @@ pub mod certs;
 
 /// Server-side TLS config for `AppNodeRunApi`.
 /// Also returns the node's DNS name.
-pub fn app_node_run_server_config(
+pub fn node_run_server_config(
     rng: &mut impl Crng,
     root_seed: &RootSeed,
+    revocable_client_certs: Arc<RwLock<RevocableClientCerts>>,
 ) -> anyhow::Result<(rustls::ServerConfig, String)> {
     // Derive CA certs
     let eph_ca_cert = certs::EphemeralIssuingCaCert::from_root_seed(root_seed);
@@ -126,15 +127,11 @@ pub fn app_node_run_server_config(
         .context("Failed to sign and serialize ephemeral server cert")?;
     let eph_server_cert_key_der = eph_server_cert.serialize_key_der();
 
-    // TODO(max): This should be passed in
-    let revocable_certs =
-        Arc::new(RwLock::new(RevocableClientCerts::default()));
-
     // Construct our custom `SharedSeedClientCertVerifier`
     let client_cert_verifier = SharedSeedClientCertVerifier::new(
         &eph_ca_cert,
         &rev_ca_cert,
-        revocable_certs,
+        revocable_client_certs,
     )
     .context("Failed to build shared seed client cert verifier")?;
 
@@ -427,14 +424,14 @@ pub struct SharedSeedClientCertVerifier {
     /// Trusts the "revocable issuing" CA
     revocable_ca_verifier: Arc<dyn ClientCertVerifier>,
     /// A handle to our list of revocable client certs.
-    revocable_certs: Arc<RwLock<RevocableClientCerts>>,
+    revocable_client_certs: Arc<RwLock<RevocableClientCerts>>,
 }
 
 impl SharedSeedClientCertVerifier {
     pub fn new(
         eph_ca_cert: &certs::EphemeralIssuingCaCert,
         rev_ca_cert: &certs::RevocableIssuingCaCert,
-        revocable_certs: Arc<RwLock<RevocableClientCerts>>,
+        revocable_client_certs: Arc<RwLock<RevocableClientCerts>>,
     ) -> anyhow::Result<Self> {
         let ephemeral_ca_verifier = {
             let eph_ca_cert_der = eph_ca_cert
@@ -475,7 +472,7 @@ impl SharedSeedClientCertVerifier {
         Ok(Self {
             ephemeral_ca_verifier,
             revocable_ca_verifier,
-            revocable_certs,
+            revocable_client_certs,
         })
     }
 }
@@ -527,7 +524,7 @@ impl ClientCertVerifier for SharedSeedClientCertVerifier {
         .map_err(|e| rustls_err(format!("Not an ed25519 pk: {e}")))?;
 
         // Check that the cert is in our client cert store.
-        let locked_client_certs = self.revocable_certs.read().unwrap();
+        let locked_client_certs = self.revocable_client_certs.read().unwrap();
         let client_cert = locked_client_certs
             .certs
             .get(&end_entity_pk)
@@ -624,10 +621,16 @@ mod test {
             app_node_run_client_config(&mut rng, deploy_env, client_seed)
                 .map(Arc::new)
                 .unwrap();
-        let (server_config, server_dns) =
-            app_node_run_server_config(&mut rng, server_seed)
-                .map(|(c, d)| (Arc::new(c), d))
-                .unwrap();
+
+        let revocable_client_certs =
+            Arc::new(RwLock::new(RevocableClientCerts::default()));
+        let (server_config, server_dns) = node_run_server_config(
+            &mut rng,
+            server_seed,
+            revocable_client_certs,
+        )
+        .map(|(c, d)| (Arc::new(c), d))
+        .unwrap();
 
         test_utils::do_tls_handshake(client_config, server_config, server_dns)
             .await

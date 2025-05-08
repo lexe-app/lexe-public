@@ -1,7 +1,7 @@
 use std::{
     io::Cursor,
     net::TcpListener,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
     time::{Duration, Instant},
 };
 
@@ -336,6 +336,7 @@ impl UserNode {
             try_existing_scids,
             try_pending_payments,
             try_finalized_payment_ids,
+            try_maybe_revocable_client_certs,
         ) = tokio::join!(
             read_maybe_approved_versions,
             lsp_api.get_network_graph(),
@@ -344,6 +345,7 @@ impl UserNode {
             persister.read_scids(),
             persister.read_pending_payments(),
             persister.read_finalized_payment_ids(),
+            persister.read_revocable_client_certs(),
         );
         if deploy_env.is_staging_or_prod() {
             let maybe_approved_versions = try_maybe_approved_versions
@@ -407,6 +409,11 @@ impl UserNode {
             try_pending_payments.context("Could not read pending payments")?;
         let finalized_payment_ids = try_finalized_payment_ids
             .context("Could not read finalized payment ids")?;
+        let revocable_client_certs = try_maybe_revocable_client_certs
+            .context("Could not read revocable client certs")?
+            .unwrap_or_default()
+            .apply(RwLock::new)
+            .apply(Arc::new);
 
         // Init BDK wallet; share esplora connection pool, spawn persister task
         let (wallet_persister_tx, wallet_persister_rx) = notify::channel();
@@ -690,8 +697,12 @@ impl UserNode {
             ..Default::default()
         };
         let (app_tls_config, app_dns) =
-            tls::shared_seed::app_node_run_server_config(rng, &root_seed)
-                .context("Failed to build owner service TLS config")?;
+            tls::shared_seed::node_run_server_config(
+                rng,
+                &root_seed,
+                revocable_client_certs,
+            )
+            .context("Failed to build owner service TLS config")?;
         const APP_SERVER_SPAN_NAME: &str = "(app-node-run-server)";
         let (app_server_task, _app_url) =
             lexe_api::server::spawn_server_task_with_listener(
