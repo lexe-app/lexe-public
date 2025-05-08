@@ -92,10 +92,13 @@ pub struct UserSignupRequest {
     // TODO(phlip9): other fields? region? language?
 }
 
+/// A client's request for a new [`BearerAuthToken`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum BearerAuthRequest {
     V1(BearerAuthRequestV1),
+    // Added in node-v0.7.9+
+    V2(BearerAuthRequestV2),
 }
 
 /// A user client's request for auth token with certain restrictions.
@@ -114,8 +117,33 @@ pub struct BearerAuthRequestV1 {
     /// most 1 hour. The new token expiration is generated relative to the
     /// server clock.
     pub lifetime_secs: u32,
-    // /// Limit the auth token to a specific Bitcoin network.
-    // pub btc_network: Network,
+}
+
+/// A user client's request for auth token with certain restrictions.
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct BearerAuthRequestV2 {
+    // v2 includes all fields from v1
+    pub v1: BearerAuthRequestV1,
+
+    /// The allowed API scope for the bearer auth token.
+    pub scope: Option<Scope>,
+}
+
+/// The allowed API scope for the bearer auth token.
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum Scope {
+    /// The token is valid for all scopes.
+    All,
+
+    /// The token is only allowed to connect to a user node via the gateway.
+    // TODO(phlip9): should be a fine-grained scope
+    GatewayConnect,
+    //
+    // // TODO(phlip9): fine-grained scopes?
+    // Restricted { .. },
+    // ReadOnly,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -206,13 +234,18 @@ impl BearerAuthRequest {
             .map_err(Error::UserVerifyError)
     }
 
+    fn v1(&self) -> &BearerAuthRequestV1 {
+        match self {
+            Self::V1(req) => req,
+            Self::V2(req) => &req.v1,
+        }
+    }
+
     /// Get the `request_timestamp` as a [`SystemTime`]. Returns `Err` if the
     /// `issued_timestamp` is too large to be represented as a unix timestamp
     /// (> 2^63 on linux).
     pub fn request_timestamp(&self) -> Result<SystemTime, Error> {
-        let t_secs = match self {
-            Self::V1(req) => req.request_timestamp_secs,
-        };
+        let t_secs = self.v1().request_timestamp_secs;
         let t_dur_secs = Duration::from_secs(t_secs);
         SystemTime::UNIX_EPOCH
             .checked_add(t_dur_secs)
@@ -221,8 +254,14 @@ impl BearerAuthRequest {
 
     /// The requested token lifetime in seconds.
     pub fn lifetime_secs(&self) -> u32 {
+        self.v1().lifetime_secs
+    }
+
+    /// The requested token API scope.
+    pub fn scope(&self) -> Option<&Scope> {
         match self {
-            Self::V1(req) => req.lifetime_secs,
+            Self::V1(_) => None,
+            Self::V2(req) => req.scope.as_ref(),
         }
     }
 }
@@ -380,5 +419,41 @@ mod test {
             lifetime_secs: 10 * 60,
         });
         bcs_roundtrip_ok(&hex::decode(input).unwrap(), &req);
+
+        let input = "01d2029649000000005802000000";
+        let req = BearerAuthRequest::V2(BearerAuthRequestV2 {
+            v1: BearerAuthRequestV1 {
+                request_timestamp_secs: 1234567890,
+                lifetime_secs: 10 * 60,
+            },
+            scope: None,
+        });
+        bcs_roundtrip_ok(&hex::decode(input).unwrap(), &req);
+
+        let input = "01d202964900000000580200000101";
+        let req = BearerAuthRequest::V2(BearerAuthRequestV2 {
+            v1: BearerAuthRequestV1 {
+                request_timestamp_secs: 1234567890,
+                lifetime_secs: 10 * 60,
+            },
+            scope: Some(Scope::GatewayConnect),
+        });
+        bcs_roundtrip_ok(&hex::decode(input).unwrap(), &req);
+    }
+
+    #[test]
+    fn test_auth_scope_canonical() {
+        bcs_roundtrip_proptest::<Scope>();
+    }
+
+    #[test]
+    fn test_auth_scope_snapshot() {
+        let input = b"\x00";
+        let scope = Scope::All;
+        bcs_roundtrip_ok(input, &scope);
+
+        let input = b"\x01";
+        let scope = Scope::GatewayConnect;
+        bcs_roundtrip_ok(input, &scope);
     }
 }
