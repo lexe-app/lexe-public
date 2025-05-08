@@ -92,7 +92,7 @@ pub fn dummy_lexe_ca_cert() -> CertWithKey {
         rcgen::date_time_ymd(1975, 1, 1),
         rcgen::date_time_ymd(4096, 1, 1),
         super::DEFAULT_SUBJECT_ALT_NAMES.clone(),
-        ed25519::KeyPair::from_seed_owned([69; 32]).into(),
+        &ed25519::KeyPair::from_seed_owned([69; 32]),
         |params: &mut rcgen::CertificateParams| {
             params.is_ca =
                 rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);

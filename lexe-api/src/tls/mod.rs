@@ -1,6 +1,7 @@
 use std::sync::{Arc, LazyLock};
 
 use asn1_rs::FromDer;
+use common::ed25519;
 use rcgen::{DistinguishedName, DnType};
 use rustls::{crypto::WebPkiSupportedAlgorithms, ClientConfig, ServerConfig};
 use x509_parser::{
@@ -215,7 +216,7 @@ pub fn build_rcgen_cert(
     not_before: time::OffsetDateTime,
     not_after: time::OffsetDateTime,
     subject_alt_names: Vec<rcgen::SanType>,
-    key_pair: EdRcgenKeypair,
+    key_pair: &ed25519::KeyPair,
     overrides: impl FnOnce(&mut rcgen::CertificateParams),
 ) -> rcgen::Certificate {
     let mut params = rcgen::CertificateParams::default();
@@ -239,7 +240,7 @@ pub fn build_rcgen_cert(
 
     // Prevent alg and keypair from being overridden to make panics impossible
     params.alg = &rcgen::PKCS_ED25519;
-    params.key_pair = Some(key_pair.into_inner());
+    params.key_pair = Some(EdRcgenKeypair::from_ed25519(key_pair).into_inner());
 
     // Use consistent method for deriving key identifiers
     params.key_identifier_method = rcgen::KeyIdMethod::Sha256;
