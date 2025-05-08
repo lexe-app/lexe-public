@@ -287,7 +287,7 @@ impl KeyPair {
 
     /// Convert the current `ed25519::KeyPair` into an [`rcgen::KeyPair`].
     pub fn to_rcgen(&self) -> rcgen::KeyPair {
-        let pkcs8_bytes = self.serialize_pkcs8();
+        let pkcs8_bytes = self.serialize_pkcs8_der();
         rcgen::KeyPair::try_from(pkcs8_bytes.as_slice()).expect(
             "Deserializing a freshly serialized \
                 ed25519 key pair should never fail",
@@ -300,7 +300,7 @@ impl KeyPair {
     /// Requires a small intermediate serialization step since [`ring`] key
     /// pairs can't be cloned.
     pub fn to_ring(&self) -> ring::signature::Ed25519KeyPair {
-        let pkcs8_bytes = self.serialize_pkcs8();
+        let pkcs8_bytes = self.serialize_pkcs8_der();
         ring::signature::Ed25519KeyPair::from_pkcs8(&pkcs8_bytes).unwrap()
     }
 
@@ -322,15 +322,15 @@ impl KeyPair {
         Self::from_seed(&seed)
     }
 
-    /// Serialize the `ed25519::KeyPair` into a PKCS#8 document.
-    pub fn serialize_pkcs8(&self) -> [u8; PKCS_LEN] {
-        serialize_pkcs8(&self.seed, self.public_key().as_inner())
+    /// Serialize the `ed25519::KeyPair` into PKCS#8 DER bytes.
+    pub fn serialize_pkcs8_der(&self) -> [u8; PKCS_LEN] {
+        serialize_pkcs8_der(&self.seed, self.public_key().as_inner())
     }
 
-    /// Deserialize an `ed25519::KeyPair` from a PKCS#8 document.
-    pub fn deserialize_pkcs8(bytes: &[u8]) -> Result<Self, Error> {
+    /// Deserialize an `ed25519::KeyPair` from PKCS#8 DER bytes.
+    pub fn deserialize_pkcs8_der(bytes: &[u8]) -> Result<Self, Error> {
         let (seed, expected_pubkey) =
-            deserialize_pkcs8(bytes).ok_or(Error::KeyDeserializeError)?;
+            deserialize_pkcs8_der(bytes).ok_or(Error::KeyDeserializeError)?;
         Self::from_seed_and_pubkey(seed, expected_pubkey)
     }
 
@@ -741,7 +741,7 @@ const_utils::const_assert_usize_eq!(PKCS_LEN, 85);
 ///
 /// Note: adapted from `ring`, which doesn't let you serialize as pkcs#8 via
 /// any public API...
-fn serialize_pkcs8(
+fn serialize_pkcs8_der(
     secret_key: &[u8; 32],
     public_key: &[u8; 32],
 ) -> [u8; PKCS_LEN] {
@@ -762,7 +762,7 @@ fn serialize_pkcs8(
 
 /// Deserialize the seed and pubkey for a key pair from its PKCS#8-encoded
 /// bytes.
-fn deserialize_pkcs8(bytes: &[u8]) -> Option<(&[u8; 32], &[u8; 32])> {
+fn deserialize_pkcs8_der(bytes: &[u8]) -> Option<(&[u8; 32], &[u8; 32])> {
     if bytes.len() != PKCS_LEN {
         return None;
     }
@@ -779,7 +779,10 @@ fn deserialize_pkcs8(bytes: &[u8]) -> Option<(&[u8; 32], &[u8; 32])> {
 
 #[cfg(test)]
 mod test {
-    use proptest::{arbitrary::any, prop_assume, proptest, strategy::Strategy};
+    use proptest::{
+        arbitrary::any, prop_assert_eq, prop_assume, proptest,
+        strategy::Strategy,
+    };
     use proptest_derive::Arbitrary;
 
     use super::*;
@@ -813,11 +816,26 @@ mod test {
     fn test_serde_pkcs8_roundtrip() {
         proptest!(|(seed in arb_seed())| {
             let key_pair1 = KeyPair::from_seed(&seed);
-            let key_pair_bytes = key_pair1.serialize_pkcs8();
-            let key_pair2 = KeyPair::deserialize_pkcs8(key_pair_bytes.as_slice()).unwrap();
+            let key_pair_bytes = key_pair1.serialize_pkcs8_der();
+            let key_pair2 =
+                KeyPair::deserialize_pkcs8_der(key_pair_bytes.as_slice())
+                    .unwrap();
 
             assert_eq!(key_pair1.secret_key(), key_pair2.secret_key());
             assert_eq!(key_pair1.public_key(), key_pair2.public_key());
+        });
+    }
+
+    /// [`KeyPair`] -> [`rcgen::KeyPair`] -> DER bytes -> [`KeyPair`]
+    #[test]
+    fn test_rcgen_der_roundtrip() {
+        proptest!(|(seed in arb_seed())| {
+            let key_pair1 = KeyPair::from_seed(&seed);
+            let rcgen_key_pair = key_pair1.to_rcgen();
+            let key_der = rcgen_key_pair.serialize_der();
+            let key_pair2 = KeyPair::deserialize_pkcs8_der(&key_der).unwrap();
+            prop_assert_eq!(key_pair1.secret_key(), key_pair2.secret_key());
+            prop_assert_eq!(key_pair1.public_key(), key_pair2.public_key());
         });
     }
 
@@ -825,7 +843,7 @@ mod test {
     fn test_deserialize_pkcs8_different_lengths() {
         for size in 0..=256 {
             let bytes = vec![0x42_u8; size];
-            let _ = deserialize_pkcs8(&bytes);
+            let _ = deserialize_pkcs8_der(&bytes);
         }
     }
 
