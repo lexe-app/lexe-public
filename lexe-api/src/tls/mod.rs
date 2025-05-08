@@ -220,7 +220,7 @@ pub fn build_rcgen_cert(
 ) -> rcgen::Certificate {
     let mut params = rcgen::CertificateParams::default();
 
-    // alg (set below)
+    // alg: (can't be overridden)
     params.not_before = not_before;
     params.not_after = not_after;
     // serial_number: None
@@ -231,15 +231,18 @@ pub fn build_rcgen_cert(
     // extended_key_usages: Vec::new(),
     // name_constraints: None,
     // custom_extensions: Vec::new(),
-    // key_pair (set below)
+    // key_pair: (can't be overridden)
     // use_authority_key_identifier_extension: false,
-    // key_identifier_method: KeyIdMethod::Sha256,
+    // key_identifier_method: (can't be overridden)
 
     overrides(&mut params);
 
-    // Prevent these from being overridden to make panics impossible
+    // Prevent alg and keypair from being overridden to make panics impossible
     params.alg = &rcgen::PKCS_ED25519;
     params.key_pair = Some(key_pair.into_inner());
+
+    // Use consistent method for deriving key identifiers
+    params.key_identifier_method = rcgen::KeyIdMethod::Sha256;
 
     rcgen::Certificate::from_params(params)
         .expect("Can only panic if keypair doesn't match algorithm")
