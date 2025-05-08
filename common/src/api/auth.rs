@@ -95,16 +95,16 @@ pub struct UserSignupRequest {
 /// A client's request for a new [`BearerAuthToken`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum BearerAuthRequest {
-    V1(BearerAuthRequestV1),
+pub enum BearerAuthRequestWire {
+    V1(BearerAuthRequestWireV1),
     // Added in node-v0.7.9+
-    V2(BearerAuthRequestV2),
+    V2(BearerAuthRequestWireV2),
 }
 
 /// A user client's request for auth token with certain restrictions.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct BearerAuthRequestV1 {
+pub struct BearerAuthRequestWireV1 {
     /// The timestamp of this auth request, in seconds since UTC Unix time,
     /// interpreted relative to the server clock. Used to prevent replaying old
     /// auth requests after the ~1 min expiration.
@@ -122,9 +122,9 @@ pub struct BearerAuthRequestV1 {
 /// A user client's request for auth token with certain restrictions.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct BearerAuthRequestV2 {
+pub struct BearerAuthRequestWireV2 {
     // v2 includes all fields from v1
-    pub v1: BearerAuthRequestV1,
+    pub v1: BearerAuthRequestWireV1,
 
     /// The allowed API scope for the bearer auth token.
     pub scope: Option<Scope>,
@@ -214,9 +214,9 @@ impl ed25519::Signable for UserSignupRequest {
 
 // -- impl BearerAuthRequest -- //
 
-impl BearerAuthRequest {
+impl BearerAuthRequestWire {
     pub fn new(now: SystemTime, token_lifetime_secs: u32) -> Self {
-        Self::V1(BearerAuthRequestV1 {
+        Self::V1(BearerAuthRequestWireV1 {
             request_timestamp_secs: now
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .expect("Something is very wrong with our clock")
@@ -234,7 +234,7 @@ impl BearerAuthRequest {
             .map_err(Error::UserVerifyError)
     }
 
-    fn v1(&self) -> &BearerAuthRequestV1 {
+    fn v1(&self) -> &BearerAuthRequestWireV1 {
         match self {
             Self::V1(req) => req,
             Self::V2(req) => &req.v1,
@@ -266,7 +266,7 @@ impl BearerAuthRequest {
     }
 }
 
-impl ed25519::Signable for BearerAuthRequest {
+impl ed25519::Signable for BearerAuthRequestWire {
     const DOMAIN_SEPARATOR: [u8; 32] =
         array::pad(*b"LEXE-REALM::BearerAuthRequest");
 }
@@ -365,7 +365,7 @@ impl BearerAuthenticator {
     ) -> Result<TokenWithExpiration, BackendApiError> {
         let lifetime = DEFAULT_USER_TOKEN_LIFETIME_SECS;
         let expiration = now + Duration::from_secs(lifetime as u64);
-        let auth_req = BearerAuthRequest::new(now, lifetime);
+        let auth_req = BearerAuthRequestWire::new(now, lifetime);
         let (_, signed_req) = self
             .user_key_pair
             .sign_struct(&auth_req)
@@ -402,27 +402,27 @@ mod test {
     }
 
     #[test]
-    fn test_bearer_auth_request_canonical() {
-        bcs_roundtrip_proptest::<BearerAuthRequest>();
+    fn test_bearer_auth_request_wire_canonical() {
+        bcs_roundtrip_proptest::<BearerAuthRequestWire>();
     }
 
     #[test]
-    fn test_bearer_auth_request_sign_verify() {
-        signed_roundtrip_proptest::<BearerAuthRequest>();
+    fn test_bearer_auth_request_wire_sign_verify() {
+        signed_roundtrip_proptest::<BearerAuthRequestWire>();
     }
 
     #[test]
-    fn test_bearer_auth_request_snapshot() {
+    fn test_bearer_auth_request_wire_snapshot() {
         let input = "00d20296490000000058020000";
-        let req = BearerAuthRequest::V1(BearerAuthRequestV1 {
+        let req = BearerAuthRequestWire::V1(BearerAuthRequestWireV1 {
             request_timestamp_secs: 1234567890,
             lifetime_secs: 10 * 60,
         });
         bcs_roundtrip_ok(&hex::decode(input).unwrap(), &req);
 
         let input = "01d2029649000000005802000000";
-        let req = BearerAuthRequest::V2(BearerAuthRequestV2 {
-            v1: BearerAuthRequestV1 {
+        let req = BearerAuthRequestWire::V2(BearerAuthRequestWireV2 {
+            v1: BearerAuthRequestWireV1 {
                 request_timestamp_secs: 1234567890,
                 lifetime_secs: 10 * 60,
             },
@@ -431,8 +431,8 @@ mod test {
         bcs_roundtrip_ok(&hex::decode(input).unwrap(), &req);
 
         let input = "01d202964900000000580200000101";
-        let req = BearerAuthRequest::V2(BearerAuthRequestV2 {
-            v1: BearerAuthRequestV1 {
+        let req = BearerAuthRequestWire::V2(BearerAuthRequestWireV2 {
+            v1: BearerAuthRequestWireV1 {
                 request_timestamp_secs: 1234567890,
                 lifetime_secs: 10 * 60,
             },

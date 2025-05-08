@@ -9,7 +9,7 @@ use bytes::Bytes;
 use common::{
     api::{
         auth::{
-            BearerAuthRequest, BearerAuthResponse, BearerAuthToken,
+            BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken,
             UserSignupRequest,
         },
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
@@ -242,7 +242,7 @@ impl AppBackendApi for MockBackendClient {
 impl BearerAuthBackendApi for MockBackendClient {
     async fn bearer_auth(
         &self,
-        _signed_req: &ed25519::Signed<&BearerAuthRequest>,
+        _signed_req: &ed25519::Signed<&BearerAuthRequestWire>,
     ) -> Result<BearerAuthResponse, BackendApiError> {
         // TODO(phlip9): return something we can verify
         Ok(BearerAuthResponse {

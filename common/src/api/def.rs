@@ -34,7 +34,7 @@ use lightning::events::Event;
 
 use super::{
     auth::{
-        BearerAuthRequest, BearerAuthResponse, BearerAuthToken,
+        BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken,
         UserSignupRequest,
     },
     command::{
@@ -276,7 +276,7 @@ pub trait BearerAuthBackendApi {
     /// Valid values for `CONSUMER` are: "app", "node" and "lsp".
     async fn bearer_auth(
         &self,
-        signed_req: &ed25519::Signed<&BearerAuthRequest>,
+        signed_req: &ed25519::Signed<&BearerAuthRequestWire>,
     ) -> Result<BearerAuthResponse, BackendApiError>;
 }
 

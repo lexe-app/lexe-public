@@ -17,7 +17,7 @@ use async_trait::async_trait;
 use common::{
     api::{
         auth::{
-            BearerAuthRequest, BearerAuthResponse, BearerAuthenticator,
+            BearerAuthRequestWire, BearerAuthResponse, BearerAuthenticator,
             UserSignupRequest,
         },
         command::{
@@ -134,7 +134,7 @@ impl AppBackendApi for GatewayClient {
 impl BearerAuthBackendApi for GatewayClient {
     async fn bearer_auth(
         &self,
-        signed_req: &ed25519::Signed<&BearerAuthRequest>,
+        signed_req: &ed25519::Signed<&BearerAuthRequestWire>,
     ) -> Result<BearerAuthResponse, BackendApiError> {
         let gateway_url = &self.gateway_url;
         let req = self

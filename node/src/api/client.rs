@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use common::{
     api::{
-        auth::{BearerAuthRequest, BearerAuthResponse, BearerAuthToken},
+        auth::{BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken},
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         def::{
             BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi,
@@ -178,7 +178,7 @@ impl BackendApiClient for BackendClient {
 impl BearerAuthBackendApi for BackendClient {
     async fn bearer_auth(
         &self,
-        signed_req: &ed25519::Signed<&BearerAuthRequest>,
+        signed_req: &ed25519::Signed<&BearerAuthRequestWire>,
     ) -> Result<BearerAuthResponse, BackendApiError> {
         let backend = &self.backend_url;
         let url = format!("{backend}/node/bearer_auth");
