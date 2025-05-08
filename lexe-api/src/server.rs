@@ -65,7 +65,7 @@ use axum_server::tls_rustls::RustlsConfig;
 use bytes::Bytes;
 use common::{
     api::{
-        auth,
+        auth::{self, Scope},
         error::{CommonApiError, CommonErrorKind},
         server,
     },
@@ -626,8 +626,10 @@ enum LxRejectionKind {
     Query,
 
     // -- Other -- //
-    /// Bearer auth
-    Auth,
+    /// Bearer authentication failed
+    Unauthenticated,
+    /// Client is not authorized to access this resource
+    Unauthorized,
     /// Client request did not match any paths in the [`Router`].
     BadEndpoint,
     /// Request body length over limit
@@ -649,8 +651,20 @@ impl LxRejection {
 
     pub fn from_bearer_auth(error: auth::Error) -> Self {
         Self {
-            kind: LxRejectionKind::Auth,
+            kind: LxRejectionKind::Unauthenticated,
             source_msg: format!("{error:#}"),
+        }
+    }
+
+    pub fn scope_unauthorized(
+        granted_scope: &Scope,
+        requested_scope: &Scope,
+    ) -> Self {
+        Self {
+            kind: LxRejectionKind::Unauthorized,
+            source_msg: format!(
+                "granted scope: {granted_scope:?}, requested scope: {requested_scope:?}"
+            ),
         }
     }
 
@@ -700,6 +714,8 @@ impl From<QueryRejection> for LxRejection {
 
 impl IntoResponse for LxRejection {
     fn into_response(self) -> http::Response<axum::body::Body> {
+        // TODO(phlip9): authn+authz+badendpoint rejections should return
+        // standard status codes, not just 400.
         let kind = CommonErrorKind::Rejection;
         // "Bad JSON: Failed to deserialize the JSON body into the target type"
         let kind_msg = self.kind.to_msg();
@@ -721,7 +737,8 @@ impl LxRejectionKind {
             Self::Json => "Client provided bad JSON",
             Self::Query => "Client provided bad query string",
 
-            Self::Auth => "Bad bearer auth token",
+            Self::Unauthenticated => "Invalid bearer auth",
+            Self::Unauthorized => "Not authorized to access this resource",
             Self::BadEndpoint => "Client requested a non-existent endpoint",
             Self::BodyLengthOverLimit => "Request body length over limit",
             Self::Ed25519 => "Ed25519 error",

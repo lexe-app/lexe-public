@@ -56,6 +56,14 @@ pub enum Error {
 
     #[error("bearer auth token was not provided")]
     Missing,
+
+    // TODO(phlip9): this is an authorization error, not an authentication
+    // error. Add a new type?
+    #[error(
+        "auth token's granted scope ({granted:?}) is not sufficient for \
+         requested scope ({requested:?})"
+    )]
+    InsufficientScope { granted: Scope, requested: Scope },
 }
 
 /// The inner, signed part of the request a new user makes when they first sign
@@ -418,6 +426,21 @@ impl BearerAuthenticator {
             expiration,
             token: resp.bearer_auth_token,
         })
+    }
+}
+
+// --- impl Scope --- //
+
+impl Scope {
+    /// Returns `true` if the `requested_scope` is allowed by this granted
+    /// scope.
+    pub fn has_permission_for(&self, requested_scope: &Self) -> bool {
+        let granted_scope = self;
+        match (granted_scope, requested_scope) {
+            (Scope::All, _) => true,
+            (Scope::GatewayConnect, Scope::All) => false,
+            (Scope::GatewayConnect, Scope::GatewayConnect) => true,
+        }
     }
 }
 
