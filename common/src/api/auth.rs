@@ -93,18 +93,10 @@ pub struct UserSignupRequest {
 }
 
 /// A client's request for a new [`BearerAuthToken`].
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum BearerAuthRequestWire {
-    V1(BearerAuthRequestWireV1),
-    // Added in node-v0.7.9+
-    V2(BearerAuthRequestWireV2),
-}
-
-/// A user client's request for auth token with certain restrictions.
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct BearerAuthRequestWireV1 {
+///
+/// This is the convenient in-memory representation.
+#[derive(Clone, Debug)]
+pub struct BearerAuthRequest {
     /// The timestamp of this auth request, in seconds since UTC Unix time,
     /// interpreted relative to the server clock. Used to prevent replaying old
     /// auth requests after the ~1 min expiration.
@@ -117,6 +109,32 @@ pub struct BearerAuthRequestWireV1 {
     /// most 1 hour. The new token expiration is generated relative to the
     /// server clock.
     pub lifetime_secs: u32,
+
+    /// The allowed API scope for the bearer auth token. If unset, the issued
+    /// token currently defaults to [`Scope::All`].
+    // TODO(phlip9): implement proper scope attenuation from identity's allowed
+    // scopes
+    pub scope: Option<Scope>,
+}
+
+/// A client's request for a new [`BearerAuthToken`].
+///
+/// This is the over-the-wire BCS-serializable representation structured for
+/// backwards compatibility.
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum BearerAuthRequestWire {
+    V1(BearerAuthRequestWireV1),
+    // Added in node-v0.7.9+
+    V2(BearerAuthRequestWireV2),
+}
+
+/// A user client's request for auth token with certain restrictions.
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct BearerAuthRequestWireV1 {
+    request_timestamp_secs: u64,
+    lifetime_secs: u32,
 }
 
 /// A user client's request for auth token with certain restrictions.
@@ -124,10 +142,8 @@ pub struct BearerAuthRequestWireV1 {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct BearerAuthRequestWireV2 {
     // v2 includes all fields from v1
-    pub v1: BearerAuthRequestWireV1,
-
-    /// The allowed API scope for the bearer auth token.
-    pub scope: Option<Scope>,
+    v1: BearerAuthRequestWireV1,
+    scope: Option<Scope>,
 }
 
 /// The allowed API scope for the bearer auth token.
@@ -214,17 +230,66 @@ impl ed25519::Signable for UserSignupRequest {
 
 // -- impl BearerAuthRequest -- //
 
-impl BearerAuthRequestWire {
-    pub fn new(now: SystemTime, token_lifetime_secs: u32) -> Self {
-        Self::V1(BearerAuthRequestWireV1 {
+impl BearerAuthRequest {
+    pub fn new(
+        now: SystemTime,
+        token_lifetime_secs: u32,
+        scope: Option<Scope>,
+    ) -> Self {
+        Self {
             request_timestamp_secs: now
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .expect("Something is very wrong with our clock")
                 .as_secs(),
             lifetime_secs: token_lifetime_secs,
-        })
+            scope,
+        }
     }
 
+    /// Get the `request_timestamp` as a [`SystemTime`]. Returns `Err` if the
+    /// `issued_timestamp` is too large to be represented as a unix timestamp
+    /// (> 2^63 on linux).
+    pub fn request_timestamp(&self) -> Result<SystemTime, Error> {
+        let t_secs = self.request_timestamp_secs;
+        let t_dur_secs = Duration::from_secs(t_secs);
+        SystemTime::UNIX_EPOCH
+            .checked_add(t_dur_secs)
+            .ok_or(Error::InvalidTimestamp)
+    }
+}
+
+impl From<BearerAuthRequestWire> for BearerAuthRequest {
+    fn from(wire: BearerAuthRequestWire) -> Self {
+        match wire {
+            BearerAuthRequestWire::V1(v1) => Self {
+                request_timestamp_secs: v1.request_timestamp_secs,
+                lifetime_secs: v1.lifetime_secs,
+                scope: None,
+            },
+            BearerAuthRequestWire::V2(v2) => Self {
+                request_timestamp_secs: v2.v1.request_timestamp_secs,
+                lifetime_secs: v2.v1.lifetime_secs,
+                scope: v2.scope,
+            },
+        }
+    }
+}
+
+impl From<BearerAuthRequest> for BearerAuthRequestWire {
+    fn from(req: BearerAuthRequest) -> Self {
+        Self::V2(BearerAuthRequestWireV2 {
+            v1: BearerAuthRequestWireV1 {
+                request_timestamp_secs: req.request_timestamp_secs,
+                lifetime_secs: req.lifetime_secs,
+            },
+            scope: req.scope,
+        })
+    }
+}
+
+// -- impl BearerAuthRequestWire -- //
+
+impl BearerAuthRequestWire {
     pub fn deserialize_verify(
         serialized: &[u8],
     ) -> Result<Signed<Self>, Error> {
@@ -233,40 +298,10 @@ impl BearerAuthRequestWire {
         ed25519::verify_signed_struct(ed25519::accept_any_signer, serialized)
             .map_err(Error::UserVerifyError)
     }
-
-    fn v1(&self) -> &BearerAuthRequestWireV1 {
-        match self {
-            Self::V1(req) => req,
-            Self::V2(req) => &req.v1,
-        }
-    }
-
-    /// Get the `request_timestamp` as a [`SystemTime`]. Returns `Err` if the
-    /// `issued_timestamp` is too large to be represented as a unix timestamp
-    /// (> 2^63 on linux).
-    pub fn request_timestamp(&self) -> Result<SystemTime, Error> {
-        let t_secs = self.v1().request_timestamp_secs;
-        let t_dur_secs = Duration::from_secs(t_secs);
-        SystemTime::UNIX_EPOCH
-            .checked_add(t_dur_secs)
-            .ok_or(Error::InvalidTimestamp)
-    }
-
-    /// The requested token lifetime in seconds.
-    pub fn lifetime_secs(&self) -> u32 {
-        self.v1().lifetime_secs
-    }
-
-    /// The requested token API scope.
-    pub fn scope(&self) -> Option<&Scope> {
-        match self {
-            Self::V1(_) => None,
-            Self::V2(req) => req.scope.as_ref(),
-        }
-    }
 }
 
 impl ed25519::Signable for BearerAuthRequestWire {
+    // Uses "LEXE-REALM::BearerAuthRequest" for backwards compatibility
     const DOMAIN_SEPARATOR: [u8; 32] =
         array::pad(*b"LEXE-REALM::BearerAuthRequest");
 }
@@ -365,10 +400,12 @@ impl BearerAuthenticator {
     ) -> Result<TokenWithExpiration, BackendApiError> {
         let lifetime = DEFAULT_USER_TOKEN_LIFETIME_SECS;
         let expiration = now + Duration::from_secs(lifetime as u64);
-        let auth_req = BearerAuthRequestWire::new(now, lifetime);
+        let scope = Some(Scope::All);
+        let auth_req = BearerAuthRequest::new(now, lifetime, scope);
+        let auth_req_wire = BearerAuthRequestWire::from(auth_req);
         let (_, signed_req) = self
             .user_key_pair
-            .sign_struct(&auth_req)
+            .sign_struct(&auth_req_wire)
             .map_err(|err| BackendApiError {
                 kind: BackendErrorKind::Building,
                 msg: format!("Error signing auth request: {err:#}"),
