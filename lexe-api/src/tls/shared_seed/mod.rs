@@ -2,27 +2,72 @@
 //!
 //! ## Overview
 //!
-//! The client and server need to mutually authenticate each other and build a
-//! secure channel via mTLS (mutual-auth TLS):
+//! Security is based on the fact that the [`RootSeed`] is only known to the
+//! user and a previously provisioned node.
 //!
-//! - The app (client) wants to verify that it's talking to one of its
-//!   previously provisioned nodes (server), since only a provisioned
-//!   measurement could have access to the root seed.
-//! - Likewise, a running node (server) has access to the [`RootSeed`], and
-//!   wants to ensure that inbound connections (which may issue commands to
-//!   spend money, withdraw funds etc) are coming from the node's actual owner
-//!   (client). It will use the fact that only the node owner should have access
-//!   to the [`RootSeed`].
+//! There are two forms:
 //!
-//! Under this "shared seed" mTLS scheme, both the client and server use their
-//! root seed to independently derive a shared CA cert and keypair, which they
-//! use to sign their respective client and server end-entity certs which they
-//! present to their counterparty. When authenticating their counterparty, they
-//! will simply check that the presented end-entity cert has been signed by the
-//! shared CA, which could only have been possible if the counterparty was also
-//! able to derive the shared CA cert and keypair.
+//! 1) "Ephemeral": Client and server both have a copy of the [`RootSeed`]. Both
+//!    use the [`RootSeed`] to independently and deterministically derive a
+//!    non-expiring "ephemeral cert issuing" CA which then issues a short-lived
+//!    client or server end-entity cert which they present to the other side.
+//!    The client and server verify that the other side has presented a cert
+//!    signed by the derived CA.
+//!
+//! 2) "Revocable": Node (server) deterministically derives a "revocable cert
+//!    issuing" CA. The app requests the node to issue an "revocable" client
+//!    cert. The issued client cert does not encode an expiration. Instead, its
+//!    expiration is managed at the application level via a cert whitelist which
+//!    tracks each client cert's serial number and expiration. These client
+//!    certs can be given to SDK clients and revoked at any time.
+//!
+//! ## Client and server cert verification
+//!
+//! - Client: Trusts only the [`EphemeralIssuingCaCert`], since the node always
+//!   has access to the root seed and can therefore rederive the CA cert and
+//!   issue itself a fresh server cert.
+//!
+//! - Server: Trusts *either* the [`EphemeralIssuingCaCert`] or the
+//!   [`RevocableIssuingCaCert`], but with some differences:
+//!   - All certs signed by the [`EphemeralIssuingCaCert`] are automatically
+//!     trusted.
+//!   - Certs signed by the [`RevocableIssuingCaCert`] must additionally appear
+//!     in the client cert whitelist, must not be expired, and must and not be
+//!     revoked.
+//!
+//! ## Which certs / secrets are stored where?
+//!
+//! - Node: Holds [`RootSeed`], derives ephemeral CA cert and eph server cert.
+//! - App: Holds [`RootSeed`], derives ephemeral CA cert and eph client cert.
+//! - SDK: Holds:
+//!   - [`RevocableIssuingCaCert`] (DER only, no keypair)
+//!   - [`RevocableClientCert`] (with keypair)
+//!
+//! ## Certificate hierarchy
+//!
+//! [`RootSeed`]
+//! |
+//! |___ [`EphemeralIssuingCaCert`]: Deterministically derived, expires never
+//! |   |
+//! |   |___ [`EphemeralClientCert`]: Expires in 90 days
+//! |   |
+//! |   |___ [`EphemeralServerCert`]: Expires in 90 days
+//! |
+//! |___ [`RevocableIssuingCaCert`]: Deterministically derived, expires never
+//!     |
+//!     |___ [`RevocableClientCert`]: Issued by parent; expires never.
+//!     |
+//!     |___ (no server cert; node always presents [`EphemeralServerCert`])
 //!
 //! [`RootSeed`]: common::root_seed::RootSeed
+//! [`EphemeralIssuingCaCert`]: crate::tls::shared_seed::certs::EphemeralIssuingCaCert
+//! [`EphemeralClientCert`]: crate::tls::shared_seed::certs::EphemeralClientCert
+//! [`EphemeralServerCert`]: crate::tls::shared_seed::certs::EphemeralServerCert
+//! [`RevocableIssuingCaCert`]: crate::tls::shared_seed::certs::RevocableIssuingCaCert
+//! [`RevocableClientCert`]: crate::tls::shared_seed::certs::RevocableClientCert
+
+// TODO(max): Only the app (not an SDK) should have the power to call the "issue
+// new cert" endpoint.
 
 use std::sync::Arc;
 
@@ -51,16 +96,16 @@ pub fn app_node_run_server_config(
     rng: &mut impl Crng,
     root_seed: &RootSeed,
 ) -> anyhow::Result<(rustls::ServerConfig, String)> {
-    // Derive shared seed CA cert
-    let ca_cert = certs::SharedSeedCaCert::from_root_seed(root_seed);
+    // Derive ephemeral issuing CA cert
+    let ca_cert = certs::EphemeralIssuingCaCert::from_root_seed(root_seed);
     let ca_cert_der = ca_cert
         .serialize_der_self_signed()
-        .context("Failed to sign and serialize shared seed CA cert")?;
+        .context("Failed to sign and serialize ephemeral CA cert")?;
 
-    // Build shared seed server cert and sign with derived CA
+    // Build ephemeral server cert and sign with derived CA
     let dns_name = constants::NODE_RUN_DNS.to_owned();
     let server_cert =
-        certs::SharedSeedServerCert::from_rng(rng, dns_name.clone());
+        certs::EphemeralServerCert::from_rng(rng, dns_name.clone());
     let server_cert_der = server_cert
         .serialize_der_ca_signed(&ca_cert)
         .context("Failed to sign and serialize ephemeral server cert")?;
@@ -98,22 +143,22 @@ pub fn app_node_run_client_config(
     deploy_env: DeployEnv,
     root_seed: &RootSeed,
 ) -> anyhow::Result<rustls::ClientConfig> {
-    // Derive shared seed CA cert
-    let ca_cert = certs::SharedSeedCaCert::from_root_seed(root_seed);
+    // Derive ephemeral issuing CA cert
+    let ca_cert = certs::EphemeralIssuingCaCert::from_root_seed(root_seed);
 
     // Build the client's server cert verifier:
-    // - Shared seed verifier trusts the derived CA
+    // - Ephemeral CA verifier trusts the ephemeral issuing CA
     // - Public Lexe verifier trusts the hard-coded Lexe cert.
-    let shared_seed_verifier = shared_seed_verifier(&ca_cert)
-        .context("Failed to build shared seed verifier")?;
+    let ephemeral_ca_verifier = ephemeral_ca_verifier(&ca_cert)
+        .context("Failed to build ephemeral CA verifier")?;
     let lexe_server_verifier = lexe_ca::lexe_server_verifier(deploy_env);
     let server_cert_verifier = AppNodeRunVerifier {
-        shared_seed_verifier,
+        ephemeral_ca_verifier,
         lexe_server_verifier,
     };
 
-    // Generate shared seed client cert and sign with derived CA
-    let client_cert = certs::SharedSeedClientCert::generate_from_rng(rng);
+    // Generate ephemeral client cert and sign with derived CA
+    let client_cert = certs::EphemeralClientCert::generate_from_rng(rng);
     let client_cert_der = client_cert
         .serialize_der_ca_signed(&ca_cert)
         .context("Failed to sign and serialize ephemeral client cert")?;
@@ -124,7 +169,7 @@ pub fn app_node_run_client_config(
         .with_custom_certificate_verifier(Arc::new(server_cert_verifier))
         // NOTE: .with_single_cert() uses a client cert resolver which always
         // presents our client cert when asked. Does this introduce overhead by
-        // needlessly presenting our shared seed client cert to the proxy which
+        // needlessly presenting our ephemeral client cert to the proxy which
         // doesn't actually require client auth? The answer is no, because the
         // proxy would then not send a CertificateRequest message during the
         // handshake, which is what actually prompts the client to send its
@@ -145,23 +190,23 @@ pub fn app_node_run_client_config(
     Ok(config)
 }
 
-/// Shorthand to build a [`ServerCertVerifier`] which trusts the derived CA.
-pub fn shared_seed_verifier(
-    ca_cert: &certs::SharedSeedCaCert,
+/// Build a [`ServerCertVerifier`] which trusts the "ephemeral issuing" CA.
+pub fn ephemeral_ca_verifier(
+    ca_cert: &certs::EphemeralIssuingCaCert,
 ) -> anyhow::Result<Arc<WebPkiServerVerifier>> {
     let ca_cert_der = ca_cert
         .serialize_der_self_signed()
-        .context("Failed to sign and serialize shared seed CA cert")?;
+        .context("Failed to sign and serialize ephemeral CA cert")?;
     let mut roots = RootCertStore::empty();
     roots
         .add(ca_cert_der.into())
-        .context("Failed to re-parse shared seed CA cert")?;
+        .context("Failed to re-parse ephemeral CA cert")?;
     let verifier = WebPkiServerVerifier::builder_with_provider(
         Arc::new(roots),
         super::LEXE_CRYPTO_PROVIDER.clone(),
     )
     .build()
-    .context("Could not build shared seed server verifier")?;
+    .context("Could not build ephemeral server verifier")?;
     Ok(verifier)
 }
 
@@ -178,12 +223,12 @@ pub fn shared_seed_verifier(
 /// - The [`AppNodeRunVerifier`] thus chooses between two "sub-verifiers"
 ///   according to the [`ServerName`] given to us by [`reqwest`]. We use the
 ///   public Lexe WebPKI verifier when establishing the outer TLS connection
-///   with the gateway, and we use the shared seed verifier for the inner TLS
+///   with the gateway, and we use the ephemeral CA verifier for the inner TLS
 ///   connection which terminates inside the user node SGX enclave.
 #[derive(Debug)]
 struct AppNodeRunVerifier {
-    /// `run.lexe.app` shared seed verifier - trusts the derived CA
-    shared_seed_verifier: Arc<WebPkiServerVerifier>,
+    /// `run.lexe.app` verifier - trusts the "ephemeral issuing" CA
+    ephemeral_ca_verifier: Arc<WebPkiServerVerifier>,
     /// Lexe server verifier - trusts the Lexe CA
     lexe_server_verifier: Arc<WebPkiServerVerifier>,
 }
@@ -203,9 +248,9 @@ impl ServerCertVerifier for AppNodeRunVerifier {
         };
 
         match maybe_dns_name {
-            // Verify using derived shared seed CA when node is running
+            // Verify using ephemeral issuing CA when node is running
             Some(constants::NODE_RUN_DNS) =>
-                self.shared_seed_verifier.verify_server_cert(
+                self.ephemeral_ca_verifier.verify_server_cert(
                     end_entity,
                     intermediates,
                     server_name,

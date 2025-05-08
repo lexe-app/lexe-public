@@ -105,10 +105,12 @@ impl RootSeed {
         SecretVec::new(out)
     }
 
-    /// Derive the keypair for the CA cert that endorses client and server certs
-    /// under the "shared seed" mTLS construction. These certs provide mutual
-    /// authentication for client <-> server connections.
-    pub fn derive_shared_seed_tls_ca_key_pair(&self) -> ed25519::KeyPair {
+    /// Derive the keypair for the "ephemeral issuing" CA that endorses
+    /// client and server certs under the "shared seed" mTLS construction.
+    pub fn derive_ephemeral_issuing_ca_key_pair(&self) -> ed25519::KeyPair {
+        // TODO(max): Ideally rename to "ephemeral issuing ca key pair", but
+        // need to ensure backwards compatibility. Both client and server need
+        // to trust the old + new CAs before the old CA can be removed.
         let seed = self.derive(&[b"shared seed tls ca key pair"]);
         ed25519::KeyPair::from_seed(seed.expose_secret())
     }
