@@ -115,6 +115,13 @@ impl RootSeed {
         ed25519::KeyPair::from_seed(seed.expose_secret())
     }
 
+    /// Derive the keypair for the "revocable issuing" CA that endorses
+    /// client and server certs under the "shared seed" mTLS construction.
+    pub fn derive_revocable_issuing_ca_key_pair(&self) -> ed25519::KeyPair {
+        let seed = self.derive(&[b"revocable issuing ca key pair"]);
+        ed25519::KeyPair::from_seed(seed.expose_secret())
+    }
+
     /// Derive the user key pair, which is the key behind the [`UserPk`]. This
     /// key pair is also used to sign up and authenticate as the user against
     /// the lexe backend.
