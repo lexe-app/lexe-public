@@ -216,6 +216,9 @@ pub struct BearerAuthenticator {
     //    Idea^tm, since it'll block all tasks on the runtime (we only use a
     //    single thread for the user node).
     auth_lock: tokio::sync::Mutex<()>,
+
+    /// The API scope this authenticator will request for its auth tokens.
+    scope: Option<Scope>,
 }
 
 // -- impl UserSignupRequest -- //
@@ -353,10 +356,23 @@ impl BearerAuthenticator {
         user_key_pair: ed25519::KeyPair,
         maybe_token: Option<TokenWithExpiration>,
     ) -> Self {
+        // Use default scope for this identity.
+        let scope = None;
+        Self::new_with_scope(user_key_pair, maybe_token, scope)
+    }
+
+    /// [`BearerAuthenticator::new`] constructor with an optional scope to
+    /// restrict requested auth tokens.
+    pub fn new_with_scope(
+        user_key_pair: ed25519::KeyPair,
+        maybe_token: Option<TokenWithExpiration>,
+        scope: Option<Scope>,
+    ) -> Self {
         Self {
             user_key_pair,
             cached_auth_token: std::sync::Mutex::new(maybe_token),
             auth_lock: tokio::sync::Mutex::new(()),
+            scope,
         }
     }
 
@@ -408,7 +424,7 @@ impl BearerAuthenticator {
     ) -> Result<TokenWithExpiration, BackendApiError> {
         let lifetime = DEFAULT_USER_TOKEN_LIFETIME_SECS;
         let expiration = now + Duration::from_secs(lifetime as u64);
-        let scope = Some(Scope::All);
+        let scope = self.scope.clone();
         let auth_req = BearerAuthRequest::new(now, lifetime, scope);
         let auth_req_wire = BearerAuthRequestWire::from(auth_req);
         let (_, signed_req) = self

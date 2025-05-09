@@ -12,13 +12,13 @@ use anyhow::{anyhow, Context};
 use bitcoin::secp256k1;
 use common::{
     api::{
-        auth::{BearerAuthenticator, UserSignupRequest},
+        auth::{BearerAuthenticator, Scope, UserSignupRequest},
         def::{AppBackendApi, AppGatewayApi, AppNodeProvisionApi},
         provision::NodeProvisionRequest,
         user::{NodePk, NodePkProof, UserPk},
         version::NodeRelease,
     },
-    constants,
+    constants, ed25519,
     env::DeployEnv,
     ln::network::LxNetwork,
     rng::Crng,
@@ -82,7 +82,7 @@ impl App {
 
         // Init API clients
         let bearer_authenticator =
-            Arc::new(BearerAuthenticator::new(user_key_pair, None));
+            Self::bearer_authenticator_connect_only(user_key_pair);
         let gateway_client = GatewayClient::new(
             user_config.config.deploy_env,
             user_config.config.gateway_url.clone(),
@@ -220,7 +220,7 @@ impl App {
 
         // build NodeClient, GatewayClient
         let bearer_authenticator =
-            Arc::new(BearerAuthenticator::new(user_key_pair, None));
+            Self::bearer_authenticator_connect_only(user_key_pair);
         let gateway_client = GatewayClient::new(
             user_config.config.deploy_env,
             user_config.config.gateway_url.clone(),
@@ -336,7 +336,7 @@ impl App {
 
         // build NodeClient, GatewayClient
         let bearer_authenticator =
-            Arc::new(BearerAuthenticator::new(user_key_pair, None));
+            Self::bearer_authenticator_connect_only(user_key_pair);
         let gateway_client = GatewayClient::new(
             user_config.config.deploy_env,
             user_config.config.gateway_url.clone(),
@@ -413,6 +413,18 @@ impl App {
             settings_db,
             user_info,
         })
+    }
+
+    /// App only needs [`Scope::GatewayConnect`] scoped tokens.
+    fn bearer_authenticator_connect_only(
+        user_key_pair: ed25519::KeyPair,
+    ) -> Arc<BearerAuthenticator> {
+        let cached_auth_token = None;
+        Arc::new(BearerAuthenticator::new_with_scope(
+            user_key_pair,
+            cached_auth_token,
+            Some(Scope::GatewayConnect),
+        ))
     }
 
     pub fn node_client(&self) -> &NodeClient {

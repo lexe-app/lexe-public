@@ -8,7 +8,7 @@ use std::{
 use anyhow::Context;
 use app_rs::client::{GatewayClient, NodeClient};
 use common::{
-    api::auth::BearerAuthenticator,
+    api::auth::{BearerAuthenticator, Scope},
     env::DeployEnv,
     ln::network::LxNetwork,
     notify_once::NotifyOnce,
@@ -96,9 +96,13 @@ impl Sidecar {
         // NodeProvisionClient to support root-seed-less sdk.
         let root_seed = self.root_seed;
         let user_key_pair = root_seed.derive_user_key_pair();
-        let maybe_auth_token = None;
-        let authenticator =
-            Arc::new(BearerAuthenticator::new(user_key_pair, maybe_auth_token));
+        // TODO(phlip9): use long-lived auth token
+        let cached_auth_token = None;
+        let authenticator = Arc::new(BearerAuthenticator::new_with_scope(
+            user_key_pair,
+            cached_auth_token,
+            Some(Scope::GatewayConnect),
+        ));
 
         let gateway_client = GatewayClient::new(
             self.deploy_env,
