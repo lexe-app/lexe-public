@@ -423,7 +423,7 @@ impl App {
         })
     }
 
-    /// App only needs [`Scope::GatewayConnect`] scoped tokens.
+    /// App only needs [`Scope::NodeConnect`] scoped tokens.
     fn bearer_authenticator_connect_only(
         user_key_pair: ed25519::KeyPair,
     ) -> Arc<BearerAuthenticator> {
@@ -431,7 +431,7 @@ impl App {
         Arc::new(BearerAuthenticator::new_with_scope(
             user_key_pair,
             cached_auth_token,
-            Some(Scope::GatewayConnect),
+            Some(Scope::NodeConnect),
         ))
     }
 
@@ -551,7 +551,7 @@ impl App {
 
         let now = SystemTime::now();
         let lifetime_secs = 365 * 24 * 60 * 60; // 1 year
-        let scope = Some(Scope::GatewayConnect);
+        let scope = Some(Scope::NodeConnect);
         let _long_lived_connect_token = auth::do_bearer_auth(
             self.gateway_client(),
             now,

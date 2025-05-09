@@ -163,7 +163,7 @@ pub enum Scope {
 
     /// The token is only allowed to connect to a user node via the gateway.
     // TODO(phlip9): should be a fine-grained scope
-    GatewayConnect,
+    NodeConnect,
     //
     // // TODO(phlip9): fine-grained scopes?
     // Restricted { .. },
@@ -533,8 +533,8 @@ impl Scope {
         let granted_scope = self;
         match (granted_scope, requested_scope) {
             (Scope::All, _) => true,
-            (Scope::GatewayConnect, Scope::All) => false,
-            (Scope::GatewayConnect, Scope::GatewayConnect) => true,
+            (Scope::NodeConnect, Scope::All) => false,
+            (Scope::NodeConnect, Scope::NodeConnect) => true,
         }
     }
 }
@@ -591,7 +591,7 @@ mod test {
                 request_timestamp_secs: 1234567890,
                 lifetime_secs: 10 * 60,
             },
-            scope: Some(Scope::GatewayConnect),
+            scope: Some(Scope::NodeConnect),
         });
         bcs_roundtrip_ok(&hex::decode(input).unwrap(), &req);
     }
@@ -608,7 +608,7 @@ mod test {
         bcs_roundtrip_ok(input, &scope);
 
         let input = b"\x01";
-        let scope = Scope::GatewayConnect;
+        let scope = Scope::NodeConnect;
         bcs_roundtrip_ok(input, &scope);
     }
 }

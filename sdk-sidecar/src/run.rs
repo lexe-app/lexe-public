@@ -101,7 +101,7 @@ impl Sidecar {
         let authenticator = Arc::new(BearerAuthenticator::new_with_scope(
             user_key_pair,
             cached_auth_token,
-            Some(Scope::GatewayConnect),
+            Some(Scope::NodeConnect),
         ));
 
         let gateway_client = GatewayClient::new(
