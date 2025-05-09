@@ -1140,6 +1140,7 @@ dependencies = [
  "tokio-test",
  "tracing",
  "x509-parser",
+ "yasna",
 ]
 
 [[package]]

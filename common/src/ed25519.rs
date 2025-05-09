@@ -45,12 +45,18 @@ use ring::signature::KeyPair as _;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use x509_parser::x509::SubjectPublicKeyInfo;
+use yasna::{models::ObjectIdentifier, ASN1Error, ASN1ErrorKind};
 
-use crate::rng::{Crng, RngExt};
+use crate::{
+    ed25519,
+    rng::{Crng, RngExt},
+};
 
-/// The standard PKCS OID for Ed25519
+/// The standard PKCS OID for Ed25519.
+/// See "id-Ed25519" in [RFC 8410](https://tools.ietf.org/html/rfc8410).
 #[rustfmt::skip]
 pub const PKCS_OID: Oid<'static> = oid!(1.3.101.112);
+pub const PKCS_OID_SLICE: &[u64] = &[1, 3, 101, 112];
 
 pub const SECRET_KEY_LEN: usize = 32;
 pub const PUBLIC_KEY_LEN: usize = 32;
@@ -149,7 +155,7 @@ impl<T: Signable> Signable for &T {
 
 // -- verify_signed_struct -- //
 
-/// Helper fn to pass to [`ed25519::verify_signed_struct`](verify_signed_struct)
+/// Helper fn to pass to [`ed25519::verify_signed_struct`]
 /// that accepts any public key, so long as the signature is OK.
 pub fn accept_any_signer(_: &PublicKey) -> bool {
     true
@@ -157,7 +163,7 @@ pub fn accept_any_signer(_: &PublicKey) -> bool {
 
 /// Verify a BCS-serialized and signed [`Signable`] struct.
 /// Returns the deserialized struct inside a [`Signed`] proof that it was in
-/// fact signed by the associated [`ed25519::PublicKey`](PublicKey).
+/// fact signed by the associated [`ed25519::PublicKey`].
 ///
 /// Signed struct signatures are created using
 /// [`ed25519::KeyPair::sign_struct`](KeyPair::sign_struct).
@@ -324,13 +330,13 @@ impl KeyPair {
 
     /// Serialize the `ed25519::KeyPair` into PKCS#8 DER bytes.
     pub fn serialize_pkcs8_der(&self) -> [u8; PKCS_LEN] {
-        serialize_pkcs8_der(&self.seed, self.public_key().as_inner())
+        serialize_keypair_pkcs8_der(&self.seed, self.public_key().as_inner())
     }
 
     /// Deserialize an `ed25519::KeyPair` from PKCS#8 DER bytes.
     pub fn deserialize_pkcs8_der(bytes: &[u8]) -> Result<Self, Error> {
-        let (seed, expected_pubkey) =
-            deserialize_pkcs8_der(bytes).ok_or(Error::KeyDeserializeError)?;
+        let (seed, expected_pubkey) = deserialize_keypair_pkcs8_der(bytes)
+            .ok_or(Error::KeyDeserializeError)?;
         Self::from_seed_and_pubkey(seed, expected_pubkey)
     }
 
@@ -364,7 +370,7 @@ impl KeyPair {
     /// cryptographic canonical serialization.
     ///
     /// You can verify this signed struct using
-    /// [`ed25519::verify_signed_struct`](verify_signed_struct).
+    /// [`ed25519::verify_signed_struct`]
     pub fn sign_struct<'a, T: Signable + Serialize>(
         &self,
         value: &'a T,
@@ -448,6 +454,104 @@ impl PublicKey {
         const_utils::const_ref_cast(bytes)
     }
 
+    pub const fn as_slice(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+
+    pub const fn into_inner(self) -> [u8; 32] {
+        self.0
+    }
+
+    pub const fn as_inner(&self) -> &[u8; 32] {
+        &self.0
+    }
+
+    /// Serialize to the DER-encoded X.509 SubjectPublicKeyInfo struct.
+    ///
+    /// Adapted from [`rcgen::KeyPair::public_key_der`].
+    ///
+    /// [RFC 5280 section 4.1](https://tools.ietf.org/html/rfc5280#section-4.1)
+    ///
+    /// ```not_rust
+    /// SubjectPublicKeyInfo  ::=  SEQUENCE  {
+    ///     algorithm            AlgorithmIdentifier,
+    ///     subjectPublicKey     BIT STRING
+    /// }
+    /// AlgorithmIdentifier  ::=  SEQUENCE  {
+    ///     algorithm               OBJECT IDENTIFIER,
+    ///     parameters              ANY DEFINED BY algorithm OPTIONAL
+    /// }
+    /// ```
+    pub fn serialize_spki_der(&self) -> Vec<u8> {
+        // TODO(max): Nerd bait: Optimize like `serialize_keypair_pkcs8_der`
+        // below, which should allow us to remove the `yasna` dependency.
+        // The current impl can be the reference impl for differential fuzzing.
+        yasna::construct_der(|writer: yasna::DERWriter<'_>| {
+            // `spki: SubjectPublicKeyInfo`
+            writer.write_sequence(|writer| {
+                // `algorithm: AlgorithmIdentifier` (id-Ed25519)
+                writer.next().write_sequence(|writer| {
+                    // `algorithm: OBJECT IDENTIFIER`
+                    let oid =
+                        ObjectIdentifier::from_slice(ed25519::PKCS_OID_SLICE);
+                    writer.next().write_oid(&oid);
+                    // `parameters: ANY DEFINED BY algorithm OPTIONAL` (none)
+                });
+
+                // `subjectPublicKey: BIT STRING`
+                writer.next().write_bitvec_bytes(
+                    self.as_slice(),
+                    // 32 byte pubkey, 8 bits per byte
+                    32 * 8,
+                );
+            })
+        })
+    }
+
+    /// Deserialize from the DER-encoded X.509 SubjectPublicKeyInfo struct.
+    ///
+    /// [RFC 5280 section 4.1](https://tools.ietf.org/html/rfc5280#section-4.1)
+    ///
+    /// ```not_rust
+    /// SubjectPublicKeyInfo  ::=  SEQUENCE  {
+    ///     algorithm            AlgorithmIdentifier,
+    ///     subjectPublicKey     BIT STRING
+    /// }
+    /// AlgorithmIdentifier  ::=  SEQUENCE  {
+    ///     algorithm               OBJECT IDENTIFIER,
+    ///     parameters              ANY DEFINED BY algorithm OPTIONAL
+    /// }
+    /// ```
+    pub fn deserialize_spki_der(data: &[u8]) -> Result<Self, ASN1Error> {
+        // TODO(max): Nerd bait: Optimize like `deserialize_keypair_pkcs8_der`
+        // below, which should allow us to remove the `yasna` dependency.
+        // The current impl can be the reference impl for differential fuzzing.
+        yasna::parse_der(data, |reader| {
+            // `spki: SubjectPublicKeyInfo`
+            reader.read_sequence(|reader| {
+                // `algorithm: AlgorithmIdentifier` (id-Ed25519)
+                reader.next().read_sequence(|reader| {
+                    // `algorithm: OBJECT IDENTIFIER`
+                    let actual_oid = reader.next().read_oid()?;
+                    let expected_oid =
+                        ObjectIdentifier::from_slice(ed25519::PKCS_OID_SLICE);
+                    if actual_oid != expected_oid {
+                        return Err(ASN1Error::new(ASN1ErrorKind::Invalid));
+                    }
+
+                    // `parameters: ANY DEFINED BY algorithm OPTIONAL` (none)
+                    Ok(())
+                })?;
+
+                // `subjectPublicKey: BIT STRING`
+                let (pubkey_bytes, _num_bits) =
+                    reader.next().read_bitvec_bytes()?;
+                Self::try_from(pubkey_bytes.as_slice())
+                    .map_err(|_| ASN1Error::new(ASN1ErrorKind::Invalid))
+            })
+        })
+    }
+
     /// Verify some raw bytes were signed by this public key.
     pub fn verify_raw(
         &self,
@@ -462,26 +566,14 @@ impl PublicKey {
         .map_err(|_| InvalidSignature)
     }
 
-    /// Like [`ed25519::verify_signed_struct`](verify_signed_struct) but only
-    /// allows signatures produced by this `ed25519::PublicKey`.
+    /// Like [`ed25519::verify_signed_struct`] but only allows signatures
+    /// produced by this `ed25519::PublicKey`.
     pub fn verify_self_signed_struct<'msg, T: Signable + Deserialize<'msg>>(
         &self,
         serialized: &'msg [u8],
     ) -> Result<Signed<T>, Error> {
         let accept_self_signer = |signer| signer == self;
         verify_signed_struct(accept_self_signer, serialized)
-    }
-
-    pub const fn as_slice(&self) -> &[u8] {
-        self.0.as_slice()
-    }
-
-    pub const fn into_inner(self) -> [u8; 32] {
-        self.0
-    }
-
-    pub const fn as_inner(&self) -> &[u8; 32] {
-        &self.0
     }
 }
 
@@ -706,7 +798,27 @@ impl<T: Signable + Clone> Clone for Signed<T> {
     }
 }
 
-// -- low-level PKCS#8 serialization/deserialization -- //
+#[cfg(any(test, feature = "test-utils"))]
+mod arbitrary_impls {
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
+    };
+
+    use super::*;
+
+    impl Arbitrary for KeyPair {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            any::<[u8; 32]>()
+                .prop_map(|seed| Self::from_seed(&seed))
+                .boxed()
+        }
+    }
+}
+
+// -- low-level PKCS#8 keypair serialization/deserialization -- //
 
 // Since ed25519 secret keys and public keys are always serialized with the same
 // size and the PKCS#8 v2 serialization always has the same "metadata" bytes,
@@ -741,7 +853,7 @@ const_utils::const_assert_usize_eq!(PKCS_LEN, 85);
 ///
 /// Note: adapted from `ring`, which doesn't let you serialize as pkcs#8 via
 /// any public API...
-fn serialize_pkcs8_der(
+fn serialize_keypair_pkcs8_der(
     secret_key: &[u8; 32],
     public_key: &[u8; 32],
 ) -> [u8; PKCS_LEN] {
@@ -762,7 +874,9 @@ fn serialize_pkcs8_der(
 
 /// Deserialize the seed and pubkey for a key pair from its PKCS#8-encoded
 /// bytes.
-fn deserialize_pkcs8_der(bytes: &[u8]) -> Option<(&[u8; 32], &[u8; 32])> {
+fn deserialize_keypair_pkcs8_der(
+    bytes: &[u8],
+) -> Option<(&[u8; 32], &[u8; 32])> {
     if bytes.len() != PKCS_LEN {
         return None;
     }
@@ -788,14 +902,6 @@ mod test {
     use super::*;
     use crate::array;
 
-    fn arb_seed() -> impl Strategy<Value = [u8; 32]> {
-        any::<[u8; 32]>().no_shrink()
-    }
-
-    fn arb_key_pair() -> impl Strategy<Value = KeyPair> {
-        arb_seed().prop_map(|seed| KeyPair::from_seed(&seed))
-    }
-
     #[derive(Arbitrary, Serialize, Deserialize)]
     struct SignableBytes(Vec<u8>);
 
@@ -814,7 +920,7 @@ mod test {
 
     #[test]
     fn test_serde_pkcs8_roundtrip() {
-        proptest!(|(seed in arb_seed())| {
+        proptest!(|(seed in any::<[u8; 32]>())| {
             let key_pair1 = KeyPair::from_seed(&seed);
             let key_pair_bytes = key_pair1.serialize_pkcs8_der();
             let key_pair2 =
@@ -829,7 +935,7 @@ mod test {
     /// [`KeyPair`] -> [`rcgen::KeyPair`] -> DER bytes -> [`KeyPair`]
     #[test]
     fn test_rcgen_der_roundtrip() {
-        proptest!(|(seed in arb_seed())| {
+        proptest!(|(seed in any::<[u8;32]>())| {
             let key_pair1 = KeyPair::from_seed(&seed);
             let rcgen_key_pair = key_pair1.to_rcgen();
             let key_der = rcgen_key_pair.serialize_der();
@@ -843,19 +949,38 @@ mod test {
     fn test_deserialize_pkcs8_different_lengths() {
         for size in 0..=256 {
             let bytes = vec![0x42_u8; size];
-            let _ = deserialize_pkcs8_der(&bytes);
+            let _ = deserialize_keypair_pkcs8_der(&bytes);
         }
     }
 
     #[test]
     fn test_to_rcgen() {
-        proptest!(|(key_pair in arb_key_pair())| {
+        proptest!(|(key_pair in any::<KeyPair>())| {
             let rcgen_key_pair = key_pair.to_rcgen();
             assert_eq!(
                 rcgen_key_pair.public_key_raw(),
                 key_pair.public_key().as_slice()
             );
             assert!(rcgen_key_pair.is_compatible(&rcgen::PKCS_ED25519));
+        });
+    }
+
+    #[test]
+    fn test_pubkey_spki_der_roundtrip() {
+        proptest!(|(key_pair in any::<KeyPair>())| {
+            let pubkey1 = key_pair.public_key();
+            let keypair_rcgen = key_pair.to_rcgen();
+            let pubkey_der_rcgen = keypair_rcgen.public_key_der();
+            let pubkey_der_lexe = pubkey1.serialize_spki_der();
+
+            // Ensure our DER encodings are equivalent to rcgen's.
+            prop_assert_eq!(&pubkey_der_rcgen, &pubkey_der_lexe);
+
+            // Ensure deserialization recovers the pubkey.
+            let pubkey2 =
+                ed25519::PublicKey::deserialize_spki_der(&pubkey_der_rcgen)
+                    .unwrap();
+            prop_assert_eq!(pubkey1, &pubkey2);
         });
     }
 
@@ -884,7 +1009,10 @@ mod test {
     // truncating the signed struct should cause the verification to fail.
     #[test]
     fn test_reject_truncated_sig() {
-        proptest!(|(key_pair in arb_key_pair(), msg in any::<SignableBytes>())| {
+        proptest!(|(
+            key_pair in any::<KeyPair>(),
+            msg in any::<SignableBytes>()
+        )| {
             let pubkey = key_pair.public_key();
 
             let (sig, signed) = key_pair.sign_struct(&msg).unwrap();
@@ -912,7 +1040,7 @@ mod test {
     fn test_reject_pad_sig() {
         let cfg = proptest::test_runner::Config::with_cases(50);
         proptest!(cfg, |(
-            key_pair in arb_key_pair(),
+            key_pair in any::<KeyPair>(),
             msg in any::<SignableBytes>(),
             padding in any::<Vec<u8>>(),
         )| {
@@ -957,7 +1085,7 @@ mod test {
             });
 
         proptest!(|(
-            key_pair in arb_key_pair(),
+            key_pair in any::<KeyPair>(),
             msg in any::<SignableBytes>(),
             mut_offset in any::<usize>(),
             mut mutation in arb_mutation,
@@ -988,7 +1116,7 @@ mod test {
 
     #[test]
     fn test_sign_verify() {
-        proptest!(|(key_pair in arb_key_pair(), msg in any::<Vec<u8>>())| {
+        proptest!(|(key_pair in any::<KeyPair>(), msg in any::<Vec<u8>>())| {
             let pubkey = key_pair.public_key();
 
             let sig = key_pair.sign_raw(&msg);
@@ -1016,7 +1144,7 @@ mod test {
             any::<u32>().prop_map(Foo)
         }
 
-        proptest!(|(key_pair in arb_key_pair(), foo in arb_foo())| {
+        proptest!(|(key_pair in any::<KeyPair>(), foo in arb_foo())| {
             let signer = key_pair.public_key();
             let (sig, signed) =
                 key_pair.sign_struct::<Foo>(&foo).unwrap();

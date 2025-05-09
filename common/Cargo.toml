@@ -80,6 +80,7 @@ tokio = { workspace = true, features = [
 ] }
 tracing.workspace = true
 x509-parser.workspace = true
+yasna.workspace = true
 
 # --- OPTIONAL --- #
 # These must have `optional = true` to prevent infecting production binaries.
