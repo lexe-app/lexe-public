@@ -5,14 +5,14 @@ use std::{
     fmt,
     path::PathBuf,
     sync::{Arc, Mutex},
-    time::Instant,
+    time::{Instant, SystemTime},
 };
 
 use anyhow::{anyhow, Context};
 use bitcoin::secp256k1;
 use common::{
     api::{
-        auth::{BearerAuthenticator, Scope, UserSignupRequest},
+        auth::{self, BearerAuthenticator, Scope, UserSignupRequest},
         def::{AppBackendApi, AppGatewayApi, AppNodeProvisionApi},
         provision::NodeProvisionRequest,
         user::{NodePk, NodePkProof, UserPk},
@@ -51,6 +51,11 @@ pub struct App {
 
     /// Some misc. info needed for user support / user account deletion.
     user_info: AppUserInfoRs,
+
+    /// Hold on to the authenticator here so we can mint long-lived connect
+    /// tokens to export for SDK.
+    // TODO(phlip9): should not need this with proper delegated auth identity
+    authenticator: Arc<BearerAuthenticator>,
 }
 
 impl App {
@@ -81,7 +86,7 @@ impl App {
         let user_info = AppUserInfoRs::new(rng, user_pk, &node_key_pair);
 
         // Init API clients
-        let bearer_authenticator =
+        let authenticator =
             Self::bearer_authenticator_connect_only(user_key_pair);
         let gateway_client = GatewayClient::new(
             user_config.config.deploy_env,
@@ -94,7 +99,7 @@ impl App {
             user_config.config.use_sgx,
             &root_seed,
             user_config.config.deploy_env,
-            bearer_authenticator,
+            authenticator.clone(),
             gateway_client.clone(),
         )
         .context("Failed to build NodeClient")?;
@@ -197,6 +202,7 @@ impl App {
             payment_sync_lock: tokio::sync::Mutex::new(()),
             settings_db,
             user_info,
+            authenticator,
         }))
     }
 
@@ -219,7 +225,7 @@ impl App {
         let user_info = AppUserInfoRs::new(rng, user_pk, &node_key_pair);
 
         // build NodeClient, GatewayClient
-        let bearer_authenticator =
+        let authenticator =
             Self::bearer_authenticator_connect_only(user_key_pair);
         let gateway_client = GatewayClient::new(
             user_config.config.deploy_env,
@@ -232,7 +238,7 @@ impl App {
             user_config.config.use_sgx,
             root_seed,
             user_config.config.deploy_env,
-            bearer_authenticator,
+            authenticator.clone(),
             gateway_client.clone(),
         )
         .context("Failed to build NodeClient")?;
@@ -296,6 +302,7 @@ impl App {
             payment_sync_lock: tokio::sync::Mutex::new(()),
             settings_db,
             user_info,
+            authenticator,
         })
     }
 
@@ -335,7 +342,7 @@ impl App {
             .expect("Should never fail to serialize UserSignupRequest");
 
         // build NodeClient, GatewayClient
-        let bearer_authenticator =
+        let authenticator =
             Self::bearer_authenticator_connect_only(user_key_pair);
         let gateway_client = GatewayClient::new(
             user_config.config.deploy_env,
@@ -348,7 +355,7 @@ impl App {
             user_config.config.use_sgx,
             root_seed,
             user_config.config.deploy_env,
-            bearer_authenticator,
+            authenticator.clone(),
             gateway_client.clone(),
         )
         .context("Failed to build NodeClient")?;
@@ -412,6 +419,7 @@ impl App {
             payment_sync_lock: tokio::sync::Mutex::new(()),
             settings_db,
             user_info,
+            authenticator,
         })
     }
 
@@ -530,6 +538,31 @@ impl App {
             "Provision success:"
         );
         Ok(())
+    }
+
+    /// Get a new long-lived auth token scoped only for the gateway connect
+    /// proxy. Used for the SDK to connect to the node.
+    #[allow(dead_code)] // TODO(phlip9): impl
+    async fn get_new_sdk_auth_string(&self) -> anyhow::Result<String> {
+        let user_key_pair = self
+            .authenticator
+            .user_key_pair()
+            .context("Somehow using a static bearer auth token")?;
+
+        let now = SystemTime::now();
+        let lifetime_secs = 365 * 24 * 60 * 60; // 1 year
+        let scope = Some(Scope::GatewayConnect);
+        let _long_lived_connect_token = auth::do_bearer_auth(
+            self.gateway_client(),
+            now,
+            user_key_pair,
+            lifetime_secs,
+            scope,
+        )
+        .await
+        .context("Failed to get long-lived connect token")?;
+
+        todo!()
     }
 }
 

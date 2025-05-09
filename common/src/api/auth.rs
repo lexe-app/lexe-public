@@ -401,6 +401,13 @@ impl BearerAuthenticator {
         }
     }
 
+    pub fn user_key_pair(&self) -> Option<&ed25519::KeyPair> {
+        match self {
+            Self::Ephemeral { inner } => Some(&inner.user_key_pair),
+            Self::Static { .. } => None,
+        }
+    }
+
     /// Read the currently cached and possibly expired (!) bearer auth token.
     ///
     /// This method is only exposed to support the `reqwest::Proxy` workaround
@@ -455,45 +462,52 @@ impl EphemeralBearerAuthenticator {
         }
 
         // no token yet or expired, try to authenticate and get a new token.
-        let cached_token = self.authenticate(api, now).await?;
-        let token_clone = cached_token.token.clone();
+        let token_with_exp = do_bearer_auth(
+            api,
+            now,
+            &self.user_key_pair,
+            DEFAULT_USER_TOKEN_LIFETIME_SECS,
+            self.scope.clone(),
+        )
+        .await?;
+
+        let token_clone = token_with_exp.token.clone();
 
         // fill token cache with new token
-        *self.cached_auth_token.lock().unwrap() = Some(cached_token);
+        *self.cached_auth_token.lock().unwrap() = Some(token_with_exp);
 
         Ok(token_clone)
     }
+}
 
-    /// Create a new [`BearerAuthRequest`], sign it, and send the request.
-    /// Returns the [`TokenWithExpiration`] if the auth request succeeds.
-    ///
-    /// NOTE: doesn't update the token cache
-    async fn authenticate<T: BearerAuthBackendApi + ?Sized>(
-        &self,
-        api: &T,
-        now: SystemTime,
-    ) -> Result<TokenWithExpiration, BackendApiError> {
-        let lifetime = DEFAULT_USER_TOKEN_LIFETIME_SECS;
-        let expiration = now + Duration::from_secs(lifetime as u64);
-        let scope = self.scope.clone();
-        let auth_req = BearerAuthRequest::new(now, lifetime, scope);
-        let auth_req_wire = BearerAuthRequestWire::from(auth_req);
-        let (_, signed_req) = self
-            .user_key_pair
-            .sign_struct(&auth_req_wire)
-            .map_err(|err| BackendApiError {
+/// Create a new short-lived [`BearerAuthRequest`], sign it, and send the
+/// request. Returns the [`TokenWithExpiration`] if the auth request
+/// succeeds.
+pub async fn do_bearer_auth<T: BearerAuthBackendApi + ?Sized>(
+    api: &T,
+    now: SystemTime,
+    user_key_pair: &ed25519::KeyPair,
+    lifetime_secs: u32,
+    scope: Option<Scope>,
+) -> Result<TokenWithExpiration, BackendApiError> {
+    let expiration = now + Duration::from_secs(lifetime_secs as u64);
+    let auth_req = BearerAuthRequest::new(now, lifetime_secs, scope);
+    let auth_req_wire = BearerAuthRequestWire::from(auth_req);
+    let (_, signed_req) =
+        user_key_pair.sign_struct(&auth_req_wire).map_err(|err| {
+            BackendApiError {
                 kind: BackendErrorKind::Building,
                 msg: format!("Error signing auth request: {err:#}"),
                 ..Default::default()
-            })?;
+            }
+        })?;
 
-        let resp = api.bearer_auth(&signed_req).await?;
+    let resp = api.bearer_auth(&signed_req).await?;
 
-        Ok(TokenWithExpiration {
-            expiration,
-            token: resp.bearer_auth_token,
-        })
-    }
+    Ok(TokenWithExpiration {
+        expiration,
+        token: resp.bearer_auth_token,
+    })
 }
 
 impl StaticBearerAuthenticator {
