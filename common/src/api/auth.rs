@@ -192,7 +192,15 @@ pub struct TokenWithExpiration {
 
 /// A `BearerAuthenticator` (1) stores existing fresh auth tokens and (2)
 /// authenticates and fetches new auth tokens when they expire.
-pub struct BearerAuthenticator {
+#[allow(private_interfaces)]
+pub enum BearerAuthenticator {
+    Ephemeral { inner: EphemeralBearerAuthenticator },
+    Static { inner: StaticBearerAuthenticator },
+}
+
+/// Our standard [`BearerAuthenticator`] that re-authenticates and requests a
+/// new short-lived, ephemeral token every ~10 minutes.
+struct EphemeralBearerAuthenticator {
     /// The [`ed25519::KeyPair`] for the [`UserPk`], used to authenticate with
     /// the lexe backend.
     ///
@@ -219,6 +227,13 @@ pub struct BearerAuthenticator {
 
     /// The API scope this authenticator will request for its auth tokens.
     scope: Option<Scope>,
+}
+
+// TODO(phlip9): we should be able to remove this once we have proper delegated
+// identities that can request bearer auth tokens themselves _for_ a `UserPk`.
+struct StaticBearerAuthenticator {
+    /// The fixed, long-lived auth token.
+    token: BearerAuthToken,
 }
 
 // -- impl UserSignupRequest -- //
@@ -368,11 +383,21 @@ impl BearerAuthenticator {
         maybe_token: Option<TokenWithExpiration>,
         scope: Option<Scope>,
     ) -> Self {
-        Self {
-            user_key_pair,
-            cached_auth_token: std::sync::Mutex::new(maybe_token),
-            auth_lock: tokio::sync::Mutex::new(()),
-            scope,
+        Self::Ephemeral {
+            inner: EphemeralBearerAuthenticator {
+                user_key_pair,
+                cached_auth_token: std::sync::Mutex::new(maybe_token),
+                auth_lock: tokio::sync::Mutex::new(()),
+                scope,
+            },
+        }
+    }
+
+    /// A [`BearerAuthenticator`] that always returns the same static,
+    /// long-lived token.
+    pub fn new_static_token(token: BearerAuthToken) -> Self {
+        Self::Static {
+            inner: StaticBearerAuthenticator { token },
         }
     }
 
@@ -380,13 +405,39 @@ impl BearerAuthenticator {
     ///
     /// This method is only exposed to support the `reqwest::Proxy` workaround
     /// used in `NodeClient`. Try to avoid it otherwise.
-    pub fn get_maybe_cached_token(&self) -> Option<TokenWithExpiration> {
-        self.cached_auth_token.lock().unwrap().as_ref().cloned()
+    pub fn get_maybe_cached_token(&self) -> Option<BearerAuthToken> {
+        match self {
+            Self::Ephemeral { inner } => inner.get_maybe_cached_token(),
+            Self::Static { inner } => inner.get_maybe_cached_token(),
+        }
     }
 
     /// Try to either (1) return an existing, fresh token or (2) authenticate
     /// with the backend to get a new fresh token (and cache it).
     pub async fn get_token<T: BearerAuthBackendApi + ?Sized>(
+        &self,
+        api: &T,
+        now: SystemTime,
+    ) -> Result<BearerAuthToken, BackendApiError> {
+        match self {
+            Self::Ephemeral { inner } => inner.get_token(api, now).await,
+            Self::Static { inner } => inner.get_token(api, now).await,
+        }
+    }
+}
+
+impl EphemeralBearerAuthenticator {
+    fn get_maybe_cached_token(&self) -> Option<BearerAuthToken> {
+        self.cached_auth_token
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|token_with_exp| token_with_exp.token.clone())
+    }
+
+    /// Try to either (1) return an existing, fresh token or (2) authenticate
+    /// with the backend to get a new fresh token (and cache it).
+    async fn get_token<T: BearerAuthBackendApi + ?Sized>(
         &self,
         api: &T,
         now: SystemTime,
@@ -442,6 +493,20 @@ impl BearerAuthenticator {
             expiration,
             token: resp.bearer_auth_token,
         })
+    }
+}
+
+impl StaticBearerAuthenticator {
+    fn get_maybe_cached_token(&self) -> Option<BearerAuthToken> {
+        Some(self.token.clone())
+    }
+
+    async fn get_token<T: BearerAuthBackendApi + ?Sized>(
+        &self,
+        _api: &T,
+        _now: SystemTime,
+    ) -> Result<BearerAuthToken, BackendApiError> {
+        Ok(self.token.clone())
     }
 }
 

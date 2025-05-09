@@ -96,7 +96,7 @@ impl Sidecar {
         // NodeProvisionClient to support root-seed-less sdk.
         let root_seed = self.root_seed;
         let user_key_pair = root_seed.derive_user_key_pair();
-        // TODO(phlip9): use long-lived auth token
+        // TODO(phlip9): BearerAuthenticator::new_static_token(token)
         let cached_auth_token = None;
         let authenticator = Arc::new(BearerAuthenticator::new_with_scope(
             user_key_pair,

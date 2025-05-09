@@ -259,7 +259,6 @@ impl NodeClient {
             if url_base_eq(url, &node_url) {
                 let auth_token = authenticator
                     .get_maybe_cached_token()
-                    .map(|token_with_exp| token_with_exp.token)
                     .expect("bearer authenticator MUST fetch token!");
 
                 // TODO(phlip9): include "Bearer " prefix in auth token
