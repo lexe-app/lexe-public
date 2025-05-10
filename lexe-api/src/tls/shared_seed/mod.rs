@@ -70,16 +70,19 @@
 // new cert" endpoint.
 
 use std::{
-    collections::HashMap,
     fmt::Display,
     sync::{Arc, RwLock},
 };
 
 use anyhow::Context;
 use asn1_rs::{nom::AsBytes, FromDer};
+use certs::{
+    EphemeralClientCert, EphemeralIssuingCaCert, EphemeralServerCert,
+    RevocableIssuingCaCert,
+};
 use common::{
-    api::auth::Scope, constants, ed25519, env::DeployEnv, rng::Crng,
-    root_seed::RootSeed, time::TimestampMs,
+    api::revocable_clients::RevocableClients, constants, ed25519,
+    env::DeployEnv, rng::Crng, root_seed::RootSeed, time::TimestampMs,
 };
 use rustls::{
     client::{
@@ -95,7 +98,6 @@ use rustls::{
     },
     DigitallySignedStruct, DistinguishedName, RootCertStore,
 };
-use serde::{Deserialize, Serialize};
 use x509_parser::prelude::X509Certificate;
 
 use super::{
@@ -112,16 +114,15 @@ pub mod certs;
 pub fn node_run_server_config(
     rng: &mut impl Crng,
     root_seed: &RootSeed,
-    revocable_client_certs: Arc<RwLock<RevocableClientCerts>>,
+    revocable_clients: Arc<RwLock<RevocableClients>>,
 ) -> anyhow::Result<(rustls::ServerConfig, String)> {
     // Derive CA certs
-    let eph_ca_cert = certs::EphemeralIssuingCaCert::from_root_seed(root_seed);
-    let rev_ca_cert = certs::RevocableIssuingCaCert::from_root_seed(root_seed);
+    let eph_ca_cert = EphemeralIssuingCaCert::from_root_seed(root_seed);
+    let rev_ca_cert = RevocableIssuingCaCert::from_root_seed(root_seed);
 
     // Build ephemeral server cert and sign with derived CA
     let dns_name = constants::NODE_RUN_DNS.to_owned();
-    let eph_server_cert =
-        certs::EphemeralServerCert::from_rng(rng, dns_name.clone());
+    let eph_server_cert = EphemeralServerCert::from_rng(rng, dns_name.clone());
     let eph_server_cert_der = eph_server_cert
         .serialize_der_ca_signed(&eph_ca_cert)
         .context("Failed to sign and serialize ephemeral server cert")?;
@@ -131,7 +132,7 @@ pub fn node_run_server_config(
     let client_cert_verifier = SharedSeedClientCertVerifier::new(
         &eph_ca_cert,
         &rev_ca_cert,
-        revocable_client_certs,
+        revocable_clients,
     )
     .context("Failed to build shared seed client cert verifier")?;
 
@@ -156,7 +157,7 @@ pub fn app_node_run_client_config(
     root_seed: &RootSeed,
 ) -> anyhow::Result<rustls::ClientConfig> {
     // Derive ephemeral issuing CA cert
-    let eph_ca_cert = certs::EphemeralIssuingCaCert::from_root_seed(root_seed);
+    let eph_ca_cert = EphemeralIssuingCaCert::from_root_seed(root_seed);
     let eph_ca_cert_der = eph_ca_cert
         .serialize_der_self_signed()
         .context("Failed to sign and serialize ephemeral CA cert")?;
@@ -173,7 +174,7 @@ pub fn app_node_run_client_config(
     };
 
     // Generate ephemeral client cert and sign with derived CA
-    let client_cert = certs::EphemeralClientCert::generate_from_rng(rng);
+    let client_cert = EphemeralClientCert::generate_from_rng(rng);
     let client_cert_der = client_cert
         .serialize_der_ca_signed(&eph_ca_cert)
         .context("Failed to sign and serialize ephemeral client cert")?;
@@ -265,62 +266,6 @@ pub fn ephemeral_ca_verifier(
     .build()
     .context("Could not build ephemeral server verifier")?;
     Ok(verifier)
-}
-
-/// All revocable client certs which have ever been issued.
-///
-/// This struct must be persisted in a rollback-resistant data store.
-// We don't *really* need to persist revoked certs but might as well keep them
-// around for historical reference. We can prune them later if needed.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct RevocableClientCerts {
-    pub certs: HashMap<ed25519::PublicKey, RevocableClientCertInfo>,
-}
-
-/// Information about a revocable client cert. We track the cert's pubkey hash
-/// instead of the serial number, as we don't have a way to obtain the serial
-/// number without serializing and re-parsing the cert.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RevocableClientCertInfo {
-    /// The cert's pubkey.
-    ///
-    /// We use the cert pubkey instead of the serial number to pin certs in the
-    /// whitelist because serial numbers are just low entropy mutable metadata
-    /// set by the CA with a maximum length of 20 bytes.
-    pub cert_pubkey: ed25519::PublicKey,
-    /// When we first issued this cert.
-    pub created_at: TimestampMs,
-    /// The time after which the server will no longer accept this cert.
-    /// [`None`] indicates that the cert will never expire (use carefully!).
-    /// This expiration time can be extended at any time.
-    pub expiration: Option<TimestampMs>,
-    /// User-provided label for this cert, similar to naming API keys.
-    pub label: String,
-    /// The authorization scopes allowed for this cert.
-    pub scope: Scope,
-    /// Whether this cert has been revoked. Revocation should be permanent,
-    /// so this metadata can be pruned if needed.
-    pub is_revoked: bool,
-}
-
-impl RevocableClientCertInfo {
-    /// Whether the cert is expired right now.
-    #[must_use]
-    pub fn is_expired(&self) -> bool {
-        self.is_expired_at(TimestampMs::now())
-    }
-
-    /// Whether the cert is expired at the given time.
-    #[must_use]
-    pub fn is_expired_at(&self, now: TimestampMs) -> bool {
-        if let Some(expiration) = self.expiration {
-            if now > expiration {
-                return true;
-            }
-        }
-
-        false
-    }
 }
 
 /// The client's [`ServerCertVerifier`] for `AppNodeRunApi` TLS.
@@ -415,23 +360,23 @@ impl ServerCertVerifier for AppNodeRunVerifier {
 /// "revocable issuing" CA.
 ///
 /// - All certs signed by the ephemeral issuing CA are automatically trusted.
-/// - Certs signed by the revocable issuing must additionally appear in the
-///   client cert whitelist, must not be expired, and must and not be revoked.
+/// - Certs signed by the revocable issuing CA must additionally appear in
+///   [`RevocableClients`], must not be expired, and must not be revoked.
 #[derive(Debug)]
 pub struct SharedSeedClientCertVerifier {
     /// Trusts the "ephemeral issuing" CA
     ephemeral_ca_verifier: Arc<dyn ClientCertVerifier>,
     /// Trusts the "revocable issuing" CA
     revocable_ca_verifier: Arc<dyn ClientCertVerifier>,
-    /// A handle to our list of revocable client certs.
-    revocable_client_certs: Arc<RwLock<RevocableClientCerts>>,
+    /// A handle to our list of revocable clients.
+    revocable_clients: Arc<RwLock<RevocableClients>>,
 }
 
 impl SharedSeedClientCertVerifier {
     pub fn new(
-        eph_ca_cert: &certs::EphemeralIssuingCaCert,
-        rev_ca_cert: &certs::RevocableIssuingCaCert,
-        revocable_client_certs: Arc<RwLock<RevocableClientCerts>>,
+        eph_ca_cert: &EphemeralIssuingCaCert,
+        rev_ca_cert: &RevocableIssuingCaCert,
+        revocable_clients: Arc<RwLock<RevocableClients>>,
     ) -> anyhow::Result<Self> {
         let ephemeral_ca_verifier = {
             let eph_ca_cert_der = eph_ca_cert
@@ -472,7 +417,7 @@ impl SharedSeedClientCertVerifier {
         Ok(Self {
             ephemeral_ca_verifier,
             revocable_ca_verifier,
-            revocable_client_certs,
+            revocable_clients,
         })
     }
 }
@@ -523,10 +468,10 @@ impl ClientCertVerifier for SharedSeedClientCertVerifier {
         )
         .map_err(|e| rustls_err(format!("Not an ed25519 pk: {e}")))?;
 
-        // Check that the cert is in our client cert store.
-        let locked_client_certs = self.revocable_client_certs.read().unwrap();
+        // Check that the cert is in our client store.
+        let locked_client_certs = self.revocable_clients.read().unwrap();
         let client_cert = locked_client_certs
-            .certs
+            .clients
             .get(&end_entity_pk)
             .ok_or_else(|| rustls_err("Unrecognized cert pk"))?;
 
@@ -577,7 +522,14 @@ impl ClientCertVerifier for SharedSeedClientCertVerifier {
 mod test {
     use std::sync::Arc;
 
-    use common::{env::DeployEnv, rng::FastRng, root_seed::RootSeed};
+    use certs::RevocableClientCert;
+    use common::{
+        api::{auth::Scope, revocable_clients::RevocableClient},
+        env::DeployEnv,
+        rng::FastRng,
+        root_seed::RootSeed,
+        time::TimestampMs,
+    };
     use secrecy::Secret;
 
     use super::*;
@@ -622,15 +574,12 @@ mod test {
                 .map(Arc::new)
                 .unwrap();
 
-        let revocable_client_certs =
-            Arc::new(RwLock::new(RevocableClientCerts::default()));
-        let (server_config, server_dns) = node_run_server_config(
-            &mut rng,
-            server_seed,
-            revocable_client_certs,
-        )
-        .map(|(c, d)| (Arc::new(c), d))
-        .unwrap();
+        let revocable_clients =
+            Arc::new(RwLock::new(RevocableClients::default()));
+        let (server_config, server_dns) =
+            node_run_server_config(&mut rng, server_seed, revocable_clients)
+                .map(|(c, d)| (Arc::new(c), d))
+                .unwrap();
 
         test_utils::do_tls_handshake(client_config, server_config, server_dns)
             .await
@@ -695,19 +644,16 @@ mod test {
         is_revoked: bool,
     ) -> [Result<(), String>; 2] {
         // Server derives ephemeral and revocable issuing CA certs
-        let eph_ca_cert =
-            certs::EphemeralIssuingCaCert::from_root_seed(server_seed);
+        let eph_ca_cert = EphemeralIssuingCaCert::from_root_seed(server_seed);
         let eph_ca_cert_der = eph_ca_cert.serialize_der_self_signed().unwrap();
-        let rev_ca_cert =
-            certs::RevocableIssuingCaCert::from_root_seed(server_seed);
+        let rev_ca_cert = RevocableIssuingCaCert::from_root_seed(server_seed);
 
         // Server issues revocable client cert, hands cert + key to app client.
-        // Server stores issued cert into whitelist.
+        // Server stores the newly issued client.
         // User exports the revocable client cert with key from app into SDK,
         // as well as the ephemeral issuing CA cert (without key).
         let mut rng = FastRng::from_u64(20250509);
-        let rev_client_cert =
-            certs::RevocableClientCert::generate_from_rng(&mut rng);
+        let rev_client_cert = RevocableClientCert::generate_from_rng(&mut rng);
         let rev_client_cert_der = rev_client_cert
             .serialize_der_ca_signed(&rev_ca_cert)
             .unwrap();
@@ -719,21 +665,21 @@ mod test {
         };
         let rev_client_cert_pk = rev_client_cert.public_key();
 
-        let rev_client_cert = RevocableClientCertInfo {
-            cert_pubkey: rev_client_cert_pk,
+        let rev_client = RevocableClient {
+            pubkey: rev_client_cert_pk,
             created_at: TimestampMs::now(),
             expiration,
-            label: "hullo".to_owned(),
+            label: Some("hullo".to_owned()),
             scope: Scope::All,
             is_revoked,
         };
         let rev_client_certs = {
-            let store = Arc::new(RwLock::new(RevocableClientCerts::default()));
+            let store = Arc::new(RwLock::new(RevocableClients::default()));
             store
                 .write()
                 .unwrap()
-                .certs
-                .insert(rev_client_cert_pk, rev_client_cert);
+                .clients
+                .insert(rev_client_cert_pk, rev_client);
             store
         };
 

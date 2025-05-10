@@ -336,7 +336,7 @@ impl UserNode {
             try_existing_scids,
             try_pending_payments,
             try_finalized_payment_ids,
-            try_maybe_revocable_client_certs,
+            try_maybe_revocable_clients,
         ) = tokio::join!(
             read_maybe_approved_versions,
             lsp_api.get_network_graph(),
@@ -345,7 +345,7 @@ impl UserNode {
             persister.read_scids(),
             persister.read_pending_payments(),
             persister.read_finalized_payment_ids(),
-            persister.read_revocable_client_certs(),
+            persister.read_revocable_clients(),
         );
         if deploy_env.is_staging_or_prod() {
             let maybe_approved_versions = try_maybe_approved_versions
@@ -409,8 +409,8 @@ impl UserNode {
             try_pending_payments.context("Could not read pending payments")?;
         let finalized_payment_ids = try_finalized_payment_ids
             .context("Could not read finalized payment ids")?;
-        let revocable_client_certs = try_maybe_revocable_client_certs
-            .context("Could not read revocable client certs")?
+        let revocable_clients = try_maybe_revocable_clients
+            .context("Could not read revocable clients")?
             .unwrap_or_default()
             .apply(RwLock::new)
             .apply(Arc::new);
@@ -700,7 +700,7 @@ impl UserNode {
             tls::shared_seed::node_run_server_config(
                 rng,
                 &root_seed,
-                revocable_client_certs,
+                revocable_clients,
             )
             .context("Failed to build owner service TLS config")?;
         const APP_SERVER_SPAN_NAME: &str = "(app-node-run-server)";

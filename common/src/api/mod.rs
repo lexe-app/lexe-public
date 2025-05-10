@@ -35,6 +35,8 @@ pub mod models;
 pub mod ports;
 /// Data types specific to provisioning.
 pub mod provision;
+/// Revocable clients.
+pub mod revocable_clients;
 /// A subset of `lexe_api::server` which needs to stay in `common`.
 pub mod server;
 /// User ID-like types: `User`, `UserPk`, `NodePk`, `Scid`

@@ -10,6 +10,7 @@ use common::{
         auth::{BearerAuthToken, BearerAuthenticator},
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         error::BackendApiError,
+        revocable_clients::RevocableClients,
         user::{Scid, Scids},
         vfs::{
             MaybeVfsFile, VecVfsFile, Vfs, VfsDirectory, VfsFile, VfsFileId,
@@ -33,7 +34,6 @@ use common::{
     Apply,
 };
 use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
-use lexe_api::tls::shared_seed::RevocableClientCerts;
 use lexe_ln::{
     alias::{
         BroadcasterType, ChannelMonitorType, FeeEstimatorType,
@@ -399,12 +399,12 @@ impl NodePersister {
             .collect::<anyhow::Result<Vec<BasicPayment>>>()
     }
 
-    pub(crate) async fn read_revocable_client_certs(
+    pub(crate) async fn read_revocable_clients(
         &self,
-    ) -> anyhow::Result<Option<RevocableClientCerts>> {
+    ) -> anyhow::Result<Option<RevocableClients>> {
         let file_id = VfsFileId::new(
             SINGLETON_DIRECTORY,
-            constants::REVOCABLE_CLIENT_CERTS_FILENAME,
+            constants::REVOCABLE_CLIENTS_FILENAME,
         );
         self.read_json(&file_id).await
     }
