@@ -635,4 +635,125 @@ mod test {
         test_utils::do_tls_handshake(client_config, server_config, server_dns)
             .await
     }
+
+    /// SDK->Node TLS handshake: success
+    #[tokio::test]
+    async fn sdk_node_run_handshake_succeeds() {
+        let server_seed = RootSeed::new(Secret::new([0x42; 32]));
+
+        let expiration = None;
+        let is_revoked = false;
+
+        let [client_result, server_result] =
+            do_sdk_node_run_tls_handshake(&server_seed, expiration, is_revoked)
+                .await;
+
+        client_result.unwrap();
+        server_result.unwrap();
+    }
+
+    /// SDK->Node TLS handshake: Fails if cert is expired
+    #[tokio::test]
+    async fn sdk_node_run_handshake_expiration() {
+        let server_seed = RootSeed::new(Secret::new([0x42; 32]));
+
+        let expiration = Some(TimestampMs::MIN);
+        let is_revoked = false;
+
+        let [client_result, server_result] =
+            do_sdk_node_run_tls_handshake(&server_seed, expiration, is_revoked)
+                .await;
+
+        assert!(client_result.unwrap_err().contains("HandshakeFailure"));
+        assert!(server_result
+            .unwrap_err()
+            .contains("Client cert is expired"));
+    }
+
+    /// SDK->Node TLS handshake: Fails if cert is revoked
+    #[tokio::test]
+    async fn sdk_node_run_handshake_revocation() {
+        let server_seed = RootSeed::new(Secret::new([0x42; 32]));
+
+        let expiration = None;
+        let is_revoked = true;
+
+        let [client_result, server_result] =
+            do_sdk_node_run_tls_handshake(&server_seed, expiration, is_revoked)
+                .await;
+
+        assert!(client_result.unwrap_err().contains("HandshakeFailure"));
+        assert!(server_result
+            .unwrap_err()
+            .contains("Client cert was previously revoked"));
+    }
+
+    // Shorthand to do a Sdk->Node Run TLS handshake.
+    async fn do_sdk_node_run_tls_handshake(
+        server_seed: &RootSeed,
+        expiration: Option<TimestampMs>,
+        is_revoked: bool,
+    ) -> [Result<(), String>; 2] {
+        // Server derives ephemeral and revocable issuing CA certs
+        let eph_ca_cert =
+            certs::EphemeralIssuingCaCert::from_root_seed(server_seed);
+        let eph_ca_cert_der = eph_ca_cert.serialize_der_self_signed().unwrap();
+        let rev_ca_cert =
+            certs::RevocableIssuingCaCert::from_root_seed(server_seed);
+
+        // Server issues revocable client cert, hands cert + key to app client.
+        // Server stores issued cert into whitelist.
+        // User exports the revocable client cert with key from app into SDK,
+        // as well as the ephemeral issuing CA cert (without key).
+        let mut rng = FastRng::from_u64(20250509);
+        let rev_client_cert =
+            certs::RevocableClientCert::generate_from_rng(&mut rng);
+        let rev_client_cert_der = rev_client_cert
+            .serialize_der_ca_signed(&rev_ca_cert)
+            .unwrap();
+        let rev_client_cert_key_der = rev_client_cert.serialize_key_der();
+        let rev_client_cert_with_key = CertWithKey {
+            cert_der: rev_client_cert_der,
+            key_der: rev_client_cert_key_der,
+            ca_cert_der: None,
+        };
+        let rev_client_cert_pk = rev_client_cert.public_key();
+
+        let rev_client_cert = RevocableClientCertInfo {
+            cert_pubkey: rev_client_cert_pk,
+            created_at: TimestampMs::now(),
+            expiration,
+            label: "hullo".to_owned(),
+            scope: Scope::All,
+            is_revoked,
+        };
+        let rev_client_certs = {
+            let store = Arc::new(RwLock::new(RevocableClientCerts::default()));
+            store
+                .write()
+                .unwrap()
+                .certs
+                .insert(rev_client_cert_pk, rev_client_cert);
+            store
+        };
+
+        // SDK client config
+        let deploy_env = DeployEnv::Dev;
+        let client_config = sdk_node_run_client_config(
+            deploy_env,
+            eph_ca_cert_der,
+            rev_client_cert_with_key,
+        )
+        .map(Arc::new)
+        .unwrap();
+
+        // Node server config
+        let (server_config, server_dns) =
+            node_run_server_config(&mut rng, server_seed, rev_client_certs)
+                .map(|(c, d)| (Arc::new(c), d))
+                .unwrap();
+
+        test_utils::do_tls_handshake(client_config, server_config, server_dns)
+            .await
+    }
 }
