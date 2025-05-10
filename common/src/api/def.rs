@@ -64,6 +64,11 @@ use super::{
     provision::{
         MaybeSealedSeed, NodeProvisionRequest, SealedSeed, SealedSeedId,
     },
+    revocable_clients::{
+        CreateRevocableClientRequest, CreateRevocableClientResponse,
+        GetRevocableClients, RevocableClients, RevokeClient,
+        UpdateClientExpiration, UpdateClientLabel, UpdateClientScope,
+    },
     user::{
         GetNewScidsRequest, MaybeScid, MaybeUser, NodePk, ScidStruct, Scids,
         UserPk,
@@ -568,6 +573,61 @@ pub trait AppNodeRunApi {
     async fn update_payment_note(
         &self,
         req: UpdatePaymentNote,
+    ) -> Result<Empty, NodeApiError>;
+
+    /// Lists all revocable clients.
+    ///
+    /// GET /app/clients [`GetRevocableClients`] -> [`RevocableClients`]
+    // Added in `node-0.7.9`
+    async fn get_revocable_clients(
+        &self,
+        req: GetRevocableClients,
+    ) -> Result<RevocableClients, NodeApiError>;
+
+    /// Creates a new revocable client. Returns the newly issued client cert.
+    ///
+    /// POST /app/clients [`CreateRevocableClientRequest`]
+    ///                   -> [`CreateRevocableClientResponse`]
+    // Added in `node-0.7.9`
+    async fn create_revocable_client(
+        &self,
+        req: CreateRevocableClientRequest,
+    ) -> Result<CreateRevocableClientResponse, NodeApiError>;
+
+    /// Updates this revocable client's expiration time to the given time.
+    ///
+    /// PUT /app/clients/expiration [`UpdateClientExpiration`] -> [`Empty`]
+    // Added in `node-0.7.9`
+    async fn update_client_expiration(
+        &self,
+        req: UpdateClientExpiration,
+    ) -> Result<Empty, NodeApiError>;
+
+    /// Updates this revocable client's label to the given label.
+    ///
+    /// PUT /app/clients/label [`UpdateClientLabel`] -> [`Empty`]
+    // Added in `node-0.7.9`
+    async fn update_client_label(
+        &self,
+        req: UpdateClientLabel,
+    ) -> Result<Empty, NodeApiError>;
+
+    /// Updates this revocable client's scope to the given scope.
+    ///
+    /// PUT /app/clients/scope [`UpdateClientScope`] -> [`Empty`]
+    // Added in `node-0.7.9`
+    async fn update_client_scope(
+        &self,
+        req: UpdateClientScope,
+    ) -> Result<Empty, NodeApiError>;
+
+    /// Revokes this revocable client.
+    ///
+    /// PUT /app/clients/revoke [`RevokeClient`] -> [`Empty`]
+    // Added in `node-0.7.9`
+    async fn revoke_client(
+        &self,
+        req: RevokeClient,
     ) -> Result<Empty, NodeApiError>;
 }
 

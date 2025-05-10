@@ -46,6 +46,11 @@ use common::{
             VerifyMsgResponse,
         },
         provision::NodeProvisionRequest,
+        revocable_clients::{
+            CreateRevocableClientRequest, CreateRevocableClientResponse,
+            GetRevocableClients, RevocableClients, RevokeClient,
+            UpdateClientExpiration, UpdateClientLabel, UpdateClientScope,
+        },
         version::NodeRelease,
         Empty,
     },
@@ -590,6 +595,72 @@ impl AppNodeRunApi for NodeClient {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/payments/note");
+        let req = self.run_rest.put(url, &req);
+        self.run_rest.send(req).await
+    }
+
+    async fn get_revocable_clients(
+        &self,
+        req: GetRevocableClients,
+    ) -> Result<RevocableClients, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/clients");
+        let req = self.run_rest.get(url, &req);
+        self.run_rest.send(req).await
+    }
+
+    async fn create_revocable_client(
+        &self,
+        req: CreateRevocableClientRequest,
+    ) -> Result<CreateRevocableClientResponse, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/clients");
+        let req = self.run_rest.post(url, &req);
+        self.run_rest.send(req).await
+    }
+
+    async fn update_client_expiration(
+        &self,
+        req: UpdateClientExpiration,
+    ) -> Result<Empty, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/clients/expiration");
+        let req = self.run_rest.put(url, &req);
+        self.run_rest.send(req).await
+    }
+
+    async fn update_client_label(
+        &self,
+        req: UpdateClientLabel,
+    ) -> Result<Empty, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/clients/label");
+        let req = self.run_rest.put(url, &req);
+        self.run_rest.send(req).await
+    }
+
+    async fn update_client_scope(
+        &self,
+        req: UpdateClientScope,
+    ) -> Result<Empty, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/clients/scope");
+        let req = self.run_rest.put(url, &req);
+        self.run_rest.send(req).await
+    }
+
+    async fn revoke_client(
+        &self,
+        req: RevokeClient,
+    ) -> Result<Empty, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/clients/revoke");
         let req = self.run_rest.put(url, &req);
         self.run_rest.send(req).await
     }

@@ -958,6 +958,11 @@ mod test {
                 SignMsgRequest, SignMsgResponse, VerifyMsgRequest,
                 VerifyMsgResponse,
             },
+            revocable_clients::{
+                CreateRevocableClientRequest, CreateRevocableClientResponse,
+                GetRevocableClients, RevocableClients, RevokeClient,
+                UpdateClientExpiration, UpdateClientLabel, UpdateClientScope,
+            },
             Empty,
         },
         ln::payments::{PaymentStatus, VecBasicPayment},
@@ -1146,6 +1151,48 @@ mod test {
         async fn update_payment_note(
             &self,
             _req: UpdatePaymentNote,
+        ) -> Result<Empty, NodeApiError> {
+            unimplemented!()
+        }
+
+        async fn get_revocable_clients(
+            &self,
+            _req: GetRevocableClients,
+        ) -> Result<RevocableClients, NodeApiError> {
+            unimplemented!()
+        }
+
+        async fn create_revocable_client(
+            &self,
+            _req: CreateRevocableClientRequest,
+        ) -> Result<CreateRevocableClientResponse, NodeApiError> {
+            unimplemented!()
+        }
+
+        async fn update_client_expiration(
+            &self,
+            _req: UpdateClientExpiration,
+        ) -> Result<Empty, NodeApiError> {
+            unimplemented!()
+        }
+
+        async fn update_client_label(
+            &self,
+            _req: UpdateClientLabel,
+        ) -> Result<Empty, NodeApiError> {
+            unimplemented!()
+        }
+
+        async fn update_client_scope(
+            &self,
+            _req: UpdateClientScope,
+        ) -> Result<Empty, NodeApiError> {
+            unimplemented!()
+        }
+
+        async fn revoke_client(
+            &self,
+            _req: RevokeClient,
         ) -> Result<Empty, NodeApiError> {
             unimplemented!()
         }

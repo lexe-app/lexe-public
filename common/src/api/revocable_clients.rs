@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{api::auth::Scope, ed25519, time::TimestampMs};
+use crate::{api::auth::Scope, base64_or_bytes, ed25519, time::TimestampMs};
 
 /// All revocable clients which have ever been created.
 ///
@@ -77,4 +77,79 @@ impl RevocableClient {
 
         false
     }
+}
+
+/// A request to list all revocable clients.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GetRevocableClients {
+    /// Whether to return only clients which are currently valid.
+    pub valid_only: bool,
+}
+
+/// A request to create a new revocable client.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CreateRevocableClientRequest {
+    /// The expiration after which the node should reject this client.
+    /// [`None`] indicates that the client will never expire (use carefully!).
+    pub expiration: Option<TimestampMs>,
+    /// Optional user-provided label for this client.
+    pub label: Option<String>,
+    /// The authorization scopes allowed for this client.
+    pub scope: Scope,
+}
+
+/// The response to [`CreateRevocableClientRequest`].
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CreateRevocableClientResponse {
+    /// The client cert pubkey.
+    pub pubkey: ed25519::PublicKey,
+    /// When this client was created.
+    pub created_at: TimestampMs,
+
+    /// The DER-encoded ephemeral issuing CA cert that the client should trust.
+    ///
+    /// This is just packaged alongside the rest for convenience.
+    // NOTE: This client cert goes *last* in the cert chain given to rustls.
+    #[serde(with = "base64_or_bytes")]
+    pub eph_ca_cert_der: Vec<u8>,
+
+    /// The DER-encoded client cert to present when connecting to the node.
+    // NOTE: This client cert goes *first* in the cert chain given to rustls.
+    #[serde(with = "base64_or_bytes")]
+    pub rev_client_cert_der: Vec<u8>,
+
+    /// The DER-encoded client cert key.
+    #[serde(with = "base64_or_bytes")]
+    pub rev_client_cert_key_der: Vec<u8>,
+}
+
+/// A request to update a revocable client's expiration time to the given time.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UpdateClientExpiration {
+    pub pubkey: ed25519::PublicKey,
+    /// The time after which the server should reject this client.
+    /// Setting this to [`None`] removes the expiration (use carefully!).
+    pub expiration: Option<TimestampMs>,
+}
+
+/// A request to update a revocable client's label to the given label.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UpdateClientLabel {
+    pub pubkey: ed25519::PublicKey,
+    /// The label to use for this client.
+    pub label: Option<String>,
+}
+
+/// A request to update a revocable client's scope to the given scope.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UpdateClientScope {
+    pub pubkey: ed25519::PublicKey,
+    /// The new authorization scopes to be allowed for this client.
+    pub scope: Scope,
+}
+
+/// A request to revoke a revocable client.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RevokeClient {
+    pub pubkey: ed25519::PublicKey,
 }
