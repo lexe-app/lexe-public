@@ -113,25 +113,23 @@ pub mod certs;
 /// Also returns the node's DNS name.
 pub fn node_run_server_config(
     rng: &mut impl Crng,
-    root_seed: &RootSeed,
+    eph_ca_cert: &EphemeralIssuingCaCert,
+    eph_ca_cert_der: &LxCertificateDer,
+    rev_ca_cert: &RevocableIssuingCaCert,
     revocable_clients: Arc<RwLock<RevocableClients>>,
-) -> anyhow::Result<(rustls::ServerConfig, String)> {
-    // Derive CA certs
-    let eph_ca_cert = EphemeralIssuingCaCert::from_root_seed(root_seed);
-    let rev_ca_cert = RevocableIssuingCaCert::from_root_seed(root_seed);
-
+) -> anyhow::Result<(Arc<rustls::ServerConfig>, String)> {
     // Build ephemeral server cert and sign with derived CA
     let dns_name = constants::NODE_RUN_DNS.to_owned();
     let eph_server_cert = EphemeralServerCert::from_rng(rng, dns_name.clone());
     let eph_server_cert_der = eph_server_cert
-        .serialize_der_ca_signed(&eph_ca_cert)
+        .serialize_der_ca_signed(eph_ca_cert)
         .context("Failed to sign and serialize ephemeral server cert")?;
     let eph_server_cert_key_der = eph_server_cert.serialize_key_der();
 
     // Construct our custom `SharedSeedClientCertVerifier`
     let client_cert_verifier = SharedSeedClientCertVerifier::new(
-        &eph_ca_cert,
-        &rev_ca_cert,
+        eph_ca_cert_der,
+        rev_ca_cert,
         revocable_clients,
     )
     .context("Failed to build shared seed client cert verifier")?;
@@ -147,7 +145,7 @@ pub fn node_run_server_config(
         .alpn_protocols
         .clone_from(&super::LEXE_ALPN_PROTOCOLS);
 
-    Ok((config, dns_name))
+    Ok((Arc::new(config), dns_name))
 }
 
 /// Client-side TLS config for app (with root seed) -> node connections.
@@ -210,15 +208,14 @@ pub fn app_node_run_client_config(
 /// -> node connections.
 pub fn sdk_node_run_client_config(
     deploy_env: DeployEnv,
-    ephemeral_ca_cert_der: LxCertificateDer,
+    ephemeral_ca_cert_der: &LxCertificateDer,
     revocable_client_cert: CertWithKey,
 ) -> anyhow::Result<rustls::ClientConfig> {
     // Build the client's server cert verifier:
     // - Ephemeral CA verifier trusts the ephemeral issuing CA
     // - Public Lexe verifier trusts the hard-coded Lexe cert.
-    let ephemeral_ca_verifier =
-        ephemeral_ca_verifier(&ephemeral_ca_cert_der)
-            .context("Failed to build ephemeral CA verifier")?;
+    let ephemeral_ca_verifier = ephemeral_ca_verifier(ephemeral_ca_cert_der)
+        .context("Failed to build ephemeral CA verifier")?;
     let lexe_server_verifier = lexe_ca::lexe_server_verifier(deploy_env);
     let server_cert_verifier = AppNodeRunVerifier {
         ephemeral_ca_verifier,
@@ -374,15 +371,11 @@ pub struct SharedSeedClientCertVerifier {
 
 impl SharedSeedClientCertVerifier {
     pub fn new(
-        eph_ca_cert: &EphemeralIssuingCaCert,
+        eph_ca_cert_der: &LxCertificateDer,
         rev_ca_cert: &RevocableIssuingCaCert,
         revocable_clients: Arc<RwLock<RevocableClients>>,
     ) -> anyhow::Result<Self> {
         let ephemeral_ca_verifier = {
-            let eph_ca_cert_der = eph_ca_cert
-                .serialize_der_self_signed()
-                .context("Failed to sign and serialize ephemeral CA cert")?;
-
             let mut eph_roots = rustls::RootCertStore::empty();
             eph_roots
                 .add(eph_ca_cert_der.into())
@@ -574,12 +567,25 @@ mod test {
                 .map(Arc::new)
                 .unwrap();
 
-        let revocable_clients =
-            Arc::new(RwLock::new(RevocableClients::default()));
-        let (server_config, server_dns) =
-            node_run_server_config(&mut rng, server_seed, revocable_clients)
-                .map(|(c, d)| (Arc::new(c), d))
-                .unwrap();
+        let (server_config, server_dns) = {
+            let eph_ca_cert =
+                EphemeralIssuingCaCert::from_root_seed(server_seed);
+            let eph_ca_cert_der =
+                eph_ca_cert.serialize_der_self_signed().unwrap();
+            let rev_ca_cert =
+                RevocableIssuingCaCert::from_root_seed(server_seed);
+            let revocable_clients =
+                Arc::new(RwLock::new(RevocableClients::default()));
+
+            node_run_server_config(
+                &mut rng,
+                &eph_ca_cert,
+                &eph_ca_cert_der,
+                &rev_ca_cert,
+                revocable_clients,
+            )
+            .unwrap()
+        };
 
         test_utils::do_tls_handshake(client_config, server_config, server_dns)
             .await
@@ -687,17 +693,28 @@ mod test {
         let deploy_env = DeployEnv::Dev;
         let client_config = sdk_node_run_client_config(
             deploy_env,
-            eph_ca_cert_der,
+            &eph_ca_cert_der,
             rev_client_cert_with_key,
         )
         .map(Arc::new)
         .unwrap();
 
         // Node server config
-        let (server_config, server_dns) =
-            node_run_server_config(&mut rng, server_seed, rev_client_certs)
-                .map(|(c, d)| (Arc::new(c), d))
-                .unwrap();
+        let (server_config, server_dns) = {
+            let eph_ca_cert =
+                EphemeralIssuingCaCert::from_root_seed(server_seed);
+            let rev_ca_cert =
+                RevocableIssuingCaCert::from_root_seed(server_seed);
+
+            node_run_server_config(
+                &mut rng,
+                &eph_ca_cert,
+                &eph_ca_cert_der,
+                &rev_ca_cert,
+                rev_client_certs,
+            )
+            .unwrap()
+        };
 
         test_utils::do_tls_handshake(client_config, server_config, server_dns)
             .await

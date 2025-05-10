@@ -39,7 +39,11 @@ use futures::future::FutureExt;
 use gdrive::{gvfs::GvfsRootName, GoogleVfs};
 use lexe_api::{
     server::LayerConfig,
-    tls::{self, attestation::NodeMode},
+    tls::{
+        self,
+        attestation::NodeMode,
+        shared_seed::certs::{EphemeralIssuingCaCert, RevocableIssuingCaCert},
+    },
 };
 use lexe_ln::{
     alias::{
@@ -665,8 +669,17 @@ impl UserNode {
 
         // Start API server for app
         let lsp_info = args.lsp.clone();
+        let eph_ca_cert = EphemeralIssuingCaCert::from_root_seed(&root_seed);
+        let eph_ca_cert_der = eph_ca_cert
+            .serialize_der_self_signed()
+            .map(Arc::new)
+            .context("Failed to serialize ephemeral issuing CA cert")?;
+        let rev_ca_cert =
+            Arc::new(RevocableIssuingCaCert::from_root_seed(&root_seed));
         let app_router_state = Arc::new(AppRouterState {
             user_pk,
+            network,
+            measurement,
             version: version.clone(),
             config: config.clone(),
             runner_api: runner_api.clone(),
@@ -683,8 +696,9 @@ impl UserNode {
             network_graph: network_graph.clone(),
             lsp_info: lsp_info.clone(),
             intercept_scids,
-            network,
-            measurement,
+            eph_ca_cert_der: eph_ca_cert_der.clone(),
+            rev_ca_cert: rev_ca_cert.clone(),
+            revocable_clients: revocable_clients.clone(),
             activity_tx,
             channel_events_bus,
             eph_tasks_tx: eph_tasks_tx.clone(),
@@ -704,7 +718,9 @@ impl UserNode {
         let (app_tls_config, app_dns) =
             tls::shared_seed::node_run_server_config(
                 rng,
-                &root_seed,
+                &eph_ca_cert,
+                &eph_ca_cert_der,
+                &rev_ca_cert,
                 revocable_clients,
             )
             .context("Failed to build owner service TLS config")?;
@@ -714,7 +730,7 @@ impl UserNode {
                 app_listener,
                 server::app_router(app_router_state),
                 app_layer_config,
-                Some((Arc::new(app_tls_config), app_dns.as_str())),
+                Some((app_tls_config, app_dns.as_str())),
                 APP_SERVER_SPAN_NAME,
                 info_span!(APP_SERVER_SPAN_NAME),
                 shutdown.clone(),

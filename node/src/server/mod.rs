@@ -7,7 +7,7 @@
 //! used purely for maintenance or only enabled in tests.
 
 use std::{
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
     time::Duration,
 };
 
@@ -19,6 +19,7 @@ use axum::{
 use common::{
     api::{
         def::NodeRunnerApi,
+        revocable_clients::RevocableClients,
         user::{Scid, UserPk},
     },
     cli::LspInfo,
@@ -26,6 +27,9 @@ use common::{
     ln::network::LxNetwork,
     notify_once::NotifyOnce,
     task::LxTask,
+};
+use lexe_api::tls::{
+    shared_seed::certs::RevocableIssuingCaCert, types::LxCertificateDer,
 };
 use lexe_ln::{
     alias::{NetworkGraphType, RouterType},
@@ -58,6 +62,8 @@ mod lexe;
 
 pub(crate) struct AppRouterState {
     pub user_pk: UserPk,
+    pub network: LxNetwork,
+    pub measurement: Measurement,
     pub version: semver::Version,
     pub config: Arc<ArcSwap<UserConfig>>,
     pub runner_api: Arc<dyn NodeRunnerApi + Send + Sync>,
@@ -74,8 +80,12 @@ pub(crate) struct AppRouterState {
     pub network_graph: Arc<NetworkGraphType>,
     pub lsp_info: LspInfo,
     pub intercept_scids: Vec<Scid>,
-    pub network: LxNetwork,
-    pub measurement: Measurement,
+    #[allow(dead_code)] // TODO(max): Remove
+    pub eph_ca_cert_der: Arc<LxCertificateDer>,
+    #[allow(dead_code)] // TODO(max): Remove
+    pub rev_ca_cert: Arc<RevocableIssuingCaCert>,
+    #[allow(dead_code)] // TODO(max): Remove
+    pub revocable_clients: Arc<RwLock<RevocableClients>>,
     pub activity_tx: mpsc::Sender<()>,
     pub channel_events_bus: ChannelEventsBus,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
