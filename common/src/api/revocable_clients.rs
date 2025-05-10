@@ -17,6 +17,9 @@ pub struct RevocableClients {
 }
 
 impl RevocableClients {
+    /// A user shouldn't need more than 100 clients.
+    pub const MAX_LEN: usize = 100;
+
     /// An iterator over all clients which are valid right now.
     pub fn iter_valid(
         &self,
@@ -60,6 +63,9 @@ pub struct RevocableClient {
 }
 
 impl RevocableClient {
+    /// Limit label length to 64 bytes
+    pub const MAX_LABEL_LEN: usize = 64;
+
     /// Whether the client is expired right now.
     #[must_use]
     pub fn is_expired(&self) -> bool {

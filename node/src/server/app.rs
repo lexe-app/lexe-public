@@ -1,4 +1,4 @@
-use std::{slice, sync::Arc};
+use std::{ops::Deref, slice, sync::Arc};
 
 use anyhow::{ensure, Context};
 use axum::extract::State;
@@ -22,9 +22,14 @@ use common::{
             SignMsgRequest, SignMsgResponse, VerifyMsgRequest,
             VerifyMsgResponse,
         },
+        revocable_clients::{
+            CreateRevocableClientRequest, CreateRevocableClientResponse,
+            GetRevocableClients, RevocableClients, RevokeClient,
+            UpdateClientExpiration, UpdateClientLabel, UpdateClientScope,
+        },
         Empty,
     },
-    constants,
+    constants::{self},
     ln::{amount::Amount, channel::LxUserChannelId, payments::VecBasicPayment},
     rng::SysRng,
     task::MaybeLxTask,
@@ -410,4 +415,99 @@ pub(super) async fn update_payment_note(
         .await
         .map(|()| LxJson(Empty {}))
         .map_err(NodeApiError::command)
+}
+
+pub(super) async fn get_revocable_clients(
+    State(state): State<Arc<AppRouterState>>,
+    LxJson(req): LxJson<GetRevocableClients>,
+) -> Result<LxJson<RevocableClients>, NodeApiError> {
+    let locked_revocable_clients = state.revocable_clients.read().unwrap();
+
+    let revocable_clients = if req.valid_only {
+        let clients = locked_revocable_clients
+            .iter_valid()
+            .map(|(k, v)| (*k, v.clone()))
+            .collect();
+        RevocableClients { clients }
+    } else {
+        locked_revocable_clients.clone()
+    };
+
+    Ok(LxJson(revocable_clients))
+}
+
+pub(super) async fn create_revocable_client(
+    State(state): State<Arc<AppRouterState>>,
+    LxJson(req): LxJson<CreateRevocableClientRequest>,
+) -> Result<LxJson<CreateRevocableClientResponse>, NodeApiError> {
+    lexe_ln::command::create_revocable_client(
+        &state.persister,
+        state.eph_ca_cert_der.deref().clone(),
+        &state.rev_ca_cert,
+        &state.revocable_clients,
+        req,
+    )
+    .await
+    .map(LxJson)
+    .map_err(NodeApiError::command)
+}
+
+pub(super) async fn update_client_expiration(
+    State(state): State<Arc<AppRouterState>>,
+    LxJson(req): LxJson<UpdateClientExpiration>,
+) -> Result<LxJson<Empty>, NodeApiError> {
+    lexe_ln::command::update_client_expiration(
+        &state.persister,
+        &state.revocable_clients,
+        req,
+    )
+    .await
+    .map_err(NodeApiError::command)?;
+
+    Ok(LxJson(Empty {}))
+}
+
+pub(super) async fn update_client_label(
+    State(state): State<Arc<AppRouterState>>,
+    LxJson(req): LxJson<UpdateClientLabel>,
+) -> Result<LxJson<Empty>, NodeApiError> {
+    lexe_ln::command::update_client_label(
+        &state.persister,
+        &state.revocable_clients,
+        req,
+    )
+    .await
+    .map_err(NodeApiError::command)?;
+
+    Ok(LxJson(Empty {}))
+}
+
+pub(super) async fn update_client_scope(
+    State(state): State<Arc<AppRouterState>>,
+    LxJson(req): LxJson<UpdateClientScope>,
+) -> Result<LxJson<Empty>, NodeApiError> {
+    lexe_ln::command::update_client_scope(
+        &state.persister,
+        &state.revocable_clients,
+        req,
+    )
+    .await
+    .map_err(NodeApiError::command)?;
+
+    Ok(LxJson(Empty {}))
+}
+
+pub(super) async fn revoke_client(
+    State(state): State<Arc<AppRouterState>>,
+    LxJson(req): LxJson<RevokeClient>,
+) -> Result<LxJson<Empty>, NodeApiError> {
+    lexe_ln::command::revoke_client(
+        &state.persister,
+        &state.revocable_clients,
+        req,
+    )
+    .await
+    .map_err(NodeApiError::command)?;
+
+    Ok(LxJson(Empty {}))
 }

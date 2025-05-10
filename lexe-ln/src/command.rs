@@ -1,4 +1,4 @@
-use std::{convert::Infallible, num::NonZeroU64, time::Duration};
+use std::{convert::Infallible, num::NonZeroU64, sync::RwLock, time::Duration};
 
 use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin_hashes::{sha256, Hash};
@@ -16,11 +16,18 @@ use common::{
             PreflightPayOfferRequest, PreflightPayOfferResponse,
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
         },
+        revocable_clients::{
+            CreateRevocableClientRequest, CreateRevocableClientResponse,
+            RevocableClient, RevocableClients, RevokeClient,
+            UpdateClientExpiration, UpdateClientLabel, UpdateClientScope,
+        },
         user::{NodePk, Scid},
+        vfs::Vfs,
         Empty,
     },
     cli::{LspFees, LspInfo},
-    constants, debug_panic_release_log,
+    constants::{self, REVOCABLE_CLIENTS_FILE_ID},
+    debug_panic_release_log, ed25519,
     enclave::Measurement,
     ln::{
         amount::Amount,
@@ -31,11 +38,16 @@ use common::{
         payments::LxPaymentId,
         route::LxRoute,
     },
+    rng::SysRng,
     time::TimestampMs,
     Apply,
 };
 use either::Either;
 use futures::Future;
+use lexe_api::tls::{
+    shared_seed::certs::{RevocableClientCert, RevocableIssuingCaCert},
+    types::LxCertificateDer,
+};
 use lightning::{
     chain::{
         chaininterface::{ConfirmationTarget, FeeEstimator},
@@ -1557,6 +1569,223 @@ mod validate {
         info!("Preflighted route: {route}");
         Ok((route, route_params))
     }
+}
+
+#[instrument(skip_all, name = "(create-revocable-client)")]
+pub async fn create_revocable_client(
+    persister: &impl LexePersister,
+    eph_ca_cert_der: LxCertificateDer,
+    rev_ca_cert: &RevocableIssuingCaCert,
+    revocable_clients: &RwLock<RevocableClients>,
+    req: CreateRevocableClientRequest,
+) -> anyhow::Result<CreateRevocableClientResponse> {
+    let mut rng = SysRng::new();
+    let rev_client_cert = RevocableClientCert::generate_from_rng(&mut rng);
+
+    if let Some(label) = &req.label {
+        if label.len() > RevocableClient::MAX_LABEL_LEN {
+            return Err(anyhow!(
+                "Label must not be longer than {} bytes",
+                RevocableClient::MAX_LABEL_LEN
+            ));
+        }
+    }
+
+    // TODO(max): Might want some logic on req.scope here,
+    // e.g. the caller can't assign a more permissive scope than its own scope,
+    // and most clients shouldn't have the ability to create clients.
+
+    let pubkey = rev_client_cert.public_key();
+    let created_at = TimestampMs::now();
+    let revocable_client = RevocableClient {
+        pubkey,
+        created_at,
+        expiration: req.expiration,
+        label: req.label,
+        scope: req.scope,
+        is_revoked: false,
+    };
+
+    let rev_client_cert_der = rev_client_cert
+        .serialize_der_ca_signed(rev_ca_cert)
+        .context("Failed to serialize revocable client cert")?;
+    let rev_client_cert_key_der = rev_client_cert.serialize_key_der();
+
+    let updated_file = {
+        let mut revocable_clients = revocable_clients.write().unwrap();
+
+        if revocable_clients.clients.len() >= RevocableClients::MAX_LEN {
+            // TODO(max): In future, when we prune expired / revoked clients,
+            // we should check the number of *valid* clients, so that we can
+            // both protect against DoS and allow for users who may have
+            // (possibly accidentally) created lots of clients in the past.
+            return Err(anyhow!(
+                "Reached maximum # of API clients. For more clients, please \
+                 contact Lexe to explain why you need more than {} clients.",
+                RevocableClients::MAX_LEN,
+            ));
+        }
+
+        let existing =
+            revocable_clients.clients.insert(pubkey, revocable_client);
+
+        if existing.is_some() {
+            debug_panic_release_log!(
+                "Somehow overwrote existing client {pubkey}"
+            );
+        }
+
+        persister.encrypt_json::<RevocableClients>(
+            REVOCABLE_CLIENTS_FILE_ID.clone(),
+            &revocable_clients,
+        )
+    };
+
+    let retries = 0;
+    persister
+        .persist_file(&updated_file, retries)
+        .await
+        .context("Failed to persisted updated RevocableClients")?;
+
+    Ok(CreateRevocableClientResponse {
+        pubkey,
+        created_at,
+        eph_ca_cert_der: eph_ca_cert_der.0,
+        rev_client_cert_der: rev_client_cert_der.0,
+        rev_client_cert_key_der: rev_client_cert_key_der.0,
+    })
+}
+
+#[instrument(skip_all, name = "(update-client-expiration)")]
+pub async fn update_client_expiration(
+    persister: &impl LexePersister,
+    revocable_clients: &RwLock<RevocableClients>,
+    req: UpdateClientExpiration,
+) -> anyhow::Result<()> {
+    update_revocable_client(
+        persister,
+        revocable_clients,
+        &req.pubkey,
+        |client: &mut RevocableClient| {
+            // TODO(max): Maybe need some validation here
+            client.expiration = req.expiration;
+            Ok(())
+        },
+    )
+    .await
+}
+
+#[instrument(skip_all, name = "(update-client-label)")]
+pub async fn update_client_label(
+    persister: &impl LexePersister,
+    revocable_clients: &RwLock<RevocableClients>,
+    req: UpdateClientLabel,
+) -> anyhow::Result<()> {
+    update_revocable_client(
+        persister,
+        revocable_clients,
+        &req.pubkey,
+        |client: &mut RevocableClient| {
+            if let Some(label) = &req.label {
+                if label.len() > RevocableClient::MAX_LABEL_LEN {
+                    return Err(anyhow!(
+                        "Label must not be longer than {} bytes",
+                        RevocableClient::MAX_LABEL_LEN,
+                    ));
+                }
+            }
+
+            client.label = req.label;
+
+            Ok(())
+        },
+    )
+    .await
+}
+
+#[instrument(skip_all, name = "(update-client-scope)")]
+pub async fn update_client_scope(
+    persister: &impl LexePersister,
+    revocable_clients: &RwLock<RevocableClients>,
+    req: UpdateClientScope,
+) -> anyhow::Result<()> {
+    update_revocable_client(
+        persister,
+        revocable_clients,
+        &req.pubkey,
+        |client: &mut RevocableClient| {
+            // TODO(max): Need some validation here; can't request broader
+            // scope, only some clients can call, etc.
+            client.scope = req.scope;
+
+            Ok(())
+        },
+    )
+    .await
+}
+
+#[instrument(skip_all, name = "(revoke-client)")]
+pub async fn revoke_client(
+    persister: &impl LexePersister,
+    revocable_clients: &RwLock<RevocableClients>,
+    req: RevokeClient,
+) -> anyhow::Result<()> {
+    update_revocable_client(
+        persister,
+        revocable_clients,
+        &req.pubkey,
+        |client: &mut RevocableClient| {
+            client.is_revoked = true;
+            Ok(())
+        },
+    )
+    .await
+}
+
+/// Shared logic for updates to [`RevocableClient`]s.
+///
+/// [`update_client_expiration`]: common::api::def::AppNodeRunApi::update_client_expiration
+/// [`revoke_client`]: common::api::def::AppNodeRunApi::revoke_client
+pub async fn update_revocable_client(
+    persister: &impl LexePersister,
+    revocable_clients: &RwLock<RevocableClients>,
+    // The RevocableClient to update
+    pubkey: &ed25519::PublicKey,
+    // Closure which updates the RevocableClient
+    update_fn: impl FnOnce(&mut RevocableClient) -> anyhow::Result<()>,
+) -> anyhow::Result<()> {
+    let updated_file = {
+        let mut revocable_clients = revocable_clients.write().unwrap();
+
+        // Update the expiration
+        let client = revocable_clients
+            .clients
+            .get_mut(pubkey)
+            .ok_or_else(|| anyhow!("No revocable client with pk {pubkey}"))?;
+
+        update_fn(client)?;
+
+        persister.encrypt_json::<RevocableClients>(
+            REVOCABLE_CLIENTS_FILE_ID.clone(),
+            &revocable_clients,
+        )
+    };
+
+    // NOTE: If persist fails, the persisted state will be out of sync until the
+    // next successful persist (or until the next boot). Ideally we ensure
+    // consistency by holding a `tokio::sync::RwLock` during the persist, but
+    // `RevocableClients` is read in the `ClientCertVerifier` which is sync.
+    // Since the in-memory struct represents the user's intention and is
+    // sufficient to enforce the server's client policies, this is probably OK.
+    // Using `Arc<tokio::sync::RwLock<Arc<RwLock<RevocableClients>>>>` or
+    // similar doesn't seem worth the minimal consistency benefit.
+    let retries = 0;
+    persister
+        .persist_file(&updated_file, retries)
+        .await
+        .context("Failed to persisted updated RevocableClients")?;
+
+    Ok(())
 }
 
 #[cfg(test)]
