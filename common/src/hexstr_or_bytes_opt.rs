@@ -50,7 +50,7 @@ where
         type Value = Option<T>;
 
         fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            f.write_str("a hex string or null")
+            f.write_str("expecting a hex string or null")
         }
 
         fn visit_str<E: de::Error>(self, s: &str) -> Result<Self::Value, E> {

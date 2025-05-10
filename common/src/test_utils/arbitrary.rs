@@ -180,6 +180,10 @@ pub fn any_bytes() -> impl Strategy<Value = Bytes> {
     any::<Vec<u8>>().prop_map(Bytes::from)
 }
 
+pub fn any_option_bytes() -> impl Strategy<Value = Option<Bytes>> {
+    option::of(any_bytes())
+}
+
 /// Does not include prerelease or build metadata components.
 pub fn any_semver_version() -> impl Strategy<Value = semver::Version> {
     (0..=u64::MAX, 0..=u64::MAX, 0..=u64::MAX).prop_map(
