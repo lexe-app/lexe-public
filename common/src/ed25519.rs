@@ -44,11 +44,11 @@ use ref_cast::RefCast;
 use ring::signature::KeyPair as _;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use x509_parser::x509::SubjectPublicKeyInfo;
+use x509_parser::x509;
 use yasna::{models::ObjectIdentifier, ASN1Error, ASN1ErrorKind};
 
 use crate::{
-    ed25519,
+    ed25519, hexstr_or_bytes,
     rng::{Crng, RngExt},
 };
 
@@ -82,9 +82,9 @@ pub struct KeyPair {
 }
 
 /// An ed25519 public key.
-#[derive(Copy, Clone, Eq, PartialEq, RefCast)]
+#[derive(Copy, Clone, Eq, Hash, PartialEq, RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
-pub struct PublicKey([u8; 32]);
+pub struct PublicKey(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 /// An ed25519 signature.
 #[derive(Copy, Clone, Eq, PartialEq, RefCast)]
@@ -599,10 +599,12 @@ impl TryFrom<&[u8]> for PublicKey {
     }
 }
 
-impl TryFrom<&SubjectPublicKeyInfo<'_>> for PublicKey {
+impl TryFrom<&x509::SubjectPublicKeyInfo<'_>> for PublicKey {
     type Error = Error;
 
-    fn try_from(spki: &SubjectPublicKeyInfo<'_>) -> Result<Self, Self::Error> {
+    fn try_from(
+        spki: &x509::SubjectPublicKeyInfo<'_>,
+    ) -> Result<Self, Self::Error> {
         let alg = &spki.algorithm;
         if !(alg.oid() == &PKCS_OID) {
             return Err(Error::UnexpectedAlgorithm);
