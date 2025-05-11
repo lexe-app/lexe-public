@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::{BTreeMap, HashMap},
     str::FromStr,
     sync::{Arc, LazyLock, Mutex},
@@ -54,7 +55,7 @@ use tokio::sync::mpsc;
 
 use crate::api::BackendApiClient;
 
-type FileName = String;
+type FileName = Cow<'static, str>;
 type Data = Vec<u8>;
 
 // --- test fixtures --- //

@@ -894,8 +894,10 @@ impl Persist<SignerType> for NodePersister {
             info!("Archiving channel monitor");
 
             let filename = funding_txo.to_string();
-            let source_file_id =
-                VfsFileId::new(constants::CHANNEL_MONITORS_DIR, &filename);
+            let source_file_id = VfsFileId::new(
+                constants::CHANNEL_MONITORS_DIR,
+                filename.clone(),
+            );
             let archive_file_id = VfsFileId::new(
                 constants::CHANNEL_MONITORS_ARCHIVE_DIR,
                 filename,

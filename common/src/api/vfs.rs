@@ -15,6 +15,7 @@
 //! stored in their own "directory", e.g. `channel_monitors/<funding_txo>`.
 
 use std::{
+    borrow::Cow,
     fmt::{self, Display},
     io::Cursor,
 };
@@ -314,7 +315,7 @@ pub trait Vfs {
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(Serialize, Deserialize)]
 pub struct VfsDirectory {
-    pub dirname: String,
+    pub dirname: Cow<'static, str>,
 }
 
 /// Uniquely identifies a file in the virtual file system.
@@ -327,7 +328,7 @@ pub struct VfsFileId {
     // Flattened because serde_qs requires non-nested structs
     #[serde(flatten)]
     pub dir: VfsDirectory,
-    pub filename: String,
+    pub filename: Cow<'static, str>,
 }
 
 /// Represents a file in the virtual file system. The `data` field is almost
@@ -354,17 +355,23 @@ pub struct VecVfsFile {
 }
 
 impl VfsDirectory {
-    pub fn new(dirname: impl Into<String>) -> Self {
+    pub fn new(dirname: impl Into<Cow<'static, str>>) -> Self {
         Self {
             dirname: dirname.into(),
+        }
+    }
+
+    pub const fn new_const(dirname: &'static str) -> Self {
+        Self {
+            dirname: Cow::Borrowed(dirname),
         }
     }
 }
 
 impl VfsFileId {
     pub fn new(
-        dirname: impl Into<String>,
-        filename: impl Into<String>,
+        dirname: impl Into<Cow<'static, str>>,
+        filename: impl Into<Cow<'static, str>>,
     ) -> Self {
         Self {
             dir: VfsDirectory {
@@ -373,12 +380,24 @@ impl VfsFileId {
             filename: filename.into(),
         }
     }
+
+    pub const fn new_const(
+        dirname: &'static str,
+        filename: &'static str,
+    ) -> Self {
+        Self {
+            dir: VfsDirectory {
+                dirname: Cow::Borrowed(dirname),
+            },
+            filename: Cow::Borrowed(filename),
+        }
+    }
 }
 
 impl VfsFile {
     pub fn new(
-        dirname: impl Into<String>,
-        filename: impl Into<String>,
+        dirname: impl Into<Cow<'static, str>>,
+        filename: impl Into<Cow<'static, str>>,
         data: Vec<u8>,
     ) -> Self {
         Self {
@@ -424,9 +443,7 @@ mod prop {
         type Parameters = ();
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            arbitrary::any_string()
-                .prop_map(|dirname| VfsDirectory { dirname })
-                .boxed()
+            arbitrary::any_string().prop_map(VfsDirectory::new).boxed()
         }
     }
 
@@ -436,7 +453,10 @@ mod prop {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (any::<VfsDirectory>(), arbitrary::any_string())
-                .prop_map(|(dir, filename)| VfsFileId { dir, filename })
+                .prop_map(|(dir, filename)| VfsFileId {
+                    dir,
+                    filename: filename.into(),
+                })
                 .boxed()
         }
     }

@@ -821,15 +821,15 @@ mod test {
 
         let smoller_dirname_bugger_filename = VfsFileId {
             dir: VfsDirectory {
-                dirname: smoler.to_owned(),
+                dirname: smoler.into(),
             },
-            filename: bugger.to_owned(),
+            filename: bugger.into(),
         };
         let bugger_dirname_smoller_filename = VfsFileId {
             dir: VfsDirectory {
-                dirname: bugger.to_owned(),
+                dirname: bugger.into(),
             },
-            filename: smoler.to_owned(),
+            filename: smoler.into(),
         };
 
         assert!(
