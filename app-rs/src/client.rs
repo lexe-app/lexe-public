@@ -64,7 +64,10 @@ use common::{
 };
 use lexe_api::{
     rest::{RequestBuilderExt, RestClient, POST},
-    tls::{self, lexe_ca},
+    tls::{
+        self, lexe_ca,
+        types::{CertWithKey, LxCertificateDer},
+    },
 };
 use reqwest::Url;
 
@@ -97,6 +100,35 @@ pub struct NodeClient {
     use_sgx: bool,
     deploy_env: DeployEnv,
     authenticator: Arc<BearerAuthenticator>,
+}
+
+/// Parameters required to build a TLS client config for the [`NodeClient`].
+pub enum NodeClientTlsParams<'a> {
+    /// TLS based on a [`RootSeed`].
+    RootSeed { root_seed: &'a RootSeed },
+    /// TLS based on a revocable client cert.
+    RevocableClientCert {
+        /// DER-encoded cert of the ephemeral issuing shared seed CA.
+        eph_ca_cert_der: &'a LxCertificateDer,
+        /// DER-encoded revocable client cert and PKCS#8 key.
+        rev_client_cert: CertWithKey,
+    },
+}
+
+impl NodeClientTlsParams<'_> {
+    pub fn from_root_seed(root_seed: &RootSeed) -> NodeClientTlsParams<'_> {
+        NodeClientTlsParams::RootSeed { root_seed }
+    }
+
+    pub fn from_rev_client_cert(
+        eph_ca_cert_der: &LxCertificateDer,
+        rev_client_cert: CertWithKey,
+    ) -> NodeClientTlsParams<'_> {
+        NodeClientTlsParams::RevocableClientCert {
+            eph_ca_cert_der,
+            rev_client_cert,
+        }
+    }
 }
 
 // --- impl GatewayClient --- //
@@ -175,8 +207,8 @@ impl NodeClient {
     pub fn new(
         rng: &mut impl Crng,
         use_sgx: bool,
-        root_seed: &RootSeed,
         deploy_env: DeployEnv,
+        tls_params: NodeClientTlsParams,
         authenticator: Arc<BearerAuthenticator>,
         gateway_client: GatewayClient,
     ) -> anyhow::Result<Self> {
@@ -191,9 +223,22 @@ impl NodeClient {
             )
             .context("Invalid proxy config")?;
 
-            let tls_config = tls::shared_seed::app_node_run_client_config(
-                rng, deploy_env, root_seed,
-            )?;
+            let tls_config = match tls_params {
+                NodeClientTlsParams::RootSeed { root_seed } =>
+                    tls::shared_seed::app_node_run_client_config(
+                        rng, deploy_env, root_seed,
+                    )
+                    .context("Failed to build RootSeed TLS config")?,
+                NodeClientTlsParams::RevocableClientCert {
+                    eph_ca_cert_der,
+                    rev_client_cert,
+                } => tls::shared_seed::sdk_node_run_client_config(
+                    deploy_env,
+                    eph_ca_cert_der,
+                    rev_client_cert,
+                )
+                .context("Failed to build revocable client TLS config")?,
+            };
 
             let (from, to) =
                 (gateway_client.rest.user_agent().clone(), "node-run");

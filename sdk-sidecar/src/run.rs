@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::Context;
-use app_rs::client::{GatewayClient, NodeClient};
+use app_rs::client::{GatewayClient, NodeClient, NodeClientTlsParams};
 use common::{
     api::auth::{BearerAuthenticator, Scope},
     env::DeployEnv,
@@ -113,11 +113,13 @@ impl Sidecar {
 
         // does nothing b/c we don't provision
         let use_sgx = true;
+        // TODO(max): This should use revocable client cert instead
+        let tls_params = NodeClientTlsParams::from_root_seed(&root_seed);
         let node_client = NodeClient::new(
             &mut SysRng::new(),
             use_sgx,
-            &root_seed,
             self.deploy_env,
+            tls_params,
             authenticator,
             gateway_client,
         )

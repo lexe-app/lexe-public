@@ -29,7 +29,7 @@ use secrecy::ExposeSecret;
 use tracing::{info, instrument, warn};
 
 use crate::{
-    client::{GatewayClient, NodeClient},
+    client::{GatewayClient, NodeClient, NodeClientTlsParams},
     ffs::{Ffs, FlatFileFs},
     payments::{self, PaymentDb, PaymentSyncSummary},
     secret_store::SecretStore,
@@ -94,11 +94,12 @@ impl App {
             user_config.config.user_agent.clone(),
         )
         .context("Failed to build GatewayClient")?;
+        let tls_params = NodeClientTlsParams::from_root_seed(&root_seed);
         let node_client = NodeClient::new(
             rng,
             user_config.config.use_sgx,
-            &root_seed,
             user_config.config.deploy_env,
+            tls_params,
             authenticator.clone(),
             gateway_client.clone(),
         )
@@ -233,11 +234,12 @@ impl App {
             user_config.config.user_agent.clone(),
         )
         .context("Failed to build GatewayClient")?;
+        let tls_params = NodeClientTlsParams::from_root_seed(root_seed);
         let node_client = NodeClient::new(
             rng,
             user_config.config.use_sgx,
-            root_seed,
             user_config.config.deploy_env,
+            tls_params,
             authenticator.clone(),
             gateway_client.clone(),
         )
@@ -350,11 +352,12 @@ impl App {
             user_config.config.user_agent.clone(),
         )
         .context("Failed to build GatewayClient")?;
+        let tls_params = NodeClientTlsParams::from_root_seed(root_seed);
         let node_client = NodeClient::new(
             rng,
             user_config.config.use_sgx,
-            root_seed,
             user_config.config.deploy_env,
+            tls_params,
             authenticator.clone(),
             gateway_client.clone(),
         )

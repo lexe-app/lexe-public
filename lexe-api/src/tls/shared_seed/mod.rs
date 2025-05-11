@@ -208,13 +208,13 @@ pub fn app_node_run_client_config(
 /// -> node connections.
 pub fn sdk_node_run_client_config(
     deploy_env: DeployEnv,
-    ephemeral_ca_cert_der: &LxCertificateDer,
-    revocable_client_cert: CertWithKey,
+    eph_ca_cert_der: &LxCertificateDer,
+    rev_client_cert: CertWithKey,
 ) -> anyhow::Result<rustls::ClientConfig> {
     // Build the client's server cert verifier:
     // - Ephemeral CA verifier trusts the ephemeral issuing CA
     // - Public Lexe verifier trusts the hard-coded Lexe cert.
-    let ephemeral_ca_verifier = ephemeral_ca_verifier(ephemeral_ca_cert_der)
+    let ephemeral_ca_verifier = ephemeral_ca_verifier(eph_ca_cert_der)
         .context("Failed to build ephemeral CA verifier")?;
     let lexe_server_verifier = lexe_ca::lexe_server_verifier(deploy_env);
     let server_cert_verifier = AppNodeRunVerifier {
@@ -237,8 +237,8 @@ pub fn sdk_node_run_client_config(
         // requires client auth, meaning we'd need to choose the correct cert to
         // present depending on whether the end entity is the proxy or the node.
         .with_client_auth_cert(
-            vec![revocable_client_cert.cert_der.into()],
-            revocable_client_cert.key_der.into(),
+            vec![rev_client_cert.cert_der.into()],
+            rev_client_cert.key_der.into(),
         )
         .context("Failed to build rustls::ClientConfig")?;
     config
