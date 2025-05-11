@@ -10,7 +10,6 @@ use common::{
         auth::{BearerAuthToken, BearerAuthenticator},
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         error::BackendApiError,
-        revocable_clients::RevocableClients,
         user::{Scid, Scids},
         vfs::{
             MaybeVfsFile, VecVfsFile, Vfs, VfsDirectory, VfsFile, VfsFileId,
@@ -397,16 +396,6 @@ impl NodePersister {
             .map(|res| res.map(BasicPayment::from))
             // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
             .collect::<anyhow::Result<Vec<BasicPayment>>>()
-    }
-
-    pub(crate) async fn read_revocable_clients(
-        &self,
-    ) -> anyhow::Result<Option<RevocableClients>> {
-        let file_id = VfsFileId::new(
-            SINGLETON_DIRECTORY,
-            constants::REVOCABLE_CLIENTS_FILENAME,
-        );
-        self.read_json(&file_id).await
     }
 
     pub(crate) async fn read_channel_manager(

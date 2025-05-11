@@ -14,10 +14,15 @@ use common::{
         def::NodeRunnerApi,
         ports::Ports,
         provision::SealedSeedId,
+        revocable_clients::RevocableClients,
         user::{GetNewScidsRequest, NodePk, User, UserPk},
+        vfs::Vfs,
     },
     cli::{node::RunArgs, LspInfo},
-    constants::{self, DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
+    constants::{
+        self, DEFAULT_CHANNEL_SIZE, REVOCABLE_CLIENTS_FILE_ID,
+        SMALLER_CHANNEL_SIZE,
+    },
     ed25519,
     enclave::{self, MachineId, Measurement, MinCpusvn},
     env::DeployEnv,
@@ -345,7 +350,7 @@ impl UserNode {
             persister.read_scids(),
             persister.read_pending_payments(),
             persister.read_finalized_payment_ids(),
-            persister.read_revocable_clients(),
+            persister.read_json::<RevocableClients>(&REVOCABLE_CLIENTS_FILE_ID),
         );
         if deploy_env.is_staging_or_prod() {
             let maybe_approved_versions = try_maybe_approved_versions

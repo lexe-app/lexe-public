@@ -1,6 +1,9 @@
 use std::{include_bytes, time::Duration};
 
-use crate::enclave::{Measurement, MrShort};
+use crate::{
+    api::vfs::VfsFileId,
+    enclave::{Measurement, MrShort},
+};
 
 // --- General --- //
 
@@ -94,7 +97,9 @@ pub const PW_ENC_ROOT_SEED_FILENAME: &str = "password_encrypted_root_seed";
 // - "bdk_wallet_db_v1" for our BDK 1.0.0-alpha.X wallet DB.
 // - "bdk_wallet_changeset" since BDK 1.0.0-beta.X.
 pub const WALLET_CHANGESET_FILENAME: &str = "bdk_wallet_changeset";
-pub const REVOCABLE_CLIENTS_FILENAME: &str = "revocable_clients";
+
+pub static REVOCABLE_CLIENTS_FILE_ID: VfsFileId =
+    VfsFileId::new_const(SINGLETON_DIRECTORY, "revocable_clients");
 
 // --- Networking --- //
 
