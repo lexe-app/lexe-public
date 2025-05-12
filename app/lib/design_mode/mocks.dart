@@ -38,7 +38,6 @@ import 'package:app_rs_dart/ffi/settings.dart' show Settings, SettingsDb;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         AppUserInfo,
-        ClientInfo,
         Config,
         Invoice,
         LxChannelDetails,
@@ -48,6 +47,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentIndex,
         PaymentKind,
         PaymentStatus,
+        RevocableClient,
         RootSeed,
         Scope,
         ShortPaymentAndIndex;
@@ -358,21 +358,20 @@ class MockAppHandle extends AppHandle {
       Future.delayed(
         const Duration(milliseconds: 1000),
         () => const CreateClientResponse(
-          clientInfo: ClientInfo(
-            pubkey: "pubkey",
+          client: RevocableClient(
+            pubkey:
+                "7088af1fc12ab04ad6dd165bc3a3c5eb3062b411a2f55a166b0e400b390fe4db",
             createdAt: 1747011336000,
             scope: Scope.nodeConnect,
           ),
-          authJson: ''
-              '{\n'
-              '  "lexe_auth_token": "9dTCUvC8y7qcNyUbqynz3nwIQQHbQqPVKeMhXUj1Afr-vgj9E217_2tCS1IQM7LFqfBUC8Ec9fcb-dQiCRy6ot2FN-kR60edRFJUztAa2Rxao1Q0BS1s6vE8grgfhMYIAJDLMWgAAAAASE4zaAAAAABpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaQE"\n'
-              '}',
+          credentials:
+              "eyJsZXhlX2F1dGhfdG9rZW4iOiI5ZFRDVXZDOHk3cWNOeVVicXluejNud0lRUUhiUXFQVktlTWhYVWoxQWZyLXZnajlFMjE3XzJ0Q1MxSVFNN0xGcWZCVUM4RWM5ZmNiLWRRaUNSeTZvdDJGTi1rUjYwZWRSRkpVenRBYTJSeGFvMVEwQlMxczZ2RThncmdmaE1ZSUFKRExNV2dBQUFBQVNFNHphQUFBQUFCcGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhUUUiLCJjbGllbnRfcGsiOiI3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiIiwiY2xpZW50X2tleV9kZXIiOiIzMDUzMDIwMTAxMzAwNTA2MDMyYjY1NzAwNDIyMDQyMDBmNTgwZDM0NjFjNGVhMGIzNmI4MzZkNDUxYzFjMTk5ZWUzZTA2NDZhZDBkNjQyMzUzNzk3MzlkNjg2OTkyODlhMTIzMDMyMTAwNzA4OGFmMWZjMTJhYjA0YWQ2ZGQxNjViYzNhM2M1ZWIzMDYyYjQxMWEyZjU1YTE2NmIwZTQwMGIzOTBmZTRkYiIsImNsaWVudF9jZXJ0X2RlciI6IjMwODIwMTgzMzA4MjAxMzVhMDAzMDIwMTAyMDIxNDQwYmVkYzU2ZDAzZDZiNTJmMjg0MmQ2NGRmOTBkMDJkNmRhMzZhNWIzMDA1MDYwMzJiNjU3MDMwNTYzMTBiMzAwOTA2MDM1NTA0MDYwYzAyNTU1MzMxMGIzMDA5MDYwMzU1MDQwODBjMDI0MzQxMzExMTMwMGYwNjAzNTUwNDBhMGMwODZjNjU3ODY1MmQ2MTcwNzAzMTI3MzAyNTA2MDM1NTA0MDMwYzFlNGM2NTc4NjUyMDcyNjU3NjZmNjM2MTYyNmM2NTIwNjk3MzczNzU2OTZlNjcyMDQzNDEyMDYzNjU3Mjc0MzAyMDE3MGQzNzM1MzAzMTMwMzEzMDMwMzAzMDMwMzA1YTE4MGYzNDMwMzkzNjMwMzEzMDMxMzAzMDMwMzAzMDMwNWEzMDUyMzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyMzMwMjEwNjAzNTUwNDAzMGMxYTRjNjU3ODY1MjA3MjY1NzY2ZjYzNjE2MjZjNjUyMDYzNmM2OTY1NmU3NDIwNjM2NTcyNzQzMDJhMzAwNTA2MDMyYjY1NzAwMzIxMDA3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiYTMxNzMwMTUzMDEzMDYwMzU1MWQxMTA0MGMzMDBhODIwODZjNjU3ODY1MmU2MTcwNzAzMDA1MDYwMzJiNjU3MDAzNDEwMDdiMTdiYzk1MzgyNjdiMzU0ZjA3MjZkODljYjFlYzMxMGIxMDJlNDIyYWI5Njk2Yjg3ZDlhZTcwMGNlZjJlODNjMTM2NmQwYWQxOTAzNWQ5ZTNlZDA0Y2Y1ZjdmMDVkZWY2OGE3MWRlMjEyYjg5ODM0NDc3OTQyYWU3NjNhMjBmIiwiY2FfY2VydF9kZXIiOiIzMDgyMDFiYTMwODIwMTZjYTAwMzAyMDEwMjAyMTQwY2RjYzJkMGVhM2MzMjI4MDc1OWNkNGFiN2E1MzBmNDNiODAwMjA5MzAwNTA2MDMyYjY1NzAzMDU2MzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyNzMwMjUwNjAzNTUwNDAzMGMxZTRjNjU3ODY1MjA3MjY1NzY2ZjYzNjE2MjZjNjUyMDY5NzM3Mzc1Njk2ZTY3MjA0MzQxMjA2MzY1NzI3NDMwMjAxNzBkMzczNTMwMzEzMDMxMzAzMDMwMzAzMDMwNWExODBmMzQzMDM5MzYzMDMxMzAzMTMwMzAzMDMwMzAzMDVhMzA1NjMxMGIzMDA5MDYwMzU1MDQwNjBjMDI1NTUzMzEwYjMwMDkwNjAzNTUwNDA4MGMwMjQzNDEzMTExMzAwZjA2MDM1NTA0MGEwYzA4NmM2NTc4NjUyZDYxNzA3MDMxMjczMDI1MDYwMzU1MDQwMzBjMWU0YzY1Nzg2NTIwNzI2NTc2NmY2MzYxNjI2YzY1MjA2OTczNzM3NTY5NmU2NzIwNDM0MTIwNjM2NTcyNzQzMDJhMzAwNTA2MDMyYjY1NzAwMzIxMDBjOTM2ZDhlNzhiMDc4ZDkyODQ5YWRjMzYyZGVjYzNlYTMxNzA1ZTQ0ODZiZDAwZDgxYmU2NGFmZDYzZTg4NzU5YTM0YTMwNDgzMDEzMDYwMzU1MWQxMTA0MGMzMDBhODIwODZjNjU3ODY1MmU2MTcwNzAzMDFkMDYwMzU1MWQwZTA0MTYwNDE0MGNkY2MyZDBlYTNjMzIyODA3NTljZDRhYjdhNTMwZjQzYjgwMDIwOTMwMTIwNjAzNTUxZDEzMDEwMWZmMDQwODMwMDYwMTAxZmYwMjAxMDAzMDA1MDYwMzJiNjU3MDAzNDEwMGVhNzJlOTY3MGY5OTFjODdlZDVlMmMxZGY3YzgyZWNlN2VjMjAxMGM1NzY1NGJmYWU4Y2Q1ZmE5NzMzNmYyNTViMzRkN2FjNzQzOTk5NThkYWQwY2U0NDU2ZDcwYjAzOWMyYzIzMmU0YjVhZDljZTNjYzRhMWZhMTljNzA1MTA0In0=",
         ),
       );
 
   @override
-  Future<List<ClientInfo>> listClients() =>
-      Future.delayed(const Duration(milliseconds: 1000), () => <ClientInfo>[]);
+  Future<List<RevocableClient>> listClients() => Future.delayed(
+      const Duration(milliseconds: 1000), () => <RevocableClient>[]);
 }
 
 /// An [AppHandle] that usually errors first.

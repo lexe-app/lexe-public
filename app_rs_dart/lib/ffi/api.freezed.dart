@@ -123,6 +123,51 @@ abstract class _CloseChannelRequest implements CloseChannelRequest {
 }
 
 /// @nodoc
+mixin _$CreateClientRequest {
+  String? get label => throw _privateConstructorUsedError;
+  Scope get scope => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$CreateClientRequestImpl implements _CreateClientRequest {
+  const _$CreateClientRequestImpl({this.label, required this.scope});
+
+  @override
+  final String? label;
+  @override
+  final Scope scope;
+
+  @override
+  String toString() {
+    return 'CreateClientRequest(label: $label, scope: $scope)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$CreateClientRequestImpl &&
+            (identical(other.label, label) || other.label == label) &&
+            (identical(other.scope, scope) || other.scope == scope));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, label, scope);
+}
+
+abstract class _CreateClientRequest implements CreateClientRequest {
+  const factory _CreateClientRequest(
+      {final String? label,
+      required final Scope scope}) = _$CreateClientRequestImpl;
+
+  @override
+  String? get label;
+  @override
+  Scope get scope;
+}
+
+/// @nodoc
 mixin _$CreateInvoiceRequest {
   int get expirySecs => throw _privateConstructorUsedError;
   int? get amountSats => throw _privateConstructorUsedError;

@@ -715,7 +715,22 @@ impl NodeClientTlsParams<'_> {
     }
 }
 
-// --- impl ClientAuth --- //
+// --- impl ClientCredentials --- //
+
+impl ClientCredentials {
+    pub fn from_response(
+        lexe_auth_token: BearerAuthToken,
+        resp: CreateRevocableClientResponse,
+    ) -> Self {
+        ClientCredentials {
+            lexe_auth_token,
+            client_pk: resp.pubkey,
+            client_key_der: LxPrivatePkcs8KeyDer(resp.rev_client_cert_key_der),
+            client_cert_der: LxCertificateDer(resp.rev_client_cert_der),
+            ca_cert_der: LxCertificateDer(resp.eph_ca_cert_der),
+        }
+    }
+}
 
 impl fmt::Display for ClientCredentials {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

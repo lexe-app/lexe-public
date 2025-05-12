@@ -16,7 +16,7 @@ import 'types.dart';
 part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_cid_and_response`, `from_id_and_response`, `validate_note`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
 @freezed
 class Balance with _$Balance {
@@ -35,46 +35,34 @@ class CloseChannelRequest with _$CloseChannelRequest {
   }) = _CloseChannelRequest;
 }
 
-class CreateClientRequest {
-  final String? label;
-  final Scope scope;
-
-  const CreateClientRequest({
-    this.label,
-    required this.scope,
-  });
-
-  @override
-  int get hashCode => label.hashCode ^ scope.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is CreateClientRequest &&
-          runtimeType == other.runtimeType &&
-          label == other.label &&
-          scope == other.scope;
+/// See [`common::api::revocable_clients::CreateRevocableClientRequest`].
+@freezed
+class CreateClientRequest with _$CreateClientRequest {
+  const factory CreateClientRequest({
+    String? label,
+    required Scope scope,
+  }) = _CreateClientRequest;
 }
 
 class CreateClientResponse {
-  final ClientInfo clientInfo;
-  final String authJson;
+  final RevocableClient client;
+  final String credentials;
 
   const CreateClientResponse({
-    required this.clientInfo,
-    required this.authJson,
+    required this.client,
+    required this.credentials,
   });
 
   @override
-  int get hashCode => clientInfo.hashCode ^ authJson.hashCode;
+  int get hashCode => client.hashCode ^ credentials.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is CreateClientResponse &&
           runtimeType == other.runtimeType &&
-          clientInfo == other.clientInfo &&
-          authJson == other.authJson;
+          client == other.client &&
+          credentials == other.credentials;
 }
 
 /// See [`common::api::command::CreateInvoiceRequest`].

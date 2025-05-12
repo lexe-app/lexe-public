@@ -5,6 +5,7 @@ use std::str::FromStr;
 use anyhow::{anyhow, Context};
 use common::{
     api::{
+        auth::Scope as ScopeRs,
         command::{
             CloseChannelRequest as CloseChannelRequestRs,
             CreateInvoiceRequest as CreateInvoiceRequestRs,
@@ -29,6 +30,7 @@ use common::{
             UpdatePaymentNote as UpdatePaymentNoteRs,
         },
         fiat_rates::FiatRates as FiatRatesRs,
+        revocable_clients::CreateRevocableClientRequest as CreateRevocableClientRequestRs,
     },
     ln::{
         amount::Amount,
@@ -44,8 +46,8 @@ use common::{
 use flutter_rust_bridge::frb;
 
 use crate::ffi::types::{
-    ClientInfo, ClientPaymentId, ConfirmationPriority, Invoice,
-    LxChannelDetails, Offer, PaymentIndex, Scope, UserChannelId,
+    ClientPaymentId, ConfirmationPriority, Invoice, LxChannelDetails, Offer,
+    PaymentIndex, RevocableClient, Scope, UserChannelId,
 };
 
 #[frb(dart_metadata=("freezed"))]
@@ -564,12 +566,25 @@ impl TryFrom<UpdatePaymentNote> for UpdatePaymentNoteRs {
     }
 }
 
+/// See [`common::api::revocable_clients::CreateRevocableClientRequest`].
+#[frb(dart_metadata=("freezed"))]
+#[derive(Clone)]
 pub struct CreateClientRequest {
     pub label: Option<String>,
     pub scope: Scope,
 }
 
+impl From<CreateClientRequest> for CreateRevocableClientRequestRs {
+    fn from(value: CreateClientRequest) -> Self {
+        Self {
+            label: value.label,
+            scope: ScopeRs::from(value.scope),
+            expires_at: None,
+        }
+    }
+}
+
 pub struct CreateClientResponse {
-    pub client_info: ClientInfo,
-    pub auth_json: String,
+    pub client: RevocableClient,
+    pub credentials: String,
 }

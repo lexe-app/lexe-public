@@ -9,6 +9,10 @@ use common::{
             UpdatePaymentNote as UpdatePaymentNoteRs,
         },
         def::{AppGatewayApi, AppNodeRunApi},
+        revocable_clients::{
+            CreateRevocableClientRequest as CreateRevocableClientRequestRs,
+            GetRevocableClients,
+        },
         Empty,
     },
     env::DeployEnv,
@@ -37,8 +41,8 @@ use crate::{
         },
         settings::SettingsDb,
         types::{
-            AppUserInfo, ClientInfo, Config, Payment, PaymentIndex, RootSeed,
-            ShortPayment, ShortPaymentAndIndex,
+            AppUserInfo, Config, Payment, PaymentIndex, RevocableClient,
+            RootSeed, ShortPayment, ShortPaymentAndIndex,
         },
     },
 };
@@ -470,40 +474,50 @@ impl AppHandle {
             .update_payment_note(req)
     }
 
-    #[allow(dead_code, unreachable_code, unused_variables)] // TODO(phlip9): remove
     #[instrument(skip_all, name = "(create-client)")]
     pub async fn create_client(
         &self,
         req: CreateClientRequest,
     ) -> anyhow::Result<CreateClientResponse> {
+        // Mint a new long-lived connect token
         let lexe_auth_token =
             self.inner.request_long_lived_connect_token().await?;
 
-        // TODO(phlip9): call API
-        let client_info = ClientInfo {
-            pubkey: "TODO".to_owned(),
-            created_at: 1747010018000,
+        // Register a new revocable client
+        let resp = self
+            .inner
+            .node_client()
+            .create_revocable_client(CreateRevocableClientRequestRs::from(
+                req.clone(),
+            ))
+            .await?;
+
+        let client = RevocableClient {
+            pubkey: resp.pubkey.to_string(),
+            created_at: resp.created_at.to_i64(),
             label: req.label,
             scope: req.scope,
         };
 
-        let client_creds = ClientCredentials {
-            lexe_auth_token,
-            client_pk: todo!(),
-            client_key_der: todo!(),
-            client_cert_der: todo!(),
-            ca_cert_der: todo!(),
-        };
+        let credentials =
+            ClientCredentials::from_response(lexe_auth_token, resp).to_string();
 
         Ok(CreateClientResponse {
-            client_info,
-            auth_json: client_creds.to_string(),
+            client,
+            credentials,
         })
     }
 
-    #[instrument(skip_all, name = "(list-client)")]
-    pub async fn list_clients(&self) -> anyhow::Result<Vec<ClientInfo>> {
-        // TODO(phlip9): impl
-        Ok(vec![])
+    #[instrument(skip_all, name = "(list-clients)")]
+    pub async fn list_clients(&self) -> anyhow::Result<Vec<RevocableClient>> {
+        // Only care about unrevoked and unexpired clients
+        let req = GetRevocableClients { valid_only: true };
+        let resp = self.inner.node_client().get_revocable_clients(req).await?;
+        let clients = resp
+            .clients
+            .into_values()
+            .map(RevocableClient::from)
+            .collect();
+        Ok(clients)
     }
 }

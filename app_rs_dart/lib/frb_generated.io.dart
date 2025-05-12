@@ -208,9 +208,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   UpdatePaymentNote dco_decode_box_autoadd_update_payment_note(dynamic raw);
 
   @protected
-  ClientInfo dco_decode_client_info(dynamic raw);
-
-  @protected
   ClientPaymentId dco_decode_client_payment_id(dynamic raw);
 
   @protected
@@ -280,9 +277,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   ListChannelsResponse dco_decode_list_channels_response(dynamic raw);
 
   @protected
-  List<ClientInfo> dco_decode_list_client_info(dynamic raw);
-
-  @protected
   List<FiatRate> dco_decode_list_fiat_rate(dynamic raw);
 
   @protected
@@ -297,6 +291,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  List<RevocableClient> dco_decode_list_revocable_client(dynamic raw);
 
   @protected
   LxChannelDetails dco_decode_lx_channel_details(dynamic raw);
@@ -413,6 +410,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   PreflightPayOnchainResponse dco_decode_preflight_pay_onchain_response(
       dynamic raw);
+
+  @protected
+  RevocableClient dco_decode_revocable_client(dynamic raw);
 
   @protected
   RootSeed dco_decode_root_seed(dynamic raw);
@@ -626,9 +626,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       SseDeserializer deserializer);
 
   @protected
-  ClientInfo sse_decode_client_info(SseDeserializer deserializer);
-
-  @protected
   ClientPaymentId sse_decode_client_payment_id(SseDeserializer deserializer);
 
   @protected
@@ -710,9 +707,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       SseDeserializer deserializer);
 
   @protected
-  List<ClientInfo> sse_decode_list_client_info(SseDeserializer deserializer);
-
-  @protected
   List<FiatRate> sse_decode_list_fiat_rate(SseDeserializer deserializer);
 
   @protected
@@ -728,6 +722,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  List<RevocableClient> sse_decode_list_revocable_client(
+      SseDeserializer deserializer);
 
   @protected
   LxChannelDetails sse_decode_lx_channel_details(SseDeserializer deserializer);
@@ -852,6 +850,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   PreflightPayOnchainResponse sse_decode_preflight_pay_onchain_response(
       SseDeserializer deserializer);
+
+  @protected
+  RevocableClient sse_decode_revocable_client(SseDeserializer deserializer);
 
   @protected
   RootSeed sse_decode_root_seed(SseDeserializer deserializer);
@@ -1072,9 +1073,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       UpdatePaymentNote self, SseSerializer serializer);
 
   @protected
-  void sse_encode_client_info(ClientInfo self, SseSerializer serializer);
-
-  @protected
   void sse_encode_client_payment_id(
       ClientPaymentId self, SseSerializer serializer);
 
@@ -1157,10 +1155,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       ListChannelsResponse self, SseSerializer serializer);
 
   @protected
-  void sse_encode_list_client_info(
-      List<ClientInfo> self, SseSerializer serializer);
-
-  @protected
   void sse_encode_list_fiat_rate(List<FiatRate> self, SseSerializer serializer);
 
   @protected
@@ -1177,6 +1171,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_list_prim_u_8_strict(
       Uint8List self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_revocable_client(
+      List<RevocableClient> self, SseSerializer serializer);
 
   @protected
   void sse_encode_lx_channel_details(
@@ -1307,6 +1305,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_preflight_pay_onchain_response(
       PreflightPayOnchainResponse self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_revocable_client(
+      RevocableClient self, SseSerializer serializer);
 
   @protected
   void sse_encode_root_seed(RootSeed self, SseSerializer serializer);

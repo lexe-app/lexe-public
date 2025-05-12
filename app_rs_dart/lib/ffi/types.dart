@@ -15,7 +15,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 /// Some assorted user/node info. This is kinda hacked together currently just
 /// to support account deletion requests.
@@ -26,34 +26,6 @@ class AppUserInfo with _$AppUserInfo {
     required String nodePk,
     required String nodePkProof,
   }) = _AppUserInfo;
-}
-
-class ClientInfo {
-  final String pubkey;
-  final int createdAt;
-  final String? label;
-  final Scope scope;
-
-  const ClientInfo({
-    required this.pubkey,
-    required this.createdAt,
-    this.label,
-    required this.scope,
-  });
-
-  @override
-  int get hashCode =>
-      pubkey.hashCode ^ createdAt.hashCode ^ label.hashCode ^ scope.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ClientInfo &&
-          runtimeType == other.runtimeType &&
-          pubkey == other.pubkey &&
-          createdAt == other.createdAt &&
-          label == other.label &&
-          scope == other.scope;
 }
 
 /// A unique, client-generated id for payment types (onchain send,
@@ -258,6 +230,34 @@ enum PaymentStatus {
   completed,
   failed,
   ;
+}
+
+class RevocableClient {
+  final String pubkey;
+  final int createdAt;
+  final String? label;
+  final Scope scope;
+
+  const RevocableClient({
+    required this.pubkey,
+    required this.createdAt,
+    this.label,
+    required this.scope,
+  });
+
+  @override
+  int get hashCode =>
+      pubkey.hashCode ^ createdAt.hashCode ^ label.hashCode ^ scope.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RevocableClient &&
+          runtimeType == other.runtimeType &&
+          pubkey == other.pubkey &&
+          createdAt == other.createdAt &&
+          label == other.label &&
+          scope == other.scope;
 }
 
 /// The user's root seed from which we derive all child secrets.

@@ -126,7 +126,7 @@ class AppHandle {
         that: this,
       );
 
-  Future<List<ClientInfo>> listClients() =>
+  Future<List<RevocableClient>> listClients() =>
       AppRs.instance.api.crateFfiAppAppHandleListClients(
         that: this,
       );

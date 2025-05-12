@@ -3,6 +3,10 @@ use std::str::FromStr;
 use anyhow::anyhow;
 pub(crate) use common::root_seed::RootSeed as RootSeedRs;
 use common::{
+    api::{
+        auth::Scope as ScopeRs,
+        revocable_clients::RevocableClient as RevocableClientRs,
+    },
     env::DeployEnv as DeployEnvRs,
     ln::{
         channel::{
@@ -539,14 +543,44 @@ impl From<LxChannelDetailsRs> for LxChannelDetails {
     }
 }
 
+#[derive(Clone)]
 pub enum Scope {
     All,
     NodeConnect,
 }
 
-pub struct ClientInfo {
+impl From<Scope> for ScopeRs {
+    fn from(value: Scope) -> Self {
+        match value {
+            Scope::All => Self::All,
+            Scope::NodeConnect => Self::NodeConnect,
+        }
+    }
+}
+
+impl From<ScopeRs> for Scope {
+    fn from(value: ScopeRs) -> Self {
+        match value {
+            ScopeRs::All => Self::All,
+            ScopeRs::NodeConnect => Self::NodeConnect,
+        }
+    }
+}
+
+pub struct RevocableClient {
     pub pubkey: String,
     pub created_at: i64,
     pub label: Option<String>,
     pub scope: Scope,
+}
+
+impl From<RevocableClientRs> for RevocableClient {
+    fn from(value: RevocableClientRs) -> Self {
+        Self {
+            pubkey: value.pubkey.to_string(),
+            created_at: value.created_at.to_i64(),
+            label: value.label,
+            scope: Scope::from(value.scope),
+        }
+    }
 }

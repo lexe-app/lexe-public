@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
-import 'package:app_rs_dart/ffi/types.dart' show ClientInfo;
+import 'package:app_rs_dart/ffi/types.dart' show RevocableClient;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
     show
@@ -31,7 +31,7 @@ class SdkClientsPage extends StatefulWidget {
 }
 
 class _SdkClientsPageState extends State<SdkClientsPage> {
-  final ValueNotifier<FfiResult<List<ClientInfo>>?> clients =
+  final ValueNotifier<FfiResult<List<RevocableClient>>?> clients =
       ValueNotifier(null);
 
   @override
