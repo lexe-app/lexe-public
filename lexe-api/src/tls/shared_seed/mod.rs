@@ -102,7 +102,7 @@ use x509_parser::prelude::X509Certificate;
 
 use super::{
     lexe_ca,
-    types::{CertWithKey, LxCertificateDer},
+    types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
 };
 use crate::tls;
 
@@ -209,7 +209,8 @@ pub fn app_node_run_client_config(
 pub fn sdk_node_run_client_config(
     deploy_env: DeployEnv,
     eph_ca_cert_der: &LxCertificateDer,
-    rev_client_cert: CertWithKey,
+    rev_client_cert_der: LxCertificateDer,
+    rev_client_cert_key_der: LxPrivatePkcs8KeyDer,
 ) -> anyhow::Result<rustls::ClientConfig> {
     // Build the client's server cert verifier:
     // - Ephemeral CA verifier trusts the ephemeral issuing CA
@@ -237,8 +238,8 @@ pub fn sdk_node_run_client_config(
         // requires client auth, meaning we'd need to choose the correct cert to
         // present depending on whether the end entity is the proxy or the node.
         .with_client_auth_cert(
-            vec![rev_client_cert.cert_der.into()],
-            rev_client_cert.key_der.into(),
+            vec![rev_client_cert_der.into()],
+            rev_client_cert_key_der.into(),
         )
         .context("Failed to build rustls::ClientConfig")?;
     config
@@ -667,11 +668,6 @@ mod test {
             .serialize_der_ca_signed(&rev_ca_cert)
             .unwrap();
         let rev_client_cert_key_der = rev_client_cert.serialize_key_der();
-        let rev_client_cert_with_key = CertWithKey {
-            cert_der: rev_client_cert_der,
-            key_der: rev_client_cert_key_der,
-            ca_cert_der: None,
-        };
         let rev_client_cert_pk = rev_client_cert.public_key();
 
         let rev_client = RevocableClient {
@@ -697,7 +693,8 @@ mod test {
         let client_config = sdk_node_run_client_config(
             deploy_env,
             &eph_ca_cert_der,
-            rev_client_cert_with_key,
+            rev_client_cert_der,
+            rev_client_cert_key_der,
         )
         .map(Arc::new)
         .unwrap();

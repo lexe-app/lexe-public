@@ -66,7 +66,7 @@ use lexe_api::{
     rest::{RequestBuilderExt, RestClient, POST},
     tls::{
         self, lexe_ca,
-        types::{CertWithKey, LxCertificateDer},
+        types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
     },
 };
 use reqwest::Url;
@@ -110,8 +110,10 @@ pub enum NodeClientTlsParams<'a> {
     RevocableClientCert {
         /// DER-encoded cert of the ephemeral issuing shared seed CA.
         eph_ca_cert_der: &'a LxCertificateDer,
-        /// DER-encoded revocable client cert and PKCS#8 key.
-        rev_client_cert: CertWithKey,
+        /// DER-encoded revocable client cert
+        rev_client_cert_der: LxCertificateDer,
+        /// DER-encoded revocable client key.
+        rev_client_cert_key_der: LxPrivatePkcs8KeyDer,
     },
 }
 
@@ -122,11 +124,13 @@ impl NodeClientTlsParams<'_> {
 
     pub fn from_rev_client_cert(
         eph_ca_cert_der: &LxCertificateDer,
-        rev_client_cert: CertWithKey,
+        rev_client_cert_der: LxCertificateDer,
+        rev_client_cert_key_der: LxPrivatePkcs8KeyDer,
     ) -> NodeClientTlsParams<'_> {
         NodeClientTlsParams::RevocableClientCert {
             eph_ca_cert_der,
-            rev_client_cert,
+            rev_client_cert_der,
+            rev_client_cert_key_der,
         }
     }
 }
@@ -231,11 +235,13 @@ impl NodeClient {
                     .context("Failed to build RootSeed TLS config")?,
                 NodeClientTlsParams::RevocableClientCert {
                     eph_ca_cert_der,
-                    rev_client_cert,
+                    rev_client_cert_der,
+                    rev_client_cert_key_der,
                 } => tls::shared_seed::sdk_node_run_client_config(
                     deploy_env,
                     eph_ca_cert_der,
-                    rev_client_cert,
+                    rev_client_cert_der,
+                    rev_client_cert_key_der,
                 )
                 .context("Failed to build revocable client TLS config")?,
             };
