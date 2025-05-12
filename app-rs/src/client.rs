@@ -48,8 +48,8 @@ use common::{
         provision::NodeProvisionRequest,
         revocable_clients::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
-            GetRevocableClients, RevocableClients, RevokeClient,
-            UpdateClientExpiration, UpdateClientLabel, UpdateClientScope,
+            GetRevocableClients, RevocableClients, UpdateClientRequest,
+            UpdateClientResponse,
         },
         version::NodeRelease,
         Empty,
@@ -667,46 +667,13 @@ impl AppNodeRunApi for NodeClient {
         self.run_rest.send(req).await
     }
 
-    async fn update_client_expiration(
+    async fn update_revocable_client(
         &self,
-        req: UpdateClientExpiration,
-    ) -> Result<Empty, NodeApiError> {
+        req: UpdateClientRequest,
+    ) -> Result<UpdateClientResponse, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let url = format!("{run_url}/app/clients/expiration");
-        let req = self.run_rest.put(url, &req);
-        self.run_rest.send(req).await
-    }
-
-    async fn update_client_label(
-        &self,
-        req: UpdateClientLabel,
-    ) -> Result<Empty, NodeApiError> {
-        self.ensure_authed().await?;
-        let run_url = &self.run_url;
-        let url = format!("{run_url}/app/clients/label");
-        let req = self.run_rest.put(url, &req);
-        self.run_rest.send(req).await
-    }
-
-    async fn update_client_scope(
-        &self,
-        req: UpdateClientScope,
-    ) -> Result<Empty, NodeApiError> {
-        self.ensure_authed().await?;
-        let run_url = &self.run_url;
-        let url = format!("{run_url}/app/clients/scope");
-        let req = self.run_rest.put(url, &req);
-        self.run_rest.send(req).await
-    }
-
-    async fn revoke_client(
-        &self,
-        req: RevokeClient,
-    ) -> Result<Empty, NodeApiError> {
-        self.ensure_authed().await?;
-        let run_url = &self.run_url;
-        let url = format!("{run_url}/app/clients/revoke");
+        let url = format!("{run_url}/app/clients");
         let req = self.run_rest.put(url, &req);
         self.run_rest.send(req).await
     }

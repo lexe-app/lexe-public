@@ -66,8 +66,8 @@ use super::{
     },
     revocable_clients::{
         CreateRevocableClientRequest, CreateRevocableClientResponse,
-        GetRevocableClients, RevocableClients, RevokeClient,
-        UpdateClientExpiration, UpdateClientLabel, UpdateClientScope,
+        GetRevocableClients, RevocableClients, UpdateClientRequest,
+        UpdateClientResponse,
     },
     user::{
         GetNewScidsRequest, MaybeScid, MaybeUser, NodePk, ScidStruct, Scids,
@@ -594,41 +594,14 @@ pub trait AppNodeRunApi {
         req: CreateRevocableClientRequest,
     ) -> Result<CreateRevocableClientResponse, NodeApiError>;
 
-    /// Updates this revocable client's expiration time to the given time.
+    /// Updates this revocable client. Returns the updated client.
     ///
-    /// PUT /app/clients/expiration [`UpdateClientExpiration`] -> [`Empty`]
+    /// PUT /app/clients [`UpdateClientRequest`] -> [`UpdateClientResponse`]
     // Added in `node-0.7.9`
-    async fn update_client_expiration(
+    async fn update_revocable_client(
         &self,
-        req: UpdateClientExpiration,
-    ) -> Result<Empty, NodeApiError>;
-
-    /// Updates this revocable client's label to the given label.
-    ///
-    /// PUT /app/clients/label [`UpdateClientLabel`] -> [`Empty`]
-    // Added in `node-0.7.9`
-    async fn update_client_label(
-        &self,
-        req: UpdateClientLabel,
-    ) -> Result<Empty, NodeApiError>;
-
-    /// Updates this revocable client's scope to the given scope.
-    ///
-    /// PUT /app/clients/scope [`UpdateClientScope`] -> [`Empty`]
-    // Added in `node-0.7.9`
-    async fn update_client_scope(
-        &self,
-        req: UpdateClientScope,
-    ) -> Result<Empty, NodeApiError>;
-
-    /// Revokes this revocable client.
-    ///
-    /// PUT /app/clients/revoke [`RevokeClient`] -> [`Empty`]
-    // Added in `node-0.7.9`
-    async fn revoke_client(
-        &self,
-        req: RevokeClient,
-    ) -> Result<Empty, NodeApiError>;
+        req: UpdateClientRequest,
+    ) -> Result<UpdateClientResponse, NodeApiError>;
 }
 
 /// Defines the api that the gateway directly exposes to the app.

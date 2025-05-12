@@ -18,8 +18,8 @@ use common::{
         },
         revocable_clients::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
-            RevocableClient, RevocableClients, RevokeClient,
-            UpdateClientExpiration, UpdateClientLabel, UpdateClientScope,
+            RevocableClient, RevocableClients, UpdateClientRequest,
+            UpdateClientResponse,
         },
         user::{NodePk, Scid},
         vfs::Vfs,
@@ -27,7 +27,7 @@ use common::{
     },
     cli::{LspFees, LspInfo},
     constants::{self, REVOCABLE_CLIENTS_FILE_ID},
-    debug_panic_release_log, ed25519,
+    debug_panic_release_log,
     enclave::Measurement,
     ln::{
         amount::Amount,
@@ -1656,119 +1656,36 @@ pub async fn create_revocable_client(
     })
 }
 
-#[instrument(skip_all, name = "(update-client-expiration)")]
-pub async fn update_client_expiration(
-    persister: &impl LexePersister,
-    revocable_clients: &RwLock<RevocableClients>,
-    req: UpdateClientExpiration,
-) -> anyhow::Result<()> {
-    update_revocable_client(
-        persister,
-        revocable_clients,
-        &req.pubkey,
-        |client: &mut RevocableClient| {
-            // TODO(max): Maybe need some validation here
-            client.expires_at = req.expires_at;
-            Ok(())
-        },
-    )
-    .await
-}
-
-#[instrument(skip_all, name = "(update-client-label)")]
-pub async fn update_client_label(
-    persister: &impl LexePersister,
-    revocable_clients: &RwLock<RevocableClients>,
-    req: UpdateClientLabel,
-) -> anyhow::Result<()> {
-    update_revocable_client(
-        persister,
-        revocable_clients,
-        &req.pubkey,
-        |client: &mut RevocableClient| {
-            if let Some(label) = &req.label {
-                if label.len() > RevocableClient::MAX_LABEL_LEN {
-                    return Err(anyhow!(
-                        "Label must not be longer than {} bytes",
-                        RevocableClient::MAX_LABEL_LEN,
-                    ));
-                }
-            }
-
-            client.label = req.label;
-
-            Ok(())
-        },
-    )
-    .await
-}
-
-#[instrument(skip_all, name = "(update-client-scope)")]
-pub async fn update_client_scope(
-    persister: &impl LexePersister,
-    revocable_clients: &RwLock<RevocableClients>,
-    req: UpdateClientScope,
-) -> anyhow::Result<()> {
-    update_revocable_client(
-        persister,
-        revocable_clients,
-        &req.pubkey,
-        |client: &mut RevocableClient| {
-            // TODO(max): Need some validation here; can't request broader
-            // scope, only some clients can call, etc.
-            client.scope = req.scope;
-
-            Ok(())
-        },
-    )
-    .await
-}
-
-#[instrument(skip_all, name = "(revoke-client)")]
-pub async fn revoke_client(
-    persister: &impl LexePersister,
-    revocable_clients: &RwLock<RevocableClients>,
-    req: RevokeClient,
-) -> anyhow::Result<()> {
-    update_revocable_client(
-        persister,
-        revocable_clients,
-        &req.pubkey,
-        |client: &mut RevocableClient| {
-            client.is_revoked = true;
-            Ok(())
-        },
-    )
-    .await
-}
-
-/// Shared logic for updates to [`RevocableClient`]s.
-///
-/// [`update_client_expiration`]: common::api::def::AppNodeRunApi::update_client_expiration
-/// [`revoke_client`]: common::api::def::AppNodeRunApi::revoke_client
+/// Update an existing [`RevocableClient`] (revoke, set expiration, etc...).
+#[instrument(skip_all, name = "(update-revocable-client)")]
 pub async fn update_revocable_client(
     persister: &impl LexePersister,
     revocable_clients: &RwLock<RevocableClients>,
-    // The RevocableClient to update
-    pubkey: &ed25519::PublicKey,
-    // Closure which updates the RevocableClient
-    update_fn: impl FnOnce(&mut RevocableClient) -> anyhow::Result<()>,
-) -> anyhow::Result<()> {
-    let updated_file = {
+    req: UpdateClientRequest,
+) -> anyhow::Result<UpdateClientResponse> {
+    let (updated_file, response) = {
         let mut revocable_clients = revocable_clients.write().unwrap();
 
-        // Update the expiration
+        // Get the client
+        let pubkey = req.pubkey;
         let client = revocable_clients
             .clients
-            .get_mut(pubkey)
+            .get_mut(&pubkey)
             .ok_or_else(|| anyhow!("No revocable client with pk {pubkey}"))?;
 
-        update_fn(client)?;
+        // Update
+        client.update(req)?;
+        let response = UpdateClientResponse {
+            client: client.clone(),
+        };
 
-        persister.encrypt_json::<RevocableClients>(
+        // Generate the new file
+        let updated_file = persister.encrypt_json::<RevocableClients>(
             REVOCABLE_CLIENTS_FILE_ID.clone(),
             &revocable_clients,
-        )
+        );
+
+        (updated_file, response)
     };
 
     // NOTE: If persist fails, the persisted state will be out of sync until the
@@ -1785,7 +1702,7 @@ pub async fn update_revocable_client(
         .await
         .context("Failed to persisted updated RevocableClients")?;
 
-    Ok(())
+    Ok(response)
 }
 
 #[cfg(test)]

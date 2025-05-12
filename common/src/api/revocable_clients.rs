@@ -2,10 +2,18 @@
 
 use std::collections::HashMap;
 
+use anyhow::anyhow;
+#[cfg(test)]
+use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    api::auth::Scope, ed25519, serde_helpers::base64_or_bytes,
+    api::auth::Scope,
+    ed25519,
+    serde_helpers::{
+        base64_or_bytes,
+        optopt::{self, none},
+    },
     time::TimestampMs,
 };
 
@@ -60,8 +68,7 @@ pub struct RevocableClient {
     /// The authorization scopes allowed for this client.
     // TODO(max): This scope is currently ineffective.
     pub scope: Scope,
-    /// Whether this client has been revoked. Revocation should be permanent,
-    /// so this metadata can be pruned if needed.
+    /// Whether this client has been revoked. Revocation is permanent.
     pub is_revoked: bool,
 }
 
@@ -132,41 +139,99 @@ pub struct CreateRevocableClientResponse {
     pub rev_client_cert_key_der: Vec<u8>,
 }
 
-/// A request to update a revocable client's expiration time to the given time.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct UpdateClientExpiration {
+/// A request to update a single [`RevocableClient`].
+///
+/// All fields except `pubkey` are optional. If a field is `None`, it will not
+/// be updated. For example:
+///
+/// * `expires_at: None` -> don't change
+/// * `expires_at: Some(None)` -> set to never expire
+/// * `expires_at: Some(TimestampMs(..))` -> set to expire at that time
+#[derive(Serialize, Deserialize)]
+#[cfg_attr(test, derive(Debug, Eq, PartialEq, Arbitrary))]
+pub struct UpdateClientRequest {
+    /// The pubkey of the client to update.
     pub pubkey: ed25519::PublicKey,
-    /// The time after which the server should reject this client.
-    /// Setting this to [`None`] removes the expiration (use carefully!).
-    pub expires_at: Option<TimestampMs>,
+
+    /// Set this client's expiration (`Some(None)` means never expire).
+    #[serde(default, skip_serializing_if = "none", with = "optopt")]
+    pub expires_at: Option<Option<TimestampMs>>,
+
+    /// Set this client's label.
+    #[serde(default, skip_serializing_if = "none", with = "optopt")]
+    #[cfg_attr(test, proptest(strategy = "arb::any_label_update()"))]
+    pub label: Option<Option<String>>,
+
+    /// Set the authorization scopes allowed for this client.
+    #[serde(skip_serializing_if = "none")]
+    pub scope: Option<Scope>,
+
+    /// Set this to revoke or unrevoke the client. Revocation is permanent, so
+    /// you cannot unrevoke a client once it is revoked.
+    #[serde(skip_serializing_if = "none")]
+    pub is_revoked: Option<bool>,
 }
 
-/// A request to update a revocable client's label to the given label.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct UpdateClientLabel {
-    pub pubkey: ed25519::PublicKey,
-    /// The label to use for this client.
-    pub label: Option<String>,
+/// The updated [`RevocableClient`] after a successful update.
+#[derive(Serialize, Deserialize)]
+pub struct UpdateClientResponse {
+    pub client: RevocableClient,
 }
 
-/// A request to update a revocable client's scope to the given scope.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct UpdateClientScope {
-    pub pubkey: ed25519::PublicKey,
-    /// The new authorization scopes to be allowed for this client.
-    pub scope: Scope,
+impl RevocableClient {
+    /// Apply an update to this client.
+    pub fn update(&mut self, req: UpdateClientRequest) -> anyhow::Result<()> {
+        if self.pubkey != req.pubkey {
+            debug_assert!(false);
+            return Err(anyhow!("Cannot update a different client"));
+        }
+
+        if let Some(expires_at) = req.expires_at {
+            // TODO(max): Maybe need some validation here
+            self.expires_at = expires_at;
+        }
+
+        if let Some(maybe_label) = req.label {
+            if let Some(label) = &maybe_label {
+                if label.len() > RevocableClient::MAX_LABEL_LEN {
+                    return Err(anyhow!(
+                        "Label must not be longer than {} bytes",
+                        RevocableClient::MAX_LABEL_LEN,
+                    ));
+                }
+            }
+            self.label = maybe_label;
+        }
+
+        if let Some(scope) = req.scope {
+            // TODO(max): Need some validation here; can't request broader
+            // scope, only some clients can call, etc.
+            self.scope = scope;
+        }
+
+        if let Some(revoke) = req.is_revoked {
+            self.is_revoked = revoke;
+        }
+
+        Ok(())
+    }
 }
 
-/// A request to revoke a revocable client.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RevokeClient {
-    pub pubkey: ed25519::PublicKey,
+#[cfg(test)]
+mod arb {
+    use proptest::{option, strategy::Strategy};
+
+    use crate::test_utils::arbitrary;
+
+    pub fn any_label_update() -> impl Strategy<Value = Option<Option<String>>> {
+        option::of(arbitrary::any_option_simple_string())
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::root_seed::RootSeed;
+    use crate::{root_seed::RootSeed, test_utils::roundtrip};
 
     #[test]
     fn rev_client_ser_basic() {
@@ -179,7 +244,7 @@ mod test {
             is_revoked: false,
         };
         let client_json = serde_json::to_string_pretty(&client1).unwrap();
-        println!("{client_json}");
+        // println!("{client_json}");
         let client_json_snapshot = r#"{
   "pubkey": "aa8e3e1a9bffdb073507f23474100619fdd4e392ef0ff1e89348252f287a06fc",
   "created_at": 69000,
@@ -193,5 +258,10 @@ mod test {
         let client2 =
             serde_json::from_str::<RevocableClient>(&client_json).unwrap();
         assert_eq!(client1, client2);
+    }
+
+    #[test]
+    fn test_update_request_serde() {
+        roundtrip::json_string_roundtrip_proptest::<UpdateClientRequest>();
     }
 }

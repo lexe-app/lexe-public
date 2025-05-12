@@ -126,12 +126,10 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
         .route("/app/payments/new", get(app::get_new_payments))
         .route("/app/payments/note", put(app::update_payment_note))
         .route("/app/clients",
-            get(app::get_revocable_clients).post(app::create_revocable_client)
+            get(app::get_revocable_clients)
+                .post(app::create_revocable_client)
+                .put(app::update_revocable_client)
         )
-        .route("/app/clients/expiration", put(app::update_client_expiration))
-        .route("/app/clients/label", put(app::update_client_label))
-        .route("/app/clients/scope", put(app::update_client_scope))
-        .route("/app/clients/revoke", put(app::revoke_client))
         .with_state(state)
         // Send an activity event and notify the runner anytime /app is hit
         .layer(MapRequestLayer::new(move |request| {

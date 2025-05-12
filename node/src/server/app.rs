@@ -24,8 +24,8 @@ use common::{
         },
         revocable_clients::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
-            GetRevocableClients, RevocableClients, RevokeClient,
-            UpdateClientExpiration, UpdateClientLabel, UpdateClientScope,
+            GetRevocableClients, RevocableClients, UpdateClientRequest,
+            UpdateClientResponse,
         },
         Empty,
     },
@@ -452,62 +452,16 @@ pub(super) async fn create_revocable_client(
     .map_err(NodeApiError::command)
 }
 
-pub(super) async fn update_client_expiration(
+pub(super) async fn update_revocable_client(
     State(state): State<Arc<AppRouterState>>,
-    LxJson(req): LxJson<UpdateClientExpiration>,
-) -> Result<LxJson<Empty>, NodeApiError> {
-    lexe_ln::command::update_client_expiration(
+    LxJson(req): LxJson<UpdateClientRequest>,
+) -> Result<LxJson<UpdateClientResponse>, NodeApiError> {
+    lexe_ln::command::update_revocable_client(
         &state.persister,
         &state.revocable_clients,
         req,
     )
     .await
-    .map_err(NodeApiError::command)?;
-
-    Ok(LxJson(Empty {}))
-}
-
-pub(super) async fn update_client_label(
-    State(state): State<Arc<AppRouterState>>,
-    LxJson(req): LxJson<UpdateClientLabel>,
-) -> Result<LxJson<Empty>, NodeApiError> {
-    lexe_ln::command::update_client_label(
-        &state.persister,
-        &state.revocable_clients,
-        req,
-    )
-    .await
-    .map_err(NodeApiError::command)?;
-
-    Ok(LxJson(Empty {}))
-}
-
-pub(super) async fn update_client_scope(
-    State(state): State<Arc<AppRouterState>>,
-    LxJson(req): LxJson<UpdateClientScope>,
-) -> Result<LxJson<Empty>, NodeApiError> {
-    lexe_ln::command::update_client_scope(
-        &state.persister,
-        &state.revocable_clients,
-        req,
-    )
-    .await
-    .map_err(NodeApiError::command)?;
-
-    Ok(LxJson(Empty {}))
-}
-
-pub(super) async fn revoke_client(
-    State(state): State<Arc<AppRouterState>>,
-    LxJson(req): LxJson<RevokeClient>,
-) -> Result<LxJson<Empty>, NodeApiError> {
-    lexe_ln::command::revoke_client(
-        &state.persister,
-        &state.revocable_clients,
-        req,
-    )
-    .await
-    .map_err(NodeApiError::command)?;
-
-    Ok(LxJson(Empty {}))
+    .map(LxJson)
+    .map_err(NodeApiError::command)
 }

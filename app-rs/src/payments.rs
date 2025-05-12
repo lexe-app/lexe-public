@@ -960,8 +960,8 @@ mod test {
             },
             revocable_clients::{
                 CreateRevocableClientRequest, CreateRevocableClientResponse,
-                GetRevocableClients, RevocableClients, RevokeClient,
-                UpdateClientExpiration, UpdateClientLabel, UpdateClientScope,
+                GetRevocableClients, RevocableClients, UpdateClientRequest,
+                UpdateClientResponse,
             },
             Empty,
         },
@@ -1169,31 +1169,10 @@ mod test {
             unimplemented!()
         }
 
-        async fn update_client_expiration(
+        async fn update_revocable_client(
             &self,
-            _req: UpdateClientExpiration,
-        ) -> Result<Empty, NodeApiError> {
-            unimplemented!()
-        }
-
-        async fn update_client_label(
-            &self,
-            _req: UpdateClientLabel,
-        ) -> Result<Empty, NodeApiError> {
-            unimplemented!()
-        }
-
-        async fn update_client_scope(
-            &self,
-            _req: UpdateClientScope,
-        ) -> Result<Empty, NodeApiError> {
-            unimplemented!()
-        }
-
-        async fn revoke_client(
-            &self,
-            _req: RevokeClient,
-        ) -> Result<Empty, NodeApiError> {
+            _req: UpdateClientRequest,
+        ) -> Result<UpdateClientResponse, NodeApiError> {
             unimplemented!()
         }
     }

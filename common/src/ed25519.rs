@@ -819,6 +819,14 @@ mod arbitrary_impls {
                 .boxed()
         }
     }
+
+    impl Arbitrary for PublicKey {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            any::<[u8; 32]>().prop_map(Self::new).boxed()
+        }
+    }
 }
 
 // -- low-level PKCS#8 keypair serialization/deserialization -- //
