@@ -44,8 +44,8 @@ use common::{
 use flutter_rust_bridge::frb;
 
 use crate::ffi::types::{
-    ClientPaymentId, ConfirmationPriority, Invoice, LxChannelDetails, Offer,
-    PaymentIndex, UserChannelId,
+    ClientInfo, ClientPaymentId, ConfirmationPriority, Invoice,
+    LxChannelDetails, Offer, PaymentIndex, Scope, UserChannelId,
 };
 
 #[frb(dart_metadata=("freezed"))]
@@ -562,4 +562,14 @@ impl TryFrom<UpdatePaymentNote> for UpdatePaymentNoteRs {
             note: value.note,
         })
     }
+}
+
+pub struct CreateClientRequest {
+    pub label: Option<String>,
+    pub scope: Scope,
+}
+
+pub struct CreateClientResponse {
+    pub client_info: ClientInfo,
+    pub auth_json: String,
 }

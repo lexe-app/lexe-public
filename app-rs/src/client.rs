@@ -17,8 +17,8 @@ use async_trait::async_trait;
 use common::{
     api::{
         auth::{
-            BearerAuthRequestWire, BearerAuthResponse, BearerAuthenticator,
-            UserSignupRequest,
+            BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken,
+            BearerAuthenticator, UserSignupRequest,
         },
         command::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
@@ -70,6 +70,7 @@ use lexe_api::{
     },
 };
 use reqwest::Url;
+use serde::{Deserialize, Serialize};
 
 /// The client to the gateway itself, i.e. requests terminate at the gateway.
 #[derive(Clone)]
@@ -117,22 +118,16 @@ pub enum NodeClientTlsParams<'a> {
     },
 }
 
-impl NodeClientTlsParams<'_> {
-    pub fn from_root_seed(root_seed: &RootSeed) -> NodeClientTlsParams<'_> {
-        NodeClientTlsParams::RootSeed { root_seed }
-    }
-
-    pub fn from_rev_client_cert(
-        eph_ca_cert_der: &LxCertificateDer,
-        rev_client_cert_der: LxCertificateDer,
-        rev_client_cert_key_der: LxPrivatePkcs8KeyDer,
-    ) -> NodeClientTlsParams<'_> {
-        NodeClientTlsParams::RevocableClientCert {
-            eph_ca_cert_der,
-            rev_client_cert_der,
-            rev_client_cert_key_der,
-        }
-    }
+/// All secrets required for a non-RootSeed client to authenticate and
+/// communicate with a user's node.
+#[derive(Serialize, Deserialize)]
+pub struct ClientAuth {
+    pub lexe_auth_token: BearerAuthToken,
+    // TODO(phlip9): fill in once PR lands
+    // pub client_pk: ed25519::PublicKey,
+    // pub client_key_der: Vec<u8>,
+    // pub client_cert_der: Vec<u8>,
+    // pub ca_cert_der: Vec<u8>,
 }
 
 // --- impl GatewayClient --- //
@@ -721,6 +716,34 @@ fn url_base_eq(u1: &Url, u2: &Url) -> bool {
     u1.scheme() == u2.scheme()
         && u1.host() == u2.host()
         && u1.port_or_known_default() == u2.port_or_known_default()
+}
+
+// --- impl NodeClientTlsParams --- //
+
+impl NodeClientTlsParams<'_> {
+    pub fn from_root_seed(root_seed: &RootSeed) -> NodeClientTlsParams<'_> {
+        NodeClientTlsParams::RootSeed { root_seed }
+    }
+
+    pub fn from_rev_client_cert(
+        eph_ca_cert_der: &LxCertificateDer,
+        rev_client_cert_der: LxCertificateDer,
+        rev_client_cert_key_der: LxPrivatePkcs8KeyDer,
+    ) -> NodeClientTlsParams<'_> {
+        NodeClientTlsParams::RevocableClientCert {
+            eph_ca_cert_der,
+            rev_client_cert_der,
+            rev_client_cert_key_der,
+        }
+    }
+}
+
+// --- impl ClientAuth --- //
+
+impl ClientAuth {
+    pub fn to_json_string(&self) -> String {
+        serde_json::to_string_pretty(self).expect("Failed to JSON serialize")
+    }
 }
 
 #[cfg(test)]

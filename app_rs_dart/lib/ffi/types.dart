@@ -28,6 +28,34 @@ class AppUserInfo with _$AppUserInfo {
   }) = _AppUserInfo;
 }
 
+class ClientInfo {
+  final String pubkey;
+  final int createdAt;
+  final String? label;
+  final Scope scope;
+
+  const ClientInfo({
+    required this.pubkey,
+    required this.createdAt,
+    this.label,
+    required this.scope,
+  });
+
+  @override
+  int get hashCode =>
+      pubkey.hashCode ^ createdAt.hashCode ^ label.hashCode ^ scope.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ClientInfo &&
+          runtimeType == other.runtimeType &&
+          pubkey == other.pubkey &&
+          createdAt == other.createdAt &&
+          label == other.label &&
+          scope == other.scope;
+}
+
 /// A unique, client-generated id for payment types (onchain send,
 /// ln spontaneous send) that need an extra id for idempotency.
 @freezed
@@ -255,6 +283,12 @@ class RootSeed {
       other is RootSeed &&
           runtimeType == other.runtimeType &&
           inner == other.inner;
+}
+
+enum Scope {
+  all,
+  nodeConnect,
+  ;
 }
 
 /// Just the info we need to display an entry in the payments list UI.

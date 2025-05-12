@@ -538,3 +538,15 @@ impl From<LxChannelDetailsRs> for LxChannelDetails {
         }
     }
 }
+
+pub enum Scope {
+    All,
+    NodeConnect,
+}
+
+pub struct ClientInfo {
+    pub pubkey: String,
+    pub created_at: i64,
+    pub label: Option<String>,
+    pub scope: Scope,
+}

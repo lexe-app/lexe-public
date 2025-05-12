@@ -126,6 +126,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Config dco_decode_box_autoadd_config(dynamic raw);
 
   @protected
+  CreateClientRequest dco_decode_box_autoadd_create_client_request(dynamic raw);
+
+  @protected
   CreateInvoiceRequest dco_decode_box_autoadd_create_invoice_request(
       dynamic raw);
 
@@ -205,6 +208,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   UpdatePaymentNote dco_decode_box_autoadd_update_payment_note(dynamic raw);
 
   @protected
+  ClientInfo dco_decode_client_info(dynamic raw);
+
+  @protected
   ClientPaymentId dco_decode_client_payment_id(dynamic raw);
 
   @protected
@@ -215,6 +221,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ConfirmationPriority dco_decode_confirmation_priority(dynamic raw);
+
+  @protected
+  CreateClientRequest dco_decode_create_client_request(dynamic raw);
+
+  @protected
+  CreateClientResponse dco_decode_create_client_response(dynamic raw);
 
   @protected
   CreateInvoiceRequest dco_decode_create_invoice_request(dynamic raw);
@@ -266,6 +278,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ListChannelsResponse dco_decode_list_channels_response(dynamic raw);
+
+  @protected
+  List<ClientInfo> dco_decode_list_client_info(dynamic raw);
 
   @protected
   List<FiatRate> dco_decode_list_fiat_rate(dynamic raw);
@@ -403,6 +418,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   RootSeed dco_decode_root_seed(dynamic raw);
 
   @protected
+  Scope dco_decode_scope(dynamic raw);
+
+  @protected
   SecretStore dco_decode_secret_store(dynamic raw);
 
   @protected
@@ -514,6 +532,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Config sse_decode_box_autoadd_config(SseDeserializer deserializer);
 
   @protected
+  CreateClientRequest sse_decode_box_autoadd_create_client_request(
+      SseDeserializer deserializer);
+
+  @protected
   CreateInvoiceRequest sse_decode_box_autoadd_create_invoice_request(
       SseDeserializer deserializer);
 
@@ -604,6 +626,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       SseDeserializer deserializer);
 
   @protected
+  ClientInfo sse_decode_client_info(SseDeserializer deserializer);
+
+  @protected
   ClientPaymentId sse_decode_client_payment_id(SseDeserializer deserializer);
 
   @protected
@@ -615,6 +640,14 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ConfirmationPriority sse_decode_confirmation_priority(
+      SseDeserializer deserializer);
+
+  @protected
+  CreateClientRequest sse_decode_create_client_request(
+      SseDeserializer deserializer);
+
+  @protected
+  CreateClientResponse sse_decode_create_client_response(
       SseDeserializer deserializer);
 
   @protected
@@ -675,6 +708,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   ListChannelsResponse sse_decode_list_channels_response(
       SseDeserializer deserializer);
+
+  @protected
+  List<ClientInfo> sse_decode_list_client_info(SseDeserializer deserializer);
 
   @protected
   List<FiatRate> sse_decode_list_fiat_rate(SseDeserializer deserializer);
@@ -821,6 +857,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   RootSeed sse_decode_root_seed(SseDeserializer deserializer);
 
   @protected
+  Scope sse_decode_scope(SseDeserializer deserializer);
+
+  @protected
   SecretStore sse_decode_secret_store(SseDeserializer deserializer);
 
   @protected
@@ -938,6 +977,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_box_autoadd_config(Config self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_create_client_request(
+      CreateClientRequest self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_create_invoice_request(
       CreateInvoiceRequest self, SseSerializer serializer);
 
@@ -1029,6 +1072,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       UpdatePaymentNote self, SseSerializer serializer);
 
   @protected
+  void sse_encode_client_info(ClientInfo self, SseSerializer serializer);
+
+  @protected
   void sse_encode_client_payment_id(
       ClientPaymentId self, SseSerializer serializer);
 
@@ -1042,6 +1088,14 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_confirmation_priority(
       ConfirmationPriority self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_create_client_request(
+      CreateClientRequest self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_create_client_response(
+      CreateClientResponse self, SseSerializer serializer);
 
   @protected
   void sse_encode_create_invoice_request(
@@ -1101,6 +1155,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_list_channels_response(
       ListChannelsResponse self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_client_info(
+      List<ClientInfo> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_fiat_rate(List<FiatRate> self, SseSerializer serializer);
@@ -1252,6 +1310,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_root_seed(RootSeed self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_scope(Scope self, SseSerializer serializer);
 
   @protected
   void sse_encode_secret_store(SecretStore self, SseSerializer serializer);

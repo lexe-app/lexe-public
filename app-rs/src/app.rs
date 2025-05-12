@@ -12,7 +12,10 @@ use anyhow::{anyhow, Context};
 use bitcoin::secp256k1;
 use common::{
     api::{
-        auth::{self, BearerAuthenticator, Scope, UserSignupRequest},
+        auth::{
+            self, BearerAuthToken, BearerAuthenticator, Scope,
+            UserSignupRequest,
+        },
         def::{AppBackendApi, AppGatewayApi, AppNodeProvisionApi},
         provision::NodeProvisionRequest,
         user::{NodePk, NodePkProof, UserPk},
@@ -545,8 +548,10 @@ impl App {
 
     /// Get a new long-lived auth token scoped only for the gateway connect
     /// proxy. Used for the SDK to connect to the node.
-    #[allow(dead_code)] // TODO(phlip9): impl
-    async fn get_new_sdk_auth_string(&self) -> anyhow::Result<String> {
+    #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
+    pub(crate) async fn request_long_lived_connect_token(
+        &self,
+    ) -> anyhow::Result<BearerAuthToken> {
         let user_key_pair = self
             .authenticator
             .user_key_pair()
@@ -555,7 +560,7 @@ impl App {
         let now = SystemTime::now();
         let lifetime_secs = 365 * 24 * 60 * 60; // 1 year
         let scope = Some(Scope::NodeConnect);
-        let _long_lived_connect_token = auth::do_bearer_auth(
+        let long_lived_connect_token = auth::do_bearer_auth(
             self.gateway_client(),
             now,
             user_key_pair,
@@ -565,7 +570,7 @@ impl App {
         .await
         .context("Failed to get long-lived connect token")?;
 
-        todo!()
+        Ok(long_lived_connect_token.token)
     }
 }
 

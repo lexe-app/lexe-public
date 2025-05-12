@@ -19,25 +19,29 @@ use common::{
 use flutter_rust_bridge::{frb, RustOpaqueNom};
 use tracing::instrument;
 
-use crate::ffi::{
-    api::{
-        CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-        CreateOfferRequest, CreateOfferResponse, FiatRates,
-        ListChannelsResponse, NodeInfo, OpenChannelRequest,
-        OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-        PayOnchainRequest, PayOnchainResponse, PreflightCloseChannelRequest,
-        PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-        PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-        PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse, UpdatePaymentNote,
-    },
-    settings::SettingsDb,
-    types::{
-        AppUserInfo, Config, Payment, PaymentIndex, RootSeed, ShortPayment,
-        ShortPaymentAndIndex,
+pub(crate) use crate::{app::App, settings::SettingsDb as SettingsDbRs};
+use crate::{
+    client::ClientAuth,
+    ffi::{
+        api::{
+            CloseChannelRequest, CreateClientRequest, CreateClientResponse,
+            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+            CreateOfferResponse, FiatRates, ListChannelsResponse, NodeInfo,
+            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+            PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
+            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            UpdatePaymentNote,
+        },
+        settings::SettingsDb,
+        types::{
+            AppUserInfo, ClientInfo, Config, Payment, PaymentIndex, RootSeed,
+            ShortPayment, ShortPaymentAndIndex,
+        },
     },
 };
-pub(crate) use crate::{app::App, settings::SettingsDb as SettingsDbRs};
 
 /// The `AppHandle` is a Dart representation of an [`App`] instance.
 pub struct AppHandle {
@@ -464,5 +468,35 @@ impl AppHandle {
             .lock()
             .unwrap()
             .update_payment_note(req)
+    }
+
+    #[instrument(skip_all, name = "(create-client)")]
+    pub async fn create_client(
+        &self,
+        req: CreateClientRequest,
+    ) -> anyhow::Result<CreateClientResponse> {
+        let lexe_auth_token =
+            self.inner.request_long_lived_connect_token().await?;
+
+        // TODO(phlip9): call API
+        let client_info = ClientInfo {
+            pubkey: "TODO".to_owned(),
+            created_at: 1747010018000,
+            label: req.label,
+            scope: req.scope,
+        };
+
+        let client_auth = ClientAuth { lexe_auth_token };
+
+        Ok(CreateClientResponse {
+            client_info,
+            auth_json: client_auth.to_json_string(),
+        })
+    }
+
+    #[instrument(skip_all, name = "(list-client)")]
+    pub async fn list_clients(&self) -> anyhow::Result<Vec<ClientInfo>> {
+        // TODO(phlip9): impl
+        Ok(vec![])
     }
 }

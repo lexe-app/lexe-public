@@ -35,6 +35,10 @@ class AppHandle {
   Future<void> closeChannel({required CloseChannelRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandleCloseChannel(that: this, req: req);
 
+  Future<CreateClientResponse> createClient(
+          {required CreateClientRequest req}) =>
+      AppRs.instance.api.crateFfiAppAppHandleCreateClient(that: this, req: req);
+
   Future<CreateInvoiceResponse> createInvoice(
           {required CreateInvoiceRequest req}) =>
       AppRs.instance.api
@@ -119,6 +123,11 @@ class AppHandle {
 
   Future<ListChannelsResponse> listChannels() =>
       AppRs.instance.api.crateFfiAppAppHandleListChannels(
+        that: this,
+      );
+
+  Future<List<ClientInfo>> listClients() =>
+      AppRs.instance.api.crateFfiAppAppHandleListClients(
         that: this,
       );
 

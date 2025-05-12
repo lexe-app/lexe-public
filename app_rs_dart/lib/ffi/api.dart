@@ -35,6 +35,48 @@ class CloseChannelRequest with _$CloseChannelRequest {
   }) = _CloseChannelRequest;
 }
 
+class CreateClientRequest {
+  final String? label;
+  final Scope scope;
+
+  const CreateClientRequest({
+    this.label,
+    required this.scope,
+  });
+
+  @override
+  int get hashCode => label.hashCode ^ scope.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CreateClientRequest &&
+          runtimeType == other.runtimeType &&
+          label == other.label &&
+          scope == other.scope;
+}
+
+class CreateClientResponse {
+  final ClientInfo clientInfo;
+  final String authJson;
+
+  const CreateClientResponse({
+    required this.clientInfo,
+    required this.authJson,
+  });
+
+  @override
+  int get hashCode => clientInfo.hashCode ^ authJson.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CreateClientResponse &&
+          runtimeType == other.runtimeType &&
+          clientInfo == other.clientInfo &&
+          authJson == other.authJson;
+}
+
 /// See [`common::api::command::CreateInvoiceRequest`].
 @freezed
 class CreateInvoiceRequest with _$CreateInvoiceRequest {
