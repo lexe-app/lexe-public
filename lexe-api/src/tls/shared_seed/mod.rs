@@ -472,10 +472,10 @@ impl ClientCertVerifier for SharedSeedClientCertVerifier {
         let now = TimestampMs::from_secs(now.as_secs())
             .map_err(|_| rustls_err("Clock overflow"))?;
         if client_cert.is_revoked {
-            return Err(rustls_err("Client cert was previously revoked"));
+            return Err(rustls_err("Client was previously revoked"));
         }
         if client_cert.is_expired_at(now) {
-            return Err(rustls_err("Client cert is expired"));
+            return Err(rustls_err("Client is expired"));
         }
 
         Ok(ClientCertVerified::assertion())
@@ -591,68 +591,71 @@ mod test {
             .await
     }
 
-    /// SDK->Node TLS handshake: success
+    /// Test SDK->Node TLS handshake success and failure cases
     #[tokio::test]
-    async fn sdk_node_run_handshake_succeeds() {
-        let server_seed = RootSeed::new(Secret::new([0x42; 32]));
+    async fn sdk_node_run_handshake() {
+        // Success: Client has no expiration
+        {
+            let expiration = None;
+            let is_revoked = false;
 
-        let expiration = None;
-        let is_revoked = false;
+            let [client_result, server_result] =
+                do_sdk_node_run_tls_handshake(expiration, is_revoked).await;
 
-        let [client_result, server_result] =
-            do_sdk_node_run_tls_handshake(&server_seed, expiration, is_revoked)
-                .await;
+            client_result.unwrap();
+            server_result.unwrap();
+        }
 
-        client_result.unwrap();
-        server_result.unwrap();
-    }
+        // Success: Client has expiration in future
+        {
+            let expiration = Some(TimestampMs::MAX);
+            let is_revoked = false;
 
-    /// SDK->Node TLS handshake: Fails if cert is expired
-    #[tokio::test]
-    async fn sdk_node_run_handshake_expiration() {
-        let server_seed = RootSeed::new(Secret::new([0x42; 32]));
+            let [client_result, server_result] =
+                do_sdk_node_run_tls_handshake(expiration, is_revoked).await;
 
-        let expiration = Some(TimestampMs::MIN);
-        let is_revoked = false;
+            client_result.unwrap();
+            server_result.unwrap();
+        }
 
-        let [client_result, server_result] =
-            do_sdk_node_run_tls_handshake(&server_seed, expiration, is_revoked)
-                .await;
+        // Fail: Client is expired
+        {
+            let expiration = Some(TimestampMs::MIN);
+            let is_revoked = false;
 
-        assert!(client_result.unwrap_err().contains("HandshakeFailure"));
-        assert!(server_result
-            .unwrap_err()
-            .contains("Client cert is expired"));
-    }
+            let [client_result, server_result] =
+                do_sdk_node_run_tls_handshake(expiration, is_revoked).await;
 
-    /// SDK->Node TLS handshake: Fails if cert is revoked
-    #[tokio::test]
-    async fn sdk_node_run_handshake_revocation() {
-        let server_seed = RootSeed::new(Secret::new([0x42; 32]));
+            assert!(client_result.unwrap_err().contains("HandshakeFailure"));
+            assert!(server_result.unwrap_err().contains("Client is expired"));
+        }
 
-        let expiration = None;
-        let is_revoked = true;
+        // Fail: Client is revoked
+        {
+            let expiration = None;
+            let is_revoked = true;
 
-        let [client_result, server_result] =
-            do_sdk_node_run_tls_handshake(&server_seed, expiration, is_revoked)
-                .await;
+            let [client_result, server_result] =
+                do_sdk_node_run_tls_handshake(expiration, is_revoked).await;
 
-        assert!(client_result.unwrap_err().contains("HandshakeFailure"));
-        assert!(server_result
-            .unwrap_err()
-            .contains("Client cert was previously revoked"));
+            assert!(client_result.unwrap_err().contains("HandshakeFailure"));
+            assert!(server_result
+                .unwrap_err()
+                .contains("Client was previously revoked"));
+        }
     }
 
     // Shorthand to do a Sdk->Node Run TLS handshake.
     async fn do_sdk_node_run_tls_handshake(
-        server_seed: &RootSeed,
         expiration: Option<TimestampMs>,
         is_revoked: bool,
     ) -> [Result<(), String>; 2] {
+        let server_seed = RootSeed::new(Secret::new([0x42; 32]));
+
         // Server derives ephemeral and revocable issuing CA certs
-        let eph_ca_cert = EphemeralIssuingCaCert::from_root_seed(server_seed);
+        let eph_ca_cert = EphemeralIssuingCaCert::from_root_seed(&server_seed);
         let eph_ca_cert_der = eph_ca_cert.serialize_der_self_signed().unwrap();
-        let rev_ca_cert = RevocableIssuingCaCert::from_root_seed(server_seed);
+        let rev_ca_cert = RevocableIssuingCaCert::from_root_seed(&server_seed);
 
         // Server issues revocable client cert, hands cert + key to app client.
         // Server stores the newly issued client.
@@ -673,7 +676,7 @@ mod test {
 
         let rev_client = RevocableClient {
             pubkey: rev_client_cert_pk,
-            created_at: TimestampMs::now(),
+            created_at: TimestampMs::from_secs_u32(420),
             expiration,
             label: Some("hullo".to_owned()),
             scope: Scope::All,
@@ -702,9 +705,9 @@ mod test {
         // Node server config
         let (server_config, server_dns) = {
             let eph_ca_cert =
-                EphemeralIssuingCaCert::from_root_seed(server_seed);
+                EphemeralIssuingCaCert::from_root_seed(&server_seed);
             let rev_ca_cert =
-                RevocableIssuingCaCert::from_root_seed(server_seed);
+                RevocableIssuingCaCert::from_root_seed(&server_seed);
 
             node_run_server_config(
                 &mut rng,
