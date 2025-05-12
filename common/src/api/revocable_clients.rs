@@ -4,7 +4,10 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{api::auth::Scope, base64_or_bytes, ed25519, time::TimestampMs};
+use crate::{
+    api::auth::Scope, ed25519, serde_helpers::base64_or_bytes,
+    time::TimestampMs,
+};
 
 /// All revocable clients which have ever been created.
 ///

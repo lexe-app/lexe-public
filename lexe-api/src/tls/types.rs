@@ -32,7 +32,7 @@
 use anyhow::ensure;
 #[cfg(any(test, feature = "test-utils"))]
 use common::test_utils::arbitrary;
-use common::{ed25519, hexstr_or_bytes};
+use common::{ed25519, serde_helpers::hexstr_or_bytes};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};

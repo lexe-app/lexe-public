@@ -19,9 +19,9 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
     api::user::{NodePk, Scid},
-    hexstr_or_bytes,
     ln::{amount::Amount, hashes::LxTxid},
     rng::{RngCore, RngExt},
+    serde_helpers::hexstr_or_bytes,
     Apply,
 };
 

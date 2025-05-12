@@ -4,7 +4,7 @@
 //! ## Example:
 //!
 //! ```rust
-//! use common::base64_or_bytes;
+//! use common::serde_helpers::base64_or_bytes;
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Serialize, Deserialize)]
@@ -24,7 +24,7 @@ use serde::{de, ser, Deserializer, Serializer};
 ///
 /// ```
 /// # use std::borrow::Cow;
-/// use common::base64_or_bytes::FromBase64;
+/// use common::serde_helpers::base64_or_bytes::FromBase64;
 /// let s = String::from("gVX5KuLzr9SI4grp0P1mq1ABHCXXleQA/rPIqofhlxE=");
 ///
 /// let vec = <Vec<u8>>::from_base64(&s).unwrap();
@@ -104,7 +104,7 @@ mod test {
     use serde::{Deserialize, Serialize};
 
     use crate::{
-        base64_or_bytes,
+        serde_helpers::base64_or_bytes,
         test_utils::{arbitrary, roundtrip},
     };
 

@@ -4,7 +4,7 @@
 //! ## Example:
 //!
 //! ```rust
-//! use common::hexstr_or_bytes_opt;
+//! use common::serde_helpers::hexstr_or_bytes_opt;
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Serialize, Deserialize)]
@@ -79,7 +79,7 @@ mod test {
 
     use serde::{Deserialize, Serialize};
 
-    use crate::hexstr_or_bytes_opt;
+    use crate::serde_helpers::hexstr_or_bytes_opt;
 
     // TODO(phlip9): test w/ binary codec
 

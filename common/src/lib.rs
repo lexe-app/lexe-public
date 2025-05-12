@@ -23,10 +23,6 @@ pub mod api;
 pub mod array;
 /// Exponential backoff.
 pub mod backoff;
-/// serde_with helper for base64-encoded bytes types.
-pub mod base64_or_bytes;
-/// `base64_or_bytes` but for [`Option`] bytes types.
-pub mod base64_or_bytes_opt;
 /// [`tokio::Bytes`](bytes::Bytes) but must contain a string.
 pub mod byte_str;
 /// User node CLI.
@@ -41,10 +37,6 @@ pub mod ed25519;
 pub mod enclave;
 /// `DeployEnv`.
 pub mod env;
-/// serde_with helper for hex-encoded bytes types.
-pub mod hexstr_or_bytes;
-/// `hex_str_or_bytes` but for [`Option`] bytes types.
-pub mod hexstr_or_bytes_opt;
 /// Iterator extensions.
 pub mod iter;
 /// Bitcoin / Lightning Lexe newtypes which can't go in lexe-ln
@@ -63,6 +55,8 @@ pub mod password;
 pub mod rng;
 /// `RootSeed`.
 pub mod root_seed;
+/// [`serde`] helpers.
+pub mod serde_helpers;
 /// `LxTask`.
 pub mod task;
 /// `TestEvent`.

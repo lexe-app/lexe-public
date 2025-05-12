@@ -48,8 +48,9 @@ use x509_parser::x509;
 use yasna::{models::ObjectIdentifier, ASN1Error, ASN1ErrorKind};
 
 use crate::{
-    ed25519, hexstr_or_bytes,
+    ed25519,
     rng::{Crng, RngExt},
+    serde_helpers::hexstr_or_bytes,
 };
 
 /// The standard PKCS OID for Ed25519.

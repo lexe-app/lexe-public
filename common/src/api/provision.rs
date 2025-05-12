@@ -13,10 +13,10 @@ use crate::{
     array, ed25519,
     enclave::{self, MachineId, Measurement, Sealed},
     env::DeployEnv,
-    hexstr_or_bytes, hexstr_or_bytes_opt,
     ln::network::LxNetwork,
     rng::Crng,
     root_seed::RootSeed,
+    serde_helpers::{hexstr_or_bytes, hexstr_or_bytes_opt},
 };
 
 /// The client sends this request to the provisioning node.

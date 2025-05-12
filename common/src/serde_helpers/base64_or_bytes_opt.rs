@@ -4,7 +4,7 @@
 //! ## Example:
 //!
 //! ```rust
-//! use common::base64_or_bytes_opt;
+//! use common::serde_helpers::base64_or_bytes_opt;
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Serialize, Deserialize)]
@@ -18,7 +18,7 @@ use std::{fmt, marker::PhantomData};
 use base64::Engine;
 use serde::{de, ser, Deserialize, Deserializer, Serializer};
 
-use crate::base64_or_bytes::FromBase64;
+use crate::serde_helpers::base64_or_bytes::FromBase64;
 
 pub fn serialize<S, T>(
     maybe_data: &Option<T>,
@@ -84,7 +84,7 @@ mod test {
     use serde::{Deserialize, Serialize};
 
     use crate::{
-        base64_or_bytes_opt,
+        serde_helpers::base64_or_bytes_opt,
         test_utils::{arbitrary, roundtrip},
     };
 

@@ -5,7 +5,7 @@ use lightning::{routing::gossip::NodeAlias, util::string::PrintableString};
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-use crate::hexstr_or_bytes;
+use crate::serde_helpers::hexstr_or_bytes;
 
 /// Newtype for [`NodeAlias`].
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]

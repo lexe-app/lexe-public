@@ -21,9 +21,10 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
 use crate::{
-    debug_panic_release_log, hexstr_or_bytes,
+    debug_panic_release_log,
     ln::{amount::Amount, hashes::LxTxid, invoice::LxInvoice, offer::LxOffer},
     rng::{RngCore, RngExt},
+    serde_helpers::hexstr_or_bytes,
     time::TimestampMs,
 };
 

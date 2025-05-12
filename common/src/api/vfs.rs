@@ -27,7 +27,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tracing::{debug, warn};
 
 use super::{error::BackendApiError, Empty};
-use crate::hexstr_or_bytes;
+use crate::serde_helpers::hexstr_or_bytes;
 
 /// Lexe's async persistence interface.
 // TODO(max): We'll eventually move all usage of this to VSS.

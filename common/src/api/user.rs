@@ -20,8 +20,8 @@ use crate::root_seed::RootSeed;
 use crate::{
     array,
     ed25519::{self, Signable},
-    hexstr_or_bytes,
     rng::Crng,
+    serde_helpers::hexstr_or_bytes,
 };
 
 /// A Lexe user, as represented in the DB.

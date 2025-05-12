@@ -26,8 +26,8 @@ use crate::{
     array::{self, ArrayExt},
     enclave,
     env::DeployEnv,
-    hexstr_or_bytes,
     rng::{Crng, RngExt},
+    serde_helpers::hexstr_or_bytes,
 };
 
 // --- SGX 'Platform APIs' --- //
