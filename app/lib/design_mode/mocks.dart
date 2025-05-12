@@ -8,6 +8,8 @@ import 'package:app_rs_dart/ffi/api.dart'
     show
         Balance,
         CloseChannelRequest,
+        CreateClientRequest,
+        CreateClientResponse,
         CreateInvoiceRequest,
         CreateInvoiceResponse,
         CreateOfferRequest,
@@ -36,6 +38,7 @@ import 'package:app_rs_dart/ffi/settings.dart' show Settings, SettingsDb;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         AppUserInfo,
+        ClientInfo,
         Config,
         Invoice,
         LxChannelDetails,
@@ -46,6 +49,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentKind,
         PaymentStatus,
         RootSeed,
+        Scope,
         ShortPaymentAndIndex;
 import 'package:app_rs_dart/ffi/types.ext.dart' show PaymentExt;
 import 'package:collection/collection.dart';
@@ -347,6 +351,28 @@ class MockAppHandle extends AppHandle {
   @override
   Future<void> updatePaymentNote({required UpdatePaymentNote req}) =>
       Future.delayed(const Duration(milliseconds: 1000), () => ());
+
+  @override
+  Future<CreateClientResponse> createClient(
+          {required CreateClientRequest req}) =>
+      Future.delayed(
+        const Duration(milliseconds: 1000),
+        () => const CreateClientResponse(
+          clientInfo: ClientInfo(
+            pubkey: "pubkey",
+            createdAt: 1747011336000,
+            scope: Scope.nodeConnect,
+          ),
+          authJson: ''
+              '{\n'
+              '  "lexe_auth_token": "9dTCUvC8y7qcNyUbqynz3nwIQQHbQqPVKeMhXUj1Afr-vgj9E217_2tCS1IQM7LFqfBUC8Ec9fcb-dQiCRy6ot2FN-kR60edRFJUztAa2Rxao1Q0BS1s6vE8grgfhMYIAJDLMWgAAAAASE4zaAAAAABpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaQE"\n'
+              '}',
+        ),
+      );
+
+  @override
+  Future<List<ClientInfo>> listClients() =>
+      Future.delayed(const Duration(milliseconds: 1000), () => <ClientInfo>[]);
 }
 
 /// An [AppHandle] that usually errors first.

@@ -68,6 +68,7 @@ import 'package:lexeapp/route/receive/page.dart'
 import 'package:lexeapp/route/receive/state.dart' show LnInvoiceInputs;
 import 'package:lexeapp/route/restore.dart';
 import 'package:lexeapp/route/scan.dart' show ScanPage;
+import 'package:lexeapp/route/sdk_clients.dart' show SdkClientsPage;
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
     show
@@ -661,6 +662,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 }));
                 return NodeInfoPage(nodeInfo: nodeInfo, userInfo: userInfo);
               },
+            ),
+            Component(
+              "SdkClientsPage",
+              (_) => SdkClientsPage(app: mockApp),
             ),
             Component(
               "Screenshot 01",
