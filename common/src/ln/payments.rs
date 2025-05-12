@@ -418,7 +418,7 @@ impl PaymentIndex {
     /// Quickly create a dummy [`PaymentIndex`] which can be used in tests.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn from_u8(i: u8) -> Self {
-        let created_at = TimestampMs::from(u32::from(i));
+        let created_at = TimestampMs::from_secs_u32(u32::from(i));
         let id = LxPaymentId::Lightning(LxPaymentHash([i; 32]));
         Self { created_at, id }
     }
@@ -784,7 +784,7 @@ impl FromStr for PaymentIndex {
 // We use the - separator because LxPaymentId already uses _
 impl Display for PaymentIndex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let created_at = self.created_at.as_i64();
+        let created_at = self.created_at.to_i64();
         let id = &self.id;
         // i64 contains a maximum of 19 digits in base 10.
         write!(f, "{created_at:019}-{id}")
@@ -893,8 +893,8 @@ mod test {
 
     #[test]
     fn payment_index_createdat_precedence() {
-        let time1 = TimestampMs::from(1);
-        let time2 = TimestampMs::from(2);
+        let time1 = TimestampMs::from_secs_u32(1);
+        let time2 = TimestampMs::from_secs_u32(2);
         let id1 = LxPaymentId::Lightning(LxPaymentHash([1; 32]));
         let id2 = LxPaymentId::Lightning(LxPaymentHash([2; 32]));
 

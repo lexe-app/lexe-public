@@ -59,28 +59,62 @@ impl TimestampMs {
 
     /// Get this unix timestamp as an [`i64`] in milliseconds from unix epoch.
     #[inline]
-    pub fn as_i64(self) -> i64 {
+    pub fn to_i64(self) -> i64 {
         self.0
     }
 
+    /// Construct [`TimestampMs`] from seconds since Unix epoch.
+    pub fn from_secs(secs: u64) -> Result<Self, Error> {
+        Self::try_from(Duration::from_secs(secs))
+    }
+
+    /// Infallibly construct [`TimestampMs`] from seconds since Unix epoch.
+    pub fn from_secs_u32(secs: u32) -> Self {
+        Self(i64::from(secs) * 1000)
+    }
+
+    /// Construct [`TimestampMs`] from milliseconds since Unix epoch.
+    pub fn from_millis(millis: u64) -> Result<Self, Error> {
+        Self::try_from(Duration::from_millis(millis))
+    }
+
+    /// Construct [`TimestampMs`] from [`Duration`] since Unix epoch.
+    pub fn from_duration(dur_since_epoch: Duration) -> Result<Self, Error> {
+        i64::try_from(dur_since_epoch.as_millis())
+            .map(Self)
+            .map_err(|_| Error::TooLarge)
+    }
+
+    /// Construct [`TimestampMs`] from a [`SystemTime`].
+    pub fn from_system_time(system_time: SystemTime) -> Result<Self, Error> {
+        let duration = system_time
+            .duration_since(UNIX_EPOCH)
+            .map_err(|_| Error::BeforeEpoch)?;
+        Self::try_from(duration)
+    }
+
     /// Get this unix timestamp as a [`u64`] in milliseconds from unix epoch.
-    /// The conversion is infallible as the inner [`i64`] is guaranteed to be
-    /// non-negative and in-range.
-    pub fn into_u64(self) -> u64 {
+    pub fn to_millis(self) -> u64 {
         u64::try_from(self.0)
             .expect("The inner value is guaranteed to be non-negative")
     }
 
-    /// Get this unix timestamp as a [`Duration`] from the unix epoch.
-    #[inline]
-    pub fn into_duration(self) -> Duration {
-        Duration::from_millis(self.into_u64())
+    /// Get this unix timestamp as a [`u64`] in seconds from unix epoch.
+    pub fn to_secs(self) -> u64 {
+        Duration::from_millis(self.to_millis()).as_secs()
     }
 
+    /// Get this unix timestamp as a [`Duration`] from the unix epoch.
     #[inline]
-    pub fn into_system_time(self) -> SystemTime {
+    pub fn to_duration(self) -> Duration {
+        Duration::from_millis(self.to_millis())
+    }
+
+    /// Get this unix timestamp as a [`SystemTime`].
+    #[inline]
+    pub fn to_system_time(self) -> SystemTime {
         // This add is infallible -- it doesn't panic even with Self::MAX.
-        UNIX_EPOCH + self.into_duration()
+        UNIX_EPOCH + self.to_duration()
     }
 
     pub fn checked_add(self, duration: Duration) -> Option<Self> {
@@ -108,19 +142,26 @@ impl TimestampMs {
     pub fn absolute_diff(self, other: Self) -> Duration {
         Duration::from_millis(self.0.abs_diff(other.0))
     }
+
+    /// Floors the timestamp to the most recent second.
+    #[cfg(test)]
+    fn floor_secs(self) -> Self {
+        let rem = self.0 % 1000;
+        Self(self.0 - rem)
+    }
 }
 
 impl From<TimestampMs> for Duration {
     #[inline]
     fn from(t: TimestampMs) -> Self {
-        t.into_duration()
+        t.to_duration()
     }
 }
 
 impl From<TimestampMs> for SystemTime {
     #[inline]
     fn from(t: TimestampMs) -> Self {
-        t.into_system_time()
+        t.to_system_time()
     }
 }
 
@@ -130,10 +171,7 @@ impl From<TimestampMs> for SystemTime {
 impl TryFrom<SystemTime> for TimestampMs {
     type Error = Error;
     fn try_from(system_time: SystemTime) -> Result<Self, Self::Error> {
-        let duration = system_time
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| Error::BeforeEpoch)?;
-        Self::try_from(duration)
+        Self::from_system_time(system_time)
     }
 }
 
@@ -143,10 +181,8 @@ impl TryFrom<SystemTime> for TimestampMs {
 /// Returns an error if the [`Duration`] is too large.
 impl TryFrom<Duration> for TimestampMs {
     type Error = Error;
-    fn try_from(duration_since_epoch: Duration) -> Result<Self, Self::Error> {
-        i64::try_from(duration_since_epoch.as_millis())
-            .map(Self)
-            .map_err(|_| Error::TooLarge)
+    fn try_from(dur_since_epoch: Duration) -> Result<Self, Self::Error> {
+        Self::from_duration(dur_since_epoch)
     }
 }
 
@@ -161,24 +197,6 @@ impl TryFrom<i64> for TimestampMs {
         } else {
             Err(Error::Negative)
         }
-    }
-}
-
-/// Attempt to convert a [`u64`] in milliseconds since unix epoch into a
-/// [`TimestampMs`].
-impl TryFrom<u64> for TimestampMs {
-    type Error = Error;
-    #[inline]
-    fn try_from(ms: u64) -> Result<Self, Self::Error> {
-        Self::try_from(Duration::from_millis(ms))
-    }
-}
-
-/// Construct a [`TimestampMs`] from a [`u32`]. Useful in tests.
-impl From<u32> for TimestampMs {
-    #[inline]
-    fn from(ms: u32) -> Self {
-        Self(i64::from(ms))
     }
 }
 
@@ -246,10 +264,24 @@ mod test {
 
     // Value conversions should roundtrip.
     fn assert_conversion_roundtrips(t: TimestampMs) {
-        assert_eq!(TimestampMs::try_from(t.as_i64()), Ok(t));
-        assert_eq!(TimestampMs::try_from(t.into_u64()), Ok(t));
-        assert_eq!(TimestampMs::try_from(t.into_duration()), Ok(t));
-        assert_eq!(TimestampMs::try_from(t.into_system_time()), Ok(t));
+        // Seconds
+        let floored = t.floor_secs();
+        assert_eq!(TimestampMs::from_secs(floored.to_secs()), Ok(floored));
+        if let Ok(secs) = u32::try_from(floored.to_secs()) {
+            assert_eq!(TimestampMs::from_secs_u32(secs), floored);
+        }
+
+        // Milliseconds
+        assert_eq!(TimestampMs::from_millis(t.to_millis()), Ok(t));
+        assert_eq!(TimestampMs::try_from(t.to_i64()), Ok(t));
+
+        // Duration
+        assert_eq!(TimestampMs::from_duration(t.to_duration()), Ok(t));
+        assert_eq!(TimestampMs::try_from(t.to_duration()), Ok(t));
+
+        // SystemTime
+        assert_eq!(TimestampMs::from_system_time(t.to_system_time()), Ok(t));
+        assert_eq!(TimestampMs::try_from(t.to_system_time()), Ok(t));
     }
 
     #[test]
@@ -257,9 +289,7 @@ mod test {
         assert_conversion_roundtrips(TimestampMs::MIN);
         assert_conversion_roundtrips(TimestampMs::MAX);
 
-        proptest!(|(t: TimestampMs)| {
-            assert_conversion_roundtrips(t);
-        });
+        proptest!(|(t: TimestampMs)| assert_conversion_roundtrips(t));
     }
 
     #[test]
@@ -273,7 +303,7 @@ mod test {
             };
 
             let diff =
-                Duration::from_millis(greater.into_u64() - lesser.into_u64());
+                Duration::from_millis(greater.to_millis() - lesser.to_millis());
 
             let added = lesser.checked_add(diff).unwrap();
             prop_assert_eq!(added, greater);
@@ -287,19 +317,19 @@ mod test {
     fn timestamp_saturating_ops() {
         proptest!(|(ts: TimestampMs)| {
             prop_assert_eq!(
-                ts.saturating_add(TimestampMs::MAX.into_duration()),
+                ts.saturating_add(TimestampMs::MAX.to_duration()),
                 TimestampMs::MAX
             );
             prop_assert_eq!(
-                ts.saturating_sub(TimestampMs::MAX.into_duration()),
+                ts.saturating_sub(TimestampMs::MAX.to_duration()),
                 TimestampMs::MIN
             );
             prop_assert_eq!(
-                ts.saturating_add(TimestampMs::MIN.into_duration()),
+                ts.saturating_add(TimestampMs::MIN.to_duration()),
                 ts
             );
             prop_assert_eq!(
-                ts.saturating_sub(TimestampMs::MIN.into_duration()),
+                ts.saturating_sub(TimestampMs::MIN.to_duration()),
                 ts
             );
         })

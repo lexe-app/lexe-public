@@ -462,7 +462,7 @@ pub fn build_payment_params(
     let expiry_time = match payee_pk_or_invoice {
         Either::Left(_) => None,
         Either::Right(invoice) =>
-            Some(invoice.expires_at()?.into_duration().as_secs()),
+            Some(invoice.expires_at()?.to_duration().as_secs()),
     };
 
     // Hard limit: Don't allow more MPP paths than our # of usable channels.

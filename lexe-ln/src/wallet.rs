@@ -488,7 +488,7 @@ impl LexeWallet {
     /// - tnull opened an issue which applies to our current approach: <https://github.com/bitcoindevkit/bdk/issues/1666#issue-2621291151>
     pub(crate) fn transaction_broadcasted(&self, tx: Transaction) {
         let now = TimestampMs::now();
-        let timestamp_secs = now.into_duration().as_secs();
+        let timestamp_secs = now.to_duration().as_secs();
         self.inner
             .write()
             .unwrap()

@@ -237,7 +237,7 @@ pub struct FiatRate {
 impl From<FiatRatesRs> for FiatRates {
     fn from(value: FiatRatesRs) -> Self {
         Self {
-            timestamp_ms: value.timestamp_ms.as_i64(),
+            timestamp_ms: value.timestamp_ms.to_i64(),
             rates: value
                 .rates
                 .into_iter()

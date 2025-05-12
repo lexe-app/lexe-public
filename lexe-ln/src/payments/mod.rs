@@ -123,7 +123,7 @@ pub fn encrypt(
     let data = vfs_master_key.encrypt(rng, aad, data_size_hint, write_data_cb);
 
     DbPayment {
-        created_at: payment.created_at().as_i64(),
+        created_at: payment.created_at().to_i64(),
         id: payment.id().to_string(),
         status: payment.status().to_string(),
         data,

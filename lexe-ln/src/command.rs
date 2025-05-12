@@ -983,7 +983,7 @@ where
     let absolute_expiry = req.expiry_secs.map(|secs| {
         let expiry = Duration::from_secs(u64::from(secs));
         let expires_at = TimestampMs::now().saturating_add(expiry);
-        expires_at.into_duration()
+        expires_at.to_duration()
     });
 
     // Create the initial `OfferBuilder` with:

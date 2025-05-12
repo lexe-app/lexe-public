@@ -592,7 +592,7 @@ pub fn handle_scorer_update(
     scorer: &Mutex<ProbabilisticScorerType>,
     event: &Event,
 ) {
-    let now_since_epoch = TimestampMs::now().into_duration();
+    let now_since_epoch = TimestampMs::now().to_duration();
     match event {
         Event::PaymentPathFailed {
             ref path,

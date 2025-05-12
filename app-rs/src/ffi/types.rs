@@ -260,7 +260,7 @@ impl From<&BasicPaymentRs> for ShortPayment {
 
             note: payment.note_or_description().map(String::from),
 
-            created_at: payment.created_at().as_i64(),
+            created_at: payment.created_at().to_i64(),
         }
     }
 }
@@ -321,8 +321,8 @@ impl From<&BasicPaymentRs> for Payment {
 
             note: payment.note_or_description().map(String::from),
 
-            created_at: payment.created_at().as_i64(),
-            finalized_at: payment.finalized_at.map(|t| t.as_i64()),
+            created_at: payment.created_at().to_i64(),
+            finalized_at: payment.finalized_at.map(|t| t.to_i64()),
         }
     }
 }
@@ -389,8 +389,8 @@ impl From<&LxInvoice> for Invoice {
 
             description: invoice.description_str().map(String::from),
 
-            created_at: invoice.saturating_created_at().as_i64(),
-            expires_at: invoice.saturating_expires_at().as_i64(),
+            created_at: invoice.saturating_created_at().to_i64(),
+            expires_at: invoice.saturating_expires_at().to_i64(),
 
             amount_sats: invoice.amount_sats(),
 
@@ -423,7 +423,7 @@ impl From<&LxOffer> for Offer {
 
             description: offer.description().map(String::from),
 
-            expires_at: offer.expires_at().map(TimestampMs::as_i64),
+            expires_at: offer.expires_at().map(TimestampMs::to_i64),
             amount_sats: offer.amount().map(|amt| amt.sats_u64()),
         }
     }
