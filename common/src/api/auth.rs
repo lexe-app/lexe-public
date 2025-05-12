@@ -181,6 +181,7 @@ pub struct BearerAuthResponse {
 /// Most user clients should just treat this as an opaque Bearer token with a
 /// very short (~15 min) expiration.
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Eq, PartialEq))]
 pub struct BearerAuthToken(pub ByteStr);
 
 /// A [`BearerAuthToken`] and its expected expiration time

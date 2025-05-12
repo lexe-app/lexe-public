@@ -21,7 +21,7 @@ use tracing::instrument;
 
 pub(crate) use crate::{app::App, settings::SettingsDb as SettingsDbRs};
 use crate::{
-    client::ClientAuth,
+    client::ClientCredentials,
     ffi::{
         api::{
             CloseChannelRequest, CreateClientRequest, CreateClientResponse,
@@ -470,6 +470,7 @@ impl AppHandle {
             .update_payment_note(req)
     }
 
+    #[allow(dead_code, unreachable_code, unused_variables)] // TODO(phlip9): remove
     #[instrument(skip_all, name = "(create-client)")]
     pub async fn create_client(
         &self,
@@ -486,11 +487,17 @@ impl AppHandle {
             scope: req.scope,
         };
 
-        let client_auth = ClientAuth { lexe_auth_token };
+        let client_creds = ClientCredentials {
+            lexe_auth_token,
+            client_pk: todo!(),
+            client_key_der: todo!(),
+            client_cert_der: todo!(),
+            ca_cert_der: todo!(),
+        };
 
         Ok(CreateClientResponse {
             client_info,
-            auth_json: client_auth.to_json_string(),
+            auth_json: client_creds.to_string(),
         })
     }
 

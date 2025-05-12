@@ -70,6 +70,7 @@ fast_qr = { workspace = true, optional = true }
 
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }
+lexe-api = { path = "../lexe-api", features = ["test-utils"] }
 
 async-trait.workspace = true
 proptest = { workspace = true, features = ["alloc"] }
