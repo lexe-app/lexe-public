@@ -6,3 +6,5 @@ pub mod base64_or_bytes_opt;
 pub mod hexstr_or_bytes;
 /// `hex_str_or_bytes` but for [`Option`] bytes types.
 pub mod hexstr_or_bytes_opt;
+/// serde helper for "maybe defined" (`Option<Option<T>>`) values.
+pub mod optopt;
