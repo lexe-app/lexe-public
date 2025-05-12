@@ -1600,7 +1600,7 @@ pub async fn create_revocable_client(
     let revocable_client = RevocableClient {
         pubkey,
         created_at,
-        expiration: req.expiration,
+        expires_at: req.expires_at,
         label: req.label,
         scope: req.scope,
         is_revoked: false,
@@ -1668,7 +1668,7 @@ pub async fn update_client_expiration(
         &req.pubkey,
         |client: &mut RevocableClient| {
             // TODO(max): Maybe need some validation here
-            client.expiration = req.expiration;
+            client.expires_at = req.expires_at;
             Ok(())
         },
     )

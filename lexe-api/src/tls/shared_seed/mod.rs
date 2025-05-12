@@ -677,7 +677,7 @@ mod test {
         let rev_client = RevocableClient {
             pubkey: rev_client_cert_pk,
             created_at: TimestampMs::from_secs_u32(420),
-            expiration,
+            expires_at: expiration,
             label: Some("hullo".to_owned()),
             scope: Scope::All,
             is_revoked,

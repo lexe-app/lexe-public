@@ -51,7 +51,7 @@ pub struct RevocableClient {
     /// The time after which the server will no longer accept this client.
     /// [`None`] indicates that the client will never expire (use carefully!).
     /// This expiration time can be extended at any time.
-    pub expiration: Option<TimestampMs>,
+    pub expires_at: Option<TimestampMs>,
     /// Optional user-provided label for this client.
     pub label: Option<String>,
     /// The authorization scopes allowed for this client.
@@ -75,7 +75,7 @@ impl RevocableClient {
     /// Whether the client is expired at the given time.
     #[must_use]
     pub fn is_expired_at(&self, now: TimestampMs) -> bool {
-        if let Some(expiration) = self.expiration {
+        if let Some(expiration) = self.expires_at {
             if now > expiration {
                 return true;
             }
@@ -97,7 +97,7 @@ pub struct GetRevocableClients {
 pub struct CreateRevocableClientRequest {
     /// The expiration after which the node should reject this client.
     /// [`None`] indicates that the client will never expire (use carefully!).
-    pub expiration: Option<TimestampMs>,
+    pub expires_at: Option<TimestampMs>,
     /// Optional user-provided label for this client.
     pub label: Option<String>,
     /// The authorization scopes allowed for this client.
@@ -135,7 +135,7 @@ pub struct UpdateClientExpiration {
     pub pubkey: ed25519::PublicKey,
     /// The time after which the server should reject this client.
     /// Setting this to [`None`] removes the expiration (use carefully!).
-    pub expiration: Option<TimestampMs>,
+    pub expires_at: Option<TimestampMs>,
 }
 
 /// A request to update a revocable client's label to the given label.
