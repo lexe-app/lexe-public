@@ -41,7 +41,7 @@ impl RevocableClients {
 
 /// Information about a revocable client.
 /// Each client is issued a `RevocableClientCert` whose pubkey is saved here.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RevocableClient {
     /// The client's cert pubkey.
     // TODO(max): In the future, bearer auth tokens could be issued to this pk.
@@ -158,4 +158,37 @@ pub struct UpdateClientScope {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RevokeClient {
     pub pubkey: ed25519::PublicKey,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::root_seed::RootSeed;
+
+    #[test]
+    fn rev_client_ser_basic() {
+        let client1 = RevocableClient {
+            pubkey: *RootSeed::from_u64(1).derive_user_key_pair().public_key(),
+            created_at: TimestampMs::from_secs_u32(69),
+            expires_at: Some(TimestampMs::from_secs_u32(420)),
+            label: Some("deez".to_string()),
+            scope: Scope::All,
+            is_revoked: false,
+        };
+        let client_json = serde_json::to_string_pretty(&client1).unwrap();
+        println!("{client_json}");
+        let client_json_snapshot = r#"{
+  "pubkey": "aa8e3e1a9bffdb073507f23474100619fdd4e392ef0ff1e89348252f287a06fc",
+  "created_at": 69000,
+  "expires_at": 420000,
+  "label": "deez",
+  "scope": "All",
+  "is_revoked": false
+}"#;
+        assert_eq!(client_json, client_json_snapshot);
+
+        let client2 =
+            serde_json::from_str::<RevocableClient>(&client_json).unwrap();
+        assert_eq!(client1, client2);
+    }
 }
