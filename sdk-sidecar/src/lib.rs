@@ -1,12 +1,14 @@
-//! # Lexe SDK sidecar
+//! # Lexe Sidecar SDK
+//!
+//! This crate contains the library code for the Lexe Sidecar SDK:
+//! <https://github.com/lexe-app/lexe-sidecar-sdk>
 //!
 //! ## Overview
 //!
-//! This module contains the API sidecar for the Lexe SDK. It runs as a separate
-//! process/sidecar and manages the connection to the user's Lexe node. The
-//! sidecar handles provisioning new node versions, user node auth, and
-//! connecting to the node via mTLS, while presenting a simplified API to the
-//! SDK user.
+//! The sidecar runs as a separate process and manages the connection to the
+//! user's Lexe node. The sidecar handles provisioning new node versions, user
+//! node auth, and connecting to the node via mTLS, while presenting a
+//! simplified API to the SDK user.
 //!
 //! The sidecar is stateless, stores no data on-disk, and does no internal
 //! caching. This helps reduce complexity and makes it easier to deploy and
