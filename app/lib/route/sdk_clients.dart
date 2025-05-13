@@ -10,6 +10,7 @@ import 'package:lexeapp/components.dart'
         HeadingText,
         LxCloseButton,
         LxFilledButton,
+        // LxRefreshButton,
         ScrollableSinglePageBody,
         SliverPullToRefresh,
         SubheadingText;
@@ -43,13 +44,16 @@ class _SdkClientsPageState extends State<SdkClientsPage> {
   }
 
   Future<void> listClients() async {
-    // TODO(phlip9): remove
-    this.clients.value = null;
-
     final res = await Result.tryFfiAsync(this.widget.app.listClients);
     if (!this.mounted) return;
 
-    res.inspectErr((err) => error("Failed to fetch clients: $err"));
+    res.inspectErr((err) => error("Failed to fetch clients: $err")).map(
+      (clients) {
+        // sort clients by creation date (newest first)
+        clients.sort((c1, c2) => c2.createdAt.compareTo(c1.createdAt));
+        return clients;
+      },
+    );
     this.clients.value = res;
   }
 
@@ -63,6 +67,15 @@ class _SdkClientsPageState extends State<SdkClientsPage> {
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
         leading: const LxCloseButton(isLeading: true),
+
+        // // Refresh
+        // actions: [
+        //   LxRefreshButton(
+        //     isRefreshing: this.isRefreshing,
+        //     triggerRefresh: this.listClients,
+        //   ),
+        //   const SizedBox(width: Space.s100),
+        // ],
       ),
       body: ScrollableSinglePageBody(
         bodySlivers: [
@@ -95,14 +108,26 @@ class _SdkClientsPageState extends State<SdkClientsPage> {
                           padding: EdgeInsets.symmetric(vertical: Space.s400),
                           child: CircularProgressIndicator())),
                 ),
+              // Failed to fetch clients
               Err(:final err) => SliverToBoxAdapter(
                   child: ErrorMessageSection(ErrorMessage(
                     title: "Failed to fetch clients",
                     message: err.message,
                   )),
                 ),
-              Ok(:final ok) => SliverToBoxAdapter(
-                  child: Text("List of clients goes here (${ok.length})"),
+              // List of clients
+              Ok(:final ok) => SliverFixedExtentList.builder(
+                  itemExtent: Space.s850,
+                  itemCount: ok.length,
+                  itemBuilder: (context, index) {
+                    final clients = ok;
+                    if (index >= clients.length) {
+                      return null;
+                    }
+
+                    final client = clients[index];
+                    return ClientListEntry(client: client);
+                  },
                 ),
             },
           ),
@@ -116,6 +141,33 @@ class _SdkClientsPageState extends State<SdkClientsPage> {
             onTap: this.onCreatePressed,
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A single entry in the list of clients.
+class ClientListEntry extends StatelessWidget {
+  const ClientListEntry({super.key, required this.client});
+
+  final RevocableClient client;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = client.label ?? "<unlabeled>";
+    final createdAt = DateTime.fromMillisecondsSinceEpoch(client.createdAt);
+    final subtitle = "created: $createdAt\npublic key: ${client.pubkey}";
+    return ListTile(
+      isThreeLine: true,
+      contentPadding: EdgeInsets.zero,
+      title: Text(title),
+      subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
+      trailing: IconButton(
+        icon: const Icon(LxIcons.delete),
+        onPressed: () {
+          // TODO(phlip9): implement revoke client
+          info("Revoke client ${client.pubkey}");
+        },
       ),
     );
   }

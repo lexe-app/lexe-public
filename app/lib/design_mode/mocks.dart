@@ -371,7 +371,24 @@ class MockAppHandle extends AppHandle {
 
   @override
   Future<List<RevocableClient>> listClients() => Future.delayed(
-      const Duration(milliseconds: 1000), () => <RevocableClient>[]);
+        const Duration(milliseconds: 1000),
+        () => <RevocableClient>[
+          const RevocableClient(
+            createdAt: 1747095626000,
+            label: "SDK client 1",
+            pubkey:
+                "d6f34a82bf64b68a28b2f0934d715271580afebc29a4b37bfd355999705f43ff",
+            scope: Scope.nodeConnect,
+          ),
+          const RevocableClient(
+            createdAt: 1746095626000,
+            label: null,
+            pubkey:
+                "90cdb0fa319acd1b5cbf79c027fbadeafbaed593c3b0d81c88e0746fe0dc2016",
+            scope: Scope.nodeConnect,
+          ),
+        ],
+      );
 }
 
 /// An [AppHandle] that usually errors first.

@@ -864,6 +864,9 @@ final class LxIcons {
   /// Add icon (+ icon)
   static const IconData add = Symbols.add_rounded;
 
+  /// Delete icon (x icon)
+  static const IconData delete = Symbols.close_rounded;
+
   /// More actions icon (3 horizontal dots)
   static const IconData moreHoriz = Symbols.more_horiz_rounded;
 
