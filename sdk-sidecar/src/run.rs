@@ -1,6 +1,6 @@
 use std::{
     env,
-    net::{Ipv6Addr, SocketAddr, SocketAddrV6},
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     sync::Arc,
     time::Duration,
 };
@@ -24,9 +24,10 @@ use crate::cli::SidecarArgs;
 /// The user agent string for internal requests.
 static USER_AGENT_INTERNAL: &str = lexe_api::user_agent_internal!();
 
-/// `[::1]:5393`
+/// `127.0.0.1:5393` We use IPv4 because it's more approachable to newbie devs.
+/// The docs note that IPv6 is still supported.
 const DEFAULT_LISTEN_ADDR: SocketAddr =
-    SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::LOCALHOST, 5393, 0, 0));
+    SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 5393));
 
 pub struct Sidecar {
     root_seed: RootSeed,
