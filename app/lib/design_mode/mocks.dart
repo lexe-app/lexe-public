@@ -461,6 +461,13 @@ class MockAppHandleErr extends MockAppHandle {
                 "[106=Command] Waiting for channel close event: deadline has elapsed")
             .toFfi(),
       );
+
+  @override
+  Future<List<RevocableClient>> listClients() => Future.delayed(
+        const Duration(milliseconds: 1000),
+        () => throw const FfiError("[106=Command] Failed to list clients")
+            .toFfi(),
+      );
 }
 
 /// `AppHandle` used for screenshots.

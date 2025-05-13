@@ -103,10 +103,13 @@ class _SdkClientsPageState extends State<SdkClientsPage> {
             builder: (_context, listResult, _widget) => switch (listResult) {
               // Failed to fetch clients
               Err(:final err) => SliverToBoxAdapter(
-                  child: ErrorMessageSection(ErrorMessage(
-                    title: "Failed to fetch clients",
-                    message: err.message,
-                  )),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: Space.s500),
+                    child: ErrorMessageSection(ErrorMessage(
+                      title: "Failed to fetch clients",
+                      message: err.message,
+                    )),
+                  ),
                 ),
               // List of clients
               Ok(:final ok) => SliverFixedExtentList.builder(

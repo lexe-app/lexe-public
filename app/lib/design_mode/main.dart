@@ -668,6 +668,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (_) => SdkClientsPage(app: mockApp),
             ),
             Component(
+              "SdkClientsPage",
+              subtitle: "error",
+              (_) => SdkClientsPage(app: mockAppErr),
+            ),
+            Component(
               "Screenshot 01",
               subtitle: "LandingPage",
               (context) => LandingPage(
