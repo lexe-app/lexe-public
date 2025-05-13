@@ -1614,16 +1614,32 @@ pub async fn create_revocable_client(
     let updated_file = {
         let mut revocable_clients = revocable_clients.write().unwrap();
 
+        // We don't allow more than `MAX_LEN` clients for DoS reasons. We also
+        // don't delete revoked clients immediately. If we're at the limit,
+        // we'll prune the oldest revoked client.
         if revocable_clients.clients.len() >= RevocableClients::MAX_LEN {
-            // TODO(max): In future, when we prune expired / revoked clients,
-            // we should check the number of *valid* clients, so that we can
-            // both protect against DoS and allow for users who may have
-            // (possibly accidentally) created lots of clients in the past.
-            return Err(anyhow!(
-                "Reached maximum # of API clients. For more clients, please \
-                 contact Lexe to explain why you need more than {} clients.",
-                RevocableClients::MAX_LEN,
-            ));
+            // Look for the oldest, revoked client to prune.
+            let oldest_revoked_client = revocable_clients
+                .clients
+                .values()
+                .filter(|client| client.is_revoked)
+                .min_by_key(|client| client.created_at)
+                .map(|client| client.pubkey);
+
+            match oldest_revoked_client {
+                Some(pubkey) => {
+                    // evict old, revoked client
+                    revocable_clients
+                        .clients
+                        .remove(&pubkey)
+                        .expect("Client should exist");
+                }
+                None => return Err(anyhow!(
+                    "Reached maximum # of API clients. For more clients, please \
+                     contact Lexe to explain why you need more than {} clients.",
+                    RevocableClients::MAX_LEN,
+                )),
+            }
         }
 
         let existing =
