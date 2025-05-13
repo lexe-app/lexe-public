@@ -168,6 +168,53 @@ abstract class _CreateClientRequest implements CreateClientRequest {
 }
 
 /// @nodoc
+mixin _$CreateClientResponse {
+  RevocableClient get client => throw _privateConstructorUsedError;
+  String get credentials => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$CreateClientResponseImpl implements _CreateClientResponse {
+  const _$CreateClientResponseImpl(
+      {required this.client, required this.credentials});
+
+  @override
+  final RevocableClient client;
+  @override
+  final String credentials;
+
+  @override
+  String toString() {
+    return 'CreateClientResponse(client: $client, credentials: $credentials)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$CreateClientResponseImpl &&
+            (identical(other.client, client) || other.client == client) &&
+            (identical(other.credentials, credentials) ||
+                other.credentials == credentials));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, client, credentials);
+}
+
+abstract class _CreateClientResponse implements CreateClientResponse {
+  const factory _CreateClientResponse(
+      {required final RevocableClient client,
+      required final String credentials}) = _$CreateClientResponseImpl;
+
+  @override
+  RevocableClient get client;
+  @override
+  String get credentials;
+}
+
+/// @nodoc
 mixin _$CreateInvoiceRequest {
   int get expirySecs => throw _privateConstructorUsedError;
   int? get amountSats => throw _privateConstructorUsedError;
@@ -1232,6 +1279,52 @@ abstract class _PreflightPayOnchainResponse
   FeeEstimate get normal;
   @override
   FeeEstimate get background;
+}
+
+/// @nodoc
+mixin _$UpdateClientRequest {
+  String get pubkey => throw _privateConstructorUsedError;
+  bool? get isRevoked => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$UpdateClientRequestImpl implements _UpdateClientRequest {
+  const _$UpdateClientRequestImpl({required this.pubkey, this.isRevoked});
+
+  @override
+  final String pubkey;
+  @override
+  final bool? isRevoked;
+
+  @override
+  String toString() {
+    return 'UpdateClientRequest(pubkey: $pubkey, isRevoked: $isRevoked)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$UpdateClientRequestImpl &&
+            (identical(other.pubkey, pubkey) || other.pubkey == pubkey) &&
+            (identical(other.isRevoked, isRevoked) ||
+                other.isRevoked == isRevoked));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, pubkey, isRevoked);
+}
+
+abstract class _UpdateClientRequest implements UpdateClientRequest {
+  const factory _UpdateClientRequest(
+      {required final String pubkey,
+      final bool? isRevoked}) = _$UpdateClientRequestImpl;
+
+  @override
+  String get pubkey;
+  @override
+  bool? get isRevoked;
 }
 
 /// @nodoc

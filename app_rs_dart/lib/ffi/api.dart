@@ -16,7 +16,7 @@ import 'types.dart';
 part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_cid_and_response`, `from_id_and_response`, `validate_note`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
 @freezed
 class Balance with _$Balance {
@@ -44,25 +44,12 @@ class CreateClientRequest with _$CreateClientRequest {
   }) = _CreateClientRequest;
 }
 
-class CreateClientResponse {
-  final RevocableClient client;
-  final String credentials;
-
-  const CreateClientResponse({
-    required this.client,
-    required this.credentials,
-  });
-
-  @override
-  int get hashCode => client.hashCode ^ credentials.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is CreateClientResponse &&
-          runtimeType == other.runtimeType &&
-          client == other.client &&
-          credentials == other.credentials;
+@freezed
+class CreateClientResponse with _$CreateClientResponse {
+  const factory CreateClientResponse({
+    required RevocableClient client,
+    required String credentials,
+  }) = _CreateClientResponse;
 }
 
 /// See [`common::api::command::CreateInvoiceRequest`].
@@ -253,6 +240,15 @@ class PreflightPayOnchainResponse with _$PreflightPayOnchainResponse {
     required FeeEstimate normal,
     required FeeEstimate background,
   }) = _PreflightPayOnchainResponse;
+}
+
+/// See [`common::api::revocable_clients::UpdateClientRequest`].
+@freezed
+class UpdateClientRequest with _$UpdateClientRequest {
+  const factory UpdateClientRequest({
+    required String pubkey,
+    bool? isRevoked,
+  }) = _UpdateClientRequest;
 }
 
 /// See [`common::api::user::UpdatePaymentNote`].

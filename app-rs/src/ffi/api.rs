@@ -30,8 +30,12 @@ use common::{
             UpdatePaymentNote as UpdatePaymentNoteRs,
         },
         fiat_rates::FiatRates as FiatRatesRs,
-        revocable_clients::CreateRevocableClientRequest as CreateRevocableClientRequestRs,
+        revocable_clients::{
+            CreateRevocableClientRequest as CreateRevocableClientRequestRs,
+            UpdateClientRequest as UpdateClientRequestRs,
+        },
     },
+    ed25519,
     ln::{
         amount::Amount,
         channel::{LxChannelId, LxUserChannelId as LxUserChannelIdRs},
@@ -584,7 +588,30 @@ impl From<CreateClientRequest> for CreateRevocableClientRequestRs {
     }
 }
 
+#[frb(dart_metadata=("freezed"))]
 pub struct CreateClientResponse {
     pub client: RevocableClient,
     pub credentials: String,
+}
+
+/// See [`common::api::revocable_clients::UpdateClientRequest`].
+#[frb(dart_metadata=("freezed"))]
+pub struct UpdateClientRequest {
+    pub pubkey: String,
+    pub is_revoked: Option<bool>,
+}
+
+impl TryFrom<UpdateClientRequest> for UpdateClientRequestRs {
+    type Error = anyhow::Error;
+    fn try_from(value: UpdateClientRequest) -> Result<Self, Self::Error> {
+        let pubkey = ed25519::PublicKey::from_str(&value.pubkey)
+            .context("Invalid pubkey")?;
+        Ok(Self {
+            pubkey,
+            is_revoked: value.is_revoked,
+            expires_at: None,
+            label: None,
+            scope: None,
+        })
+    }
 }

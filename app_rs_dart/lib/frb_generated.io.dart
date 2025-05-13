@@ -205,6 +205,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
+  UpdateClientRequest dco_decode_box_autoadd_update_client_request(dynamic raw);
+
+  @protected
   UpdatePaymentNote dco_decode_box_autoadd_update_payment_note(dynamic raw);
 
   @protected
@@ -454,6 +457,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void dco_decode_unit(dynamic raw);
 
   @protected
+  UpdateClientRequest dco_decode_update_client_request(dynamic raw);
+
+  @protected
   UpdatePaymentNote dco_decode_update_payment_note(dynamic raw);
 
   @protected
@@ -620,6 +626,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  UpdateClientRequest sse_decode_box_autoadd_update_client_request(
+      SseDeserializer deserializer);
 
   @protected
   UpdatePaymentNote sse_decode_box_autoadd_update_payment_note(
@@ -895,6 +905,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_decode_unit(SseDeserializer deserializer);
 
   @protected
+  UpdateClientRequest sse_decode_update_client_request(
+      SseDeserializer deserializer);
+
+  @protected
   UpdatePaymentNote sse_decode_update_payment_note(
       SseDeserializer deserializer);
 
@@ -1067,6 +1081,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_update_client_request(
+      UpdateClientRequest self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_update_payment_note(
@@ -1349,6 +1367,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_update_client_request(
+      UpdateClientRequest self, SseSerializer serializer);
 
   @protected
   void sse_encode_update_payment_note(

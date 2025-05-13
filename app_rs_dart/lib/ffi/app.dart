@@ -199,6 +199,9 @@ class AppHandle {
         that: this,
       );
 
+  Future<void> updateClient({required UpdateClientRequest req}) =>
+      AppRs.instance.api.crateFfiAppAppHandleUpdateClient(that: this, req: req);
+
   Future<void> updatePaymentNote({required UpdatePaymentNote req}) =>
       AppRs.instance.api
           .crateFfiAppAppHandleUpdatePaymentNote(that: this, req: req);

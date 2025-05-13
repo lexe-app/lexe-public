@@ -11,7 +11,7 @@ use common::{
         def::{AppGatewayApi, AppNodeRunApi},
         revocable_clients::{
             CreateRevocableClientRequest as CreateRevocableClientRequestRs,
-            GetRevocableClients,
+            GetRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
         },
         Empty,
     },
@@ -37,7 +37,7 @@ use crate::{
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            UpdatePaymentNote,
+            UpdateClientRequest, UpdatePaymentNote,
         },
         settings::SettingsDb,
         types::{
@@ -519,5 +519,19 @@ impl AppHandle {
             .map(RevocableClient::from)
             .collect();
         Ok(clients)
+    }
+
+    #[instrument(skip_all, name = "(update-client)")]
+    pub async fn update_client(
+        &self,
+        req: UpdateClientRequest,
+    ) -> anyhow::Result<()> {
+        let req = UpdateClientRequestRs::try_from(req)?;
+        let _resp = self
+            .inner
+            .node_client()
+            .update_revocable_client(req)
+            .await?;
+        Ok(())
     }
 }
