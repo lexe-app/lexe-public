@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:app_rs_dart/ffi/api.dart'
-    show CreateClientRequest, CreateClientResponse;
+    show CreateClientRequest, CreateClientResponse, UpdateClientRequest;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart' show RevocableClient, Scope;
 import 'package:flutter/cupertino.dart';
@@ -20,7 +20,8 @@ import 'package:lexeapp/components.dart'
         LxRefreshButton,
         ScrollableSinglePageBody,
         SliverPullToRefresh,
-        SubheadingText;
+        SubheadingText,
+        showModalAsyncFlow;
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
@@ -77,7 +78,31 @@ class _SdkClientsPageState extends State<SdkClientsPage> {
   }
 
   Future<void> onRevokePressed(RevocableClient client) async {
-    info("Revoke client pressed (${client.pubkey})");
+    info("pressed revoke client (${client.pubkey})");
+
+    final req = UpdateClientRequest(pubkey: client.pubkey, isRevoked: true);
+    final fut =
+        Result.tryFfiAsync(() => this.widget.app.updateClient(req: req));
+
+    final res = await showModalAsyncFlow(
+      context: this.context,
+      future: fut,
+      errorBuilder: (context, err) => AlertDialog(
+        title: const Text("Failed to revoke client"),
+        content: Text(err.message),
+        scrollable: true,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+
+    if (res == null || res.isOk) {
+      this.triggerRefresh();
+    }
   }
 
   @override

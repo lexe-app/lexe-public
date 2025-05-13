@@ -32,6 +32,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         PreflightPayInvoiceResponse,
         PreflightPayOnchainRequest,
         PreflightPayOnchainResponse,
+        UpdateClientRequest,
         UpdatePaymentNote;
 import 'package:app_rs_dart/ffi/app.dart' show App, AppHandle, SettingsDbRs;
 import 'package:app_rs_dart/ffi/settings.dart' show Settings, SettingsDb;
@@ -389,6 +390,13 @@ class MockAppHandle extends AppHandle {
           ),
         ],
       );
+
+  @override
+  Future<void> updateClient({required UpdateClientRequest req}) =>
+      Future.delayed(
+        const Duration(milliseconds: 1000),
+        () => {},
+      );
 }
 
 /// An [AppHandle] that usually errors first.
@@ -476,6 +484,14 @@ class MockAppHandleErr extends MockAppHandle {
   Future<List<RevocableClient>> listClients() => Future.delayed(
         const Duration(milliseconds: 1000),
         () => throw const FfiError("[106=Command] Failed to list clients")
+            .toFfi(),
+      );
+
+  @override
+  Future<void> updateClient({required UpdateClientRequest req}) =>
+      Future.delayed(
+        const Duration(milliseconds: 1000),
+        () => throw const FfiError("[106=Command] Failed to update client")
             .toFfi(),
       );
 }
