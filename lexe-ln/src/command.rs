@@ -1714,9 +1714,10 @@ pub async fn update_revocable_client(
             .ok_or_else(|| anyhow!("No revocable client with pk {pubkey}"))?;
 
         // Update
-        client.update(req)?;
+        let updated_client = client.update(req)?;
+        *client = updated_client.clone();
         let response = UpdateClientResponse {
-            client: client.clone(),
+            client: updated_client,
         };
 
         // Generate the new file

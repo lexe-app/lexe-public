@@ -185,19 +185,29 @@ pub struct UpdateClientResponse {
 }
 
 impl RevocableClient {
-    /// Apply an update to this client.
-    pub fn update(&mut self, req: UpdateClientRequest) -> anyhow::Result<()> {
-        if self.pubkey != req.pubkey {
+    /// Apply an update to this client, returning a copy with updates applied.
+    pub fn update(&self, req: UpdateClientRequest) -> anyhow::Result<Self> {
+        let UpdateClientRequest {
+            pubkey: req_pubkey,
+            expires_at: req_expires_at,
+            label: req_label,
+            scope: req_scope,
+            is_revoked: req_is_revoked,
+        } = req;
+
+        let mut out = self.clone();
+
+        if self.pubkey != req_pubkey {
             debug_assert!(false);
             return Err(anyhow!("Cannot update a different client"));
         }
 
-        if let Some(expires_at) = req.expires_at {
+        if let Some(expires_at) = req_expires_at {
             // TODO(max): Maybe need some validation here
-            self.expires_at = expires_at;
+            out.expires_at = expires_at;
         }
 
-        if let Some(maybe_label) = req.label {
+        if let Some(maybe_label) = req_label {
             if let Some(label) = &maybe_label {
                 if label.len() > RevocableClient::MAX_LABEL_LEN {
                     return Err(anyhow!(
@@ -206,23 +216,23 @@ impl RevocableClient {
                     ));
                 }
             }
-            self.label = maybe_label;
+            out.label = maybe_label;
         }
 
-        if let Some(scope) = req.scope {
+        if let Some(scope) = req_scope {
             // TODO(max): Need some validation here; can't request broader
             // scope, only some clients can call, etc.
-            self.scope = scope;
+            out.scope = scope;
         }
 
-        if let Some(revoke) = req.is_revoked {
+        if let Some(revoke) = req_is_revoked {
             if self.is_revoked && !revoke {
                 return Err(anyhow!("Cannot unrevoke a client"));
             }
-            self.is_revoked = revoke;
+            out.is_revoked = revoke;
         }
 
-        Ok(())
+        Ok(out)
     }
 }
 
