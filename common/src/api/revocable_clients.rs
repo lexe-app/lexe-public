@@ -70,6 +70,7 @@ pub struct RevocableClient {
     pub scope: Scope,
     /// Whether this client has been revoked. Revocation is permanent.
     pub is_revoked: bool,
+    // TODO(phlip9): add "pausing" a client's access temporarily?
 }
 
 impl RevocableClient {
@@ -210,6 +211,9 @@ impl RevocableClient {
         }
 
         if let Some(revoke) = req.is_revoked {
+            if self.is_revoked && !revoke {
+                return Err(anyhow!("Cannot unrevoke a client"));
+            }
             self.is_revoked = revoke;
         }
 
