@@ -8,8 +8,6 @@
 
 use std::{
     borrow::Cow,
-    fmt,
-    str::FromStr,
     sync::Arc,
     time::{Duration, SystemTime},
 };
@@ -133,11 +131,11 @@ pub struct ClientCredentials {
     /// The hex-encoded client public key.
     pub client_pk: ed25519::PublicKey,
     /// The DER-encoded client key.
-    pub client_key_der: LxPrivatePkcs8KeyDer,
+    pub rev_client_key_der: LxPrivatePkcs8KeyDer,
     /// The DER-encoded cert of the revocable client.
-    pub client_cert_der: LxCertificateDer,
-    /// The DER-encoded cert of the revocable issuing CA.
-    pub ca_cert_der: LxCertificateDer,
+    pub rev_client_cert_der: LxCertificateDer,
+    /// The DER-encoded cert of the ephemeral issuing CA.
+    pub eph_ca_cert_der: LxCertificateDer,
 }
 
 // --- impl GatewayClient --- //
@@ -725,26 +723,21 @@ impl ClientCredentials {
         ClientCredentials {
             lexe_auth_token,
             client_pk: resp.pubkey,
-            client_key_der: LxPrivatePkcs8KeyDer(resp.rev_client_cert_key_der),
-            client_cert_der: LxCertificateDer(resp.rev_client_cert_der),
-            ca_cert_der: LxCertificateDer(resp.eph_ca_cert_der),
+            rev_client_key_der: LxPrivatePkcs8KeyDer(
+                resp.rev_client_cert_key_der,
+            ),
+            rev_client_cert_der: LxCertificateDer(resp.rev_client_cert_der),
+            eph_ca_cert_der: LxCertificateDer(resp.eph_ca_cert_der),
         }
     }
-}
 
-impl fmt::Display for ClientCredentials {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    pub fn to_base64_blob(&self) -> String {
         let json_str =
             serde_json::to_string(self).expect("Failed to JSON serialize");
-        let b64_str = base64::engine::general_purpose::STANDARD
-            .encode(json_str.as_bytes());
-        f.write_str(&b64_str)
+        base64::engine::general_purpose::STANDARD.encode(json_str.as_bytes())
     }
-}
 
-impl FromStr for ClientCredentials {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    pub fn try_from_base64_blob(s: &str) -> anyhow::Result<Self> {
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(s)
             .context("ClientAuth string is not valid base64")?;
@@ -758,7 +751,7 @@ impl FromStr for ClientCredentials {
 mod test {
     use common::{byte_str::ByteStr, rng::FastRng};
     use tls::shared_seed::certs::{
-        RevocableClientCert, RevocableIssuingCaCert,
+        EphemeralIssuingCaCert, RevocableClientCert, RevocableIssuingCaCert,
     };
 
     use super::*;
@@ -852,30 +845,34 @@ mod test {
         let mut rng = FastRng::from_u64(202505121546);
         let root_seed = RootSeed::from_rng(&mut rng);
 
-        let ca_cert = RevocableIssuingCaCert::from_root_seed(&root_seed);
-        let ca_cert_der = ca_cert.serialize_der_self_signed().unwrap();
+        let eph_ca_cert = EphemeralIssuingCaCert::from_root_seed(&root_seed);
+        let eph_ca_cert_der = eph_ca_cert.serialize_der_self_signed().unwrap();
 
-        let client_cert = RevocableClientCert::generate_from_rng(&mut rng);
-        let client_cert_der =
-            client_cert.serialize_der_ca_signed(&ca_cert).unwrap();
-        let client_key_der = client_cert.serialize_key_der();
-        let client_pk = client_cert.public_key();
+        let rev_ca_cert = RevocableIssuingCaCert::from_root_seed(&root_seed);
+
+        let rev_client_cert = RevocableClientCert::generate_from_rng(&mut rng);
+        let rev_client_cert_der = rev_client_cert
+            .serialize_der_ca_signed(&rev_ca_cert)
+            .unwrap();
+        let rev_client_key_der = rev_client_cert.serialize_key_der();
+        let client_pk = rev_client_cert.public_key();
 
         let client_auth = ClientCredentials {
             lexe_auth_token: BearerAuthToken(ByteStr::from_static("9dTCUvC8y7qcNyUbqynz3nwIQQHbQqPVKeMhXUj1Afr-vgj9E217_2tCS1IQM7LFqfBUC8Ec9fcb-dQiCRy6ot2FN-kR60edRFJUztAa2Rxao1Q0BS1s6vE8grgfhMYIAJDLMWgAAAAASE4zaAAAAABpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaQE")),
             client_pk,
-            client_key_der,
-            client_cert_der,
-            ca_cert_der,
+            rev_client_key_der,
+            rev_client_cert_der,
+            eph_ca_cert_der,
         };
 
-        let client_auth_str = client_auth.to_string();
-        // json: ~2.1 KiB, base64(json): ~2.7 KiB
-        let expected_str = "eyJsZXhlX2F1dGhfdG9rZW4iOiI5ZFRDVXZDOHk3cWNOeVVicXluejNud0lRUUhiUXFQVktlTWhYVWoxQWZyLXZnajlFMjE3XzJ0Q1MxSVFNN0xGcWZCVUM4RWM5ZmNiLWRRaUNSeTZvdDJGTi1rUjYwZWRSRkpVenRBYTJSeGFvMVEwQlMxczZ2RThncmdmaE1ZSUFKRExNV2dBQUFBQVNFNHphQUFBQUFCcGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhUUUiLCJjbGllbnRfcGsiOiI3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiIiwiY2xpZW50X2tleV9kZXIiOiIzMDUzMDIwMTAxMzAwNTA2MDMyYjY1NzAwNDIyMDQyMDBmNTgwZDM0NjFjNGVhMGIzNmI4MzZkNDUxYzFjMTk5ZWUzZTA2NDZhZDBkNjQyMzUzNzk3MzlkNjg2OTkyODlhMTIzMDMyMTAwNzA4OGFmMWZjMTJhYjA0YWQ2ZGQxNjViYzNhM2M1ZWIzMDYyYjQxMWEyZjU1YTE2NmIwZTQwMGIzOTBmZTRkYiIsImNsaWVudF9jZXJ0X2RlciI6IjMwODIwMTgzMzA4MjAxMzVhMDAzMDIwMTAyMDIxNDQwYmVkYzU2ZDAzZDZiNTJmMjg0MmQ2NGRmOTBkMDJkNmRhMzZhNWIzMDA1MDYwMzJiNjU3MDMwNTYzMTBiMzAwOTA2MDM1NTA0MDYwYzAyNTU1MzMxMGIzMDA5MDYwMzU1MDQwODBjMDI0MzQxMzExMTMwMGYwNjAzNTUwNDBhMGMwODZjNjU3ODY1MmQ2MTcwNzAzMTI3MzAyNTA2MDM1NTA0MDMwYzFlNGM2NTc4NjUyMDcyNjU3NjZmNjM2MTYyNmM2NTIwNjk3MzczNzU2OTZlNjcyMDQzNDEyMDYzNjU3Mjc0MzAyMDE3MGQzNzM1MzAzMTMwMzEzMDMwMzAzMDMwMzA1YTE4MGYzNDMwMzkzNjMwMzEzMDMxMzAzMDMwMzAzMDMwNWEzMDUyMzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyMzMwMjEwNjAzNTUwNDAzMGMxYTRjNjU3ODY1MjA3MjY1NzY2ZjYzNjE2MjZjNjUyMDYzNmM2OTY1NmU3NDIwNjM2NTcyNzQzMDJhMzAwNTA2MDMyYjY1NzAwMzIxMDA3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiYTMxNzMwMTUzMDEzMDYwMzU1MWQxMTA0MGMzMDBhODIwODZjNjU3ODY1MmU2MTcwNzAzMDA1MDYwMzJiNjU3MDAzNDEwMDdiMTdiYzk1MzgyNjdiMzU0ZjA3MjZkODljYjFlYzMxMGIxMDJlNDIyYWI5Njk2Yjg3ZDlhZTcwMGNlZjJlODNjMTM2NmQwYWQxOTAzNWQ5ZTNlZDA0Y2Y1ZjdmMDVkZWY2OGE3MWRlMjEyYjg5ODM0NDc3OTQyYWU3NjNhMjBmIiwiY2FfY2VydF9kZXIiOiIzMDgyMDFiYTMwODIwMTZjYTAwMzAyMDEwMjAyMTQwY2RjYzJkMGVhM2MzMjI4MDc1OWNkNGFiN2E1MzBmNDNiODAwMjA5MzAwNTA2MDMyYjY1NzAzMDU2MzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyNzMwMjUwNjAzNTUwNDAzMGMxZTRjNjU3ODY1MjA3MjY1NzY2ZjYzNjE2MjZjNjUyMDY5NzM3Mzc1Njk2ZTY3MjA0MzQxMjA2MzY1NzI3NDMwMjAxNzBkMzczNTMwMzEzMDMxMzAzMDMwMzAzMDMwNWExODBmMzQzMDM5MzYzMDMxMzAzMTMwMzAzMDMwMzAzMDVhMzA1NjMxMGIzMDA5MDYwMzU1MDQwNjBjMDI1NTUzMzEwYjMwMDkwNjAzNTUwNDA4MGMwMjQzNDEzMTExMzAwZjA2MDM1NTA0MGEwYzA4NmM2NTc4NjUyZDYxNzA3MDMxMjczMDI1MDYwMzU1MDQwMzBjMWU0YzY1Nzg2NTIwNzI2NTc2NmY2MzYxNjI2YzY1MjA2OTczNzM3NTY5NmU2NzIwNDM0MTIwNjM2NTcyNzQzMDJhMzAwNTA2MDMyYjY1NzAwMzIxMDBjOTM2ZDhlNzhiMDc4ZDkyODQ5YWRjMzYyZGVjYzNlYTMxNzA1ZTQ0ODZiZDAwZDgxYmU2NGFmZDYzZTg4NzU5YTM0YTMwNDgzMDEzMDYwMzU1MWQxMTA0MGMzMDBhODIwODZjNjU3ODY1MmU2MTcwNzAzMDFkMDYwMzU1MWQwZTA0MTYwNDE0MGNkY2MyZDBlYTNjMzIyODA3NTljZDRhYjdhNTMwZjQzYjgwMDIwOTMwMTIwNjAzNTUxZDEzMDEwMWZmMDQwODMwMDYwMTAxZmYwMjAxMDAzMDA1MDYwMzJiNjU3MDAzNDEwMGVhNzJlOTY3MGY5OTFjODdlZDVlMmMxZGY3YzgyZWNlN2VjMjAxMGM1NzY1NGJmYWU4Y2Q1ZmE5NzMzNmYyNTViMzRkN2FjNzQzOTk5NThkYWQwY2U0NDU2ZDcwYjAzOWMyYzIzMmU0YjVhZDljZTNjYzRhMWZhMTljNzA1MTA0In0=";
+        let client_auth_str = client_auth.to_base64_blob();
+        // json: ~2.2 KiB, base64(json): ~2.9 KiB
+        let expected_str = "eyJsZXhlX2F1dGhfdG9rZW4iOiI5ZFRDVXZDOHk3cWNOeVVicXluejNud0lRUUhiUXFQVktlTWhYVWoxQWZyLXZnajlFMjE3XzJ0Q1MxSVFNN0xGcWZCVUM4RWM5ZmNiLWRRaUNSeTZvdDJGTi1rUjYwZWRSRkpVenRBYTJSeGFvMVEwQlMxczZ2RThncmdmaE1ZSUFKRExNV2dBQUFBQVNFNHphQUFBQUFCcGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhUUUiLCJjbGllbnRfcGsiOiI3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiIiwicmV2X2NsaWVudF9rZXlfZGVyIjoiMzA1MzAyMDEwMTMwMDUwNjAzMmI2NTcwMDQyMjA0MjAwZjU4MGQzNDYxYzRlYTBiMzZiODM2ZDQ1MWMxYzE5OWVlM2UwNjQ2YWQwZDY0MjM1Mzc5NzM5ZDY4Njk5Mjg5YTEyMzAzMjEwMDcwODhhZjFmYzEyYWIwNGFkNmRkMTY1YmMzYTNjNWViMzA2MmI0MTFhMmY1NWExNjZiMGU0MDBiMzkwZmU0ZGIiLCJyZXZfY2xpZW50X2NlcnRfZGVyIjoiMzA4MjAxODMzMDgyMDEzNWEwMDMwMjAxMDIwMjE0NDBiZWRjNTZkMDNkNmI1MmYyODQyZDY0ZGY5MGQwMmQ2ZGEzNmE1YjMwMDUwNjAzMmI2NTcwMzA1NjMxMGIzMDA5MDYwMzU1MDQwNjBjMDI1NTUzMzEwYjMwMDkwNjAzNTUwNDA4MGMwMjQzNDEzMTExMzAwZjA2MDM1NTA0MGEwYzA4NmM2NTc4NjUyZDYxNzA3MDMxMjczMDI1MDYwMzU1MDQwMzBjMWU0YzY1Nzg2NTIwNzI2NTc2NmY2MzYxNjI2YzY1MjA2OTczNzM3NTY5NmU2NzIwNDM0MTIwNjM2NTcyNzQzMDIwMTcwZDM3MzUzMDMxMzAzMTMwMzAzMDMwMzAzMDVhMTgwZjM0MzAzOTM2MzAzMTMwMzEzMDMwMzAzMDMwMzA1YTMwNTIzMTBiMzAwOTA2MDM1NTA0MDYwYzAyNTU1MzMxMGIzMDA5MDYwMzU1MDQwODBjMDI0MzQxMzExMTMwMGYwNjAzNTUwNDBhMGMwODZjNjU3ODY1MmQ2MTcwNzAzMTIzMzAyMTA2MDM1NTA0MDMwYzFhNGM2NTc4NjUyMDcyNjU3NjZmNjM2MTYyNmM2NTIwNjM2YzY5NjU2ZTc0MjA2MzY1NzI3NDMwMmEzMDA1MDYwMzJiNjU3MDAzMjEwMDcwODhhZjFmYzEyYWIwNGFkNmRkMTY1YmMzYTNjNWViMzA2MmI0MTFhMmY1NWExNjZiMGU0MDBiMzkwZmU0ZGJhMzE3MzAxNTMwMTMwNjAzNTUxZDExMDQwYzMwMGE4MjA4NmM2NTc4NjUyZTYxNzA3MDMwMDUwNjAzMmI2NTcwMDM0MTAwN2IxN2JjOTUzODI2N2IzNTRmMDcyNmQ4OWNiMWVjMzEwYjEwMmU0MjJhYjk2OTZiODdkOWFlNzAwY2VmMmU4M2MxMzY2ZDBhZDE5MDM1ZDllM2VkMDRjZjVmN2YwNWRlZjY4YTcxZGUyMTJiODk4MzQ0Nzc5NDJhZTc2M2EyMGYiLCJlcGhfY2FfY2VydF9kZXIiOiIzMDgyMDFhZTMwODIwMTYwYTAwMzAyMDEwMjAyMTQxMGNkNWM5OTg5Zjk2NTIwOTQ5ZTBlOWFiNGNlNGRiZTE0NzY2NzEwMzAwNTA2MDMyYjY1NzAzMDUwMzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyMTMwMWYwNjAzNTUwNDAzMGMxODRjNjU3ODY1MjA3MzY4NjE3MjY1NjQyMDczNjU2NTY0MjA0MzQxMjA2MzY1NzI3NDMwMjAxNzBkMzczNTMwMzEzMDMxMzAzMDMwMzAzMDMwNWExODBmMzQzMDM5MzYzMDMxMzAzMTMwMzAzMDMwMzAzMDVhMzA1MDMxMGIzMDA5MDYwMzU1MDQwNjBjMDI1NTUzMzEwYjMwMDkwNjAzNTUwNDA4MGMwMjQzNDEzMTExMzAwZjA2MDM1NTA0MGEwYzA4NmM2NTc4NjUyZDYxNzA3MDMxMjEzMDFmMDYwMzU1MDQwMzBjMTg0YzY1Nzg2NTIwNzM2ODYxNzI2NTY0MjA3MzY1NjU2NDIwNDM0MTIwNjM2NTcyNzQzMDJhMzAwNTA2MDMyYjY1NzAwMzIxMDBlZmU5Y2UxYWJjYWVhYmNlZjhlYTJmNTRhNTY5NTUwZGNlZDRhOGYzYThjYmIwNGNkOTQ1ZDFiNGUyNDVmNjg3YTM0YTMwNDgzMDEzMDYwMzU1MWQxMTA0MGMzMDBhODIwODZjNjU3ODY1MmU2MTcwNzAzMDFkMDYwMzU1MWQwZTA0MTYwNDE0OTBjZDVjOTk4OWY5NjUyMDk0OWUwZTlhYjRjZTRkYmUxNDc2NjcxMDMwMTIwNjAzNTUxZDEzMDEwMWZmMDQwODMwMDYwMTAxZmYwMjAxMDAzMDA1MDYwMzJiNjU3MDAzNDEwMDM3MjU0MjlmNWJjYTgwNTYyMWMyYjJkYzQ0NTgwMmVkMjFjYWIyNDZiNDVhZDEyMWRkMmE0MzJlZmEyZjkzZWY3MjVlZmExNzgyZTY0MTA4ZDIyOThlODY5NGY0Njg2Y2VkOThjZTkyODBlZDc0OWQwYWQ0YjQ0YTRhMWNlZTBkIn0=";
         assert_eq!(client_auth_str, expected_str);
 
-        let client_auth2 = ClientCredentials::from_str(&client_auth_str)
-            .expect("Failed to decode ClientAuth");
+        let client_auth2 =
+            ClientCredentials::try_from_base64_blob(&client_auth_str)
+                .expect("Failed to decode ClientAuth");
         assert_eq!(client_auth, client_auth2);
     }
 }

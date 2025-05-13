@@ -500,11 +500,11 @@ impl AppHandle {
         };
 
         let credentials =
-            ClientCredentials::from_response(lexe_auth_token, resp).to_string();
+            ClientCredentials::from_response(lexe_auth_token, resp);
 
         Ok(CreateClientResponse {
             client,
-            credentials,
+            credentials: credentials.to_base64_blob(),
         })
     }
 
