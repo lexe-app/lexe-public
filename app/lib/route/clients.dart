@@ -131,7 +131,7 @@ class _ClientsPageState extends State<ClientsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                HeadingText(text: "Manage SDK Clients"),
+                HeadingText(text: "Manage SDK client credentials"),
                 SubheadingText(
                   text:
                       "Add, edit, and revoke client credentials that can connect to your Lexe node",

@@ -40,6 +40,7 @@ import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/channels.dart' show ChannelsPage;
+import 'package:lexeapp/route/clients.dart';
 import 'package:lexeapp/route/debug.dart' show DebugPage;
 import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
 import 'package:lexeapp/route/payment_detail.dart'
@@ -429,6 +430,7 @@ class WalletPageState extends State<WalletPage> {
     ));
   }
 
+  /// Called when "Node info" is pressed in the menu drawer.
   void onNodeInfoMenuPressed() {
     Navigator.of(this.context).push(MaterialPageRoute(
       builder: (context) => NodeInfoPage(
@@ -438,7 +440,15 @@ class WalletPageState extends State<WalletPage> {
     ));
   }
 
-  void onDebugPressed() {
+  /// Called when "SDK client credentials" is pressed in the menu drawer.
+  void onClientsMenuPressed() {
+    Navigator.of(this.context).push(MaterialPageRoute(
+      builder: (context) => ClientsPage(app: this.widget.app),
+    ));
+  }
+
+  /// Called when "Debug" is pressed in the menu drawer.
+  void onDebugMenuPressed() {
     Navigator.of(this.context).push(MaterialPageRoute(
       builder: (context) => DebugPage(
         config: this.widget.config,
@@ -472,9 +482,10 @@ class WalletPageState extends State<WalletPage> {
       ),
       drawer: WalletDrawer(
         config: this.widget.config,
-        onOpenChannelsPage: this.onOpenChannelsPage,
+        onChannelsMenuPressed: this.onOpenChannelsPage,
         onNodeInfoMenuPressed: this.onNodeInfoMenuPressed,
-        onDebugPressed: this.onDebugPressed,
+        onClientsMenuPressed: this.onClientsMenuPressed,
+        onDebugMenuPressed: this.onDebugMenuPressed,
       ),
       body: ScrollableSinglePageBody(
         padding: EdgeInsets.zero,
@@ -558,9 +569,10 @@ class WalletDrawer extends StatelessWidget {
     // this.onBackupPressed,
     // this.onSecurityPressed,
     // this.onSupportPressed,
-    this.onOpenChannelsPage,
+    this.onChannelsMenuPressed,
     this.onNodeInfoMenuPressed,
-    this.onDebugPressed,
+    this.onDebugMenuPressed,
+    this.onClientsMenuPressed,
     // this.onInvitePressed,
   });
 
@@ -570,9 +582,10 @@ class WalletDrawer extends StatelessWidget {
   // final VoidCallback? onBackupPressed;
   // final VoidCallback? onSecurityPressed;
   // final VoidCallback? onSupportPressed;
-  final VoidCallback? onOpenChannelsPage;
+  final VoidCallback? onChannelsMenuPressed;
   final VoidCallback? onNodeInfoMenuPressed;
-  final VoidCallback? onDebugPressed;
+  final VoidCallback? onDebugMenuPressed;
+  final VoidCallback? onClientsMenuPressed;
   // final VoidCallback? onInvitePressed;
 
   @override
@@ -595,12 +608,17 @@ class WalletDrawer extends StatelessWidget {
             DrawerListItem(
               title: "Channels",
               icon: LxIcons.openCloseChannel,
-              onTap: this.onOpenChannelsPage,
+              onTap: this.onChannelsMenuPressed,
             ),
             DrawerListItem(
               title: "Node info",
               icon: LxIcons.nodeInfo,
               onTap: this.onNodeInfoMenuPressed,
+            ),
+            DrawerListItem(
+              title: "SDK client credentials",
+              icon: LxIcons.security,
+              onTap: this.onClientsMenuPressed,
             ),
 
             // TODO(phlip9): impl
@@ -633,7 +651,7 @@ class WalletDrawer extends StatelessWidget {
             DrawerListItem(
               title: "Debug",
               icon: LxIcons.debug,
-              onTap: this.onDebugPressed,
+              onTap: this.onDebugMenuPressed,
             ),
 
             const SizedBox(height: Space.s600),
