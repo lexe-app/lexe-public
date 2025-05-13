@@ -5,7 +5,8 @@ import 'dart:async' show unawaited;
 import 'dart:io' show Platform;
 import 'dart:math' show max;
 
-import 'package:flutter/cupertino.dart' show CupertinoSliverRefreshControl;
+import 'package:flutter/cupertino.dart'
+    show CupertinoScrollBehavior, CupertinoSliverRefreshControl;
 import 'package:flutter/foundation.dart' show ValueListenable, clampDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MaxLengthEnforcement;
@@ -145,6 +146,7 @@ class ScrollableSinglePageBody extends StatelessWidget {
       child: CustomScrollView(
         primary: true,
         slivers: slivers,
+        scrollBehavior: const CupertinoScrollBehavior(),
       ),
     );
   }
