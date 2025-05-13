@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use anyhow::anyhow;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
@@ -53,6 +53,7 @@ impl RevocableClients {
 /// Information about a revocable client.
 /// Each client is issued a `RevocableClientCert` whose pubkey is saved here.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct RevocableClient {
     /// The client's cert pubkey.
     // TODO(max): In the future, bearer auth tokens could be issued to this pk.
@@ -64,6 +65,10 @@ pub struct RevocableClient {
     /// This expiration time can be extended at any time.
     pub expires_at: Option<TimestampMs>,
     /// Optional user-provided label for this client.
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arb::any_label()")
+    )]
     pub label: Option<String>,
     /// The authorization scopes allowed for this client.
     // TODO(max): This scope is currently ineffective.
@@ -77,10 +82,10 @@ impl RevocableClient {
     /// Limit label length to 64 bytes
     pub const MAX_LABEL_LEN: usize = 64;
 
-    /// Whether the client is expired right now.
+    /// Whether the client is valid at a given time (not revoked, not expired).
     #[must_use]
-    pub fn is_expired(&self) -> bool {
-        self.is_expired_at(TimestampMs::now())
+    pub fn is_valid_at(&self, now: TimestampMs) -> bool {
+        !self.is_revoked && !self.is_expired_at(now)
     }
 
     /// Whether the client is expired at the given time.
@@ -221,12 +226,26 @@ impl RevocableClient {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 mod arb {
-    use proptest::{option, strategy::Strategy};
+    use std::ops::RangeInclusive;
 
+    use proptest::{collection::vec, option, strategy::Strategy};
+
+    use super::*;
     use crate::test_utils::arbitrary;
 
+    pub fn any_label() -> impl Strategy<Value = Option<String>> {
+        static RANGES: &[RangeInclusive<char>] =
+            &['0'..='9', 'A'..='Z', 'a'..='z'];
+        let any_alphanum_char = proptest::char::ranges(RANGES.into());
+        option::of(
+            vec(any_alphanum_char, 0..=RevocableClient::MAX_LABEL_LEN)
+                .prop_map(String::from_iter),
+        )
+    }
+
+    #[allow(dead_code)]
     pub fn any_label_update() -> impl Strategy<Value = Option<Option<String>>> {
         option::of(arbitrary::any_option_simple_string())
     }

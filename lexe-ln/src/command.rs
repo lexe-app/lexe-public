@@ -1,4 +1,7 @@
-use std::{convert::Infallible, num::NonZeroU64, sync::RwLock, time::Duration};
+use std::{
+    collections::HashMap, convert::Infallible, num::NonZeroU64, sync::RwLock,
+    time::Duration,
+};
 
 use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin_hashes::{sha256, Hash};
@@ -27,7 +30,7 @@ use common::{
     },
     cli::{LspFees, LspInfo},
     constants::{self, REVOCABLE_CLIENTS_FILE_ID},
-    debug_panic_release_log,
+    debug_panic_release_log, ed25519,
     enclave::Measurement,
     ln::{
         amount::Amount,
@@ -1596,10 +1599,10 @@ pub async fn create_revocable_client(
     // and most clients shouldn't have the ability to create clients.
 
     let pubkey = rev_client_cert.public_key();
-    let created_at = TimestampMs::now();
+    let now = TimestampMs::now();
     let revocable_client = RevocableClient {
         pubkey,
-        created_at,
+        created_at: now,
         expires_at: req.expires_at,
         label: req.label,
         scope: req.scope,
@@ -1615,32 +1618,13 @@ pub async fn create_revocable_client(
         let mut revocable_clients = revocable_clients.write().unwrap();
 
         // We don't allow more than `MAX_LEN` clients for DoS reasons. We also
-        // don't delete revoked clients immediately. If we're at the limit,
-        // we'll prune the oldest revoked client.
-        if revocable_clients.clients.len() >= RevocableClients::MAX_LEN {
-            // Look for the oldest, revoked client to prune.
-            let oldest_revoked_client = revocable_clients
-                .clients
-                .values()
-                .filter(|client| client.is_revoked)
-                .min_by_key(|client| client.created_at)
-                .map(|client| client.pubkey);
-
-            match oldest_revoked_client {
-                Some(pubkey) => {
-                    // evict old, revoked client
-                    revocable_clients
-                        .clients
-                        .remove(&pubkey)
-                        .expect("Client should exist");
-                }
-                None => return Err(anyhow!(
-                    "Reached maximum # of API clients. For more clients, please \
-                     contact Lexe to explain why you need more than {} clients.",
-                    RevocableClients::MAX_LEN,
-                )),
-            }
-        }
+        // don't delete revoked clients immediately. If we're above the limit,
+        // we'll prune the oldest revoked client(s).
+        maybe_evict_revoked_clients(
+            &mut revocable_clients.clients,
+            now,
+            RevocableClients::MAX_LEN,
+        )?;
 
         let existing =
             revocable_clients.clients.insert(pubkey, revocable_client);
@@ -1665,11 +1649,51 @@ pub async fn create_revocable_client(
 
     Ok(CreateRevocableClientResponse {
         pubkey,
-        created_at,
+        created_at: now,
         eph_ca_cert_der: eph_ca_cert_der.0,
         rev_client_cert_der: rev_client_cert_der.0,
         rev_client_cert_key_der: rev_client_cert_key_der.0,
     })
+}
+
+/// Evicts old revoked/expired clients if we have too many. Returns an `Err`
+/// if we have too many clients and can't evict any.
+fn maybe_evict_revoked_clients(
+    clients: &mut HashMap<ed25519::PublicKey, RevocableClient>,
+    now: TimestampMs,
+    limit: usize,
+) -> anyhow::Result<()> {
+    if clients.len() < limit {
+        return Ok(());
+    }
+
+    // We'll almost never be at the limit, and if we are, we'll likely only
+    // remove one client. However this while loop handles the case where we
+    // reduce the limit and need to remove multiple clients.
+    let target_len = limit.saturating_sub(1);
+    while clients.len() > target_len {
+        // Find the oldest revoked or expired clients
+        let oldest_revoked_client = clients
+            .values()
+            .filter(|client| !client.is_valid_at(now))
+            .min_by_key(|client| client.created_at)
+            .map(|client| client.pubkey);
+
+        match oldest_revoked_client {
+            Some(pubkey) => {
+                // Evict old, revoked client
+                clients.remove(&pubkey).expect("Client should exist");
+            }
+            None =>
+                return Err(anyhow!(
+                "Reached maximum # of API clients. For more clients, please \
+                 contact Lexe to explain why you need more than {} clients.",
+                RevocableClients::MAX_LEN,
+            )),
+        }
+    }
+
+    Ok(())
 }
 
 /// Update an existing [`RevocableClient`] (revoke, set expiration, etc...).
@@ -1730,6 +1754,7 @@ mod test {
         secp256k1,
     };
     use common::rng::{Crng, FastRng};
+    use proptest::proptest;
 
     use super::*;
 
@@ -1774,5 +1799,50 @@ mod test {
             output_script.len() as u64,
         );
         assert_eq!(close_wu, CLOSE_TX_WEIGHT);
+    }
+
+    #[test]
+    fn test_maybe_evict_revoked_clients() {
+        use proptest::{arbitrary::any, collection::vec};
+        proptest!(|(
+            clients in vec(any::<RevocableClient>(), 0..10),
+            now: TimestampMs,
+            limit in 0_usize..10,
+        )| {
+            // setup
+            let mut clients = clients
+                .into_iter()
+                .map(|client| (client.pubkey, client))
+                .collect::<HashMap<_, _>>();
+            let num_before = clients.len();
+            let num_evictable = clients
+                .values()
+                .filter(|client| !client.is_valid_at(now))
+                .count();
+
+            // evict bad clients
+            let result = maybe_evict_revoked_clients(&mut clients, now, limit);
+
+            // (rough) can't evict more than we expect
+            let num_after = clients.len();
+            let num_evicted = num_before - num_after;
+            assert!(num_evicted <= num_evictable);
+
+            // (precise) evict exactly what we expect
+            let target_len = limit.saturating_sub(1);
+            let expected_len = if num_before <= target_len {
+                num_before
+            } else {
+                std::cmp::max(num_before - num_evictable, target_len)
+            };
+            assert_eq!(num_after, expected_len);
+
+            // if we didn't evict enough, should return Err
+            if num_after > target_len {
+                result.unwrap_err();
+            } else {
+                result.unwrap();
+            }
+        });
     }
 }
