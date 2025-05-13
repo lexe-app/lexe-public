@@ -57,18 +57,20 @@ import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/channels.dart'
     show ChannelBalanceBarRow, ChannelsList, ChannelsPage;
+import 'package:lexeapp/route/clients.dart' show ClientsPage;
 import 'package:lexeapp/route/close_channel.dart'
     show CloseChannelConfirmPage, CloseChannelPage;
 import 'package:lexeapp/route/landing.dart' show LandingPage;
-import 'package:lexeapp/route/node_info.dart';
-import 'package:lexeapp/route/open_channel.dart';
+import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
+import 'package:lexeapp/route/open_channel.dart'
+    show OpenChannelConfirmPage, OpenChannelPage;
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
 import 'package:lexeapp/route/receive/page.dart'
     show ReceivePaymentEditInvoicePage, ReceivePaymentPage;
 import 'package:lexeapp/route/receive/state.dart' show LnInvoiceInputs;
-import 'package:lexeapp/route/restore.dart';
+import 'package:lexeapp/route/restore.dart'
+    show RestoreChooseWalletPage, RestorePage, RestorePasswordPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
-import 'package:lexeapp/route/sdk_clients.dart' show SdkClientsPage;
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
     show
@@ -665,12 +667,12 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
             Component(
               "SdkClientsPage",
-              (_) => SdkClientsPage(app: mockApp),
+              (_) => ClientsPage(app: mockApp),
             ),
             Component(
               "SdkClientsPage",
               subtitle: "error",
-              (_) => SdkClientsPage(app: mockAppErr),
+              (_) => ClientsPage(app: mockAppErr),
             ),
             Component(
               "Screenshot 01",

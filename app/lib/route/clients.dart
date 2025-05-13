@@ -29,8 +29,8 @@ import 'package:lexeapp/service/clients.dart' show ClientsService;
 import 'package:lexeapp/style.dart' show LxIcons, Space;
 
 /// This page lets users add, edit, and revoke SDK client credentials.
-class SdkClientsPage extends StatefulWidget {
-  const SdkClientsPage({
+class ClientsPage extends StatefulWidget {
+  const ClientsPage({
     super.key,
     required this.app,
   });
@@ -38,10 +38,10 @@ class SdkClientsPage extends StatefulWidget {
   final AppHandle app;
 
   @override
-  State<SdkClientsPage> createState() => _SdkClientsPageState();
+  State<ClientsPage> createState() => _ClientsPageState();
 }
 
-class _SdkClientsPageState extends State<SdkClientsPage> {
+class _ClientsPageState extends State<ClientsPage> {
   /// List clients on refresh.
   late final ClientsService clientsService =
       ClientsService(app: this.widget.app);
