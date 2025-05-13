@@ -6,6 +6,7 @@ import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart' show RevocableClient, Scope;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
@@ -354,6 +355,11 @@ class ShowCredentialsPage extends StatefulWidget {
 }
 
 class _ShowCredentialsPageState extends State<ShowCredentialsPage> {
+  Future<void> onCopyPressed() async {
+    final credentials = this.widget.response.credentials;
+    await LxClipboard.copyTextWithFeedback(this.context, credentials);
+  }
+
   @override
   Widget build(BuildContext context) {
     const cardPad = Space.s300;
@@ -380,14 +386,15 @@ class _ShowCredentialsPageState extends State<ShowCredentialsPage> {
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: Space.s400),
+            child:
+                LxFilledButton(label: const Text("Copy"), onTap: onCopyPressed),
+          ),
           InfoCard(
             children: [
               InfoRow(
-                label: "public key",
-                value: this.widget.response.client.pubkey,
-              ),
-              InfoRow(
-                label: "credentials",
+                label: "client credentials",
                 value: this.widget.response.credentials,
               ),
             ],
