@@ -10,12 +10,13 @@ import 'package:lexeapp/components.dart'
         HeadingText,
         LxCloseButton,
         LxFilledButton,
-        // LxRefreshButton,
+        LxRefreshButton,
         ScrollableSinglePageBody,
         SliverPullToRefresh,
         SubheadingText;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
+import 'package:lexeapp/service/clients.dart' show ClientsService;
 import 'package:lexeapp/style.dart' show LxIcons, Space;
 
 /// This page lets users add, edit, and revoke SDK client credentials.
@@ -32,33 +33,32 @@ class SdkClientsPage extends StatefulWidget {
 }
 
 class _SdkClientsPageState extends State<SdkClientsPage> {
-  final ValueNotifier<FfiResult<List<RevocableClient>>?> clients =
-      ValueNotifier(null);
+  /// List clients on refresh.
+  late final ClientsService clientsService =
+      ClientsService(app: this.widget.app);
 
   @override
   void initState() {
     super.initState();
-
-    // Fetch the clients when the page is opened
-    unawaited(this.listClients());
+    this.triggerRefresh();
   }
 
-  Future<void> listClients() async {
-    final res = await Result.tryFfiAsync(this.widget.app.listClients);
-    if (!this.mounted) return;
+  @override
+  void dispose() {
+    this.clientsService.dispose();
+    super.dispose();
+  }
 
-    res.inspectErr((err) => error("Failed to fetch clients: $err")).map(
-      (clients) {
-        // sort clients by creation date (newest first)
-        clients.sort((c1, c2) => c2.createdAt.compareTo(c1.createdAt));
-        return clients;
-      },
-    );
-    this.clients.value = res;
+  void triggerRefresh() {
+    scheduleMicrotask(this.clientsService.fetch);
   }
 
   Future<void> onCreatePressed() async {
     info("Create new client pressed");
+  }
+
+  Future<void> onRevokePressed(RevocableClient client) async {
+    info("Revoke client pressed (${client.pubkey})");
   }
 
   @override
@@ -68,19 +68,19 @@ class _SdkClientsPageState extends State<SdkClientsPage> {
         leadingWidth: Space.appBarLeadingWidth,
         leading: const LxCloseButton(isLeading: true),
 
-        // // Refresh
-        // actions: [
-        //   LxRefreshButton(
-        //     isRefreshing: this.isRefreshing,
-        //     triggerRefresh: this.listClients,
-        //   ),
-        //   const SizedBox(width: Space.s100),
-        // ],
+        // Refresh
+        actions: [
+          LxRefreshButton(
+            isRefreshing: this.clientsService.isFetching,
+            triggerRefresh: this.triggerRefresh,
+          ),
+          const SizedBox(width: Space.s100),
+        ],
       ),
       body: ScrollableSinglePageBody(
         bodySlivers: [
           // Pull-to-refresh
-          SliverPullToRefresh(onRefresh: this.listClients),
+          SliverPullToRefresh(onRefresh: this.triggerRefresh),
 
           // Heading
           const SliverToBoxAdapter(
@@ -99,15 +99,8 @@ class _SdkClientsPageState extends State<SdkClientsPage> {
 
           // List body
           ValueListenableBuilder(
-            valueListenable: this.clients,
+            valueListenable: this.clientsService.clients,
             builder: (_context, listResult, _widget) => switch (listResult) {
-              // Still loading
-              null => const SliverToBoxAdapter(
-                  child: Center(
-                      child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: Space.s400),
-                          child: CircularProgressIndicator())),
-                ),
               // Failed to fetch clients
               Err(:final err) => SliverToBoxAdapter(
                   child: ErrorMessageSection(ErrorMessage(
@@ -126,7 +119,10 @@ class _SdkClientsPageState extends State<SdkClientsPage> {
                     }
 
                     final client = clients[index];
-                    return ClientListEntry(client: client);
+                    return ClientListEntry(
+                      client: client,
+                      onRevokedPressed: this.onRevokePressed,
+                    );
                   },
                 ),
             },
@@ -146,14 +142,19 @@ class _SdkClientsPageState extends State<SdkClientsPage> {
   }
 }
 
+typedef RevokeCallback = Future<void> Function(RevocableClient client);
+
 /// A single entry in the list of clients.
 class ClientListEntry extends StatelessWidget {
-  const ClientListEntry({super.key, required this.client});
+  const ClientListEntry(
+      {super.key, required this.client, required this.onRevokedPressed});
 
   final RevocableClient client;
+  final RevokeCallback onRevokedPressed;
 
   @override
   Widget build(BuildContext context) {
+    final client = this.client;
     final title = client.label ?? "<unlabeled>";
     final createdAt = DateTime.fromMillisecondsSinceEpoch(client.createdAt);
     final subtitle = "created: $createdAt\npublic key: ${client.pubkey}";
@@ -164,10 +165,7 @@ class ClientListEntry extends StatelessWidget {
       subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
       trailing: IconButton(
         icon: const Icon(LxIcons.delete),
-        onPressed: () {
-          // TODO(phlip9): implement revoke client
-          info("Revoke client ${client.pubkey}");
-        },
+        onPressed: () => this.onRevokedPressed(client),
       ),
     );
   }
