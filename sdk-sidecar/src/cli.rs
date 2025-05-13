@@ -8,8 +8,18 @@ use common::{
 };
 
 /// Lexe SDK sidecar
+// NOTE: Any changes or doc updates here should be duplicated to `.env.example`
+// in the Sidecar SDK repo, which is a lot more discoverable for end users.
 #[derive(argh::FromArgs)]
 pub struct SidecarArgs {
+    // TODO(max): Should use this instead
+    // /// required: The client credentials string exported from the Lexe app.
+    // /// Open the app's left sidebar > "SDK clients" > "Create new client"
+    // /// Env: `LEXE_CLIENT_CREDENTIALS`.
+    // #[argh(option)]
+    // pub client_credentials: Option<String>,
+
+    // TODO(max): Revisit this arg after partner signup API
     /// your Lexe user root seed.
     ///
     /// Required: true.
@@ -21,26 +31,35 @@ pub struct SidecarArgs {
     #[argh(option)]
     pub root_seed: Option<RootSeed>,
 
-    /// the <ip-address:port> to listen on.
+    /// optional: The `<ip_address>:<port>` to listen on.
     ///
-    /// Default: `[::1]:5393`.
+    /// Default: `127.0.0.1:5393`.
     /// Env: `LISTEN_ADDR`.
     #[argh(option)]
     pub listen_addr: Option<SocketAddr>,
 
-    /// the current Lexe deployment environment.
-    /// one of: ["dev", "staging", "prod"].
+    /// optional: the current Lexe deployment environment.
     ///
+    /// Options: ["prod"]
     /// Default: "prod".
     /// Env: `DEPLOY_ENVIRONMENT`.
+    // TODO(max): The user has no concept of "deploy environment". In this
+    // context we should derive the intended deploy env from the network.
+    // This arg should be removed.
+    //
+    // expose the `NETWORK`: "mainnet", "testnet3", "testnet4".
     #[argh(option)]
     pub deploy_env: Option<DeployEnv>,
 
-    /// the Bitcoin network run against.
-    /// one of: ["mainnet", "testnet3", "testnet4", "regtest"].
+    /// optional: the Bitcoin network to use.
+    /// Currently, only "mainnet" is supported.
     ///
+    /// Options: ["mainnet"].
     /// Default: "mainnet".
     /// Env: `NETWORK`.
+    // NOTE: `.env.example` currently says we only support mainnet because our
+    // SDK users can only use it on mainnet. However, Lexe devs can also run
+    // this on regtest. Update `.env.example` if more networks are supported.
     #[argh(option)]
     pub network: Option<LxNetwork>,
 }
