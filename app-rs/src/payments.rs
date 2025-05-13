@@ -32,14 +32,15 @@ use common::{
     api::{
         command::{GetNewPayments, PaymentIndexes, UpdatePaymentNote},
         def::AppNodeRunApi,
+        error::NodeApiError,
     },
     iter::IteratorExt,
-    ln::payments::{BasicPayment, PaymentIndex},
+    ln::payments::{BasicPayment, PaymentIndex, VecBasicPayment},
 };
 use roaring::RoaringBitmap;
 use tracing::{instrument, warn};
 
-use crate::ffs::Ffs;
+use crate::{client::NodeClient, ffs::Ffs};
 
 /// The app's local [`BasicPayment`] database, synced from the user node.
 pub struct PaymentDb<F> {
@@ -108,6 +109,23 @@ pub struct PaymentDbState {
 pub struct PaymentSyncSummary {
     num_updated: usize,
     num_new: usize,
+}
+
+/// The specific API methods from [`AppNodeRunApi`] that we need to sync
+/// payments.
+///
+/// This lets us mock these methods out in the tests below, without also mocking
+/// out the entire [`AppNodeRunApi`] trait.
+pub(crate) trait AppNodeRunSyncApi {
+    async fn get_payments_by_indexes(
+        &self,
+        indexes: PaymentIndexes,
+    ) -> Result<VecBasicPayment, NodeApiError>;
+
+    async fn get_new_payments(
+        &self,
+        req: GetNewPayments,
+    ) -> Result<VecBasicPayment, NodeApiError>;
 }
 
 // -- impl PaymentDb -- //
@@ -792,7 +810,7 @@ impl PaymentSyncSummary {
 ///
 /// (1.) Fetch any updates to our currently pending payments.
 /// (2.) Fetch any new payments made since our last sync.
-pub async fn sync_payments<F: Ffs, N: AppNodeRunApi>(
+pub async fn sync_payments<F: Ffs, N: AppNodeRunSyncApi>(
     db: &Mutex<PaymentDb<F>>,
     node: &N,
     batch_size: u16,
@@ -823,7 +841,7 @@ pub async fn sync_payments<F: Ffs, N: AppNodeRunApi>(
 /// updates. Returns 0 if nothing changed with the pending payments since our
 /// last sync.
 #[instrument(skip_all, name = "(pending)")]
-async fn sync_pending_payments<F: Ffs, N: AppNodeRunApi>(
+async fn sync_pending_payments<F: Ffs, N: AppNodeRunSyncApi>(
     db: &Mutex<PaymentDb<F>>,
     node: &N,
     batch_size: u16,
@@ -887,7 +905,7 @@ async fn sync_pending_payments<F: Ffs, N: AppNodeRunApi>(
 ///
 /// Returns the number of new payments.
 #[instrument(skip_all, name = "(new)")]
-async fn sync_new_payments<F: Ffs, N: AppNodeRunApi>(
+async fn sync_new_payments<F: Ffs, N: AppNodeRunSyncApi>(
     db: &Mutex<PaymentDb<F>>,
     node: &N,
     batch_size: u16,
@@ -932,6 +950,24 @@ async fn sync_new_payments<F: Ffs, N: AppNodeRunApi>(
     Ok(num_new)
 }
 
+// --- impl AppNodeRunSyncApi --- //
+
+impl AppNodeRunSyncApi for NodeClient {
+    async fn get_payments_by_indexes(
+        &self,
+        req: PaymentIndexes,
+    ) -> Result<VecBasicPayment, NodeApiError> {
+        AppNodeRunApi::get_payments_by_indexes(self, req).await
+    }
+
+    async fn get_new_payments(
+        &self,
+        req: GetNewPayments,
+    ) -> Result<VecBasicPayment, NodeApiError> {
+        AppNodeRunApi::get_new_payments(self, req).await
+    }
+}
+
 // -- Tests -- //
 
 #[cfg(test)]
@@ -939,32 +975,7 @@ mod test {
     use std::collections::BTreeMap;
 
     use common::{
-        api::{
-            command::{
-                CloseChannelRequest, CreateInvoiceRequest,
-                CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-                GetAddressResponse, ListChannelsResponse, NodeInfo,
-                OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-                PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-                PayOnchainRequest, PayOnchainResponse,
-                PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-                PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-                PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-                PreflightPayOfferRequest, PreflightPayOfferResponse,
-                PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            },
-            error::NodeApiError,
-            models::{
-                SignMsgRequest, SignMsgResponse, VerifyMsgRequest,
-                VerifyMsgResponse,
-            },
-            revocable_clients::{
-                CreateRevocableClientRequest, CreateRevocableClientResponse,
-                GetRevocableClients, RevocableClients, UpdateClientRequest,
-                UpdateClientResponse,
-            },
-            Empty,
-        },
+        api::error::NodeApiError,
         ln::payments::{PaymentStatus, VecBasicPayment},
         rng::{FastRng, RngExt},
     };
@@ -990,111 +1001,7 @@ mod test {
         }
     }
 
-    // This allows straight `unimplemented!()` w/o any match or if guards.
-    #[allow(clippy::diverging_sub_expression)]
-    impl AppNodeRunApi for MockNode {
-        // these methods are not relevant
-
-        async fn node_info(&self) -> Result<NodeInfo, NodeApiError> {
-            unimplemented!()
-        }
-        async fn list_channels(
-            &self,
-        ) -> Result<ListChannelsResponse, NodeApiError> {
-            unimplemented!()
-        }
-        async fn sign_message(
-            &self,
-            _req: SignMsgRequest,
-        ) -> Result<SignMsgResponse, NodeApiError> {
-            unimplemented!()
-        }
-        async fn verify_message(
-            &self,
-            _req: VerifyMsgRequest,
-        ) -> Result<VerifyMsgResponse, NodeApiError> {
-            unimplemented!()
-        }
-        async fn open_channel(
-            &self,
-            _req: OpenChannelRequest,
-        ) -> Result<OpenChannelResponse, NodeApiError> {
-            unimplemented!()
-        }
-        async fn preflight_open_channel(
-            &self,
-            _req: PreflightOpenChannelRequest,
-        ) -> Result<PreflightOpenChannelResponse, NodeApiError> {
-            unimplemented!()
-        }
-        async fn close_channel(
-            &self,
-            _req: CloseChannelRequest,
-        ) -> Result<Empty, NodeApiError> {
-            unimplemented!()
-        }
-        async fn preflight_close_channel(
-            &self,
-            _req: PreflightCloseChannelRequest,
-        ) -> Result<PreflightCloseChannelResponse, NodeApiError> {
-            unimplemented!()
-        }
-        async fn create_invoice(
-            &self,
-            _req: CreateInvoiceRequest,
-        ) -> Result<CreateInvoiceResponse, NodeApiError> {
-            unimplemented!()
-        }
-        async fn pay_invoice(
-            &self,
-            _req: PayInvoiceRequest,
-        ) -> Result<PayInvoiceResponse, NodeApiError> {
-            unimplemented!()
-        }
-        async fn preflight_pay_invoice(
-            &self,
-            _req: PreflightPayInvoiceRequest,
-        ) -> Result<PreflightPayInvoiceResponse, NodeApiError> {
-            unimplemented!()
-        }
-        async fn create_offer(
-            &self,
-            _req: CreateOfferRequest,
-        ) -> Result<CreateOfferResponse, NodeApiError> {
-            unimplemented!()
-        }
-        async fn pay_offer(
-            &self,
-            _req: PayOfferRequest,
-        ) -> Result<PayOfferResponse, NodeApiError> {
-            unimplemented!()
-        }
-        async fn preflight_pay_offer(
-            &self,
-            _req: PreflightPayOfferRequest,
-        ) -> Result<PreflightPayOfferResponse, NodeApiError> {
-            unimplemented!()
-        }
-        async fn pay_onchain(
-            &self,
-            _req: PayOnchainRequest,
-        ) -> Result<PayOnchainResponse, NodeApiError> {
-            unimplemented!()
-        }
-        async fn preflight_pay_onchain(
-            &self,
-            _req: PreflightPayOnchainRequest,
-        ) -> Result<PreflightPayOnchainResponse, NodeApiError> {
-            unimplemented!();
-        }
-        async fn get_address(
-            &self,
-        ) -> Result<GetAddressResponse, NodeApiError> {
-            unimplemented!()
-        }
-
-        // payment sync methods
-
+    impl AppNodeRunSyncApi for MockNode {
         /// POST /v1/payments/indexes [`PaymentIndexes`]
         ///                        -> [`VecDbPayment`]
         async fn get_payments_by_indexes(
@@ -1145,35 +1052,6 @@ mod test {
                 .map(|(_key, value)| value.clone())
                 .collect::<Vec<_>>();
             Ok(VecBasicPayment { payments })
-        }
-
-        /// PUT /app/payments/note [`UpdatePaymentNote`] -> [`()`]
-        async fn update_payment_note(
-            &self,
-            _req: UpdatePaymentNote,
-        ) -> Result<Empty, NodeApiError> {
-            unimplemented!()
-        }
-
-        async fn get_revocable_clients(
-            &self,
-            _req: GetRevocableClients,
-        ) -> Result<RevocableClients, NodeApiError> {
-            unimplemented!()
-        }
-
-        async fn create_revocable_client(
-            &self,
-            _req: CreateRevocableClientRequest,
-        ) -> Result<CreateRevocableClientResponse, NodeApiError> {
-            unimplemented!()
-        }
-
-        async fn update_revocable_client(
-            &self,
-            _req: UpdateClientRequest,
-        ) -> Result<UpdateClientResponse, NodeApiError> {
-            unimplemented!()
         }
     }
 
