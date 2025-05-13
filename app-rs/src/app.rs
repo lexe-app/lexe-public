@@ -558,7 +558,7 @@ impl App {
             .context("Somehow using a static bearer auth token")?;
 
         let now = SystemTime::now();
-        let lifetime_secs = 365 * 24 * 60 * 60; // 1 year
+        let lifetime_secs = 10 * 365 * 24 * 60 * 60; // 10 years
         let scope = Some(Scope::NodeConnect);
         let long_lived_connect_token = auth::do_bearer_auth(
             self.gateway_client(),
