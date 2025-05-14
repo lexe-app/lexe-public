@@ -419,7 +419,7 @@ pub(super) async fn update_payment_note(
 
 pub(super) async fn get_revocable_clients(
     State(state): State<Arc<AppRouterState>>,
-    LxJson(req): LxJson<GetRevocableClients>,
+    LxQuery(req): LxQuery<GetRevocableClients>,
 ) -> Result<LxJson<RevocableClients>, NodeApiError> {
     let locked_revocable_clients = state.revocable_clients.read().unwrap();
 

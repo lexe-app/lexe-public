@@ -103,6 +103,7 @@ impl RevocableClient {
 
 /// A request to list all revocable clients.
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Eq, PartialEq, Arbitrary))]
 pub struct GetRevocableClients {
     /// Whether to return only clients which are currently valid.
     pub valid_only: bool,
@@ -296,5 +297,10 @@ mod test {
     #[test]
     fn test_update_request_serde() {
         roundtrip::json_string_roundtrip_proptest::<UpdateClientRequest>();
+    }
+
+    #[test]
+    fn test_get_revocable_clients_serde() {
+        roundtrip::query_string_roundtrip_proptest::<GetRevocableClients>();
     }
 }
