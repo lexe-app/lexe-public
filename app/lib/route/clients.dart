@@ -27,7 +27,7 @@ import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/service/clients.dart' show ClientsService;
-import 'package:lexeapp/style.dart' show LxIcons, Space;
+import 'package:lexeapp/style.dart' show LxColors, LxIcons, Space;
 
 /// This page lets users add, edit, and revoke SDK client credentials.
 class ClientsPage extends StatefulWidget {
@@ -132,10 +132,10 @@ class _ClientsPageState extends State<ClientsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                HeadingText(text: "Manage SDK client credentials"),
+                HeadingText(text: "Manage SDK clients"),
                 SubheadingText(
                   text:
-                      "Add, edit, and revoke client credentials that can connect to your Lexe node",
+                      "Add, edit, and revoke clients that can control your Lexe node with the Lexe SDK",
                 ),
                 SizedBox(height: Space.s500),
               ],
@@ -200,23 +200,29 @@ class ClientListEntry extends StatelessWidget {
   final RevocableClient client;
   final RevokeCallback onRevokedPressed;
 
+  Future<void> _onRevokedPressed() async => this.onRevokedPressed(this.client);
+
   @override
   Widget build(BuildContext context) {
     final client = this.client;
-    final title = client.label ?? "<unlabeled>";
+    final label = client.label;
     final createdAtUtc =
         DateTime.fromMillisecondsSinceEpoch(client.createdAt, isUtc: true);
     final createdAt = date_format.formatDateFull(createdAtUtc);
 
     final subtitle = "created: $createdAt\npublic key: ${client.pubkey}";
     return ListTile(
-      isThreeLine: true,
       contentPadding: EdgeInsets.zero,
-      title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      title: (label != null)
+          ? Text(label, maxLines: 1, overflow: TextOverflow.ellipsis)
+          : null,
       subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
       trailing: IconButton(
-        icon: const Icon(LxIcons.delete),
-        onPressed: () => this.onRevokedPressed(client),
+        icon: const Icon(
+          LxIcons.delete,
+          weight: LxIcons.weightMedium,
+        ),
+        onPressed: this._onRevokedPressed,
       ),
     );
   }
@@ -285,10 +291,10 @@ class _CreateClientPageState extends State<CreateClientPage> {
       ),
       body: ScrollableSinglePageBody(
         body: [
-          const HeadingText(text: "Create new client credentials"),
+          const HeadingText(text: "Create new client"),
           const SubheadingText(
             text:
-                "These credentials are tied to your Lexe node and can be used to send and receive payments with the Lexe SDK.",
+                "This client is tied to your Lexe node and can be used to send and receive payments with the Lexe SDK.",
           ),
           const SizedBox(height: Space.s600),
 
@@ -298,8 +304,12 @@ class _CreateClientPageState extends State<CreateClientPage> {
             children: [
               CupertinoTextFormFieldRow(
                 key: this.labelFieldKey,
-                prefix: const Text("Label"),
+                prefix: const Text(
+                  "Label (optional) ",
+                  style: TextStyle(color: LxColors.grey550),
+                ),
                 placeholder: "e.g. \"LightningAddress service\"",
+                placeholderStyle: const TextStyle(color: LxColors.grey750),
                 textInputAction: TextInputAction.done,
                 autofocus: true,
                 maxLines: 1,
@@ -307,12 +317,6 @@ class _CreateClientPageState extends State<CreateClientPage> {
                 enableSuggestions: false,
                 autocorrect: false,
                 onEditingComplete: this.onSubmit,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Label cannot be empty";
-                  }
-                  return null;
-                },
               ),
             ],
           ),
@@ -377,24 +381,24 @@ class _ShowCredentialsPageState extends State<ShowCredentialsPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                HeadingText(text: "Save your credentials"),
+                HeadingText(text: "Save your client credentials"),
                 SubheadingText(
                   text:
-                      "Please save your credentials in a safe place. You will not be able to see them again.\n\nKeep them secure, as anyone with these credentials has access to your node and your funds.",
+                      "Please save your client credentials in a safe place. You will not be able to see them again.\n\nKeep them secure, as anyone with these credentials has access to your node and your funds.",
                 ),
                 SizedBox(height: Space.s400),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: Space.s400),
+            padding: const EdgeInsets.only(top: Space.s500, bottom: Space.s300),
             child:
                 LxFilledButton(label: const Text("Copy"), onTap: onCopyPressed),
           ),
           InfoCard(
             children: [
               InfoRow(
-                label: "client credentials",
+                label: "Client credentials",
                 value: this.widget.response.credentials,
               ),
             ],

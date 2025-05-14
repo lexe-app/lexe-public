@@ -616,7 +616,7 @@ class WalletDrawer extends StatelessWidget {
               onTap: this.onNodeInfoMenuPressed,
             ),
             DrawerListItem(
-              title: "SDK client credentials",
+              title: "SDK clients",
               icon: LxIcons.security,
               onTap: this.onClientsMenuPressed,
             ),
