@@ -45,7 +45,7 @@ enum CredentialsOwned {
 }
 
 impl Sidecar {
-    #[instrument(skip_all, name = "(sdk)")]
+    #[instrument(skip_all, name = "(sidecar)")]
     pub fn new(mut args: SidecarArgs) -> anyhow::Result<Self> {
         // Load credentials from files into args if necessary.
         args.load()?;
@@ -92,7 +92,7 @@ impl Sidecar {
         })
     }
 
-    #[instrument(skip_all, name = "(sdk)")]
+    #[instrument(skip_all, name = "(sidecar)")]
     pub async fn run(self) -> anyhow::Result<()> {
         // Shutdown on CTRL+C
         LxTask::spawn("ctrlc-handler", {
@@ -102,7 +102,7 @@ impl Sidecar {
                 ctrl_c().await.expect("Error receiving first CTRL+C");
                 info!(
                     "CTRL+C received, starting graceful shutdown. \
-                 Hit CTRL+C again to quit immediately."
+                     Hit CTRL+C again to quit immediately."
                 );
                 shutdown.send();
                 ctrl_c().await.expect("Error receiving second CTRL+C");
