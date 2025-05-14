@@ -5,6 +5,10 @@ edition.workspace = true
 license.workspace = true
 version.workspace = true
 
+[[bin]]
+name = "lexe-sidecar"
+path = "src/main.rs"
+
 [dependencies]
 
 # --- LEXE --- #
