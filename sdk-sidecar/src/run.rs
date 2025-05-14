@@ -5,8 +5,10 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Context;
-use app_rs::client::{GatewayClient, NodeClient, NodeClientTlsParams};
+use anyhow::{anyhow, Context};
+use app_rs::client::{
+    ClientCredentials, GatewayClient, NodeClient, NodeClientTlsParams,
+};
 use common::{
     api::auth::{BearerAuthenticator, Scope},
     env::DeployEnv,
@@ -30,7 +32,7 @@ const DEFAULT_LISTEN_ADDR: SocketAddr =
     SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 5393));
 
 pub struct Sidecar {
-    root_seed: RootSeed,
+    credentials: Credentials,
     listen_addr: SocketAddr,
     deploy_env: DeployEnv,
     gateway_url: String,
@@ -38,12 +40,32 @@ pub struct Sidecar {
     shutdown: NotifyOnce,
 }
 
+enum Credentials {
+    RootSeed(RootSeed),
+    ClientCredentials(ClientCredentials),
+}
+
 impl Sidecar {
     #[instrument(skip_all, name = "(sdk)")]
-    pub fn new(args: SidecarArgs) -> anyhow::Result<Self> {
-        let root_seed = args
-            .root_seed
-            .context("Missing --root_seed / `$ROOT_SEED`")?;
+    pub fn new(mut args: SidecarArgs) -> anyhow::Result<Self> {
+        // Load credentials from files into args if necessary.
+        args.load()?;
+
+        // Ensure user provided credentials
+        let credentials = match (args.root_seed, args.client_credentials) {
+            (Some(root_seed), None) => Credentials::RootSeed(root_seed),
+            (None, Some(client_credentials)) =>
+                Credentials::ClientCredentials(client_credentials),
+            (Some(_), Some(_)) => return Err(anyhow!(
+                "Can only provide one of: `--root-seed` or `--client-credentials`"
+            )),
+            // Don't mention root seed here yet, since the option is currently
+            // hidden.
+            (None, None) => return Err(anyhow!(
+                "Exactly one of: [ `--client-credentials`, \
+                 `--client-credentials-path`, `$LEXE_CLIENT_CREDENTIALS`, \
+                 `$LEXE_CLIENT_CREDENTIALS_PATH` ] must be provided")),
+        };
 
         let listen_addr = args.listen_addr.unwrap_or(DEFAULT_LISTEN_ADDR);
         let deploy_env = args.deploy_env.unwrap_or(DeployEnv::Prod);
@@ -63,7 +85,7 @@ impl Sidecar {
         let shutdown = NotifyOnce::new();
 
         Ok(Self {
-            root_seed,
+            credentials,
             listen_addr,
             deploy_env,
             gateway_url,
@@ -95,7 +117,12 @@ impl Sidecar {
 
         // TODO(phlip9): split NodeClient into NodeRunClient and
         // NodeProvisionClient to support root-seed-less sdk.
-        let root_seed = self.root_seed;
+        let root_seed = match self.credentials {
+            Credentials::RootSeed(root_seed) => root_seed,
+            Credentials::ClientCredentials(_client_credentials) => {
+                return Err(anyhow!("Client credentials not supported yet"));
+            }
+        };
         let user_key_pair = root_seed.derive_user_key_pair();
         // TODO(phlip9): BearerAuthenticator::new_static_token(token)
         let cached_auth_token = None;

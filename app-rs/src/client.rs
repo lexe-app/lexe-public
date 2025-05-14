@@ -8,6 +8,7 @@
 
 use std::{
     borrow::Cow,
+    str::FromStr,
     sync::Arc,
     time::{Duration, SystemTime},
 };
@@ -738,12 +739,21 @@ impl ClientCredentials {
     }
 
     pub fn try_from_base64_blob(s: &str) -> anyhow::Result<Self> {
+        let s = s.trim();
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(s)
-            .context("ClientAuth string is not valid base64")?;
-        let string = String::from_utf8(bytes)
-            .context("ClientAuth string is not valid UTF-8")?;
-        serde_json::from_str(&string).context("Failed to decode ClientAuth")
+            .context("String is not valid base64")?;
+        let string =
+            String::from_utf8(bytes).context("String is not valid UTF-8")?;
+        serde_json::from_str(&string).context("Failed to deserialize")
+    }
+}
+
+impl FromStr for ClientCredentials {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from_base64_blob(s)
     }
 }
 
