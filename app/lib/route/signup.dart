@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/form.dart' as form;
-import 'package:app_rs_dart/ffi/types.dart' show Config;
+import 'package:app_rs_dart/ffi/types.dart' show Config, DeployEnv;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
@@ -95,10 +95,15 @@ class SignupCodePage extends StatefulWidget {
 class _SignupCodePageState extends State<SignupCodePage> {
   final GlobalKey<FormFieldState<String>> signupCodeKey = GlobalKey();
 
-  Result<String, String?> validateSignupCode(final String? signupCode) {
-    // Ensure not empty.
+  Result<String?, String?> validateSignupCode(final String? signupCode) {
+    final ctx = this.widget.ctx;
     if (signupCode == null || signupCode.isEmpty) {
-      return const Err("");
+      // Signup code is only required in prod.
+      if (ctx.config.deployEnv == DeployEnv.prod) {
+        return const Err("");
+      } else {
+        return const Ok(null);
+      }
     }
 
     // Remove whitespace and ensure all alphanumeric or dash.
@@ -116,7 +121,7 @@ class _SignupCodePageState extends State<SignupCodePage> {
     if (!codeField.validate()) {
       return;
     }
-    final String signupCode;
+    final String? signupCode;
     switch (this.validateSignupCode(codeField.value)) {
       case Ok(:final ok):
         signupCode = ok;
