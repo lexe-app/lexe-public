@@ -19,8 +19,8 @@ use base64::Engine;
 use common::{
     api::{
         auth::{
-            BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken,
-            BearerAuthenticator, UserSignupRequest,
+            self, BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken,
+            BearerAuthenticator, Scope, UserSignupRequest,
         },
         command::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
@@ -50,8 +50,8 @@ use common::{
         provision::NodeProvisionRequest,
         revocable_clients::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
-            GetRevocableClients, RevocableClients, UpdateClientRequest,
-            UpdateClientResponse,
+            GetRevocableClients, RevocableClient, RevocableClients,
+            UpdateClientRequest, UpdateClientResponse,
         },
         version::NodeRelease,
         Empty,
@@ -67,7 +67,7 @@ use common::{
 use lexe_api::{
     rest::{RequestBuilderExt, RestClient, POST},
     tls::{
-        self, lexe_ca,
+        self, lexe_ca, rustls,
         types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
     },
 };
@@ -87,8 +87,7 @@ pub struct GatewayClient {
 /// exposing user nodes to the public internet and enforce user authentication
 /// and other request rate limits.
 ///
-/// - Requests made to running nodes use the Run-specific [`RestClient`] which
-///   includes a TLS configuration for [`RootSeed`]-based mTLS.
+/// - Requests made to running nodes use the Run-specific [`RestClient`].
 /// - Requests made to provisioning nodes as a [`RestClient`] which is created
 ///   on-the-fly. This is because it is necessary to include a TLS config which
 ///   checks the server's remote attestation against a [`Measurement`] which is
@@ -105,25 +104,18 @@ pub struct NodeClient {
     authenticator: Arc<BearerAuthenticator>,
 }
 
-/// Parameters required to build a TLS client config for the [`NodeClient`].
-pub enum NodeClientTlsParams<'a> {
-    /// TLS based on a [`RootSeed`].
-    RootSeed { root_seed: &'a RootSeed },
-    /// TLS based on a revocable client cert.
-    RevocableClientCert {
-        /// DER-encoded cert of the ephemeral issuing shared seed CA.
-        eph_ca_cert_der: &'a LxCertificateDer,
-        /// DER-encoded revocable client cert
-        rev_client_cert_der: LxCertificateDer,
-        /// DER-encoded revocable client key.
-        rev_client_cert_key_der: LxPrivatePkcs8KeyDer,
-    },
+/// Credentials required to connect to a user node via mTLS.
+pub enum Credentials<'a> {
+    /// Using a [`RootSeed`]. Ex: app.
+    RootSeed(&'a RootSeed),
+    /// Using a revocable client cert. Ex: SDK sidecar.
+    ClientCredentials(&'a ClientCredentials),
 }
 
 /// All secrets required for a non-RootSeed client to authenticate and
 /// communicate with a user's node.
 ///
-/// This is exported to users as a base64-encoded JSON blob.
+/// This is exposed to users as a base64-encoded JSON blob.
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct ClientCredentials {
@@ -216,12 +208,12 @@ impl NodeClient {
         rng: &mut impl Crng,
         use_sgx: bool,
         deploy_env: DeployEnv,
-        tls_params: NodeClientTlsParams,
-        authenticator: Arc<BearerAuthenticator>,
         gateway_client: GatewayClient,
+        credentials: Credentials<'_>,
     ) -> anyhow::Result<Self> {
         let run_dns = constants::NODE_RUN_DNS;
         let run_url = format!("https://{run_dns}");
+        let authenticator = credentials.bearer_authenticator();
 
         let run_rest = {
             let proxy = Self::proxy_config(
@@ -231,27 +223,9 @@ impl NodeClient {
             )
             .context("Invalid proxy config")?;
 
-            let tls_config = match tls_params {
-                NodeClientTlsParams::RootSeed { root_seed } =>
-                    tls::shared_seed::app_node_run_client_config(
-                        rng, deploy_env, root_seed,
-                    )
-                    .context("Failed to build RootSeed TLS config")?,
-                NodeClientTlsParams::RevocableClientCert {
-                    eph_ca_cert_der,
-                    rev_client_cert_der,
-                    rev_client_cert_key_der,
-                } => tls::shared_seed::sdk_node_run_client_config(
-                    deploy_env,
-                    eph_ca_cert_der,
-                    rev_client_cert_der,
-                    rev_client_cert_key_der,
-                )
-                .context("Failed to build revocable client TLS config")?,
-            };
-
             let (from, to) =
                 (gateway_client.rest.user_agent().clone(), "node-run");
+            let tls_config = credentials.tls_config(rng, deploy_env)?;
             let reqwest_client = RestClient::client_builder(&from)
                 .proxy(proxy)
                 .use_preconfigured_tls(tls_config)
@@ -402,6 +376,59 @@ impl NodeClient {
         let provision_rest = RestClient::from_inner(reqwest_client, from, to);
 
         Ok(provision_rest)
+    }
+
+    /// Ask the user node to create a new [`RevocableClient`] and return it
+    /// along with its [`ClientCredentials`].
+    pub async fn create_client_credentials(
+        &self,
+        req: CreateRevocableClientRequest,
+    ) -> anyhow::Result<(RevocableClient, ClientCredentials)> {
+        // Mint a new long-lived connect token
+        let lexe_auth_token = self.request_long_lived_connect_token().await?;
+
+        // Register a new revocable client
+        let resp = self.create_revocable_client(req.clone()).await?;
+
+        let client = RevocableClient {
+            pubkey: resp.pubkey,
+            created_at: resp.created_at,
+            label: req.label,
+            scope: req.scope,
+            expires_at: req.expires_at,
+            is_revoked: false,
+        };
+
+        let client_credentials =
+            ClientCredentials::from_response(lexe_auth_token, resp);
+
+        Ok((client, client_credentials))
+    }
+
+    /// Get a new long-lived auth token scoped only for the gateway connect
+    /// proxy. Used for the SDK to connect to the node.
+    async fn request_long_lived_connect_token(
+        &self,
+    ) -> anyhow::Result<BearerAuthToken> {
+        let user_key_pair = self
+            .authenticator
+            .user_key_pair()
+            .context("Somehow using a static bearer auth token")?;
+
+        let now = SystemTime::now();
+        let lifetime_secs = 10 * 365 * 24 * 60 * 60; // 10 years
+        let scope = Some(Scope::NodeConnect);
+        let long_lived_connect_token = auth::do_bearer_auth(
+            &self.gateway_client,
+            now,
+            user_key_pair,
+            lifetime_secs,
+            scope,
+        )
+        .await
+        .context("Failed to get long-lived connect token")?;
+
+        Ok(long_lived_connect_token.token)
     }
 }
 
@@ -694,22 +721,59 @@ fn url_base_eq(u1: &Url, u2: &Url) -> bool {
         && u1.port_or_known_default() == u2.port_or_known_default()
 }
 
-// --- impl NodeClientTlsParams --- //
+// --- impl Credentials --- //
 
-impl NodeClientTlsParams<'_> {
-    pub fn from_root_seed(root_seed: &RootSeed) -> NodeClientTlsParams<'_> {
-        NodeClientTlsParams::RootSeed { root_seed }
+impl<'a> Credentials<'a> {
+    pub fn from_root_seed(root_seed: &'a RootSeed) -> Self {
+        Credentials::RootSeed(root_seed)
     }
 
-    pub fn from_rev_client_cert(
-        eph_ca_cert_der: &LxCertificateDer,
-        rev_client_cert_der: LxCertificateDer,
-        rev_client_cert_key_der: LxPrivatePkcs8KeyDer,
-    ) -> NodeClientTlsParams<'_> {
-        NodeClientTlsParams::RevocableClientCert {
-            eph_ca_cert_der,
-            rev_client_cert_der,
-            rev_client_cert_key_der,
+    pub fn from_client_credentials(
+        client_credentials: &'a ClientCredentials,
+    ) -> Self {
+        Credentials::ClientCredentials(client_credentials)
+    }
+
+    /// Create a [`BearerAuthenticator`] appropriate for the given credentials.
+    ///
+    /// Currently limits to [`Scope::NodeConnect`] for [`RootSeed`] credentials.
+    fn bearer_authenticator(&self) -> Arc<BearerAuthenticator> {
+        match self {
+            Credentials::RootSeed(root_seed) => {
+                let maybe_cached_token = None;
+                Arc::new(BearerAuthenticator::new_with_scope(
+                    root_seed.derive_user_key_pair(),
+                    maybe_cached_token,
+                    Some(Scope::NodeConnect),
+                ))
+            }
+            Credentials::ClientCredentials(client_credentials) =>
+                Arc::new(BearerAuthenticator::new_static_token(
+                    client_credentials.lexe_auth_token.clone(),
+                )),
+        }
+    }
+
+    /// Build a TLS client config appropriate for the given credentials.
+    fn tls_config(
+        &self,
+        rng: &mut impl Crng,
+        deploy_env: DeployEnv,
+    ) -> anyhow::Result<rustls::ClientConfig> {
+        match self {
+            Credentials::RootSeed(root_seed) =>
+                tls::shared_seed::app_node_run_client_config(
+                    rng, deploy_env, root_seed,
+                )
+                .context("Failed to build RootSeed TLS client config"),
+            Credentials::ClientCredentials(client_credentials) =>
+                tls::shared_seed::sdk_node_run_client_config(
+                    deploy_env,
+                    &client_credentials.eph_ca_cert_der,
+                    client_credentials.rev_client_cert_der.clone(),
+                    client_credentials.rev_client_key_der.clone(),
+                )
+                .context("Failed to build revocable client TLS config"),
         }
     }
 }

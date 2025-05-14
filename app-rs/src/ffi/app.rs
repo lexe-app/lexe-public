@@ -23,29 +23,26 @@ use common::{
 use flutter_rust_bridge::{frb, RustOpaqueNom};
 use tracing::instrument;
 
-pub(crate) use crate::{app::App, settings::SettingsDb as SettingsDbRs};
-use crate::{
-    client::ClientCredentials,
-    ffi::{
-        api::{
-            CloseChannelRequest, CreateClientRequest, CreateClientResponse,
-            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, FiatRates, ListChannelsResponse, NodeInfo,
-            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
-            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            UpdateClientRequest, UpdatePaymentNote,
-        },
-        settings::SettingsDb,
-        types::{
-            AppUserInfo, Config, Payment, PaymentIndex, RevocableClient,
-            RootSeed, ShortPayment, ShortPaymentAndIndex,
-        },
+use crate::ffi::{
+    api::{
+        CloseChannelRequest, CreateClientRequest, CreateClientResponse,
+        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+        CreateOfferResponse, FiatRates, ListChannelsResponse, NodeInfo,
+        OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+        PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
+        PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+        PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+        PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+        PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+        UpdateClientRequest, UpdatePaymentNote,
+    },
+    settings::SettingsDb,
+    types::{
+        AppUserInfo, Config, Payment, PaymentIndex, RevocableClient, RootSeed,
+        ShortPayment, ShortPaymentAndIndex,
     },
 };
+pub(crate) use crate::{app::App, settings::SettingsDb as SettingsDbRs};
 
 /// The `AppHandle` is a Dart representation of an [`App`] instance.
 pub struct AppHandle {
@@ -479,32 +476,16 @@ impl AppHandle {
         &self,
         req: CreateClientRequest,
     ) -> anyhow::Result<CreateClientResponse> {
-        // Mint a new long-lived connect token
-        let lexe_auth_token =
-            self.inner.request_long_lived_connect_token().await?;
-
-        // Register a new revocable client
-        let resp = self
+        let req = CreateRevocableClientRequestRs::from(req);
+        let (client, client_credentials) = self
             .inner
             .node_client()
-            .create_revocable_client(CreateRevocableClientRequestRs::from(
-                req.clone(),
-            ))
+            .create_client_credentials(req)
             .await?;
 
-        let client = RevocableClient {
-            pubkey: resp.pubkey.to_string(),
-            created_at: resp.created_at.to_i64(),
-            label: req.label,
-            scope: req.scope,
-        };
-
-        let credentials =
-            ClientCredentials::from_response(lexe_auth_token, resp);
-
         Ok(CreateClientResponse {
-            client,
-            credentials: credentials.to_base64_blob(),
+            client: RevocableClient::from(client),
+            credentials: client_credentials.to_base64_blob(),
         })
     }
 

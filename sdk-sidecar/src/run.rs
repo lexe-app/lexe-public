@@ -7,10 +7,9 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use app_rs::client::{
-    ClientCredentials, GatewayClient, NodeClient, NodeClientTlsParams,
+    ClientCredentials, Credentials, GatewayClient, NodeClient,
 };
 use common::{
-    api::auth::{BearerAuthenticator, Scope},
     env::DeployEnv,
     ln::network::LxNetwork,
     notify_once::NotifyOnce,
@@ -32,7 +31,7 @@ const DEFAULT_LISTEN_ADDR: SocketAddr =
     SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 5393));
 
 pub struct Sidecar {
-    credentials: Credentials,
+    credentials: CredentialsOwned,
     listen_addr: SocketAddr,
     deploy_env: DeployEnv,
     gateway_url: String,
@@ -40,7 +39,7 @@ pub struct Sidecar {
     shutdown: NotifyOnce,
 }
 
-enum Credentials {
+enum CredentialsOwned {
     RootSeed(RootSeed),
     ClientCredentials(ClientCredentials),
 }
@@ -53,9 +52,9 @@ impl Sidecar {
 
         // Ensure user provided credentials
         let credentials = match (args.root_seed, args.client_credentials) {
-            (Some(root_seed), None) => Credentials::RootSeed(root_seed),
+            (Some(root_seed), None) => CredentialsOwned::RootSeed(root_seed),
             (None, Some(client_credentials)) =>
-                Credentials::ClientCredentials(client_credentials),
+                CredentialsOwned::ClientCredentials(client_credentials),
             (Some(_), Some(_)) => return Err(anyhow!(
                 "Can only provide one of: `--root-seed` or `--client-credentials`"
             )),
@@ -115,23 +114,6 @@ impl Sidecar {
 
         let mut static_tasks = Vec::with_capacity(1);
 
-        // TODO(phlip9): split NodeClient into NodeRunClient and
-        // NodeProvisionClient to support root-seed-less sdk.
-        let root_seed = match self.credentials {
-            Credentials::RootSeed(root_seed) => root_seed,
-            Credentials::ClientCredentials(_client_credentials) => {
-                return Err(anyhow!("Client credentials not supported yet"));
-            }
-        };
-        let user_key_pair = root_seed.derive_user_key_pair();
-        // TODO(phlip9): BearerAuthenticator::new_static_token(token)
-        let cached_auth_token = None;
-        let authenticator = Arc::new(BearerAuthenticator::new_with_scope(
-            user_key_pair,
-            cached_auth_token,
-            Some(Scope::NodeConnect),
-        ));
-
         let gateway_client = GatewayClient::new(
             self.deploy_env,
             self.gateway_url,
@@ -141,18 +123,15 @@ impl Sidecar {
 
         // does nothing b/c we don't provision
         let use_sgx = true;
-        // TODO(max): This should use revocable client cert instead
-        let tls_params = NodeClientTlsParams::from_root_seed(&root_seed);
         let node_client = NodeClient::new(
             &mut SysRng::new(),
             use_sgx,
             self.deploy_env,
-            tls_params,
-            authenticator,
             gateway_client,
+            self.credentials.as_ref(),
         )
         .context("Failed to create node client")?;
-        drop(root_seed);
+        drop(self.credentials);
 
         // Spawn HTTP server
         let router_state = Arc::new(crate::server::RouterState { node_client });
@@ -183,5 +162,15 @@ impl Sidecar {
         .context("Error awaiting tasks")?;
 
         Ok(())
+    }
+}
+
+impl CredentialsOwned {
+    fn as_ref(&self) -> Credentials<'_> {
+        match self {
+            Self::RootSeed(root_seed) => Credentials::from_root_seed(root_seed),
+            Self::ClientCredentials(client_credentials) =>
+                Credentials::from_client_credentials(client_credentials),
+        }
     }
 }
