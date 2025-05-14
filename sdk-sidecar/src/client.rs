@@ -1,0 +1,81 @@
+use common::api::{error::NodeApiError, Empty};
+use lexe_api::{
+    rest::RestClient,
+    types::sdk::{
+        SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
+        SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
+        SdkPayInvoiceRequest, SdkPayInvoiceResponse,
+    },
+};
+
+use crate::{def::UserSidecarApi, models::HealthCheck};
+
+// TODO(max): Test all of these methods in smoketests.
+
+/// A Rust client to a `lexe-sidecar` server.
+///
+/// This mostly exists so the Sidecar SDK can be integration tested, but SDK
+/// users working with Rust are welcome to use this client with the caveat that
+/// Lexe does NOT provide Rust stability guarantees for this client - only API
+/// stability for the JSON REST API itself.
+pub struct SidecarClient {
+    sidecar_url: String,
+    rest: RestClient,
+}
+
+impl SidecarClient {
+    /// Example `sidecar_url`: "http://127.0.0.1:5393"
+    pub fn new(sidecar_url: String) -> Self {
+        let (from, to) = ("sidecar-client", "sidecar-server");
+        let rest = RestClient::new_insecure(from, to);
+        Self { sidecar_url, rest }
+    }
+
+    pub fn sidecar_url(&self) -> &str {
+        &self.sidecar_url
+    }
+}
+
+impl UserSidecarApi for SidecarClient {
+    async fn health_check(&self) -> Result<HealthCheck, NodeApiError> {
+        let url = format!("{base}/v1/health", base = self.sidecar_url);
+        let http_req = self.rest.get(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
+    async fn node_info(&self) -> Result<SdkNodeInfo, NodeApiError> {
+        let url = format!("{base}/v1/node/node_info", base = self.sidecar_url);
+        let http_req = self.rest.get(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
+    async fn create_invoice(
+        &self,
+        req: &SdkCreateInvoiceRequest,
+    ) -> Result<SdkCreateInvoiceResponse, NodeApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v1/node/create_invoice");
+        let http_req = self.rest.post(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn pay_invoice(
+        &self,
+        req: &SdkPayInvoiceRequest,
+    ) -> Result<SdkPayInvoiceResponse, NodeApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v1/node/pay_invoice");
+        let http_req = self.rest.post(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn get_payment(
+        &self,
+        req: &SdkGetPaymentRequest,
+    ) -> Result<SdkGetPaymentResponse, NodeApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v1/node/payment");
+        let http_req = self.rest.get(url, req);
+        self.rest.send(http_req).await
+    }
+}

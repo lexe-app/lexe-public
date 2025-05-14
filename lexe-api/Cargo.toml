@@ -48,6 +48,7 @@ rustls-pemfile.workspace = true
 rustls-webpki.workspace = true
 rustls.workspace = true
 secrecy.workspace = true
+semver.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sgx-isa.workspace = true

@@ -156,6 +156,15 @@
 // $ curl http://localhost:5393/node/node_info
 // ```
 
+/// Command-line interface.
 pub mod cli;
+/// `SidecarClient`.
+pub mod client;
+/// Sidecar API definition.
+pub mod def;
+/// Sidecar-specific API models.
+pub mod models;
+/// The main `Sidecar` struct that is run.
 pub mod run;
+/// The sidecar webserver.
 mod server;

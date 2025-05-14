@@ -16,24 +16,24 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route("/v1/node/node_info", get(node::node_info))
         .route("/v1/node/create_invoice", post(node::create_invoice))
         .route("/v1/node/pay_invoice", post(node::pay_invoice))
-        .route("/v1/node/payment", get(node::payment))
+        .route("/v1/node/payment", get(node::get_payment))
         .with_state(state)
 }
 
 mod sidecar {
+    use std::borrow::Cow;
+
     use common::api::error::NodeApiError;
     use lexe_api::server::LxJson;
-    use serde::Serialize;
     use tracing::instrument;
 
-    #[derive(Serialize)]
-    pub(crate) struct HealthCheck {
-        status: &'static str,
-    }
+    use crate::models::HealthCheck;
 
     #[instrument(skip_all, name = "(health)")]
     pub(crate) async fn health() -> Result<LxJson<HealthCheck>, NodeApiError> {
-        Ok(LxJson(HealthCheck { status: "ok" }))
+        Ok(LxJson(HealthCheck {
+            status: Cow::from("ok"),
+        }))
     }
 }
 
@@ -43,39 +43,42 @@ mod node {
     use axum::extract::State;
     use common::{
         api::{
-            command::{
-                CreateInvoiceRequest, GetNewPayments, NodeInfo,
-                PayInvoiceRequest, PaymentIndexes,
-            },
+            command::{GetNewPayments, PaymentIndexes},
             def::AppNodeRunApi,
             error::NodeApiError,
         },
         ln::payments::{LxPaymentId, PaymentIndex},
     };
-    use lexe_api::server::{extract::LxQuery, LxJson};
+    use lexe_api::{
+        server::{extract::LxQuery, LxJson},
+        types::sdk::{
+            SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
+            SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
+            SdkPayInvoiceRequest, SdkPayInvoiceResponse, SdkPayment,
+        },
+    };
     use tracing::instrument;
 
-    use super::{
-        model::{
-            CreateInvoiceResponse, GetPaymentByIndexRequest,
-            GetPaymentByIndexResponse, PayInvoiceResponse,
-        },
-        RouterState,
-    };
+    use super::RouterState;
 
     #[instrument(skip_all, name = "(node-info)")]
     pub(crate) async fn node_info(
         state: State<Arc<RouterState>>,
-    ) -> Result<LxJson<NodeInfo>, NodeApiError> {
-        state.node_client.node_info().await.map(LxJson)
+    ) -> Result<LxJson<SdkNodeInfo>, NodeApiError> {
+        state
+            .node_client
+            .node_info()
+            .await
+            .map(SdkNodeInfo::from)
+            .map(LxJson)
     }
 
     #[instrument(skip_all, name = "(create-invoice)")]
     pub(crate) async fn create_invoice(
         state: State<Arc<RouterState>>,
-        LxJson(req): LxJson<CreateInvoiceRequest>,
-    ) -> Result<LxJson<CreateInvoiceResponse>, NodeApiError> {
-        let resp = state.node_client.create_invoice(req).await?;
+        LxJson(req): LxJson<SdkCreateInvoiceRequest>,
+    ) -> Result<LxJson<SdkCreateInvoiceResponse>, NodeApiError> {
+        let resp = state.node_client.create_invoice(req.into()).await?;
 
         // HACK: temporary hack to lookup `PaymentIndex` for new invoice.
         // TODO(phlip9): original response should include the PaymentIndex.
@@ -116,130 +119,65 @@ mod node {
                 )
             })?;
 
-        Ok(LxJson(CreateInvoiceResponse::new(index, invoice)))
+        Ok(LxJson(SdkCreateInvoiceResponse::new(index, invoice)))
     }
 
     #[instrument(skip_all, name = "(pay-invoice)")]
     pub(crate) async fn pay_invoice(
         state: State<Arc<RouterState>>,
-        LxJson(req): LxJson<PayInvoiceRequest>,
-    ) -> Result<LxJson<PayInvoiceResponse>, NodeApiError> {
+        LxJson(req): LxJson<SdkPayInvoiceRequest>,
+    ) -> Result<LxJson<SdkPayInvoiceResponse>, NodeApiError> {
         let id = req.invoice.payment_id();
-        state
-            .node_client
-            .pay_invoice(req)
-            .await
-            .map(|resp| PayInvoiceResponse::new(id, resp.created_at))
-            .map(LxJson)
+        let created_at =
+            state.node_client.pay_invoice(req.into()).await?.created_at;
+        let resp = SdkPayInvoiceResponse {
+            index: PaymentIndex { id, created_at },
+            created_at,
+        };
+
+        Ok(LxJson(resp))
     }
 
-    #[instrument(skip_all, name = "(payment)")]
-    pub(crate) async fn payment(
+    #[instrument(skip_all, name = "(get-payment)")]
+    pub(crate) async fn get_payment(
         state: State<Arc<RouterState>>,
-        LxQuery(req): LxQuery<GetPaymentByIndexRequest>,
-    ) -> Result<LxJson<GetPaymentByIndexResponse>, NodeApiError> {
-        let req = PaymentIndexes::from(req);
-        let resp = state.node_client.get_payments_by_indexes(req).await?;
-        Ok(LxJson(GetPaymentByIndexResponse::from(resp)))
-    }
-}
+        LxQuery(req): LxQuery<SdkGetPaymentRequest>,
+    ) -> Result<LxJson<SdkGetPaymentResponse>, NodeApiError> {
+        // TODO(max): Replace this with a call to a payment-specific API which
+        // doesn't need to hit the DB
+        let indexes = vec![req.index];
+        let req = PaymentIndexes { indexes };
 
-mod model {
-    use common::{
-        api::command::PaymentIndexes,
-        ln::{
-            amount::Amount,
-            invoice::LxInvoice,
-            payments::{
-                BasicPayment, LxPaymentHash, LxPaymentId, LxPaymentSecret,
-                PaymentIndex, VecBasicPayment,
-            },
-        },
-        time::TimestampMs,
-    };
-    use serde::{Deserialize, Serialize};
+        let basic_payment = {
+            let mut payments = state
+                .node_client
+                .get_payments_by_indexes(req)
+                .await?
+                .payments;
 
-    // --- enriched request/response types for dumb clients --- //
+            payments.truncate(1);
 
-    /// The response to a `create_invoice` request. Contains the encoded
-    /// invoice, the payment index, and various decoded fields from the
-    /// invoice for convenience.
-    #[derive(Serialize)]
-    pub(crate) struct CreateInvoiceResponse {
-        pub index: PaymentIndex,
-        pub invoice: LxInvoice,
-        pub description: Option<String>,
-        pub amount: Option<Amount>,
-        pub created_at: TimestampMs,
-        pub expires_at: TimestampMs,
-        pub payment_hash: LxPaymentHash,
-        pub payment_secret: LxPaymentSecret,
-    }
-
-    /// The response to a `pay_invoice` request. Contains the payment index
-    /// and `created_at` timestamp.
-    #[derive(Serialize)]
-    pub(crate) struct PayInvoiceResponse {
-        pub index: PaymentIndex,
-        pub created_at: TimestampMs,
-    }
-
-    #[derive(Deserialize)]
-    pub(crate) struct GetPaymentByIndexRequest {
-        index: PaymentIndex,
-    }
-
-    #[derive(Serialize)]
-    pub(crate) struct GetPaymentByIndexResponse {
-        payment: Option<BasicPayment>,
-    }
-
-    // --- Conversions --- //
-
-    impl CreateInvoiceResponse {
-        pub fn new(index: PaymentIndex, invoice: LxInvoice) -> Self {
-            let description = invoice.description_str().map(|s| s.to_owned());
-            let amount_sats = invoice.amount();
-            let created_at = invoice.saturating_created_at();
-            let expires_at = invoice.saturating_expires_at();
-            let payment_hash = invoice.payment_hash();
-            let payment_secret = invoice.payment_secret();
-
-            Self {
-                index,
-                invoice,
-                description,
-                amount: amount_sats,
-                created_at,
-                expires_at,
-                payment_hash,
-                payment_secret,
+            match payments.pop() {
+                Some(p) => p,
+                None =>
+                    return Ok(LxJson(SdkGetPaymentResponse { payment: None })),
             }
-        }
-    }
+        };
 
-    impl PayInvoiceResponse {
-        pub fn new(id: LxPaymentId, created_at: TimestampMs) -> Self {
-            Self {
-                index: PaymentIndex { id, created_at },
-                created_at,
-            }
-        }
-    }
+        let payment = Some(SdkPayment {
+            index: basic_payment.index,
+            kind: basic_payment.kind,
+            direction: basic_payment.direction,
+            txid: basic_payment.txid,
+            replacement: basic_payment.replacement,
+            amount: basic_payment.amount,
+            fees: basic_payment.fees,
+            status: basic_payment.status,
+            status_msg: basic_payment.status_str,
+            note: basic_payment.note,
+            finalized_at: basic_payment.finalized_at,
+        });
 
-    impl From<GetPaymentByIndexRequest> for PaymentIndexes {
-        fn from(req: GetPaymentByIndexRequest) -> Self {
-            Self {
-                indexes: vec![req.index],
-            }
-        }
-    }
-
-    impl From<VecBasicPayment> for GetPaymentByIndexResponse {
-        fn from(mut resp: VecBasicPayment) -> Self {
-            resp.payments.truncate(1);
-            let payment = resp.payments.pop();
-            Self { payment }
-        }
+        Ok(LxJson(SdkGetPaymentResponse { payment }))
     }
 }

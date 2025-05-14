@@ -2451,6 +2451,7 @@ dependencies = [
  "rustls-pemfile 1.0.4",
  "rustls-webpki",
  "secrecy",
+ "semver",
  "serde",
  "serde_json",
  "sgx-isa",
