@@ -24,7 +24,7 @@ use common::{
             RevocableClient, RevocableClients, UpdateClientRequest,
             UpdateClientResponse,
         },
-        user::{NodePk, Scid},
+        user::{NodePk, Scid, UserPk},
         vfs::Vfs,
         Empty,
     },
@@ -129,6 +129,7 @@ pub enum CreateInvoiceCaller {
 pub fn node_info<CM, PM, PS>(
     version: semver::Version,
     measurement: Measurement,
+    user_pk: UserPk,
     channel_manager: &CM,
     peer_manager: &PM,
     wallet: &LexeWallet,
@@ -161,6 +162,7 @@ where
     NodeInfo {
         version,
         measurement,
+        user_pk,
         node_pk,
         num_channels,
         num_usable_channels,

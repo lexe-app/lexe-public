@@ -795,6 +795,7 @@ impl UserNode {
                         let node_info = lexe_ln::command::node_info(
                             version.clone(),
                             measurement,
+                            user_pk,
                             &channel_manager,
                             &peer_manager,
                             &wallet,

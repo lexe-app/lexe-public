@@ -47,6 +47,7 @@ pub(super) async fn node_info(
     LxJson(lexe_ln::command::node_info(
         state.version.clone(),
         state.measurement,
+        state.user_pk,
         &state.channel_manager,
         &state.peer_manager,
         &state.wallet,

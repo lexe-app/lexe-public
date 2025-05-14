@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
 use crate::{
-    api::user::NodePk,
+    api::user::{NodePk, UserPk},
     enclave::Measurement,
     ln::{
         amount::Amount,
@@ -28,6 +28,7 @@ use crate::{
 pub struct NodeInfo {
     pub version: semver::Version,
     pub measurement: Measurement,
+    pub user_pk: UserPk,
     pub node_pk: NodePk,
     pub num_peers: usize,
     pub num_usable_channels: usize,
@@ -38,6 +39,10 @@ pub struct NodeInfo {
     pub onchain_balance: OnchainBalance,
     /// The number of pending channel monitor updates.
     /// If this isn't 0, it's likely that at least one channel is paused.
+    // TODO(max): This field is in the wrong place and should be removed.
+    // To my knowledge it is only used by integration tests (in a hacky way) to
+    // wait for a node to reach a quiescent state. The polling should be done
+    // inside the server handler rather than by the client in the test harness.
     pub pending_monitor_updates: usize,
 }
 
