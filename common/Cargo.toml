@@ -91,10 +91,7 @@ proptest-derive = { optional = true, workspace = true }
 serde_urlencoded = { optional = true, workspace = true }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-# Enable the `client-legacy-socket2` feature from our patch when outside of SGX.
-# This can be removed if our `client-legacy-socket2` patch is removed.
 # Include std impls when testing outside of SGX
-hyper-util = { workspace = true, features = ["client-legacy-socket2"] }
 proptest = { optional = true, workspace = true, features = ["std"] }
 
 [dev-dependencies]

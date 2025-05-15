@@ -212,7 +212,7 @@ enclave-runner = { version = "=0.6.0", default-features = false }
 # Async Esplora client
 esplora-client = { version = "0.11", default-features = false, features = ["async", "tokio"] }
 # Hyper-related utilities
-hyper-util = { version = "=0.1.5", default-features = false, features = ["http2"] }
+hyper-util = { version = "=0.1.11", default-features = false, features = ["http2"] }
 # LDK (rust-lightning) libraries
 lightning = { version = "=0.1.1", features = [] }
 lightning-invoice = { version = "=0.33.1", features = ["std"] }
@@ -250,6 +250,7 @@ sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30
 
 # * license: Add dual license information
 # * server: Propagate current span across `tokio::spawn`
+# * cargo: rustls->0.22.1, tokio-rustls->0.25.0
 # * fix: propagate graceful shutdown to inner hyper connection
 #   PR: <https://github.com/programatik29/axum-server/pull/119>
 axum-server = { git = "https://github.com/lexe-app/axum-server", branch = "lexe-v0.6.0-2024_10_11" }
@@ -263,8 +264,9 @@ esplora-client = { git = "https://github.com/lexe-app/rust-esplora-client", bran
 
 # * license: Add dual license information
 # * sgx: socket2 requires `client-legacy-socket2` cfg
-# * sgx: Skip DNS resolution in SGX
-hyper-util = { git = "https://github.com/lexe-app/hyper-util", branch = "lexe-v0.1.5-2024_10_11" }
+# * sgx: Disable socket2 in SGX
+hyper-util = { git = "https://github.com/lexe-app/hyper-util", branch = "lexe-v0.1.11-2025_05_15" }
+# hyper-util.path = "../../forks/hyper-util"
 
 # * license: Add dual license information
 # * lightning-invoice: increase max length to 7089
