@@ -15,6 +15,7 @@ members = [
     "node",
     "payment-uri",
     "run-sgx",
+    "sdk-core",
     "sdk-sidecar",
     "sgx-test",
     "sgx-toml",
