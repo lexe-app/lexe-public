@@ -64,7 +64,7 @@ pub struct SidecarArgs {
     #[argh(option, hidden_help)] // hide option for now
     pub root_seed_path: Option<PathBuf>,
 
-    /// `<ip-address>:<port>` to listen on.
+    /// the `<ip-address>:<port>` to listen on.
     /// (default=`127.0.0.1:5393`, env=`LISTEN_ADDR`)
     #[argh(option)]
     pub listen_addr: Option<SocketAddr>,
