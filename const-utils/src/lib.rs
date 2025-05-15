@@ -25,10 +25,15 @@ macro_rules! const_assert_usize_eq {
 
 /// Assert at compile time that a type has a specific in-memory size in bytes.
 ///
+/// The assertion is only effective on 64-bit archs since we don't care about
+/// 32-bit Android ARM (the only 32-bit arch we compile to, and making the
+/// assertion more complicated just for that is not worth it).
+///
 /// Usage: `const_assert_mem_size!(u64, 8);`
 #[macro_export]
 macro_rules! const_assert_mem_size {
     ($type:ty, $size:expr $(,)?) => {
+        #[cfg(target_pointer_width = "64")]
         $crate::const_assert_usize_eq!(::core::mem::size_of::<$type>(), $size);
     };
 }
