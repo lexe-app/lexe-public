@@ -9,63 +9,75 @@ use common::{
     root_seed::RootSeed,
 };
 
-/// Lexe SDK sidecar
+/// Lexe sidecar SDK CLI args
 // NOTE: Any changes or doc updates here should be duplicated to `.env.example`
 // in the Sidecar SDK repo, which is a lot more discoverable for end users.
 #[derive(argh::FromArgs)]
+#[argh(description = r#"
+Lexe SDK sidecar service
+
+The sidecar runs a local server that presents a simplified HTTP API for
+using your Lexe node.
+
+Conventions:
+* CLI args take priority over envs.
+* Env vars are automatically loaded from the first `.env` file in the
+  current directory or parent directories.
+
+Exporting client credentials:
+* Open the app's left sidebar > "SDK clients" > "Create new client".
+* To get started, we suggest placing your client credentials in a
+  `.env` file:
+```
+# .env
+LEXE_CLIENT_CREDENTIALS=<client_credentials>
+```
+
+Example:
+```
+$ lexe-sidecar
+INFO (sdk): lexe_api::server: Url for (server): http://127.0.0.1:5393
+
+$ curl http://127.0.0.1:5393/v1/health
+{{"status":"ok"}}
+```
+"#)]
 pub struct SidecarArgs {
-    /// required: The client credentials string exported from the Lexe app.
-    /// Open the app's left sidebar > "SDK clients" > "Create new client".
-    /// Env: `LEXE_CLIENT_CREDENTIALS`.
+    /// required: client credentials exported from the Lexe app.
+    /// (env=`LEXE_CLIENT_CREDENTIALS`)
     #[argh(option)]
     pub client_credentials: Option<ClientCredentials>,
 
-    /// required: A path to a file containing the client credentials string
-    /// exported from the Lexe app.
-    /// Open the app's left sidebar > "SDK clients" > "Create new client".
-    /// Env: `LEXE_CLIENT_CREDENTIALS_PATH`.
+    /// required: path to a file containing client credentials exported from
+    /// the Lexe app.
+    /// (env=`LEXE_CLIENT_CREDENTIALS_PATH`)
     #[argh(option)]
     pub client_credentials_path: Option<PathBuf>,
 
     /// lexe user root seed.
-    /// Env: `ROOT_SEED`.
+    /// (env=`ROOT_SEED`)
+    // TODO(phlip9): take a pass at CLI error messages after we unhide
     #[argh(option, hidden_help)] // hide option for now
     pub root_seed: Option<RootSeed>,
 
     /// path to Lexe user root seed.
-    /// Env: `ROOT_SEED_PATH`.
+    /// (env=`ROOT_SEED_PATH`)
+    // TODO(phlip9): take a pass at CLI error messages after we unhide
     #[argh(option, hidden_help)] // hide option for now
     pub root_seed_path: Option<PathBuf>,
 
-    /// optional: The `<ip_address>:<port>` to listen on.
-    ///
-    /// Default: `127.0.0.1:5393`.
-    /// Env: `LISTEN_ADDR`.
+    /// `<ip-address>:<port>` to listen on.
+    /// (default=`127.0.0.1:5393`, env=`LISTEN_ADDR`)
     #[argh(option)]
     pub listen_addr: Option<SocketAddr>,
 
-    /// optional: the current Lexe deployment environment.
-    ///
-    /// Options: ["prod"]
-    /// Default: "prod".
-    /// Env: `DEPLOY_ENVIRONMENT`.
-    // TODO(max): The user has no concept of "deploy environment". In this
-    // context we should derive the intended deploy env from the network.
-    // This arg should be removed.
-    //
-    // expose the `NETWORK`: "mainnet", "testnet3", "testnet4".
+    /// the target deploy environment. one of: `prod`, `staging`, `dev`.
+    /// (default=`prod`, env=`DEPLOY_ENVIRONMENT`)
     #[argh(option, hidden_help)] // hide option until we support staging
     pub deploy_env: Option<DeployEnv>,
 
-    /// optional: the Bitcoin network to use.
-    /// Currently, only "mainnet" is supported.
-    ///
-    /// Options: ["mainnet"].
-    /// Default: "mainnet".
-    /// Env: `NETWORK`.
-    // NOTE: `.env.example` currently says we only support mainnet because our
-    // SDK users can only use it on mainnet. However, Lexe devs can also run
-    // this on regtest. Update `.env.example` if more networks are supported.
+    /// the Bitcoin network to use. one of `mainnet`, `testnet3`, `regtest`.
+    /// (default=`mainnet`, env=`NETWORK`)
     #[argh(option, hidden_help)] // hide option until we support staging
     pub network: Option<LxNetwork>,
 }
@@ -100,7 +112,10 @@ impl SidecarArgs {
         match (self.client_credentials.is_some(), self.client_credentials_path.take()) {
             (true, None) | (false, None) => Ok(()),
             (true, Some(_)) => Err(
-                anyhow!("Exactly one of `--client-credentials` or `--client-credentials-path` must be specified"),
+                anyhow!(
+                    "Only one of `--client-credentials`/`$LEXE_CLIENT_CREDENTIALS` \
+                     or `--client-credentials-path`/`$LEXE_CLIENT_CREDENTIALS_PATH` \
+                     must be specified"),
             ),
             (false, Some(client_credentials_path)) => {
                 let s = fs_ext::read_to_string(&client_credentials_path)?;
@@ -113,15 +128,19 @@ impl SidecarArgs {
     }
 
     pub(crate) fn load_root_seed(&mut self) -> anyhow::Result<()> {
-        match (self.client_credentials.is_some(), self.client_credentials_path.take()) {
+        match (
+            self.client_credentials.is_some(),
+            self.client_credentials_path.take(),
+        ) {
             (true, None) | (false, None) => Ok(()),
-            (true, Some(_)) => Err(
-                anyhow!("Exactly one of `--root-seed` or `--root-seed-path` must be specified"),
-            ),
+            (true, Some(_)) => Err(anyhow!(
+                "Only one of `--root-seed`/`$ROOT_SEED` or \
+                    `--root-seed-path`/`$ROOT_SEED_PATH` must be specified"
+            )),
             (false, Some(root_seed_path)) => {
                 let s = fs_ext::read_to_string(&root_seed_path)?;
                 let root_seed = RootSeed::from_str(s.trim())?;
-                self.root_seed= Some(root_seed);
+                self.root_seed = Some(root_seed);
                 Ok(())
             }
         }

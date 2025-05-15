@@ -58,12 +58,11 @@ impl Sidecar {
             (Some(_), Some(_)) => return Err(anyhow!(
                 "Can only provide one of: `--root-seed` or `--client-credentials`"
             )),
-            // Don't mention root seed here yet, since the option is currently
-            // hidden.
+            // TODO(phlip9): mention root seed options here when we unhide them
             (None, None) => return Err(anyhow!(
-                "Exactly one of: [ `--client-credentials`, \
-                 `--client-credentials-path`, `$LEXE_CLIENT_CREDENTIALS`, \
-                 `$LEXE_CLIENT_CREDENTIALS_PATH` ] must be provided")),
+                "one of  `--client-credentials`/`$LEXE_CLIENT_CREDENTIALS` \
+                 or `--client-credentials-path`/`$LEXE_CLIENT_CREDENTIALS_PATH` \
+                 must be provided")),
         };
 
         let listen_addr = args.listen_addr.unwrap_or(DEFAULT_LISTEN_ADDR);
