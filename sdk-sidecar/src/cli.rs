@@ -10,14 +10,12 @@ use common::{
 };
 
 /// Lexe sidecar SDK CLI args
-// NOTE: Any changes or doc updates here should be duplicated to `.env.example`
-// in the Sidecar SDK repo, which is a lot more discoverable for end users.
 #[derive(argh::FromArgs)]
 #[argh(description = r#"
 Lexe SDK sidecar service
 
-The sidecar runs a local server that presents a simplified HTTP API for
-using your Lexe node.
+The sidecar runs a local webserver that exposes a simple HTTP API for
+controlling your Lexe node.
 
 Conventions:
 * CLI args take priority over envs.
@@ -26,8 +24,7 @@ Conventions:
 
 Exporting client credentials:
 * Open the app's left sidebar > "SDK clients" > "Create new client".
-* To get started, we suggest placing your client credentials in a
-  `.env` file:
+* To get started, we suggest placing your client credentials in a `.env` file:
 ```
 # .env
 LEXE_CLIENT_CREDENTIALS=<client_credentials>
@@ -42,14 +39,15 @@ $ curl http://127.0.0.1:5393/v1/health
 {{"status":"ok"}}
 ```
 "#)]
+// NOTE: Any changes or doc updates here should be duplicated to `.env.example`
+// in the Sidecar SDK repo, which is a lot more discoverable for end users.
 pub struct SidecarArgs {
-    /// required: client credentials exported from the Lexe app.
+    /// client credentials exported from the Lexe app.
     /// (env=`LEXE_CLIENT_CREDENTIALS`)
     #[argh(option)]
     pub client_credentials: Option<ClientCredentials>,
 
-    /// required: path to a file containing client credentials exported from
-    /// the Lexe app.
+    /// path to file containing client credentials exported from the Lexe app.
     /// (env=`LEXE_CLIENT_CREDENTIALS_PATH`)
     #[argh(option)]
     pub client_credentials_path: Option<PathBuf>,
