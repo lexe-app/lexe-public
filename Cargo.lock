@@ -3739,6 +3739,7 @@ dependencies = [
  "logger",
  "sdk-core",
  "serde",
+ "serde_json",
  "tokio",
  "tracing",
 ]

@@ -168,3 +168,21 @@ pub mod def;
 pub mod run;
 /// The sidecar webserver.
 mod server;
+
+/// Reexport Lexe crates, as various interfaces may need these types.
+pub mod lexe {
+    // TODO(max): Remove if we can? Needed this just for
+    // `ClientCredentials`
+    pub use app_rs as app;
+    pub use common;
+    pub use lexe_api as api;
+    pub use logger;
+    pub use sdk_core;
+}
+
+// Reexport possibly-useful dependencies
+pub use anyhow;
+pub use dotenvy;
+pub use serde;
+pub use serde_json;
+pub use tracing;

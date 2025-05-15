@@ -8,9 +8,10 @@ use common::{
     env::DeployEnv, ln::network::LxNetwork, or_env::OrEnvExt as _,
     root_seed::RootSeed,
 };
+use tracing::{debug, info};
 
 /// Lexe sidecar SDK CLI args
-#[derive(argh::FromArgs)]
+#[derive(Default, argh::FromArgs)]
 #[argh(description = r#"
 Lexe SDK sidecar service
 
@@ -81,44 +82,62 @@ pub struct SidecarArgs {
 }
 
 impl SidecarArgs {
-    pub fn from_env() -> anyhow::Result<Self> {
-        let mut args = argh::from_env::<Self>();
+    /// Reads [`SidecarArgs`] from CLI args passed to the current program.
+    /// NOTE: Exits the program with an error if the CLI args failed to parse.
+    pub fn from_cli() -> Self {
+        argh::from_env::<Self>()
+    }
 
-        // Fill from env vars if they're set
-        args.client_credentials
+    /// Populates any unset (i.e. `None`) args from env, if available.
+    /// Does not overwrite any fields which are already set.
+    pub fn or_env_mut(&mut self) -> anyhow::Result<()> {
+        self.client_credentials
             .or_env_mut("LEXE_CLIENT_CREDENTIALS")?;
-        args.client_credentials_path
+        self.client_credentials_path
             .or_env_mut("LEXE_CLIENT_CREDENTIALS_PATH")?;
-        args.root_seed.or_env_mut("ROOT_SEED")?;
-        args.root_seed_path.or_env_mut("ROOT_SEED_PATH")?;
-        args.listen_addr.or_env_mut("LISTEN_ADDR")?;
-        args.deploy_env.or_env_mut("DEPLOY_ENVIRONMENT")?;
-        args.network.or_env_mut("NETWORK")?;
-
-        Ok(args)
+        self.root_seed.or_env_mut("ROOT_SEED")?;
+        self.root_seed_path.or_env_mut("ROOT_SEED_PATH")?;
+        self.listen_addr.or_env_mut("LISTEN_ADDR")?;
+        self.deploy_env.or_env_mut("DEPLOY_ENVIRONMENT")?;
+        self.network.or_env_mut("NETWORK")?;
+        Ok(())
     }
 
     /// If any of the `--*-path` options are set, load the corresponding values
     /// from those file paths into the args struct.
-    pub(crate) fn load(&mut self) -> anyhow::Result<()> {
+    pub fn load(&mut self) -> anyhow::Result<()> {
         self.load_client_credentials()?;
         self.load_root_seed()?;
         Ok(())
     }
 
     pub(crate) fn load_client_credentials(&mut self) -> anyhow::Result<()> {
-        match (self.client_credentials.is_some(), self.client_credentials_path.take()) {
-            (true, None) | (false, None) => Ok(()),
-            (true, Some(_)) => Err(
-                anyhow!(
-                    "Only one of `--client-credentials`/`$LEXE_CLIENT_CREDENTIALS` \
-                     or `--client-credentials-path`/`$LEXE_CLIENT_CREDENTIALS_PATH` \
-                     must be specified"),
-            ),
-            (false, Some(client_credentials_path)) => {
-                let s = fs_ext::read_to_string(&client_credentials_path)?;
+        match (
+            self.client_credentials.as_ref(),
+            self.client_credentials_path.take(),
+        ) {
+            (Some(_), Some(_)) => Err(anyhow!(
+                "Only one of `--client-credentials`/`$LEXE_CLIENT_CREDENTIALS` \
+                 or `--client-credentials-path`/`$LEXE_CLIENT_CREDENTIALS_PATH` \
+                 must be specified"
+            )),
+            (None, None) => {
+                debug!("No client credentials found");
+                Ok(())
+            }
+            (Some(client_credentials), None) => {
+                info!(
+                    client_pk = %client_credentials.client_pk,
+                    "Client credentials already loaded"
+                );
+                Ok(())
+            }
+            (None, Some(path)) => {
+                let s = fs_ext::read_to_string(&path)?;
                 let client_credentials =
                     ClientCredentials::from_str(s.trim())?;
+                let client_pk = &client_credentials.client_pk;
+                info!(?path, %client_pk, "Client credentials loaded from path");
                 self.client_credentials = Some(client_credentials);
                 Ok(())
             }
@@ -126,18 +145,25 @@ impl SidecarArgs {
     }
 
     pub(crate) fn load_root_seed(&mut self) -> anyhow::Result<()> {
-        match (
-            self.client_credentials.is_some(),
-            self.client_credentials_path.take(),
-        ) {
-            (true, None) | (false, None) => Ok(()),
-            (true, Some(_)) => Err(anyhow!(
+        match (self.root_seed.as_ref(), self.root_seed_path.take()) {
+            (Some(_), Some(_)) => Err(anyhow!(
                 "Only one of `--root-seed`/`$ROOT_SEED` or \
-                    `--root-seed-path`/`$ROOT_SEED_PATH` must be specified"
+                 `--root-seed-path`/`$ROOT_SEED_PATH` must be specified"
             )),
-            (false, Some(root_seed_path)) => {
-                let s = fs_ext::read_to_string(&root_seed_path)?;
-                let root_seed = RootSeed::from_str(s.trim())?;
+            (None, None) => {
+                debug!("No root seed found");
+                Ok(())
+            }
+            (Some(root_seed), None) => {
+                let user_pk = root_seed.derive_user_pk();
+                info!(%user_pk, "Root seed already loaded");
+                Ok(())
+            }
+            (None, Some(path)) => {
+                let root_seed_hex = fs_ext::read_to_string(&path)?;
+                let root_seed = RootSeed::from_str(root_seed_hex.trim())?;
+                let user_pk = root_seed.derive_user_pk();
+                info!(?path, %user_pk, "Root seed loaded from path");
                 self.root_seed = Some(root_seed);
                 Ok(())
             }
