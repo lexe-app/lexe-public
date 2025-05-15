@@ -23,15 +23,16 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
 mod sidecar {
     use std::borrow::Cow;
 
-    use common::api::error::NodeApiError;
     use lexe_api::server::LxJson;
+    use sdk_core::error::SdkApiError;
     use tracing::instrument;
 
-    use crate::models::HealthCheck;
+    use crate::api::HealthCheckResponse;
 
     #[instrument(skip_all, name = "(health)")]
-    pub(crate) async fn health() -> Result<LxJson<HealthCheck>, NodeApiError> {
-        Ok(LxJson(HealthCheck {
+    pub(crate) async fn health(
+    ) -> Result<LxJson<HealthCheckResponse>, SdkApiError> {
+        Ok(LxJson(HealthCheckResponse {
             status: Cow::from("ok"),
         }))
     }
@@ -45,17 +46,18 @@ mod node {
         api::{
             command::{GetNewPayments, PaymentIndexes},
             def::AppNodeRunApi,
-            error::NodeApiError,
         },
         ln::payments::{LxPaymentId, PaymentIndex},
     };
-    use lexe_api::{
-        server::{extract::LxQuery, LxJson},
-        types::sdk::{
+    use lexe_api::server::{extract::LxQuery, LxJson};
+    use sdk_core::{
+        api::{
             SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
-            SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
-            SdkPayInvoiceRequest, SdkPayInvoiceResponse, SdkPayment,
+            SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfoResponse,
+            SdkPayInvoiceRequest, SdkPayInvoiceResponse,
         },
+        error::SdkApiError,
+        types::SdkPayment,
     };
     use tracing::instrument;
 
@@ -64,12 +66,12 @@ mod node {
     #[instrument(skip_all, name = "(node-info)")]
     pub(crate) async fn node_info(
         state: State<Arc<RouterState>>,
-    ) -> Result<LxJson<SdkNodeInfo>, NodeApiError> {
+    ) -> Result<LxJson<SdkNodeInfoResponse>, SdkApiError> {
         state
             .node_client
             .node_info()
             .await
-            .map(SdkNodeInfo::from)
+            .map(SdkNodeInfoResponse::from)
             .map(LxJson)
     }
 
@@ -77,7 +79,7 @@ mod node {
     pub(crate) async fn create_invoice(
         state: State<Arc<RouterState>>,
         LxJson(req): LxJson<SdkCreateInvoiceRequest>,
-    ) -> Result<LxJson<SdkCreateInvoiceResponse>, NodeApiError> {
+    ) -> Result<LxJson<SdkCreateInvoiceResponse>, SdkApiError> {
         let resp = state.node_client.create_invoice(req.into()).await?;
 
         // HACK: temporary hack to lookup `PaymentIndex` for new invoice.
@@ -114,7 +116,7 @@ mod node {
                 }
             })
             .ok_or_else(|| {
-                NodeApiError::command(
+                SdkApiError::command(
                     "Failed to lookup payment index for invoice",
                 )
             })?;
@@ -126,7 +128,7 @@ mod node {
     pub(crate) async fn pay_invoice(
         state: State<Arc<RouterState>>,
         LxJson(req): LxJson<SdkPayInvoiceRequest>,
-    ) -> Result<LxJson<SdkPayInvoiceResponse>, NodeApiError> {
+    ) -> Result<LxJson<SdkPayInvoiceResponse>, SdkApiError> {
         let id = req.invoice.payment_id();
         let created_at =
             state.node_client.pay_invoice(req.into()).await?.created_at;
@@ -142,7 +144,7 @@ mod node {
     pub(crate) async fn get_payment(
         state: State<Arc<RouterState>>,
         LxQuery(req): LxQuery<SdkGetPaymentRequest>,
-    ) -> Result<LxJson<SdkGetPaymentResponse>, NodeApiError> {
+    ) -> Result<LxJson<SdkGetPaymentResponse>, SdkApiError> {
         // TODO(max): Replace this with a call to a payment-specific API which
         // doesn't need to hit the DB
         let indexes = vec![req.index];

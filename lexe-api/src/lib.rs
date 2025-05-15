@@ -10,5 +10,3 @@ pub mod server;
 pub mod tls;
 /// API tracing utilities for both client and server.
 pub mod trace;
-/// API types.
-pub mod types;

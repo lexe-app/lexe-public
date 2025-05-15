@@ -6,3 +6,13 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+
+# --- LEXE --- #
+
+common = { path = "../common" }
+
+# --- WORKSPACE --- #
+
+anyhow.workspace = true
+semver.workspace = true
+serde.workspace = true
