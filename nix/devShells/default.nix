@@ -90,9 +90,9 @@
       # <https://docs.fastlane.tools/getting-started/ios/setup/>
       LANG = "en_US.UTF-8";
       LC_ALL = "en_US.UTF-8";
-      LEXE_XCODE_VERSION = "16.2";
-      LEXE_MACOS_SDK_VERSION = "15.2";
-      LEXE_IOS_SDK_VERSION = "18.2";
+      LEXE_XCODE_VERSION = "16.3";
+      LEXE_MACOS_SDK_VERSION = "15.4";
+      LEXE_IOS_SDK_VERSION = "18.4";
     };
 
     shellHook = ''
