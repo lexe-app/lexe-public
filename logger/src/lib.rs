@@ -24,7 +24,6 @@ use tracing_subscriber::{
 /// Initialize a global `tracing` logger.
 ///
 /// + The logger will print enabled `tracing` events and spans to stdout.
-/// + The default log level includes INFO, WARN, and ERROR events.
 /// + You can change the log level or module filtering with an appropriate
 ///   `RUST_LOG` env var set. Read more about the syntax here:
 ///   <https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html>
@@ -33,6 +32,11 @@ use tracing_subscriber::{
 /// since multiple test threads will compete to set the global logger.
 pub fn init() {
     try_init().expect("Failed to setup logger");
+}
+
+/// [`init`] but defaults to the given `RUST_LOG` value if not set in env.
+pub fn init_with_default(rust_log_default: &str) {
+    try_init_with_default(rust_log_default).expect("Failed to set up logger")
 }
 
 /// Use this to initialize the global logger in tests.
@@ -48,9 +52,15 @@ pub fn init_for_testing() {
 pub fn try_init() -> anyhow::Result<()> {
     // If `RUST_LOG` isn't set, use "off" to initialize a no-op subscriber so
     // that all the `TraceId` infrastructure still works somewhat normally.
-    let rust_log = env::var("RUST_LOG").unwrap_or_else(|_| "off".to_string());
+    try_init_with_default("off")
+}
 
-    subscriber(&rust_log)
+/// [`try_init`] but defaults to the given `RUST_LOG` value if not set in env.
+pub fn try_init_with_default(rust_log_default: &str) -> anyhow::Result<()> {
+    let rust_log_env = env::var("RUST_LOG");
+    let rust_log = rust_log_env.as_deref().unwrap_or(rust_log_default);
+
+    subscriber(rust_log)
         .try_init()
         .context("Logger already initialized")?;
 
