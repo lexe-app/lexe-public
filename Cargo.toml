@@ -11,6 +11,7 @@ members = [
     "hex",
     "lexe-api",
     "lexe-ln",
+    "lexe-tokio",
     "logger",
     "node",
     "payment-uri",
