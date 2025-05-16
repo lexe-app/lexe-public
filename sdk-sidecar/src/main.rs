@@ -13,7 +13,9 @@ fn main() -> anyhow::Result<()> {
         .build()
         .context("Failed to build Tokio runtime")?;
 
-    let sidecar = Sidecar::init(args)?;
-    let spawn_ctrlc_handler = true;
-    rt.block_on(sidecar.run(spawn_ctrlc_handler))
+    rt.block_on(async move {
+        let sidecar = Sidecar::init(args)?;
+        let spawn_ctrlc_handler = true;
+        sidecar.run(spawn_ctrlc_handler).await
+    })
 }
