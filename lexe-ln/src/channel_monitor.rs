@@ -5,7 +5,8 @@ use std::{
 };
 
 use anyhow::{anyhow, Context};
-use common::{ln::channel::LxOutPoint, notify_once::NotifyOnce, task::LxTask};
+use common::ln::channel::LxOutPoint;
+use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::transaction::OutPoint;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, info_span, Instrument};

@@ -12,8 +12,8 @@ use common::{
         channel::LxOutPoint,
         payments::{LxPaymentId, PaymentIndex},
     },
-    notify_once::NotifyOnce,
 };
+use lexe_tokio::notify_once::NotifyOnce;
 use lightning::{
     chain::chainmonitor::Persist,
     events::{Event, ReplayEvent},

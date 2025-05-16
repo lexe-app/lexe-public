@@ -25,6 +25,7 @@ const-utils.path = "../const-utils"
 gdrive.path = "../gdrive"
 hex.path = "../hex"
 lexe-api.path = "../lexe-api"
+lexe-tokio.path = "../lexe-tokio"
 payment-uri.path = "../payment-uri"
 
 # --- WORKSPACE --- #

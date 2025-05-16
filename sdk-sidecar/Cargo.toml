@@ -18,6 +18,7 @@ common = { path = "../common" }
 const-utils = { path = "../const-utils" }
 logger = { path = "../logger" }
 lexe-api = { path = "../lexe-api" }
+lexe-tokio = { path = "../lexe-tokio" }
 sdk-core = { path = "../sdk-core" }
 
 # --- WORKSPACE --- #

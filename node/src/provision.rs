@@ -35,7 +35,6 @@ use common::{
     cli::node::ProvisionArgs,
     enclave::{self, MachineId, Measurement},
     net,
-    notify_once::NotifyOnce,
     rng::{Crng, SysRng},
 };
 use gdrive::GoogleVfs;
@@ -43,6 +42,7 @@ use lexe_api::{
     server::{self, LayerConfig},
     tls::{self, attestation::NodeMode},
 };
+use lexe_tokio::notify_once::NotifyOnce;
 use tracing::{debug, info, info_span};
 
 use crate::{

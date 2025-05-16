@@ -27,11 +27,9 @@ use common::{
     enclave::{self, MachineId, Measurement, MinCpusvn},
     env::DeployEnv,
     ln::{channel::LxOutPoint, network::LxNetwork},
-    net, notify,
-    notify_once::NotifyOnce,
+    net,
     rng::{Crng, SysRng},
     root_seed::RootSeed,
-    task::{self, LxTask, MaybeLxTask},
     Apply,
 };
 use const_utils::const_assert;
@@ -65,6 +63,11 @@ use lexe_ln::{
     traits::LexeInnerPersister,
     tx_broadcaster::TxBroadcaster,
     wallet::{self, LexeWallet},
+};
+use lexe_tokio::{
+    notify,
+    notify_once::NotifyOnce,
+    task::{self, LxTask, MaybeLxTask},
 };
 use lightning::{
     chain::{chainmonitor::ChainMonitor, Watch},

@@ -70,10 +70,9 @@ use common::{
         server,
     },
     ed25519,
-    notify_once::NotifyOnce,
-    task::LxTask,
 };
 use http::{header::CONTENT_TYPE, HeaderValue, StatusCode};
+use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use serde::{de::DeserializeOwned, Serialize};
 use tower::{
     buffer::BufferLayer, limit::ConcurrencyLimitLayer,

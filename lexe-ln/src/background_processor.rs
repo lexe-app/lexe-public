@@ -1,6 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
-use common::{notify_once::NotifyOnce, task::LxTask, time::DisplayMs};
+use common::time::DisplayMs;
+use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use tokio::time::Instant;
 use tracing::{debug, error, info, info_span, warn, Instrument};
 

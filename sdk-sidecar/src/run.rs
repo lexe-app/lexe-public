@@ -10,14 +10,13 @@ use app_rs::client::{
     ClientCredentials, Credentials, GatewayClient, NodeClient,
 };
 use common::{
-    env::DeployEnv,
-    ln::network::LxNetwork,
-    notify_once::NotifyOnce,
-    rng::SysRng,
-    root_seed::RootSeed,
-    task::{self, LxTask},
+    env::DeployEnv, ln::network::LxNetwork, rng::SysRng, root_seed::RootSeed,
 };
 use lexe_api::server::LayerConfig;
+use lexe_tokio::{
+    notify_once::NotifyOnce,
+    task::{self, LxTask},
+};
 use tracing::{info, info_span, instrument};
 
 use crate::{cli::SidecarArgs, server};

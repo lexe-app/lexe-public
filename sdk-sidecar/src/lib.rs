@@ -176,6 +176,8 @@ pub mod lexe {
     pub use app_rs as app;
     pub use common;
     pub use lexe_api as api;
+    // Don't conflict with crate name `tokio`
+    pub use lexe_tokio;
     pub use logger;
     pub use sdk_core;
 }

@@ -7,10 +7,7 @@ use std::{
 use common::{
     api::user::NodePk,
     ln::addr::LxSocketAddress,
-    notify,
-    notify_once::NotifyOnce,
     rng::{Crng, RngExt},
-    task::LxTask,
 };
 use lexe_ln::{
     alias::P2PGossipSyncType,
@@ -18,6 +15,7 @@ use lexe_ln::{
     logger::LexeTracingLogger,
     p2p::{spawn_process_events_task, ConnectionTx, PeerManagerTrait},
 };
+use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use lightning::ln::{
     msgs::SocketAddress,
     peer_handler::{IgnoringMessageHandler, MessageHandler, PeerHandleError},

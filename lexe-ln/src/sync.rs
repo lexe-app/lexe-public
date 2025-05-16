@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Instant};
 
 use anyhow::{anyhow, Context};
-use common::{notify, notify_once::NotifyOnce, task::LxTask};
+use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::Confirm;
 use tokio::{
     sync::{mpsc, oneshot},

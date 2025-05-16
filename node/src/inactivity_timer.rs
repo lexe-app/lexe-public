@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use common::notify_once::NotifyOnce;
+use lexe_tokio::notify_once::NotifyOnce;
 use tokio::{
     sync::{mpsc, mpsc::error::TryRecvError},
     time::{self, Instant},
@@ -109,6 +109,7 @@ mod tests {
     use std::future::Future;
 
     use common::constants::DEFAULT_CHANNEL_SIZE;
+    use lexe_tokio::task::LxTask;
 
     use super::*;
 
@@ -246,7 +247,6 @@ mod tests {
 
             // Spawn a task to generate an activity event 500ms in
             let activity_tx = mats.activity_tx.clone();
-            use common::task::LxTask;
             let activity_task = LxTask::spawn_unnamed(async move {
                 time::sleep(Duration::from_millis(500)).await;
                 let _ = activity_tx.send(()).await;
@@ -275,7 +275,6 @@ mod tests {
             // shutdown signal 750ms in
             let activity_tx = mats.activity_tx.clone();
             let shutdown = mats.shutdown.clone();
-            use common::task::LxTask;
             let activity_task = LxTask::spawn_unnamed(async move {
                 time::sleep(Duration::from_millis(500)).await;
                 let _ = activity_tx.send(()).await;

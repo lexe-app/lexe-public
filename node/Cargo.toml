@@ -51,6 +51,7 @@ gdrive.path = "../gdrive"
 hex.path = "../hex"
 lexe-api.path = "../lexe-api"
 lexe-ln.path = "../lexe-ln"
+lexe-tokio.path = "../lexe-tokio"
 
 # --- WORKSPACE --- #
 

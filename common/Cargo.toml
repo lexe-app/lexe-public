@@ -20,11 +20,10 @@ test-utils = [
 # stack size (in bytes) for each thread, the default stack size is 0x20_000.
 stack-size = 0x20_0000
 # The max number of threads we can spawn concurrently inside the SGX enclave.
-# We give some extra room because `#[tokio::test(start_paused = true)]` etc
-# spawns threads in the background. Additionally, the current fortanix rust-sgx
+# We give some extra room because the current fortanix rust-sgx
 # `async_usercalls` implementation requires an extra thread. see:
 # https://github.com/lexe-app/rust-sgx/blob/70d11205fed08e49886bb25a1ea3df19928e8287/async-usercalls/src/queues.rs#L46
-threads = 8
+threads = 4
 
 [dependencies]
 
@@ -50,7 +49,6 @@ base64.workspace = true
 bytes.workspace = true
 cfg-if.workspace = true
 dotenvy.workspace = true
-futures.workspace = true
 http.workspace = true
 http-body-util.workspace = true
 lightning.workspace = true
@@ -71,13 +69,8 @@ serde_json.workspace = true
 sgx-isa.workspace = true
 strum.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = [
-    "io-util",
-    "macros",
-    "rt",
-    "sync",
-    "time"
-] }
+# TODO(max): Remove `tokio` from common once `api::auth` is moved to `lexe-api`
+tokio = { workspace = true, features = ["sync"] }
 tracing.workspace = true
 x509-parser.workspace = true
 yasna.workspace = true
@@ -99,15 +92,6 @@ chrono.workspace = true
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
 serde_urlencoded.workspace = true
-tokio = { workspace = true, features = [
-    "io-util",
-    "macros",
-    "rt",
-    "sync",
-    "test-util",
-    "time"
-] }
-tokio-test.workspace = true
 
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Include std impls when testing outside of SGX

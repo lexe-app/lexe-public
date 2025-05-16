@@ -23,6 +23,7 @@ test-utils = [
 common.path = "../common"
 const-utils.path = "../const-utils"
 hex.path = "../hex"
+lexe-tokio.path = "../lexe-tokio"
 sha256.path = "../sha256"
 
 # --- WORKSPACE --- #

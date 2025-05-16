@@ -25,8 +25,6 @@ use common::{
     cli::LspInfo,
     enclave::Measurement,
     ln::network::LxNetwork,
-    notify_once::NotifyOnce,
-    task::LxTask,
 };
 use lexe_api::tls::{
     shared_seed::certs::RevocableIssuingCaCert, types::LxCertificateDer,
@@ -40,6 +38,7 @@ use lexe_ln::{
     tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
 };
+use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::util::config::UserConfig;
 use tokio::{
     sync::{mpsc, oneshot},

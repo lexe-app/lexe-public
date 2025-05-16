@@ -3,10 +3,8 @@
 use std::{io, sync::Arc, time::Duration};
 
 use anyhow::{ensure, Context};
-use common::{
-    api::fiat_rates::IsoCurrencyCode, debug_panic_release_log, notify,
-    notify_once::NotifyOnce, task::LxTask,
-};
+use common::{api::fiat_rates::IsoCurrencyCode, debug_panic_release_log};
+use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};

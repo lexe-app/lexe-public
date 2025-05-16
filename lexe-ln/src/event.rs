@@ -7,10 +7,10 @@ use common::test_utils::arbitrary;
 use common::{
     ln::channel::{LxChannelId, LxUserChannelId},
     rng::{Crng, RngExt, SysRng},
-    task::LxTask,
     test_event::TestEvent,
     time::{DisplayMs, TimestampMs},
 };
+use lexe_tokio::task::LxTask;
 use lightning::{
     chain::{
         chaininterface::{ConfirmationTarget, FeeEstimator},

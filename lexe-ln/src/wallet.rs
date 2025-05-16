@@ -58,12 +58,10 @@ use common::{
         amount::Amount, balance::OnchainBalance, network::LxNetwork,
         priority::ConfirmationPriority,
     },
-    notify,
-    notify_once::NotifyOnce,
     root_seed::RootSeed,
-    task::LxTask,
     time::TimestampMs,
 };
+use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use tracing::{debug, info, instrument, warn};
 
 use crate::{

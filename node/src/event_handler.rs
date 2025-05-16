@@ -48,9 +48,7 @@ use common::{
         channel::LxChannelId,
         payments::{LnClaimId, LxPaymentHash, LxPaymentId},
     },
-    notify_once::NotifyOnce,
     rng::{RngExt, ThreadFastRng},
-    task::LxTask,
     test_event::TestEvent,
 };
 use lexe_ln::{
@@ -65,6 +63,7 @@ use lexe_ln::{
     tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
 };
+use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::events::{
     Event, InboundChannelFunds, PaymentFailureReason, ReplayEvent,
 };

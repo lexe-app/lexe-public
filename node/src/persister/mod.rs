@@ -27,9 +27,7 @@ use common::{
             VecLxPaymentId,
         },
     },
-    notify_once::NotifyOnce,
     rng::{Crng, SysRng},
-    task::LxTask,
     Apply,
 };
 use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
@@ -50,6 +48,7 @@ use lexe_ln::{
     traits::{LexeInnerPersister, LexePersister},
     wallet::ChangeSet,
 };
+use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::{
     chain::{
         chainmonitor::Persist, channelmonitor::ChannelMonitorUpdate,

@@ -18,6 +18,7 @@ common.path = "../common"
 const-utils.path = "../const-utils"
 hex.path = "../hex"
 lexe-api.path = "../lexe-api"
+lexe-tokio.path = "../lexe-tokio"
 
 # --- WORKSPACE --- #
 

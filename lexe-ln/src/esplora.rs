@@ -15,11 +15,10 @@ use common::{
         network::LxNetwork,
         priority::{ConfirmationPriority, ToNumBlocks},
     },
-    notify_once::NotifyOnce,
-    task::LxTask,
 };
 use esplora_client::{api::OutputStatus, AsyncClient};
 use lexe_api::tls::{self, rustls};
+use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::chaininterface::{
     ConfirmationTarget, FeeEstimator, FEERATE_FLOOR_SATS_PER_KW,
 };

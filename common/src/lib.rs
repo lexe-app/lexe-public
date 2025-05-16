@@ -43,10 +43,6 @@ pub mod iter;
 pub mod ln;
 /// Networking utilities.
 pub mod net;
-/// A channel for sending deduplicated notifications with no data attached.
-pub mod notify;
-/// `NotifyOnce`.
-pub mod notify_once;
 /// `OrEnvExt` utility trait.
 pub mod or_env;
 /// Password-based encryption for arbitrary bytes.
@@ -57,8 +53,6 @@ pub mod rng;
 pub mod root_seed;
 /// [`serde`] helpers.
 pub mod serde_helpers;
-/// `LxTask`.
-pub mod task;
 /// `TestEvent`.
 pub mod test_event;
 /// `TimestampMs` and `DisplayMs`.

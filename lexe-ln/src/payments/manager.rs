@@ -16,12 +16,10 @@ use common::{
             PaymentStatus,
         },
     },
-    notify,
-    notify_once::NotifyOnce,
-    task::LxTask,
     test_event::TestEvent,
     time::TimestampMs,
 };
+use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 #[cfg(doc)]
 use lightning::events::Event::PaymentFailed;
 use lightning::{events::PaymentPurpose, ln::channelmanager::FailureCode};

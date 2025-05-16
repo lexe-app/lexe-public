@@ -105,14 +105,11 @@ use std::{
 };
 
 use anyhow::{anyhow, ensure, Context};
-use common::{
-    api::user::NodePk,
-    backoff,
-    ln::addr::LxSocketAddress,
+use common::{api::user::NodePk, backoff, ln::addr::LxSocketAddress, Apply};
+use lexe_tokio::{
     notify,
     notify_once::NotifyOnce,
     task::{LxTask, MaybeLxTask},
-    Apply,
 };
 use lightning::ln::peer_handler::PeerHandleError;
 #[cfg(doc)]
@@ -1138,8 +1135,9 @@ mod test {
         sync::{Arc, Mutex},
     };
 
-    use common::{rng::ThreadFastRng, task::LxTask};
+    use common::rng::ThreadFastRng;
     use io::BufRead;
+    use lexe_tokio::task::LxTask;
     use rand::{seq::SliceRandom, Rng, RngCore};
     use tokio::{
         io::{AsyncReadExt, AsyncWriteExt},
@@ -1691,10 +1689,8 @@ mod ldk_test {
         secp256k1::{self, ecdh, ecdsa, schnorr},
         Network,
     };
-    use common::{
-        rng::{Crng, FastRng, RngExt, ThreadFastRng},
-        task::LxTask,
-    };
+    use common::rng::{Crng, FastRng, RngExt, ThreadFastRng};
+    use lexe_tokio::task::LxTask;
     use lightning::{
         events::*,
         ln::{

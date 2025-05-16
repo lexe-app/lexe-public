@@ -185,6 +185,7 @@ dependencies = [
  "http",
  "keyring",
  "lexe-api",
+ "lexe-tokio",
  "payment-uri",
  "proptest",
  "proptest-derive",
@@ -1110,7 +1111,6 @@ dependencies = [
  "chrono",
  "const-utils",
  "dotenvy",
- "futures",
  "hex 0.0.0",
  "http",
  "http-body-util",
@@ -1137,7 +1137,6 @@ dependencies = [
  "strum",
  "thiserror",
  "tokio",
- "tokio-test",
  "tracing",
  "x509-parser",
  "yasna",
@@ -2439,6 +2438,7 @@ dependencies = [
  "http",
  "http-body-util",
  "hyper",
+ "lexe-tokio",
  "lightning",
  "num-bigint",
  "proptest",
@@ -2491,6 +2491,7 @@ dependencies = [
  "futures",
  "hex 0.0.0",
  "lexe-api",
+ "lexe-tokio",
  "lightning",
  "lightning-invoice",
  "lightning-transaction-sync",
@@ -2519,6 +2520,13 @@ dependencies = [
 [[package]]
 name = "lexe-tokio"
 version = "0.0.0"
+dependencies = [
+ "futures",
+ "thiserror",
+ "tokio",
+ "tokio-test",
+ "tracing",
+]
 
 [[package]]
 name = "libc"
@@ -2804,6 +2812,7 @@ dependencies = [
  "hex 0.0.0",
  "lexe-api",
  "lexe-ln",
+ "lexe-tokio",
  "lightning",
  "lightning-transaction-sync",
  "proptest",
@@ -3740,6 +3749,7 @@ dependencies = [
  "const-utils",
  "dotenvy",
  "lexe-api",
+ "lexe-tokio",
  "logger",
  "sdk-core",
  "serde",

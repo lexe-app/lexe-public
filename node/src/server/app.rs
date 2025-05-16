@@ -32,10 +32,10 @@ use common::{
     constants::{self},
     ln::{amount::Amount, channel::LxUserChannelId, payments::VecBasicPayment},
     rng::SysRng,
-    task::MaybeLxTask,
 };
 use lexe_api::server::{extract::LxQuery, LxJson};
 use lexe_ln::{command::CreateInvoiceCaller, p2p};
+use lexe_tokio::task::MaybeLxTask;
 use tracing::warn;
 
 use super::AppRouterState;
