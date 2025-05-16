@@ -58,7 +58,7 @@ pub struct SdkPayment {
     pub txid: Option<LxTxid>,
 
     /// (Onchain payments only) The hex-encoded txid of the transaction that
-    /// sent the outputs spent by this on-chain payment, if one exists.
+    /// spent the outputs spent by this on-chain payment, if one exists.
     pub replacement: Option<LxTxid>,
 
     /// The amount of this payment.
