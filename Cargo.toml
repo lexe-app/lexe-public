@@ -33,7 +33,7 @@ license = "PolyForm Noncommercial License 1.0.0"
 # This is just a default version which can be inherited by workspace members
 # that don't actually need semver versioning. Crates that require versioning
 # will specify their version in their Cargo.toml as usual.
-version = "0.1.0"
+version = "0.0.0"
 
 [workspace.dependencies]
 # Use this section to declare dependencies used across multiple lexe crates.
