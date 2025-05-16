@@ -298,7 +298,8 @@ reqwest = { git = "https://github.com/lexe-app/reqwest", branch = "lexe-v0.12.1-
 # * cpu: use static cpuid feature set in SGX enclaves
 # * rand: Use `RDRAND` implementation in SGX
 # * build: Always build from source
-ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.17.8-2024_10_11" }
+# * build.rs: windows: also look for `nasm` in $PATH
+ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.17.8-2025_05_15" }
 
 # * license: Add dual license information
 # * fortanix: SGX port

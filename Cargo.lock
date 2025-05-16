@@ -3507,7 +3507,7 @@ checksum = "8c31b5c4033f8fdde8700e4657be2c497e7288f01515be52168c631e2e4d4086"
 [[package]]
 name = "ring"
 version = "0.17.8"
-source = "git+https://github.com/lexe-app/ring?branch=lexe-v0.17.8-2024_10_11#db1b9833cf8f80b6eb3445857846978497d80e66"
+source = "git+https://github.com/lexe-app/ring?branch=lexe-v0.17.8-2025_05_15#d33bd3d43eb277ca79a62fd1e0dd631d0bb53314"
 dependencies = [
  "cc",
  "cfg-if 1.0.0",
