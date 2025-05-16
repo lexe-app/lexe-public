@@ -14,19 +14,20 @@ More information is available on our website: [lexe.app](https://lexe.app)
 ## Guide to this repository
 
 - [`node`](./node): Lightning node (usually referred to as the "user node").
+- [`sdk-sidecar`](./sdk-sidecar): The `lexe-sidecar` SDK binary and library.
 - [`app`](./app): Flutter/Dart apps.
 - [`app-rs`](./app-rs): Rust logic used in the Lexe mobile app along with an FFI interface for the Flutter apps.
 - [`lexe-ln`](./lexe-ln): Shared Bitcoin and Lightning logic.
-- [`common`](./common): A general shared library which contains:
-  - APIs: definitions, errors, clients (with TLS and quote verification), models
-  - SGX: remote attestation, sealing, SGX types
-  - Cryptography: ed25519, ring, secp256k1, AES-256-GCM, SHA-256, root seeds, key derivation, rng, E2EE "vfs" for untrusted storage
-  - Utils: hex, byte strings, test-utils, tasks, channels, exponential backoff, iterator extensions
-  - and other miscellaneous things.
+- [`lexe-api`](./lexe-api): API types, definitions, clients, TLS.
+  Includes SGX remote attestation and attestation quote verification.
+- [`common`](./common): A general shared library used by most Lexe crates.
+  - SGX: SGX types, enclave report, measurement, sealing
+  - Crypto: ed25519, secp256k1, AES-256-GCM, root seed, password encryption, RNGs
+  - Various utilities
 - [`flake.nix`](./flake.nix): Reproducible node build
-- [`SECURITY.md`](./SECURITY.md) contains information about Lexe's security model and responsible disclosure.
+- [`SECURITY.md`](./SECURITY.md) Outlines Lexe's security model.
 
-NOTE(2024-11-26): For technical reasons, commits before mid October 2022 had to
+For technical reasons, commits before mid October 2022 had to
 be squashed on the `master` branch and revs changed. You can view the full
 history on the [`master-archived`](https://github.com/lexe-app/lexe-public/tree/master-archived)
 branch in this range [5a1a3221...8f94074d](https://github.com/lexe-app/lexe-public/compare/5a1a32212d537eee0bbada603e234516de49ca66...8f94074deb16c216f85f0fc73954b086089e6918).
