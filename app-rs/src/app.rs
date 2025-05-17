@@ -13,7 +13,6 @@ use bitcoin::secp256k1;
 use common::{
     api::{
         auth::UserSignupRequest,
-        def::{AppBackendApi, AppGatewayApi, AppNodeProvisionApi},
         provision::NodeProvisionRequest,
         user::{NodePk, NodePkProof, UserPk},
         version::NodeRelease,
@@ -25,6 +24,7 @@ use common::{
     root_seed::RootSeed,
     Secret,
 };
+use lexe_api::def::{AppBackendApi, AppGatewayApi, AppNodeProvisionApi};
 use lexe_std::Apply;
 use secrecy::ExposeSecret;
 use tracing::{info, instrument, warn};

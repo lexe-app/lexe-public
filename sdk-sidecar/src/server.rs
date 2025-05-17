@@ -43,13 +43,13 @@ mod node {
 
     use axum::extract::State;
     use common::{
-        api::{
-            command::{GetNewPayments, PaymentIndexes},
-            def::AppNodeRunApi,
-        },
+        api::command::{GetNewPayments, PaymentIndexes},
         ln::payments::{LxPaymentId, PaymentIndex},
     };
-    use lexe_api::server::{extract::LxQuery, LxJson};
+    use lexe_api::{
+        def::AppNodeRunApi,
+        server::{extract::LxQuery, LxJson},
+    };
     use sdk_core::{
         api::{
             SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,

@@ -1,5 +1,9 @@
 //! Crate containing Lexe API types, definitions, client/server utils, TLS.
 
+/// Bearer auth and User Signup.
+pub mod auth;
+/// Traits defining Lexe's various APIs.
+pub mod def;
 /// Macros for API clients/servers.
 pub mod macros;
 /// A client and helpers that enforce common REST semantics across Lexe crates.

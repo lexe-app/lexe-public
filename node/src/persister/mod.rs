@@ -7,7 +7,7 @@ use bitcoin::hash_types::BlockHash;
 use common::{
     aes::AesMasterKey,
     api::{
-        auth::{BearerAuthToken, BearerAuthenticator},
+        auth::BearerAuthToken,
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         error::BackendApiError,
         user::{Scid, Scids},
@@ -30,6 +30,7 @@ use common::{
     rng::{Crng, SysRng},
 };
 use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
+use lexe_api::auth::BearerAuthenticator;
 use lexe_ln::{
     alias::{
         BroadcasterType, ChannelMonitorType, FeeEstimatorType,

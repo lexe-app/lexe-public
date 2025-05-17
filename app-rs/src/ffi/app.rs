@@ -8,7 +8,6 @@ use common::{
             PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
             UpdatePaymentNote as UpdatePaymentNoteRs,
         },
-        def::{AppGatewayApi, AppNodeRunApi},
         revocable_clients::{
             CreateRevocableClientRequest as CreateRevocableClientRequestRs,
             GetRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
@@ -21,6 +20,7 @@ use common::{
     root_seed::RootSeed as RootSeedRs,
 };
 use flutter_rust_bridge::{frb, RustOpaqueNom};
+use lexe_api::def::{AppGatewayApi, AppNodeRunApi};
 use tracing::instrument;
 
 use crate::ffi::{

@@ -104,12 +104,14 @@ use super::{
     lexe_ca,
     types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
 };
+#[cfg(doc)]
+use crate::def::AppNodeRunApi;
 use crate::tls;
 
 /// TLS certs for shared [`RootSeed`]-based mTLS.
 pub mod certs;
 
-/// Server-side TLS config for `AppNodeRunApi`.
+/// Server-side TLS config for [`AppNodeRunApi`].
 /// Also returns the node's DNS name.
 pub fn node_run_server_config(
     rng: &mut impl Crng,
@@ -266,7 +268,7 @@ pub fn ephemeral_ca_verifier(
     Ok(verifier)
 }
 
-/// The client's [`ServerCertVerifier`] for `AppNodeRunApi` TLS.
+/// The client's [`ServerCertVerifier`] for [`AppNodeRunApi`] TLS.
 ///
 /// - When the app wishes to connect to a running node, it will make a request
 ///   to the node using a fake run DNS [`constants::NODE_RUN_DNS`]. However,

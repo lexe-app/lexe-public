@@ -31,11 +31,11 @@ use anyhow::{format_err, Context};
 use common::{
     api::{
         command::{GetNewPayments, PaymentIndexes, UpdatePaymentNote},
-        def::AppNodeRunApi,
         error::NodeApiError,
     },
     ln::payments::{BasicPayment, PaymentIndex, VecBasicPayment},
 };
+use lexe_api::def::AppNodeRunApi;
 use lexe_std::iter::IteratorExt;
 use roaring::RoaringBitmap;
 use tracing::{instrument, warn};

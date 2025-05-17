@@ -5,9 +5,6 @@ use common::{
     api::{
         auth::{BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken},
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
-        def::{
-            BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi,
-        },
         error::{BackendApiError, LspApiError, RunnerApiError},
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
@@ -26,6 +23,7 @@ use common::{
     rng::Crng,
 };
 use lexe_api::{
+    def::{BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi},
     rest::{RequestBuilderExt, RestClient, POST},
     tls::attestation::{self, NodeMode},
 };

@@ -19,8 +19,8 @@ use base64::Engine;
 use common::{
     api::{
         auth::{
-            self, BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken,
-            BearerAuthenticator, Scope, UserSignupRequest,
+            BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken, Scope,
+            UserSignupRequest,
         },
         command::{
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
@@ -34,10 +34,6 @@ use common::{
             PreflightPayInvoiceResponse, PreflightPayOfferRequest,
             PreflightPayOfferResponse, PreflightPayOnchainRequest,
             PreflightPayOnchainResponse, UpdatePaymentNote,
-        },
-        def::{
-            AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
-            BearerAuthBackendApi,
         },
         error::{
             BackendApiError, GatewayApiError, NodeApiError, NodeErrorKind,
@@ -65,6 +61,11 @@ use common::{
     root_seed::RootSeed,
 };
 use lexe_api::{
+    auth::BearerAuthenticator,
+    def::{
+        AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
+        BearerAuthBackendApi,
+    },
     rest::{RequestBuilderExt, RestClient, POST},
     tls::{
         self, lexe_ca, rustls,
@@ -418,7 +419,7 @@ impl NodeClient {
         let now = SystemTime::now();
         let lifetime_secs = 10 * 365 * 24 * 60 * 60; // 10 years
         let scope = Some(Scope::NodeConnect);
-        let long_lived_connect_token = auth::do_bearer_auth(
+        let long_lived_connect_token = lexe_api::auth::do_bearer_auth(
             &self.gateway_client,
             now,
             user_key_pair,

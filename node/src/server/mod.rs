@@ -18,7 +18,6 @@ use axum::{
 };
 use common::{
     api::{
-        def::NodeRunnerApi,
         revocable_clients::RevocableClients,
         user::{Scid, UserPk},
     },
@@ -26,8 +25,11 @@ use common::{
     enclave::Measurement,
     ln::network::LxNetwork,
 };
-use lexe_api::tls::{
-    shared_seed::certs::RevocableIssuingCaCert, types::LxCertificateDer,
+use lexe_api::{
+    def::NodeRunnerApi,
+    tls::{
+        shared_seed::certs::RevocableIssuingCaCert, types::LxCertificateDer,
+    },
 };
 use lexe_ln::{
     alias::{NetworkGraphType, RouterType},
@@ -89,7 +91,7 @@ pub(crate) struct AppRouterState {
 
 /// Implements [`AppNodeRunApi`] - endpoints only callable by the app.
 ///
-/// [`AppNodeRunApi`]: common::api::def::AppNodeRunApi
+/// [`AppNodeRunApi`]: lexe_api::def::AppNodeRunApi
 pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
     /// The minimum interval between `/node/activity` requests.
     const MIN_ACTIVITY_CALLBACK_INTERVAL: Duration = Duration::from_secs(60);
@@ -173,7 +175,7 @@ pub(crate) struct LexeRouterState {
 
 /// Implements [`LexeNodeRunApi`] - only callable by the Lexe operators.
 ///
-/// [`LexeNodeRunApi`]: common::api::def::LexeNodeRunApi
+/// [`LexeNodeRunApi`]: lexe_api::def::LexeNodeRunApi
 pub(crate) fn lexe_router(state: Arc<LexeRouterState>) -> Router<()> {
     Router::new()
         .route("/lexe/status", get(lexe::status))

@@ -41,7 +41,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use common::{
-    api::{def::NodeLspApi, test_event::TestEvent, user::NodePk},
+    api::{test_event::TestEvent, user::NodePk},
     cli::LspInfo,
     debug_panic_release_log,
     ln::{
@@ -50,6 +50,7 @@ use common::{
     },
     rng::{RngExt, ThreadFastRng},
 };
+use lexe_api::def::NodeLspApi;
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     channel::{ChannelEvent, ChannelEventsBus},

@@ -2,8 +2,6 @@
 
 use std::sync::Arc;
 
-#[cfg(doc)]
-use common::api::def::{AppBackendApi, AppGatewayApi, BearerAuthBackendApi};
 use common::{constants, ed25519, env::DeployEnv};
 use rustls::{
     client::WebPkiServerVerifier,
@@ -12,6 +10,8 @@ use rustls::{
 };
 
 use super::types::{CertWithKey, LxCertificateDer, LxPrivatePkcs8KeyDer};
+#[cfg(doc)]
+use crate::def::{AppBackendApi, AppGatewayApi, BearerAuthBackendApi};
 
 /// Client-side TLS config for app->gateway APIs, i.e. the `GatewayClient`.
 /// This TLS config covers:

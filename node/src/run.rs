@@ -10,8 +10,6 @@ use bitcoin::secp256k1;
 use common::{
     aes::AesMasterKey,
     api::{
-        auth::BearerAuthenticator,
-        def::NodeRunnerApi,
         ports::Ports,
         provision::SealedSeedId,
         revocable_clients::RevocableClients,
@@ -34,6 +32,8 @@ use common::{
 use futures::future::FutureExt;
 use gdrive::{gvfs::GvfsRootName, GoogleVfs};
 use lexe_api::{
+    auth::BearerAuthenticator,
+    def::NodeRunnerApi,
     server::LayerConfig,
     tls::{
         self,

@@ -24,8 +24,6 @@ use axum::{
 };
 use common::{
     api::{
-        auth::BearerAuthenticator,
-        def::{NodeBackendApi, NodeRunnerApi},
         error::NodeApiError,
         ports::Ports,
         provision::{NodeProvisionRequest, SealedSeed},
@@ -39,6 +37,8 @@ use common::{
 };
 use gdrive::GoogleVfs;
 use lexe_api::{
+    auth::BearerAuthenticator,
+    def::{NodeBackendApi, NodeRunnerApi},
     server::{self, LayerConfig},
     tls::{self, attestation::NodeMode},
 };
@@ -167,7 +167,7 @@ pub async fn provision_node(
 
 /// Implements [`AppNodeProvisionApi`] - only callable by the node owner.
 ///
-/// [`AppNodeProvisionApi`]: common::api::def::AppNodeProvisionApi
+/// [`AppNodeProvisionApi`]: lexe_api::def::AppNodeProvisionApi
 fn app_router(ctx: RequestContext) -> Router<()> {
     Router::new()
         .route("/app/provision", post(handlers::provision))
@@ -182,7 +182,7 @@ struct LexeRouterState {
 
 /// Implements [`LexeNodeProvisionApi`] - only callable by the Lexe operators.
 ///
-/// [`LexeNodeProvisionApi`]: common::api::def::LexeNodeProvisionApi
+/// [`LexeNodeProvisionApi`]: lexe_api::def::LexeNodeProvisionApi
 fn lexe_router(state: LexeRouterState) -> Router<()> {
     Router::new()
         .route("/lexe/status", get(handlers::status))

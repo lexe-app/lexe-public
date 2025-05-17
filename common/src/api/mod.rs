@@ -23,8 +23,6 @@ use serde::{Deserialize, Serialize};
 pub mod auth;
 /// Data types used in APIs for top level commands.
 pub mod command;
-/// Traits defining the various REST API interfaces.
-pub mod def;
 /// Enums for the API errors returned by the various services.
 pub mod error;
 /// Data types returned from the fiat exchange rate API.

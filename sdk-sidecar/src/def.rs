@@ -1,4 +1,4 @@
-//! Sidecar API definition in the style of [`common::api::def`].
+//! Sidecar API definition in the style of [`lexe_api::def`].
 //!
 //! The Sidecar API should be documented here until we figure out how our API
 //! reference docs will be generated from request and response structs.

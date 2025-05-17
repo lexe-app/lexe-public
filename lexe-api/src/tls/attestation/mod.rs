@@ -69,12 +69,6 @@ use std::{
 };
 
 use anyhow::{format_err, Context};
-#[cfg(doc)]
-use common::api::def::AppNodeProvisionApi;
-#[cfg(doc)]
-use common::api::def::{
-    BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi,
-};
 use common::{
     constants,
     enclave::{Measurement, MrShort},
@@ -93,6 +87,11 @@ use rustls::{
 };
 
 use self::verifier::EnclavePolicy;
+#[cfg(doc)]
+use crate::def::{
+    AppNodeProvisionApi, BearerAuthBackendApi, NodeBackendApi, NodeLspApi,
+    NodeRunnerApi,
+};
 use crate::tls::{lexe_ca, types::CertWithKey};
 
 /// Self-signed x509 cert containing enclave remote attestation endorsements.

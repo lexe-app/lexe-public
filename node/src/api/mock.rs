@@ -14,10 +14,6 @@ use common::{
             UserSignupRequest,
         },
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
-        def::{
-            AppBackendApi, BearerAuthBackendApi, NodeBackendApi, NodeLspApi,
-            NodeRunnerApi,
-        },
         error::{BackendApiError, LspApiError, RunnerApiError},
         ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
@@ -42,6 +38,10 @@ use common::{
     rng::SysRng,
     root_seed::RootSeed,
     time::TimestampMs,
+};
+use lexe_api::def::{
+    AppBackendApi, BearerAuthBackendApi, NodeBackendApi, NodeLspApi,
+    NodeRunnerApi,
 };
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
