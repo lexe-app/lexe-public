@@ -6,7 +6,6 @@ use common::{
         auth::{BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken},
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         error::{BackendApiError, LspApiError, RunnerApiError},
-        ports::Ports,
         provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         user::{
             GetNewScidsRequest, MaybeScid, MaybeUser, NodePk, NodePkStruct,
@@ -26,6 +25,7 @@ use lexe_api::{
     def::{BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi},
     rest::{RequestBuilderExt, RestClient, POST},
     tls::attestation::{self, NodeMode},
+    types::ports::Ports,
 };
 use lightning::events::Event;
 

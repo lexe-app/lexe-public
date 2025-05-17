@@ -25,7 +25,6 @@ use axum::{
 use common::{
     api::{
         error::NodeApiError,
-        ports::Ports,
         provision::{NodeProvisionRequest, SealedSeed},
         version::MeasurementStruct,
         Empty,
@@ -41,6 +40,7 @@ use lexe_api::{
     def::{NodeBackendApi, NodeRunnerApi},
     server::{self, LayerConfig},
     tls::{self, attestation::NodeMode},
+    types::ports::Ports,
 };
 use lexe_tokio::notify_once::NotifyOnce;
 use tracing::{debug, info, info_span};

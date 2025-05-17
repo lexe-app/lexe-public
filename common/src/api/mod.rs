@@ -29,8 +29,6 @@ pub mod error;
 pub mod fiat_rates;
 /// API models which don't fit anywhere else.
 pub mod models;
-/// `Port`, `Ports`, `RunPorts`, etc.
-pub mod ports;
 /// Data types specific to provisioning.
 pub mod provision;
 /// Revocable clients.

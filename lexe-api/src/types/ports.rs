@@ -1,8 +1,7 @@
 use std::fmt;
 
+use common::{api::user::UserPk, enclave::Measurement};
 use serde::{Deserialize, Serialize};
-
-use crate::{api::user::UserPk, enclave::Measurement};
 
 pub type Port = u16;
 

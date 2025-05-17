@@ -67,7 +67,6 @@ use common::{
             SignMsgRequest, SignMsgResponse, Status, VerifyMsgRequest,
             VerifyMsgResponse,
         },
-        ports::Ports,
         provision::{
             MaybeSealedSeed, NodeProvisionRequest, SealedSeed, SealedSeedId,
         },
@@ -93,6 +92,8 @@ use common::{
     },
 };
 use lightning::events::Event;
+
+use crate::types::ports::Ports;
 
 // TODO(max): To make clear that only upgradeable structs are being serialized,
 // these methods should take e.g. `&UserPkStruct` instead of `UserPk`.
