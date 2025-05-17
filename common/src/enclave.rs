@@ -7,6 +7,7 @@ use std::{borrow::Cow, fmt, io, mem, str::FromStr, sync::LazyLock};
 use byte_array::ByteArray;
 use bytes::{Buf, BufMut};
 use cfg_if::cfg_if;
+use lexe_std::array::{self, ArrayExt};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use ref_cast::RefCast;
@@ -23,7 +24,6 @@ use sgx_isa::{Keyname, Keypolicy};
 use thiserror::Error;
 
 use crate::{
-    array::{self, ArrayExt},
     enclave,
     env::DeployEnv,
     rng::{Crng, RngExt},

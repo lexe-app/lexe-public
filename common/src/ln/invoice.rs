@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::Context;
+use lexe_std::Apply;
 use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescriptionRef};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
@@ -15,7 +16,6 @@ use crate::{
         payments::{LxPaymentHash, LxPaymentId, LxPaymentSecret},
     },
     time::{self, TimestampMs},
-    Apply,
 };
 
 /// Wraps [`lightning_invoice::Bolt11Invoice`] to impl [`serde`] Serialize /

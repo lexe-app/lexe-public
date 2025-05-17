@@ -16,8 +16,8 @@ use common::{
     constants,
     env::DeployEnv,
     ln::network::LxNetwork,
-    Apply,
 };
+use lexe_std::Apply;
 use serde::{Deserialize, Serialize};
 use tokio::sync::watch;
 use tracing::{info, instrument, warn};

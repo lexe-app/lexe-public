@@ -443,6 +443,7 @@ pub mod arb {
 mod test {
     use std::str::FromStr;
 
+    use lexe_std::Apply;
     use proptest::{
         arbitrary::any,
         prelude::{Strategy, TestCaseError},
@@ -450,7 +451,7 @@ mod test {
     };
 
     use super::*;
-    use crate::{test_utils::arbitrary, Apply};
+    use crate::test_utils::arbitrary;
 
     /// Check the correctness of the associated constants.
     #[test]

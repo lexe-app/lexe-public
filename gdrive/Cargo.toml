@@ -10,6 +10,7 @@ version.workspace = true
 
 common.path = "../common"
 const-utils.path = "../const-utils"
+lexe-std.path = "../lexe-std"
 sha256.path = "../sha256"
 
 # --- WORKSPACE --- #

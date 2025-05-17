@@ -30,7 +30,6 @@ use common::{
     net,
     rng::{Crng, SysRng},
     root_seed::RootSeed,
-    Apply,
 };
 use const_utils::const_assert;
 use futures::future::FutureExt;
@@ -64,6 +63,7 @@ use lexe_ln::{
     tx_broadcaster::TxBroadcaster,
     wallet::{self, LexeWallet},
 };
+use lexe_std::Apply;
 use lexe_tokio::{
     notify,
     notify_once::NotifyOnce,

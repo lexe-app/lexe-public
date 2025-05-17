@@ -82,6 +82,7 @@
 use std::fmt;
 
 use bytes::BufMut;
+use lexe_std::array;
 use ref_cast::RefCast;
 use ring::{
     aead::{self, BoundKey},
@@ -90,10 +91,7 @@ use ring::{
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::{
-    array,
-    rng::{Crng, RngExt},
-};
+use crate::rng::{Crng, RngExt};
 
 /// serialized version length
 const VERSION_LEN: usize = 1;

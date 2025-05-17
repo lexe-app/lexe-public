@@ -1,6 +1,7 @@
 use std::{env, fmt, fmt::Display, str::FromStr};
 
 use anyhow::{anyhow, ensure, Context};
+use lexe_std::Apply;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest::strategy::Strategy;
 #[cfg(any(test, feature = "test-utils"))]
@@ -9,7 +10,7 @@ use serde::Serialize;
 use serde_with::DeserializeFromStr;
 use strum::VariantArray;
 
-use crate::{ln::network::LxNetwork, Apply};
+use crate::ln::network::LxNetwork;
 
 /// Represents a validated `DEPLOY_ENVIRONMENT` configuration.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]

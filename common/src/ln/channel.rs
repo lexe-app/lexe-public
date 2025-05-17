@@ -5,6 +5,7 @@ use std::{
 
 use anyhow::Context;
 use byte_array::ByteArray;
+use lexe_std::Apply;
 use lightning::{
     chain::transaction::OutPoint,
     ln::{channel_state::ChannelDetails, types::ChannelId},
@@ -22,7 +23,6 @@ use crate::{
     ln::{amount::Amount, hashes::LxTxid},
     rng::{RngCore, RngExt},
     serde_helpers::hexstr_or_bytes,
-    Apply,
 };
 
 /// A newtype for [`lightning::ln::types::ChannelId`].

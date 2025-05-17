@@ -1,6 +1,7 @@
 use std::{borrow::Cow, fmt};
 
 use anyhow::{ensure, Context};
+use lexe_std::array;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use secrecy::{ExposeSecret, Secret};
@@ -10,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::test_utils::arbitrary;
 use crate::{
     api::user::UserPk,
-    array, ed25519,
+    ed25519,
     enclave::{self, MachineId, Measurement, Sealed},
     env::DeployEnv,
     ln::network::LxNetwork,

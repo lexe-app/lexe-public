@@ -904,6 +904,7 @@ fn deserialize_keypair_pkcs8_der(
 
 #[cfg(test)]
 mod test {
+    use lexe_std::array;
     use proptest::{
         arbitrary::any, prop_assert_eq, prop_assume, proptest,
         strategy::Strategy,
@@ -911,7 +912,6 @@ mod test {
     use proptest_derive::Arbitrary;
 
     use super::*;
-    use crate::array;
 
     #[derive(Arbitrary, Serialize, Deserialize)]
     struct SignableBytes(Vec<u8>);

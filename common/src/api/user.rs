@@ -2,6 +2,7 @@ use std::{fmt, str::FromStr};
 
 use bitcoin::{secp256k1, secp256k1::Secp256k1};
 use byte_array::ByteArray;
+use lexe_std::array;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest::{
     arbitrary::{any, Arbitrary},
@@ -18,7 +19,6 @@ use crate::rng::FastRng;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::root_seed::RootSeed;
 use crate::{
-    array,
     ed25519::{self, Signable},
     rng::Crng,
     serde_helpers::hexstr_or_bytes,

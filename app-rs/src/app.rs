@@ -23,8 +23,9 @@ use common::{
     ln::network::LxNetwork,
     rng::Crng,
     root_seed::RootSeed,
-    Apply, Secret,
+    Secret,
 };
+use lexe_std::Apply;
 use secrecy::ExposeSecret;
 use tracing::{info, instrument, warn};
 

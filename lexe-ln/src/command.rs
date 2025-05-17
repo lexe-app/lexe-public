@@ -43,7 +43,6 @@ use common::{
     },
     rng::SysRng,
     time::TimestampMs,
-    Apply,
 };
 use either::Either;
 use futures::Future;
@@ -51,6 +50,7 @@ use lexe_api::tls::{
     shared_seed::certs::{RevocableClientCert, RevocableIssuingCaCert},
     types::LxCertificateDer,
 };
+use lexe_std::Apply;
 use lightning::{
     chain::{
         chaininterface::{ConfirmationTarget, FeeEstimator},

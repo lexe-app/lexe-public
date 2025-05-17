@@ -4,8 +4,8 @@ use anyhow::Context;
 use common::{
     cli::LspFees,
     ln::{amount::Amount, balance::LightningBalance},
-    Apply,
 };
+use lexe_std::Apply;
 use lightning::ln::channel_state::ChannelDetails;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;

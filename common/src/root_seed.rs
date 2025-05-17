@@ -6,13 +6,13 @@ use bitcoin::{
     bip32::{self, ChildNumber},
     secp256k1, Network,
 };
+use lexe_std::array::{self, ArrayExt};
 use secrecy::{zeroize::Zeroizing, ExposeSecret, Secret, SecretVec};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
     aes::{self, AesMasterKey},
     api::user::{NodePk, UserPk},
-    array::{self, ArrayExt},
     ed25519, password,
     rng::{Crng, RngExt},
 };

@@ -28,8 +28,8 @@ use common::{
         },
     },
     rng::{Crng, SysRng},
-    Apply,
 };
+use lexe_std::Apply;
 use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
 use lexe_ln::{
     alias::{

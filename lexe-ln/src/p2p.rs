@@ -105,7 +105,8 @@ use std::{
 };
 
 use anyhow::{anyhow, ensure, Context};
-use common::{api::user::NodePk, backoff, ln::addr::LxSocketAddress, Apply};
+use common::{api::user::NodePk, backoff, ln::addr::LxSocketAddress};
+use lexe_std::Apply;
 use lexe_tokio::{
     notify,
     notify_once::NotifyOnce,

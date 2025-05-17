@@ -6,6 +6,7 @@ use std::{
 };
 
 use base64::Engine;
+use lexe_std::array;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -19,7 +20,6 @@ use crate::{
         def::BearerAuthBackendApi,
         error::{BackendApiError, BackendErrorKind},
     },
-    array,
     byte_str::ByteStr,
     ed25519::{self, Signed},
 };
