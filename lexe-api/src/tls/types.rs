@@ -64,24 +64,16 @@ pub struct DnsCertWithKey {
 pub struct CertWithKey {
     pub cert_der: LxCertificateDer,
     pub key_der: LxPrivatePkcs8KeyDer,
-    /// The DER-encoded cert of the Lexe CA that signed this end-entity cert,
-    /// which was itself signed by the old Lexe CA during a Lexe CA rotation.
+    /// The DER-encoded cert of the CA that signed this end-entity cert.
     ///
-    /// 99%+ of the time you can just leave this field as [`None`].
+    /// # Root Lexe CA key rotation
     ///
-    /// This field is only required to be [`Some`] if:
-    /// 1) This [`CertWithKey`] corresponds to an end-entity cert used to
-    ///    authenticate ourselves for "Lexe CA" TLS, i.e. the remote verifier
-    ///    requires that [`Self::cert_der`] has been signed by the Lexe CA.
-    /// 2) Lexe is undergoing a (very rare) root CA key rotation.
-    /// 3) We expect to communicate with remote clients/servers that trust the
-    ///    old Lexe CA, but have not yet upgraded to trust the new one.
+    /// 99% of the time, "Lexe CA" TLS does not require setting this field.
     ///
-    /// If all conditions are met, then this field must contain the *new* Lexe
-    /// CA cert, which has been signed by the old Lexe CA. [`Self::cert_der`]
-    /// must then be an end-entity cert signed by the *new* CA.
-    /// [`CertWithKey::into_chain_and_key`] will then include both of these
-    /// certs in the cert chain presented to remote verifiers.
+    /// Only if this [`CertWithKey`] corresponds to an end-entity cert used to
+    /// authenticate ourselves for "Lexe CA" TLS, and we're in the midst of a
+    /// Root Lexe CA key rotation, is this field required to be [`Some`], in
+    /// which case it should contain the cert of the NEW Lexe CA.
     ///
     /// See the docs on `LexeRootCaCert` for more info.
     pub ca_cert_der: Option<LxCertificateDer>,
