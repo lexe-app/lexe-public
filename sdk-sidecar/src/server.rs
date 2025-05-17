@@ -24,7 +24,7 @@ mod sidecar {
     use std::borrow::Cow;
 
     use lexe_api::server::LxJson;
-    use sdk_core::error::SdkApiError;
+    use sdk_core::SdkApiError;
     use tracing::instrument;
 
     use crate::api::HealthCheckResponse;
@@ -51,13 +51,13 @@ mod node {
         server::{extract::LxQuery, LxJson},
     };
     use sdk_core::{
-        api::{
+        models::{
             SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
             SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfoResponse,
             SdkPayInvoiceRequest, SdkPayInvoiceResponse,
         },
-        error::SdkApiError,
         types::SdkPayment,
+        SdkApiError,
     };
     use tracing::instrument;
 

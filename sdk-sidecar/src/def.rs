@@ -8,7 +8,7 @@
 
 #[cfg(doc)]
 use common::api::Empty;
-use sdk_core::{def::SdkApi, error::SdkApiError};
+use sdk_core::{def::SdkApi, SdkApiError};
 
 use crate::api::HealthCheckResponse;
 

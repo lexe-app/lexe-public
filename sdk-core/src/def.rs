@@ -7,12 +7,12 @@
 #![allow(async_fn_in_trait)]
 
 use crate::{
-    api::{
+    models::{
         SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
         SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfoResponse,
         SdkPayInvoiceRequest, SdkPayInvoiceResponse,
     },
-    error::SdkApiError,
+    SdkApiError,
 };
 
 /// The API exposed to SDK users.

@@ -1,14 +1,14 @@
 //! This module contains common data structures and types used by API request
 //! and response types.
 //!
-//! NOTE: The guidelines in [`sdk_core::api`] should also be followed here:
+//! NOTE: The guidelines in [`sdk_core::models`] should also be followed here:
 //!
 //! - Simple: minimal nesting, fewer fields
 //! - User-facing docs
 //! - Document serialization and units
 //! - Serialize `null`
 //!
-//! [`sdk_core::api`]: crate::api
+//! [`sdk_core::models`]: crate::models
 
 use common::{
     ln::{

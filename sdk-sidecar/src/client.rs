@@ -1,13 +1,13 @@
 use common::api::Empty;
 use lexe_api::rest::RestClient;
 use sdk_core::{
-    api::{
+    def::SdkApi,
+    models::{
         SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
         SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfoResponse,
         SdkPayInvoiceRequest, SdkPayInvoiceResponse,
     },
-    def::SdkApi,
-    error::SdkApiError,
+    SdkApiError,
 };
 
 use crate::{api::HealthCheckResponse, def::UserSidecarApi};

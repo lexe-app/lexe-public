@@ -2,11 +2,13 @@
 
 #![deny(missing_docs)]
 
-/// API request and response types
-pub mod api;
-/// API trait definitions
+/// API trait definitions.
 pub mod def;
-/// API error types
-pub mod error;
-/// Data structures used by APIs
+/// API request and response types unique to a specific endpoint.
+pub mod models;
+/// Shared API types.
 pub mod types;
+
+/// Temporary type alias for the errors returned by SDK APIs.
+// TODO(max): Replace this with LexeError
+pub type SdkApiError = common::api::error::NodeApiError;
