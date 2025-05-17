@@ -1,0 +1,15 @@
+[package]
+name = "lexe-std"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+
+### NOTE: NO DEPENDENCIES ARE ALLOWED for `lexe-std` ###
+#
+# The purpose of this crate is to extract "std extensions" into a crate that
+# other Lexe crates can depend on without having to pull in any dependencies.
+# 
+# Any dependencies added here should be strictly test-only or optional.

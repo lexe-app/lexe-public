@@ -2518,6 +2518,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "lexe-std"
+version = "0.0.0"
+
+[[package]]
 name = "lexe-tokio"
 version = "0.0.0"
 dependencies = [
