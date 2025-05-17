@@ -32,7 +32,7 @@ use crate::{
 pub struct LxChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
 byte_array::impl_byte_array!(LxChannelId, 32);
-byte_array::impl_fromstr_from_hexstr!(LxChannelId);
+byte_array::impl_fromstr_fromhex!(LxChannelId, 32);
 byte_array::impl_debug_display_as_hex!(LxChannelId);
 
 impl From<ChannelId> for LxChannelId {
@@ -76,7 +76,7 @@ impl LxUserChannelId {
 }
 
 byte_array::impl_byte_array!(LxUserChannelId, 16);
-byte_array::impl_fromstr_from_hexstr!(LxUserChannelId);
+byte_array::impl_fromstr_fromhex!(LxUserChannelId, 16);
 byte_array::impl_debug_display_as_hex!(LxUserChannelId);
 
 impl From<u128> for LxUserChannelId {

@@ -1890,6 +1890,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "byte-array",
  "common",
  "futures",
  "lexe-std",
@@ -2421,6 +2422,7 @@ dependencies = [
  "axum",
  "axum-server",
  "bcs",
+ "byte-array",
  "bytemuck",
  "bytes",
  "cmac",
@@ -4071,6 +4073,7 @@ dependencies = [
 name = "sha256"
 version = "0.0.0"
 dependencies = [
+ "byte-array",
  "hex 0.0.0",
  "lexe-std",
  "ref-cast",

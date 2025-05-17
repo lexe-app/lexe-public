@@ -71,18 +71,23 @@ macro_rules! impl_byte_array {
     };
 }
 
-/// Impls FromStr for a [`ByteArray`] type parsed from a hex string.
+/// Impls `FromStr` and `FromHex` for a [`ByteArray`] parsed from a hex string.
 ///
 /// ```ignore
-/// byte_array::impl_fromstr_from_hexstr!(Measurement);
+/// byte_array::impl_fromstr_fromhex!(Measurement);
 /// ```
 #[macro_export]
-macro_rules! impl_fromstr_from_hexstr {
-    ($type:ty) => {
+macro_rules! impl_fromstr_fromhex {
+    ($type:ty, $n:expr) => {
         impl std::str::FromStr for $type {
             type Err = hex::DecodeError;
             fn from_str(s: &str) -> Result<Self, Self::Err> {
                 Self::try_from_hexstr(s)
+            }
+        }
+        impl hex::FromHex for $type {
+            fn from_hex(s: &str) -> Result<Self, hex::DecodeError> {
+                <[u8; $n]>::from_hex(s).map(Self::from_array)
             }
         }
     };
@@ -146,7 +151,7 @@ mod test {
     struct MyStruct([u8; 4]);
 
     impl_byte_array!(MyStruct, 4);
-    impl_fromstr_from_hexstr!(MyStruct);
+    impl_fromstr_fromhex!(MyStruct, 4);
     impl_debug_display_as_hex!(MyStruct);
 
     #[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast)]
@@ -154,7 +159,7 @@ mod test {
     struct MySecret([u8; 4]);
 
     impl_byte_array!(MySecret, 4);
-    impl_fromstr_from_hexstr!(MySecret);
+    impl_fromstr_fromhex!(MySecret, 4);
     impl_debug_display_redacted!(MySecret);
 
     #[test]

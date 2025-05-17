@@ -199,7 +199,7 @@ impl UserPk {
 }
 
 byte_array::impl_byte_array!(UserPk, 32);
-byte_array::impl_fromstr_from_hexstr!(UserPk);
+byte_array::impl_fromstr_fromhex!(UserPk, 32);
 byte_array::impl_debug_display_as_hex!(UserPk);
 
 // --- impl ShortUserPk --- //
@@ -216,7 +216,7 @@ impl ShortUserPk {
 }
 
 byte_array::impl_byte_array!(ShortUserPk, 4);
-byte_array::impl_fromstr_from_hexstr!(ShortUserPk);
+byte_array::impl_fromstr_fromhex!(ShortUserPk, 4);
 byte_array::impl_debug_display_as_hex!(ShortUserPk);
 
 impl From<&UserPk> for ShortUserPk {

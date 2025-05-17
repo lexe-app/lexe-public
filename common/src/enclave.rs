@@ -456,7 +456,7 @@ impl Measurement {
 }
 
 byte_array::impl_byte_array!(Measurement, 32);
-byte_array::impl_fromstr_from_hexstr!(Measurement);
+byte_array::impl_fromstr_fromhex!(Measurement, 32);
 byte_array::impl_debug_display_as_hex!(Measurement);
 
 // --- impl MrShort --- //
@@ -473,7 +473,7 @@ impl MrShort {
 }
 
 byte_array::impl_byte_array!(MrShort, 4);
-byte_array::impl_fromstr_from_hexstr!(MrShort);
+byte_array::impl_fromstr_fromhex!(MrShort, 4);
 byte_array::impl_debug_display_as_hex!(MrShort);
 
 impl From<&Measurement> for MrShort {
@@ -499,7 +499,7 @@ impl MachineId {
 }
 
 byte_array::impl_byte_array!(MachineId, 16);
-byte_array::impl_fromstr_from_hexstr!(MachineId);
+byte_array::impl_fromstr_fromhex!(MachineId, 16);
 byte_array::impl_debug_display_as_hex!(MachineId);
 
 // --- impl MinCpusvn --- //

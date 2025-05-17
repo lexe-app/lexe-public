@@ -521,12 +521,12 @@ byte_array::impl_byte_array!(LxPaymentSecret, 32);
 byte_array::impl_byte_array!(LxOfferId, 32);
 byte_array::impl_byte_array!(LnClaimId, 32);
 
-byte_array::impl_fromstr_from_hexstr!(ClientPaymentId);
-byte_array::impl_fromstr_from_hexstr!(LxPaymentHash);
-byte_array::impl_fromstr_from_hexstr!(LxPaymentPreimage);
-byte_array::impl_fromstr_from_hexstr!(LxPaymentSecret);
-byte_array::impl_fromstr_from_hexstr!(LxOfferId);
-byte_array::impl_fromstr_from_hexstr!(LnClaimId);
+byte_array::impl_fromstr_fromhex!(ClientPaymentId, 32);
+byte_array::impl_fromstr_fromhex!(LxPaymentHash, 32);
+byte_array::impl_fromstr_fromhex!(LxPaymentPreimage, 32);
+byte_array::impl_fromstr_fromhex!(LxPaymentSecret, 32);
+byte_array::impl_fromstr_fromhex!(LxOfferId, 32);
+byte_array::impl_fromstr_fromhex!(LnClaimId, 32);
 
 byte_array::impl_debug_display_as_hex!(ClientPaymentId);
 byte_array::impl_debug_display_as_hex!(LxPaymentHash);

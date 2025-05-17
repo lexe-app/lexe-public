@@ -3,7 +3,6 @@
 use std::io;
 
 use byte_array::ByteArray;
-use hex::FromHex;
 use ref_cast::RefCast;
 
 pub const HASH_LEN: usize = 32;
@@ -47,7 +46,7 @@ impl Hash {
 }
 
 byte_array::impl_byte_array!(Hash, 32);
-byte_array::impl_fromstr_from_hexstr!(Hash);
+byte_array::impl_fromstr_fromhex!(Hash, 32);
 byte_array::impl_debug_display_as_hex!(Hash);
 
 impl AsRef<[u8]> for Hash {
@@ -59,12 +58,6 @@ impl AsRef<[u8]> for Hash {
 impl AsRef<[u8; 32]> for Hash {
     fn as_ref(&self) -> &[u8; 32] {
         &self.0
-    }
-}
-
-impl FromHex for Hash {
-    fn from_hex(s: &str) -> Result<Self, hex::DecodeError> {
-        <[u8; 32]>::from_hex(s).map(Self::new)
     }
 }
 
