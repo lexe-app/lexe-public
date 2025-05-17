@@ -68,6 +68,18 @@ macro_rules! impl_byte_array {
                 &self.0
             }
         }
+
+        impl AsRef<[u8]> for $type {
+            fn as_ref(&self) -> &[u8] {
+                self.0.as_slice()
+            }
+        }
+
+        impl AsRef<[u8; $n]> for $type {
+            fn as_ref(&self) -> &[u8; $n] {
+                &self.0
+            }
+        }
     };
 }
 
