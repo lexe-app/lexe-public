@@ -24,10 +24,8 @@ use axum::{
 };
 use common::{
     api::{
-        error::NodeApiError,
-        provision::{NodeProvisionRequest, SealedSeed},
-        version::MeasurementStruct,
-        Empty,
+        error::NodeApiError, provision::NodeProvisionRequest,
+        version::MeasurementStruct, Empty,
     },
     cli::node::ProvisionArgs,
     enclave::{self, MachineId, Measurement},
@@ -40,7 +38,7 @@ use lexe_api::{
     def::{NodeBackendApi, NodeRunnerApi},
     server::{self, LayerConfig},
     tls::{self, attestation::NodeMode},
-    types::ports::Ports,
+    types::{ports::Ports, sealed_seed::SealedSeed},
 };
 use lexe_tokio::notify_once::NotifyOnce;
 use tracing::{debug, info, info_span};

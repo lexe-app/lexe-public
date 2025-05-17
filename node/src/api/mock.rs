@@ -15,7 +15,6 @@ use common::{
         },
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         error::{BackendApiError, LspApiError, RunnerApiError},
-        provision::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         user::{
             GetNewScidsRequest, MaybeScid, MaybeUser, NodePk, Scid, ScidStruct,
             Scids, User, UserPk,
@@ -43,7 +42,10 @@ use lexe_api::{
         AppBackendApi, BearerAuthBackendApi, NodeBackendApi, NodeLspApi,
         NodeRunnerApi,
     },
-    types::ports::Ports,
+    types::{
+        ports::Ports,
+        sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
+    },
 };
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},

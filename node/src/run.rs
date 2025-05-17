@@ -10,7 +10,6 @@ use bitcoin::secp256k1;
 use common::{
     aes::AesMasterKey,
     api::{
-        provision::SealedSeedId,
         revocable_clients::RevocableClients,
         user::{GetNewScidsRequest, NodePk, User, UserPk},
         vfs::Vfs,
@@ -39,7 +38,7 @@ use lexe_api::{
         attestation::NodeMode,
         shared_seed::certs::{EphemeralIssuingCaCert, RevocableIssuingCaCert},
     },
-    types::ports::Ports,
+    types::{ports::Ports, sealed_seed::SealedSeedId},
 };
 use lexe_ln::{
     alias::{
