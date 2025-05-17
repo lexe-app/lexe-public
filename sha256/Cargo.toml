@@ -9,6 +9,7 @@ version.workspace = true
 
 # --- LEXE --- #
 
+byte-array.path = "../byte-array"
 hex.path = "../hex"
 lexe-std = { path = "../lexe-std", features = ["ref-cast"] }
 

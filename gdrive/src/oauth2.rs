@@ -7,6 +7,7 @@ use std::{
 };
 
 use base64::Engine;
+use byte_array::ByteArray;
 #[cfg(test)]
 use common::test_utils::arbitrary;
 use common::{

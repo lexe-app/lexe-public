@@ -71,7 +71,7 @@ impl LxUserChannelId {
     }
 
     pub fn derive_temporary_channel_id(&self) -> LxChannelId {
-        LxChannelId(sha256::digest(&self.0).into_inner())
+        LxChannelId(sha256::digest(&self.0).to_array())
     }
 }
 

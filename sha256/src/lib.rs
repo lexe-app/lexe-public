@@ -1,15 +1,15 @@
 //! A convenience crate for hasing things with SHA-256.
 
-use std::{fmt, io};
+use std::io;
 
+use byte_array::ByteArray;
 use hex::FromHex;
-use lexe_std::const_utils;
 use ref_cast::RefCast;
 
 pub const HASH_LEN: usize = 32;
 
 /// A SHA-256 Hash value.
-#[derive(Copy, Clone, Default, Eq, PartialEq, RefCast)]
+#[derive(Copy, Clone, Default, Eq, Hash, PartialEq, RefCast)]
 #[repr(transparent)]
 pub struct Hash([u8; 32]);
 
@@ -39,28 +39,16 @@ impl Hash {
         Self(value)
     }
 
-    pub const fn from_ref(value: &[u8; 32]) -> &Self {
-        const_utils::const_ref_cast(value)
-    }
-
-    pub const fn as_slice(&self) -> &[u8] {
-        self.0.as_slice()
-    }
-
-    pub const fn as_inner(&self) -> &[u8; 32] {
-        &self.0
-    }
-
-    pub const fn into_inner(self) -> [u8; 32] {
-        self.0
-    }
-
     // Note: not pub, since `ring::digest::Digest` is not always SHA-256, but
     // we can guarantee this invariant inside the module.
     fn from_ring(output: ring::digest::Digest) -> Self {
         Self::new(<[u8; 32]>::try_from(output.as_ref()).unwrap())
     }
 }
+
+byte_array::impl_byte_array!(Hash, 32);
+byte_array::impl_fromstr_from_hexstr!(Hash);
+byte_array::impl_debug_display_as_hex!(Hash);
 
 impl AsRef<[u8]> for Hash {
     fn as_ref(&self) -> &[u8] {
@@ -77,18 +65,6 @@ impl AsRef<[u8; 32]> for Hash {
 impl FromHex for Hash {
     fn from_hex(s: &str) -> Result<Self, hex::DecodeError> {
         <[u8; 32]>::from_hex(s).map(Self::new)
-    }
-}
-
-impl fmt::Display for Hash {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::display(self.as_slice()))
-    }
-}
-
-impl fmt::Debug for Hash {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self}")
     }
 }
 

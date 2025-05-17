@@ -38,6 +38,7 @@
 use std::{fmt, str::FromStr};
 
 use asn1_rs::{oid, Oid};
+use byte_array::ByteArray;
 use bytes::{BufMut, Bytes, BytesMut};
 use hex::FromHex;
 use lexe_std::const_utils;

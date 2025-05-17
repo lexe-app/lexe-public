@@ -20,6 +20,7 @@ test-utils = [
 
 # --- LEXE --- #
 
+byte-array.path = "../byte-array"
 common.path = "../common"
 hex.path = "../hex"
 lexe-std.path = "../lexe-std"

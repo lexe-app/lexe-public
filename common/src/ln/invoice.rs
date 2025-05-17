@@ -392,6 +392,7 @@ pub mod arbitrary_impl {
 mod test {
     use std::time::Duration;
 
+    use byte_array::ByteArray;
     use lightning::{
         ln::channelmanager::MIN_FINAL_CLTV_EXPIRY_DELTA,
         routing::router::RouteHint,
@@ -515,8 +516,8 @@ lnbc1mmj7z2hd427xtea2gtw8et4p5ta7lm6xe02nemhxvg7zse98734qudr2pucwaz3ua647tl9tv8n
             network,
             description_or_hash,
             created_at,
-            payment_secret.into_inner(),
-            payment_hash.into_inner(),
+            payment_secret.to_array(),
+            payment_hash.to_array(),
             min_final_cltv_expiry_delta,
             amount,
             expires_at.map(|x| x.saturating_sub(created_at)),

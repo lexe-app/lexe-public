@@ -158,7 +158,7 @@ impl KeyPair {
         modulus_buf[..modulus.len()].copy_from_slice(&modulus);
 
         let measurement = sha256::digest(&modulus_buf);
-        enclave::Measurement::new(measurement.into_inner())
+        enclave::Measurement::new(measurement.to_array())
     }
 
     fn padding_scheme() -> Pkcs1v15Sign {
@@ -232,7 +232,7 @@ impl KeyPair {
         #[allow(clippy::tuple_array_conversions)]
         let tbs_sigstruct_hash = {
             let (tbs1, tbs2) = sigstruct.signature_data();
-            sha256::digest_many(&[tbs1, tbs2]).into_inner()
+            sha256::digest_many(&[tbs1, tbs2]).to_array()
         };
 
         self.verify_raw(&sigstruct.signature, tbs_sigstruct_hash.as_slice())
@@ -319,7 +319,7 @@ impl SgxHashOps for SgxHasher {
     }
 
     fn finish(self) -> [u8; 32] {
-        self.0.finish().into_inner()
+        self.0.finish().to_array()
     }
 }
 

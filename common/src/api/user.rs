@@ -316,7 +316,7 @@ impl NodePkProof {
             &NodePkProof::DOMAIN_SEPARATOR,
             &node_pk_bytes,
         ]);
-        secp256k1::Message::from_digest(hash.into_inner())
+        secp256k1::Message::from_digest(hash.to_array())
     }
 
     /// Given a [`secp256k1::Keypair`], sign a new [`NodePkProof`]

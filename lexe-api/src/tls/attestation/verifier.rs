@@ -9,6 +9,7 @@ use std::{
 
 use anyhow::{bail, ensure, format_err, Context};
 use asn1_rs::FromDer;
+use byte_array::ByteArray;
 use common::{
     ed25519,
     enclave::{self, Measurement},

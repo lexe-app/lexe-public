@@ -439,7 +439,7 @@ impl Measurement {
             let n = sgxs_reader.read(&mut buf)?;
             if n == 0 {
                 let hash = digest.finish();
-                return Ok(Measurement::new(hash.into_inner()));
+                return Ok(Measurement::new(hash.to_array()));
             } else {
                 digest.update(&buf[0..n]);
             }
