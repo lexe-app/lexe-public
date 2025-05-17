@@ -19,3 +19,11 @@ ref-cast = ["dep:ref-cast"]
 # Any dependencies added here should be strictly test-only or optional.
 
 ref-cast = { optional = true, workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true, features = ["alloc"] }
+proptest-derive.workspace = true
+
+[target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
+# Include std impls when testing outside of SGX
+proptest = { workspace = true, features = ["std"] }

@@ -34,9 +34,9 @@ use common::{
         def::AppNodeRunApi,
         error::NodeApiError,
     },
-    iter::IteratorExt,
     ln::payments::{BasicPayment, PaymentIndex, VecBasicPayment},
 };
+use lexe_std::iter::IteratorExt;
 use roaring::RoaringBitmap;
 use tracing::{instrument, warn};
 

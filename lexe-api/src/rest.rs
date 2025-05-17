@@ -5,13 +5,14 @@ use common::{
     api::error::{
         ApiError, CommonApiError, CommonErrorKind, ErrorCode, ErrorResponse,
     },
-    backoff, ed25519,
+    ed25519,
     time::DisplayMs,
 };
 use http::{
     header::{HeaderValue, CONTENT_TYPE},
     Method,
 };
+use lexe_std::backoff;
 use lightning::util::ser::Writeable;
 use reqwest::IntoUrl;
 use serde::{de::DeserializeOwned, Serialize};

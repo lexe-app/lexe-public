@@ -8,8 +8,12 @@
 
 /// `[u8; N]` array functions.
 pub mod array;
+/// Exponential backoff.
+pub mod backoff;
 /// Utilities for use in `const` fns and expressions.
 pub mod const_utils;
+/// Iterator extensions.
+pub mod iter;
 
 /// A trait which allows us to apply functions (including tuple enum variants)
 /// to non-[`Iterator`]/[`Result`]/[`Option`] values for cleaner iterator-like

@@ -11,11 +11,11 @@ use common::{
         auth::BearerAuthenticator,
         vfs::{VfsFile, VfsFileId},
     },
-    backoff,
     constants::IMPORTANT_PERSIST_RETRIES,
 };
 use gdrive::GoogleVfs;
 use lexe_ln::persister;
+use lexe_std::backoff;
 use secrecy::Secret;
 
 use crate::api::BackendApiClient;

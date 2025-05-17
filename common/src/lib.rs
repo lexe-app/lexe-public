@@ -19,8 +19,6 @@ pub use secrecy::{ExposeSecret, Secret};
 pub mod aes;
 /// API definitions, errors, clients, and structs sent across the wire.
 pub mod api;
-/// Exponential backoff.
-pub mod backoff;
 /// [`tokio::Bytes`](bytes::Bytes) but must contain a string.
 pub mod byte_str;
 /// User node CLI.
@@ -35,8 +33,6 @@ pub mod ed25519;
 pub mod enclave;
 /// `DeployEnv`.
 pub mod env;
-/// Iterator extensions.
-pub mod iter;
 /// Bitcoin / Lightning Lexe newtypes which can't go in lexe-ln
 pub mod ln;
 /// Networking utilities.

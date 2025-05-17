@@ -29,7 +29,6 @@ use common::{
     },
     rng::{Crng, SysRng},
 };
-use lexe_std::Apply;
 use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
 use lexe_ln::{
     alias::{
@@ -48,6 +47,7 @@ use lexe_ln::{
     traits::{LexeInnerPersister, LexePersister},
     wallet::ChangeSet,
 };
+use lexe_std::Apply;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::{
     chain::{

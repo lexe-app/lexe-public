@@ -4,12 +4,12 @@ const INITIAL_WAIT_MS: u64 = 250;
 const MAXIMUM_WAIT_MS: u64 = 32_000;
 const EXP_BASE: u64 = 2;
 
-lexe_std::const_assert!(INITIAL_WAIT_MS != 0);
+crate::const_assert!(INITIAL_WAIT_MS != 0);
 
 /// Get a iterator of [`Duration`]s which can be passed into e.g.
-/// [`tokio::time::sleep`] to observe time-based exponential backoff.
+/// `tokio::time::sleep` to observe time-based exponential backoff.
 ///
-/// ```
+/// ```ignore
 /// # use common::backoff;
 /// # #[tokio::test(start_paused = true)]
 /// # async fn backoff_example() {

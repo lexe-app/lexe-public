@@ -16,7 +16,7 @@ pub trait IteratorExt: Iterator {
     ///
     /// ```rust
     /// use std::iter;
-    /// use common::iter::IteratorExt;
+    /// use lexe_std::iter::IteratorExt;
     ///
     /// assert!(iter::empty::<u32>().is_strict_total_order());
     /// assert!(&[1].iter().is_strict_total_order());
