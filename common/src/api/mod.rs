@@ -39,6 +39,8 @@ pub mod provision;
 pub mod revocable_clients;
 /// A subset of `lexe_api::server` which needs to stay in `common`.
 pub mod server;
+/// `TestEvent`.
+pub mod test_event;
 /// User ID-like types: `User`, `UserPk`, `NodePk`, `Scid`
 pub mod user;
 /// Data types which relate to node versions: `NodeRelease`, `MeasurementStruct`

@@ -7,7 +7,7 @@ use std::{
 use anyhow::{anyhow, bail, ensure, Context};
 use bdk_wallet::KeychainKind;
 use common::{
-    api::command::UpdatePaymentNote,
+    api::{command::UpdatePaymentNote, test_event::TestEvent},
     ln::{
         amount::Amount,
         hashes::LxTxid,
@@ -16,7 +16,6 @@ use common::{
             PaymentStatus,
         },
     },
-    test_event::TestEvent,
     time::TimestampMs,
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};

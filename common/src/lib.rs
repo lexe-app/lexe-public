@@ -47,8 +47,6 @@ pub mod rng;
 pub mod root_seed;
 /// [`serde`] helpers.
 pub mod serde_helpers;
-/// `TestEvent`.
-pub mod test_event;
 /// `TimestampMs` and `DisplayMs`.
 pub mod time;
 

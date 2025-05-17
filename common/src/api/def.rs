@@ -77,19 +77,19 @@ use super::{
     vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
     Empty,
 };
-#[cfg(doc)]
 use crate::{
-    api::user::NodePkStruct, api::user::UserPkStruct,
-    api::version::MeasurementStruct, ln::payments::PaymentIndex,
-};
-use crate::{
+    api::test_event::TestEventOp,
     ed25519,
     enclave::Measurement,
     ln::payments::{
         DbPayment, MaybeDbPayment, VecBasicPayment, VecDbPayment,
         VecLxPaymentId,
     },
-    test_event::TestEventOp,
+};
+#[cfg(doc)]
+use crate::{
+    api::user::NodePkStruct, api::user::UserPkStruct,
+    api::version::MeasurementStruct, ln::payments::PaymentIndex,
 };
 
 // TODO(max): To make clear that only upgradeable structs are being serialized,

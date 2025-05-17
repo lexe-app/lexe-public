@@ -41,7 +41,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use common::{
-    api::{def::NodeLspApi, user::NodePk},
+    api::{def::NodeLspApi, test_event::TestEvent, user::NodePk},
     cli::LspInfo,
     debug_panic_release_log,
     ln::{
@@ -49,7 +49,6 @@ use common::{
         payments::{LnClaimId, LxPaymentHash, LxPaymentId},
     },
     rng::{RngExt, ThreadFastRng},
-    test_event::TestEvent,
 };
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},

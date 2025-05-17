@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::bail;
 use cfg_if::cfg_if;
-use common::test_event::{TestEvent, TestEventOp};
+use common::api::test_event::{TestEvent, TestEventOp};
 use lexe_api::{rest, server};
 use tokio::sync::mpsc;
 use tracing::debug;
@@ -139,7 +139,7 @@ impl TestEventReceiver {
     /// # Example
     ///
     /// ```
-    /// # use common::test_event::TestEvent;
+    /// # use common::api::test_event::TestEvent;
     /// # use lexe_ln::test_event;
     /// # #[tokio::test]
     /// # async fn wait() {
@@ -164,7 +164,7 @@ impl TestEventReceiver {
     /// # Example
     ///
     /// ```
-    /// # use common::test_event::TestEvent;
+    /// # use common::api::test_event::TestEvent;
     /// # use lexe_ln::test_event;
     /// # #[tokio::test]
     /// # async fn wait_n() {
@@ -195,7 +195,7 @@ impl TestEventReceiver {
     /// # Example
     ///
     /// ```
-    /// # use common::test_event::TestEvent;
+    /// # use common::api::test_event::TestEvent;
     /// # use lexe_ln::test_event;
     /// # #[tokio::test]
     /// # async fn wait_all() {
@@ -228,7 +228,7 @@ impl TestEventReceiver {
     /// # Example
     ///
     /// ```
-    /// # use common::test_event::TestEvent;
+    /// # use common::api::test_event::TestEvent;
     /// # use lexe_ln::test_event;
     /// # #[tokio::test]
     /// # async fn wait_all_n() {
@@ -265,7 +265,7 @@ impl TestEventReceiver {
     ///
     /// ```
     /// # use std::time::Duration;
-    /// # use common::test_event::TestEvent;
+    /// # use common::api::test_event::TestEvent;
     /// # use lexe_ln::test_event;
     /// # #[tokio::test]
     /// # async fn wait_timeout() {
@@ -298,7 +298,7 @@ impl TestEventReceiver {
     ///
     /// ```
     /// # use std::time::Duration;
-    /// # use common::test_event::TestEvent;
+    /// # use common::api::test_event::TestEvent;
     /// # use lexe_ln::test_event;
     /// # #[tokio::test]
     /// # async fn wait_n_timeout() {
@@ -331,7 +331,7 @@ impl TestEventReceiver {
     ///
     /// ```
     /// # use std::time::Duration;
-    /// # use common::test_event::TestEvent;
+    /// # use common::api::test_event::TestEvent;
     /// # use lexe_ln::test_event;
     /// # #[tokio::test]
     /// # async fn wait_all_timeout() {

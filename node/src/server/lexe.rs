@@ -2,8 +2,10 @@ use std::sync::Arc;
 
 use axum::extract::State;
 use common::{
-    api::{error::NodeApiError, models::Status, user::UserPkStruct, Empty},
-    test_event::TestEventOp,
+    api::{
+        error::NodeApiError, models::Status, test_event::TestEventOp,
+        user::UserPkStruct, Empty,
+    },
     time::TimestampMs,
 };
 use lexe_api::server::{extract::LxQuery, LxJson};

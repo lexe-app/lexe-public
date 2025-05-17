@@ -5,9 +5,9 @@ use bitcoin::{absolute, secp256k1};
 #[cfg(test)]
 use common::test_utils::arbitrary;
 use common::{
+    api::test_event::TestEvent,
     ln::channel::{LxChannelId, LxUserChannelId},
     rng::{Crng, RngExt, SysRng},
-    test_event::TestEvent,
     time::{DisplayMs, TimestampMs},
 };
 use lexe_tokio::task::LxTask;
