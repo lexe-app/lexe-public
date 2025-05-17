@@ -230,7 +230,7 @@ mod atomic_log_ptr {
         sync::atomic::{AtomicPtr, Ordering},
     };
 
-    use const_utils::const_assert_usize_eq;
+    use lexe_std::const_assert_usize_eq;
 
     pub(crate) type LogFnPtr = fn(message: String);
 

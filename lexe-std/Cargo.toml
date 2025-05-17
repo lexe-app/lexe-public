@@ -5,6 +5,10 @@ edition.workspace = true
 license.workspace = true
 version.workspace = true
 
+[features]
+default = []
+ref-cast = ["dep:ref-cast"]
+
 [dependencies]
 
 ### NOTE: NO DEPENDENCIES ARE ALLOWED for `lexe-std` ###
@@ -13,3 +17,5 @@ version.workspace = true
 # other Lexe crates can depend on without having to pull in any dependencies.
 # 
 # Any dependencies added here should be strictly test-only or optional.
+
+ref-cast = { optional = true, workspace = true }

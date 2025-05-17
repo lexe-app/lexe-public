@@ -15,7 +15,6 @@ test-utils = ["common/test-utils", "lexe-api/test-utils"]
 # --- LEXE --- #
 
 common.path = "../common"
-const-utils.path = "../const-utils"
 hex.path = "../hex"
 lexe-api.path = "../lexe-api"
 lexe-std.path = "../lexe-std"

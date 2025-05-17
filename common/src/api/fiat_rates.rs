@@ -2,7 +2,7 @@
 
 use std::{collections::BTreeMap, error::Error, fmt, str::FromStr};
 
-use const_utils::const_result_unwrap;
+use lexe_std::const_utils::const_result_unwrap;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};

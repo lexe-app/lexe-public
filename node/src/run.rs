@@ -31,7 +31,6 @@ use common::{
     rng::{Crng, SysRng},
     root_seed::RootSeed,
 };
-use const_utils::const_assert;
 use futures::future::FutureExt;
 use gdrive::{gvfs::GvfsRootName, GoogleVfs};
 use lexe_api::{
@@ -63,7 +62,7 @@ use lexe_ln::{
     tx_broadcaster::TxBroadcaster,
     wallet::{self, LexeWallet},
 };
-use lexe_std::Apply;
+use lexe_std::{const_assert, Apply};
 use lexe_tokio::{
     notify,
     notify_once::NotifyOnce,

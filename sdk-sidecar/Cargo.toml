@@ -15,9 +15,9 @@ path = "src/main.rs"
 
 app-rs = { path = "../app-rs", default-features = false }
 common = { path = "../common" }
-const-utils = { path = "../const-utils" }
 logger = { path = "../logger" }
 lexe-api = { path = "../lexe-api" }
+lexe-std.path = "../lexe-std"
 lexe-tokio = { path = "../lexe-tokio" }
 sdk-core = { path = "../sdk-core" }
 

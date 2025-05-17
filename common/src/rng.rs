@@ -3,6 +3,7 @@
 use std::{cell::Cell, num::NonZeroU32};
 
 use bitcoin::secp256k1::{All, Secp256k1, SignOnly};
+use lexe_std::const_utils::const_option_unwrap;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest::{
     arbitrary::{any, Arbitrary},
@@ -13,9 +14,8 @@ use rand_core::le::read_u32_into;
 pub use rand_core::{CryptoRng, RngCore, SeedableRng};
 use ring::rand::SecureRandom;
 
-const RAND_ERROR_CODE: NonZeroU32 = const_utils::const_option_unwrap(
-    NonZeroU32::new(rand_core::Error::CUSTOM_START),
-);
+const RAND_ERROR_CODE: NonZeroU32 =
+    const_option_unwrap(NonZeroU32::new(rand_core::Error::CUSTOM_START));
 
 /// A succinct trait alias for a Cryptographically Secure PRNG. Includes a few
 /// utility methods for security-critical random value generation.

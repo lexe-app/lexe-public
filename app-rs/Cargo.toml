@@ -21,7 +21,6 @@ flutter = [
 # --- LEXE --- #
 
 common.path = "../common"
-const-utils.path = "../const-utils"
 gdrive.path = "../gdrive"
 hex.path = "../hex"
 lexe-api.path = "../lexe-api"

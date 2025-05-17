@@ -51,7 +51,7 @@ pub(crate) struct ApprovedVersions {
 }
 
 // Implementation assumption
-const_utils::const_assert!(ApprovedVersions::MAX_SIZE > 0);
+lexe_std::const_assert!(ApprovedVersions::MAX_SIZE > 0);
 
 impl ApprovedVersions {
     /// The maximum number of approved versions.

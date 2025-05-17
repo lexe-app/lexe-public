@@ -38,34 +38,6 @@ macro_rules! const_assert_mem_size {
     };
 }
 
-/// Compile-time cast from `&T::From` to `&T`, where `T` is just a struct with
-/// a single field of type `T::From` and `T` is `#[repr(transparent)]`.
-///
-/// Useful for casting a new-type's inner struct reference to a new-type
-/// reference.
-///
-/// See [`ref_cast`] for more details. Just use `T::ref_cast` if you don't need
-/// `const`.
-///
-/// ## Example
-///
-/// ```rust
-/// use ref_cast::RefCast;
-///
-/// #[derive(RefCast)]
-/// #[repr(transparent)]
-/// struct Id(u32);
-///
-/// // Safe, const cast from `&123` to `&Id(123)`
-/// const MY_ID: &'static Id = const_utils::const_ref_cast(&123);
-/// ```
-pub const fn const_ref_cast<T: ref_cast::RefCast>(from: &T::From) -> &T {
-    // SAFETY: we require that `T: RefCast`, which guarantees that this cast is
-    // safe. Unfortunately we need this extra method as `T::ref_cast` is not
-    // currently const (Rust doesn't support const traits yet).
-    unsafe { &*(from as *const T::From as *const T) }
-}
-
 /// [`Option::unwrap`] but works in `const fn`.
 // TODO(phlip9): remove this when const unwrap stabilizes
 pub const fn const_option_unwrap<T: Copy>(option: Option<T>) -> T {
@@ -82,4 +54,34 @@ pub const fn const_result_unwrap<T: Copy, E: Copy>(result: Result<T, E>) -> T {
         Ok(result) => result,
         Err(_) => panic!("unwrap on Err"),
     }
+}
+
+/// Compile-time cast from `&T::From` to `&T`, where `T` is just a struct with
+/// a single field of type `T::From` and `T` is `#[repr(transparent)]`.
+///
+/// Useful for casting a new-type's inner struct reference to a new-type
+/// reference.
+///
+/// See [`ref_cast`] for more details. Just use `T::ref_cast` if you don't need
+/// `const`.
+///
+/// ## Example
+///
+/// ```rust
+/// use lexe_std::const_utils;
+/// use ref_cast::RefCast;
+///
+/// #[derive(RefCast)]
+/// #[repr(transparent)]
+/// struct Id(u32);
+///
+/// // Safe, const cast from `&123` to `&Id(123)`
+/// const MY_ID: &'static Id = const_utils::const_ref_cast(&123);
+/// ```
+#[cfg(feature = "ref-cast")]
+pub const fn const_ref_cast<T: ref_cast::RefCast>(from: &T::From) -> &T {
+    // SAFETY: we require that `T: RefCast`, which guarantees that this cast is
+    // safe. Unfortunately we need this extra method as `T::ref_cast` is not
+    // currently const (Rust doesn't support const traits yet).
+    unsafe { &*(from as *const T::From as *const T) }
 }

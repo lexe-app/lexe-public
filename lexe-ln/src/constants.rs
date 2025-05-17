@@ -23,10 +23,7 @@ pub const LEXE_SCORER_PARAMS: ProbabilisticScoringDecayParameters =
 pub const USER_MIN_FINAL_CLTV_EXPIRY_DELTA: u16 =
     lightning::ln::channelmanager::MIN_FINAL_CLTV_EXPIRY_DELTA;
 // 24 blocks ≈ 4 hours
-const_utils::const_assert_usize_eq!(
-    USER_MIN_FINAL_CLTV_EXPIRY_DELTA as usize,
-    24,
-);
+lexe_std::const_assert_usize_eq!(USER_MIN_FINAL_CLTV_EXPIRY_DELTA as usize, 24,);
 
 /// Minimum CLTV difference between the current block height and received
 /// inbound payments. Invoices generated for payment to us must set their

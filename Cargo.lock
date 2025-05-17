@@ -177,7 +177,6 @@ dependencies = [
  "bitcoin",
  "cfg-if 1.0.0",
  "common",
- "const-utils",
  "fast_qr",
  "flutter_rust_bridge",
  "gdrive",
@@ -1110,7 +1109,6 @@ dependencies = [
  "bytes",
  "cfg-if 1.0.0",
  "chrono",
- "const-utils",
  "dotenvy",
  "hex 0.0.0",
  "http",
@@ -1171,13 +1169,6 @@ name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
-
-[[package]]
-name = "const-utils"
-version = "0.0.0"
-dependencies = [
- "ref-cast",
-]
 
 [[package]]
 name = "convert_case"
@@ -1900,7 +1891,6 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "common",
- "const-utils",
  "futures",
  "lexe-std",
  "logger",
@@ -2435,12 +2425,12 @@ dependencies = [
  "bytes",
  "cmac",
  "common",
- "const-utils",
  "dcap-ql",
  "hex 0.0.0",
  "http",
  "http-body-util",
  "hyper",
+ "lexe-std",
  "lexe-tokio",
  "lightning",
  "num-bigint",
@@ -2488,7 +2478,6 @@ dependencies = [
  "bitcoin_hashes 0.14.0",
  "cfg-if 1.0.0",
  "common",
- "const-utils",
  "either",
  "esplora-client",
  "futures",
@@ -2524,6 +2513,9 @@ dependencies = [
 [[package]]
 name = "lexe-std"
 version = "0.0.0"
+dependencies = [
+ "ref-cast",
+]
 
 [[package]]
 name = "lexe-tokio"
@@ -2814,7 +2806,6 @@ dependencies = [
  "bytes",
  "cfg-if 1.0.0",
  "common",
- "const-utils",
  "futures",
  "gdrive",
  "hex 0.0.0",
@@ -3755,9 +3746,9 @@ dependencies = [
  "argh",
  "axum",
  "common",
- "const-utils",
  "dotenvy",
  "lexe-api",
+ "lexe-std",
  "lexe-tokio",
  "logger",
  "sdk-core",
@@ -4078,8 +4069,8 @@ dependencies = [
 name = "sha256"
 version = "0.0.0"
 dependencies = [
- "const-utils",
  "hex 0.0.0",
+ "lexe-std",
  "ref-cast",
  "ring",
  "secp256k1",

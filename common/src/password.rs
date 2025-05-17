@@ -20,6 +20,7 @@
 
 use std::num::NonZeroU32;
 
+use lexe_std::const_utils;
 use ring::pbkdf2;
 use secrecy::Zeroize;
 use thiserror::Error;
@@ -46,7 +47,7 @@ pub const MIN_PASSWORD_LENGTH: usize = 12;
 /// The maximum number of characters allowed in the password.
 /// This is NOT the # of bytes in password (i.e. the output of [`str::len`]).
 pub const MAX_PASSWORD_LENGTH: usize = 512;
-const_utils::const_assert!(MIN_PASSWORD_LENGTH < MAX_PASSWORD_LENGTH);
+lexe_std::const_assert!(MIN_PASSWORD_LENGTH < MAX_PASSWORD_LENGTH);
 
 #[derive(Clone, Debug, Error)]
 pub enum Error {

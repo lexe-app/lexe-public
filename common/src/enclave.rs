@@ -624,7 +624,7 @@ impl fmt::Debug for Sealed<'_> {
 
 // --- impl LxKeyRequest and MockKeyRequest --- //
 
-const_utils::const_assert_usize_eq!(
+lexe_std::const_assert_usize_eq!(
     LxKeyRequest::TRUNCATED_SIZE,
     LxKeyRequest::KEYREQUEST_RESERVED_BYTES_START
 );

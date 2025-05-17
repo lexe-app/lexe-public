@@ -7,7 +7,7 @@ use std::{
 use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin_hashes::{sha256, Hash};
 use byte_array::ByteArray;
-use const_utils::const_assert_mem_size;
+use lexe_std::const_assert_mem_size;
 use lightning::{
     offers::offer::OfferId,
     types::payment::{PaymentHash, PaymentPreimage, PaymentSecret},

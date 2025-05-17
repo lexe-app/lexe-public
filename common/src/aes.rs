@@ -341,7 +341,7 @@ impl DecryptKey {
 impl KeyId {
     #[inline]
     const fn from_ref(arr: &[u8; 32]) -> &Self {
-        const_utils::const_ref_cast(arr)
+        lexe_std::const_utils::const_ref_cast(arr)
     }
 
     #[inline]

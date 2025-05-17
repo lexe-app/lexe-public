@@ -89,13 +89,13 @@ use crate::{rest, trace};
 const SHUTDOWN_GRACE_PERIOD: Duration = Duration::from_secs(3);
 /// The maximum time we'll wait for a server to complete shutdown.
 pub const SERVER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
-const_utils::const_assert!(
+lexe_std::const_assert!(
     SHUTDOWN_GRACE_PERIOD.as_secs() < SERVER_SHUTDOWN_TIMEOUT.as_secs()
 );
 
 /// The default maximum time a server can spend handling a request.
 pub const SERVER_HANDLER_TIMEOUT: Duration = Duration::from_secs(25);
-const_utils::const_assert!(
+lexe_std::const_assert!(
     rest::API_REQUEST_TIMEOUT.as_secs() > SERVER_HANDLER_TIMEOUT.as_secs()
 );
 

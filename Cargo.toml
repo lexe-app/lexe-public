@@ -6,7 +6,6 @@ members = [
     "app-rs-codegen",
     "byte-array",
     "common",
-    "const-utils",
     "gdrive",
     "hex",
     "lexe-api",

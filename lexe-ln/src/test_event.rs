@@ -13,10 +13,10 @@ use tokio::sync::mpsc;
 use tracing::debug;
 
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(20);
-const_utils::const_assert!(
+lexe_std::const_assert!(
     rest::API_REQUEST_TIMEOUT.as_secs() > DEFAULT_TIMEOUT.as_secs()
 );
-const_utils::const_assert!(
+lexe_std::const_assert!(
     server::SERVER_HANDLER_TIMEOUT.as_secs() > DEFAULT_TIMEOUT.as_secs()
 );
 

@@ -167,7 +167,7 @@ impl UserPk {
     }
 
     pub const fn from_ref(inner: &[u8; 32]) -> &Self {
-        const_utils::const_ref_cast(inner)
+        lexe_std::const_utils::const_ref_cast(inner)
     }
 
     pub const fn as_ed25519(&self) -> &ed25519::PublicKey {

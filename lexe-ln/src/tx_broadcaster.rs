@@ -2,7 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::{anyhow, Context};
 use common::{constants::DEFAULT_CHANNEL_SIZE, test_event::TestEvent};
-use const_utils::const_assert;
+use lexe_std::const_assert;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::chaininterface::BroadcasterInterface;
 use tokio::sync::{

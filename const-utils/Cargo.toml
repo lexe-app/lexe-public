@@ -1,9 +1,0 @@
-[package]
-name = "const-utils"
-authors.workspace = true
-edition.workspace = true
-license.workspace = true
-version.workspace = true
-
-[dependencies]
-ref-cast.workspace = true

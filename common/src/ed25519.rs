@@ -40,6 +40,7 @@ use std::{fmt, str::FromStr};
 use asn1_rs::{oid, Oid};
 use bytes::{BufMut, Bytes, BytesMut};
 use hex::FromHex;
+use lexe_std::const_utils;
 use ref_cast::RefCast;
 use ring::signature::KeyPair as _;
 use serde::{Deserialize, Serialize};
@@ -857,7 +858,7 @@ const PKCS_LEN: usize = PKCS_TEMPLATE_PREFIX.len()
     + PUBLIC_KEY_LEN;
 
 // Ensure this doesn't accidentally change.
-const_utils::const_assert_usize_eq!(PKCS_LEN, 85);
+lexe_std::const_assert_usize_eq!(PKCS_LEN, 85);
 
 /// Formats a key pair as `prefix || key || middle || pk`, where `prefix`
 /// and `middle` are two pre-computed blobs.

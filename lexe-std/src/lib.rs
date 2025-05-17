@@ -8,6 +8,8 @@
 
 /// `[u8; N]` array functions.
 pub mod array;
+/// Utilities for use in `const` fns and expressions.
+pub mod const_utils;
 
 /// A trait which allows us to apply functions (including tuple enum variants)
 /// to non-[`Iterator`]/[`Result`]/[`Option`] values for cleaner iterator-like

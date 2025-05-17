@@ -1,7 +1,7 @@
 use std::{fmt, num::NonZeroU64, str::FromStr};
 
 use anyhow::Context;
-use const_utils::const_assert_mem_size;
+use lexe_std::const_assert_mem_size;
 use lightning::{
     blinded_path::IntroductionNode,
     offers::{

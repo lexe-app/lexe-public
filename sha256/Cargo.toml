@@ -9,8 +9,8 @@ version.workspace = true
 
 # --- LEXE --- #
 
-const-utils.path = "../const-utils"
 hex.path = "../hex"
+lexe-std = { path = "../lexe-std", features = ["ref-cast"] }
 
 # --- WORKSPACE --- #
 

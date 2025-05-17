@@ -16,8 +16,8 @@ use common::{
     rng::SysRngDerefHack,
     time::DisplayMs,
 };
-use const_utils::const_assert;
 use either::Either;
+use lexe_std::const_assert;
 use lightning::{
     blinded_path::payment::{
         BlindedPaymentPath, ForwardTlvs, PaymentConstraints,

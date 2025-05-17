@@ -3,6 +3,7 @@
 use std::{fmt, io};
 
 use hex::FromHex;
+use lexe_std::const_utils;
 use ref_cast::RefCast;
 
 pub const HASH_LEN: usize = 32;

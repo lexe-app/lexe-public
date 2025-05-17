@@ -12,7 +12,7 @@ use crate::{
 // e.g. "0.1.0", "0.2.1-alpha.1".
 pub const YANKED_NODE_VERSIONS: [&str; 0] = [];
 pub const YANKED_NODE_MEASUREMENTS: [Measurement; 0] = [];
-const_utils::const_assert!(
+lexe_std::const_assert!(
     YANKED_NODE_VERSIONS.len() == YANKED_NODE_MEASUREMENTS.len()
 );
 

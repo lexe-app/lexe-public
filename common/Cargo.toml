@@ -30,9 +30,8 @@ threads = 4
 # --- LEXE --- #
 
 byte-array.path = "../byte-array"
-const-utils.path = "../const-utils"
 hex = { path = "../hex", features = ["bytes"] }
-lexe-std.path = "../lexe-std"
+lexe-std = { path = "../lexe-std", features = ["ref-cast"] }
 sha256.path = "../sha256"
 
 # --- WORKSPACE --- #
