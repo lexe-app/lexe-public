@@ -2432,6 +2432,7 @@ dependencies = [
  "http",
  "http-body-util",
  "hyper",
+ "lexe-api-core",
  "lexe-std",
  "lexe-tokio",
  "lightning",
@@ -2461,6 +2462,23 @@ dependencies = [
  "webpki-roots",
  "x509-parser",
  "yasna",
+]
+
+[[package]]
+name = "lexe-api-core"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "bytes",
+ "common",
+ "lexe-std",
+ "lightning",
+ "proptest",
+ "proptest-derive",
+ "secrecy",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

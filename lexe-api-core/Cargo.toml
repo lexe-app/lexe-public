@@ -1,0 +1,42 @@
+[package]
+name = "lexe-api-core"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[features]
+default = []
+# Enables various test hooks and utilities. Should be disabled in staging/prod.
+test-utils = [
+  "common/test-utils",
+  "dep:proptest",
+  "dep:proptest-derive",
+]
+
+[dependencies]
+
+# --- LEXE --- #
+
+common.path = "../common"
+lexe-std.path = "../lexe-std"
+
+# --- WORKSPACE --- #
+
+anyhow.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+lightning.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+# --- OPTIONAL --- #
+
+proptest = { optional = true, workspace = true, features = ["alloc"] }
+proptest-derive = { optional = true, workspace = true }
+
+[dev-dependencies]
+common = { path = "../common", features = ["test-utils"] }
+proptest = { workspace = true, features = ["alloc"] }
+proptest-derive.workspace = true

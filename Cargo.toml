@@ -9,6 +9,7 @@ members = [
     "gdrive",
     "hex",
     "lexe-api",
+    "lexe-api-core",
     "lexe-ln",
     "lexe-std",
     "lexe-tokio",

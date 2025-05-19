@@ -6,7 +6,6 @@ license.workspace = true
 version.workspace = true
 
 [features]
-# Explicitly specify that no features should be enabled by default.
 default = []
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
 test-utils = [
@@ -23,6 +22,7 @@ test-utils = [
 byte-array.path = "../byte-array"
 common.path = "../common"
 hex.path = "../hex"
+lexe-api-core.path = "../lexe-api-core"
 lexe-std.path = "../lexe-std"
 lexe-tokio.path = "../lexe-tokio"
 sha256.path = "../sha256"
