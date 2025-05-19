@@ -1136,7 +1136,6 @@ dependencies = [
  "sha256",
  "strum",
  "thiserror",
- "tokio",
  "tracing",
  "x509-parser",
  "yasna",

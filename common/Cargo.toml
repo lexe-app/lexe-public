@@ -69,8 +69,6 @@ serde_json.workspace = true
 sgx-isa.workspace = true
 strum.workspace = true
 thiserror.workspace = true
-# TODO(max): Remove `tokio` from common once `api::auth` is moved to `lexe-api`
-tokio = { workspace = true, features = ["sync"] }
 tracing.workspace = true
 x509-parser.workspace = true
 yasna.workspace = true
