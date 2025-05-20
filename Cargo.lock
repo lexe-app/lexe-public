@@ -1121,7 +1121,6 @@ dependencies = [
  "rand_core",
  "rcgen",
  "ref-cast",
- "reqwest",
  "ring",
  "rust_decimal",
  "rust_decimal_macros",

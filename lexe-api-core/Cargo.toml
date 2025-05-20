@@ -7,6 +7,10 @@ version.workspace = true
 
 [features]
 default = []
+# Enable `axum`-related impls, notably `IntoResponse`,
+axum = ["dep:axum", "dep:http-body-util"]
+# Enable `reqwest`-related impls
+reqwest = ["dep:reqwest"]
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
 test-utils = [
   "common/test-utils",
@@ -24,16 +28,11 @@ lexe-std.path = "../lexe-std"
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
-# TODO(max): This should be behind a feature flag
-axum.workspace = true
 async-trait.workspace = true
 bcs.workspace = true
 bytes.workspace = true
 http.workspace = true
-# TODO(max): This should be behind a feature flag
-http-body-util.workspace = true
 lightning.workspace = true
-reqwest = { workspace = true, features = ["json"] }
 secrecy.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -42,8 +41,11 @@ tracing.workspace = true
 
 # --- OPTIONAL --- #
 
+axum = { optional = true, workspace = true, features = [] }
+http-body-util = { optional = true, workspace = true }
 proptest = { optional = true, workspace = true, features = ["alloc"] }
 proptest-derive = { optional = true, workspace = true }
+reqwest = { optional = true, workspace = true }
 
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }

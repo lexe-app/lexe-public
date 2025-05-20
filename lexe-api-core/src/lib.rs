@@ -13,4 +13,5 @@ pub mod types;
 pub mod vfs;
 
 /// Axum helpers which must live in `lexe_api_core` because its dependents do.
+#[cfg(feature = "axum")]
 pub mod axum_helpers;

@@ -23,7 +23,7 @@ test-utils = [
 byte-array.path = "../byte-array"
 common.path = "../common"
 hex.path = "../hex"
-lexe-api-core.path = "../lexe-api-core"
+lexe-api-core = { path = "../lexe-api-core", features = ["axum", "reqwest"] }
 lexe-std.path = "../lexe-std"
 lexe-tokio.path = "../lexe-tokio"
 sha256.path = "../sha256"

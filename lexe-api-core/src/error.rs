@@ -7,7 +7,6 @@
 use std::{error::Error, fmt};
 
 use anyhow::anyhow;
-use axum::response::IntoResponse;
 #[cfg(any(test, feature = "test-utils"))]
 use common::test_utils::arbitrary;
 use common::{
@@ -24,6 +23,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::{error, warn};
 
+#[cfg(feature = "axum")]
 use crate::axum_helpers;
 
 // Associated constants can't be imported.
@@ -263,7 +263,8 @@ macro_rules! api_error {
             }
         }
 
-        impl IntoResponse for $api_error {
+        #[cfg(feature = "axum")]
+        impl axum::response::IntoResponse for $api_error {
             fn into_response(self) -> http::Response<axum::body::Body> {
                 // Server-side errors need to be logged here, since the error
                 // will have been converted to an `http::Response` by the time
@@ -949,6 +950,7 @@ impl From<serde_json::Error> for CommonApiError {
     }
 }
 
+#[cfg(feature = "reqwest")]
 impl From<reqwest::Error> for CommonApiError {
     fn from(err: reqwest::Error) -> Self {
         // NOTE: The `reqwest::Error` `Display` impl is totally useless!!
@@ -983,7 +985,8 @@ impl From<CommonApiError> for ErrorResponse {
     }
 }
 
-impl IntoResponse for CommonApiError {
+#[cfg(feature = "axum")]
+impl axum::response::IntoResponse for CommonApiError {
     fn into_response(self) -> http::Response<axum::body::Body> {
         // Server-side errors need to be logged here, since the error is
         // converted to an `http::Response` by the time `axum` can access it.
