@@ -208,14 +208,15 @@ pub const GS_ROOT_R4_CA_CERT_DER: &[u8] =
 
 #[cfg(test)]
 mod test {
-    use reqwest::tls::Certificate;
+    use asn1_rs::FromDer;
+    use x509_parser::prelude::X509Certificate;
 
     use super::*;
 
     #[test]
     fn test_parse_ca_certs() {
-        Certificate::from_der(LEXE_PROD_CA_CERT_DER).unwrap();
-        Certificate::from_der(LEXE_STAGING_CA_CERT_DER).unwrap();
-        Certificate::from_der(GTS_ROOT_R1_CA_CERT_DER).unwrap();
+        X509Certificate::from_der(LEXE_PROD_CA_CERT_DER).unwrap();
+        X509Certificate::from_der(LEXE_STAGING_CA_CERT_DER).unwrap();
+        X509Certificate::from_der(GTS_ROOT_R1_CA_CERT_DER).unwrap();
     }
 }

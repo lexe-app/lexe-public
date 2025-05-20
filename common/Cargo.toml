@@ -56,8 +56,6 @@ rand.workspace = true
 rand_core.workspace = true
 rcgen.workspace = true
 ref-cast.workspace = true
-# TODO(max): reqwest can be removed from common; move out certs
-reqwest = { workspace = true, features = ["json"] }
 ring.workspace = true
 rust_decimal.workspace = true
 rust_decimal_macros.workspace = true
