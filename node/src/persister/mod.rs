@@ -9,7 +9,6 @@ use common::{
     api::{
         auth::BearerAuthToken,
         user::{Scid, Scids},
-        Empty,
     },
     ln::{
         channel::LxOutPoint,
@@ -25,6 +24,7 @@ use lexe_api::{
     auth::BearerAuthenticator,
     error::BackendApiError,
     models::command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
+    types::Empty,
     vfs::{
         self, MaybeVfsFile, VecVfsFile, Vfs, VfsDirectory, VfsFile, VfsFileId,
         CHANNEL_MANAGER_FILENAME, PW_ENC_ROOT_SEED_FILENAME,

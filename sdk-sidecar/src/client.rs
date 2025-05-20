@@ -1,5 +1,4 @@
-use common::api::Empty;
-use lexe_api::rest::RestClient;
+use lexe_api::{rest::RestClient, types::Empty};
 use sdk_core::{
     def::SdkApi,
     models::{

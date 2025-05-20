@@ -1,11 +1,8 @@
 use anyhow::Context;
 use common::{
-    api::{
-        revocable_clients::{
-            CreateRevocableClientRequest as CreateRevocableClientRequestRs,
-            GetRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
-        },
-        Empty,
+    api::revocable_clients::{
+        CreateRevocableClientRequest as CreateRevocableClientRequestRs,
+        GetRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
     },
     env::DeployEnv,
     ln::payments::PaymentIndex as PaymentIndexRs,
@@ -22,6 +19,7 @@ use lexe_api::{
         PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
         UpdatePaymentNote as UpdatePaymentNoteRs,
     },
+    types::Empty,
 };
 use tracing::instrument;
 

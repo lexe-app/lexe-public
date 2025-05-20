@@ -2484,6 +2484,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "thiserror",
  "tracing",
 ]

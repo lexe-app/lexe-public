@@ -23,7 +23,7 @@ use axum::{
     Router,
 };
 use common::{
-    api::{provision::NodeProvisionRequest, version::MeasurementStruct, Empty},
+    api::{provision::NodeProvisionRequest, version::MeasurementStruct},
     cli::node::ProvisionArgs,
     enclave::{self, MachineId, Measurement},
     net,
@@ -36,7 +36,7 @@ use lexe_api::{
     error::NodeApiError,
     server::{self, LayerConfig},
     tls::{self, attestation::NodeMode},
-    types::{ports::Ports, sealed_seed::SealedSeed},
+    types::{ports::Ports, sealed_seed::SealedSeed, Empty},
 };
 use lexe_tokio::notify_once::NotifyOnce;
 use tracing::{debug, info, info_span};

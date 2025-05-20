@@ -22,12 +22,12 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
-use common::{api::Empty, serde_helpers::hexstr_or_bytes};
+use common::serde_helpers::hexstr_or_bytes;
 use lightning::util::ser::{MaybeReadable, ReadableArgs, Writeable};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tracing::{debug, warn};
 
-use crate::error::BackendApiError;
+use crate::{error::BackendApiError, types::Empty};
 
 // --- Constants --- //
 

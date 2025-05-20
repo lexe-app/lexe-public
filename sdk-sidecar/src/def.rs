@@ -7,7 +7,7 @@
 #![allow(async_fn_in_trait)]
 
 #[cfg(doc)]
-use common::api::Empty;
+use lexe_api::types::Empty;
 use sdk_core::{def::SdkApi, SdkApiError};
 
 use crate::api::HealthCheckResponse;

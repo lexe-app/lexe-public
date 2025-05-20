@@ -53,3 +53,4 @@ reqwest = { optional = true, workspace = true }
 common = { path = "../common", features = ["test-utils"] }
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
+serde_urlencoded.workspace = true

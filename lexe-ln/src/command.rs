@@ -13,7 +13,6 @@ use common::{
             UpdateClientResponse,
         },
         user::{NodePk, Scid, UserPk},
-        Empty,
     },
     cli::{LspFees, LspInfo},
     constants, debug_panic_release_log, ed25519,
@@ -49,6 +48,7 @@ use lexe_api::{
         shared_seed::certs::{RevocableClientCert, RevocableIssuingCaCert},
         types::LxCertificateDer,
     },
+    types::Empty,
     vfs::{Vfs, REVOCABLE_CLIENTS_FILE_ID},
 };
 use lexe_std::Apply;

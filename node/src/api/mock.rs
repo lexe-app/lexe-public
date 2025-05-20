@@ -17,7 +17,6 @@ use common::{
             GetNewScidsRequest, MaybeScid, MaybeUser, NodePk, Scid, ScidStruct,
             Scids, User, UserPk,
         },
-        Empty,
     },
     byte_str::ByteStr,
     constants, ed25519,
@@ -44,6 +43,7 @@ use lexe_api::{
     types::{
         ports::Ports,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
+        Empty,
     },
     vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
 };

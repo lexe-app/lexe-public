@@ -13,7 +13,6 @@ use common::{
             GetRevocableClients, RevocableClients, UpdateClientRequest,
             UpdateClientResponse,
         },
-        Empty,
     },
     constants::{self},
     ln::{amount::Amount, channel::LxUserChannelId, payments::VecBasicPayment},
@@ -35,6 +34,7 @@ use lexe_api::{
         PreflightPayOnchainResponse, UpdatePaymentNote,
     },
     server::{extract::LxQuery, LxJson},
+    types::Empty,
 };
 use lexe_ln::{command::CreateInvoiceCaller, p2p};
 use lexe_tokio::task::MaybeLxTask;

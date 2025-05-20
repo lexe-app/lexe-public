@@ -9,7 +9,6 @@ use common::{
             ScidStruct, Scids, UserPk, UserPkStruct,
         },
         version::MeasurementStruct,
-        Empty,
     },
     ed25519,
     enclave::Measurement,
@@ -26,6 +25,7 @@ use lexe_api::{
     types::{
         ports::Ports,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
+        Empty,
     },
     vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
 };

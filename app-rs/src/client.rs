@@ -34,7 +34,6 @@ use common::{
             UpdateClientRequest, UpdateClientResponse,
         },
         version::NodeRelease,
-        Empty,
     },
     constants::{self, node_provision_dns},
     ed25519,
@@ -69,6 +68,7 @@ use lexe_api::{
         self, lexe_ca, rustls,
         types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
     },
+    types::Empty,
 };
 use reqwest::Url;
 use serde::{Deserialize, Serialize};

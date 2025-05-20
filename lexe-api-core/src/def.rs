@@ -23,7 +23,7 @@
 //!
 //! The methods below should resemble the data actually sent across the wire.
 //!
-//! [`Empty`]: common::api::Empty
+//! [`Empty`]: crate::types::Empty
 //! [`UserPk`]: common::api::user::UserPk
 //! [`UserPkStruct`]: common::api::user::UserPkStruct
 
@@ -61,7 +61,6 @@ use common::{
             Scids, UserPk,
         },
         version::NodeRelease,
-        Empty,
     },
     ed25519,
     enclave::Measurement,
@@ -94,6 +93,7 @@ use crate::{
     types::{
         ports::Ports,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
+        Empty,
     },
     vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
 };

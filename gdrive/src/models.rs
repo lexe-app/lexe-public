@@ -43,7 +43,7 @@ pub struct GFileCow<'a> {
 pub struct GFileId(pub String);
 
 /// A struct denoting an empty API request or response.
-// We don't use `common::api::Empty` in case Lexe's API diverges from Google's
+// We don't use `lexe_api_core::Empty` in case Lexe's API diverges from Google's
 #[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Empty {}
 
