@@ -281,10 +281,9 @@ impl FromStr for LxOffer {
 /// an optional field and `Option<Option<NonZeroU64>>` has a strange
 /// serialization.
 ///
-/// See: [`CreateOfferRequest::max_quantity`](crate::api::command::CreateOfferRequest::max_quantity)
+/// See: `CreateOfferRequest::max_quantity`.
 ///
 /// [`Quantity`]: lightning::offers::offer::Quantity
-/// [`CreateOfferRequest::max_quantity`]: crate::api::command::CreateOfferRequest::max_quantity
 #[derive(Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Debug))]
 #[repr(transparent)]

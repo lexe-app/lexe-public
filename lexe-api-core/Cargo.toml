@@ -30,10 +30,12 @@ lexe-std.path = "../lexe-std"
 anyhow.workspace = true
 async-trait.workspace = true
 bcs.workspace = true
+bitcoin = { workspace = true, features = ["serde"] }
 bytes.workspace = true
 http.workspace = true
 lightning.workspace = true
 secrecy.workspace = true
+semver = { workspace = true, features = ["serde"] }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

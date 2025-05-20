@@ -8,7 +8,6 @@ use common::{
     aes::AesMasterKey,
     api::{
         auth::BearerAuthToken,
-        command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         user::{Scid, Scids},
         Empty,
     },
@@ -25,6 +24,7 @@ use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
 use lexe_api::{
     auth::BearerAuthenticator,
     error::BackendApiError,
+    models::command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
     vfs::{
         self, MaybeVfsFile, VecVfsFile, Vfs, VfsDirectory, VfsFile, VfsFileId,
         CHANNEL_MANAGER_FILENAME, PW_ENC_ROOT_SEED_FILENAME,

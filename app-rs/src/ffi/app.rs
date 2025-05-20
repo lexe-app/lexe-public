@@ -1,13 +1,6 @@
 use anyhow::Context;
 use common::{
     api::{
-        command::{
-            GetAddressResponse, OpenChannelRequest as OpenChannelRequestRs,
-            PayInvoiceRequest as PayInvoiceRequestRs,
-            PayOnchainRequest as PayOnchainRequestRs,
-            PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
-            UpdatePaymentNote as UpdatePaymentNoteRs,
-        },
         revocable_clients::{
             CreateRevocableClientRequest as CreateRevocableClientRequestRs,
             GetRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
@@ -20,7 +13,16 @@ use common::{
     root_seed::RootSeed as RootSeedRs,
 };
 use flutter_rust_bridge::{frb, RustOpaqueNom};
-use lexe_api::def::{AppGatewayApi, AppNodeRunApi};
+use lexe_api::{
+    def::{AppGatewayApi, AppNodeRunApi},
+    models::command::{
+        GetAddressResponse, OpenChannelRequest as OpenChannelRequestRs,
+        PayInvoiceRequest as PayInvoiceRequestRs,
+        PayOnchainRequest as PayOnchainRequestRs,
+        PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
+        UpdatePaymentNote as UpdatePaymentNoteRs,
+    },
+};
 use tracing::instrument;
 
 use crate::ffi::{

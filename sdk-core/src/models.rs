@@ -34,10 +34,7 @@
 //! [`TimestampMs`]: common::time::TimestampMs
 
 use common::{
-    api::{
-        command,
-        user::{NodePk, UserPk},
-    },
+    api::user::{NodePk, UserPk},
     enclave,
     ln::{
         amount::Amount,
@@ -46,12 +43,13 @@ use common::{
     },
     time::TimestampMs,
 };
+use lexe_api_core::models::command;
 use serde::{Deserialize, Serialize};
 
 use crate::types::SdkPayment;
 
 /// Information about a Lexe node.
-// Simple version of `common::api::command::NodeInfo`
+// Simple version of `lexe_api::command::NodeInfo`
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SdkNodeInfoResponse {
     /// The node's current semver version, e.g. `0.6.9`.
@@ -97,8 +95,8 @@ pub struct SdkNodeInfoResponse {
     pub num_usable_channels: usize,
 }
 
-impl From<common::api::command::NodeInfo> for SdkNodeInfoResponse {
-    fn from(info: common::api::command::NodeInfo) -> Self {
+impl From<lexe_api_core::models::command::NodeInfo> for SdkNodeInfoResponse {
+    fn from(info: lexe_api_core::models::command::NodeInfo) -> Self {
         let lightning_balance = info.lightning_balance.total();
         let onchain_balance = Amount::try_from(info.onchain_balance.total())
             .expect("We're unreasonably rich!");

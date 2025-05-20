@@ -1,11 +1,7 @@
 use bitcoin::address::NetworkUnchecked;
 #[cfg(any(test, feature = "test-utils"))]
-use proptest_derive::Arbitrary;
-use serde::{Deserialize, Serialize};
-
-#[cfg(any(test, feature = "test-utils"))]
-use crate::test_utils::arbitrary;
-use crate::{
+use common::test_utils::arbitrary;
+use common::{
     api::user::{NodePk, UserPk},
     enclave::Measurement,
     ln::{
@@ -21,6 +17,9 @@ use crate::{
     },
     time::TimestampMs,
 };
+#[cfg(any(test, feature = "test-utils"))]
+use proptest_derive::Arbitrary;
+use serde::{Deserialize, Serialize};
 
 // --- General --- //
 
@@ -187,8 +186,6 @@ pub struct PayInvoiceRequest {
 #[derive(Serialize, Deserialize)]
 pub struct PayInvoiceResponse {
     /// When the node registered this payment. Used in the [`PaymentIndex`].
-    ///
-    /// [`PaymentIndex`]: crate::ln::payments::PaymentIndex
     pub created_at: TimestampMs,
 }
 
@@ -309,8 +306,6 @@ pub struct PayOfferRequest {
 #[derive(Serialize, Deserialize)]
 pub struct PayOfferResponse {
     /// When the node registered this payment. Used in the [`PaymentIndex`].
-    ///
-    /// [`PaymentIndex`]: crate::ln::payments::PaymentIndex
     pub created_at: TimestampMs,
 }
 
@@ -354,8 +349,6 @@ pub struct PayOnchainRequest {
 #[derive(Serialize, Deserialize)]
 pub struct PayOnchainResponse {
     /// When the node registered this payment. Used in the [`PaymentIndex`].
-    ///
-    /// [`PaymentIndex`]: crate::ln::payments::PaymentIndex
     pub created_at: TimestampMs,
     /// The Bitcoin txid for the transaction we just submitted to the mempool.
     pub txid: LxTxid,
@@ -411,8 +404,11 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
+    use common::test_utils::roundtrip::{
+        self, query_string_roundtrip_proptest,
+    };
+
     use super::*;
-    use crate::test_utils::roundtrip::{self, query_string_roundtrip_proptest};
 
     #[test]
     fn preflight_pay_onchain_roundtrip() {

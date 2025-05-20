@@ -13,7 +13,6 @@ use common::{
             BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken,
             UserSignupRequest,
         },
-        command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         user::{
             GetNewScidsRequest, MaybeScid, MaybeUser, NodePk, Scid, ScidStruct,
             Scids, User, UserPk,
@@ -41,6 +40,7 @@ use lexe_api::{
         NodeRunnerApi,
     },
     error::{BackendApiError, LspApiError, RunnerApiError},
+    models::command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
     types::{
         ports::Ports,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},

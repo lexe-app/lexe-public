@@ -28,11 +28,12 @@
 use std::{io, str::FromStr, sync::Mutex};
 
 use anyhow::{format_err, Context};
-use common::{
-    api::command::{GetNewPayments, PaymentIndexes, UpdatePaymentNote},
-    ln::payments::{BasicPayment, PaymentIndex, VecBasicPayment},
+use common::ln::payments::{BasicPayment, PaymentIndex, VecBasicPayment};
+use lexe_api::{
+    def::AppNodeRunApi,
+    error::NodeApiError,
+    models::command::{GetNewPayments, PaymentIndexes, UpdatePaymentNote},
 };
-use lexe_api::{def::AppNodeRunApi, error::NodeApiError};
 use lexe_std::iter::IteratorExt;
 use roaring::RoaringBitmap;
 use tracing::{instrument, warn};

@@ -3,7 +3,6 @@ use std::sync::Arc;
 use anyhow::{bail, ensure};
 use bitcoin::Transaction;
 use common::{
-    api::command::PayOnchainRequest,
     ln::{
         amount::Amount,
         hashes::LxTxid,
@@ -12,6 +11,7 @@ use common::{
     },
     time::TimestampMs,
 };
+use lexe_api::models::command::PayOnchainRequest;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};

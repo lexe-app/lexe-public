@@ -1,29 +1,12 @@
-//! # Notes on API types
-//!
-//! ## Query parameters
-//!
-//! When serializing data as query parameters, we have to wrap newtypes in these
-//! structs (instead of e.g. using UserPk directly), otherwise `serde_qs` errors
-//! with "top-level serializer supports only maps and structs."
-//!
-//! ## `serde(flatten)`
-//!
-//! Also beware when using `#[serde(flatten)]` on a field. All inner fields must
-//! be string-ish types (&str, String, Cow<'_, str>, etc...) OR use
-//! `SerializeDisplay` and `DeserializeFromStr` from `serde_with`.
-//!
-//! This issue is due to a limitation in serde. See:
-//! <https://github.com/serde-rs/serde/issues/1183>
-
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
+// TODO(max): All of these modules should be moved to `lexe_api[_core]`.
+
 /// Authentication and User Signup.
 // TODO(max): `error` depends on `auth`
 pub mod auth;
-/// Data types used in APIs for top level commands.
-pub mod command;
 /// Data types returned from the fiat exchange rate API.
 pub mod fiat_rates;
 /// API models which don't fit anywhere else.

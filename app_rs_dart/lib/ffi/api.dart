@@ -52,7 +52,7 @@ class CreateClientResponse with _$CreateClientResponse {
   }) = _CreateClientResponse;
 }
 
-/// See [`common::api::command::CreateInvoiceRequest`].
+/// See [`lexe_api::command::CreateInvoiceRequest`].
 @freezed
 class CreateInvoiceRequest with _$CreateInvoiceRequest {
   const factory CreateInvoiceRequest({
@@ -62,7 +62,7 @@ class CreateInvoiceRequest with _$CreateInvoiceRequest {
   }) = _CreateInvoiceRequest;
 }
 
-/// See [`common::api::command::CreateInvoiceResponse`].
+/// See [`lexe_api::command::CreateInvoiceResponse`].
 @freezed
 class CreateInvoiceResponse with _$CreateInvoiceResponse {
   const factory CreateInvoiceResponse({
@@ -70,7 +70,7 @@ class CreateInvoiceResponse with _$CreateInvoiceResponse {
   }) = _CreateInvoiceResponse;
 }
 
-/// See [`common::api::command::CreateOfferRequest`].
+/// See [`lexe_api::command::CreateOfferRequest`].
 @freezed
 class CreateOfferRequest with _$CreateOfferRequest {
   const factory CreateOfferRequest({
@@ -80,7 +80,7 @@ class CreateOfferRequest with _$CreateOfferRequest {
   }) = _CreateOfferRequest;
 }
 
-/// See [`common::api::command::CreateOfferResponse`].
+/// See [`lexe_api::command::CreateOfferResponse`].
 @freezed
 class CreateOfferResponse with _$CreateOfferResponse {
   const factory CreateOfferResponse({
@@ -88,7 +88,7 @@ class CreateOfferResponse with _$CreateOfferResponse {
   }) = _CreateOfferResponse;
 }
 
-/// See [`common::api::command::FeeEstimate`].
+/// See [`lexe_api::command::FeeEstimate`].
 @freezed
 class FeeEstimate with _$FeeEstimate {
   const factory FeeEstimate({
@@ -144,7 +144,7 @@ class OpenChannelResponse with _$OpenChannelResponse {
   }) = _OpenChannelResponse;
 }
 
-/// Mirrors the [`common::api::command::PayInvoiceRequest`] type.
+/// Mirrors the [`lexe_api::command::PayInvoiceRequest`] type.
 @freezed
 class PayInvoiceRequest with _$PayInvoiceRequest {
   const factory PayInvoiceRequest({
@@ -154,7 +154,7 @@ class PayInvoiceRequest with _$PayInvoiceRequest {
   }) = _PayInvoiceRequest;
 }
 
-/// Mirrors [`common::api::command::PayInvoiceResponse`] the type, but enriches
+/// Mirrors [`lexe_api::command::PayInvoiceResponse`] the type, but enriches
 /// the response so we get the full `PaymentIndex`.
 @freezed
 class PayInvoiceResponse with _$PayInvoiceResponse {
@@ -163,7 +163,7 @@ class PayInvoiceResponse with _$PayInvoiceResponse {
   }) = _PayInvoiceResponse;
 }
 
-/// See [`common::api::command::PayOnchainRequest`].
+/// See [`lexe_api::command::PayOnchainRequest`].
 @freezed
 class PayOnchainRequest with _$PayOnchainRequest {
   const factory PayOnchainRequest({
@@ -175,7 +175,7 @@ class PayOnchainRequest with _$PayOnchainRequest {
   }) = _PayOnchainRequest;
 }
 
-/// See [`common::api::command::PayOnchainResponse`].
+/// See [`lexe_api::command::PayOnchainResponse`].
 @freezed
 class PayOnchainResponse with _$PayOnchainResponse {
   const factory PayOnchainResponse({
@@ -205,7 +205,7 @@ class PreflightOpenChannelResponse with _$PreflightOpenChannelResponse {
   }) = _PreflightOpenChannelResponse;
 }
 
-/// See [`common::api::command::PreflightPayInvoiceRequest`].
+/// See [`lexe_api::command::PreflightPayInvoiceRequest`].
 @freezed
 class PreflightPayInvoiceRequest with _$PreflightPayInvoiceRequest {
   const factory PreflightPayInvoiceRequest({
@@ -214,7 +214,7 @@ class PreflightPayInvoiceRequest with _$PreflightPayInvoiceRequest {
   }) = _PreflightPayInvoiceRequest;
 }
 
-/// See [`common::api::command::PreflightPayInvoiceResponse`].
+/// See [`lexe_api::command::PreflightPayInvoiceResponse`].
 @freezed
 class PreflightPayInvoiceResponse with _$PreflightPayInvoiceResponse {
   const factory PreflightPayInvoiceResponse({
@@ -223,7 +223,7 @@ class PreflightPayInvoiceResponse with _$PreflightPayInvoiceResponse {
   }) = _PreflightPayInvoiceResponse;
 }
 
-/// See [`common::api::command::PreflightPayOnchainRequest`].
+/// See [`lexe_api::command::PreflightPayOnchainRequest`].
 @freezed
 class PreflightPayOnchainRequest with _$PreflightPayOnchainRequest {
   const factory PreflightPayOnchainRequest({
@@ -232,7 +232,7 @@ class PreflightPayOnchainRequest with _$PreflightPayOnchainRequest {
   }) = _PreflightPayOnchainRequest;
 }
 
-/// See [`common::api::command::PreflightPayOnchainResponse`].
+/// See [`lexe_api::command::PreflightPayOnchainResponse`].
 @freezed
 class PreflightPayOnchainResponse with _$PreflightPayOnchainResponse {
   const factory PreflightPayOnchainResponse({

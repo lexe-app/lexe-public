@@ -4,7 +4,6 @@ use bytes::Bytes;
 use common::{
     api::{
         auth::{BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken},
-        command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         user::{
             GetNewScidsRequest, MaybeScid, MaybeUser, NodePk, NodePkStruct,
             ScidStruct, Scids, UserPk, UserPkStruct,
@@ -21,6 +20,7 @@ use common::{
 use lexe_api::{
     def::{BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi},
     error::{BackendApiError, LspApiError, RunnerApiError},
+    models::command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
     rest::{RequestBuilderExt, RestClient, POST},
     tls::attestation::{self, NodeMode},
     types::{

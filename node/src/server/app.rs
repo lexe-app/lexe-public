@@ -4,19 +4,6 @@ use anyhow::{ensure, Context};
 use axum::extract::State;
 use common::{
     api::{
-        command::{
-            CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-            CreateOfferRequest, CreateOfferResponse, GetAddressResponse,
-            GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
-            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-            PayOnchainResponse, PaymentIndexes, PreflightCloseChannelRequest,
-            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOfferRequest,
-            PreflightPayOfferResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse, UpdatePaymentNote,
-        },
         models::{
             SignMsgRequest, SignMsgResponse, VerifyMsgRequest,
             VerifyMsgResponse,
@@ -34,6 +21,19 @@ use common::{
 };
 use lexe_api::{
     error::NodeApiError,
+    models::command::{
+        CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
+        CreateOfferRequest, CreateOfferResponse, GetAddressResponse,
+        GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
+        OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+        PayOfferRequest, PayOfferResponse, PayOnchainRequest,
+        PayOnchainResponse, PaymentIndexes, PreflightCloseChannelRequest,
+        PreflightCloseChannelResponse, PreflightOpenChannelRequest,
+        PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
+        PreflightPayInvoiceResponse, PreflightPayOfferRequest,
+        PreflightPayOfferResponse, PreflightPayOnchainRequest,
+        PreflightPayOnchainResponse, UpdatePaymentNote,
+    },
     server::{extract::LxQuery, LxJson},
 };
 use lexe_ln::{command::CreateInvoiceCaller, p2p};

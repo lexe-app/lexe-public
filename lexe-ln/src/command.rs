@@ -7,18 +7,6 @@ use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin_hashes::{sha256, Hash};
 use common::{
     api::{
-        command::{
-            CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-            CreateOfferRequest, CreateOfferResponse, ListChannelsResponse,
-            NodeInfo, OpenChannelResponse, PayInvoiceRequest,
-            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-            PayOnchainRequest, PayOnchainResponse,
-            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOfferRequest, PreflightPayOfferResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-        },
         revocable_clients::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
             RevocableClient, RevocableClients, UpdateClientRequest,
@@ -45,6 +33,18 @@ use common::{
 use either::Either;
 use futures::Future;
 use lexe_api::{
+    models::command::{
+        CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
+        CreateOfferRequest, CreateOfferResponse, ListChannelsResponse,
+        NodeInfo, OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+        PayOfferRequest, PayOfferResponse, PayOnchainRequest,
+        PayOnchainResponse, PreflightCloseChannelRequest,
+        PreflightCloseChannelResponse, PreflightOpenChannelRequest,
+        PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
+        PreflightPayInvoiceResponse, PreflightPayOfferRequest,
+        PreflightPayOfferResponse, PreflightPayOnchainRequest,
+        PreflightPayOnchainResponse,
+    },
     tls::{
         shared_seed::certs::{RevocableClientCert, RevocableIssuingCaCert},
         types::LxCertificateDer,

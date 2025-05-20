@@ -6,29 +6,6 @@ use anyhow::{anyhow, Context};
 use common::{
     api::{
         auth::Scope as ScopeRs,
-        command::{
-            CloseChannelRequest as CloseChannelRequestRs,
-            CreateInvoiceRequest as CreateInvoiceRequestRs,
-            CreateInvoiceResponse as CreateInvoiceResponseRs,
-            CreateOfferRequest as CreateOfferRequestRs,
-            CreateOfferResponse as CreateOfferResponseRs,
-            FeeEstimate as FeeEstimateRs,
-            ListChannelsResponse as ListChannelsResponseRs,
-            NodeInfo as NodeInfoRs, OpenChannelRequest as OpenChannelRequestRs,
-            OpenChannelResponse as OpenChannelResponseRs,
-            PayInvoiceRequest as PayInvoiceRequestRs,
-            PayInvoiceResponse as PayInvoiceResponseRs,
-            PayOnchainRequest as PayOnchainRequestRs,
-            PayOnchainResponse as PayOnchainResponseRs,
-            PreflightCloseChannelResponse as PreflightCloseChannelResponseRs,
-            PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
-            PreflightOpenChannelResponse as PreflightOpenChannelResponseRs,
-            PreflightPayInvoiceRequest as PreflightPayInvoiceRequestRs,
-            PreflightPayInvoiceResponse as PreflightPayInvoiceResponseRs,
-            PreflightPayOnchainRequest as PreflightPayOnchainRequestRs,
-            PreflightPayOnchainResponse as PreflightPayOnchainResponseRs,
-            UpdatePaymentNote as UpdatePaymentNoteRs,
-        },
         fiat_rates::FiatRates as FiatRatesRs,
         revocable_clients::{
             CreateRevocableClientRequest as CreateRevocableClientRequestRs,
@@ -48,6 +25,28 @@ use common::{
     },
 };
 use flutter_rust_bridge::frb;
+use lexe_api::models::command::{
+    CloseChannelRequest as CloseChannelRequestRs,
+    CreateInvoiceRequest as CreateInvoiceRequestRs,
+    CreateInvoiceResponse as CreateInvoiceResponseRs,
+    CreateOfferRequest as CreateOfferRequestRs,
+    CreateOfferResponse as CreateOfferResponseRs, FeeEstimate as FeeEstimateRs,
+    ListChannelsResponse as ListChannelsResponseRs, NodeInfo as NodeInfoRs,
+    OpenChannelRequest as OpenChannelRequestRs,
+    OpenChannelResponse as OpenChannelResponseRs,
+    PayInvoiceRequest as PayInvoiceRequestRs,
+    PayInvoiceResponse as PayInvoiceResponseRs,
+    PayOnchainRequest as PayOnchainRequestRs,
+    PayOnchainResponse as PayOnchainResponseRs,
+    PreflightCloseChannelResponse as PreflightCloseChannelResponseRs,
+    PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
+    PreflightOpenChannelResponse as PreflightOpenChannelResponseRs,
+    PreflightPayInvoiceRequest as PreflightPayInvoiceRequestRs,
+    PreflightPayInvoiceResponse as PreflightPayInvoiceResponseRs,
+    PreflightPayOnchainRequest as PreflightPayOnchainRequestRs,
+    PreflightPayOnchainResponse as PreflightPayOnchainResponseRs,
+    UpdatePaymentNote as UpdatePaymentNoteRs,
+};
 
 use crate::ffi::types::{
     ClientPaymentId, ConfirmationPriority, Invoice, LxChannelDetails, Offer,
@@ -272,7 +271,7 @@ fn validate_note(note: String) -> anyhow::Result<String> {
     }
 }
 
-/// See [`common::api::command::PayOnchainRequest`].
+/// See [`lexe_api::command::PayOnchainRequest`].
 #[frb(dart_metadata=("freezed"))]
 pub struct PayOnchainRequest {
     pub cid: ClientPaymentId,
@@ -300,7 +299,7 @@ impl TryFrom<PayOnchainRequest> for PayOnchainRequestRs {
     }
 }
 
-/// See [`common::api::command::PayOnchainResponse`].
+/// See [`lexe_api::command::PayOnchainResponse`].
 #[frb(dart_metadata=("freezed"))]
 pub struct PayOnchainResponse {
     pub index: PaymentIndex,
@@ -323,7 +322,7 @@ impl PayOnchainResponse {
     }
 }
 
-/// See [`common::api::command::PreflightPayOnchainRequest`].
+/// See [`lexe_api::command::PreflightPayOnchainRequest`].
 #[frb(dart_metadata=("freezed"))]
 pub struct PreflightPayOnchainRequest {
     pub address: String,
@@ -342,7 +341,7 @@ impl TryFrom<PreflightPayOnchainRequest> for PreflightPayOnchainRequestRs {
     }
 }
 
-/// See [`common::api::command::PreflightPayOnchainResponse`].
+/// See [`lexe_api::command::PreflightPayOnchainResponse`].
 #[frb(dart_metadata=("freezed"))]
 pub struct PreflightPayOnchainResponse {
     pub high: Option<FeeEstimate>,
@@ -360,7 +359,7 @@ impl From<PreflightPayOnchainResponseRs> for PreflightPayOnchainResponse {
     }
 }
 
-/// See [`common::api::command::FeeEstimate`].
+/// See [`lexe_api::command::FeeEstimate`].
 #[frb(dart_metadata=("freezed"))]
 pub struct FeeEstimate {
     pub amount_sats: u64,
@@ -374,7 +373,7 @@ impl From<FeeEstimateRs> for FeeEstimate {
     }
 }
 
-/// See [`common::api::command::CreateInvoiceRequest`].
+/// See [`lexe_api::command::CreateInvoiceRequest`].
 #[frb(dart_metadata=("freezed"))]
 pub struct CreateInvoiceRequest {
     pub expiry_secs: u32,
@@ -396,7 +395,7 @@ impl TryFrom<CreateInvoiceRequest> for CreateInvoiceRequestRs {
     }
 }
 
-/// See [`common::api::command::CreateInvoiceResponse`].
+/// See [`lexe_api::command::CreateInvoiceResponse`].
 #[frb(dart_metadata=("freezed"))]
 pub struct CreateInvoiceResponse {
     pub invoice: Invoice,
@@ -410,7 +409,7 @@ impl From<CreateInvoiceResponseRs> for CreateInvoiceResponse {
     }
 }
 
-/// Mirrors the [`common::api::command::PayInvoiceRequest`] type.
+/// Mirrors the [`lexe_api::command::PayInvoiceRequest`] type.
 #[frb(dart_metadata=("freezed"))]
 pub struct PayInvoiceRequest {
     pub invoice: String,
@@ -443,7 +442,7 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
     }
 }
 
-/// Mirrors [`common::api::command::PayInvoiceResponse`] the type, but enriches
+/// Mirrors [`lexe_api::command::PayInvoiceResponse`] the type, but enriches
 /// the response so we get the full `PaymentIndex`.
 #[frb(dart_metadata=("freezed"))]
 pub struct PayInvoiceResponse {
@@ -465,7 +464,7 @@ impl PayInvoiceResponse {
     }
 }
 
-/// See [`common::api::command::PreflightPayInvoiceRequest`].
+/// See [`lexe_api::command::PreflightPayInvoiceRequest`].
 #[frb(dart_metadata=("freezed"))]
 pub struct PreflightPayInvoiceRequest {
     pub invoice: String,
@@ -498,7 +497,7 @@ impl TryFrom<PreflightPayInvoiceRequest> for PreflightPayInvoiceRequestRs {
     }
 }
 
-/// See [`common::api::command::PreflightPayInvoiceResponse`].
+/// See [`lexe_api::command::PreflightPayInvoiceResponse`].
 #[frb(dart_metadata=("freezed"))]
 pub struct PreflightPayInvoiceResponse {
     pub amount_sats: u64,
@@ -514,7 +513,7 @@ impl From<PreflightPayInvoiceResponseRs> for PreflightPayInvoiceResponse {
     }
 }
 
-/// See [`common::api::command::CreateOfferRequest`].
+/// See [`lexe_api::command::CreateOfferRequest`].
 #[frb(dart_metadata=("freezed"))]
 pub struct CreateOfferRequest {
     pub expiry_secs: Option<u32>,
@@ -539,7 +538,7 @@ impl TryFrom<CreateOfferRequest> for CreateOfferRequestRs {
     }
 }
 
-/// See [`common::api::command::CreateOfferResponse`].
+/// See [`lexe_api::command::CreateOfferResponse`].
 #[frb(dart_metadata=("freezed"))]
 pub struct CreateOfferResponse {
     pub offer: Offer,
