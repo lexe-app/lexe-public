@@ -9,6 +9,7 @@ version.workspace = true
 
 # --- LEXE --- #
 
+lexe-api-core = { path = "../lexe-api-core" }
 common = { path = "../common" }
 
 # --- WORKSPACE --- #

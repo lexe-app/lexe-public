@@ -43,23 +43,20 @@ use bdk_wallet::{
 };
 use bitcoin::{Psbt, Transaction};
 use common::{
-    api::{
-        command::{
-            FeeEstimate, PayOnchainRequest, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse,
-        },
-        vfs::{Vfs, VfsFileId},
+    api::command::{
+        FeeEstimate, PayOnchainRequest, PreflightPayOnchainRequest,
+        PreflightPayOnchainResponse,
     },
-    constants::{
-        IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY,
-        WALLET_CHANGESET_FILENAME,
-    },
+    constants::IMPORTANT_PERSIST_RETRIES,
     ln::{
         amount::Amount, balance::OnchainBalance, network::LxNetwork,
         priority::ConfirmationPriority,
     },
     root_seed::RootSeed,
     time::TimestampMs,
+};
+use lexe_api::vfs::{
+    Vfs, VfsFileId, SINGLETON_DIRECTORY, WALLET_CHANGESET_FILENAME,
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use tracing::{debug, info, instrument, warn};

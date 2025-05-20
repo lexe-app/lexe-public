@@ -39,7 +39,6 @@ sha256.path = "../sha256"
 anyhow.workspace = true
 asn1-rs.workspace = true
 async-trait.workspace = true
-axum.workspace = true
 bcs.workspace = true
 bip39.workspace = true
 bitcoin = { workspace = true, features = ["serde"] }
@@ -57,6 +56,7 @@ rand.workspace = true
 rand_core.workspace = true
 rcgen.workspace = true
 ref-cast.workspace = true
+# TODO(max): reqwest can be removed from common; move out certs
 reqwest = { workspace = true, features = ["json"] }
 ring.workspace = true
 rust_decimal.workspace = true

@@ -10,6 +10,7 @@ version.workspace = true
 
 byte-array.path = "../byte-array"
 common.path = "../common"
+lexe-api-core.path = "../lexe-api-core"
 lexe-std.path = "../lexe-std"
 sha256.path = "../sha256"
 

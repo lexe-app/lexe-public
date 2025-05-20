@@ -29,13 +29,10 @@ use std::{io, str::FromStr, sync::Mutex};
 
 use anyhow::{format_err, Context};
 use common::{
-    api::{
-        command::{GetNewPayments, PaymentIndexes, UpdatePaymentNote},
-        error::NodeApiError,
-    },
+    api::command::{GetNewPayments, PaymentIndexes, UpdatePaymentNote},
     ln::payments::{BasicPayment, PaymentIndex, VecBasicPayment},
 };
-use lexe_api::def::AppNodeRunApi;
+use lexe_api::{def::AppNodeRunApi, error::NodeApiError};
 use lexe_std::iter::IteratorExt;
 use roaring::RoaringBitmap;
 use tracing::{instrument, warn};
@@ -975,10 +972,10 @@ mod test {
     use std::collections::BTreeMap;
 
     use common::{
-        api::error::NodeApiError,
         ln::payments::{PaymentStatus, VecBasicPayment},
         rng::{FastRng, RngExt},
     };
+    use lexe_api::error::NodeApiError;
     use proptest::{
         arbitrary::any,
         collection::vec,

@@ -2,7 +2,7 @@ use http::{header::CONTENT_TYPE, HeaderValue, StatusCode, Version};
 use serde::Serialize;
 use tracing::error;
 
-use crate::api::error::{CommonErrorKind, ErrorResponse, ToHttpStatus};
+use crate::error::{CommonErrorKind, ErrorResponse, ToHttpStatus};
 
 /// The HTTP version returned in our server responses.
 const HTTP_VERSION: Version = Version::HTTP_2;

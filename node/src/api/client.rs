@@ -5,13 +5,11 @@ use common::{
     api::{
         auth::{BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken},
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
-        error::{BackendApiError, LspApiError, RunnerApiError},
         user::{
             GetNewScidsRequest, MaybeScid, MaybeUser, NodePk, NodePkStruct,
             ScidStruct, Scids, UserPk, UserPkStruct,
         },
         version::MeasurementStruct,
-        vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
         Empty,
     },
     ed25519,
@@ -22,12 +20,14 @@ use common::{
 };
 use lexe_api::{
     def::{BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi},
+    error::{BackendApiError, LspApiError, RunnerApiError},
     rest::{RequestBuilderExt, RestClient, POST},
     tls::attestation::{self, NodeMode},
     types::{
         ports::Ports,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
     },
+    vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
 };
 use lightning::events::Event;
 

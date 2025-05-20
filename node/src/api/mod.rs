@@ -5,14 +5,16 @@ use anyhow::ensure;
 use anyhow::Context;
 use async_trait::async_trait;
 use common::{
-    api::{auth::BearerAuthToken, error::BackendApiError, vfs::VfsFile, Empty},
+    api::{auth::BearerAuthToken, Empty},
     env::DeployEnv,
     ln::network::LxNetwork,
     rng::Crng,
 };
 use lexe_api::{
     def::{BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi},
+    error::BackendApiError,
     tls::attestation::NodeMode,
+    vfs::VfsFile,
 };
 use lexe_ln::logger::LexeTracingLogger;
 

@@ -1,15 +1,13 @@
 use std::time::{Duration, SystemTime};
 
 use common::{
-    api::{
-        auth::{
-            BearerAuthRequest, BearerAuthRequestWire, BearerAuthToken, Scope,
-            TokenWithExpiration,
-        },
-        error::{BackendApiError, BackendErrorKind},
+    api::auth::{
+        BearerAuthRequest, BearerAuthRequestWire, BearerAuthToken, Scope,
+        TokenWithExpiration,
     },
     ed25519::{self},
 };
+use lexe_api_core::error::{BackendApiError, BackendErrorKind};
 
 use crate::def::BearerAuthBackendApi;
 

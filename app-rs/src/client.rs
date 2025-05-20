@@ -35,9 +35,6 @@ use common::{
             PreflightPayOfferResponse, PreflightPayOnchainRequest,
             PreflightPayOnchainResponse, UpdatePaymentNote,
         },
-        error::{
-            BackendApiError, GatewayApiError, NodeApiError, NodeErrorKind,
-        },
         fiat_rates::FiatRates,
         models::{
             SignMsgRequest, SignMsgResponse, VerifyMsgRequest,
@@ -66,6 +63,7 @@ use lexe_api::{
         AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
         BearerAuthBackendApi,
     },
+    error::{BackendApiError, GatewayApiError, NodeApiError, NodeErrorKind},
     rest::{RequestBuilderExt, RestClient, POST},
     tls::{
         self, lexe_ca, rustls,

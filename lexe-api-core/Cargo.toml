@@ -24,12 +24,21 @@ lexe-std.path = "../lexe-std"
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
+# TODO(max): This should be behind a feature flag
+axum.workspace = true
 async-trait.workspace = true
+bcs.workspace = true
 bytes.workspace = true
+http.workspace = true
+# TODO(max): This should be behind a feature flag
+http-body-util.workspace = true
 lightning.workspace = true
+reqwest = { workspace = true, features = ["json"] }
 secrecy.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
 
 # --- OPTIONAL --- #
 

@@ -2,11 +2,9 @@
 //! they need to restore their wallet from a prior Google Drive backup.
 
 use anyhow::Context;
-use common::{
-    api::vfs::{VfsFile, VfsFileId},
-    constants::{PW_ENC_ROOT_SEED_FILENAME, SINGLETON_DIRECTORY},
-    env::DeployEnv,
-    ln::network::LxNetwork,
+use common::{env::DeployEnv, ln::network::LxNetwork};
+use lexe_api_core::vfs::{
+    VfsFile, VfsFileId, PW_ENC_ROOT_SEED_FILENAME, SINGLETON_DIRECTORY,
 };
 use tokio::sync::watch;
 use tracing::{instrument, warn};

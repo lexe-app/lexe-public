@@ -23,10 +23,7 @@ use axum::{
     Router,
 };
 use common::{
-    api::{
-        error::NodeApiError, provision::NodeProvisionRequest,
-        version::MeasurementStruct, Empty,
-    },
+    api::{provision::NodeProvisionRequest, version::MeasurementStruct, Empty},
     cli::node::ProvisionArgs,
     enclave::{self, MachineId, Measurement},
     net,
@@ -36,6 +33,7 @@ use gdrive::GoogleVfs;
 use lexe_api::{
     auth::BearerAuthenticator,
     def::{NodeBackendApi, NodeRunnerApi},
+    error::NodeApiError,
     server::{self, LayerConfig},
     tls::{self, attestation::NodeMode},
     types::{ports::Ports, sealed_seed::SealedSeed},
@@ -335,14 +333,9 @@ mod handlers {
 }
 
 mod helpers {
-    use common::{
-        aes::AesMasterKey,
-        api::{
-            error::{BackendApiError, BackendErrorKind},
-            user::UserPk,
-        },
-    };
+    use common::{aes::AesMasterKey, api::user::UserPk};
     use gdrive::{gvfs::GvfsRootName, oauth2::GDriveCredentials};
+    use lexe_api::error::{BackendApiError, BackendErrorKind};
     use tracing::warn;
 
     use super::*;

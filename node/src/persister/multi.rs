@@ -5,13 +5,12 @@
 use std::time::SystemTime;
 
 use anyhow::Context;
-use common::{
-    aes::AesMasterKey,
-    api::vfs::{VfsFile, VfsFileId},
-    constants::IMPORTANT_PERSIST_RETRIES,
-};
+use common::{aes::AesMasterKey, constants::IMPORTANT_PERSIST_RETRIES};
 use gdrive::GoogleVfs;
-use lexe_api::auth::BearerAuthenticator;
+use lexe_api::{
+    auth::BearerAuthenticator,
+    vfs::{VfsFile, VfsFileId},
+};
 use lexe_ln::persister;
 use lexe_std::backoff;
 use secrecy::Secret;

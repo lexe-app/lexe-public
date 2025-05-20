@@ -17,7 +17,6 @@ use common::{
             PreflightPayOfferResponse, PreflightPayOnchainRequest,
             PreflightPayOnchainResponse, UpdatePaymentNote,
         },
-        error::NodeApiError,
         models::{
             SignMsgRequest, SignMsgResponse, VerifyMsgRequest,
             VerifyMsgResponse,
@@ -33,7 +32,10 @@ use common::{
     ln::{amount::Amount, channel::LxUserChannelId, payments::VecBasicPayment},
     rng::SysRng,
 };
-use lexe_api::server::{extract::LxQuery, LxJson};
+use lexe_api::{
+    error::NodeApiError,
+    server::{extract::LxQuery, LxJson},
+};
 use lexe_ln::{command::CreateInvoiceCaller, p2p};
 use lexe_tokio::task::MaybeLxTask;
 use tracing::warn;

@@ -1098,7 +1098,6 @@ dependencies = [
  "anyhow",
  "asn1-rs",
  "async-trait",
- "axum",
  "base64 0.22.1",
  "bcs",
  "bip39",
@@ -1892,6 +1891,7 @@ dependencies = [
  "byte-array",
  "common",
  "futures",
+ "lexe-api-core",
  "lexe-std",
  "logger",
  "proptest",
@@ -2469,15 +2469,22 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "axum",
+ "bcs",
  "bytes",
  "common",
+ "http",
+ "http-body-util",
  "lexe-std",
  "lightning",
  "proptest",
  "proptest-derive",
+ "reqwest",
  "secrecy",
  "serde",
  "serde_json",
+ "thiserror",
+ "tracing",
 ]
 
 [[package]]
@@ -3754,6 +3761,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "common",
+ "lexe-api-core",
  "semver",
  "serde",
 ]

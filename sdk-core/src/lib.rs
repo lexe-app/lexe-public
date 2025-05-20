@@ -11,4 +11,4 @@ pub mod types;
 
 /// Temporary type alias for the errors returned by SDK APIs.
 // TODO(max): Replace this with LexeError
-pub type SdkApiError = common::api::error::NodeApiError;
+pub type SdkApiError = lexe_api_core::error::NodeApiError;

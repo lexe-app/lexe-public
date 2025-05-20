@@ -1,16 +1,13 @@
 use std::{borrow::Cow, time::Duration};
 
 use bytes::Bytes;
-use common::{
-    api::error::{
-        ApiError, CommonApiError, CommonErrorKind, ErrorCode, ErrorResponse,
-    },
-    ed25519,
-    time::DisplayMs,
-};
+use common::{ed25519, time::DisplayMs};
 use http::{
     header::{HeaderValue, CONTENT_TYPE},
     Method,
+};
+use lexe_api_core::error::{
+    ApiError, CommonApiError, CommonErrorKind, ErrorCode, ErrorResponse,
 };
 use lexe_std::backoff;
 use lightning::util::ser::Writeable;

@@ -2,7 +2,7 @@
 //! interface which can be used to store, fetch, update, and delete data stored
 //! in Google's 3rd party cloud.
 //!
-//! ["VFS"]: common::api::vfs
+//! ["VFS"]: lexe_api_core::vfs
 //!
 //! ## Requirements
 //!

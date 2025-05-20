@@ -12,13 +12,9 @@ use common::{
     api::{
         revocable_clients::RevocableClients,
         user::{GetNewScidsRequest, NodePk, User, UserPk},
-        vfs::Vfs,
     },
     cli::{node::RunArgs, LspInfo},
-    constants::{
-        self, DEFAULT_CHANNEL_SIZE, REVOCABLE_CLIENTS_FILE_ID,
-        SMALLER_CHANNEL_SIZE,
-    },
+    constants::{self, DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
     ed25519,
     enclave::{self, MachineId, Measurement, MinCpusvn},
     env::DeployEnv,
@@ -39,6 +35,7 @@ use lexe_api::{
         shared_seed::certs::{EphemeralIssuingCaCert, RevocableIssuingCaCert},
     },
     types::{ports::Ports, sealed_seed::SealedSeedId},
+    vfs::{Vfs, REVOCABLE_CLIENTS_FILE_ID},
 };
 use lexe_ln::{
     alias::{

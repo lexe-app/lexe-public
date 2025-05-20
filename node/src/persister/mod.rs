@@ -9,16 +9,8 @@ use common::{
     api::{
         auth::BearerAuthToken,
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
-        error::BackendApiError,
         user::{Scid, Scids},
-        vfs::{
-            MaybeVfsFile, VecVfsFile, Vfs, VfsDirectory, VfsFile, VfsFileId,
-        },
         Empty,
-    },
-    constants::{
-        self, CHANNEL_MANAGER_FILENAME, PW_ENC_ROOT_SEED_FILENAME,
-        SINGLETON_DIRECTORY, WALLET_CHANGESET_FILENAME,
     },
     ln::{
         channel::LxOutPoint,
@@ -30,7 +22,15 @@ use common::{
     rng::{Crng, SysRng},
 };
 use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
-use lexe_api::auth::BearerAuthenticator;
+use lexe_api::{
+    auth::BearerAuthenticator,
+    error::BackendApiError,
+    vfs::{
+        self, MaybeVfsFile, VecVfsFile, Vfs, VfsDirectory, VfsFile, VfsFileId,
+        CHANNEL_MANAGER_FILENAME, PW_ENC_ROOT_SEED_FILENAME,
+        SINGLETON_DIRECTORY, WALLET_CHANGESET_FILENAME,
+    },
+};
 use lexe_ln::{
     alias::{
         BroadcasterType, ChannelMonitorType, FeeEstimatorType,
@@ -469,7 +469,7 @@ impl NodePersister {
     ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
         debug!("Reading channel monitors");
 
-        let dir = VfsDirectory::new(constants::CHANNEL_MONITORS_DIR);
+        let dir = VfsDirectory::new(vfs::CHANNEL_MONITORS_DIR);
         let token = self.get_token().await?;
 
         let plaintext_pairs = match self.google_vfs {
@@ -755,10 +755,8 @@ impl LexeInnerPersister for NodePersister {
     ) -> anyhow::Result<()> {
         debug!("Persisting channel manager");
 
-        let file_id = VfsFileId::new(
-            SINGLETON_DIRECTORY,
-            constants::CHANNEL_MANAGER_FILENAME,
-        );
+        let file_id =
+            VfsFileId::new(SINGLETON_DIRECTORY, vfs::CHANNEL_MANAGER_FILENAME);
         let file = self.encrypt_ldk_writeable(file_id, channel_manager);
 
         multi::upsert(
@@ -787,8 +785,7 @@ impl LexeInnerPersister for NodePersister {
             // `bitcoin::OutPoint`! `LxOutPoint`'s FromStr/Display impls are
             // guaranteed to roundtrip, and will be stable across LDK versions.
             let filename = funding_txo.to_string();
-            let file_id =
-                VfsFileId::new(constants::CHANNEL_MONITORS_DIR, filename);
+            let file_id = VfsFileId::new(vfs::CHANNEL_MONITORS_DIR, filename);
             self.encrypt_ldk_writeable(file_id, &*locked_monitor)
         };
 
@@ -883,14 +880,10 @@ impl Persist<SignerType> for NodePersister {
             info!("Archiving channel monitor");
 
             let filename = funding_txo.to_string();
-            let source_file_id = VfsFileId::new(
-                constants::CHANNEL_MONITORS_DIR,
-                filename.clone(),
-            );
-            let archive_file_id = VfsFileId::new(
-                constants::CHANNEL_MONITORS_ARCHIVE_DIR,
-                filename,
-            );
+            let source_file_id =
+                VfsFileId::new(vfs::CHANNEL_MONITORS_DIR, filename.clone());
+            let archive_file_id =
+                VfsFileId::new(vfs::CHANNEL_MONITORS_ARCHIVE_DIR, filename);
 
             // 1) Read and decrypt the monitor from the regular monitors dir.
             // We need to decrypt since the ciphertext is bound to its path,

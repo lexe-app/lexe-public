@@ -1,9 +1,6 @@
 use anyhow::{ensure, Context};
-use common::{
-    aes::AesMasterKey,
-    api::vfs::{VfsFile, VfsFileId},
-    rng::Crng,
-};
+use common::{aes::AesMasterKey, rng::Crng};
+use lexe_api::vfs::{VfsFile, VfsFileId};
 use lightning::util::ser::Writeable;
 use serde::{de::DeserializeOwned, Serialize};
 use tracing::info;

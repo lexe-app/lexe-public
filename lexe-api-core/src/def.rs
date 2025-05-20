@@ -58,10 +58,6 @@ use common::{
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
             UpdatePaymentNote,
         },
-        error::{
-            BackendApiError, GatewayApiError, LspApiError, NodeApiError,
-            RunnerApiError,
-        },
         fiat_rates::FiatRates,
         models::{
             SignMsgRequest, SignMsgResponse, Status, VerifyMsgRequest,
@@ -79,7 +75,6 @@ use common::{
             Scids, UserPk,
         },
         version::NodeRelease,
-        vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
         Empty,
     },
     ed25519,
@@ -91,9 +86,16 @@ use common::{
 };
 use lightning::events::Event;
 
-use crate::types::{
-    ports::Ports,
-    sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
+use crate::{
+    error::{
+        BackendApiError, GatewayApiError, LspApiError, NodeApiError,
+        RunnerApiError,
+    },
+    types::{
+        ports::Ports,
+        sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
+    },
+    vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
 };
 
 // TODO(max): To make clear that only upgradeable structs are being serialized,
@@ -336,10 +338,8 @@ pub trait AppNodeRunApi {
 
 /// The bearer auth API exposed by the backend (sometimes via the gateway) to
 /// various consumers. This trait is defined separately from the
-/// usual `ConsumerServiceApi` traits because [`BearerAuthenticator`] needs to
+/// usual `ConsumerServiceApi` traits because `BearerAuthenticator` needs to
 /// abstract over a generic implementor of [`BearerAuthBackendApi`].
-///
-/// [`BearerAuthenticator`]: crate::auth::BearerAuthenticator
 #[async_trait]
 pub trait BearerAuthBackendApi {
     /// POST /CONSUMER/bearer_auth [`ed25519::Signed<BearerAuthRequest>`]

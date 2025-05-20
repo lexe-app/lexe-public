@@ -8,6 +8,15 @@ use std::{error::Error, fmt};
 
 use anyhow::anyhow;
 use axum::response::IntoResponse;
+#[cfg(any(test, feature = "test-utils"))]
+use common::test_utils::arbitrary;
+use common::{
+    api::{
+        auth,
+        user::{NodePk, UserPk},
+    },
+    enclave::{self, Measurement},
+};
 use http::status::StatusCode;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
@@ -15,16 +24,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::{error, warn};
 
-use super::{
-    auth,
-    user::{NodePk, UserPk},
-};
-#[cfg(any(test, feature = "test-utils"))]
-use crate::test_utils::arbitrary;
-use crate::{
-    api::server,
-    enclave::{self, Measurement},
-};
+use crate::axum_helpers;
 
 // Associated constants can't be imported.
 pub const CLIENT_400_BAD_REQUEST: StatusCode = StatusCode::BAD_REQUEST;
@@ -270,7 +270,7 @@ macro_rules! api_error {
                 // `axum`'s layers can access it.
                 let status = self.log_and_status();
                 let error_response = ErrorResponse::from(self);
-                server::build_json_response(status, &error_response)
+                axum_helpers::build_json_response(status, &error_response)
             }
         }
 
@@ -989,7 +989,7 @@ impl IntoResponse for CommonApiError {
         // converted to an `http::Response` by the time `axum` can access it.
         let status = self.log_and_status();
         let error_response = ErrorResponse::from(self);
-        server::build_json_response(status, &error_response)
+        axum_helpers::build_json_response(status, &error_response)
     }
 }
 
@@ -1281,6 +1281,10 @@ impl RunnerApiError {
     }
 }
 
+// --- Build JSON response --- //
+
+pub mod error_response {}
+
 // --- Misc error utilities --- //
 
 /// Converts a [`Vec<anyhow::Result<()>>`] to an [`anyhow::Result<()>`],
@@ -1430,10 +1434,10 @@ pub mod invariants {
 
 #[cfg(test)]
 mod test {
+    use common::test_utils::roundtrip;
     use proptest::{prelude::any, prop_assert_eq, proptest};
 
     use super::*;
-    use crate::test_utils::roundtrip;
 
     #[test]
     fn client_error_kinds_non_zero() {

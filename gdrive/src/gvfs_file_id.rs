@@ -1,7 +1,7 @@
 use std::{fmt, fmt::Display, str::FromStr};
 
 use anyhow::{ensure, Context};
-use common::api::vfs::VfsFileId;
+use lexe_api_core::vfs::VfsFileId;
 
 /// Uniquely identifies a file stored in a GVFS.
 /// - Used as the [`GFile::name`] for files in Google Drive.

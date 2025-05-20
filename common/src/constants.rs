@@ -1,9 +1,6 @@
 use std::{include_bytes, time::Duration};
 
-use crate::{
-    api::vfs::VfsFileId,
-    enclave::{Measurement, MrShort},
-};
+use crate::enclave::{Measurement, MrShort};
 
 // --- General --- //
 
@@ -78,28 +75,10 @@ pub const LSP_USERNODE_CHANNEL_MIN_FUNDING_SATS: u32 = 5_000;
 // 1,000 sats = $1.00 assuming $100k/BTC
 pub const FORCE_CLOSE_AVOIDANCE_MAX_FEE_SATS: u64 = 1_000;
 
-// --- VFS --- //
+// --- Persistence --- //
 
 /// The default number of persist retries for important objects.
 pub const IMPORTANT_PERSIST_RETRIES: usize = 5;
-
-/// The vfs directory name used by singleton objects.
-pub const SINGLETON_DIRECTORY: &str = ".";
-
-pub const EVENTS_DIR: &str = "events";
-pub const CHANNEL_MONITORS_DIR: &str = "channel_monitors";
-pub const CHANNEL_MONITORS_ARCHIVE_DIR: &str = "channel_monitors_archive";
-
-pub const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
-pub const PW_ENC_ROOT_SEED_FILENAME: &str = "password_encrypted_root_seed";
-// Filename history:
-// - "bdk_wallet_db" for our pre BDK 1.0 wallet DB.
-// - "bdk_wallet_db_v1" for our BDK 1.0.0-alpha.X wallet DB.
-// - "bdk_wallet_changeset" since BDK 1.0.0-beta.X.
-pub const WALLET_CHANGESET_FILENAME: &str = "bdk_wallet_changeset";
-
-pub static REVOCABLE_CLIENTS_FILE_ID: VfsFileId =
-    VfsFileId::new_const(SINGLETON_DIRECTORY, "revocable_clients");
 
 // --- Networking --- //
 

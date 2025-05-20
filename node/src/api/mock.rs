@@ -14,12 +14,10 @@ use common::{
             UserSignupRequest,
         },
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
-        error::{BackendApiError, LspApiError, RunnerApiError},
         user::{
             GetNewScidsRequest, MaybeScid, MaybeUser, NodePk, Scid, ScidStruct,
             Scids, User, UserPk,
         },
-        vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
         Empty,
     },
     byte_str::ByteStr,
@@ -42,10 +40,12 @@ use lexe_api::{
         AppBackendApi, BearerAuthBackendApi, NodeBackendApi, NodeLspApi,
         NodeRunnerApi,
     },
+    error::{BackendApiError, LspApiError, RunnerApiError},
     types::{
         ports::Ports,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
     },
+    vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
 };
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},

@@ -266,7 +266,8 @@ pub mod test_utils {
 
     use anyhow::Context;
     use axum::{routing::post, Router};
-    use common::{api::error::BackendApiError, net};
+    use common::net;
+    use lexe_api_core::error::BackendApiError;
     use lexe_tokio::notify_once::NotifyOnce;
     use rustls::pki_types::ServerName;
     use serde::{Deserialize, Serialize};

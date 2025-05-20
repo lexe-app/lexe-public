@@ -7,13 +7,12 @@ use std::{
 };
 
 use anyhow::{anyhow, Context};
-use common::{
-    aes::AesMasterKey,
-    api::vfs::{VfsFile, VfsFileId},
-    debug_panic_release_log, Secret,
-};
+use common::{aes::AesMasterKey, debug_panic_release_log, Secret};
 use gdrive::GoogleVfs;
-use lexe_api::auth::BearerAuthenticator;
+use lexe_api::{
+    auth::BearerAuthenticator,
+    vfs::{VfsFile, VfsFileId},
+};
 use lexe_ln::persister;
 use tracing::{error, warn};
 

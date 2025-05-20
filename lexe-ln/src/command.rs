@@ -25,12 +25,10 @@ use common::{
             UpdateClientResponse,
         },
         user::{NodePk, Scid, UserPk},
-        vfs::Vfs,
         Empty,
     },
     cli::{LspFees, LspInfo},
-    constants::{self, REVOCABLE_CLIENTS_FILE_ID},
-    debug_panic_release_log, ed25519,
+    constants, debug_panic_release_log, ed25519,
     enclave::Measurement,
     ln::{
         amount::Amount,
@@ -46,9 +44,12 @@ use common::{
 };
 use either::Either;
 use futures::Future;
-use lexe_api::tls::{
-    shared_seed::certs::{RevocableClientCert, RevocableIssuingCaCert},
-    types::LxCertificateDer,
+use lexe_api::{
+    tls::{
+        shared_seed::certs::{RevocableClientCert, RevocableIssuingCaCert},
+        types::LxCertificateDer,
+    },
+    vfs::{Vfs, REVOCABLE_CLIENTS_FILE_ID},
 };
 use lexe_std::Apply;
 use lightning::{

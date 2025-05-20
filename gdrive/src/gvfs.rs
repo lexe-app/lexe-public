@@ -8,14 +8,10 @@
 use std::{collections::BTreeMap, fmt, str::FromStr};
 
 use anyhow::{anyhow, ensure, Context};
-use common::{
-    api::{
-        user::UserPk,
-        vfs::{VfsDirectory, VfsFile, VfsFileId},
-    },
-    constants,
-    env::DeployEnv,
-    ln::network::LxNetwork,
+use common::{api::user::UserPk, env::DeployEnv, ln::network::LxNetwork};
+use lexe_api_core::{
+    vfs,
+    vfs::{VfsDirectory, VfsFile, VfsFileId},
 };
 use lexe_std::Apply;
 use serde::{Deserialize, Serialize};
@@ -431,7 +427,7 @@ impl GoogleVfs {
         // NOTE: We *could* support this just by removing the check, but this is
         // likely a programmer error confusing a VFS subdir with the VFS root.
         ensure!(
-            vdir.dirname != constants::SINGLETON_DIRECTORY,
+            vdir.dirname != vfs::SINGLETON_DIRECTORY,
             "We do not support listing files in the VFS root"
         );
 

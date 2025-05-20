@@ -10,6 +10,7 @@ default = []
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
 test-utils = [
   "common/test-utils",
+  "lexe-api-core/test-utils",
   "dep:proptest",
   "dep:proptest-derive",
   "dep:tokio-rustls",

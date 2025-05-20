@@ -25,8 +25,8 @@
 //! - All [`ApiError`]s and [`CommonApiError`] impl [`IntoResponse`]
 //! - [`LxRejection`] for notifying clients of bad JSON, query strings, etc.
 //!
-//! [`ApiError`]: common::api::error::ApiError
-//! [`CommonApiError`]: common::api::error::CommonApiError
+//! [`ApiError`]: lexe_api_core::error::ApiError
+//! [`CommonApiError`]: lexe_api_core::error::CommonApiError
 //! [`Router`]: axum::Router
 //! [`IntoResponse`]: axum::response::IntoResponse
 //! [`LxJson`]: crate::server::LxJson
@@ -64,14 +64,14 @@ use axum::{
 use axum_server::tls_rustls::RustlsConfig;
 use bytes::Bytes;
 use common::{
-    api::{
-        auth::{self, Scope},
-        error::{CommonApiError, CommonErrorKind},
-        server,
-    },
+    api::auth::{self, Scope},
     ed25519,
 };
 use http::{header::CONTENT_TYPE, HeaderValue, StatusCode};
+use lexe_api_core::{
+    axum_helpers,
+    error::{CommonApiError, CommonErrorKind},
+};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use serde::{de::DeserializeOwned, Serialize};
 use tower::{
@@ -484,7 +484,7 @@ pub fn spawn_server_task_with_listener(
 /// [`StatusCode::OK`]. Our API error types, while also serialized as JSON,
 /// have separate [`IntoResponse`] impls which return error statuses.
 ///
-/// [`ErrorResponse`]: common::api::error::ErrorResponse
+/// [`ErrorResponse`]: lexe_api_core::error::ErrorResponse
 pub struct LxJson<T>(pub T);
 
 #[async_trait]
@@ -505,7 +505,7 @@ impl<T: DeserializeOwned, S: Send + Sync> FromRequest<S> for LxJson<T> {
 
 impl<T: Serialize> IntoResponse for LxJson<T> {
     fn into_response(self) -> http::Response<axum::body::Body> {
-        server::build_json_response(StatusCode::OK, &self.0)
+        axum_helpers::build_json_response(StatusCode::OK, &self.0)
     }
 }
 
@@ -556,7 +556,7 @@ impl<T: PartialEq> PartialEq for LxJson<T> {
 /// uses [`StatusCode::OK`]. Our API error types are serialized as JSON and
 /// have separate [`IntoResponse`] impls which return error statuses.
 ///
-/// [`ErrorResponse`]: common::api::error::ErrorResponse
+/// [`ErrorResponse`]: lexe_api_core::error::ErrorResponse
 #[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct LxBytes(pub Bytes);
 
@@ -583,7 +583,7 @@ impl IntoResponse for LxBytes {
         let http_body = http_body_util::Full::new(self.0);
         let axum_body = axum::body::Body::new(http_body);
 
-        common::api::server::default_response_builder()
+        axum_helpers::default_response_builder()
             .header(
                 CONTENT_TYPE,
                 // Or `HeaderValue::from_static(mime::APPLICATION_OCTET_STREAM)`

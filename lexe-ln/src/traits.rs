@@ -3,16 +3,13 @@ use std::{future::Future, ops::Deref, str::FromStr};
 use anyhow::Context;
 use async_trait::async_trait;
 use common::{
-    api::{
-        user::NodePk,
-        vfs::{Vfs, VfsDirectory, VfsFileId},
-    },
-    constants,
+    api::user::NodePk,
     ln::{
         channel::LxOutPoint,
         payments::{LxPaymentId, PaymentIndex},
     },
 };
+use lexe_api::vfs::{self, Vfs, VfsDirectory, VfsFileId};
 use lexe_tokio::notify_once::NotifyOnce;
 use lightning::{
     chain::chainmonitor::Persist,
@@ -78,7 +75,7 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
 
     /// Reads all persisted events, along with their event IDs.
     async fn read_events(&self) -> anyhow::Result<Vec<(EventId, Event)>> {
-        let dir = VfsDirectory::new(constants::EVENTS_DIR);
+        let dir = VfsDirectory::new(vfs::EVENTS_DIR);
         let ids_and_events = self
             .read_dir_maybereadable(&dir)
             .await?
@@ -100,7 +97,7 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
         event_id: &EventId,
     ) -> anyhow::Result<()> {
         let filename = event_id.to_string();
-        let file_id = VfsFileId::new(constants::EVENTS_DIR, filename);
+        let file_id = VfsFileId::new(vfs::EVENTS_DIR, filename);
         // Failed event persistence can result in the node shutting down, so try
         // a few extra times. TODO(max): Change back to 1 once we switch to
         // LDK's fallible event handling.
@@ -110,7 +107,7 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
 
     async fn remove_event(&self, event_id: &EventId) -> anyhow::Result<()> {
         let filename = event_id.to_string();
-        let file_id = VfsFileId::new(constants::EVENTS_DIR, filename);
+        let file_id = VfsFileId::new(vfs::EVENTS_DIR, filename);
         self.remove_file(&file_id).await
     }
 }

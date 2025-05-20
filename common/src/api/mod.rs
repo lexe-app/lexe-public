@@ -20,11 +20,10 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 /// Authentication and User Signup.
+// TODO(max): `error` depends on `auth`
 pub mod auth;
 /// Data types used in APIs for top level commands.
 pub mod command;
-/// Enums for the API errors returned by the various services.
-pub mod error;
 /// Data types returned from the fiat exchange rate API.
 pub mod fiat_rates;
 /// API models which don't fit anywhere else.
@@ -33,16 +32,12 @@ pub mod models;
 pub mod provision;
 /// Revocable clients.
 pub mod revocable_clients;
-/// A subset of `lexe_api::server` which needs to stay in `common`.
-pub mod server;
 /// `TestEvent`.
 pub mod test_event;
 /// User ID-like types: `User`, `UserPk`, `NodePk`, `Scid`
 pub mod user;
 /// Data types which relate to node versions: `NodeRelease`, `MeasurementStruct`
 pub mod version;
-/// Data types implementing vfs-based node persistence.
-pub mod vfs;
 
 /// A struct denoting an empty API request or response.
 ///
