@@ -88,16 +88,26 @@ pub fn all_channel_balances<PS: LexePersister>(
         // https://github.com/lightningdevkit/rust-lightning/issues/3675
         .expect("Can't overflow because divisor is > 1");
 
-    // Tweak max_sendable to account for the minimum LSP prop fee that would be
-    // paid in the case of a two hop payment: Sender -> LSP -> Receiver.
-    // max_sendable = sum(next_outbound_htlc_limit - base_fee) / (1 + prop_fee)
     total_balance.max_sendable = total_balance
         .max_sendable
+        // Tweak max_sendable to account for the minimum LSP prop fee that would
+        // be paid in the case of a two hop payment: Sender -> LSP -> Receiver.
+        //
+        // max_sendable =
+        //     sum(next_outbound_htlc_limit - base_fee) / (1 + prop_fee)
+        //
         // TODO(max): LDK appears to reapply the prop fee for each MPP shard
         // when it should be `.checked_div(dec!(1) + min_lsp_prop_fee)`.
         // https://github.com/lightningdevkit/rust-lightning/issues/3675
         .checked_div(dec!(1) + num_usable_channels_dec * min_lsp_prop_fee)
-        .expect("Can't overflow because divisor is > 1");
+        .expect("Can't overflow because divisor is > 1")
+        // Tweak to account for a floor in LDK's calculation of
+        // `compute_max_final_value_contribution` for paths. Otherwise
+        // `smoketest::payments::max_sendable_multihop` fails with "Tried to pay
+        // `x` sats. The maximum you can route to this recipient is `y` sats."
+        //     `x` = 986500.499, `y` = 986499 (`y` from `max_flow` is floored)
+        // https://github.com/lightningdevkit/rust-lightning/pull/3755
+        .saturating_sub(Amount::from_sats_u32(1));
 
     (total_balance, num_usable_channels)
 }
