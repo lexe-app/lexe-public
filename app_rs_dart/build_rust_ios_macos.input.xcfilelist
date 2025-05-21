@@ -6,11 +6,13 @@ ${PODS_TARGET_SRCROOT}/../../app-rs/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../byte-array/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../clippy.toml
 ${PODS_TARGET_SRCROOT}/../../common/Cargo.toml
-${PODS_TARGET_SRCROOT}/../../const-utils/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../gdrive/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../hex/Cargo.toml
+${PODS_TARGET_SRCROOT}/../../lexe-api-core/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-api/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-ln/Cargo.toml
+${PODS_TARGET_SRCROOT}/../../lexe-std/Cargo.toml
+${PODS_TARGET_SRCROOT}/../../lexe-tokio/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../logger/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../node/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../payment-uri/Cargo.toml
