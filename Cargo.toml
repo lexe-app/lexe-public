@@ -216,8 +216,8 @@ esplora-client = { version = "0.11", default-features = false, features = ["asyn
 # Hyper-related utilities
 hyper-util = { version = "=0.1.11", default-features = false, features = ["http2"] }
 # LDK (rust-lightning) libraries
-lightning = { version = "=0.1.1", features = [] }
-lightning-invoice = { version = "=0.33.1", features = ["std"] }
+lightning = { version = "=0.1.3", features = [] }
+lightning-invoice = { version = "=0.33.2", features = ["std"] }
 lightning-transaction-sync = { version = "=0.1.0", features = ["esplora-async", "time"] }
 lightning-types = "=0.2.0"
 # Required by tokio
@@ -271,14 +271,13 @@ hyper-util = { git = "https://github.com/lexe-app/hyper-util", branch = "lexe-v0
 # hyper-util.path = "../../forks/hyper-util"
 
 # * license: Add dual license information
-# * lightning-invoice: increase max length to 7089
-# * router: Don't disable central hops in found paths
 # * ln: onion-messenger: just queue forwards to offline peers
 # * onion-messenger: bump MAX_TIMER_TICKS to 3 (~30 sec)
-lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_04_10" }
-lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_04_10" }
-lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_04_10" }
-lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.1-2025_04_10" }
+# * Do not fail to load `ChannelManager` when we see claiming payments (#3772)
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.3-2025_05_21" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.3-2025_05_21" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.3-2025_05_21" }
+lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.3-2025_05_21" }
 # lightning.path = "../../ldk/lightning"
 # lightning-invoice.path = "../../ldk/lightning-invoice"
 # lightning-transaction-sync.path = "../../ldk/lightning-transaction-sync"
