@@ -1,7 +1,5 @@
-use common::{
-    constants::DEFAULT_CHANNEL_SIZE,
-    ln::channel::{LxChannelId, LxUserChannelId},
-};
+use common::ln::channel::{LxChannelId, LxUserChannelId};
+use lexe_tokio::DEFAULT_CHANNEL_SIZE;
 use lightning::events::ClosureReason;
 use tokio::sync::broadcast;
 

@@ -1,9 +1,9 @@
 use std::{sync::Arc, time::Duration};
 
 use anyhow::{anyhow, Context};
-use common::{api::test_event::TestEvent, constants::DEFAULT_CHANNEL_SIZE};
+use common::api::test_event::TestEvent;
 use lexe_std::const_assert;
-use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
+use lexe_tokio::{notify_once::NotifyOnce, task::LxTask, DEFAULT_CHANNEL_SIZE};
 use lightning::chain::chaininterface::BroadcasterInterface;
 use tokio::sync::{
     mpsc::{self, error::TrySendError},

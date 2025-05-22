@@ -9,3 +9,7 @@ pub mod task;
 
 // Can save a `tokio` dependency declaration
 pub use tokio;
+
+// Default sizes for Tokio channels
+pub const DEFAULT_CHANNEL_SIZE: usize = 256;
+pub const SMALLER_CHANNEL_SIZE: usize = 16;

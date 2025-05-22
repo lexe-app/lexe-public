@@ -13,10 +13,6 @@ lexe_std::const_assert!(
     YANKED_NODE_VERSIONS.len() == YANKED_NODE_MEASUREMENTS.len()
 );
 
-// Tokio channels
-pub const DEFAULT_CHANNEL_SIZE: usize = 256;
-pub const SMALLER_CHANNEL_SIZE: usize = 16;
-
 /// Reject backend requests for payments that are too large.
 pub const MAX_PAYMENTS_BATCH_SIZE: u16 = 100;
 pub const DEFAULT_PAYMENTS_BATCH_SIZE: u16 = 50;

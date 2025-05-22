@@ -108,8 +108,7 @@ impl InactivityTimer {
 mod tests {
     use std::future::Future;
 
-    use common::constants::DEFAULT_CHANNEL_SIZE;
-    use lexe_tokio::task::LxTask;
+    use lexe_tokio::{task::LxTask, DEFAULT_CHANNEL_SIZE};
 
     use super::*;
 

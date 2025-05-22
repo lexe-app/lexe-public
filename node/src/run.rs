@@ -14,7 +14,7 @@ use common::{
         user::{GetNewScidsRequest, NodePk, User, UserPk},
     },
     cli::{node::RunArgs, LspInfo},
-    constants::{self, DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
+    constants::{self},
     ed25519,
     enclave::{self, MachineId, Measurement, MinCpusvn},
     env::DeployEnv,
@@ -63,6 +63,7 @@ use lexe_tokio::{
     notify,
     notify_once::NotifyOnce,
     task::{self, LxTask, MaybeLxTask},
+    DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE,
 };
 use lightning::{
     chain::{chainmonitor::ChainMonitor, Watch},
