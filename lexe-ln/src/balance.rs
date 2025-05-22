@@ -61,20 +61,21 @@ pub fn all_channel_balances<PS: LexePersister>(
             let next_outbound_htlc_limit =
                 Amount::from_msat(channel.next_outbound_htlc_limit_msat);
 
-            // Tweak to account for a floor in LDK's calculation of
-            // `compute_max_final_value_contribution` for paths. Otherwise
-            // `smoketest::payments::max_sendable_multihop` fails with "Tried to
-            // pay x sats. The max you can route to this recipient is y sats."
-            //     x = 986500.499, y = 986499 (y from `max_flow` is floored)
+            // Both of these have a one sat tweak to account for a floor in
+            // LDK's calculation of `compute_max_final_value_contribution` for
+            // paths. Otherwise `smoketest::payments::max_sendable_multihop`
+            // fails with "Tried to pay `x` sats. The max you can route to this
+            // recipient is `y` sats."
+            //   `x` = 986500.499, `y` = 986499 (`y` from `max_flow` is floored)
             // https://github.com/lightningdevkit/rust-lightning/pull/3755
             let sendable =
                 next_outbound_htlc_limit
                     .saturating_sub(est_shard_base_fee)
-                    .floor_sat();
+                    .saturating_sub(Amount::from_sats_u32(1));
             let max_sendable =
                 next_outbound_htlc_limit
                     .saturating_sub(min_lsp_base_fee)
-                    .floor_sat();
+                    .saturating_sub(Amount::from_sats_u32(1));
 
             total_balance.usable += balance;
             total_balance.sendable += sendable;
