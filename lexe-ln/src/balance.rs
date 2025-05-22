@@ -109,7 +109,8 @@ pub fn all_channel_balances<PS: LexePersister>(
         // https://github.com/lightningdevkit/rust-lightning/pull/3755
         .saturating_sub(Amount::from_sats_u32(1));
 
-    (total_balance, num_usable_channels)
+    // Values in `LightningBalance` are user-facing, so we should floor them.
+    (total_balance.floor_sat(), num_usable_channels)
 }
 
 /// Get our claimable channel balance for a given channel.

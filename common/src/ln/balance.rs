@@ -174,6 +174,16 @@ impl LightningBalance {
     pub fn total(&self) -> Amount {
         self.usable + self.pending
     }
+
+    /// Get a copy of this [`LightningBalance`] with all values floored.
+    pub fn floor_sat(&self) -> Self {
+        Self {
+            usable: self.usable.floor_sat(),
+            sendable: self.sendable.floor_sat(),
+            max_sendable: self.max_sendable.floor_sat(),
+            pending: self.pending.floor_sat(),
+        }
+    }
 }
 
 impl Default for LightningBalance {
