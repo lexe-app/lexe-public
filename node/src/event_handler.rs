@@ -55,7 +55,7 @@ use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     channel::ChannelEvent,
     esplora::FeeEstimates,
-    event::{self, EventHandleError, EventHandlerExt, EventId},
+    event::{self, EventHandleError, EventHandlerExt, EventId, HtlcsForwarded},
     keys_manager::LexeKeysManager,
     payments::outbound::LxOutboundPaymentFailure,
     test_event::TestEventSender,
@@ -96,8 +96,9 @@ pub(crate) struct EventCtx {
     pub network_graph: Arc<NetworkGraphType>,
     pub scorer: Arc<Mutex<ProbabilisticScorerType>>,
     pub payments_manager: PaymentsManagerType,
+
     pub channel_events_bus: EventsBus<ChannelEvent>,
-    #[allow(dead_code)] // We might need this later
+    pub htlcs_forwarded_bus: EventsBus<HtlcsForwarded>,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     pub test_event_tx: TestEventSender,
     pub shutdown: NotifyOnce,
@@ -547,6 +548,7 @@ async fn do_handle_event(
         Event::PendingHTLCsForwardable { .. } =>
             event::handle_pending_htlcs_forwardable(
                 ctx.channel_manager.clone(),
+                ctx.htlcs_forwarded_bus.clone(),
                 &ctx.eph_tasks_tx,
             ),
 

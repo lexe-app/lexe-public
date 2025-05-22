@@ -10,7 +10,7 @@ use common::{
     rng::{Crng, RngExt, SysRng},
     time::{DisplayMs, TimestampMs},
 };
-use lexe_tokio::task::LxTask;
+use lexe_tokio::{events_bus::EventsBus, task::LxTask};
 use lightning::{
     chain::{
         chaininterface::{ConfirmationTarget, FeeEstimator},
@@ -633,8 +633,13 @@ pub fn handle_scorer_update(
     }
 }
 
+/// Indicates that a call to `process_pending_htlc_forwards` was complete.
+#[derive(Copy, Clone, Debug)]
+pub struct HtlcsForwarded;
+
 pub fn handle_pending_htlcs_forwardable<CM, PS>(
     channel_manager: CM,
+    htlcs_forwarded_bus: EventsBus<HtlcsForwarded>,
     eph_tasks_tx: &mpsc::Sender<LxTask<()>>,
 ) where
     CM: LexeChannelManager<PS>,
@@ -661,6 +666,7 @@ pub fn handle_pending_htlcs_forwardable<CM, PS>(
             tokio::time::sleep(delay).await;
             channel_manager.process_pending_htlc_forwards();
             info!("Forwarded pending HTLCs");
+            htlcs_forwarded_bus.send(HtlcsForwarded);
         });
 
         if eph_tasks_tx.try_send(task).is_err() {

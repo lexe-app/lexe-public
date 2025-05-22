@@ -642,7 +642,9 @@ impl UserNode {
                 network_graph: network_graph.clone(),
                 scorer: scorer.clone(),
                 payments_manager: payments_manager.clone(),
+
                 channel_events_bus: channel_events_bus.clone(),
+                htlcs_forwarded_bus: EventsBus::new(),
                 eph_tasks_tx: eph_tasks_tx.clone(),
                 test_event_tx: test_event_tx.clone(),
                 shutdown: shutdown.clone(),
