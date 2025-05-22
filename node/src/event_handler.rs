@@ -53,7 +53,7 @@ use common::{
 use lexe_api::def::NodeLspApi;
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
-    channel::{ChannelEvent, ChannelEventsBus},
+    channel::ChannelEvent,
     esplora::FeeEstimates,
     event::{self, EventHandleError, EventHandlerExt, EventId},
     keys_manager::LexeKeysManager,
@@ -63,7 +63,9 @@ use lexe_ln::{
     tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
 };
-use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
+use lexe_tokio::{
+    events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
+};
 use lightning::events::{
     Event, InboundChannelFunds, PaymentFailureReason, ReplayEvent,
 };
@@ -94,7 +96,7 @@ pub(crate) struct EventCtx {
     pub network_graph: Arc<NetworkGraphType>,
     pub scorer: Arc<Mutex<ProbabilisticScorerType>>,
     pub payments_manager: PaymentsManagerType,
-    pub channel_events_bus: ChannelEventsBus,
+    pub channel_events_bus: EventsBus<ChannelEvent>,
     #[allow(dead_code)] // We might need this later
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     pub test_event_tx: TestEventSender,
@@ -275,7 +277,7 @@ async fn do_handle_event(
                 funding_txo,
                 channel_type,
             );
-            ctx.channel_events_bus.notify(ChannelEvent::Pending {
+            ctx.channel_events_bus.send(ChannelEvent::Pending {
                 user_channel_id: user_channel_id.into(),
                 channel_id: channel_id.into(),
                 funding_txo,
@@ -295,7 +297,7 @@ async fn do_handle_event(
                 counterparty_node_id,
                 channel_type,
             );
-            ctx.channel_events_bus.notify(ChannelEvent::Ready {
+            ctx.channel_events_bus.send(ChannelEvent::Ready {
                 user_channel_id: user_channel_id.into(),
                 channel_id: channel_id.into(),
             });
@@ -319,7 +321,7 @@ async fn do_handle_event(
                 channel_capacity_sats,
                 channel_funding_txo,
             );
-            ctx.channel_events_bus.notify(ChannelEvent::Closed {
+            ctx.channel_events_bus.send(ChannelEvent::Closed {
                 user_channel_id: user_channel_id.into(),
                 channel_id: channel_id.into(),
                 reason,

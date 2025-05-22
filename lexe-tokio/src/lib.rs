@@ -1,5 +1,7 @@
 //! A crate containing utilities and extensions built on top of Tokio.
 
+/// Wraps a mpmc [`tokio::sync::broadcast`] to provide a convenient events bus.
+pub mod events_bus;
 /// A channel for sending deduplicated notifications with no data attached.
 pub mod notify;
 /// `NotifyOnce`, typically used as a shutdown channel.

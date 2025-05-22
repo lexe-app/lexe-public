@@ -52,6 +52,7 @@ use lexe_api::{
     vfs::{Vfs, REVOCABLE_CLIENTS_FILE_ID},
 };
 use lexe_std::Apply;
+use lexe_tokio::events_bus::{EventsBus, EventsRx};
 use lightning::{
     chain::{
         chaininterface::{ConfirmationTarget, FeeEstimator},
@@ -76,7 +77,7 @@ use tracing::{debug, info, instrument, warn};
 use crate::{
     alias::{LexeChainMonitorType, NetworkGraphType, RouterType, SignerType},
     balance,
-    channel::{ChannelEvent, ChannelEventsBus, ChannelEventsRx},
+    channel::ChannelEvent,
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     payments::{
@@ -222,7 +223,7 @@ pub fn list_channels<PS: LexePersister>(
 #[instrument(skip_all, name = "(open-channel)")]
 pub async fn open_channel<CM, PS, F>(
     channel_manager: &CM,
-    channel_events_bus: &ChannelEventsBus,
+    channel_events_bus: &EventsBus<ChannelEvent>,
     wallet: &LexeWallet,
     ensure_counterparty_connected: impl FnOnce() -> F,
     user_channel_id: LxUserChannelId,
@@ -336,12 +337,12 @@ where
 /// If this is a JIT channel open, we can wait for channel `Ready` and not
 /// just `Pending`.
 async fn wait_for_our_channel_open_event(
-    channel_events_rx: &mut ChannelEventsRx<'_>,
+    channel_events_rx: &mut EventsRx<'_, ChannelEvent>,
     is_jit_channel: bool,
     user_channel_id: &LxUserChannelId,
 ) -> anyhow::Result<OpenChannelResponse> {
     let channel_event = channel_events_rx
-        .next_filtered(|event| {
+        .recv_filtered(|event| {
             if event.user_channel_id() != user_channel_id {
                 return false;
             }
@@ -400,7 +401,7 @@ pub async fn preflight_open_channel(
 #[instrument(skip_all, name = "(close-channel)")]
 pub async fn close_channel<CM, PS, F>(
     channel_manager: &CM,
-    channel_events_bus: &ChannelEventsBus,
+    channel_events_bus: &EventsBus<ChannelEvent>,
     ensure_counterparty_connected: impl FnOnce(NodePk) -> F,
     req: CloseChannelRequest,
 ) -> anyhow::Result<()>
@@ -441,7 +442,7 @@ where
             .context("Failed to connect to channel counterparty")?;
     }
 
-    // Start subscribing to ChannelEvents.
+    // Start subscribing to `ChannelEvent`s.
     let mut channel_events_rx = channel_events_bus.subscribe();
 
     // Tell the channel manager to begin co-op or forced channel close.
@@ -465,17 +466,17 @@ where
     }
 
     // Wait for the corresponding ChannelClosed event
-    tokio::time::timeout(
-        Duration::from_secs(15),
-        channel_events_rx.next_filtered(|event| {
+    channel_events_rx
+        .recv_filtered(|event| {
             matches!(
                 event,
-                ChannelEvent::Closed { channel_id, .. } if channel_id == &lx_channel_id,
+                ChannelEvent::Closed { channel_id, .. }
+                    if channel_id == &lx_channel_id,
             )
-        }),
-    )
-    .await
-    .context("Waiting for channel close event")?;
+        })
+        .apply(|fut| tokio::time::timeout(Duration::from_secs(15), fut))
+        .await
+        .context("Waiting for channel close event")?;
 
     // TODO(phlip9): return txid so user can track close
     info!(%channel_id, "channel closed");

@@ -33,14 +33,16 @@ use lexe_api::{
 };
 use lexe_ln::{
     alias::{NetworkGraphType, RouterType},
-    channel::ChannelEventsBus,
+    channel::ChannelEvent,
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     test_event::TestEventReceiver,
     tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
 };
-use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
+use lexe_tokio::{
+    events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
+};
 use lightning::util::config::UserConfig;
 use tokio::{
     sync::{mpsc, oneshot},
@@ -85,7 +87,7 @@ pub(crate) struct AppRouterState {
     pub rev_ca_cert: Arc<RevocableIssuingCaCert>,
     pub revocable_clients: Arc<RwLock<RevocableClients>>,
     pub activity_tx: mpsc::Sender<()>,
-    pub channel_events_bus: ChannelEventsBus,
+    pub channel_events_bus: EventsBus<ChannelEvent>,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
 }
 

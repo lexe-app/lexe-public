@@ -43,9 +43,7 @@ use lexe_ln::{
         LexeOnionMessengerType, NetworkGraphType, P2PGossipSyncType,
         ProbabilisticScorerType,
     },
-    background_processor,
-    channel::ChannelEventsBus,
-    channel_monitor,
+    background_processor, channel_monitor,
     esplora::{self, LexeEsplora},
     event,
     keys_manager::LexeKeysManager,
@@ -60,6 +58,7 @@ use lexe_ln::{
 };
 use lexe_std::{const_assert, Apply};
 use lexe_tokio::{
+    events_bus::EventsBus,
     notify,
     notify_once::NotifyOnce,
     task::{self, LxTask, MaybeLxTask},
@@ -629,7 +628,7 @@ impl UserNode {
         static_tasks.extend(payments_tasks);
 
         // Initialize the event handler
-        let channel_events_bus = ChannelEventsBus::new();
+        let channel_events_bus = EventsBus::new();
         let event_handler = NodeEventHandler {
             ctx: Arc::new(event_handler::EventCtx {
                 lsp: args.lsp.clone(),

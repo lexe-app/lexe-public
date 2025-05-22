@@ -1,22 +1,21 @@
 use tokio::sync::broadcast;
 
+use crate::DEFAULT_CHANNEL_SIZE;
+
 /// The [`EventsBus`] makes it easy to listen on events from some producer
 /// (or possibly many producers).
 ///
 /// - Simply clone the [`EventsBus`] to get another handle to it.
-/// - Call [`notify`] to send an event onto the bus.
-/// - Call [`subscribe`] to _. Events emitted prior to [`subscribe`] will not be
-///   received.
+/// - Call [`send`] to send an event onto the bus. If no waiters are registered,
+///   this is a noop.
+/// - Call [`subscribe`] to get a receiver. Events emitted prior to
+///   [`subscribe`] will not be received.
 ///
-/// API handlers like `open_channel` and
-/// `close_channel` wait on channel lifecycle events (pending, ready, closed)
-/// for specific channels.
+/// We use a [`tokio::sync::broadcast`] channel here because
+/// (1) event notification is a noop if there are no waiters, which is common,
+/// (2) we don't need to garbage collect waiters that timeout.
 ///
-/// We use a [`tokio::sync::broadcast`] channel here because (1) event
-/// notification is a noop if there are no waiters, which is common, and (2) we
-/// don't need to garbage collect waiters that timeout.
-///
-/// [`notify`]: Self::notify
+/// [`send`]: Self::send
 /// [`subscribe`]: Self::subscribe
 #[derive(Clone)]
 pub struct EventsBus<T> {
@@ -24,21 +23,27 @@ pub struct EventsBus<T> {
 }
 
 impl<T: Clone> EventsBus<T> {
+    /// Create a new [`EventsBus`] with the default channel size.
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
+        Self::new_with_size(DEFAULT_CHANNEL_SIZE)
+    }
+
+    /// Create a new [`EventsBus`] with a custom channel size.
+    pub fn new_with_size(size: usize) -> Self {
         Self {
-            event_tx: broadcast::channel(crate::DEFAULT_CHANNEL_SIZE).0,
+            event_tx: broadcast::channel(size).0,
         }
     }
 
-    /// Called from the event handler, when it observes a channel event.
-    pub fn notify(&self, event: T) {
+    /// Notify all waiters (if any) that an event occurred.
+    pub fn send(&self, event: T) {
         // `broadcast::Sender::send` returns an error if there are no active
-        // receivers. That's fine in this case.
+        // receivers. That's fine for us.
         let _ = self.event_tx.send(event);
     }
 
-    /// Start listening to all new events that get [`Self::notify`]'d
-    /// after this point.
+    /// Get a subscriber which will get notified after this point.
     ///
     /// Be sure to start tailing events quickly so they don't queue up and you
     /// don't lose events.
@@ -62,11 +67,17 @@ impl<'a, T: Clone> EventsRx<'a, T> {
         }
     }
 
+    /// Wait for the next event.
+    ///
+    /// Will wait indefinitely, so ensure there's a timeout around this.
+    pub async fn recv(&mut self) -> T {
+        self.recv_filtered(|_| true).await
+    }
+
     /// Wait for the next event that makes `filter` return true.
     ///
-    /// Will wait indefinitely, so make sure there's a timeout somewhere around
-    /// this.
-    pub async fn next_filtered(&mut self, filter: impl Fn(&T) -> bool) -> T {
+    /// Will wait indefinitely, so ensure there's a timeout around this.
+    pub async fn recv_filtered(&mut self, filter: impl Fn(&T) -> bool) -> T {
         use tokio::sync::broadcast::error::RecvError;
         loop {
             match self.event_rx.recv().await {
@@ -74,7 +85,7 @@ impl<'a, T: Clone> EventsRx<'a, T> {
                     if filter(&event) {
                         return event;
                     },
-                Err(RecvError::Closed) => panic!(
+                Err(RecvError::Closed) => unreachable!(
                     "This cannot happen. We currently have a handle to the \
                      `event_tx` sender, so the channel cannot be closed."
                 ),
