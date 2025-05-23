@@ -68,14 +68,12 @@ pub fn all_channel_balances<PS: LexePersister>(
             // recipient is `y` sats."
             //   `x` = 986500.499, `y` = 986499 (`y` from `max_flow` is floored)
             // https://github.com/lightningdevkit/rust-lightning/pull/3755
-            let sendable =
-                next_outbound_htlc_limit
-                    .saturating_sub(est_shard_base_fee)
-                    .saturating_sub(Amount::from_sats_u32(1));
-            let max_sendable =
-                next_outbound_htlc_limit
-                    .saturating_sub(min_lsp_base_fee)
-                    .saturating_sub(Amount::from_sats_u32(1));
+            let sendable = next_outbound_htlc_limit
+                .saturating_sub(est_shard_base_fee)
+                .saturating_sub(Amount::from_sats_u32(1));
+            let max_sendable = next_outbound_htlc_limit
+                .saturating_sub(min_lsp_base_fee)
+                .saturating_sub(Amount::from_sats_u32(1));
 
             total_balance.usable += balance;
             total_balance.sendable += sendable;
