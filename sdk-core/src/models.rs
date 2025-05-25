@@ -68,16 +68,18 @@ pub struct SdkNodeInfoResponse {
 
     /// Total Lightning balance in sats, summed over all of our channels.
     pub lightning_balance: Amount,
-    /// Total usable Lightning balance in sats, summing all *usable* channels.
-    pub usable_lightning_balance: Amount,
-    /// The maximum amount that we could possibly send over Lightning, in sats.
-    ///
-    /// - Is strictly less than `usable_lightning_balance`.
-    /// - Accounts for usable channels, LSP fees, and other LN protocol limits
-    ///   including channel reserves, pending HTLCs, per-HTLC limits, etc.
-    /// - Exactly this amount may be sendable only in very specific scenarios,
-    ///   such as paying another Lexe user.
-    pub max_sendable_lightning_balance: Amount,
+    /// An estimated upper bound, in sats, on how much of our Lightning balance
+    /// we can send to most recipients on the Lightning Network, accounting for
+    /// Lightning limits such as our channel reserve, pending HTLCs, fees, etc.
+    /// You should usually be able to spend this amount.
+    // User-facing name for `LightningBalance::sendable`
+    pub lightning_sendable_balance: Amount,
+    /// A hard upper bound on how much of our Lightning balance can be spent
+    /// right now, in sats. This is always >= `lightning_sendable_balance`.
+    /// Generally it is only possible to spend exactly this amount if the
+    /// recipient is a Lexe user.
+    // User-facing name for `LightningBalance::max_sendable`
+    pub lightning_max_sendable_balance: Amount,
 
     /// Total on-chain balance in sats, including unconfirmed funds.
     // `OnchainBalance::total`
@@ -85,7 +87,7 @@ pub struct SdkNodeInfoResponse {
     /// Trusted on-chain balance in sats, including only confirmed funds and
     /// unconfirmed outputs originating from our own wallet.
     // Equivalent to BDK's `trusted_spendable`, but with a better name.
-    pub trusted_onchain_balance: Amount,
+    pub onchain_trusted_balance: Amount,
 
     /// The total number of Lightning channels.
     pub num_channels: usize,
@@ -100,7 +102,7 @@ impl From<lexe_api_core::models::command::NodeInfo> for SdkNodeInfoResponse {
         let lightning_balance = info.lightning_balance.total();
         let onchain_balance = Amount::try_from(info.onchain_balance.total())
             .expect("We're unreasonably rich!");
-        let trusted_onchain_balance =
+        let onchain_trusted_balance =
             Amount::try_from(info.onchain_balance.trusted_spendable())
                 .expect("We're unreasonably rich!");
         let balance = lightning_balance.saturating_add(onchain_balance);
@@ -114,10 +116,10 @@ impl From<lexe_api_core::models::command::NodeInfo> for SdkNodeInfoResponse {
             balance,
 
             lightning_balance,
-            usable_lightning_balance: info.lightning_balance.usable,
-            max_sendable_lightning_balance: info.lightning_balance.max_sendable,
+            lightning_sendable_balance: info.lightning_balance.sendable,
+            lightning_max_sendable_balance: info.lightning_balance.max_sendable,
             onchain_balance,
-            trusted_onchain_balance,
+            onchain_trusted_balance,
             num_channels: info.num_channels,
             num_usable_channels: info.num_usable_channels,
         }
