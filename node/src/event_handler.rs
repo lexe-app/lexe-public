@@ -17,7 +17,7 @@
 //!   inline must support that same event getting partially handled and then
 //!   replayed after a crash. Events handled in a task must additionally support
 //!   that same event getting replayed out-of-order and at a potentially much
-//!   later date. See [`NodeEventHandler::get_ldk_handler_future`] for which
+//!   later date. See `NodeEventHandler::get_ldk_handler_future` for which
 //!   events are handled inline vs in a task.
 //! - The event handler must avoid reentrancy by avoiding direct calls to
 //!   [`ChannelManager::process_pending_events_async`] or
