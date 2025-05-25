@@ -188,6 +188,9 @@ pub(super) async fn evaluate_and_resolve(
 /// Given all files returned by Google and Lexe in a given VFS directory,
 /// evaluates and resolves any discrepancies between them.
 /// Returns the decrypted ([`VfsFileId`], [`Vec<u8>`]) plaintext pairs.
+// TODO(max): Keep around until we switch to VSS, at which point we *may* reuse
+// some of this code.
+#[allow(dead_code)]
 pub(super) async fn evaluate_and_resolve_all(
     backend_api: &(dyn BackendApiClient + Send + Sync),
     authenticator: &BearerAuthenticator,

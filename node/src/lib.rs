@@ -22,6 +22,8 @@ mod approved_versions;
 mod channel_manager;
 /// `NodeEventHandler`.
 mod event_handler;
+/// GDrive persister task.
+mod gdrive_persister;
 /// `InactivityTimer`.
 mod inactivity_timer;
 /// Node-specific p2p logic

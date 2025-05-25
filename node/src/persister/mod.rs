@@ -1,4 +1,40 @@
-use std::{io::Cursor, str::FromStr, sync::Arc, time::SystemTime};
+//! # Node persister
+//!
+//! ## Channel manager & channel monitor persistence
+//!
+//! Previously, all writes were persisted immediately in both GDrive and Lexe
+//! DB. However, since GDrive takes 2.5s for some writes and multiple writes are
+//! needed per payment, we saw unacceptable payment latencies of 30s+.
+//!
+//! As a temporary workaround, we currently treat Lexe's DB as the 'primary'
+//! data store.
+//!
+//! Reads: Read from just Lexe's DB. This is required for safety, since
+//! asynchronous writes may fail long after many Lexe DB updates have already
+//! been persisted - it's not safe revert to very old states.
+//!
+//! Writes: When persisting the channel manager or channel monitor, we consider
+//! Lexe's DB to be the 'primary' data store, so we return to the caller once
+//! persistence in Lexe's DB is complete. However, we also trigger a task to
+//! backup the channel state to GDrive asynchronously. This sacrifices some
+//! rollback-resistance for significantly improved latency.
+//!
+//! In the future, we will persist all critical channel state onto multiple
+//! independent (and thus rollback-resistant) VSS servers. Asynchronous backups
+//! to GDrive will still be available as an option to our users.
+//!
+//! ### In detail
+//!
+//! Channel manager:
+//! - Read: Read from Lexe DB.
+//! - Write: Write to Lexe DB and trigger an asynchronous GDrive backup.
+//!
+//! Channel monitors:
+//! - Read: Read from Lexe DB.
+//! - Write: Write to Lexe DB and trigger an asynchronous GDrive backup.
+//! - Archive: Write to and delete from both Lexe's DB and GDrive synchronously.
+
+use std::{str::FromStr, sync::Arc, time::SystemTime};
 
 use anyhow::{anyhow, ensure, Context};
 use arc_swap::ArcSwap;
@@ -10,6 +46,7 @@ use common::{
         auth::BearerAuthToken,
         user::{Scid, Scids},
     },
+    constants,
     ln::{
         channel::LxOutPoint,
         payments::{
@@ -27,8 +64,7 @@ use lexe_api::{
     types::Empty,
     vfs::{
         self, MaybeVfsFile, VecVfsFile, Vfs, VfsDirectory, VfsFile, VfsFileId,
-        CHANNEL_MANAGER_FILENAME, PW_ENC_ROOT_SEED_FILENAME,
-        SINGLETON_DIRECTORY, WALLET_CHANGESET_FILENAME,
+        SINGLETON_DIRECTORY,
     },
 };
 use lexe_ln::{
@@ -48,7 +84,7 @@ use lexe_ln::{
     traits::{LexeInnerPersister, LexePersister},
     wallet::ChangeSet,
 };
-use lexe_std::Apply;
+use lexe_std::{backoff, Apply};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::{
     chain::{
@@ -56,12 +92,9 @@ use lightning::{
         transaction::OutPoint, ChannelMonitorUpdateStatus,
     },
     ln::channelmanager::ChannelManagerReadArgs,
-    util::{
-        config::UserConfig,
-        ser::{ReadableArgs, Writeable},
-    },
+    util::{config::UserConfig, ser::Writeable},
 };
-use secrecy::{ExposeSecret, Secret};
+use secrecy::ExposeSecret;
 use serde::Serialize;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, info_span, warn};
@@ -87,6 +120,7 @@ pub struct NodePersister {
     vfs_master_key: Arc<AesMasterKey>,
     google_vfs: Option<Arc<GoogleVfs>>,
     channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
+    gdrive_persister_tx: mpsc::Sender<VfsFile>,
     eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     shutdown: NotifyOnce,
 }
@@ -211,7 +245,7 @@ pub(crate) async fn password_encrypted_root_seed_exists(
     // This fn barely does anything, but we want it close to the impl of
     // `persist_password_encrypted_root_seed` for ez inspection
     let file_id =
-        VfsFileId::new(SINGLETON_DIRECTORY, PW_ENC_ROOT_SEED_FILENAME);
+        VfsFileId::new(SINGLETON_DIRECTORY, vfs::PW_ENC_ROOT_SEED_FILENAME);
     google_vfs.file_exists(&file_id).await
 }
 
@@ -227,7 +261,7 @@ pub(crate) async fn persist_password_encrypted_root_seed(
 ) -> anyhow::Result<()> {
     let file = VfsFile::new(
         SINGLETON_DIRECTORY,
-        PW_ENC_ROOT_SEED_FILENAME,
+        vfs::PW_ENC_ROOT_SEED_FILENAME,
         encrypted_seed,
     );
     google_vfs
@@ -298,6 +332,7 @@ impl NodePersister {
         vfs_master_key: Arc<AesMasterKey>,
         google_vfs: Option<Arc<GoogleVfs>>,
         channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
+        gdrive_persister_tx: mpsc::Sender<VfsFile>,
         eph_tasks_tx: mpsc::Sender<LxTask<()>>,
         shutdown: NotifyOnce,
     ) -> Self {
@@ -307,6 +342,7 @@ impl NodePersister {
             vfs_master_key,
             google_vfs,
             channel_monitor_persister_tx,
+            gdrive_persister_tx,
             eph_tasks_tx,
             shutdown,
         }
@@ -316,6 +352,42 @@ impl NodePersister {
         self.authenticator
             .get_token(&*self.backend_api, SystemTime::now())
             .await
+    }
+
+    /// Upserts a file to GDrive with the given # of `retries` if this
+    /// [`NodePersister`] contains a [`GoogleVfs`], otherwise does nothing.
+    // TODO(max): This fn should be reused in more places.
+    pub(crate) async fn upsert_gdrive_if_available(
+        &self,
+        file: VfsFile,
+        retries: usize,
+    ) -> anyhow::Result<()> {
+        let gvfs = match self.google_vfs.as_ref() {
+            Some(gvfs) => gvfs,
+            None => return Ok(()),
+        };
+
+        let file_id = file.id.clone();
+
+        let mut upsert_result = gvfs.upsert_file(file.clone()).await;
+
+        let mut backoff_iter = backoff::get_backoff_iter();
+        for i in 0..retries {
+            if upsert_result.is_ok() {
+                break;
+            }
+
+            tokio::time::sleep(backoff_iter.next().unwrap()).await;
+
+            upsert_result = gvfs
+                .upsert_file(file.clone())
+                .await
+                .with_context(|| format!("Retry #{i}"));
+        }
+
+        upsert_result
+            .context("Failed to upsert to GDrive")
+            .with_context(|| file_id)
     }
 
     pub(crate) async fn read_scids(&self) -> anyhow::Result<Vec<Scid>> {
@@ -332,7 +404,7 @@ impl NodePersister {
         &self,
     ) -> anyhow::Result<Option<ChangeSet>> {
         let file_id =
-            VfsFileId::new(SINGLETON_DIRECTORY, WALLET_CHANGESET_FILENAME);
+            VfsFileId::new(SINGLETON_DIRECTORY, vfs::WALLET_CHANGESET_FILENAME);
 
         let maybe_changeset =
             self.read_bytes(&file_id).await?.and_then(|bytes| {
@@ -398,6 +470,7 @@ impl NodePersister {
             .collect::<anyhow::Result<Vec<BasicPayment>>>()
     }
 
+    /// NOTE: See module docs for info on how manager/monitor persist works.
     pub(crate) async fn read_channel_manager(
         &self,
         config: &ArcSwap<UserConfig>,
@@ -411,128 +484,54 @@ impl NodePersister {
         logger: LexeTracingLogger,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         debug!("Reading channel manager");
-        let file_id = VfsFileId::new(
-            SINGLETON_DIRECTORY.to_owned(),
-            CHANNEL_MANAGER_FILENAME.to_owned(),
+        let file_id =
+            VfsFileId::new(SINGLETON_DIRECTORY, vfs::CHANNEL_MANAGER_FILENAME);
+
+        let channel_monitor_refs = channel_monitors
+            .iter()
+            .map(|(_hash, monitor)| monitor)
+            .collect::<Vec<_>>();
+        let read_args = ChannelManagerReadArgs::new(
+            keys_manager.clone(),
+            keys_manager.clone(),
+            keys_manager,
+            fee_estimator,
+            chain_monitor,
+            broadcaster,
+            router,
+            message_router,
+            logger,
+            **config.load(),
+            channel_monitor_refs,
         );
 
-        let maybe_plaintext = multi::read(
-            &*self.backend_api,
-            &self.authenticator,
-            &self.vfs_master_key,
-            self.google_vfs.as_deref(),
-            &file_id,
-        )
-        .await
-        .context("Failed to read from GDrive and Lexe")?;
-
-        let maybe_manager = match maybe_plaintext {
-            Some(chanman_bytes) => {
-                let channel_monitor_refs = channel_monitors
-                    .iter()
-                    .map(|(_hash, monitor)| monitor)
-                    .collect::<Vec<_>>();
-                let read_args = ChannelManagerReadArgs::new(
-                    keys_manager.clone(),
-                    keys_manager.clone(),
-                    keys_manager,
-                    fee_estimator,
-                    chain_monitor,
-                    broadcaster,
-                    router,
-                    message_router,
-                    logger,
-                    **config.load(),
-                    channel_monitor_refs,
-                );
-
-                let mut reader = Cursor::new(chanman_bytes.expose_secret());
-                let (blockhash, channel_manager) =
-                    <(BlockHash, ChannelManagerType)>::read(
-                        &mut reader,
-                        read_args,
-                    )
-                    .map_err(|e| anyhow!("{:?}", e))
-                    .context("Failed to deserialize ChannelManager")?;
-
-                Some((blockhash, channel_manager))
-            }
-            None => None,
-        };
-
-        Ok(maybe_manager)
+        // XXX(max): Read channel manager from multiple independent VSS stores
+        self.read_readableargs(&file_id, read_args)
+            .await
+            .context("Failed to read channel manager")
     }
 
+    /// NOTE: See module docs for info on how manager/monitor persist works.
     pub(crate) async fn read_channel_monitors(
         &self,
-        keys_manager: Arc<LexeKeysManager>,
+        keys_manager: &LexeKeysManager,
     ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
         debug!("Reading channel monitors");
 
         let dir = VfsDirectory::new(vfs::CHANNEL_MONITORS_DIR);
-        let token = self.get_token().await?;
 
-        let plaintext_pairs = match self.google_vfs {
-            Some(ref gvfs) => {
-                // We're running on staging/prod
-                // Fetch from both Google Drive and Lexe's DB.
-                let (try_google_files, try_lexe_files) = tokio::join!(
-                    gvfs.get_directory(&dir),
-                    self.backend_api.get_directory(&dir, token),
-                );
-                let google_files =
-                    try_google_files.context("Failed to fetch from Google")?;
-                let lexe_files = try_lexe_files
-                    .context("Failed to fetch from Lexe (`Some` branch)")?;
+        // XXX(max): Read channel manager from multiple independent VSS stores
+        let read_args = (keys_manager, keys_manager);
+        let ids_and_values = self
+            .read_dir_readableargs::<(BlockHash, ChannelMonitorType), _>(
+                &dir, read_args,
+            )
+            .await?;
 
-                discrepancy::evaluate_and_resolve_all(
-                    &*self.backend_api,
-                    &self.authenticator,
-                    &self.vfs_master_key,
-                    gvfs,
-                    google_files,
-                    lexe_files.files,
-                )
-                .await
-                .context("Monitor evaluation and resolution failed")?
-            }
-            // We're running in dev/test. Just fetch from Lexe's DB.
-            None => self
-                .backend_api
-                .get_directory(&dir, token)
-                .await
-                .context("Failed to fetch from Lexe (`None` branch)")?
-                .files
-                .into_iter()
-                .map(|file| {
-                    let file_id = file.id.clone();
-                    let plaintext = persister::decrypt_file(
-                        &self.vfs_master_key,
-                        &file_id,
-                        file,
-                    )
-                    .map(Secret::new)?;
-                    anyhow::Ok((file_id, plaintext))
-                })
-                .collect::<anyhow::Result<Vec<_>>>()?,
-        };
-
-        let mut result = Vec::new();
-
-        for (file_id, plaintext) in plaintext_pairs {
-            let plaintext_bytes = plaintext.expose_secret();
-
-            let mut plaintext_reader = Cursor::new(plaintext_bytes);
-            let (blockhash, channel_monitor) =
-                // This is ReadableArgs::read's foreign impl on the cmon tuple
-                <(BlockHash, ChannelMonitorType)>::read(
-                    &mut plaintext_reader,
-                    (&*keys_manager, &*keys_manager),
-                )
-                .map_err(|e| anyhow!("{e:?}"))
-                .context("Failed to deserialize Channel Monitor")?;
-
+        // Check that each monitor's funding txo matches the file_id.
+        for (file_id, (_blockhash, channel_monitor)) in &ids_and_values {
             let expected_txo = LxOutPoint::from_str(&file_id.filename)
+                .with_context(|| file_id.filename.clone())
                 .context("Invalid funding txo string")?;
             let derived_txo = channel_monitor
                 .get_funding_txo()
@@ -543,11 +542,15 @@ impl NodePersister {
                 "Expected and derived txos don't match: \
                  {expected_txo} != {derived_txo}"
             );
-
-            result.push((blockhash, channel_monitor));
         }
 
-        Ok(result)
+        ids_and_values
+            .into_iter()
+            .map(|(_file_id, (blockhash, channel_monitor))| {
+                (blockhash, channel_monitor)
+            })
+            .collect::<Vec<_>>()
+            .apply(Ok)
     }
 }
 
@@ -749,6 +752,7 @@ impl LexeInnerPersister for NodePersister {
         Ok(maybe_payment)
     }
 
+    /// NOTE: See module docs for info on how manager/monitor persist works.
     async fn persist_manager<CM: Writeable + Send + Sync>(
         &self,
         channel_manager: &CM,
@@ -757,18 +761,23 @@ impl LexeInnerPersister for NodePersister {
 
         let file_id =
             VfsFileId::new(SINGLETON_DIRECTORY, vfs::CHANNEL_MANAGER_FILENAME);
+        let retries = constants::IMPORTANT_PERSIST_RETRIES;
+
         let file = self.encrypt_ldk_writeable(file_id, channel_manager);
 
-        multi::upsert(
-            &*self.backend_api,
-            &self.authenticator,
-            self.google_vfs.as_deref(),
-            file,
-        )
-        .await
-        .context("multi::upsert failed")
+        // Trigger async persistence to GDrive
+        self.gdrive_persister_tx
+            .try_send(file.clone())
+            .context("GDrive persister channel full (from manager)")?;
+
+        // Persist to Lexe VFS
+        // XXX(max): Channel manager should be persisted to multiple VSS stores.
+        self.persist_file(&file, retries)
+            .await
+            .context("Failed to persist channel manager")
     }
 
+    /// NOTE: See module docs for info on how manager/monitor persist works.
     async fn persist_channel_monitor<PS: LexePersister>(
         &self,
         chain_monitor: &LexeChainMonitorType<PS>,
@@ -789,17 +798,21 @@ impl LexeInnerPersister for NodePersister {
             self.encrypt_ldk_writeable(file_id, &*locked_monitor)
         };
 
-        multi::upsert(
-            &*self.backend_api,
-            &self.authenticator,
-            self.google_vfs.as_deref(),
-            file,
-        )
-        .await
-        .context("multi::upsert failed")
+        // Trigger async persistence to GDrive
+        self.gdrive_persister_tx
+            .try_send(file.clone())
+            .context("GDrive persister channel full (from monitor)")?;
+
+        // Persist to Lexe VFS
+        // XXX(max): Channel monitor should be persisted to multiple VSS stores.
+        let retries = constants::IMPORTANT_PERSIST_RETRIES;
+        self.persist_file(&file, retries)
+            .await
+            .context("Failed to persist channel monitor")
     }
 }
 
+/// NOTE: See module docs for info on how manager/monitor persist works.
 impl Persist<SignerType> for NodePersister {
     fn persist_new_channel(
         &self,

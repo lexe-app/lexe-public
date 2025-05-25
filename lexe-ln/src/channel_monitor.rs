@@ -85,18 +85,28 @@ impl Display for ChannelMonitorUpdateKind {
 /// from a peer. However, we also disconnect from all peers in our peer
 /// connector task in response to a shutdown signal, meaning that if the monitor
 /// persister task is scheduled first and shuts down immediately, it won't be
-/// around anymore when those monitor updates are queued. Thus, we trigger the
-/// shutdown for the monitor persister task only *after* the BGP has completed
-/// its shutdown sequence (during which it repersists the channel manager).
+/// around anymore when those monitor updates are queued. Thus, we trigger
+/// `monitor_persister_shutdown` only *after* the BGP has completed its shutdown
+/// sequence (during which it repersists the channel manager).
 ///
 /// <https://discord.com/channels/915026692102316113/1367736643100086374/1367952226269663262>
+///
+/// Since the user node's GDrive persister task must live at least as long as
+/// this task, we trigger it only once the monitor persister task has shut down.
+///
+/// To summarize, the *typical* (not always!) trigger order of shutdowns is:
+///
+/// 1) `shutdown`
+/// 2) `monitor_persister_shutdown`
+/// 3) `gdrive_persister_shutdown`
 pub fn spawn_channel_monitor_persister_task<CM, PS>(
     persister: PS,
     channel_manager: CM,
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
     mut channel_monitor_persister_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
-    mut monitor_persister_shutdown: NotifyOnce,
     shutdown: NotifyOnce,
+    mut monitor_persister_shutdown: NotifyOnce,
+    gdrive_persister_shutdown: Option<NotifyOnce>,
 ) -> LxTask<()>
 where
     CM: LexeChannelManager<PS>,
@@ -156,7 +166,7 @@ where
                         if let Err(e) = try_persist {
                             error!("(Quiescence) manager persist error: {e:#}");
                             // Nothing to do if persist fails, so just shutdown.
-                            return;
+                            break;
                         }
                     }
                 }
@@ -176,14 +186,18 @@ where
                             error!("(Quiescence) Monitor persist error: {e:#}");
                         });
                         // Nothing to do if persist fails, so just shutdown.
-                        return;
+                        break;
                     }
                 }
                 _ = tokio::time::sleep(QUIESCENT_TIMEOUT) => {
                     info!("Channel mgr and monitors quiescent; shutting down.");
-                    return;
+                    break;
                 }
             };
+        }
+
+        if let Some(gdrive_persister_shutdown) = gdrive_persister_shutdown {
+            gdrive_persister_shutdown.send();
         }
     })
 }

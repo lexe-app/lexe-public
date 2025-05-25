@@ -79,6 +79,7 @@ use crate::{
     api::{self, BackendApiClient},
     channel_manager::{self, NodeChannelManager},
     event_handler::{self, NodeEventHandler},
+    gdrive_persister,
     inactivity_timer::InactivityTimer,
     p2p,
     peer_manager::NodePeerManager,
@@ -175,6 +176,8 @@ impl UserNode {
 
         // Init channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
+        let (gdrive_persister_tx, gdrive_persister_rx) =
+            mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (channel_monitor_persister_tx, channel_monitor_persister_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (bdk_resync_tx, bdk_resync_rx) =
@@ -320,6 +323,7 @@ impl UserNode {
             vfs_master_key.clone(),
             maybe_google_vfs.clone(),
             channel_monitor_persister_tx,
+            gdrive_persister_tx,
             eph_tasks_tx.clone(),
             shutdown.clone(),
         ));
@@ -479,7 +483,7 @@ impl UserNode {
         // TODO(max): Split into fetch and deserialize steps so the fetching can
         // be done concurrently with other fetches.
         let mut channel_monitors = persister
-            .read_channel_monitors(keys_manager.clone())
+            .read_channel_monitors(&keys_manager)
             .await
             .context("Could not read channel monitors")?;
 
@@ -657,15 +661,25 @@ impl UserNode {
 
         // Set up the channel monitor persistence task
         let monitor_persister_shutdown = NotifyOnce::new();
+        let gdrive_persister_shutdown = NotifyOnce::new();
         let task = channel_monitor::spawn_channel_monitor_persister_task(
             persister.clone(),
             channel_manager.clone(),
             chain_monitor.clone(),
             channel_monitor_persister_rx,
-            monitor_persister_shutdown.clone(),
             shutdown.clone(),
+            monitor_persister_shutdown.clone(),
+            Some(gdrive_persister_shutdown.clone()),
         );
         static_tasks.push(task);
+
+        // GDrive persister task
+        static_tasks.push(gdrive_persister::spawn_gdrive_persister_task(
+            persister.clone(),
+            gdrive_persister_rx,
+            gdrive_persister_shutdown,
+            shutdown.clone(),
+        ));
 
         // Start API server for app
         let lsp_info = args.lsp.clone();
