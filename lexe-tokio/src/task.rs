@@ -237,10 +237,8 @@ impl<T> LxTask<T> {
     {
         // Instrument the future so that the current tracing span propagates
         // past spawn boundaries.
-        Self {
-            task: tokio::spawn(future.in_current_span()),
-            name: name.into(),
-        }
+        let span = tracing::Span::current();
+        Self::spawn_with_span(name, span, future)
     }
 
     /// Spawns a task without a name. Use this primarily for trivial tasks where
@@ -251,7 +249,9 @@ impl<T> LxTask<T> {
         F: Future<Output = T> + Send + 'static,
         F::Output: Send + 'static,
     {
-        Self::spawn(String::new(), future.in_current_span())
+        let name = String::new();
+        let span = tracing::Span::current();
+        Self::spawn_with_span(name, span, future)
     }
 
     /// Spawns a named task with a custom span. This is the most versatile API.
@@ -306,10 +306,11 @@ impl<T> LxTask<T> {
         F: Future<Output = T> + Send + 'static,
         F::Output: Send + 'static,
     {
-        // Instrument the future with the given tracing span.
+        let name = name.into();
+        debug!("Spawning task: {name}");
         Self {
             task: tokio::spawn(future.instrument(span)),
-            name: name.into(),
+            name,
         }
     }
 
