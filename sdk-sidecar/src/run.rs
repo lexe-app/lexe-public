@@ -108,7 +108,7 @@ impl Sidecar {
             server::router(router_state),
             LayerConfig::default(),
             maybe_tls_and_dns,
-            SERVER_SPAN_NAME,
+            SERVER_SPAN_NAME.into(),
             info_span!(SERVER_SPAN_NAME),
             shutdown.clone(),
         )

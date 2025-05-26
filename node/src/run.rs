@@ -745,7 +745,7 @@ impl UserNode {
                 server::app_router(app_router_state),
                 app_layer_config,
                 Some((app_tls_config, app_dns.as_str())),
-                APP_SERVER_SPAN_NAME,
+                APP_SERVER_SPAN_NAME.into(),
                 info_span!(APP_SERVER_SPAN_NAME),
                 shutdown.clone(),
             )
@@ -773,7 +773,7 @@ impl UserNode {
                 server::lexe_router(lexe_router_state),
                 LayerConfig::default(),
                 lexe_tls_and_dns,
-                LEXE_SERVER_SPAN_NAME,
+                LEXE_SERVER_SPAN_NAME.into(),
                 info_span!(LEXE_SERVER_SPAN_NAME),
                 shutdown.clone(),
             )

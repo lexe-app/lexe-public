@@ -116,7 +116,7 @@ pub async fn provision_node(
         app_router(ctx),
         LayerConfig::default(),
         Some((Arc::new(app_tls_config), app_dns.as_str())),
-        APP_SERVER_SPAN_NAME,
+        APP_SERVER_SPAN_NAME.into(),
         info_span!(parent: None, APP_SERVER_SPAN_NAME),
         shutdown.clone(),
     )
@@ -140,7 +140,7 @@ pub async fn provision_node(
             lexe_router,
             LayerConfig::default(),
             lexe_tls_and_dns,
-            LEXE_SERVER_SPAN_NAME,
+            LEXE_SERVER_SPAN_NAME.into(),
             info_span!(parent: None, LEXE_SERVER_SPAN_NAME),
             shutdown,
         )

@@ -372,7 +372,7 @@ pub mod test_utils {
             router,
             LayerConfig::default(),
             tls_and_dns,
-            TEST_SPAN_NAME,
+            TEST_SPAN_NAME.into(),
             info_span!(parent: None, TEST_SPAN_NAME),
             shutdown.clone(),
         )

@@ -38,6 +38,7 @@
 //! [`spawn_server_task_with_listener`]: crate::server::spawn_server_task_with_listener
 
 use std::{
+    borrow::Cow,
     convert::Infallible,
     fmt::{self, Display},
     future::Future,
@@ -412,7 +413,7 @@ pub fn spawn_server_task(
     layer_config: LayerConfig,
     // TLS config + DNS name
     maybe_tls_and_dns: Option<(Arc<rustls::ServerConfig>, &str)>,
-    server_span_name: &str,
+    server_span_name: Cow<'static, str>,
     server_span: tracing::Span,
     // Send on this channel to begin a graceful shutdown of the server.
     shutdown: NotifyOnce,
@@ -442,7 +443,7 @@ pub fn spawn_server_task_with_listener(
     layer_config: LayerConfig,
     // TLS config + DNS name
     maybe_tls_and_dns: Option<(Arc<rustls::ServerConfig>, &str)>,
-    server_span_name: &str,
+    server_span_name: Cow<'static, str>,
     server_span: tracing::Span,
     // Send on this channel to begin a graceful shutdown of the server.
     shutdown: NotifyOnce,
@@ -452,7 +453,7 @@ pub fn spawn_server_task_with_listener(
         router,
         layer_config,
         maybe_tls_and_dns,
-        server_span_name,
+        &server_span_name,
         server_span.clone(),
         shutdown,
     )

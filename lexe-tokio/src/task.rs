@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     fmt::{self, Display},
     future::Future,
     pin::Pin,
@@ -20,7 +21,7 @@ use crate::notify_once::NotifyOnce;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("Static task finished prematurely: {name}")]
-    PrematureFinish { name: String },
+    PrematureFinish { name: Cow<'static, str> },
     #[error("Some tasks failed to finish on time: {hung_tasks:?}")]
     Hung { hung_tasks: Vec<String> },
 }
@@ -176,7 +177,7 @@ impl<T> MaybeLxTask<T> {
 #[must_use]
 pub struct LxTask<T> {
     task: JoinHandle<T>,
-    name: String,
+    name: Cow<'static, str>,
 }
 
 /// A [`Future`] that wraps [`LxTask`] so its result is logged when it finishes.
@@ -195,7 +196,10 @@ struct TaskOutputDisplay<'a> {
 
 impl<T> LxTask<T> {
     /// Constructs a [`LxTask`] from an existing [`tokio::task::JoinHandle`].
-    pub fn from_tokio(handle: JoinHandle<T>, name: impl Into<String>) -> Self {
+    pub fn from_tokio(
+        handle: JoinHandle<T>,
+        name: impl Into<Cow<'static, str>>,
+    ) -> Self {
         Self {
             task: handle,
             name: name.into(),
@@ -230,7 +234,10 @@ impl<T> LxTask<T> {
     /// ```
     #[inline]
     #[allow(clippy::disallowed_methods)]
-    pub fn spawn<F>(name: impl Into<String>, future: F) -> LxTask<F::Output>
+    pub fn spawn<F>(
+        name: impl Into<Cow<'static, str>>,
+        future: F,
+    ) -> LxTask<F::Output>
     where
         F: Future<Output = T> + Send + 'static,
         F::Output: Send + 'static,
@@ -298,7 +305,7 @@ impl<T> LxTask<T> {
     #[inline]
     #[allow(clippy::disallowed_methods)]
     pub fn spawn_with_span<F>(
-        name: impl Into<String>,
+        name: impl Into<Cow<'static, str>>,
         span: tracing::Span,
         future: F,
     ) -> LxTask<F::Output>
@@ -414,7 +421,7 @@ impl<T> LoggedLxTask<T> {
 }
 
 impl<T> Future for LoggedLxTask<T> {
-    type Output = String;
+    type Output = Cow<'static, str>;
 
     fn poll(
         mut self: Pin<&mut Self>,
@@ -444,7 +451,7 @@ impl<T> Future for LoggedLxTask<T> {
                 info!("{msg}")
             }
 
-            self.name().to_owned()
+            self.0.name.clone()
         })
     }
 }
