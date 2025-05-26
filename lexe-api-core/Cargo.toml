@@ -22,8 +22,11 @@ test-utils = [
 
 # --- LEXE --- #
 
+byte-array.path = "../byte-array"
 common.path = "../common"
+hex = { path = "../hex", features = ["bytes"] }
 lexe-std.path = "../lexe-std"
+sha256.path = "../sha256"
 
 # --- WORKSPACE --- #
 
@@ -31,13 +34,18 @@ anyhow.workspace = true
 async-trait.workspace = true
 bcs.workspace = true
 bitcoin = { workspace = true, features = ["serde"] }
+bitcoin_hashes.workspace = true
 bytes.workspace = true
 http.workspace = true
 lightning.workspace = true
+lightning-invoice.workspace = true
+ref-cast.workspace = true
 secrecy.workspace = true
 semver = { workspace = true, features = ["serde"] }
 serde.workspace = true
 serde_json.workspace = true
+serde_with.workspace = true
+strum.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 

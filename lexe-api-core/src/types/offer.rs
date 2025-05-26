@@ -1,6 +1,11 @@
 use std::{fmt, num::NonZeroU64, str::FromStr};
 
 use anyhow::Context;
+use common::{
+    api::user::NodePk,
+    ln::{amount::Amount, network::LxNetwork},
+    time::TimestampMs,
+};
 use lexe_std::const_assert_mem_size;
 use lightning::{
     blinded_path::IntroductionNode,
@@ -14,11 +19,6 @@ use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use super::payments::LxOfferId;
-use crate::{
-    api::user::NodePk,
-    ln::{amount::Amount, network::LxNetwork},
-    time::TimestampMs,
-};
 
 /// A Lightning BOLT12 offer.
 ///
@@ -340,6 +340,11 @@ mod arb {
     use std::{num::NonZeroU64, time::Duration};
 
     use bitcoin::hashes::{Hash, Hmac};
+    use common::{
+        rng::{Crng, FastRng, RngExt},
+        root_seed::RootSeed,
+        test_utils::arbitrary::{self, any_option_string},
+    };
     use lightning::{
         blinded_path::message::{
             BlindedMessagePath, MessageContext, MessageForwardNode,
@@ -356,11 +361,6 @@ mod arb {
     };
 
     use super::*;
-    use crate::{
-        rng::{Crng, FastRng, RngExt},
-        root_seed::RootSeed,
-        test_utils::arbitrary::{self, any_option_string},
-    };
 
     fn any_offers_context() -> impl Strategy<Value = OffersContext> {
         fn any_nonce() -> impl Strategy<Value = Nonce> {
@@ -595,6 +595,10 @@ mod arb {
 
 #[cfg(test)]
 mod test {
+    use common::{
+        rng::FastRng,
+        test_utils::{arbitrary, roundtrip},
+    };
     use lightning::{
         blinded_path::message::{
             MessageContext, MessageForwardNode, OffersContext,
@@ -605,10 +609,6 @@ mod test {
     use test::arb::gen_offer;
 
     use super::*;
-    use crate::{
-        rng::FastRng,
-        test_utils::{arbitrary, roundtrip},
-    };
 
     #[test]
     fn offer_parse_examples() {

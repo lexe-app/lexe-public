@@ -5,7 +5,6 @@ use common::{
         GetRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
     },
     env::DeployEnv,
-    ln::payments::PaymentIndex as PaymentIndexRs,
     rng::SysRng,
     root_seed::RootSeed as RootSeedRs,
 };
@@ -19,7 +18,7 @@ use lexe_api::{
         PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
         UpdatePaymentNote as UpdatePaymentNoteRs,
     },
-    types::Empty,
+    types::{payments::PaymentIndex as PaymentIndexRs, Empty},
 };
 use tracing::instrument;
 

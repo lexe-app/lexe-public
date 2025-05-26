@@ -9,9 +9,6 @@ use common::{
         balance::{LightningBalance, OnchainBalance},
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
         hashes::LxTxid,
-        invoice::LxInvoice,
-        offer::{LxOffer, MaxQuantity},
-        payments::{ClientPaymentId, PaymentIndex},
         priority::ConfirmationPriority,
         route::LxRoute,
     },
@@ -20,6 +17,12 @@ use common::{
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
+
+use crate::types::{
+    invoice::LxInvoice,
+    offer::{LxOffer, MaxQuantity},
+    payments::{ClientPaymentId, PaymentIndex},
+};
 
 // --- General --- //
 

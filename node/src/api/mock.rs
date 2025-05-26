@@ -22,13 +22,7 @@ use common::{
     constants, ed25519,
     enclave::{self, Measurement},
     env::DeployEnv,
-    ln::{
-        network::LxNetwork,
-        payments::{
-            DbPayment, LxPaymentId, MaybeDbPayment, PaymentIndex,
-            PaymentStatus, VecDbPayment, VecLxPaymentId,
-        },
-    },
+    ln::network::LxNetwork,
     rng::SysRng,
     root_seed::RootSeed,
     time::TimestampMs,
@@ -41,6 +35,10 @@ use lexe_api::{
     error::{BackendApiError, LspApiError, RunnerApiError},
     models::command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
     types::{
+        payments::{
+            DbPayment, LxPaymentId, MaybeDbPayment, PaymentIndex,
+            PaymentStatus, VecDbPayment, VecLxPaymentId,
+        },
         ports::Ports,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         Empty,

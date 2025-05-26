@@ -22,17 +22,17 @@
 //!    unsuccessfully).
 //! 2. We then request, in order, any new payments made since our last sync.
 //!
-//! [`BasicPayment`]: common::ln::payments::BasicPayment
+//! [`BasicPayment`]: lexe_api::types::payments::BasicPayment
 //! [`PaymentDb`]: crate::payments::PaymentDb
 
 use std::{io, str::FromStr, sync::Mutex};
 
 use anyhow::{format_err, Context};
-use common::ln::payments::{BasicPayment, PaymentIndex, VecBasicPayment};
 use lexe_api::{
     def::AppNodeRunApi,
     error::NodeApiError,
     models::command::{GetNewPayments, PaymentIndexes, UpdatePaymentNote},
+    types::payments::{BasicPayment, PaymentIndex, VecBasicPayment},
 };
 use lexe_std::iter::IteratorExt;
 use roaring::RoaringBitmap;
@@ -972,11 +972,11 @@ impl AppNodeRunSyncApi for NodeClient {
 mod test {
     use std::collections::BTreeMap;
 
-    use common::{
-        ln::payments::{PaymentStatus, VecBasicPayment},
-        rng::{FastRng, RngExt},
+    use common::rng::{FastRng, RngExt};
+    use lexe_api::{
+        error::NodeApiError,
+        types::payments::{PaymentStatus, VecBasicPayment},
     };
-    use lexe_api::error::NodeApiError;
     use proptest::{
         arbitrary::any,
         collection::vec,

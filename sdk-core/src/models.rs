@@ -36,14 +36,16 @@
 use common::{
     api::user::{NodePk, UserPk},
     enclave,
-    ln::{
-        amount::Amount,
+    ln::amount::Amount,
+    time::TimestampMs,
+};
+use lexe_api_core::{
+    models::command,
+    types::{
         invoice::LxInvoice,
         payments::{LxPaymentHash, LxPaymentSecret, PaymentIndex},
     },
-    time::TimestampMs,
 };
-use lexe_api_core::models::command;
 use serde::{Deserialize, Serialize};
 
 use crate::types::SdkPayment;

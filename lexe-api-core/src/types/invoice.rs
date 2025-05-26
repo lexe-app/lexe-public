@@ -4,19 +4,16 @@ use std::{
 };
 
 use anyhow::Context;
+use common::{
+    api::user::NodePk,
+    ln::{amount::Amount, network::LxNetwork},
+    time::{self, TimestampMs},
+};
 use lexe_std::Apply;
 use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescriptionRef};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-use crate::{
-    api::user::NodePk,
-    ln::{
-        amount::Amount,
-        network::LxNetwork,
-        payments::{LxPaymentHash, LxPaymentId, LxPaymentSecret},
-    },
-    time::{self, TimestampMs},
-};
+use crate::types::payments::{LxPaymentHash, LxPaymentId, LxPaymentSecret};
 
 /// Wraps [`lightning_invoice::Bolt11Invoice`] to impl [`serde`] Serialize /
 /// Deserialize using the LDK's [`FromStr`] / [`Display`] impls.
@@ -202,6 +199,11 @@ pub mod arbitrary_impl {
         secp256k1::{self, Message},
     };
     use byte_array::ByteArray;
+    use common::{
+        rng::{Crng, FastRng},
+        root_seed::RootSeed,
+        test_utils::arbitrary,
+    };
     use lightning::{
         routing::router::RouteHint, types::payment::PaymentSecret,
     };
@@ -213,12 +215,7 @@ pub mod arbitrary_impl {
     };
 
     use super::*;
-    use crate::{
-        ln::payments::LxPaymentPreimage,
-        rng::{Crng, FastRng},
-        root_seed::RootSeed,
-        test_utils::arbitrary,
-    };
+    use crate::types::payments::LxPaymentPreimage;
 
     #[derive(Default)]
     pub struct LxInvoiceParams {
@@ -393,6 +390,11 @@ mod test {
     use std::time::Duration;
 
     use byte_array::ByteArray;
+    use common::{
+        rng::FastRng,
+        root_seed::RootSeed,
+        test_utils::{arbitrary, roundtrip, snapshot},
+    };
     use lightning::{
         ln::channelmanager::MIN_FINAL_CLTV_EXPIRY_DELTA,
         routing::router::RouteHint,
@@ -401,11 +403,6 @@ mod test {
     use test::arbitrary_impl::gen_invoice;
 
     use super::*;
-    use crate::{
-        rng::FastRng,
-        root_seed::RootSeed,
-        test_utils::{arbitrary, roundtrip, snapshot},
-    };
 
     #[test]
     fn invoice_deser_compat() {

@@ -11,14 +11,11 @@
 //! [`sdk_core::models`]: crate::models
 
 use common::{
-    ln::{
-        amount::Amount,
-        hashes::LxTxid,
-        payments::{
-            PaymentDirection, PaymentIndex, PaymentKind, PaymentStatus,
-        },
-    },
+    ln::{amount::Amount, hashes::LxTxid},
     time::TimestampMs,
+};
+use lexe_api_core::types::payments::{
+    PaymentDirection, PaymentIndex, PaymentKind, PaymentStatus,
 };
 use serde::{Deserialize, Serialize};
 

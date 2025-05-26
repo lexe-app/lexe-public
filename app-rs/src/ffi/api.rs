@@ -16,6 +16,34 @@ use common::{
     ln::{
         amount::Amount,
         channel::{LxChannelId, LxUserChannelId as LxUserChannelIdRs},
+    },
+};
+use flutter_rust_bridge::frb;
+use lexe_api::{
+    models::command::{
+        CloseChannelRequest as CloseChannelRequestRs,
+        CreateInvoiceRequest as CreateInvoiceRequestRs,
+        CreateInvoiceResponse as CreateInvoiceResponseRs,
+        CreateOfferRequest as CreateOfferRequestRs,
+        CreateOfferResponse as CreateOfferResponseRs,
+        FeeEstimate as FeeEstimateRs,
+        ListChannelsResponse as ListChannelsResponseRs, NodeInfo as NodeInfoRs,
+        OpenChannelRequest as OpenChannelRequestRs,
+        OpenChannelResponse as OpenChannelResponseRs,
+        PayInvoiceRequest as PayInvoiceRequestRs,
+        PayInvoiceResponse as PayInvoiceResponseRs,
+        PayOnchainRequest as PayOnchainRequestRs,
+        PayOnchainResponse as PayOnchainResponseRs,
+        PreflightCloseChannelResponse as PreflightCloseChannelResponseRs,
+        PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
+        PreflightOpenChannelResponse as PreflightOpenChannelResponseRs,
+        PreflightPayInvoiceRequest as PreflightPayInvoiceRequestRs,
+        PreflightPayInvoiceResponse as PreflightPayInvoiceResponseRs,
+        PreflightPayOnchainRequest as PreflightPayOnchainRequestRs,
+        PreflightPayOnchainResponse as PreflightPayOnchainResponseRs,
+        UpdatePaymentNote as UpdatePaymentNoteRs,
+    },
+    types::{
         invoice::LxInvoice,
         offer::MaxQuantity,
         payments::{
@@ -23,29 +51,6 @@ use common::{
             PaymentIndex as PaymentIndexRs,
         },
     },
-};
-use flutter_rust_bridge::frb;
-use lexe_api::models::command::{
-    CloseChannelRequest as CloseChannelRequestRs,
-    CreateInvoiceRequest as CreateInvoiceRequestRs,
-    CreateInvoiceResponse as CreateInvoiceResponseRs,
-    CreateOfferRequest as CreateOfferRequestRs,
-    CreateOfferResponse as CreateOfferResponseRs, FeeEstimate as FeeEstimateRs,
-    ListChannelsResponse as ListChannelsResponseRs, NodeInfo as NodeInfoRs,
-    OpenChannelRequest as OpenChannelRequestRs,
-    OpenChannelResponse as OpenChannelResponseRs,
-    PayInvoiceRequest as PayInvoiceRequestRs,
-    PayInvoiceResponse as PayInvoiceResponseRs,
-    PayOnchainRequest as PayOnchainRequestRs,
-    PayOnchainResponse as PayOnchainResponseRs,
-    PreflightCloseChannelResponse as PreflightCloseChannelResponseRs,
-    PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
-    PreflightOpenChannelResponse as PreflightOpenChannelResponseRs,
-    PreflightPayInvoiceRequest as PreflightPayInvoiceRequestRs,
-    PreflightPayInvoiceResponse as PreflightPayInvoiceResponseRs,
-    PreflightPayOnchainRequest as PreflightPayOnchainRequestRs,
-    PreflightPayOnchainResponse as PreflightPayOnchainResponseRs,
-    UpdatePaymentNote as UpdatePaymentNoteRs,
 };
 
 use crate::ffi::types::{

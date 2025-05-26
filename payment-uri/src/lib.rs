@@ -25,14 +25,13 @@ use std::{
 
 use anyhow::ensure;
 use bitcoin::address::{NetworkUnchecked, NetworkValidation};
-use common::ln::{
-    amount::Amount,
-    invoice::{self, LxInvoice},
-    network::LxNetwork,
-    offer::{self, LxOffer},
-};
+use common::ln::{amount::Amount, network::LxNetwork};
 #[cfg(test)]
 use common::{ln::amount, test_utils::arbitrary};
+use lexe_api_core::types::{
+    invoice::{self, LxInvoice},
+    offer::{self, LxOffer},
+};
 #[cfg(test)]
 use proptest::strategy::Strategy;
 #[cfg(test)]

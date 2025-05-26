@@ -3,15 +3,13 @@ use std::sync::Arc;
 use anyhow::{bail, ensure};
 use bitcoin::Transaction;
 use common::{
-    ln::{
-        amount::Amount,
-        hashes::LxTxid,
-        payments::{ClientPaymentId, LxPaymentId},
-        priority::ConfirmationPriority,
-    },
+    ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
     time::TimestampMs,
 };
-use lexe_api::models::command::PayOnchainRequest;
+use lexe_api::{
+    models::command::PayOnchainRequest,
+    types::payments::{ClientPaymentId, LxPaymentId},
+};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};

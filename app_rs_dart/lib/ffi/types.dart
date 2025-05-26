@@ -197,7 +197,7 @@ enum PaymentDirection {
   ;
 }
 
-/// See [`common::ln::payments::PaymentIndex`].
+/// See [`lexe_api::types::payments::PaymentIndex`].
 @freezed
 class PaymentIndex with _$PaymentIndex {
   const factory PaymentIndex({

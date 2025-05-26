@@ -12,11 +12,12 @@ use common::{
     api::user::{NodePk, Scid},
     cli::LspInfo,
     debug_panic_release_log,
-    ln::{amount::Amount, invoice::LxInvoice},
+    ln::amount::Amount,
     rng::SysRngDerefHack,
     time::DisplayMs,
 };
 use either::Either;
+use lexe_api::types::invoice::LxInvoice;
 use lexe_std::const_assert;
 use lightning::{
     blinded_path::payment::{

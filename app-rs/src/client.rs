@@ -39,7 +39,6 @@ use common::{
     ed25519,
     enclave::Measurement,
     env::DeployEnv,
-    ln::payments::VecBasicPayment,
     rng::Crng,
     root_seed::RootSeed,
 };
@@ -68,7 +67,7 @@ use lexe_api::{
         self, lexe_ca, rustls,
         types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
     },
-    types::Empty,
+    types::{payments::VecBasicPayment, Empty},
 };
 use reqwest::Url;
 use serde::{Deserialize, Serialize};

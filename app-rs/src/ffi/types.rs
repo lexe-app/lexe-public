@@ -13,16 +13,7 @@ use common::{
             LxChannelDetails as LxChannelDetailsRs,
             LxUserChannelId as LxUserChannelIdRs,
         },
-        invoice::LxInvoice,
         network::LxNetwork as NetworkRs,
-        offer::LxOffer,
-        payments::{
-            BasicPayment as BasicPaymentRs,
-            ClientPaymentId as ClientPaymentIdRs,
-            PaymentDirection as PaymentDirectionRs,
-            PaymentIndex as PaymentIndexRs, PaymentKind as PaymentKindRs,
-            PaymentStatus as PaymentStatusRs,
-        },
         priority::ConfirmationPriority as ConfirmationPriorityRs,
     },
     rng::SysRng,
@@ -30,6 +21,15 @@ use common::{
     ExposeSecret,
 };
 use flutter_rust_bridge::{frb, RustOpaqueNom};
+use lexe_api::types::{
+    invoice::LxInvoice,
+    offer::LxOffer,
+    payments::{
+        BasicPayment as BasicPaymentRs, ClientPaymentId as ClientPaymentIdRs,
+        PaymentDirection as PaymentDirectionRs, PaymentIndex as PaymentIndexRs,
+        PaymentKind as PaymentKindRs, PaymentStatus as PaymentStatusRs,
+    },
+};
 
 use crate::app::AppConfig;
 
@@ -216,7 +216,7 @@ impl From<PaymentKindRs> for PaymentKind {
     }
 }
 
-/// See [`common::ln::payments::PaymentIndex`].
+/// See [`lexe_api::types::payments::PaymentIndex`].
 #[frb(dart_metadata=("freezed"))]
 pub struct PaymentIndex(pub String);
 

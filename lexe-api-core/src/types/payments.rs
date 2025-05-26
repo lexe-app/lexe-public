@@ -7,6 +7,15 @@ use std::{
 use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin_hashes::{sha256, Hash};
 use byte_array::ByteArray;
+#[cfg(any(test, feature = "test-utils"))]
+use common::test_utils::arbitrary;
+use common::{
+    debug_panic_release_log,
+    ln::{amount::Amount, hashes::LxTxid},
+    rng::{RngCore, RngExt},
+    serde_helpers::hexstr_or_bytes,
+    time::TimestampMs,
+};
 use lexe_std::const_assert_mem_size;
 use lightning::{
     offers::offer::OfferId,
@@ -18,15 +27,7 @@ use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-#[cfg(any(test, feature = "test-utils"))]
-use crate::test_utils::arbitrary;
-use crate::{
-    debug_panic_release_log,
-    ln::{amount::Amount, hashes::LxTxid, invoice::LxInvoice, offer::LxOffer},
-    rng::{RngCore, RngExt},
-    serde_helpers::hexstr_or_bytes,
-    time::TimestampMs,
-};
+use crate::types::{invoice::LxInvoice, offer::LxOffer};
 
 // --- Top-level payment types --- //
 
@@ -843,13 +844,13 @@ impl Display for LxPaymentId {
 
 #[cfg(test)]
 mod test {
-    use proptest::{arbitrary::any, prop_assert_eq, prop_assert_ne, proptest};
-
-    use super::*;
-    use crate::{
+    use common::{
         rng::FastRng,
         test_utils::{arbitrary, roundtrip, snapshot},
     };
+    use proptest::{arbitrary::any, prop_assert_eq, prop_assert_ne, proptest};
+
+    use super::*;
 
     #[test]
     fn enums_roundtrips() {

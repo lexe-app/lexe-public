@@ -15,7 +15,7 @@ use common::{
         },
     },
     constants::{self},
-    ln::{amount::Amount, channel::LxUserChannelId, payments::VecBasicPayment},
+    ln::{amount::Amount, channel::LxUserChannelId},
     rng::SysRng,
 };
 use lexe_api::{
@@ -34,7 +34,7 @@ use lexe_api::{
         PreflightPayOnchainResponse, UpdatePaymentNote,
     },
     server::{extract::LxQuery, LxJson},
-    types::Empty,
+    types::{payments::VecBasicPayment, Empty},
 };
 use lexe_ln::{command::CreateInvoiceCaller, p2p};
 use lexe_tokio::task::MaybeLxTask;

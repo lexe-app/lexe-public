@@ -8,17 +8,15 @@ use anyhow::{anyhow, bail, ensure, Context};
 use bdk_wallet::KeychainKind;
 use common::{
     api::test_event::TestEvent,
-    ln::{
-        amount::Amount,
-        hashes::LxTxid,
-        payments::{
-            LnClaimId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
-            PaymentStatus,
-        },
-    },
+    ln::{amount::Amount, hashes::LxTxid},
     time::TimestampMs,
 };
-use lexe_api::models::command::UpdatePaymentNote;
+use lexe_api::{
+    models::command::UpdatePaymentNote,
+    types::payments::{
+        LnClaimId, LxPaymentHash, LxPaymentId, LxPaymentPreimage, PaymentStatus,
+    },
+};
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 #[cfg(doc)]
 use lightning::events::Event::PaymentFailed;

@@ -42,11 +42,11 @@ mod node {
     use std::sync::Arc;
 
     use axum::extract::State;
-    use common::ln::payments::{LxPaymentId, PaymentIndex};
     use lexe_api::{
         def::AppNodeRunApi,
         models::command::{GetNewPayments, PaymentIndexes},
         server::{extract::LxQuery, LxJson},
+        types::payments::{LxPaymentId, PaymentIndex},
     };
     use sdk_core::{
         models::{

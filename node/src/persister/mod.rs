@@ -47,13 +47,7 @@ use common::{
         user::{Scid, Scids},
     },
     constants,
-    ln::{
-        channel::LxOutPoint,
-        payments::{
-            BasicPayment, DbPayment, LxPaymentId, PaymentIndex, VecDbPayment,
-            VecLxPaymentId,
-        },
-    },
+    ln::channel::LxOutPoint,
     rng::{Crng, SysRng},
 };
 use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
@@ -61,7 +55,13 @@ use lexe_api::{
     auth::BearerAuthenticator,
     error::BackendApiError,
     models::command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
-    types::Empty,
+    types::{
+        payments::{
+            BasicPayment, DbPayment, LxPaymentId, PaymentIndex, VecDbPayment,
+            VecLxPaymentId,
+        },
+        Empty,
+    },
     vfs::{
         self, MaybeVfsFile, VecVfsFile, Vfs, VfsDirectory, VfsFile, VfsFileId,
         SINGLETON_DIRECTORY,

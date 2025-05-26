@@ -13,7 +13,6 @@ use common::{
     ed25519,
     enclave::Measurement,
     env::DeployEnv,
-    ln::payments::{DbPayment, MaybeDbPayment, VecDbPayment, VecLxPaymentId},
     rng::Crng,
 };
 use lexe_api::{
@@ -23,6 +22,7 @@ use lexe_api::{
     rest::{RequestBuilderExt, RestClient, POST},
     tls::attestation::{self, NodeMode},
     types::{
+        payments::{DbPayment, MaybeDbPayment, VecDbPayment, VecLxPaymentId},
         ports::Ports,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         Empty,

@@ -20,10 +20,7 @@ use common::{
     ln::{
         amount::Amount,
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
-        invoice::LxInvoice,
         network::LxNetwork,
-        offer::{LxOffer, MaxQuantity},
-        payments::LxPaymentId,
         route::LxRoute,
     },
     rng::SysRng,
@@ -48,7 +45,12 @@ use lexe_api::{
         shared_seed::certs::{RevocableClientCert, RevocableIssuingCaCert},
         types::LxCertificateDer,
     },
-    types::Empty,
+    types::{
+        invoice::LxInvoice,
+        offer::{LxOffer, MaxQuantity},
+        payments::LxPaymentId,
+        Empty,
+    },
     vfs::{Vfs, REVOCABLE_CLIENTS_FILE_ID},
 };
 use lexe_std::Apply;

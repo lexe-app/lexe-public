@@ -1,23 +1,22 @@
 //! Lexe payments types and logic.
 //!
 //! This module is the 'complex' counterpart to the simpler types exposed in
-//! [`common::ln::payments`].
+//! [`lexe_api::types::payments`].
 
 use anyhow::Context;
 use common::{
     aes::AesMasterKey,
-    ln::{
-        amount::Amount,
-        hashes::LxTxid,
-        invoice::LxInvoice,
-        offer::LxOffer,
-        payments::{
-            BasicPayment, DbPayment, LxOfferId, LxPaymentId, PaymentDirection,
-            PaymentIndex, PaymentKind, PaymentStatus,
-        },
-    },
+    ln::{amount::Amount, hashes::LxTxid},
     rng::Crng,
     time::TimestampMs,
+};
+use lexe_api::types::{
+    invoice::LxInvoice,
+    offer::LxOffer,
+    payments::{
+        BasicPayment, DbPayment, LxOfferId, LxPaymentId, PaymentDirection,
+        PaymentIndex, PaymentKind, PaymentStatus,
+    },
 };
 #[cfg(test)]
 use proptest_derive::Arbitrary;

@@ -3,18 +3,14 @@ use std::num::NonZeroU64;
 use anyhow::ensure;
 #[cfg(test)]
 use common::test_utils::arbitrary;
-use common::{
-    ln::{
-        amount::Amount,
-        invoice::LxInvoice,
-        offer::LxOffer,
-        payments::{
-            ClientPaymentId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
-            LxPaymentSecret,
-        },
+use common::{ln::amount::Amount, time::TimestampMs, ByteArray};
+use lexe_api::types::{
+    invoice::LxInvoice,
+    offer::LxOffer,
+    payments::{
+        ClientPaymentId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
+        LxPaymentSecret,
     },
-    time::TimestampMs,
-    ByteArray,
 };
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::{
@@ -677,12 +673,9 @@ impl From<PaymentFailureReason> for LxOutboundPaymentFailure {
 #[cfg(test)]
 pub(crate) mod arb {
     use arbitrary::any_duration;
-    use common::{
-        ln::{
-            invoice::arbitrary_impl::LxInvoiceParams,
-            payments::LxPaymentPreimage,
-        },
-        test_utils::arbitrary::any_option_string,
+    use common::{self, test_utils::arbitrary::any_option_string};
+    use lexe_api::types::{
+        invoice::arbitrary_impl::LxInvoiceParams, payments::LxPaymentPreimage,
     };
     use proptest::{
         arbitrary::{any, any_with, Arbitrary},

@@ -44,13 +44,13 @@ use common::{
     api::{test_event::TestEvent, user::NodePk},
     cli::LspInfo,
     debug_panic_release_log,
-    ln::{
-        channel::LxChannelId,
-        payments::{LnClaimId, LxPaymentHash, LxPaymentId},
-    },
+    ln::channel::LxChannelId,
     rng::{RngExt, ThreadFastRng},
 };
-use lexe_api::def::NodeLspApi;
+use lexe_api::{
+    def::NodeLspApi,
+    types::payments::{LnClaimId, LxPaymentHash, LxPaymentId},
+};
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     channel::ChannelEvent,

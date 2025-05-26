@@ -36,7 +36,7 @@ use bytes::Bytes;
 #[cfg(doc)]
 use common::{
     api::user::NodePkStruct, api::user::UserPkStruct,
-    api::version::MeasurementStruct, ln::payments::PaymentIndex,
+    api::version::MeasurementStruct,
 };
 use common::{
     api::{
@@ -64,13 +64,11 @@ use common::{
     },
     ed25519,
     enclave::Measurement,
-    ln::payments::{
-        DbPayment, MaybeDbPayment, VecBasicPayment, VecDbPayment,
-        VecLxPaymentId,
-    },
 };
 use lightning::events::Event;
 
+#[cfg(doc)]
+use crate::types::payments::PaymentIndex;
 use crate::{
     error::{
         BackendApiError, GatewayApiError, LspApiError, NodeApiError,
@@ -91,6 +89,10 @@ use crate::{
         UpdatePaymentNote,
     },
     types::{
+        payments::{
+            DbPayment, MaybeDbPayment, VecBasicPayment, VecDbPayment,
+            VecLxPaymentId,
+        },
         ports::Ports,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         Empty,

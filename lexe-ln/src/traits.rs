@@ -2,14 +2,11 @@ use std::{future::Future, ops::Deref, str::FromStr};
 
 use anyhow::Context;
 use async_trait::async_trait;
-use common::{
-    api::user::NodePk,
-    ln::{
-        channel::LxOutPoint,
-        payments::{LxPaymentId, PaymentIndex},
-    },
+use common::{api::user::NodePk, ln::channel::LxOutPoint};
+use lexe_api::{
+    types::payments::{LxPaymentId, PaymentIndex},
+    vfs::{self, Vfs, VfsDirectory, VfsFileId},
 };
-use lexe_api::vfs::{self, Vfs, VfsDirectory, VfsFileId};
 use lexe_tokio::notify_once::NotifyOnce;
 use lightning::{
     chain::chainmonitor::Persist,
