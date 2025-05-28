@@ -160,13 +160,30 @@ pub trait Vfs {
             None => return Ok(None),
         };
 
-        let mut reader = Cursor::new(&bytes);
-        let value = T::read(&mut reader, read_args)
-            .map_err(|e| anyhow!("{e:?}"))
-            .with_context(|| format!("{file_id}"))
-            .context("LDK ReadableArgs deserialization failed")?;
+        let value = Self::deser_readableargs(file_id, &bytes, read_args)?;
 
         Ok(Some(value))
+    }
+
+    /// Reads, decrypts, and deserializes a [`VfsDirectory`] of LDK
+    /// [`ReadableArgs`] of type `T` with read args `A` from the DB.
+    async fn read_dir_readableargs<T, A>(
+        &self,
+        dir: &VfsDirectory,
+        read_args: A,
+    ) -> anyhow::Result<Vec<(VfsFileId, T)>>
+    where
+        T: ReadableArgs<A>,
+        A: Clone + Send,
+    {
+        let ids_and_bytes = self.read_dir_bytes(dir).await?;
+        let mut ids_and_values = Vec::with_capacity(ids_and_bytes.len());
+        for (file_id, bytes) in ids_and_bytes {
+            let value =
+                Self::deser_readableargs(&file_id, &bytes, read_args.clone())?;
+            ids_and_values.push((file_id, value));
+        }
+        Ok(ids_and_values)
     }
 
     /// Reads, decrypts, and deserializes a [`VfsDirectory`] of LDK
@@ -263,6 +280,24 @@ pub trait Vfs {
             warn!("Error: Failed to read directory {dir}");
         }
         result
+    }
+
+    /// Deserializes a LDK [`ReadableArgs`] of type `T` from bytes.
+    fn deser_readableargs<T, A>(
+        file_id: &VfsFileId,
+        bytes: &[u8],
+        read_args: A,
+    ) -> anyhow::Result<T>
+    where
+        T: ReadableArgs<A>,
+        A: Send,
+    {
+        let mut reader = Cursor::new(bytes);
+        let value = T::read(&mut reader, read_args)
+            .map_err(|e| anyhow!("{e:?}"))
+            .with_context(|| format!("{file_id}"))
+            .context("LDK ReadableArgs deserialization failed")?;
+        Ok(value)
     }
 
     /// Serializes, encrypts, then persists a LDK [`Writeable`] to the DB.
