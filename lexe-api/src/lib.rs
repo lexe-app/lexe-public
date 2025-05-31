@@ -18,3 +18,7 @@ pub mod server;
 pub mod tls;
 /// API tracing utilities for both client and server.
 pub mod trace;
+
+/// Feature-gated test utilities that can be shared across crate boundaries.
+#[cfg(any(test, feature = "test-utils"))]
+pub mod test_utils;

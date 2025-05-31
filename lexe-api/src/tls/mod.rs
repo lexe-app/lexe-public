@@ -42,11 +42,7 @@ pub fn cert_contains_dns(cert_der: &[u8], expected_dns: &str) -> bool {
                 )
             });
 
-        if contains_dns {
-            Some(())
-        } else {
-            None
-        }
+        contains_dns.then_some(())
     }
 
     contains_dns(cert_der, expected_dns).is_some()
@@ -262,23 +258,13 @@ pub fn lexe_distinguished_name(common_name: &str) -> DistinguishedName {
 /// TLS-specific test utilities.
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils {
-    use std::{sync::Arc, time::Duration};
+    use std::sync::Arc;
 
     use anyhow::Context;
-    use axum::{routing::post, Router};
-    use common::net;
-    use lexe_api_core::error::BackendApiError;
-    use lexe_tokio::notify_once::NotifyOnce;
     use rustls::pki_types::ServerName;
-    use serde::{Deserialize, Serialize};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tracing::info_span;
 
     use super::*;
-    use crate::{
-        rest::RestClient,
-        server::{self, LayerConfig, LxJson},
-    };
 
     /// Conducts a TLS handshake without any other [`reqwest`]/[`axum`] infra,
     /// over a fake pair of connected streams. Returns the client and server
@@ -353,64 +339,5 @@ pub mod test_utils {
         println!("---");
 
         [client_result, server_result]
-    }
-
-    /// Conducts an HTTP request over TLS *with* all of our HTTP infrastructure.
-    /// May help if [`do_tls_handshake`] fails to reproduce an error.
-    pub async fn do_http_request(
-        client_config: ClientConfig,
-        server_config: Arc<ServerConfig>,
-        // The DNS name used to reach the server.
-        server_dns: &str,
-    ) {
-        let router = Router::new().route("/test_endpoint", post(handler));
-        let shutdown = NotifyOnce::new();
-        let tls_and_dns = Some((server_config, server_dns));
-        const TEST_SPAN_NAME: &str = "(test-server)";
-        let (server_task, server_url) = server::spawn_server_task(
-            net::LOCALHOST_WITH_EPHEMERAL_PORT,
-            router,
-            LayerConfig::default(),
-            tls_and_dns,
-            TEST_SPAN_NAME.into(),
-            info_span!(parent: None, TEST_SPAN_NAME),
-            shutdown.clone(),
-        )
-        .expect("Failed to spawn test server");
-
-        let rest = RestClient::new("test-client", "test-server", client_config);
-        let req = TestRequest {
-            data: "hello".to_owned(),
-        };
-        let http_req = rest.post(format!("{server_url}/test_endpoint"), &req);
-        let resp: TestResponse = rest
-            .send::<_, BackendApiError>(http_req)
-            .await
-            .expect("Request failed");
-        assert_eq!(resp.data, "hello, world");
-
-        shutdown.send();
-        tokio::time::timeout(Duration::from_secs(5), server_task)
-            .await
-            .expect("Server shutdown timed out")
-            .expect("Server task panicked");
-    }
-
-    // Request/response structs and handler used by `do_tls_handshake_with_http`
-    #[derive(Serialize, Deserialize)]
-    struct TestRequest {
-        data: String,
-    }
-    #[derive(Serialize, Deserialize)]
-    struct TestResponse {
-        data: String,
-    }
-    // Appends ", world" to the request data and returns the result.
-    #[axum::debug_handler]
-    async fn handler(
-        LxJson(TestRequest { mut data }): LxJson<TestRequest>,
-    ) -> LxJson<TestResponse> {
-        data.push_str(", world");
-        LxJson(TestResponse { data })
     }
 }
