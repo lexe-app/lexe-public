@@ -11,11 +11,11 @@ use common::{
 use lexe_api::{
     def::{BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi},
     error::BackendApiError,
-    tls::attestation::NodeMode,
     types::Empty,
     vfs::VfsFile,
 };
 use lexe_ln::logger::LexeTracingLogger;
+use lexe_tls::attestation::NodeMode;
 
 /// Real clients.
 pub(crate) mod client;

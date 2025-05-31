@@ -17,7 +17,7 @@ use common::{
     },
 };
 use esplora_client::{api::OutputStatus, AsyncClient};
-use lexe_api::tls::{self, rustls};
+use lexe_tls::rustls;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::chaininterface::{
     ConfirmationTarget, FeeEstimator, FEERATE_FLOOR_SATS_PER_KW,
@@ -292,9 +292,9 @@ impl LexeEsplora {
         //   least enforce use of TLSv1.3.
         #[allow(clippy::disallowed_methods)]
         let tls_config = rustls::ClientConfig::builder_with_protocol_versions(
-            tls::LEXE_TLS_PROTOCOL_VERSIONS,
+            lexe_tls::LEXE_TLS_PROTOCOL_VERSIONS,
         )
-        .with_root_certificates(tls::WEBPKI_ROOT_CERTS.clone())
+        .with_root_certificates(lexe_tls::WEBPKI_ROOT_CERTS.clone())
         .with_no_client_auth();
 
         // LexeEsplora wraps AsyncClient which in turn wraps reqwest::Client.

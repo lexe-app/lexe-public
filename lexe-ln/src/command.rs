@@ -41,10 +41,6 @@ use lexe_api::{
         PreflightPayOfferResponse, PreflightPayOnchainRequest,
         PreflightPayOnchainResponse,
     },
-    tls::{
-        shared_seed::certs::{RevocableClientCert, RevocableIssuingCaCert},
-        types::LxCertificateDer,
-    },
     types::{
         invoice::LxInvoice,
         offer::{LxOffer, MaxQuantity},
@@ -54,6 +50,10 @@ use lexe_api::{
     vfs::{Vfs, REVOCABLE_CLIENTS_FILE_ID},
 };
 use lexe_std::Apply;
+use lexe_tls::{
+    shared_seed::certs::{RevocableClientCert, RevocableIssuingCaCert},
+    types::LxCertificateDer,
+};
 use lexe_tokio::events_bus::{EventsBus, EventsRx};
 use lightning::{
     chain::{

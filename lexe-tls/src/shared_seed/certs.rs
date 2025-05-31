@@ -2,6 +2,7 @@
 
 use common::{ed25519, rng::Crng, root_seed::RootSeed};
 
+use crate as tls;
 use crate::types::{LxCertificateDer, LxPrivatePkcs8KeyDer};
 
 /// The "ephemeral issuing" CA cert derived from the root seed.
@@ -46,7 +47,7 @@ impl EphemeralIssuingCaCert {
         let not_before = rcgen::date_time_ymd(1975, 1, 1);
         let not_after = rcgen::date_time_ymd(4096, 1, 1);
 
-        Self(crate::build_rcgen_cert(
+        Self(tls::build_rcgen_cert(
             Self::COMMON_NAME,
             not_before,
             not_after,
@@ -87,7 +88,7 @@ impl EphemeralClientCert {
         let not_after = now + (90 * time::Duration::DAY);
         // let not_after = now + time::Duration::HOUR;
 
-        Self(crate::build_rcgen_cert(
+        Self(tls::build_rcgen_cert(
             Self::COMMON_NAME,
             not_before,
             not_after,
@@ -133,7 +134,7 @@ impl EphemeralServerCert {
         let not_after = now + (90 * time::Duration::DAY);
         let subject_alt_names = vec![rcgen::SanType::DnsName(dns_name)];
 
-        Self(crate::build_rcgen_cert(
+        Self(tls::build_rcgen_cert(
             Self::COMMON_NAME,
             not_before,
             not_after,
@@ -172,7 +173,7 @@ impl RevocableIssuingCaCert {
         let not_before = rcgen::date_time_ymd(1975, 1, 1);
         let not_after = rcgen::date_time_ymd(4096, 1, 1);
 
-        Self(crate::build_rcgen_cert(
+        Self(tls::build_rcgen_cert(
             Self::COMMON_NAME,
             not_before,
             not_after,
@@ -208,7 +209,7 @@ impl RevocableClientCert {
         let not_before = rcgen::date_time_ymd(1975, 1, 1);
         let not_after = rcgen::date_time_ymd(4096, 1, 1);
 
-        let cert = crate::build_rcgen_cert(
+        let cert = tls::build_rcgen_cert(
             Self::COMMON_NAME,
             not_before,
             not_after,

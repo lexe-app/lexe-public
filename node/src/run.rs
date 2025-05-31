@@ -29,11 +29,6 @@ use lexe_api::{
     auth::BearerAuthenticator,
     def::NodeRunnerApi,
     server::LayerConfig,
-    tls::{
-        self,
-        attestation::NodeMode,
-        shared_seed::certs::{EphemeralIssuingCaCert, RevocableIssuingCaCert},
-    },
     types::{ports::Ports, sealed_seed::SealedSeedId},
     vfs::{Vfs, REVOCABLE_CLIENTS_FILE_ID},
 };
@@ -57,6 +52,10 @@ use lexe_ln::{
     wallet::{self, LexeWallet},
 };
 use lexe_std::{const_assert, Apply};
+use lexe_tls::{
+    attestation::NodeMode,
+    shared_seed::certs::{EphemeralIssuingCaCert, RevocableIssuingCaCert},
+};
 use lexe_tokio::{
     events_bus::EventsBus,
     notify,
@@ -730,7 +729,7 @@ impl UserNode {
             ..Default::default()
         };
         let (app_tls_config, app_dns) =
-            tls::shared_seed::node_run_server_config(
+            lexe_tls::shared_seed::node_run_server_config(
                 rng,
                 &eph_ca_cert,
                 &eph_ca_cert_der,

@@ -25,12 +25,7 @@ use common::{
     enclave::Measurement,
     ln::network::LxNetwork,
 };
-use lexe_api::{
-    def::NodeRunnerApi,
-    tls::{
-        shared_seed::certs::RevocableIssuingCaCert, types::LxCertificateDer,
-    },
-};
+use lexe_api::def::NodeRunnerApi;
 use lexe_ln::{
     alias::{NetworkGraphType, RouterType},
     channel::ChannelEvent,
@@ -39,6 +34,9 @@ use lexe_ln::{
     test_event::TestEventReceiver,
     tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
+};
+use lexe_tls::{
+    shared_seed::certs::RevocableIssuingCaCert, types::LxCertificateDer,
 };
 use lexe_tokio::{
     events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,

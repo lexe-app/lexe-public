@@ -185,6 +185,7 @@ dependencies = [
  "keyring",
  "lexe-api",
  "lexe-std",
+ "lexe-tls",
  "lexe-tokio",
  "payment-uri",
  "proptest",
@@ -2500,6 +2501,7 @@ dependencies = [
  "hex 0.0.0",
  "lexe-api",
  "lexe-std",
+ "lexe-tls",
  "lexe-tokio",
  "lightning",
  "lightning-invoice",
@@ -2865,6 +2867,7 @@ dependencies = [
  "lexe-api",
  "lexe-ln",
  "lexe-std",
+ "lexe-tls",
  "lexe-tokio",
  "lightning",
  "lightning-transaction-sync",
@@ -4046,7 +4049,7 @@ version = "0.1.0"
 dependencies = [
  "common",
  "hex 0.0.0",
- "lexe-api",
+ "lexe-tls",
 ]
 
 [[package]]

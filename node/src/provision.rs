@@ -35,9 +35,9 @@ use lexe_api::{
     def::{NodeBackendApi, NodeRunnerApi},
     error::NodeApiError,
     server::{self, LayerConfig},
-    tls::{self, attestation::NodeMode},
     types::{ports::Ports, sealed_seed::SealedSeed, Empty},
 };
+use lexe_tls::attestation::{self, NodeMode};
 use lexe_tokio::notify_once::NotifyOnce;
 use tracing::{debug, info, info_span};
 
@@ -109,7 +109,7 @@ pub async fn provision_node(
         .context("Couldn't get app addr")?
         .port();
     let (app_tls_config, app_dns) =
-        tls::attestation::app_node_provision_server_config(rng, &measurement)
+        attestation::app_node_provision_server_config(rng, &measurement)
             .context("Failed to build TLS config for provisioning")?;
     let (app_server_task, _app_url) = server::spawn_server_task_with_listener(
         app_listener,

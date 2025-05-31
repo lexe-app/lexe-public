@@ -63,11 +63,11 @@ use lexe_api::{
         PreflightPayOnchainResponse, UpdatePaymentNote,
     },
     rest::{RequestBuilderExt, RestClient, POST},
-    tls::{
-        self, lexe_ca, rustls,
-        types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
-    },
     types::{payments::VecBasicPayment, Empty},
+};
+use lexe_tls::{
+    attestation, lexe_ca, rustls, shared_seed,
+    types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
 };
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -356,7 +356,7 @@ impl NodeClient {
         )
         .context("Invalid proxy config")?;
 
-        let tls_config = tls::attestation::app_node_provision_client_config(
+        let tls_config = attestation::app_node_provision_client_config(
             self.use_sgx,
             self.deploy_env,
             measurement,
@@ -760,12 +760,12 @@ impl<'a> Credentials<'a> {
     ) -> anyhow::Result<rustls::ClientConfig> {
         match self {
             Credentials::RootSeed(root_seed) =>
-                tls::shared_seed::app_node_run_client_config(
+                shared_seed::app_node_run_client_config(
                     rng, deploy_env, root_seed,
                 )
                 .context("Failed to build RootSeed TLS client config"),
             Credentials::ClientCredentials(client_credentials) =>
-                tls::shared_seed::sdk_node_run_client_config(
+                shared_seed::sdk_node_run_client_config(
                     deploy_env,
                     &client_credentials.eph_ca_cert_der,
                     client_credentials.rev_client_cert_der.clone(),
@@ -822,7 +822,7 @@ impl FromStr for ClientCredentials {
 #[cfg(test)]
 mod test {
     use common::{byte_str::ByteStr, rng::FastRng};
-    use tls::shared_seed::certs::{
+    use shared_seed::certs::{
         EphemeralIssuingCaCert, RevocableClientCert, RevocableIssuingCaCert,
     };
 

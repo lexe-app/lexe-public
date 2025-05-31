@@ -10,7 +10,7 @@ license.workspace = true
 
 common.path = "../common"
 hex.path = "../hex"
-lexe-api.path = "../lexe-api"
+lexe-tls.path = "../lexe-tls"
 
 [package.metadata.fortanix-sgx]
 # When true, return panics w/ backtraces to the host via the shared "debug

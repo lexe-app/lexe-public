@@ -19,7 +19,7 @@ pub mod shared_seed;
 /// TLS newtypes, namely DER-encoded certs and cert keys.
 pub mod types;
 
-/// Allow accessing [`rustls`] via `lexe_api::tls`
+/// Allow accessing [`rustls`] via `lexe_tls::rustls`.
 pub use rustls;
 
 use self::types::EdRcgenKeypair;
@@ -102,11 +102,10 @@ pub fn cert_is_valid_for_at_least(cert_der: &[u8], buffer_days: u16) -> bool {
 /// ```ignore
 /// # use std::time::Duration;
 /// # use anyhow::Context;
-/// use lexe_api::tls;
-///
+/// #
 /// fn build_reqwest_client() -> anyhow::Result<reqwest::Client> {
-///     let tls_config = tls::client_config_builder()
-///         .with_root_certificates(tls::WEBPKI_ROOT_CERTS.clone())
+///     let tls_config = lexe_tls::client_config_builder()
+///         .with_root_certificates(lexe_tls::WEBPKI_ROOT_CERTS.clone())
 ///         .with_no_client_auth();
 ///
 ///     let client = reqwest::ClientBuilder::new()

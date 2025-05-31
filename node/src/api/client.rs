@@ -20,7 +20,6 @@ use lexe_api::{
     error::{BackendApiError, LspApiError, RunnerApiError},
     models::command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
     rest::{RequestBuilderExt, RestClient, POST},
-    tls::attestation::{self, NodeMode},
     types::{
         payments::{DbPayment, MaybeDbPayment, VecDbPayment, VecLxPaymentId},
         ports::Ports,
@@ -29,6 +28,7 @@ use lexe_api::{
     },
     vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
 };
+use lexe_tls::attestation::{self, NodeMode};
 use lightning::events::Event;
 
 use crate::api::BackendApiClient;
