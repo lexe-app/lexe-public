@@ -13,7 +13,8 @@ use crate::{
 };
 
 /// Conducts an HTTP request over TLS *with* all of our HTTP infrastructure.
-/// May help if [`do_tls_handshake`] fails to reproduce an error.
+/// Primarily exists to test TLS configs; may help if
+/// [`crate::tls::test_utils::do_tls_handshake`] fails to reproduce an error.
 pub async fn do_http_request(
     client_config: rustls::ClientConfig,
     server_config: Arc<rustls::ServerConfig>,

@@ -8,10 +8,7 @@ use common::{ed25519, enclave, rng::Crng};
 use yasna::models::ObjectIdentifier;
 
 use super::quote::ReportData;
-use crate::tls::{
-    self,
-    types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
-};
+use crate::types::{LxCertificateDer, LxPrivatePkcs8KeyDer};
 
 /// An x509 certificate containing remote attestation endorsements.
 pub struct AttestationCert(rcgen::Certificate);
@@ -71,7 +68,7 @@ impl AttestationCert {
         let not_after = now + lifetime;
         let subject_alt_names = vec![rcgen::SanType::DnsName(dns_name)];
 
-        let cert = tls::build_rcgen_cert(
+        let cert = crate::build_rcgen_cert(
             Self::COMMON_NAME,
             not_before,
             not_after,

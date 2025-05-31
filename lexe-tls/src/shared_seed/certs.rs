@@ -2,10 +2,7 @@
 
 use common::{ed25519, rng::Crng, root_seed::RootSeed};
 
-use crate::tls::{
-    self,
-    types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
-};
+use crate::types::{LxCertificateDer, LxPrivatePkcs8KeyDer};
 
 /// The "ephemeral issuing" CA cert derived from the root seed.
 /// The keypair is derived from the root seed.
@@ -49,11 +46,11 @@ impl EphemeralIssuingCaCert {
         let not_before = rcgen::date_time_ymd(1975, 1, 1);
         let not_after = rcgen::date_time_ymd(4096, 1, 1);
 
-        Self(tls::build_rcgen_cert(
+        Self(crate::build_rcgen_cert(
             Self::COMMON_NAME,
             not_before,
             not_after,
-            tls::DEFAULT_SUBJECT_ALT_NAMES.clone(),
+            crate::DEFAULT_SUBJECT_ALT_NAMES.clone(),
             &key_pair,
             |params: &mut rcgen::CertificateParams| {
                 // This is a CA cert, and there should be 0 intermediate certs.
@@ -90,12 +87,12 @@ impl EphemeralClientCert {
         let not_after = now + (90 * time::Duration::DAY);
         // let not_after = now + time::Duration::HOUR;
 
-        Self(tls::build_rcgen_cert(
+        Self(crate::build_rcgen_cert(
             Self::COMMON_NAME,
             not_before,
             not_after,
             // Client auth fails without a SAN, even though it is ignored..
-            tls::DEFAULT_SUBJECT_ALT_NAMES.clone(),
+            crate::DEFAULT_SUBJECT_ALT_NAMES.clone(),
             &key_pair,
             |_| (),
         ))
@@ -136,7 +133,7 @@ impl EphemeralServerCert {
         let not_after = now + (90 * time::Duration::DAY);
         let subject_alt_names = vec![rcgen::SanType::DnsName(dns_name)];
 
-        Self(tls::build_rcgen_cert(
+        Self(crate::build_rcgen_cert(
             Self::COMMON_NAME,
             not_before,
             not_after,
@@ -175,11 +172,11 @@ impl RevocableIssuingCaCert {
         let not_before = rcgen::date_time_ymd(1975, 1, 1);
         let not_after = rcgen::date_time_ymd(4096, 1, 1);
 
-        Self(tls::build_rcgen_cert(
+        Self(crate::build_rcgen_cert(
             Self::COMMON_NAME,
             not_before,
             not_after,
-            tls::DEFAULT_SUBJECT_ALT_NAMES.clone(),
+            crate::DEFAULT_SUBJECT_ALT_NAMES.clone(),
             &key_pair,
             |params: &mut rcgen::CertificateParams| {
                 // This is a CA cert, and there should be 0 intermediate certs.
@@ -211,12 +208,12 @@ impl RevocableClientCert {
         let not_before = rcgen::date_time_ymd(1975, 1, 1);
         let not_after = rcgen::date_time_ymd(4096, 1, 1);
 
-        let cert = tls::build_rcgen_cert(
+        let cert = crate::build_rcgen_cert(
             Self::COMMON_NAME,
             not_before,
             not_after,
             // Client auth fails without a SAN, even though it is ignored..
-            tls::DEFAULT_SUBJECT_ALT_NAMES.clone(),
+            crate::DEFAULT_SUBJECT_ALT_NAMES.clone(),
             &key_pair,
             |_| (),
         );

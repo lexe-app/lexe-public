@@ -25,9 +25,9 @@
 //! re-allocation, so try not to do that. For example, avoid premature
 //! conversions into [`CertificateDer<'_>`] or [`PrivateKeyDer<'_>`].
 //!
-//! [`CertWithKey::into_chain_and_key`]: crate::tls::types::CertWithKey::into_chain_and_key
-//! [`LxCertificateDer`]: crate::tls::types::LxCertificateDer
-//! [`LxPrivatePkcs8KeyDer`]: crate::tls::types::LxPrivatePkcs8KeyDer
+//! [`CertWithKey::into_chain_and_key`]: crate::types::CertWithKey::into_chain_and_key
+//! [`LxCertificateDer`]: crate::types::LxCertificateDer
+//! [`LxPrivatePkcs8KeyDer`]: crate::types::LxPrivatePkcs8KeyDer
 
 use anyhow::ensure;
 #[cfg(any(test, feature = "test-utils"))]

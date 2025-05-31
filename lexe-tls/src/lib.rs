@@ -1,3 +1,5 @@
+//! Lexe TLS configs, certs, and utilities.
+
 use std::sync::{Arc, LazyLock};
 
 use asn1_rs::FromDer;
@@ -93,11 +95,11 @@ pub fn cert_is_valid_for_at_least(cert_der: &[u8], buffer_days: u16) -> bool {
 /// feature, which propagates to other crates via feature unification.
 ///
 /// It's safer to add the Mozilla roots manually than to have to remember to set
-/// `.tls_built_in_root_certs(false)` in every [`reqwest`] client builder.
+/// `.tls_built_in_root_certs(false)` in every `reqwest` client builder.
 ///
 /// # Example
 ///
-/// ```
+/// ```ignore
 /// # use std::time::Duration;
 /// # use anyhow::Context;
 /// use lexe_api::tls;

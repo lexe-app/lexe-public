@@ -14,10 +14,11 @@ pub mod macros;
 pub mod rest;
 /// Webserver utilities.
 pub mod server;
-/// TLS certs and configurations.
-pub mod tls;
 /// API tracing utilities for both client and server.
 pub mod trace;
+
+// TODO(max): Remove re-export to encourage direct use
+pub use lexe_tls as tls;
 
 /// Feature-gated test utilities that can be shared across crate boundaries.
 #[cfg(any(test, feature = "test-utils"))]

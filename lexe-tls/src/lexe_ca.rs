@@ -10,14 +10,12 @@ use rustls::{
 };
 
 use super::types::{CertWithKey, LxCertificateDer, LxPrivatePkcs8KeyDer};
-#[cfg(doc)]
-use crate::def::{AppBackendApi, AppGatewayApi, BearerAuthBackendApi};
 
 /// Client-side TLS config for app->gateway APIs, i.e. the `GatewayClient`.
 /// This TLS config covers:
-/// - [`AppGatewayApi`]
-/// - [`AppBackendApi`]
-/// - [`BearerAuthBackendApi`] for the app
+/// - `AppGatewayApi`
+/// - `AppBackendApi`
+/// - `BearerAuthBackendApi` for the app
 ///
 /// It does *not* cover the gateway's node proxy.
 pub fn app_gateway_client_config(

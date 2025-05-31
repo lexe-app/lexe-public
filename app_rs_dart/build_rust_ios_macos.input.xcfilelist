@@ -12,6 +12,7 @@ ${PODS_TARGET_SRCROOT}/../../lexe-api-core/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-api/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-ln/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-std/Cargo.toml
+${PODS_TARGET_SRCROOT}/../../lexe-tls/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-tokio/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../logger/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../node/Cargo.toml

@@ -60,7 +60,7 @@ mod sgx {
     use sgx_isa::{Report, Targetinfo};
 
     use super::*;
-    use crate::tls::attestation::{
+    use crate::attestation::{
         cert::SgxAttestationExtension, verifier::EnclavePolicy,
     };
 
@@ -322,7 +322,7 @@ mod not_sgx {
     use common::rng::Crng;
 
     use super::*;
-    use crate::tls::attestation::cert::SgxAttestationExtension;
+    use crate::attestation::cert::SgxAttestationExtension;
 
     pub fn quote_enclave(
         _rng: &mut dyn Crng,

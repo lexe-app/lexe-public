@@ -11,9 +11,9 @@ default = []
 test-utils = [
   "common/test-utils",
   "lexe-api-core/test-utils",
+  "lexe-tls/test-utils",
   "dep:proptest",
   "dep:proptest-derive",
-  "dep:tokio-rustls",
 ]
 
 [dependencies]
@@ -22,61 +22,39 @@ test-utils = [
 
 byte-array.path = "../byte-array"
 common.path = "../common"
-hex.path = "../hex"
 lexe-api-core = { path = "../lexe-api-core", features = ["axum", "reqwest"] }
 lexe-std.path = "../lexe-std"
+lexe-tls.path = "../lexe-tls"
 lexe-tokio.path = "../lexe-tokio"
-sha256.path = "../sha256"
 
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
-asn1-rs.workspace = true
 async-trait.workspace = true
 axum = { workspace = true, features = ["json", "query"] }
 axum-server = { workspace = true, features = ["tls-rustls"] }
 bcs.workspace = true
 bytes.workspace = true
-dcap-ql.workspace = true
 http.workspace = true
 http-body-util.workspace = true
 hyper = { workspace = true, features = ["http1", "http2", "server"] }
 lightning.workspace = true
-num-bigint.workspace = true
 rand_core.workspace = true
-rcgen.workspace = true
 reqwest = { workspace = true, features = ["json"] }
-ring.workspace = true
-rustls-pemfile.workspace = true
-rustls-webpki.workspace = true
 rustls.workspace = true
-secrecy.workspace = true
 semver.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-sgx-isa.workspace = true
-time.workspace = true
-tokio = { workspace = true, features = ["time"] }
+tokio = { workspace = true, features = [] }
 tower = { workspace = true, features = ["buffer", "limit", "load-shed", "timeout", "util"] }
 tower-http = { workspace = true, features = ["trace"] }
 tracing.workspace = true
-webpki.workspace = true
-webpki-roots.workspace = true
-x509-parser.workspace = true
-yasna.workspace = true
 
 # --- OPTIONAL --- #
-
 # These must have `optional = true` to prevent infecting production binaries.
+
 proptest = { optional = true, workspace = true, features = ["alloc"] }
 proptest-derive = { optional = true, workspace = true }
-tokio-rustls = { optional = true, workspace = true }
-
-[target.'cfg(target_env = "sgx")'.dependencies]
-aes.workspace = true
-aesm-client.workspace = true
-bytemuck.workspace = true
-cmac.workspace = true
 
 [dev-dependencies]
 axum.workspace = true
@@ -87,4 +65,3 @@ tokio = { workspace = true, features = [
     "test-util",
     "time"
 ] }
-tokio-rustls.workspace = true

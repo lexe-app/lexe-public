@@ -87,12 +87,7 @@ use rustls::{
 };
 
 use self::verifier::EnclavePolicy;
-#[cfg(doc)]
-use crate::def::{
-    AppNodeProvisionApi, BearerAuthBackendApi, NodeBackendApi, NodeLspApi,
-    NodeRunnerApi,
-};
-use crate::tls::{lexe_ca, types::CertWithKey};
+use crate::{lexe_ca, types::CertWithKey};
 
 /// Self-signed x509 cert containing enclave remote attestation endorsements.
 pub mod cert;
@@ -101,7 +96,7 @@ pub mod quote;
 /// Verify remote attestation endorsements directly or embedded in x509 certs.
 pub mod verifier;
 
-/// Server-side TLS config for [`AppNodeProvisionApi`].
+/// Server-side TLS config for `AppNodeProvisionApi`.
 /// Also returns the node's DNS name.
 pub fn app_node_provision_server_config(
     rng: &mut impl Crng,
@@ -125,7 +120,7 @@ pub fn app_node_provision_server_config(
     Ok((config, dns_name))
 }
 
-/// Client-side TLS config for [`AppNodeProvisionApi`].
+/// Client-side TLS config for `AppNodeProvisionApi`.
 pub fn app_node_provision_client_config(
     use_sgx: bool,
     deploy_env: DeployEnv,
@@ -159,10 +154,10 @@ pub fn app_node_provision_client_config(
 }
 
 /// Client-side TLS config for node->Lexe APIs. This TLS config covers:
-/// - [`NodeBackendApi`]
-/// - [`NodeLspApi`]
-/// - [`NodeRunnerApi`]
-/// - [`BearerAuthBackendApi`] for the node
+/// - `NodeBackendApi`
+/// - `NodeLspApi`
+/// - `NodeRunnerApi`
+/// - `BearerAuthBackendApi` for the node
 pub fn node_lexe_client_config(
     rng: &mut impl Crng,
     deploy_env: DeployEnv,
@@ -256,7 +251,7 @@ fn get_or_generate_node_attestation_cert(
     Ok((attestation_cert, dns_name))
 }
 
-/// The client's [`ServerCertVerifier`] for [`AppNodeProvisionApi`] TLS.
+/// The client's [`ServerCertVerifier`] for `AppNodeProvisionApi` TLS.
 ///
 /// - When the app wishes to provision, it will make a request to the node using
 ///   a fake provision DNS given by [`constants::node_provision_dns`]. However,
@@ -268,7 +263,7 @@ fn get_or_generate_node_attestation_cert(
 ///   the gateway DNS when connecting to Lexe's proxy, otherwise it is the
 ///   node's fake provision DNS. See `NodeClient::provision` for details.
 /// - The [`AppNodeProvisionVerifier`] thus chooses between two "sub-verifiers"
-///   according to the [`ServerName`] given to us by [`reqwest`]. We use the
+///   according to the [`ServerName`] given to us by `reqwest`. We use the
 ///   public Lexe WebPKI verifier when establishing the outer TLS connection
 ///   with the gateway, and we use the remote attestation verifier for the inner
 ///   TLS connection which terminates inside the user node SGX enclave.
@@ -354,7 +349,7 @@ mod test {
     use common::{enclave, rng::FastRng};
 
     use super::*;
-    use crate::tls::test_utils;
+    use crate::test_utils;
 
     /// Sanity check an App->Node Provision TLS handshake
     #[tokio::test]

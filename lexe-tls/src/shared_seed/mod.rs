@@ -60,11 +60,11 @@
 //!     |___ (no server cert; node always presents [`EphemeralServerCert`])
 //!
 //! [`RootSeed`]: common::root_seed::RootSeed
-//! [`EphemeralIssuingCaCert`]: crate::tls::shared_seed::certs::EphemeralIssuingCaCert
-//! [`EphemeralClientCert`]: crate::tls::shared_seed::certs::EphemeralClientCert
-//! [`EphemeralServerCert`]: crate::tls::shared_seed::certs::EphemeralServerCert
-//! [`RevocableIssuingCaCert`]: crate::tls::shared_seed::certs::RevocableIssuingCaCert
-//! [`RevocableClientCert`]: crate::tls::shared_seed::certs::RevocableClientCert
+//! [`EphemeralIssuingCaCert`]: crate::shared_seed::certs::EphemeralIssuingCaCert
+//! [`EphemeralClientCert`]: crate::shared_seed::certs::EphemeralClientCert
+//! [`EphemeralServerCert`]: crate::shared_seed::certs::EphemeralServerCert
+//! [`RevocableIssuingCaCert`]: crate::shared_seed::certs::RevocableIssuingCaCert
+//! [`RevocableClientCert`]: crate::shared_seed::certs::RevocableClientCert
 
 // TODO(max): Only the app (not an SDK) should have the power to call the "issue
 // new cert" endpoint.
@@ -100,18 +100,15 @@ use rustls::{
 };
 use x509_parser::prelude::X509Certificate;
 
-use super::{
+use crate::{
     lexe_ca,
     types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
 };
-#[cfg(doc)]
-use crate::def::AppNodeRunApi;
-use crate::tls;
 
 /// TLS certs for shared [`RootSeed`]-based mTLS.
 pub mod certs;
 
-/// Server-side TLS config for [`AppNodeRunApi`].
+/// Server-side TLS config for `AppNodeRunApi`.
 /// Also returns the node's DNS name.
 pub fn node_run_server_config(
     rng: &mut impl Crng,
@@ -136,7 +133,7 @@ pub fn node_run_server_config(
     )
     .context("Failed to build shared seed client cert verifier")?;
 
-    let mut config = super::server_config_builder()
+    let mut config = crate::server_config_builder()
         .with_client_cert_verifier(Arc::new(client_cert_verifier))
         .with_single_cert(
             vec![eph_server_cert_der.into()],
@@ -145,7 +142,7 @@ pub fn node_run_server_config(
         .context("Failed to build rustls::ServerConfig")?;
     config
         .alpn_protocols
-        .clone_from(&super::LEXE_ALPN_PROTOCOLS);
+        .clone_from(&crate::LEXE_ALPN_PROTOCOLS);
 
     Ok((Arc::new(config), dns_name))
 }
@@ -180,7 +177,7 @@ pub fn app_node_run_client_config(
         .context("Failed to sign and serialize ephemeral client cert")?;
     let client_cert_key_der = client_cert.serialize_key_der();
 
-    let mut config = super::client_config_builder()
+    let mut config = crate::client_config_builder()
         .dangerous()
         .with_custom_certificate_verifier(Arc::new(server_cert_verifier))
         // NOTE: .with_single_cert() uses a client cert resolver which always
@@ -201,7 +198,7 @@ pub fn app_node_run_client_config(
         .context("Failed to build rustls::ClientConfig")?;
     config
         .alpn_protocols
-        .clone_from(&super::LEXE_ALPN_PROTOCOLS);
+        .clone_from(&crate::LEXE_ALPN_PROTOCOLS);
 
     Ok(config)
 }
@@ -225,7 +222,7 @@ pub fn sdk_node_run_client_config(
         lexe_server_verifier,
     };
 
-    let mut config = super::client_config_builder()
+    let mut config = crate::client_config_builder()
         .dangerous()
         .with_custom_certificate_verifier(Arc::new(server_cert_verifier))
         // NOTE: .with_single_cert() uses a client cert resolver which always
@@ -246,7 +243,7 @@ pub fn sdk_node_run_client_config(
         .context("Failed to build rustls::ClientConfig")?;
     config
         .alpn_protocols
-        .clone_from(&super::LEXE_ALPN_PROTOCOLS);
+        .clone_from(&crate::LEXE_ALPN_PROTOCOLS);
 
     Ok(config)
 }
@@ -261,14 +258,14 @@ pub fn ephemeral_ca_verifier(
         .context("Failed to re-parse ephemeral CA cert")?;
     let verifier = WebPkiServerVerifier::builder_with_provider(
         Arc::new(roots),
-        super::LEXE_CRYPTO_PROVIDER.clone(),
+        crate::LEXE_CRYPTO_PROVIDER.clone(),
     )
     .build()
     .context("Could not build ephemeral server verifier")?;
     Ok(verifier)
 }
 
-/// The client's [`ServerCertVerifier`] for [`AppNodeRunApi`] TLS.
+/// The client's [`ServerCertVerifier`] for `AppNodeRunApi` TLS.
 ///
 /// - When the app wishes to connect to a running node, it will make a request
 ///   to the node using a fake run DNS [`constants::NODE_RUN_DNS`]. However,
@@ -279,7 +276,7 @@ pub fn ephemeral_ca_verifier(
 ///   the gateway DNS when connecting to Lexe's proxy, otherwise it is the
 ///   node's fake run DNS. See `NodeClient`'s `run_url` for context.
 /// - The [`AppNodeRunVerifier`] thus chooses between two "sub-verifiers"
-///   according to the [`ServerName`] given to us by [`reqwest`]. We use the
+///   according to the [`ServerName`] given to us by `reqwest`. We use the
 ///   public Lexe WebPKI verifier when establishing the outer TLS connection
 ///   with the gateway, and we use the ephemeral CA verifier for the inner TLS
 ///   connection which terminates inside the user node SGX enclave.
@@ -347,12 +344,12 @@ impl ServerCertVerifier for AppNodeRunVerifier {
             message,
             cert,
             dss,
-            &super::LEXE_SIGNATURE_ALGORITHMS,
+            &crate::LEXE_SIGNATURE_ALGORITHMS,
         )
     }
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        super::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
+        crate::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
     }
 }
 
@@ -386,7 +383,7 @@ impl SharedSeedClientCertVerifier {
 
             WebPkiClientVerifier::builder_with_provider(
                 Arc::new(eph_roots),
-                super::LEXE_CRYPTO_PROVIDER.clone(),
+                crate::LEXE_CRYPTO_PROVIDER.clone(),
             )
             .build()
             .context("Failed to build ephemeral CA verifier")?
@@ -404,7 +401,7 @@ impl SharedSeedClientCertVerifier {
 
             WebPkiClientVerifier::builder_with_provider(
                 Arc::new(rev_roots),
-                super::LEXE_CRYPTO_PROVIDER.clone(),
+                crate::LEXE_CRYPTO_PROVIDER.clone(),
             )
             .build()
             .context("Failed to build ephemeral CA verifier")?
@@ -505,12 +502,12 @@ impl ClientCertVerifier for SharedSeedClientCertVerifier {
             message,
             cert,
             dss,
-            &tls::LEXE_SIGNATURE_ALGORITHMS,
+            &crate::LEXE_SIGNATURE_ALGORITHMS,
         )
     }
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        tls::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
+        crate::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
     }
 }
 
@@ -529,7 +526,7 @@ mod test {
     use secrecy::Secret;
 
     use super::*;
-    use crate::tls::test_utils;
+    use crate::test_utils;
 
     /// App->Node TLS handshake should succeed when using the same seed.
     #[tokio::test]

@@ -12,6 +12,7 @@ members = [
     "lexe-api-core",
     "lexe-ln",
     "lexe-std",
+    "lexe-tls",
     "lexe-tokio",
     "logger",
     "node",

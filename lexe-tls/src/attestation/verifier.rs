@@ -30,7 +30,7 @@ use webpki::{TlsServerTrustAnchors, TrustAnchor};
 use x509_parser::certificate::X509Certificate;
 
 use super::quote::ReportData;
-use crate::tls::{self, attestation::cert::SgxAttestationExtension};
+use crate::attestation::cert::SgxAttestationExtension;
 
 /// The Enclave Signer Measurement (MRSIGNER) of the current Intel Quoting
 /// Enclave (QE).
@@ -41,7 +41,7 @@ const INTEL_QE_IDENTITY_MRSIGNER: Measurement =
 
 /// The DER-encoded Intel SGX trust anchor cert.
 const INTEL_SGX_ROOT_CA_CERT_DER: &[u8] =
-    include_bytes!("../../../data/intel-sgx-root-ca.der");
+    include_bytes!("../../data/intel-sgx-root-ca.der");
 
 /// Lazily parse the Intel SGX trust anchor cert.
 ///
@@ -132,7 +132,7 @@ impl AttestationCertVerifier {
                 let webpki_verifier =
                     rustls::server::WebPkiClientVerifier::builder_with_provider(
                         Arc::new(trust_roots),
-                        tls::LEXE_CRYPTO_PROVIDER.clone(),
+                        crate::LEXE_CRYPTO_PROVIDER.clone(),
                     )
                     .build()
                     .map_err(|e| rustls::Error::General(e.to_string()))?;
@@ -147,7 +147,7 @@ impl AttestationCertVerifier {
                 let webpki_verifier =
                     rustls::client::WebPkiServerVerifier::builder_with_provider(
                         Arc::new(trust_roots),
-                        tls::LEXE_CRYPTO_PROVIDER.clone(),
+                        crate::LEXE_CRYPTO_PROVIDER.clone(),
                     )
                     .build()
                     .map_err(|e| rustls::Error::General(e.to_string()))?;
@@ -247,12 +247,12 @@ impl ServerCertVerifier for AttestationCertVerifier {
             message,
             cert,
             dss,
-            &tls::LEXE_SIGNATURE_ALGORITHMS,
+            &crate::LEXE_SIGNATURE_ALGORITHMS,
         )
     }
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        tls::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
+        crate::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
     }
 }
 
@@ -303,12 +303,12 @@ impl ClientCertVerifier for AttestationCertVerifier {
             message,
             cert,
             dss,
-            &tls::LEXE_SIGNATURE_ALGORITHMS,
+            &crate::LEXE_SIGNATURE_ALGORITHMS,
         )
     }
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        tls::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
+        crate::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
     }
 }
 
@@ -771,13 +771,13 @@ mod test {
 
     // These two consts can be regenerated (in SGX) using [`dump_attest_cert`].
     const SGX_SERVER_CERT_PEM: &str =
-        include_str!("../../../test_data/attest_cert.pem");
+        include_str!("../../test_data/attest_cert.pem");
     const SERVER_MRENCLAVE: Measurement = Measurement::new(hex::decode_const(
         b"738f61792535f905807365a0f6023275b6a44972f48986c94aa7976c31bf1eb6",
     ));
 
     const INTEL_SGX_ROOT_CA_CERT_PEM: &str =
-        include_str!("../../../test_data/intel-sgx-root-ca.pem");
+        include_str!("../../test_data/intel-sgx-root-ca.pem");
 
     // TODO(phlip9): test verification catches bad evidence
 
@@ -844,7 +844,7 @@ mod test {
     fn test_verify_dummy_server_cert() {
         use common::rng::FastRng;
 
-        use crate::tls::attestation::cert::AttestationCert;
+        use crate::attestation::cert::AttestationCert;
 
         let mut rng = FastRng::new();
         let dns_name = "run.lexe.app".to_owned();
@@ -886,7 +886,7 @@ mod test {
         use base64::Engine;
 
         use crate::{
-            enclave, rng::FastRng, tls::attestation::cert::AttestationCert,
+            attestation::cert::AttestationCert, enclave, rng::FastRng,
         };
 
         let mut rng = FastRng::new();
