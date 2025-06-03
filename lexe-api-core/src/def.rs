@@ -42,7 +42,7 @@ use common::{
     api::{
         auth::{
             BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken,
-            UserSignupRequest,
+            UserSignupRequestWireV1,
         },
         fiat_rates::FiatRates,
         models::{
@@ -105,10 +105,11 @@ use crate::{
 
 /// Defines the api that the backend exposes to the app (via the gateway).
 pub trait AppBackendApi {
-    /// POST /app/v1/signup [`ed25519::Signed<UserSignupRequest>`] -> [`Empty`]
+    /// POST /app/v1/signup [`ed25519::Signed<UserSignupRequestWireV1>`] ->
+    /// [`Empty`]
     async fn signup(
         &self,
-        signed_req: &ed25519::Signed<&UserSignupRequest>,
+        signed_req: &ed25519::Signed<&UserSignupRequestWireV1>,
     ) -> Result<Empty, BackendApiError>;
 }
 

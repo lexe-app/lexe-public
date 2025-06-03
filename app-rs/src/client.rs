@@ -20,7 +20,7 @@ use common::{
     api::{
         auth::{
             BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken, Scope,
-            UserSignupRequest,
+            UserSignupRequestWireV1,
         },
         fiat_rates::FiatRates,
         models::{
@@ -153,7 +153,7 @@ impl GatewayClient {
 impl AppBackendApi for GatewayClient {
     async fn signup(
         &self,
-        signed_req: &ed25519::Signed<&UserSignupRequest>,
+        signed_req: &ed25519::Signed<&UserSignupRequestWireV1>,
     ) -> Result<Empty, BackendApiError> {
         let gateway_url = &self.gateway_url;
         let req = self

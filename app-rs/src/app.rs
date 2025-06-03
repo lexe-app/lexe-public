@@ -12,7 +12,7 @@ use anyhow::{anyhow, Context};
 use bitcoin::secp256k1;
 use common::{
     api::{
-        auth::UserSignupRequest,
+        auth::UserSignupRequestWireV1,
         provision::NodeProvisionRequest,
         user::{NodePk, NodePkProof, UserPk},
         version::NodeRelease,
@@ -314,20 +314,20 @@ impl App {
         let node_pk = NodePk(node_key_pair.public_key());
         let user_config = AppConfigWithUserPk::new(config, user_pk);
 
-        // gen + sign the UserSignupRequest
+        // gen + sign the UserSignupRequestWireV1
         let node_pk_proof = NodePkProof::sign(rng, &node_key_pair);
         let user_info = AppUserInfoRs {
             user_pk,
             node_pk,
             node_pk_proof: node_pk_proof.clone(),
         };
-        let signup_req = UserSignupRequest {
+        let signup_req = UserSignupRequestWireV1 {
             node_pk_proof,
             signup_code,
         };
         let (_, signed_signup_req) = user_key_pair
             .sign_struct(&signup_req)
-            .expect("Should never fail to serialize UserSignupRequest");
+            .expect("Should never fail to serialize UserSignupRequestWireV1");
 
         // build NodeClient, GatewayClient
         let gateway_client = GatewayClient::new(

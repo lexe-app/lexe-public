@@ -72,7 +72,7 @@ pub enum Error {
 /// [`RootSeed`]: crate::root_seed::RootSeed
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct UserSignupRequest {
+pub struct UserSignupRequestWireV1 {
     /// The lightning node pubkey in a Proof-of-Key-Possession
     pub node_pk_proof: NodePkProof,
 
@@ -183,9 +183,9 @@ pub struct TokenWithExpiration {
     pub token: BearerAuthToken,
 }
 
-// -- impl UserSignupRequest -- //
+// -- impl UserSignupRequestWireV1 -- //
 
-impl UserSignupRequest {
+impl UserSignupRequestWireV1 {
     pub fn deserialize_verify(
         serialized: &[u8],
     ) -> Result<Signed<Self>, Error> {
@@ -196,7 +196,8 @@ impl UserSignupRequest {
     }
 }
 
-impl ed25519::Signable for UserSignupRequest {
+impl ed25519::Signable for UserSignupRequestWireV1 {
+    // Name is different for backwards compat after rename
     const DOMAIN_SEPARATOR: [u8; 32] =
         array::pad(*b"LEXE-REALM::UserSignupRequest");
 }
@@ -332,12 +333,12 @@ mod test {
 
     #[test]
     fn test_user_signup_request_canonical() {
-        bcs_roundtrip_proptest::<UserSignupRequest>();
+        bcs_roundtrip_proptest::<UserSignupRequestWireV1>();
     }
 
     #[test]
     fn test_user_signed_request_sign_verify() {
-        signed_roundtrip_proptest::<UserSignupRequest>();
+        signed_roundtrip_proptest::<UserSignupRequestWireV1>();
     }
 
     #[test]
