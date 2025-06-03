@@ -12,7 +12,10 @@ use anyhow::{anyhow, Context};
 use bitcoin::secp256k1;
 use common::{
     api::{
-        auth::UserSignupRequestWireV1,
+        auth::{
+            UserSignupRequestWire, UserSignupRequestWireV1,
+            UserSignupRequestWireV2,
+        },
         provision::NodeProvisionRequest,
         user::{NodePk, NodePkProof, UserPk},
         version::NodeRelease,
@@ -321,13 +324,16 @@ impl App {
             node_pk,
             node_pk_proof: node_pk_proof.clone(),
         };
-        let signup_req = UserSignupRequestWireV1 {
-            node_pk_proof,
-            signup_code,
-        };
+        let signup_req = UserSignupRequestWire::V2(UserSignupRequestWireV2 {
+            v1: UserSignupRequestWireV1 {
+                node_pk_proof,
+                signup_code,
+            },
+            partner: None,
+        });
         let (_, signed_signup_req) = user_key_pair
             .sign_struct(&signup_req)
-            .expect("Should never fail to serialize UserSignupRequestWireV1");
+            .expect("Should never fail to serialize UserSignupRequestWire");
 
         // build NodeClient, GatewayClient
         let gateway_client = GatewayClient::new(
@@ -366,8 +372,7 @@ impl App {
 
         // signup the user and get the latest release
         let (try_signup, try_latest_release) = tokio::join!(
-            #[allow(deprecated)]
-            gateway_client.signup_v1(&signed_signup_req),
+            gateway_client.signup_v2(&signed_signup_req),
             gateway_client.latest_release(),
         );
         try_signup.context("Failed to signup user")?;

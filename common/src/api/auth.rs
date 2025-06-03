@@ -205,6 +205,12 @@ impl UserSignupRequestWire {
             UserSignupRequestWire::V2(v2) => v2.v1.signup_code.as_deref(),
         }
     }
+
+    pub fn partner(&self) -> Option<&UserPk> {
+        match self {
+            UserSignupRequestWire::V2(v2) => v2.partner.as_ref(),
+        }
+    }
 }
 
 impl ed25519::Signable for UserSignupRequestWire {
