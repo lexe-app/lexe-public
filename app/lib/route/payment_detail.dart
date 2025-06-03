@@ -475,6 +475,11 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                         label: "Payment hash", value: this.paymentIdxBody()),
                     (PaymentKind.spontaneous, _) => InfoRow(
                         label: "Payment hash", value: this.paymentIdxBody()),
+                    (PaymentKind.offer, PaymentDirection.inbound) =>
+                      InfoRow(label: "Claim id", value: this.paymentIdxBody()),
+                    (PaymentKind.offer, PaymentDirection.outbound) => InfoRow(
+                        label: "Client payment id",
+                        value: this.paymentIdxBody()),
                   };
 
                   // Show on-chain txid's with link to mempool.space
@@ -609,11 +614,7 @@ class PaymentDetailIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isLightning = switch (this.kind) {
-      PaymentKind.invoice || PaymentKind.spontaneous => true,
-      PaymentKind.onchain => false,
-    };
-
+    final isLightning = this.kind.isLightning();
     const size = Space.s700;
     const color = LxColors.fgSecondary;
 

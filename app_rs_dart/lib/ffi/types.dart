@@ -149,6 +149,8 @@ enum Network {
       AppRs.instance.api.crateFfiTypesNetworkFromStr(s: s);
 }
 
+/// A lightning offer with useful fields parsed out for the flutter frontend.
+/// Mirrors the [`LxOffer`] type.
 @freezed
 class Offer with _$Offer {
   const factory Offer({
@@ -179,6 +181,7 @@ class Payment with _$Payment {
     required PaymentKind kind,
     required PaymentDirection direction,
     Invoice? invoice,
+    Offer? offer,
     String? txid,
     String? replacement,
     int? amountSat,
@@ -209,6 +212,7 @@ enum PaymentKind {
   onchain,
   invoice,
   spontaneous,
+  offer,
   ;
 }
 
@@ -222,7 +226,9 @@ sealed class PaymentMethod with _$PaymentMethod {
   const factory PaymentMethod.invoice(
     Invoice field0,
   ) = PaymentMethod_Invoice;
-  const factory PaymentMethod.offer() = PaymentMethod_Offer;
+  const factory PaymentMethod.offer(
+    Offer field0,
+  ) = PaymentMethod_Offer;
 }
 
 enum PaymentStatus {

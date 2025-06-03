@@ -99,15 +99,13 @@ extension PaymentMethodExt on PaymentMethod {
   int? amountSats() => switch (this) {
         PaymentMethod_Onchain(:final field0) => field0.amountSats,
         PaymentMethod_Invoice(:final field0) => field0.amountSats,
-        PaymentMethod_Offer() =>
-          throw UnsupportedError("BOLT12 offers not supported yet"),
+        PaymentMethod_Offer(:final field0) => field0.amountSats,
       };
 
   PaymentKind kind() => switch (this) {
         PaymentMethod_Onchain() => PaymentKind.onchain,
         PaymentMethod_Invoice() => PaymentKind.invoice,
-        // TODO(phlip9): impl BOLT12 offers
-        PaymentMethod_Offer() => throw UnimplementedError(),
+        PaymentMethod_Offer() => PaymentKind.offer,
       };
 }
 
@@ -116,5 +114,6 @@ extension PaymentKindExt on PaymentKind {
         PaymentKind.onchain => false,
         PaymentKind.invoice => true,
         PaymentKind.spontaneous => true,
+        PaymentKind.offer => true,
       };
 }

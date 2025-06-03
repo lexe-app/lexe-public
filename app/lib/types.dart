@@ -45,7 +45,10 @@ enum BalanceKind {
 
   static BalanceKind fromPaymentKind(final PaymentKind kind) => switch (kind) {
         PaymentKind.onchain => BalanceKind.onchain,
-        PaymentKind.invoice || PaymentKind.spontaneous => BalanceKind.lightning,
+        PaymentKind.invoice ||
+        PaymentKind.spontaneous ||
+        PaymentKind.offer =>
+          BalanceKind.lightning,
       };
 }
 

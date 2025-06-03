@@ -203,6 +203,7 @@ pub enum PaymentKind {
     Onchain,
     Invoice,
     Spontaneous,
+    Offer,
 }
 
 impl From<PaymentKindRs> for PaymentKind {
@@ -211,7 +212,7 @@ impl From<PaymentKindRs> for PaymentKind {
             PaymentKindRs::Onchain => Self::Onchain,
             PaymentKindRs::Invoice => Self::Invoice,
             PaymentKindRs::Spontaneous => Self::Spontaneous,
-            PaymentKindRs::Offer => todo!("TODO(phlip9): BOLT12"),
+            PaymentKindRs::Offer => Self::Offer,
         }
     }
 }
@@ -287,8 +288,8 @@ pub struct Payment {
     pub direction: PaymentDirection,
 
     pub invoice: Option<Invoice>,
+    pub offer: Option<Offer>,
 
-    // TODO(phlip9): BOLT12 offers
     pub txid: Option<String>,
     pub replacement: Option<String>,
 
@@ -313,6 +314,7 @@ impl From<&BasicPaymentRs> for Payment {
             direction: PaymentDirection::from(payment.direction),
 
             invoice: payment.invoice.as_deref().map(Invoice::from),
+            offer: payment.offer.as_deref().map(Offer::from),
 
             txid: payment.txid.map(|txid| txid.to_string()),
             replacement: payment.replacement.map(|txid| txid.to_string()),
@@ -335,7 +337,7 @@ impl From<&BasicPaymentRs> for Payment {
 pub enum PaymentMethod {
     Onchain(Onchain),
     Invoice(Invoice),
-    Offer, // TODO(phlip9): support BOLT12 offers
+    Offer(Offer),
 }
 
 impl From<payment_uri::PaymentMethod> for PaymentMethod {
@@ -345,7 +347,7 @@ impl From<payment_uri::PaymentMethod> for PaymentMethod {
                 Self::Onchain(Onchain::from(x)),
             payment_uri::PaymentMethod::Invoice(x) =>
                 Self::Invoice(Invoice::from(x)),
-            payment_uri::PaymentMethod::Offer(_) => Self::Offer,
+            payment_uri::PaymentMethod::Offer(x) => Self::Offer(Offer::from(x)),
         }
     }
 }
@@ -410,6 +412,8 @@ impl From<LxInvoice> for Invoice {
     }
 }
 
+/// A lightning offer with useful fields parsed out for the flutter frontend.
+/// Mirrors the [`LxOffer`] type.
 #[frb(dart_metadata=("freezed"))]
 pub struct Offer {
     pub string: String,

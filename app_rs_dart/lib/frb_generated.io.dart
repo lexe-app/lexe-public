@@ -156,6 +156,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Invoice dco_decode_box_autoadd_invoice(dynamic raw);
 
   @protected
+  Offer dco_decode_box_autoadd_offer(dynamic raw);
+
+  @protected
   Onchain dco_decode_box_autoadd_onchain(dynamic raw);
 
   @protected
@@ -342,6 +345,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Invoice? dco_decode_opt_box_autoadd_invoice(dynamic raw);
+
+  @protected
+  Offer? dco_decode_opt_box_autoadd_offer(dynamic raw);
 
   @protected
   Payment? dco_decode_opt_box_autoadd_payment(dynamic raw);
@@ -572,6 +578,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Invoice sse_decode_box_autoadd_invoice(SseDeserializer deserializer);
 
   @protected
+  Offer sse_decode_box_autoadd_offer(SseDeserializer deserializer);
+
+  @protected
   Onchain sse_decode_box_autoadd_onchain(SseDeserializer deserializer);
 
   @protected
@@ -785,6 +794,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Invoice? sse_decode_opt_box_autoadd_invoice(SseDeserializer deserializer);
+
+  @protected
+  Offer? sse_decode_opt_box_autoadd_offer(SseDeserializer deserializer);
 
   @protected
   Payment? sse_decode_opt_box_autoadd_payment(SseDeserializer deserializer);
@@ -1027,6 +1039,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_box_autoadd_invoice(Invoice self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_offer(Offer self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_onchain(Onchain self, SseSerializer serializer);
 
   @protected
@@ -1245,6 +1260,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_opt_box_autoadd_invoice(
       Invoice? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_offer(Offer? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_payment(

@@ -421,6 +421,7 @@ mixin _$Payment {
   PaymentKind get kind => throw _privateConstructorUsedError;
   PaymentDirection get direction => throw _privateConstructorUsedError;
   Invoice? get invoice => throw _privateConstructorUsedError;
+  Offer? get offer => throw _privateConstructorUsedError;
   String? get txid => throw _privateConstructorUsedError;
   String? get replacement => throw _privateConstructorUsedError;
   int? get amountSat => throw _privateConstructorUsedError;
@@ -440,6 +441,7 @@ class _$PaymentImpl implements _Payment {
       required this.kind,
       required this.direction,
       this.invoice,
+      this.offer,
       this.txid,
       this.replacement,
       this.amountSat,
@@ -458,6 +460,8 @@ class _$PaymentImpl implements _Payment {
   final PaymentDirection direction;
   @override
   final Invoice? invoice;
+  @override
+  final Offer? offer;
   @override
   final String? txid;
   @override
@@ -479,7 +483,7 @@ class _$PaymentImpl implements _Payment {
 
   @override
   String toString() {
-    return 'Payment(index: $index, kind: $kind, direction: $direction, invoice: $invoice, txid: $txid, replacement: $replacement, amountSat: $amountSat, feesSat: $feesSat, status: $status, statusStr: $statusStr, note: $note, createdAt: $createdAt, finalizedAt: $finalizedAt)';
+    return 'Payment(index: $index, kind: $kind, direction: $direction, invoice: $invoice, offer: $offer, txid: $txid, replacement: $replacement, amountSat: $amountSat, feesSat: $feesSat, status: $status, statusStr: $statusStr, note: $note, createdAt: $createdAt, finalizedAt: $finalizedAt)';
   }
 
   @override
@@ -492,6 +496,7 @@ class _$PaymentImpl implements _Payment {
             (identical(other.direction, direction) ||
                 other.direction == direction) &&
             (identical(other.invoice, invoice) || other.invoice == invoice) &&
+            (identical(other.offer, offer) || other.offer == offer) &&
             (identical(other.txid, txid) || other.txid == txid) &&
             (identical(other.replacement, replacement) ||
                 other.replacement == replacement) &&
@@ -515,6 +520,7 @@ class _$PaymentImpl implements _Payment {
       kind,
       direction,
       invoice,
+      offer,
       txid,
       replacement,
       amountSat,
@@ -532,6 +538,7 @@ abstract class _Payment implements Payment {
       required final PaymentKind kind,
       required final PaymentDirection direction,
       final Invoice? invoice,
+      final Offer? offer,
       final String? txid,
       final String? replacement,
       final int? amountSat,
@@ -550,6 +557,8 @@ abstract class _Payment implements Payment {
   PaymentDirection get direction;
   @override
   Invoice? get invoice;
+  @override
+  Offer? get offer;
   @override
   String? get txid;
   @override
@@ -609,7 +618,9 @@ abstract class _PaymentIndex implements PaymentIndex {
 }
 
 /// @nodoc
-mixin _$PaymentMethod {}
+mixin _$PaymentMethod {
+  Object get field0 => throw _privateConstructorUsedError;
+}
 
 /// @nodoc
 
@@ -641,6 +652,7 @@ abstract class PaymentMethod_Onchain extends PaymentMethod {
       _$PaymentMethod_OnchainImpl;
   const PaymentMethod_Onchain._() : super._();
 
+  @override
   Onchain get field0;
 }
 
@@ -674,33 +686,42 @@ abstract class PaymentMethod_Invoice extends PaymentMethod {
       _$PaymentMethod_InvoiceImpl;
   const PaymentMethod_Invoice._() : super._();
 
+  @override
   Invoice get field0;
 }
 
 /// @nodoc
 
 class _$PaymentMethod_OfferImpl extends PaymentMethod_Offer {
-  const _$PaymentMethod_OfferImpl() : super._();
+  const _$PaymentMethod_OfferImpl(this.field0) : super._();
+
+  @override
+  final Offer field0;
 
   @override
   String toString() {
-    return 'PaymentMethod.offer()';
+    return 'PaymentMethod.offer(field0: $field0)';
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$PaymentMethod_OfferImpl);
+            other is _$PaymentMethod_OfferImpl &&
+            (identical(other.field0, field0) || other.field0 == field0));
   }
 
   @override
-  int get hashCode => runtimeType.hashCode;
+  int get hashCode => Object.hash(runtimeType, field0);
 }
 
 abstract class PaymentMethod_Offer extends PaymentMethod {
-  const factory PaymentMethod_Offer() = _$PaymentMethod_OfferImpl;
+  const factory PaymentMethod_Offer(final Offer field0) =
+      _$PaymentMethod_OfferImpl;
   const PaymentMethod_Offer._() : super._();
+
+  @override
+  Offer get field0;
 }
 
 /// @nodoc

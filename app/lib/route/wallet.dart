@@ -402,7 +402,7 @@ class WalletPageState extends State<WalletPage> {
     // Lightning payments actually have a chance to finalize in the next few
     // seconds, so start a burst refresh.
     switch (payment.kind) {
-      case PaymentKind.invoice || PaymentKind.spontaneous:
+      case PaymentKind.invoice || PaymentKind.spontaneous || PaymentKind.offer:
         this.triggerBurstRefresh();
       case PaymentKind.onchain:
         this.triggerRefresh();

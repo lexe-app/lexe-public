@@ -1788,6 +1788,19 @@ impl SseDecode for Option<crate::ffi::types::Invoice> {
     }
 }
 
+impl SseDecode for Option<crate::ffi::types::Offer> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::ffi::types::Offer>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::ffi::types::Payment> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -1926,6 +1939,8 @@ impl SseDecode for crate::ffi::types::Payment {
             <crate::ffi::types::PaymentDirection>::sse_decode(deserializer);
         let mut var_invoice =
             <Option<crate::ffi::types::Invoice>>::sse_decode(deserializer);
+        let mut var_offer =
+            <Option<crate::ffi::types::Offer>>::sse_decode(deserializer);
         let mut var_txid = <Option<String>>::sse_decode(deserializer);
         let mut var_replacement = <Option<String>>::sse_decode(deserializer);
         let mut var_amountSat = <Option<u64>>::sse_decode(deserializer);
@@ -1941,6 +1956,7 @@ impl SseDecode for crate::ffi::types::Payment {
             kind: var_kind,
             direction: var_direction,
             invoice: var_invoice,
+            offer: var_offer,
             txid: var_txid,
             replacement: var_replacement,
             amount_sat: var_amountSat,
@@ -1990,6 +2006,7 @@ impl SseDecode for crate::ffi::types::PaymentKind {
             0 => crate::ffi::types::PaymentKind::Onchain,
             1 => crate::ffi::types::PaymentKind::Invoice,
             2 => crate::ffi::types::PaymentKind::Spontaneous,
+            3 => crate::ffi::types::PaymentKind::Offer,
             _ => unreachable!("Invalid variant for PaymentKind: {}", inner),
         };
     }
@@ -2013,7 +2030,9 @@ impl SseDecode for crate::ffi::types::PaymentMethod {
                 return crate::ffi::types::PaymentMethod::Invoice(var_field0);
             }
             2 => {
-                return crate::ffi::types::PaymentMethod::Offer;
+                let mut var_field0 =
+                    <crate::ffi::types::Offer>::sse_decode(deserializer);
+                return crate::ffi::types::PaymentMethod::Offer(var_field0);
             }
             _ => {
                 unimplemented!("");
@@ -3175,6 +3194,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::Payment {
             self.kind.into_into_dart().into_dart(),
             self.direction.into_into_dart().into_dart(),
             self.invoice.into_into_dart().into_dart(),
+            self.offer.into_into_dart().into_dart(),
             self.txid.into_into_dart().into_dart(),
             self.replacement.into_into_dart().into_dart(),
             self.amount_sat.into_into_dart().into_dart(),
@@ -3244,6 +3264,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentKind {
             Self::Onchain => 0.into_dart(),
             Self::Invoice => 1.into_dart(),
             Self::Spontaneous => 2.into_dart(),
+            Self::Offer => 3.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -3267,8 +3288,8 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentMethod {
                 [0.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
             crate::ffi::types::PaymentMethod::Invoice(field0) =>
                 [1.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::ffi::types::PaymentMethod::Offer =>
-                [2.into_dart()].into_dart(),
+            crate::ffi::types::PaymentMethod::Offer(field0) =>
+                [2.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -4413,6 +4434,19 @@ impl SseEncode for Option<crate::ffi::types::Invoice> {
     }
 }
 
+impl SseEncode for Option<crate::ffi::types::Offer> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::ffi::types::Offer>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::ffi::types::Payment> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -4533,6 +4567,7 @@ impl SseEncode for crate::ffi::types::Payment {
             self.invoice,
             serializer,
         );
+        <Option<crate::ffi::types::Offer>>::sse_encode(self.offer, serializer);
         <Option<String>>::sse_encode(self.txid, serializer);
         <Option<String>>::sse_encode(self.replacement, serializer);
         <Option<u64>>::sse_encode(self.amount_sat, serializer);
@@ -4585,6 +4620,7 @@ impl SseEncode for crate::ffi::types::PaymentKind {
                 crate::ffi::types::PaymentKind::Onchain => 0,
                 crate::ffi::types::PaymentKind::Invoice => 1,
                 crate::ffi::types::PaymentKind::Spontaneous => 2,
+                crate::ffi::types::PaymentKind::Offer => 3,
                 _ => {
                     unimplemented!("");
                 }
@@ -4609,8 +4645,9 @@ impl SseEncode for crate::ffi::types::PaymentMethod {
                 <i32>::sse_encode(1, serializer);
                 <crate::ffi::types::Invoice>::sse_encode(field0, serializer);
             }
-            crate::ffi::types::PaymentMethod::Offer => {
+            crate::ffi::types::PaymentMethod::Offer(field0) => {
                 <i32>::sse_encode(2, serializer);
+                <crate::ffi::types::Offer>::sse_encode(field0, serializer);
             }
             _ => {
                 unimplemented!("");

@@ -184,7 +184,6 @@ impl LnClaimCtx {
 
     /// Get the [`PaymentKind`] which corresponds to this [`LnClaimCtx`].
     pub fn kind(&self) -> PaymentKind {
-        // TODO(max): Implement for BOLT 12
         match self {
             Self::Bolt11Invoice { .. } => PaymentKind::Invoice,
             Self::Bolt12Offer(_) => PaymentKind::Offer,

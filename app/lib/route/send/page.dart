@@ -626,6 +626,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       PaymentKind.invoice => "Sending bitcoin via lightning invoice",
       PaymentKind.spontaneous =>
         "Sending bitcoin via lightning spontaneous payment",
+      PaymentKind.offer => "Sending bitcoin via lightning offer",
     };
 
     return Scaffold(
