@@ -21,6 +21,7 @@ use http::status::StatusCode;
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+#[cfg(feature = "axum")]
 use tracing::{error, warn};
 
 #[cfg(feature = "axum")]
@@ -179,6 +180,7 @@ macro_rules! api_error {
 
         impl $api_error {
             /// Log this error and get its HTTP [`StatusCode`].
+            #[cfg(feature = "axum")]
             fn log_and_status(&self) -> StatusCode {
                 let status = self.to_http_status();
 
@@ -897,6 +899,7 @@ impl CommonApiError {
     }
 
     /// Log this error and get its HTTP [`StatusCode`].
+    #[cfg(feature = "axum")]
     fn log_and_status(&self) -> StatusCode {
         let status = self.kind.to_http_status();
 
