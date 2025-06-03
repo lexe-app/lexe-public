@@ -107,7 +107,7 @@ use crate::{
 pub trait AppBackendApi {
     /// POST /app/v1/signup [`ed25519::Signed<UserSignupRequestWireV1>`] ->
     /// [`Empty`]
-    async fn signup(
+    async fn signup_v1(
         &self,
         signed_req: &ed25519::Signed<&UserSignupRequestWireV1>,
     ) -> Result<Empty, BackendApiError>;

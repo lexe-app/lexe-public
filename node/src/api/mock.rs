@@ -233,7 +233,7 @@ impl BackendApiClient for MockBackendClient {
 }
 
 impl AppBackendApi for MockBackendClient {
-    async fn signup(
+    async fn signup_v1(
         &self,
         _signed_req: &ed25519::Signed<&UserSignupRequestWireV1>,
     ) -> Result<Empty, BackendApiError> {

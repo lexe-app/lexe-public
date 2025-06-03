@@ -151,7 +151,7 @@ impl GatewayClient {
 }
 
 impl AppBackendApi for GatewayClient {
-    async fn signup(
+    async fn signup_v1(
         &self,
         signed_req: &ed25519::Signed<&UserSignupRequestWireV1>,
     ) -> Result<Empty, BackendApiError> {
