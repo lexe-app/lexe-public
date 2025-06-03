@@ -1,14 +1,18 @@
 use anyhow::Context;
 use common::{
-    api::revocable_clients::{
-        CreateRevocableClientRequest as CreateRevocableClientRequestRs,
-        GetRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
+    api::{
+        revocable_clients::{
+            CreateRevocableClientRequest as CreateRevocableClientRequestRs,
+            GetRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
+        },
+        user::UserPk,
     },
     env::DeployEnv,
     rng::SysRng,
     root_seed::RootSeed as RootSeedRs,
 };
 use flutter_rust_bridge::{frb, RustOpaqueNom};
+use hex::FromHex;
 use lexe_api::{
     def::{AppGatewayApi, AppNodeRunApi},
     models::command::{
@@ -92,6 +96,7 @@ impl AppHandle {
         google_auth_code: String,
         password: &str,
         signup_code: Option<String>,
+        partner: Option<String>,
     ) -> anyhow::Result<AppHandle> {
         // Ignored in local dev.
         //
@@ -104,6 +109,10 @@ impl AppHandle {
 
         let mut rng = SysRng::new();
         let root_seed = RootSeedRs::from_rng(&mut rng);
+        let partner = partner
+            .map(|p| UserPk::from_hex(&p))
+            .transpose()
+            .context("Failed to parse partner id")?;
         App::signup(
             &mut rng,
             config.into(),
@@ -111,6 +120,7 @@ impl AppHandle {
             google_auth_code,
             Some(password),
             signup_code,
+            partner,
         )
         .await
         .context("Failed to generate and signup new wallet")

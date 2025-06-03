@@ -309,6 +309,7 @@ impl App {
         google_auth_code: Option<String>,
         password: Option<&str>,
         signup_code: Option<String>,
+        partner: Option<UserPk>,
     ) -> anyhow::Result<Self> {
         // derive user key and node key
         let user_key_pair = root_seed.derive_user_key_pair();
@@ -329,7 +330,7 @@ impl App {
                 node_pk_proof,
                 signup_code,
             },
-            partner: None,
+            partner,
         });
         let (_, signed_signup_req) = user_key_pair
             .sign_struct(&signup_req)

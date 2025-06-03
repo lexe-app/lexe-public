@@ -37,6 +37,7 @@ abstract interface class SignupApi {
     required String googleAuthCode,
     required String password,
     required String? signupCode,
+    required String? partner,
   });
 }
 
@@ -58,12 +59,14 @@ class _ProdSignupApi implements SignupApi {
     required String googleAuthCode,
     required String password,
     required String? signupCode,
+    required String? partner,
   }) =>
       Result.tryFfiAsync(() => AppHandle.signup(
             config: config,
             googleAuthCode: googleAuthCode,
             password: password,
             signupCode: signupCode,
+            partner: partner,
           ));
 }
 
@@ -415,6 +418,7 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
       googleAuthCode: this.widget.authInfo.serverAuthCode,
       password: password,
       signupCode: this.widget.signupCode,
+      partner: null,
     );
     if (!this.mounted) return;
 

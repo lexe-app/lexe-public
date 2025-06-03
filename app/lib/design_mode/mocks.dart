@@ -606,6 +606,7 @@ class MockSignupApi implements SignupApi {
     required String googleAuthCode,
     required String password,
     required String? signupCode,
+    required String? partner,
   }) =>
       Future.delayed(
         const Duration(milliseconds: 2000),
@@ -622,6 +623,7 @@ class MockSignupApiErr implements SignupApi {
     required String googleAuthCode,
     required String password,
     required String? signupCode,
+    required String? partner,
   }) =>
       Future.delayed(
         const Duration(milliseconds: 1000),
