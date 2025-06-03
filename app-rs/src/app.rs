@@ -366,6 +366,7 @@ impl App {
 
         // signup the user and get the latest release
         let (try_signup, try_latest_release) = tokio::join!(
+            #[allow(deprecated)]
             gateway_client.signup_v1(&signed_signup_req),
             gateway_client.latest_release(),
         );

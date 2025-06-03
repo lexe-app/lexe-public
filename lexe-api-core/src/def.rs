@@ -42,7 +42,7 @@ use common::{
     api::{
         auth::{
             BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken,
-            UserSignupRequestWireV1,
+            UserSignupRequestWire, UserSignupRequestWireV1,
         },
         fiat_rates::FiatRates,
         models::{
@@ -105,8 +105,17 @@ use crate::{
 
 /// Defines the api that the backend exposes to the app (via the gateway).
 pub trait AppBackendApi {
+    /// POST /app/v2/signup [`ed25519::Signed<UserSignupRequestWire>`] ->
+    /// [`Empty`]
+    async fn signup_v2(
+        &self,
+        signed_req: &ed25519::Signed<&UserSignupRequestWire>,
+    ) -> Result<Empty, BackendApiError>;
+
     /// POST /app/v1/signup [`ed25519::Signed<UserSignupRequestWireV1>`] ->
     /// [`Empty`]
+    // TODO(phlip9): remove once all installed mobile clients above `app-v0.7.6`
+    #[deprecated = "Use the `signup_v2` API instead"]
     async fn signup_v1(
         &self,
         signed_req: &ed25519::Signed<&UserSignupRequestWireV1>,

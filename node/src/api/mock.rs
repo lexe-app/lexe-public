@@ -11,7 +11,7 @@ use common::{
     api::{
         auth::{
             BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken,
-            UserSignupRequestWireV1,
+            UserSignupRequestWire, UserSignupRequestWireV1,
         },
         user::{
             GetNewScidsRequest, MaybeScid, MaybeUser, NodePk, Scid, ScidStruct,
@@ -233,6 +233,13 @@ impl BackendApiClient for MockBackendClient {
 }
 
 impl AppBackendApi for MockBackendClient {
+    async fn signup_v2(
+        &self,
+        _signed_req: &ed25519::Signed<&UserSignupRequestWire>,
+    ) -> Result<Empty, BackendApiError> {
+        Ok(Empty {})
+    }
+
     async fn signup_v1(
         &self,
         _signed_req: &ed25519::Signed<&UserSignupRequestWireV1>,

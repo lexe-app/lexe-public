@@ -81,10 +81,10 @@ pub struct NodePk(pub secp256k1::PublicKey);
 /// Used to ensure a user's signup request contains a [`NodePk`] actually owned
 /// by the user.
 ///
-/// Like the outer [`UserSignupRequest`], this PoP is vulnerable to replay
+/// Like the outer [`UserSignupRequestWire`], this PoP is vulnerable to replay
 /// attacks in the general case.
 ///
-/// [`UserSignupRequest`]: crate::api::auth::UserSignupRequest
+/// [`UserSignupRequestWire`]: crate::api::auth::UserSignupRequestWire
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct NodePkProof {

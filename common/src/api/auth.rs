@@ -12,7 +12,7 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use super::user::NodePkProof;
+use super::user::{NodePkProof, UserPk};
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
 use crate::{
@@ -72,6 +72,22 @@ pub enum Error {
 /// [`RootSeed`]: crate::root_seed::RootSeed
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum UserSignupRequestWire {
+    V2(UserSignupRequestWireV2),
+}
+
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct UserSignupRequestWireV2 {
+    pub v1: UserSignupRequestWireV1,
+
+    /// The partner that signed up this user, if any.
+    // Added in `node-v0.7.12+`
+    pub partner: Option<UserPk>,
+}
+
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct UserSignupRequestWireV1 {
     /// The lightning node pubkey in a Proof-of-Key-Possession
     pub node_pk_proof: NodePkProof,
@@ -82,14 +98,6 @@ pub struct UserSignupRequestWireV1 {
         proptest(strategy = "arbitrary::any_option_string()")
     )]
     pub signup_code: Option<String>,
-    // do we need this?
-    // pub display_name: Option<String>,
-
-    // probably collect this later in a settings screen. would need email
-    // verify flow. can also just not collect email at all and send push
-    // notifs only. pub email: Option<String>,
-
-    // TODO(phlip9): other fields? region? language?
 }
 
 /// A client's request for a new [`BearerAuthToken`].
@@ -168,7 +176,7 @@ pub struct BearerAuthResponse {
 }
 
 /// An opaque bearer auth token for authenticating user clients against lexe
-/// infra as a particular [`UserPk`](crate::api::user::UserPk).
+/// infra as a particular [`UserPk`].
 ///
 /// Most user clients should just treat this as an opaque Bearer token with a
 /// very short (~15 min) expiration.
@@ -181,6 +189,28 @@ pub struct BearerAuthToken(pub ByteStr);
 pub struct TokenWithExpiration {
     pub expiration: SystemTime,
     pub token: BearerAuthToken,
+}
+
+// --- impl UserSignupRequestWire --- //
+
+impl UserSignupRequestWire {
+    pub fn node_pk_proof(&self) -> &NodePkProof {
+        match self {
+            UserSignupRequestWire::V2(v2) => &v2.v1.node_pk_proof,
+        }
+    }
+
+    pub fn signup_code(&self) -> Option<&str> {
+        match self {
+            UserSignupRequestWire::V2(v2) => v2.v1.signup_code.as_deref(),
+        }
+    }
+}
+
+impl ed25519::Signable for UserSignupRequestWire {
+    // Name gets cut off to stay within 32 B
+    const DOMAIN_SEPARATOR: [u8; 32] =
+        array::pad(*b"LEXE-REALM::UserSignupRequestWir");
 }
 
 // -- impl UserSignupRequestWireV1 -- //
@@ -200,6 +230,14 @@ impl ed25519::Signable for UserSignupRequestWireV1 {
     // Name is different for backwards compat after rename
     const DOMAIN_SEPARATOR: [u8; 32] =
         array::pad(*b"LEXE-REALM::UserSignupRequest");
+}
+
+// --- impl UserSignupRequestWireV2 --- //
+
+impl From<UserSignupRequestWireV1> for UserSignupRequestWireV2 {
+    fn from(v1: UserSignupRequestWireV1) -> Self {
+        Self { v1, partner: None }
+    }
 }
 
 // -- impl BearerAuthRequest -- //
@@ -332,13 +370,13 @@ mod test {
     };
 
     #[test]
-    fn test_user_signup_request_canonical() {
-        bcs_roundtrip_proptest::<UserSignupRequestWireV1>();
+    fn test_user_signup_request_wire_canonical() {
+        bcs_roundtrip_proptest::<UserSignupRequestWire>();
     }
 
     #[test]
-    fn test_user_signed_request_sign_verify() {
-        signed_roundtrip_proptest::<UserSignupRequestWireV1>();
+    fn test_user_signed_request_wire_sign_verify() {
+        signed_roundtrip_proptest::<UserSignupRequestWire>();
     }
 
     #[test]

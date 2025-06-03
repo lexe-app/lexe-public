@@ -20,7 +20,7 @@ use common::{
     api::{
         auth::{
             BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken, Scope,
-            UserSignupRequestWireV1,
+            UserSignupRequestWire, UserSignupRequestWireV1,
         },
         fiat_rates::FiatRates,
         models::{
@@ -151,17 +151,25 @@ impl GatewayClient {
 }
 
 impl AppBackendApi for GatewayClient {
-    async fn signup_v1(
+    async fn signup_v2(
         &self,
-        signed_req: &ed25519::Signed<&UserSignupRequestWireV1>,
+        signed_req: &ed25519::Signed<&UserSignupRequestWire>,
     ) -> Result<Empty, BackendApiError> {
         let gateway_url = &self.gateway_url;
         let req = self
             .rest
-            .builder(POST, format!("{gateway_url}/app/v1/signup"))
+            .builder(POST, format!("{gateway_url}/app/v2/signup"))
             .signed_bcs(signed_req)
             .map_err(BackendApiError::bcs_serialize)?;
         self.rest.send(req).await
+    }
+
+    async fn signup_v1(
+        &self,
+        _signed_req: &ed25519::Signed<&UserSignupRequestWireV1>,
+    ) -> Result<Empty, BackendApiError> {
+        debug_assert!(false, "Use `signup_v2`");
+        Err(BackendApiError::not_found("Use `/app/v2/signup`"))
     }
 }
 
