@@ -442,6 +442,7 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                   final invoice = payment.invoice;
                   final payeePubkey = invoice?.payeePubkey;
 
+                  final offerId = payment.offerId;
                   final offer = payment.offer;
                   final offerExpiresAt = offer?.expiresAt;
                   final offerAmountSat = offer?.amountSats;
@@ -473,7 +474,7 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                       : null;
 
                   // Label should be kept in sync with "lexe_api::types::payments::LxPaymentId"
-                  final InfoRow? paymentIdxRow = switch ((kind, direction)) {
+                  final InfoRow? paymentIdRow = switch ((kind, direction)) {
                     // Onchain receive -> we'll use the txid field
                     (PaymentKind.onchain, PaymentDirection.inbound) => null,
                     (PaymentKind.onchain, PaymentDirection.outbound) => InfoRow(
@@ -588,8 +589,8 @@ class PaymentDetailBottomSheet extends StatelessWidget {
 
                     // Low-level stuff
                     PaymentDetailInfoCard(children: [
-                      // oneof: LN payment hash, Lx ClientPaymentId
-                      if (paymentIdxRow != null) paymentIdxRow,
+                      // the payment ID
+                      if (paymentIdRow != null) paymentIdRow,
 
                       // Txid
                       if (txidRow != null) txidRow,
@@ -603,6 +604,10 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                       // the full invoice
                       if (invoice != null)
                         InfoRow(label: "Invoice", value: invoice.string),
+
+                      // the offer id (each offer has a unique id)
+                      if (offerId != null)
+                        InfoRow(label: "Offer id", value: offerId),
 
                       // the full offer
                       if (offer != null)

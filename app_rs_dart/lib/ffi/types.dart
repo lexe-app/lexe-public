@@ -183,6 +183,7 @@ class Payment with _$Payment {
     required PaymentKind kind,
     required PaymentDirection direction,
     Invoice? invoice,
+    String? offerId,
     Offer? offer,
     String? txid,
     String? replacement,

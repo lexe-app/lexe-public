@@ -786,9 +786,10 @@ mod test {
     #[test]
     fn offer_decode() {
         let offer_str =
-            "lno1zrxq8pjw7qjlm68mtp7e3yvxee4y5xrgjhhyf2fxhlphpckrvevh50u0qdp2nyl5lh362fu4r6ycw59tul97ptq57j9mhusk4dyqed0nytnzyqsz0qduahca4eryls267a72a4rtcnk4p6ululyvg7a7pdczg8ha8e6qqval7cremj65ut2k087xdhay6qvv0dtljppyd80zyj68f748jt569nutyznpf9qms39a06ecl0tw9w6ky9xpqd4k7hl4phttq9lkdrhjffv08tc04yxf4pfexypwt0e8zlmdeuf4qqqsdt4qevd84nlmks62nzzz9swwpu";
+            "lno1qgsqvgnwgcg35z6ee2h3yczraddm72xrfua9uve2rlrm9deu7xyfzrc2p4zx7mnpw35k7m3q2pskwegwq35rl86qzr7sz0sztfk2ex9hfmq35agpv450kw90sx3ewxhzmcq5324qrl89gv02s54q862yje5mzjagzvvqs5ptwk9x5txt0rgecmsll7qyy2lurdjpcqerqvp0pvxu088jng3v560f94t4ajw6jltszfgh8flzm33w3gpqa6ajuwcqx0wqwsv40gp7rs2e2ywggmx5kjj4xdeq6ph62u7z7j2p8cvntcgyqxwywv86uyuu59033z6tzgsr8gme5g5q9gahnxul2fg44zen05t7w7mr23jqwr2t4hnvqmgpkzydskfzu66cqqec0uw2q0wmqknc2v6t53rpgkv5v9nu05k2w5k4a3kf942q9jgp0gqrrqwyc58k443qt9gfd3mzfmt452dksqc9d7cdls8v7dwlma2yq9275y6lrk4ctdeh0gwjkrtx9j9ncaxnryqzex9cvtpm8nvckhdhr889m4xhx04f5dqvl3d2mq0aex6ynnq4rlz7dsjqtqnrllw3vykzhtw3yrmsdp5kc6tsgpkx27r99eshquqkyypwq633sgq2xqayayzn3t76e49av3ecvdgtnvlst33ctpyg4mu5eps";
         let offer = LxOffer::from_str(offer_str).unwrap();
         dbg!(&offer);
+        dbg!(offer.id());
         dbg!(offer.payee_node_pk());
     }
 }

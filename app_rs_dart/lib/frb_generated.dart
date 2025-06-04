@@ -3010,23 +3010,24 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Payment dco_decode_payment(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 14)
-      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    if (arr.length != 15)
+      throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
     return Payment(
       index: dco_decode_payment_index(arr[0]),
       kind: dco_decode_payment_kind(arr[1]),
       direction: dco_decode_payment_direction(arr[2]),
       invoice: dco_decode_opt_box_autoadd_invoice(arr[3]),
-      offer: dco_decode_opt_box_autoadd_offer(arr[4]),
-      txid: dco_decode_opt_String(arr[5]),
-      replacement: dco_decode_opt_String(arr[6]),
-      amountSat: dco_decode_opt_CastedPrimitive_u_64(arr[7]),
-      feesSat: dco_decode_CastedPrimitive_u_64(arr[8]),
-      status: dco_decode_payment_status(arr[9]),
-      statusStr: dco_decode_String(arr[10]),
-      note: dco_decode_opt_String(arr[11]),
-      createdAt: dco_decode_CastedPrimitive_i_64(arr[12]),
-      finalizedAt: dco_decode_opt_CastedPrimitive_i_64(arr[13]),
+      offerId: dco_decode_opt_String(arr[4]),
+      offer: dco_decode_opt_box_autoadd_offer(arr[5]),
+      txid: dco_decode_opt_String(arr[6]),
+      replacement: dco_decode_opt_String(arr[7]),
+      amountSat: dco_decode_opt_CastedPrimitive_u_64(arr[8]),
+      feesSat: dco_decode_CastedPrimitive_u_64(arr[9]),
+      status: dco_decode_payment_status(arr[10]),
+      statusStr: dco_decode_String(arr[11]),
+      note: dco_decode_opt_String(arr[12]),
+      createdAt: dco_decode_CastedPrimitive_i_64(arr[13]),
+      finalizedAt: dco_decode_opt_CastedPrimitive_i_64(arr[14]),
     );
   }
 
@@ -4328,6 +4329,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_kind = sse_decode_payment_kind(deserializer);
     var var_direction = sse_decode_payment_direction(deserializer);
     var var_invoice = sse_decode_opt_box_autoadd_invoice(deserializer);
+    var var_offerId = sse_decode_opt_String(deserializer);
     var var_offer = sse_decode_opt_box_autoadd_offer(deserializer);
     var var_txid = sse_decode_opt_String(deserializer);
     var var_replacement = sse_decode_opt_String(deserializer);
@@ -4343,6 +4345,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         kind: var_kind,
         direction: var_direction,
         invoice: var_invoice,
+        offerId: var_offerId,
         offer: var_offer,
         txid: var_txid,
         replacement: var_replacement,
@@ -5495,6 +5498,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_payment_kind(self.kind, serializer);
     sse_encode_payment_direction(self.direction, serializer);
     sse_encode_opt_box_autoadd_invoice(self.invoice, serializer);
+    sse_encode_opt_String(self.offerId, serializer);
     sse_encode_opt_box_autoadd_offer(self.offer, serializer);
     sse_encode_opt_String(self.txid, serializer);
     sse_encode_opt_String(self.replacement, serializer);

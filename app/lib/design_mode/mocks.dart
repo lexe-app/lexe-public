@@ -980,6 +980,7 @@ const Payment dummyOfferOutboundPayment01 = Payment(
           "0000001748993362000-fs_1a0863b5785d35c34e008e8bd879e78a93b795640c2ad9e941a7d12f44356804"),
   kind: PaymentKind.offer,
   direction: PaymentDirection.outbound,
+  offerId: "7bcb7b222189c07dfa6d55da519bdaf0d06c90597aab5dd5fc919c62db17c218",
   offer: Offer(
     string:
         "lno1qgsqvgnwgcg35z6ee2h3yczraddm72xrfua9uve2rlrm9deu7xyfzrc2p4zx7mnpw35k7m3q2pskwegwq35rl86qzr7sz0sztfk2ex9hfmq35agpv450kw90sx3ewxhzmcq5324qrl89gv02s54q862yje5mzjagzvvqs5ptwk9x5txt0rgecmsll7qyy2lurdjpcqerqvp0pvxu088jng3v560f94t4ajw6jltszfgh8flzm33w3gpqa6ajuwcqx0wqwsv40gp7rs2e2ywggmx5kjj4xdeq6ph62u7z7j2p8cvntcgyqxwywv86uyuu59033z6tzgsr8gme5g5q9gahnxul2fg44zen05t7w7mr23jqwr2t4hnvqmgpkzydskfzu66cqqec0uw2q0wmqknc2v6t53rpgkv5v9nu05k2w5k4a3kf942q9jgp0gqrrqwyc58k443qt9gfd3mzfmt452dksqc9d7cdls8v7dwlma2yq9275y6lrk4ctdeh0gwjkrtx9j9ncaxnryqzex9cvtpm8nvckhdhr889m4xhx04f5dqvl3d2mq0aex6ynnq4rlz7dsjqtqnrllw3vykzhtw3yrmsdp5kc6tsgpkx27r99eshquqkyypwq633sgq2xqayayzn3t76e49av3ecvdgtnvlst33ctpyg4mu5eps",
@@ -1004,6 +1005,7 @@ const Payment dummyOfferInboundPayment01 = Payment(
           "0000001748999074000-fr_016041408597e243d2b7a8fddf2304288f4763809e340b94df32c12deb894927"),
   kind: PaymentKind.offer,
   direction: PaymentDirection.inbound,
+  offerId: "e492e1d9c1919d0f37547abcb05f80ce31dcb0b70dff7433f0a0ebdc1cba8539",
   // NOTE: inbound offer payments currently don't have the `offer` field set
   offer: null,
   amountSat: 59690,

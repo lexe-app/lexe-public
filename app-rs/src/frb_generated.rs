@@ -2006,6 +2006,7 @@ impl SseDecode for crate::ffi::types::Payment {
             <crate::ffi::types::PaymentDirection>::sse_decode(deserializer);
         let mut var_invoice =
             <Option<crate::ffi::types::Invoice>>::sse_decode(deserializer);
+        let mut var_offerId = <Option<String>>::sse_decode(deserializer);
         let mut var_offer =
             <Option<crate::ffi::types::Offer>>::sse_decode(deserializer);
         let mut var_txid = <Option<String>>::sse_decode(deserializer);
@@ -2023,6 +2024,7 @@ impl SseDecode for crate::ffi::types::Payment {
             kind: var_kind,
             direction: var_direction,
             invoice: var_invoice,
+            offer_id: var_offerId,
             offer: var_offer,
             txid: var_txid,
             replacement: var_replacement,
@@ -3337,6 +3339,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::Payment {
             self.kind.into_into_dart().into_dart(),
             self.direction.into_into_dart().into_dart(),
             self.invoice.into_into_dart().into_dart(),
+            self.offer_id.into_into_dart().into_dart(),
             self.offer.into_into_dart().into_dart(),
             self.txid.into_into_dart().into_dart(),
             self.replacement.into_into_dart().into_dart(),
@@ -4785,6 +4788,7 @@ impl SseEncode for crate::ffi::types::Payment {
             self.invoice,
             serializer,
         );
+        <Option<String>>::sse_encode(self.offer_id, serializer);
         <Option<crate::ffi::types::Offer>>::sse_encode(self.offer, serializer);
         <Option<String>>::sse_encode(self.txid, serializer);
         <Option<String>>::sse_encode(self.replacement, serializer);

@@ -288,6 +288,8 @@ pub struct Payment {
     pub direction: PaymentDirection,
 
     pub invoice: Option<Invoice>,
+
+    pub offer_id: Option<String>,
     pub offer: Option<Offer>,
 
     pub txid: Option<String>,
@@ -314,6 +316,8 @@ impl From<&BasicPaymentRs> for Payment {
             direction: PaymentDirection::from(payment.direction),
 
             invoice: payment.invoice.as_deref().map(Invoice::from),
+
+            offer_id: payment.offer_id.map(|id| id.to_string()),
             offer: payment.offer.as_deref().map(Offer::from),
 
             txid: payment.txid.map(|txid| txid.to_string()),
