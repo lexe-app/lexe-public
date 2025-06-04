@@ -517,6 +517,32 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 triggerRefresh: () {},
               ),
             ),
+            Component(
+              "PaymentDetailPage",
+              subtitle: "ln offer completed outbound",
+              (context) => PaymentDetailPageInner(
+                app: mockApp,
+                payment: this
+                    .makeCompletingPayment(mocks.dummyOfferOutboundPayment01),
+                paymentDateUpdates: this.paymentDateUpdates,
+                fiatRate: this.makeFiatRateStream(),
+                isSyncing: ValueNotifier(false),
+                triggerRefresh: () {},
+              ),
+            ),
+            Component(
+              "PaymentDetailPage",
+              subtitle: "ln offer completed inbound",
+              (context) => PaymentDetailPageInner(
+                app: mockApp,
+                payment: this
+                    .makeCompletingPayment(mocks.dummyOfferInboundPayment01),
+                paymentDateUpdates: this.paymentDateUpdates,
+                fiatRate: this.makeFiatRateStream(),
+                isSyncing: ValueNotifier(false),
+                triggerRefresh: () {},
+              ),
+            ),
             Component("ChannelsPage", (context) {
               // TODO(phlip9): fix issue where fiat rate unsets after hot reload
               final nodeInfoService = NodeInfoService(app: mockApp);

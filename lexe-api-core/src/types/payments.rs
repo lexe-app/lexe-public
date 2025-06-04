@@ -960,7 +960,7 @@ mod test {
     }
 
     // ```bash
-    // cargo test -p common --lib -- payment_id_gen_sample_data --ignored --nocapture
+    // cargo test -p lexe-api-core --lib -- payment_id_gen_sample_data --ignored --nocapture
     // ```
     #[ignore]
     #[test]

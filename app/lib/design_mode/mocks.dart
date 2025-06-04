@@ -949,6 +949,45 @@ const Payment dummyInvoiceOutboundCompleted01 = Payment(
   finalizedAt: 1739487458000,
 );
 
+const Payment dummyOfferOutboundPayment01 = Payment(
+  index: PaymentIndex(
+      field0:
+          "0000001748993362000-fs_1a0863b5785d35c34e008e8bd879e78a93b795640c2ad9e941a7d12f44356804"),
+  kind: PaymentKind.offer,
+  direction: PaymentDirection.outbound,
+  offer: Offer(
+    string:
+        "lno1qgsqvgnwgcg35z6ee2h3yczraddm72xrfua9uve2rlrm9deu7xyfzrc2p4zx7mnpw35k7m3q2pskwegwq35rl86qzr7sz0sztfk2ex9hfmq35agpv450kw90sx3ewxhzmcq5324qrl89gv02s54q862yje5mzjagzvvqs5ptwk9x5txt0rgecmsll7qyy2lurdjpcqerqvp0pvxu088jng3v560f94t4ajw6jltszfgh8flzm33w3gpqa6ajuwcqx0wqwsv40gp7rs2e2ywggmx5kjj4xdeq6ph62u7z7j2p8cvntcgyqxwywv86uyuu59033z6tzgsr8gme5g5q9gahnxul2fg44zen05t7w7mr23jqwr2t4hnvqmgpkzydskfzu66cqqec0uw2q0wmqknc2v6t53rpgkv5v9nu05k2w5k4a3kf942q9jgp0gqrrqwyc58k443qt9gfd3mzfmt452dksqc9d7cdls8v7dwlma2yq9275y6lrk4ctdeh0gwjkrtx9j9ncaxnryqzex9cvtpm8nvckhdhr889m4xhx04f5dqvl3d2mq0aex6ynnq4rlz7dsjqtqnrllw3vykzhtw3yrmsdp5kc6tsgpkx27r99eshquqkyypwq633sgq2xqayayzn3t76e49av3ecvdgtnvlst33ctpyg4mu5eps",
+    description: "Donation Page",
+    expiresAt: null,
+    amountSats: null,
+  ),
+  amountSat: 33000,
+  feesSat: 122,
+  status: PaymentStatus.completed,
+  statusStr: "completed",
+  note: "Donation",
+  createdAt: 1748993362000,
+  finalizedAt: 1748993364000,
+);
+
+const Payment dummyOfferInboundPayment01 = Payment(
+  index: PaymentIndex(
+      field0:
+          "0000001748999074000-fr_016041408597e243d2b7a8fddf2304288f4763809e340b94df32c12deb894927"),
+  kind: PaymentKind.offer,
+  direction: PaymentDirection.inbound,
+  // NOTE: inbound offer payments currently don't have the `offer` field set
+  offer: null,
+  amountSat: 59690,
+  feesSat: 0,
+  status: PaymentStatus.completed,
+  statusStr: "completed",
+  note: null,
+  createdAt: 1748999074000,
+  finalizedAt: 1748999075000,
+);
+
 // Default set of sample payments
 List<Payment> defaultDummyPayments = [
   dummyOnchainInboundCompleted01,
@@ -960,6 +999,8 @@ List<Payment> defaultDummyPayments = [
   dummyInvoiceInboundCompleted01,
   dummyInvoiceInboundFailed01,
   dummyOnchainOutboundCompleted01,
+  dummyOfferOutboundPayment01,
+  dummyOfferInboundPayment01,
 ].sortedBy((payment) => payment.index.field0);
 
 //

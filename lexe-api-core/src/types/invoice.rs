@@ -473,7 +473,7 @@ lnbc1mmj7z2hd427xtea2gtw8et4p5ta7lm6xe02nemhxvg7zse98734qudr2pucwaz3ua647tl9tv8n
 
     // Generate example invoices with specific values.
     // ```bash
-    // $ cargo test -p common -- --ignored invoice_dump --nocapture
+    // $ cargo test -p lexe-api-core -- --ignored invoice_dump --nocapture
     // ```
     #[ignore]
     #[test]
@@ -530,7 +530,7 @@ lnbc1mmj7z2hd427xtea2gtw8et4p5ta7lm6xe02nemhxvg7zse98734qudr2pucwaz3ua647tl9tv8n
 
     // Decode and print an invoice
     // ```bash
-    // $ cargo test -p common -- --ignored invoice_print --nocapture
+    // $ cargo test -p lexe-api-core -- --ignored invoice_print --nocapture
     // ```
     #[ignore]
     #[test]

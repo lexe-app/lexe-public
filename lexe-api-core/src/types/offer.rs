@@ -700,20 +700,22 @@ mod test {
     }
 
     // Generate example offers with specific values.
+    //
+    // `cargo test -p lexe-api-core --lib -- offer_dump --ignored --nocapture`
     #[ignore]
     #[test]
     fn offer_dump() {
-        let mut rng = FastRng::from_u64(123);
+        let mut rng = FastRng::from_u64(98111385158636);
 
         // false => use node_pk to sign offer (less privacy)
         // true => derive a signing keypair per offer (add ~50 B per offer).
         let is_blinded = true;
-        let network = None; // None ==> BTC mainnet
-        let description = Some("this is the description".to_owned());
-        let amount = Some(Amount::from_sats_u32(23_000));
+        let network = Some(LxNetwork::Regtest); // None ==> BTC mainnet
+        let description = Some("Donation Page".to_owned());
+        let amount = None;
         // duration since Unix epoch
-        let expiry = None;
-        let issuer = Some("this is the issuer".to_owned());
+        let expiry = Some(std::time::Duration::from_secs(1749000000));
+        let issuer = Some("philip@lexe.app".to_owned());
         let max_quantity = MaxQuantity::ONE;
         let message_context =
             MessageContext::Offers(OffersContext::InvoiceRequest {
@@ -761,7 +763,7 @@ mod test {
     }
 
     /// ```bash
-    /// $ cargo test -p common --lib -- offer_decode --ignored --nocapture
+    /// $ cargo test -p lexe-api-core --lib -- offer_decode --ignored --nocapture
     /// ```
     #[ignore]
     #[test]
