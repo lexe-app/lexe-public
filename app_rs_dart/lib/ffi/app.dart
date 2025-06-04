@@ -145,6 +145,9 @@ class AppHandle {
   Future<PayInvoiceResponse> payInvoice({required PayInvoiceRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandlePayInvoice(that: this, req: req);
 
+  Future<PayOfferResponse> payOffer({required PayOfferRequest req}) =>
+      AppRs.instance.api.crateFfiAppAppHandlePayOffer(that: this, req: req);
+
   Future<PayOnchainResponse> payOnchain({required PayOnchainRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandlePayOnchain(that: this, req: req);
 
@@ -162,6 +165,11 @@ class AppHandle {
           {required PreflightPayInvoiceRequest req}) =>
       AppRs.instance.api
           .crateFfiAppAppHandlePreflightPayInvoice(that: this, req: req);
+
+  Future<PreflightPayOfferResponse> preflightPayOffer(
+          {required PreflightPayOfferRequest req}) =>
+      AppRs.instance.api
+          .crateFfiAppAppHandlePreflightPayOffer(that: this, req: req);
 
   Future<PreflightPayOnchainResponse> preflightPayOnchain(
           {required PreflightPayOnchainRequest req}) =>

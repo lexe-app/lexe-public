@@ -835,6 +835,109 @@ abstract class _PayInvoiceResponse implements PayInvoiceResponse {
 }
 
 /// @nodoc
+mixin _$PayOfferRequest {
+  ClientPaymentId get cid => throw _privateConstructorUsedError;
+  String get offer => throw _privateConstructorUsedError;
+  int? get fallbackAmountSats => throw _privateConstructorUsedError;
+  String? get note => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PayOfferRequestImpl implements _PayOfferRequest {
+  const _$PayOfferRequestImpl(
+      {required this.cid,
+      required this.offer,
+      this.fallbackAmountSats,
+      this.note});
+
+  @override
+  final ClientPaymentId cid;
+  @override
+  final String offer;
+  @override
+  final int? fallbackAmountSats;
+  @override
+  final String? note;
+
+  @override
+  String toString() {
+    return 'PayOfferRequest(cid: $cid, offer: $offer, fallbackAmountSats: $fallbackAmountSats, note: $note)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PayOfferRequestImpl &&
+            (identical(other.cid, cid) || other.cid == cid) &&
+            (identical(other.offer, offer) || other.offer == offer) &&
+            (identical(other.fallbackAmountSats, fallbackAmountSats) ||
+                other.fallbackAmountSats == fallbackAmountSats) &&
+            (identical(other.note, note) || other.note == note));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, cid, offer, fallbackAmountSats, note);
+}
+
+abstract class _PayOfferRequest implements PayOfferRequest {
+  const factory _PayOfferRequest(
+      {required final ClientPaymentId cid,
+      required final String offer,
+      final int? fallbackAmountSats,
+      final String? note}) = _$PayOfferRequestImpl;
+
+  @override
+  ClientPaymentId get cid;
+  @override
+  String get offer;
+  @override
+  int? get fallbackAmountSats;
+  @override
+  String? get note;
+}
+
+/// @nodoc
+mixin _$PayOfferResponse {
+  PaymentIndex get index => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PayOfferResponseImpl implements _PayOfferResponse {
+  const _$PayOfferResponseImpl({required this.index});
+
+  @override
+  final PaymentIndex index;
+
+  @override
+  String toString() {
+    return 'PayOfferResponse(index: $index)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PayOfferResponseImpl &&
+            (identical(other.index, index) || other.index == index));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, index);
+}
+
+abstract class _PayOfferResponse implements PayOfferResponse {
+  const factory _PayOfferResponse({required final PaymentIndex index}) =
+      _$PayOfferResponseImpl;
+
+  @override
+  PaymentIndex get index;
+}
+
+/// @nodoc
 mixin _$PayOnchainRequest {
   ClientPaymentId get cid => throw _privateConstructorUsedError;
   String get address => throw _privateConstructorUsedError;
@@ -1169,6 +1272,108 @@ abstract class _PreflightPayInvoiceResponse
   const factory _PreflightPayInvoiceResponse(
       {required final int amountSats,
       required final int feesSats}) = _$PreflightPayInvoiceResponseImpl;
+
+  @override
+  int get amountSats;
+  @override
+  int get feesSats;
+}
+
+/// @nodoc
+mixin _$PreflightPayOfferRequest {
+  ClientPaymentId get cid => throw _privateConstructorUsedError;
+  String get offer => throw _privateConstructorUsedError;
+  int? get fallbackAmountSats => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PreflightPayOfferRequestImpl implements _PreflightPayOfferRequest {
+  const _$PreflightPayOfferRequestImpl(
+      {required this.cid, required this.offer, this.fallbackAmountSats});
+
+  @override
+  final ClientPaymentId cid;
+  @override
+  final String offer;
+  @override
+  final int? fallbackAmountSats;
+
+  @override
+  String toString() {
+    return 'PreflightPayOfferRequest(cid: $cid, offer: $offer, fallbackAmountSats: $fallbackAmountSats)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PreflightPayOfferRequestImpl &&
+            (identical(other.cid, cid) || other.cid == cid) &&
+            (identical(other.offer, offer) || other.offer == offer) &&
+            (identical(other.fallbackAmountSats, fallbackAmountSats) ||
+                other.fallbackAmountSats == fallbackAmountSats));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, cid, offer, fallbackAmountSats);
+}
+
+abstract class _PreflightPayOfferRequest implements PreflightPayOfferRequest {
+  const factory _PreflightPayOfferRequest(
+      {required final ClientPaymentId cid,
+      required final String offer,
+      final int? fallbackAmountSats}) = _$PreflightPayOfferRequestImpl;
+
+  @override
+  ClientPaymentId get cid;
+  @override
+  String get offer;
+  @override
+  int? get fallbackAmountSats;
+}
+
+/// @nodoc
+mixin _$PreflightPayOfferResponse {
+  int get amountSats => throw _privateConstructorUsedError;
+  int get feesSats => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PreflightPayOfferResponseImpl implements _PreflightPayOfferResponse {
+  const _$PreflightPayOfferResponseImpl(
+      {required this.amountSats, required this.feesSats});
+
+  @override
+  final int amountSats;
+  @override
+  final int feesSats;
+
+  @override
+  String toString() {
+    return 'PreflightPayOfferResponse(amountSats: $amountSats, feesSats: $feesSats)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PreflightPayOfferResponseImpl &&
+            (identical(other.amountSats, amountSats) ||
+                other.amountSats == amountSats) &&
+            (identical(other.feesSats, feesSats) ||
+                other.feesSats == feesSats));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, amountSats, feesSats);
+}
+
+abstract class _PreflightPayOfferResponse implements PreflightPayOfferResponse {
+  const factory _PreflightPayOfferResponse(
+      {required final int amountSats,
+      required final int feesSats}) = _$PreflightPayOfferResponseImpl;
 
   @override
   int get amountSats;

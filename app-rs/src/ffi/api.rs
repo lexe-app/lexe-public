@@ -32,6 +32,8 @@ use lexe_api::{
         OpenChannelResponse as OpenChannelResponseRs,
         PayInvoiceRequest as PayInvoiceRequestRs,
         PayInvoiceResponse as PayInvoiceResponseRs,
+        PayOfferRequest as PayOfferRequestRs,
+        PayOfferResponse as PayOfferResponseRs,
         PayOnchainRequest as PayOnchainRequestRs,
         PayOnchainResponse as PayOnchainResponseRs,
         PreflightCloseChannelResponse as PreflightCloseChannelResponseRs,
@@ -39,13 +41,15 @@ use lexe_api::{
         PreflightOpenChannelResponse as PreflightOpenChannelResponseRs,
         PreflightPayInvoiceRequest as PreflightPayInvoiceRequestRs,
         PreflightPayInvoiceResponse as PreflightPayInvoiceResponseRs,
+        PreflightPayOfferRequest as PreflightPayOfferRequestRs,
+        PreflightPayOfferResponse as PreflightPayOfferResponseRs,
         PreflightPayOnchainRequest as PreflightPayOnchainRequestRs,
         PreflightPayOnchainResponse as PreflightPayOnchainResponseRs,
         UpdatePaymentNote as UpdatePaymentNoteRs,
     },
     types::{
         invoice::LxInvoice,
-        offer::MaxQuantity,
+        offer::{LxOffer, MaxQuantity},
         payments::{
             ClientPaymentId as ClientPaymentIdRs, LxPaymentId as LxPaymentIdRs,
             PaymentIndex as PaymentIndexRs,
@@ -511,6 +515,7 @@ pub struct PreflightPayInvoiceResponse {
 
 impl From<PreflightPayInvoiceResponseRs> for PreflightPayInvoiceResponse {
     fn from(value: PreflightPayInvoiceResponseRs) -> Self {
+        // TODO(phlip9): display some route visualization in UI?
         Self {
             amount_sats: value.amount.sats_u64(),
             fees_sats: value.fees.sats_u64(),
@@ -553,6 +558,93 @@ impl From<CreateOfferResponseRs> for CreateOfferResponse {
     fn from(value: CreateOfferResponseRs) -> Self {
         Self {
             offer: Offer::from(value.offer),
+        }
+    }
+}
+
+/// See [`lexe_api::command::PreflightPayOfferRequest`].
+#[frb(dart_metadata=("freezed"))]
+pub struct PreflightPayOfferRequest {
+    pub cid: ClientPaymentId,
+    pub offer: String,
+    pub fallback_amount_sats: Option<u64>,
+}
+
+impl TryFrom<PreflightPayOfferRequest> for PreflightPayOfferRequestRs {
+    type Error = anyhow::Error;
+    fn try_from(value: PreflightPayOfferRequest) -> Result<Self, Self::Error> {
+        Ok(Self {
+            cid: ClientPaymentIdRs::from(value.cid),
+            offer: LxOffer::from_str(&value.offer)
+                .context("Failed to parse offer")?,
+            fallback_amount: value
+                .fallback_amount_sats
+                .map(Amount::try_from_sats_u64)
+                .transpose()?,
+        })
+    }
+}
+
+/// See [`lexe_api::command::PreflightPayOfferResponse`].
+#[frb(dart_metadata=("freezed"))]
+pub struct PreflightPayOfferResponse {
+    pub amount_sats: u64,
+    pub fees_sats: u64,
+}
+
+impl From<PreflightPayOfferResponseRs> for PreflightPayOfferResponse {
+    fn from(value: PreflightPayOfferResponseRs) -> Self {
+        // TODO(phlip9): display some route visualization in UI?
+        Self {
+            amount_sats: value.amount.sats_u64(),
+            fees_sats: value.fees.sats_u64(),
+        }
+    }
+}
+
+/// See [`lexe_api::command::PayOfferResponse`].
+#[frb(dart_metadata=("freezed"))]
+pub struct PayOfferRequest {
+    pub cid: ClientPaymentId,
+    pub offer: String,
+    pub fallback_amount_sats: Option<u64>,
+    pub note: Option<String>,
+}
+
+impl TryFrom<PayOfferRequest> for PayOfferRequestRs {
+    type Error = anyhow::Error;
+    fn try_from(value: PayOfferRequest) -> Result<Self, Self::Error> {
+        Ok(Self {
+            cid: ClientPaymentIdRs::from(value.cid),
+            offer: LxOffer::from_str(&value.offer)
+                .context("Failed to parse offer")?,
+            fallback_amount: value
+                .fallback_amount_sats
+                .map(Amount::try_from_sats_u64)
+                .transpose()?,
+            note: value.note,
+        })
+    }
+}
+
+/// See [`lexe_api::command::PayOfferResponse`].
+#[frb(dart_metadata=("freezed"))]
+pub struct PayOfferResponse {
+    /// When the node registered this payment. Used in the [`PaymentIndex`].
+    pub index: PaymentIndex,
+}
+
+impl PayOfferResponse {
+    pub(crate) fn from_id_and_response(
+        id: LxPaymentIdRs,
+        resp: PayOfferResponseRs,
+    ) -> Self {
+        let index = PaymentIndexRs {
+            created_at: resp.created_at,
+            id,
+        };
+        Self {
+            index: PaymentIndex::from(index),
         }
     }
 }

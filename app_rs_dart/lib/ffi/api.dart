@@ -15,8 +15,8 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'types.dart';
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `from_cid_and_response`, `from_id_and_response`, `validate_note`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
+// These functions are ignored because they are not marked as `pub`: `from_cid_and_response`, `from_id_and_response`, `from_id_and_response`, `validate_note`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
 @freezed
 class Balance with _$Balance {
@@ -163,6 +163,25 @@ class PayInvoiceResponse with _$PayInvoiceResponse {
   }) = _PayInvoiceResponse;
 }
 
+/// See [`lexe_api::command::PayOfferResponse`].
+@freezed
+class PayOfferRequest with _$PayOfferRequest {
+  const factory PayOfferRequest({
+    required ClientPaymentId cid,
+    required String offer,
+    int? fallbackAmountSats,
+    String? note,
+  }) = _PayOfferRequest;
+}
+
+/// See [`lexe_api::command::PayOfferResponse`].
+@freezed
+class PayOfferResponse with _$PayOfferResponse {
+  const factory PayOfferResponse({
+    required PaymentIndex index,
+  }) = _PayOfferResponse;
+}
+
 /// See [`lexe_api::command::PayOnchainRequest`].
 @freezed
 class PayOnchainRequest with _$PayOnchainRequest {
@@ -221,6 +240,25 @@ class PreflightPayInvoiceResponse with _$PreflightPayInvoiceResponse {
     required int amountSats,
     required int feesSats,
   }) = _PreflightPayInvoiceResponse;
+}
+
+/// See [`lexe_api::command::PreflightPayOfferRequest`].
+@freezed
+class PreflightPayOfferRequest with _$PreflightPayOfferRequest {
+  const factory PreflightPayOfferRequest({
+    required ClientPaymentId cid,
+    required String offer,
+    int? fallbackAmountSats,
+  }) = _PreflightPayOfferRequest;
+}
+
+/// See [`lexe_api::command::PreflightPayOfferResponse`].
+@freezed
+class PreflightPayOfferResponse with _$PreflightPayOfferResponse {
+  const factory PreflightPayOfferResponse({
+    required int amountSats,
+    required int feesSats,
+  }) = _PreflightPayOfferResponse;
 }
 
 /// See [`lexe_api::command::PreflightPayOnchainRequest`].

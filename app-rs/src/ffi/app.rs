@@ -18,11 +18,15 @@ use lexe_api::{
     models::command::{
         GetAddressResponse, OpenChannelRequest as OpenChannelRequestRs,
         PayInvoiceRequest as PayInvoiceRequestRs,
+        PayOfferRequest as PayOfferRequestRs,
         PayOnchainRequest as PayOnchainRequestRs,
         PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
         UpdatePaymentNote as UpdatePaymentNoteRs,
     },
-    types::{payments::PaymentIndex as PaymentIndexRs, Empty},
+    types::{
+        payments::{LxPaymentId, PaymentIndex as PaymentIndexRs},
+        Empty,
+    },
 };
 use tracing::instrument;
 
@@ -32,12 +36,13 @@ use crate::ffi::{
         CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
         CreateOfferResponse, FiatRates, ListChannelsResponse, NodeInfo,
         OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-        PayInvoiceResponse, PayOnchainRequest, PayOnchainResponse,
-        PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-        PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-        PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-        PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-        UpdateClientRequest, UpdatePaymentNote,
+        PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+        PayOnchainRequest, PayOnchainResponse, PreflightCloseChannelRequest,
+        PreflightCloseChannelResponse, PreflightOpenChannelRequest,
+        PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
+        PreflightPayInvoiceResponse, PreflightPayOfferRequest,
+        PreflightPayOfferResponse, PreflightPayOnchainRequest,
+        PreflightPayOnchainResponse, UpdateClientRequest, UpdatePaymentNote,
     },
     settings::SettingsDb,
     types::{
@@ -317,6 +322,34 @@ impl AppHandle {
             .create_offer(req.try_into()?)
             .await
             .map(CreateOfferResponse::from)
+            .map_err(anyhow::Error::new)
+    }
+
+    #[instrument(skip_all, name = "(preflight-pay-offer)")]
+    pub async fn preflight_pay_offer(
+        &self,
+        req: PreflightPayOfferRequest,
+    ) -> anyhow::Result<PreflightPayOfferResponse> {
+        self.inner
+            .node_client()
+            .preflight_pay_offer(req.try_into()?)
+            .await
+            .map(PreflightPayOfferResponse::from)
+            .map_err(anyhow::Error::new)
+    }
+
+    #[instrument(skip_all, name = "(pay-offer)")]
+    pub async fn pay_offer(
+        &self,
+        req: PayOfferRequest,
+    ) -> anyhow::Result<PayOfferResponse> {
+        let req = PayOfferRequestRs::try_from(req)?;
+        let id = LxPaymentId::OfferSend(req.cid);
+        self.inner
+            .node_client()
+            .pay_offer(req)
+            .await
+            .map(|resp| PayOfferResponse::from_id_and_response(id, resp))
             .map_err(anyhow::Error::new)
     }
 
