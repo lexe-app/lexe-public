@@ -292,6 +292,8 @@ mixin _$Offer {
   String? get description => throw _privateConstructorUsedError;
   int? get expiresAt => throw _privateConstructorUsedError;
   int? get amountSats => throw _privateConstructorUsedError;
+  String? get payee => throw _privateConstructorUsedError;
+  String? get payeePubkey => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -301,7 +303,9 @@ class _$OfferImpl implements _Offer {
       {required this.string,
       this.description,
       this.expiresAt,
-      this.amountSats});
+      this.amountSats,
+      this.payee,
+      this.payeePubkey});
 
   @override
   final String string;
@@ -311,10 +315,14 @@ class _$OfferImpl implements _Offer {
   final int? expiresAt;
   @override
   final int? amountSats;
+  @override
+  final String? payee;
+  @override
+  final String? payeePubkey;
 
   @override
   String toString() {
-    return 'Offer(string: $string, description: $description, expiresAt: $expiresAt, amountSats: $amountSats)';
+    return 'Offer(string: $string, description: $description, expiresAt: $expiresAt, amountSats: $amountSats, payee: $payee, payeePubkey: $payeePubkey)';
   }
 
   @override
@@ -328,12 +336,15 @@ class _$OfferImpl implements _Offer {
             (identical(other.expiresAt, expiresAt) ||
                 other.expiresAt == expiresAt) &&
             (identical(other.amountSats, amountSats) ||
-                other.amountSats == amountSats));
+                other.amountSats == amountSats) &&
+            (identical(other.payee, payee) || other.payee == payee) &&
+            (identical(other.payeePubkey, payeePubkey) ||
+                other.payeePubkey == payeePubkey));
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, string, description, expiresAt, amountSats);
+  int get hashCode => Object.hash(runtimeType, string, description, expiresAt,
+      amountSats, payee, payeePubkey);
 }
 
 abstract class _Offer implements Offer {
@@ -341,7 +352,9 @@ abstract class _Offer implements Offer {
       {required final String string,
       final String? description,
       final int? expiresAt,
-      final int? amountSats}) = _$OfferImpl;
+      final int? amountSats,
+      final String? payee,
+      final String? payeePubkey}) = _$OfferImpl;
 
   @override
   String get string;
@@ -351,6 +364,10 @@ abstract class _Offer implements Offer {
   int? get expiresAt;
   @override
   int? get amountSats;
+  @override
+  String? get payee;
+  @override
+  String? get payeePubkey;
 }
 
 /// @nodoc

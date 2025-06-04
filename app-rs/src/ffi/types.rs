@@ -422,6 +422,9 @@ pub struct Offer {
 
     pub expires_at: Option<i64>,
     pub amount_sats: Option<u64>,
+
+    pub payee: Option<String>,
+    pub payee_pubkey: Option<String>,
 }
 
 impl From<&LxOffer> for Offer {
@@ -433,6 +436,9 @@ impl From<&LxOffer> for Offer {
 
             expires_at: offer.expires_at().map(TimestampMs::to_i64),
             amount_sats: offer.amount().map(|amt| amt.sats_u64()),
+
+            payee: offer.payee().map(String::from),
+            payee_pubkey: offer.payee_node_pk().map(|pk| pk.to_string()),
         }
     }
 }

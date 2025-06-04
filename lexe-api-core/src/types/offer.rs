@@ -131,10 +131,21 @@ impl LxOffer {
         self.0.supports_chain(network.genesis_chain_hash())
     }
 
-    /// Returns the payee [`NodePk`]. May not be a real node id if the offer is
-    /// blinded for recipient privacy.
+    /// The self-reported payee name, if any. Ex: "satoshi@lexe.app", "Satoshi"
+    pub fn payee(&self) -> Option<&str> {
+        self.0.issuer().map(|s| s.0)
+    }
+
+    /// Returns the payee [`NodePk`]. Unlike LDK, we only return `Some` if this
+    /// is a real pubkey and not a transient blinded pubkey.
     pub fn payee_node_pk(&self) -> Option<NodePk> {
-        self.0.issuer_signing_pubkey().map(NodePk)
+        if self.0.paths().is_empty() {
+            // No blinded paths, so the issuer signing pubkey is the payee node
+            // pubkey.
+            self.0.issuer_signing_pubkey().map(NodePk)
+        } else {
+            None
+        }
     }
 
     /// The absolute expiration time of the offer, if any.

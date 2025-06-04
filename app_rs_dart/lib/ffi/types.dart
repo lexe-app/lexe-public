@@ -158,6 +158,8 @@ class Offer with _$Offer {
     String? description,
     int? expiresAt,
     int? amountSats,
+    String? payee,
+    String? payeePubkey,
   }) = _Offer;
 }
 

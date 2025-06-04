@@ -961,6 +961,8 @@ const Payment dummyOfferOutboundPayment01 = Payment(
     description: "Donation Page",
     expiresAt: null,
     amountSats: null,
+    payee: "philip@lexe.app",
+    payeePubkey: null,
   ),
   amountSat: 33000,
   feesSat: 122,
