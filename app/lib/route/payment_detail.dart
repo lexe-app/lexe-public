@@ -442,6 +442,10 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                   final invoice = payment.invoice;
                   final payeePubkey = invoice?.payeePubkey;
 
+                  final offer = payment.offer;
+                  final offerExpiresAt = offer?.expiresAt;
+                  final offerAmountSat = offer?.amountSats;
+
                   final txid = payment.txid;
                   final replacement = payment.replacement;
 
@@ -457,7 +461,11 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                           status != PaymentStatus.completed)
                       ? DateTime.fromMillisecondsSinceEpoch(invoice.expiresAt,
                           isUtc: true)
-                      : null;
+                      : (offerExpiresAt != null &&
+                              status != PaymentStatus.completed)
+                          ? DateTime.fromMillisecondsSinceEpoch(offerExpiresAt,
+                              isUtc: true)
+                          : null;
                   final maybeFinalizedAt = payment.finalizedAt;
                   final finalizedAt = (maybeFinalizedAt != null)
                       ? DateTime.fromMillisecondsSinceEpoch(maybeFinalizedAt,
@@ -475,8 +483,8 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                         label: "Payment hash", value: this.paymentIdxBody()),
                     (PaymentKind.spontaneous, _) => InfoRow(
                         label: "Payment hash", value: this.paymentIdxBody()),
-                    (PaymentKind.offer, PaymentDirection.inbound) =>
-                      InfoRow(label: "Claim id", value: this.paymentIdxBody()),
+                    (PaymentKind.offer, PaymentDirection.inbound) => InfoRow(
+                        label: "Offer claim id", value: this.paymentIdxBody()),
                     (PaymentKind.offer, PaymentDirection.outbound) => InfoRow(
                         label: "Client payment id",
                         value: this.paymentIdxBody()),
@@ -563,6 +571,13 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                                 invoiceAmountSat, fiatRate),
                           ),
 
+                        if (offerAmountSat != null)
+                          InfoRow(
+                            label: "Offer amount",
+                            value: formatSatsAmountFiatBelow(
+                                offerAmountSat, fiatRate),
+                          ),
+
                         // TODO(phlip9): breakdown fees
                         InfoRow(
                           label: "Fees",
@@ -588,6 +603,10 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                       // the full invoice
                       if (invoice != null)
                         InfoRow(label: "Invoice", value: invoice.string),
+
+                      // the full offer
+                      if (offer != null)
+                        InfoRow(label: "Offer", value: offer.string),
                     ]),
 
                     const SizedBox(height: Space.s400)

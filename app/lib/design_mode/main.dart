@@ -522,8 +522,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               subtitle: "ln offer completed outbound",
               (context) => PaymentDetailPageInner(
                 app: mockApp,
-                payment: this
-                    .makeCompletingPayment(mocks.dummyOfferOutboundPayment01),
+                payment: ValueNotifier(mocks.dummyOfferOutboundPayment01),
                 paymentDateUpdates: this.paymentDateUpdates,
                 fiatRate: this.makeFiatRateStream(),
                 isSyncing: ValueNotifier(false),
@@ -535,8 +534,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               subtitle: "ln offer completed inbound",
               (context) => PaymentDetailPageInner(
                 app: mockApp,
-                payment: this
-                    .makeCompletingPayment(mocks.dummyOfferInboundPayment01),
+                payment: ValueNotifier(mocks.dummyOfferInboundPayment01),
                 paymentDateUpdates: this.paymentDateUpdates,
                 fiatRate: this.makeFiatRateStream(),
                 isSyncing: ValueNotifier(false),

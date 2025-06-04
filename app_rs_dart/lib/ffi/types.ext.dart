@@ -4,6 +4,7 @@ library;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         Invoice,
+        Offer,
         Payment,
         PaymentDirection,
         PaymentIndex,
@@ -52,6 +53,8 @@ extension PaymentExt on Payment {
     PaymentKind? kind,
     PaymentDirection? direction,
     Invoice? invoice,
+    Offer? offer,
+    String? txid,
     String? replacement,
     int? amountSat,
     int? feesSat,
@@ -66,6 +69,8 @@ extension PaymentExt on Payment {
         kind: kind ?? this.kind,
         direction: direction ?? this.direction,
         invoice: invoice ?? this.invoice,
+        offer: offer ?? this.offer,
+        txid: txid ?? this.txid,
         replacement: replacement ?? this.replacement,
         amountSat: amountSat ?? this.amountSat,
         feesSat: feesSat ?? this.feesSat,
