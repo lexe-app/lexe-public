@@ -11,6 +11,12 @@ This repository contains all public code including the user Lightning node, iOS 
 
 More information is available on our website: [lexe.app](https://lexe.app)
 
+## Lexe SDKs
+
+Looking for Lexe's SDKs? This repo only contains source code. The docs are here:
+
+- Sidecar SDK: <https://github.com/lexe-app/lexe-sidecar-sdk>
+
 ## Guide to this repository
 
 - [`node`](./node): Lightning node (usually referred to as the "user node").
