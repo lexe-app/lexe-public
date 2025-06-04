@@ -18,7 +18,7 @@ use common::{
     ed25519,
     enclave::{self, MachineId, Measurement, MinCpusvn},
     env::DeployEnv,
-    ln::{channel::LxOutPoint, network::LxNetwork},
+    ln::{balance::OnchainBalance, channel::LxOutPoint, network::LxNetwork},
     net,
     rng::{Crng, SysRng},
     root_seed::RootSeed,
@@ -805,7 +805,7 @@ impl UserNode {
                         }
 
                         let channels = channel_manager.list_channels();
-                        let node_info = lexe_ln::command::node_info(
+                        let mut node_info = lexe_ln::command::node_info(
                             version.clone(),
                             measurement,
                             user_pk,
@@ -816,9 +816,16 @@ impl UserNode {
                             &channels,
                             lsp_info.lsp_fees(),
                         );
+                        // For privacy, zero out the on-chain balance so we
+                        // don't leak this info in logs. Lexe can derive all of
+                        // our LN balances by nature of being our LSP so there's
+                        // no point in redacting the rest.
+                        node_info.onchain_balance = OnchainBalance::ZERO;
                         let node_info_json = serde_json::to_string(&node_info)
                             .expect("Failed to serialize node info");
-                        info!("Node info: {node_info_json}");
+                        info!(
+                            "Node info (on-chain zeroed out): {node_info_json}"
+                        );
                     }
                 },
             )
