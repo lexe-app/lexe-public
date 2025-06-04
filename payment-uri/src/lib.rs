@@ -229,21 +229,11 @@ impl PaymentUri {
         let best = payment_methods
             .into_iter()
             .max_by_key(|x| match x {
-                PaymentMethod::Invoice(_) => 20,
+                PaymentMethod::Invoice(_) => 30,
+                PaymentMethod::Offer(_) => 20,
                 PaymentMethod::Onchain(o) => 10 + o.relative_priority(),
-                // TODO(phlip9): increase priority when BOLT12 support
-                PaymentMethod::Offer(_) => {
-                    debug_assert!(false, "BOLT12 not supported yet");
-                    0
-                }
             })
             .expect("We just checked there's at least one method");
-
-        // TODO(phlip9): remove when BOLT12 support
-        ensure!(
-            !best.is_offer(),
-            "Lexe doesn't currently support Lightning BOLT12 Offers",
-        );
 
         Ok(best)
     }
