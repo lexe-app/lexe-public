@@ -182,6 +182,12 @@ impl LxOffer {
         }
     }
 
+    /// Returns `true` if the offer has a required amount that is denominated
+    /// in a fiat currency and not BTC.
+    pub fn is_fiat_denominated(&self) -> bool {
+        matches!(self.0.amount(), Some(offer::Amount::Currency { .. }))
+    }
+
     #[inline]
     pub fn expects_quantity(&self) -> bool {
         self.0.expects_quantity()

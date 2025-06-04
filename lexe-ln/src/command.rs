@@ -1358,6 +1358,12 @@ where
     // Fail expired offers early.
     ensure!(!offer.is_expired(), "Offer has expired");
 
+    // We only support paying BTC-denominated offers at the moment.
+    ensure!(
+        !offer.is_fiat_denominated(),
+        "Fiat-denominated offers are not supported yet"
+    );
+
     // Fail offer double-payment early.
     let payment_id = LxPaymentId::OfferSend(req.cid);
     if payments_manager.contains_payment_id(&payment_id).await {
