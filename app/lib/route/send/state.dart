@@ -6,9 +6,12 @@ import 'package:app_rs_dart/ffi/api.dart'
     show
         Balance,
         PayInvoiceRequest,
+        PayOfferRequest,
         PayOnchainRequest,
         PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse,
+        PreflightPayOfferRequest,
+        PreflightPayOfferResponse,
         PreflightPayOnchainRequest,
         PreflightPayOnchainResponse;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
@@ -19,6 +22,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         ConfirmationPriority,
         Invoice,
         Network,
+        Offer,
         Onchain,
         Payment,
         PaymentDirection,
@@ -151,8 +155,7 @@ class SendState_NeedAmount implements SendState {
   int? canPreflightImmediately() => switch (this.paymentMethod) {
         PaymentMethod_Onchain(:final field0) => field0.amountSats,
         PaymentMethod_Invoice(:final field0) => field0.amountSats,
-        PaymentMethod_Offer() =>
-          throw UnimplementedError("BOLT12 offers unsupported"),
+        PaymentMethod_Offer(:final field0) => field0.amountSats,
       };
 
   /// Using the current [PaymentMethod], preflight the payment with the given
@@ -205,8 +208,24 @@ class SendState_NeedAmount implements SendState {
         }
 
       // BOLT12 Offer
-      case PaymentMethod_Offer():
-        throw UnimplementedError("BOLT12 offers not supported");
+      case PaymentMethod_Offer(:final field0):
+        final offer = field0;
+        final req = PreflightPayOfferRequest(
+          cid: this.cid,
+          offer: offer.string,
+          fallbackAmountSats: (offer.amountSats == null) ? amountSats : null,
+        );
+
+        final result = await Result.tryFfiAsync(
+            () async => this.app.preflightPayOffer(req: req));
+
+        switch (result) {
+          case Ok(:final ok):
+            preflighted = PreflightedPayment_Offer(
+                offer: offer, amountSats: amountSats, preflight: ok);
+          case Err(:final err):
+            return Err(err);
+        }
     }
 
     return Ok(SendState_Preflighted(
@@ -249,8 +268,7 @@ class SendState_Preflighted implements SendState {
       PreflightedPayment_Onchain() =>
         await this.payOnchain(preflighted, note, confPriority!),
       PreflightedPayment_Invoice() => await this.payInvoice(preflighted, note),
-      PreflightedPayment_Offer() =>
-        throw UnimplementedError("BOLT12 offers are unsupported"),
+      PreflightedPayment_Offer() => await this.payOffer(preflighted, note),
     };
   }
 
@@ -338,6 +356,46 @@ class SendState_Preflighted implements SendState {
       ),
     );
   }
+
+  Future<FfiResult<SendFlowResult>> payOffer(
+    final PreflightedPayment_Offer preflighted,
+    final String? note,
+  ) async {
+    final req = PayOfferRequest(
+      cid: this.cid,
+      offer: preflighted.offer.string,
+      fallbackAmountSats: (preflighted.offer.amountSats == null)
+          ? preflighted.amountSats
+          : null,
+      note: note,
+    );
+
+    final res =
+        (await Result.tryFfiAsync(() async => this.app.payOffer(req: req)));
+    return res.map(
+      (resp) => SendFlowResult(
+        payment: Payment(
+          index: resp.index,
+          kind: PaymentKind.offer,
+          direction: PaymentDirection.outbound,
+          status: PaymentStatus.pending,
+          statusStr: "syncing from node",
+          offer: preflighted.offer,
+          note: note,
+
+          // Choose some reasonable values until we can get these from the
+          // response.
+
+          // TODO(phlip9): get from resp/index
+          createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
+          // TODO(phlip9): get from resp
+          amountSat: preflighted.preflight.amountSats,
+          // TODO(phlip9): get from resp
+          feesSat: preflighted.preflight.feesSats,
+        ),
+      ),
+    );
+  }
 }
 
 /// A preflighted [PaymentMethod] -- the user's node has made sure the payment
@@ -383,10 +441,17 @@ class PreflightedPayment_Onchain implements PreflightedPayment {
   PaymentKind kind() => PaymentKind.onchain;
 }
 
-// TODO(phlip9): impl BOLT12 offer
 class PreflightedPayment_Offer implements PreflightedPayment {
-  const PreflightedPayment_Offer();
+  const PreflightedPayment_Offer({
+    required this.offer,
+    required this.amountSats,
+    required this.preflight,
+  });
+
+  final Offer offer;
+  final int amountSats;
+  final PreflightPayOfferResponse preflight;
 
   @override
-  PaymentKind kind() => throw UnimplementedError();
+  PaymentKind kind() => PaymentKind.offer;
 }

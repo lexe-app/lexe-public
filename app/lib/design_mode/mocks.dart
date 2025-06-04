@@ -23,6 +23,8 @@ import 'package:app_rs_dart/ffi/api.dart'
         OpenChannelResponse,
         PayInvoiceRequest,
         PayInvoiceResponse,
+        PayOfferRequest,
+        PayOfferResponse,
         PayOnchainRequest,
         PayOnchainResponse,
         PreflightCloseChannelResponse,
@@ -30,6 +32,8 @@ import 'package:app_rs_dart/ffi/api.dart'
         PreflightOpenChannelResponse,
         PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse,
+        PreflightPayOfferRequest,
+        PreflightPayOfferResponse,
         PreflightPayOnchainRequest,
         PreflightPayOnchainResponse,
         UpdateClientRequest,
@@ -235,8 +239,8 @@ class MockAppHandle extends AppHandle {
       Future.delayed(
         const Duration(seconds: 1),
         // () => throw FfiError("Request timed out").toFfi(),
-        () => const PreflightPayInvoiceResponse(
-          amountSats: 9999,
+        () => PreflightPayInvoiceResponse(
+          amountSats: req.fallbackAmountSats ?? 9999,
           feesSats: 123,
         ),
       );
@@ -263,6 +267,27 @@ class MockAppHandle extends AppHandle {
       ),
     );
   }
+
+  @override
+  Future<PayOfferResponse> payOffer({
+    required PayOfferRequest req,
+  }) =>
+      Future.delayed(
+        const Duration(milliseconds: 1200),
+        () => PayOfferResponse(index: dummyOfferOutboundPayment01.index),
+      );
+
+  @override
+  Future<PreflightPayOfferResponse> preflightPayOffer(
+          {required PreflightPayOfferRequest req}) =>
+      Future.delayed(
+        const Duration(seconds: 1),
+        // () => throw FfiError("Request timed out").toFfi(),
+        () => PreflightPayOfferResponse(
+          amountSats: req.fallbackAmountSats ?? 9999,
+          feesSats: 123,
+        ),
+      );
 
   @override
   Future<bool> syncPayments() =>

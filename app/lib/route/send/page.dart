@@ -11,7 +11,6 @@ import 'package:app_rs_dart/ffi/types.dart'
     show ConfirmationPriority, PaymentKind;
 import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:flutter/material.dart';
-import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
@@ -46,6 +45,7 @@ import 'package:lexeapp/route/send/state.dart'
         SendState_NeedAmount,
         SendState_NeedUri,
         SendState_Preflighted;
+import 'package:lexeapp/string_ext.dart';
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 /// The entry point for the send payment flow. This will dispatch to the right
@@ -572,8 +572,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
   int amountSats() => switch (this.widget.sendCtx.preflightedPayment) {
         PreflightedPayment_Invoice(:final preflight) => preflight.amountSats,
         PreflightedPayment_Onchain(:final amountSats) => amountSats,
-        PreflightedPayment_Offer() =>
-          throw UnimplementedError("BOLT12 offers are unsupported"),
+        PreflightedPayment_Offer(:final preflight) => preflight.amountSats,
       };
 
   int feeSats() => switch (this.widget.sendCtx.preflightedPayment) {
@@ -585,17 +584,18 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             ConfirmationPriority.background => preflight.background.amountSats,
           },
         PreflightedPayment_Invoice(:final preflight) => preflight.feesSats,
-        PreflightedPayment_Offer() =>
-          throw UnimplementedError("BOLT12 offers are unsupported"),
+        PreflightedPayment_Offer(:final preflight) => preflight.feesSats,
       };
 
   int totalSats() => this.amountSats() + this.feeSats();
 
   String payee() => switch (this.widget.sendCtx.preflightedPayment) {
-        PreflightedPayment_Invoice(:final invoice) => invoice.payeePubkey,
-        PreflightedPayment_Onchain(:final onchain) => onchain.address,
-        PreflightedPayment_Offer() =>
-          throw UnimplementedError("BOLT12 offers are unsupported"),
+        PreflightedPayment_Invoice(:final invoice) =>
+          invoice.payeePubkey.ellipsizeMid(),
+        PreflightedPayment_Onchain(:final onchain) =>
+          onchain.address.ellipsizeMid(),
+        PreflightedPayment_Offer(:final offer) =>
+          offer.payee ?? offer.payeePubkey?.ellipsizeMid() ?? "(private node)",
       };
 
   String? note() => this.noteFieldKey.currentState?.value;
@@ -604,7 +604,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
   Widget build(BuildContext context) {
     final preflighted = this.widget.sendCtx.preflightedPayment;
 
-    final shortPayee = address_format.ellipsizeBtcAddress(this.payee());
+    final shortPayee = this.payee();
 
     final amountSatsStr = currency_format.formatSatsAmount(this.amountSats());
 
