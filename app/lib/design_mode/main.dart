@@ -467,7 +467,18 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "ReceivePaymentPage",
               (context) => ReceivePaymentPage(
                 app: mockApp,
-                featureFlags: const FeatureFlags.all(),
+                featureFlags: const FeatureFlags.none(),
+                fiatRate: this.makeFiatRateStream(),
+              ),
+            ),
+            Component(
+              "ReceivePaymentPage",
+              subtitle: "BOLT12 offers feature disabled",
+              (context) => ReceivePaymentPage(
+                app: mockApp,
+                featureFlags: const FeatureFlags.all(
+                  showBolt12OffersRecvPage: false,
+                ),
                 fiatRate: this.makeFiatRateStream(),
               ),
             ),

@@ -78,6 +78,7 @@ class ReceivePaymentPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ReceivePaymentPageInner(
         app: this.app,
+        featureFlags: this.featureFlags,
         fiatRate: this.fiatRate,
         viewportWidth: MediaQuery.sizeOf(context).width,
       );
@@ -89,11 +90,13 @@ class ReceivePaymentPageInner extends StatefulWidget {
   const ReceivePaymentPageInner({
     super.key,
     required this.app,
+    required this.featureFlags,
     required this.fiatRate,
     required this.viewportWidth,
   });
 
   final AppHandle app;
+  final FeatureFlags featureFlags;
   final ValueListenable<FiatRate?> fiatRate;
 
   final double viewportWidth;
@@ -104,6 +107,9 @@ class ReceivePaymentPageInner extends StatefulWidget {
 }
 
 class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
+  /// Whether we should show the experimental BOLT12 offers recv page.
+  late bool showOffer = this.widget.featureFlags.showBolt12OffersRecvPage;
+
   /// Controls the [PageView].
   late PageController pageController = this.newPageController();
 
@@ -134,17 +140,24 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   );
 
   /// Each page offer.
-  final List<ValueNotifier<PaymentOffer>> paymentOffers = [
+  // TODO(phlip9): make final again once offers always enabled
+  late List<ValueNotifier<PaymentOffer>> paymentOffers = [
     ValueNotifier(
       const PaymentOffer.unloaded(kind: PaymentOfferKind.lightningInvoice),
     ),
-    ValueNotifier(
-      const PaymentOffer.unloaded(kind: PaymentOfferKind.lightningOffer),
-    ),
+    if (this.showOffer)
+      ValueNotifier(
+        const PaymentOffer.unloaded(kind: PaymentOfferKind.lightningOffer),
+      ),
     ValueNotifier(
       const PaymentOffer.unloaded(kind: PaymentOfferKind.btcAddress),
     ),
   ];
+
+  // TODO(phlip9): once offers always enabled, make these constants again.
+  int get lnInvoicePageIdx => 0;
+  int get lnOfferPageIdx => this.showOffer ? 1 : -1;
+  int get btcPageIdx => this.showOffer ? 2 : 1;
 
   @override
   void initState() {
@@ -154,7 +167,9 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     this.lnInvoiceInputs.addListener(this.doFetchLnInvoice);
 
     // Fetch a new lightning offer when its inputs change.
-    this.lnOfferInputs.addListener(this.doFetchLnOffer);
+    if (this.showOffer) {
+      this.lnOfferInputs.addListener(this.doFetchLnOffer);
+    }
 
     // Fetch a new btc address when certain BTC inputs change.
     this.btcAddrInputs.addListener(this.doFetchBtc);
@@ -163,7 +178,9 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     // address.
 
     unawaited(this.doFetchLnInvoice());
-    unawaited(this.doFetchLnOffer());
+    if (this.showOffer) {
+      unawaited(this.doFetchLnOffer());
+    }
     unawaited(this.doFetchBtc());
   }
 
