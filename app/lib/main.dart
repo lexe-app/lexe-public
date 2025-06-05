@@ -6,6 +6,7 @@ import 'package:intl/intl.dart' show Intl;
 import 'package:intl/intl_standalone.dart' as intl_standalone;
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/date_format.dart' as date_format;
+import 'package:lexeapp/feature_flags.dart';
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/route/landing.dart' show LandingPage;
@@ -53,6 +54,8 @@ Future<void> main() async {
   if (maybeApp != null) {
     final app = maybeApp;
     final settings = LxSettings(app.settingsDb());
+    final featureFlags = FeatureFlags(
+        deployEnv: config.deployEnv, userPk: app.userInfo().userPk);
 
     // If user has a locale preference set then use that over the system locale.
     final locale = settings.locale.value;
@@ -65,6 +68,7 @@ Future<void> main() async {
       config: config,
       app: app,
       settings: settings,
+      featureFlags: featureFlags,
       uriEvents: uriEvents,
       gdriveAuth: gdriveAuth,
     );

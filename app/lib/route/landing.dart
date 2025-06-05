@@ -12,6 +12,7 @@ import 'package:flutter_markdown/flutter_markdown.dart'
     show MarkdownBody, MarkdownStyleSheet;
 import 'package:lexeapp/components.dart'
     show CarouselIndicatorsAndButtons, LxFilledButton, LxOutlinedButton;
+import 'package:lexeapp/feature_flags.dart' show FeatureFlags;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/route/restore.dart' show RestoreApi, RestorePage;
@@ -86,11 +87,16 @@ class _LandingPageState extends State<LandingPage> {
     info("landing: successfully signed up");
 
     final app = flowResult;
+    final settings = LxSettings(app.settingsDb());
+    final featureFlags = FeatureFlags(
+        deployEnv: this.widget.config.deployEnv, userPk: app.userInfo().userPk);
+
     unawaited(Navigator.of(this.context).pushReplacement(MaterialPageRoute(
       builder: (_) => WalletPage(
         config: this.widget.config,
         app: app,
-        settings: LxSettings(app.settingsDb()),
+        settings: settings,
+        featureFlags: featureFlags,
         uriEvents: this.widget.uriEvents,
         gdriveAuth: this.widget.gdriveAuth,
       ),
@@ -116,11 +122,16 @@ class _LandingPageState extends State<LandingPage> {
     info("landing: successfully restored");
 
     final app = flowResult;
+    final settings = LxSettings(app.settingsDb());
+    final featureFlags = FeatureFlags(
+        deployEnv: this.widget.config.deployEnv, userPk: app.userInfo().userPk);
+
     unawaited(Navigator.of(this.context).pushReplacement(MaterialPageRoute(
       builder: (_) => WalletPage(
         config: this.widget.config,
         app: app,
-        settings: LxSettings(app.settingsDb()),
+        settings: settings,
+        featureFlags: featureFlags,
         uriEvents: this.widget.uriEvents,
         gdriveAuth: this.widget.gdriveAuth,
       ),

@@ -50,6 +50,7 @@ import 'package:lexeapp/components.dart'
         showModalAsyncFlow;
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/design_mode/mocks.dart' as mocks;
+import 'package:lexeapp/feature_flags.dart' show FeatureFlags;
 import 'package:lexeapp/gdrive_auth.dart'
     show GDriveAuth, GDriveServerAuthCode, MockGDriveRestoreCandidate;
 import 'package:lexeapp/logger.dart';
@@ -310,9 +311,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             Component(
               "WalletPage",
               (_) => WalletPage(
+                config: widget.config,
                 app: mockApp,
                 settings: LxSettings(mockApp.settingsDb()),
-                config: widget.config,
+                featureFlags: const FeatureFlags.all(),
                 uriEvents: this.widget.uriEvents,
                 gdriveAuth: GDriveAuth.mock,
               ),
@@ -321,13 +323,14 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "WalletPage",
               subtitle: "fresh wallet with no payments",
               (_) => WalletPage(
+                config: widget.config,
                 app: mocks.MockAppHandle(
                   payments: [],
                   channels: [],
                   balance: mocks.balanceZero,
                 ),
                 settings: LxSettings(mockApp.settingsDb()),
-                config: widget.config,
+                featureFlags: const FeatureFlags.all(),
                 uriEvents: this.widget.uriEvents,
                 gdriveAuth: GDriveAuth.mock,
               ),
@@ -336,13 +339,14 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "WalletPage",
               subtitle: "on-chain-only wallet",
               (_) => WalletPage(
+                config: widget.config,
                 app: mocks.MockAppHandle(
                   payments: [mocks.dummyOnchainInboundCompleted01],
                   channels: [],
                   balance: mocks.balanceOnchainOnly,
                 ),
                 settings: LxSettings(mockApp.settingsDb()),
-                config: widget.config,
+                featureFlags: const FeatureFlags.all(),
                 uriEvents: this.widget.uriEvents,
                 gdriveAuth: GDriveAuth.mock,
               ),
@@ -463,6 +467,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "ReceivePaymentPage",
               (context) => ReceivePaymentPage(
                 app: mockApp,
+                featureFlags: const FeatureFlags.all(),
                 fiatRate: this.makeFiatRateStream(),
               ),
             ),
@@ -471,6 +476,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               subtitle: "fetch invoice error",
               (context) => ReceivePaymentPage(
                 app: mockAppErr,
+                featureFlags: const FeatureFlags.all(),
                 fiatRate: this.makeFiatRateStream(),
               ),
             ),
@@ -714,9 +720,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "Screenshot 02",
               subtitle: "WalletPage",
               (_) => WalletPage(
+                config: widget.config,
                 app: mocks.MockAppHandleScreenshots(),
                 settings: LxSettings(mockApp.settingsDb()),
-                config: widget.config,
+                featureFlags: const FeatureFlags.all(),
                 uriEvents: this.widget.uriEvents,
                 gdriveAuth: GDriveAuth.mock,
               ),
@@ -726,6 +733,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               subtitle: "ReceivePage (Invoice)",
               (_) => ReceivePaymentPage(
                 app: mocks.MockAppHandleScreenshots(),
+                featureFlags: const FeatureFlags.all(),
                 fiatRate:
                     ValueNotifier(const FiatRate(fiat: "USD", rate: 96626.76)),
               ),
