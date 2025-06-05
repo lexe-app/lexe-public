@@ -1515,10 +1515,10 @@ mod validate {
         match max_flow_result {
             Ok(max_flow) => Err(anyhow!(
                 "Insufficient balance: Tried to pay {amount} sats, but the \
-                 maximum amount you can send is {max_sendable} sats. \
-                 The maximum amount that you can route to this recipient is \
-                 {max_flow} sats. Consider adding to your Lightning balance \
-                 or sending a smaller amount.",
+                 maximum amount you can send is {max_sendable} sats, after 
+                 accounting for the channel reserve. The maximum amount that \
+                 you can route to this recipient is {max_flow} sats. Consider \
+                 adding to your Lightning balance or sending a smaller amount.",
             )),
             Err(e) => Err(anyhow!(
                 "Couldn't route to this recipient with any amount: {e:#}"
@@ -1565,9 +1565,10 @@ mod validate {
                         //    recipient to increase their inbound liquidity."
                         anyhow!(
                             "Tried to pay {amount} sats. The maximum amount \
-                             that you can route to this recipient is \
-                             {max_flow} sats. Consider adding to your \
-                             Lightning balance or sending a smaller amount.",
+                             that you can route to this recipient is {max_flow} \
+                             sats, after accounting for the channel reserve. \
+                             Consider adding to your Lightning balance or \
+                             sending a smaller amount.",
                         )
                     }
                     Err(e) => anyhow!(
