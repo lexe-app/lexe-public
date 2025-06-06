@@ -2242,13 +2242,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Balance dco_decode_balance(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return Balance(
       totalSats: dco_decode_CastedPrimitive_u_64(arr[0]),
       onchainSats: dco_decode_CastedPrimitive_u_64(arr[1]),
       lightningSats: dco_decode_CastedPrimitive_u_64(arr[2]),
-      lightningMaxSendableSats: dco_decode_CastedPrimitive_u_64(arr[3]),
+      lightningUsableSats: dco_decode_CastedPrimitive_u_64(arr[3]),
+      lightningMaxSendableSats: dco_decode_CastedPrimitive_u_64(arr[4]),
     );
   }
 
@@ -3487,12 +3488,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_totalSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_onchainSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_lightningSats = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_lightningUsableSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_lightningMaxSendableSats =
         sse_decode_CastedPrimitive_u_64(deserializer);
     return Balance(
         totalSats: var_totalSats,
         onchainSats: var_onchainSats,
         lightningSats: var_lightningSats,
+        lightningUsableSats: var_lightningUsableSats,
         lightningMaxSendableSats: var_lightningMaxSendableSats);
   }
 
@@ -4771,6 +4774,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_CastedPrimitive_u_64(self.totalSats, serializer);
     sse_encode_CastedPrimitive_u_64(self.onchainSats, serializer);
     sse_encode_CastedPrimitive_u_64(self.lightningSats, serializer);
+    sse_encode_CastedPrimitive_u_64(self.lightningUsableSats, serializer);
     sse_encode_CastedPrimitive_u_64(self.lightningMaxSendableSats, serializer);
   }
 

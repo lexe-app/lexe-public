@@ -562,6 +562,7 @@ class MockAppHandleScreenshots extends MockAppHandle {
         balance: Balance(
           totalSats: 233671,
           lightningSats: 154226,
+          lightningUsableSats: 154226,
           lightningMaxSendableSats: 154226 - 4500,
           onchainSats: 233671 - 154226,
         ),
@@ -678,15 +679,17 @@ class MockRestoreApi implements RestoreApi {
 //
 
 const Balance balanceDefault = Balance(
-  lightningSats: 198466,
-  lightningMaxSendableSats: 198466 - 2300,
+  lightningSats: 274466,
+  lightningUsableSats: 274466,
+  lightningMaxSendableSats: 274466 - 2300,
   onchainSats: 21214,
-  totalSats: 198466 + 21214,
+  totalSats: 274466 + 21214,
 );
 
 const Balance balanceZero = Balance(
   totalSats: 0,
   lightningSats: 0,
+  lightningUsableSats: 0,
   lightningMaxSendableSats: 0,
   onchainSats: 0,
 );
@@ -694,6 +697,7 @@ const Balance balanceZero = Balance(
 const Balance balanceOnchainOnly = Balance(
   totalSats: 123000,
   lightningSats: 0,
+  lightningUsableSats: 0,
   lightningMaxSendableSats: 0,
   onchainSats: 123000,
 );

@@ -19,6 +19,7 @@ mixin _$Balance {
   int get totalSats => throw _privateConstructorUsedError;
   int get onchainSats => throw _privateConstructorUsedError;
   int get lightningSats => throw _privateConstructorUsedError;
+  int get lightningUsableSats => throw _privateConstructorUsedError;
   int get lightningMaxSendableSats => throw _privateConstructorUsedError;
 }
 
@@ -29,6 +30,7 @@ class _$BalanceImpl implements _Balance {
       {required this.totalSats,
       required this.onchainSats,
       required this.lightningSats,
+      required this.lightningUsableSats,
       required this.lightningMaxSendableSats});
 
   @override
@@ -38,11 +40,13 @@ class _$BalanceImpl implements _Balance {
   @override
   final int lightningSats;
   @override
+  final int lightningUsableSats;
+  @override
   final int lightningMaxSendableSats;
 
   @override
   String toString() {
-    return 'Balance(totalSats: $totalSats, onchainSats: $onchainSats, lightningSats: $lightningSats, lightningMaxSendableSats: $lightningMaxSendableSats)';
+    return 'Balance(totalSats: $totalSats, onchainSats: $onchainSats, lightningSats: $lightningSats, lightningUsableSats: $lightningUsableSats, lightningMaxSendableSats: $lightningMaxSendableSats)';
   }
 
   @override
@@ -56,6 +60,8 @@ class _$BalanceImpl implements _Balance {
                 other.onchainSats == onchainSats) &&
             (identical(other.lightningSats, lightningSats) ||
                 other.lightningSats == lightningSats) &&
+            (identical(other.lightningUsableSats, lightningUsableSats) ||
+                other.lightningUsableSats == lightningUsableSats) &&
             (identical(
                     other.lightningMaxSendableSats, lightningMaxSendableSats) ||
                 other.lightningMaxSendableSats == lightningMaxSendableSats));
@@ -63,7 +69,7 @@ class _$BalanceImpl implements _Balance {
 
   @override
   int get hashCode => Object.hash(runtimeType, totalSats, onchainSats,
-      lightningSats, lightningMaxSendableSats);
+      lightningSats, lightningUsableSats, lightningMaxSendableSats);
 }
 
 abstract class _Balance implements Balance {
@@ -71,6 +77,7 @@ abstract class _Balance implements Balance {
       {required final int totalSats,
       required final int onchainSats,
       required final int lightningSats,
+      required final int lightningUsableSats,
       required final int lightningMaxSendableSats}) = _$BalanceImpl;
 
   @override
@@ -79,6 +86,8 @@ abstract class _Balance implements Balance {
   int get onchainSats;
   @override
   int get lightningSats;
+  @override
+  int get lightningUsableSats;
   @override
   int get lightningMaxSendableSats;
 }

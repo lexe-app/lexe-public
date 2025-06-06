@@ -14,6 +14,7 @@ import 'package:lexeapp/components.dart'
         ChannelBalanceBar,
         FilledCircle,
         FilledTextPlaceholder,
+        FilledTextPlaceholderSpan,
         ListIcon,
         LxBackButton,
         LxRefreshButton,
@@ -21,6 +22,7 @@ import 'package:lexeapp/components.dart'
         SliverPullToRefresh,
         SplitAmountText;
 import 'package:lexeapp/currency_format.dart' as currency_format;
+import 'package:lexeapp/int_ext.dart';
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/route/close_channel.dart';
@@ -329,10 +331,6 @@ class ChannelsPartyChip extends StatelessWidget {
 /// is about 1190 sats on average, max 2400.
 const int inboundCapacityTweakSats = 1500;
 
-extension IntExt on int {
-  int saturatingSub(final int other) => (this >= other) ? this - other : 0;
-}
-
 class TotalChannelsBalance {
   const TotalChannelsBalance({
     required this.inboundCapacitySats,
@@ -402,6 +400,75 @@ class TotalChannelsBalanceWidget extends StatelessWidget {
     // Hint that you will need to pay on-chain fees on receives above this value.
     final inboundCapacitySats = this.totalChannelsBalance?.inboundCapacitySats;
 
+    // Hint that some of our sats are locked in channel punishment reserves.
+    final ourPunishmentReservesSats = balance?.lightningChannelReserveSats();
+
+    const fontSizeWarning = Fonts.size100;
+    const heightWarning = 1.25;
+    const textStyleWarning = TextStyle(
+      color: LxColors.grey550,
+      fontSize: fontSizeWarning,
+      fontVariations: [Fonts.weightNormal],
+      height: heightWarning,
+      letterSpacing: -0.1,
+    );
+    const textStyleWarningSats = TextStyle(
+      color: LxColors.grey550,
+      fontSize: fontSizeWarning,
+      fontVariations: [Fonts.weightSemiBold],
+      height: heightWarning,
+      letterSpacing: -0.1,
+    );
+
+    // Hint to the user why their sendable balance is slightly less than their
+    // total channel balance.
+    // "Excludes X sats of reserves"
+    final textReserveWarning = Text.rich(
+      TextSpan(
+        children: <InlineSpan>[
+          const TextSpan(
+            text: "Excludes ",
+          ),
+          if (ourPunishmentReservesSats != null)
+            TextSpan(
+              text: currency_format.formatSatsAmount(ourPunishmentReservesSats,
+                  satsSuffix: true),
+              style: textStyleWarningSats,
+            )
+          else
+            FilledTextPlaceholderSpan(
+                width: Space.s750, style: textStyleWarningSats),
+          const TextSpan(text: " of reserves"),
+        ],
+      ),
+      style: textStyleWarning,
+    );
+
+    // "Inbound liquidity limit -> warn about miner fee"
+    final textInboundLiquidityWarning = Text.rich(
+      // TODO(phlip9): after beta:
+      //               "Receives above $amount sats will incur a miner fee."
+      TextSpan(
+        children: <InlineSpan>[
+          const TextSpan(
+            text: "*After Lexe's beta, receives beyond your ",
+          ),
+          if (inboundCapacitySats != null)
+            TextSpan(
+              text: currency_format.formatSatsAmount(inboundCapacitySats),
+              style: textStyleWarningSats,
+            )
+          else
+            FilledTextPlaceholderSpan(
+                width: Space.s800, style: textStyleWarningSats),
+          const TextSpan(
+            text: " of inbound liquidity will incur a miner fee",
+          ),
+        ],
+      ),
+      style: textStyleWarning,
+    );
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -409,20 +476,20 @@ class TotalChannelsBalanceWidget extends StatelessWidget {
         TotalChannelsBalanceRow(
           color: LxColors.moneyGoUp,
           primaryText: const Text("Send up to"),
-          secondaryText: const SizedBox(),
+          secondaryText: textReserveWarning,
           primaryAmount:
               SplitFiatAmountTextOrPlaceholder(amountFiat: maxSendableFiat),
           secondaryAmount:
               SatsAmountTextOrPlaceholder(amountSats: maxSendableSats),
         ),
-        const SizedBox(height: Space.s300),
+        const SizedBox(height: Space.s400),
 
         // Receive up to ∞
-        const TotalChannelsBalanceRow(
+        TotalChannelsBalanceRow(
           color: LxColors.moneyGoUpSecondary,
-          primaryText: Text("Receive up to"),
-          // secondaryText: "without miner fee*",
-          primaryAmount: Text.rich(
+          primaryText: const Text("Receive up to"),
+          secondaryText: textInboundLiquidityWarning,
+          primaryAmount: const Text.rich(
             TextSpan(
               children: <InlineSpan>[
                 TextSpan(text: "∞"),
@@ -438,44 +505,7 @@ class TotalChannelsBalanceWidget extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: Space.s300),
-
-        // "Inbound liquidity limit -> warn about miner fee"
-        Text.rich(
-          // TODO(phlip9): after beta:
-          //               "Receives above $amount sats will incur a miner fee."
-          TextSpan(
-            children: <InlineSpan>[
-              const TextSpan(
-                text: "*After Lexe's beta, receives beyond your ",
-              ),
-              if (inboundCapacitySats != null)
-                TextSpan(
-                  text: currency_format.formatSatsAmount(inboundCapacitySats),
-                  style: const TextStyle(
-                    fontVariations: [Fonts.weightSemiBold],
-                  ),
-                )
-              else
-                const WidgetSpan(
-                  child: FilledTextPlaceholder(
-                    width: Space.s800,
-                    // TODO(phlip9): why is this not picking up the text style?
-                    style: TextStyle(fontSize: Fonts.size100, height: 1.25),
-                  ),
-                ),
-              const TextSpan(
-                text: " of inbound liquidity will incur a miner fee",
-              ),
-            ],
-          ),
-          style: const TextStyle(
-            color: LxColors.grey550,
-            fontSize: Fonts.size100,
-            height: 1.25,
-            letterSpacing: -0.1,
-          ),
-        ),
+        const SizedBox(height: Space.s200),
       ],
     );
   }
@@ -523,6 +553,13 @@ class TotalChannelsBalanceRow extends StatelessWidget {
 
     final color = this.color;
 
+    final secondaryText = (this.secondaryText != null)
+        ? Padding(
+            padding: const EdgeInsets.only(right: Space.s200),
+            child: this.secondaryText,
+          )
+        : const SizedBox();
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
@@ -555,8 +592,8 @@ class TotalChannelsBalanceRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: <Widget>[
-              const SizedBox(width: dimCircle + padCirclePrimary),
-              Expanded(child: secondaryText ?? const SizedBox()),
+              // const SizedBox(width: dimCircle + padCirclePrimary),
+              Expanded(child: secondaryText),
               secondaryAmount ?? const SizedBox(),
             ],
           ),

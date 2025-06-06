@@ -371,6 +371,28 @@ class FilledTextPlaceholder extends StatelessWidget {
       );
 }
 
+/// A simple colored box that we can show while we wait for some text content to
+/// load.
+///
+/// Like [FilledTextPlaceholder] but works insids a [Text.rich] or [TextSpan].
+class FilledTextPlaceholderSpan extends WidgetSpan {
+  FilledTextPlaceholderSpan({
+    super.style,
+    Color color = LxColors.grey850,
+    double width = double.infinity,
+    double borderRadius = LxRadius.r200,
+  }) : super(
+          baseline: TextBaseline.alphabetic,
+          alignment: PlaceholderAlignment.baseline,
+          child: FilledTextPlaceholder(
+            style: style,
+            color: color,
+            width: width,
+            borderRadius: borderRadius,
+          ),
+        );
+}
+
 enum LxCloseButtonKind {
   closeFromTop,
   closeFromRoot,
