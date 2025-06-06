@@ -1284,7 +1284,6 @@ where
     let num_channels = channels.len();
     let (lightning_balance, num_usable_channels) =
         balance::all_channel_balances(chain_monitor, &channels, lsp_fees);
-    let max_sendable = lightning_balance.max_sendable;
 
     // Check that the user has at least one usable channel.
     validate::has_usable_channels(num_channels, num_usable_channels)?;
@@ -1300,12 +1299,12 @@ where
     let routing_context =
         RoutingContext::from_payment_params(channel_manager, payment_params);
 
-    // Check that we're not trying to send over `max_sendable`.
-    validate::under_max_sendable(
+    // Check that the amount is OK wrt `max_sendable`.
+    validate::max_sendable_ok(
         router,
         &routing_context,
         amount,
-        max_sendable,
+        &lightning_balance,
     )
     .await?;
 
@@ -1387,7 +1386,6 @@ where
     let num_channels = channels.len();
     let (lightning_balance, num_usable_channels) =
         balance::all_channel_balances(chain_monitor, &channels, lsp_fees);
-    let max_sendable = lightning_balance.max_sendable;
 
     // Check that the user has at least one usable channel.
     validate::has_usable_channels(num_channels, num_usable_channels)?;
@@ -1410,12 +1408,12 @@ where
     let routing_context =
         RoutingContext::from_payment_params(channel_manager, payment_params);
 
-    // Check that we're not trying to send over `max_sendable`.
-    validate::under_max_sendable(
+    // Check that the amount is OK wrt `max_sendable`.
+    validate::max_sendable_ok(
         router,
         &routing_context,
         amount,
-        max_sendable,
+        &lightning_balance,
     )
     .await?;
 
@@ -1440,6 +1438,8 @@ where
 
 /// Payments preflight validation helpers.
 mod validate {
+    use common::ln::balance::LightningBalance;
+
     use super::*;
 
     /// Get the final amount we should pay for an invoice/offer, accounting for
@@ -1487,15 +1487,47 @@ mod validate {
         Ok(())
     }
 
-    /// Check that we're not trying to send over `max_sendable`.
-    pub(super) async fn under_max_sendable(
+    /// Check various bounds on the amount w.r.t. `max_sendable`:
+    /// - They don't have a zero usable Lightning balance, in which case they
+    ///   can't send anything.
+    /// - If their usable balance is non-zero but `max_sendable` is zero, return
+    ///   an error telling them their funds are in the channel reserve.
+    /// - If the amount they're trying to send is greater than `max_sendable`,
+    ///   return an error telling them the maximum they can send.
+    pub(super) async fn max_sendable_ok(
         router: &RouterType,
         routing_context: &RoutingContext,
         amount: Amount,
-        max_sendable: Amount,
+        lightning_balance: &LightningBalance,
     ) -> anyhow::Result<()> {
+        let max_sendable = lightning_balance.max_sendable;
+        let usable_lightning_balance = lightning_balance.usable;
+
+        // If the user has no usable Lightning balance, they can't send
+        // anything. Not sure how the user can even get here tbh.
+        if usable_lightning_balance == Amount::ZERO {
+            warn!("User has usable channels but zero usable balance?");
+            return Err(anyhow!(
+                "Insufficient balance: You have no usable Lightning balance. \
+                 Add to your Lightning balance in order to send payments.",
+            ));
+        }
+
         if amount <= max_sendable {
             return Ok(());
+        }
+
+        // If they have a balance but not enough to exceed the channel reserve,
+        // return a dedicated error message, instead of "cannot find route".
+        if usable_lightning_balance > Amount::ZERO
+            && max_sendable == Amount::ZERO
+        {
+            return Err(anyhow!(
+                "Insufficient balance: Tried to pay {amount} sats, but all of \
+                 your Lightning balance is tied up in the channel reserve. \
+                 Consider adding to your Lightning balance in order to send \
+                 this amount.",
+            ));
         }
 
         // Since we know the recipient, we can compute a more accurate maximum
