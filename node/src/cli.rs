@@ -1,8 +1,11 @@
-use std::{env, str::FromStr};
+use std::env;
 
 use anyhow::{bail, Context};
 use common::{
-    cli::node::{ProvisionArgs, RunArgs},
+    cli::{
+        node::{ProvisionArgs, RunArgs},
+        EnclaveArgs,
+    },
     enclave,
     rng::SysRng,
 };
@@ -38,12 +41,12 @@ impl NodeCommand {
                 Ok(None)
             }
             (Some("run"), Some(args_str)) => {
-                let args = RunArgs::from_str(&args_str)
+                let args = RunArgs::from_json_str(&args_str)
                     .context("Invalid RunArgs JSON string")?;
                 Ok(Some(NodeCommand::Run(args)))
             }
             (Some("provision"), Some(args_str)) => {
-                let args = ProvisionArgs::from_str(&args_str)
+                let args = ProvisionArgs::from_json_str(&args_str)
                     .context("Invalid ProvisionArgs JSON string")?;
                 Ok(Some(NodeCommand::Provision(args)))
             }

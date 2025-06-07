@@ -1,11 +1,11 @@
-use std::{fmt, fmt::Display, path::Path, process::Command, str::FromStr};
+use std::{fmt, fmt::Display, path::Path, str::FromStr};
 
 use anyhow::Context;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 #[cfg(test)]
 use crate::test_utils::arbitrary;
@@ -17,18 +17,32 @@ use crate::{
 /// User node CLI args.
 pub mod node;
 
-/// A trait for the arguments to a program which runs inside an SGX enclave.
-pub trait EnclaveArgs {
+/// A trait for the arguments to an enclave command.
+pub trait EnclaveArgs: Serialize + DeserializeOwned {
+    /// The name of the command, e.g. "run", "provision", "mega"
+    const NAME: &str;
+
     /// Construct a [`std::process::Command`] from the contained args.
     /// Requires the path to the binary.
-    fn to_command(&self, bin_path: &Path) -> Command {
-        let mut command = Command::new(bin_path);
+    fn to_command(&self, bin_path: &Path) -> std::process::Command {
+        let mut command = std::process::Command::new(bin_path);
         self.append_args(&mut command);
         command
     }
 
-    /// Serialize and append the contained args to an existing [`Command`].
-    fn append_args(&self, cmd: &mut Command);
+    /// Serialize and append the contained args to an existing
+    /// [`std::process::Command`].
+    fn append_args(&self, cmd: &mut std::process::Command) {
+        cmd.arg(Self::NAME).arg(self.to_json_string());
+    }
+
+    fn from_json_str(json_str: &str) -> Result<Self, serde_json::Error> {
+        serde_json::from_str(json_str)
+    }
+
+    fn to_json_string(&self) -> String {
+        serde_json::to_string(self).expect("JSON serialization failed")
+    }
 }
 
 /// Information about the LSP which the user node needs to connect and to

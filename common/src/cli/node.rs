@@ -1,9 +1,3 @@
-use std::{
-    fmt::{self, Display},
-    process::Command,
-    str::FromStr,
-};
-
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -93,25 +87,7 @@ pub struct RunArgs {
 }
 
 impl EnclaveArgs for RunArgs {
-    fn append_args(&self, cmd: &mut Command) {
-        cmd.arg("run").arg(self.to_string());
-    }
-}
-
-impl FromStr for RunArgs {
-    type Err = serde_json::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        serde_json::from_str(s)
-    }
-}
-
-impl Display for RunArgs {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // serde_json::to_writer takes io::Write but `f` only impls fmt::Write
-        let s =
-            serde_json::to_string(&self).expect("JSON serialization failed");
-        write!(f, "{s}")
-    }
+    const NAME: &str = "run";
 }
 
 /// Provision a new user node
@@ -156,25 +132,7 @@ pub struct ProvisionArgs {
 }
 
 impl EnclaveArgs for ProvisionArgs {
-    fn append_args(&self, cmd: &mut Command) {
-        cmd.arg("provision").arg(self.to_string());
-    }
-}
-
-impl FromStr for ProvisionArgs {
-    type Err = serde_json::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        serde_json::from_str(s)
-    }
-}
-
-impl Display for ProvisionArgs {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // serde_json::to_writer takes io::Write but `f` only impls fmt::Write
-        let s =
-            serde_json::to_string(&self).expect("JSON serialization failed");
-        write!(f, "{s}")
-    }
+    const NAME: &str = "provision";
 }
 
 #[cfg(test)]
@@ -186,11 +144,5 @@ mod test {
     fn node_args_json_string_roundtrip() {
         roundtrip::json_string_roundtrip_proptest::<RunArgs>();
         roundtrip::json_string_roundtrip_proptest::<ProvisionArgs>();
-    }
-
-    #[test]
-    fn node_args_fromstr_display_roundtrip() {
-        roundtrip::fromstr_display_roundtrip_proptest::<RunArgs>();
-        roundtrip::fromstr_display_roundtrip_proptest::<ProvisionArgs>();
     }
 }
