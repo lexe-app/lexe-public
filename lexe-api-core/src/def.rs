@@ -71,8 +71,8 @@ use lightning::events::Event;
 use crate::types::payments::PaymentIndex;
 use crate::{
     error::{
-        BackendApiError, GatewayApiError, LspApiError, NodeApiError,
-        RunnerApiError,
+        BackendApiError, GatewayApiError, LspApiError, MegaApiError,
+        NodeApiError, RunnerApiError,
     },
     models::command::{
         CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
@@ -362,6 +362,12 @@ pub trait BearerAuthBackendApi {
         &self,
         signed_req: &ed25519::Signed<&BearerAuthRequestWire>,
     ) -> Result<BearerAuthResponse, BackendApiError>;
+}
+
+/// Defines the API the mega node exposes to the Lexe operators.
+pub trait LexeMegaApi {
+    /// POST /lexe/shutdown [`Empty`] -> [`Empty`]
+    async fn shutdown_mega(&self) -> Result<Empty, MegaApiError>;
 }
 
 /// Defines the API the node exposes to the Lexe operators at provision time.
