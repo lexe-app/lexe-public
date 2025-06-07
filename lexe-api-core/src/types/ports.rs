@@ -31,6 +31,13 @@ pub enum Ports {
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct MegaPorts {
+    pub mega_port: Port,
+    #[serde(flatten)]
+    pub provision: ProvisionPorts,
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct RunPorts {
     pub user_pk: UserPk,
     pub app_port: Port,

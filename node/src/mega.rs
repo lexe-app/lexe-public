@@ -4,10 +4,12 @@ use common::{
     constants,
     rng::Crng,
 };
+use lexe_api::{def::MegaRunnerApi, types::ports::MegaPorts};
+use lexe_tls::attestation::NodeMode;
 use lexe_tokio::{notify_once::NotifyOnce, task};
 use tokio::sync::mpsc;
 
-use crate::provision::ProvisionInstance;
+use crate::{api::client::RunnerClient, provision::ProvisionInstance};
 
 pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     let mut static_tasks = Vec::with_capacity(5);
@@ -27,20 +29,40 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     let provision =
         ProvisionInstance::init(rng, provision_args, mega_shutdown.clone())
             .await?;
+    let measurement = provision.measurement();
+    let provision_ports = provision.ports();
     static_tasks.push(provision.spawn_into_task());
 
     // Spawn the mega server task.
     let mega_state = mega_server::MegaRouterState {
         mega_shutdown: mega_shutdown.clone(),
     };
-    let (mega_task, mega_port, mega_url) =
+    let (mega_task, mega_port, _mega_url) =
         mega_server::spawn_server_task(mega_state)
             .context("Failed to spawn mega server task")?;
     static_tasks.push(mega_task);
 
-    // TODO(max): Send the port to the runner
-    let _ = mega_port;
-    let _ = mega_url;
+    // Init runner client.
+    let mr_short = measurement.short();
+    let runner_client = RunnerClient::new(
+        rng,
+        // TODO(max): This deploy env doesn't secure anything dangerous, but we
+        // should still find a way to validate the untrusted deploy env.
+        args.untrusted_deploy_env,
+        NodeMode::Mega { mr_short },
+        args.runner_url.clone(),
+    )
+    .context("Couldn't init runner client")?;
+
+    // Let the runner know that the mega node is ready to load user nodes.
+    let ports = MegaPorts {
+        mega_port,
+        provision: provision_ports,
+    };
+    runner_client
+        .mega_ready(&ports)
+        .await
+        .context("Mega ready callback failed")?;
 
     task::try_join_tasks_and_shutdown(
         static_tasks,

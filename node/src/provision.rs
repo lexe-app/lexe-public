@@ -36,7 +36,11 @@ use lexe_api::{
     def::{NodeBackendApi, NodeRunnerApi},
     error::NodeApiError,
     server::{self, LayerConfig},
-    types::{ports::Ports, sealed_seed::SealedSeed, Empty},
+    types::{
+        ports::{Ports, ProvisionPorts},
+        sealed_seed::SealedSeed,
+        Empty,
+    },
 };
 use lexe_tls::attestation::{self, NodeMode};
 use lexe_tokio::{
@@ -53,6 +57,8 @@ use crate::{
 
 pub struct ProvisionInstance {
     static_tasks: Vec<LxTask<()>>,
+    measurement: enclave::Measurement,
+    ports: ProvisionPorts,
     shutdown: NotifyOnce,
 }
 
@@ -149,15 +155,21 @@ impl ProvisionInstance {
         let static_tasks = vec![app_server_task, lexe_server_task];
 
         // Notify the runner that we're ready for a client connection
-        let ports = Ports::new_provision(measurement, app_port, lexe_port);
+        let ports = ProvisionPorts {
+            measurement,
+            app_port,
+            lexe_port,
+        };
         runner_client
-            .node_ready(&ports)
+            .node_ready(&Ports::Provision(ports))
             .await
             .context("Failed to notify runner of our readiness")?;
         debug!("Notified runner; awaiting client request");
 
         Ok(Self {
             static_tasks,
+            measurement,
+            ports,
             shutdown,
         })
     }
@@ -173,6 +185,14 @@ impl ProvisionInstance {
         )
         .await
         .context("Error awaiting tasks")
+    }
+
+    pub fn measurement(&self) -> enclave::Measurement {
+        self.measurement
+    }
+
+    pub fn ports(&self) -> ProvisionPorts {
+        self.ports
     }
 
     pub fn spawn_into_task(self) -> LxTask<()> {

@@ -93,7 +93,7 @@ use crate::{
             DbPayment, MaybeDbPayment, VecBasicPayment, VecDbPayment,
             VecLxPaymentId,
         },
-        ports::Ports,
+        ports::{MegaPorts, Ports},
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         Empty,
     },
@@ -420,6 +420,17 @@ pub trait LexeNodeRunApi {
         &self,
         user_pk: UserPk,
     ) -> Result<Empty, NodeApiError>;
+}
+
+/// Defines the API the runner exposes to mega nodes.
+pub trait MegaRunnerApi {
+    /// POST /mega/ready [`MegaPorts`] -> [`Empty`]
+    ///
+    /// Indicates this mega node is initialized and ready to load user nodes.
+    async fn mega_ready(
+        &self,
+        ports: &MegaPorts,
+    ) -> Result<Empty, RunnerApiError>;
 }
 
 /// Defines the api that the backend exposes to the node.

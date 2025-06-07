@@ -16,13 +16,16 @@ use common::{
     rng::Crng,
 };
 use lexe_api::{
-    def::{BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi},
+    def::{
+        BearerAuthBackendApi, MegaRunnerApi, NodeBackendApi, NodeLspApi,
+        NodeRunnerApi,
+    },
     error::{BackendApiError, LspApiError, RunnerApiError},
     models::command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
     rest::{RequestBuilderExt, RestClient, POST},
     types::{
         payments::{DbPayment, MaybeDbPayment, VecDbPayment, VecLxPaymentId},
-        ports::Ports,
+        ports::{MegaPorts, Ports},
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         Empty,
     },
@@ -33,6 +36,7 @@ use lightning::events::Event;
 
 use crate::api::NodeBackendApiClient;
 
+/// Used for both [`MegaRunnerApi`] and [`NodeRunnerApi`].
 pub(crate) struct RunnerClient {
     rest: RestClient,
     runner_url: String,
@@ -50,6 +54,19 @@ impl RunnerClient {
                 .context("Failed to build Node->Lexe client TLS config")?;
         let rest = RestClient::new("node", "runner", tls_config);
         Ok(Self { rest, runner_url })
+    }
+}
+
+impl MegaRunnerApi for RunnerClient {
+    async fn mega_ready(
+        &self,
+        ports: &MegaPorts,
+    ) -> Result<Empty, RunnerApiError> {
+        let runner = &self.runner_url;
+        let req = self.rest.post(format!("{runner}/mega/ready"), &ports);
+        // TODO(phlip9): authenticate runner callbacks?
+        // .bearer_auth(&self.auth_token().await?);
+        self.rest.send(req).await
     }
 }
 
