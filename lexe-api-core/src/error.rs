@@ -508,6 +508,7 @@ pub struct CommonApiError {
 api_error!(BackendApiError, BackendErrorKind);
 api_error!(GatewayApiError, GatewayErrorKind);
 api_error!(LspApiError, LspErrorKind);
+api_error!(MegaApiError, MegaErrorKind);
 api_error!(NodeApiError, NodeErrorKind);
 api_error!(RunnerApiError, RunnerErrorKind);
 
@@ -739,6 +740,56 @@ impl ToHttpStatus for LspErrorKind {
             Provision => SERVER_500_INTERNAL_SERVER_ERROR,
             Scid => SERVER_500_INTERNAL_SERVER_ERROR,
             Command => SERVER_500_INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+api_error_kind! {
+    /// All variants of errors that the LSP can return.
+    #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+    pub enum MegaErrorKind {
+        /// Unknown error
+        Unknown(ErrorCode),
+
+        // --- Common --- //
+
+        /// Unknown Reqwest client error
+        UnknownReqwest = 1,
+        /// Error building the HTTP request
+        Building = 2,
+        /// Error connecting to a remote HTTP service
+        Connect = 3,
+        /// Request timed out
+        Timeout = 4,
+        /// Error decoding/deserializing the HTTP response body
+        Decode = 5,
+        /// General server error
+        Server = 6,
+        /// Client provided a bad request that the server rejected
+        Rejection = 7,
+        /// Server is at capacity
+        AtCapacity = 8,
+
+        // --- Mega --- //
+
+        // (stub)
+    }
+}
+
+impl ToHttpStatus for MegaErrorKind {
+    fn to_http_status(&self) -> StatusCode {
+        use MegaErrorKind::*;
+        match self {
+            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
+
+            UnknownReqwest => CLIENT_400_BAD_REQUEST,
+            Building => CLIENT_400_BAD_REQUEST,
+            Connect => SERVER_503_SERVICE_UNAVAILABLE,
+            Timeout => SERVER_504_GATEWAY_TIMEOUT,
+            Decode => SERVER_502_BAD_GATEWAY,
+            Server => SERVER_500_INTERNAL_SERVER_ERROR,
+            Rejection => CLIENT_400_BAD_REQUEST,
+            AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
         }
     }
 }
@@ -1457,6 +1508,7 @@ mod test {
         invariants::assert_error_kind_invariants::<BackendErrorKind>();
         invariants::assert_error_kind_invariants::<GatewayErrorKind>();
         invariants::assert_error_kind_invariants::<LspErrorKind>();
+        invariants::assert_error_kind_invariants::<MegaErrorKind>();
         invariants::assert_error_kind_invariants::<NodeErrorKind>();
         invariants::assert_error_kind_invariants::<RunnerErrorKind>();
     }
@@ -1467,6 +1519,7 @@ mod test {
         assert_api_error_invariants::<BackendApiError, BackendErrorKind>();
         assert_api_error_invariants::<GatewayApiError, GatewayErrorKind>();
         assert_api_error_invariants::<LspApiError, LspErrorKind>();
+        assert_api_error_invariants::<MegaApiError, MegaErrorKind>();
         assert_api_error_invariants::<NodeApiError, NodeErrorKind>();
         assert_api_error_invariants::<RunnerApiError, RunnerErrorKind>();
     }
