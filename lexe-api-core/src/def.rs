@@ -366,6 +366,12 @@ pub trait BearerAuthBackendApi {
 
 /// Defines the API the mega node exposes to the Lexe operators.
 pub trait LexeMegaApi {
+    /// GET /lexe/status [`MeasurementStruct`] -> [`Status`]
+    async fn status_mega(
+        &self,
+        measurement: Measurement,
+    ) -> Result<Status, MegaApiError>;
+
     /// POST /lexe/shutdown [`Empty`] -> [`Empty`]
     async fn shutdown_mega(&self) -> Result<Empty, MegaApiError>;
 }

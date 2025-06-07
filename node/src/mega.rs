@@ -35,6 +35,7 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
 
     // Spawn the mega server task.
     let mega_state = mega_server::MegaRouterState {
+        measurement,
         mega_shutdown: mega_shutdown.clone(),
     };
     let (mega_task, mega_port, _mega_url) =
@@ -81,7 +82,7 @@ mod mega_server {
 
     use anyhow::Context;
     use axum::{routing::post, Router};
-    use common::net;
+    use common::{enclave, net};
     use lexe_api::{server::LayerConfig, types::ports::Port};
     use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
     use tracing::info_span;
@@ -120,6 +121,7 @@ mod mega_server {
 
     #[derive(Clone)]
     pub(super) struct MegaRouterState {
+        pub measurement: enclave::Measurement,
         pub mega_shutdown: NotifyOnce,
     }
 
@@ -128,6 +130,7 @@ mod mega_server {
     /// [`LexeMegaApi`]: lexe_api::def::LexeMegaApi
     fn mega_router(state: MegaRouterState) -> Router<()> {
         Router::new()
+            .route("/lexe/status", post(handlers::status))
             .route("/lexe/shutdown", post(handlers::shutdown))
             .with_state(state)
     }
@@ -136,9 +139,34 @@ mod mega_server {
 /// API handlers.
 mod handlers {
     use axum::extract::State;
-    use lexe_api::{server::LxJson, types::Empty};
+    use common::{
+        api::{models::Status, version::MeasurementStruct},
+        time::TimestampMs,
+    };
+    use lexe_api::{
+        error::MegaApiError,
+        server::{extract::LxQuery, LxJson},
+        types::Empty,
+    };
 
     use super::mega_server::MegaRouterState;
+
+    pub(super) async fn status(
+        State(state): State<MegaRouterState>,
+        LxQuery(req): LxQuery<MeasurementStruct>,
+    ) -> Result<LxJson<Status>, MegaApiError> {
+        // Sanity check
+        if req.measurement != state.measurement {
+            return Err(MegaApiError::wrong_measurement(
+                &req.measurement,
+                &state.measurement,
+            ));
+        }
+
+        Ok(LxJson(Status {
+            timestamp: TimestampMs::now(),
+        }))
+    }
 
     pub(super) async fn shutdown(
         State(state): State<MegaRouterState>,

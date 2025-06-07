@@ -772,7 +772,8 @@ api_error_kind! {
 
         // --- Mega --- //
 
-        // (stub)
+        /// Request measurement doesn't match current enclave measurement
+        WrongMeasurement = 100,
     }
 }
 
@@ -790,6 +791,8 @@ impl ToHttpStatus for MegaErrorKind {
             Server => SERVER_500_INTERNAL_SERVER_ERROR,
             Rejection => CLIENT_400_BAD_REQUEST,
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
+
+            WrongMeasurement => CLIENT_400_BAD_REQUEST,
         }
     }
 }
@@ -1206,6 +1209,22 @@ impl LspApiError {
     pub fn rejection(error: impl fmt::Display) -> Self {
         let msg = format!("{error:#}");
         let kind = LspErrorKind::Rejection;
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
+}
+
+impl MegaApiError {
+    pub fn wrong_measurement(
+        req_measurement: &Measurement,
+        actual_measurement: &Measurement,
+    ) -> Self {
+        let kind = MegaErrorKind::WrongMeasurement;
+        let msg =
+            format!("Req: {req_measurement}, Actual: {actual_measurement}");
         Self {
             kind,
             msg,
