@@ -417,6 +417,12 @@ impl PaymentIndex {
         id: LxPaymentId::MIN,
     };
 
+    /// The `PaymentIndex` that is lexicographically >= all other indexes.
+    pub const MAX: Self = Self {
+        created_at: TimestampMs::MAX,
+        id: LxPaymentId::MAX,
+    };
+
     /// Quickly create a dummy [`PaymentIndex`] which can be used in tests.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn from_u8(i: u8) -> Self {
@@ -431,6 +437,9 @@ impl PaymentIndex {
 impl LxPaymentId {
     /// The `LxPaymentId` that is lexicographically <= all other ids.
     pub const MIN: Self = Self::OfferRecvReusable(LnClaimId([0; 32]));
+
+    /// The `LxPaymentId` that is lexicographically >= all other ids.
+    pub const MAX: Self = Self::OnchainSend(ClientPaymentId([255; 32]));
 
     /// Returns the prefix to use when serializing this payment id to a string.
     pub fn prefix(&self) -> &'static str {
@@ -848,7 +857,7 @@ mod test {
         rng::FastRng,
         test_utils::{arbitrary, roundtrip, snapshot},
     };
-    use proptest::{arbitrary::any, prop_assert_eq, prop_assert_ne, proptest};
+    use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest};
 
     use super::*;
 
@@ -927,23 +936,55 @@ mod test {
         });
     }
 
-    // ∀ idx ∈ PaymentIndex, MIN <= idx
-    // ∀  id ∈ LxPaymentId , MIN <= id
+    // ∀ idx ∈ PaymentIndex, MIN <= idx <= MAX
+    // ∀  id ∈ LxPaymentId , MIN <= id <= MAX
     #[test]
-    fn payment_index_min_is_min() {
-        proptest!(|(idx in any::<PaymentIndex>())| {
-            // ord != Greater <==> ord == Less | Equal
-            let min_idx = PaymentIndex::MIN;
-            prop_assert_ne!(min_idx.cmp(&idx), Ordering::Greater);
+    fn payment_index_bounds() {
+        fn assert_bounds(
+            idx: PaymentIndex,
+        ) -> Result<(), proptest::prelude::TestCaseError> {
+            // PaymentIndex bounds
+            prop_assert!(matches!(
+                PaymentIndex::MIN.cmp(&idx),
+                Ordering::Less | Ordering::Equal,
+            ));
+            prop_assert!(matches!(
+                idx.cmp(&PaymentIndex::MAX),
+                Ordering::Less | Ordering::Equal,
+            ));
 
-            let idx = PaymentIndex {
+            // LxPaymentId bounds
+            prop_assert!(matches!(
+                LxPaymentId::MIN.cmp(&idx.id),
+                Ordering::Less | Ordering::Equal,
+            ));
+            prop_assert!(matches!(
+                idx.id.cmp(&LxPaymentId::MAX),
+                Ordering::Less | Ordering::Equal,
+            ));
+
+            Ok(())
+        }
+
+        proptest!(|(idx in any::<PaymentIndex>())| {
+            assert_bounds(idx)?;
+
+            assert_bounds(PaymentIndex {
                 created_at: TimestampMs::MIN,
                 id: idx.id,
-            };
-            prop_assert_ne!(min_idx.cmp(&idx), Ordering::Greater);
-
-            let min_id = LxPaymentId::MIN;
-            prop_assert_ne!(min_id.cmp(&idx.id), Ordering::Greater);
+            })?;
+            assert_bounds(PaymentIndex {
+                created_at: TimestampMs::MAX,
+                id: idx.id,
+            })?;
+            assert_bounds(PaymentIndex {
+                created_at: idx.created_at,
+                id: LxPaymentId::MIN,
+            })?;
+            assert_bounds(PaymentIndex {
+                created_at: idx.created_at,
+                id: LxPaymentId::MAX,
+            })?;
         });
     }
 
