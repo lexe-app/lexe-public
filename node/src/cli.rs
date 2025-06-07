@@ -10,7 +10,9 @@ use common::{
     rng::SysRng,
 };
 
-use crate::{provision, run::UserNode, DEV_VERSION, SEMVER_VERSION};
+use crate::{
+    provision::ProvisionInstance, run::UserNode, DEV_VERSION, SEMVER_VERSION,
+};
 
 /// Commands accepted by the user node.
 pub enum NodeCommand {
@@ -94,14 +96,18 @@ impl NodeCommand {
                 .block_on(async {
                     let mut node = UserNode::init(&mut rng, args)
                         .await
-                        .context("Error during init")?;
+                        .context("Error during run init")?;
                     node.sync().await.context("Error while syncing")?;
                     node.run().await.context("Error while running")
                 })
                 .context("Error running node"),
             Self::Provision(args) => rt
-                .block_on(provision::run_provision(&mut rng, args))
-                .context("Error while provisioning"),
+                .block_on(async {
+                    let provision =
+                        ProvisionInstance::init(&mut rng, args).await?;
+                    provision.run().await
+                })
+                .context("Provision instance error"),
             Self::Mega(args) => {
                 // TODO(max): Implement
                 let _ = args;

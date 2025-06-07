@@ -1,10 +1,10 @@
-//! # Provisioning a new lexe node
+//! # Provisioning Lexe user nodes
 //!
 //! This module is responsible for running the node provisioning process for new
 //! users and for existing users upgrading to new enclave versions.
 //!
 //! The intention of the provisioning process is for users to transfer their
-//! secure secrets into a trusted enclave version without the operator (lexe)
+//! secure secrets into a trusted enclave version without the operator (Lexe)
 //! learning their secrets. These secrets include sensitive data like wallet
 //! private keys or mTLS certificates.
 //!
@@ -12,8 +12,8 @@
 //! that they trust and the software is running inside an up-to-date secure
 //! enclave. We do this using a variant of RA-TLS (Remote Attestation TLS),
 //! where the enclave platform endorsements and enclave measurements are bundled
-//! in&&to a self-signed TLS certificate, which users must verify when
-//! connecting to the provisioning endpoint.
+//! into a self-signed TLS certificate, which users must verify when connecting
+//! to the provisioning endpoint.
 
 use std::{net::TcpListener, sync::Arc, time::SystemTime};
 
@@ -39,7 +39,10 @@ use lexe_api::{
     types::{ports::Ports, sealed_seed::SealedSeed, Empty},
 };
 use lexe_tls::attestation::{self, NodeMode};
-use lexe_tokio::{notify_once::NotifyOnce, task};
+use lexe_tokio::{
+    notify_once::NotifyOnce,
+    task::{self, LxTask},
+};
 use tokio::sync::mpsc;
 use tracing::{debug, info, info_span};
 
@@ -48,8 +51,133 @@ use crate::{
     persister,
 };
 
+pub struct ProvisionInstance {
+    static_tasks: Vec<LxTask<()>>,
+    shutdown: NotifyOnce,
+}
+
+impl ProvisionInstance {
+    pub async fn init(
+        rng: &mut impl Crng,
+        args: ProvisionArgs,
+    ) -> anyhow::Result<Self> {
+        info!("Initializing provision service");
+
+        // Init API clients.
+        let measurement = enclave::measurement();
+        let mr_short = measurement.short();
+        let node_mode = NodeMode::Provision { mr_short };
+        let runner_client = RunnerClient::new(
+            rng,
+            args.untrusted_deploy_env,
+            node_mode,
+            args.runner_url.clone(),
+        )
+        .context("Failed to init RunnerClient")?;
+        let backend_client = BackendClient::new(
+            rng,
+            args.untrusted_deploy_env,
+            node_mode,
+            args.backend_url.clone(),
+        )
+        .context("Failed to init BackendClient")?;
+
+        // Set up the request context and API servers.
+        let args = Arc::new(args);
+        let client = gdrive::ReqwestClient::new();
+        let machine_id = enclave::machine_id();
+        let state = AppRouterState {
+            args: args.clone(),
+            client,
+            machine_id,
+            measurement,
+            backend_client: Arc::new(backend_client),
+            // TODO(phlip9): use passed in rng
+            rng: SysRng::new(),
+        };
+        let shutdown = NotifyOnce::new();
+
+        const APP_SERVER_SPAN_NAME: &str = "(app-node-provision-server)";
+        let app_listener =
+            TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
+                .context("Failed to bind app listener")?;
+        let app_port = app_listener
+            .local_addr()
+            .context("Couldn't get app addr")?
+            .port();
+        let (app_tls_config, app_dns) =
+            attestation::app_node_provision_server_config(rng, &measurement)
+                .context("Failed to build TLS config for provisioning")?;
+        let (app_server_task, _app_url) =
+            server::spawn_server_task_with_listener(
+                app_listener,
+                app_router(state),
+                LayerConfig::default(),
+                Some((Arc::new(app_tls_config), app_dns.as_str())),
+                APP_SERVER_SPAN_NAME.into(),
+                info_span!(APP_SERVER_SPAN_NAME),
+                shutdown.clone(),
+            )
+            .context("Failed to spawn app node provision server task")?;
+
+        // TODO(max): Remove this webserver
+        const LEXE_SERVER_SPAN_NAME: &str = "(lexe-node-provision-server)";
+        let lexe_listener =
+            TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
+                .context("Failed to bind lexe listener")?;
+        let lexe_port = lexe_listener
+            .local_addr()
+            .context("Couldn't get lexe addr")?
+            .port();
+        let lexe_tls_and_dns = None;
+        let lexe_router = lexe_router(LexeRouterState {
+            measurement,
+            shutdown: shutdown.clone(),
+        });
+        let (lexe_server_task, _lexe_url) =
+            lexe_api::server::spawn_server_task_with_listener(
+                lexe_listener,
+                lexe_router,
+                LayerConfig::default(),
+                lexe_tls_and_dns,
+                LEXE_SERVER_SPAN_NAME.into(),
+                info_span!(LEXE_SERVER_SPAN_NAME),
+                shutdown.clone(),
+            )
+            .context("Failed to spawn lexe node provision server task")?;
+
+        let static_tasks = vec![app_server_task, lexe_server_task];
+
+        // Notify the runner that we're ready for a client connection
+        let ports = Ports::new_provision(measurement, app_port, lexe_port);
+        runner_client
+            .ready(&ports)
+            .await
+            .context("Failed to notify runner of our readiness")?;
+        debug!("Notified runner; awaiting client request");
+
+        Ok(Self {
+            static_tasks,
+            shutdown,
+        })
+    }
+
+    pub async fn run(self) -> anyhow::Result<()> {
+        // Wait for API servers to recv shutdown signal and gracefully shut down
+        let (_, eph_tasks_rx) = mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
+        task::try_join_tasks_and_shutdown(
+            self.static_tasks,
+            eph_tasks_rx,
+            self.shutdown,
+            constants::USER_NODE_SHUTDOWN_TIMEOUT,
+        )
+        .await
+        .context("Error awaiting tasks")
+    }
+}
+
 #[derive(Clone)]
-struct RequestContext {
+struct AppRouterState {
     args: Arc<ProvisionArgs>,
     client: gdrive::ReqwestClient,
     machine_id: MachineId,
@@ -59,121 +187,13 @@ struct RequestContext {
     rng: SysRng,
 }
 
-/// The run body for the provision service which can provision multiple users.
-pub async fn run_provision(
-    rng: &mut impl Crng,
-    args: ProvisionArgs,
-) -> anyhow::Result<()> {
-    info!("Initializing provision service");
-
-    // Init API clients.
-    let measurement = enclave::measurement();
-    let mr_short = measurement.short();
-    let node_mode = NodeMode::Provision { mr_short };
-    let runner_client = RunnerClient::new(
-        rng,
-        args.untrusted_deploy_env,
-        node_mode,
-        args.runner_url.clone(),
-    )
-    .context("Failed to init RunnerClient")?;
-    let backend_client = BackendClient::new(
-        rng,
-        args.untrusted_deploy_env,
-        node_mode,
-        args.backend_url.clone(),
-    )
-    .context("Failed to init BackendClient")?;
-
-    // Set up the request context and API servers.
-    let args = Arc::new(args);
-    let client = gdrive::ReqwestClient::new();
-    let machine_id = enclave::machine_id();
-    let ctx = RequestContext {
-        args: args.clone(),
-        client,
-        machine_id,
-        measurement,
-        backend_client: Arc::new(backend_client),
-        // TODO(phlip9): use passed in rng
-        rng: SysRng::new(),
-    };
-    let shutdown = NotifyOnce::new();
-
-    const APP_SERVER_SPAN_NAME: &str = "(app-node-provision-server)";
-    let app_listener = TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
-        .context("Failed to bind app listener")?;
-    let app_port = app_listener
-        .local_addr()
-        .context("Couldn't get app addr")?
-        .port();
-    let (app_tls_config, app_dns) =
-        attestation::app_node_provision_server_config(rng, &measurement)
-            .context("Failed to build TLS config for provisioning")?;
-    let (app_server_task, _app_url) = server::spawn_server_task_with_listener(
-        app_listener,
-        app_router(ctx),
-        LayerConfig::default(),
-        Some((Arc::new(app_tls_config), app_dns.as_str())),
-        APP_SERVER_SPAN_NAME.into(),
-        info_span!(parent: None, APP_SERVER_SPAN_NAME),
-        shutdown.clone(),
-    )
-    .context("Failed to spawn app node provision server task")?;
-
-    const LEXE_SERVER_SPAN_NAME: &str = "(lexe-node-provision-server)";
-    let lexe_listener = TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
-        .context("Failed to bind lexe listener")?;
-    let lexe_port = lexe_listener
-        .local_addr()
-        .context("Couldn't get lexe addr")?
-        .port();
-    let lexe_tls_and_dns = None;
-    let lexe_router = lexe_router(LexeRouterState {
-        measurement,
-        shutdown: shutdown.clone(),
-    });
-    let (lexe_server_task, _lexe_url) =
-        lexe_api::server::spawn_server_task_with_listener(
-            lexe_listener,
-            lexe_router,
-            LayerConfig::default(),
-            lexe_tls_and_dns,
-            LEXE_SERVER_SPAN_NAME.into(),
-            info_span!(parent: None, LEXE_SERVER_SPAN_NAME),
-            shutdown.clone(),
-        )
-        .context("Failed to spawn lexe node provision server task")?;
-
-    // Notify the runner that we're ready for a client connection
-    let ports = Ports::new_provision(measurement, app_port, lexe_port);
-    runner_client
-        .ready(&ports)
-        .await
-        .context("Failed to notify runner of our readiness")?;
-    debug!("Notified runner; awaiting client request");
-
-    // Wait for API servers to receive shutdown signal and gracefully shut down
-    let (_, eph_tasks_rx) = mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
-    task::try_join_tasks_and_shutdown(
-        vec![app_server_task, lexe_server_task],
-        eph_tasks_rx,
-        shutdown,
-        constants::USER_NODE_SHUTDOWN_TIMEOUT,
-    )
-    .await
-    .context("Error awaiting tasks")?;
-
-    Ok(())
-}
-
 /// Implements [`AppNodeProvisionApi`] - only callable by the node owner.
 ///
 /// [`AppNodeProvisionApi`]: lexe_api::def::AppNodeProvisionApi
-fn app_router(ctx: RequestContext) -> Router<()> {
+fn app_router(state: AppRouterState) -> Router<()> {
     Router::new()
         .route("/app/provision", post(handlers::provision))
-        .with_state(ctx)
+        .with_state(state)
 }
 
 #[derive(Clone)]
@@ -204,20 +224,20 @@ mod handlers {
     use super::*;
 
     pub(super) async fn provision(
-        State(mut ctx): State<RequestContext>,
+        State(mut state): State<AppRouterState>,
         LxJson(req): LxJson<NodeProvisionRequest>,
     ) -> Result<LxJson<Empty>, NodeApiError> {
         debug!("Received provision request");
 
         // Sanity check with no meaningful security; an attacker with cloud
         // access can still set the deploy env or network to whatever they need.
-        if ctx.args.untrusted_deploy_env != req.deploy_env
-            || ctx.args.untrusted_network != req.network
+        if state.args.untrusted_deploy_env != req.deploy_env
+            || state.args.untrusted_network != req.network
         {
             let req_env = req.deploy_env;
             let req_net = req.deploy_env;
-            let ctx_env = ctx.args.untrusted_deploy_env;
-            let ctx_net = ctx.args.untrusted_deploy_env;
+            let ctx_env = state.args.untrusted_deploy_env;
+            let ctx_net = state.args.untrusted_deploy_env;
             return Err(NodeApiError::provision(format!(
                 "Probable configuration error, client and node don't agree on current env: \
                  client: ({req_env}, {req_net}), node: ({ctx_env}, {ctx_net})"
@@ -225,12 +245,12 @@ mod handlers {
         }
 
         let sealed_seed = SealedSeed::seal_from_root_seed(
-            &mut ctx.rng,
+            &mut state.rng,
             &req.root_seed,
             req.deploy_env,
             req.network,
-            ctx.measurement,
-            ctx.machine_id,
+            state.measurement,
+            state.machine_id,
         )
         .map_err(NodeApiError::provision)?;
 
@@ -247,7 +267,7 @@ mod handlers {
         let authenticator =
             BearerAuthenticator::new(user_key_pair, maybe_token);
         let token = authenticator
-            .get_token(ctx.backend_client.as_ref(), SystemTime::now())
+            .get_token(state.backend_client.as_ref(), SystemTime::now())
             .await
             .map_err(NodeApiError::bad_auth)?;
 
@@ -259,7 +279,7 @@ mod handlers {
             // the gDrive credentials.
             let vfs_master_key = req.root_seed.derive_vfs_master_key();
             let credentials = helpers::provision_gdrive_credentials(
-                &mut ctx,
+                &mut state,
                 req.google_auth_code.as_deref(),
                 &authenticator,
                 &vfs_master_key,
@@ -270,7 +290,7 @@ mod handlers {
             // it's not already init'ed.
             if req.allow_gvfs_access {
                 helpers::provision_gvfs(
-                    &mut ctx,
+                    &mut state,
                     &req,
                     &authenticator,
                     credentials,
@@ -293,7 +313,8 @@ mod handlers {
         // We do this last so that a new user signup where gdrive fails to
         // provision (which seems to happen more often than I'd like) doesn't
         // fill up our capacity with broken nodes that can't run.
-        ctx.backend_client
+        state
+            .backend_client
             .create_sealed_seed(&sealed_seed, token)
             .await
             .context("Could not persist sealed seed")
@@ -354,12 +375,12 @@ mod helpers {
     ///
     /// Otherwise, we'll just sanity check the already persisted credentials.
     pub(super) async fn provision_gdrive_credentials(
-        ctx: &mut RequestContext,
+        state: &mut AppRouterState,
         google_auth_code: Option<&str>,
         authenticator: &BearerAuthenticator,
         vfs_master_key: &AesMasterKey,
     ) -> Result<GDriveCredentials, NodeApiError> {
-        let oauth = ctx
+        let oauth = state
             .args
             .oauth
             .clone()
@@ -373,7 +394,7 @@ mod helpers {
                 // Use the auth code to get a GDriveCredentials.
                 let code_verifier = None;
                 let credentials = gdrive::oauth2::auth_code_for_token(
-                    &ctx.client,
+                    &state.client,
                     &oauth.client_id,
                     Some(&oauth.client_secret),
                     &oauth.redirect_uri,
@@ -386,12 +407,12 @@ mod helpers {
 
                 // Encrypt the GDriveCredentials and upsert into Lexe's DB.
                 let credentials_file = persister::encrypt_gdrive_credentials(
-                    &mut ctx.rng,
+                    &mut state.rng,
                     vfs_master_key,
                     &credentials,
                 );
                 persister::persist_file(
-                    ctx.backend_client.as_ref(),
+                    state.backend_client.as_ref(),
                     authenticator,
                     &credentials_file,
                 )
@@ -405,7 +426,7 @@ mod helpers {
                 // No auth code was provided. Ensure that credentials already
                 // exist.
                 let credentials = persister::read_gdrive_credentials(
-                    ctx.backend_client.as_ref(),
+                    state.backend_client.as_ref(),
                     authenticator,
                     vfs_master_key,
                 )
@@ -437,7 +458,7 @@ mod helpers {
     /// - Backup up the encrypted root seed (if it didn't exist)
     /// - Updates the approved versions list for rollback protection
     pub(super) async fn provision_gvfs(
-        ctx: &mut RequestContext,
+        state: &mut AppRouterState,
         req: &NodeProvisionRequest,
         authenticator: &BearerAuthenticator,
         credentials: GDriveCredentials,
@@ -446,7 +467,7 @@ mod helpers {
     ) -> Result<(), NodeApiError> {
         // See if we have a persisted gvfs root.
         let maybe_persisted_gvfs_root = persister::read_gvfs_root(
-            &*ctx.backend_client,
+            &*state.backend_client,
             authenticator,
             vfs_master_key,
         )
@@ -478,8 +499,8 @@ mod helpers {
             // This should only happen once.
             if let Some(new_gvfs_root) = maybe_new_gvfs_root {
                 persister::persist_gvfs_root(
-                    &mut ctx.rng,
-                    &*ctx.backend_client,
+                    &mut state.rng,
+                    &*state.backend_client,
                     authenticator,
                     vfs_master_key,
                     &new_gvfs_root,
@@ -526,14 +547,14 @@ mod helpers {
 
             // Approve the current version, revoke old/yanked versions, etc.
             let (updated, revoked) = approved_versions
-                .approve_and_revoke(user_pk, ctx.measurement)
+                .approve_and_revoke(user_pk, state.measurement)
                 .context("Error updating approved versions")
                 .map_err(NodeApiError::provision)?;
 
             // If the list was updated, we need to (re)persist it.
             if updated {
                 persister::persist_approved_versions(
-                    &mut ctx.rng,
+                    &mut state.rng,
                     &google_vfs,
                     vfs_master_key,
                     &approved_versions,
@@ -549,12 +570,12 @@ mod helpers {
                 for (revoked_version, revoked_measurement) in revoked {
                     let token = authenticator
                         .get_token(
-                            ctx.backend_client.as_ref(),
+                            state.backend_client.as_ref(),
                             SystemTime::now(),
                         )
                         .await
                         .map_err(NodeApiError::bad_auth)?;
-                    let try_delete = ctx
+                    let try_delete = state
                         .backend_client
                         .delete_sealed_seeds(revoked_measurement, token.clone())
                         .await;
@@ -590,13 +611,13 @@ mod helpers {
         let try_update_credentials =
             if matches!(credentials_rx.has_changed(), Ok(true)) {
                 let credentials_file = persister::encrypt_gdrive_credentials(
-                    &mut ctx.rng,
+                    &mut state.rng,
                     vfs_master_key,
                     &credentials_rx.borrow_and_update(),
                 );
 
                 persister::persist_file(
-                    ctx.backend_client.as_ref(),
+                    state.backend_client.as_ref(),
                     authenticator,
                     &credentials_file,
                 )
