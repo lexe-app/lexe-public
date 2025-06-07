@@ -47,6 +47,7 @@ pub fn main() -> ExitCode {
             user_idx = tracing::field::Empty
         ),
         NodeCommand::Provision(_) => info_span!("(node-provision)"),
+        NodeCommand::Mega(_) => info_span!("(mega)"),
     };
 
     // Try to detect if this user is based on a test RootSeed. If so, we'll

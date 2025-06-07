@@ -3,7 +3,7 @@ use std::env;
 use anyhow::{bail, Context};
 use common::{
     cli::{
-        node::{ProvisionArgs, RunArgs},
+        node::{MegaArgs, ProvisionArgs, RunArgs},
         EnclaveArgs,
     },
     enclave,
@@ -16,6 +16,7 @@ use crate::{provision, run::UserNode, DEV_VERSION, SEMVER_VERSION};
 pub enum NodeCommand {
     Run(RunArgs),
     Provision(ProvisionArgs),
+    Mega(MegaArgs),
 }
 
 impl NodeCommand {
@@ -59,6 +60,7 @@ impl NodeCommand {
         match self {
             Self::Run(args) => args.rust_log.as_deref(),
             Self::Provision(args) => args.rust_log.as_deref(),
+            Self::Mega(args) => args.rust_log.as_deref(),
         }
     }
 
@@ -67,6 +69,7 @@ impl NodeCommand {
         match self {
             Self::Run(args) => args.rust_backtrace.as_deref(),
             Self::Provision(args) => args.rust_backtrace.as_deref(),
+            Self::Mega(args) => args.rust_backtrace.as_deref(),
         }
     }
 
@@ -99,6 +102,11 @@ impl NodeCommand {
             Self::Provision(args) => rt
                 .block_on(provision::run_provision(&mut rng, args))
                 .context("Error while provisioning"),
+            Self::Mega(args) => {
+                // TODO(max): Implement
+                let _ = args;
+                todo!()
+            }
         }
     }
 }

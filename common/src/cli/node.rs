@@ -11,6 +11,30 @@ use crate::{
     ln::network::LxNetwork,
 };
 
+#[cfg_attr(test, derive(Arbitrary))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct MegaArgs {
+    /// The value to set for `RUST_BACKTRACE`. Does nothing if set to [`None`].
+    /// Passed as an arg since envs aren't available in SGX.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_option_simple_string()")
+    )]
+    pub rust_backtrace: Option<String>,
+
+    /// The value to set for `RUST_LOG`. Does nothing if set to [`None`].
+    /// Passed as an arg since envs aren't available in SGX.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_option_simple_string()")
+    )]
+    pub rust_log: Option<String>,
+}
+
+impl EnclaveArgs for MegaArgs {
+    const NAME: &str = "mega";
+}
+
 /// Run a user node
 #[cfg_attr(test, derive(Arbitrary))]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
