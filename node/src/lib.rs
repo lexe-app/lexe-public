@@ -32,7 +32,7 @@ mod p2p;
 mod peer_manager;
 /// `NodePersister` and related utils.
 mod persister;
-/// Node provision server and run body.
+/// Provision server and run body.
 mod provision;
 /// Node's main run body.
 mod run;

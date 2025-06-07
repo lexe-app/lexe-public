@@ -25,6 +25,7 @@ use axum::{
 use common::{
     api::{provision::NodeProvisionRequest, version::MeasurementStruct},
     cli::node::ProvisionArgs,
+    constants,
     enclave::{self, MachineId, Measurement},
     net,
     rng::{Crng, SysRng},
@@ -38,7 +39,8 @@ use lexe_api::{
     types::{ports::Ports, sealed_seed::SealedSeed, Empty},
 };
 use lexe_tls::attestation::{self, NodeMode};
-use lexe_tokio::notify_once::NotifyOnce;
+use lexe_tokio::{notify_once::NotifyOnce, task};
+use tokio::sync::mpsc;
 use tracing::{debug, info, info_span};
 
 use crate::{
@@ -57,11 +59,8 @@ struct RequestContext {
     rng: SysRng,
 }
 
-/// Provision a user node.
-///
-/// The `UserPk` is given by the runner so we know which user we should
-/// provision to and have a simple method to authenticate their connection.
-pub async fn provision_node(
+/// The run body for the provision service which can provision multiple users.
+pub async fn run_provision(
     rng: &mut impl Crng,
     args: ProvisionArgs,
 ) -> anyhow::Result<()> {
@@ -142,7 +141,7 @@ pub async fn provision_node(
             lexe_tls_and_dns,
             LEXE_SERVER_SPAN_NAME.into(),
             info_span!(parent: None, LEXE_SERVER_SPAN_NAME),
-            shutdown,
+            shutdown.clone(),
         )
         .context("Failed to spawn lexe node provision server task")?;
 
@@ -155,8 +154,15 @@ pub async fn provision_node(
     debug!("Notified runner; awaiting client request");
 
     // Wait for API servers to receive shutdown signal and gracefully shut down
-    app_server_task.await.context("App task panicked")?;
-    lexe_server_task.await.context("Lexe task panicked")?;
+    let (_, eph_tasks_rx) = mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
+    task::try_join_tasks_and_shutdown(
+        vec![app_server_task, lexe_server_task],
+        eph_tasks_rx,
+        shutdown,
+        constants::USER_NODE_SHUTDOWN_TIMEOUT,
+    )
+    .await
+    .context("Error awaiting tasks")?;
 
     Ok(())
 }

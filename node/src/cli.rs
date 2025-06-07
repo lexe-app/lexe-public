@@ -94,7 +94,7 @@ impl NodeCommand {
                 })
                 .context("Error running node"),
             Self::Provision(args) => rt
-                .block_on(provision::provision_node(&mut rng, args))
+                .block_on(provision::run_provision(&mut rng, args))
                 .context("Error while provisioning"),
         }
     }
