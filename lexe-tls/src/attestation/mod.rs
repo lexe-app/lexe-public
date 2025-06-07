@@ -186,6 +186,7 @@ pub fn node_lexe_client_config(
 /// The mode that the user node is currently running in, and associated info.
 #[derive(Copy, Clone)]
 pub enum NodeMode {
+    Mega { mr_short: MrShort },
     Provision { mr_short: MrShort },
     Run,
 }
@@ -201,8 +202,10 @@ fn get_or_generate_node_attestation_cert(
     // Determine the cert lifetime. Until we can refresh the TLS cert during
     // runtime, this has to be longer than the time between node restarts.
     let lifetime = match node_mode {
-        // Long lifetime (3 months); Provision nodes restart once every deploy.
-        NodeMode::Provision { .. } => Duration::from_secs(60 * 60 * 24 * 90),
+        // Long lifetime (3 months); Mega and Provision nodes restart at least
+        // once every deploy.
+        NodeMode::Mega { .. } | NodeMode::Provision { .. } =>
+            Duration::from_secs(60 * 60 * 24 * 90),
         // Medium lifetime; Run nodes restart fairly frequently.
         NodeMode::Run => Duration::from_secs(60 * 60 * 24 * 14), // 2 weeks
     };
@@ -213,7 +216,7 @@ fn get_or_generate_node_attestation_cert(
     // provision mode), the attestation evidence is embedded in a client cert,
     // where the DNS name doesn't matter.
     let dns_name = match node_mode {
-        NodeMode::Provision { mr_short } =>
+        NodeMode::Mega { mr_short } | NodeMode::Provision { mr_short } =>
             constants::node_provision_dns(&mr_short),
         NodeMode::Run => constants::NODE_RUN_DNS.to_owned(),
     };
