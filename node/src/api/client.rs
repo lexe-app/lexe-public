@@ -25,7 +25,7 @@ use lexe_api::{
     rest::{RequestBuilderExt, RestClient, POST},
     types::{
         payments::{DbPayment, MaybeDbPayment, VecDbPayment, VecLxPaymentId},
-        ports::{MegaPorts, Ports},
+        ports::{MegaPorts, Ports, RunPorts},
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         Empty,
     },
@@ -72,7 +72,21 @@ impl MegaRunnerApi for RunnerClient {
 
 #[async_trait]
 impl NodeRunnerApi for RunnerClient {
-    async fn node_ready(&self, data: &Ports) -> Result<Empty, RunnerApiError> {
+    async fn node_ready_v2(
+        &self,
+        ports: &RunPorts,
+    ) -> Result<Empty, RunnerApiError> {
+        let runner = &self.runner_url;
+        let req = self.rest.post(format!("{runner}/node/v2/ready"), &ports);
+        // TODO(phlip9): authenticate runner callbacks?
+        // .bearer_auth(&self.auth_token().await?);
+        self.rest.send(req).await
+    }
+
+    async fn node_ready_v1(
+        &self,
+        data: &Ports,
+    ) -> Result<Empty, RunnerApiError> {
         let runner = &self.runner_url;
         let req = self.rest.post(format!("{runner}/node/ready"), &data);
         // TODO(phlip9): authenticate runner callbacks?

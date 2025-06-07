@@ -39,7 +39,7 @@ use lexe_api::{
             DbPayment, LxPaymentId, MaybeDbPayment, PaymentIndex,
             PaymentStatus, VecDbPayment, VecLxPaymentId,
         },
-        ports::Ports,
+        ports::{Ports, RunPorts},
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         Empty,
     },
@@ -145,7 +145,17 @@ impl MockRunnerClient {
 
 #[async_trait]
 impl NodeRunnerApi for MockRunnerClient {
-    async fn node_ready(&self, ports: &Ports) -> Result<Empty, RunnerApiError> {
+    async fn node_ready_v2(
+        &self,
+        ports: &RunPorts,
+    ) -> Result<Empty, RunnerApiError> {
+        let _ = self.notifs_tx.try_send(Ports::Run(*ports));
+        Ok(Empty {})
+    }
+    async fn node_ready_v1(
+        &self,
+        ports: &Ports,
+    ) -> Result<Empty, RunnerApiError> {
         let _ = self.notifs_tx.try_send(*ports);
         Ok(Empty {})
     }

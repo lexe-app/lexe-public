@@ -18,9 +18,13 @@ use crate::{
 
 /// Commands accepted by the user node.
 pub enum NodeCommand {
-    Run(RunArgs),
-    Provision(ProvisionArgs),
+    /// Runs a mega node which can provision users or load user nodes.
     Mega(MegaArgs),
+    /// Runs an individual user node directly.
+    /// Avoids the need to specify provision-specific args.
+    Run(RunArgs),
+    // TODO(max): Remove, redundant with `Mega`
+    Provision(ProvisionArgs),
 }
 
 impl NodeCommand {
@@ -44,6 +48,11 @@ impl NodeCommand {
             (Some("help"), _) | (Some("--help"), _) => {
                 print_help();
                 Ok(None)
+            }
+            (Some("mega"), Some(args_str)) => {
+                let args = MegaArgs::from_json_str(&args_str)
+                    .context("Invalid MegaArgs JSON string")?;
+                Ok(Some(NodeCommand::Mega(args)))
             }
             (Some("run"), Some(args_str)) => {
                 let args = RunArgs::from_json_str(&args_str)
@@ -94,6 +103,9 @@ impl NodeCommand {
         let mut rng = SysRng::new();
 
         match self {
+            Self::Mega(args) => rt
+                .block_on(mega::run(&mut rng, args))
+                .context("Mega instance error"),
             Self::Run(args) => rt
                 .block_on(async {
                     let mut node = UserNode::init(&mut rng, args)
@@ -103,6 +115,9 @@ impl NodeCommand {
                     node.run().await.context("Error while running")
                 })
                 .context("Error running node"),
+            // TODO(max): Remove the `provision` command, as it is redundant
+            // with the functionality provided by the mega node. We can keep the
+            // `run` command around, however.
             Self::Provision(args) => rt
                 .block_on(async {
                     let shutdown = NotifyOnce::new();
@@ -112,9 +127,6 @@ impl NodeCommand {
                     provision.run().await
                 })
                 .context("Provision instance error"),
-            Self::Mega(args) => rt
-                .block_on(mega::run(&mut rng, args))
-                .context("Mega instance error"),
         }
     }
 }
@@ -122,7 +134,7 @@ impl NodeCommand {
 /// Print out CLI help.
 pub fn print_help() {
     println!(
-        "CLI format: <bin_path> <help|version|run|provision> \
-         [<JSON-string-serialized `RunArgs` or `ProvisionArgs`>]"
+        "CLI format: <bin_path> <help|version|mega|run> \
+         [<JSON-string-serialized `MegaArgs` or `RunArgs`>]"
     );
 }

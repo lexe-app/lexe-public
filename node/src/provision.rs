@@ -160,8 +160,9 @@ impl ProvisionInstance {
             app_port,
             lexe_port,
         };
+        #[allow(deprecated)] // API docs clearly state when API can be removed
         runner_client
-            .node_ready(&Ports::Provision(ports))
+            .node_ready_v1(&Ports::Provision(ports))
             .await
             .context("Failed to notify runner of our readiness")?;
         debug!("Notified runner; awaiting client request");

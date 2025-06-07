@@ -93,7 +93,7 @@ use crate::{
             DbPayment, MaybeDbPayment, VecBasicPayment, VecDbPayment,
             VecLxPaymentId,
         },
-        ports::{MegaPorts, Ports},
+        ports::{MegaPorts, Ports, RunPorts},
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         Empty,
     },
@@ -643,8 +643,21 @@ pub trait NodeLspApi {
 /// Defines the api that the runner exposes to the node.
 #[async_trait]
 pub trait NodeRunnerApi {
+    /// POST /node/v2/ready [`RunPorts`] -> [`Empty`]
+    async fn node_ready_v2(
+        &self,
+        ports: &RunPorts,
+    ) -> Result<Empty, RunnerApiError>;
+
     /// POST /node/ready [`Ports`] -> [`Empty`]
-    async fn node_ready(&self, ports: &Ports) -> Result<Empty, RunnerApiError>;
+    // TODO(max): This was used by provision instances prior to the
+    // implementation of mega nodes. Remove once the `provision` command has
+    // been removed for all running user nodes.
+    #[deprecated = "Use `node_ready_v2` instead"]
+    async fn node_ready_v1(
+        &self,
+        ports: &Ports,
+    ) -> Result<Empty, RunnerApiError>;
 
     /// POST /node/activity [`UserPkStruct`] -> [`Empty`]
     ///

@@ -29,7 +29,7 @@ use lexe_api::{
     auth::BearerAuthenticator,
     def::NodeRunnerApi,
     server::LayerConfig,
-    types::{ports::Ports, sealed_seed::SealedSeedId},
+    types::{ports::RunPorts, sealed_seed::SealedSeedId},
     vfs::{Vfs, REVOCABLE_CLIENTS_FILE_ID},
 };
 use lexe_ln::{
@@ -102,7 +102,7 @@ pub struct UserNode {
     // TODO(max): Can avoid some cloning by removing this field
     args: RunArgs,
     deploy_env: DeployEnv,
-    ports: Ports,
+    ports: RunPorts,
     static_tasks: Vec<LxTask<()>>,
     eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     shutdown: NotifyOnce,
@@ -784,7 +784,11 @@ impl UserNode {
         static_tasks.push(lexe_server_task);
 
         // Prepare the ports that we'll notify the runner of once we're ready
-        let ports = Ports::new_run(user_pk, app_port, lexe_port);
+        let ports = RunPorts {
+            user_pk,
+            app_port,
+            lexe_port,
+        };
 
         // Spawn a task which periodically logs the node's node_info.
         let node_info_task = {
@@ -965,7 +969,7 @@ impl UserNode {
         // the LSP is connected to us when it makes its open_channel request, we
         // reconnect to the LSP *before* sending the /ready callback.
         ctxt.runner_api
-            .node_ready(&self.ports)
+            .node_ready_v2(&self.ports)
             .await
             .context("Could not notify runner of ready status")?;
 
