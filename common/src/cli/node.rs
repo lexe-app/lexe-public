@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::test_utils::arbitrary;
 use crate::{
     api::user::UserPk,
-    cli::{LspInfo, OAuthConfig, ToCommand},
+    cli::{EnclaveArgs, LspInfo, OAuthConfig},
     env::DeployEnv,
     ln::network::LxNetwork,
 };
@@ -92,7 +92,7 @@ pub struct RunArgs {
     pub rust_backtrace: Option<String>,
 }
 
-impl ToCommand for RunArgs {
+impl EnclaveArgs for RunArgs {
     fn append_args(&self, cmd: &mut Command) {
         cmd.arg("run").arg(self.to_string());
     }
@@ -155,7 +155,7 @@ pub struct ProvisionArgs {
     pub rust_backtrace: Option<String>,
 }
 
-impl ToCommand for ProvisionArgs {
+impl EnclaveArgs for ProvisionArgs {
     fn append_args(&self, cmd: &mut Command) {
         cmd.arg("provision").arg(self.to_string());
     }

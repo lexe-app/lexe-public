@@ -17,9 +17,9 @@ use crate::{
 /// User node CLI args.
 pub mod node;
 
-/// A trait for converting CLI args to [`Command`]s.
-pub trait ToCommand {
-    /// Construct a [`Command`] from the contained args.
+/// A trait for the arguments to a program which runs inside an SGX enclave.
+pub trait EnclaveArgs {
+    /// Construct a [`std::process::Command`] from the contained args.
     /// Requires the path to the binary.
     fn to_command(&self, bin_path: &Path) -> Command {
         let mut command = Command::new(bin_path);
