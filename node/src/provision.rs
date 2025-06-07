@@ -44,7 +44,7 @@ use lexe_tokio::{
     task::{self, LxTask},
 };
 use tokio::sync::mpsc;
-use tracing::{debug, info, info_span};
+use tracing::{debug, error, info, info_span};
 
 use crate::{
     api::client::{BackendClient, RunnerClient},
@@ -60,6 +60,7 @@ impl ProvisionInstance {
     pub async fn init(
         rng: &mut impl Crng,
         args: ProvisionArgs,
+        shutdown: NotifyOnce,
     ) -> anyhow::Result<Self> {
         info!("Initializing provision service");
 
@@ -95,7 +96,6 @@ impl ProvisionInstance {
             // TODO(phlip9): use passed in rng
             rng: SysRng::new(),
         };
-        let shutdown = NotifyOnce::new();
 
         const APP_SERVER_SPAN_NAME: &str = "(app-node-provision-server)";
         let app_listener =
@@ -173,6 +173,16 @@ impl ProvisionInstance {
         )
         .await
         .context("Error awaiting tasks")
+    }
+
+    pub fn spawn_into_task(self) -> LxTask<()> {
+        const SPAN_NAME: &str = "(provision)";
+        LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), async move {
+            match self.run().await {
+                Ok(()) => info!("Provision instance finished."),
+                Err(e) => error!("Provision instance errored: {e:#}"),
+            }
+        })
     }
 }
 

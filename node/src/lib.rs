@@ -26,6 +26,8 @@ mod event_handler;
 mod gdrive_persister;
 /// `InactivityTimer`.
 mod inactivity_timer;
+/// Meganode run body.
+mod mega;
 /// Node-specific p2p logic
 mod p2p;
 /// `NodePeerManager`.
@@ -34,7 +36,7 @@ mod peer_manager;
 mod persister;
 /// Provision server and run body.
 mod provision;
-/// Node's main run body.
+/// Run a single user node.
 mod run;
 /// Node's API server used while running.
 mod server;

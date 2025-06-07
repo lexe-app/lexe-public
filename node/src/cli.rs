@@ -9,9 +9,11 @@ use common::{
     enclave,
     rng::SysRng,
 };
+use lexe_tokio::notify_once::NotifyOnce;
 
 use crate::{
-    provision::ProvisionInstance, run::UserNode, DEV_VERSION, SEMVER_VERSION,
+    mega, provision::ProvisionInstance, run::UserNode, DEV_VERSION,
+    SEMVER_VERSION,
 };
 
 /// Commands accepted by the user node.
@@ -103,16 +105,16 @@ impl NodeCommand {
                 .context("Error running node"),
             Self::Provision(args) => rt
                 .block_on(async {
+                    let shutdown = NotifyOnce::new();
                     let provision =
-                        ProvisionInstance::init(&mut rng, args).await?;
+                        ProvisionInstance::init(&mut rng, args, shutdown)
+                            .await?;
                     provision.run().await
                 })
                 .context("Provision instance error"),
-            Self::Mega(args) => {
-                // TODO(max): Implement
-                let _ = args;
-                todo!()
-            }
+            Self::Mega(args) => rt
+                .block_on(mega::run(&mut rng, args))
+                .context("Mega instance error"),
         }
     }
 }

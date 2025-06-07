@@ -14,6 +14,18 @@ use crate::{
 #[cfg_attr(test, derive(Arbitrary))]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct MegaArgs {
+    /// protocol://host:port of the backend.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
+    pub backend_url: String,
+
+    /// protocol://host:port of the runner.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
+    pub runner_url: String,
+
+    /// configuration info for Google OAuth2.
+    /// Required only if running in staging / prod.
+    pub oauth: Option<OAuthConfig>,
+
     /// The value to set for `RUST_BACKTRACE`. Does nothing if set to [`None`].
     /// Passed as an arg since envs aren't available in SGX.
     #[cfg_attr(
@@ -29,6 +41,14 @@ pub struct MegaArgs {
         proptest(strategy = "arbitrary::any_option_simple_string()")
     )]
     pub rust_log: Option<String>,
+
+    /// The current deploy environment passed to us by Lexe (or someone in
+    /// Lexe's cloud). This input should be treated as untrusted.
+    pub untrusted_deploy_env: DeployEnv,
+
+    /// The current deploy network passed to us by Lexe (or someone in
+    /// Lexe's cloud). This input should be treated as untrusted.
+    pub untrusted_network: LxNetwork,
 }
 
 impl EnclaveArgs for MegaArgs {
@@ -130,13 +150,13 @@ pub struct ProvisionArgs {
     /// Required only if running in staging / prod.
     pub oauth: Option<OAuthConfig>,
 
-    /// The current deploy environment passed to us by Lexe (or someone in
-    /// Lexe's cloud). This input should be treated as untrusted.
-    pub untrusted_deploy_env: DeployEnv,
-
-    /// The current deploy network passed to us by Lexe (or someone in
-    /// Lexe's cloud). This input should be treated as untrusted.
-    pub untrusted_network: LxNetwork,
+    /// The value to set for `RUST_BACKTRACE`. Does nothing if set to [`None`].
+    /// Passed as an arg since envs aren't available in SGX.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_option_simple_string()")
+    )]
+    pub rust_backtrace: Option<String>,
 
     /// The value to set for `RUST_LOG`. Does nothing if set to [`None`].
     /// Passed as an arg since envs aren't available in SGX.
@@ -146,17 +166,31 @@ pub struct ProvisionArgs {
     )]
     pub rust_log: Option<String>,
 
-    /// The value to set for `RUST_BACKTRACE`. Does nothing if set to [`None`].
-    /// Passed as an arg since envs aren't available in SGX.
-    #[cfg_attr(
-        test,
-        proptest(strategy = "arbitrary::any_option_simple_string()")
-    )]
-    pub rust_backtrace: Option<String>,
+    /// The current deploy environment passed to us by Lexe (or someone in
+    /// Lexe's cloud). This input should be treated as untrusted.
+    pub untrusted_deploy_env: DeployEnv,
+
+    /// The current deploy network passed to us by Lexe (or someone in
+    /// Lexe's cloud). This input should be treated as untrusted.
+    pub untrusted_network: LxNetwork,
 }
 
 impl EnclaveArgs for ProvisionArgs {
     const NAME: &str = "provision";
+}
+
+impl From<&MegaArgs> for ProvisionArgs {
+    fn from(args: &MegaArgs) -> Self {
+        Self {
+            backend_url: args.backend_url.clone(),
+            runner_url: args.runner_url.clone(),
+            oauth: args.oauth.clone(),
+            untrusted_deploy_env: args.untrusted_deploy_env,
+            untrusted_network: args.untrusted_network,
+            rust_log: args.rust_log.clone(),
+            rust_backtrace: args.rust_backtrace.clone(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -166,6 +200,7 @@ mod test {
 
     #[test]
     fn node_args_json_string_roundtrip() {
+        roundtrip::json_string_roundtrip_proptest::<MegaArgs>();
         roundtrip::json_string_roundtrip_proptest::<RunArgs>();
         roundtrip::json_string_roundtrip_proptest::<ProvisionArgs>();
     }
