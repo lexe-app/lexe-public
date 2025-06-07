@@ -32,9 +32,9 @@ pub enum Ports {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct MegaPorts {
-    pub mega_port: Port,
-    #[serde(flatten)]
-    pub provision: ProvisionPorts,
+    pub measurement: Measurement,
+    pub app_provision_port: Port,
+    pub lexe_mega_port: Port,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
@@ -48,7 +48,18 @@ pub struct RunPorts {
 pub struct ProvisionPorts {
     pub measurement: Measurement,
     pub app_port: Port,
+    // TODO(max): Remove this field
     pub lexe_port: Port,
+}
+
+impl From<MegaPorts> for ProvisionPorts {
+    fn from(mega_ports: MegaPorts) -> Self {
+        ProvisionPorts {
+            measurement: mega_ports.measurement,
+            app_port: mega_ports.app_provision_port,
+            lexe_port: mega_ports.lexe_mega_port,
+        }
+    }
 }
 
 impl Ports {

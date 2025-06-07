@@ -38,7 +38,7 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
         measurement,
         mega_shutdown: mega_shutdown.clone(),
     };
-    let (mega_task, mega_port, _mega_url) =
+    let (mega_task, lexe_mega_port, _mega_url) =
         mega_server::spawn_server_task(mega_state)
             .context("Failed to spawn mega server task")?;
     static_tasks.push(mega_task);
@@ -57,8 +57,9 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
 
     // Let the runner know that the mega node is ready to load user nodes.
     let ports = MegaPorts {
-        mega_port,
-        provision: provision_ports,
+        measurement,
+        app_provision_port: provision_ports.app_port,
+        lexe_mega_port,
     };
     runner_client
         .mega_ready(&ports)
@@ -93,30 +94,30 @@ mod mega_server {
     pub(super) fn spawn_server_task(
         state: MegaRouterState,
     ) -> anyhow::Result<(LxTask<()>, Port, String)> {
-        let mega_shutdown = state.mega_shutdown.clone();
+        let lexe_mega_shutdown = state.mega_shutdown.clone();
 
         const SERVER_SPAN_NAME: &str = "(mega-server)";
-        let mega_listener =
+        let lexe_mega_listener =
             TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
                 .context("Failed to bind mega listener")?;
-        let mega_port = mega_listener
+        let lexe_mega_port = lexe_mega_listener
             .local_addr()
             .context("Couldn't get mega addr")?
             .port();
         let tls_and_dns = None;
-        let (task, mega_url) =
+        let (task, lexe_mega_url) =
             lexe_api::server::spawn_server_task_with_listener(
-                mega_listener,
+                lexe_mega_listener,
                 mega_router(state),
                 LayerConfig::default(),
                 tls_and_dns,
                 Cow::from(SERVER_SPAN_NAME),
                 info_span!(SERVER_SPAN_NAME),
-                mega_shutdown,
+                lexe_mega_shutdown,
             )
             .context("Failed to spawn Lexe mega server task")?;
 
-        Ok((task, mega_port, mega_url))
+        Ok((task, lexe_mega_port, lexe_mega_url))
     }
 
     #[derive(Clone)]
