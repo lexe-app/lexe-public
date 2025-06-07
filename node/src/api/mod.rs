@@ -29,7 +29,7 @@ pub static USER_AGENT_EXTERNAL: &str = lexe_api::user_agent_external!();
 /// A trait for a client that implements both backend API traits, plus a
 /// method which allows the caller to specify the number of retries.
 #[async_trait]
-pub trait BackendApiClient: NodeBackendApi + BearerAuthBackendApi {
+pub trait NodeBackendApiClient: NodeBackendApi + BearerAuthBackendApi {
     async fn upsert_file_with_retries(
         &self,
         file: &VfsFile,
@@ -45,13 +45,13 @@ pub(crate) fn new_backend_api(
     deploy_env: DeployEnv,
     node_mode: NodeMode,
     maybe_backend_url: Option<String>,
-) -> anyhow::Result<Arc<dyn BackendApiClient + Send + Sync>> {
+) -> anyhow::Result<Arc<dyn NodeBackendApiClient + Send + Sync>> {
     cfg_if::cfg_if! {
         if #[cfg(any(test, feature = "test-utils"))] {
             // Can use real OR mock client during development
             match maybe_backend_url {
                 Some(backend_url) => {
-                    let backend_client = client::BackendClient::new(
+                    let backend_client = client::NodeBackendClient::new(
                         rng, deploy_env, node_mode, backend_url
                     )
                     .context("Failed to init BackendClient")?;
@@ -70,7 +70,7 @@ pub(crate) fn new_backend_api(
             let _ = allow_mock;
             let backend_url = maybe_backend_url
                 .context("--backend-url must be supplied in staging/prod")?;
-            let backend_client = client::BackendClient::new(
+            let backend_client = client::NodeBackendClient::new(
                 rng, deploy_env, node_mode, backend_url
             )
             .context("Failed to init BackendClient")?;
@@ -94,7 +94,7 @@ pub(crate) fn new_lsp_api(
             // Can use real OR mock client during development
             match maybe_lsp_url {
                 Some(lsp_url) => {
-                    let lsp_client = client::LspClient::new(
+                    let lsp_client = client::NodeLspClient::new(
                         rng, deploy_env, node_mode, lsp_url
                     )
                     .context("Failed to init LspClient")?;
@@ -114,7 +114,7 @@ pub(crate) fn new_lsp_api(
             let lsp_url = maybe_lsp_url
                 .context("LspInfo's url field must be Some(_) in staging/prod")?;
             let lsp_client =
-                client::LspClient::new(rng, deploy_env, node_mode, lsp_url)
+                client::NodeLspClient::new(rng, deploy_env, node_mode, lsp_url)
                     .context("Failed to init LspClient")?;
             Ok(Arc::new(lsp_client))
         }

@@ -55,7 +55,7 @@ use lightning::{
 };
 use tokio::sync::mpsc;
 
-use crate::api::BackendApiClient;
+use crate::api::NodeBackendApiClient;
 
 type FileName = Cow<'static, str>;
 type Data = Vec<u8>;
@@ -221,7 +221,7 @@ impl MockBackendClient {
 }
 
 #[async_trait]
-impl BackendApiClient for MockBackendClient {
+impl NodeBackendApiClient for MockBackendClient {
     async fn upsert_file_with_retries(
         &self,
         data: &VfsFile,

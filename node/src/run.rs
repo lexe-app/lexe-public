@@ -76,7 +76,7 @@ use tracing::{debug, info, info_span, warn};
 
 use crate::{
     alias::{ChainMonitorType, OnionMessengerType, PaymentsManagerType},
-    api::{self, BackendApiClient},
+    api::{self, NodeBackendApiClient},
     channel_manager::{self, NodeChannelManager},
     event_handler::{self, NodeEventHandler},
     gdrive_persister,
@@ -1021,7 +1021,7 @@ struct ProvisionedSecrets {
 // marked as incomplete and not yet safe to use as of 2023-02-01.
 // https://github.com/rust-lang/rust/issues/65991
 async fn fetch_provisioned_secrets(
-    backend_api: &dyn BackendApiClient,
+    backend_api: &dyn NodeBackendApiClient,
     user_pk: UserPk,
     measurement: Measurement,
     machine_id: MachineId,
@@ -1098,7 +1098,7 @@ async fn fetch_provisioned_secrets(
 /// Helper to efficiently initialize a [`GoogleVfs`] and handle related work.
 /// Also spawns a task which persists updated GDrive credentials.
 async fn init_google_vfs(
-    backend_api: Arc<dyn BackendApiClient + Send + Sync>,
+    backend_api: Arc<dyn NodeBackendApiClient + Send + Sync>,
     authenticator: Arc<BearerAuthenticator>,
     vfs_master_key: Arc<AesMasterKey>,
     gvfs_root_name: GvfsRootName,

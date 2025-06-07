@@ -47,7 +47,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, error, info, info_span};
 
 use crate::{
-    api::client::{BackendClient, RunnerClient},
+    api::client::{NodeBackendClient, RunnerClient},
     persister,
 };
 
@@ -75,7 +75,7 @@ impl ProvisionInstance {
             args.runner_url.clone(),
         )
         .context("Failed to init RunnerClient")?;
-        let backend_client = BackendClient::new(
+        let backend_client = NodeBackendClient::new(
             rng,
             args.untrusted_deploy_env,
             node_mode,
@@ -192,7 +192,7 @@ struct AppRouterState {
     client: gdrive::ReqwestClient,
     machine_id: MachineId,
     measurement: Measurement,
-    backend_client: Arc<BackendClient>,
+    backend_client: Arc<NodeBackendClient>,
     // TODO(phlip9): make generic, use test rng in test
     rng: SysRng,
 }

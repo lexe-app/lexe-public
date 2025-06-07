@@ -31,7 +31,7 @@ use lexe_api::{
 use lexe_tls::attestation::{self, NodeMode};
 use lightning::events::Event;
 
-use crate::api::BackendApiClient;
+use crate::api::NodeBackendApiClient;
 
 pub(crate) struct RunnerClient {
     rest: RestClient,
@@ -73,12 +73,12 @@ impl NodeRunnerApi for RunnerClient {
     }
 }
 
-pub(crate) struct LspClient {
+pub(crate) struct NodeLspClient {
     rest: RestClient,
     lsp_url: String,
 }
 
-impl LspClient {
+impl NodeLspClient {
     pub(crate) fn new(
         rng: &mut impl Crng,
         deploy_env: DeployEnv,
@@ -95,7 +95,7 @@ impl LspClient {
 }
 
 #[async_trait]
-impl NodeLspApi for LspClient {
+impl NodeLspApi for NodeLspClient {
     async fn get_new_scids(
         &self,
         req: &GetNewScidsRequest,
@@ -137,12 +137,12 @@ impl NodeLspApi for LspClient {
     }
 }
 
-pub(crate) struct BackendClient {
+pub(crate) struct NodeBackendClient {
     rest: RestClient,
     backend_url: String,
 }
 
-impl BackendClient {
+impl NodeBackendClient {
     pub(crate) fn new(
         rng: &mut impl Crng,
         deploy_env: DeployEnv,
@@ -160,7 +160,7 @@ impl BackendClient {
 }
 
 #[async_trait]
-impl BackendApiClient for BackendClient {
+impl NodeBackendApiClient for NodeBackendClient {
     async fn upsert_file_with_retries(
         &self,
         data: &VfsFile,
@@ -175,7 +175,7 @@ impl BackendApiClient for BackendClient {
 }
 
 #[async_trait]
-impl BearerAuthBackendApi for BackendClient {
+impl BearerAuthBackendApi for NodeBackendClient {
     async fn bearer_auth(
         &self,
         signed_req: &ed25519::Signed<&BearerAuthRequestWire>,
@@ -192,7 +192,7 @@ impl BearerAuthBackendApi for BackendClient {
 }
 
 #[async_trait]
-impl NodeBackendApi for BackendClient {
+impl NodeBackendApi for NodeBackendClient {
     // not authenticated, node calls this to get sealed seed on startup
     async fn get_user(
         &self,

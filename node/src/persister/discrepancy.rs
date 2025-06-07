@@ -16,7 +16,7 @@ use lexe_api::{
 use lexe_ln::persister;
 use tracing::{error, warn};
 
-use crate::api::BackendApiClient;
+use crate::api::NodeBackendApiClient;
 
 /// Given the [`Option<VfsFile>`]s returned by Google and Lexe, evaluates
 /// whether there is a discrepancy between the two and resolves it if so.
@@ -26,7 +26,7 @@ use crate::api::BackendApiClient;
 /// store succeeded and positively confirms that that file does not exist, at
 /// least according to the data store.
 pub(super) async fn evaluate_and_resolve(
-    backend_api: &(dyn BackendApiClient + Send + Sync),
+    backend_api: &(dyn NodeBackendApiClient + Send + Sync),
     authenticator: &BearerAuthenticator,
     vfs_master_key: &AesMasterKey,
     gvfs: &GoogleVfs,
@@ -192,7 +192,7 @@ pub(super) async fn evaluate_and_resolve(
 // some of this code.
 #[allow(dead_code)]
 pub(super) async fn evaluate_and_resolve_all(
-    backend_api: &(dyn BackendApiClient + Send + Sync),
+    backend_api: &(dyn NodeBackendApiClient + Send + Sync),
     authenticator: &BearerAuthenticator,
     vfs_master_key: &AesMasterKey,
     gvfs: &GoogleVfs,
