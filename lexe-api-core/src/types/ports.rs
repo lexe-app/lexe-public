@@ -1,26 +1,7 @@
-use std::fmt;
-
 use common::{api::user::UserPk, enclave::Measurement};
 use serde::{Deserialize, Serialize};
 
 pub type Port = u16;
-
-/// Identifies a node by its [`UserPk`] (Run) or [`Measurement`] (Provision).
-#[derive(Copy, Clone)]
-pub enum NodeId {
-    UserPk(UserPk),
-    Measurement(Measurement),
-}
-
-impl fmt::Display for NodeId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            NodeId::UserPk(user_pk) => write!(f, "UserPk({user_pk})"),
-            NodeId::Measurement(measurement) =>
-                write!(f, "Measurement({measurement})"),
-        }
-    }
-}
 
 /// Represents the ports used by a user node.
 /// Used to (de)serialize /ready requests and responses.
@@ -85,15 +66,6 @@ impl Ports {
             app_port,
             lexe_port,
         })
-    }
-
-    /// Returns the [`NodeId`] corresponding to this [`Ports`].
-    pub fn node_id(&self) -> NodeId {
-        match self {
-            Self::Run(RunPorts { user_pk, .. }) => NodeId::UserPk(*user_pk),
-            Self::Provision(ProvisionPorts { measurement, .. }) =>
-                NodeId::Measurement(*measurement),
-        }
     }
 
     /// Shorthand to return the app port.
