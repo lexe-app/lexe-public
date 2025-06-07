@@ -151,7 +151,7 @@ impl ProvisionInstance {
         // Notify the runner that we're ready for a client connection
         let ports = Ports::new_provision(measurement, app_port, lexe_port);
         runner_client
-            .ready(&ports)
+            .node_ready(&ports)
             .await
             .context("Failed to notify runner of our readiness")?;
         debug!("Notified runner; awaiting client request");

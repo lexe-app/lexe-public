@@ -145,7 +145,7 @@ impl MockRunnerClient {
 
 #[async_trait]
 impl NodeRunnerApi for MockRunnerClient {
-    async fn ready(&self, ports: &Ports) -> Result<Empty, RunnerApiError> {
+    async fn node_ready(&self, ports: &Ports) -> Result<Empty, RunnerApiError> {
         let _ = self.notifs_tx.try_send(*ports);
         Ok(Empty {})
     }

@@ -55,7 +55,7 @@ impl RunnerClient {
 
 #[async_trait]
 impl NodeRunnerApi for RunnerClient {
-    async fn ready(&self, data: &Ports) -> Result<Empty, RunnerApiError> {
+    async fn node_ready(&self, data: &Ports) -> Result<Empty, RunnerApiError> {
         let runner = &self.runner_url;
         let req = self.rest.post(format!("{runner}/node/ready"), &data);
         // TODO(phlip9): authenticate runner callbacks?

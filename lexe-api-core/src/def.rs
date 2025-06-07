@@ -627,7 +627,7 @@ pub trait NodeLspApi {
 #[async_trait]
 pub trait NodeRunnerApi {
     /// POST /node/ready [`Ports`] -> [`Empty`]
-    async fn ready(&self, ports: &Ports) -> Result<Empty, RunnerApiError>;
+    async fn node_ready(&self, ports: &Ports) -> Result<Empty, RunnerApiError>;
 
     /// POST /node/activity [`UserPkStruct`] -> [`Empty`]
     ///
