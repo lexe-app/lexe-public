@@ -146,7 +146,7 @@ rust_decimal_macros = { version = "1", default-features = false }
 # For demangling backtrace symbols into human-readable format
 rustc-demangle = "0.1"
 # TLS library
-rustls = { version = "0.22", default-features = false }
+rustls = { version = "0.22", default-features = false, features = ["ring"] }
 # Deserialize PEM certs
 rustls-pemfile = "1"
 # Required to name our signature algorithms.
