@@ -270,77 +270,7 @@ impl LexeWallet {
     #[instrument(skip_all, name = "(bdk-sync)")]
     pub async fn sync(&self, esplora: &LexeEsplora) -> anyhow::Result<()> {
         // Build a SyncRequest with everything we're interested in syncing.
-        let sync_request = {
-            let locked_wallet = self.inner.read().unwrap();
-
-            let keychains = locked_wallet.spk_index();
-            let tx_graph = locked_wallet.tx_graph();
-            let local_chain = locked_wallet.local_chain();
-            let chain_tip = local_chain.tip();
-
-            // Sync all external script pubkeys we have ever revealed.
-            let revealed_external_spks =
-                keychains.revealed_keychain_spks(KeychainKind::External);
-
-            // Sync all internal (change) spks we've revealed but have not used.
-            // We save some calls here by skipping all spks we've already used.
-            let unused_internal_spks =
-                keychains.unused_keychain_spks(KeychainKind::Internal);
-
-            // Sync the last used internal (change) spk, in case two txs in
-            // quick succession caused us to reuse the previous internal spk.
-            let last_used_internal_spk = keychains
-                .last_used_index(KeychainKind::Internal)
-                .and_then(|idx| {
-                    let spk =
-                        keychains.spk_at_index(KeychainKind::Internal, idx)?;
-                    Some((idx, spk))
-                });
-
-            // Sync the next (unrevealed) spk for both keychains, in case we
-            // revealed an index, used it, then crashed before it was persisted.
-            let next_external_spk = keychains
-                .next_index(KeychainKind::External)
-                .and_then(|(idx, _is_new)| {
-                    let spk =
-                        keychains.spk_at_index(KeychainKind::External, idx)?;
-                    Some((idx, spk))
-                });
-            let next_internal_spk = keychains
-                .next_index(KeychainKind::Internal)
-                .and_then(|(idx, _is_new)| {
-                    let spk =
-                        keychains.spk_at_index(KeychainKind::Internal, idx)?;
-                    Some((idx, spk))
-                });
-
-            // The UTXOs (outpoints) we check to see if they have been spent.
-            let utxos = locked_wallet
-                .list_unspent()
-                .map(|utxo| utxo.outpoint)
-                .collect::<Vec<bitcoin::OutPoint>>();
-
-            // The txids of txns we want to check if they have been spent.
-            let unconfirmed_txids = tx_graph
-                .list_canonical_txs(local_chain, chain_tip.block_id())
-                .filter(|canonical_tx| {
-                    !canonical_tx.chain_position.is_confirmed()
-                })
-                .map(|canonical_tx| canonical_tx.tx_node.txid)
-                .collect::<Vec<bitcoin::Txid>>();
-
-            // Specify all of the above in our SyncRequest.
-            SyncRequest::builder()
-                .chain_tip(chain_tip)
-                .spks_with_indexes(revealed_external_spks)
-                .spks_with_indexes(unused_internal_spks)
-                .spks_with_indexes(last_used_internal_spk)
-                .spks_with_indexes(next_external_spk)
-                .spks_with_indexes(next_internal_spk)
-                .outpoints(utxos)
-                .txids(unconfirmed_txids)
-                .build()
-        };
+        let sync_request = self.build_sync_request();
 
         // Check for updates on everything we specified in the SyncRequest.
         let sync_result = esplora
@@ -359,6 +289,74 @@ impl LexeWallet {
         self.trigger_persist();
 
         Ok(())
+    }
+
+    /// Collect all the script pubkeys, UTXOs, and unconfirmed txids that we
+    /// want to sync from the esplora backend.
+    fn build_sync_request(&self) -> SyncRequest<u32> {
+        let locked_wallet = self.inner.read().unwrap();
+
+        let keychains = locked_wallet.spk_index();
+        let tx_graph = locked_wallet.tx_graph();
+        let local_chain = locked_wallet.local_chain();
+        let chain_tip = local_chain.tip();
+
+        // Sync all external script pubkeys we have ever revealed.
+        let revealed_external_spks =
+            keychains.revealed_keychain_spks(KeychainKind::External);
+
+        // Sync all internal (change) spks we've revealed but have not used.
+        // We save some calls here by skipping all spks we've already used.
+        let unused_internal_spks =
+            keychains.unused_keychain_spks(KeychainKind::Internal);
+
+        // Sync the last used internal (change) spk, in case two txs in
+        // quick succession caused us to reuse the previous internal spk.
+        let last_used_internal_spk = keychains
+            .last_used_index(KeychainKind::Internal)
+            .and_then(|idx| {
+                let spk =
+                    keychains.spk_at_index(KeychainKind::Internal, idx)?;
+                Some((idx, spk))
+            });
+
+        // Sync the next (unrevealed) spk for both keychains, in case we
+        // revealed an index, used it, then crashed before it was persisted.
+        let next_external_spk = keychains
+            .next_index(KeychainKind::External)
+            .and_then(|(idx, _is_new)| {
+                let spk =
+                    keychains.spk_at_index(KeychainKind::External, idx)?;
+                Some((idx, spk))
+            });
+        let next_internal_spk = keychains
+            .next_index(KeychainKind::Internal)
+            .and_then(|(idx, _is_new)| {
+                let spk =
+                    keychains.spk_at_index(KeychainKind::Internal, idx)?;
+                Some((idx, spk))
+            });
+
+        // The UTXOs (outpoints) we check to see if they have been spent.
+        let utxos = locked_wallet.list_unspent().map(|utxo| utxo.outpoint);
+
+        // The txids of txns we want to check if they have been spent.
+        let unconfirmed_txids = tx_graph
+            .list_canonical_txs(local_chain, chain_tip.block_id())
+            .filter(|canonical_tx| !canonical_tx.chain_position.is_confirmed())
+            .map(|canonical_tx| canonical_tx.tx_node.txid);
+
+        // Specify all of the above in our SyncRequest.
+        SyncRequest::builder()
+            .chain_tip(chain_tip)
+            .spks_with_indexes(revealed_external_spks)
+            .spks_with_indexes(unused_internal_spks)
+            .spks_with_indexes(last_used_internal_spk)
+            .spks_with_indexes(next_external_spk)
+            .spks_with_indexes(next_internal_spk)
+            .outpoints(utxos)
+            .txids(unconfirmed_txids)
+            .build()
     }
 
     /// Conducts a full sync of all script pubkeys derived from all of our
