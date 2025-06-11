@@ -33,7 +33,7 @@
 //! * `foo=trace` (TARGET=LEVEL)
 //! * `foo[{bar,baz}]=info` (TARGET[{FIELD,+}]=LEVEL)
 
-use std::{ops::Deref, str::FromStr, sync::LazyLock};
+use std::{io, ops::Deref, str::FromStr, sync::LazyLock};
 
 use anyhow::anyhow;
 use lexe_api::{define_trace_id_fns, trace};
@@ -58,7 +58,7 @@ use tracing_subscriber::{
 
 /// Initialize the global `tracing` logger.
 ///
-/// + The logger will print enabled `tracing` events and spans to stdout.
+/// + The logger will print enabled `tracing` events and spans to stderr.
 /// + The default log level includes INFO, WARN, and ERROR events.
 ///
 /// Panics if a logger is already initialized. This will fail if used in tests,
@@ -107,7 +107,7 @@ pub fn try_init(
 /// dummy value (e.g. `u32`) and the compiler will tell you what it should be.
 type SubscriberType = Layered<
     Filtered<
-        Layer<Registry, DefaultFields, Format<Compact>>,
+        Layer<Registry, DefaultFields, Format<Compact>, fn() -> io::Stderr>,
         Targets,
         Registry,
     >,
@@ -139,17 +139,18 @@ fn subscriber(rust_log: &str, allow_trace: bool) -> SubscriberType {
             clamp_targets(targets)
         };
 
-    let stdout_log = tracing_subscriber::fmt::Layer::default()
+    let stderr_log = tracing_subscriber::fmt::Layer::default()
         .compact()
         .with_level(true)
         .with_target(true)
-        // Enable colored outputs for stdout.
+        .with_writer(io::stderr as fn() -> io::Stderr)
+        // Enable colored outputs.
         // TODO(max): This should be disabled when outputting to files - a
         //            second subscriber is probably needed.
         .with_ansi(true)
         .with_filter(clamped_targets);
 
-    tracing_subscriber::registry().with(stdout_log)
+    tracing_subscriber::registry().with(stderr_log)
 }
 
 /// Disallows TRACE logs as a default or for any specific target.

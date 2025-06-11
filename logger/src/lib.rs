@@ -3,7 +3,7 @@
 //! See also: the `logger` module in the `public/lexe-ln` crate for log config
 //! in enclaves.
 
-use std::{env, str::FromStr};
+use std::{env, io, str::FromStr};
 
 use anyhow::anyhow;
 #[cfg(doc)]
@@ -23,7 +23,7 @@ use tracing_subscriber::{
 
 /// Initialize a global `tracing` logger.
 ///
-/// + The logger will print enabled `tracing` events and spans to stdout.
+/// + The logger will print enabled `tracing` events and spans to stderr.
 /// + You can change the log level or module filtering with an appropriate
 ///   `RUST_LOG` env var set. Read more about the syntax here:
 ///   <https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html>
@@ -80,7 +80,7 @@ pub fn try_init_with_default(rust_log_default: &str) -> anyhow::Result<()> {
 /// dummy value (e.g. `u32`) and the compiler will tell you what it should be.
 type SubscriberType = Layered<
     Filtered<
-        FmtLayer<Registry, DefaultFields, Format<Compact>>,
+        FmtLayer<Registry, DefaultFields, Format<Compact>, fn() -> io::Stderr>,
         Targets,
         Registry,
     >,
@@ -111,17 +111,18 @@ fn subscriber(rust_log: &str) -> SubscriberType {
             enforce_log_policy(targets)
         };
 
-    let stdout_log = tracing_subscriber::fmt::Layer::default()
+    let stderr_log = tracing_subscriber::fmt::Layer::default()
         .compact()
         .with_level(true)
         .with_target(true)
-        // Enable colored outputs for stdout.
+        .with_writer(io::stderr as fn() -> io::Stderr)
+        // Enable colored outputs.
         // TODO(max): This should be disabled when outputting to files - a
         //            second subscriber is probably needed.
         .with_ansi(true)
         .with_filter(clamped_targets);
 
-    tracing_subscriber::registry().with(stdout_log)
+    tracing_subscriber::registry().with(stderr_log)
 }
 
 /// Disallows TRACE logs as a default or for any specific target.
