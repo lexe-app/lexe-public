@@ -910,8 +910,8 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use bdk_chain::BlockId;
-    use bitcoin::TxOut;
+    use bdk_chain::{BlockId, ConfirmationBlockTime};
+    use bitcoin::{TxOut, Txid};
     use bitcoin_hashes::Hash;
     use common::{
         rng::FastRng,
@@ -935,12 +935,13 @@ mod test {
             Harness { wallet, network }
         }
 
-        fn fund(&self, amount: Amount) {
+        fn fund(&mut self, amount: Amount) {
             let address = self.wallet.get_address();
-
             let mut wallet = self.wallet.write();
 
-            let block_hash = bitcoin::BlockHash::from_byte_array([0u8; 32]);
+            // "confirm" some random blocks
+            wallet.add_checkpoint(100);
+            wallet.add_checkpoint(900);
 
             // build tx and fake anchor to confirm tx
             let tx = Transaction {
@@ -950,50 +951,9 @@ mod test {
                 }],
                 ..new_tx()
             };
-            let txid = tx.compute_txid();
-            let anchor = bdk_chain::ConfirmationBlockTime {
-                block_id: bdk_chain::BlockId {
-                    height: 1000,
-                    hash: block_hash,
-                },
-                confirmation_time: 100,
-            };
 
-            // "confirm" some blocks
-            insert_checkpoint(
-                &mut wallet,
-                BlockId {
-                    height: 42,
-                    hash: block_hash,
-                },
-            );
-            insert_checkpoint(
-                &mut wallet,
-                BlockId {
-                    height: 1000,
-                    hash: block_hash,
-                },
-            );
-
-            // Persist `tx`
-            wallet
-                .apply_update(bdk_wallet::Update {
-                    tx_update: bdk_chain::TxUpdate {
-                        txs: vec![Arc::new(tx)],
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                })
-                .unwrap();
-            wallet
-                .apply_update(bdk_wallet::Update {
-                    tx_update: bdk_chain::tx_graph::TxUpdate {
-                        anchors: [(anchor, txid)].into(),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                })
-                .unwrap();
+            // add and confirm the tx
+            wallet.add_confirmed_tx(&tx);
 
             // "persist"
             let _ = wallet.take_staged();
@@ -1010,15 +970,65 @@ mod test {
         }
     }
 
-    fn insert_checkpoint(wallet: &mut Wallet, block: BlockId) {
-        let mut cp = wallet.latest_checkpoint();
-        cp = cp.insert(block);
-        wallet
-            .apply_update(bdk_wallet::Update {
+    trait WalletExt {
+        fn height(&self) -> u32;
+        fn add_checkpoint(&mut self, blocks: u32) -> ConfirmationBlockTime;
+        fn add_unconfirmed_tx(&mut self, tx: &Transaction);
+        fn add_confirmed_tx(&mut self, tx: &Transaction);
+        fn confirm_txids(&mut self, txids: &[Txid]);
+    }
+
+    impl WalletExt for Wallet {
+        fn height(&self) -> u32 {
+            self.local_chain().tip().height()
+        }
+
+        fn add_checkpoint(&mut self, blocks: u32) -> ConfirmationBlockTime {
+            let new_height = self.height() + blocks;
+            let block_id = BlockId::from_u32(new_height);
+            let mut cp = self.latest_checkpoint();
+            cp = cp.insert(block_id);
+            self.apply_update(bdk_wallet::Update {
                 chain: Some(cp),
                 ..Default::default()
             })
             .unwrap();
+            assert_eq!(self.height(), new_height);
+            ConfirmationBlockTime {
+                block_id,
+                confirmation_time: 100 * new_height as u64,
+            }
+        }
+
+        fn add_unconfirmed_tx(&mut self, tx: &Transaction) {
+            let tx = Arc::new(tx.clone());
+            self.apply_update(bdk_wallet::Update {
+                tx_update: bdk_chain::TxUpdate {
+                    txs: vec![tx.clone()],
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
+            .unwrap();
+        }
+
+        fn add_confirmed_tx(&mut self, tx: &Transaction) {
+            self.add_unconfirmed_tx(tx);
+            self.confirm_txids(&[tx.compute_txid()]);
+        }
+
+        fn confirm_txids(&mut self, txids: &[Txid]) {
+            let anchor = self.add_checkpoint(6);
+            let anchors = txids.iter().map(|txid| (anchor, *txid)).collect();
+            self.apply_update(bdk_wallet::Update {
+                tx_update: bdk_chain::tx_graph::TxUpdate {
+                    anchors,
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
+            .unwrap();
+        }
     }
 
     fn new_tx() -> Transaction {
@@ -1027,6 +1037,31 @@ mod test {
             lock_time: bitcoin::absolute::LockTime::ZERO,
             input: Vec::new(),
             output: Vec::new(),
+        }
+    }
+
+    trait BlockHashExt {
+        fn from_u32(n: u32) -> Self;
+    }
+
+    impl BlockHashExt for bitcoin::BlockHash {
+        fn from_u32(n: u32) -> Self {
+            let mut hash = [0u8; 32];
+            hash[0..4].copy_from_slice(&n.to_le_bytes());
+            bitcoin::BlockHash::from_byte_array(hash)
+        }
+    }
+
+    trait BlockIdExt {
+        fn from_u32(n: u32) -> Self;
+    }
+
+    impl BlockIdExt for BlockId {
+        fn from_u32(n: u32) -> Self {
+            BlockId {
+                height: n,
+                hash: bitcoin::BlockHash::from_u32(n),
+            }
         }
     }
 
