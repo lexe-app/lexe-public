@@ -49,7 +49,7 @@ use lexe_ln::{
     sync, test_event,
     traits::LexeInnerPersister,
     tx_broadcaster::TxBroadcaster,
-    wallet::{self, LexeWallet},
+    wallet::{self, LexeCoinSelector, LexeWallet},
 };
 use lexe_std::{const_assert, Apply};
 use lexe_tls::{
@@ -427,11 +427,13 @@ impl UserNode {
 
         // Init BDK wallet; share esplora connection pool, spawn persister task
         let (wallet_persister_tx, wallet_persister_rx) = notify::channel();
+        let coin_selector = LexeCoinSelector::default();
         let wallet = LexeWallet::init(
             &root_seed,
             network,
             &esplora,
             fee_estimates.clone(),
+            coin_selector,
             maybe_changeset,
             wallet_persister_tx,
         )

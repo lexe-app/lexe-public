@@ -38,8 +38,12 @@ use bdk_chain::{spk_client::SyncRequest, Merge};
 use bdk_esplora::EsploraAsyncExt;
 pub use bdk_wallet::ChangeSet;
 use bdk_wallet::{
-    coin_selection::DefaultCoinSelectionAlgorithm, template::Bip84,
+    coin_selection::{
+        CoinSelectionAlgorithm, CoinSelectionResult, InsufficientFunds,
+    },
+    template::Bip84,
     CreateParams, KeychainKind, LoadParams, SignOptions, TxBuilder, Wallet,
+    WeightedUtxo,
 };
 use bitcoin::{Psbt, Transaction};
 use common::{
@@ -59,6 +63,7 @@ use lexe_api::{
     vfs::{Vfs, VfsFileId, SINGLETON_DIRECTORY, WALLET_CHANGESET_FILENAME},
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
+use rand::RngCore;
 use tracing::{debug, info, instrument, warn};
 
 use crate::{
@@ -92,8 +97,9 @@ const CHANNEL_FUNDING_CONF_PRIO: ConfirmationPriority =
 /// A newtype wrapper around [`Wallet`]. Can be cloned and used directly.
 #[derive(Clone)]
 pub struct LexeWallet {
-    fee_estimates: Arc<FeeEstimates>,
     inner: Arc<std::sync::RwLock<Wallet>>,
+    fee_estimates: Arc<FeeEstimates>,
+    coin_selector: LexeCoinSelector,
     /// NOTE: This is the full, *aggregated* changeset, not an intermediate
     /// state diff, contrary to what the name of "[`ChangeSet`]" might suggest.
     changeset: Arc<std::sync::Mutex<ChangeSet>>,
@@ -113,6 +119,7 @@ impl LexeWallet {
         network: LxNetwork,
         esplora: &LexeEsplora,
         fee_estimates: Arc<FeeEstimates>,
+        coin_selector: LexeCoinSelector,
         maybe_changeset: Option<ChangeSet>,
         wallet_persister_tx: notify::Sender,
     ) -> anyhow::Result<Self> {
@@ -120,6 +127,7 @@ impl LexeWallet {
             root_seed,
             network,
             fee_estimates,
+            coin_selector,
             maybe_changeset,
             wallet_persister_tx,
         )?;
@@ -140,6 +148,7 @@ impl LexeWallet {
         root_seed: &RootSeed,
         network: LxNetwork,
         fee_estimates: Arc<FeeEstimates>,
+        coin_selector: LexeCoinSelector,
         maybe_changeset: Option<ChangeSet>,
         wallet_persister_tx: notify::Sender,
     ) -> anyhow::Result<(Self, bool)> {
@@ -219,8 +228,9 @@ impl LexeWallet {
 
         Ok((
             Self {
-                fee_estimates,
                 inner: Arc::new(std::sync::RwLock::new(wallet)),
+                fee_estimates,
+                coin_selector,
                 changeset: Arc::new(std::sync::Mutex::new(initial_changeset)),
                 wallet_persister_tx,
             },
@@ -232,6 +242,7 @@ impl LexeWallet {
     #[cfg(test)]
     pub(crate) fn dummy(root_seed: &RootSeed) -> Self {
         let fee_estimates = FeeEstimates::dummy();
+        let coin_selector = LexeCoinSelector::default();
         let network = LxNetwork::Regtest;
         let maybe_changeset = None;
         let (persist_tx, _persist_rx) = notify::channel();
@@ -239,6 +250,7 @@ impl LexeWallet {
             root_seed,
             network,
             fee_estimates,
+            coin_selector,
             maybe_changeset,
             persist_tx,
         )
@@ -517,8 +529,11 @@ impl LexeWallet {
         // Build
         let conf_prio = CHANNEL_FUNDING_CONF_PRIO;
         let feerate = self.fee_estimates.conf_prio_to_feerate(conf_prio);
-        let mut tx_builder =
-            Self::default_tx_builder(&mut locked_wallet, feerate);
+        let mut tx_builder = Self::default_tx_builder(
+            &mut locked_wallet,
+            self.coin_selector,
+            feerate,
+        );
         tx_builder
             .add_recipient(fake_output_script, channel_value.into())
             // We're just estimating fees, use a fake drain script to prevent
@@ -552,8 +567,11 @@ impl LexeWallet {
         // Build
         let conf_prio = CHANNEL_FUNDING_CONF_PRIO;
         let feerate = self.fee_estimates.conf_prio_to_feerate(conf_prio);
-        let mut tx_builder =
-            Self::default_tx_builder(&mut locked_wallet, feerate);
+        let mut tx_builder = Self::default_tx_builder(
+            &mut locked_wallet,
+            self.coin_selector,
+            feerate,
+        );
         tx_builder.add_recipient(output_script, channel_value);
         let mut psbt = tx_builder
             .finish()
@@ -586,8 +604,11 @@ impl LexeWallet {
 
             // Build unsigned tx
             let feerate = self.fee_estimates.conf_prio_to_feerate(req.priority);
-            let mut tx_builder =
-                Self::default_tx_builder(&mut locked_wallet, feerate);
+            let mut tx_builder = Self::default_tx_builder(
+                &mut locked_wallet,
+                self.coin_selector,
+                feerate,
+            );
             tx_builder
                 .add_recipient(address.script_pubkey(), req.amount.into());
             let mut psbt = tx_builder
@@ -637,12 +658,14 @@ impl LexeWallet {
         let address = req.address.require_network(network.into())?;
         let normal_fee = Self::preflight_pay_onchain_inner(
             locked_wallet.deref_mut(),
+            self.coin_selector,
             &address,
             req.amount,
             normal_feerate,
         )?;
         let background_fee = Self::preflight_pay_onchain_inner(
             locked_wallet.deref_mut(),
+            self.coin_selector,
             &address,
             req.amount,
             background_feerate,
@@ -651,6 +674,7 @@ impl LexeWallet {
         // The high fee rate tx is allowed to fail with insufficient balance.
         let high_fee = Self::preflight_pay_onchain_inner(
             locked_wallet.deref_mut(),
+            self.coin_selector,
             &address,
             req.amount,
             high_feerate,
@@ -666,11 +690,13 @@ impl LexeWallet {
 
     fn preflight_pay_onchain_inner(
         wallet: &mut Wallet,
+        coin_selector: LexeCoinSelector,
         address: &bitcoin::Address,
         amount: Amount,
         feerate: bitcoin::FeeRate,
     ) -> anyhow::Result<FeeEstimate> {
-        let mut tx_builder = Self::default_tx_builder(wallet, feerate);
+        let mut tx_builder =
+            Self::default_tx_builder(wallet, coin_selector, feerate);
         tx_builder
             .add_recipient(address.script_pubkey(), amount.into())
             // We're just estimating fees, use a fake drain script to prevent
@@ -691,10 +717,11 @@ impl LexeWallet {
     /// Get a [`TxBuilder`] which has some defaults prepopulated.
     fn default_tx_builder(
         wallet: &mut Wallet,
+        coin_selector: LexeCoinSelector,
         feerate: bitcoin::FeeRate,
-    ) -> TxBuilder<'_, DefaultCoinSelectionAlgorithm> {
+    ) -> TxBuilder<'_, LexeCoinSelector> {
+        let mut tx_builder = wallet.build_tx().coin_selection(coin_selector);
         // Set the feerate. RBF is already enabled by default.
-        let mut tx_builder = wallet.build_tx();
         tx_builder.fee_rate(feerate);
         tx_builder
     }
@@ -762,6 +789,78 @@ pub fn spawn_wallet_persister_task<PS: LexePersister>(
 
         info!("wallet db persister task shutting down");
     })
+}
+
+/// A [`CoinSelectionAlgorithm`] impl which spends the oldest UTXOs first,
+/// i.e. it prioritizes confirmed UTXOds over unconfirmed UTXOs.
+///
+/// Can be configured to log a warning if we select an unconfirmed UTXO.
+///
+/// Note that `OldestFirstCoinSelection` (FIFO) only has a marginally higher
+/// UTXO footprint than the default `BranchAndBoundCoinSelection` provided by
+/// BDK (which is itself based on Bitcoin Core's implementation).
+/// See section 6.3.2.1 of Murch's paper for details:
+/// <https://murch.one/wp-content/uploads/2016/11/erhardt2016coinselection.pdf>
+#[derive(Copy, Clone, Debug, Default)]
+pub struct LexeCoinSelector {
+    /// Whether to log WARNs anytime an unconfirmed UTXO is selected.
+    pub log_unconfirmed: bool,
+}
+
+impl CoinSelectionAlgorithm for LexeCoinSelector {
+    fn coin_select<R: RngCore>(
+        &self,
+        required_utxos: Vec<WeightedUtxo>,
+        optional_utxos: Vec<WeightedUtxo>,
+        fee_rate: bitcoin::FeeRate,
+        target_amount: bitcoin::Amount,
+        drain_script: &bitcoin::Script,
+        rand: &mut R,
+    ) -> Result<CoinSelectionResult, InsufficientFunds> {
+        use bdk_wallet::Utxo;
+
+        /// Whether the given `selection_result` contains any unconfirmed UTXOs.
+        fn contains_unconfirmed_utxo(
+            selection_result: &CoinSelectionResult,
+        ) -> bool {
+            selection_result.selected.iter().any(|utxo| match utxo {
+                Utxo::Local(local) => !local.chain_position.is_confirmed(),
+                Utxo::Foreign { .. } => false,
+            })
+        }
+
+        // First filter out all foreign UTXOs, as OldestFirstCoinSelection
+        // contains a bug which actually selects foreign UTXOs *first*:
+        // https://github.com/bitcoindevkit/bdk_wallet/issues/264
+        // TODO(max): Remove this filtering once fixed
+        let optional_utxos = optional_utxos
+            .into_iter()
+            .filter(|weighted| match weighted.utxo {
+                Utxo::Local(_) => true,
+                Utxo::Foreign { .. } => false,
+            })
+            .collect();
+
+        // This implementation depends on `ChainPosition`'s derived Ord impl;
+        // unconfirmed UTXOs should be "less than" confirmed UTXOs.
+        // BDK has a test named `chain_position_ord` which enforces this.
+        let selection_result =
+            bdk_wallet::coin_selection::OldestFirstCoinSelection.coin_select(
+                required_utxos,
+                optional_utxos,
+                fee_rate,
+                target_amount,
+                drain_script,
+                rand,
+            )?;
+
+        if self.log_unconfirmed && contains_unconfirmed_utxo(&selection_result)
+        {
+            warn!("Selected unconfirmed UTXOs: {selection_result:?}");
+        }
+
+        Ok(selection_result)
+    }
 }
 
 /// Use this fake TXO drain script to prevent the BDK wallet from modifying its
