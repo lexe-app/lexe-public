@@ -68,6 +68,9 @@ base64 = "0.22"
 # Binary canonical serialization format
 bcs = "0.1"
 # BDK (Bitcoin Dev Kit) libraries
+# bdk_wallet = { version = "2", default-features = false, features = ["std"] }
+# bdk_chain = { version = "0.23", default-features = false, features = ["std"] }
+# bdk_esplora = { version = "0.22", default-features = false, features = ["std", "async"] }
 bdk_wallet = { version = "1.1.0", default-features = false, features = ["std"] }
 bdk_chain = { version = "0.21", default-features = false, features = ["std"] }
 bdk_esplora = { version = "0.20", default-features = false, features = ["std", "async"] }
