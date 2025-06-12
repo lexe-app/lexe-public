@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, ensure, Context};
-use bitcoin_hashes::{sha256, Hash};
+use bitcoin::hashes::{sha256, Hash as _};
 use common::{
     api::{
         revocable_clients::{

@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, ensure, Context};
-use bitcoin_hashes::{sha256, Hash};
+use bitcoin::hashes::{sha256, Hash as _};
 use byte_array::ByteArray;
 #[cfg(any(test, feature = "test-utils"))]
 use common::test_utils::arbitrary;

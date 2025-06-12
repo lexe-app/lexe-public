@@ -34,7 +34,6 @@ anyhow.workspace = true
 async-trait.workspace = true
 bcs.workspace = true
 bitcoin = { workspace = true, features = ["serde"] }
-bitcoin_hashes.workspace = true
 bytes.workspace = true
 http.workspace = true
 lightning.workspace = true

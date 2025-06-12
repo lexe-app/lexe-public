@@ -909,7 +909,7 @@ mod arbitrary_impl {
         DescriptorId,
     };
     use bdk_wallet::{template::DescriptorTemplate, ChangeSet, KeychainKind};
-    use bitcoin_hashes::Hash;
+    use bitcoin::hashes::Hash as _;
     use common::{root_seed::RootSeed, test_utils::arbitrary};
     use proptest::{
         arbitrary::any,
@@ -1040,8 +1040,7 @@ mod test {
     };
 
     use bdk_chain::{BlockId, ConfirmationBlockTime};
-    use bitcoin::{TxOut, Txid};
-    use bitcoin_hashes::Hash;
+    use bitcoin::{hashes::Hash as _, TxOut, Txid};
     use common::{
         rng::FastRng,
         test_utils::{arbitrary, roundtrip},

@@ -4,8 +4,7 @@ use std::{
     str::FromStr,
 };
 
-use bitcoin::Txid;
-use bitcoin_hashes::Hash;
+use bitcoin::{hashes::Hash as _, Txid};
 use serde::{Deserialize, Serialize};
 
 /// Almost exactly [`bitcoin::Txid`], but fixes the inconsistency between the

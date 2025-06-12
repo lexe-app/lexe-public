@@ -4,8 +4,8 @@ use anyhow::anyhow;
 use bitcoin::{
     blockdata::constants::{self, ChainHash},
     hash_types::BlockHash,
+    hashes::Hash as _,
 };
-use bitcoin_hashes::Hash;
 use lightning_invoice::Currency;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
