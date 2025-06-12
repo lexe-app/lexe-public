@@ -64,7 +64,8 @@ axum = { version = "0.7", default-features = false, features = [
     "macros" # Exposes `#[debug_handler]` and other useful macros
 ] }
 # Converting to/from base 64.
-base64 = "0.22"
+# Make sure this tracks `bitcoin`'s version.
+base64 = "0.21"
 # Binary canonical serialization format
 bcs = "0.1"
 # BDK (Bitcoin Dev Kit) libraries

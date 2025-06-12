@@ -173,7 +173,7 @@ dependencies = [
  "anyhow",
  "arc-swap",
  "async-trait",
- "base64 0.22.1",
+ "base64",
  "bitcoin",
  "cfg-if 1.0.1",
  "common",
@@ -611,12 +611,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
 
 [[package]]
-name = "base64"
-version = "0.22.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
-
-[[package]]
 name = "base64ct"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -695,7 +689,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ad8929a18b8e33ea6b3c09297b687baaa71fb1b97353243a3f1029fad5c59c5b"
 dependencies = [
  "base58ck",
- "base64 0.21.7",
+ "base64",
  "bech32",
  "bitcoin-internals",
  "bitcoin-io",
@@ -1051,7 +1045,7 @@ dependencies = [
  "anyhow",
  "asn1-rs",
  "async-trait",
- "base64 0.22.1",
+ "base64",
  "bcs",
  "bitcoin",
  "bitcoin_hashes",
@@ -1837,7 +1831,7 @@ name = "gdrive"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64",
  "byte-array",
  "common",
  "futures",
@@ -2436,7 +2430,7 @@ dependencies = [
  "anyhow",
  "arc-swap",
  "async-trait",
- "base64 0.22.1",
+ "base64",
  "bdk_chain",
  "bdk_esplora",
  "bdk_wallet",
@@ -3484,7 +3478,7 @@ name = "reqwest"
 version = "0.12.1"
 source = "git+https://github.com/lexe-app/reqwest?branch=lexe-v0.12.1-2024_10_11#2158f1ce3ef0df20fb646571f61caf8ba5a5b4ca"
 dependencies = [
- "base64 0.21.7",
+ "base64",
  "bytes",
  "futures-core",
  "futures-util",
@@ -3680,7 +3674,7 @@ version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c74cae0a4cf6ccbbf5f359f08efdf8ee7e1dc532573bf0db71968cb56b1448c"
 dependencies = [
- "base64 0.21.7",
+ "base64",
 ]
 
 [[package]]
@@ -3689,7 +3683,7 @@ version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f48172685e6ff52a556baa527774f61fcaa884f59daf3375c62a3f1cd2549dab"
 dependencies = [
- "base64 0.21.7",
+ "base64",
  "rustls-pki-types",
 ]
 
@@ -3929,7 +3923,7 @@ version = "3.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f5c9fdb6b00a489875b22efd4b78fe2b363b72265cc5f6eb2e2b9ee270e6140c"
 dependencies = [
- "base64 0.21.7",
+ "base64",
  "chrono",
  "hex 0.4.3",
  "serde",
