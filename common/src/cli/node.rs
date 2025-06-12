@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(test)]
 use crate::test_utils::arbitrary;
 use crate::{
-    api::user::UserPk,
+    api::{user::UserPk, MegaId},
     cli::{EnclaveArgs, LspInfo, OAuthConfig},
     env::DeployEnv,
     ln::network::LxNetwork,
@@ -14,6 +14,10 @@ use crate::{
 #[cfg_attr(test, derive(Arbitrary))]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct MegaArgs {
+    /// A randomly generated id for this mega node.
+    pub mega_id: MegaId,
+
+    // TODO(max): Add it here
     /// protocol://host:port of the backend.
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
     pub backend_url: String,

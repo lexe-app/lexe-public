@@ -36,7 +36,7 @@ use bytes::Bytes;
 #[cfg(doc)]
 use common::{
     api::user::NodePkStruct, api::user::UserPkStruct,
-    api::version::MeasurementStruct,
+    api::version::MeasurementStruct, api::MegaIdStruct,
 };
 use common::{
     api::{
@@ -61,6 +61,7 @@ use common::{
             Scids, UserPk,
         },
         version::NodeRelease,
+        MegaId,
     },
     ed25519,
     enclave::Measurement,
@@ -366,10 +367,10 @@ pub trait BearerAuthBackendApi {
 
 /// Defines the API the mega node exposes to the Lexe operators.
 pub trait LexeMegaApi {
-    /// GET /lexe/status [`MeasurementStruct`] -> [`Status`]
+    /// GET /lexe/status [`MegaIdStruct`] -> [`Status`]
     async fn status_mega(
         &self,
-        measurement: Measurement,
+        mega_id: MegaId,
     ) -> Result<Status, MegaApiError>;
 
     /// POST /lexe/shutdown [`Empty`] -> [`Empty`]

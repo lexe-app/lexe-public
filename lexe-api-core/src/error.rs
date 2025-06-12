@@ -13,6 +13,7 @@ use common::{
     api::{
         auth,
         user::{NodePk, UserPk},
+        MegaId,
     },
     enclave::{self, Measurement},
 };
@@ -772,8 +773,8 @@ api_error_kind! {
 
         // --- Mega --- //
 
-        /// Request measurement doesn't match current enclave measurement
-        WrongMeasurement = 100,
+        /// Request mega_id doesn't match current mega_id
+        WrongMegaId = 100,
     }
 }
 
@@ -792,7 +793,7 @@ impl ToHttpStatus for MegaErrorKind {
             Rejection => CLIENT_400_BAD_REQUEST,
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
 
-            WrongMeasurement => CLIENT_400_BAD_REQUEST,
+            WrongMegaId => CLIENT_400_BAD_REQUEST,
         }
     }
 }
@@ -1218,13 +1219,12 @@ impl LspApiError {
 }
 
 impl MegaApiError {
-    pub fn wrong_measurement(
-        req_measurement: &Measurement,
-        actual_measurement: &Measurement,
+    pub fn wrong_mega_id(
+        req_mega_id: &MegaId,
+        actual_mega_id: &MegaId,
     ) -> Self {
-        let kind = MegaErrorKind::WrongMeasurement;
-        let msg =
-            format!("Req: {req_measurement}, Actual: {actual_measurement}");
+        let kind = MegaErrorKind::WrongMegaId;
+        let msg = format!("Req: {req_mega_id}, Actual: {actual_mega_id}");
         Self {
             kind,
             msg,

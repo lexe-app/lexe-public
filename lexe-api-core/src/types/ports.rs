@@ -1,10 +1,15 @@
-use common::{api::user::UserPk, enclave::Measurement};
+use common::{
+    api::{user::UserPk, MegaId},
+    enclave::Measurement,
+};
 use serde::{Deserialize, Serialize};
 
 pub type Port = u16;
 
 /// Represents the ports used by a user node.
 /// Used to (de)serialize /ready requests and responses.
+// TODO(max): Get rid of this enum entirely; it is an imperfect abstraction
+// which no longer applies especially after moving to mega nodes.
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum Ports {
     Run(RunPorts),
@@ -13,6 +18,7 @@ pub enum Ports {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct MegaPorts {
+    pub mega_id: MegaId,
     pub measurement: Measurement,
     pub app_provision_port: Port,
     pub lexe_mega_port: Port,

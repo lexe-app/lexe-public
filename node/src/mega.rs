@@ -34,8 +34,9 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     static_tasks.push(provision.spawn_into_task());
 
     // Spawn the mega server task.
+    let mega_id = args.mega_id;
     let mega_state = mega_server::MegaRouterState {
-        measurement,
+        mega_id,
         mega_shutdown: mega_shutdown.clone(),
     };
     let (mega_task, lexe_mega_port, _mega_url) =
@@ -57,6 +58,7 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
 
     // Let the runner know that the mega node is ready to load user nodes.
     let ports = MegaPorts {
+        mega_id,
         measurement,
         app_provision_port: provision_ports.app_port,
         lexe_mega_port,
@@ -82,8 +84,11 @@ mod mega_server {
     use std::{borrow::Cow, net::TcpListener};
 
     use anyhow::Context;
-    use axum::{routing::post, Router};
-    use common::{enclave, net};
+    use axum::{
+        routing::{get, post},
+        Router,
+    };
+    use common::{api::MegaId, net};
     use lexe_api::{server::LayerConfig, types::ports::Port};
     use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
     use tracing::info_span;
@@ -122,7 +127,7 @@ mod mega_server {
 
     #[derive(Clone)]
     pub(super) struct MegaRouterState {
-        pub measurement: enclave::Measurement,
+        pub mega_id: MegaId,
         pub mega_shutdown: NotifyOnce,
     }
 
@@ -131,7 +136,7 @@ mod mega_server {
     /// [`LexeMegaApi`]: lexe_api::def::LexeMegaApi
     fn mega_router(state: MegaRouterState) -> Router<()> {
         Router::new()
-            .route("/lexe/status", post(handlers::status))
+            .route("/lexe/status", get(handlers::status))
             .route("/lexe/shutdown", post(handlers::shutdown))
             .with_state(state)
     }
@@ -141,7 +146,7 @@ mod mega_server {
 mod handlers {
     use axum::extract::State;
     use common::{
-        api::{models::Status, version::MeasurementStruct},
+        api::{models::Status, MegaIdStruct},
         time::TimestampMs,
     };
     use lexe_api::{
@@ -154,13 +159,13 @@ mod handlers {
 
     pub(super) async fn status(
         State(state): State<MegaRouterState>,
-        LxQuery(req): LxQuery<MeasurementStruct>,
+        LxQuery(req): LxQuery<MegaIdStruct>,
     ) -> Result<LxJson<Status>, MegaApiError> {
         // Sanity check
-        if req.measurement != state.measurement {
-            return Err(MegaApiError::wrong_measurement(
-                &req.measurement,
-                &state.measurement,
+        if req.mega_id != state.mega_id {
+            return Err(MegaApiError::wrong_mega_id(
+                &req.mega_id,
+                &state.mega_id,
             ));
         }
 
