@@ -75,7 +75,8 @@ bdk_wallet = { version = "1.1.0", default-features = false, features = ["std"] }
 bdk_chain = { version = "0.21", default-features = false, features = ["std"] }
 bdk_esplora = { version = "0.20", default-features = false, features = ["std", "async"] }
 # Encoding and decoding of the Bech32 format.
-bech32 = "0.9"
+# Make sure this tracks `bitcoin`'s version.
+bech32 = "0.11"
 # rust-bitcoin suite of libraries
 bitcoin = { version = "0.32", features = ["serde"] }
 bitcoin_hashes = "0.14"
