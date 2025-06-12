@@ -1033,6 +1033,12 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
+    use std::{
+        fs,
+        path::Path,
+        process::{Command, Stdio},
+    };
+
     use bdk_chain::{BlockId, ConfirmationBlockTime};
     use bitcoin::{TxOut, Txid};
     use bitcoin_hashes::Hash;
@@ -1292,10 +1298,39 @@ mod test {
             .unwrap();
     }
 
+    /// ```bash
+    /// $ cargo test -p lexe-ln --lib -- --ignored test_changeset_internal_snapshot --show-output
+    /// ```
+    #[ignore]
+    #[test]
+    fn test_changeset_internal_snapshot() {
+        // bdk_wallet-v1.1.0
+        let input_path = Path::new(
+            "../../log/lsp.bdk_wallet_changeset.20250611.pretty.json",
+        );
+        let input = fs::read_to_string(input_path).unwrap();
+        let changeset = serde_json::from_str::<ChangeSet>(&input).unwrap();
+        let output = serde_json::to_string_pretty(&changeset).unwrap();
+        // println!("{output}");
+        let output_path = input_path.with_extension("new.json");
+        fs::write(&output_path, output).unwrap();
+
+        // git diff --no-index <input_path> <output_path>
+        Command::new("git")
+            .arg("diff")
+            .arg("--no-index")
+            .arg(input_path)
+            .arg(&output_path)
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status()
+            .unwrap();
+    }
+
     /// Dumps a JSON array of three `ChangeSet`s using the proptest strategy.
     ///
     /// ```bash
-    /// $ cargo test -p lexe-ln -- --ignored dump_changesets --show-output
+    /// $ cargo test -p lexe-ln --lib -- --ignored dump_changesets --show-output
     /// ```
     #[ignore]
     #[test]
