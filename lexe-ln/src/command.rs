@@ -94,7 +94,7 @@ use crate::{
     route::{self, LastHopHint, RoutingContext},
     traits::{LexeChannelManager, LexePeerManager, LexePersister},
     tx_broadcaster::TxBroadcaster,
-    wallet::LexeWallet,
+    wallet::{LexeWallet, UtxoCounts},
 };
 
 /// The max # of route hints containing intercept scids we'll add to invoices.
@@ -157,6 +157,13 @@ where
 
     let onchain_balance = wallet.get_balance();
 
+    let utxo_counts = wallet.get_utxo_counts();
+    let UtxoCounts {
+        total: num_utxos,
+        confirmed: num_confirmed_utxos,
+        unconfirmed: num_unconfirmed_utxos,
+    } = utxo_counts;
+
     let pending_monitor_updates = chain_monitor
         .list_pending_monitor_updates()
         .values()
@@ -173,6 +180,9 @@ where
         lightning_balance,
         num_peers,
         onchain_balance,
+        num_utxos,
+        num_confirmed_utxos,
+        num_unconfirmed_utxos,
         pending_monitor_updates,
     }
 }

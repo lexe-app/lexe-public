@@ -33,12 +33,23 @@ pub struct NodeInfo {
     pub user_pk: UserPk,
     pub node_pk: NodePk,
     pub num_peers: usize,
+
     pub num_usable_channels: usize,
     pub num_channels: usize,
     /// Our lightning channel balance
     pub lightning_balance: LightningBalance,
+
     /// Our on-chain wallet balance
     pub onchain_balance: OnchainBalance,
+    /// The total # of UTXOs tracked by BDK.
+    pub num_utxos: usize,
+    /// The # of confirmed UTXOs tracked by BDK.
+    // TODO(max): LSP metrics should warn if this drops too low, as opening
+    // zeroconf with unconfirmed inputs risks double spending of channel funds.
+    pub num_confirmed_utxos: usize,
+    /// The # of unconfirmed UTXOs tracked by BDK.
+    pub num_unconfirmed_utxos: usize,
+
     /// The number of pending channel monitor updates.
     /// If this isn't 0, it's likely that at least one channel is paused.
     // TODO(max): This field is in the wrong place and should be removed.

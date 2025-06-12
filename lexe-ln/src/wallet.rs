@@ -106,6 +106,14 @@ pub struct LexeWallet {
     wallet_persister_tx: notify::Sender,
 }
 
+/// Counts the total, confirmed, and unconfirmed UTXOs tracked by BDK.
+#[derive(Copy, Clone, Debug, Default)]
+pub struct UtxoCounts {
+    pub total: usize,
+    pub confirmed: usize,
+    pub unconfirmed: usize,
+}
+
 impl LexeWallet {
     /// Init a [`LexeWallet`] from a [`RootSeed`] and [`ChangeSet`].
     /// Wallet addresses are generated according to the [BIP 84] standard.
@@ -427,6 +435,22 @@ impl LexeWallet {
             untrusted_pending,
             confirmed,
         }
+    }
+
+    /// Get a [`UtxoCounts`] for the UTXOs tracked by BDK.
+    pub fn get_utxo_counts(&self) -> UtxoCounts {
+        self.inner.read().unwrap().list_unspent().fold(
+            UtxoCounts::default(),
+            |mut acc, utxo| {
+                acc.total += 1;
+                if utxo.chain_position.is_confirmed() {
+                    acc.confirmed += 1;
+                } else {
+                    acc.unconfirmed += 1;
+                }
+                acc
+            },
+        )
     }
 
     /// Returns the last unused address derived using the external descriptor.
