@@ -76,8 +76,6 @@ bdk_chain = { version = "0.21", default-features = false, features = ["std"] }
 bdk_esplora = { version = "0.20", default-features = false, features = ["std", "async"] }
 # Encoding and decoding of the Bech32 format.
 bech32 = "0.9"
-# BIP39 mnemonic codes
-bip39 = { version = "2", features = ["zeroize"] }
 # rust-bitcoin suite of libraries
 bitcoin = { version = "0.32", features = ["serde"] }
 bitcoin-bech32 = "0.12"
