@@ -78,7 +78,6 @@ bdk_esplora = { version = "0.20", default-features = false, features = ["std", "
 bech32 = "0.9"
 # rust-bitcoin suite of libraries
 bitcoin = { version = "0.32", features = ["serde"] }
-bitcoin-bech32 = "0.12"
 bitcoin_hashes = "0.14"
 # For casting byte buffers to/from the AESM client from/to structured data.
 bytemuck = { version = "1", default-features = false, features = ["derive", "min_const_generics"] }

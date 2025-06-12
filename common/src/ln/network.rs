@@ -116,17 +116,6 @@ impl From<LxNetwork> for bitcoin::Network {
     }
 }
 
-impl From<LxNetwork> for bitcoin_bech32::constants::Network {
-    fn from(lx: LxNetwork) -> Self {
-        match lx {
-            LxNetwork::Mainnet => Self::Bitcoin,
-            LxNetwork::Testnet3 | LxNetwork::Testnet4 => Self::Testnet,
-            LxNetwork::Regtest => Self::Regtest,
-            LxNetwork::Signet => Self::Signet,
-        }
-    }
-}
-
 impl From<LxNetwork> for Currency {
     fn from(lx: LxNetwork) -> Self {
         match lx {

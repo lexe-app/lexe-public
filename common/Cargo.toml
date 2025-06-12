@@ -42,7 +42,6 @@ async-trait.workspace = true
 bcs.workspace = true
 bitcoin = { workspace = true, features = ["serde"] }
 bitcoin_hashes.workspace = true
-bitcoin-bech32.workspace = true
 base64.workspace = true
 bytes.workspace = true
 cfg-if.workspace = true
