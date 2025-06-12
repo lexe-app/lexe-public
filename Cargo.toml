@@ -69,12 +69,9 @@ base64 = "0.21"
 # Binary canonical serialization format
 bcs = "0.1"
 # BDK (Bitcoin Dev Kit) libraries
-# bdk_wallet = { version = "2", default-features = false, features = ["std"] }
-# bdk_chain = { version = "0.23", default-features = false, features = ["std"] }
-# bdk_esplora = { version = "0.22", default-features = false, features = ["std", "async"] }
-bdk_wallet = { version = "1.1.0", default-features = false, features = ["std"] }
-bdk_chain = { version = "0.21", default-features = false, features = ["std"] }
-bdk_esplora = { version = "0.20", default-features = false, features = ["std", "async"] }
+bdk_wallet = { version = "2", default-features = false, features = ["std"] }
+bdk_chain = { version = "0.23", default-features = false, features = ["std"] }
+bdk_esplora = { version = "0.22", default-features = false, features = ["std", "async"] }
 # Encoding and decoding of the Bech32 format.
 # Make sure this tracks `bitcoin`'s version.
 bech32 = "0.11"
@@ -214,7 +211,7 @@ dcap-ql = { version = "=0.4.0", default-features = false }
 # Fortanix EDP crate for running SGX applications, includes usercall extensions
 enclave-runner = { version = "=0.6.0", default-features = false }
 # Async Esplora client
-esplora-client = { version = "0.11", default-features = false, features = ["async", "tokio"] }
+esplora-client = { version = "=0.12", default-features = false, features = ["async", "tokio"] }
 # Hyper-related utilities
 hyper-util = { version = "=0.1.11", default-features = false, features = ["http2"] }
 # LDK (rust-lightning) libraries
@@ -260,11 +257,11 @@ sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30
 axum-server = { git = "https://github.com/lexe-app/axum-server", branch = "lexe-v0.6.0-2024_10_11" }
 
 # * license: Add dual license information
-# * chore(deps): update `reqwest` to `0.12`
-#   PR: <https://github.com/bitcoindevkit/rust-esplora-client/pull/118>
 # * async: Log every request
-esplora-client = { git = "https://github.com/lexe-app/rust-esplora-client", branch = "lexe-v0.11.0-2025_03_18" }
-# esplora-client.path = "../../forks/rust-esplora-client"
+# * doc: fix cargo doc builds when non-default features are enabled
+#   PR: <https://github.com/bitcoindevkit/rust-esplora-client/pull/129>
+esplora-client = { git = "https://github.com/lexe-app/rust-esplora-client", branch = "lexe-v0.12.0-2025_06_12" }
+# esplora-client.path = "../../esplora-client"
 
 # * license: Add dual license information
 # * sgx: socket2 requires `client-legacy-socket2` cfg
@@ -276,10 +273,11 @@ hyper-util = { git = "https://github.com/lexe-app/hyper-util", branch = "lexe-v0
 # * ln: onion-messenger: just queue forwards to offline peers
 # * onion-messenger: bump MAX_TIMER_TICKS to 3 (~30 sec)
 # * Do not fail to load `ChannelManager` when we see claiming payments (#3772)
-lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.3-2025_05_21" }
-lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.3-2025_05_21" }
-lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.3-2025_05_21" }
-lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.3-2025_05_21" }
+# * lightning-transaction-sync: bump esplora-client 0.11 -> 0.12
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.3-2025_06_11" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.3-2025_06_11" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.3-2025_06_11" }
+lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.3-2025_06_11" }
 # lightning.path = "../../ldk/lightning"
 # lightning-invoice.path = "../../ldk/lightning-invoice"
 # lightning-transaction-sync.path = "../../ldk/lightning-transaction-sync"

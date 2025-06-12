@@ -434,7 +434,7 @@ pub fn any_raw_tx() -> impl Strategy<Value = bitcoin::Transaction> {
 ///
 /// NOTE that it is often preferred to generate a [`bitcoin::Transaction`]
 /// first, and then get the [`Txid`] via [`bitcoin::Transaction::txid`].
-pub fn any_txid() -> impl Strategy<Value = Txid> {
+pub fn any_txid() -> impl Strategy<Value = Txid> + Clone {
     // In order to generate txids which are more likely to shrink() to a value
     // that corresponds with an actual raw transaction, we can generate txids by
     // simply generating raw transactions and computing their txid. However, the

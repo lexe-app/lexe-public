@@ -34,7 +34,7 @@ use std::{
 };
 
 use anyhow::{ensure, Context};
-use bdk_chain::{spk_client::SyncRequest, Merge};
+use bdk_chain::{spk_client::SyncRequest, CanonicalizationParams, Merge};
 use bdk_esplora::EsploraAsyncExt;
 pub use bdk_wallet::ChangeSet;
 use bdk_wallet::{
@@ -321,6 +321,15 @@ impl LexeWallet {
         let local_chain = locked_wallet.local_chain();
         let chain_tip = local_chain.tip();
 
+        // spk txids we expect to exist. Used to detect when unconfirmed txs we
+        // previously registered get dropped/replaced in the mempool.
+        let expected_spk_txids = tx_graph.list_expected_spk_txids(
+            local_chain,
+            chain_tip.block_id(),
+            keychains.inner(),
+            ..,
+        );
+
         // Sync all external script pubkeys we have ever revealed.
         let revealed_external_spks =
             keychains.revealed_keychain_spks(KeychainKind::External);
@@ -362,13 +371,18 @@ impl LexeWallet {
 
         // The txids of txns we want to check if they have been spent.
         let unconfirmed_txids = tx_graph
-            .list_canonical_txs(local_chain, chain_tip.block_id())
+            .list_canonical_txs(
+                local_chain,
+                chain_tip.block_id(),
+                CanonicalizationParams::default(),
+            )
             .filter(|canonical_tx| !canonical_tx.chain_position.is_confirmed())
             .map(|canonical_tx| canonical_tx.tx_node.txid);
 
         // Specify all of the above in our SyncRequest.
         SyncRequest::builder()
             .chain_tip(chain_tip)
+            .expected_spk_txids(expected_spk_txids)
             .spks_with_indexes(revealed_external_spks)
             .spks_with_indexes(unused_internal_spks)
             .spks_with_indexes(last_used_internal_spk)
@@ -980,29 +994,70 @@ mod arbitrary_impl {
             (any_confirmationblocktime(), arbitrary::any_txid()),
             0..4,
         );
-        let last_seen = proptest::collection::btree_map(
+        let txid_map = proptest::collection::btree_map(
             arbitrary::any_txid(),
             any::<u64>(),
             0..4,
         );
+        let last_seen = txid_map.clone();
+        let last_evicted = txid_map.clone();
+        let first_seen = txid_map;
 
-        (any_txs, any_txouts, anchors, last_seen).prop_map(
-            |(txs, txouts, anchors, last_seen)| TxGraphChangeset {
-                txs,
-                txouts,
-                anchors,
-                last_seen,
-            },
+        (
+            any_txs,
+            any_txouts,
+            anchors,
+            last_seen,
+            last_evicted,
+            first_seen,
         )
+            .prop_map(
+                |(
+                    txs,
+                    txouts,
+                    anchors,
+                    last_seen,
+                    last_evicted,
+                    first_seen,
+                )| {
+                    TxGraphChangeset {
+                        txs,
+                        txouts,
+                        anchors,
+                        last_seen,
+                        last_evicted,
+                        first_seen,
+                    }
+                },
+            )
     }
 
     fn any_keychain_changeset() -> impl Strategy<Value = KeychainChangeset> {
         let any_descriptor_id = any::<[u8; 32]>()
             .prop_map(bitcoin::hashes::sha256::Hash::from_byte_array)
             .prop_map(DescriptorId);
+        let last_revealed = proptest::collection::btree_map(
+            any_descriptor_id.clone(),
+            any::<u32>(),
+            0..4,
+        );
+        let script_bufs = proptest::collection::btree_map(
+            any::<u32>(),
+            arbitrary::any_script(),
+            0..4,
+        );
+        let spk_cache = proptest::collection::btree_map(
+            any_descriptor_id,
+            script_bufs,
+            0..4,
+        );
 
-        proptest::collection::btree_map(any_descriptor_id, any::<u32>(), 0..4)
-            .prop_map(|last_revealed| KeychainChangeset { last_revealed })
+        (last_revealed, spk_cache).prop_map(|(last_revealed, spk_cache)| {
+            KeychainChangeset {
+                last_revealed,
+                spk_cache,
+            }
+        })
     }
 
     fn any_localchain_changeset(
@@ -1130,14 +1185,13 @@ mod test {
 
         fn add_unconfirmed_tx(&mut self, tx: &Transaction) {
             let tx = Arc::new(tx.clone());
-            self.apply_update(bdk_wallet::Update {
-                tx_update: bdk_chain::TxUpdate {
-                    txs: vec![tx.clone()],
-                    ..Default::default()
-                },
+            let mut tx_update = bdk_chain::TxUpdate::default();
+            tx_update.txs.push(tx.clone());
+            let update = bdk_wallet::Update {
+                tx_update,
                 ..Default::default()
-            })
-            .unwrap();
+            };
+            self.apply_update(update).unwrap();
         }
 
         fn add_confirmed_tx(&mut self, tx: &Transaction) {
@@ -1148,14 +1202,13 @@ mod test {
         fn confirm_txids(&mut self, txids: &[Txid]) {
             let anchor = self.add_checkpoint(6);
             let anchors = txids.iter().map(|txid| (anchor, *txid)).collect();
-            self.apply_update(bdk_wallet::Update {
-                tx_update: bdk_chain::tx_graph::TxUpdate {
-                    anchors,
-                    ..Default::default()
-                },
+            let mut tx_update = bdk_chain::TxUpdate::default();
+            tx_update.anchors = anchors;
+            let update = bdk_wallet::Update {
+                tx_update,
                 ..Default::default()
-            })
-            .unwrap();
+            };
+            self.apply_update(update).unwrap();
         }
     }
 
