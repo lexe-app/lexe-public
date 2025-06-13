@@ -75,6 +75,8 @@ bdk_esplora = { version = "0.22", default-features = false, features = ["std", "
 # Encoding and decoding of the Bech32 format.
 # Make sure this tracks `bitcoin`'s version.
 bech32 = "0.11"
+# BIP39 mnemonic codes
+bip39 = { version = "2", default-features = false }
 # rust-bitcoin suite of libraries
 bitcoin = { version = "0.32", features = ["serde"] }
 # For casting byte buffers to/from the AESM client from/to structured data.

@@ -39,9 +39,10 @@ sha256.path = "../sha256"
 anyhow.workspace = true
 asn1-rs.workspace = true
 async-trait.workspace = true
-bcs.workspace = true
-bitcoin = { workspace = true, features = ["serde"] }
 base64.workspace = true
+bcs.workspace = true
+bip39.workspace = true
+bitcoin = { workspace = true, features = ["serde"] }
 bytes.workspace = true
 cfg-if.workspace = true
 dotenvy.workspace = true

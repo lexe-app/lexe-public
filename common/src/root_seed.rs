@@ -48,6 +48,19 @@ impl RootSeed {
         Self(Secret::new(rng.gen_bytes()))
     }
 
+    // --- BIP39 Mnemonics --- //
+
+    /// Creates a [`bip39::Mnemonic`] from this [`RootSeed`]. Use
+    /// [`bip39::Mnemonic`]'s `Display` / `FromStr` impls to convert from / to
+    /// user-facing strings.
+    pub fn to_mnemonic(&self) -> bip39::Mnemonic {
+        bip39::Mnemonic::from_entropy_in(
+            bip39::Language::English,
+            self.0.expose_secret().as_slice(),
+        )
+        .expect("Always succeeds for 256 bits")
+    }
+
     // --- Key derivations --- //
 
     fn extract(&self) -> ring::hkdf::Prk {
@@ -295,6 +308,24 @@ impl TryFrom<&[u8]> for RootSeed {
         let mut out = [0u8; Self::LENGTH];
         out[..].copy_from_slice(bytes);
         Ok(Self::new(Secret::new(out)))
+    }
+}
+
+impl TryFrom<bip39::Mnemonic> for RootSeed {
+    type Error = anyhow::Error;
+
+    fn try_from(mnemonic: bip39::Mnemonic) -> Result<Self, Self::Error> {
+        use lexe_std::array::ArrayExt;
+
+        // to_entropy_array() returns [u8; 33]
+        let (entropy, entropy_len) = mnemonic.to_entropy_array();
+        let entropy = secrecy::zeroize::Zeroizing::new(entropy);
+
+        ensure!(entropy_len == 32, "Should contain exactly 32 bytes");
+
+        let (seed_buf, _remainder) = entropy.split_array_ref_stable::<32>();
+
+        Ok(Self(Secret::new(*seed_buf)))
     }
 }
 
@@ -704,5 +735,100 @@ mod test {
         let root_seed2_decrypted =
             RootSeed::password_decrypt(password2, encrypted).unwrap();
         assert_eq!(root_seed2, root_seed2_decrypted);
+    }
+
+    #[test]
+    fn root_seed_mnemonic_round_trip() {
+        proptest!(|(root_seed1 in any::<RootSeed>())| {
+            let mnemonic = root_seed1.to_mnemonic();
+            let root_seed2 = RootSeed::try_from(mnemonic).unwrap();
+            prop_assert_eq!(
+                root_seed1.expose_secret(), root_seed2.expose_secret()
+            );
+        });
+    }
+
+    /// Check correctness of `bip39::Mnemonic`'s `FromStr` / `Display` impls
+    #[test]
+    fn mnemonic_fromstr_display_roundtrip() {
+        proptest!(|(root_seed in any::<RootSeed>())| {
+            let mnemonic1 = root_seed.to_mnemonic();
+            let mnemonic2 = bip39::Mnemonic::from_str(&mnemonic1.to_string()).unwrap();
+            prop_assert_eq!(mnemonic1, mnemonic2)
+        })
+    }
+
+    /// A basic compatibility test to check that a few "known good" pairings of
+    /// [`RootSeed`] <-> [`Mnemonic`] <-> [`String`] still correspond. This
+    /// ensures that the [`bip39`] crate cannot introduce compatibility-breaking
+    /// changes without us noticing.
+    #[test]
+    fn mnemonic_compatibility_test() {
+        // This code generated the "known good" values
+        // let mut rng = FastRng::from_u64(98592174);
+        // let seed1 = RootSeed::from_rng(&mut rng);
+        // let seed2 = RootSeed::from_rng(&mut rng);
+        // let seed3 = RootSeed::from_rng(&mut rng);
+        // let seed1_str = hex::encode(seed1.as_bytes());
+        // let seed2_str = hex::encode(seed2.as_bytes());
+        // let seed3_str = hex::encode(seed3.as_bytes());
+        // println!("{seed1_str}");
+        // println!("{seed2_str}");
+        // println!("{seed3_str}");
+        // let mnenemenmenomic1 = seed1.to_mnemonic().to_string();
+        // let mnenemenmenomic2 = seed2.to_mnemonic().to_string();
+        // let mnenemenmenomic3 = seed3.to_mnemonic().to_string();
+        // println!("{mnenemenmenomic1}");
+        // println!("{mnenemenmenomic2}");
+        // println!("{mnenemenmenomic3}");
+
+        // "Known good" seeds
+        let seed1 = RootSeed::new(Secret::new(hex::decode_const(
+            b"91f24ce8326abc2e9faef6a3b866021ce9574c11210e86b0f457a31ed8ad4cba",
+        )));
+        let seed2 = RootSeed::new(Secret::new(hex::decode_const(
+            b"5c2aa5fdd678112c8b13d745b5c1d1e1a81ace76721ec72f1424bd2eb387a8af",
+        )));
+        let seed3 = RootSeed::new(Secret::new(hex::decode_const(
+            b"51ddba4775fc71fb1dba65dfc2ffab7526dd61bae7a9b13e9f3aa550bee19360",
+        )));
+
+        // "Known good" mnemonic strings
+        let str1 = String::from(
+            "music mystery deliver gospel profit blanket leaf tell \
+            photo segment letter degree nice plastic duty canyon \
+            mammal marble bicycle economy unique find cream dune",
+        );
+        let str2 = String::from(
+            "found festival legal provide library north clump kit \
+            east puppy inner select like grunt supply duck \
+            shrimp judge ankle kid twenty sense pencil tray",
+        );
+        let str3 = String::from(
+            "fade universe mushroom typical shove work ivory erosion \
+            thank blood turn tumble horse radio twist vivid \
+            raise visual solid enjoy armor ignore eternal arrange",
+        );
+
+        // Check `Mnemonic`
+        let mnemonic_from_str1 = bip39::Mnemonic::from_str(&str1).unwrap();
+        let mnemonic_from_str2 = bip39::Mnemonic::from_str(&str2).unwrap();
+        let mnemonic_from_str3 = bip39::Mnemonic::from_str(&str3).unwrap();
+        assert_eq!(seed1.to_mnemonic(), mnemonic_from_str1);
+        assert_eq!(seed2.to_mnemonic(), mnemonic_from_str2);
+        assert_eq!(seed3.to_mnemonic(), mnemonic_from_str3);
+
+        // Check `RootSeed`
+        let seed_from_str1 = RootSeed::try_from(mnemonic_from_str1).unwrap();
+        let seed_from_str2 = RootSeed::try_from(mnemonic_from_str2).unwrap();
+        let seed_from_str3 = RootSeed::try_from(mnemonic_from_str3).unwrap();
+        assert_eq!(seed1.as_bytes(), seed_from_str1.as_bytes());
+        assert_eq!(seed2.as_bytes(), seed_from_str2.as_bytes());
+        assert_eq!(seed3.as_bytes(), seed_from_str3.as_bytes());
+
+        // Check `String`
+        assert_eq!(str1, seed1.to_mnemonic().to_string());
+        assert_eq!(str2, seed2.to_mnemonic().to_string());
+        assert_eq!(str3, seed3.to_mnemonic().to_string());
     }
 }
