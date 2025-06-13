@@ -75,8 +75,6 @@ bdk_esplora = { version = "0.22", default-features = false, features = ["std", "
 # Encoding and decoding of the Bech32 format.
 # Make sure this tracks `bitcoin`'s version.
 bech32 = "0.11"
-# BIP39 mnemonic codes
-bip39 = { version = "2", default-features = false }
 # rust-bitcoin suite of libraries
 bitcoin = { version = "0.32", features = ["serde"] }
 # For casting byte buffers to/from the AESM client from/to structured data.
@@ -208,6 +206,8 @@ yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
 aesm-client = { version = "=0.6.0", default-features = false }
 # High level webserver based on axum, tokio, hyper, and tower
 axum-server = "=0.6.0"
+# BIP39 mnemonic codes
+bip39 = { version = "=2.1.0", default-features = false }
 # SGX Quote types
 dcap-ql = { version = "=0.4.0", default-features = false }
 # Fortanix EDP crate for running SGX applications, includes usercall extensions
@@ -257,6 +257,9 @@ sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30
 # * fix: propagate graceful shutdown to inner hyper connection
 #   PR: <https://github.com/programatik29/axum-server/pull/119>
 axum-server = { git = "https://github.com/lexe-app/axum-server", branch = "lexe-v0.6.0-2024_10_11" }
+
+# * deps: use lexe dep versions to avoid duplicates
+bip39 = { git = "https://github.com/lexe-app/rust-bip39", branch = "lexe-v2.1.0-2025_06_12" }
 
 # * license: Add dual license information
 # * async: Log every request
