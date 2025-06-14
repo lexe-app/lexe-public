@@ -121,9 +121,14 @@ impl NodeCommand {
             Self::Provision(args) => rt
                 .block_on(async {
                     let shutdown = NotifyOnce::new();
-                    let provision =
-                        ProvisionInstance::init(&mut rng, args, shutdown)
-                            .await?;
+                    let send_provision_ports = true;
+                    let provision = ProvisionInstance::init(
+                        &mut rng,
+                        args,
+                        send_provision_ports,
+                        shutdown,
+                    )
+                    .await?;
                     provision.run().await
                 })
                 .context("Provision instance error"),

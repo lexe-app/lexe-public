@@ -66,6 +66,9 @@ impl ProvisionInstance {
     pub async fn init(
         rng: &mut impl Crng,
         args: ProvisionArgs,
+        // Whether to notify the runner that we're ready.
+        // Otherwise, the meganode will do it.
+        send_provision_ports: bool,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<Self> {
         info!("Initializing provision service");
@@ -160,12 +163,15 @@ impl ProvisionInstance {
             app_port,
             lexe_port,
         };
-        #[allow(deprecated)] // API docs clearly state when API can be removed
-        runner_client
-            .node_ready_v1(&Ports::Provision(ports))
-            .await
-            .context("Failed to notify runner of our readiness")?;
-        debug!("Notified runner; awaiting client request");
+        if send_provision_ports {
+            #[allow(deprecated)] // API docs state when API can be removed
+            runner_client
+                .node_ready_v1(&Ports::Provision(ports))
+                .await
+                .context("Failed to notify runner of our readiness")?;
+        } else {
+            debug!("Skipping ready callback; meganode will handle it");
+        }
 
         Ok(Self {
             static_tasks,
