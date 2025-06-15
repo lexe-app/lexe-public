@@ -18,29 +18,24 @@
 use std::{net::TcpListener, sync::Arc, time::SystemTime};
 
 use anyhow::Context;
-use axum::{
-    routing::{get, post},
-    Router,
-};
+use axum::{routing::post, Router};
 use common::{
-    api::{provision::NodeProvisionRequest, version::MeasurementStruct},
-    cli::node::ProvisionArgs,
+    api::provision::NodeProvisionRequest,
+    cli::{node::MegaArgs, OAuthConfig},
     constants,
     enclave::{self, MachineId, Measurement},
+    env::DeployEnv,
+    ln::network::LxNetwork,
     net,
     rng::{Crng, SysRng},
 };
 use gdrive::GoogleVfs;
 use lexe_api::{
     auth::BearerAuthenticator,
-    def::{NodeBackendApi, NodeRunnerApi},
+    def::NodeBackendApi,
     error::NodeApiError,
     server::{self, LayerConfig},
-    types::{
-        ports::{Ports, ProvisionPorts},
-        sealed_seed::SealedSeed,
-        Empty,
-    },
+    types::{ports::ProvisionPorts, sealed_seed::SealedSeed, Empty},
 };
 use lexe_tls::attestation::{self, NodeMode};
 use lexe_tokio::{
@@ -50,12 +45,54 @@ use lexe_tokio::{
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, info_span};
 
-use crate::{
-    api::client::{NodeBackendClient, RunnerClient},
-    persister,
-};
+use crate::{api::client::NodeBackendClient, persister};
 
-pub struct ProvisionInstance {
+/// Args needed by the [`ProvisionInstance`].
+/// These are built from [`MegaArgs`] which is passed in via CLI.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ProvisionArgs {
+    /// protocol://host:port of the backend.
+    pub backend_url: String,
+
+    /// protocol://host:port of the runner.
+    pub runner_url: String,
+
+    /// configuration info for Google OAuth2.
+    /// Required only if running in staging / prod.
+    pub oauth: Option<OAuthConfig>,
+
+    /// The value to set for `RUST_BACKTRACE`. Does nothing if set to [`None`].
+    /// Passed as an arg since envs aren't available in SGX.
+    pub rust_backtrace: Option<String>,
+
+    /// The value to set for `RUST_LOG`. Does nothing if set to [`None`].
+    /// Passed as an arg since envs aren't available in SGX.
+    pub rust_log: Option<String>,
+
+    /// The current deploy environment passed to us by Lexe (or someone in
+    /// Lexe's cloud). This input should be treated as untrusted.
+    pub untrusted_deploy_env: DeployEnv,
+
+    /// The current deploy network passed to us by Lexe (or someone in
+    /// Lexe's cloud). This input should be treated as untrusted.
+    pub untrusted_network: LxNetwork,
+}
+
+impl From<&MegaArgs> for ProvisionArgs {
+    fn from(args: &MegaArgs) -> Self {
+        Self {
+            backend_url: args.backend_url.clone(),
+            runner_url: args.runner_url.clone(),
+            oauth: args.oauth.clone(),
+            untrusted_deploy_env: args.untrusted_deploy_env,
+            untrusted_network: args.untrusted_network,
+            rust_log: args.rust_log.clone(),
+            rust_backtrace: args.rust_backtrace.clone(),
+        }
+    }
+}
+
+pub(crate) struct ProvisionInstance {
     static_tasks: Vec<LxTask<()>>,
     measurement: enclave::Measurement,
     ports: ProvisionPorts,
@@ -66,9 +103,6 @@ impl ProvisionInstance {
     pub async fn init(
         rng: &mut impl Crng,
         args: ProvisionArgs,
-        // Whether to notify the runner that we're ready.
-        // Otherwise, the meganode will do it.
-        send_provision_ports: bool,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<Self> {
         info!("Initializing provision service");
@@ -77,13 +111,6 @@ impl ProvisionInstance {
         let measurement = enclave::measurement();
         let mr_short = measurement.short();
         let node_mode = NodeMode::Provision { mr_short };
-        let runner_client = RunnerClient::new(
-            rng,
-            args.untrusted_deploy_env,
-            node_mode,
-            args.runner_url.clone(),
-        )
-        .context("Failed to init RunnerClient")?;
         let backend_client = NodeBackendClient::new(
             rng,
             args.untrusted_deploy_env,
@@ -129,49 +156,13 @@ impl ProvisionInstance {
             )
             .context("Failed to spawn app node provision server task")?;
 
-        // TODO(max): Remove this webserver
-        const LEXE_SERVER_SPAN_NAME: &str = "(lexe-node-provision-server)";
-        let lexe_listener =
-            TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
-                .context("Failed to bind lexe listener")?;
-        let lexe_port = lexe_listener
-            .local_addr()
-            .context("Couldn't get lexe addr")?
-            .port();
-        let lexe_tls_and_dns = None;
-        let lexe_router = lexe_router(LexeRouterState {
-            measurement,
-            shutdown: shutdown.clone(),
-        });
-        let (lexe_server_task, _lexe_url) =
-            lexe_api::server::spawn_server_task_with_listener(
-                lexe_listener,
-                lexe_router,
-                LayerConfig::default(),
-                lexe_tls_and_dns,
-                LEXE_SERVER_SPAN_NAME.into(),
-                info_span!(LEXE_SERVER_SPAN_NAME),
-                shutdown.clone(),
-            )
-            .context("Failed to spawn lexe node provision server task")?;
-
-        let static_tasks = vec![app_server_task, lexe_server_task];
+        let static_tasks = vec![app_server_task];
 
         // Notify the runner that we're ready for a client connection
         let ports = ProvisionPorts {
             measurement,
             app_port,
-            lexe_port,
         };
-        if send_provision_ports {
-            #[allow(deprecated)] // API docs state when API can be removed
-            runner_client
-                .node_ready_v1(&Ports::Provision(ports))
-                .await
-                .context("Failed to notify runner of our readiness")?;
-        } else {
-            debug!("Skipping ready callback; meganode will handle it");
-        }
 
         Ok(Self {
             static_tasks,
@@ -233,30 +224,11 @@ fn app_router(state: AppRouterState) -> Router<()> {
         .with_state(state)
 }
 
-#[derive(Clone)]
-struct LexeRouterState {
-    measurement: Measurement,
-    shutdown: NotifyOnce,
-}
-
-/// Implements [`LexeNodeProvisionApi`] - only callable by the Lexe operators.
-///
-/// [`LexeNodeProvisionApi`]: lexe_api::def::LexeNodeProvisionApi
-fn lexe_router(state: LexeRouterState) -> Router<()> {
-    Router::new()
-        .route("/lexe/status", get(handlers::status))
-        .route("/lexe/shutdown", get(handlers::shutdown))
-        .with_state(state)
-}
-
 /// API handlers.
 mod handlers {
     use axum::extract::State;
-    use common::{
-        api::{models::Status, user::UserPk},
-        time::TimestampMs,
-    };
-    use lexe_api::server::{extract::LxQuery, LxJson};
+    use common::api::user::UserPk;
+    use lexe_api::server::LxJson;
 
     use super::*;
 
@@ -356,41 +328,6 @@ mod handlers {
             .await
             .context("Could not persist sealed seed")
             .map_err(NodeApiError::provision)?;
-
-        Ok(LxJson(Empty {}))
-    }
-
-    pub(super) async fn status(
-        State(state): State<LexeRouterState>,
-        LxQuery(req): LxQuery<MeasurementStruct>,
-    ) -> Result<LxJson<Status>, NodeApiError> {
-        // Sanity check
-        if req.measurement != state.measurement {
-            return Err(NodeApiError::wrong_measurement(
-                &req.measurement,
-                &state.measurement,
-            ));
-        }
-
-        Ok(LxJson(Status {
-            timestamp: TimestampMs::now(),
-        }))
-    }
-
-    pub(super) async fn shutdown(
-        State(state): State<LexeRouterState>,
-        LxQuery(req): LxQuery<MeasurementStruct>,
-    ) -> Result<LxJson<Empty>, NodeApiError> {
-        // Sanity check
-        if req.measurement != state.measurement {
-            return Err(NodeApiError::wrong_measurement(
-                &req.measurement,
-                &state.measurement,
-            ));
-        }
-
-        // Send a shutdown signal.
-        state.shutdown.send();
 
         Ok(LxJson(Empty {}))
     }

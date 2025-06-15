@@ -94,7 +94,7 @@ use crate::{
             DbPayment, MaybeDbPayment, VecBasicPayment, VecDbPayment,
             VecLxPaymentId,
         },
-        ports::{MegaPorts, Ports, RunPorts},
+        ports::{MegaPorts, RunPorts},
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         Empty,
     },
@@ -366,6 +366,9 @@ pub trait BearerAuthBackendApi {
 }
 
 /// Defines the API the mega node exposes to the Lexe operators.
+///
+/// NOTE: For performance, this API does not use TLS! This API should only
+/// contain methods for limited operational and lifecycle management endpoints.
 pub trait LexeMegaApi {
     /// GET /lexe/status [`MegaIdStruct`] -> [`Status`]
     async fn status_mega(
@@ -375,26 +378,6 @@ pub trait LexeMegaApi {
 
     /// POST /lexe/shutdown [`Empty`] -> [`Empty`]
     async fn shutdown_mega(&self) -> Result<Empty, MegaApiError>;
-}
-
-/// Defines the API the node exposes to the Lexe operators at provision time.
-///
-/// NOTE: For performance, this API does not use TLS! This API should only
-/// contain methods for limited operational and lifecycle management endpoints.
-pub trait LexeNodeProvisionApi {
-    /// GET /lexe/status [`MeasurementStruct`] -> [`Status`]
-    async fn status_provision(
-        &self,
-        measurement: Measurement,
-    ) -> Result<Status, NodeApiError>;
-
-    /// GET /lexe/shutdown [`MeasurementStruct`] -> [`Empty`]
-    ///
-    /// Not to be confused with [`LexeNodeRunApi::shutdown_run`].
-    async fn shutdown_provision(
-        &self,
-        measurement: Measurement,
-    ) -> Result<Empty, NodeApiError>;
 }
 
 /// Defines the API the node exposes to the Lexe operators at run time.
@@ -422,7 +405,7 @@ pub trait LexeNodeRunApi {
 
     /// GET /lexe/shutdown [`UserPkStruct`] -> [`Empty`]
     ///
-    /// Not to be confused with [`LexeNodeProvisionApi::shutdown_provision`].
+    /// Not to be confused with [`LexeMegaApi::shutdown_mega`].
     async fn shutdown_run(
         &self,
         user_pk: UserPk,
@@ -648,16 +631,6 @@ pub trait NodeRunnerApi {
     async fn ready_run(
         &self,
         ports: &RunPorts,
-    ) -> Result<Empty, RunnerApiError>;
-
-    /// POST /node/ready [`Ports`] -> [`Empty`]
-    // TODO(max): This was used by provision instances prior to the
-    // implementation of mega nodes. Remove once the `provision` command has
-    // been removed for all running user nodes.
-    #[deprecated = "Use `node_ready_v2` instead"]
-    async fn node_ready_v1(
-        &self,
-        ports: &Ports,
     ) -> Result<Empty, RunnerApiError>;
 
     /// POST /node/activity [`UserPkStruct`] -> [`Empty`]

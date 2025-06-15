@@ -39,7 +39,7 @@ use lexe_api::{
             DbPayment, LxPaymentId, MaybeDbPayment, PaymentIndex,
             PaymentStatus, VecDbPayment, VecLxPaymentId,
         },
-        ports::{Ports, RunPorts},
+        ports::RunPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         Empty,
     },
@@ -119,8 +119,8 @@ fn node_pk(user_pk: UserPk) -> NodePk {
 // --- The mock clients --- //
 
 pub(crate) struct MockRunnerClient {
-    notifs_tx: mpsc::Sender<Ports>,
-    notifs_rx: Mutex<Option<mpsc::Receiver<Ports>>>,
+    notifs_tx: mpsc::Sender<RunPorts>,
+    notifs_rx: Mutex<Option<mpsc::Receiver<RunPorts>>>,
 }
 
 impl MockRunnerClient {
@@ -134,7 +134,7 @@ impl MockRunnerClient {
     }
 
     #[allow(dead_code)] // TODO(max): Remove
-    pub(crate) fn notifs_rx(&self) -> mpsc::Receiver<Ports> {
+    pub(crate) fn notifs_rx(&self) -> mpsc::Receiver<RunPorts> {
         self.notifs_rx
             .lock()
             .unwrap()
@@ -147,16 +147,9 @@ impl MockRunnerClient {
 impl NodeRunnerApi for MockRunnerClient {
     async fn ready_run(
         &self,
-        ports: &RunPorts,
+        run_ports: &RunPorts,
     ) -> Result<Empty, RunnerApiError> {
-        let _ = self.notifs_tx.try_send(Ports::Run(*ports));
-        Ok(Empty {})
-    }
-    async fn node_ready_v1(
-        &self,
-        ports: &Ports,
-    ) -> Result<Empty, RunnerApiError> {
-        let _ = self.notifs_tx.try_send(*ports);
+        let _ = self.notifs_tx.try_send(*run_ports);
         Ok(Empty {})
     }
     async fn activity(

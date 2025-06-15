@@ -46,7 +46,6 @@ pub fn main() -> ExitCode {
             user_pk = %user_pk.short(),
             user_idx = tracing::field::Empty
         ),
-        NodeCommand::Provision(_) => info_span!("(node-provision)"),
         NodeCommand::Mega(_) => info_span!("(mega)"),
     };
 

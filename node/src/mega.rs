@@ -1,15 +1,14 @@
 use anyhow::Context;
-use common::{
-    cli::node::{MegaArgs, ProvisionArgs},
-    constants,
-    rng::Crng,
-};
+use common::{cli::node::MegaArgs, constants, rng::Crng};
 use lexe_api::{def::MegaRunnerApi, types::ports::MegaPorts};
 use lexe_tls::attestation::NodeMode;
 use lexe_tokio::{notify_once::NotifyOnce, task};
 use tokio::sync::mpsc;
 
-use crate::{api::client::RunnerClient, provision::ProvisionInstance};
+use crate::{
+    api::client::RunnerClient,
+    provision::{ProvisionArgs, ProvisionInstance},
+};
 
 pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     let mut static_tasks = Vec::with_capacity(5);
@@ -26,14 +25,9 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     // Init the provision service. Since it's a static service that should
     // live as long as the mega node itself, we can reuse the mega_shutdown.
     let provision_args = ProvisionArgs::from(&args);
-    let send_provision_ports = false;
-    let provision = ProvisionInstance::init(
-        rng,
-        provision_args,
-        send_provision_ports,
-        mega_shutdown.clone(),
-    )
-    .await?;
+    let provision =
+        ProvisionInstance::init(rng, provision_args, mega_shutdown.clone())
+            .await?;
     let measurement = provision.measurement();
     let provision_ports = provision.ports();
     static_tasks.push(provision.spawn_into_task());

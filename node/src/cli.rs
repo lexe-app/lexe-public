@@ -3,18 +3,14 @@ use std::env;
 use anyhow::{bail, Context};
 use common::{
     cli::{
-        node::{MegaArgs, ProvisionArgs, RunArgs},
+        node::{MegaArgs, RunArgs},
         EnclaveArgs,
     },
     enclave,
     rng::SysRng,
 };
-use lexe_tokio::notify_once::NotifyOnce;
 
-use crate::{
-    mega, provision::ProvisionInstance, run::UserNode, DEV_VERSION,
-    SEMVER_VERSION,
-};
+use crate::{mega, run::UserNode, DEV_VERSION, SEMVER_VERSION};
 
 /// Commands accepted by the user node.
 pub enum NodeCommand {
@@ -23,8 +19,6 @@ pub enum NodeCommand {
     /// Runs an individual user node directly.
     /// Avoids the need to specify provision-specific args.
     Run(RunArgs),
-    // TODO(max): Remove, redundant with `Mega`
-    Provision(ProvisionArgs),
 }
 
 impl NodeCommand {
@@ -59,11 +53,6 @@ impl NodeCommand {
                     .context("Invalid RunArgs JSON string")?;
                 Ok(Some(NodeCommand::Run(args)))
             }
-            (Some("provision"), Some(args_str)) => {
-                let args = ProvisionArgs::from_json_str(&args_str)
-                    .context("Invalid ProvisionArgs JSON string")?;
-                Ok(Some(NodeCommand::Provision(args)))
-            }
             _ => bail!("Invalid CLI options"),
         }
     }
@@ -72,7 +61,6 @@ impl NodeCommand {
     pub fn rust_log(&self) -> Option<&str> {
         match self {
             Self::Run(args) => args.rust_log.as_deref(),
-            Self::Provision(args) => args.rust_log.as_deref(),
             Self::Mega(args) => args.rust_log.as_deref(),
         }
     }
@@ -81,7 +69,6 @@ impl NodeCommand {
     pub fn rust_backtrace(&self) -> Option<&str> {
         match self {
             Self::Run(args) => args.rust_backtrace.as_deref(),
-            Self::Provision(args) => args.rust_backtrace.as_deref(),
             Self::Mega(args) => args.rust_backtrace.as_deref(),
         }
     }
@@ -115,23 +102,6 @@ impl NodeCommand {
                     node.run().await.context("Error while running")
                 })
                 .context("Error running node"),
-            // TODO(max): Remove the `provision` command, as it is redundant
-            // with the functionality provided by the mega node. We can keep the
-            // `run` command around, however.
-            Self::Provision(args) => rt
-                .block_on(async {
-                    let shutdown = NotifyOnce::new();
-                    let send_provision_ports = true;
-                    let provision = ProvisionInstance::init(
-                        &mut rng,
-                        args,
-                        send_provision_ports,
-                        shutdown,
-                    )
-                    .await?;
-                    provision.run().await
-                })
-                .context("Provision instance error"),
         }
     }
 }
