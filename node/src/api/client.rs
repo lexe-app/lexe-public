@@ -72,12 +72,12 @@ impl MegaRunnerApi for RunnerClient {
 
 #[async_trait]
 impl NodeRunnerApi for RunnerClient {
-    async fn node_ready_v2(
+    async fn ready_run(
         &self,
         ports: &RunPorts,
     ) -> Result<Empty, RunnerApiError> {
         let runner = &self.runner_url;
-        let req = self.rest.post(format!("{runner}/node/v2/ready"), &ports);
+        let req = self.rest.post(format!("{runner}/node/ready/run"), &ports);
         // TODO(phlip9): authenticate runner callbacks?
         // .bearer_auth(&self.auth_token().await?);
         self.rest.send(req).await

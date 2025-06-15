@@ -644,8 +644,8 @@ pub trait NodeLspApi {
 /// Defines the api that the runner exposes to the node.
 #[async_trait]
 pub trait NodeRunnerApi {
-    /// POST /node/v2/ready [`RunPorts`] -> [`Empty`]
-    async fn node_ready_v2(
+    /// POST /node/ready/run [`RunPorts`] -> [`Empty`]
+    async fn ready_run(
         &self,
         ports: &RunPorts,
     ) -> Result<Empty, RunnerApiError>;

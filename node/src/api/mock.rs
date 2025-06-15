@@ -145,7 +145,7 @@ impl MockRunnerClient {
 
 #[async_trait]
 impl NodeRunnerApi for MockRunnerClient {
-    async fn node_ready_v2(
+    async fn ready_run(
         &self,
         ports: &RunPorts,
     ) -> Result<Empty, RunnerApiError> {

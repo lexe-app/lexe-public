@@ -969,7 +969,7 @@ impl UserNode {
         // the LSP is connected to us when it makes its open_channel request, we
         // reconnect to the LSP *before* sending the /ready callback.
         ctxt.runner_api
-            .node_ready_v2(&self.ports)
+            .ready_run(&self.ports)
             .await
             .context("Could not notify runner of ready status")?;
 
