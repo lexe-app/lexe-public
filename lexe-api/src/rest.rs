@@ -396,7 +396,15 @@ impl RestClient {
         serde_json::from_slice::<T>(&bytes)
             .map_err(|err| {
                 let kind = CommonErrorKind::Decode;
-                let msg = format!("JSON deserialization failed: {err:#}");
+                let mut msg = format!("JSON deserialization failed: {err:#}");
+
+                // If we're in debug, append the response str to the error msg.
+                // TODO(max): Try to find a way to do this safely in prod.
+                if cfg!(any(debug_assertions, test, feature = "test-utils")) {
+                    let resp_msg = String::from_utf8_lossy(&bytes);
+                    msg.push_str(&format!(": '{resp_msg}'"));
+                }
+
                 CommonApiError::new(kind, msg)
             })
             .map_err(E::from)
