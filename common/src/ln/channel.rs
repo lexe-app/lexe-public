@@ -403,6 +403,15 @@ impl From<LxOutPoint> for OutPoint {
     }
 }
 
+impl From<LxOutPoint> for bitcoin::OutPoint {
+    fn from(op: LxOutPoint) -> Self {
+        bitcoin::OutPoint {
+            txid: op.txid.0,
+            vout: u32::from(op.index),
+        }
+    }
+}
+
 /// Deserializes from `<txid>_<index>`
 impl FromStr for LxOutPoint {
     type Err = anyhow::Error;

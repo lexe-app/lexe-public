@@ -29,6 +29,7 @@
 //! [`LexeWallet::trigger_persist`]: crate::wallet::LexeWallet::trigger_persist
 
 use std::{
+    iter,
     ops::DerefMut,
     sync::{Arc, RwLockReadGuard, RwLockWriteGuard},
 };
@@ -49,8 +50,8 @@ use bitcoin::{Psbt, Transaction};
 use common::{
     constants::IMPORTANT_PERSIST_RETRIES,
     ln::{
-        amount::Amount, balance::OnchainBalance, network::LxNetwork,
-        priority::ConfirmationPriority,
+        amount::Amount, balance::OnchainBalance, channel::LxOutPoint,
+        network::LxNetwork, priority::ConfirmationPriority,
     },
     root_seed::RootSeed,
     time::TimestampMs,
@@ -467,6 +468,12 @@ impl LexeWallet {
         )
     }
 
+    /// List all unspent transaction outputs.
+    pub fn get_utxos(&self) -> Vec<bdk_wallet::LocalOutput> {
+        let locked_wallet = self.inner.read().unwrap();
+        locked_wallet.list_unspent().collect()
+    }
+
     /// Returns the last unused address derived using the external descriptor.
     ///
     /// We employ this address index selection strategy because it prevents a
@@ -537,6 +544,30 @@ impl LexeWallet {
             .unwrap()
             .apply_unconfirmed_txs([(tx, timestamp_secs)]);
         self.trigger_persist();
+    }
+
+    /// Try to evict an _unconfirmed_ UTXO from BDK's UTXO index. This
+    /// effectively tells BDK that an unconfirmed UTXO was evicted from the
+    /// mempool.
+    pub fn evict_unconfirmed_utxo(
+        &self,
+        now: TimestampMs,
+        outpoint: LxOutPoint,
+    ) -> anyhow::Result<()> {
+        let mut locked_wallet = self.inner.write().unwrap();
+        let outpoint = bitcoin::OutPoint::from(outpoint);
+        let utxo = locked_wallet
+            .get_utxo(outpoint)
+            .context("No UTXO with this outpoint")?;
+        ensure!(
+            utxo.chain_position.is_unconfirmed(),
+            "UTXO is already confirmed"
+        );
+        let now = now.to_duration().as_secs();
+        locked_wallet.apply_evicted_txs(iter::once((outpoint.txid, now)));
+        drop(locked_wallet);
+        self.trigger_persist();
+        Ok(())
     }
 
     /// Preflight a potential channel open.
@@ -1098,6 +1129,7 @@ mod test {
     use bdk_chain::{BlockId, ConfirmationBlockTime};
     use bitcoin::{hashes::Hash as _, TxOut, Txid};
     use common::{
+        ln::hashes::LxTxid,
         rng::FastRng,
         test_utils::{arbitrary, roundtrip},
     };
@@ -1395,6 +1427,56 @@ mod test {
     #[test]
     fn default_changeset_is_empty() {
         assert!(ChangeSet::default().is_empty());
+    }
+
+    #[test]
+    fn test_evict_unconfirmed_utxo() {
+        let h = Harness::new();
+
+        // Fund w/ 5,656 sats (confirmed)
+        let tx_c = h.wallet.write().fund(Amount::from_sats_u32(5_656));
+
+        // Fund w/ 12,121 sats (broadcasted + unconfirmed)
+        let tx_u = h
+            .wallet
+            .write()
+            .fund_unconfirmed(Amount::from_sats_u32(12_121));
+        assert_eq!(h.wallet.get_balance().untrusted_pending.to_sat(), 12_121);
+
+        // We can't spend more than our total balance
+        h.wallet
+            .preflight_channel_funding_tx(Amount::from_sats_u32(20_000))
+            .unwrap_err();
+
+        // We should be able to spend this broadcasted + unconfirmed UTXO
+        h.wallet
+            .preflight_channel_funding_tx(Amount::from_sats_u32(10_000))
+            .unwrap();
+
+        // Manually declare it evicted / replaced / dropped from the mempool
+        let now = h.wallet.read().now();
+        let outpoint = LxOutPoint {
+            txid: LxTxid(tx_u.compute_txid()),
+            index: 0,
+        };
+        h.wallet.evict_unconfirmed_utxo(now, outpoint).unwrap();
+
+        // We can no longer spend it
+        h.wallet
+            .preflight_channel_funding_tx(Amount::from_sats_u32(10_000))
+            .unwrap_err();
+
+        // We can still spend the confirmed UTXO
+        h.wallet
+            .preflight_channel_funding_tx(Amount::from_sats_u32(4_000))
+            .unwrap();
+
+        // We can't evict a confirmed UTXO
+        let outpoint = LxOutPoint {
+            txid: LxTxid(tx_c.compute_txid()),
+            index: 0,
+        };
+        h.wallet.evict_unconfirmed_utxo(now, outpoint).unwrap_err();
     }
 
     #[test]
