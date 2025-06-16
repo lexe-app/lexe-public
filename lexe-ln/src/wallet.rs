@@ -1089,9 +1089,10 @@ mod arbitrary_impl {
 #[cfg(test)]
 mod test {
     use std::{
-        fs,
+        fs, iter,
         path::Path,
         process::{Command, Stdio},
+        str::FromStr,
     };
 
     use bdk_chain::{BlockId, ConfirmationBlockTime};
@@ -1100,6 +1101,7 @@ mod test {
         rng::FastRng,
         test_utils::{arbitrary, roundtrip},
     };
+    use lexe_api::types::payments::ClientPaymentId;
     use proptest::test_runner::Config;
 
     use super::*;
@@ -1115,33 +1117,18 @@ mod test {
             let wallet = LexeWallet::dummy(&root_seed);
             let network = LxNetwork::Regtest;
 
+            // Add some initial confirmed blocks
+            {
+                let mut w = wallet.write();
+                w.add_checkpoint(100);
+                w.add_checkpoint(900);
+            }
+
             Harness { wallet, network }
         }
 
-        fn fund(&mut self, amount: Amount) {
-            let address = self.wallet.get_address();
-            let mut wallet = self.wallet.write();
-
-            // "confirm" some random blocks
-            wallet.add_checkpoint(100);
-            wallet.add_checkpoint(900);
-
-            // build tx and fake anchor to confirm tx
-            let tx = Transaction {
-                output: vec![TxOut {
-                    value: amount.into(),
-                    script_pubkey: address.script_pubkey(),
-                }],
-                ..new_tx()
-            };
-
-            // add and confirm the tx
-            wallet.add_confirmed_tx(&tx);
-
-            // "persist"
-            let _ = wallet.take_staged();
-        }
-
+        /// Check that running the given function `f` does not generate any new
+        /// persists in the wallet.
         fn check_no_persists_in<F, R>(&mut self, f: F) -> R
         where
             F: FnOnce(&mut Self) -> R,
@@ -1153,17 +1140,60 @@ mod test {
         }
     }
 
+    /// An extension trait on the (locked) BDK `Wallet` to make writing wallet
+    /// tests more ergonomic.
     trait WalletExt {
         fn height(&self) -> u32;
-        fn add_checkpoint(&mut self, blocks: u32) -> ConfirmationBlockTime;
-        fn add_unconfirmed_tx(&mut self, tx: &Transaction);
-        fn add_confirmed_tx(&mut self, tx: &Transaction);
+
+        /// A fake clock timestamp that's just `unix time := height * 100 sec`.
+        fn now(&self) -> TimestampMs;
+
+        /// Get the next unused address from the external descriptor.
+        fn get_address(&mut self) -> bitcoin::Address;
+
+        /// Fund the wallet with the given amount
+        fn fund(&mut self, amount: Amount) -> Transaction;
+
+        /// Fund the wallet with the given amount, but leave the funding tx
+        /// unconfirmed.
+        fn fund_unconfirmed(&mut self, amount: Amount) -> Transaction;
+
         fn confirm_txids(&mut self, txids: &[Txid]);
+        fn add_unconfirmed_tx(&mut self, tx: &Transaction);
+        fn add_checkpoint(&mut self, blocks: u32) -> ConfirmationBlockTime;
     }
 
     impl WalletExt for Wallet {
         fn height(&self) -> u32 {
             self.local_chain().tip().height()
+        }
+
+        fn now(&self) -> TimestampMs {
+            TimestampMs::from_secs_u32(self.height() * 100)
+        }
+
+        fn get_address(&mut self) -> bitcoin::Address {
+            self.next_unused_address(KeychainKind::External).address
+        }
+
+        fn fund(&mut self, amount: Amount) -> Transaction {
+            let tx = self.fund_unconfirmed(amount);
+            self.confirm_txids(&[tx.compute_txid()]);
+            tx
+        }
+
+        fn fund_unconfirmed(&mut self, amount: Amount) -> Transaction {
+            // build tx and register it
+            let address = self.get_address();
+            let tx = Transaction {
+                output: vec![TxOut {
+                    value: amount.into(),
+                    script_pubkey: address.script_pubkey(),
+                }],
+                ..new_tx()
+            };
+            self.add_unconfirmed_tx(&tx);
+            tx
         }
 
         fn add_checkpoint(&mut self, blocks: u32) -> ConfirmationBlockTime {
@@ -1184,19 +1214,8 @@ mod test {
         }
 
         fn add_unconfirmed_tx(&mut self, tx: &Transaction) {
-            let tx = Arc::new(tx.clone());
-            let mut tx_update = bdk_chain::TxUpdate::default();
-            tx_update.txs.push(tx.clone());
-            let update = bdk_wallet::Update {
-                tx_update,
-                ..Default::default()
-            };
-            self.apply_update(update).unwrap();
-        }
-
-        fn add_confirmed_tx(&mut self, tx: &Transaction) {
-            self.add_unconfirmed_tx(tx);
-            self.confirm_txids(&[tx.compute_txid()]);
+            let now = self.now().to_secs();
+            self.apply_unconfirmed_txs(iter::once((tx.clone(), now)));
         }
 
         fn confirm_txids(&mut self, txids: &[Txid]) {
@@ -1266,7 +1285,8 @@ mod test {
 
         // with a single large utxo
         let mut h = Harness::new();
-        h.fund(Amount::from_sats_u32(123_456));
+        h.wallet.write().fund(Amount::from_sats_u32(123_456));
+        assert_eq!(h.wallet.get_balance().confirmed.to_sat(), 123_456);
 
         // preflight_open_channel
         h.check_no_persists_in(|h| {
@@ -1298,8 +1318,8 @@ mod test {
         // non-deterministic :')
         // with some smaller utxos so we get multiple inputs to the funding tx
         let mut h = Harness::new();
-        h.fund(Amount::from_sats_u32(11_500));
-        h.fund(Amount::from_sats_u32(11_500));
+        h.wallet.write().fund(Amount::from_sats_u32(11_500));
+        h.wallet.write().fund(Amount::from_sats_u32(11_500));
 
         // preflight_open_channel
         h.check_no_persists_in(|h| {
@@ -1319,6 +1339,57 @@ mod test {
             assert_eq!(fee.normal.amount.sats_u64(), 441);
             assert_eq!(fee.background.amount.sats_u64(), 267);
         });
+    }
+
+    // Test that we prefer confirmed UTXOs over unconfirmed ones as it's
+    // somewhat unsafe for us to use unconfirmed UTXOs when opening JIT
+    // channels to user nodes.
+    //
+    // For example, we've experienced an issue where our LSP closed a channel
+    // with an external peer, the external peer RBFs, and the LSP mistakenly
+    // used the unconfirmed but replaced UTXO to open a new JIT channel to a
+    // user node, which resulted in a broken channel.
+    //
+    // NOTE: manually tested that this fails if `default_tx_builder` uses the
+    // BDK `DefaultCoinSelectionAlgorithm`.
+    #[test]
+    fn test_coinselection_prefers_confirmed() {
+        let h = Harness::new();
+
+        // 1. add an unconfirmed tx
+        let _tx_u = h
+            .wallet
+            .write()
+            .fund_unconfirmed(Amount::from_sats_u32(20_000));
+
+        // 2. we should still be able to spend this unconfirmed tx
+        h.wallet
+            .preflight_channel_funding_tx(Amount::from_sats_u32(9_000))
+            .unwrap();
+
+        // 3. add a confirmed tx
+        let tx_c = h.wallet.write().fund(Amount::from_sats_u32(10_000));
+
+        // 4. we can still spend from both
+        h.wallet
+            .preflight_channel_funding_tx(Amount::from_sats_u32(18_000))
+            .unwrap();
+
+        // 5. but we should prefer the confirmed tx
+        let address = bitcoin::Address::from_str(
+            "bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk",
+        )
+        .unwrap();
+        let req = PayOnchainRequest {
+            cid: ClientPaymentId([42; 32]),
+            address,
+            amount: Amount::from_sats_u32(9_000),
+            priority: ConfirmationPriority::Normal,
+            note: None,
+        };
+        let send = h.wallet.create_onchain_send(req, h.network).unwrap();
+        assert_eq!(send.tx.input.len(), 1);
+        assert_eq!(send.tx.input[0].previous_output.txid, tx_c.compute_txid());
     }
 
     #[test]
