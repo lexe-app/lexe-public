@@ -75,19 +75,22 @@ use crate::{
         BackendApiError, GatewayApiError, LspApiError, MegaApiError,
         NodeApiError, RunnerApiError,
     },
-    models::command::{
-        CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-        CreateOfferRequest, CreateOfferResponse, GetAddressResponse,
-        GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
-        OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-        PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-        PayOnchainResponse, PaymentIndexStruct, PaymentIndexes,
-        PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-        PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-        PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-        PreflightPayOfferRequest, PreflightPayOfferResponse,
-        PreflightPayOnchainRequest, PreflightPayOnchainResponse, ResyncRequest,
-        UpdatePaymentNote,
+    models::{
+        command::{
+            CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
+            CreateOfferRequest, CreateOfferResponse, GetAddressResponse,
+            GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
+            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOfferRequest, PayOfferResponse, PayOnchainRequest,
+            PayOnchainResponse, PaymentIndexStruct, PaymentIndexes,
+            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOfferRequest, PreflightPayOfferResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            ResyncRequest, UpdatePaymentNote,
+        },
+        mega::{RunUserRequest, RunUserResponse},
     },
     types::{
         payments::{
@@ -370,6 +373,12 @@ pub trait BearerAuthBackendApi {
 /// NOTE: For performance, this API does not use TLS! This API should only
 /// contain methods for limited operational and lifecycle management endpoints.
 pub trait LexeMegaApi {
+    /// POST /lexe/run_user [`RunUserRequest`] -> [`RunUserResponse`]
+    async fn run_user(
+        &self,
+        req: RunUserRequest,
+    ) -> Result<RunUserResponse, MegaApiError>;
+
     /// GET /lexe/status [`MegaIdStruct`] -> [`Status`]
     async fn status_mega(
         &self,

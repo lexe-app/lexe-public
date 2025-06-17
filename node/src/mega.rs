@@ -135,6 +135,7 @@ mod mega_server {
     /// [`LexeMegaApi`]: lexe_api::def::LexeMegaApi
     fn mega_router(state: MegaRouterState) -> Router<()> {
         Router::new()
+            .route("/lexe/run_user", post(handlers::run_user))
             .route("/lexe/status", get(handlers::status))
             .route("/lexe/shutdown", post(handlers::shutdown))
             .with_state(state)
@@ -150,11 +151,29 @@ mod handlers {
     };
     use lexe_api::{
         error::MegaApiError,
+        models::mega::{RunUserRequest, RunUserResponse},
         server::{extract::LxQuery, LxJson},
         types::Empty,
     };
 
     use super::mega_server::MegaRouterState;
+
+    pub(super) async fn run_user(
+        State(state): State<MegaRouterState>,
+        LxJson(req): LxJson<RunUserRequest>,
+    ) -> Result<LxJson<RunUserResponse>, MegaApiError> {
+        // Sanity check
+        if req.mega_id != state.mega_id {
+            return Err(MegaApiError::wrong_mega_id(
+                &req.mega_id,
+                &state.mega_id,
+            ));
+        }
+
+        // TODO(max): Implement actual user loading logic
+        // For now, just return an empty response
+        Ok(LxJson(RunUserResponse {}))
+    }
 
     pub(super) async fn status(
         State(state): State<MegaRouterState>,
