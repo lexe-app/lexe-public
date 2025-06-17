@@ -38,10 +38,10 @@ pub(super) async fn resync(
 pub(super) async fn test_event(
     State(state): State<Arc<LexeRouterState>>,
     LxJson(op): LxJson<TestEventOp>,
-) -> Result<LxJson<()>, NodeApiError> {
+) -> Result<LxJson<Empty>, NodeApiError> {
     test_event::do_op(op, &state.test_event_rx)
         .await
-        .map(LxJson)
+        .map(|()| LxJson(Empty {}))
         .map_err(NodeApiError::command)
 }
 

@@ -404,10 +404,8 @@ pub trait LexeNodeRunApi {
     /// Calls the corresponding `TestEventReceiver` method.
     /// This endpoint can only be called by one caller at any one time.
     /// Does nothing and returns an error if called in prod.
-    // NOTE: we'll make an exception for always returning `Empty` here. This is
-    // a test-only API so we don't care about upgradability. Returning `()` is
-    // also significantly more ergonomic in tests w/ `tokio::join`.
-    async fn test_event(&self, op: &TestEventOp) -> Result<(), NodeApiError>;
+    async fn test_event(&self, op: &TestEventOp)
+        -> Result<Empty, NodeApiError>;
 
     /// GET /lexe/shutdown [`UserPkStruct`] -> [`Empty`]
     ///
