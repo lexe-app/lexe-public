@@ -38,5 +38,7 @@ mod persister;
 mod provision;
 /// Run a single user node.
 mod run;
+/// `UserRunner`.
+mod runner;
 /// Node's API server used while running.
 mod server;

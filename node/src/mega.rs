@@ -8,6 +8,7 @@ use tokio::sync::mpsc;
 use crate::{
     api::client::RunnerClient,
     provision::{ProvisionArgs, ProvisionInstance},
+    runner::UserRunner,
 };
 
 pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
@@ -32,10 +33,17 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     let provision_ports = provision.ports();
     static_tasks.push(provision.spawn_into_task());
 
+    // Start the usernode runner.
+    let (runner_tx, runner_rx) =
+        mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
+    let user_runner = UserRunner::new(runner_rx, mega_shutdown.clone());
+    static_tasks.push(user_runner.spawn_into_task());
+
     // Spawn the mega server task.
     let mega_id = args.mega_id;
     let mega_state = mega_server::MegaRouterState {
         mega_id,
+        runner_tx,
         mega_shutdown: mega_shutdown.clone(),
     };
     let (mega_task, lexe_mega_port, _mega_url) =
@@ -90,9 +98,11 @@ mod mega_server {
     use common::{api::MegaId, net};
     use lexe_api::{server::LayerConfig, types::ports::Port};
     use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
+    use tokio::sync::mpsc;
     use tracing::info_span;
 
     use super::handlers;
+    use crate::runner::RunUserRequestWithTx;
 
     /// Spawns the Lexe mega server task; returns the task, port, and url.
     pub(super) fn spawn_server_task(
@@ -127,6 +137,7 @@ mod mega_server {
     #[derive(Clone)]
     pub(super) struct MegaRouterState {
         pub mega_id: MegaId,
+        pub runner_tx: mpsc::Sender<RunUserRequestWithTx>,
         pub mega_shutdown: NotifyOnce,
     }
 
@@ -150,13 +161,15 @@ mod handlers {
         time::TimestampMs,
     };
     use lexe_api::{
-        error::MegaApiError,
+        error::{MegaApiError, MegaErrorKind},
         models::mega::{RunUserRequest, RunUserResponse},
         server::{extract::LxQuery, LxJson},
         types::Empty,
     };
+    use tokio::sync::oneshot;
 
     use super::mega_server::MegaRouterState;
+    use crate::runner::RunUserRequestWithTx;
 
     pub(super) async fn run_user(
         State(state): State<MegaRouterState>,
@@ -170,9 +183,27 @@ mod handlers {
             ));
         }
 
-        // TODO(max): Implement actual user loading logic
-        // For now, just return an empty response
-        Ok(LxJson(RunUserResponse {}))
+        let (user_ready_tx, user_ready_rx) = oneshot::channel();
+        let req_with_tx = RunUserRequestWithTx {
+            user_pk: req.user_pk,
+            user_ready_tx,
+        };
+        state
+            .runner_tx
+            .try_send(req_with_tx)
+            .map_err(|e| MegaApiError {
+                kind: MegaErrorKind::RunnerUnreachable,
+                msg: e.to_string(),
+                ..Default::default()
+            })?;
+
+        let run_ports = user_ready_rx.await.map_err(|e| MegaApiError {
+            kind: MegaErrorKind::RunnerUnreachable,
+            msg: e.to_string(),
+            ..Default::default()
+        })??;
+
+        Ok(LxJson(RunUserResponse { run_ports }))
     }
 
     pub(super) async fn status(

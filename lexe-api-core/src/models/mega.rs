@@ -1,6 +1,8 @@
 use common::api::{user::UserPk, MegaId};
 use serde::{Deserialize, Serialize};
 
+use crate::types::ports::RunPorts;
+
 /// A request to run a usernode within a meganode.
 #[derive(Serialize, Deserialize)]
 pub struct RunUserRequest {
@@ -12,4 +14,6 @@ pub struct RunUserRequest {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct RunUserResponse {}
+pub struct RunUserResponse {
+    pub run_ports: RunPorts,
+}

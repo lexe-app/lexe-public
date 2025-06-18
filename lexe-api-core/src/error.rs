@@ -775,6 +775,8 @@ api_error_kind! {
 
         /// Request mega_id doesn't match current mega_id
         WrongMegaId = 100,
+        /// Usernode runner is currently unreachable; try again later
+        RunnerUnreachable = 101,
     }
 }
 
@@ -794,6 +796,7 @@ impl ToHttpStatus for MegaErrorKind {
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
 
             WrongMegaId => CLIENT_400_BAD_REQUEST,
+            RunnerUnreachable => SERVER_503_SERVICE_UNAVAILABLE,
         }
     }
 }
