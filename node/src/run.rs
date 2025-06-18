@@ -210,7 +210,9 @@ impl UserNode {
         let filtered_esplora_urls = args
             .esplora_urls
             .iter()
-            .filter(|url| esplora::url_is_whitelisted(url, args.network))
+            .filter(|url| {
+                esplora::url_is_whitelisted(url, args.untrusted_network)
+            })
             .cloned()
             .collect::<Vec<String>>();
         ensure!(
@@ -256,7 +258,7 @@ impl UserNode {
             args_deploy_env == deploy_env,
             "Mismatched deploy envs: {args_deploy_env} != {deploy_env}"
         );
-        let args_network = args.network;
+        let args_network = args.untrusted_network;
         ensure!(
             network == args_network,
             "Unsealed network didn't match network given by CLI: \

@@ -17,7 +17,6 @@ pub struct MegaArgs {
     /// A randomly generated id for this mega node.
     pub mega_id: MegaId,
 
-    // TODO(max): Add it here
     /// protocol://host:port of the backend.
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
     pub backend_url: String,
@@ -66,9 +65,6 @@ pub struct RunArgs {
     /// the Lexe user pk used in queries to the persistence API
     pub user_pk: UserPk,
 
-    /// bitcoin, testnet, regtest, or signet.
-    pub network: LxNetwork,
-
     /// whether the node should shut down after completing sync and other
     /// maintenance tasks. This only applies if no activity was detected prior
     /// to the completion of sync (which is usually what happens). Useful when
@@ -116,6 +112,9 @@ pub struct RunArgs {
     /// The current deploy environment passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.
     pub untrusted_deploy_env: DeployEnv,
+
+    /// bitcoin, testnet, regtest, or signet.
+    pub untrusted_network: LxNetwork,
 
     /// The value to set for `RUST_LOG`. Does nothing if set to [`None`].
     /// Passed as an arg since envs aren't available in SGX.
