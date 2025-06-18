@@ -1027,7 +1027,7 @@ struct ProvisionedSecrets {
 // marked as incomplete and not yet safe to use as of 2023-02-01.
 // https://github.com/rust-lang/rust/issues/65991
 async fn fetch_provisioned_secrets(
-    backend_api: &dyn NodeBackendApiClient,
+    backend_api: &(dyn NodeBackendApiClient + Send + Sync),
     user_pk: UserPk,
     measurement: Measurement,
     machine_id: MachineId,

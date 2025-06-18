@@ -9,6 +9,9 @@ pub struct RunUserRequest {
     /// The user to run.
     pub user_pk: UserPk,
 
+    /// Whether the node should shut down after completing sync.
+    pub shutdown_after_sync: bool,
+
     /// Included to sanity check that we've requested the right meganode.
     pub mega_id: MegaId,
 }

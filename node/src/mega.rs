@@ -36,7 +36,8 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     // Start the usernode runner.
     let (runner_tx, runner_rx) =
         mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
-    let user_runner = UserRunner::new(runner_rx, mega_shutdown.clone());
+    let user_runner =
+        UserRunner::new(args.clone(), runner_rx, mega_shutdown.clone());
     static_tasks.push(user_runner.spawn_into_task());
 
     // Spawn the mega server task.
@@ -185,7 +186,7 @@ mod handlers {
 
         let (user_ready_tx, user_ready_rx) = oneshot::channel();
         let req_with_tx = RunUserRequestWithTx {
-            user_pk: req.user_pk,
+            inner: req,
             user_ready_tx,
         };
         state
