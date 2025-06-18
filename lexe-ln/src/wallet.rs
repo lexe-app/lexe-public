@@ -538,20 +538,28 @@ impl LexeWallet {
     /// - tnull opened an issue which applies to our current approach: <https://github.com/bitcoindevkit/bdk/issues/1666#issue-2621291151>
     pub(crate) fn transaction_broadcasted(&self, tx: Transaction) {
         let now = TimestampMs::now();
-        let timestamp_secs = now.to_duration().as_secs();
+        self.transaction_broadcasted_at(now, tx);
+    }
+
+    fn transaction_broadcasted_at(
+        &self,
+        broadcasted_at: TimestampMs,
+        tx: Transaction,
+    ) {
+        let broadcasted_at_secs = broadcasted_at.to_duration().as_secs();
         self.inner
             .write()
             .unwrap()
-            .apply_unconfirmed_txs([(tx, timestamp_secs)]);
+            .apply_unconfirmed_txs([(tx, broadcasted_at_secs)]);
         self.trigger_persist();
     }
 
     /// Try to evict an _unconfirmed_ UTXO from BDK's UTXO index. This
     /// effectively tells BDK that an unconfirmed UTXO was evicted from the
     /// mempool.
-    pub fn evict_unconfirmed_utxo(
+    pub fn unconfirmed_utxo_evicted_at(
         &self,
-        now: TimestampMs,
+        evicted_at: TimestampMs,
         outpoint: LxOutPoint,
     ) -> anyhow::Result<()> {
         let mut locked_wallet = self.inner.write().unwrap();
@@ -563,11 +571,29 @@ impl LexeWallet {
             utxo.chain_position.is_unconfirmed(),
             "UTXO is already confirmed"
         );
-        let now = now.to_duration().as_secs();
-        locked_wallet.apply_evicted_txs(iter::once((outpoint.txid, now)));
+        let evicted_at_secs = evicted_at.to_duration().as_secs();
+        locked_wallet
+            .apply_evicted_txs(iter::once((outpoint.txid, evicted_at_secs)));
         drop(locked_wallet);
         self.trigger_persist();
         Ok(())
+    }
+
+    /// Mark an unconfirmed transaction as evicted from the mempool at a
+    /// timestamp. Has no effect if the transaction is already confirmed or is
+    /// unknown to the wallet.
+    #[cfg(test)]
+    fn unconfirmed_transaction_evicted_at(
+        &self,
+        evicted_at: TimestampMs,
+        txid: common::ln::hashes::LxTxid,
+    ) {
+        let evicted_at_secs = evicted_at.to_duration().as_secs();
+        self.inner
+            .write()
+            .unwrap()
+            .apply_evicted_txs(iter::once((txid.0, evicted_at_secs)));
+        self.trigger_persist();
     }
 
     /// Preflight a potential channel open.
@@ -1161,7 +1187,7 @@ mod test {
 
         /// Check that running the given function `f` does not generate any new
         /// persists in the wallet.
-        fn check_no_persists_in<F, R>(&mut self, f: F) -> R
+        fn assert_no_persists_in<F, R>(&mut self, f: F) -> R
         where
             F: FnOnce(&mut Self) -> R,
         {
@@ -1169,6 +1195,23 @@ mod test {
             let ret = f(self);
             assert_eq!(None, self.wallet.write().take_staged());
             ret
+        }
+
+        /// Assert that the BDK wallet believes we can spend a given amount and
+        /// return the fee
+        #[track_caller]
+        fn assert_spend_ok(&self, amount_sats: u32) -> Amount {
+            let amount = Amount::from_sats_u32(amount_sats);
+            self.wallet.preflight_channel_funding_tx(amount).unwrap()
+        }
+
+        /// Assert that the BDK wallet believes we can't spend a given amount
+        #[track_caller]
+        fn assert_spend_err(&self, amount_sats: u32) {
+            let amount = Amount::from_sats_u32(amount_sats);
+            self.wallet
+                .preflight_channel_funding_tx(amount)
+                .unwrap_err();
         }
     }
 
@@ -1321,7 +1364,7 @@ mod test {
         assert_eq!(h.wallet.get_balance().confirmed.to_sat(), 123_456);
 
         // preflight_open_channel
-        h.check_no_persists_in(|h| {
+        h.assert_no_persists_in(|h| {
             let fee = h
                 .wallet
                 .preflight_channel_funding_tx(Amount::from_sats_u32(12_345))
@@ -1335,7 +1378,7 @@ mod test {
             let script = Script::from_bytes(&[0x42; 10]);
             Address::p2wsh(script, network).as_unchecked().clone()
         };
-        h.check_no_persists_in(|h| {
+        h.assert_no_persists_in(|h| {
             let req = PreflightPayOnchainRequest {
                 address: address.clone(),
                 amount: Amount::from_sats_u32(12_345),
@@ -1354,14 +1397,14 @@ mod test {
         h.wallet.write().fund(Amount::from_sats_u32(11_500));
 
         // preflight_open_channel
-        h.check_no_persists_in(|h| {
+        h.assert_no_persists_in(|h| {
             let amount = Amount::from_sats_u32(12_345);
             let fee = h.wallet.preflight_channel_funding_tx(amount).unwrap();
             assert_eq!(fee.sats_u64(), 441);
         });
 
         // preflight_pay_onchain
-        h.check_no_persists_in(|h| {
+        h.assert_no_persists_in(|h| {
             let req = PreflightPayOnchainRequest {
                 address: address.clone(),
                 amount: Amount::from_sats_u32(12_345),
@@ -1395,17 +1438,13 @@ mod test {
             .fund_unconfirmed(Amount::from_sats_u32(20_000));
 
         // 2. we should still be able to spend this unconfirmed tx
-        h.wallet
-            .preflight_channel_funding_tx(Amount::from_sats_u32(9_000))
-            .unwrap();
+        h.assert_spend_ok(9_000);
 
         // 3. add a confirmed tx
         let tx_c = h.wallet.write().fund(Amount::from_sats_u32(10_000));
 
         // 4. we can still spend from both
-        h.wallet
-            .preflight_channel_funding_tx(Amount::from_sats_u32(18_000))
-            .unwrap();
+        h.assert_spend_ok(18_000);
 
         // 5. but we should prefer the confirmed tx
         let address = bitcoin::Address::from_str(
@@ -1430,7 +1469,7 @@ mod test {
     }
 
     #[test]
-    fn test_evict_unconfirmed_utxo() {
+    fn test_evict_unconfirmed_utxo_basic() {
         let h = Harness::new();
 
         // Fund w/ 5,656 sats (confirmed)
@@ -1444,14 +1483,10 @@ mod test {
         assert_eq!(h.wallet.get_balance().untrusted_pending.to_sat(), 12_121);
 
         // We can't spend more than our total balance
-        h.wallet
-            .preflight_channel_funding_tx(Amount::from_sats_u32(20_000))
-            .unwrap_err();
+        h.assert_spend_err(20_000);
 
         // We should be able to spend this broadcasted + unconfirmed UTXO
-        h.wallet
-            .preflight_channel_funding_tx(Amount::from_sats_u32(10_000))
-            .unwrap();
+        h.assert_spend_ok(10_000);
 
         // Manually declare it evicted / replaced / dropped from the mempool
         let now = h.wallet.read().now();
@@ -1459,24 +1494,103 @@ mod test {
             txid: LxTxid(tx_u.compute_txid()),
             index: 0,
         };
-        h.wallet.evict_unconfirmed_utxo(now, outpoint).unwrap();
+        h.wallet.unconfirmed_utxo_evicted_at(now, outpoint).unwrap();
 
         // We can no longer spend it
-        h.wallet
-            .preflight_channel_funding_tx(Amount::from_sats_u32(10_000))
-            .unwrap_err();
+        h.assert_spend_err(10_000);
 
         // We can still spend the confirmed UTXO
-        h.wallet
-            .preflight_channel_funding_tx(Amount::from_sats_u32(4_000))
-            .unwrap();
+        h.assert_spend_ok(4_000);
 
         // We can't evict a confirmed UTXO
         let outpoint = LxOutPoint {
             txid: LxTxid(tx_c.compute_txid()),
             index: 0,
         };
-        h.wallet.evict_unconfirmed_utxo(now, outpoint).unwrap_err();
+        h.wallet
+            .unconfirmed_utxo_evicted_at(now, outpoint)
+            .unwrap_err();
+    }
+
+    #[test]
+    fn test_evict_unconfirmed_utxo_sync_request() {
+        let h = Harness::new();
+
+        // Fund w/ 5,656 sats (confirmed)
+        let tx_c = h.wallet.write().fund(Amount::from_sats_u32(5_656));
+        let tx_c_txid = tx_c.compute_txid();
+        let utxos = h.wallet.get_utxos();
+        let tx_c_utxo = &utxos[0];
+        h.assert_spend_ok(5_300);
+
+        assert_eq!(utxos.len(), 1);
+        assert_eq!(tx_c_utxo.outpoint.txid, tx_c_txid);
+        assert_eq!(tx_c_utxo.txout, tx_c.output[0]);
+        assert!(!tx_c_utxo.is_spent);
+
+        // check the sync request
+        let mut sync_req = h.wallet.build_sync_request();
+        assert_eq!(sync_req.iter_txids().collect::<Vec<_>>(), Vec::new());
+        assert_eq!(
+            sync_req.iter_outpoints().collect::<Vec<_>>(),
+            vec![tx_c_utxo.outpoint],
+        );
+
+        // Spend 1,000 sats to an external address (unconfirmed)
+        // -> Balance: ~4,375 sats (w/ unconfirmed)
+        let address = bitcoin::Address::from_str(
+            "bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk",
+        )
+        .unwrap();
+        let send_req = PayOnchainRequest {
+            cid: ClientPaymentId([0x42; 32]),
+            address,
+            amount: Amount::from_sats_u32(1_000),
+            priority: ConfirmationPriority::Normal,
+            note: None,
+        };
+        let send = h.wallet.create_onchain_send(send_req, h.network).unwrap();
+        let now = h.wallet.read().now();
+        h.wallet.transaction_broadcasted_at(now, send.tx.clone());
+
+        // check the sync request
+        let mut sync_req = h.wallet.build_sync_request();
+        assert_eq!(
+            sync_req.iter_txids().collect::<Vec<_>>(),
+            vec![send.txid.0],
+        );
+        let change_outpoint = send
+            .tx
+            .output
+            .clone()
+            .into_iter()
+            .enumerate()
+            .find_map(|(idx, txo)| {
+                (txo.value.to_sat() != 1_000).then_some(bitcoin::OutPoint {
+                    txid: send.txid.0,
+                    vout: idx as u32,
+                })
+            })
+            .unwrap();
+        assert_eq!(
+            sync_req.iter_outpoints().collect::<Vec<_>>(),
+            vec![change_outpoint],
+        );
+
+        h.assert_spend_err(5_300);
+        h.assert_spend_ok(4_000);
+
+        // Evict the unconfirmed UTXO.
+        // Our sync should go back to asking for the formerly-spent output only.
+        h.wallet.unconfirmed_transaction_evicted_at(now, send.txid);
+        h.assert_spend_ok(5_300);
+
+        let mut sync_req = h.wallet.build_sync_request();
+        assert_eq!(sync_req.iter_txids().collect::<Vec<_>>(), Vec::new());
+        assert_eq!(
+            sync_req.iter_outpoints().collect::<Vec<_>>(),
+            vec![tx_c_utxo.outpoint],
+        );
     }
 
     #[test]
