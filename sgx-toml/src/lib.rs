@@ -10,16 +10,16 @@ use serde::Deserialize;
 const DEBUG: bool = false;
 const HEAP_SIZE: u64 = 0x0200_0000; // 32 MiB
 const SSAFRAMESIZE: u32 = 1;
-const STACK_SIZE: u32 = 0x0002_0000; // 128 KiB
-const THREADS: u32 = 2; // Want 1 thread, but async_usercalls needs another
+const STACK_SIZE: u64 = 0x0002_0000; // 128 KiB
+const THREADS: u8 = 2; // Want 1 thread, but async_usercalls needs another
 
 #[derive(Clone, Debug)]
 pub struct FortanixSgxConfig {
     pub debug: bool,
     pub heap_size: u64,
     pub ssaframesize: u32,
-    pub stack_size: u32,
-    pub threads: u32,
+    pub stack_size: u64,
+    pub threads: u8,
 }
 
 /// Given a path to a `Cargo.toml`, tries to read the FortanixSgxConfig.
@@ -66,6 +66,6 @@ struct FortanixSgx {
     debug: Option<bool>,
     heap_size: Option<u64>,
     ssaframesize: Option<u32>,
-    stack_size: Option<u32>,
-    threads: Option<u32>,
+    stack_size: Option<u64>,
+    threads: Option<u8>,
 }
