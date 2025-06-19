@@ -1150,13 +1150,19 @@ mod test {
         path::Path,
         process::{Command, Stdio},
         str::FromStr,
+        collections::HashSet,
     };
 
     use bdk_chain::{BlockId, ConfirmationBlockTime};
+    use bdk_wallet::{
+        AddressInfo,
+        KeychainKind::{External, Internal},
+    };
     use bitcoin::{hashes::Hash as _, TxOut, Txid};
     use common::{
         ln::hashes::LxTxid,
         rng::FastRng,
+        sat,
         test_utils::{arbitrary, roundtrip},
     };
     use lexe_api::types::payments::ClientPaymentId;
@@ -1185,15 +1191,27 @@ mod test {
             Harness { wallet, network }
         }
 
+        fn ww(&self) -> RwLockWriteGuard<'_, Wallet> {
+            self.wallet.write()
+        }
+
+        fn wr(&self) -> RwLockReadGuard<'_, Wallet> {
+            self.wallet.read()
+        }
+
+        fn now(&self) -> TimestampMs {
+            self.wr().now()
+        }
+
         /// Check that running the given function `f` does not generate any new
         /// persists in the wallet.
         fn assert_no_persists_in<F, R>(&mut self, f: F) -> R
         where
             F: FnOnce(&mut Self) -> R,
         {
-            let _ = self.wallet.write().take_staged();
+            let _ = self.ww().take_staged();
             let ret = f(self);
-            assert_eq!(None, self.wallet.write().take_staged());
+            assert_eq!(None, self.ww().take_staged());
             ret
         }
 
@@ -1223,15 +1241,20 @@ mod test {
         /// A fake clock timestamp that's just `unix time := height * 100 sec`.
         fn now(&self) -> TimestampMs;
 
-        /// Get the next unused address from the external descriptor.
-        fn get_address(&mut self) -> bitcoin::Address;
-
         /// Fund the wallet with the given amount
-        fn fund(&mut self, amount: Amount) -> Transaction;
+        fn fund(
+            &mut self,
+            keychain: KeychainKind,
+            amount: Amount,
+        ) -> (Transaction, AddressInfo, HashSet<bitcoin::ScriptBuf>);
 
         /// Fund the wallet with the given amount, but leave the funding tx
         /// unconfirmed.
-        fn fund_unconfirmed(&mut self, amount: Amount) -> Transaction;
+        fn fund_unconfirmed(
+            &mut self,
+            keychain: KeychainKind,
+            amount: Amount,
+        ) -> (Transaction, AddressInfo, HashSet<bitcoin::ScriptBuf>);
 
         fn confirm_txids(&mut self, txids: &[Txid]);
         fn add_unconfirmed_tx(&mut self, tx: &Transaction);
@@ -1247,28 +1270,34 @@ mod test {
             TimestampMs::from_secs_u32(self.height() * 100)
         }
 
-        fn get_address(&mut self) -> bitcoin::Address {
-            self.next_unused_address(KeychainKind::External).address
-        }
-
-        fn fund(&mut self, amount: Amount) -> Transaction {
-            let tx = self.fund_unconfirmed(amount);
+        fn fund(
+            &mut self,
+            keychain: KeychainKind,
+            amount: Amount,
+        ) -> (Transaction, AddressInfo, HashSet<bitcoin::ScriptBuf>) {
+            let (tx, address_info, spks) =
+                self.fund_unconfirmed(keychain, amount);
             self.confirm_txids(&[tx.compute_txid()]);
-            tx
+            (tx, address_info, spks)
         }
 
-        fn fund_unconfirmed(&mut self, amount: Amount) -> Transaction {
+        fn fund_unconfirmed(
+            &mut self,
+            keychain: KeychainKind,
+            amount: Amount,
+        ) -> (Transaction, AddressInfo, HashSet<bitcoin::ScriptBuf>) {
             // build tx and register it
-            let address = self.get_address();
+            let address_info = self.next_unused_address(keychain);
+            let spk = address_info.script_pubkey();
             let tx = Transaction {
                 output: vec![TxOut {
                     value: amount.into(),
-                    script_pubkey: address.script_pubkey(),
+                    script_pubkey: spk.clone(),
                 }],
                 ..new_tx()
             };
             self.add_unconfirmed_tx(&tx);
-            tx
+            (tx, address_info, HashSet::from_iter(iter::once(spk)))
         }
 
         fn add_checkpoint(&mut self, blocks: u32) -> ConfirmationBlockTime {
@@ -1360,15 +1389,13 @@ mod test {
 
         // with a single large utxo
         let mut h = Harness::new();
-        h.wallet.write().fund(Amount::from_sats_u32(123_456));
+        h.ww().fund(External, sat!(123_456));
         assert_eq!(h.wallet.get_balance().confirmed.to_sat(), 123_456);
 
         // preflight_open_channel
         h.assert_no_persists_in(|h| {
-            let fee = h
-                .wallet
-                .preflight_channel_funding_tx(Amount::from_sats_u32(12_345))
-                .unwrap();
+            let fee =
+                h.wallet.preflight_channel_funding_tx(sat!(12_345)).unwrap();
             assert_eq!(fee.sats_u64(), 305);
         });
 
@@ -1381,7 +1408,7 @@ mod test {
         h.assert_no_persists_in(|h| {
             let req = PreflightPayOnchainRequest {
                 address: address.clone(),
-                amount: Amount::from_sats_u32(12_345),
+                amount: sat!(12_345),
             };
             let fee = h.wallet.preflight_pay_onchain(req, h.network).unwrap();
             assert_eq!(fee.high.map(|x| x.amount.sats_u64()), Some(382));
@@ -1393,12 +1420,12 @@ mod test {
         // non-deterministic :')
         // with some smaller utxos so we get multiple inputs to the funding tx
         let mut h = Harness::new();
-        h.wallet.write().fund(Amount::from_sats_u32(11_500));
-        h.wallet.write().fund(Amount::from_sats_u32(11_500));
+        h.ww().fund(External, sat!(11_500));
+        h.ww().fund(External, sat!(11_500));
 
         // preflight_open_channel
         h.assert_no_persists_in(|h| {
-            let amount = Amount::from_sats_u32(12_345);
+            let amount = sat!(12_345);
             let fee = h.wallet.preflight_channel_funding_tx(amount).unwrap();
             assert_eq!(fee.sats_u64(), 441);
         });
@@ -1407,7 +1434,7 @@ mod test {
         h.assert_no_persists_in(|h| {
             let req = PreflightPayOnchainRequest {
                 address: address.clone(),
-                amount: Amount::from_sats_u32(12_345),
+                amount: sat!(12_345),
             };
             let fee = h.wallet.preflight_pay_onchain(req, h.network).unwrap();
             assert_eq!(fee.high.map(|x| x.amount.sats_u64()), Some(552));
@@ -1432,16 +1459,13 @@ mod test {
         let h = Harness::new();
 
         // 1. add an unconfirmed tx
-        let _tx_u = h
-            .wallet
-            .write()
-            .fund_unconfirmed(Amount::from_sats_u32(20_000));
+        h.ww().fund_unconfirmed(External, sat!(20_000));
 
         // 2. we should still be able to spend this unconfirmed tx
         h.assert_spend_ok(9_000);
 
         // 3. add a confirmed tx
-        let tx_c = h.wallet.write().fund(Amount::from_sats_u32(10_000));
+        let (tx_c, _, _) = h.ww().fund(External, sat!(10_000));
 
         // 4. we can still spend from both
         h.assert_spend_ok(18_000);
@@ -1454,7 +1478,7 @@ mod test {
         let req = PayOnchainRequest {
             cid: ClientPaymentId([42; 32]),
             address,
-            amount: Amount::from_sats_u32(9_000),
+            amount: sat!(9_000),
             priority: ConfirmationPriority::Normal,
             note: None,
         };
@@ -1473,14 +1497,11 @@ mod test {
         let h = Harness::new();
 
         // Fund w/ 5,656 sats (confirmed)
-        let tx_c = h.wallet.write().fund(Amount::from_sats_u32(5_656));
+        let (tx_c, _, _) = h.ww().fund(External, sat!(5_656));
 
         // Fund w/ 12,121 sats (broadcasted + unconfirmed)
-        let tx_u = h
-            .wallet
-            .write()
-            .fund_unconfirmed(Amount::from_sats_u32(12_121));
-        assert_eq!(h.wallet.get_balance().untrusted_pending.to_sat(), 12_121);
+        let (tx_u, _, _) = h.ww().fund_unconfirmed(Internal, sat!(12_121));
+        assert_eq!(h.wallet.get_balance().trusted_pending.to_sat(), 12_121);
 
         // We can't spend more than our total balance
         h.assert_spend_err(20_000);
@@ -1489,7 +1510,7 @@ mod test {
         h.assert_spend_ok(10_000);
 
         // Manually declare it evicted / replaced / dropped from the mempool
-        let now = h.wallet.read().now();
+        let now = h.now();
         let outpoint = LxOutPoint {
             txid: LxTxid(tx_u.compute_txid()),
             index: 0,
@@ -1517,7 +1538,7 @@ mod test {
         let h = Harness::new();
 
         // Fund w/ 5,656 sats (confirmed)
-        let tx_c = h.wallet.write().fund(Amount::from_sats_u32(5_656));
+        let (tx_c, _, _) = h.ww().fund(External, sat!(5_656));
         let tx_c_txid = tx_c.compute_txid();
         let utxos = h.wallet.get_utxos();
         let tx_c_utxo = &utxos[0];
@@ -1545,13 +1566,13 @@ mod test {
         let send_req = PayOnchainRequest {
             cid: ClientPaymentId([0x42; 32]),
             address,
-            amount: Amount::from_sats_u32(1_000),
+            amount: sat!(1_000),
             priority: ConfirmationPriority::Normal,
             note: None,
         };
         let send = h.wallet.create_onchain_send(send_req, h.network).unwrap();
-        let now = h.wallet.read().now();
-        h.wallet.transaction_broadcasted_at(now, send.tx.clone());
+        h.wallet
+            .transaction_broadcasted_at(h.now(), send.tx.clone());
 
         // check the sync request
         let mut sync_req = h.wallet.build_sync_request();
@@ -1582,7 +1603,8 @@ mod test {
 
         // Evict the unconfirmed UTXO.
         // Our sync should go back to asking for the formerly-spent output only.
-        h.wallet.unconfirmed_transaction_evicted_at(now, send.txid);
+        h.wallet
+            .unconfirmed_transaction_evicted_at(h.now(), send.txid);
         h.assert_spend_ok(5_300);
 
         let mut sync_req = h.wallet.build_sync_request();
