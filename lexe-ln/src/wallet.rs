@@ -28,7 +28,11 @@
 //! [`LexeWallet`]: crate::wallet::LexeWallet
 //! [`LexeWallet::trigger_persist`]: crate::wallet::LexeWallet::trigger_persist
 
+/// The number of confirmations required to consider a transaction finalized.
+const ANTI_REORG_DELAY: u32 = 6;
+
 use std::{
+    collections::{HashMap, HashSet},
     iter,
     ops::DerefMut,
     sync::{Arc, RwLockReadGuard, RwLockWriteGuard},
@@ -65,7 +69,7 @@ use lexe_api::{
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use rand::RngCore;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, info, instrument, trace, warn};
 
 use crate::{
     esplora::{FeeEstimates, LexeEsplora},
@@ -391,6 +395,187 @@ impl LexeWallet {
             .spks_with_indexes(next_internal_spk)
             .outpoints(utxos)
             .txids(unconfirmed_txids)
+            .build()
+    }
+
+    /// Build an incremental sync request to efficiently sync our local BDK
+    /// wallet state with a remote esplora REST API blockchain data source.
+    ///
+    /// The sync request is a collection of spks, unconfirmed txs, and UTXOs
+    /// that we want to query for chain+mempool updates.
+    ///
+    /// This incremental sync tries to be efficient in that our sync request
+    /// fetches `O(revealed external spks + pending internal keychain spks)`
+    /// spk histories. We assume that spks from our `Internal` descriptor
+    /// only recv and spend once, so if a used internal spk has only
+    /// sufficiently confirmed relevant txs we can skip syncing it.
+    ///
+    /// Since we can't guarantee much about external keychain spks, we have to
+    /// sync every revealed external spk in perpetuity. In the future, we may
+    /// optimize this so that ancient external spks are synced less frequently.
+    #[allow(dead_code)] // TODO(phlip9): remove
+    fn build_sync_request_at(
+        &self,
+        synced_at: TimestampMs,
+    ) -> SyncRequest<(KeychainKind, u32)> {
+        let locked_wallet = self.inner.read().unwrap();
+
+        let keychains = locked_wallet.spk_index();
+        let tx_graph = locked_wallet.tx_graph();
+        let local_chain = locked_wallet.local_chain();
+        let chain_tip = local_chain.tip();
+
+        trace!(height = chain_tip.height());
+
+        #[cfg_attr(test, derive(Debug))]
+        enum SpkInfo {
+            External {
+                spk: bitcoin::ScriptBuf,
+            },
+            Internal {
+                spk: bitcoin::ScriptBuf,
+                any_pending_spends: bool,
+                any_finalized_spends: bool,
+            },
+        }
+
+        // Collect info about spks relevant to canonical txs, which we'll later
+        // use to determine which spks to sync.
+        let mut spk_infos = HashMap::<(KeychainKind, u32), SpkInfo>::new();
+
+        // All txids relevant to each spk we want to sync. Ok to reference spks
+        // that we don't actually sync.
+        let mut expected_spk_txids =
+            HashSet::<(bitcoin::ScriptBuf, bitcoin::Txid)>::new();
+
+        // All confirmed or unconfirmed txs deemed to be part of the canonical
+        // history.
+        let canonical_tx_iter = tx_graph.list_canonical_txs(
+            local_chain,
+            chain_tip.block_id(),
+            CanonicalizationParams::default(),
+        );
+        for c_tx in canonical_tx_iter {
+            let tx = &c_tx.tx_node.tx;
+            let txid = c_tx.tx_node.txid;
+
+            // We'll consider a tx finalized if it has enough confs.
+            let conf_height =
+                c_tx.chain_position.confirmation_height_upper_bound();
+            let is_finalized = match conf_height {
+                Some(height) => {
+                    let confs = chain_tip.height().saturating_sub(height) + 1;
+                    confs >= ANTI_REORG_DELAY
+                }
+                // unconfirmed => not finalized
+                None => false,
+            };
+            trace!(%txid, is_finalized, conf_height = ?conf_height);
+
+            // The relevant spks for this tx, i.e., spks the tx spends or
+            // receives funds to. Both internal and external spks.
+            let relevant_spks = keychains.inner().relevant_spks_of_tx(tx);
+
+            for ((keychain_kind, index), spk) in relevant_spks {
+                let keychain_index = (keychain_kind, index);
+                let entry =
+                    spk_infos.entry(keychain_index).or_insert_with(|| {
+                        let spk = spk.clone();
+                        if keychain_kind == KeychainKind::External {
+                            SpkInfo::External { spk }
+                        } else {
+                            SpkInfo::Internal {
+                                spk,
+                                any_pending_spends: false,
+                                any_finalized_spends: false,
+                            }
+                        }
+                    });
+
+                if let SpkInfo::Internal {
+                    spk: _,
+                    any_pending_spends,
+                    any_finalized_spends,
+                } = entry
+                {
+                    let tx_spends = tx
+                        .input
+                        .iter()
+                        .filter_map(|input| {
+                            keychains.txout(input.previous_output)
+                        })
+                        .any(|(keychain_index, _output)| {
+                            keychain_index == (KeychainKind::Internal, index)
+                        });
+
+                    trace!(?keychain_index, %spk, tx_spends);
+
+                    *any_pending_spends |= tx_spends && !is_finalized;
+                    *any_finalized_spends |= tx_spends && is_finalized;
+                } else {
+                    trace!(?keychain_index, %spk);
+                }
+
+                // It's OK that this may include more (spk, txid)'s than we
+                // actually sync since BDK will just not look at spks that
+                // aren't synced.
+                expected_spk_txids.insert((spk, c_tx.tx_node.txid));
+            }
+        }
+
+        let used_spks_to_sync =
+            spk_infos
+                .into_iter()
+                .filter_map(|(keychain_index, spk_info)| {
+                    #[cfg(test)]
+                    trace!(?keychain_index, ?spk_info);
+                    match spk_info {
+                        // Sync all used external spks
+                        SpkInfo::External { spk } =>
+                            Some((keychain_index, spk)),
+                        // Sync all used internal spks that have pending spends
+                        // or have no spends at all.
+                        SpkInfo::Internal {
+                            spk,
+                            any_pending_spends,
+                            any_finalized_spends,
+                        } if any_pending_spends || !any_finalized_spends =>
+                            Some((keychain_index, spk)),
+                        _ => None,
+                    }
+                });
+
+        // We'll also sync the next unrevealed spks for both keychains, in case
+        // we revealed an index, used it, then crashed before the BDK wallet
+        // persisted.
+        let keychain = KeychainKind::External;
+        let next_unrevealed_external_spk =
+            keychains.next_index(keychain).and_then(|(index, _)| {
+                keychains
+                    .spk_at_index(keychain, index)
+                    .map(|spk| ((keychain, index), spk))
+            });
+        let keychain = KeychainKind::Internal;
+        let next_unrevealed_internal_spk =
+            keychains.next_index(keychain).and_then(|(index, _)| {
+                keychains
+                    .spk_at_index(keychain, index)
+                    .map(|spk| ((keychain, index), spk))
+            });
+
+        SyncRequest::builder_at(synced_at.to_secs())
+            .chain_tip(chain_tip)
+            // We always sync revealed but unused spks, regardless of internal
+            // vs external.
+            .spks_with_indexes(keychains.unused_spks())
+            // Also sync (1) all used external spks, and (2) all used internal
+            // spks that whose relevant txs are not all finalized.
+            .spks_with_indexes(used_spks_to_sync)
+            .spks_with_indexes(next_unrevealed_external_spk)
+            .spks_with_indexes(next_unrevealed_internal_spk)
+            // All relevant txids for the spks we want to sync, so BDK can
+            // determine if a tx was evicted.
+            .expected_spk_txids(expected_spk_txids)
             .build()
     }
 
@@ -1256,9 +1441,11 @@ mod test {
             amount: Amount,
         ) -> (Transaction, AddressInfo, HashSet<bitcoin::ScriptBuf>);
 
-        fn confirm_txids(&mut self, txids: &[Txid]);
+        fn confirm_txids(&mut self, blocks: u32, txids: &[Txid]);
         fn add_unconfirmed_tx(&mut self, tx: &Transaction);
         fn add_checkpoint(&mut self, blocks: u32) -> ConfirmationBlockTime;
+
+        fn next_unrevealed_spks(&self) -> HashSet<bitcoin::ScriptBuf>;
     }
 
     impl WalletExt for Wallet {
@@ -1277,7 +1464,7 @@ mod test {
         ) -> (Transaction, AddressInfo, HashSet<bitcoin::ScriptBuf>) {
             let (tx, address_info, spks) =
                 self.fund_unconfirmed(keychain, amount);
-            self.confirm_txids(&[tx.compute_txid()]);
+            self.confirm_txids(ANTI_REORG_DELAY, &[tx.compute_txid()]);
             (tx, address_info, spks)
         }
 
@@ -1322,8 +1509,9 @@ mod test {
             self.apply_unconfirmed_txs(iter::once((tx.clone(), now)));
         }
 
-        fn confirm_txids(&mut self, txids: &[Txid]) {
-            let anchor = self.add_checkpoint(6);
+        fn confirm_txids(&mut self, confs: u32, txids: &[Txid]) {
+            assert!(confs > 0);
+            let anchor = self.add_checkpoint(1);
             let anchors = txids.iter().map(|txid| (anchor, *txid)).collect();
             let mut tx_update = bdk_chain::TxUpdate::default();
             tx_update.anchors = anchors;
@@ -1332,12 +1520,27 @@ mod test {
                 ..Default::default()
             };
             self.apply_update(update).unwrap();
+            self.add_checkpoint(confs - 1);
+        }
+
+        fn next_unrevealed_spks(&self) -> HashSet<bitcoin::ScriptBuf> {
+            let keychains = self.spk_index();
+            let keychain = KeychainKind::External;
+            let next_external = keychains
+                .next_index(keychain)
+                .and_then(|(index, _)| keychains.spk_at_index(keychain, index));
+            let next_internal = keychains
+                .next_index(KeychainKind::Internal)
+                .and_then(|(index, _)| {
+                    keychains.spk_at_index(KeychainKind::Internal, index)
+                });
+            next_external.into_iter().chain(next_internal).collect()
         }
     }
 
     fn new_tx() -> Transaction {
         Transaction {
-            version: bitcoin::transaction::Version::ONE,
+            version: bitcoin::transaction::Version::TWO,
             lock_time: bitcoin::absolute::LockTime::ZERO,
             input: Vec::new(),
             output: Vec::new(),
@@ -1367,6 +1570,36 @@ mod test {
                 hash: bitcoin::BlockHash::from_u32(n),
             }
         }
+    }
+
+    trait SyncRequestExt {
+        fn spks(&mut self) -> HashSet<bitcoin::ScriptBuf>;
+    }
+
+    impl SyncRequestExt for SyncRequest<(KeychainKind, u32)> {
+        fn spks(&mut self) -> HashSet<bitcoin::ScriptBuf> {
+            self.iter_spks_with_expected_txids()
+                .map(|spk_txids| spk_txids.spk)
+                .collect()
+        }
+    }
+
+    trait HashSetExt {
+        fn union_set(&self, other: &Self) -> Self;
+    }
+
+    impl HashSetExt for HashSet<bitcoin::ScriptBuf> {
+        fn union_set(&self, other: &Self) -> Self {
+            self.iter().cloned().chain(other.iter().cloned()).collect()
+        }
+    }
+
+    macro_rules! trace_dbg {
+        ($arg:expr) => {{
+            let x = $arg;
+            tracing::trace!("{x:?}");
+            x
+        }};
     }
 
     #[test]
@@ -1613,6 +1846,71 @@ mod test {
             sync_req.iter_outpoints().collect::<Vec<_>>(),
             vec![tx_c_utxo.outpoint],
         );
+    }
+
+    #[test]
+    fn test_build_sync_request() {
+        crate::logger::init_for_testing();
+
+        let h = Harness::new();
+
+        // Empty wallet should build SyncRequest with just first unrevealed
+        // external/internal spks.
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(req.spks(), h.wr().next_unrevealed_spks());
+
+        trace!("== unconfirmed fund ===");
+
+        // Fund the wallet with 1,000 sats (unconfirmed, internal)
+        let (txi0, _ai, spki0) = h.ww().fund_unconfirmed(Internal, sat!(1_000));
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(req.spks(), spki0.union_set(&h.wr().next_unrevealed_spks()));
+
+        trace!("=== finalize fund ===");
+
+        // Confirm tx. Should still sync spk i0 since it's unspent.
+        h.ww().confirm_txids(6, &[txi0.compute_txid()]);
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(req.spks(), spki0.union_set(&h.wr().next_unrevealed_spks()));
+
+        // Spend the 1,000 sats to some unowned address (unconfirmed).
+        let address = bitcoin::Address::from_str(
+            "bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk",
+        )
+        .unwrap();
+        let send_req = PayOnchainRequest {
+            cid: ClientPaymentId([0x42; 32]),
+            address,
+            amount: sat!(775), // large enough there's no change output
+            priority: ConfirmationPriority::Normal,
+            note: None,
+        };
+        let send = h.wallet.create_onchain_send(send_req, h.network).unwrap();
+        h.wallet.transaction_broadcasted_at(h.now(), send.tx);
+
+        trace!("=== unconfirmed spend ===");
+
+        // Still sync spk i0 since the spend is unconfirmed
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(req.spks(), spki0.union_set(&h.wr().next_unrevealed_spks()));
+
+        trace!("=== confirm spend ===");
+
+        // Confirm the send tx but not enough to finalize. Should still sync
+        // spk i0.
+        h.ww().confirm_txids(5, &[send.txid.0]);
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(
+            trace_dbg!(req.spks()),
+            spki0.union_set(&h.wr().next_unrevealed_spks())
+        );
+
+        trace!("=== finalize spend ===");
+
+        // Confirm enough to finalize. No longer sync spk i0.
+        h.ww().add_checkpoint(1);
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(trace_dbg!(req.spks()), h.wr().next_unrevealed_spks());
     }
 
     #[test]
