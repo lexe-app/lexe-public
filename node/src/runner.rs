@@ -1,13 +1,16 @@
 use std::collections::HashMap;
 
 use common::{api::user::UserPk, cli::node::MegaArgs};
-use futures::stream::FuturesUnordered;
+use futures::{stream::FuturesUnordered, StreamExt};
 use lexe_api::{
     error::MegaApiError, models::mega::RunUserRequest, types::ports::RunPorts,
 };
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
-use tokio::sync::{mpsc, oneshot};
-use tracing::info_span;
+use tokio::{
+    sync::{mpsc, oneshot},
+    task::JoinError,
+};
+use tracing::{info, info_span};
 
 use crate::context::MegaContext;
 
@@ -81,7 +84,8 @@ impl UserRunner {
                 Some(run_req) = self.runner_rx.recv() =>
                     self.handle_run_user_request(run_req),
 
-                // TODO(max): Await on `user_stream`.
+                Some(join_result) = self.user_stream.next() =>
+                    self.handle_finished_user_node(join_result),
 
                 () = self.mega_shutdown.recv() => return,
             }
@@ -125,6 +129,19 @@ impl UserRunner {
 
         // We just spawned a node. Check for evictions.
         self.evict_usernodes_if_needed();
+    }
+
+    fn handle_finished_user_node(
+        &mut self,
+        join_result: Result<UserPk, JoinError>,
+    ) {
+        let user_pk = join_result.expect("User node task panicked");
+        info!(%user_pk, "User node finished");
+
+        self.user_nodes.remove(&user_pk);
+
+        // TODO(max): Also remove from `evicting_users`
+        // TODO(max): Terminate the lease held by this usernode.
     }
 
     fn evict_usernodes_if_needed(&mut self) {
