@@ -105,6 +105,7 @@ impl NodeCommand {
                     let user_shutdown = NotifyOnce::new();
                     let user_ctxt = UserContext {
                         user_shutdown: user_shutdown.clone(),
+                        ..Default::default()
                     };
                     let allow_mock = true;
                     let (mega_ctxt, static_tasks) = MegaContext::init(

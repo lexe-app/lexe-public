@@ -8,7 +8,11 @@ use arc_swap::ArcSwap;
 use common::{
     cli::LspInfo, enclave, env::DeployEnv, ln::network::LxNetwork, rng::Crng,
 };
-use lexe_api::def::{NodeLspApi, NodeRunnerApi};
+use lexe_api::{
+    def::{NodeLspApi, NodeRunnerApi},
+    error::MegaApiError,
+    types::ports::RunPorts,
+};
 use lexe_ln::{
     alias::{
         EsploraSyncClientType, NetworkGraphType, P2PGossipSyncType,
@@ -25,12 +29,36 @@ use lightning::{
     util::{config::UserConfig, ser::ReadableArgs},
 };
 use lightning_transaction_sync::EsploraSyncClient;
+use tokio::sync::{mpsc, oneshot};
 use tracing::info;
 
 use crate::{
     api::{self, NodeBackendApiClient},
     DEV_VERSION, SEMVER_VERSION,
 };
+
+/// Usernode-specific context.
+/// May be initialized by the meganode or by the usernode itself.
+// TODO(max): Eventually, this will only be initialized by the meganode.
+pub(crate) struct UserContext {
+    /// Notifies this specific usernode that it should shut down.
+    pub user_shutdown: NotifyOnce,
+    pub user_ready_waiter_rx:
+        mpsc::Receiver<oneshot::Sender<Result<RunPorts, MegaApiError>>>,
+}
+
+// TODO(max): This can be removed once `run` is removed.
+impl Default for UserContext {
+    fn default() -> Self {
+        Self {
+            user_shutdown: NotifyOnce::new(),
+            user_ready_waiter_rx: mpsc::channel(
+                lexe_tokio::DEFAULT_CHANNEL_SIZE,
+            )
+            .1,
+        }
+    }
+}
 
 /// Run context shared between all usernodes running on this meganode.
 #[derive(Clone)]
@@ -67,14 +95,6 @@ pub(crate) struct MegaContext {
     pub untrusted_network: LxNetwork,
     /// The semantic version of the node.
     pub version: semver::Version,
-}
-
-/// Usernode-specific context.
-/// May be initialized by the meganode or by the usernode itself.
-// TODO(max): Eventually, this will only be initialized by the meganode.
-pub(crate) struct UserContext {
-    /// Notifies this specific usernode that it should shut down.
-    pub user_shutdown: NotifyOnce,
 }
 
 impl MegaContext {

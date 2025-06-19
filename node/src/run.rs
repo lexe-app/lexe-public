@@ -27,6 +27,7 @@ use gdrive::{gvfs::GvfsRootName, GoogleVfs};
 use lexe_api::{
     auth::BearerAuthenticator,
     def::NodeRunnerApi,
+    error::MegaApiError,
     server::LayerConfig,
     types::{ports::RunPorts, sealed_seed::SealedSeedId},
     vfs::{Vfs, REVOCABLE_CLIENTS_FILE_ID},
@@ -98,7 +99,7 @@ pub struct UserNode {
     // TODO(max): Can avoid some cloning by removing this field
     args: RunArgs,
     deploy_env: DeployEnv,
-    ports: RunPorts,
+    run_ports: RunPorts,
     static_tasks: Vec<LxTask<()>>,
     eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     shutdown: NotifyOnce,
@@ -137,6 +138,8 @@ struct SyncContext {
     onchain_recv_tx: notify::Sender,
     bdk_resync_rx: mpsc::Receiver<BdkSyncRequest>,
     ldk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
+    user_ready_waiter_rx:
+        mpsc::Receiver<oneshot::Sender<Result<RunPorts, MegaApiError>>>,
 }
 
 impl UserNode {
@@ -684,7 +687,7 @@ impl UserNode {
         static_tasks.push(lexe_server_task);
 
         // Prepare the ports that we'll notify the runner of once we're ready
-        let ports = RunPorts {
+        let run_ports = RunPorts {
             user_pk,
             app_port,
             lexe_port,
@@ -771,7 +774,7 @@ impl UserNode {
             // General
             args,
             deploy_env,
-            ports,
+            run_ports,
             static_tasks,
             eph_tasks_tx,
             shutdown,
@@ -803,6 +806,7 @@ impl UserNode {
                 onchain_recv_tx,
                 bdk_resync_rx,
                 ldk_resync_rx,
+                user_ready_waiter_rx: user_ctxt.user_ready_waiter_rx,
             }),
             eph_tasks_rx,
         })
@@ -861,15 +865,45 @@ impl UserNode {
             self.static_tasks.push(connector_task);
         }
 
-        // NOTE: It is important that we tell the runner that we're ready only
-        // *after* we have successfully reconnected to Lexe's LSP (just above).
-        // This is because the LSP might be waiting on the runner in its handler
-        // for the HTLCIntercepted event, with the intention of opening a JIT
-        // channel with us as soon as soon as we are ready. Thus, to ensure that
-        // the LSP is connected to us when it makes its open_channel request, we
-        // reconnect to the LSP *before* sending the /ready callback.
+        // Spawn a task which simply responds with `RunPorts` when asked.
+        //
+        // NOTE: It is important that we tell the notify the `user_ready_waiter`
+        // only *after* we have reconnected to Lexe's LSP (just above).
+        //
+        // This is because the LSP's HTLCIntercepted event handler might be
+        // waiting on the MegaRunner which is waiting on the UserRunner, with
+        // the intention of opening a JIT channel with us as soon as soon as the
+        // usernode is ready. Thus, to ensure that the LSP is connected to us
+        // when it makes its open_channel request, we reconnect to the LSP
+        // *before* sending the /ready callback.
+        let ports_responder_task = {
+            let run_ports = self.run_ports;
+            let mut user_ready_waiter_rx = ctxt.user_ready_waiter_rx;
+            let mut shutdown = self.shutdown.clone();
+
+            const SPAN_NAME: &str = "(ports-responder)";
+            LxTask::spawn_with_span(
+                SPAN_NAME,
+                info_span!(SPAN_NAME),
+                async move {
+                    loop {
+                        tokio::select! {
+                            biased;
+                            Some(user_ready_waiter) =
+                                user_ready_waiter_rx.recv() => {
+                                let _ = user_ready_waiter.send(Ok(run_ports));
+                            }
+                            () = shutdown.recv() => return,
+                        }
+                    }
+                },
+            )
+        };
+        self.static_tasks.push(ports_responder_task);
+
+        // TODO(max): Remove this once we remove the `run` command.
         ctxt.runner_api
-            .ready_run(&self.ports)
+            .ready_run(&self.run_ports)
             .await
             .context("Could not notify runner of ready status")?;
 

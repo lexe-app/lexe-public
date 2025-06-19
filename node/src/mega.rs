@@ -200,7 +200,7 @@ mod handlers {
         let (user_ready_tx, user_ready_rx) = oneshot::channel();
         let req_with_tx = RunUserRequestWithTx {
             inner: req,
-            user_ready_tx,
+            user_ready_waiter: user_ready_tx,
         };
         state
             .runner_tx

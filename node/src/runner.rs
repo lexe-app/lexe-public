@@ -17,8 +17,7 @@ pub(crate) struct RunUserRequestWithTx {
     pub inner: RunUserRequest,
 
     /// A channel with which to respond to the server API handler.
-    #[allow(dead_code)] // TODO(max): Remove
-    pub user_ready_tx: oneshot::Sender<Result<RunPorts, MegaApiError>>,
+    pub user_ready_waiter: oneshot::Sender<Result<RunPorts, MegaApiError>>,
 }
 
 /// Runs user nodes upon request.
@@ -31,8 +30,7 @@ pub(crate) struct UserRunner {
 
     runner_rx: mpsc::Receiver<RunUserRequestWithTx>,
 
-    #[allow(dead_code)] // TODO(max): Remove
-    user_nodes: HashMap<UserPk, UserState>,
+    user_nodes: HashMap<UserPk, UserHandle>,
     user_stream: FuturesUnordered<LxTask<UserPk>>,
 
     #[allow(dead_code)] // TODO(max): Remove
@@ -41,9 +39,10 @@ pub(crate) struct UserRunner {
     user_ready_rx: mpsc::Receiver<RunPorts>,
 }
 
-/// State related to a specific usernode.
-struct UserState {
-    // TODO(max): Implement
+/// A handle to a specific usernode.
+struct UserHandle {
+    user_ready_waiter_tx:
+        mpsc::Sender<oneshot::Sender<Result<RunPorts, MegaApiError>>>,
 }
 
 impl UserRunner {
@@ -90,17 +89,46 @@ impl UserRunner {
     }
 
     fn handle_run_user_request(&mut self, run_req: RunUserRequestWithTx) {
-        let user_task = helpers::spawn_user_node(
+        let RunUserRequestWithTx {
+            inner: run_req,
+            user_ready_waiter,
+        } = run_req;
+        let user_pk = run_req.user_pk;
+
+        // If the user is running, just pass the waiter to the node and return.
+        if let Some(user_handle) = self.user_nodes.get(&user_pk) {
+            let _ =
+                user_handle.user_ready_waiter_tx.try_send(user_ready_waiter);
+            return;
+        }
+        // From here, we know the user is not already running.
+
+        // Spawn the user node.
+        let (user_task, user_handle) = helpers::spawn_user_node(
             &self.mega_args,
-            &run_req.inner,
+            run_req,
             self.mega_ctxt.clone(),
         );
 
+        // Immediately queue the `user_ready_waiter`.
+        // It will live in the channel until the user node is ready.
+        user_handle
+            .user_ready_waiter_tx
+            .try_send(user_ready_waiter)
+            .expect("Rx is currently on the stack");
+
+        // Add to user state
+        self.user_nodes.insert(user_pk, user_handle);
+
+        // Add to user stream
         self.user_stream.push(user_task);
 
-        // TODO(claude): Add the spawned task to user_nodes
-        // self.user_nodes.insert(run_req.inner.user_pk, UserState { ... });
-        let _ = run_req.user_ready_tx;
+        // We just spawned a node. Check for evictions.
+        self.evict_usernodes_if_needed();
+    }
+
+    fn evict_usernodes_if_needed(&mut self) {
+        // TODO(max): Implement
     }
 }
 
@@ -114,21 +142,28 @@ mod helpers {
 
     pub(super) fn spawn_user_node(
         mega_args: &MegaArgs,
-        run_req: &RunUserRequest,
+        run_req: RunUserRequest,
         mega_ctxt: MegaContext,
-    ) -> LxTask<UserPk> {
+    ) -> (LxTask<UserPk>, UserHandle) {
         let user_pk = run_req.user_pk;
         let run_args =
             build_run_args(mega_args, user_pk, run_req.shutdown_after_sync);
 
+        let (user_ready_waiter_tx, user_ready_waiter_rx) =
+            mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
         let user_context = UserContext {
             user_shutdown: NotifyOnce::new(),
+            user_ready_waiter_rx,
+        };
+
+        let handle = UserHandle {
+            user_ready_waiter_tx,
         };
 
         // TODO(max): Pass in channels so the UserRunner can communicate with
         // the usernode.
         let usernode_span = build_usernode_span(&user_pk);
-        LxTask::spawn_with_span(
+        let task = LxTask::spawn_with_span(
             format!("Usernode {user_pk}"),
             usernode_span,
             async move {
@@ -155,7 +190,9 @@ mod helpers {
 
                 user_pk
             },
-        )
+        );
+
+        (task, handle)
     }
 
     fn build_run_args(
