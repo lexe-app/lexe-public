@@ -9,6 +9,8 @@ use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use tokio::sync::{mpsc, oneshot};
 use tracing::info_span;
 
+use crate::context::MegaContext;
+
 /// A [`RunUserRequest`] but includes a waiter with which to respond.
 pub(crate) struct RunUserRequestWithTx {
     #[allow(dead_code)] // TODO(max): Remove
@@ -21,17 +23,22 @@ pub(crate) struct RunUserRequestWithTx {
 
 /// Runs user nodes upon request.
 pub(crate) struct UserRunner {
-    #[allow(dead_code)] // TODO(max): Remove
     mega_args: MegaArgs,
+
+    mega_ctxt: MegaContext,
+
+    mega_shutdown: NotifyOnce,
+
+    runner_rx: mpsc::Receiver<RunUserRequestWithTx>,
 
     #[allow(dead_code)] // TODO(max): Remove
     user_nodes: HashMap<UserPk, UserState>,
-
-    #[allow(dead_code)] // TODO(max): Remove
     user_stream: FuturesUnordered<LxTask<UserPk>>,
 
-    mega_shutdown: NotifyOnce,
-    runner_rx: mpsc::Receiver<RunUserRequestWithTx>,
+    #[allow(dead_code)] // TODO(max): Remove
+    user_ready_tx: mpsc::Sender<RunPorts>,
+    #[allow(dead_code)] // TODO(max): Remove
+    user_ready_rx: mpsc::Receiver<RunPorts>,
 }
 
 /// State related to a specific usernode.
@@ -43,15 +50,22 @@ impl UserRunner {
     // TODO(max): Implement
     pub fn new(
         mega_args: MegaArgs,
-        runner_rx: mpsc::Receiver<RunUserRequestWithTx>,
+        mega_ctxt: MegaContext,
         mega_shutdown: NotifyOnce,
+        runner_rx: mpsc::Receiver<RunUserRequestWithTx>,
     ) -> Self {
+        let (user_ready_tx, user_ready_rx) =
+            mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
+
         Self {
             mega_args,
-            user_nodes: HashMap::new(),
-            user_stream: FuturesUnordered::new(),
+            mega_ctxt,
             mega_shutdown,
             runner_rx,
+            user_nodes: HashMap::new(),
+            user_stream: FuturesUnordered::new(),
+            user_ready_tx,
+            user_ready_rx,
         }
     }
 
@@ -65,14 +79,28 @@ impl UserRunner {
     pub async fn run(mut self) {
         loop {
             tokio::select! {
-                Some(run_req) = self.runner_rx.recv() => {
-                    // TODO(max): Implement
-                    let _ = run_req;
-                }
+                Some(run_req) = self.runner_rx.recv() =>
+                    self.handle_run_user_request(run_req),
+
+                // TODO(max): Await on `user_stream`.
 
                 () = self.mega_shutdown.recv() => return,
             }
         }
+    }
+
+    fn handle_run_user_request(&mut self, run_req: RunUserRequestWithTx) {
+        let user_task = helpers::spawn_user_node(
+            &self.mega_args,
+            &run_req.inner,
+            self.mega_ctxt.clone(),
+        );
+
+        self.user_stream.push(user_task);
+
+        // TODO(claude): Add the spawned task to user_nodes
+        // self.user_nodes.insert(run_req.inner.user_pk, UserState { ... });
+        let _ = run_req.user_ready_tx;
     }
 }
 
@@ -82,16 +110,20 @@ mod helpers {
     use tracing::{error, info};
 
     use super::*;
-    use crate::run::UserNode;
+    use crate::{context::UserContext, run::UserNode};
 
-    #[allow(dead_code)] // TODO(max): Remove
-    fn spawn_user_node(
+    pub(super) fn spawn_user_node(
         mega_args: &MegaArgs,
         run_req: &RunUserRequest,
+        mega_ctxt: MegaContext,
     ) -> LxTask<UserPk> {
         let user_pk = run_req.user_pk;
         let run_args =
             build_run_args(mega_args, user_pk, run_req.shutdown_after_sync);
+
+        let user_context = UserContext {
+            user_shutdown: NotifyOnce::new(),
+        };
 
         // TODO(max): Pass in channels so the UserRunner can communicate with
         // the usernode.
@@ -102,9 +134,16 @@ mod helpers {
             async move {
                 let try_future = async move {
                     let mut rng = SysRng::new();
-                    let mut node = UserNode::init(&mut rng, run_args)
-                        .await
-                        .context("Error during run init")?;
+                    let static_tasks = Vec::new();
+                    let mut node = UserNode::init(
+                        &mut rng,
+                        run_args,
+                        mega_ctxt,
+                        user_context,
+                        static_tasks,
+                    )
+                    .await
+                    .context("Error during run init")?;
                     node.sync().await.context("Error while syncing")?;
                     node.run().await.context("Error while running")
                 };
@@ -129,7 +168,7 @@ mod helpers {
             backend_url,
             runner_url,
 
-            esplora_urls,
+            untrusted_esplora_urls: esplora_urls,
             inactivity_timer_sec,
             lsp,
             oauth: _,
@@ -146,7 +185,7 @@ mod helpers {
             allow_mock: false,
             backend_url: Some(backend_url.clone()),
             runner_url: Some(runner_url.clone()),
-            esplora_urls: esplora_urls.clone(),
+            untrusted_esplora_urls: esplora_urls.clone(),
             lsp: lsp.clone(),
             untrusted_deploy_env: *untrusted_deploy_env,
             untrusted_network: *untrusted_network,

@@ -9,8 +9,14 @@ use common::{
     enclave,
     rng::SysRng,
 };
+use lexe_tokio::notify_once::NotifyOnce;
 
-use crate::{mega, run::UserNode, DEV_VERSION, SEMVER_VERSION};
+use crate::{
+    context::{MegaContext, UserContext},
+    mega,
+    run::UserNode,
+    DEV_VERSION, SEMVER_VERSION,
+};
 
 /// Commands accepted by the user node.
 pub enum NodeCommand {
@@ -93,11 +99,36 @@ impl NodeCommand {
             Self::Mega(args) => rt
                 .block_on(mega::run(&mut rng, args))
                 .context("Mega instance error"),
+            // TODO(max): Remove this command entirely.
             Self::Run(args) => rt
                 .block_on(async {
-                    let mut node = UserNode::init(&mut rng, args)
-                        .await
-                        .context("Error during run init")?;
+                    let user_shutdown = NotifyOnce::new();
+                    let user_ctxt = UserContext {
+                        user_shutdown: user_shutdown.clone(),
+                    };
+                    let allow_mock = true;
+                    let (mega_ctxt, static_tasks) = MegaContext::init(
+                        &mut rng,
+                        allow_mock,
+                        args.backend_url.clone(),
+                        args.lsp.clone(),
+                        args.runner_url.clone(),
+                        args.untrusted_deploy_env,
+                        args.untrusted_esplora_urls.clone(),
+                        args.untrusted_network,
+                        user_shutdown,
+                    )
+                    .await
+                    .context("Error initializing mega context")?;
+                    let mut node = UserNode::init(
+                        &mut rng,
+                        args,
+                        mega_ctxt,
+                        user_ctxt,
+                        static_tasks,
+                    )
+                    .await
+                    .context("Error during run init")?;
                     node.sync().await.context("Error while syncing")?;
                     node.run().await.context("Error while running")
                 })

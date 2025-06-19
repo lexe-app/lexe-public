@@ -193,7 +193,7 @@ pub enum NodeMode {
 
 /// A helper to get or generate a remote attestation TLS cert for the user node.
 /// This function prevents the user node from generating multiple (duplicate)
-/// remote attestations during a single node lifetime.
+/// remote attestations per node mode during a single node lifetime.
 /// Additionally returns the DNS name that the cert was bound to.
 fn get_or_generate_node_attestation_cert(
     rng: &mut impl Crng,
@@ -221,12 +221,21 @@ fn get_or_generate_node_attestation_cert(
         NodeMode::Run => constants::NODE_RUN_DNS.to_owned(),
     };
 
-    // Only generate a remote attestation cert once during a node's lifetime.
-    // Subsequent calls will reuse the cert (and its key).
-    static ATTESTATION_CERT: OnceLock<anyhow::Result<CertWithKey>> =
+    // Only generate a remote attestation cert once per node mode during a
+    // node's lifetime. We use separate statics to ensure Run mode and
+    // Provision/Mega modes get different certs with appropriate DNS names.
+    static RUN_ATTESTATION_CERT: OnceLock<anyhow::Result<CertWithKey>> =
+        OnceLock::new();
+    static PROVISION_ATTESTATION_CERT: OnceLock<anyhow::Result<CertWithKey>> =
         OnceLock::new();
 
-    let attestation_cert = ATTESTATION_CERT
+    let static_cert = match node_mode {
+        NodeMode::Run => &RUN_ATTESTATION_CERT,
+        NodeMode::Mega { .. } | NodeMode::Provision { .. } =>
+            &PROVISION_ATTESTATION_CERT,
+    };
+
+    let attestation_cert = static_cert
         .get_or_init(|| {
             let cert = cert::AttestationCert::generate(
                 rng,

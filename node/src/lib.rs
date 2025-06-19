@@ -20,6 +20,8 @@ mod api;
 mod approved_versions;
 /// `NodeChannelManager` and related configs.
 mod channel_manager;
+/// Context shared between usernodess or initialized per usernode.
+mod context;
 /// `NodeEventHandler`.
 mod event_handler;
 /// GDrive persister task.

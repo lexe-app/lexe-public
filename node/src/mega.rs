@@ -7,21 +7,30 @@ use tokio::sync::mpsc;
 
 use crate::{
     api::client::RunnerClient,
+    context::MegaContext,
     provision::{ProvisionArgs, ProvisionInstance},
     runner::UserRunner,
 };
 
 pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
-    let mut static_tasks = Vec::with_capacity(5);
-
-    let (eph_tasks_tx, eph_tasks_rx) =
+    let (_eph_tasks_tx, eph_tasks_rx) =
         mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
 
-    // TODO(max): User node tasks should be spawned into this.
-    let _ = eph_tasks_tx;
-
-    // Shutdown channel for the entire mega instance.
+    // Create mega context for user nodes
     let mega_shutdown = NotifyOnce::new();
+    let allow_mock = false;
+    let (mega_ctxt, mut static_tasks) = MegaContext::init(
+        rng,
+        allow_mock,
+        Some(args.backend_url.clone()),
+        args.lsp.clone(),
+        Some(args.runner_url.clone()),
+        args.untrusted_deploy_env,
+        args.untrusted_esplora_urls.clone(),
+        args.untrusted_network,
+        mega_shutdown.clone(),
+    )
+    .await?;
 
     // Init the provision service. Since it's a static service that should
     // live as long as the mega node itself, we can reuse the mega_shutdown.
@@ -36,8 +45,12 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     // Start the usernode runner.
     let (runner_tx, runner_rx) =
         mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
-    let user_runner =
-        UserRunner::new(args.clone(), runner_rx, mega_shutdown.clone());
+    let user_runner = UserRunner::new(
+        args.clone(),
+        mega_ctxt,
+        mega_shutdown.clone(),
+        runner_rx,
+    );
     static_tasks.push(user_runner.spawn_into_task());
 
     // Spawn the mega server task.

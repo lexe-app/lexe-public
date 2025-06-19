@@ -25,14 +25,6 @@ pub struct MegaArgs {
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
     pub runner_url: String,
 
-    /// Esplora urls which someone in Lexe's infra says we should use.
-    /// We'll only use urls contained in our whitelist.
-    #[cfg_attr(
-        test,
-        proptest(strategy = "arbitrary::any_vec_simple_string()")
-    )]
-    pub esplora_urls: Vec<String>,
-
     /// How long the usernode stays online (in seconds) without any activity
     /// before shutting itself down. The timer resets whenever activity is
     /// seen. The meganode also uses this value + a few seconds.
@@ -64,6 +56,14 @@ pub struct MegaArgs {
     /// The current deploy environment passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.
     pub untrusted_deploy_env: DeployEnv,
+
+    /// Esplora urls which someone in Lexe's infra says we should use.
+    /// We'll only use urls contained in our whitelist.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_vec_simple_string()")
+    )]
+    pub untrusted_esplora_urls: Vec<String>,
 
     /// The current deploy network passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.
@@ -117,14 +117,6 @@ pub struct RunArgs {
     )]
     pub runner_url: Option<String>,
 
-    /// Esplora urls which someone in Lexe's infra says we should use.
-    /// We'll only use urls contained in our whitelist.
-    #[cfg_attr(
-        test,
-        proptest(strategy = "arbitrary::any_vec_simple_string()")
-    )]
-    pub esplora_urls: Vec<String>,
-
     /// info relating to Lexe's LSP.
     pub lsp: LspInfo,
 
@@ -147,6 +139,14 @@ pub struct RunArgs {
     /// The current deploy environment passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.
     pub untrusted_deploy_env: DeployEnv,
+
+    /// Esplora urls which someone in Lexe's infra says we should use.
+    /// We'll only use urls contained in our whitelist.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_vec_simple_string()")
+    )]
+    pub untrusted_esplora_urls: Vec<String>,
 
     /// bitcoin, testnet, regtest, or signet.
     pub untrusted_network: LxNetwork,

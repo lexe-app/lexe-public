@@ -1,5 +1,4 @@
 use std::{
-    io::Cursor,
     net::TcpListener,
     sync::{Arc, Mutex, RwLock},
     time::{Duration, Instant},
@@ -16,7 +15,7 @@ use common::{
     cli::{node::RunArgs, LspInfo},
     constants::{self},
     ed25519,
-    enclave::{self, MachineId, Measurement, MinCpusvn},
+    enclave::{MachineId, Measurement},
     env::DeployEnv,
     ln::{balance::OnchainBalance, channel::LxOutPoint, network::LxNetwork},
     net,
@@ -39,7 +38,7 @@ use lexe_ln::{
         ProbabilisticScorerType,
     },
     background_processor, channel_monitor,
-    esplora::{self, LexeEsplora},
+    esplora::LexeEsplora,
     event,
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
@@ -53,9 +52,8 @@ use lexe_ln::{
     wallet::{self, LexeCoinSelector, LexeWallet},
 };
 use lexe_std::{const_assert, Apply};
-use lexe_tls::{
-    attestation::NodeMode,
-    shared_seed::certs::{EphemeralIssuingCaCert, RevocableIssuingCaCert},
+use lexe_tls::shared_seed::certs::{
+    EphemeralIssuingCaCert, RevocableIssuingCaCert,
 };
 use lexe_tokio::{
     events_bus::EventsBus,
@@ -67,17 +65,15 @@ use lexe_tokio::{
 use lightning::{
     chain::{chainmonitor::ChainMonitor, Watch},
     ln::{peer_handler::IgnoringMessageHandler, types::ChannelId},
-    routing::gossip::P2PGossipSync,
-    util::ser::ReadableArgs,
 };
-use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, info, info_span, warn};
 
 use crate::{
     alias::{ChainMonitorType, OnionMessengerType, PaymentsManagerType},
-    api::{self, NodeBackendApiClient},
-    channel_manager::{self, NodeChannelManager},
+    api::NodeBackendApiClient,
+    channel_manager::NodeChannelManager,
+    context::{MegaContext, UserContext},
     event_handler::{self, NodeEventHandler},
     gdrive_persister,
     inactivity_timer::InactivityTimer,
@@ -85,7 +81,7 @@ use crate::{
     peer_manager::NodePeerManager,
     persister::{self, NodePersister},
     server::{self, AppRouterState, LexeRouterState},
-    DEV_VERSION, SEMVER_VERSION,
+    SEMVER_VERSION,
 };
 
 /// The minimum # of intercept scids we want (for inserting into invoices).
@@ -151,28 +147,36 @@ impl UserNode {
     pub async fn init(
         rng: &mut impl Crng,
         args: RunArgs,
+        mega_ctxt: MegaContext,
+        user_ctxt: UserContext,
+        // TODO(max): This should be removed once the `run` command is removed.
+        // See `MegaContext::init` docs for why.
+        mut static_tasks: Vec<LxTask<()>>,
     ) -> anyhow::Result<Self> {
         info!(%args.user_pk, "Initializing node");
         let init_start = Instant::now();
 
-        // Initialize the Logger
-        let logger = LexeTracingLogger::new();
+        let MegaContext {
+            backend_api,
+            config,
+            esplora,
+            fee_estimates,
+            gossip_sync,
+            ldk_sync_client,
+            logger,
+            lsp_api,
+            machine_id,
+            measurement,
+            network_graph,
+            runner_api,
+            scorer,
+            untrusted_deploy_env,
+            untrusted_network,
+            version,
+        } = mega_ctxt.clone();
 
-        // Get user_pk, measurement, and HTTP clients used throughout init
+        // Get user_pk
         let user_pk = args.user_pk;
-        let measurement = enclave::measurement();
-        let machine_id = enclave::machine_id();
-        // TODO(phlip9): Compare this with current cpusvn
-        let _min_cpusvn = MinCpusvn::CURRENT;
-        let node_mode = NodeMode::Run;
-        let backend_api = api::new_backend_api(
-            rng,
-            args.allow_mock,
-            args.untrusted_deploy_env,
-            node_mode,
-            args.backend_url.clone(),
-        )
-        .context("Failed to init dyn BackendApiClient")?;
 
         // Init channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
@@ -187,58 +191,9 @@ impl UserNode {
         let (test_event_tx, test_event_rx) = test_event::channel("(node)");
         let test_event_rx = Arc::new(tokio::sync::Mutex::new(test_event_rx));
         let (eph_tasks_tx, eph_tasks_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
-        let shutdown = NotifyOnce::new();
+        let shutdown = user_ctxt.user_shutdown;
 
-        // Version
-        let version = DEV_VERSION
-            .unwrap_or(SEMVER_VERSION)
-            .apply(semver::Version::parse)
-            .expect("Checked in tests");
-
-        // Config
-        let config = channel_manager::get_config();
-
-        // Collect all handles to static tasks
-        let mut static_tasks = Vec::with_capacity(15);
-
-        // Only accept esplora urls whitelisted in the given `network`.
-        // - Note that seeing a non-whitelisted url does not necessary mean we
-        //   are under attack; the URL may have been whitelisted in a newer node
-        //   version.
-        // - Note that `network` has not been validated yet, but we still
-        //   (pre-)initialize the Esplora client to reduce startup time.
-        let filtered_esplora_urls = args
-            .esplora_urls
-            .iter()
-            .filter(|url| {
-                esplora::url_is_whitelisted(url, args.untrusted_network)
-            })
-            .cloned()
-            .collect::<Vec<String>>();
-        ensure!(
-            !filtered_esplora_urls.is_empty(),
-            "None of the provided esplora urls were in whitelist: {urls:?}",
-            urls = &args.esplora_urls,
-        );
-
-        // Concurrently initialize esplora while fetching provisioned secrets
-        let (try_esplora, try_fetch) = tokio::join!(
-            LexeEsplora::init_any(
-                api::USER_AGENT_EXTERNAL,
-                rng,
-                filtered_esplora_urls,
-                shutdown.clone()
-            ),
-            fetch_provisioned_secrets(
-                backend_api.as_ref(),
-                user_pk,
-                measurement,
-                machine_id,
-            ),
-        );
-        let (esplora, fee_estimates, refresh_fees_task, esplora_url) =
-            try_esplora.context("Failed to init esplora")?;
-        static_tasks.push(refresh_fees_task);
+        // Fetch provisioned secrets
         let ProvisionedSecrets {
             user,
             root_seed,
@@ -246,50 +201,29 @@ impl UserNode {
             network,
             user_key_pair,
             node_key_pair: _,
-        } = try_fetch.context("Failed to fetch provisioned secrets")?;
-        info!(%esplora_url);
+        } = fetch_provisioned_secrets(
+            backend_api.as_ref(),
+            user_pk,
+            measurement,
+            machine_id,
+        )
+        .await
+        .context("Failed to fetch provisioned secrets")?;
 
         // Validate deploy env and network
         if deploy_env.is_staging_or_prod() && cfg!(feature = "test-utils") {
             panic!("test-utils feature must be disabled in staging/prod!!");
         }
-        let args_deploy_env = args.untrusted_deploy_env;
         ensure!(
-            args_deploy_env == deploy_env,
-            "Mismatched deploy envs: {args_deploy_env} != {deploy_env}"
+            untrusted_deploy_env == deploy_env,
+            "Mismatched deploy envs: {untrusted_deploy_env} != {deploy_env}"
         );
-        let args_network = args.untrusted_network;
         ensure!(
-            network == args_network,
-            "Unsealed network didn't match network given by CLI: \
-            {network}!={args_network}",
+            network == untrusted_network,
+            "Unsealed network didn't match network from MegaContext: \
+            {network}!={untrusted_network}",
         );
         // From here, `deploy_env` and `network` can be treated as trusted.
-
-        // Init the remaining API clients
-        let runner_api = api::new_runner_api(
-            rng,
-            args.allow_mock,
-            deploy_env,
-            node_mode,
-            args.runner_url.clone(),
-        )
-        .context("Failed to init dyn NodeRunnerApi")?;
-        let lsp_api = api::new_lsp_api(
-            rng,
-            args.allow_mock,
-            deploy_env,
-            network,
-            node_mode,
-            args.lsp.node_api_url.clone(),
-            logger.clone(),
-        )?;
-
-        // Init LDK transaction sync; share LexeEsplora's connection pool
-        let ldk_sync_client = Arc::new(EsploraSyncClient::from_client(
-            esplora.client().clone(),
-            logger.clone(),
-        ));
 
         // If we're in staging or prod, init a GoogleVfs.
         let authenticator =
@@ -343,8 +277,6 @@ impl UserNode {
         #[rustfmt::skip] // Does not respect 80 char line width
         let (
             try_maybe_approved_versions,
-            try_network_graph_bytes,
-            try_scorer_bytes,
             try_maybe_changeset,
             try_existing_scids,
             try_pending_payments,
@@ -352,8 +284,6 @@ impl UserNode {
             try_maybe_revocable_clients,
         ) = tokio::join!(
             read_maybe_approved_versions,
-            lsp_api.get_network_graph(),
-            lsp_api.get_prob_scorer(),
             persister.read_wallet_changeset(),
             persister.read_scids(),
             persister.read_pending_payments(),
@@ -384,15 +314,6 @@ impl UserNode {
                 {approved_measurement}",
             );
         }
-        let network_graph = {
-            let network_graph_bytes = try_network_graph_bytes
-                .context("Could not fetch serialized network graph")?;
-            let mut reader = Cursor::new(&network_graph_bytes);
-            let read_args = logger.clone();
-            NetworkGraphType::read(&mut reader, read_args)
-                .map(Arc::new)
-                .map_err(|e| anyhow!("Couldn't deser network graph: {e:#}"))?
-        };
         let maybe_changeset =
             try_maybe_changeset.context("Could not read wallet changeset")?;
         let existing_scids =
@@ -469,15 +390,6 @@ impl UserNode {
             persister.clone(),
         ));
 
-        // Init gossip sync
-        // TODO(phlip9): does node even need gossip sync anymore?
-        let utxo_lookup = None;
-        let gossip_sync = Arc::new(P2PGossipSync::new(
-            network_graph.clone(),
-            utxo_lookup,
-            logger.clone(),
-        ));
-
         // Init keys manager.
         let keys_manager =
             LexeKeysManager::new(rng, &root_seed, wallet.clone())
@@ -491,20 +403,6 @@ impl UserNode {
             .read_channel_monitors(&keys_manager)
             .await
             .context("Could not read channel monitors")?;
-
-        // Deserialize scorer
-        let scorer = {
-            let scorer_bytes = try_scorer_bytes
-                .context("Could not fetch serialized scorer")?;
-            let decay_params = lexe_ln::constants::LEXE_SCORER_PARAMS;
-            let read_args =
-                (decay_params, network_graph.clone(), logger.clone());
-            let mut reader = Cursor::new(&scorer_bytes);
-            ProbabilisticScorerType::read(&mut reader, read_args)
-                .map(Mutex::new)
-                .map(Arc::new)
-                .map_err(|e| anyhow!("Couldn't deser prob scorer: {e:#}"))?
-        };
 
         // Initialize Router
         let router = Arc::new(LexeRouter::new_user_node(
