@@ -28,9 +28,6 @@
 //! [`LexeWallet`]: crate::wallet::LexeWallet
 //! [`LexeWallet::trigger_persist`]: crate::wallet::LexeWallet::trigger_persist
 
-/// The number of confirmations required to consider a transaction finalized.
-const ANTI_REORG_DELAY: u32 = 6;
-
 use std::{
     collections::{HashMap, HashSet},
     iter,
@@ -69,7 +66,7 @@ use lexe_api::{
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use rand::RngCore;
-use tracing::{debug, info, instrument, trace, warn};
+use tracing::{debug, info, instrument, warn};
 
 use crate::{
     esplora::{FeeEstimates, LexeEsplora},
@@ -77,14 +74,21 @@ use crate::{
     traits::LexePersister,
 };
 
+/// The number of confirmations required to consider a transaction finalized.
+/// This determines when we'll stop syncing an internal spk (script pubkey)
+/// because it has no more pending spends.
+const ANTI_REORG_DELAY: u32 = 6;
+
 /// "`stop_gap` is the maximum number of consecutive unused addresses. For
 /// example, with a `stop_gap` of  3, `full_scan` will keep scanning until it
 /// encounters 3 consecutive script pubkeys with no associated transactions."
 ///
 /// From: [`EsploraAsyncExt::full_scan`]
 const BDK_FULL_SCAN_STOP_GAP: usize = 2;
+
 /// Number of parallel requests BDK is permitted to use.
 const BDK_CONCURRENCY: usize = 24;
+
 /// "The lookahead defines a number of script pubkeys to derive over and above
 /// the last revealed index."
 // We only reveal unused addresses; however, our write back persistence scheme
@@ -295,7 +299,7 @@ impl LexeWallet {
     #[instrument(skip_all, name = "(bdk-sync)")]
     pub async fn sync(&self, esplora: &LexeEsplora) -> anyhow::Result<()> {
         // Build a SyncRequest with everything we're interested in syncing.
-        let sync_request = self.build_sync_request();
+        let sync_request = self.build_sync_request_at(TimestampMs::now());
 
         // Check for updates on everything we specified in the SyncRequest.
         let sync_result = esplora
@@ -316,88 +320,6 @@ impl LexeWallet {
         Ok(())
     }
 
-    /// Collect all the script pubkeys, UTXOs, and unconfirmed txids that we
-    /// want to sync from the esplora backend.
-    fn build_sync_request(&self) -> SyncRequest<u32> {
-        let locked_wallet = self.inner.read().unwrap();
-
-        let keychains = locked_wallet.spk_index();
-        let tx_graph = locked_wallet.tx_graph();
-        let local_chain = locked_wallet.local_chain();
-        let chain_tip = local_chain.tip();
-
-        // spk txids we expect to exist. Used to detect when unconfirmed txs we
-        // previously registered get dropped/replaced in the mempool.
-        let expected_spk_txids = tx_graph.list_expected_spk_txids(
-            local_chain,
-            chain_tip.block_id(),
-            keychains.inner(),
-            ..,
-        );
-
-        // Sync all external script pubkeys we have ever revealed.
-        let revealed_external_spks =
-            keychains.revealed_keychain_spks(KeychainKind::External);
-
-        // Sync all internal (change) spks we've revealed but have not used.
-        // We save some calls here by skipping all spks we've already used.
-        let unused_internal_spks =
-            keychains.unused_keychain_spks(KeychainKind::Internal);
-
-        // Sync the last used internal (change) spk, in case two txs in
-        // quick succession caused us to reuse the previous internal spk.
-        let last_used_internal_spk = keychains
-            .last_used_index(KeychainKind::Internal)
-            .and_then(|idx| {
-                let spk =
-                    keychains.spk_at_index(KeychainKind::Internal, idx)?;
-                Some((idx, spk))
-            });
-
-        // Sync the next (unrevealed) spk for both keychains, in case we
-        // revealed an index, used it, then crashed before it was persisted.
-        let next_external_spk = keychains
-            .next_index(KeychainKind::External)
-            .and_then(|(idx, _is_new)| {
-                let spk =
-                    keychains.spk_at_index(KeychainKind::External, idx)?;
-                Some((idx, spk))
-            });
-        let next_internal_spk = keychains
-            .next_index(KeychainKind::Internal)
-            .and_then(|(idx, _is_new)| {
-                let spk =
-                    keychains.spk_at_index(KeychainKind::Internal, idx)?;
-                Some((idx, spk))
-            });
-
-        // The UTXOs (outpoints) we check to see if they have been spent.
-        let utxos = locked_wallet.list_unspent().map(|utxo| utxo.outpoint);
-
-        // The txids of txns we want to check if they have been spent.
-        let unconfirmed_txids = tx_graph
-            .list_canonical_txs(
-                local_chain,
-                chain_tip.block_id(),
-                CanonicalizationParams::default(),
-            )
-            .filter(|canonical_tx| !canonical_tx.chain_position.is_confirmed())
-            .map(|canonical_tx| canonical_tx.tx_node.txid);
-
-        // Specify all of the above in our SyncRequest.
-        SyncRequest::builder()
-            .chain_tip(chain_tip)
-            .expected_spk_txids(expected_spk_txids)
-            .spks_with_indexes(revealed_external_spks)
-            .spks_with_indexes(unused_internal_spks)
-            .spks_with_indexes(last_used_internal_spk)
-            .spks_with_indexes(next_external_spk)
-            .spks_with_indexes(next_internal_spk)
-            .outpoints(utxos)
-            .txids(unconfirmed_txids)
-            .build()
-    }
-
     /// Build an incremental sync request to efficiently sync our local BDK
     /// wallet state with a remote esplora REST API blockchain data source.
     ///
@@ -405,9 +327,9 @@ impl LexeWallet {
     /// query for relevant chain+mempool transaction updates.
     ///
     /// This incremental sync tries to be efficient in that our sync request
-    /// fetches `O(revealed external spks + pending internal keychain spks)`
-    /// spk histories. This is in contrast to the current BDK spk sync, which
-    /// fetches `O(revealed external spks + revealed keychain spks)` spk
+    /// fetches `O(revealed external spks + pending internal spks)` spk
+    /// histories. This is in contrast to the default BDK spk sync, which
+    /// fetches `O(revealed external spks + revealed internal spks)` spk
     /// histories. For our LSP, we have a large (# users), ever-growing set
     /// of revealed internal spks, vs a relatively small (# UTXOs) set of
     /// pending internal spks.
@@ -426,7 +348,6 @@ impl LexeWallet {
     /// OTOH we can't guarantee much about external keychain spks, so we have to
     /// sync every revealed external spk in perpetuity. In the future, we may
     /// optimize this so that ancient external spks are synced less frequently.
-    #[allow(dead_code)] // TODO(phlip9): remove
     fn build_sync_request_at(
         &self,
         synced_at: TimestampMs,
@@ -437,8 +358,6 @@ impl LexeWallet {
         let tx_graph = locked_wallet.tx_graph();
         let local_chain = locked_wallet.local_chain();
         let chain_tip = local_chain.tip();
-
-        trace!(height = chain_tip.height());
 
         #[cfg_attr(test, derive(Debug))]
         enum SpkInfo {
@@ -470,7 +389,6 @@ impl LexeWallet {
         );
         for c_tx in canonical_tx_iter {
             let tx = &c_tx.tx_node.tx;
-            let txid = c_tx.tx_node.txid;
 
             // We'll consider a tx finalized if it has enough confs.
             let conf_height =
@@ -483,7 +401,6 @@ impl LexeWallet {
                 // unconfirmed => not finalized
                 None => false,
             };
-            trace!(%txid, is_finalized, conf_height = ?conf_height);
 
             // The relevant spks for this tx, i.e., spks the tx spends or
             // receives funds to. Both internal and external spks.
@@ -532,8 +449,6 @@ impl LexeWallet {
                         0
                     };
 
-                    trace!(?keychain_index, %spk, tx_num_in, tx_num_finalized_out);
-
                     *num_in += tx_num_in as u32;
                     *num_finalized_out += tx_num_finalized_out as u32;
                 }
@@ -549,8 +464,6 @@ impl LexeWallet {
             spk_infos
                 .into_iter()
                 .filter_map(|(keychain_index, spk_info)| {
-                    #[cfg(test)]
-                    trace!(?keychain_index, ?spk_info);
                     match spk_info {
                         // Sync all used external spks
                         SpkInfo::External { spk } =>
@@ -1375,6 +1288,7 @@ mod test {
     };
     use lexe_api::types::payments::ClientPaymentId;
     use proptest::test_runner::Config;
+    use tracing::trace;
 
     use super::*;
 
@@ -1384,8 +1298,8 @@ mod test {
     }
 
     impl Harness {
-        fn new() -> Self {
-            let root_seed = RootSeed::from_u64(923409802);
+        fn new(seed: u64) -> Self {
+            let root_seed = RootSeed::from_u64(seed);
             let wallet = LexeWallet::dummy(&root_seed);
             let network = LxNetwork::Regtest;
 
@@ -1399,14 +1313,17 @@ mod test {
             Harness { wallet, network }
         }
 
+        /// Get the wallet write lock.
         fn ww(&self) -> RwLockWriteGuard<'_, Wallet> {
             self.wallet.write()
         }
 
+        /// Get the wallet read lock.
         fn wr(&self) -> RwLockReadGuard<'_, Wallet> {
             self.wallet.read()
         }
 
+        /// Return the fake clock timestamp
         fn now(&self) -> TimestampMs {
             self.wr().now()
         }
@@ -1440,6 +1357,8 @@ mod test {
                 .unwrap_err();
         }
 
+        /// Make a new onchain send spending `amount` to `address` and register
+        /// it with the BDK wallet as broadcasted.
         fn spend_unconfirmed(
             &self,
             address: bitcoin::Address<bitcoin::address::NetworkUnchecked>,
@@ -1487,10 +1406,16 @@ mod test {
             amount: Amount,
         ) -> (Transaction, AddressInfo, HashSet<bitcoin::ScriptBuf>);
 
-        fn confirm_txids(&mut self, blocks: u32, txids: &[Txid]);
+        /// Confirm the given txids in the next block, then add enough blocks to
+        /// give them X confirmations.
+        fn confirm_txids(&mut self, confs: u32, txids: &[Txid]);
+
         fn add_unconfirmed_tx(&mut self, tx: &Transaction);
+
+        /// Add a new block checkpoint at `height + blocks`.
         fn add_checkpoint(&mut self, blocks: u32) -> ConfirmationBlockTime;
 
+        /// Return the next unrevealed internal and external spks.
         fn next_unrevealed_spks(&self) -> HashSet<bitcoin::ScriptBuf>;
     }
 
@@ -1632,7 +1557,7 @@ mod test {
 
     #[test]
     fn drain_script_len_equiv() {
-        let h = Harness::new();
+        let h = Harness::new(3684944666541);
         let address = h.wallet.get_internal_address();
 
         let spk = address.script_pubkey();
@@ -1649,7 +1574,7 @@ mod test {
         use bitcoin::{Address, Script};
 
         // with a single large utxo
-        let mut h = Harness::new();
+        let mut h = Harness::new(498484646866);
         h.ww().fund(External, sat!(123_456));
         assert_eq!(h.wallet.get_balance().confirmed.to_sat(), 123_456);
 
@@ -1680,7 +1605,7 @@ mod test {
         // use a fresh wallet, as coin selection is apparently
         // non-deterministic :')
         // with some smaller utxos so we get multiple inputs to the funding tx
-        let mut h = Harness::new();
+        let mut h = Harness::new(15841984431000);
         h.ww().fund(External, sat!(11_500));
         h.ww().fund(External, sat!(11_500));
 
@@ -1717,7 +1642,7 @@ mod test {
     // BDK `DefaultCoinSelectionAlgorithm`.
     #[test]
     fn test_coinselection_prefers_confirmed() {
-        let h = Harness::new();
+        let h = Harness::new(7768794005608);
 
         // 1. add an unconfirmed tx
         h.ww().fund_unconfirmed(External, sat!(20_000));
@@ -1755,7 +1680,7 @@ mod test {
 
     #[test]
     fn test_evict_unconfirmed_utxo_basic() {
-        let h = Harness::new();
+        let h = Harness::new(78798781005005050);
 
         // Fund w/ 5,656 sats (confirmed)
         let (tx_c, _, _) = h.ww().fund(External, sat!(5_656));
@@ -1796,27 +1721,23 @@ mod test {
 
     #[test]
     fn test_evict_unconfirmed_utxo_sync_request() {
-        let h = Harness::new();
+        let h = Harness::new(224357022208);
 
         // Fund w/ 5,656 sats (confirmed)
-        let (tx_c, _, _) = h.ww().fund(External, sat!(5_656));
-        let tx_c_txid = tx_c.compute_txid();
+        let (txi0, _, spki0) = h.ww().fund(Internal, sat!(5_656));
+        let txidi0 = txi0.compute_txid();
         let utxos = h.wallet.get_utxos();
-        let tx_c_utxo = &utxos[0];
+        let utxoi0 = &utxos[0];
         h.assert_spend_ok(5_300);
 
         assert_eq!(utxos.len(), 1);
-        assert_eq!(tx_c_utxo.outpoint.txid, tx_c_txid);
-        assert_eq!(tx_c_utxo.txout, tx_c.output[0]);
-        assert!(!tx_c_utxo.is_spent);
+        assert_eq!(utxoi0.outpoint.txid, txidi0);
+        assert_eq!(utxoi0.txout, txi0.output[0]);
+        assert!(!utxoi0.is_spent);
 
         // check the sync request
-        let mut sync_req = h.wallet.build_sync_request();
-        assert_eq!(sync_req.iter_txids().collect::<Vec<_>>(), Vec::new());
-        assert_eq!(
-            sync_req.iter_outpoints().collect::<Vec<_>>(),
-            vec![tx_c_utxo.outpoint],
-        );
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(req.spks(), &spki0 | &h.wr().next_unrevealed_spks());
 
         // Spend 1,000 sats to an external address (unconfirmed)
         // -> Balance: ~4,375 sats (w/ unconfirmed)
@@ -1824,63 +1745,35 @@ mod test {
             "bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk",
         )
         .unwrap();
-        let send_req = PayOnchainRequest {
-            cid: ClientPaymentId([0x42; 32]),
-            address,
-            amount: sat!(1_000),
-            priority: ConfirmationPriority::Normal,
-            note: None,
-        };
-        let send = h.wallet.create_onchain_send(send_req, h.network).unwrap();
-        h.wallet
-            .transaction_broadcasted_at(h.now(), send.tx.clone());
+        let send = h.spend_unconfirmed(address, sat!(1_000));
+        // Change output spk
+        let spki1 = h.wr().spk_index().spk_at_index(Internal, 1).unwrap();
+        let spki1 = HashSet::from_iter(iter::once(spki1));
 
         // check the sync request
-        let mut sync_req = h.wallet.build_sync_request();
+        let mut req = h.wallet.build_sync_request_at(h.now());
         assert_eq!(
-            sync_req.iter_txids().collect::<Vec<_>>(),
-            vec![send.txid.0],
-        );
-        let change_outpoint = send
-            .tx
-            .output
-            .clone()
-            .into_iter()
-            .enumerate()
-            .find_map(|(idx, txo)| {
-                (txo.value.to_sat() != 1_000).then_some(bitcoin::OutPoint {
-                    txid: send.txid.0,
-                    vout: idx as u32,
-                })
-            })
-            .unwrap();
-        assert_eq!(
-            sync_req.iter_outpoints().collect::<Vec<_>>(),
-            vec![change_outpoint],
+            req.spks(),
+            &(&spki0 | &spki1) | &h.wr().next_unrevealed_spks()
         );
 
         h.assert_spend_err(5_300);
         h.assert_spend_ok(4_000);
 
         // Evict the unconfirmed UTXO.
-        // Our sync should go back to asking for the formerly-spent output only.
         h.wallet
             .unconfirmed_transaction_evicted_at(h.now(), send.txid);
         h.assert_spend_ok(5_300);
 
-        let mut sync_req = h.wallet.build_sync_request();
-        assert_eq!(sync_req.iter_txids().collect::<Vec<_>>(), Vec::new());
-        assert_eq!(
-            sync_req.iter_outpoints().collect::<Vec<_>>(),
-            vec![tx_c_utxo.outpoint],
-        );
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(req.spks(), &spki0 | &h.wr().next_unrevealed_spks());
+
+        h.wallet.transaction_broadcasted_at(h.now(), send.tx);
     }
 
     #[test]
     fn test_build_sync_request() {
-        crate::logger::init_for_testing();
-
-        let h = Harness::new();
+        let h = Harness::new(2869818889840);
 
         // Empty wallet should build SyncRequest with just first unrevealed
         // external/internal spks.
