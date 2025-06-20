@@ -401,16 +401,29 @@ impl LexeWallet {
     /// Build an incremental sync request to efficiently sync our local BDK
     /// wallet state with a remote esplora REST API blockchain data source.
     ///
-    /// The sync request is a collection of spks, unconfirmed txs, and UTXOs
-    /// that we want to query for chain+mempool updates.
+    /// The sync request is a collection of spks (script pubkeys) we want to
+    /// query for relevant chain+mempool transaction updates.
     ///
     /// This incremental sync tries to be efficient in that our sync request
     /// fetches `O(revealed external spks + pending internal keychain spks)`
-    /// spk histories. We assume that spks from our `Internal` descriptor
-    /// only recv and spend once, so if a used internal spk has only
-    /// sufficiently confirmed relevant txs we can skip syncing it.
+    /// spk histories. This is in contrast to the current BDK spk sync, which
+    /// fetches `O(revealed external spks + revealed keychain spks)` spk
+    /// histories. For our LSP, we have a large (# users), ever-growing set
+    /// of revealed internal spks, vs a relatively small (# UTXOs) set of
+    /// pending internal spks.
     ///
-    /// Since we can't guarantee much about external keychain spks, we have to
+    /// The main idea is that in the happy path, spks from our
+    /// `Internal` keychain only ever recv once and spend once, so if a used
+    /// internal spk has only one recv and one (sufficiently confirmed) spend,
+    /// we can skip syncing it.
+    ///
+    /// The actual sync request built here is a little more conservative, in
+    /// that we want to handle various edge cases such as reorgs, replaced txs,
+    /// race-y accidental re-use, etc. So we will skip syncing an internal spk
+    /// if the txs in and txs out are all balanced and finalized (or there are
+    /// no txs out).
+    ///
+    /// OTOH we can't guarantee much about external keychain spks, so we have to
     /// sync every revealed external spk in perpetuity. In the future, we may
     /// optimize this so that ancient external spks are synced less frequently.
     #[allow(dead_code)] // TODO(phlip9): remove
@@ -434,8 +447,8 @@ impl LexeWallet {
             },
             Internal {
                 spk: bitcoin::ScriptBuf,
-                any_pending_spends: bool,
-                any_finalized_spends: bool,
+                num_in: u32,
+                num_finalized_out: u32,
             },
         }
 
@@ -486,34 +499,43 @@ impl LexeWallet {
                         } else {
                             SpkInfo::Internal {
                                 spk,
-                                any_pending_spends: false,
-                                any_finalized_spends: false,
+                                num_in: 0,
+                                num_finalized_out: 0,
                             }
                         }
                     });
 
                 if let SpkInfo::Internal {
                     spk: _,
-                    any_pending_spends,
-                    any_finalized_spends,
+                    num_in,
+                    num_finalized_out,
                 } = entry
                 {
-                    let tx_spends = tx
-                        .input
+                    let tx_num_in = tx
+                        .output
                         .iter()
-                        .filter_map(|input| {
-                            keychains.txout(input.previous_output)
-                        })
-                        .any(|(keychain_index, _output)| {
-                            keychain_index == (KeychainKind::Internal, index)
-                        });
+                        .filter(|output| output.script_pubkey == spk)
+                        .count();
 
-                    trace!(?keychain_index, %spk, tx_spends);
+                    let tx_num_finalized_out = if is_finalized {
+                        tx.input
+                            .iter()
+                            .filter_map(|input| {
+                                keychains.txout(input.previous_output).filter(
+                                    |(tx_keychain_index, _output)| {
+                                        *tx_keychain_index == keychain_index
+                                    },
+                                )
+                            })
+                            .count()
+                    } else {
+                        0
+                    };
 
-                    *any_pending_spends |= tx_spends && !is_finalized;
-                    *any_finalized_spends |= tx_spends && is_finalized;
-                } else {
-                    trace!(?keychain_index, %spk);
+                    trace!(?keychain_index, %spk, tx_num_in, tx_num_finalized_out);
+
+                    *num_in += tx_num_in as u32;
+                    *num_finalized_out += tx_num_finalized_out as u32;
                 }
 
                 // It's OK that this may include more (spk, txid)'s than we
@@ -534,12 +556,13 @@ impl LexeWallet {
                         SpkInfo::External { spk } =>
                             Some((keychain_index, spk)),
                         // Sync all used internal spks that have pending spends
-                        // or have no spends at all.
+                        // or have no finalized spends at all.
                         SpkInfo::Internal {
                             spk,
-                            any_pending_spends,
-                            any_finalized_spends,
-                        } if any_pending_spends || !any_finalized_spends =>
+                            num_in,
+                            num_finalized_out,
+                        } if num_in > num_finalized_out
+                            || num_finalized_out == 0 =>
                             Some((keychain_index, spk)),
                         _ => None,
                     }
@@ -1416,6 +1439,29 @@ mod test {
                 .preflight_channel_funding_tx(amount)
                 .unwrap_err();
         }
+
+        fn spend_unconfirmed(
+            &self,
+            address: bitcoin::Address<bitcoin::address::NetworkUnchecked>,
+            amount: Amount,
+        ) -> OnchainSend {
+            let send_req = PayOnchainRequest {
+                cid: ClientPaymentId([42; 32]),
+                address,
+                amount,
+                priority: ConfirmationPriority::Normal,
+                note: None,
+            };
+            let onchain_send = self
+                .wallet
+                .create_onchain_send(send_req, self.network)
+                .expect("Failed to create onchain send");
+            self.wallet.transaction_broadcasted_at(
+                self.now(),
+                onchain_send.tx.clone(),
+            );
+            onchain_send
+        }
     }
 
     /// An extension trait on the (locked) BDK `Wallet` to make writing wallet
@@ -1582,24 +1628,6 @@ mod test {
                 .map(|spk_txids| spk_txids.spk)
                 .collect()
         }
-    }
-
-    trait HashSetExt {
-        fn union_set(&self, other: &Self) -> Self;
-    }
-
-    impl HashSetExt for HashSet<bitcoin::ScriptBuf> {
-        fn union_set(&self, other: &Self) -> Self {
-            self.iter().cloned().chain(other.iter().cloned()).collect()
-        }
-    }
-
-    macro_rules! trace_dbg {
-        ($arg:expr) => {{
-            let x = $arg;
-            tracing::trace!("{x:?}");
-            x
-        }};
     }
 
     #[test]
@@ -1862,37 +1890,74 @@ mod test {
         trace!("== unconfirmed fund ===");
 
         // Fund the wallet with 1,000 sats (unconfirmed, internal)
-        let (txi0, _ai, spki0) = h.ww().fund_unconfirmed(Internal, sat!(1_000));
+        let (txi0, ai0, spki0) = h.ww().fund_unconfirmed(Internal, sat!(1_000));
         let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(req.spks(), spki0.union_set(&h.wr().next_unrevealed_spks()));
+        assert_eq!(req.spks(), &spki0 | &h.wr().next_unrevealed_spks());
 
         trace!("=== finalize fund ===");
 
         // Confirm tx. Should still sync spk i0 since it's unspent.
         h.ww().confirm_txids(6, &[txi0.compute_txid()]);
         let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(req.spks(), spki0.union_set(&h.wr().next_unrevealed_spks()));
+        assert_eq!(req.spks(), &spki0 | &h.wr().next_unrevealed_spks());
 
-        // Spend the 1,000 sats to some unowned address (unconfirmed).
-        let address = bitcoin::Address::from_str(
+        // Spend the 1,000 sats to some third party address (unconfirmed).
+        let address3p = bitcoin::Address::from_str(
             "bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk",
         )
         .unwrap();
-        let send_req = PayOnchainRequest {
-            cid: ClientPaymentId([0x42; 32]),
-            address,
-            amount: sat!(775), // large enough there's no change output
-            priority: ConfirmationPriority::Normal,
-            note: None,
-        };
-        let send = h.wallet.create_onchain_send(send_req, h.network).unwrap();
-        h.wallet.transaction_broadcasted_at(h.now(), send.tx);
+        let send = h.spend_unconfirmed(address3p.clone(), sat!(775));
 
         trace!("=== unconfirmed spend ===");
 
         // Still sync spk i0 since the spend is unconfirmed
         let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(req.spks(), spki0.union_set(&h.wr().next_unrevealed_spks()));
+        assert_eq!(req.spks(), &spki0 | &h.wr().next_unrevealed_spks());
+
+        trace!("=== confirm spend ===");
+
+        // Confirm the send tx but not enough to finalize. Should still sync
+        // spk i0.
+        h.ww().confirm_txids(5, &[send.txid.0]);
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(req.spks(), &spki0 | &h.wr().next_unrevealed_spks());
+
+        trace!("=== finalize spend ===");
+
+        // Confirm enough to finalize. No longer sync spk i0.
+        h.ww().add_checkpoint(1);
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(req.spks(), h.wr().next_unrevealed_spks());
+
+        trace!("=== somehow fund spki0 again ===");
+
+        // Somehow we fund spk i0 again. Even though this shouldn't happen, we
+        // should still support syncing it to completion.
+        let tx = Transaction {
+            output: vec![TxOut {
+                value: sat!(1_234).into(),
+                script_pubkey: ai0.script_pubkey(),
+            }],
+            ..new_tx()
+        };
+        h.wallet.transaction_broadcasted_at(h.now(), tx);
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(req.spks(), &spki0 | &h.wr().next_unrevealed_spks());
+
+        trace!("=== immediately spend to external ===");
+
+        // Even though in/out are balanced, we should still sync spk i0 since
+        // the spend is unconfirmed.
+        let ae0 = h.ww().next_unused_address(External);
+        let addresse0 = ae0.address.clone().into_unchecked();
+        let spke0 =
+            HashSet::<bitcoin::ScriptBuf>::from_iter(vec![ae0.script_pubkey()]);
+        let send = h.spend_unconfirmed(addresse0, sat!(1_000));
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(
+            req.spks(),
+            &(&spki0 | &spke0) | &h.wr().next_unrevealed_spks()
+        );
 
         trace!("=== confirm spend ===");
 
@@ -1901,16 +1966,81 @@ mod test {
         h.ww().confirm_txids(5, &[send.txid.0]);
         let mut req = h.wallet.build_sync_request_at(h.now());
         assert_eq!(
-            trace_dbg!(req.spks()),
-            spki0.union_set(&h.wr().next_unrevealed_spks())
+            req.spks(),
+            &(&spki0 | &spke0) | &h.wr().next_unrevealed_spks()
         );
 
         trace!("=== finalize spend ===");
 
-        // Confirm enough to finalize. No longer sync spk i0.
+        // Confirm enough to finalize. No longer sync spk i0. spk e0 will
+        // continue to sync forever since it's an external spk.
         h.ww().add_checkpoint(1);
         let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(trace_dbg!(req.spks()), h.wr().next_unrevealed_spks());
+        assert_eq!(req.spks(), &spke0 | &h.wr().next_unrevealed_spks());
+
+        trace!("=== spend external ===");
+
+        // Spend the external address to some third party address. Syncs
+        // should always include the external spk.
+        let send = h.spend_unconfirmed(address3p, sat!(775));
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(req.spks(), &spke0 | &h.wr().next_unrevealed_spks());
+
+        h.ww().confirm_txids(5, &[send.txid.0]);
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(req.spks(), &spke0 | &h.wr().next_unrevealed_spks());
+
+        h.ww().add_checkpoint(5);
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(req.spks(), &spke0 | &h.wr().next_unrevealed_spks());
+
+        trace!("=== spend to self internal ===");
+
+        // Fund spki1
+        let (txi1, ai1, spki1) = h.ww().fund(Internal, sat!(1_000));
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(
+            req.spks(),
+            &(&spki1 | &spke0) | &h.wr().next_unrevealed_spks()
+        );
+
+        // Not sure how we would spend back to a used internal spk, but at least
+        // it won't break sync.
+        let txi1_self = Transaction {
+            input: vec![bitcoin::TxIn {
+                previous_output: bitcoin::OutPoint {
+                    txid: txi1.compute_txid(),
+                    vout: 0,
+                },
+                ..Default::default()
+            }],
+            output: vec![TxOut {
+                value: sat!(1_000).into(),
+                script_pubkey: ai1.script_pubkey(),
+            }],
+            ..new_tx()
+        };
+        let txi1_self_txid = txi1_self.compute_txid();
+        h.wallet.transaction_broadcasted_at(h.now(), txi1_self);
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(
+            req.spks(),
+            &(&spki1 | &spke0) | &h.wr().next_unrevealed_spks()
+        );
+
+        h.ww().confirm_txids(5, &[txi1_self_txid]);
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(
+            req.spks(),
+            &(&spki1 | &spke0) | &h.wr().next_unrevealed_spks()
+        );
+
+        h.ww().add_checkpoint(1);
+        let mut req = h.wallet.build_sync_request_at(h.now());
+        assert_eq!(
+            req.spks(),
+            &(&spki1 | &spke0) | &h.wr().next_unrevealed_spks()
+        );
     }
 
     #[test]
