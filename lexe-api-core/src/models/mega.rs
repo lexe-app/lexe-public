@@ -12,11 +12,14 @@ pub struct RunUserRequest {
     /// The user to run.
     pub user_pk: UserPk,
 
-    /// Whether the node should shut down after completing sync.
-    pub shutdown_after_sync: bool,
+    /// The lease ID for this user node.
+    pub lease_id: LeaseId,
 
     /// Included to sanity check that we've requested the right meganode.
     pub mega_id: MegaId,
+
+    /// Whether the node should shut down after completing sync.
+    pub shutdown_after_sync: bool,
 }
 
 #[derive(Serialize, Deserialize)]

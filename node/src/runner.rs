@@ -169,6 +169,7 @@ mod helpers {
         let (user_ready_waiter_tx, user_ready_waiter_rx) =
             mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
         let user_context = UserContext {
+            lease_id: Some(run_req.lease_id),
             user_shutdown: NotifyOnce::new(),
             user_ready_waiter_rx,
         };

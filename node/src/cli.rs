@@ -104,6 +104,7 @@ impl NodeCommand {
                 .block_on(async {
                     let user_shutdown = NotifyOnce::new();
                     let user_ctxt = UserContext {
+                        lease_id: None, // Run mode doesn't have lease renewal
                         user_shutdown: user_shutdown.clone(),
                         ..Default::default()
                     };

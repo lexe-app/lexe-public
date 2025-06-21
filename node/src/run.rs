@@ -21,6 +21,7 @@ use common::{
     net,
     rng::{Crng, SysRng},
     root_seed::RootSeed,
+    time::TimestampMs,
 };
 use futures::future::FutureExt;
 use gdrive::{gvfs::GvfsRootName, GoogleVfs};
@@ -28,6 +29,7 @@ use lexe_api::{
     auth::BearerAuthenticator,
     def::NodeRunnerApi,
     error::MegaApiError,
+    models::mega::UserLeaseRenewalRequest,
     server::LayerConfig,
     types::{ports::RunPorts, sealed_seed::SealedSeedId},
     vfs::{Vfs, REVOCABLE_CLIENTS_FILE_ID},
@@ -702,9 +704,10 @@ impl UserNode {
             let chain_monitor = chain_monitor.clone();
             let mut shutdown = shutdown.clone();
 
+            const SPAN_NAME: &str = "(node-info-logger)";
             LxTask::spawn_with_span(
-                "node info logger",
-                info_span!("(node-info-logger)"),
+                SPAN_NAME,
+                info_span!(SPAN_NAME),
                 async move {
                     const LOG_INTERVAL: Duration = Duration::from_secs(20);
                     let mut interval = tokio::time::interval(LOG_INTERVAL);
@@ -742,6 +745,44 @@ impl UserNode {
             )
         };
         static_tasks.push(node_info_task);
+
+        // Spawn lease renewal task if we have a lease ID
+        if let Some(lease_id) = user_ctxt.lease_id {
+            let user_pk = args.user_pk;
+            let lease_renewal_interval =
+                Duration::from_secs(args.lease_renewal_interval_secs);
+            let mut renewal_timer =
+                tokio::time::interval(lease_renewal_interval);
+            let runner_api = runner_api.clone();
+            let mut shutdown = shutdown.clone();
+
+            const SPAN_NAME: &str = "(lease-renewer)";
+            let lease_renewal_task = LxTask::spawn_with_span(
+                SPAN_NAME,
+                info_span!(SPAN_NAME),
+                async move {
+                    let do_renew_lease = || async {
+                        debug!("Renewing lease {lease_id} for user {user_pk}");
+                        let req = UserLeaseRenewalRequest {
+                            lease_id,
+                            user_pk,
+                            timestamp: TimestampMs::now(),
+                        };
+                        if let Err(e) = runner_api.renew_lease(&req).await {
+                            warn!("Failed to renew lease: {e:#}");
+                        }
+                    };
+
+                    loop {
+                        tokio::select! {
+                            _ = renewal_timer.tick() => do_renew_lease().await,
+                            () = shutdown.recv() => return,
+                        }
+                    }
+                },
+            );
+            static_tasks.push(lease_renewal_task);
+        }
 
         // Init background processor.
         let bg_processor_task = background_processor::start(
@@ -919,10 +960,17 @@ impl UserNode {
 
         // Sync is complete; start the inactivity timer.
         debug!("Starting inactivity timer");
-        self.static_tasks
-            .push(LxTask::spawn("inactivity timer", async move {
-                self.inactivity_timer.start().await;
-            }));
+        let inactivity_timer_task = {
+            const SPAN_NAME: &str = "(inactivity-timer)";
+            LxTask::spawn_with_span(
+                SPAN_NAME,
+                info_span!(SPAN_NAME),
+                async move {
+                    self.inactivity_timer.start().await;
+                },
+            )
+        };
+        self.static_tasks.push(inactivity_timer_task);
 
         // --- Run --- //
 
@@ -1086,8 +1134,9 @@ async fn init_google_vfs(
 
     // Spawn a task that repersists the GDriveCredentials every time
     // the contained access token is updated.
-    let credentials_persister_task =
-        LxTask::spawn("gdrive credentials persister", async move {
+    let credentials_persister_task = {
+        const SPAN_NAME: &str = "(gdrive-creds-persister)";
+        LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), async move {
             loop {
                 tokio::select! {
                     Ok(()) = credentials_rx.changed() => {
@@ -1114,11 +1163,11 @@ async fn init_google_vfs(
                             ),
                         }
                     }
-                    () = shutdown.recv() => break,
+                    () = shutdown.recv() => return,
                 }
             }
-            info!("gdrive credentials persister task shutting down");
-        });
+        })
+    };
 
     Ok((google_vfs, credentials_persister_task))
 }

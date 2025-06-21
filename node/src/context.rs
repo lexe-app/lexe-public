@@ -11,7 +11,7 @@ use common::{
 use lexe_api::{
     def::{NodeLspApi, NodeRunnerApi},
     error::MegaApiError,
-    types::ports::RunPorts,
+    types::{ports::RunPorts, LeaseId},
 };
 use lexe_ln::{
     alias::{
@@ -41,6 +41,9 @@ use crate::{
 /// May be initialized by the meganode or by the usernode itself.
 // TODO(max): Eventually, this will only be initialized by the meganode.
 pub(crate) struct UserContext {
+    /// The lease ID for this user node, if any.
+    // TODO(claude): Remove the Option once we remove the run variant.
+    pub lease_id: Option<LeaseId>,
     /// Notifies this specific usernode that it should shut down.
     pub user_shutdown: NotifyOnce,
     pub user_ready_waiter_rx:
@@ -51,6 +54,7 @@ pub(crate) struct UserContext {
 impl Default for UserContext {
     fn default() -> Self {
         Self {
+            lease_id: None,
             user_shutdown: NotifyOnce::new(),
             user_ready_waiter_rx: mpsc::channel(
                 lexe_tokio::DEFAULT_CHANNEL_SIZE,
