@@ -4,9 +4,6 @@ use crate::enclave::{Measurement, MrShort};
 
 // --- General --- //
 
-/// The maximum number of users that can run within one meganode.
-pub const MEGANODE_MAX_USERS: usize = 20;
-
 /// If a node release needs to be yanked, add its semver version and measurement
 /// here. See `node::approved_versions` for more info.
 // e.g. "0.1.0", "0.2.1-alpha.1".
