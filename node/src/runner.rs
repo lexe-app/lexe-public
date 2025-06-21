@@ -224,6 +224,8 @@ mod helpers {
 
             untrusted_esplora_urls: esplora_urls,
             inactivity_timer_sec,
+            lease_lifetime_secs,
+            lease_renewal_interval_secs,
             lsp,
             oauth: _,
             rust_backtrace,
@@ -236,6 +238,8 @@ mod helpers {
             user_pk,
             shutdown_after_sync,
             inactivity_timer_sec: *inactivity_timer_sec,
+            lease_lifetime_secs: *lease_lifetime_secs,
+            lease_renewal_interval_secs: *lease_renewal_interval_secs,
             allow_mock: false,
             backend_url: Some(backend_url.clone()),
             runner_url: Some(runner_url.clone()),

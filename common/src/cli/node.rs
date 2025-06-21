@@ -30,6 +30,12 @@ pub struct MegaArgs {
     /// seen. The meganode also uses this value + a few seconds.
     pub inactivity_timer_sec: u64,
 
+    /// Maximum duration for user node leases (in seconds).
+    pub lease_lifetime_secs: u64,
+
+    /// Interval at which user nodes should renew their leases (in seconds).
+    pub lease_renewal_interval_secs: u64,
+
     /// info relating to Lexe's LSP.
     pub lsp: LspInfo,
 
@@ -91,6 +97,12 @@ pub struct RunArgs {
     /// before shutting itself down. The timer resets whenever activity is
     /// seen.
     pub inactivity_timer_sec: u64,
+
+    /// Maximum duration for user node leases (in seconds).
+    pub lease_lifetime_secs: u64,
+
+    /// Interval at which user nodes should renew their leases (in seconds).
+    pub lease_renewal_interval_secs: u64,
 
     /// whether the node is allowed to use mock clients instead of real ones.
     /// This option exists as a safeguard to prevent accidentally using a mock
