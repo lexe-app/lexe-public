@@ -13,6 +13,10 @@ pub mod ports;
 /// `SealedSeed` and related types and logic.
 pub mod sealed_seed;
 
+/// A unique identifier for a user node lease.
+// TODO(max): Find a better home for this.
+pub type LeaseId = u32;
+
 /// A struct denoting an empty API request or response.
 ///
 /// This type should serialize/deserialize in such a way that we have room to

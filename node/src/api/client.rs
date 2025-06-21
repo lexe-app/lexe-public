@@ -21,7 +21,10 @@ use lexe_api::{
         NodeRunnerApi,
     },
     error::{BackendApiError, LspApiError, RunnerApiError},
-    models::command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
+    models::{
+        command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
+        mega::{UserFinishedRequest, UserLeaseRenewalRequest},
+    },
     rest::{RequestBuilderExt, RestClient, POST},
     types::{
         payments::{DbPayment, MaybeDbPayment, VecDbPayment, VecLxPaymentId},
@@ -68,6 +71,17 @@ impl MegaRunnerApi for RunnerClient {
         // .bearer_auth(&self.auth_token().await?);
         self.rest.send(req).await
     }
+
+    async fn user_finished(
+        &self,
+        req: &UserFinishedRequest,
+    ) -> Result<Empty, RunnerApiError> {
+        let runner = &self.runner_url;
+        let req = self.rest.post(format!("{runner}/mega/user_finished"), req);
+        // TODO(phlip9): authenticate runner callbacks?
+        // .bearer_auth(&self.auth_token().await?);
+        self.rest.send(req).await
+    }
 }
 
 #[async_trait]
@@ -78,6 +92,17 @@ impl NodeRunnerApi for RunnerClient {
     ) -> Result<Empty, RunnerApiError> {
         let runner = &self.runner_url;
         let req = self.rest.post(format!("{runner}/node/ready/run"), &ports);
+        // TODO(phlip9): authenticate runner callbacks?
+        // .bearer_auth(&self.auth_token().await?);
+        self.rest.send(req).await
+    }
+
+    async fn renew_lease(
+        &self,
+        req: &UserLeaseRenewalRequest,
+    ) -> Result<Empty, RunnerApiError> {
+        let runner = &self.runner_url;
+        let req = self.rest.post(format!("{runner}/node/renew_lease"), req);
         // TODO(phlip9): authenticate runner callbacks?
         // .bearer_auth(&self.auth_token().await?);
         self.rest.send(req).await

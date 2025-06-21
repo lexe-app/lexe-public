@@ -90,7 +90,10 @@ use crate::{
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
             ResyncRequest, UpdatePaymentNote,
         },
-        mega::{RunUserRequest, RunUserResponse},
+        mega::{
+            RunUserRequest, RunUserResponse, UserFinishedRequest,
+            UserLeaseRenewalRequest,
+        },
     },
     types::{
         payments::{
@@ -430,6 +433,15 @@ pub trait MegaRunnerApi {
         &self,
         ports: &MegaPorts,
     ) -> Result<Empty, RunnerApiError>;
+
+    /// POST /mega/user_finished [`UserFinishedRequest`] -> [`Empty`]
+    ///
+    /// Notifies the runner that a user has shut down,
+    /// and that the user's lease can be terminated.
+    async fn user_finished(
+        &self,
+        req: &UserFinishedRequest,
+    ) -> Result<Empty, RunnerApiError>;
 }
 
 /// Defines the api that the backend exposes to the node.
@@ -640,6 +652,14 @@ pub trait NodeRunnerApi {
     async fn ready_run(
         &self,
         ports: &RunPorts,
+    ) -> Result<Empty, RunnerApiError>;
+
+    /// POST /node/renew_lease [`UserLeaseRenewalRequest`] -> [`Empty`]
+    ///
+    /// Renew's a user node's lease with the megarunner.
+    async fn renew_lease(
+        &self,
+        req: &UserLeaseRenewalRequest,
     ) -> Result<Empty, RunnerApiError>;
 
     /// POST /node/activity [`UserPkStruct`] -> [`Empty`]

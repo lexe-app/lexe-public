@@ -33,7 +33,10 @@ use lexe_api::{
         NodeRunnerApi,
     },
     error::{BackendApiError, LspApiError, RunnerApiError},
-    models::command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
+    models::{
+        command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
+        mega::UserLeaseRenewalRequest,
+    },
     types::{
         payments::{
             DbPayment, LxPaymentId, MaybeDbPayment, PaymentIndex,
@@ -152,6 +155,13 @@ impl NodeRunnerApi for MockRunnerClient {
         let _ = self.notifs_tx.try_send(*run_ports);
         Ok(Empty {})
     }
+    async fn renew_lease(
+        &self,
+        _req: &UserLeaseRenewalRequest,
+    ) -> Result<Empty, RunnerApiError> {
+        Ok(Empty {})
+    }
+
     async fn activity(
         &self,
         _user_pk: UserPk,

@@ -1,7 +1,10 @@
-use common::api::{user::UserPk, MegaId};
+use common::{
+    api::{user::UserPk, MegaId},
+    time::TimestampMs,
+};
 use serde::{Deserialize, Serialize};
 
-use crate::types::ports::RunPorts;
+use crate::types::{ports::RunPorts, LeaseId};
 
 /// A request to run a usernode within a meganode.
 #[derive(Serialize, Deserialize)]
@@ -19,4 +22,28 @@ pub struct RunUserRequest {
 #[derive(Serialize, Deserialize)]
 pub struct RunUserResponse {
     pub run_ports: RunPorts,
+}
+
+/// A request from a usernode to renew its lease.
+// This is technically a usernode request, but it's meganode related so....
+#[derive(Serialize, Deserialize)]
+pub struct UserLeaseRenewalRequest {
+    /// The ID of the lease to renew.
+    pub lease_id: LeaseId,
+    /// Sanity check: The requesting user.
+    pub user_pk: UserPk,
+    /// Sanity check: The current time within the enclave.
+    pub timestamp: TimestampMs,
+}
+
+/// A notification from a meganode that a user has shut down,
+/// and that we can terminate the user's lease.
+#[derive(Serialize, Deserialize)]
+pub struct UserFinishedRequest {
+    /// The user that shut down.
+    pub user_pk: UserPk,
+    /// The ID of the lease to terminate.
+    pub lease_id: LeaseId,
+    /// Sanity check: The meganode issuing the request.
+    pub mega_id: MegaId,
 }
