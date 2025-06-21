@@ -21,7 +21,7 @@ pub mod user;
 pub mod version;
 
 /// A randomly generated id for each mega node.
-pub type MegaId = u64;
+pub type MegaId = u16;
 
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MegaIdStruct {
