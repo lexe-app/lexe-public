@@ -44,10 +44,11 @@ pub(crate) struct UserContext {
     /// The lease ID for this user node, if any.
     // TODO(claude): Remove the Option once we remove the run variant.
     pub lease_id: Option<LeaseId>,
-    /// Notifies this specific usernode that it should shut down.
-    pub user_shutdown: NotifyOnce,
+    /// A channel for requests to get the [`RunPorts`] of this user node.
     pub user_ready_waiter_rx:
         mpsc::Receiver<oneshot::Sender<Result<RunPorts, MegaApiError>>>,
+    /// Notifies this specific usernode that it should shut down.
+    pub user_shutdown: NotifyOnce,
 }
 
 // TODO(max): This can be removed once `run` is removed.
