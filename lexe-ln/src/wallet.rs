@@ -77,7 +77,7 @@ use crate::{
 /// The number of confirmations required to consider a transaction finalized.
 /// This determines when we'll stop syncing an internal spk (script pubkey)
 /// because it has no more pending spends.
-const ANTI_REORG_DELAY: u32 = 6;
+const CONFS_TO_FINALIZE: u32 = 6;
 
 /// "`stop_gap` is the maximum number of consecutive unused addresses. For
 /// example, with a `stop_gap` of  3, `full_scan` will keep scanning until it
@@ -355,135 +355,152 @@ impl LexeWallet {
         let locked_wallet = self.inner.read().unwrap();
 
         let keychains = locked_wallet.spk_index();
+        let keychains_inner = keychains.inner();
         let tx_graph = locked_wallet.tx_graph();
         let local_chain = locked_wallet.local_chain();
         let chain_tip = local_chain.tip();
 
-        #[cfg_attr(test, derive(Debug))]
         enum SpkInfo {
             External {
-                spk: bitcoin::ScriptBuf,
+                keychain_index: (KeychainKind, u32),
             },
             Internal {
-                spk: bitcoin::ScriptBuf,
-                num_in: u32,
-                num_finalized_out: u32,
+                keychain_index: (KeychainKind, u32),
+                num_canonical_spends_to_spk: u32,
+                num_finalized_spends_from_spk: u32,
             },
         }
 
-        // Collect info about spks relevant to canonical txs, which we'll later
-        // use to determine which spks to sync.
-        let mut spk_infos = HashMap::<(KeychainKind, u32), SpkInfo>::new();
+        impl SpkInfo {
+            fn keychain_index(&self) -> (KeychainKind, u32) {
+                match self {
+                    SpkInfo::External { keychain_index } => *keychain_index,
+                    SpkInfo::Internal { keychain_index, .. } => *keychain_index,
+                }
+            }
+
+            fn needs_sync(&self) -> bool {
+                match self {
+                    // Sync all external spks
+                    SpkInfo::External { .. } => true,
+                    // Sync all (1) unused and (2) used internal spks that have
+                    // pending spends or have no finalized spends at all.
+                    SpkInfo::Internal {
+                        num_canonical_spends_to_spk,
+                        num_finalized_spends_from_spk,
+                        ..
+                    } =>
+                        num_canonical_spends_to_spk
+                            > num_finalized_spends_from_spk
+                            || *num_finalized_spends_from_spk == 0,
+                }
+            }
+        }
+
+        // Collect all confirmed or unconfirmed txs deemed to be part of the
+        // canonical chain history. Also compute whether each canonical tx is
+        // finalized or not, i.e., has enough confirmations.
+        let canonical_txs: HashMap<bitcoin::Txid, (Arc<Transaction>, bool)> =
+            tx_graph
+                .list_canonical_txs(
+                    local_chain,
+                    chain_tip.block_id(),
+                    CanonicalizationParams::default(),
+                )
+                .map(|c_tx| {
+                    // We'll consider a tx finalized if it has enough confs.
+                    let conf_height =
+                        c_tx.chain_position.confirmation_height_upper_bound();
+                    let is_finalized = match conf_height {
+                        Some(height) => {
+                            let confs =
+                                (chain_tip.height() + 1).saturating_sub(height);
+                            confs >= CONFS_TO_FINALIZE
+                        }
+                        // unconfirmed => not finalized
+                        None => false,
+                    };
+                    (c_tx.tx_node.txid, (c_tx.tx_node.tx.clone(), is_finalized))
+                })
+                .collect();
 
         // All txids relevant to each spk we want to sync. Ok to reference spks
         // that we don't actually sync.
         let mut expected_spk_txids =
-            HashSet::<(bitcoin::ScriptBuf, bitcoin::Txid)>::new();
+            HashSet::<(&bitcoin::ScriptBuf, bitcoin::Txid)>::new();
 
-        // All confirmed or unconfirmed txs deemed to be part of the canonical
-        // history.
-        let canonical_tx_iter = tx_graph.list_canonical_txs(
-            local_chain,
-            chain_tip.block_id(),
-            CanonicalizationParams::default(),
-        );
-        for c_tx in canonical_tx_iter {
-            let tx = &c_tx.tx_node.tx;
+        // Collect info about every revealed internal and external spk.
+        let mut spk_infos: HashMap<&bitcoin::ScriptBuf, SpkInfo> = keychains
+            .inner()
+            .all_spks() // all internal and external spks we've ever revealed
+            .iter()
+            .map(|(&keychain_index, spk)| {
+                // Number of canonical outputs that spend to this spk (only used
+                // for internal spks)
+                let mut num_canonical_spends_to_spk = 0;
 
-            // We'll consider a tx finalized if it has enough confs.
-            let conf_height =
-                c_tx.chain_position.confirmation_height_upper_bound();
-            let is_finalized = match conf_height {
-                Some(height) => {
-                    let confs = chain_tip.height().saturating_sub(height) + 1;
-                    confs >= ANTI_REORG_DELAY
+                let outputs_to_spk = keychains_inner
+                    .outputs_in_range(keychain_index..=keychain_index);
+                for (_keychain_index, outpoint) in outputs_to_spk {
+                    if canonical_txs.contains_key(&outpoint.txid) {
+                        num_canonical_spends_to_spk += 1;
+                        expected_spk_txids.insert((spk, outpoint.txid));
+                    }
                 }
-                // unconfirmed => not finalized
-                None => false,
-            };
 
-            // The relevant spks for this tx, i.e., spks the tx spends or
-            // receives funds to. Both internal and external spks.
-            let relevant_spks = keychains.inner().relevant_spks_of_tx(tx);
+                // We need to sync all revealed external spks.
+                // TODO(phlip9): optimize this so we sync ancient external spks
+                // less frequently.
+                let (keychain_kind, _index) = keychain_index;
+                let spk_info = if keychain_kind == KeychainKind::External {
+                    SpkInfo::External { keychain_index }
+                } else {
+                    SpkInfo::Internal {
+                        keychain_index,
+                        num_canonical_spends_to_spk,
+                        // We need to compute this in the next pass
+                        num_finalized_spends_from_spk: 0,
+                    }
+                };
+                (spk, spk_info)
+            })
+            .collect();
 
-            for ((keychain_kind, index), spk) in relevant_spks {
-                let keychain_index = (keychain_kind, index);
-                let entry =
-                    spk_infos.entry(keychain_index).or_insert_with(|| {
-                        let spk = spk.clone();
-                        if keychain_kind == KeychainKind::External {
-                            SpkInfo::External { spk }
-                        } else {
-                            SpkInfo::Internal {
-                                spk,
-                                num_in: 0,
-                                num_finalized_out: 0,
-                            }
-                        }
-                    });
-
-                if let SpkInfo::Internal {
-                    spk: _,
-                    num_in,
-                    num_finalized_out,
-                } = entry
+        // 1. Collect all canonical txs that spend from an spk
+        // 2. Count the number of finalized txs that spend from each internal
+        //    spks.
+        for (txid, (tx, is_finalized)) in canonical_txs {
+            for input in &tx.input {
+                if let Some((_keychain_index, txout)) =
+                    keychains_inner.txout(input.previous_output)
                 {
-                    let tx_num_in = tx
-                        .output
-                        .iter()
-                        .filter(|output| output.script_pubkey == spk)
-                        .count();
+                    // Record another canonical tx that spends from this
+                    // internal or external spk.
+                    let spk = &txout.script_pubkey;
+                    expected_spk_txids.insert((spk, txid));
 
-                    let tx_num_finalized_out = if is_finalized {
-                        tx.input
-                            .iter()
-                            .filter_map(|input| {
-                                keychains.txout(input.previous_output).filter(
-                                    |(tx_keychain_index, _output)| {
-                                        *tx_keychain_index == keychain_index
-                                    },
-                                )
-                            })
-                            .count()
-                    } else {
-                        0
-                    };
+                    // Only care about finalized txs now
+                    if !is_finalized {
+                        continue;
+                    }
 
-                    *num_in += tx_num_in as u32;
-                    *num_finalized_out += tx_num_finalized_out as u32;
+                    // If this finalized tx input spends from an internal spk,
+                    // record that
+                    if let Some(SpkInfo::Internal {
+                        keychain_index: _,
+                        num_canonical_spends_to_spk: _,
+                        num_finalized_spends_from_spk,
+                    }) = spk_infos.get_mut(spk)
+                    {
+                        *num_finalized_spends_from_spk += 1;
+                    }
                 }
-
-                // It's OK that this may include more (spk, txid)'s than we
-                // actually sync since BDK will just not look at spks that
-                // aren't synced.
-                expected_spk_txids.insert((spk, c_tx.tx_node.txid));
             }
         }
 
-        let used_spks_to_sync =
-            spk_infos
-                .into_iter()
-                .filter_map(|(keychain_index, spk_info)| {
-                    match spk_info {
-                        // Sync all used external spks
-                        SpkInfo::External { spk } =>
-                            Some((keychain_index, spk)),
-                        // Sync all used internal spks that have pending spends
-                        // or have no finalized spends at all.
-                        SpkInfo::Internal {
-                            spk,
-                            num_in,
-                            num_finalized_out,
-                        } if num_in > num_finalized_out
-                            || num_finalized_out == 0 =>
-                            Some((keychain_index, spk)),
-                        _ => None,
-                    }
-                });
-
-        // We'll also sync the next unrevealed spks for both keychains, in case
-        // we revealed an index, used it, then crashed before the BDK wallet
-        // persisted.
+        // HACK: We'll also sync the next unrevealed spks for both keychains, in
+        // case we revealed an index, used it, then crashed before the BDK
+        // wallet persisted.
         let keychain = KeychainKind::External;
         let next_unrevealed_external_spk =
             keychains.next_index(keychain).and_then(|(index, _)| {
@@ -499,14 +516,18 @@ impl LexeWallet {
                     .map(|spk| ((keychain, index), spk))
             });
 
-        SyncRequest::builder_at(synced_at.to_secs())
+        let spks_to_sync = spk_infos
+            .into_iter()
+            .filter(|(_spk, spk_info)| spk_info.needs_sync())
+            .map(|(spk, spk_info)| (spk_info.keychain_index(), spk.clone()));
+
+        let expected_spk_txids = expected_spk_txids
+            .into_iter()
+            .map(|(spk, txid)| (spk.clone(), txid));
+
+        SyncRequest::<(KeychainKind, u32)>::builder_at(synced_at.to_secs())
             .chain_tip(chain_tip)
-            // We always sync revealed but unused spks, regardless of internal
-            // vs external.
-            .spks_with_indexes(keychains.unused_spks())
-            // Also sync (1) all used external spks, and (2) all used internal
-            // spks that whose relevant txs are not all finalized.
-            .spks_with_indexes(used_spks_to_sync)
+            .spks_with_indexes(spks_to_sync)
             .spks_with_indexes(next_unrevealed_external_spk)
             .spks_with_indexes(next_unrevealed_internal_spk)
             // All relevant txids for the spks we want to sync, so BDK can
@@ -1435,7 +1456,7 @@ mod test {
         ) -> (Transaction, AddressInfo, HashSet<bitcoin::ScriptBuf>) {
             let (tx, address_info, spks) =
                 self.fund_unconfirmed(keychain, amount);
-            self.confirm_txids(ANTI_REORG_DELAY, &[tx.compute_txid()]);
+            self.confirm_txids(CONFS_TO_FINALIZE, &[tx.compute_txid()]);
             (tx, address_info, spks)
         }
 
@@ -1765,8 +1786,12 @@ mod test {
             .unconfirmed_transaction_evicted_at(h.now(), send.txid);
         h.assert_spend_ok(5_300);
 
+        // Our sync should still include the internal spk used by the evicted tx
         let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(req.spks(), &spki0 | &h.wr().next_unrevealed_spks());
+        assert_eq!(
+            req.spks(),
+            &(&spki0 | &spki1) | &h.wr().next_unrevealed_spks()
+        );
 
         h.wallet.transaction_broadcasted_at(h.now(), send.tx);
     }
