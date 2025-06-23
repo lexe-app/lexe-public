@@ -426,6 +426,7 @@ pub trait LexeNodeRunApi {
 }
 
 /// Defines the API the runner exposes to mega nodes.
+#[async_trait] // TODO(max): Remove once we remove `RunnerApiClient`.
 pub trait MegaRunnerApi {
     /// POST /mega/ready [`MegaPorts`] -> [`Empty`]
     ///

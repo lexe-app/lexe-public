@@ -37,7 +37,7 @@ use lexe_api::{
 use lexe_tls::attestation::{self, NodeMode};
 use lightning::events::Event;
 
-use crate::api::NodeBackendApiClient;
+use crate::api::{NodeBackendApiClient, RunnerApiClient};
 
 /// Used for both [`MegaRunnerApi`] and [`NodeRunnerApi`].
 pub(crate) struct RunnerClient {
@@ -60,6 +60,7 @@ impl RunnerClient {
     }
 }
 
+#[async_trait]
 impl MegaRunnerApi for RunnerClient {
     async fn mega_ready(
         &self,
@@ -83,6 +84,9 @@ impl MegaRunnerApi for RunnerClient {
         self.rest.send(req).await
     }
 }
+
+#[async_trait]
+impl RunnerApiClient for RunnerClient {}
 
 #[async_trait]
 impl NodeRunnerApi for RunnerClient {

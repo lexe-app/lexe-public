@@ -29,20 +29,20 @@ use common::{
 };
 use lexe_api::{
     def::{
-        AppBackendApi, BearerAuthBackendApi, NodeBackendApi, NodeLspApi,
-        NodeRunnerApi,
+        AppBackendApi, BearerAuthBackendApi, MegaRunnerApi, NodeBackendApi,
+        NodeLspApi, NodeRunnerApi,
     },
     error::{BackendApiError, LspApiError, RunnerApiError},
     models::{
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
-        runner::UserLeaseRenewalRequest,
+        runner::{UserFinishedRequest, UserLeaseRenewalRequest},
     },
     types::{
         payments::{
             DbPayment, LxPaymentId, MaybeDbPayment, PaymentIndex,
             PaymentStatus, VecDbPayment, VecLxPaymentId,
         },
-        ports::RunPorts,
+        ports::{MegaPorts, RunPorts},
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         Empty,
     },
@@ -58,7 +58,7 @@ use lightning::{
 };
 use tokio::sync::mpsc;
 
-use crate::api::NodeBackendApiClient;
+use crate::api::{NodeBackendApiClient, RunnerApiClient};
 
 type FileName = Cow<'static, str>;
 type Data = Vec<u8>;
@@ -143,6 +143,26 @@ impl MockRunnerClient {
             .unwrap()
             .take()
             .expect("Someone already subscribed")
+    }
+}
+
+#[async_trait]
+impl RunnerApiClient for MockRunnerClient {}
+
+#[async_trait]
+impl MegaRunnerApi for MockRunnerClient {
+    async fn mega_ready(
+        &self,
+        _ports: &MegaPorts,
+    ) -> Result<Empty, RunnerApiError> {
+        Ok(Empty {})
+    }
+
+    async fn user_finished(
+        &self,
+        _req: &UserFinishedRequest,
+    ) -> Result<Empty, RunnerApiError> {
+        Ok(Empty {})
     }
 }
 

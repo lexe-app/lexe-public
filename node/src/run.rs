@@ -27,7 +27,6 @@ use futures::future::FutureExt;
 use gdrive::{gvfs::GvfsRootName, GoogleVfs};
 use lexe_api::{
     auth::BearerAuthenticator,
-    def::NodeRunnerApi,
     error::MegaApiError,
     models::runner::UserLeaseRenewalRequest,
     server::LayerConfig,
@@ -74,7 +73,7 @@ use tracing::{debug, info, info_span, warn};
 
 use crate::{
     alias::{ChainMonitorType, OnionMessengerType, PaymentsManagerType},
-    api::NodeBackendApiClient,
+    api::{NodeBackendApiClient, RunnerApiClient},
     channel_manager::NodeChannelManager,
     context::{MegaContext, UserContext},
     event_handler::{self, NodeEventHandler},
@@ -136,7 +135,7 @@ pub struct UserNode {
 struct SyncContext {
     init_start: Instant,
     ldk_sync_client: Arc<EsploraSyncClientType>,
-    runner_api: Arc<dyn NodeRunnerApi + Send + Sync>,
+    runner_api: Arc<dyn RunnerApiClient + Send + Sync>,
     onchain_recv_tx: notify::Sender,
     bdk_resync_rx: mpsc::Receiver<BdkSyncRequest>,
     ldk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,

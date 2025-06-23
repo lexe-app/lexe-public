@@ -9,7 +9,10 @@ use common::{
     rng::Crng,
 };
 use lexe_api::{
-    def::{BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi},
+    def::{
+        BearerAuthBackendApi, MegaRunnerApi, NodeBackendApi, NodeLspApi,
+        NodeRunnerApi,
+    },
     error::BackendApiError,
     types::Empty,
     vfs::VfsFile,
@@ -37,6 +40,10 @@ pub trait NodeBackendApiClient: NodeBackendApi + BearerAuthBackendApi {
         retries: usize,
     ) -> Result<Empty, BackendApiError>;
 }
+
+/// A trait for a client that implements both NodeRunnerApi and MegaRunnerApi.
+#[async_trait]
+pub trait RunnerApiClient: NodeRunnerApi + MegaRunnerApi {}
 
 /// Helper to initiate a client to the backend.
 pub(crate) fn new_backend_api(
@@ -128,7 +135,7 @@ pub(crate) fn new_runner_api(
     deploy_env: DeployEnv,
     node_mode: NodeMode,
     maybe_runner_url: Option<String>,
-) -> anyhow::Result<Arc<dyn NodeRunnerApi + Send + Sync>> {
+) -> anyhow::Result<Arc<dyn RunnerApiClient + Send + Sync>> {
     cfg_if::cfg_if! {
         if #[cfg(any(test, feature = "test-utils"))] {
             // Can use real OR mock client during development

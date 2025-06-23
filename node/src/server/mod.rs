@@ -25,7 +25,6 @@ use common::{
     enclave::Measurement,
     ln::network::LxNetwork,
 };
-use lexe_api::def::NodeRunnerApi;
 use lexe_ln::{
     alias::{NetworkGraphType, RouterType},
     channel::ChannelEvent,
@@ -52,6 +51,7 @@ use tracing::{debug, info, info_span, warn};
 
 use crate::{
     alias::{ChainMonitorType, PaymentsManagerType},
+    api::RunnerApiClient,
     channel_manager::NodeChannelManager,
     peer_manager::NodePeerManager,
     persister::NodePersister,
@@ -68,7 +68,7 @@ pub(crate) struct AppRouterState {
     pub measurement: Measurement,
     pub version: semver::Version,
     pub config: Arc<ArcSwap<UserConfig>>,
-    pub runner_api: Arc<dyn NodeRunnerApi + Send + Sync>,
+    pub runner_api: Arc<dyn RunnerApiClient + Send + Sync>,
     pub persister: Arc<NodePersister>,
     pub chain_monitor: Arc<ChainMonitorType>,
     pub fee_estimates: Arc<FeeEstimates>,

@@ -9,7 +9,7 @@ use common::{
     cli::LspInfo, enclave, env::DeployEnv, ln::network::LxNetwork, rng::Crng,
 };
 use lexe_api::{
-    def::{NodeLspApi, NodeRunnerApi},
+    def::NodeLspApi,
     error::MegaApiError,
     types::{ports::RunPorts, LeaseId},
 };
@@ -33,7 +33,7 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::info;
 
 use crate::{
-    api::{self, NodeBackendApiClient},
+    api::{self, NodeBackendApiClient, RunnerApiClient},
     DEV_VERSION, SEMVER_VERSION,
 };
 
@@ -91,7 +91,7 @@ pub(crate) struct MegaContext {
     /// The Lightning Network graph for routing.
     pub network_graph: Arc<NetworkGraphType>,
     /// The runner API client for user nodes.
-    pub runner_api: Arc<dyn NodeRunnerApi + Send + Sync>,
+    pub runner_api: Arc<dyn RunnerApiClient + Send + Sync>,
     /// The probabilistic scorer for pathfinding.
     pub scorer: Arc<Mutex<ProbabilisticScorerType>>,
     /// The untrusted deploy environment.
