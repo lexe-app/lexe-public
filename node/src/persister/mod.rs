@@ -101,7 +101,7 @@ use tracing::{debug, error, info, info_span, warn};
 
 use crate::{
     alias::{ChainMonitorType, ChannelManagerType},
-    api::NodeBackendApiClient,
+    api::BackendApiClient,
     approved_versions::ApprovedVersions,
 };
 
@@ -115,7 +115,7 @@ const GDRIVE_CREDENTIALS_FILENAME: &str = "gdrive_credentials";
 const GVFS_ROOT_FILENAME: &str = "gvfs_root";
 
 pub struct NodePersister {
-    backend_api: Arc<dyn NodeBackendApiClient + Send + Sync>,
+    backend_api: Arc<dyn BackendApiClient + Send + Sync>,
     authenticator: Arc<BearerAuthenticator>,
     vfs_master_key: Arc<AesMasterKey>,
     google_vfs: Option<Arc<GoogleVfs>>,
@@ -127,7 +127,7 @@ pub struct NodePersister {
 
 /// General helper for upserting well-formed [`VfsFile`]s.
 pub(crate) async fn persist_file(
-    backend_api: &(dyn NodeBackendApiClient + Send + Sync),
+    backend_api: &(dyn BackendApiClient + Send + Sync),
     authenticator: &BearerAuthenticator,
     file: &VfsFile,
 ) -> anyhow::Result<()> {
@@ -159,7 +159,7 @@ pub(crate) fn encrypt_gdrive_credentials(
 }
 
 pub(crate) async fn read_gdrive_credentials(
-    backend_api: &(dyn NodeBackendApiClient + Send + Sync),
+    backend_api: &(dyn BackendApiClient + Send + Sync),
     authenticator: &BearerAuthenticator,
     vfs_master_key: &AesMasterKey,
 ) -> anyhow::Result<GDriveCredentials> {
@@ -188,7 +188,7 @@ pub(crate) async fn read_gdrive_credentials(
 
 pub(crate) async fn persist_gvfs_root(
     rng: &mut impl Crng,
-    backend_api: &(dyn NodeBackendApiClient + Send + Sync),
+    backend_api: &(dyn BackendApiClient + Send + Sync),
     authenticator: &BearerAuthenticator,
     vfs_master_key: &AesMasterKey,
     gvfs_root: &GvfsRoot,
@@ -211,7 +211,7 @@ pub(crate) async fn persist_gvfs_root(
 }
 
 pub(crate) async fn read_gvfs_root(
-    backend_api: &(dyn NodeBackendApiClient + Send + Sync),
+    backend_api: &(dyn BackendApiClient + Send + Sync),
     authenticator: &BearerAuthenticator,
     vfs_master_key: &AesMasterKey,
 ) -> anyhow::Result<Option<GvfsRoot>> {
@@ -327,7 +327,7 @@ impl NodePersister {
     /// Initialize a [`NodePersister`].
     /// `google_vfs` MUST be [`Some`] if we are running in staging or prod.
     pub(crate) fn new(
-        backend_api: Arc<dyn NodeBackendApiClient + Send + Sync>,
+        backend_api: Arc<dyn BackendApiClient + Send + Sync>,
         authenticator: Arc<BearerAuthenticator>,
         vfs_master_key: Arc<AesMasterKey>,
         google_vfs: Option<Arc<GoogleVfs>>,

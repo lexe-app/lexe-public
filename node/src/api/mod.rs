@@ -32,7 +32,7 @@ pub static USER_AGENT_EXTERNAL: &str = lexe_api::user_agent_external!();
 /// A trait for a client that implements both backend API traits, plus a
 /// method which allows the caller to specify the number of retries.
 #[async_trait]
-pub trait NodeBackendApiClient: NodeBackendApi + BearerAuthBackendApi {
+pub trait BackendApiClient: NodeBackendApi + BearerAuthBackendApi {
     async fn upsert_file_with_retries(
         &self,
         file: &VfsFile,
@@ -52,7 +52,7 @@ pub(crate) fn new_backend_api(
     deploy_env: DeployEnv,
     node_mode: NodeMode,
     maybe_backend_url: Option<String>,
-) -> anyhow::Result<Arc<dyn NodeBackendApiClient + Send + Sync>> {
+) -> anyhow::Result<Arc<dyn BackendApiClient + Send + Sync>> {
     cfg_if::cfg_if! {
         if #[cfg(any(test, feature = "test-utils"))] {
             // Can use real OR mock client during development

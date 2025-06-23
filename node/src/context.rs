@@ -33,7 +33,7 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::info;
 
 use crate::{
-    api::{self, NodeBackendApiClient, RunnerApiClient},
+    api::{self, BackendApiClient, RunnerApiClient},
     DEV_VERSION, SEMVER_VERSION,
 };
 
@@ -69,7 +69,7 @@ impl Default for UserContext {
 #[derive(Clone)]
 pub(crate) struct MegaContext {
     /// The backend API client for user nodes.
-    pub backend_api: Arc<dyn NodeBackendApiClient + Send + Sync>,
+    pub backend_api: Arc<dyn BackendApiClient + Send + Sync>,
     /// The channel config for user nodes.
     pub config: Arc<ArcSwap<UserConfig>>,
     /// The Esplora client for blockchain data.

@@ -37,7 +37,7 @@ use lexe_api::{
 use lexe_tls::attestation::{self, NodeMode};
 use lightning::events::Event;
 
-use crate::api::{NodeBackendApiClient, RunnerApiClient};
+use crate::api::{BackendApiClient, RunnerApiClient};
 
 /// Used for both [`MegaRunnerApi`] and [`NodeRunnerApi`].
 pub(crate) struct RunnerClient {
@@ -209,7 +209,7 @@ impl NodeBackendClient {
 }
 
 #[async_trait]
-impl NodeBackendApiClient for NodeBackendClient {
+impl BackendApiClient for NodeBackendClient {
     async fn upsert_file_with_retries(
         &self,
         data: &VfsFile,
