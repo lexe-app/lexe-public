@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use common::{api::user::UserPk, cli::node::MegaArgs};
 use futures::{stream::FuturesUnordered, StreamExt};
 use lexe_api::{
-    error::MegaApiError, models::mega::RunUserRequest, types::ports::RunPorts,
+    error::MegaApiError, models::runner::MegaNodeUserRunRequest,
+    types::ports::RunPorts,
 };
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use tokio::{
@@ -14,10 +15,10 @@ use tracing::{info, info_span};
 
 use crate::context::MegaContext;
 
-/// A [`RunUserRequest`] but includes a waiter with which to respond.
-pub(crate) struct RunUserRequestWithTx {
+/// A [`MegaNodeUserRunRequest`] but includes a waiter with which to respond.
+pub(crate) struct UserRunnerUserRunRequest {
     #[allow(dead_code)] // TODO(max): Remove
-    pub inner: RunUserRequest,
+    pub inner: MegaNodeUserRunRequest,
 
     /// A channel with which to respond to the server API handler.
     pub user_ready_waiter: oneshot::Sender<Result<RunPorts, MegaApiError>>,
@@ -31,15 +32,10 @@ pub(crate) struct UserRunner {
 
     mega_shutdown: NotifyOnce,
 
-    runner_rx: mpsc::Receiver<RunUserRequestWithTx>,
+    runner_rx: mpsc::Receiver<UserRunnerUserRunRequest>,
 
     user_nodes: HashMap<UserPk, UserHandle>,
     user_stream: FuturesUnordered<LxTask<UserPk>>,
-
-    #[allow(dead_code)] // TODO(max): Remove
-    user_ready_tx: mpsc::Sender<RunPorts>,
-    #[allow(dead_code)] // TODO(max): Remove
-    user_ready_rx: mpsc::Receiver<RunPorts>,
 }
 
 /// A handle to a specific usernode.
@@ -54,11 +50,8 @@ impl UserRunner {
         mega_args: MegaArgs,
         mega_ctxt: MegaContext,
         mega_shutdown: NotifyOnce,
-        runner_rx: mpsc::Receiver<RunUserRequestWithTx>,
+        runner_rx: mpsc::Receiver<UserRunnerUserRunRequest>,
     ) -> Self {
-        let (user_ready_tx, user_ready_rx) =
-            mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
-
         Self {
             mega_args,
             mega_ctxt,
@@ -66,8 +59,6 @@ impl UserRunner {
             runner_rx,
             user_nodes: HashMap::new(),
             user_stream: FuturesUnordered::new(),
-            user_ready_tx,
-            user_ready_rx,
         }
     }
 
@@ -82,7 +73,7 @@ impl UserRunner {
         loop {
             tokio::select! {
                 Some(run_req) = self.runner_rx.recv() =>
-                    self.handle_run_user_request(run_req),
+                    self.handle_user_run_request(run_req),
 
                 Some(join_result) = self.user_stream.next() =>
                     self.handle_finished_user_node(join_result),
@@ -92,8 +83,8 @@ impl UserRunner {
         }
     }
 
-    fn handle_run_user_request(&mut self, run_req: RunUserRequestWithTx) {
-        let RunUserRequestWithTx {
+    fn handle_user_run_request(&mut self, run_req: UserRunnerUserRunRequest) {
+        let UserRunnerUserRunRequest {
             inner: run_req,
             user_ready_waiter,
         } = run_req;
@@ -159,7 +150,7 @@ mod helpers {
 
     pub(super) fn spawn_user_node(
         mega_args: &MegaArgs,
-        run_req: RunUserRequest,
+        run_req: MegaNodeUserRunRequest,
         mega_ctxt: MegaContext,
     ) -> (LxTask<UserPk>, UserHandle) {
         let user_pk = run_req.user_pk;

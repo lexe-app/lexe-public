@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::types::{ports::RunPorts, LeaseId};
 
-/// A request to run a usernode within a meganode.
+/// A request sent to a meganode API server to run a usernode within a meganode.
 #[derive(Serialize, Deserialize)]
-pub struct RunUserRequest {
+pub struct MegaNodeUserRunRequest {
     /// The user to run.
     pub user_pk: UserPk,
 
@@ -23,12 +23,11 @@ pub struct RunUserRequest {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct RunUserResponse {
+pub struct MegaNodeApiUserRunResponse {
     pub run_ports: RunPorts,
 }
 
 /// A request from a usernode to renew its lease.
-// This is technically a usernode request, but it's meganode related so....
 #[derive(Serialize, Deserialize)]
 pub struct UserLeaseRenewalRequest {
     /// The ID of the lease to renew.

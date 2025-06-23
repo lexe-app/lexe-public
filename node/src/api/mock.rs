@@ -35,7 +35,7 @@ use lexe_api::{
     error::{BackendApiError, LspApiError, RunnerApiError},
     models::{
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
-        mega::UserLeaseRenewalRequest,
+        runner::UserLeaseRenewalRequest,
     },
     types::{
         payments::{

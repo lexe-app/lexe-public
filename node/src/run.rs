@@ -29,7 +29,7 @@ use lexe_api::{
     auth::BearerAuthenticator,
     def::NodeRunnerApi,
     error::MegaApiError,
-    models::mega::UserLeaseRenewalRequest,
+    models::runner::UserLeaseRenewalRequest,
     server::LayerConfig,
     types::{ports::RunPorts, sealed_seed::SealedSeedId},
     vfs::{Vfs, REVOCABLE_CLIENTS_FILE_ID},
@@ -661,7 +661,6 @@ impl UserNode {
         static_tasks.push(app_server_task);
 
         // Start API server for Lexe operators
-        // TODO(phlip9): authenticate lexe<->node
         let lexe_router_state = Arc::new(LexeRouterState {
             user_pk: args.user_pk,
             bdk_resync_tx,

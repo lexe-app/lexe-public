@@ -90,9 +90,9 @@ use crate::{
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
             ResyncRequest, UpdatePaymentNote,
         },
-        mega::{
-            RunUserRequest, RunUserResponse, UserFinishedRequest,
-            UserLeaseRenewalRequest,
+        runner::{
+            MegaNodeApiUserRunResponse, MegaNodeUserRunRequest,
+            UserFinishedRequest, UserLeaseRenewalRequest,
         },
     },
     types::{
@@ -376,11 +376,12 @@ pub trait BearerAuthBackendApi {
 /// NOTE: For performance, this API does not use TLS! This API should only
 /// contain methods for limited operational and lifecycle management endpoints.
 pub trait LexeMegaApi {
-    /// POST /lexe/run_user [`RunUserRequest`] -> [`RunUserResponse`]
+    /// POST /lexe/run_user [`MegaNodeUserRunRequest`]
+    ///                  -> [`MegaNodeApiUserRunResponse`]
     async fn run_user(
         &self,
-        req: RunUserRequest,
-    ) -> Result<RunUserResponse, MegaApiError>;
+        req: MegaNodeUserRunRequest,
+    ) -> Result<MegaNodeApiUserRunResponse, MegaApiError>;
 
     /// GET /lexe/status [`MegaIdStruct`] -> [`Status`]
     async fn status_mega(

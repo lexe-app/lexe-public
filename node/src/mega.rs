@@ -116,7 +116,7 @@ mod mega_server {
     use tracing::info_span;
 
     use super::handlers;
-    use crate::runner::RunUserRequestWithTx;
+    use crate::runner::UserRunnerUserRunRequest;
 
     /// Spawns the Lexe mega server task; returns the task, port, and url.
     pub(super) fn spawn_server_task(
@@ -151,7 +151,7 @@ mod mega_server {
     #[derive(Clone)]
     pub(super) struct MegaRouterState {
         pub mega_id: MegaId,
-        pub runner_tx: mpsc::Sender<RunUserRequestWithTx>,
+        pub runner_tx: mpsc::Sender<UserRunnerUserRunRequest>,
         pub mega_shutdown: NotifyOnce,
     }
 
@@ -176,19 +176,19 @@ mod handlers {
     };
     use lexe_api::{
         error::{MegaApiError, MegaErrorKind},
-        models::mega::{RunUserRequest, RunUserResponse},
+        models::runner::{MegaNodeApiUserRunResponse, MegaNodeUserRunRequest},
         server::{extract::LxQuery, LxJson},
         types::Empty,
     };
     use tokio::sync::oneshot;
 
     use super::mega_server::MegaRouterState;
-    use crate::runner::RunUserRequestWithTx;
+    use crate::runner::UserRunnerUserRunRequest;
 
     pub(super) async fn run_user(
         State(state): State<MegaRouterState>,
-        LxJson(req): LxJson<RunUserRequest>,
-    ) -> Result<LxJson<RunUserResponse>, MegaApiError> {
+        LxJson(req): LxJson<MegaNodeUserRunRequest>,
+    ) -> Result<LxJson<MegaNodeApiUserRunResponse>, MegaApiError> {
         // Sanity check
         if req.mega_id != state.mega_id {
             return Err(MegaApiError::wrong_mega_id(
@@ -198,7 +198,7 @@ mod handlers {
         }
 
         let (user_ready_tx, user_ready_rx) = oneshot::channel();
-        let req_with_tx = RunUserRequestWithTx {
+        let req_with_tx = UserRunnerUserRunRequest {
             inner: req,
             user_ready_waiter: user_ready_tx,
         };
@@ -217,7 +217,7 @@ mod handlers {
             ..Default::default()
         })??;
 
-        Ok(LxJson(RunUserResponse { run_ports }))
+        Ok(LxJson(MegaNodeApiUserRunResponse { run_ports }))
     }
 
     pub(super) async fn status(

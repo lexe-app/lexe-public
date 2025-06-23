@@ -23,7 +23,7 @@ use lexe_api::{
     error::{BackendApiError, LspApiError, RunnerApiError},
     models::{
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
-        mega::{UserFinishedRequest, UserLeaseRenewalRequest},
+        runner::{UserFinishedRequest, UserLeaseRenewalRequest},
     },
     rest::{RequestBuilderExt, RestClient, POST},
     types::{
