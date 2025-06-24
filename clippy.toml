@@ -68,7 +68,7 @@ disallowed-types = [
 ]
 
 # Suppress useless too_many_arguments lint
-too-many-arguments-threshold = 20
+too-many-arguments-threshold = 100
 # Suppress; this lint suggests type aliases for complex types which increases
 # indirection and makes code *less* readable, not more. Better to be explicit.
 type-complexity-threshold = 6969
