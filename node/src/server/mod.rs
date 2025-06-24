@@ -31,6 +31,7 @@ use lexe_ln::{
     channel::ChannelEvent,
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
+    sync::BdkSyncRequest,
     test_event::TestEventReceiver,
     tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
@@ -167,7 +168,7 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
 
 pub(crate) struct LexeRouterState {
     pub user_pk: UserPk,
-    pub bdk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
+    pub bdk_resync_tx: mpsc::Sender<BdkSyncRequest>,
     pub ldk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
     pub test_event_rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
     pub shutdown: NotifyOnce,

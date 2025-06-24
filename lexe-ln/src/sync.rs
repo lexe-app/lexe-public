@@ -1,6 +1,7 @@
 use std::{sync::Arc, time::Instant};
 
 use anyhow::{anyhow, Context};
+use futures::future::Either;
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::Confirm;
 use tokio::{
@@ -26,13 +27,18 @@ const SYNC_TIMEOUT: Duration = Duration::from_secs(30);
 // TODO(max): The control flow / logic in these two functions are sufficiently
 // complex and similar that it's probably a good idea to extract a helper fn.
 
+pub struct BdkSyncRequest {
+    pub full_sync: bool,
+    pub tx: oneshot::Sender<()>,
+}
+
 /// Spawns a task that periodically restarts BDK sync.
 pub fn spawn_bdk_sync_task(
     esplora: Arc<LexeEsplora>,
     wallet: LexeWallet,
     onchain_recv_tx: notify::Sender,
     first_bdk_sync_tx: oneshot::Sender<anyhow::Result<()>>,
-    mut bdk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
+    mut bdk_resync_rx: mpsc::Receiver<BdkSyncRequest>,
     mut shutdown: NotifyOnce,
 ) -> LxTask<()> {
     LxTask::spawn("bdk sync", async move {
@@ -45,27 +51,39 @@ pub fn spawn_bdk_sync_task(
             // A future which completes when *either* the timer ticks or we
             // receive a signal via bdk_resync_rx.
             let sync_trigger_fut = async {
+                let mut is_full_sync = false;
+
                 tokio::select! {
                     _ = sync_timer.tick() => (),
-                    Some(tx) = bdk_resync_rx.recv() => synced_txs.push(tx),
+                    Some(req) = bdk_resync_rx.recv() => {
+                        is_full_sync |= req.full_sync;
+                        synced_txs.push(req.tx);
+                    },
                 }
 
                 // We're about to sync; clear out any remaining txs
-                while let Ok(tx) = bdk_resync_rx.try_recv() {
-                    synced_txs.push(tx);
+                while let Ok(req) = bdk_resync_rx.try_recv() {
+                    is_full_sync |= req.full_sync;
+                    synced_txs.push(req.tx);
                 }
+
+                is_full_sync
             };
 
             tokio::select! {
-                () = sync_trigger_fut => {
+                is_full_sync = sync_trigger_fut => {
                     info!("Starting BDK sync");
                     let start = Instant::now();
 
                     // Give up if we time out or receive a shutdown signal
                     let timeout = time::sleep(SYNC_TIMEOUT);
+                    let sync_fut = if !is_full_sync {
+                        Either::Left(wallet.sync(&esplora))
+                    } else {
+                        Either::Right(wallet.full_sync(&esplora))
+                    };
                     let sync_result = tokio::select! {
-                        res = wallet.sync(&esplora) =>
-                            res.context("BDK sync failed"),
+                        res = sync_fut => res.context("BDK sync failed"),
                         _ = timeout => Err(anyhow!("BDK sync timed out")),
                         () = shutdown.recv() => break,
                     };

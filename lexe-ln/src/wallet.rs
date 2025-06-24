@@ -36,7 +36,10 @@ use std::{
 };
 
 use anyhow::{ensure, Context};
-use bdk_chain::{spk_client::SyncRequest, CanonicalizationParams, Merge};
+use bdk_chain::{
+    spk_client::{FullScanRequest, SyncRequest},
+    CanonicalizationParams, Merge,
+};
 use bdk_esplora::EsploraAsyncExt;
 pub use bdk_wallet::ChangeSet;
 use bdk_wallet::{
@@ -541,11 +544,10 @@ impl LexeWallet {
     ///
     /// This should be done rarely, i.e. only when creating the wallet or if we
     /// need to restore from a existing seed. See BDK's examples for more info.
-    async fn full_sync(&self, esplora: &LexeEsplora) -> anyhow::Result<()> {
-        let full_scan_request = {
-            let locked_wallet = self.inner.read().unwrap();
-            locked_wallet.start_full_scan()
-        };
+    #[instrument(skip_all, name = "(bdk-full-sync)")]
+    pub async fn full_sync(&self, esplora: &LexeEsplora) -> anyhow::Result<()> {
+        let full_scan_request =
+            self.build_full_scan_request_at(TimestampMs::now());
 
         // Scan the blockchain for our keychain script pubkeys until we hit the
         // `stop_gap`.
@@ -570,6 +572,16 @@ impl LexeWallet {
         self.trigger_persist();
 
         Ok(())
+    }
+
+    fn build_full_scan_request_at(
+        &self,
+        synced_at: TimestampMs,
+    ) -> FullScanRequest<KeychainKind> {
+        let locked_wallet = self.inner.read().unwrap();
+        locked_wallet
+            .start_full_scan_at(synced_at.to_secs())
+            .build()
     }
 
     /// Returns the current wallet balance. Note that newly received funds will

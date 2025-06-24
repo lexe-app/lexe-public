@@ -46,7 +46,8 @@ use lexe_ln::{
     message_router::LexeMessageRouter,
     payments::manager::PaymentsManager,
     route::LexeRouter,
-    sync, test_event,
+    sync::{self, BdkSyncRequest},
+    test_event,
     traits::LexeInnerPersister,
     tx_broadcaster::TxBroadcaster,
     wallet::{self, LexeCoinSelector, LexeWallet},
@@ -138,7 +139,7 @@ struct SyncContext {
     ldk_sync_client: Arc<EsploraSyncClientType>,
     runner_api: Arc<dyn NodeRunnerApi + Send + Sync>,
     onchain_recv_tx: notify::Sender,
-    bdk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
+    bdk_resync_rx: mpsc::Receiver<BdkSyncRequest>,
     ldk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
 }
 

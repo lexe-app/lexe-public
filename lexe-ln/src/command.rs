@@ -41,6 +41,7 @@ use lexe_api::{
         PreflightPayOfferResponse, PreflightPayOnchainRequest,
         PreflightPayOnchainResponse, ResyncRequest,
     },
+    rest::API_REQUEST_TIMEOUT,
     types::{
         invoice::LxInvoice,
         offer::{LxOffer, MaxQuantity},
@@ -49,7 +50,7 @@ use lexe_api::{
     },
     vfs::{Vfs, REVOCABLE_CLIENTS_FILE_ID},
 };
-use lexe_std::Apply;
+use lexe_std::{const_assert, Apply};
 use lexe_tls::{
     shared_seed::certs::{RevocableClientCert, RevocableIssuingCaCert},
     types::LxCertificateDer,
@@ -92,6 +93,7 @@ use crate::{
         Payment,
     },
     route::{self, LastHopHint, RoutingContext},
+    sync::BdkSyncRequest,
     traits::{LexeChannelManager, LexePeerManager, LexePersister},
     tx_broadcaster::TxBroadcaster,
     wallet::{LexeWallet, UtxoCounts},
@@ -678,17 +680,22 @@ const fn close_tx_weight(
 /// Uses the given `[bdk|ldk]_resync_tx` to retrigger BDK and LDK sync, and
 /// returns once sync has either completed or timed out.
 pub async fn resync(
-    _req: ResyncRequest,
-    bdk_resync_tx: &mpsc::Sender<oneshot::Sender<()>>,
+    req: ResyncRequest,
+    bdk_resync_tx: &mpsc::Sender<BdkSyncRequest>,
     ldk_resync_tx: &mpsc::Sender<oneshot::Sender<()>>,
 ) -> anyhow::Result<Empty> {
     /// How long we'll wait to hear a callback before giving up.
-    // NOTE: Our default reqwest::Client timeout is 15 seconds.
-    const SYNC_TIMEOUT: Duration = Duration::from_secs(12);
+    // NOTE: Our default reqwest::Client timeout is 30 seconds.
+    const SYNC_TIMEOUT: Duration = Duration::from_secs(27);
+    const_assert!(SYNC_TIMEOUT.as_millis() < API_REQUEST_TIMEOUT.as_millis());
 
     let (bdk_tx, bdk_rx) = oneshot::channel();
+    let bdk_sync_req = BdkSyncRequest {
+        full_sync: req.full_sync,
+        tx: bdk_tx,
+    };
     bdk_resync_tx
-        .try_send(bdk_tx)
+        .try_send(bdk_sync_req)
         .map_err(|_| anyhow!("Failed to retrigger BDK sync"))?;
     let (ldk_tx, ldk_rx) = oneshot::channel();
     ldk_resync_tx
