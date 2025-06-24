@@ -85,7 +85,7 @@ use crate::{
         PreflightOpenChannelRequest, PreflightOpenChannelResponse,
         PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
         PreflightPayOfferRequest, PreflightPayOfferResponse,
-        PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+        PreflightPayOnchainRequest, PreflightPayOnchainResponse, ResyncRequest,
         UpdatePaymentNote,
     },
     types::{
@@ -393,11 +393,11 @@ pub trait LexeNodeRunApi {
     async fn status_run(&self, user_pk: UserPk)
         -> Result<Status, NodeApiError>;
 
-    /// POST /lexe/resync [`Empty`] -> [`Empty`]
+    /// POST /lexe/resync [`ResyncRequest`] -> [`Empty`]
     ///
-    /// Triggers an immediate resync of BDK and LDK.
-    /// Returns only once sync has either completed or timed out.
-    async fn resync(&self) -> Result<Empty, NodeApiError>;
+    /// Triggers an immediate resync of BDK and LDK. Optionally full sync the
+    /// BDK wallet. Returns only once sync has either completed or timed out.
+    async fn resync(&self, req: ResyncRequest) -> Result<Empty, NodeApiError>;
 
     /// POST /lexe/test_event [`TestEventOp`] -> [`Empty`]
     ///

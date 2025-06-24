@@ -395,6 +395,15 @@ pub struct FeeEstimate {
     pub amount: Amount,
 }
 
+// --- Sync --- //
+
+#[derive(Serialize, Deserialize)]
+pub struct ResyncRequest {
+    /// If true, the LSP will full sync the BDK wallet and do a normal LDK
+    /// sync.
+    pub full_sync: bool,
+}
+
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
     use proptest::{

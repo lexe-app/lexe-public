@@ -7,6 +7,7 @@ use common::{
 };
 use lexe_api::{
     error::NodeApiError,
+    models::command::ResyncRequest,
     server::{extract::LxQuery, LxJson},
     types::Empty,
 };
@@ -28,8 +29,9 @@ pub(super) async fn status(
 
 pub(super) async fn resync(
     State(state): State<Arc<LexeRouterState>>,
+    LxJson(req): LxJson<ResyncRequest>,
 ) -> Result<LxJson<Empty>, NodeApiError> {
-    lexe_ln::command::resync(&state.bdk_resync_tx, &state.ldk_resync_tx)
+    lexe_ln::command::resync(req, &state.bdk_resync_tx, &state.ldk_resync_tx)
         .await
         .map(LxJson)
         .map_err(NodeApiError::command)

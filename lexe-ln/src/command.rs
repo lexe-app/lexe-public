@@ -39,7 +39,7 @@ use lexe_api::{
         PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse, PreflightPayOfferRequest,
         PreflightPayOfferResponse, PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse,
+        PreflightPayOnchainResponse, ResyncRequest,
     },
     types::{
         invoice::LxInvoice,
@@ -678,6 +678,7 @@ const fn close_tx_weight(
 /// Uses the given `[bdk|ldk]_resync_tx` to retrigger BDK and LDK sync, and
 /// returns once sync has either completed or timed out.
 pub async fn resync(
+    _req: ResyncRequest,
     bdk_resync_tx: &mpsc::Sender<oneshot::Sender<()>>,
     ldk_resync_tx: &mpsc::Sender<oneshot::Sender<()>>,
 ) -> anyhow::Result<Empty> {
@@ -704,7 +705,7 @@ pub async fn resync(
         .context("LDK sync timed out")?
         .context("LDK recv errored")?;
 
-    debug!("/resync successful");
+    debug!("resync successful");
     Ok(Empty {})
 }
 
