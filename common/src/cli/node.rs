@@ -35,6 +35,10 @@ pub struct MegaArgs {
     /// info relating to Lexe's LSP.
     pub lsp: LspInfo,
 
+    /// An estimate of the amount of enclave heap consumed by shared meganode
+    /// components such as the network graph, Tokio, connection pools, etc.
+    pub memory_overhead: u64,
+
     /// configuration info for Google OAuth2.
     /// Required only if running in staging / prod.
     pub oauth: Option<OAuthConfig>,

@@ -290,6 +290,7 @@ mod helpers {
             lease_lifetime_secs,
             lease_renewal_interval_secs,
             lsp,
+            memory_overhead: _,
             oauth: _,
             runner_url,
             rust_backtrace,
