@@ -30,7 +30,6 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    iter,
     ops::DerefMut,
     sync::{Arc, RwLockReadGuard, RwLockWriteGuard},
 };
@@ -51,11 +50,13 @@ use bdk_wallet::{
     WeightedUtxo,
 };
 use bitcoin::{Psbt, Transaction};
+#[cfg(test)]
+use common::ln::channel::LxOutPoint;
 use common::{
     constants::IMPORTANT_PERSIST_RETRIES,
     ln::{
-        amount::Amount, balance::OnchainBalance, channel::LxOutPoint,
-        network::LxNetwork, priority::ConfirmationPriority,
+        amount::Amount, balance::OnchainBalance, network::LxNetwork,
+        priority::ConfirmationPriority,
     },
     root_seed::RootSeed,
     time::TimestampMs,
@@ -767,7 +768,8 @@ impl LexeWallet {
     /// Try to evict an _unconfirmed_ UTXO from BDK's UTXO index. This
     /// effectively tells BDK that an unconfirmed UTXO was evicted from the
     /// mempool.
-    pub fn unconfirmed_utxo_evicted_at(
+    #[cfg(test)]
+    fn unconfirmed_utxo_evicted_at(
         &self,
         evicted_at: TimestampMs,
         outpoint: LxOutPoint,
@@ -782,8 +784,10 @@ impl LexeWallet {
             "UTXO is already confirmed"
         );
         let evicted_at_secs = evicted_at.to_duration().as_secs();
-        locked_wallet
-            .apply_evicted_txs(iter::once((outpoint.txid, evicted_at_secs)));
+        locked_wallet.apply_evicted_txs(std::iter::once((
+            outpoint.txid,
+            evicted_at_secs,
+        )));
         drop(locked_wallet);
         self.trigger_persist();
         Ok(())
@@ -802,7 +806,7 @@ impl LexeWallet {
         self.inner
             .write()
             .unwrap()
-            .apply_evicted_txs(iter::once((txid.0, evicted_at_secs)));
+            .apply_evicted_txs(std::iter::once((txid.0, evicted_at_secs)));
         self.trigger_persist();
     }
 
