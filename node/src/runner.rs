@@ -94,6 +94,8 @@ impl UserRunner {
         }
     }
 
+    // TODO(max): Immediately reject if it would put us over our hard limit.
+    // (Hard limit means 0 additional meganode slots)
     fn handle_user_run_request(&mut self, run_req: UserRunnerUserRunRequest) {
         let UserRunnerUserRunRequest {
             inner: run_req,
@@ -163,12 +165,23 @@ impl UserRunner {
         let _ = self.eph_tasks_tx.try_send(task);
     }
 
+    // TODO(max): Immediately reject if it would put us over our hard limit.
     fn evict_usernodes_if_needed(&mut self) {
-        // TODO(max): Define soft limit using buffer_user_slots and
-        // mega_overhead instead.
-        while self.current_memory() - self.evicting_memory()
-            > self.mega_args.sgx_heap_size
-        {
+        // Available memory for usernodes after accounting for overhead
+        let available_memory = self
+            .mega_args
+            .sgx_heap_size
+            .saturating_sub(self.mega_args.memory_overhead);
+
+        // Target memory to maintain buffer capacity
+        let target_buffer_memory = self.mega_args.usernode_buffer_slots
+            * self.mega_args.usernode_memory;
+
+        // The limit over which we'll evict usernodes.
+        let memory_limit =
+            available_memory.saturating_sub(target_buffer_memory);
+
+        while self.current_memory() - self.evicting_memory() > memory_limit {
             let evicted = self.evict_usernode();
             assert!(evicted, "Unevicted memory over limit => can evict");
         }
