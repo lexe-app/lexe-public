@@ -40,6 +40,7 @@ pub(crate) struct UserRunner {
     eph_tasks_tx: mpsc::Sender<LxTask<()>>,
 
     user_nodes: HashMap<UserPk, UserHandle>,
+    // TODO(max): Need to update timestamps when the node is used.
     user_lru: LruCache<UserPk, TimestampMs>,
     user_stream: FuturesUnordered<LxTask<(UserPk, LeaseId)>>,
     evicting_users: HashSet<UserPk>,
@@ -94,8 +95,6 @@ impl UserRunner {
         }
     }
 
-    // TODO(max): Immediately reject if it would put us over our hard limit.
-    // (Hard limit means 0 additional meganode slots)
     fn handle_user_run_request(&mut self, run_req: UserRunnerUserRunRequest) {
         let UserRunnerUserRunRequest {
             inner: run_req,
@@ -110,6 +109,17 @@ impl UserRunner {
             return;
         }
         // From here, we know the user is not already running.
+
+        // If spawning this user would exceed our hard limit, then we'll
+        // immediately reject the request.
+        if self.current_memory() + self.mega_args.usernode_memory
+            > self.hard_memory_limit()
+        {
+            let _ = user_ready_waiter.send(Err(MegaApiError::at_capacity(
+                "Insufficient memory to schedule user node",
+            )));
+            return;
+        }
 
         // Spawn the user node.
         let (user_task, user_handle) = helpers::spawn_user_node(
@@ -165,23 +175,19 @@ impl UserRunner {
         let _ = self.eph_tasks_tx.try_send(task);
     }
 
-    // TODO(max): Immediately reject if it would put us over our hard limit.
     fn evict_usernodes_if_needed(&mut self) {
         // Available memory for usernodes after accounting for overhead
-        let available_memory = self
-            .mega_args
-            .sgx_heap_size
-            .saturating_sub(self.mega_args.memory_overhead);
+        let hard_memory_limit = self.hard_memory_limit();
 
-        // Target memory to maintain buffer capacity
-        let target_buffer_memory = self.mega_args.usernode_buffer_slots
-            * self.mega_args.usernode_memory;
+        // Target memory to maintain usernode buffer slots
+        let target_buffer_memory = self.target_buffer_memory();
 
         // The limit over which we'll evict usernodes.
-        let memory_limit =
-            available_memory.saturating_sub(target_buffer_memory);
+        let soft_memory_limit =
+            hard_memory_limit.saturating_sub(target_buffer_memory);
 
-        while self.current_memory() - self.evicting_memory() > memory_limit {
+        while self.current_memory() - self.evicting_memory() > soft_memory_limit
+        {
             let evicted = self.evict_usernode();
             assert!(evicted, "Unevicted memory over limit => can evict");
         }
@@ -220,6 +226,20 @@ impl UserRunner {
     /// Is always <= [`Self::current_memory`].
     fn evicting_memory(&self) -> u64 {
         (self.evicting_users.len() as u64) * self.mega_args.usernode_memory
+    }
+
+    /// Hard memory limit available for usernodes after accounting for overhead.
+    /// Calculated as `sgx_heap_size - memory_overhead`.
+    fn hard_memory_limit(&self) -> u64 {
+        self.mega_args
+            .sgx_heap_size
+            .saturating_sub(self.mega_args.memory_overhead)
+    }
+
+    /// Target buffer memory to maintain capacity for additional usernode slots.
+    /// Calculated as `usernode_buffer_slots * usernode_memory`.
+    fn target_buffer_memory(&self) -> u64 {
+        self.mega_args.usernode_buffer_slots * self.mega_args.usernode_memory
     }
 }
 

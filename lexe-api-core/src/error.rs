@@ -1222,6 +1222,16 @@ impl LspApiError {
 }
 
 impl MegaApiError {
+    pub fn at_capacity(msg: impl Into<String>) -> Self {
+        let kind = MegaErrorKind::AtCapacity;
+        let msg = msg.into();
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
+
     pub fn wrong_mega_id(
         req_mega_id: &MegaId,
         actual_mega_id: &MegaId,
