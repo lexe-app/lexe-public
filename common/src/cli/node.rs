@@ -82,6 +82,10 @@ pub struct MegaArgs {
     /// Lexe's cloud). This input should be treated as untrusted.
     pub untrusted_network: LxNetwork,
 
+    /// The # of usernodes that the meganode tries to maintain capacity for.
+    /// Users are evicted when remaining memory fits fewer than this amount.
+    pub usernode_buffer_slots: u64,
+
     /// An estimate of the amount of enclave heap consumed by each usernode.
     pub usernode_memory: u64,
 }
