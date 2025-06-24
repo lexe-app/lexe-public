@@ -311,6 +311,16 @@ impl LexeWallet {
             .await
             .context("`EsploraAsyncExt::sync` failed")?;
 
+        let tx = &sync_result.tx_update;
+        info!(
+            txs = tx.txs.len(),
+            txouts = tx.txouts.len(),
+            anchors = tx.anchors.len(),
+            seen_ats = tx.seen_ats.len(),
+            evicted_ats = tx.evicted_ats.len(),
+            "result stats"
+        );
+
         // Apply the update to the wallet.
         {
             let mut locked_wallet = self.inner.write().unwrap();
@@ -397,6 +407,10 @@ impl LexeWallet {
                             > num_finalized_spends_from_spk
                             || *num_finalized_spends_from_spk == 0,
                 }
+            }
+
+            fn is_internal(&self) -> bool {
+                matches!(self, SpkInfo::Internal { .. })
             }
         }
 
@@ -504,20 +518,52 @@ impl LexeWallet {
         // HACK: We'll also sync the next unrevealed spks for both keychains, in
         // case we revealed an index, used it, then crashed before the BDK
         // wallet persisted.
+        //
+        // NOTE: The unrevealed spk might not be in the cache. I don't really
+        // want to acquire a write lock to build the sync request, so we'll just
+        // ignore if we would need to derive a new batch of spks.
         let keychain = KeychainKind::External;
         let next_unrevealed_external_spk =
-            keychains.next_index(keychain).and_then(|(index, _)| {
+            keychains.next_index(keychain).and_then(|(index, _new)| {
                 keychains
                     .spk_at_index(keychain, index)
                     .map(|spk| ((keychain, index), spk))
             });
         let keychain = KeychainKind::Internal;
         let next_unrevealed_internal_spk =
-            keychains.next_index(keychain).and_then(|(index, _)| {
+            keychains.next_index(keychain).and_then(|(index, _new)| {
                 keychains
                     .spk_at_index(keychain, index)
                     .map(|spk| ((keychain, index), spk))
             });
+
+        // Collect some basic stats on how many spks for each keychain we're
+        // going to sync.
+        let (syncing_external, syncing_internal) = spk_infos
+            .values()
+            // Start with (1, 1) to include next unrevealed
+            .fold((1_u32, 1_u32), |(num_ext, num_int), spk_info| {
+                if !spk_info.needs_sync() {
+                    (num_ext, num_int)
+                } else if spk_info.is_internal() {
+                    (num_ext, num_int + 1)
+                } else {
+                    (num_ext + 1, num_int)
+                }
+            });
+        let total_external = keychains
+            .last_revealed_index(KeychainKind::External)
+            .map(|index| index + 1)
+            .unwrap_or(0);
+        let total_internal = keychains
+            .last_revealed_index(KeychainKind::Internal)
+            .map(|index| index + 1)
+            .unwrap_or(0);
+        info!(
+            "BDK sync request spk stats: \
+             external: ({syncing_external}/{total_external}), \
+             internal: ({syncing_internal}/{total_internal})"
+        );
 
         let spks_to_sync = spk_infos
             .into_iter()
@@ -560,6 +606,16 @@ impl LexeWallet {
             )
             .await
             .context("EsploraAsyncExt::full_scan failed")?;
+
+        let tx = &full_scan_result.tx_update;
+        info!(
+            txs = tx.txs.len(),
+            txouts = tx.txouts.len(),
+            anchors = tx.anchors.len(),
+            seen_ats = tx.seen_ats.len(),
+            evicted_ats = tx.evicted_ats.len(),
+            "result stats"
+        );
 
         // Apply the combined update to the wallet.
         {
@@ -1572,11 +1628,10 @@ mod test {
             let next_external = keychains
                 .next_index(keychain)
                 .and_then(|(index, _)| keychains.spk_at_index(keychain, index));
+            let keychain = KeychainKind::Internal;
             let next_internal = keychains
-                .next_index(KeychainKind::Internal)
-                .and_then(|(index, _)| {
-                    keychains.spk_at_index(KeychainKind::Internal, index)
-                });
+                .next_index(keychain)
+                .and_then(|(index, _)| keychains.spk_at_index(keychain, index));
             let next_both = next_external.into_iter().chain(next_internal);
             next_both.map(|spk| (spk, BTreeSet::new())).collect()
         }

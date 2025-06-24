@@ -72,7 +72,7 @@ pub fn spawn_bdk_sync_task(
 
             tokio::select! {
                 is_full_sync = sync_trigger_fut => {
-                    info!("Starting BDK sync");
+                    info!(is_full_sync, "Starting BDK sync");
                     let start = Instant::now();
 
                     // Give up if we time out or receive a shutdown signal
