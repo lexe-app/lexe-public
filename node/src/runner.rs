@@ -17,6 +17,8 @@ use tracing::{info, info_span};
 
 use crate::context::MegaContext;
 
+// TODO(max): Add inactivity timers for meganode, usernode
+
 /// A [`MegaNodeUserRunRequest`] but includes a waiter with which to respond.
 pub(crate) struct UserRunnerUserRunRequest {
     pub inner: MegaNodeUserRunRequest,
@@ -47,6 +49,7 @@ pub(crate) struct UserRunner {
 struct UserHandle {
     user_ready_waiter_tx:
         mpsc::Sender<oneshot::Sender<Result<RunPorts, MegaApiError>>>,
+    user_shutdown: NotifyOnce,
 }
 
 impl UserRunner {
@@ -161,7 +164,49 @@ impl UserRunner {
     }
 
     fn evict_usernodes_if_needed(&mut self) {
-        // TODO(max): Implement
+        // TODO(max): Define soft limit using buffer_user_slots and
+        // mega_overhead instead.
+        while self.current_memory() - self.evicting_memory()
+            > self.mega_args.sgx_heap_size
+        {
+            let evicted = self.evict_usernode();
+            assert!(evicted, "Unevicted memory over limit => can evict");
+        }
+    }
+
+    /// Evicts the least recently used usernode.
+    /// Returns whether a usernode was evicted.
+    fn evict_usernode(&mut self) -> bool {
+        if let Some((user_pk, lru)) = self.user_lru.pop_lru() {
+            let now = TimestampMs::now();
+            let inactive_secs = lru.absolute_diff(now).as_secs();
+            info!(%inactive_secs, "Evicted usernode.");
+
+            self.evicting_users.insert(user_pk);
+
+            // Send a shutdown signal to the user node.
+            let usernode = self
+                .user_nodes
+                .get(&user_pk)
+                .expect("LRU user_pk should exist in user_nodes");
+            usernode.user_shutdown.send();
+
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Amount of memory used by currently running user nodes. User nodes are
+    /// counted regardless of whether they are booting, running, or evicting.
+    fn current_memory(&self) -> u64 {
+        (self.user_nodes.len() as u64) * self.mega_args.usernode_memory
+    }
+
+    /// Amount of memory usage by currently evicting user nodes.
+    /// Is always <= [`Self::current_memory`].
+    fn evicting_memory(&self) -> u64 {
+        (self.evicting_users.len() as u64) * self.mega_args.usernode_memory
     }
 }
 
@@ -187,14 +232,16 @@ mod helpers {
 
         let (user_ready_waiter_tx, user_ready_waiter_rx) =
             mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
+        let user_shutdown = NotifyOnce::new();
         let user_context = UserContext {
             lease_id: Some(run_req.lease_id),
-            user_shutdown: NotifyOnce::new(),
+            user_shutdown: user_shutdown.clone(),
             user_ready_waiter_rx,
         };
 
         let handle = UserHandle {
             user_ready_waiter_tx,
+            user_shutdown,
         };
 
         let usernode_span = build_usernode_span(&user_pk);
