@@ -21,10 +21,6 @@ pub struct MegaArgs {
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
     pub backend_url: String,
 
-    /// protocol://host:port of the runner.
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
-    pub runner_url: String,
-
     /// How long the usernode stays online (in seconds) without any activity
     /// before shutting itself down. The timer resets whenever activity is
     /// seen. The meganode also uses this value + a few seconds.
@@ -43,6 +39,10 @@ pub struct MegaArgs {
     /// Required only if running in staging / prod.
     pub oauth: Option<OAuthConfig>,
 
+    /// protocol://host:port of the runner.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
+    pub runner_url: String,
+
     /// The value to set for `RUST_BACKTRACE`. Does nothing if set to [`None`].
     /// Passed as an arg since envs aren't available in SGX.
     #[cfg_attr(
@@ -58,6 +58,9 @@ pub struct MegaArgs {
         proptest(strategy = "arbitrary::any_option_simple_string()")
     )]
     pub rust_log: Option<String>,
+
+    /// the allocatable memory available to this enclave in SGX.
+    pub sgx_heap_size: u64,
 
     /// The current deploy environment passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.

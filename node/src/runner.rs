@@ -238,18 +238,19 @@ mod helpers {
         let MegaArgs {
             mega_id: _,
             backend_url,
-            runner_url,
 
-            untrusted_esplora_urls: esplora_urls,
             inactivity_timer_sec,
             lease_lifetime_secs,
             lease_renewal_interval_secs,
             lsp,
             oauth: _,
+            runner_url,
             rust_backtrace,
             rust_log,
             untrusted_deploy_env,
+            untrusted_esplora_urls: esplora_urls,
             untrusted_network,
+            sgx_heap_size: _,
         } = mega_args;
 
         RunArgs {
