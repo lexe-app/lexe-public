@@ -13,7 +13,7 @@ use crate::{
 };
 
 pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
-    let (_eph_tasks_tx, eph_tasks_rx) =
+    let (eph_tasks_tx, eph_tasks_rx) =
         mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
 
     // Create mega context for user nodes
@@ -50,6 +50,7 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
         mega_ctxt,
         mega_shutdown.clone(),
         runner_rx,
+        eph_tasks_tx,
     );
     static_tasks.push(user_runner.spawn_into_task());
 

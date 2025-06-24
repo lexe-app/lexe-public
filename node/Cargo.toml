@@ -65,8 +65,8 @@ bytes.workspace = true
 cfg-if.workspace = true
 futures.workspace = true
 lightning.workspace = true
-# lightning-invoice.workspace = true
 lightning-transaction-sync.workspace = true
+lru.workspace = true
 secrecy.workspace = true
 semver = { workspace = true, features = ["serde"] }
 serde.workspace = true

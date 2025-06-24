@@ -1,12 +1,14 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use common::{api::user::UserPk, cli::node::MegaArgs};
+use common::{api::user::UserPk, cli::node::MegaArgs, time::TimestampMs};
 use futures::{stream::FuturesUnordered, StreamExt};
 use lexe_api::{
-    error::MegaApiError, models::runner::MegaNodeUserRunRequest,
-    types::ports::RunPorts,
+    error::MegaApiError,
+    models::runner::MegaNodeUserRunRequest,
+    types::{ports::RunPorts, LeaseId},
 };
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
+use lru::LruCache;
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinError,
@@ -17,7 +19,6 @@ use crate::context::MegaContext;
 
 /// A [`MegaNodeUserRunRequest`] but includes a waiter with which to respond.
 pub(crate) struct UserRunnerUserRunRequest {
-    #[allow(dead_code)] // TODO(max): Remove
     pub inner: MegaNodeUserRunRequest,
 
     /// A channel with which to respond to the server API handler.
@@ -34,8 +35,12 @@ pub(crate) struct UserRunner {
 
     runner_rx: mpsc::Receiver<UserRunnerUserRunRequest>,
 
+    eph_tasks_tx: mpsc::Sender<LxTask<()>>,
+
     user_nodes: HashMap<UserPk, UserHandle>,
-    user_stream: FuturesUnordered<LxTask<UserPk>>,
+    user_lru: LruCache<UserPk, TimestampMs>,
+    user_stream: FuturesUnordered<LxTask<(UserPk, LeaseId)>>,
+    evicting_users: HashSet<UserPk>,
 }
 
 /// A handle to a specific usernode.
@@ -45,20 +50,23 @@ struct UserHandle {
 }
 
 impl UserRunner {
-    // TODO(max): Implement
     pub fn new(
         mega_args: MegaArgs,
         mega_ctxt: MegaContext,
         mega_shutdown: NotifyOnce,
         runner_rx: mpsc::Receiver<UserRunnerUserRunRequest>,
+        eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     ) -> Self {
         Self {
             mega_args,
             mega_ctxt,
             mega_shutdown,
             runner_rx,
+            eph_tasks_tx,
             user_nodes: HashMap::new(),
+            user_lru: LruCache::unbounded(),
             user_stream: FuturesUnordered::new(),
+            evicting_users: HashSet::new(),
         }
     }
 
@@ -118,21 +126,38 @@ impl UserRunner {
         // Add to user stream
         self.user_stream.push(user_task);
 
+        // Add to LRU queue
+        self.user_lru.push(user_pk, TimestampMs::now());
+
         // We just spawned a node. Check for evictions.
         self.evict_usernodes_if_needed();
     }
 
     fn handle_finished_user_node(
         &mut self,
-        join_result: Result<UserPk, JoinError>,
+        join_result: Result<(UserPk, LeaseId), JoinError>,
     ) {
-        let user_pk = join_result.expect("User node task panicked");
-        info!(%user_pk, "User node finished");
+        let (user_pk, lease_id) = join_result.expect("User node task panicked");
+        info!(%user_pk, %lease_id, "User node finished");
 
         self.user_nodes.remove(&user_pk);
 
-        // TODO(max): Also remove from `evicting_users`
-        // TODO(max): Terminate the lease held by this usernode.
+        let was_in_lru = self.user_lru.pop(&user_pk).is_some();
+        let was_evicting = self.evicting_users.remove(&user_pk);
+        assert!(
+            was_in_lru ^ was_evicting,
+            "User node should be in LRU or evicting set, but not both",
+        );
+
+        // Notify the megarunner that the user has shut down,
+        // so that the user's lease can be terminated.
+        let task = helpers::spawn_user_finished_task(
+            self.mega_ctxt.runner_api.clone(),
+            user_pk,
+            lease_id,
+            self.mega_args.mega_id,
+        );
+        let _ = self.eph_tasks_tx.try_send(task);
     }
 
     fn evict_usernodes_if_needed(&mut self) {
@@ -141,18 +166,21 @@ impl UserRunner {
 }
 
 mod helpers {
+    use std::sync::Arc;
+
     use anyhow::Context;
-    use common::{cli::node::RunArgs, rng::SysRng};
+    use common::{api::MegaId, cli::node::RunArgs, rng::SysRng};
+    use lexe_api::{models::runner::UserFinishedRequest, types::LeaseId};
     use tracing::{error, info};
 
     use super::*;
-    use crate::{context::UserContext, run::UserNode};
+    use crate::{api::RunnerApiClient, context::UserContext, run::UserNode};
 
     pub(super) fn spawn_user_node(
         mega_args: &MegaArgs,
         run_req: MegaNodeUserRunRequest,
         mega_ctxt: MegaContext,
-    ) -> (LxTask<UserPk>, UserHandle) {
+    ) -> (LxTask<(UserPk, LeaseId)>, UserHandle) {
         let user_pk = run_req.user_pk;
         let run_args =
             build_run_args(mega_args, user_pk, run_req.shutdown_after_sync);
@@ -169,8 +197,6 @@ mod helpers {
             user_ready_waiter_tx,
         };
 
-        // TODO(max): Pass in channels so the UserRunner can communicate with
-        // the usernode.
         let usernode_span = build_usernode_span(&user_pk);
         let task = LxTask::spawn_with_span(
             format!("Usernode {user_pk}"),
@@ -197,7 +223,7 @@ mod helpers {
                     Err(e) => error!(%user_pk, "Usernode errored: {e:#}"),
                 }
 
-                user_pk
+                (user_pk, run_req.lease_id)
             },
         );
 
@@ -265,5 +291,35 @@ mod helpers {
         }
 
         span
+    }
+
+    /// Spawns a task to notify the runner that a user has finished.
+    pub(super) fn spawn_user_finished_task(
+        runner_api: Arc<dyn RunnerApiClient + Send + Sync>,
+        user_pk: UserPk,
+        lease_id: LeaseId,
+        mega_id: MegaId,
+    ) -> LxTask<()> {
+        const SPAN_NAME: &str = "(notify-user-finished)";
+        LxTask::spawn_with_span(
+            SPAN_NAME,
+            info_span!(SPAN_NAME, %user_pk, %lease_id, %mega_id),
+            async move {
+                let req = UserFinishedRequest {
+                    user_pk,
+                    lease_id,
+                    mega_id,
+                };
+
+                match runner_api.user_finished(&req).await {
+                    Ok(_) => info!(
+                        "Successfully notified megarunner of user shutdown"
+                    ),
+                    Err(e) => error!(
+                        "Couldn't notify megarunner of user shutdown: {e:#}"
+                    ),
+                }
+            },
+        )
     }
 }
