@@ -1288,11 +1288,11 @@ mod arbitrary_impl {
 #[cfg(test)]
 mod test {
     use std::{
+        collections::{BTreeMap, BTreeSet},
         fs, iter,
         path::Path,
         process::{Command, Stdio},
         str::FromStr,
-        collections::HashSet,
     };
 
     use bdk_chain::{BlockId, ConfirmationBlockTime};
@@ -1402,6 +1402,41 @@ mod test {
             );
             onchain_send
         }
+
+        /// Assert that building an incremental sync request on the current
+        /// wallet state returns the expected set of spks and their associated
+        /// expected canonical txids.
+        #[track_caller]
+        fn assert_sync(
+            &self,
+            mut expected: BTreeMap<bitcoin::ScriptBuf, BTreeSet<Txid>>,
+        ) {
+            let mut sync_req = self.wallet.build_sync_request_at(self.now());
+
+            let actual = sync_req
+                .iter_spks_with_expected_txids()
+                .map(|spk_txids| {
+                    (
+                        spk_txids.spk,
+                        BTreeSet::from_iter(spk_txids.expected_txids),
+                    )
+                })
+                .collect::<BTreeMap<_, _>>();
+
+            expected.extend(self.wr().next_unrevealed_spks());
+
+            if actual != expected {
+                println!("Actual:");
+                for (spk, txids) in &actual {
+                    println!("  {spk:?} => {txids:#?}");
+                }
+                println!("\nExpected:");
+                for (spk, txids) in &expected {
+                    println!("  {spk:?} => {txids:#?}");
+                }
+                panic!("SyncRequest did not return expected spks");
+            }
+        }
     }
 
     /// An extension trait on the (locked) BDK `Wallet` to make writing wallet
@@ -1417,7 +1452,7 @@ mod test {
             &mut self,
             keychain: KeychainKind,
             amount: Amount,
-        ) -> (Transaction, AddressInfo, HashSet<bitcoin::ScriptBuf>);
+        ) -> (Transaction, AddressInfo, bitcoin::ScriptBuf);
 
         /// Fund the wallet with the given amount, but leave the funding tx
         /// unconfirmed.
@@ -1425,7 +1460,7 @@ mod test {
             &mut self,
             keychain: KeychainKind,
             amount: Amount,
-        ) -> (Transaction, AddressInfo, HashSet<bitcoin::ScriptBuf>);
+        ) -> (Transaction, AddressInfo, bitcoin::ScriptBuf);
 
         /// Confirm the given txids in the next block, then add enough blocks to
         /// give them X confirmations.
@@ -1437,7 +1472,9 @@ mod test {
         fn add_checkpoint(&mut self, blocks: u32) -> ConfirmationBlockTime;
 
         /// Return the next unrevealed internal and external spks.
-        fn next_unrevealed_spks(&self) -> HashSet<bitcoin::ScriptBuf>;
+        fn next_unrevealed_spks(
+            &self,
+        ) -> BTreeMap<bitcoin::ScriptBuf, BTreeSet<Txid>>;
     }
 
     impl WalletExt for Wallet {
@@ -1453,7 +1490,7 @@ mod test {
             &mut self,
             keychain: KeychainKind,
             amount: Amount,
-        ) -> (Transaction, AddressInfo, HashSet<bitcoin::ScriptBuf>) {
+        ) -> (Transaction, AddressInfo, bitcoin::ScriptBuf) {
             let (tx, address_info, spks) =
                 self.fund_unconfirmed(keychain, amount);
             self.confirm_txids(CONFS_TO_FINALIZE, &[tx.compute_txid()]);
@@ -1464,7 +1501,7 @@ mod test {
             &mut self,
             keychain: KeychainKind,
             amount: Amount,
-        ) -> (Transaction, AddressInfo, HashSet<bitcoin::ScriptBuf>) {
+        ) -> (Transaction, AddressInfo, bitcoin::ScriptBuf) {
             // build tx and register it
             let address_info = self.next_unused_address(keychain);
             let spk = address_info.script_pubkey();
@@ -1476,7 +1513,7 @@ mod test {
                 ..new_tx()
             };
             self.add_unconfirmed_tx(&tx);
-            (tx, address_info, HashSet::from_iter(iter::once(spk)))
+            (tx, address_info, spk)
         }
 
         fn add_checkpoint(&mut self, blocks: u32) -> ConfirmationBlockTime {
@@ -1515,7 +1552,9 @@ mod test {
             self.add_checkpoint(confs - 1);
         }
 
-        fn next_unrevealed_spks(&self) -> HashSet<bitcoin::ScriptBuf> {
+        fn next_unrevealed_spks(
+            &self,
+        ) -> BTreeMap<bitcoin::ScriptBuf, BTreeSet<Txid>> {
             let keychains = self.spk_index();
             let keychain = KeychainKind::External;
             let next_external = keychains
@@ -1526,7 +1565,8 @@ mod test {
                 .and_then(|(index, _)| {
                     keychains.spk_at_index(KeychainKind::Internal, index)
                 });
-            next_external.into_iter().chain(next_internal).collect()
+            let next_both = next_external.into_iter().chain(next_internal);
+            next_both.map(|spk| (spk, BTreeSet::new())).collect()
         }
     }
 
@@ -1564,16 +1604,26 @@ mod test {
         }
     }
 
-    trait SyncRequestExt {
-        fn spks(&mut self) -> HashSet<bitcoin::ScriptBuf>;
+    macro_rules! map {
+        ($($key:expr => $value:expr),* $(,)?) => {
+            {
+                #[allow(unused_mut)]
+                let mut map = std::collections::BTreeMap::new();
+                $(map.insert($key.clone(), $value.clone());)*
+                map
+            }
+        };
     }
 
-    impl SyncRequestExt for SyncRequest<(KeychainKind, u32)> {
-        fn spks(&mut self) -> HashSet<bitcoin::ScriptBuf> {
-            self.iter_spks_with_expected_txids()
-                .map(|spk_txids| spk_txids.spk)
-                .collect()
-        }
+    macro_rules! set {
+        ($($key:expr),* $(,)?) => {
+            {
+                #[allow(unused_mut)]
+                let mut map = std::collections::BTreeSet::new();
+                $(map.insert($key.clone());)*
+                map
+            }
+        };
     }
 
     #[test]
@@ -1695,11 +1745,6 @@ mod test {
     }
 
     #[test]
-    fn default_changeset_is_empty() {
-        assert!(ChangeSet::default().is_empty());
-    }
-
-    #[test]
     fn test_evict_unconfirmed_utxo_basic() {
         let h = Harness::new(78798781005005050);
 
@@ -1740,25 +1785,26 @@ mod test {
             .unwrap_err();
     }
 
+    // Test that our incremental sync request correctly handles unconfirmed txs
+    // getting evicted from the mempool.
     #[test]
     fn test_evict_unconfirmed_utxo_sync_request() {
         let h = Harness::new(224357022208);
 
         // Fund w/ 5,656 sats (confirmed)
-        let (txi0, _, spki0) = h.ww().fund(Internal, sat!(5_656));
-        let txidi0 = txi0.compute_txid();
+        let (txi0_1, _, spki0) = h.ww().fund(Internal, sat!(5_656));
+        let txidi0_1 = txi0_1.compute_txid();
         let utxos = h.wallet.get_utxos();
-        let utxoi0 = &utxos[0];
+        let utxoi0_1 = &utxos[0];
         h.assert_spend_ok(5_300);
 
         assert_eq!(utxos.len(), 1);
-        assert_eq!(utxoi0.outpoint.txid, txidi0);
-        assert_eq!(utxoi0.txout, txi0.output[0]);
-        assert!(!utxoi0.is_spent);
+        assert_eq!(utxoi0_1.outpoint.txid, txidi0_1);
+        assert_eq!(utxoi0_1.txout, txi0_1.output[0]);
+        assert!(!utxoi0_1.is_spent);
 
         // check the sync request
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(req.spks(), &spki0 | &h.wr().next_unrevealed_spks());
+        h.assert_sync(map! { spki0 => set! { txidi0_1 } });
 
         // Spend 1,000 sats to an external address (unconfirmed)
         // -> Balance: ~4,375 sats (w/ unconfirmed)
@@ -1767,16 +1813,15 @@ mod test {
         )
         .unwrap();
         let send = h.spend_unconfirmed(address, sat!(1_000));
+        let txidi1_1 = send.txid.0;
         // Change output spk
         let spki1 = h.wr().spk_index().spk_at_index(Internal, 1).unwrap();
-        let spki1 = HashSet::from_iter(iter::once(spki1));
 
         // check the sync request
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(
-            req.spks(),
-            &(&spki0 | &spki1) | &h.wr().next_unrevealed_spks()
-        );
+        h.assert_sync(map! {
+            spki0 => set! { txidi0_1, txidi1_1 },
+            spki1 => set! { txidi1_1 },
+        });
 
         h.assert_spend_err(5_300);
         h.assert_spend_ok(4_000);
@@ -1787,37 +1832,37 @@ mod test {
         h.assert_spend_ok(5_300);
 
         // Our sync should still include the internal spk used by the evicted tx
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(
-            req.spks(),
-            &(&spki0 | &spki1) | &h.wr().next_unrevealed_spks()
-        );
+        // but we don't expect the evicted txid anymore.
+        h.assert_sync(map! {
+            spki0 => set! { txidi0_1 },
+            spki1 => set! { },
+        });
 
         h.wallet.transaction_broadcasted_at(h.now(), send.tx);
     }
 
+    // Test that we build the expected incremental sync request in various
+    // scenarios.
     #[test]
     fn test_build_sync_request() {
         let h = Harness::new(2869818889840);
 
         // Empty wallet should build SyncRequest with just first unrevealed
         // external/internal spks.
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(req.spks(), h.wr().next_unrevealed_spks());
+        h.assert_sync(map! {});
 
         trace!("== unconfirmed fund ===");
 
         // Fund the wallet with 1,000 sats (unconfirmed, internal)
         let (txi0, ai0, spki0) = h.ww().fund_unconfirmed(Internal, sat!(1_000));
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(req.spks(), &spki0 | &h.wr().next_unrevealed_spks());
+        let txidi0_1 = txi0.compute_txid();
+        h.assert_sync(map! { spki0 => set! { txidi0_1 } });
 
         trace!("=== finalize fund ===");
 
         // Confirm tx. Should still sync spk i0 since it's unspent.
         h.ww().confirm_txids(6, &[txi0.compute_txid()]);
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(req.spks(), &spki0 | &h.wr().next_unrevealed_spks());
+        h.assert_sync(map! { spki0 => set! { txidi0_1 } });
 
         // Spend the 1,000 sats to some third party address (unconfirmed).
         let address3p = bitcoin::Address::from_str(
@@ -1829,23 +1874,21 @@ mod test {
         trace!("=== unconfirmed spend ===");
 
         // Still sync spk i0 since the spend is unconfirmed
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(req.spks(), &spki0 | &h.wr().next_unrevealed_spks());
+        let txidi0_2 = send.txid.0;
+        h.assert_sync(map! { spki0 => set! { txidi0_1, txidi0_2 } });
 
         trace!("=== confirm spend ===");
 
         // Confirm the send tx but not enough to finalize. Should still sync
         // spk i0.
         h.ww().confirm_txids(5, &[send.txid.0]);
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(req.spks(), &spki0 | &h.wr().next_unrevealed_spks());
+        h.assert_sync(map! { spki0 => set! { txidi0_1, txidi0_2 } });
 
         trace!("=== finalize spend ===");
 
         // Confirm enough to finalize. No longer sync spk i0.
         h.ww().add_checkpoint(1);
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(req.spks(), h.wr().next_unrevealed_spks());
+        h.assert_sync(map! {});
 
         trace!("=== somehow fund spki0 again ===");
 
@@ -1858,9 +1901,9 @@ mod test {
             }],
             ..new_tx()
         };
+        let txidi0_3 = tx.compute_txid();
         h.wallet.transaction_broadcasted_at(h.now(), tx);
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(req.spks(), &spki0 | &h.wr().next_unrevealed_spks());
+        h.assert_sync(map! { spki0 => set! { txidi0_1, txidi0_2, txidi0_3 } });
 
         trace!("=== immediately spend to external ===");
 
@@ -1868,66 +1911,61 @@ mod test {
         // the spend is unconfirmed.
         let ae0 = h.ww().next_unused_address(External);
         let addresse0 = ae0.address.clone().into_unchecked();
-        let spke0 =
-            HashSet::<bitcoin::ScriptBuf>::from_iter(vec![ae0.script_pubkey()]);
+        let spke0 = ae0.script_pubkey();
         let send = h.spend_unconfirmed(addresse0, sat!(1_000));
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(
-            req.spks(),
-            &(&spki0 | &spke0) | &h.wr().next_unrevealed_spks()
-        );
+        let txide0_1 = send.txid.0;
+        h.assert_sync(map! {
+            spki0 => set! { txidi0_1, txidi0_2, txidi0_3, txide0_1 },
+            spke0 => set! { txide0_1 },
+        });
 
         trace!("=== confirm spend ===");
 
         // Confirm the send tx but not enough to finalize. Should still sync
         // spk i0.
         h.ww().confirm_txids(5, &[send.txid.0]);
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(
-            req.spks(),
-            &(&spki0 | &spke0) | &h.wr().next_unrevealed_spks()
-        );
+        h.assert_sync(map! {
+            spki0 => set! { txidi0_1, txidi0_2, txidi0_3, txide0_1 },
+            spke0 => set! { txide0_1 },
+        });
 
         trace!("=== finalize spend ===");
 
         // Confirm enough to finalize. No longer sync spk i0. spk e0 will
         // continue to sync forever since it's an external spk.
         h.ww().add_checkpoint(1);
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(req.spks(), &spke0 | &h.wr().next_unrevealed_spks());
+        h.assert_sync(map! { spke0 => set! { txide0_1 } });
 
         trace!("=== spend external ===");
 
         // Spend the external address to some third party address. Syncs
         // should always include the external spk.
         let send = h.spend_unconfirmed(address3p, sat!(775));
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(req.spks(), &spke0 | &h.wr().next_unrevealed_spks());
+        let txide0_2 = send.txid.0;
+        h.assert_sync(map! { spke0 => set! { txide0_1, txide0_2 } });
 
         h.ww().confirm_txids(5, &[send.txid.0]);
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(req.spks(), &spke0 | &h.wr().next_unrevealed_spks());
+        h.assert_sync(map! { spke0 => set! { txide0_1, txide0_2 } });
 
         h.ww().add_checkpoint(5);
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(req.spks(), &spke0 | &h.wr().next_unrevealed_spks());
+        h.assert_sync(map! { spke0 => set! { txide0_1, txide0_2 } });
 
         trace!("=== spend to self internal ===");
 
         // Fund spki1
         let (txi1, ai1, spki1) = h.ww().fund(Internal, sat!(1_000));
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(
-            req.spks(),
-            &(&spki1 | &spke0) | &h.wr().next_unrevealed_spks()
-        );
+        let txidi1_1 = txi1.compute_txid();
+        h.assert_sync(map! {
+            spke0 => set! { txide0_1, txide0_2 },
+            spki1 => set! { txidi1_1 },
+        });
 
         // Not sure how we would spend back to a used internal spk, but at least
         // it won't break sync.
         let txi1_self = Transaction {
             input: vec![bitcoin::TxIn {
                 previous_output: bitcoin::OutPoint {
-                    txid: txi1.compute_txid(),
+                    txid: txidi1_1,
                     vout: 0,
                 },
                 ..Default::default()
@@ -1938,27 +1976,70 @@ mod test {
             }],
             ..new_tx()
         };
-        let txi1_self_txid = txi1_self.compute_txid();
+        let txidi1_2 = txi1_self.compute_txid();
         h.wallet.transaction_broadcasted_at(h.now(), txi1_self);
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(
-            req.spks(),
-            &(&spki1 | &spke0) | &h.wr().next_unrevealed_spks()
-        );
+        h.assert_sync(map! {
+            spke0 => set! { txide0_1, txide0_2 },
+            spki1 => set! { txidi1_1, txidi1_2 },
+        });
 
-        h.ww().confirm_txids(5, &[txi1_self_txid]);
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(
-            req.spks(),
-            &(&spki1 | &spke0) | &h.wr().next_unrevealed_spks()
-        );
+        h.ww().confirm_txids(5, &[txidi1_2]);
+        h.assert_sync(map! {
+            spke0 => set! { txide0_1, txide0_2 },
+            spki1 => set! { txidi1_1, txidi1_2 },
+        });
 
         h.ww().add_checkpoint(1);
-        let mut req = h.wallet.build_sync_request_at(h.now());
-        assert_eq!(
-            req.spks(),
-            &(&spki1 | &spke0) | &h.wr().next_unrevealed_spks()
-        );
+        h.assert_sync(map! {
+            spke0 => set! { txide0_1, txide0_2 },
+            spki1 => set! { txidi1_1, txidi1_2 },
+        });
+
+        trace!("=== spend to another internal spk ===");
+
+        // Spend to another internal address
+        let spki2 = h.ww().next_unused_address(Internal).script_pubkey();
+        let tx2 = Transaction {
+            input: vec![bitcoin::TxIn {
+                previous_output: bitcoin::OutPoint {
+                    txid: txidi1_2,
+                    vout: 0,
+                },
+                ..Default::default()
+            }],
+            output: vec![TxOut {
+                value: sat!(1_000).into(),
+                script_pubkey: spki2.clone(),
+            }],
+            ..new_tx()
+        };
+        let txidi2_1 = tx2.compute_txid();
+        h.wallet.transaction_broadcasted_at(h.now(), tx2);
+        h.assert_sync(map! {
+            spke0 => set! { txide0_1, txide0_2 },
+            spki1 => set! { txidi1_1, txidi1_2, txidi2_1 },
+            spki2 => set! { txidi2_1 },
+        });
+
+        // Confirm
+        h.ww().confirm_txids(5, &[txidi2_1]);
+        h.assert_sync(map! {
+            spke0 => set! { txide0_1, txide0_2 },
+            spki1 => set! { txidi1_1, txidi1_2, txidi2_1 },
+            spki2 => set! { txidi2_1 },
+        });
+
+        // Finalize -- spki1 should no longer need sync
+        h.ww().add_checkpoint(1);
+        h.assert_sync(map! {
+            spke0 => set! { txide0_1, txide0_2 },
+            spki2 => set! { txidi2_1 },
+        });
+    }
+
+    #[test]
+    fn default_changeset_is_empty() {
+        assert!(ChangeSet::default().is_empty());
     }
 
     #[test]
