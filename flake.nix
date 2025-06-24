@@ -3,7 +3,7 @@
 
   inputs = {
     # NixOS/nixpkgs - nixos-stable branch for the current release
-    nixpkgs.url = "github:nixos/nixpkgs/release-24.11";
+    nixpkgs.url = "github:nixos/nixpkgs/release-25.05";
     # nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
     # library for building rust projects. supports basic incremental cargo
