@@ -77,6 +77,9 @@ pub struct MegaArgs {
     /// The current deploy network passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.
     pub untrusted_network: LxNetwork,
+
+    /// An estimate of the amount of enclave heap consumed by each usernode.
+    pub usernode_memory: u64,
 }
 
 impl EnclaveArgs for MegaArgs {

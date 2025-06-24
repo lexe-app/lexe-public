@@ -251,6 +251,7 @@ mod helpers {
             untrusted_esplora_urls: esplora_urls,
             untrusted_network,
             sgx_heap_size: _,
+            usernode_memory: _,
         } = mega_args;
 
         RunArgs {
