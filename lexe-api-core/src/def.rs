@@ -91,8 +91,9 @@ use crate::{
             ResyncRequest, UpdatePaymentNote,
         },
         runner::{
-            MegaNodeApiUserRunResponse, MegaNodeUserRunRequest,
-            UserFinishedRequest, UserLeaseRenewalRequest,
+            MegaNodeUserEvictionRequest, MegaNodeUserRunRequest,
+            MegaNodeUserRunResponse, UserFinishedRequest,
+            UserLeaseRenewalRequest,
         },
     },
     types::{
@@ -377,11 +378,17 @@ pub trait BearerAuthBackendApi {
 /// contain methods for limited operational and lifecycle management endpoints.
 pub trait LexeMegaApi {
     /// POST /lexe/run_user [`MegaNodeUserRunRequest`]
-    ///                  -> [`MegaNodeApiUserRunResponse`]
+    ///                  -> [`MegaNodeUserRunResponse`]
     async fn run_user(
         &self,
         req: MegaNodeUserRunRequest,
-    ) -> Result<MegaNodeApiUserRunResponse, MegaApiError>;
+    ) -> Result<MegaNodeUserRunResponse, MegaApiError>;
+
+    /// POST /lexe/evict_user [`MegaNodeUserEvictionRequest`] -> [`Empty`]
+    async fn evict_user(
+        &self,
+        req: MegaNodeUserEvictionRequest,
+    ) -> Result<Empty, MegaApiError>;
 
     /// GET /lexe/status [`MegaIdStruct`] -> [`Status`]
     async fn status_mega(

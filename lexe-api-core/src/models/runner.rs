@@ -23,7 +23,7 @@ pub struct MegaNodeUserRunRequest {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct MegaNodeApiUserRunResponse {
+pub struct MegaNodeUserRunResponse {
     pub run_ports: RunPorts,
 }
 
@@ -47,5 +47,14 @@ pub struct UserFinishedRequest {
     /// The ID of the lease to terminate.
     pub lease_id: LeaseId,
     /// Sanity check: The meganode issuing the request.
+    pub mega_id: MegaId,
+}
+
+/// A request to evict a usernode within a meganode.
+#[derive(Serialize, Deserialize)]
+pub struct MegaNodeUserEvictionRequest {
+    /// The user to be evicted.
+    pub user_pk: UserPk,
+    /// Sanity check: The meganode to which the request is being sent.
     pub mega_id: MegaId,
 }

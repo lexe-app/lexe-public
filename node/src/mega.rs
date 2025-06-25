@@ -162,6 +162,7 @@ mod mega_server {
     fn mega_router(state: MegaRouterState) -> Router<()> {
         Router::new()
             .route("/lexe/run_user", post(handlers::run_user))
+            .route("/lexe/evict_user", post(handlers::evict_user))
             .route("/lexe/status", get(handlers::status))
             .route("/lexe/shutdown", post(handlers::shutdown))
             .with_state(state)
@@ -177,7 +178,10 @@ mod handlers {
     };
     use lexe_api::{
         error::{MegaApiError, MegaErrorKind},
-        models::runner::{MegaNodeApiUserRunResponse, MegaNodeUserRunRequest},
+        models::runner::{
+            MegaNodeUserEvictionRequest, MegaNodeUserRunRequest,
+            MegaNodeUserRunResponse,
+        },
         server::{extract::LxQuery, LxJson},
         types::Empty,
     };
@@ -189,7 +193,7 @@ mod handlers {
     pub(super) async fn run_user(
         State(state): State<MegaRouterState>,
         LxJson(req): LxJson<MegaNodeUserRunRequest>,
-    ) -> Result<LxJson<MegaNodeApiUserRunResponse>, MegaApiError> {
+    ) -> Result<LxJson<MegaNodeUserRunResponse>, MegaApiError> {
         // Sanity check
         if req.mega_id != state.mega_id {
             return Err(MegaApiError::wrong_mega_id(
@@ -218,7 +222,7 @@ mod handlers {
             ..Default::default()
         })??;
 
-        Ok(LxJson(MegaNodeApiUserRunResponse { run_ports }))
+        Ok(LxJson(MegaNodeUserRunResponse { run_ports }))
     }
 
     pub(super) async fn status(
@@ -243,5 +247,13 @@ mod handlers {
     ) -> LxJson<Empty> {
         state.mega_shutdown.send();
         LxJson(Empty {})
+    }
+
+    pub(super) async fn evict_user(
+        State(_state): State<MegaRouterState>,
+        LxJson(_req): LxJson<MegaNodeUserEvictionRequest>,
+    ) -> Result<LxJson<Empty>, MegaApiError> {
+        // TODO(claude): Implement user eviction logic
+        Ok(LxJson(Empty {}))
     }
 }
