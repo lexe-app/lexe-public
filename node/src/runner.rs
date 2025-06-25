@@ -4,7 +4,7 @@ use common::{api::user::UserPk, cli::node::MegaArgs, time::TimestampMs};
 use futures::{stream::FuturesUnordered, StreamExt};
 use lexe_api::{
     error::MegaApiError,
-    models::runner::MegaNodeUserRunRequest,
+    models::runner::{MegaNodeUserEvictionRequest, MegaNodeUserRunRequest},
     types::{ports::RunPorts, LeaseId},
 };
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
@@ -19,12 +19,30 @@ use crate::context::MegaContext;
 
 // TODO(max): Add inactivity timers for meganode, usernode
 
+/// Indicates a usernode has shutdown (or been evicted).
+pub(crate) struct UserShutdown;
+
+pub(crate) enum RunnerCommand {
+    UserRunRequest(UserRunnerUserRunRequest),
+    UserEvictionRequest(UserRunnerUserEvictionRequest),
+}
+
 /// A [`MegaNodeUserRunRequest`] but includes a waiter with which to respond.
 pub(crate) struct UserRunnerUserRunRequest {
     pub inner: MegaNodeUserRunRequest,
 
     /// A channel with which to respond to the server API handler.
     pub user_ready_waiter: oneshot::Sender<Result<RunPorts, MegaApiError>>,
+}
+
+/// A [`MegaNodeUserEvictionRequest`] but includes a waiter with which to
+/// respond.
+pub(crate) struct UserRunnerUserEvictionRequest {
+    pub inner: MegaNodeUserEvictionRequest,
+
+    /// A channel with which to respond to the server API handler.
+    pub user_shutdown_waiter:
+        oneshot::Sender<Result<UserShutdown, MegaApiError>>,
 }
 
 /// Runs user nodes upon request.
@@ -35,7 +53,7 @@ pub(crate) struct UserRunner {
 
     mega_shutdown: NotifyOnce,
 
-    runner_rx: mpsc::Receiver<UserRunnerUserRunRequest>,
+    runner_rx: mpsc::Receiver<RunnerCommand>,
 
     eph_tasks_tx: mpsc::Sender<LxTask<()>>,
 
@@ -51,6 +69,18 @@ struct UserHandle {
     user_ready_waiter_tx:
         mpsc::Sender<oneshot::Sender<Result<RunPorts, MegaApiError>>>,
     user_shutdown: NotifyOnce,
+    /// User shutdown waiters to be notified once the UserHandle is dropped.
+    user_shutdown_waiters:
+        Vec<oneshot::Sender<Result<UserShutdown, MegaApiError>>>,
+}
+
+impl Drop for UserHandle {
+    fn drop(&mut self) {
+        // Notify all shutdown waiters that the user node has shut down.
+        for waiter in self.user_shutdown_waiters.drain(..) {
+            let _ = waiter.send(Ok(UserShutdown));
+        }
+    }
 }
 
 impl UserRunner {
@@ -58,7 +88,7 @@ impl UserRunner {
         mega_args: MegaArgs,
         mega_ctxt: MegaContext,
         mega_shutdown: NotifyOnce,
-        runner_rx: mpsc::Receiver<UserRunnerUserRunRequest>,
+        runner_rx: mpsc::Receiver<RunnerCommand>,
         eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     ) -> Self {
         Self {
@@ -84,8 +114,12 @@ impl UserRunner {
     pub async fn run(mut self) {
         loop {
             tokio::select! {
-                Some(run_req) = self.runner_rx.recv() =>
-                    self.handle_user_run_request(run_req),
+                Some(cmd) = self.runner_rx.recv() => match cmd {
+                    RunnerCommand::UserRunRequest(run_req) =>
+                        self.handle_user_run_request(run_req),
+                    RunnerCommand::UserEvictionRequest(evict_req) =>
+                        self.handle_user_eviction_request(evict_req),
+                },
 
                 Some(join_result) = self.user_stream.next() =>
                     self.handle_finished_user_node(join_result),
@@ -148,6 +182,35 @@ impl UserRunner {
         self.evict_usernodes_if_needed();
     }
 
+    fn handle_user_eviction_request(
+        &mut self,
+        evict_req: UserRunnerUserEvictionRequest,
+    ) {
+        let UserRunnerUserEvictionRequest {
+            inner: evict_req,
+            user_shutdown_waiter,
+        } = evict_req;
+
+        let handle = match self.user_nodes.get_mut(&evict_req.user_pk) {
+            Some(h) => h,
+            None => {
+                // If the requested user node is not running, return an error.
+                let _ =
+                    user_shutdown_waiter.send(Err(MegaApiError::unknown_user(
+                        &evict_req.user_pk,
+                        "User not found for eviction",
+                    )));
+                return;
+            }
+        };
+
+        // Send a shutdown signal to the user node.
+        handle.user_shutdown.send();
+
+        // Queue the waiter to be notified once the UserHandle is dropped.
+        handle.user_shutdown_waiters.push(user_shutdown_waiter);
+    }
+
     fn handle_finished_user_node(
         &mut self,
         join_result: Result<(UserPk, LeaseId), JoinError>,
@@ -155,7 +218,12 @@ impl UserRunner {
         let (user_pk, lease_id) = join_result.expect("User node task panicked");
         info!(%user_pk, %lease_id, "User node finished");
 
-        self.user_nodes.remove(&user_pk);
+        // When this handle is dropped, all contained shutdown waiters are
+        // notified that the usernode has been shut down.
+        let _handle = self
+            .user_nodes
+            .remove(&user_pk)
+            .expect("Finished user node should exist in user_nodes");
 
         let was_in_lru = self.user_lru.pop(&user_pk).is_some();
         let was_evicting = self.evicting_users.remove(&user_pk);
@@ -276,6 +344,7 @@ mod helpers {
         let handle = UserHandle {
             user_ready_waiter_tx,
             user_shutdown,
+            user_shutdown_waiters: Vec::new(),
         };
 
         let usernode_span = build_usernode_span(&user_pk);

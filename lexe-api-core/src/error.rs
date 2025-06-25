@@ -777,6 +777,8 @@ api_error_kind! {
         WrongMegaId = 100,
         /// Usernode runner is currently unreachable; try again later
         RunnerUnreachable = 101,
+        /// The requested user is not known to this meganode
+        UnknownUser = 102,
     }
 }
 
@@ -797,6 +799,7 @@ impl ToHttpStatus for MegaErrorKind {
 
             WrongMegaId => CLIENT_400_BAD_REQUEST,
             RunnerUnreachable => SERVER_503_SERVICE_UNAVAILABLE,
+            UnknownUser => CLIENT_404_NOT_FOUND,
         }
     }
 }
@@ -1241,6 +1244,14 @@ impl MegaApiError {
         Self {
             kind,
             msg,
+            ..Default::default()
+        }
+    }
+
+    pub fn unknown_user(user_pk: &UserPk, msg: impl fmt::Display) -> Self {
+        Self {
+            kind: MegaErrorKind::UnknownUser,
+            msg: format!("{user_pk}: {msg}"),
             ..Default::default()
         }
     }
