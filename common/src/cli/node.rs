@@ -84,7 +84,7 @@ pub struct MegaArgs {
 
     /// The # of usernodes that the meganode tries to maintain capacity for.
     /// Users are evicted when remaining memory fits fewer than this amount.
-    pub usernode_buffer_slots: u64,
+    pub usernode_buffer_slots: usize,
 
     /// An estimate of the amount of enclave heap consumed by each usernode.
     pub usernode_memory: u64,

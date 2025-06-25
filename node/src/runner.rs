@@ -239,7 +239,8 @@ impl UserRunner {
     /// Target buffer memory to maintain capacity for additional usernode slots.
     /// Calculated as `usernode_buffer_slots * usernode_memory`.
     fn target_buffer_memory(&self) -> u64 {
-        self.mega_args.usernode_buffer_slots * self.mega_args.usernode_memory
+        self.mega_args.usernode_buffer_slots as u64
+            * self.mega_args.usernode_memory
     }
 }
 
