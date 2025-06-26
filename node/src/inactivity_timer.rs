@@ -7,8 +7,6 @@ use tokio::{
 };
 use tracing::{debug, info, info_span};
 
-// TODO(max): Also count Lightning Network events as activity events
-
 /// A simple actor that keeps track of an inactivity timer held in the stack of
 /// its `start()` fn.
 ///

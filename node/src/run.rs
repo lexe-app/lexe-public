@@ -561,6 +561,7 @@ impl UserNode {
                 htlcs_forwarded_bus: EventsBus::new(),
                 eph_tasks_tx: eph_tasks_tx.clone(),
                 test_event_tx: test_event_tx.clone(),
+                user_activity_tx: user_activity_tx.clone(),
                 shutdown: shutdown.clone(),
             }),
         };

@@ -101,6 +101,7 @@ pub(crate) struct EventCtx {
     pub htlcs_forwarded_bus: EventsBus<HtlcsForwarded>,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     pub test_event_tx: TestEventSender,
+    pub user_activity_tx: mpsc::Sender<()>,
     pub shutdown: NotifyOnce,
 }
 
@@ -343,6 +344,9 @@ async fn do_handle_event(
             claim_deadline: _,
             payment_id,
         } => {
+            // Reset the inactivity timer.
+            let _ = ctx.user_activity_tx.try_send(());
+
             // TODO(phlip9): unwrap once all replaying PaymentClaimable events
             // drain in prod.
             let claim_id = payment_id.map(LnClaimId::from);
