@@ -75,11 +75,7 @@ let
       ];
 
     # build and runtime dependencies
-    buildInputs =
-      # ring crate uses Security.framework rng on apple platforms
-      lib.optionals (!isSgx && stdenvNoCC.isDarwin) [
-        darwin.apple_sdk.frameworks.Security
-      ];
+    buildInputs = [];
 
     # args passed to `cargo build`
     cargoExtraArgs = builtins.concatStringsSep " " (

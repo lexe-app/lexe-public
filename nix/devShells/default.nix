@@ -179,8 +179,5 @@
   sgx = pkgs.mkShell {
     name = "sgx";
     inputsFrom = [lexePubPkgs.node-release-sgx];
-    packages = lib.optionals pkgs.stdenv.isDarwin [
-      pkgs.darwin.apple_sdk.frameworks.Security
-    ];
   };
 }
