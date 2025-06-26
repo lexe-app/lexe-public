@@ -113,7 +113,6 @@ pub struct UserNode {
     fee_estimates: Arc<FeeEstimatorType>,
     tx_broadcaster: Arc<BroadcasterType>,
     gossip_sync: Arc<P2PGossipSyncType>,
-    inactivity_timer: InactivityTimer,
     keys_manager: Arc<LexeKeysManager>,
     logger: LexeTracingLogger,
     network_graph: Arc<NetworkGraphType>,
@@ -129,6 +128,9 @@ pub struct UserNode {
     // This is moved out of self during `run`.
     // TODO(max): Add RunContext if there are more fields
     eph_tasks_rx: mpsc::Receiver<LxTask<()>>,
+    // This is moved out of self during `run`.
+    // TODO(max): Add RunContext if there are more fields
+    user_activity_rx: mpsc::Receiver<()>,
 }
 
 /// Fields which are "moved" out of [`UserNode`] during `sync`.
@@ -183,7 +185,8 @@ impl UserNode {
         let user_pk = args.user_pk;
 
         // Init channels
-        let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
+        let (user_activity_tx, user_activity_rx) =
+            mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (gdrive_persister_tx, gdrive_persister_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (channel_monitor_persister_tx, channel_monitor_persister_rx) =
@@ -620,7 +623,7 @@ impl UserNode {
             eph_ca_cert_der: eph_ca_cert_der.clone(),
             rev_ca_cert: rev_ca_cert.clone(),
             revocable_clients: revocable_clients.clone(),
-            activity_tx,
+            user_activity_tx,
             channel_events_bus,
             eph_tasks_tx: eph_tasks_tx.clone(),
         });
@@ -797,14 +800,6 @@ impl UserNode {
         // Ensure channels are using the most up-to-date config.
         channel_manager.check_channel_configs(&config);
 
-        // Construct (but don't start) the inactivity timer
-        let inactivity_timer = InactivityTimer::new(
-            args.shutdown_after_sync,
-            args.inactivity_timer_sec,
-            activity_rx,
-            shutdown.clone(),
-        );
-
         let elapsed = init_start.elapsed().as_millis();
         info!("Node initialization complete. <{elapsed}ms>");
 
@@ -826,7 +821,6 @@ impl UserNode {
             fee_estimates,
             tx_broadcaster,
             gossip_sync,
-            inactivity_timer,
             keys_manager,
             logger,
             network_graph,
@@ -848,6 +842,7 @@ impl UserNode {
                 user_ready_waiter_rx: user_ctxt.user_ready_waiter_rx,
             }),
             eph_tasks_rx,
+            user_activity_rx,
         })
     }
 
@@ -956,19 +951,18 @@ impl UserNode {
         info!("Running...");
         assert!(self.sync.is_none(), "Must sync before run");
 
-        // Sync is complete; start the inactivity timer.
-        debug!("Starting inactivity timer");
-        let inactivity_timer_task = {
-            const SPAN_NAME: &str = "(inactivity-timer)";
-            LxTask::spawn_with_span(
-                SPAN_NAME,
-                info_span!(SPAN_NAME),
-                async move {
-                    self.inactivity_timer.start().await;
-                },
-            )
-        };
-        self.static_tasks.push(inactivity_timer_task);
+        // Sync complete. Trigger a shutdown if we were asked to shut down after
+        // sync. Otherwise, start the inactivity timer.
+        if self.args.shutdown_after_sync {
+            self.shutdown.send();
+        } else {
+            let inactivity_timer = InactivityTimer::new(
+                self.args.inactivity_timer_sec,
+                self.user_activity_rx,
+                self.shutdown.clone(),
+            );
+            self.static_tasks.push(inactivity_timer.spawn_into_task());
+        }
 
         // --- Run --- //
 

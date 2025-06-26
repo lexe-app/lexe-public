@@ -102,9 +102,7 @@ pub struct RunArgs {
     pub user_pk: UserPk,
 
     /// whether the node should shut down after completing sync and other
-    /// maintenance tasks. This only applies if no activity was detected prior
-    /// to the completion of sync (which is usually what happens). Useful when
-    /// starting nodes for maintenance purposes.
+    /// maintenance tasks. Can be used to start nodes for maintenance purposes.
     pub shutdown_after_sync: bool,
 
     /// How long the usernode stays online (in seconds) without any activity

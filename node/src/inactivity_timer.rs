@@ -1,16 +1,14 @@
 use std::time::Duration;
 
-use lexe_tokio::notify_once::NotifyOnce;
+use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use tokio::{
-    sync::{mpsc, mpsc::error::TryRecvError},
+    sync::mpsc,
     time::{self, Instant},
 };
-use tracing::{debug, info, trace};
-
-// TODO(max): Rewrite as a `fn spawn_inactivity_timer() -> LxTask<()>` which is
-// a lot more concise.
+use tracing::{debug, info, info_span};
 
 // TODO(max): Also count Lightning Network events as activity events
+
 /// A simple actor that keeps track of an inactivity timer held in the stack of
 /// its `start()` fn.
 ///
@@ -20,9 +18,6 @@ use tracing::{debug, info, trace};
 /// - If the timer reaches 0, a shutdown signal is sent via `shutdown`.
 /// - If a shutdown signal is received, the actor shuts down.
 pub struct InactivityTimer {
-    /// Whether to signal a shutdown if no activity was detected at the
-    /// beginning of `start()`
-    shutdown_after_sync: bool,
     /// The duration that the inactivity timer will reset to whenever it
     /// receives an activity event.
     duration: Duration,
@@ -34,40 +29,27 @@ pub struct InactivityTimer {
 
 impl InactivityTimer {
     pub fn new(
-        shutdown_after_sync: bool,
         inactivity_timer_sec: u64,
         activity_rx: mpsc::Receiver<()>,
         shutdown: NotifyOnce,
     ) -> Self {
         let duration = Duration::from_secs(inactivity_timer_sec);
         Self {
-            shutdown_after_sync,
             duration,
             activity_rx,
             shutdown,
         }
     }
 
-    /// Starts the inactivity timer.
-    pub async fn start(&mut self) {
-        if self.shutdown_after_sync {
-            match self.activity_rx.try_recv() {
-                Ok(()) => {
-                    trace!("Activity detected, starting shutdown timer");
-                }
-                Err(TryRecvError::Empty) => {
-                    info!("No activity detected, initiating shutdown");
-                    self.shutdown.send();
-                    return;
-                }
-                Err(TryRecvError::Disconnected) => {
-                    info!("Timer channel disconnected, initiating shutdown");
-                    self.shutdown.send();
-                    return;
-                }
-            }
-        }
+    pub fn spawn_into_task(self) -> LxTask<()> {
+        const SPAN_NAME: &str = "(inactivity-timer)";
+        LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), async move {
+            self.run().await
+        })
+    }
 
+    /// Starts the inactivity timer.
+    pub async fn run(mut self) {
         // Initiate timer
         let timer = time::sleep(self.duration);
 
@@ -84,9 +66,7 @@ impl InactivityTimer {
                 activity_opt = self.activity_rx.recv() => {
                     match activity_opt {
                         Some(()) => {
-                            debug!(
-                                "Received activity event, resetting"
-                            );
+                            debug!("Received activity event");
                             timer.as_mut().reset(Instant::now() + self.duration);
                         }
                         None => {
@@ -95,10 +75,7 @@ impl InactivityTimer {
                         },
                     }
                 }
-                () = self.shutdown.recv() => {
-                    info!("Inactivity timer received shutdown signal");
-                    break;
-                }
+                () = self.shutdown.recv() => break,
             }
         }
     }
@@ -112,29 +89,25 @@ mod tests {
 
     use super::*;
 
-    /// A simple struct that holds all the materials required to test the
+    /// A simple struct that holds all the context required to test the
     /// InactivityTimer.
-    struct TestMaterials {
+    struct TestContext {
         actor: InactivityTimer,
         activity_tx: mpsc::Sender<()>,
         shutdown: NotifyOnce,
     }
 
-    fn get_test_materials(
-        shutdown_after_sync: bool,
-        inactivity_timer_sec: u64,
-    ) -> TestMaterials {
+    fn get_test_context(inactivity_timer_sec: u64) -> TestContext {
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let shutdown = NotifyOnce::new();
         let actor_shutdown = shutdown.clone();
         let actor = InactivityTimer::new(
-            shutdown_after_sync,
             inactivity_timer_sec,
             activity_rx,
             actor_shutdown,
         );
 
-        TestMaterials {
+        TestContext {
             actor,
             activity_tx,
             shutdown,
@@ -187,93 +160,68 @@ mod tests {
         test_rt_paused_time().block_on(fut)
     }
 
-    /// Case 1: shutdown_after_sync enabled, no activity
+    /// Case 1: *with* activity only at start
     #[test]
     fn case_1() {
         do_test_paused_time(async {
-            let shutdown_after_sync = true;
             let inactivity_timer_sec = 1;
-            let mut mats =
-                get_test_materials(shutdown_after_sync, inactivity_timer_sec);
-            let actor_fut = mats.actor.start();
+            let ctxt = get_test_context(inactivity_timer_sec);
+            let _ = ctxt.activity_tx.send(()).await;
+            let actor_fut = ctxt.actor.run();
 
-            // Actor should finish instantly
-            bound_finish(actor_fut, mats.shutdown, None, Some(1)).await;
+            // Actor should finish at 1000ms (1 sec)
+            bound_finish(actor_fut, ctxt.shutdown, Some(999), Some(1001)).await;
         });
     }
 
-    /// Case 2: shutdown_after_sync enabled, *with* activity
+    /// Case 2: no activity at all
     #[test]
     fn case_2() {
         do_test_paused_time(async {
-            let shutdown_after_sync = true;
             let inactivity_timer_sec = 1;
-            let mut mats =
-                get_test_materials(shutdown_after_sync, inactivity_timer_sec);
-            let _ = mats.activity_tx.send(()).await;
-            let actor_fut = mats.actor.start();
+            let ctxt = get_test_context(inactivity_timer_sec);
+            let actor_fut = ctxt.actor.run();
 
-            // Actor should finish at 1000ms (1 sec)
-            bound_finish(actor_fut, mats.shutdown, Some(999), Some(1001)).await;
+            // Actor should finish at about 1000ms (1 sec)
+            bound_finish(actor_fut, ctxt.shutdown, Some(999), Some(1001)).await;
         });
     }
 
-    /// Case 3: shutdown_after_sync not enabled, no activity
+    /// Case 3: *with* activity 500ms in
     #[test]
     fn case_3() {
         do_test_paused_time(async {
-            let shutdown_after_sync = false;
             let inactivity_timer_sec = 1;
-            let mut mats =
-                get_test_materials(shutdown_after_sync, inactivity_timer_sec);
-            let actor_fut = mats.actor.start();
-
-            // Actor should finish at about 1000ms (1 sec)
-            bound_finish(actor_fut, mats.shutdown, Some(999), Some(1001)).await;
-        });
-    }
-
-    /// Case 4: shutdown_after_sync not enabled, *with* activity; i.e. the
-    /// inactivity timer resets
-    #[test]
-    fn case_4() {
-        do_test_paused_time(async {
-            let shutdown_after_sync = false;
-            let inactivity_timer_sec = 1;
-            let mut mats =
-                get_test_materials(shutdown_after_sync, inactivity_timer_sec);
-            let actor_fut = mats.actor.start();
+            let ctxt = get_test_context(inactivity_timer_sec);
+            let actor_fut = ctxt.actor.run();
 
             // Spawn a task to generate an activity event 500ms in
-            let activity_tx = mats.activity_tx.clone();
+            let activity_tx = ctxt.activity_tx.clone();
             let activity_task = LxTask::spawn_unnamed(async move {
                 time::sleep(Duration::from_millis(500)).await;
                 let _ = activity_tx.send(()).await;
             });
 
             // Actor should finish at about 1500ms
-            bound_finish(actor_fut, mats.shutdown, Some(1499), Some(1501))
+            bound_finish(actor_fut, ctxt.shutdown, Some(1499), Some(1501))
                 .await;
             activity_task.await.unwrap();
         });
     }
 
-    /// Case 5: shutdown_after_sync not enabled, *with* activity, *with*
-    /// shutdown signal. The shutdown signal should take precedence over the
-    /// activity timer
+    /// Case 4: *with* activity, *with* shutdown signal.
+    /// The shutdown signal should take precedence over the activity timer
     #[test]
-    fn case_5() {
+    fn case_4() {
         do_test_paused_time(async {
-            let shutdown_after_sync = false;
             let inactivity_timer_sec = 1;
-            let mut mats =
-                get_test_materials(shutdown_after_sync, inactivity_timer_sec);
-            let actor_fut = mats.actor.start();
+            let ctxt = get_test_context(inactivity_timer_sec);
+            let actor_fut = ctxt.actor.run();
 
             // Spawn a task to generate an activity event 500ms in and a
             // shutdown signal 750ms in
-            let activity_tx = mats.activity_tx.clone();
-            let shutdown = mats.shutdown.clone();
+            let activity_tx = ctxt.activity_tx.clone();
+            let shutdown = ctxt.shutdown.clone();
             let activity_task = LxTask::spawn_unnamed(async move {
                 time::sleep(Duration::from_millis(500)).await;
                 let _ = activity_tx.send(()).await;
@@ -282,7 +230,7 @@ mod tests {
             });
 
             // Actor should finish at about 750ms despite receiving activity
-            bound_finish(actor_fut, mats.shutdown, Some(749), Some(751)).await;
+            bound_finish(actor_fut, ctxt.shutdown, Some(749), Some(751)).await;
             activity_task.await.unwrap();
         });
     }

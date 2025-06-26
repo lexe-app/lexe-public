@@ -85,7 +85,7 @@ pub(crate) struct AppRouterState {
     pub eph_ca_cert_der: Arc<LxCertificateDer>,
     pub rev_ca_cert: Arc<RevocableIssuingCaCert>,
     pub revocable_clients: Arc<RwLock<RevocableClients>>,
-    pub activity_tx: mpsc::Sender<()>,
+    pub user_activity_tx: mpsc::Sender<()>,
     pub channel_events_bus: EventsBus<ChannelEvent>,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
 }
@@ -101,7 +101,7 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
     let last_activity_callback = Arc::new(Mutex::new(Instant::now()));
 
     let user_pk = state.user_pk;
-    let activity_tx = state.activity_tx.clone();
+    let user_activity_tx = state.user_activity_tx.clone();
     let runner_api = state.runner_api.clone();
     let eph_tasks_tx = state.eph_tasks_tx.clone();
 
@@ -136,16 +136,17 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
         // Send an activity event and notify the runner anytime /app is hit
         .layer(MapRequestLayer::new(move |request| {
             debug!("Sending activity event");
-            let _ = activity_tx.try_send(());
+            // Reset the inactivity timer.
+            let _ = user_activity_tx.try_send(());
 
+            // Notify the megarunner.
             let mut locked_instant = last_activity_callback.lock().unwrap();
-
             if locked_instant.elapsed() > MIN_ACTIVITY_CALLBACK_INTERVAL {
-                info!("Notifying runner of user activity");
-
                 *locked_instant = Instant::now();
 
-                const SPAN_NAME: &str = "(runner-activity-notif)";
+                info!("Notifying megarunner of user activity");
+
+                const SPAN_NAME: &str = "(megarunner-activity-notif)";
                 let task = LxTask::spawn_with_span(
                     SPAN_NAME,
                     info_span!(SPAN_NAME),
