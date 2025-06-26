@@ -190,8 +190,8 @@ mod handlers {
     use lexe_api::{
         error::{MegaApiError, MegaErrorKind},
         models::runner::{
-            MegaNodeUserEvictRequest, MegaNodeUserRunRequest,
-            MegaNodeUserRunResponse,
+            MegaNodeApiUserRunRequest, MegaNodeApiUserRunResponse,
+            MegaNodeApiUserEvictRequest,
         },
         server::{extract::LxQuery, LxJson},
         types::Empty,
@@ -200,13 +200,13 @@ mod handlers {
 
     use super::mega_server::MegaRouterState;
     use crate::runner::{
-        MegaRunnerUserEvictRequest, RunnerCommand, UserRunnerUserRunRequest,
+        RunnerCommand, UserRunnerUserEvictRequest, UserRunnerUserRunRequest,
     };
 
     pub(super) async fn run_user(
         State(state): State<MegaRouterState>,
-        LxJson(req): LxJson<MegaNodeUserRunRequest>,
-    ) -> Result<LxJson<MegaNodeUserRunResponse>, MegaApiError> {
+        LxJson(req): LxJson<MegaNodeApiUserRunRequest>,
+    ) -> Result<LxJson<MegaNodeApiUserRunResponse>, MegaApiError> {
         // Sanity check
         if req.mega_id != state.mega_id {
             return Err(MegaApiError::wrong_mega_id(
@@ -233,7 +233,7 @@ mod handlers {
             ..Default::default()
         })??;
 
-        Ok(LxJson(MegaNodeUserRunResponse { run_ports }))
+        Ok(LxJson(MegaNodeApiUserRunResponse { run_ports }))
     }
 
     pub(super) async fn status(
@@ -262,7 +262,7 @@ mod handlers {
 
     pub(super) async fn evict_user(
         State(state): State<MegaRouterState>,
-        LxJson(req): LxJson<MegaNodeUserEvictRequest>,
+        LxJson(req): LxJson<MegaNodeApiUserEvictRequest>,
     ) -> Result<LxJson<Empty>, MegaApiError> {
         // Sanity check
         if req.mega_id != state.mega_id {
@@ -273,7 +273,7 @@ mod handlers {
         }
 
         let (user_shutdown_tx, user_shutdown_rx) = oneshot::channel();
-        let req_with_tx = MegaRunnerUserEvictRequest {
+        let req_with_tx = UserRunnerUserEvictRequest {
             inner: req,
             user_shutdown_waiter: user_shutdown_tx,
         };

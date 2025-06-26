@@ -8,7 +8,7 @@ use crate::types::{ports::RunPorts, LeaseId};
 
 /// A request sent to a meganode API server to run a usernode within a meganode.
 #[derive(Serialize, Deserialize)]
-pub struct MegaNodeUserRunRequest {
+pub struct MegaNodeApiUserRunRequest {
     /// The user to run.
     pub user_pk: UserPk,
 
@@ -23,7 +23,7 @@ pub struct MegaNodeUserRunRequest {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct MegaNodeUserRunResponse {
+pub struct MegaNodeApiUserRunResponse {
     pub run_ports: RunPorts,
 }
 
@@ -52,7 +52,7 @@ pub struct UserFinishedRequest {
 
 /// A request to evict a usernode within a meganode.
 #[derive(Serialize, Deserialize)]
-pub struct MegaNodeUserEvictRequest {
+pub struct MegaNodeApiUserEvictRequest {
     /// The user to be evicted.
     pub user_pk: UserPk,
     /// Sanity check: The meganode to which the request is being sent.

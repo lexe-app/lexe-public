@@ -4,7 +4,7 @@ use common::{api::user::UserPk, cli::node::MegaArgs, time::TimestampMs};
 use futures::{stream::FuturesUnordered, StreamExt};
 use lexe_api::{
     error::MegaApiError,
-    models::runner::{MegaNodeUserEvictRequest, MegaNodeUserRunRequest},
+    models::runner::{MegaNodeApiUserRunRequest, MegaNodeApiUserEvictRequest},
     types::{ports::RunPorts, LeaseId},
 };
 use lexe_tokio::{
@@ -26,21 +26,21 @@ pub(crate) struct UserShutdown;
 
 pub(crate) enum RunnerCommand {
     UserRunRequest(UserRunnerUserRunRequest),
-    UserEvictRequest(MegaRunnerUserEvictRequest),
+    UserEvictRequest(UserRunnerUserEvictRequest),
 }
 
-/// A [`MegaNodeUserRunRequest`] but includes a waiter with which to respond.
+/// A [`MegaNodeApiUserRunRequest`] but includes a waiter with which to respond.
 pub(crate) struct UserRunnerUserRunRequest {
-    pub inner: MegaNodeUserRunRequest,
+    pub inner: MegaNodeApiUserRunRequest,
 
     /// A channel with which to respond to the server API handler.
     pub user_ready_waiter: oneshot::Sender<Result<RunPorts, MegaApiError>>,
 }
 
-/// A [`MegaNodeUserEvictRequest`] but includes a waiter with which to
+/// A [`MegaNodeApiUserEvictRequest`] but includes a waiter with which to
 /// respond.
-pub(crate) struct MegaRunnerUserEvictRequest {
-    pub inner: MegaNodeUserEvictRequest,
+pub(crate) struct UserRunnerUserEvictRequest {
+    pub inner: MegaNodeApiUserEvictRequest,
 
     /// A channel with which to respond to the server API handler.
     pub user_shutdown_waiter:
@@ -146,6 +146,7 @@ impl UserRunner {
         let user_pk = run_req.user_pk;
 
         // If the user is running, just pass the waiter to the node and return.
+        // TODO(max): Should we return error if the lease_id is different?
         if let Some(user_handle) = self.user_nodes.get(&user_pk) {
             let _ =
                 user_handle.user_ready_waiter_tx.try_send(user_ready_waiter);
@@ -198,9 +199,9 @@ impl UserRunner {
 
     fn handle_user_evict_request(
         &mut self,
-        evict_req: MegaRunnerUserEvictRequest,
+        evict_req: UserRunnerUserEvictRequest,
     ) {
-        let MegaRunnerUserEvictRequest {
+        let UserRunnerUserEvictRequest {
             inner: evict_req,
             user_shutdown_waiter,
         } = evict_req;
@@ -348,7 +349,7 @@ mod helpers {
 
     pub(super) fn spawn_user_node(
         mega_args: &MegaArgs,
-        run_req: MegaNodeUserRunRequest,
+        run_req: MegaNodeApiUserRunRequest,
         mega_ctxt: MegaContext,
     ) -> (LxTask<(UserPk, LeaseId)>, UserHandle) {
         let user_pk = run_req.user_pk;
