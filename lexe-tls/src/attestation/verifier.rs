@@ -342,7 +342,7 @@ impl<'a> AttestEvidence<'a> {
             // Need to construct something that impls `std::error::Error`
             // Apparently `anyhow::Error` doesn't implement `std::error::Error`?
             let msg = "leftover unparsed cert data";
-            let io_error = io::Error::new(io::ErrorKind::Other, msg);
+            let io_error = io::Error::other(msg);
             return Err(invalid_cert_error(io_error));
         }
 
@@ -355,13 +355,13 @@ impl<'a> AttestEvidence<'a> {
             .map_err(invalid_cert_error)?
             .ok_or_else(|| {
                 let msg = "no SGX attestation extension";
-                invalid_cert_error(io::Error::new(io::ErrorKind::Other, msg))
+                invalid_cert_error(io::Error::other(msg))
             })?;
 
         let cert_ext = SgxAttestationExtension::from_der_bytes(cert_ext.value)
             .map_err(|e| {
                 let msg = format!("invalid SGX attestation: {e:#}");
-                invalid_cert_error(io::Error::new(io::ErrorKind::Other, msg))
+                invalid_cert_error(io::Error::other(msg))
             })?;
 
         Ok(Self { cert_pk, cert_ext })

@@ -735,7 +735,7 @@ where
     let cltv_expiry = match caller {
         CreateInvoiceCaller::UserNode { .. } =>
             crate::constants::USER_MIN_FINAL_CLTV_EXPIRY_DELTA,
-        CreateInvoiceCaller::Lsp { .. } =>
+        CreateInvoiceCaller::Lsp =>
             crate::constants::LSP_MIN_FINAL_CLTV_EXPIRY_DELTA,
     };
 

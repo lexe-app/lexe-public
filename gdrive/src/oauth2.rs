@@ -713,7 +713,7 @@ mod test {
             Ok(_) => (),
             // We mostly just care that the request worked, since the token
             // we're testing with isn't guaranteed to be configured correctly.
-            Err(Error::TokenExpired { .. })
+            Err(Error::TokenExpired)
             | Err(Error::InsufficientScopes { .. }) => (),
             // The request failed.
             _ => panic!("Validation failed"),

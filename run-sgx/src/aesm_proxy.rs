@@ -3,9 +3,8 @@
 //! service's unix socket.
 
 use std::{
-    error::Error as StdError,
     future::Future,
-    io::{Error as IoError, ErrorKind as IoErrorKind, Result as IoResult},
+    io::{Error as IoError, Result as IoResult},
     os::unix::net::UnixStream as StdUnixStream,
     pin::Pin,
     task::{Context, Poll},
@@ -161,17 +160,8 @@ impl AsyncRead for AesmProxyStream {
         self.just_read = true;
 
         let aesm_sock = self.aesm_sock.as_mut().ok_or_else(|| {
-            io_error_other("Enclave must write a request first before reading")
+            IoError::other("Enclave must write a request first before reading")
         })?;
         Pin::new(aesm_sock).poll_read(cx, buf)
     }
-}
-
-// -- utils -- //
-
-fn io_error_other<E>(error: E) -> IoError
-where
-    E: Into<Box<dyn StdError + Send + Sync>>,
-{
-    IoError::new(IoErrorKind::Other, error.into())
 }

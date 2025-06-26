@@ -17,7 +17,7 @@ const EXPIRATION_BUFFER: Duration = Duration::from_secs(30);
 
 /// A `BearerAuthenticator` (1) stores existing fresh auth tokens and (2)
 /// authenticates and fetches new auth tokens when they expire.
-#[allow(private_interfaces)]
+#[allow(private_interfaces, clippy::large_enum_variant)]
 pub enum BearerAuthenticator {
     Ephemeral { inner: EphemeralBearerAuthenticator },
     Static { inner: StaticBearerAuthenticator },

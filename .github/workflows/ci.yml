@@ -28,7 +28,7 @@ env:
   CARGO_TERM_COLOR: always
   # less wasteful caching w/ non-incremental builds
   CARGO_INCREMENTAL: 0
-  LEXE_RUST_VERSION: 1.82.0
+  LEXE_RUST_VERSION: 1.87.0
   LEXE_RUST_FMT_VERSION: nightly-2024-05-03
   LEXE_CI: 1
 

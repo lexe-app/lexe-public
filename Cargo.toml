@@ -237,19 +237,28 @@ tokio = { version = "=1.36.0", default-features = false }
 [patch.crates-io]
 # NOTE: Make sure to duplicate any changes to the root Cargo.toml.
 
-# Fortanix EDP (rust-sgx) crates.
+# Fortanix EDP (rust-sgx) crates:
 # These patches remain licensed under MPL 2.0.
 # * rust-sgx: hide all fortanixvme crates
 # * ftx-sgx-tools: can build just `ftxsgx-elf2sgxs` on non-x86_64
 # * enclave-runner: allow redirecting enclave standard input/output
 # * enclave-runner: tighten tokio+futures features
-aesm-client = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65c-2024_08_29" }
-async-usercalls = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65c-2024_08_29" }
-dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65c-2024_08_29" }
-enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65c-2024_08_29" }
-sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65c-2024_08_29" }
-sgxs = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65c-2024_08_29" }
-sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-30cfd65c-2024_08_29" }
+# * Fix compile error introduced by the new toolchain (cherry-pick)
+# * lint: silence warnings on rust 1.87.0
+aesm-client = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b77c27f2-2025_06_30" }
+async-usercalls = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b77c27f2-2025_06_30" }
+dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b77c27f2-2025_06_30" }
+enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b77c27f2-2025_06_30" }
+sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b77c27f2-2025_06_30" }
+sgxs = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b77c27f2-2025_06_30" }
+sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b77c27f2-2025_06_30" }
+# aesm-client.path = "../../rust-sgx/intel-sgx/aesm-client"
+# async-usercalls.path = "../../rust-sgx/intel-sgx/async-usercalls"
+# dcap-ql.path = "../../rust-sgx/intel-sgx/dcap-ql"
+# enclave-runner.path = "../../rust-sgx/intel-sgx/enclave-runner"
+# sgx-isa.path = "../../rust-sgx/intel-sgx/sgx-isa"
+# sgxs.path = "../../rust-sgx/intel-sgx/sgxs"
+# sgxs-loaders.path = "../../rust-sgx/intel-sgx/sgxs-loaders"
 
 # * license: Add dual license information
 # * server: Propagate current span across `tokio::spawn`
