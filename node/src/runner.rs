@@ -4,7 +4,7 @@ use common::{api::user::UserPk, cli::node::MegaArgs, time::TimestampMs};
 use futures::{stream::FuturesUnordered, StreamExt};
 use lexe_api::{
     error::MegaApiError,
-    models::runner::{MegaNodeApiUserRunRequest, MegaNodeApiUserEvictRequest},
+    models::runner::{MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest},
     types::{ports::RunPorts, LeaseId},
 };
 use lexe_tokio::{

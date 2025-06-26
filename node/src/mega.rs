@@ -190,8 +190,8 @@ mod handlers {
     use lexe_api::{
         error::{MegaApiError, MegaErrorKind},
         models::runner::{
-            MegaNodeApiUserRunRequest, MegaNodeApiUserRunResponse,
-            MegaNodeApiUserEvictRequest,
+            MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest,
+            MegaNodeApiUserRunResponse,
         },
         server::{extract::LxQuery, LxJson},
         types::Empty,

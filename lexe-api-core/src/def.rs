@@ -91,8 +91,8 @@ use crate::{
             ResyncRequest, UpdatePaymentNote,
         },
         runner::{
-            MegaNodeApiUserRunRequest, MegaNodeApiUserRunResponse,
-            MegaNodeApiUserEvictRequest, UserFinishedRequest,
+            MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest,
+            MegaNodeApiUserRunResponse, UserFinishedRequest,
             UserLeaseRenewalRequest,
         },
     },
