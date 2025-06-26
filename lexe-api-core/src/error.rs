@@ -919,6 +919,10 @@ api_error_kind! {
         ServiceUnavailable = 104,
         /// Requested node failed to boot
         Boot = 106,
+        /// Failed to evict a usernode
+        EvictionFailure = 107,
+        /// The requested user is not known to the runner
+        UnknownUser = 108,
     }
 }
 
@@ -943,6 +947,8 @@ impl ToHttpStatus for RunnerErrorKind {
             TemporarilyUnavailable => CLIENT_409_CONFLICT,
             ServiceUnavailable => SERVER_503_SERVICE_UNAVAILABLE,
             Boot => SERVER_500_INTERNAL_SERVER_ERROR,
+            EvictionFailure => SERVER_500_INTERNAL_SERVER_ERROR,
+            UnknownUser => CLIENT_404_NOT_FOUND,
         }
     }
 }
@@ -1376,6 +1382,14 @@ impl RunnerApiError {
         Self {
             kind,
             msg,
+            ..Default::default()
+        }
+    }
+
+    pub fn unknown_user(user_pk: &UserPk, msg: impl fmt::Display) -> Self {
+        Self {
+            kind: RunnerErrorKind::UnknownUser,
+            msg: format!("{user_pk}: {msg}"),
             ..Default::default()
         }
     }
