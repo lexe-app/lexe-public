@@ -239,9 +239,7 @@
   bitcoind = pkgs.bitcoind;
 
   # Blockstream fork of electrs BTC chain index server, used in integration tests
-  blockstream-electrs = pkgs.callPackage ./blockstream-electrs.nix {
-    inherit (pkgs) bitcoind electrum rocksdb_8_3;
-  };
+  blockstream-electrs = pkgs.blockstream-electrs;
 
   # rust-sgx repo source
   rustSgxCargoSource = let
