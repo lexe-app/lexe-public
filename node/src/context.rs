@@ -6,7 +6,8 @@ use std::{
 use anyhow::{anyhow, ensure, Context};
 use arc_swap::ArcSwap;
 use common::{
-    cli::LspInfo, enclave, env::DeployEnv, ln::network::LxNetwork, rng::Crng,
+    api::user::UserPk, cli::LspInfo, enclave, env::DeployEnv,
+    ln::network::LxNetwork, rng::Crng,
 };
 use lexe_api::{
     def::NodeLspApi,
@@ -23,7 +24,9 @@ use lexe_ln::{
 };
 use lexe_std::Apply;
 use lexe_tls::attestation::NodeMode;
-use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
+use lexe_tokio::{
+    events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
+};
 use lightning::{
     routing::gossip::P2PGossipSync,
     util::{config::UserConfig, ser::ReadableArgs},
@@ -88,6 +91,8 @@ pub(crate) struct MegaContext {
     pub machine_id: enclave::MachineId,
     /// The measurement of the enclave.
     pub measurement: enclave::Measurement,
+    /// Notifies the meganode's runner and inactivity timer of user activity.
+    pub mega_activity_bus: EventsBus<UserPk>,
     /// The Lightning Network graph for routing.
     pub network_graph: Arc<NetworkGraphType>,
     /// The runner API client for user nodes.
@@ -242,6 +247,9 @@ impl MegaContext {
             logger.clone(),
         ));
 
+        // Meganode activity channel
+        let mega_activity_bus = EventsBus::new();
+
         let context = Self {
             backend_api,
             config,
@@ -253,6 +261,7 @@ impl MegaContext {
             lsp_api,
             machine_id,
             measurement,
+            mega_activity_bus,
             network_graph,
             runner_api,
             scorer,

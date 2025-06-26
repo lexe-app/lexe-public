@@ -72,14 +72,13 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, info, info_span, warn};
 
 use crate::{
+    activity::InactivityTimer,
     alias::{ChainMonitorType, OnionMessengerType, PaymentsManagerType},
     api::{BackendApiClient, RunnerApiClient},
     channel_manager::NodeChannelManager,
     context::{MegaContext, UserContext},
     event_handler::{self, NodeEventHandler},
-    gdrive_persister,
-    inactivity_timer::InactivityTimer,
-    p2p,
+    gdrive_persister, p2p,
     peer_manager::NodePeerManager,
     persister::{self, NodePersister},
     server::{self, AppRouterState, LexeRouterState},
@@ -130,7 +129,7 @@ pub struct UserNode {
     eph_tasks_rx: mpsc::Receiver<LxTask<()>>,
     // This is moved out of self during `run`.
     // TODO(max): Add RunContext if there are more fields
-    user_activity_rx: mpsc::Receiver<()>,
+    user_activity_bus: EventsBus<()>,
 }
 
 /// Fields which are "moved" out of [`UserNode`] during `sync`.
@@ -173,6 +172,7 @@ impl UserNode {
             lsp_api,
             machine_id,
             measurement,
+            mega_activity_bus,
             network_graph,
             runner_api,
             scorer,
@@ -185,8 +185,7 @@ impl UserNode {
         let user_pk = args.user_pk;
 
         // Init channels
-        let (user_activity_tx, user_activity_rx) =
-            mpsc::channel(DEFAULT_CHANNEL_SIZE);
+        let user_activity_bus = EventsBus::new();
         let (gdrive_persister_tx, gdrive_persister_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (channel_monitor_persister_tx, channel_monitor_persister_rx) =
@@ -545,8 +544,10 @@ impl UserNode {
         let channel_events_bus = EventsBus::new();
         let event_handler = NodeEventHandler {
             ctx: Arc::new(event_handler::EventCtx {
+                user_pk,
                 lsp: args.lsp.clone(),
                 lsp_api: lsp_api.clone(),
+                runner_api: runner_api.clone(),
                 persister: persister.clone(),
                 fee_estimates: fee_estimates.clone(),
                 tx_broadcaster: tx_broadcaster.clone(),
@@ -558,10 +559,11 @@ impl UserNode {
                 payments_manager: payments_manager.clone(),
 
                 channel_events_bus: channel_events_bus.clone(),
-                htlcs_forwarded_bus: EventsBus::new(),
                 eph_tasks_tx: eph_tasks_tx.clone(),
+                htlcs_forwarded_bus: EventsBus::new(),
+                mega_activity_bus: mega_activity_bus.clone(),
+                user_activity_bus: user_activity_bus.clone(),
                 test_event_tx: test_event_tx.clone(),
-                user_activity_tx: user_activity_tx.clone(),
                 shutdown: shutdown.clone(),
             }),
         };
@@ -624,7 +626,8 @@ impl UserNode {
             eph_ca_cert_der: eph_ca_cert_der.clone(),
             rev_ca_cert: rev_ca_cert.clone(),
             revocable_clients: revocable_clients.clone(),
-            user_activity_tx,
+            user_activity_bus: user_activity_bus.clone(),
+            mega_activity_bus: mega_activity_bus.clone(),
             channel_events_bus,
             eph_tasks_tx: eph_tasks_tx.clone(),
         });
@@ -843,7 +846,7 @@ impl UserNode {
                 user_ready_waiter_rx: user_ctxt.user_ready_waiter_rx,
             }),
             eph_tasks_rx,
-            user_activity_rx,
+            user_activity_bus,
         })
     }
 
@@ -959,7 +962,7 @@ impl UserNode {
         } else {
             let inactivity_timer = InactivityTimer::new(
                 self.args.inactivity_timer_sec,
-                self.user_activity_rx,
+                self.user_activity_bus,
                 self.shutdown.clone(),
             );
             self.static_tasks.push(inactivity_timer.spawn_into_task());

@@ -7,13 +7,15 @@ use lexe_api::{
     models::runner::{MegaNodeUserEvictionRequest, MegaNodeUserRunRequest},
     types::{ports::RunPorts, LeaseId},
 };
-use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
+use lexe_tokio::{
+    events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
+};
 use lru::LruCache;
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinError,
 };
-use tracing::{info, info_span};
+use tracing::{debug, info, info_span};
 
 use crate::context::MegaContext;
 
@@ -48,20 +50,17 @@ pub(crate) struct UserRunnerUserEvictionRequest {
 /// Runs user nodes upon request.
 pub(crate) struct UserRunner {
     mega_args: MegaArgs,
-
     mega_ctxt: MegaContext,
-
+    mega_activity_bus: EventsBus<UserPk>,
     mega_shutdown: NotifyOnce,
 
+    eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     runner_rx: mpsc::Receiver<RunnerCommand>,
 
-    eph_tasks_tx: mpsc::Sender<LxTask<()>>,
-
     user_nodes: HashMap<UserPk, UserHandle>,
-    // TODO(max): Need to update timestamps when the node is used.
     user_lru: LruCache<UserPk, TimestampMs>,
+    user_evicting: HashSet<UserPk>,
     user_stream: FuturesUnordered<LxTask<(UserPk, LeaseId)>>,
-    evicting_users: HashSet<UserPk>,
 }
 
 /// A handle to a specific usernode.
@@ -91,16 +90,20 @@ impl UserRunner {
         runner_rx: mpsc::Receiver<RunnerCommand>,
         eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     ) -> Self {
+        let mega_activity_bus = mega_ctxt.mega_activity_bus.clone();
         Self {
             mega_args,
             mega_ctxt,
+            mega_activity_bus,
             mega_shutdown,
-            runner_rx,
+
             eph_tasks_tx,
+            runner_rx,
+
             user_nodes: HashMap::new(),
             user_lru: LruCache::unbounded(),
+            user_evicting: HashSet::new(),
             user_stream: FuturesUnordered::new(),
-            evicting_users: HashSet::new(),
         }
     }
 
@@ -112,6 +115,9 @@ impl UserRunner {
     }
 
     pub async fn run(mut self) {
+        let mega_activity_bus = self.mega_activity_bus.clone();
+        let mut mega_activity_rx = mega_activity_bus.subscribe();
+
         loop {
             tokio::select! {
                 Some(cmd) = self.runner_rx.recv() => match cmd {
@@ -123,6 +129,9 @@ impl UserRunner {
 
                 Some(join_result) = self.user_stream.next() =>
                     self.handle_finished_user_node(join_result),
+
+                user_pk = mega_activity_rx.recv() =>
+                    self.handle_user_activity(user_pk),
 
                 () = self.mega_shutdown.recv() => return,
             }
@@ -182,6 +191,11 @@ impl UserRunner {
         self.evict_usernodes_if_needed();
     }
 
+    fn handle_user_activity(&mut self, user_pk: UserPk) {
+        debug!(%user_pk, "Received user activity, updating LRU");
+        self.usernode_used_now(&user_pk);
+    }
+
     fn handle_user_eviction_request(
         &mut self,
         evict_req: UserRunnerUserEvictionRequest,
@@ -226,7 +240,7 @@ impl UserRunner {
             .expect("Finished user node should exist in user_nodes");
 
         let was_in_lru = self.user_lru.pop(&user_pk).is_some();
-        let was_evicting = self.evicting_users.remove(&user_pk);
+        let was_evicting = self.user_evicting.remove(&user_pk);
         assert!(
             was_in_lru ^ was_evicting,
             "User node should be in LRU or evicting set, but not both",
@@ -269,7 +283,7 @@ impl UserRunner {
             let inactive_secs = lru.absolute_diff(now).as_secs();
             info!(%inactive_secs, "Evicted usernode.");
 
-            self.evicting_users.insert(user_pk);
+            self.user_evicting.insert(user_pk);
 
             // Send a shutdown signal to the user node.
             let usernode = self
@@ -284,6 +298,15 @@ impl UserRunner {
         }
     }
 
+    /// Marks a usernode as the most recently used node and updates its
+    /// `last_used` timestamp.
+    fn usernode_used_now(&mut self, user_pk: &UserPk) {
+        // NOTE: `get_mut` promotes the entry to the head (MRU) of the queue.
+        if let Some(last_used) = self.user_lru.get_mut(user_pk) {
+            *last_used = TimestampMs::now();
+        }
+    }
+
     /// Amount of memory used by currently running user nodes. User nodes are
     /// counted regardless of whether they are booting, running, or evicting.
     fn current_memory(&self) -> u64 {
@@ -293,7 +316,7 @@ impl UserRunner {
     /// Amount of memory usage by currently evicting user nodes.
     /// Is always <= [`Self::current_memory`].
     fn evicting_memory(&self) -> u64 {
-        (self.evicting_users.len() as u64) * self.mega_args.usernode_memory
+        (self.user_evicting.len() as u64) * self.mega_args.usernode_memory
     }
 
     /// Hard memory limit available for usernodes after accounting for overhead.

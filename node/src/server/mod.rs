@@ -47,9 +47,9 @@ use tokio::{
     time::Instant,
 };
 use tower::util::MapRequestLayer;
-use tracing::{debug, info, info_span, warn};
 
 use crate::{
+    activity,
     alias::{ChainMonitorType, PaymentsManagerType},
     api::RunnerApiClient,
     channel_manager::NodeChannelManager,
@@ -85,7 +85,8 @@ pub(crate) struct AppRouterState {
     pub eph_ca_cert_der: Arc<LxCertificateDer>,
     pub rev_ca_cert: Arc<RevocableIssuingCaCert>,
     pub revocable_clients: Arc<RwLock<RevocableClients>>,
-    pub user_activity_tx: mpsc::Sender<()>,
+    pub user_activity_bus: EventsBus<()>,
+    pub mega_activity_bus: EventsBus<UserPk>,
     pub channel_events_bus: EventsBus<ChannelEvent>,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
 }
@@ -94,14 +95,16 @@ pub(crate) struct AppRouterState {
 ///
 /// [`AppNodeRunApi`]: lexe_api::def::AppNodeRunApi
 pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
-    /// The minimum interval between `/node/activity` requests.
-    const MIN_ACTIVITY_CALLBACK_INTERVAL: Duration = Duration::from_secs(60);
+    /// The minimum interval between activity notifications from requests to
+    /// `/app` endpoints. Prevents spamming the megarunner with requests.
+    const MIN_ACTIVITY_NOTIFY_INTERVAL: Duration = Duration::from_secs(60);
 
     // The last time we sent a request to runner `/node/activity`.
     let last_activity_callback = Arc::new(Mutex::new(Instant::now()));
 
     let user_pk = state.user_pk;
-    let user_activity_tx = state.user_activity_tx.clone();
+    let user_activity_bus = state.user_activity_bus.clone();
+    let mega_activity_bus = state.mega_activity_bus.clone();
     let runner_api = state.runner_api.clone();
     let eph_tasks_tx = state.eph_tasks_tx.clone();
 
@@ -135,31 +138,18 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
         .with_state(state)
         // Send an activity event and notify the runner anytime /app is hit
         .layer(MapRequestLayer::new(move |request| {
-            debug!("Sending activity event");
-            // Reset the inactivity timer.
-            let _ = user_activity_tx.try_send(());
-
             // Notify the megarunner.
             let mut locked_instant = last_activity_callback.lock().unwrap();
-            if locked_instant.elapsed() > MIN_ACTIVITY_CALLBACK_INTERVAL {
+            if locked_instant.elapsed() > MIN_ACTIVITY_NOTIFY_INTERVAL {
                 *locked_instant = Instant::now();
 
-                info!("Notifying megarunner of user activity");
-
-                const SPAN_NAME: &str = "(megarunner-activity-notif)";
-                let task = LxTask::spawn_with_span(
-                    SPAN_NAME,
-                    info_span!(SPAN_NAME),
-                    {
-                        let runner_api = runner_api.clone();
-                        async move {
-                            if let Err(e) = runner_api.activity(user_pk).await {
-                                warn!("Couldn't notify runner (active): {e:#}");
-                            }
-                        }
-                    }
+                activity::notify_listeners(
+                    user_pk,
+                    &mega_activity_bus,
+                    &user_activity_bus,
+                    runner_api.clone(),
+                    &eph_tasks_tx,
                 );
-                let _ = eph_tasks_tx.try_send(task);
             }
 
             request

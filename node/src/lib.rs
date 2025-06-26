@@ -12,6 +12,8 @@ pub const DEV_VERSION: Option<&str> = option_env!("DEV_VERSION");
 
 pub mod cli;
 
+/// `InactivityTimer` and related helpers.
+mod activity;
 /// Type aliases.
 mod alias;
 /// Lexe API.
@@ -26,8 +28,6 @@ mod context;
 mod event_handler;
 /// GDrive persister task.
 mod gdrive_persister;
-/// `InactivityTimer`.
-mod inactivity_timer;
 /// Meganode run body.
 mod mega;
 /// Node-specific p2p logic

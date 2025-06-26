@@ -6,6 +6,7 @@ use lexe_tokio::{notify_once::NotifyOnce, task};
 use tokio::sync::mpsc;
 
 use crate::{
+    activity::InactivityTimer,
     api::client::RunnerClient,
     context::MegaContext,
     provision::{ProvisionArgs, ProvisionInstance},
@@ -45,6 +46,7 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     // Start the usernode runner.
     let (runner_tx, runner_rx) =
         mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
+    let mega_activity_bus = mega_ctxt.mega_activity_bus.clone();
     let user_runner = UserRunner::new(
         args.clone(),
         mega_ctxt,
@@ -89,6 +91,15 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
         .mega_ready(&ports)
         .await
         .context("Mega ready callback failed")?;
+
+    // We're now ready.
+    // Start the inactivity timer so we shut ourselves down if we're inactive.
+    let inactivity_timer = InactivityTimer::new(
+        args.inactivity_timer_sec,
+        mega_activity_bus,
+        mega_shutdown.clone(),
+    );
+    static_tasks.push(inactivity_timer.spawn_into_task());
 
     task::try_join_tasks_and_shutdown(
         static_tasks,

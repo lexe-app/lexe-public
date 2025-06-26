@@ -1,40 +1,80 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
-use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
+use common::api::user::UserPk;
+use lexe_tokio::{
+    events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
+};
 use tokio::{
     sync::mpsc,
     time::{self, Instant},
 };
-use tracing::{debug, info, info_span};
+use tracing::{debug, info, info_span, warn};
+
+use crate::api::RunnerApiClient;
+
+/// Notifies various listeners of user or node activity.
+///
+/// 1) Resets the usernode's inactivity timer.
+/// 2) Resets the meganode's inactivity timer.
+/// 3) Notifies the UserRunner of user activity.
+/// 4) Notifies the MegaRunner of user activity.
+pub(crate) fn notify_listeners(
+    user_pk: UserPk,
+    mega_activity_bus: &EventsBus<UserPk>,
+    user_activity_bus: &EventsBus<()>,
+    runner_api: Arc<dyn RunnerApiClient + Send + Sync>,
+    eph_tasks_tx: &mpsc::Sender<LxTask<()>>,
+) {
+    debug!("Notifying listeners of activity");
+
+    // 1) Reset the usernode inactivity timer.
+    user_activity_bus.send(());
+
+    // Both the UserRunner and meganode inactivity timer listen on this:
+    // 2) Reset the meganode's inactivity timer.
+    // 3) Notify the UserRunner of user activity.
+    mega_activity_bus.send(user_pk);
+
+    // 4) Spawn a task to notify the MegaRunner of user activity.
+    const SPAN_NAME: &str = "(megarunner-activity-notif)";
+    let task = LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), {
+        let runner_api = runner_api.clone();
+        async move {
+            if let Err(e) = runner_api.activity(user_pk).await {
+                warn!("Couldn't notify runner (active): {e:#}");
+            }
+        }
+    });
+    let _ = eph_tasks_tx.try_send(task);
+}
 
 /// A simple actor that keeps track of an inactivity timer held in the stack of
 /// its `start()` fn.
 ///
-/// - If the command server sends an activity event, the timer resets to now +
-///   `self.duration`.
-/// - If an activity event is received via `activity_rx`, the timer is reset.
+/// - If an activity event is received via `activity_bus`, the timer is reset to
+///   now + `self.duration`.
 /// - If the timer reaches 0, a shutdown signal is sent via `shutdown`.
 /// - If a shutdown signal is received, the actor shuts down.
-pub struct InactivityTimer {
+pub struct InactivityTimer<T> {
     /// The duration that the inactivity timer will reset to whenever it
     /// receives an activity event.
     duration: Duration,
     /// Used to receive activity events from the command server.
-    activity_rx: mpsc::Receiver<()>,
+    activity_bus: EventsBus<T>,
     /// Used to signal the rest of the program to shut down.
     shutdown: NotifyOnce,
 }
 
-impl InactivityTimer {
+impl<T: Clone + Send + 'static> InactivityTimer<T> {
     pub fn new(
         inactivity_timer_sec: u64,
-        activity_rx: mpsc::Receiver<()>,
+        activity_bus: EventsBus<T>,
         shutdown: NotifyOnce,
     ) -> Self {
         let duration = Duration::from_secs(inactivity_timer_sec);
         Self {
             duration,
-            activity_rx,
+            activity_bus,
             shutdown,
         }
     }
@@ -48,11 +88,12 @@ impl InactivityTimer {
 
     /// Starts the inactivity timer.
     pub async fn run(mut self) {
-        // Initiate timer
         let timer = time::sleep(self.duration);
 
         // Pin the timer on the stack so it can be polled without being consumed
         tokio::pin!(timer);
+
+        let mut activity_rx = self.activity_bus.subscribe();
 
         loop {
             tokio::select! {
@@ -61,17 +102,9 @@ impl InactivityTimer {
                     self.shutdown.send();
                     break;
                 }
-                activity_opt = self.activity_rx.recv() => {
-                    match activity_opt {
-                        Some(()) => {
-                            debug!("Received activity event");
-                            timer.as_mut().reset(Instant::now() + self.duration);
-                        }
-                        None => {
-                            info!("All activity_tx dropped, shutting down");
-                            break
-                        },
-                    }
+                _ = activity_rx.recv() => {
+                    debug!("Received activity event");
+                    timer.as_mut().reset(Instant::now() + self.duration);
                 }
                 () = self.shutdown.recv() => break,
             }
@@ -83,31 +116,31 @@ impl InactivityTimer {
 mod tests {
     use std::future::Future;
 
-    use lexe_tokio::{task::LxTask, DEFAULT_CHANNEL_SIZE};
+    use lexe_tokio::task::LxTask;
 
     use super::*;
 
     /// A simple struct that holds all the context required to test the
     /// InactivityTimer.
     struct TestContext {
-        actor: InactivityTimer,
-        activity_tx: mpsc::Sender<()>,
+        actor: InactivityTimer<()>,
+        activity_bus: EventsBus<()>,
         shutdown: NotifyOnce,
     }
 
     fn get_test_context(inactivity_timer_sec: u64) -> TestContext {
-        let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
+        let activity_bus = EventsBus::new();
         let shutdown = NotifyOnce::new();
         let actor_shutdown = shutdown.clone();
         let actor = InactivityTimer::new(
             inactivity_timer_sec,
-            activity_rx,
+            activity_bus.clone(),
             actor_shutdown,
         );
 
         TestContext {
             actor,
-            activity_tx,
+            activity_bus,
             shutdown,
         }
     }
@@ -164,7 +197,7 @@ mod tests {
         do_test_paused_time(async {
             let inactivity_timer_sec = 1;
             let ctxt = get_test_context(inactivity_timer_sec);
-            let _ = ctxt.activity_tx.send(()).await;
+            ctxt.activity_bus.send(());
             let actor_fut = ctxt.actor.run();
 
             // Actor should finish at 1000ms (1 sec)
@@ -194,10 +227,10 @@ mod tests {
             let actor_fut = ctxt.actor.run();
 
             // Spawn a task to generate an activity event 500ms in
-            let activity_tx = ctxt.activity_tx.clone();
+            let activity_bus = ctxt.activity_bus.clone();
             let activity_task = LxTask::spawn_unnamed(async move {
                 time::sleep(Duration::from_millis(500)).await;
-                let _ = activity_tx.send(()).await;
+                activity_bus.send(());
             });
 
             // Actor should finish at about 1500ms
@@ -218,11 +251,11 @@ mod tests {
 
             // Spawn a task to generate an activity event 500ms in and a
             // shutdown signal 750ms in
-            let activity_tx = ctxt.activity_tx.clone();
+            let activity_bus = ctxt.activity_bus.clone();
             let shutdown = ctxt.shutdown.clone();
             let activity_task = LxTask::spawn_unnamed(async move {
                 time::sleep(Duration::from_millis(500)).await;
-                let _ = activity_tx.send(()).await;
+                activity_bus.send(());
                 time::sleep(Duration::from_millis(250)).await;
                 shutdown.send();
             });

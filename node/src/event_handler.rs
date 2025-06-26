@@ -41,7 +41,10 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use common::{
-    api::{test_event::TestEvent, user::NodePk},
+    api::{
+        test_event::TestEvent,
+        user::{NodePk, UserPk},
+    },
     cli::LspInfo,
     debug_panic_release_log,
     ln::channel::LxChannelId,
@@ -73,8 +76,8 @@ use tokio::sync::mpsc;
 use tracing::{error, info};
 
 use crate::{
-    alias::PaymentsManagerType, channel_manager::NodeChannelManager,
-    persister::NodePersister,
+    activity, alias::PaymentsManagerType, api::RunnerApiClient,
+    channel_manager::NodeChannelManager, persister::NodePersister,
 };
 
 #[derive(Clone)]
@@ -85,8 +88,10 @@ pub struct NodeEventHandler {
 /// Allows all event handling context to be shared (e.g. spawned into a task)
 /// with a single [`Arc`] clone.
 pub(crate) struct EventCtx {
+    pub user_pk: UserPk,
     pub lsp: LspInfo,
     pub lsp_api: Arc<dyn NodeLspApi + Send + Sync>,
+    pub runner_api: Arc<dyn RunnerApiClient + Send + Sync>,
     pub persister: Arc<NodePersister>,
     pub fee_estimates: Arc<FeeEstimates>,
     pub tx_broadcaster: Arc<TxBroadcaster>,
@@ -98,10 +103,11 @@ pub(crate) struct EventCtx {
     pub payments_manager: PaymentsManagerType,
 
     pub channel_events_bus: EventsBus<ChannelEvent>,
-    pub htlcs_forwarded_bus: EventsBus<HtlcsForwarded>,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
+    pub htlcs_forwarded_bus: EventsBus<HtlcsForwarded>,
+    pub mega_activity_bus: EventsBus<UserPk>,
+    pub user_activity_bus: EventsBus<()>,
     pub test_event_tx: TestEventSender,
-    pub user_activity_tx: mpsc::Sender<()>,
     pub shutdown: NotifyOnce,
 }
 
@@ -344,8 +350,15 @@ async fn do_handle_event(
             claim_deadline: _,
             payment_id,
         } => {
-            // Reset the inactivity timer.
-            let _ = ctx.user_activity_tx.try_send(());
+            // If we received a BOLT 12 payment, the usernode should continue
+            // running. Notify listeners of usernode activity.
+            activity::notify_listeners(
+                ctx.user_pk,
+                &ctx.mega_activity_bus,
+                &ctx.user_activity_bus,
+                ctx.runner_api.clone(),
+                &ctx.eph_tasks_tx,
+            );
 
             // TODO(phlip9): unwrap once all replaying PaymentClaimable events
             // drain in prod.
