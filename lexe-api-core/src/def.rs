@@ -91,7 +91,7 @@ use crate::{
             ResyncRequest, UpdatePaymentNote,
         },
         runner::{
-            MegaNodeUserEvictionRequest, MegaNodeUserRunRequest,
+            MegaNodeUserEvictRequest, MegaNodeUserRunRequest,
             MegaNodeUserRunResponse, UserFinishedRequest,
             UserLeaseRenewalRequest,
         },
@@ -384,10 +384,10 @@ pub trait LexeMegaApi {
         req: MegaNodeUserRunRequest,
     ) -> Result<MegaNodeUserRunResponse, MegaApiError>;
 
-    /// POST /lexe/evict_user [`MegaNodeUserEvictionRequest`] -> [`Empty`]
+    /// POST /lexe/evict_user [`MegaNodeUserEvictRequest`] -> [`Empty`]
     async fn evict_user(
         &self,
-        req: MegaNodeUserEvictionRequest,
+        req: MegaNodeUserEvictRequest,
     ) -> Result<Empty, MegaApiError>;
 
     /// GET /lexe/status [`MegaIdStruct`] -> [`Status`]

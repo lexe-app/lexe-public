@@ -190,7 +190,7 @@ mod handlers {
     use lexe_api::{
         error::{MegaApiError, MegaErrorKind},
         models::runner::{
-            MegaNodeUserEvictionRequest, MegaNodeUserRunRequest,
+            MegaNodeUserEvictRequest, MegaNodeUserRunRequest,
             MegaNodeUserRunResponse,
         },
         server::{extract::LxQuery, LxJson},
@@ -200,7 +200,7 @@ mod handlers {
 
     use super::mega_server::MegaRouterState;
     use crate::runner::{
-        RunnerCommand, UserRunnerUserEvictionRequest, UserRunnerUserRunRequest,
+        MegaRunnerUserEvictRequest, RunnerCommand, UserRunnerUserRunRequest,
     };
 
     pub(super) async fn run_user(
@@ -262,7 +262,7 @@ mod handlers {
 
     pub(super) async fn evict_user(
         State(state): State<MegaRouterState>,
-        LxJson(req): LxJson<MegaNodeUserEvictionRequest>,
+        LxJson(req): LxJson<MegaNodeUserEvictRequest>,
     ) -> Result<LxJson<Empty>, MegaApiError> {
         // Sanity check
         if req.mega_id != state.mega_id {
@@ -273,11 +273,11 @@ mod handlers {
         }
 
         let (user_shutdown_tx, user_shutdown_rx) = oneshot::channel();
-        let req_with_tx = UserRunnerUserEvictionRequest {
+        let req_with_tx = MegaRunnerUserEvictRequest {
             inner: req,
             user_shutdown_waiter: user_shutdown_tx,
         };
-        let cmd = RunnerCommand::UserEvictionRequest(req_with_tx);
+        let cmd = RunnerCommand::UserEvictRequest(req_with_tx);
         state.runner_tx.try_send(cmd).map_err(|e| MegaApiError {
             kind: MegaErrorKind::RunnerUnreachable,
             msg: e.to_string(),

@@ -52,7 +52,7 @@ pub struct UserFinishedRequest {
 
 /// A request to evict a usernode within a meganode.
 #[derive(Serialize, Deserialize)]
-pub struct MegaNodeUserEvictionRequest {
+pub struct MegaNodeUserEvictRequest {
     /// The user to be evicted.
     pub user_pk: UserPk,
     /// Sanity check: The meganode to which the request is being sent.

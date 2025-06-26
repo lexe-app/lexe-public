@@ -4,7 +4,7 @@ use common::{api::user::UserPk, cli::node::MegaArgs, time::TimestampMs};
 use futures::{stream::FuturesUnordered, StreamExt};
 use lexe_api::{
     error::MegaApiError,
-    models::runner::{MegaNodeUserEvictionRequest, MegaNodeUserRunRequest},
+    models::runner::{MegaNodeUserEvictRequest, MegaNodeUserRunRequest},
     types::{ports::RunPorts, LeaseId},
 };
 use lexe_tokio::{
@@ -26,7 +26,7 @@ pub(crate) struct UserShutdown;
 
 pub(crate) enum RunnerCommand {
     UserRunRequest(UserRunnerUserRunRequest),
-    UserEvictionRequest(UserRunnerUserEvictionRequest),
+    UserEvictRequest(MegaRunnerUserEvictRequest),
 }
 
 /// A [`MegaNodeUserRunRequest`] but includes a waiter with which to respond.
@@ -37,10 +37,10 @@ pub(crate) struct UserRunnerUserRunRequest {
     pub user_ready_waiter: oneshot::Sender<Result<RunPorts, MegaApiError>>,
 }
 
-/// A [`MegaNodeUserEvictionRequest`] but includes a waiter with which to
+/// A [`MegaNodeUserEvictRequest`] but includes a waiter with which to
 /// respond.
-pub(crate) struct UserRunnerUserEvictionRequest {
-    pub inner: MegaNodeUserEvictionRequest,
+pub(crate) struct MegaRunnerUserEvictRequest {
+    pub inner: MegaNodeUserEvictRequest,
 
     /// A channel with which to respond to the server API handler.
     pub user_shutdown_waiter:
@@ -123,8 +123,8 @@ impl UserRunner {
                 Some(cmd) = self.runner_rx.recv() => match cmd {
                     RunnerCommand::UserRunRequest(run_req) =>
                         self.handle_user_run_request(run_req),
-                    RunnerCommand::UserEvictionRequest(evict_req) =>
-                        self.handle_user_eviction_request(evict_req),
+                    RunnerCommand::UserEvictRequest(evict_req) =>
+                        self.handle_user_evict_request(evict_req),
                 },
 
                 Some(join_result) = self.user_stream.next() =>
@@ -196,11 +196,11 @@ impl UserRunner {
         self.usernode_used_now(&user_pk);
     }
 
-    fn handle_user_eviction_request(
+    fn handle_user_evict_request(
         &mut self,
-        evict_req: UserRunnerUserEvictionRequest,
+        evict_req: MegaRunnerUserEvictRequest,
     ) {
-        let UserRunnerUserEvictionRequest {
+        let MegaRunnerUserEvictRequest {
             inner: evict_req,
             user_shutdown_waiter,
         } = evict_req;
