@@ -60,11 +60,14 @@ pub(crate) struct UserRunner {
     user_nodes: HashMap<UserPk, UserHandle>,
     user_lru: LruCache<UserPk, TimestampMs>,
     user_evicting: HashSet<UserPk>,
-    user_stream: FuturesUnordered<LxTask<(UserPk, LeaseId)>>,
+    user_stream: FuturesUnordered<LxTask<UserPk>>,
 }
 
 /// A handle to a specific usernode.
 struct UserHandle {
+    /// The user node's lease ID. Subsequent run requests from the megarunner
+    /// are expected to know this lease ID.
+    lease_id: LeaseId,
     user_ready_waiter_tx:
         mpsc::Sender<oneshot::Sender<Result<RunPorts, MegaApiError>>>,
     user_shutdown: NotifyOnce,
@@ -146,8 +149,16 @@ impl UserRunner {
         let user_pk = run_req.user_pk;
 
         // If the user is running, just pass the waiter to the node and return.
-        // TODO(max): Should we return error if the lease_id is different?
         if let Some(user_handle) = self.user_nodes.get(&user_pk) {
+            // Ensure the lease_id matches
+            if user_handle.lease_id != run_req.lease_id {
+                let _ = user_ready_waiter.send(Err(
+                    MegaApiError::unknown_user(&user_pk, "Lease ID mismatch"),
+                ));
+                return;
+            }
+
+            // Pass the waiter to the node.
             let _ =
                 user_handle.user_ready_waiter_tx.try_send(user_ready_waiter);
             return;
@@ -228,14 +239,14 @@ impl UserRunner {
 
     fn handle_finished_user_node(
         &mut self,
-        join_result: Result<(UserPk, LeaseId), JoinError>,
+        join_result: Result<UserPk, JoinError>,
     ) {
-        let (user_pk, lease_id) = join_result.expect("User node task panicked");
-        info!(%user_pk, %lease_id, "User node finished");
+        let user_pk = join_result.expect("User node task panicked");
+        info!(%user_pk, "User node finished");
 
         // When this handle is dropped, all contained shutdown waiters are
         // notified that the usernode has been shut down.
-        let _handle = self
+        let handle = self
             .user_nodes
             .remove(&user_pk)
             .expect("Finished user node should exist in user_nodes");
@@ -252,7 +263,7 @@ impl UserRunner {
         let task = helpers::spawn_user_finished_task(
             self.mega_ctxt.runner_api.clone(),
             user_pk,
-            lease_id,
+            handle.lease_id,
             self.mega_args.mega_id,
         );
         let _ = self.eph_tasks_tx.try_send(task);
@@ -351,7 +362,7 @@ mod helpers {
         mega_args: &MegaArgs,
         run_req: MegaNodeApiUserRunRequest,
         mega_ctxt: MegaContext,
-    ) -> (LxTask<(UserPk, LeaseId)>, UserHandle) {
+    ) -> (LxTask<UserPk>, UserHandle) {
         let user_pk = run_req.user_pk;
         let run_args =
             build_run_args(mega_args, user_pk, run_req.shutdown_after_sync);
@@ -366,6 +377,7 @@ mod helpers {
         };
 
         let handle = UserHandle {
+            lease_id: run_req.lease_id,
             user_ready_waiter_tx,
             user_shutdown,
             user_shutdown_waiters: Vec::new(),
@@ -397,7 +409,7 @@ mod helpers {
                     Err(e) => error!(%user_pk, "Usernode errored: {e:#}"),
                 }
 
-                (user_pk, run_req.lease_id)
+                user_pk
             },
         );
 
