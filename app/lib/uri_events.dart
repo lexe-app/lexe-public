@@ -15,6 +15,22 @@ import 'package:rxdart/rxdart.dart' show BehaviorSubject;
 /// See: <app/android/app/src/main/AndroidManifest.xml>
 ///      <app/ios/Runner/Info.plist>
 ///      <app/macos/Runner/Info.plist>
+///
+/// Testing on iOS simulator:
+///
+/// ```bash
+/// $ /usr/bin/xcrun simctl openurl booted "bitcoin:bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk"
+/// $ /usr/bin/xcrun simctl openurl booted "bitcoin:?lno=lno1zrxq8pjw7qjlm68mtp7e3yvxee4y5xrgjhhyf2fxhlphpckrvevh50u0qdp2nyl5lh362fu4r6ycw59tul97ptq57j9mhusk4dyqed0nytnzyqsz0qduahca4eryls267a72a4rtcnk4p6ululyvg7a7pdczg8ha8e6qqval7cremj65ut2k087xdhay6qvv0dtljppyd80zyj68f748jt569nutyznpf9qms39a06ecl0tw9w6ky9xpqd4k7hl4phttq9lkdrhjffv08tc04yxf4pfexypwt0e8zlmdeuf4qqqsdt4qevd84nlmks62nzzz9swwpu"
+/// ```
+///
+/// Testing on Android:
+///
+/// ```bash
+/// $ PATH="$ANDROID_HOME/platform-tools:$PATH" adb shell am start -a android.intent.action.VIEW \
+///     -d "bitcoin:bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk"
+/// $ PATH="$ANDROID_HOME/platform-tools:$PATH" adb shell am start -a android.intent.action.VIEW \
+///     -d "bitcoin:?lno=lno1zrxq8pjw7qjlm68mtp7e3yvxee4y5xrgjhhyf2fxhlphpckrvevh50u0qdp2nyl5lh362fu4r6ycw59tul97ptq57j9mhusk4dyqed0nytnzyqsz0qduahca4eryls267a72a4rtcnk4p6ululyvg7a7pdczg8ha8e6qqval7cremj65ut2k087xdhay6qvv0dtljppyd80zyj68f748jt569nutyznpf9qms39a06ecl0tw9w6ky9xpqd4k7hl4phttq9lkdrhjffv08tc04yxf4pfexypwt0e8zlmdeuf4qqqsdt4qevd84nlmks62nzzz9swwpu"
+/// ```
 abstract interface class UriEvents {
   static Future<UriEvents> prod() => ProdUriEvents.init();
 

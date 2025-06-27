@@ -37,10 +37,18 @@
           <string>lightning</string>
           </array>
         </dict>
-      </array>
+    </array>
 
     <key>CFBundleVersion</key>
     <string>$(FLUTTER_BUILD_NUMBER)</string>
+
+    <!-- While we're using app_links to handle deep links (e.g. "bitcoin:" and
+         "lightning:" URIs), we need to opt out of flutter deep linking
+
+         See: <https://docs.flutter.dev/release/breaking-changes/deep-links-flag-change>
+         -->
+    <key>FlutterDeepLinkingEnabled</key>
+    <false/>
 
     <!-- Required for `url_launcher` to query for other apps that can open
          "bitcoin:" and "lightning:" payment URIs.

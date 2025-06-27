@@ -448,7 +448,6 @@
     abiVersions = ["armeabi-v7a" "arm64-v8a"];
     platformVersions = [
       "34" # lexe, flutter_zxing -> camera_android_camerax
-      "31" # app_links
     ];
     buildToolsVersions = ["33.0.1"];
     includeNDK = true;

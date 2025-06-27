@@ -51,7 +51,14 @@
         <data android:scheme="LIGHTNING" />
         <data android:scheme="bitcoin" />
         <data android:scheme="lightning" />
-        </intent-filter>
+      </intent-filter>
+
+      <!-- While we're using app_links to handle deep links (e.g. "bitcoin:" and
+          "lightning:" URIs), we need to opt out of flutter deep linking
+
+          See: <https://docs.flutter.dev/release/breaking-changes/deep-links-flag-change>
+          -->
+      <meta-data android:name="flutter_deeplinking_enabled" android:value="false" />
 
       </activity>
     <!-- Don't delete the meta-data below.

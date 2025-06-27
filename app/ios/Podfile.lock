@@ -1,5 +1,5 @@
 PODS:
-  - app_links (0.0.1):
+  - app_links (0.0.2):
     - Flutter
   - app_rs_dart (0.0.1):
     - Flutter
@@ -75,7 +75,7 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
-  app_links: e70ca16b4b0f88253b3b3660200d4a10b4ea9795
+  app_links: f3e17e4ee5e357b39d8b95290a9b2c299fca71c6
   app_rs_dart: a1e1f11cc54d38820b575dc2d1634810e88a4acb
   camera_avfoundation: dd002b0330f4981e1bbcb46ae9b62829237459a4
   device_info_plus: bf2e3232933866d73fe290f2942f2156cdd10342
