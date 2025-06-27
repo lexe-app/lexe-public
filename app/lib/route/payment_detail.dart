@@ -981,7 +981,6 @@ class _PaymentDetailNoteInputState extends State<PaymentDetailNoteInput> {
                 child: CircularProgressIndicator(
                   strokeWidth: 1.0,
                   color: LxColors.fgTertiary,
-                  strokeCap: StrokeCap.round,
                 ),
               ),
               builder: (_context, submitting, child) => AnimatedOpacity(

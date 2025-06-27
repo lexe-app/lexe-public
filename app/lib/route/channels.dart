@@ -850,7 +850,6 @@ class ChannelBalanceBarRow extends StatelessWidget {
               child: CircularProgressIndicator(
                 strokeWidth: 2.0,
                 color: LxColors.grey775,
-                strokeCap: StrokeCap.round,
               ),
             ),
           ),

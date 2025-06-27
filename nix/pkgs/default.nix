@@ -415,7 +415,7 @@
   ];
 
   # Our flutter version
-  flutter = pkgs.flutter327;
+  flutter = pkgs.flutter329;
 
   # composeAndroidPackages =
   # { cmdLineToolsVersion ? "latest",
@@ -447,14 +447,16 @@
   androidSdkComposition = pkgsUnfree.androidenv.composeAndroidPackages rec {
     abiVersions = ["armeabi-v7a" "arm64-v8a"];
     platformVersions = [
-      "34" # lexe, flutter_zxing -> camera_android_camerax
+      "35" # lexe
+      "34" # app_links, flutter_zxing -> camera_android_camerax
     ];
-    buildToolsVersions = ["33.0.1"];
+    buildToolsVersions = [
+      "34.0.0" # gradle android plugin seems to want this?
+    ];
     includeNDK = true;
-    ndkVersion = "26.3.11579264";
+    ndkVersion = "27.0.12077973";
     ndkVersions = [
-      ndkVersion # lexe
-      "25.1.8937393" # flutter_zxing
+      ndkVersion # lexe, flutter_zxing
     ];
     cmakeVersions = ["3.22.1"]; # flutter_zxing
   };

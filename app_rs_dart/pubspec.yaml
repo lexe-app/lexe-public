@@ -7,8 +7,8 @@ homepage: "https://github.com/lexe-app/lexe-public/tree/master/app_rs_dart"
 # - `app/pubspec.yaml`
 # - `.github/workflows/ci.yaml`
 environment:
-  sdk: 3.6.2
-  flutter: 3.27.4
+  sdk: 3.7.2
+  flutter: 3.29.3
 
 dependencies:
   # Used by the generated flutter_rust_bridge FFI bindings.

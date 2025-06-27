@@ -274,7 +274,6 @@ class _AnimatedFillButtonState extends State<AnimatedFillButton> {
                     child: CircularProgressIndicator(
                       strokeWidth: 2.0,
                       color: LxColors.clearB200,
-                      strokeCap: StrokeCap.round,
                     ),
                   ),
                 ),
@@ -511,7 +510,6 @@ class LxRefreshButton extends StatelessWidget {
                     child: CircularProgressIndicator(
                       strokeWidth: 3.0,
                       color: LxColors.fgTertiary,
-                      strokeCap: StrokeCap.round,
                     ),
                   ),
           ),
@@ -1964,7 +1962,6 @@ class LoadingSpinnerModal extends StatelessWidget {
             child: CircularProgressIndicator(
               strokeWidth: 5.0,
               color: LxColors.fgSecondary,
-              strokeCap: StrokeCap.round,
             ),
           ),
         ),

@@ -11,7 +11,7 @@ buildscript {
 
     dependencies {
         // The Android Gradle Plugin knows how to build native code with the NDK.
-        classpath("com.android.tools.build:gradle:8.1.0")
+        classpath("com.android.tools.build:gradle:8.7.0")
     }
 }
 
@@ -25,28 +25,22 @@ rootProject.allprojects {
 apply plugin: "com.android.library"
 
 android {
-    if (project.android.hasProperty("namespace")) {
-        namespace = "app.lexe.app_rs_dart"
-    }
+    namespace = "app.lexe.app_rs_dart"
+
+    // println "app_rs_dart: flutter.compileSdkVersion: ${flutter.compileSdkVersion}"
+    // println "app_rs_dart: android.ndkVersion: ${android.ndkVersion}"
 
     // Bumping the plugin compileSdk version requires all clients of this plugin
     // to bump the version in their app.
-    compileSdk = 34 // flutter.compileSdkVersion
+    compileSdk = 35
 
-    // println "app_rs_dart: flutter.compileSdkVersion: ${flutter.compileSdkVersion}"
+    // Use the NDK version declared in /android/app/build.gradle file of the
+    // Flutter project. Replace it with a version number if this plugin requires
+    // a specific NDK version. (e.g. ndkVersion "23.1.7779620")
+    //
+    // Match the value in `app/android/app/build.gradle.kts`.
+    ndkVersion = android.ndkVersion
 
-    // Use the NDK version
-    // declared in /android/app/build.gradle file of the Flutter project.
-    // Replace it with a version number if this plugin requires a specific NDK version.
-    // (e.g. ndkVersion "23.1.7779620")
-
-    // Need more recent NDK version or lib fails to link
-    // Needs to match the value in `app/android/app/build.gradle`.
-    ndkVersion "26.3.11579264"
-    // ndkVersion = android.ndkVersion
-    // ndkVersion = flutter.ndkVersion
-
-    // println "app_rs_dart: flutter.ndkVersion: ${flutter.ndkVersion}"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

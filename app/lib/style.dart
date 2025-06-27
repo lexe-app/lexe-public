@@ -275,6 +275,13 @@ final class LxTheme {
         ),
         barrierColor: LxColors.clearB300,
       ),
+
+      // [CircularProgressIndicator] and [LinearProgressIndicator]
+      progressIndicatorTheme: baseTheme.progressIndicatorTheme.copyWith(
+        // Use the older Material 3 progress indicator style
+        year2023: true,
+        strokeCap: StrokeCap.round,
+      ),
     );
   }
 
