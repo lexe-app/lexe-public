@@ -57,7 +57,7 @@ import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/channels.dart'
-    show ChannelBalanceBarRow, ChannelsList, ChannelsPage;
+    show ChannelBalanceBarRow, ChannelButton, ChannelsList, ChannelsPage;
 import 'package:lexeapp/route/clients.dart' show ClientsPage;
 import 'package:lexeapp/route/close_channel.dart'
     show CloseChannelConfirmPage, CloseChannelPage;
@@ -84,13 +84,13 @@ import 'package:lexeapp/route/send/state.dart'
 import 'package:lexeapp/route/show_qr.dart' show ShowQrPage;
 import 'package:lexeapp/route/signup.dart'
     show SignupBackupPasswordPage, SignupCtx, SignupPage;
-import 'package:lexeapp/route/wallet.dart' show WalletPage;
+import 'package:lexeapp/route/wallet.dart' show WalletActionButton, WalletPage;
 import 'package:lexeapp/save_file.dart' as save_file;
 import 'package:lexeapp/service/node_info.dart';
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/stream_ext.dart';
 import 'package:lexeapp/style.dart'
-    show Fonts, LxColors, LxIcons, LxTheme, Space;
+    show Fonts, LxColors, LxIcons, LxRadius, LxTheme, Space;
 import 'package:lexeapp/types.dart' show BalanceState;
 import 'package:lexeapp/uri_events.dart' show UriEvents;
 import 'package:rxdart_ext/rxdart_ext.dart';
@@ -124,6 +124,7 @@ Future<void> main() async {
       color: LxColors.background,
       themeMode: ThemeMode.light,
       theme: LxTheme.light(),
+      darkTheme: null,
       debugShowCheckedModeBanner: false,
       home: LexeDesignPage(config: config, uriEvents: uriEvents),
     ),
@@ -467,7 +468,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "ReceivePaymentPage",
               (context) => ReceivePaymentPage(
                 app: mockApp,
-                featureFlags: const FeatureFlags.none(),
+                featureFlags: const FeatureFlags.all(),
                 fiatRate: this.makeFiatRateStream(),
               ),
             ),
@@ -1011,6 +1012,136 @@ class ButtonDesignPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: Space.s400),
+
+            //
+            // WalletActionButton
+            //
+            const HeadingText(text: "Wallet action buttons"),
+            const SizedBox(height: Space.s400),
+
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              spacing: Space.s400,
+              children: [
+                WalletActionButton(
+                  onPressed: onTap,
+                  icon: LxIcons.scan,
+                  label: "Scan",
+                ),
+                WalletActionButton(
+                  onPressed: onTap,
+                  icon: LxIcons.receive,
+                  label: "Receive",
+                ),
+                WalletActionButton(
+                  onPressed: onTap,
+                  icon: LxIcons.send,
+                  label: "Send",
+                ),
+                // Builder(builder: (context) {
+                //   info("IconTheme.of(context): ${IconTheme.of(context)}");
+                //   return Text("foo");
+                // }),
+              ],
+            ),
+            const SizedBox(height: Space.s600),
+
+            //
+            // Channel open/close buttons
+            //
+            const HeadingText(text: "Channel buttons"),
+            const SizedBox(height: Space.s400),
+
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              spacing: Space.s400,
+              children: [
+                ChannelButton(
+                  onPressed: onTap,
+                  label: "Open",
+                  icon: LxIcons.openChannel,
+                ),
+                ChannelButton(
+                  onPressed: onTap,
+                  label: "Close",
+                  icon: LxIcons.closeChannel,
+                ),
+              ],
+            ),
+            const SizedBox(height: Space.s600),
+
+            //
+            // ReceivePage buttons
+            //
+            const HeadingText(text: "Receive page buttons"),
+            const SizedBox(height: Space.s400),
+
+            Container(
+              decoration: BoxDecoration(
+                color: LxColors.grey1000,
+                borderRadius: BorderRadius.circular(LxRadius.r300),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: Space.s400),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  OutlinedButton(
+                    onPressed: onTap,
+                    style: ButtonStyle(
+                      visualDensity:
+                          VisualDensity(horizontal: -3.0, vertical: -3.0),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(width: Space.s200),
+                        Icon(LxIcons.add),
+                        SizedBox(width: Space.s200),
+                        Text(
+                          "Amount",
+                          style: TextStyle(fontSize: Fonts.size300),
+                        ),
+                        SizedBox(width: Space.s400),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: Space.s600),
+
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Copy code
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: Space.s200),
+                  child: FilledButton(
+                    onPressed: onTap,
+                    child: Icon(LxIcons.copy),
+                  ),
+                ),
+
+                // Share payment URI (w/ share code fallback)
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: Space.s200),
+                  child: FilledButton(
+                    onPressed: onTap,
+                    child: Icon(LxIcons.share),
+                  ),
+                ),
+
+                // Refresh
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: Space.s200),
+                  child: FilledButton(
+                    onPressed: onTap,
+                    child: Icon(LxIcons.refresh),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: Space.s600),
 
             const SizedBox(height: Space.s1200),
           ],

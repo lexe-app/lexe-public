@@ -11,7 +11,7 @@ buildscript {
 
     dependencies {
         // The Android Gradle Plugin knows how to build native code with the NDK.
-        classpath("com.android.tools.build:gradle:7.3.0")
+        classpath("com.android.tools.build:gradle:8.1.0")
     }
 }
 
@@ -31,7 +31,9 @@ android {
 
     // Bumping the plugin compileSdk version requires all clients of this plugin
     // to bump the version in their app.
-    compileSdk = 34
+    compileSdk = 34 // flutter.compileSdkVersion
+
+    // println "app_rs_dart: flutter.compileSdkVersion: ${flutter.compileSdkVersion}"
 
     // Use the NDK version
     // declared in /android/app/build.gradle file of the Flutter project.
@@ -42,10 +44,13 @@ android {
     // Needs to match the value in `app/android/app/build.gradle`.
     ndkVersion "26.3.11579264"
     // ndkVersion = android.ndkVersion
+    // ndkVersion = flutter.ndkVersion
+
+    // println "app_rs_dart: flutter.ndkVersion: ${flutter.ndkVersion}"
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     defaultConfig {

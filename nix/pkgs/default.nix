@@ -415,47 +415,49 @@
   ];
 
   # Our flutter version
-  flutter = pkgs.flutter324;
+  flutter = pkgs.flutter327;
 
   # composeAndroidPackages =
-  # { cmdLineToolsVersion ? "13.0"
-  # , toolsVersion ? "26.1.1"
-  # , platformToolsVersion ? "35.0.1"
-  # , buildToolsVersions ? [ "34.0.0" ]
-  # , includeEmulator ? false
-  # , emulatorVersion ? "35.1.4"
-  # , platformVersions ? []
-  # , includeSources ? false
-  # , includeSystemImages ? false
-  # , systemImageTypes ? [ "google_apis" "google_apis_playstore" ]
-  # , abiVersions ? [ "x86" "x86_64" "armeabi-v7a" "arm64-v8a" ]
-  # , cmakeVersions ? [ ]
-  # , includeNDK ? false
-  # , ndkVersion ? "26.3.11579264"
-  # , ndkVersions ? [ndkVersion]
-  # , useGoogleAPIs ? false
-  # , useGoogleTVAddOns ? false
-  # , includeExtras ? []
-  # , repoJson ? ./repo.json
-  # , repoXmls ? null
-  # , extraLicenses ? []
+  # { cmdLineToolsVersion ? "latest",
+  # , toolsVersion ? "latest",
+  # , platformToolsVersion ? "latest",
+  # , buildToolsVersions ? [ "latest" ],
+  # , includeEmulator ? false,
+  # , emulatorVersion ? "latest",
+  # , minPlatformVersion ? null,
+  # , maxPlatformVersion ? "latest",
+  # , numLatestPlatformVersions ? 1,
+  # , platformVersions ? ..,
+  # , includeSources ? false,
+  # , includeSystemImages ? false,
+  # , systemImageTypes ? [ "google_apis" "google_apis_playstore" ],
+  # , abiVersions ? [ "x86" "x86_64" "armeabi-v7a" "arm64-v8a" ],
+  # , includeCmake ? stdenv.hostPlatform.isx86_64 || stdenv.hostPlatform.isDarwin,
+  # , cmakeVersions ? [ "latest" ],
+  # , includeNDK ? false,
+  # , ndkVersion ? "latest",
+  # , ndkVersions ? [ ndkVersion ],
+  # , useGoogleAPIs ? false,
+  # , useGoogleTVAddOns ? false,
+  # , includeExtras ? [ ],
+  # , repoJson ? ./repo.json,
+  # , repoXmls ? null,
+  # , extraLicenses ? [ ],
   # }:
   androidSdkComposition = pkgsUnfree.androidenv.composeAndroidPackages rec {
     abiVersions = ["armeabi-v7a" "arm64-v8a"];
     platformVersions = [
-      "34" # lexe
+      "34" # lexe, flutter_zxing -> camera_android_camerax
       "31" # app_links
     ];
-    buildToolsVersions = [
-      "30.0.3" # gradle android plugin seems to want this?
-    ];
+    buildToolsVersions = ["33.0.1"];
     includeNDK = true;
     ndkVersion = "26.3.11579264";
     ndkVersions = [
       ndkVersion # lexe
-      "23.1.7779620" # flutter_zxing
+      "25.1.8937393" # flutter_zxing
     ];
-    cmakeVersions = ["3.18.1"]; # flutter_zxing
+    cmakeVersions = ["3.22.1"]; # flutter_zxing
   };
 
   # Links all the toolchains/libs/bins/etc in our chosen `androidSdkComposition`

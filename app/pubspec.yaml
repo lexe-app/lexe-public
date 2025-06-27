@@ -24,10 +24,12 @@ version: 0.7.5+12
 # Pin the flutter version and dart version. This way an out-of-sync flutter
 # install will immediately error out instead of silently doing weird things.
 #
-# Remember to update `app_rs_dart/pubspec.yaml`.
+# Remember to update:
+# - `app/pubspec.yaml`
+# - `.github/workflows/ci.yaml`
 environment:
-  sdk: 3.5.4
-  flutter: 3.24.4
+  sdk: 3.6.2
+  flutter: 3.27.4
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -97,8 +99,7 @@ dependencies:
   intl: ^0.19.0
 
   # Use up-to-date Material 3 icons
-  # TODO(phlip9): before release, build explicit icon set.
-  material_symbols_icons: ^4.2719.3
+  material_symbols_icons: ^4.2815.1
 
   # Query app name and version.
   package_info_plus: ^8.2.1

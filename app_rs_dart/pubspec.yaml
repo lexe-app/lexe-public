@@ -3,10 +3,12 @@ description: "A new Flutter FFI plugin project."
 version: 0.0.1
 homepage: "https://github.com/lexe-app/lexe-public/tree/master/app_rs_dart"
 
-# Remember to update `app/pubspec.yaml`
+# Remember to update:
+# - `app/pubspec.yaml`
+# - `.github/workflows/ci.yaml`
 environment:
-  sdk: 3.5.4
-  flutter: 3.24.4
+  sdk: 3.6.2
+  flutter: 3.27.4
 
 dependencies:
   # Used by the generated flutter_rust_bridge FFI bindings.

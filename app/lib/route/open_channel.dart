@@ -428,6 +428,7 @@ class _OpenChannelConfirmPageState extends State<OpenChannelConfirmPage> {
               style: FilledButton.styleFrom(
                 backgroundColor: LxColors.moneyGoUp,
                 foregroundColor: LxColors.grey1000,
+                iconColor: LxColors.grey1000,
               ),
             ),
           ),

@@ -91,6 +91,10 @@ final class LxTheme {
     final colorScheme = ColorScheme.fromSwatch(
       primarySwatch: LxColors.greySwatch,
       brightness: Brightness.light,
+      accentColor: LxColors.moneyGoUp,
+      backgroundColor: LxColors.background,
+      cardColor: LxColors.grey1000,
+      errorColor: LxColors.errorText,
     );
 
     // Text styling
@@ -134,6 +138,14 @@ final class LxTheme {
       iconTheme: baseTheme.iconTheme.copyWith(
         color: LxColors.foreground,
         weight: LxIcons.weightSemiBold,
+        grade: LxIcons.gradeMedium,
+        opacity: 1.0,
+      ),
+      primaryIconTheme: baseTheme.primaryIconTheme.copyWith(
+        color: LxColors.foreground,
+        weight: LxIcons.weightSemiBold,
+        grade: LxIcons.gradeMedium,
+        opacity: 1.0,
       ),
 
       // [AppBar]
@@ -176,8 +188,10 @@ final class LxTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: LxColors.foreground,
           backgroundColor: LxColors.clearB0,
+          iconColor: LxColors.foreground,
           disabledForegroundColor: LxColors.fgTertiary,
           disabledBackgroundColor: LxColors.clearB0,
+          disabledIconColor: LxColors.fgTertiary,
           padding: const EdgeInsets.all(Space.buttonPadding),
           minimumSize: const Size.square(Space.buttonMinDim),
           maximumSize: const Size.fromHeight(Space.buttonMinDim),
@@ -186,6 +200,7 @@ final class LxTheme {
           // situations (Button in Column in ScrollableSinglePageBody.bottom).
           visualDensity: const VisualDensity(horizontal: 0.0, vertical: 0.0),
           textStyle: Fonts.fontButton,
+          iconSize: Fonts.size600,
         ).copyWith(
           // Place dynamic styles here, i.e., styles that should change in
           // different button states (ex: normal, focused, disabled, hover, ...)
@@ -207,8 +222,10 @@ final class LxTheme {
         style: FilledButton.styleFrom(
           foregroundColor: LxColors.foreground,
           backgroundColor: LxColors.grey1000,
+          iconColor: LxColors.foreground,
           disabledForegroundColor: LxColors.fgTertiary,
           disabledBackgroundColor: LxColors.grey850,
+          disabledIconColor: LxColors.fgTertiary,
           padding: const EdgeInsets.all(Space.buttonPadding),
           minimumSize: const Size.square(Space.buttonMinDim),
           maximumSize: const Size.fromHeight(Space.buttonMinDim),
@@ -217,6 +234,7 @@ final class LxTheme {
           // situations (Button in Column in ScrollableSinglePageBody.bottom).
           visualDensity: const VisualDensity(horizontal: 0.0, vertical: 0.0),
           textStyle: Fonts.fontButton,
+          iconSize: Fonts.size600,
           side: const BorderSide(color: LxColors.clearB0, width: 0.0),
         ),
       ),
@@ -477,7 +495,7 @@ final class Space {
   static const double appBarTrailingPadding = Space.s400;
 
   /// 3 px - Margin around the content inside the button.
-  static const double buttonContentMargin = 3.0;
+  static const double buttonContentMargin = 5.0;
 
   /// 17 px - Padding between the button edges and the content
   static const double buttonPadding = Space.s450 - buttonContentMargin;

@@ -282,6 +282,7 @@ Already have a Lexe Wallet? Connect your Google Drive to restore from an existin
               style: FilledButton.styleFrom(
                 backgroundColor: LxColors.foreground,
                 foregroundColor: LxColors.background,
+                iconColor: LxColors.background,
               ),
             ),
           ),
@@ -530,6 +531,7 @@ class _RestorePasswordPageState extends State<RestorePasswordPage> {
               style: FilledButton.styleFrom(
                 backgroundColor: LxColors.moneyGoUp,
                 foregroundColor: LxColors.grey1000,
+                iconColor: LxColors.grey1000,
               ),
             ),
           ),

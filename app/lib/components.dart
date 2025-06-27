@@ -551,6 +551,7 @@ class LxFilledButton extends StatelessWidget {
                 ? LxColors.moneyGoUp
                 : null,
           ),
+          iconColor: const WidgetStatePropertyAll(LxColors.grey1000),
         ).merge(style);
 
   /// High emphasis button. black-bg, white-fg, filled button.
@@ -571,6 +572,7 @@ class LxFilledButton extends StatelessWidget {
                 ? LxColors.foreground
                 : null,
           ),
+          iconColor: const WidgetStatePropertyAll(LxColors.grey1000),
           overlayColor: const WidgetStatePropertyAll(LxColors.clearW200),
         ).merge(style);
 
@@ -1938,7 +1940,7 @@ class LoadingSpinnerModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final DialogTheme dialogTheme = DialogTheme.of(context);
+    final DialogThemeData dialogTheme = DialogTheme.of(context);
 
     // Ideally we would use a [Dialog] here. Too bad it mandates a 280 min
     // width, which looks ugly. So we're rolling our own...

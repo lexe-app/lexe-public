@@ -4,35 +4,26 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
-def localProperties = new Properties()
-def localPropertiesFile = rootProject.file("local.properties")
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.withReader("UTF-8") { reader ->
-        localProperties.load(reader)
-    }
-}
-
-def flutterVersionCode = localProperties.getProperty("flutter.versionCode")
-if (flutterVersionCode == null) {
-    flutterVersionCode = "1"
-}
-
-def flutterVersionName = localProperties.getProperty("flutter.versionName")
-if (flutterVersionName == null) {
-    flutterVersionName = "1.0"
-}
-
 android {
     namespace "app.lexe.lexeapp"
-    compileSdk flutter.compileSdkVersion
+    // compileSdk flutter.compileSdkVersion
+    compileSdk 34
+
+    // println "app: flutter.compileSdkVersion: ${flutter.compileSdkVersion}"
 
     // Needs to match the value in `app_rs_dart/android/build.gradle`.
     ndkVersion "26.3.11579264"
     // ndkVersion flutter.ndkVersion
 
+    // println "app: flutter.ndkVersion: ${flutter.ndkVersion}"
+
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_1_8
     }
 
     defaultConfig {
@@ -50,8 +41,8 @@ android {
         // minSdkVersion flutter.minSdkVersion
 
         targetSdkVersion flutter.targetSdkVersion
-        versionCode flutterVersionCode.toInteger()
-        versionName flutterVersionName
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
     }
 
     // Comment this out to force flutter to produce an unsigned appbundle. We'll

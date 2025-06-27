@@ -407,6 +407,7 @@ class LandingButtons extends StatelessWidget {
           style: FilledButton.styleFrom(
             backgroundColor: LxColors.foreground,
             foregroundColor: LxColors.background,
+            iconColor: LxColors.background,
             fixedSize: const Size(maxWidth, Space.s800),
           ),
           label: const Text("Create new wallet"),
