@@ -185,8 +185,8 @@ impl FeeEstimates {
         estimates.into_iter().collect()
     }
 
-    #[cfg(test)]
-    pub(crate) fn dummy() -> Arc<Self> {
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn dummy() -> Arc<Self> {
         let estimates = BTreeMap::from_iter([
             (1, 2.5),
             (3, 2.0),
@@ -369,6 +369,11 @@ impl LexeEsplora {
         &self.client
     }
 
+    /// Returns a reference to the fee estimates.
+    pub fn fee_estimates(&self) -> Arc<FeeEstimates> {
+        self.fee_estimates.clone()
+    }
+
     /// Refreshes our cached fee estimates.
     async fn refresh_fee_estimates(&self) -> anyhow::Result<()> {
         let estimates = self
@@ -493,6 +498,22 @@ impl LexeEsplora {
 
         // The tx is fresh, with no confs or replacements. It is simply 0-conf.
         Ok(TxConfStatus::ZeroConf)
+    }
+
+    /// Create a dummy LexeEsplora for testing.
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn dummy() -> Arc<Self> {
+        let reqwest_client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()
+            .expect("Failed to build dummy reqwest client");
+        let client = AsyncClient::from_client(String::new(), reqwest_client);
+        let fee_estimates = FeeEstimates::dummy();
+
+        Arc::new(Self {
+            client,
+            fee_estimates,
+        })
     }
 }
 
