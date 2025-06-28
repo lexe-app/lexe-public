@@ -44,3 +44,8 @@ mod run;
 mod runner;
 /// Node's API server used while running.
 mod server;
+
+pub(crate) fn version() -> semver::Version {
+    let version_str = DEV_VERSION.unwrap_or(SEMVER_VERSION);
+    semver::Version::parse(version_str).expect("Checked in tests")
+}

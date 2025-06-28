@@ -22,7 +22,6 @@ use lexe_ln::{
     esplora::{self, FeeEstimates, LexeEsplora},
     logger::LexeTracingLogger,
 };
-use lexe_std::Apply;
 use lexe_tls::attestation::NodeMode;
 use lexe_tokio::{
     events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
@@ -37,7 +36,7 @@ use tracing::info;
 
 use crate::{
     api::{self, BackendApiClient, RunnerApiClient},
-    DEV_VERSION, SEMVER_VERSION,
+    channel_manager,
 };
 
 /// Usernode-specific context.
@@ -136,12 +135,13 @@ impl MegaContext {
     ) -> anyhow::Result<(Self, Vec<LxTask<()>>)> {
         let logger = LexeTracingLogger::new();
 
+        let version = crate::version();
         let machine_id = enclave::machine_id();
         let measurement = enclave::measurement();
         // TODO(phlip9): Compare this with current cpusvn
         let _min_cpusvn = enclave::MinCpusvn::CURRENT;
 
-        let config = crate::channel_manager::get_config();
+        let config = channel_manager::get_config();
 
         let backend_api = api::new_backend_api(
             rng,
@@ -180,12 +180,6 @@ impl MegaContext {
             "None of the provided esplora urls were in whitelist: {urls:?}",
             urls = &untrusted_esplora_urls,
         );
-
-        // Version
-        let version = DEV_VERSION
-            .unwrap_or(SEMVER_VERSION)
-            .apply(semver::Version::parse)
-            .expect("Checked in tests");
 
         // Initialize esplora, network graph, and scorer concurrently
         #[rustfmt::skip] // Does not respect 80 char line width
@@ -271,5 +265,117 @@ impl MegaContext {
         };
 
         Ok((context, static_tasks))
+    }
+
+    /// Create a dummy MegaContext for testing purposes.
+    /// This creates a minimal context suitable for unit tests that don't need
+    /// actual network connectivity. Uses real clients with fake URLs.
+    #[cfg(test)]
+    #[allow(dead_code)] // TODO(claude): Remove when used in tests
+    pub fn dummy() -> Self {
+        use std::sync::Mutex;
+
+        use common::{env::DeployEnv, ln::network::LxNetwork, rng::SysRng};
+        use lexe_ln::{esplora::LexeEsplora, logger::LexeTracingLogger};
+        use lightning::routing::{
+            gossip::{NetworkGraph, P2PGossipSync},
+            scoring::ProbabilisticScorer,
+        };
+
+        let logger = LexeTracingLogger::new();
+        let network = LxNetwork::Regtest;
+        let deploy_env = DeployEnv::Dev;
+
+        let mut rng = SysRng::new();
+        let allow_mock = false;
+        let fake_backend_url = String::new();
+        let fake_runner_url = String::new();
+        let fake_lsp_url = String::new();
+
+        let backend_api = api::new_backend_api(
+            &mut rng,
+            allow_mock,
+            deploy_env,
+            Self::NODE_MODE,
+            Some(fake_backend_url),
+        )
+        .expect("Should create backend API with fake URL");
+
+        let runner_api = api::new_runner_api(
+            &mut rng,
+            allow_mock,
+            deploy_env,
+            Self::NODE_MODE,
+            Some(fake_runner_url),
+        )
+        .expect("Should create runner API with fake URL");
+
+        let lsp_api = api::new_lsp_api(
+            &mut rng,
+            allow_mock,
+            deploy_env,
+            network,
+            Self::NODE_MODE,
+            Some(fake_lsp_url),
+            logger.clone(),
+        )
+        .expect("Should create LSP API with fake URL");
+
+        // Create dummy esplora and fee estimates
+        let esplora = LexeEsplora::dummy();
+        let fee_estimates = esplora.fee_estimates();
+
+        // Create empty network graph
+        let network_graph =
+            Arc::new(NetworkGraph::new(network.to_bitcoin(), logger.clone()));
+
+        // Create empty scorer
+        let decay_params = lexe_ln::constants::LEXE_SCORER_PARAMS;
+        let scorer = Arc::new(Mutex::new(ProbabilisticScorer::new(
+            decay_params,
+            network_graph.clone(),
+            logger.clone(),
+        )));
+
+        // Create gossip sync
+        let utxo_lookup = None;
+        let gossip_sync = Arc::new(P2PGossipSync::new(
+            network_graph.clone(),
+            utxo_lookup,
+            logger.clone(),
+        ));
+
+        // Create LDK sync client from dummy esplora
+        let ldk_sync_client = Arc::new(EsploraSyncClient::from_client(
+            esplora.client().clone(),
+            logger.clone(),
+        ));
+
+        // Create other required fields
+        let config = channel_manager::get_config();
+        let version = crate::version();
+        let machine_id = enclave::machine_id();
+        let measurement = enclave::measurement();
+        let mega_activity_bus = EventsBus::new();
+
+        Self {
+            backend_api,
+            config,
+            esplora,
+            fee_estimates,
+            gossip_sync,
+            ldk_sync_client,
+            logger,
+            lsp_api,
+            machine_id,
+            measurement,
+            mega_activity_bus,
+            network_graph,
+            runner_api,
+            scorer,
+            untrusted_deploy_env: deploy_env,
+            untrusted_network: network,
+            version,
+        }
     }
 }

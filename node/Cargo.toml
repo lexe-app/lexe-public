@@ -85,6 +85,7 @@ tracing.workspace = true
 
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }
+lexe-ln = { path = "../lexe-ln", features = ["test-utils"] }
 
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
