@@ -415,7 +415,7 @@
   ];
 
   # Our flutter version
-  flutter = pkgs.flutter329;
+  flutter = pkgs.flutter332;
 
   # composeAndroidPackages =
   # { cmdLineToolsVersion ? "latest",

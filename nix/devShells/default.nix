@@ -82,6 +82,9 @@
       pkgs.cocoapods
       # idevicesyslog (among others) - view logs from attached iOS device
       pkgs.libimobiledevice
+      # Use standard rsync. macOS rsync (OpenBSD) doesn't copy Flutter.framework
+      # with the right permissions.
+      pkgs.rsync
     ];
 
     env = {

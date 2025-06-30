@@ -7,12 +7,12 @@ precision lowp float;
 // Uniforms (per-shader-invocation inputs)
 
 // The (width, height) of the shader paint area, in pixels.
-uniform vec2 u_resolution;
+layout(location = 0) uniform vec2 u_resolution;
 // Time, in seconds.
-uniform float u_time;
+layout(location = 1) uniform float u_time;
 // Horizontal scroll offset of the landing page carousel, in global normalized
 // coordinates (i.e., center of first screen is (0, 0)).
-uniform float u_scroll_offset;
+layout(location = 2) uniform float u_scroll_offset;
 
 // Outputs
 

@@ -266,7 +266,7 @@ final class LxTheme {
       ),
 
       // [Dialog]
-      dialogTheme: const DialogTheme(
+      dialogTheme: const DialogThemeData(
         backgroundColor: LxColors.background,
         elevation: 0.0,
         shape: RoundedRectangleBorder(
