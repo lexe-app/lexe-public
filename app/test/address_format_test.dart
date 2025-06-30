@@ -5,8 +5,9 @@ import 'package:lexeapp/address_format.dart' as address_format;
 void main() {
   test("address_format.ellipsizeBtcAddress", () {
     expect(
-      address_format
-          .ellipsizeBtcAddress("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"),
+      address_format.ellipsizeBtcAddress(
+        "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+      ),
       "bc1qw508\u2026v8f3t4",
     );
 

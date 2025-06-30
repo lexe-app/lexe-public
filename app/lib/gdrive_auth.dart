@@ -89,7 +89,8 @@ class ProdGDriveAuth extends GDriveAuth {
       final platform = Platform.operatingSystem;
       const flavor = appFlavor ?? "default";
       return Err(
-          Exception("Missing google drive client id for ($platform, $flavor)"));
+        Exception("Missing google drive client id for ($platform, $flavor)"),
+      );
     }
 
     // TODO(phlip9): segment server credentials by deploy env?
@@ -97,7 +98,9 @@ class ProdGDriveAuth extends GDriveAuth {
         "495704988639-19bfg8k5f3runiio4apbicpounc10gh1.apps.googleusercontent.com";
 
     final oauthFlow = GDriveOAuth2Flow.init(
-        clientId: clientId, serverClientId: serverClientId);
+      clientId: clientId,
+      serverClientId: serverClientId,
+    );
 
     // // Uncomment while debugging
     // info("oauth2 flow init:");
@@ -177,9 +180,9 @@ class MockGDriveAuth extends GDriveAuth {
 
   @override
   Future<Result<GDriveClient?, Exception>> tryAuth() => Future.delayed(
-        const Duration(milliseconds: 1200),
-        () => const Ok(MockGDriveClient._()),
-      );
+    const Duration(milliseconds: 1200),
+    () => const Ok(MockGDriveClient._()),
+  );
 }
 
 /// A basic mock [GDriveAuth] impl. It unconditionally returns an error message
@@ -189,10 +192,13 @@ class MockErrorGDriveAuth extends GDriveAuth {
 
   @override
   Future<Result<GDriveClient?, Exception>> tryAuth() => Future.delayed(
-        const Duration(milliseconds: 1200),
-        () => const Err(FfiError(
-            "Auth code exchange failed\n\nCaused by:\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off")),
-      );
+    const Duration(milliseconds: 1200),
+    () => const Err(
+      FfiError(
+        "Auth code exchange failed\n\nCaused by:\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off\n  1. stacktrace error gets cut off",
+      ),
+    ),
+  );
 }
 
 class MockGDriveClient implements GDriveClient {
@@ -213,8 +219,7 @@ class MockGDriveClient implements GDriveClient {
     required Network network,
     required bool useSgx,
     required RootSeed rootSeed,
-  }) =>
-      Future.value('{"channel_manager": null, channel_monitors: null}');
+  }) => Future.value('{"channel_manager": null, channel_monitors: null}');
 }
 
 class MockGDriveRestoreClient implements GDriveRestoreClient {
@@ -225,18 +230,19 @@ class MockGDriveRestoreClient implements GDriveRestoreClient {
     required DeployEnv deployEnv,
     required Network network,
     required bool useSgx,
-  }) =>
-      Future.delayed(
-        const Duration(milliseconds: 1234),
-        () => [
-          const MockGDriveRestoreCandidate(
-              userPk:
-                  "4072836db6c62f1fd07281feb1f2d6d1b8f05f8be3f0019a9205edff244017f1"),
-          const MockGDriveRestoreCandidate(
-              userPk:
-                  "ef64652cc9fc1d79d174bb52d0ffb7ad365db842e72e056aa5c4bfe00bcb20da"),
-        ],
-      );
+  }) => Future.delayed(
+    const Duration(milliseconds: 1234),
+    () => [
+      const MockGDriveRestoreCandidate(
+        userPk:
+            "4072836db6c62f1fd07281feb1f2d6d1b8f05f8be3f0019a9205edff244017f1",
+      ),
+      const MockGDriveRestoreCandidate(
+        userPk:
+            "ef64652cc9fc1d79d174bb52d0ffb7ad365db842e72e056aa5c4bfe00bcb20da",
+      ),
+    ],
+  );
 
   @override
   GDriveRestoreClientRs get inner => throw UnimplementedError();

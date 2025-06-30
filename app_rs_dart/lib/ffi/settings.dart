@@ -20,11 +20,7 @@ class Settings {
   final String? fiatCurrency;
   final bool? showSplitBalances;
 
-  const Settings({
-    this.locale,
-    this.fiatCurrency,
-    this.showSplitBalances,
-  });
+  const Settings({this.locale, this.fiatCurrency, this.showSplitBalances});
 
   @override
   int get hashCode =>
@@ -43,19 +39,15 @@ class Settings {
 class SettingsDb {
   final SettingsDbRs inner;
 
-  const SettingsDb({
-    required this.inner,
-  });
+  const SettingsDb({required this.inner});
 
   /// Read all settings.
-  Settings read() => AppRs.instance.api.crateFfiSettingsSettingsDbRead(
-        that: this,
-      );
+  Settings read() =>
+      AppRs.instance.api.crateFfiSettingsSettingsDbRead(that: this);
 
   /// Reset all settings to their defaults.
-  void reset() => AppRs.instance.api.crateFfiSettingsSettingsDbReset(
-        that: this,
-      );
+  void reset() =>
+      AppRs.instance.api.crateFfiSettingsSettingsDbReset(that: this);
 
   /// Update the in-memory settings by merging in any non-null fields in
   /// `update`. The settings will be persisted asynchronously, outside of this

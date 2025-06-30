@@ -66,12 +66,12 @@ class CloseChannelPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MultistepFlow<CloseChannelFlowResult>(
-        builder: (context) => CloseChannelChoosePage(
-          app: this.app,
-          fiatRate: this.fiatRate,
-          channels: this.channels,
-        ),
-      );
+    builder: (context) => CloseChannelChoosePage(
+      app: this.app,
+      fiatRate: this.fiatRate,
+      channels: this.channels,
+    ),
+  );
 }
 
 /// On this page the user chooses which channel they want to close.
@@ -97,30 +97,32 @@ class CloseChannelChoosePage extends StatefulWidget {
 
 class _CloseChannelChoosePageState extends State<CloseChannelChoosePage> {
   Future<void> onChannelSelected(final Channel channel) async {
-    info("CloseChannelChoosePage: selected channel: ${channel.channelId}, "
-        "our sats: ${channel.ourBalanceSats}");
+    info(
+      "CloseChannelChoosePage: selected channel: ${channel.channelId}, "
+      "our sats: ${channel.ourBalanceSats}",
+    );
 
     // Preflight the channel close to get fee estimates
     final req = CloseChannelRequest(channelId: channel.channelId);
     final Result<PreflightCloseChannelResponse, FfiError>? res =
         await showModalAsyncFlow(
-      context: this.context,
-      future: Result.tryFfiAsync(
-        () => this.widget.app.preflightCloseChannel(req: req),
-      ),
-      barrierDismissible: true,
-      errorBuilder: (context, err) => AlertDialog(
-        title: const Text("Error"),
-        content: Text(err.message),
-        scrollable: true,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text("Close"),
+          context: this.context,
+          future: Result.tryFfiAsync(
+            () => this.widget.app.preflightCloseChannel(req: req),
           ),
-        ],
-      ),
-    );
+          barrierDismissible: true,
+          errorBuilder: (context, err) => AlertDialog(
+            title: const Text("Error"),
+            content: Text(err.message),
+            scrollable: true,
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("Close"),
+              ),
+            ],
+          ),
+        );
 
     info("CloseChannelChoosePage: preflight: $res");
     if (!this.mounted || res == null) return;
@@ -134,18 +136,18 @@ class _CloseChannelChoosePageState extends State<CloseChannelChoosePage> {
     }
 
     // Navigate to confirm page and pop with the result if successful
-    final CloseChannelFlowResult? flowResult =
-        await Navigator.of(this.context).push(
-      MaterialPageRoute(
-        builder: (context) => CloseChannelConfirmPage(
-          app: this.widget.app,
-          fiatRate: this.widget.fiatRate,
-          channelId: channel.channelId,
-          channelOurBalanceSats: channel.ourBalanceSats,
-          preflight: preflight,
-        ),
-      ),
-    );
+    final CloseChannelFlowResult? flowResult = await Navigator.of(this.context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => CloseChannelConfirmPage(
+              app: this.widget.app,
+              fiatRate: this.widget.fiatRate,
+              channelId: channel.channelId,
+              channelOurBalanceSats: channel.ourBalanceSats,
+              preflight: preflight,
+            ),
+          ),
+        );
     info("CloseChannelChoosePage: flowResult: $flowResult");
     if (!this.mounted || flowResult == null) return;
 
@@ -169,7 +171,8 @@ class _CloseChannelChoosePageState extends State<CloseChannelChoosePage> {
               children: [
                 HeadingText(text: "Close Lightning channel"),
                 SubheadingText(
-                    text: "Move funds in a Lightning channel back on-chain."),
+                  text: "Move funds in a Lightning channel back on-chain.",
+                ),
                 SizedBox(height: Space.s500),
 
                 // You/Lexe LSP channels heading
@@ -190,26 +193,26 @@ class _CloseChannelChoosePageState extends State<CloseChannelChoosePage> {
             valueListenable: this.widget.channels,
             builder: (context, channelsList, child) =>
                 SliverFixedExtentList.list(
-              itemExtent: channelsListEntryHeight,
-              children: (channelsList != null)
-                  ? channelsList.channels
-                      .map(
-                        (channel) => Material(
-                          elevation: 0.0,
-                          color: LxColors.clearW0,
-                          child: InkWell(
-                            onTap: () => this.onChannelSelected(channel),
-                            child: ChannelsListEntry(
-                              maxValueSats: channelsList.maxValueSats,
-                              channel: channel,
-                              fiatRate: this.widget.fiatRate,
-                            ),
-                          ),
-                        ),
-                      )
-                      .toList()
-                  : [],
-            ),
+                  itemExtent: channelsListEntryHeight,
+                  children: (channelsList != null)
+                      ? channelsList.channels
+                            .map(
+                              (channel) => Material(
+                                elevation: 0.0,
+                                color: LxColors.clearW0,
+                                child: InkWell(
+                                  onTap: () => this.onChannelSelected(channel),
+                                  child: ChannelsListEntry(
+                                    maxValueSats: channelsList.maxValueSats,
+                                    channel: channel,
+                                    fiatRate: this.widget.fiatRate,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList()
+                      : [],
+                ),
           ),
         ],
       ),
@@ -270,8 +273,9 @@ class _CloseChannelConfirmPageState extends State<CloseChannelConfirmPage> {
     // Close the channel.
     final channelId = this.widget.channelId;
     final req = CloseChannelRequest(channelId: channelId);
-    final result =
-        await Result.tryFfiAsync(() => this.widget.app.closeChannel(req: req));
+    final result = await Result.tryFfiAsync(
+      () => this.widget.app.closeChannel(req: req),
+    );
 
     if (!this.mounted) return;
 
@@ -318,15 +322,19 @@ class _CloseChannelConfirmPageState extends State<CloseChannelConfirmPage> {
             valueListenable: this.widget.fiatRate,
             builder: (context, fiatRate, child) {
               final channelSats = this.widget.channelOurBalanceSats;
-              final channelFiat =
-                  FiatAmount.maybeFromSats(fiatRate, channelSats);
+              final channelFiat = FiatAmount.maybeFromSats(
+                fiatRate,
+                channelSats,
+              );
 
               final feeSats = this.widget.preflight.feeEstimateSats;
               final feeFiat = FiatAmount.maybeFromSats(fiatRate, feeSats);
 
               final onchainSats = max(0, channelSats - feeSats);
-              final onchainFiat =
-                  FiatAmount.maybeFromSats(fiatRate, onchainSats);
+              final onchainFiat = FiatAmount.maybeFromSats(
+                fiatRate,
+                onchainSats,
+              );
 
               return Column(
                 mainAxisSize: MainAxisSize.min,

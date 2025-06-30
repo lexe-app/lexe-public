@@ -55,7 +55,9 @@ Future<void> main() async {
     final app = maybeApp;
     final settings = LxSettings(app.settingsDb());
     final featureFlags = FeatureFlags(
-        deployEnv: config.deployEnv, userPk: app.userInfo().userPk);
+      deployEnv: config.deployEnv,
+      userPk: app.userInfo().userPk,
+    );
 
     // If user has a locale preference set then use that over the system locale.
     final locale = settings.locale.value;
@@ -84,9 +86,7 @@ Future<void> main() async {
     );
   }
 
-  runApp(LexeApp(
-    child: child,
-  ));
+  runApp(LexeApp(child: child));
 }
 
 class LexeApp extends StatelessWidget {

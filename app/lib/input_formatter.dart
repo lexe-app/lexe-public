@@ -29,7 +29,7 @@ class AlphaNumericInputFormatter extends FilteringTextInputFormatter {
 /// strings.
 class MaxUtf8BytesInputFormatter extends TextInputFormatter {
   const MaxUtf8BytesInputFormatter({required this.maxBytes})
-      : assert(maxBytes >= 0);
+    : assert(maxBytes >= 0);
 
   final int maxBytes;
 
@@ -63,20 +63,20 @@ class MaxUtf8BytesInputFormatter extends TextInputFormatter {
 /// "1,234" (for en_US locale).
 class IntInputFormatter extends TextInputFormatter {
   IntInputFormatter({String? locale})
-      : formatter = NumberFormat.decimalPatternDigits(
-          decimalDigits: 0,
-          locale: locale,
-        ),
-        super();
+    : formatter = NumberFormat.decimalPatternDigits(
+        decimalDigits: 0,
+        locale: locale,
+      ),
+      super();
 
   final NumberFormat formatter;
 
   Result<int, FormatException> tryParse(String text) => Result.try_(
-        () => switch (this.formatter.parse(text)) {
-          int i => i,
-          double d => d.toInt(),
-        },
-      );
+    () => switch (this.formatter.parse(text)) {
+      int i => i,
+      double d => d.toInt(),
+    },
+  );
 
   String formatInt(int value) => this.formatter.format(value);
 

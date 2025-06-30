@@ -54,7 +54,8 @@ ExternalLibrary _loadLibraryUnitTest() {
     return ExternalLibrary.open("../target/debug/libapp_rs.dll");
   } else {
     throw UnsupportedError(
-        "Unsupported unit test platform: ${io.Platform.operatingSystem}");
+      "Unsupported unit test platform: ${io.Platform.operatingSystem}",
+    );
   }
 }
 

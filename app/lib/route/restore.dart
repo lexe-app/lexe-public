@@ -47,21 +47,23 @@ class _ProdRestoreApi implements RestoreApi {
     required Config config,
     required String googleAuthCode,
     required RootSeed rootSeed,
-  }) =>
-      Result.tryFfiAsync(() => AppHandle.restore(
-            config: config,
-            googleAuthCode: googleAuthCode,
-            rootSeed: rootSeed,
-          ));
+  }) => Result.tryFfiAsync(
+    () => AppHandle.restore(
+      config: config,
+      googleAuthCode: googleAuthCode,
+      rootSeed: rootSeed,
+    ),
+  );
 }
 
 /// The entry point into the gdrive wallet restore UI flow.
 class RestorePage extends StatelessWidget {
-  const RestorePage(
-      {super.key,
-      required this.config,
-      required this.gdriveAuth,
-      required this.restoreApi});
+  const RestorePage({
+    super.key,
+    required this.config,
+    required this.gdriveAuth,
+    required this.restoreApi,
+  });
 
   final Config config;
   final GDriveAuth gdriveAuth;
@@ -69,22 +71,23 @@ class RestorePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MultistepFlow<AppHandle?>(
-        builder: (_) => RestoreGDriveAuthPage(
-          config: this.config,
-          gdriveAuth: this.gdriveAuth,
-          restoreApi: this.restoreApi,
-        ),
-      );
+    builder: (_) => RestoreGDriveAuthPage(
+      config: this.config,
+      gdriveAuth: this.gdriveAuth,
+      restoreApi: this.restoreApi,
+    ),
+  );
 }
 
 /// First we need the user to authorize the app's access to their GDrive in
 /// order to locate their wallet backups.
 class RestoreGDriveAuthPage extends StatefulWidget {
-  const RestoreGDriveAuthPage(
-      {super.key,
-      required this.config,
-      required this.gdriveAuth,
-      required this.restoreApi});
+  const RestoreGDriveAuthPage({
+    super.key,
+    required this.config,
+    required this.gdriveAuth,
+    required this.restoreApi,
+  });
 
   final Config config;
   final GDriveAuth gdriveAuth;
@@ -122,18 +125,15 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
     this.errorMessage.value = null;
 
     // Ask user to auth with Google Drive.
-    final Result<(GDriveClient, GDriveServerAuthCode)?, Exception> authResult =
-        (await this.widget.gdriveAuth.tryAuth()).andThen((client) {
+    final Result<(GDriveClient, GDriveServerAuthCode)?, Exception>
+    authResult = (await this.widget.gdriveAuth.tryAuth()).andThen((client) {
       if (client == null) return const Ok(null);
       final serverAuthCode = client.serverCode();
       if (serverAuthCode == null) {
         return Err(Exception("GDrive auth didn't return a server auth code"));
       }
 
-      return Ok((
-        client,
-        GDriveServerAuthCode(serverAuthCode: serverAuthCode),
-      ));
+      return Ok((client, GDriveServerAuthCode(serverAuthCode: serverAuthCode)));
     });
     if (!this.mounted) return;
 
@@ -160,10 +160,10 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
     final config = this.widget.config;
     final findResult = await Result.tryFfiAsync(
       () => gdriveClient.intoRestoreClient().findRestoreCandidates(
-            deployEnv: config.deployEnv,
-            network: config.network,
-            useSgx: config.useSgx,
-          ),
+        deployEnv: config.deployEnv,
+        network: config.network,
+        useSgx: config.useSgx,
+      ),
     );
     if (!this.mounted) return;
 
@@ -180,8 +180,9 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
         return;
     }
 
-    final candidatesDbg =
-        candidates.map((x) => x.userPk()).toList(growable: false);
+    final candidatesDbg = candidates
+        .map((x) => x.userPk())
+        .toList(growable: false);
     info("restore: found candidate UserPks: $candidatesDbg");
 
     // We authed, but there were no backups :(
@@ -196,31 +197,33 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
     // Either (1) goto password prompt if only one candidate, or (2) ask user to
     // choose which wallet first.
     final AppHandle? flowResult = await Navigator.of(this.context).push(
-      MaterialPageRoute(builder: (_) {
-        // (normal case): Only one backup, open the password prompt page directly.
-        if (candidates.length == 1) {
-          return RestorePasswordPage(
-            config: this.widget.config,
-            restoreApi: this.widget.restoreApi,
-            serverAuthCode: serverAuthCode,
-            candidate: candidates.single,
-          );
-        } else {
-          // It's possible (esp. for Lexe devs) to have multiple wallets for a single
-          // gdrive account. Open a page to ask the user which UserPk they want to
-          // restore.
-          //
-          // TODO(phlip9): UserPk isn't really a user-facing ID, so asking people to
-          // choose by UserPk is definitely suboptimal. Figure out some kind of wallet
-          // nickname system or something.
-          return RestoreChooseWalletPage(
-            config: this.widget.config,
-            restoreApi: this.widget.restoreApi,
-            serverAuthCode: serverAuthCode,
-            candidates: candidates,
-          );
-        }
-      }),
+      MaterialPageRoute(
+        builder: (_) {
+          // (normal case): Only one backup, open the password prompt page directly.
+          if (candidates.length == 1) {
+            return RestorePasswordPage(
+              config: this.widget.config,
+              restoreApi: this.widget.restoreApi,
+              serverAuthCode: serverAuthCode,
+              candidate: candidates.single,
+            );
+          } else {
+            // It's possible (esp. for Lexe devs) to have multiple wallets for a single
+            // gdrive account. Open a page to ask the user which UserPk they want to
+            // restore.
+            //
+            // TODO(phlip9): UserPk isn't really a user-facing ID, so asking people to
+            // choose by UserPk is definitely suboptimal. Figure out some kind of wallet
+            // nickname system or something.
+            return RestoreChooseWalletPage(
+              config: this.widget.config,
+              restoreApi: this.widget.restoreApi,
+              serverAuthCode: serverAuthCode,
+              candidates: candidates,
+            );
+          }
+        },
+      ),
     );
     if (flowResult == null) return;
     if (!this.mounted) return;
@@ -318,14 +321,16 @@ class _RestoreChooseWalletPageState extends State<RestoreChooseWalletPage> {
     info("restore: chose UserPk: ${candidate.userPk()}");
 
     // Goto password prompt.
-    final AppHandle? flowResult =
-        await Navigator.of(this.context).push(MaterialPageRoute(
-            builder: (_) => RestorePasswordPage(
-                  config: this.widget.config,
-                  serverAuthCode: this.widget.serverAuthCode,
-                  candidate: candidate,
-                  restoreApi: this.widget.restoreApi,
-                )));
+    final AppHandle? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (_) => RestorePasswordPage(
+          config: this.widget.config,
+          serverAuthCode: this.widget.serverAuthCode,
+          candidate: candidate,
+          restoreApi: this.widget.restoreApi,
+        ),
+      ),
+    );
     if (flowResult == null) return;
     if (!this.mounted) return;
 
@@ -353,9 +358,7 @@ class _RestoreChooseWalletPageState extends State<RestoreChooseWalletPage> {
           Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.start,
-            children: this
-                .widget
-                .candidates
+            children: this.widget.candidates
                 .map(
                   // TODO(phlip9): add "created on XXX" subtitle to help differentiate?
                   (candidate) => ListTile(
@@ -493,7 +496,8 @@ class _RestorePasswordPageState extends State<RestorePasswordPage> {
           const HeadingText(text: "Enter wallet backup password"),
           const SizedBox(height: Space.s200),
           const SubheadingText(
-              text: "This password was set when the wallet was first created"),
+            text: "This password was set when the wallet was first created",
+          ),
           const SizedBox(height: Space.s600),
 
           // Password field

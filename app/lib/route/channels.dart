@@ -70,8 +70,9 @@ class _ChannelsPageState extends State<ChannelsPage> {
   late final LxListener nodeInfoFetchOnRefresh;
 
   /// List channels on refresh.
-  late final ListChannelsService listChannelsService =
-      ListChannelsService(app: this.widget.app);
+  late final ListChannelsService listChannelsService = ListChannelsService(
+    app: this.widget.app,
+  );
   late final LxListener listChannelsOnRefresh;
 
   /// The current sorted and projected lightning channels list.
@@ -102,18 +103,19 @@ class _ChannelsPageState extends State<ChannelsPage> {
     super.initState();
 
     // Fetch [NodeInfo] on refresh.
-    this.nodeInfoFetchOnRefresh =
-        this.refreshService.refresh.listen(this.widget.nodeInfoService.fetch);
+    this.nodeInfoFetchOnRefresh = this.refreshService.refresh.listen(
+      this.widget.nodeInfoService.fetch,
+    );
 
     // List channels on refresh.
-    this.listChannelsOnRefresh =
-        this.refreshService.refresh.listen(this.listChannelsService.fetch);
+    this.listChannelsOnRefresh = this.refreshService.refresh.listen(
+      this.listChannelsService.fetch,
+    );
 
     // Project API response into [ChannelsList] for UI display.
-    this.channels = this
-        .listChannelsService
-        .listChannels
-        .map((resp) => (resp != null) ? ChannelsList.fromApi(resp) : null);
+    this.channels = this.listChannelsService.listChannels.map(
+      (resp) => (resp != null) ? ChannelsList.fromApi(resp) : null,
+    );
 
     // Build [TotalChannelsBalance].
     this.totalChannelsBalance = combine2(
@@ -140,15 +142,15 @@ class _ChannelsPageState extends State<ChannelsPage> {
   /// open UI flow.
   Future<void> onOpenPressed() async {
     // Begin open channel flow and wait for the flow result.
-    final OpenChannelFlowResult? flowResult =
-        await Navigator.of(this.context).push(
-      MaterialPageRoute(
-        builder: (context) => OpenChannelPage(
-          app: this.widget.app,
-          balanceState: this.widget.balanceState,
-        ),
-      ),
-    );
+    final OpenChannelFlowResult? flowResult = await Navigator.of(this.context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => OpenChannelPage(
+              app: this.widget.app,
+              balanceState: this.widget.balanceState,
+            ),
+          ),
+        );
 
     info("ChannelsPage: onOpenPressed: $flowResult");
 
@@ -164,16 +166,16 @@ class _ChannelsPageState extends State<ChannelsPage> {
   /// Called when the big channel "Closed" button is pressed. Begins the channel
   /// close UI flow.
   Future<void> onClosePressed() async {
-    final CloseChannelFlowResult? flowResult =
-        await Navigator.of(this.context).push(
-      MaterialPageRoute(
-        builder: (context) => CloseChannelPage(
-          app: this.widget.app,
-          fiatRate: this.widget.fiatRate,
-          channels: this.channels,
-        ),
-      ),
-    );
+    final CloseChannelFlowResult? flowResult = await Navigator.of(this.context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => CloseChannelPage(
+              app: this.widget.app,
+              fiatRate: this.widget.fiatRate,
+              channels: this.channels,
+            ),
+          ),
+        );
 
     info("ChannelsPage: onClosePressed: $flowResult");
 
@@ -218,14 +220,18 @@ class _ChannelsPageState extends State<ChannelsPage> {
                       // Heading
                       const Padding(
                         padding: EdgeInsets.only(
-                            top: Space.s300, bottom: Space.s100),
+                          top: Space.s300,
+                          bottom: Space.s100,
+                        ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             ListIcon.lightning(),
                             SizedBox(width: Space.s200),
-                            Text("Lightning channels",
-                                style: Fonts.fontHeadlineSmall),
+                            Text(
+                              "Lightning channels",
+                              style: Fonts.fontHeadlineSmall,
+                            ),
                           ],
                         ),
                       ),
@@ -240,7 +246,8 @@ class _ChannelsPageState extends State<ChannelsPage> {
                         valueListenable: this.totalChannelsBalance,
                         builder: (context, totalChannelsBalance, child) =>
                             TotalChannelsBalanceWidget(
-                                totalChannelsBalance: totalChannelsBalance),
+                              totalChannelsBalance: totalChannelsBalance,
+                            ),
                       ),
                       const SizedBox(height: Space.s650),
 
@@ -264,17 +271,19 @@ class _ChannelsPageState extends State<ChannelsPage> {
                     valueListenable: this.channels,
                     builder: (context, channelsList, child) =>
                         SliverFixedExtentList.list(
-                      itemExtent: channelsListEntryHeight,
-                      children: (channelsList != null)
-                          ? channelsList.channels
-                              .map((channel) => ChannelsListEntry(
-                                    maxValueSats: channelsList.maxValueSats,
-                                    channel: channel,
-                                    fiatRate: this.widget.fiatRate,
-                                  ))
-                              .toList()
-                          : [],
-                    ),
+                          itemExtent: channelsListEntryHeight,
+                          children: (channelsList != null)
+                              ? channelsList.channels
+                                    .map(
+                                      (channel) => ChannelsListEntry(
+                                        maxValueSats: channelsList.maxValueSats,
+                                        channel: channel,
+                                        fiatRate: this.widget.fiatRate,
+                                      ),
+                                    )
+                                    .toList()
+                              : [],
+                        ),
                   ),
                 ),
               ],
@@ -303,24 +312,24 @@ class ChannelsPartyChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
-        decoration: const BoxDecoration(
-          color: LxColors.grey850,
-          borderRadius: BorderRadius.all(Radius.circular(LxRadius.r200)),
+    decoration: const BoxDecoration(
+      color: LxColors.grey850,
+      borderRadius: BorderRadius.all(Radius.circular(LxRadius.r200)),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: Space.s200,
+        horizontal: Space.s300,
+      ),
+      child: Text(
+        this.name,
+        style: Fonts.fontUI.copyWith(
+          fontSize: Fonts.size200,
+          color: LxColors.fgSecondary,
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            vertical: Space.s200,
-            horizontal: Space.s300,
-          ),
-          child: Text(
-            this.name,
-            style: Fonts.fontUI.copyWith(
-              fontSize: Fonts.size200,
-              color: LxColors.fgSecondary,
-            ),
-          ),
-        ),
-      );
+      ),
+    ),
+  );
 }
 
 /// Reduce each channel's inbound capacity by this amount when determining our
@@ -352,15 +361,16 @@ class TotalChannelsBalance {
   ) {
     final inboundCapacitySats = (channels != null)
         ? channels.channels
-            .where((channel) => channel.isUsable)
-            .map(
-              // Since we don't yet have an accurate "next_inbound_htlc_limit",
-              // we'll reduce each channel's inbound capacity by an
-              // experimentally determined value.
-              (channel) => channel.inboundCapacitySats
-                  .saturatingSub(inboundCapacityTweakSats),
-            )
-            .sum
+              .where((channel) => channel.isUsable)
+              .map(
+                // Since we don't yet have an accurate "next_inbound_htlc_limit",
+                // we'll reduce each channel's inbound capacity by an
+                // experimentally determined value.
+                (channel) => channel.inboundCapacitySats.saturatingSub(
+                  inboundCapacityTweakSats,
+                ),
+              )
+              .sum
         : null;
 
     return TotalChannelsBalance(
@@ -426,18 +436,20 @@ class TotalChannelsBalanceWidget extends StatelessWidget {
     final textReserveWarning = Text.rich(
       TextSpan(
         children: <InlineSpan>[
-          const TextSpan(
-            text: "Excludes ",
-          ),
+          const TextSpan(text: "Excludes "),
           if (ourPunishmentReservesSats != null)
             TextSpan(
-              text: currency_format.formatSatsAmount(ourPunishmentReservesSats,
-                  satsSuffix: true),
+              text: currency_format.formatSatsAmount(
+                ourPunishmentReservesSats,
+                satsSuffix: true,
+              ),
               style: textStyleWarningSats,
             )
           else
             FilledTextPlaceholderSpan(
-                width: Space.s750, style: textStyleWarningSats),
+              width: Space.s750,
+              style: textStyleWarningSats,
+            ),
           const TextSpan(text: " of reserves"),
         ],
       ),
@@ -450,9 +462,7 @@ class TotalChannelsBalanceWidget extends StatelessWidget {
       //               "Receives above $amount sats will incur a miner fee."
       TextSpan(
         children: <InlineSpan>[
-          const TextSpan(
-            text: "*After Lexe's beta, receives beyond your ",
-          ),
+          const TextSpan(text: "*After Lexe's beta, receives beyond your "),
           if (inboundCapacitySats != null)
             TextSpan(
               text: currency_format.formatSatsAmount(inboundCapacitySats),
@@ -460,10 +470,10 @@ class TotalChannelsBalanceWidget extends StatelessWidget {
             )
           else
             FilledTextPlaceholderSpan(
-                width: Space.s800, style: textStyleWarningSats),
-          const TextSpan(
-            text: " of inbound liquidity will incur a miner fee",
-          ),
+              width: Space.s800,
+              style: textStyleWarningSats,
+            ),
+          const TextSpan(text: " of inbound liquidity will incur a miner fee"),
         ],
       ),
       style: textStyleWarning,
@@ -477,10 +487,12 @@ class TotalChannelsBalanceWidget extends StatelessWidget {
           color: LxColors.moneyGoUp,
           primaryText: const Text("Send up to"),
           secondaryText: textReserveWarning,
-          primaryAmount:
-              SplitFiatAmountTextOrPlaceholder(amountFiat: maxSendableFiat),
-          secondaryAmount:
-              SatsAmountTextOrPlaceholder(amountSats: maxSendableSats),
+          primaryAmount: SplitFiatAmountTextOrPlaceholder(
+            amountFiat: maxSendableFiat,
+          ),
+          secondaryAmount: SatsAmountTextOrPlaceholder(
+            amountSats: maxSendableSats,
+          ),
         ),
         const SizedBox(height: Space.s400),
 
@@ -608,8 +620,10 @@ class ChannelsList {
 
   factory ChannelsList.fromApi(final ListChannelsResponse response) {
     // Project and sort the channels response
-    final channels =
-        response.channels.mapFrom(Channel.fromApi, growable: false);
+    final channels = response.channels.mapFrom(
+      Channel.fromApi,
+      growable: false,
+    );
     channels.sort();
 
     // Get the max channel value
@@ -636,8 +650,11 @@ class ChannelsList {
 
 extension ListExt<T> on List<T> {
   List<U> mapFrom<U>(U Function(T t) mapper, {bool growable = false}) =>
-      List.generate(this.length, (idx) => mapper(this[idx]),
-          growable: growable);
+      List.generate(
+        this.length,
+        (idx) => mapper(this[idx]),
+        growable: growable,
+      );
 }
 
 /// The channel state we care about for this page's UI.
@@ -651,11 +668,11 @@ class Channel implements Comparable<Channel> {
   });
 
   Channel.fromApi(LxChannelDetails c)
-      : channelId = c.channelId,
-        isUsable = c.isUsable,
-        channelValueSats = c.channelValueSats,
-        ourBalanceSats = c.ourBalanceSats,
-        theirBalanceSats = c.theirBalanceSats;
+    : channelId = c.channelId,
+      isUsable = c.isUsable,
+      channelValueSats = c.channelValueSats,
+      ourBalanceSats = c.ourBalanceSats,
+      theirBalanceSats = c.theirBalanceSats;
 
   final String channelId;
   final bool isUsable;
@@ -734,20 +751,21 @@ class ChannelsListEntry extends StatelessWidget {
       valueListenable: this.fiatRate,
       builder: (context, fiatRate, child) => (fiatRate != null)
           ? SplitAmountText(
-              amount: FiatAmount.fromSats(fiatRate, this.channel.ourBalanceSats)
-                  .amount,
+              amount: FiatAmount.fromSats(
+                fiatRate,
+                this.channel.ourBalanceSats,
+              ).amount,
               fiatName: fiatRate.fiat,
               style: primaryStyle,
             )
-          : FilledTextPlaceholder(
-              width: Space.s1000,
-              style: primaryStyle,
-            ),
+          : FilledTextPlaceholder(width: Space.s1000, style: primaryStyle),
     );
 
     final ourBalanceSats = Text(
-      currency_format.formatSatsAmount(this.channel.ourBalanceSats,
-          satsSuffix: true),
+      currency_format.formatSatsAmount(
+        this.channel.ourBalanceSats,
+        satsSuffix: true,
+      ),
       style: secondaryStyle,
     );
 
@@ -756,20 +774,22 @@ class ChannelsListEntry extends StatelessWidget {
       builder: (context, fiatRate, child) => (fiatRate != null)
           ? Text(
               currency_format.formatFiat(
-                  FiatAmount.fromSats(fiatRate, this.channel.theirBalanceSats)
-                      .amount,
-                  fiatRate.fiat),
+                FiatAmount.fromSats(
+                  fiatRate,
+                  this.channel.theirBalanceSats,
+                ).amount,
+                fiatRate.fiat,
+              ),
               style: secondaryStyle,
             )
-          : FilledTextPlaceholder(
-              width: Space.s900,
-              style: secondaryStyle,
-            ),
+          : FilledTextPlaceholder(width: Space.s900, style: secondaryStyle),
     );
 
     final theirBalanceSats = Text(
-      currency_format.formatSatsAmount(this.channel.theirBalanceSats,
-          satsSuffix: true),
+      currency_format.formatSatsAmount(
+        this.channel.theirBalanceSats,
+        satsSuffix: true,
+      ),
       style: secondaryStyle,
     );
 
@@ -796,19 +816,13 @@ class ChannelsListEntry extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
-            children: [
-              ourBalanceFiat,
-              theirBalanceFiat,
-            ],
+            children: [ourBalanceFiat, theirBalanceFiat],
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
-            children: [
-              ourBalanceSats,
-              theirBalanceSats,
-            ],
+            children: [ourBalanceSats, theirBalanceSats],
           ),
         ],
       ),
@@ -901,8 +915,10 @@ class OnchainBottomSheet extends StatelessWidget {
                 children: [
                   // Heading
                   const Padding(
-                    padding:
-                        EdgeInsets.only(top: Space.s600, bottom: Space.s100),
+                    padding: EdgeInsets.only(
+                      top: Space.s600,
+                      bottom: Space.s100,
+                    ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
@@ -927,7 +943,9 @@ class OnchainBottomSheet extends StatelessWidget {
                     builder: (context, balanceState, child) {
                       final amountSats = balanceState.onchainSats();
                       final amountFiat = FiatAmount.maybeFromSats(
-                          balanceState.fiatRate, amountSats);
+                        balanceState.fiatRate,
+                        amountSats,
+                      );
 
                       return TotalChannelsBalanceRow(
                         primaryText: const Text("Send up to"),
@@ -982,10 +1000,7 @@ class SplitFiatAmountTextOrPlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     final amount = this.amountFiat;
     return (amount != null)
-        ? SplitAmountText(
-            amount: amount.amount,
-            fiatName: amount.fiat,
-          )
+        ? SplitAmountText(amount: amount.amount, fiatName: amount.fiat)
         : const FilledTextPlaceholder(width: Space.s1000);
   }
 }
@@ -1034,14 +1049,8 @@ class ChannelButton extends StatelessWidget {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Space.s450,
-            ),
-            child: Icon(
-              this.icon,
-              size: Fonts.size700,
-              weight: 700,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: Space.s450),
+            child: Icon(this.icon, size: Fonts.size700, weight: 700),
           ),
         ),
         const SizedBox(height: Space.s300),

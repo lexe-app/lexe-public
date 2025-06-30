@@ -84,8 +84,10 @@ class SendState_NeedUri implements SendState {
     // Try to parse and resolve the payment URI into a single "best" PaymentMethod.
     // TODO(phlip9): this API should return a bare error enum and flutter should
     // convert that to a human-readable error message (for translations).
-    final result = await Result.tryFfiAsync(() async =>
-        payment_uri.resolveBest(network: this.configNetwork, uriStr: uriStr));
+    final result = await Result.tryFfiAsync(
+      () async =>
+          payment_uri.resolveBest(network: this.configNetwork, uriStr: uriStr),
+    );
 
     // Check if resolving was successful.
     final PaymentMethod paymentMethod;
@@ -109,8 +111,8 @@ class SendState_NeedUri implements SendState {
     );
 
     // Try preflighting the payment if it already has an amount set.
-    final int? maybePreflightableAmount =
-        needAmountSendCtx.canPreflightImmediately();
+    final int? maybePreflightableAmount = needAmountSendCtx
+        .canPreflightImmediately();
 
     // Can't preflight yet, need user to enter amount.
     if (maybePreflightableAmount == null) return Ok(needAmountSendCtx);
@@ -153,10 +155,10 @@ class SendState_NeedAmount implements SendState {
   /// Returns Some amount if this payment method already has an amount attached
   /// and can be preflighted immediately.
   int? canPreflightImmediately() => switch (this.paymentMethod) {
-        PaymentMethod_Onchain(:final field0) => field0.amountSats,
-        PaymentMethod_Invoice(:final field0) => field0.amountSats,
-        PaymentMethod_Offer(:final field0) => field0.amountSats,
-      };
+    PaymentMethod_Onchain(:final field0) => field0.amountSats,
+    PaymentMethod_Invoice(:final field0) => field0.amountSats,
+    PaymentMethod_Offer(:final field0) => field0.amountSats,
+  };
 
   /// Using the current [PaymentMethod], preflight the payment with the given
   /// amount.
@@ -177,12 +179,16 @@ class SendState_NeedAmount implements SendState {
         );
 
         final result = await Result.tryFfiAsync(
-            () async => this.app.preflightPayOnchain(req: req));
+          () async => this.app.preflightPayOnchain(req: req),
+        );
 
         switch (result) {
           case Ok(:final ok):
             preflighted = PreflightedPayment_Onchain(
-                onchain: onchain, amountSats: amountSats, preflight: ok);
+              onchain: onchain,
+              amountSats: amountSats,
+              preflight: ok,
+            );
           case Err(:final err):
             return Err(err);
         }
@@ -197,12 +203,16 @@ class SendState_NeedAmount implements SendState {
         );
 
         final result = await Result.tryFfiAsync(
-            () async => this.app.preflightPayInvoice(req: req));
+          () async => this.app.preflightPayInvoice(req: req),
+        );
 
         switch (result) {
           case Ok(:final ok):
             preflighted = PreflightedPayment_Invoice(
-                invoice: invoice, amountSats: amountSats, preflight: ok);
+              invoice: invoice,
+              amountSats: amountSats,
+              preflight: ok,
+            );
           case Err(:final err):
             return Err(err);
         }
@@ -217,24 +227,30 @@ class SendState_NeedAmount implements SendState {
         );
 
         final result = await Result.tryFfiAsync(
-            () async => this.app.preflightPayOffer(req: req));
+          () async => this.app.preflightPayOffer(req: req),
+        );
 
         switch (result) {
           case Ok(:final ok):
             preflighted = PreflightedPayment_Offer(
-                offer: offer, amountSats: amountSats, preflight: ok);
+              offer: offer,
+              amountSats: amountSats,
+              preflight: ok,
+            );
           case Err(:final err):
             return Err(err);
         }
     }
 
-    return Ok(SendState_Preflighted(
-      app: this.app,
-      configNetwork: this.configNetwork,
-      balance: this.balance,
-      cid: this.cid,
-      preflightedPayment: preflighted,
-    ));
+    return Ok(
+      SendState_Preflighted(
+        app: this.app,
+        configNetwork: this.configNetwork,
+        balance: this.balance,
+        cid: this.cid,
+        preflightedPayment: preflighted,
+      ),
+    );
   }
 }
 
@@ -265,8 +281,11 @@ class SendState_Preflighted implements SendState {
   ) async {
     final preflighted = this.preflightedPayment;
     return switch (preflighted) {
-      PreflightedPayment_Onchain() =>
-        await this.payOnchain(preflighted, note, confPriority!),
+      PreflightedPayment_Onchain() => await this.payOnchain(
+        preflighted,
+        note,
+        confPriority!,
+      ),
       PreflightedPayment_Invoice() => await this.payInvoice(preflighted, note),
       PreflightedPayment_Offer() => await this.payOffer(preflighted, note),
     };
@@ -292,8 +311,9 @@ class SendState_Preflighted implements SendState {
       ConfirmationPriority.background => preflight.background,
     };
 
-    final res =
-        (await Result.tryFfiAsync(() async => this.app.payOnchain(req: req)));
+    final res = (await Result.tryFfiAsync(
+      () async => this.app.payOnchain(req: req),
+    ));
     return res.map(
       (resp) => SendFlowResult(
         payment: Payment(
@@ -330,8 +350,9 @@ class SendState_Preflighted implements SendState {
       note: note,
     );
 
-    final res =
-        (await Result.tryFfiAsync(() async => this.app.payInvoice(req: req)));
+    final res = (await Result.tryFfiAsync(
+      () async => this.app.payInvoice(req: req),
+    ));
     return res.map(
       (resp) => SendFlowResult(
         payment: Payment(
@@ -370,8 +391,9 @@ class SendState_Preflighted implements SendState {
       note: note,
     );
 
-    final res =
-        (await Result.tryFfiAsync(() async => this.app.payOffer(req: req)));
+    final res = (await Result.tryFfiAsync(
+      () async => this.app.payOffer(req: req),
+    ));
     return res.map(
       (resp) => SendFlowResult(
         payment: Payment(

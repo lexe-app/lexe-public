@@ -16,7 +16,10 @@ import 'types.dart';
 /// scanned/pasted into the best [`PaymentMethod`] for us to pay.
 ///
 /// [`PaymentUri`]: payment_uri::PaymentUri
-Future<PaymentMethod> resolveBest(
-        {required Network network, required String uriStr}) =>
-    AppRs.instance.api
-        .crateFfiPaymentUriResolveBest(network: network, uriStr: uriStr);
+Future<PaymentMethod> resolveBest({
+  required Network network,
+  required String uriStr,
+}) => AppRs.instance.api.crateFfiPaymentUriResolveBest(
+  network: network,
+  uriStr: uriStr,
+);

@@ -12,7 +12,8 @@ part of 'api.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
+  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
+);
 
 /// @nodoc
 mixin _$Balance {
@@ -26,12 +27,13 @@ mixin _$Balance {
 /// @nodoc
 
 class _$BalanceImpl implements _Balance {
-  const _$BalanceImpl(
-      {required this.totalSats,
-      required this.onchainSats,
-      required this.lightningSats,
-      required this.lightningUsableSats,
-      required this.lightningMaxSendableSats});
+  const _$BalanceImpl({
+    required this.totalSats,
+    required this.onchainSats,
+    required this.lightningSats,
+    required this.lightningUsableSats,
+    required this.lightningMaxSendableSats,
+  });
 
   @override
   final int totalSats;
@@ -63,22 +65,31 @@ class _$BalanceImpl implements _Balance {
             (identical(other.lightningUsableSats, lightningUsableSats) ||
                 other.lightningUsableSats == lightningUsableSats) &&
             (identical(
-                    other.lightningMaxSendableSats, lightningMaxSendableSats) ||
+                  other.lightningMaxSendableSats,
+                  lightningMaxSendableSats,
+                ) ||
                 other.lightningMaxSendableSats == lightningMaxSendableSats));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, totalSats, onchainSats,
-      lightningSats, lightningUsableSats, lightningMaxSendableSats);
+  int get hashCode => Object.hash(
+    runtimeType,
+    totalSats,
+    onchainSats,
+    lightningSats,
+    lightningUsableSats,
+    lightningMaxSendableSats,
+  );
 }
 
 abstract class _Balance implements Balance {
-  const factory _Balance(
-      {required final int totalSats,
-      required final int onchainSats,
-      required final int lightningSats,
-      required final int lightningUsableSats,
-      required final int lightningMaxSendableSats}) = _$BalanceImpl;
+  const factory _Balance({
+    required final int totalSats,
+    required final int onchainSats,
+    required final int lightningSats,
+    required final int lightningUsableSats,
+    required final int lightningMaxSendableSats,
+  }) = _$BalanceImpl;
 
   @override
   int get totalSats;
@@ -166,9 +177,10 @@ class _$CreateClientRequestImpl implements _CreateClientRequest {
 }
 
 abstract class _CreateClientRequest implements CreateClientRequest {
-  const factory _CreateClientRequest(
-      {final String? label,
-      required final Scope scope}) = _$CreateClientRequestImpl;
+  const factory _CreateClientRequest({
+    final String? label,
+    required final Scope scope,
+  }) = _$CreateClientRequestImpl;
 
   @override
   String? get label;
@@ -185,8 +197,10 @@ mixin _$CreateClientResponse {
 /// @nodoc
 
 class _$CreateClientResponseImpl implements _CreateClientResponse {
-  const _$CreateClientResponseImpl(
-      {required this.client, required this.credentials});
+  const _$CreateClientResponseImpl({
+    required this.client,
+    required this.credentials,
+  });
 
   @override
   final RevocableClient client;
@@ -213,9 +227,10 @@ class _$CreateClientResponseImpl implements _CreateClientResponse {
 }
 
 abstract class _CreateClientResponse implements CreateClientResponse {
-  const factory _CreateClientResponse(
-      {required final RevocableClient client,
-      required final String credentials}) = _$CreateClientResponseImpl;
+  const factory _CreateClientResponse({
+    required final RevocableClient client,
+    required final String credentials,
+  }) = _$CreateClientResponseImpl;
 
   @override
   RevocableClient get client;
@@ -233,8 +248,11 @@ mixin _$CreateInvoiceRequest {
 /// @nodoc
 
 class _$CreateInvoiceRequestImpl implements _CreateInvoiceRequest {
-  const _$CreateInvoiceRequestImpl(
-      {required this.expirySecs, this.amountSats, this.description});
+  const _$CreateInvoiceRequestImpl({
+    required this.expirySecs,
+    this.amountSats,
+    this.description,
+  });
 
   @override
   final int expirySecs;
@@ -267,10 +285,11 @@ class _$CreateInvoiceRequestImpl implements _CreateInvoiceRequest {
 }
 
 abstract class _CreateInvoiceRequest implements CreateInvoiceRequest {
-  const factory _CreateInvoiceRequest(
-      {required final int expirySecs,
-      final int? amountSats,
-      final String? description}) = _$CreateInvoiceRequestImpl;
+  const factory _CreateInvoiceRequest({
+    required final int expirySecs,
+    final int? amountSats,
+    final String? description,
+  }) = _$CreateInvoiceRequestImpl;
 
   @override
   int get expirySecs;
@@ -328,8 +347,11 @@ mixin _$CreateOfferRequest {
 /// @nodoc
 
 class _$CreateOfferRequestImpl implements _CreateOfferRequest {
-  const _$CreateOfferRequestImpl(
-      {this.expirySecs, this.amountSats, this.description});
+  const _$CreateOfferRequestImpl({
+    this.expirySecs,
+    this.amountSats,
+    this.description,
+  });
 
   @override
   final int? expirySecs;
@@ -362,10 +384,11 @@ class _$CreateOfferRequestImpl implements _CreateOfferRequest {
 }
 
 abstract class _CreateOfferRequest implements CreateOfferRequest {
-  const factory _CreateOfferRequest(
-      {final int? expirySecs,
-      final int? amountSats,
-      final String? description}) = _$CreateOfferRequestImpl;
+  const factory _CreateOfferRequest({
+    final int? expirySecs,
+    final int? amountSats,
+    final String? description,
+  }) = _$CreateOfferRequestImpl;
 
   @override
   int? get expirySecs;
@@ -487,9 +510,10 @@ class _$FiatRateImpl implements _FiatRate {
 }
 
 abstract class _FiatRate implements FiatRate {
-  const factory _FiatRate(
-      {required final String fiat,
-      required final double rate}) = _$FiatRateImpl;
+  const factory _FiatRate({
+    required final String fiat,
+    required final double rate,
+  }) = _$FiatRateImpl;
 
   @override
   String get fiat;
@@ -506,9 +530,10 @@ mixin _$FiatRates {
 /// @nodoc
 
 class _$FiatRatesImpl implements _FiatRates {
-  const _$FiatRatesImpl(
-      {required this.timestampMs, required final List<FiatRate> rates})
-      : _rates = rates;
+  const _$FiatRatesImpl({
+    required this.timestampMs,
+    required final List<FiatRate> rates,
+  }) : _rates = rates;
 
   @override
   final int timestampMs;
@@ -537,13 +562,17 @@ class _$FiatRatesImpl implements _FiatRates {
 
   @override
   int get hashCode => Object.hash(
-      runtimeType, timestampMs, const DeepCollectionEquality().hash(_rates));
+    runtimeType,
+    timestampMs,
+    const DeepCollectionEquality().hash(_rates),
+  );
 }
 
 abstract class _FiatRates implements FiatRates {
-  const factory _FiatRates(
-      {required final int timestampMs,
-      required final List<FiatRate> rates}) = _$FiatRatesImpl;
+  const factory _FiatRates({
+    required final int timestampMs,
+    required final List<FiatRate> rates,
+  }) = _$FiatRatesImpl;
 
   @override
   int get timestampMs;
@@ -559,9 +588,9 @@ mixin _$ListChannelsResponse {
 /// @nodoc
 
 class _$ListChannelsResponseImpl implements _ListChannelsResponse {
-  const _$ListChannelsResponseImpl(
-      {required final List<LxChannelDetails> channels})
-      : _channels = channels;
+  const _$ListChannelsResponseImpl({
+    required final List<LxChannelDetails> channels,
+  }) : _channels = channels;
 
   final List<LxChannelDetails> _channels;
   @override
@@ -590,9 +619,9 @@ class _$ListChannelsResponseImpl implements _ListChannelsResponse {
 }
 
 abstract class _ListChannelsResponse implements ListChannelsResponse {
-  const factory _ListChannelsResponse(
-          {required final List<LxChannelDetails> channels}) =
-      _$ListChannelsResponseImpl;
+  const factory _ListChannelsResponse({
+    required final List<LxChannelDetails> channels,
+  }) = _$ListChannelsResponseImpl;
 
   @override
   List<LxChannelDetails> get channels;
@@ -609,11 +638,12 @@ mixin _$NodeInfo {
 /// @nodoc
 
 class _$NodeInfoImpl implements _NodeInfo {
-  const _$NodeInfoImpl(
-      {required this.nodePk,
-      required this.version,
-      required this.measurement,
-      required this.balance});
+  const _$NodeInfoImpl({
+    required this.nodePk,
+    required this.version,
+    required this.measurement,
+    required this.balance,
+  });
 
   @override
   final String nodePk;
@@ -647,11 +677,12 @@ class _$NodeInfoImpl implements _NodeInfo {
 }
 
 abstract class _NodeInfo implements NodeInfo {
-  const factory _NodeInfo(
-      {required final String nodePk,
-      required final String version,
-      required final String measurement,
-      required final Balance balance}) = _$NodeInfoImpl;
+  const factory _NodeInfo({
+    required final String nodePk,
+    required final String version,
+    required final String measurement,
+    required final Balance balance,
+  }) = _$NodeInfoImpl;
 
   @override
   String get nodePk;
@@ -672,8 +703,10 @@ mixin _$OpenChannelRequest {
 /// @nodoc
 
 class _$OpenChannelRequestImpl implements _OpenChannelRequest {
-  const _$OpenChannelRequestImpl(
-      {required this.userChannelId, required this.valueSats});
+  const _$OpenChannelRequestImpl({
+    required this.userChannelId,
+    required this.valueSats,
+  });
 
   @override
   final UserChannelId userChannelId;
@@ -701,9 +734,10 @@ class _$OpenChannelRequestImpl implements _OpenChannelRequest {
 }
 
 abstract class _OpenChannelRequest implements OpenChannelRequest {
-  const factory _OpenChannelRequest(
-      {required final UserChannelId userChannelId,
-      required final int valueSats}) = _$OpenChannelRequestImpl;
+  const factory _OpenChannelRequest({
+    required final UserChannelId userChannelId,
+    required final int valueSats,
+  }) = _$OpenChannelRequestImpl;
 
   @override
   UserChannelId get userChannelId;
@@ -760,8 +794,11 @@ mixin _$PayInvoiceRequest {
 /// @nodoc
 
 class _$PayInvoiceRequestImpl implements _PayInvoiceRequest {
-  const _$PayInvoiceRequestImpl(
-      {required this.invoice, this.fallbackAmountSats, this.note});
+  const _$PayInvoiceRequestImpl({
+    required this.invoice,
+    this.fallbackAmountSats,
+    this.note,
+  });
 
   @override
   final String invoice;
@@ -792,10 +829,11 @@ class _$PayInvoiceRequestImpl implements _PayInvoiceRequest {
 }
 
 abstract class _PayInvoiceRequest implements PayInvoiceRequest {
-  const factory _PayInvoiceRequest(
-      {required final String invoice,
-      final int? fallbackAmountSats,
-      final String? note}) = _$PayInvoiceRequestImpl;
+  const factory _PayInvoiceRequest({
+    required final String invoice,
+    final int? fallbackAmountSats,
+    final String? note,
+  }) = _$PayInvoiceRequestImpl;
 
   @override
   String get invoice;
@@ -854,11 +892,12 @@ mixin _$PayOfferRequest {
 /// @nodoc
 
 class _$PayOfferRequestImpl implements _PayOfferRequest {
-  const _$PayOfferRequestImpl(
-      {required this.cid,
-      required this.offer,
-      this.fallbackAmountSats,
-      this.note});
+  const _$PayOfferRequestImpl({
+    required this.cid,
+    required this.offer,
+    this.fallbackAmountSats,
+    this.note,
+  });
 
   @override
   final ClientPaymentId cid;
@@ -892,11 +931,12 @@ class _$PayOfferRequestImpl implements _PayOfferRequest {
 }
 
 abstract class _PayOfferRequest implements PayOfferRequest {
-  const factory _PayOfferRequest(
-      {required final ClientPaymentId cid,
-      required final String offer,
-      final int? fallbackAmountSats,
-      final String? note}) = _$PayOfferRequestImpl;
+  const factory _PayOfferRequest({
+    required final ClientPaymentId cid,
+    required final String offer,
+    final int? fallbackAmountSats,
+    final String? note,
+  }) = _$PayOfferRequestImpl;
 
   @override
   ClientPaymentId get cid;
@@ -958,12 +998,13 @@ mixin _$PayOnchainRequest {
 /// @nodoc
 
 class _$PayOnchainRequestImpl implements _PayOnchainRequest {
-  const _$PayOnchainRequestImpl(
-      {required this.cid,
-      required this.address,
-      required this.amountSats,
-      required this.priority,
-      this.note});
+  const _$PayOnchainRequestImpl({
+    required this.cid,
+    required this.address,
+    required this.amountSats,
+    required this.priority,
+    this.note,
+  });
 
   @override
   final ClientPaymentId cid;
@@ -1001,12 +1042,13 @@ class _$PayOnchainRequestImpl implements _PayOnchainRequest {
 }
 
 abstract class _PayOnchainRequest implements PayOnchainRequest {
-  const factory _PayOnchainRequest(
-      {required final ClientPaymentId cid,
-      required final String address,
-      required final int amountSats,
-      required final ConfirmationPriority priority,
-      final String? note}) = _$PayOnchainRequestImpl;
+  const factory _PayOnchainRequest({
+    required final ClientPaymentId cid,
+    required final String address,
+    required final int amountSats,
+    required final ConfirmationPriority priority,
+    final String? note,
+  }) = _$PayOnchainRequestImpl;
 
   @override
   ClientPaymentId get cid;
@@ -1055,9 +1097,10 @@ class _$PayOnchainResponseImpl implements _PayOnchainResponse {
 }
 
 abstract class _PayOnchainResponse implements PayOnchainResponse {
-  const factory _PayOnchainResponse(
-      {required final PaymentIndex index,
-      required final String txid}) = _$PayOnchainResponseImpl;
+  const factory _PayOnchainResponse({
+    required final PaymentIndex index,
+    required final String txid,
+  }) = _$PayOnchainResponseImpl;
 
   @override
   PaymentIndex get index;
@@ -1099,9 +1142,9 @@ class _$PreflightCloseChannelResponseImpl
 
 abstract class _PreflightCloseChannelResponse
     implements PreflightCloseChannelResponse {
-  const factory _PreflightCloseChannelResponse(
-          {required final int feeEstimateSats}) =
-      _$PreflightCloseChannelResponseImpl;
+  const factory _PreflightCloseChannelResponse({
+    required final int feeEstimateSats,
+  }) = _$PreflightCloseChannelResponseImpl;
 
   @override
   int get feeEstimateSats;
@@ -1182,9 +1225,9 @@ class _$PreflightOpenChannelResponseImpl
 
 abstract class _PreflightOpenChannelResponse
     implements PreflightOpenChannelResponse {
-  const factory _PreflightOpenChannelResponse(
-          {required final int feeEstimateSats}) =
-      _$PreflightOpenChannelResponseImpl;
+  const factory _PreflightOpenChannelResponse({
+    required final int feeEstimateSats,
+  }) = _$PreflightOpenChannelResponseImpl;
 
   @override
   int get feeEstimateSats;
@@ -1199,8 +1242,10 @@ mixin _$PreflightPayInvoiceRequest {
 /// @nodoc
 
 class _$PreflightPayInvoiceRequestImpl implements _PreflightPayInvoiceRequest {
-  const _$PreflightPayInvoiceRequestImpl(
-      {required this.invoice, this.fallbackAmountSats});
+  const _$PreflightPayInvoiceRequestImpl({
+    required this.invoice,
+    this.fallbackAmountSats,
+  });
 
   @override
   final String invoice;
@@ -1228,9 +1273,10 @@ class _$PreflightPayInvoiceRequestImpl implements _PreflightPayInvoiceRequest {
 
 abstract class _PreflightPayInvoiceRequest
     implements PreflightPayInvoiceRequest {
-  const factory _PreflightPayInvoiceRequest(
-      {required final String invoice,
-      final int? fallbackAmountSats}) = _$PreflightPayInvoiceRequestImpl;
+  const factory _PreflightPayInvoiceRequest({
+    required final String invoice,
+    final int? fallbackAmountSats,
+  }) = _$PreflightPayInvoiceRequestImpl;
 
   @override
   String get invoice;
@@ -1248,8 +1294,10 @@ mixin _$PreflightPayInvoiceResponse {
 
 class _$PreflightPayInvoiceResponseImpl
     implements _PreflightPayInvoiceResponse {
-  const _$PreflightPayInvoiceResponseImpl(
-      {required this.amountSats, required this.feesSats});
+  const _$PreflightPayInvoiceResponseImpl({
+    required this.amountSats,
+    required this.feesSats,
+  });
 
   @override
   final int amountSats;
@@ -1278,9 +1326,10 @@ class _$PreflightPayInvoiceResponseImpl
 
 abstract class _PreflightPayInvoiceResponse
     implements PreflightPayInvoiceResponse {
-  const factory _PreflightPayInvoiceResponse(
-      {required final int amountSats,
-      required final int feesSats}) = _$PreflightPayInvoiceResponseImpl;
+  const factory _PreflightPayInvoiceResponse({
+    required final int amountSats,
+    required final int feesSats,
+  }) = _$PreflightPayInvoiceResponseImpl;
 
   @override
   int get amountSats;
@@ -1298,8 +1347,11 @@ mixin _$PreflightPayOfferRequest {
 /// @nodoc
 
 class _$PreflightPayOfferRequestImpl implements _PreflightPayOfferRequest {
-  const _$PreflightPayOfferRequestImpl(
-      {required this.cid, required this.offer, this.fallbackAmountSats});
+  const _$PreflightPayOfferRequestImpl({
+    required this.cid,
+    required this.offer,
+    this.fallbackAmountSats,
+  });
 
   @override
   final ClientPaymentId cid;
@@ -1329,10 +1381,11 @@ class _$PreflightPayOfferRequestImpl implements _PreflightPayOfferRequest {
 }
 
 abstract class _PreflightPayOfferRequest implements PreflightPayOfferRequest {
-  const factory _PreflightPayOfferRequest(
-      {required final ClientPaymentId cid,
-      required final String offer,
-      final int? fallbackAmountSats}) = _$PreflightPayOfferRequestImpl;
+  const factory _PreflightPayOfferRequest({
+    required final ClientPaymentId cid,
+    required final String offer,
+    final int? fallbackAmountSats,
+  }) = _$PreflightPayOfferRequestImpl;
 
   @override
   ClientPaymentId get cid;
@@ -1351,8 +1404,10 @@ mixin _$PreflightPayOfferResponse {
 /// @nodoc
 
 class _$PreflightPayOfferResponseImpl implements _PreflightPayOfferResponse {
-  const _$PreflightPayOfferResponseImpl(
-      {required this.amountSats, required this.feesSats});
+  const _$PreflightPayOfferResponseImpl({
+    required this.amountSats,
+    required this.feesSats,
+  });
 
   @override
   final int amountSats;
@@ -1380,9 +1435,10 @@ class _$PreflightPayOfferResponseImpl implements _PreflightPayOfferResponse {
 }
 
 abstract class _PreflightPayOfferResponse implements PreflightPayOfferResponse {
-  const factory _PreflightPayOfferResponse(
-      {required final int amountSats,
-      required final int feesSats}) = _$PreflightPayOfferResponseImpl;
+  const factory _PreflightPayOfferResponse({
+    required final int amountSats,
+    required final int feesSats,
+  }) = _$PreflightPayOfferResponseImpl;
 
   @override
   int get amountSats;
@@ -1399,8 +1455,10 @@ mixin _$PreflightPayOnchainRequest {
 /// @nodoc
 
 class _$PreflightPayOnchainRequestImpl implements _PreflightPayOnchainRequest {
-  const _$PreflightPayOnchainRequestImpl(
-      {required this.address, required this.amountSats});
+  const _$PreflightPayOnchainRequestImpl({
+    required this.address,
+    required this.amountSats,
+  });
 
   @override
   final String address;
@@ -1428,9 +1486,10 @@ class _$PreflightPayOnchainRequestImpl implements _PreflightPayOnchainRequest {
 
 abstract class _PreflightPayOnchainRequest
     implements PreflightPayOnchainRequest {
-  const factory _PreflightPayOnchainRequest(
-      {required final String address,
-      required final int amountSats}) = _$PreflightPayOnchainRequestImpl;
+  const factory _PreflightPayOnchainRequest({
+    required final String address,
+    required final int amountSats,
+  }) = _$PreflightPayOnchainRequestImpl;
 
   @override
   String get address;
@@ -1449,8 +1508,11 @@ mixin _$PreflightPayOnchainResponse {
 
 class _$PreflightPayOnchainResponseImpl
     implements _PreflightPayOnchainResponse {
-  const _$PreflightPayOnchainResponseImpl(
-      {this.high, required this.normal, required this.background});
+  const _$PreflightPayOnchainResponseImpl({
+    this.high,
+    required this.normal,
+    required this.background,
+  });
 
   @override
   final FeeEstimate? high;
@@ -1481,11 +1543,11 @@ class _$PreflightPayOnchainResponseImpl
 
 abstract class _PreflightPayOnchainResponse
     implements PreflightPayOnchainResponse {
-  const factory _PreflightPayOnchainResponse(
-          {final FeeEstimate? high,
-          required final FeeEstimate normal,
-          required final FeeEstimate background}) =
-      _$PreflightPayOnchainResponseImpl;
+  const factory _PreflightPayOnchainResponse({
+    final FeeEstimate? high,
+    required final FeeEstimate normal,
+    required final FeeEstimate background,
+  }) = _$PreflightPayOnchainResponseImpl;
 
   @override
   FeeEstimate? get high;
@@ -1531,9 +1593,10 @@ class _$UpdateClientRequestImpl implements _UpdateClientRequest {
 }
 
 abstract class _UpdateClientRequest implements UpdateClientRequest {
-  const factory _UpdateClientRequest(
-      {required final String pubkey,
-      final bool? isRevoked}) = _$UpdateClientRequestImpl;
+  const factory _UpdateClientRequest({
+    required final String pubkey,
+    final bool? isRevoked,
+  }) = _$UpdateClientRequestImpl;
 
   @override
   String get pubkey;
@@ -1576,9 +1639,10 @@ class _$UpdatePaymentNoteImpl implements _UpdatePaymentNote {
 }
 
 abstract class _UpdatePaymentNote implements UpdatePaymentNote {
-  const factory _UpdatePaymentNote(
-      {required final PaymentIndex index,
-      final String? note}) = _$UpdatePaymentNoteImpl;
+  const factory _UpdatePaymentNote({
+    required final PaymentIndex index,
+    final String? note,
+  }) = _$UpdatePaymentNoteImpl;
 
   @override
   PaymentIndex get index;

@@ -33,9 +33,7 @@ class AppUserInfo with _$AppUserInfo {
 @freezed
 class ClientPaymentId with _$ClientPaymentId {
   const ClientPaymentId._();
-  const factory ClientPaymentId({
-    required U8Array32 id,
-  }) = _ClientPaymentId;
+  const factory ClientPaymentId({required U8Array32 id}) = _ClientPaymentId;
   static ClientPaymentId genNew() =>
       AppRs.instance.api.crateFfiTypesClientPaymentIdGenNew();
 }
@@ -54,19 +52,13 @@ class Config with _$Config {
   }) = _Config;
 }
 
-enum ConfirmationPriority {
-  high,
-  normal,
-  background,
-  ;
-}
+enum ConfirmationPriority { high, normal, background }
 
 /// See [`common::env::DeployEnv`]
 enum DeployEnv {
   dev,
   staging,
-  prod,
-  ;
+  prod;
 
   static DeployEnv fromStr({required String s}) =>
       AppRs.instance.api.crateFfiTypesDeployEnvFromStr(s: s);
@@ -142,8 +134,7 @@ enum Network {
   mainnet,
   testnet3,
   testnet4,
-  regtest,
-  ;
+  regtest;
 
   static Network fromStr({required String s}) =>
       AppRs.instance.api.crateFfiTypesNetworkFromStr(s: s);
@@ -197,49 +188,26 @@ class Payment with _$Payment {
   }) = _Payment;
 }
 
-enum PaymentDirection {
-  inbound,
-  outbound,
-  ;
-}
+enum PaymentDirection { inbound, outbound }
 
 /// See [`lexe_api::types::payments::PaymentIndex`].
 @freezed
 class PaymentIndex with _$PaymentIndex {
-  const factory PaymentIndex({
-    required String field0,
-  }) = _PaymentIndex;
+  const factory PaymentIndex({required String field0}) = _PaymentIndex;
 }
 
-enum PaymentKind {
-  onchain,
-  invoice,
-  spontaneous,
-  offer,
-  ;
-}
+enum PaymentKind { onchain, invoice, spontaneous, offer }
 
 @freezed
 sealed class PaymentMethod with _$PaymentMethod {
   const PaymentMethod._();
 
-  const factory PaymentMethod.onchain(
-    Onchain field0,
-  ) = PaymentMethod_Onchain;
-  const factory PaymentMethod.invoice(
-    Invoice field0,
-  ) = PaymentMethod_Invoice;
-  const factory PaymentMethod.offer(
-    Offer field0,
-  ) = PaymentMethod_Offer;
+  const factory PaymentMethod.onchain(Onchain field0) = PaymentMethod_Onchain;
+  const factory PaymentMethod.invoice(Invoice field0) = PaymentMethod_Invoice;
+  const factory PaymentMethod.offer(Offer field0) = PaymentMethod_Offer;
 }
 
-enum PaymentStatus {
-  pending,
-  completed,
-  failed,
-  ;
-}
+enum PaymentStatus { pending, completed, failed }
 
 class RevocableClient {
   final String pubkey;
@@ -273,15 +241,11 @@ class RevocableClient {
 class RootSeed {
   final RootSeedRs inner;
 
-  const RootSeed({
-    required this.inner,
-  });
+  const RootSeed({required this.inner});
 
   /// Hex-encode the root seed secret. Should only be used for debugging.
   String exposeSecretHex() =>
-      AppRs.instance.api.crateFfiTypesRootSeedExposeSecretHex(
-        that: this,
-      );
+      AppRs.instance.api.crateFfiTypesRootSeedExposeSecretHex(that: this);
 
   @override
   int get hashCode => inner.hashCode;
@@ -294,11 +258,7 @@ class RootSeed {
           inner == other.inner;
 }
 
-enum Scope {
-  all,
-  nodeConnect,
-  ;
-}
+enum Scope { all, nodeConnect }
 
 /// Just the info we need to display an entry in the payments list UI.
 @freezed
@@ -320,10 +280,7 @@ class ShortPaymentAndIndex {
   final int vecIdx;
   final ShortPayment payment;
 
-  const ShortPaymentAndIndex({
-    required this.vecIdx,
-    required this.payment,
-  });
+  const ShortPaymentAndIndex({required this.vecIdx, required this.payment});
 
   @override
   int get hashCode => vecIdx.hashCode ^ payment.hashCode;
@@ -346,9 +303,7 @@ class ShortPaymentAndIndex {
 @freezed
 class UserChannelId with _$UserChannelId {
   const UserChannelId._();
-  const factory UserChannelId({
-    required U8Array16 id,
-  }) = _UserChannelId;
+  const factory UserChannelId({required U8Array16 id}) = _UserChannelId;
   static UserChannelId genNew() =>
       AppRs.instance.api.crateFfiTypesUserChannelIdGenNew();
 }

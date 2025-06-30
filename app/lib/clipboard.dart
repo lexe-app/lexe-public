@@ -15,9 +15,7 @@ abstract final class LxClipboard {
 
   /// Just copy text to the system clipboard without telling the user.
   static Future<Result<void, Exception>> copyText(String text) =>
-      Result.tryAsync(
-        () => Clipboard.setData(ClipboardData(text: text)),
-      );
+      Result.tryAsync(() => Clipboard.setData(ClipboardData(text: text)));
 
   /// Copy text to the system clipboard and show a toast message notifying the
   /// user about what we copied.
@@ -37,21 +35,24 @@ abstract final class LxClipboard {
         }
         if (!context.mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          // Make this shorter than default 4s
-          duration: const Duration(milliseconds: 2000),
-          content: Text(
-            "Copied: $text",
-            // TODO(phlip9): fix: breaks ellipsis for multiline.
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            // Make this shorter than default 4s
+            duration: const Duration(milliseconds: 2000),
+            content: Text(
+              "Copied: $text",
+              // TODO(phlip9): fix: breaks ellipsis for multiline.
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-        ));
+        );
 
       case Err(:final err):
         warn("Clipboard.copyText: error: $err");
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Failed to copy to clipboard")));
+          const SnackBar(content: Text("Failed to copy to clipboard")),
+        );
     }
   }
 
@@ -68,7 +69,8 @@ abstract final class LxClipboard {
     // Get current Android OS SDK version
     // NOTE: device_info_plus already caches the result
     final res = await Result.tryAsync<AndroidDeviceInfo, Exception>(
-        () => DeviceInfoPlugin().androidInfo);
+      () => DeviceInfoPlugin().androidInfo,
+    );
     switch (res) {
       case Ok(:final ok):
         // Only Android 13+ (SDK 33+) supports this

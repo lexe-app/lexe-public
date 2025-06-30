@@ -27,35 +27,30 @@ abstract class GDriveRestoreClientRs implements RustOpaqueInterface {}
 class GDriveClient {
   final GDriveClientInner inner;
 
-  const GDriveClient({
-    required this.inner,
-  });
+  const GDriveClient({required this.inner});
 
   /// Read the core persisted Node state from the user's Google Drive VFS
   /// and dump it as a JSON blob.
   ///
   /// Used for debugging.
-  Future<String> dumpState(
-          {required DeployEnv deployEnv,
-          required Network network,
-          required bool useSgx,
-          required RootSeed rootSeed}) =>
-      AppRs.instance.api.crateFfiGdriveGDriveClientDumpState(
-          that: this,
-          deployEnv: deployEnv,
-          network: network,
-          useSgx: useSgx,
-          rootSeed: rootSeed);
+  Future<String> dumpState({
+    required DeployEnv deployEnv,
+    required Network network,
+    required bool useSgx,
+    required RootSeed rootSeed,
+  }) => AppRs.instance.api.crateFfiGdriveGDriveClientDumpState(
+    that: this,
+    deployEnv: deployEnv,
+    network: network,
+    useSgx: useSgx,
+    rootSeed: rootSeed,
+  );
 
-  GDriveRestoreClient intoRestoreClient() =>
-      AppRs.instance.api.crateFfiGdriveGDriveClientIntoRestoreClient(
-        that: this,
-      );
+  GDriveRestoreClient intoRestoreClient() => AppRs.instance.api
+      .crateFfiGdriveGDriveClientIntoRestoreClient(that: this);
 
   String? serverCode() =>
-      AppRs.instance.api.crateFfiGdriveGDriveClientServerCode(
-        that: this,
-      );
+      AppRs.instance.api.crateFfiGdriveGDriveClientServerCode(that: this);
 
   @override
   int get hashCode => inner.hashCode;
@@ -87,16 +82,20 @@ class GDriveOAuth2Flow {
   /// After the user has authorized access and we've gotten the redirect,
   /// call this fn to exchange the client auth code for credentials + client.
   Future<GDriveClient> exchange({required String resultUri}) => AppRs
-      .instance.api
+      .instance
+      .api
       .crateFfiGdriveGDriveOAuth2FlowExchange(that: this, resultUri: resultUri);
 
   /// Begin the OAuth2 flow for the given mobile `client_id`. We'll also get
   /// a `server_code` we can exchange at the node provision enclave, which
   /// uses `server_client_id`.
-  static GDriveOAuth2Flow init(
-          {required String clientId, required String serverClientId}) =>
-      AppRs.instance.api.crateFfiGdriveGDriveOAuth2FlowInit(
-          clientId: clientId, serverClientId: serverClientId);
+  static GDriveOAuth2Flow init({
+    required String clientId,
+    required String serverClientId,
+  }) => AppRs.instance.api.crateFfiGdriveGDriveOAuth2FlowInit(
+    clientId: clientId,
+    serverClientId: serverClientId,
+  );
 
   @override
   int get hashCode =>
@@ -122,18 +121,16 @@ class GDriveOAuth2Flow {
 class GDriveRestoreCandidate {
   final GDriveRestoreCandidateRs inner;
 
-  const GDriveRestoreCandidate({
-    required this.inner,
-  });
+  const GDriveRestoreCandidate({required this.inner});
 
   RootSeed tryDecrypt({required String password}) =>
       AppRs.instance.api.crateFfiGdriveGDriveRestoreCandidateTryDecrypt(
-          that: this, password: password);
+        that: this,
+        password: password,
+      );
 
   String userPk() =>
-      AppRs.instance.api.crateFfiGdriveGDriveRestoreCandidateUserPk(
-        that: this,
-      );
+      AppRs.instance.api.crateFfiGdriveGDriveRestoreCandidateUserPk(that: this);
 
   @override
   int get hashCode => inner.hashCode;
@@ -150,16 +147,19 @@ class GDriveRestoreCandidate {
 class GDriveRestoreClient {
   final GDriveRestoreClientRs inner;
 
-  const GDriveRestoreClient({
-    required this.inner,
-  });
+  const GDriveRestoreClient({required this.inner});
 
-  Future<List<GDriveRestoreCandidate>> findRestoreCandidates(
-          {required DeployEnv deployEnv,
-          required Network network,
-          required bool useSgx}) =>
+  Future<List<GDriveRestoreCandidate>> findRestoreCandidates({
+    required DeployEnv deployEnv,
+    required Network network,
+    required bool useSgx,
+  }) =>
       AppRs.instance.api.crateFfiGdriveGDriveRestoreClientFindRestoreCandidates(
-          that: this, deployEnv: deployEnv, network: network, useSgx: useSgx);
+        that: this,
+        deployEnv: deployEnv,
+        network: network,
+        useSgx: useSgx,
+      );
 
   @override
   int get hashCode => inner.hashCode;

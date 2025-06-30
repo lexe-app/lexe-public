@@ -49,12 +49,8 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
 
   /// Initialize flutter_rust_bridge in mock mode.
   /// No libraries for FFI are loaded.
-  static void initMock({
-    required AppRsApi api,
-  }) {
-    instance.initMockImpl(
-      api: api,
-    );
+  static void initMock({required AppRsApi api}) {
+    instance.initMockImpl(api: api);
   }
 
   /// Dispose flutter_rust_bridge
@@ -86,24 +82,32 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
-    stem: 'app_rs',
-    ioDirectory: '../app-rs/target/release/',
-    webPrefix: 'pkg/',
-  );
+        stem: 'app_rs',
+        ioDirectory: '../app-rs/target/release/',
+        webPrefix: 'pkg/',
+      );
 }
 
 abstract class AppRsApi extends BaseApi {
-  Future<void> crateFfiAppAppHandleCloseChannel(
-      {required AppHandle that, required CloseChannelRequest req});
+  Future<void> crateFfiAppAppHandleCloseChannel({
+    required AppHandle that,
+    required CloseChannelRequest req,
+  });
 
-  Future<CreateClientResponse> crateFfiAppAppHandleCreateClient(
-      {required AppHandle that, required CreateClientRequest req});
+  Future<CreateClientResponse> crateFfiAppAppHandleCreateClient({
+    required AppHandle that,
+    required CreateClientRequest req,
+  });
 
-  Future<CreateInvoiceResponse> crateFfiAppAppHandleCreateInvoice(
-      {required AppHandle that, required CreateInvoiceRequest req});
+  Future<CreateInvoiceResponse> crateFfiAppAppHandleCreateInvoice({
+    required AppHandle that,
+    required CreateInvoiceRequest req,
+  });
 
-  Future<CreateOfferResponse> crateFfiAppAppHandleCreateOffer(
-      {required AppHandle that, required CreateOfferRequest req});
+  Future<CreateOfferResponse> crateFfiAppAppHandleCreateOffer({
+    required AppHandle that,
+    required CreateOfferRequest req,
+  });
 
   Future<void> crateFfiAppAppHandleDeletePaymentDb({required AppHandle that});
 
@@ -112,99 +116,143 @@ abstract class AppRsApi extends BaseApi {
   Future<String> crateFfiAppAppHandleGetAddress({required AppHandle that});
 
   ShortPaymentAndIndex?
-      crateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIdx(
-          {required AppHandle that, required int scrollIdx});
+  crateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIdx({
+    required AppHandle that,
+    required int scrollIdx,
+  });
 
-  ShortPaymentAndIndex? crateFfiAppAppHandleGetFinalizedShortPaymentByScrollIdx(
-      {required AppHandle that, required int scrollIdx});
+  ShortPaymentAndIndex?
+  crateFfiAppAppHandleGetFinalizedShortPaymentByScrollIdx({
+    required AppHandle that,
+    required int scrollIdx,
+  });
 
-  int crateFfiAppAppHandleGetNumFinalizedNotJunkPayments(
-      {required AppHandle that});
+  int crateFfiAppAppHandleGetNumFinalizedNotJunkPayments({
+    required AppHandle that,
+  });
 
   int crateFfiAppAppHandleGetNumFinalizedPayments({required AppHandle that});
 
   int crateFfiAppAppHandleGetNumPayments({required AppHandle that});
 
-  int crateFfiAppAppHandleGetNumPendingNotJunkPayments(
-      {required AppHandle that});
+  int crateFfiAppAppHandleGetNumPendingNotJunkPayments({
+    required AppHandle that,
+  });
 
   int crateFfiAppAppHandleGetNumPendingPayments({required AppHandle that});
 
-  Payment? crateFfiAppAppHandleGetPaymentByVecIdx(
-      {required AppHandle that, required int vecIdx});
+  Payment? crateFfiAppAppHandleGetPaymentByVecIdx({
+    required AppHandle that,
+    required int vecIdx,
+  });
 
   ShortPaymentAndIndex?
-      crateFfiAppAppHandleGetPendingNotJunkShortPaymentByScrollIdx(
-          {required AppHandle that, required int scrollIdx});
+  crateFfiAppAppHandleGetPendingNotJunkShortPaymentByScrollIdx({
+    required AppHandle that,
+    required int scrollIdx,
+  });
 
-  ShortPaymentAndIndex? crateFfiAppAppHandleGetPendingShortPaymentByScrollIdx(
-      {required AppHandle that, required int scrollIdx});
+  ShortPaymentAndIndex? crateFfiAppAppHandleGetPendingShortPaymentByScrollIdx({
+    required AppHandle that,
+    required int scrollIdx,
+  });
 
-  ShortPaymentAndIndex? crateFfiAppAppHandleGetShortPaymentByScrollIdx(
-      {required AppHandle that, required int scrollIdx});
+  ShortPaymentAndIndex? crateFfiAppAppHandleGetShortPaymentByScrollIdx({
+    required AppHandle that,
+    required int scrollIdx,
+  });
 
-  Future<int?> crateFfiAppAppHandleGetVecIdxByPaymentIndex(
-      {required AppHandle that, required PaymentIndex paymentIndex});
+  Future<int?> crateFfiAppAppHandleGetVecIdxByPaymentIndex({
+    required AppHandle that,
+    required PaymentIndex paymentIndex,
+  });
 
-  Future<ListChannelsResponse> crateFfiAppAppHandleListChannels(
-      {required AppHandle that});
+  Future<ListChannelsResponse> crateFfiAppAppHandleListChannels({
+    required AppHandle that,
+  });
 
-  Future<List<RevocableClient>> crateFfiAppAppHandleListClients(
-      {required AppHandle that});
+  Future<List<RevocableClient>> crateFfiAppAppHandleListClients({
+    required AppHandle that,
+  });
 
   Future<AppHandle?> crateFfiAppAppHandleLoad({required Config config});
 
   Future<NodeInfo> crateFfiAppAppHandleNodeInfo({required AppHandle that});
 
-  Future<OpenChannelResponse> crateFfiAppAppHandleOpenChannel(
-      {required AppHandle that, required OpenChannelRequest req});
+  Future<OpenChannelResponse> crateFfiAppAppHandleOpenChannel({
+    required AppHandle that,
+    required OpenChannelRequest req,
+  });
 
-  Future<PayInvoiceResponse> crateFfiAppAppHandlePayInvoice(
-      {required AppHandle that, required PayInvoiceRequest req});
+  Future<PayInvoiceResponse> crateFfiAppAppHandlePayInvoice({
+    required AppHandle that,
+    required PayInvoiceRequest req,
+  });
 
-  Future<PayOfferResponse> crateFfiAppAppHandlePayOffer(
-      {required AppHandle that, required PayOfferRequest req});
+  Future<PayOfferResponse> crateFfiAppAppHandlePayOffer({
+    required AppHandle that,
+    required PayOfferRequest req,
+  });
 
-  Future<PayOnchainResponse> crateFfiAppAppHandlePayOnchain(
-      {required AppHandle that, required PayOnchainRequest req});
+  Future<PayOnchainResponse> crateFfiAppAppHandlePayOnchain({
+    required AppHandle that,
+    required PayOnchainRequest req,
+  });
 
   Future<PreflightCloseChannelResponse>
-      crateFfiAppAppHandlePreflightCloseChannel(
-          {required AppHandle that, required CloseChannelRequest req});
+  crateFfiAppAppHandlePreflightCloseChannel({
+    required AppHandle that,
+    required CloseChannelRequest req,
+  });
 
-  Future<PreflightOpenChannelResponse> crateFfiAppAppHandlePreflightOpenChannel(
-      {required AppHandle that, required PreflightOpenChannelRequest req});
+  Future<PreflightOpenChannelResponse>
+  crateFfiAppAppHandlePreflightOpenChannel({
+    required AppHandle that,
+    required PreflightOpenChannelRequest req,
+  });
 
-  Future<PreflightPayInvoiceResponse> crateFfiAppAppHandlePreflightPayInvoice(
-      {required AppHandle that, required PreflightPayInvoiceRequest req});
+  Future<PreflightPayInvoiceResponse> crateFfiAppAppHandlePreflightPayInvoice({
+    required AppHandle that,
+    required PreflightPayInvoiceRequest req,
+  });
 
-  Future<PreflightPayOfferResponse> crateFfiAppAppHandlePreflightPayOffer(
-      {required AppHandle that, required PreflightPayOfferRequest req});
+  Future<PreflightPayOfferResponse> crateFfiAppAppHandlePreflightPayOffer({
+    required AppHandle that,
+    required PreflightPayOfferRequest req,
+  });
 
-  Future<PreflightPayOnchainResponse> crateFfiAppAppHandlePreflightPayOnchain(
-      {required AppHandle that, required PreflightPayOnchainRequest req});
+  Future<PreflightPayOnchainResponse> crateFfiAppAppHandlePreflightPayOnchain({
+    required AppHandle that,
+    required PreflightPayOnchainRequest req,
+  });
 
-  Future<AppHandle> crateFfiAppAppHandleRestore(
-      {required Config config,
-      required String googleAuthCode,
-      required RootSeed rootSeed});
+  Future<AppHandle> crateFfiAppAppHandleRestore({
+    required Config config,
+    required String googleAuthCode,
+    required RootSeed rootSeed,
+  });
 
   SettingsDb crateFfiAppAppHandleSettingsDb({required AppHandle that});
 
-  Future<AppHandle> crateFfiAppAppHandleSignup(
-      {required Config config,
-      required String googleAuthCode,
-      required String password,
-      String? signupCode,
-      String? partner});
+  Future<AppHandle> crateFfiAppAppHandleSignup({
+    required Config config,
+    required String googleAuthCode,
+    required String password,
+    String? signupCode,
+    String? partner,
+  });
 
   Future<bool> crateFfiAppAppHandleSyncPayments({required AppHandle that});
 
-  Future<void> crateFfiAppAppHandleUpdateClient(
-      {required AppHandle that, required UpdateClientRequest req});
+  Future<void> crateFfiAppAppHandleUpdateClient({
+    required AppHandle that,
+    required UpdateClientRequest req,
+  });
 
-  Future<void> crateFfiAppAppHandleUpdatePaymentNote(
-      {required AppHandle that, required UpdatePaymentNote req});
+  Future<void> crateFfiAppAppHandleUpdatePaymentNote({
+    required AppHandle that,
+    required UpdatePaymentNote req,
+  });
 
   AppUserInfo crateFfiAppAppHandleUserInfo({required AppHandle that});
 
@@ -220,57 +268,72 @@ abstract class AppRsApi extends BaseApi {
 
   int crateFfiQrEncodedPixelsPerSide({required int dataLenBytes});
 
-  Future<String> crateFfiGdriveGDriveClientDumpState(
-      {required GDriveClient that,
-      required DeployEnv deployEnv,
-      required Network network,
-      required bool useSgx,
-      required RootSeed rootSeed});
+  Future<String> crateFfiGdriveGDriveClientDumpState({
+    required GDriveClient that,
+    required DeployEnv deployEnv,
+    required Network network,
+    required bool useSgx,
+    required RootSeed rootSeed,
+  });
 
-  GDriveRestoreClient crateFfiGdriveGDriveClientIntoRestoreClient(
-      {required GDriveClient that});
+  GDriveRestoreClient crateFfiGdriveGDriveClientIntoRestoreClient({
+    required GDriveClient that,
+  });
 
   String? crateFfiGdriveGDriveClientServerCode({required GDriveClient that});
 
-  Future<GDriveClient> crateFfiGdriveGDriveOAuth2FlowExchange(
-      {required GDriveOAuth2Flow that, required String resultUri});
+  Future<GDriveClient> crateFfiGdriveGDriveOAuth2FlowExchange({
+    required GDriveOAuth2Flow that,
+    required String resultUri,
+  });
 
-  GDriveOAuth2Flow crateFfiGdriveGDriveOAuth2FlowInit(
-      {required String clientId, required String serverClientId});
+  GDriveOAuth2Flow crateFfiGdriveGDriveOAuth2FlowInit({
+    required String clientId,
+    required String serverClientId,
+  });
 
-  RootSeed crateFfiGdriveGDriveRestoreCandidateTryDecrypt(
-      {required GDriveRestoreCandidate that, required String password});
+  RootSeed crateFfiGdriveGDriveRestoreCandidateTryDecrypt({
+    required GDriveRestoreCandidate that,
+    required String password,
+  });
 
-  String crateFfiGdriveGDriveRestoreCandidateUserPk(
-      {required GDriveRestoreCandidate that});
+  String crateFfiGdriveGDriveRestoreCandidateUserPk({
+    required GDriveRestoreCandidate that,
+  });
 
   Future<List<GDriveRestoreCandidate>>
-      crateFfiGdriveGDriveRestoreClientFindRestoreCandidates(
-          {required GDriveRestoreClient that,
-          required DeployEnv deployEnv,
-          required Network network,
-          required bool useSgx});
+  crateFfiGdriveGDriveRestoreClientFindRestoreCandidates({
+    required GDriveRestoreClient that,
+    required DeployEnv deployEnv,
+    required Network network,
+    required bool useSgx,
+  });
 
   Stream<String> crateFfiLoggerInitRustLogStream({required String rustLog});
 
   Network crateFfiTypesNetworkFromStr({required String s});
 
-  Future<PaymentMethod> crateFfiPaymentUriResolveBest(
-      {required Network network, required String uriStr});
+  Future<PaymentMethod> crateFfiPaymentUriResolveBest({
+    required Network network,
+    required String uriStr,
+  });
 
   String crateFfiTypesRootSeedExposeSecretHex({required RootSeed that});
 
   SecretStore crateFfiSecretStoreSecretStoreNew({required Config config});
 
-  RootSeed? crateFfiSecretStoreSecretStoreReadRootSeed(
-      {required SecretStore that});
+  RootSeed? crateFfiSecretStoreSecretStoreReadRootSeed({
+    required SecretStore that,
+  });
 
   Settings crateFfiSettingsSettingsDbRead({required SettingsDb that});
 
   void crateFfiSettingsSettingsDbReset({required SettingsDb that});
 
-  void crateFfiSettingsSettingsDbUpdate(
-      {required SettingsDb that, required Settings update});
+  void crateFfiSettingsSettingsDbUpdate({
+    required SettingsDb that,
+    required Settings update,
+  });
 
   Future<void> crateFfiDebugUnconditionalError();
 
@@ -287,54 +350,54 @@ abstract class AppRsApi extends BaseApi {
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_AppPtr;
 
   RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_GDriveClientInner;
+  get rust_arc_increment_strong_count_GDriveClientInner;
 
   RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_GDriveClientInner;
+  get rust_arc_decrement_strong_count_GDriveClientInner;
 
   CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_GDriveClientInnerPtr;
+  get rust_arc_decrement_strong_count_GDriveClientInnerPtr;
 
   RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_GDriveRestoreCandidateRs;
+  get rust_arc_increment_strong_count_GDriveRestoreCandidateRs;
 
   RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_GDriveRestoreCandidateRs;
+  get rust_arc_decrement_strong_count_GDriveRestoreCandidateRs;
 
   CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_GDriveRestoreCandidateRsPtr;
+  get rust_arc_decrement_strong_count_GDriveRestoreCandidateRsPtr;
 
   RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_GDriveRestoreClientRs;
+  get rust_arc_increment_strong_count_GDriveRestoreClientRs;
 
   RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_GDriveRestoreClientRs;
+  get rust_arc_decrement_strong_count_GDriveRestoreClientRs;
 
   CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_GDriveRestoreClientRsPtr;
+  get rust_arc_decrement_strong_count_GDriveRestoreClientRsPtr;
 
   RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_RootSeedRs;
+  get rust_arc_increment_strong_count_RootSeedRs;
 
   RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_RootSeedRs;
+  get rust_arc_decrement_strong_count_RootSeedRs;
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_RootSeedRsPtr;
 
   RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_SecretStoreRs;
+  get rust_arc_increment_strong_count_SecretStoreRs;
 
   RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_SecretStoreRs;
+  get rust_arc_decrement_strong_count_SecretStoreRs;
 
   CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_SecretStoreRsPtr;
+  get rust_arc_decrement_strong_count_SecretStoreRsPtr;
 
   RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_SettingsDbRs;
+  get rust_arc_increment_strong_count_SettingsDbRs;
 
   RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_SettingsDbRs;
+  get rust_arc_decrement_strong_count_SettingsDbRs;
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SettingsDbRsPtr;
 }
@@ -348,24 +411,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   });
 
   @override
-  Future<void> crateFfiAppAppHandleCloseChannel(
-      {required AppHandle that, required CloseChannelRequest req}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_box_autoadd_close_channel_request(req, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 1, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<void> crateFfiAppAppHandleCloseChannel({
+    required AppHandle that,
+    required CloseChannelRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_close_channel_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 1,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleCloseChannelConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleCloseChannelConstMeta,
-      argValues: [that, req],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleCloseChannelConstMeta =>
@@ -375,24 +446,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<CreateClientResponse> crateFfiAppAppHandleCreateClient(
-      {required AppHandle that, required CreateClientRequest req}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_box_autoadd_create_client_request(req, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 2, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_create_client_response,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<CreateClientResponse> crateFfiAppAppHandleCreateClient({
+    required AppHandle that,
+    required CreateClientRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_create_client_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_create_client_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleCreateClientConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleCreateClientConstMeta,
-      argValues: [that, req],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleCreateClientConstMeta =>
@@ -402,24 +481,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<CreateInvoiceResponse> crateFfiAppAppHandleCreateInvoice(
-      {required AppHandle that, required CreateInvoiceRequest req}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_box_autoadd_create_invoice_request(req, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 3, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_create_invoice_response,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<CreateInvoiceResponse> crateFfiAppAppHandleCreateInvoice({
+    required AppHandle that,
+    required CreateInvoiceRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_create_invoice_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_create_invoice_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleCreateInvoiceConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleCreateInvoiceConstMeta,
-      argValues: [that, req],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleCreateInvoiceConstMeta =>
@@ -429,24 +516,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<CreateOfferResponse> crateFfiAppAppHandleCreateOffer(
-      {required AppHandle that, required CreateOfferRequest req}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_box_autoadd_create_offer_request(req, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 4, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_create_offer_response,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<CreateOfferResponse> crateFfiAppAppHandleCreateOffer({
+    required AppHandle that,
+    required CreateOfferRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_create_offer_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_create_offer_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleCreateOfferConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleCreateOfferConstMeta,
-      argValues: [that, req],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleCreateOfferConstMeta =>
@@ -457,21 +552,27 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   Future<void> crateFfiAppAppHandleDeletePaymentDb({required AppHandle that}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 5, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_AnyhowException,
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleDeletePaymentDbConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleDeletePaymentDbConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleDeletePaymentDbConstMeta =>
@@ -482,21 +583,27 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   Future<FiatRates> crateFfiAppAppHandleFiatRates({required AppHandle that}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 6, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_fiat_rates,
-        decodeErrorData: sse_decode_AnyhowException,
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_fiat_rates,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleFiatRatesConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleFiatRatesConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleFiatRatesConstMeta =>
@@ -507,21 +614,27 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   Future<String> crateFfiAppAppHandleGetAddress({required AppHandle that}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 7, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_String,
-        decodeErrorData: sse_decode_AnyhowException,
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleGetAddressConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleGetAddressConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleGetAddressConstMeta =>
@@ -532,104 +645,118 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   ShortPaymentAndIndex?
-      crateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIdx(
-          {required AppHandle that, required int scrollIdx}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_opt_box_autoadd_short_payment_and_index,
-        decodeErrorData: null,
+  crateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIdx({
+    required AppHandle that,
+    required int scrollIdx,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_short_payment_and_index,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIdxConstMeta,
+        argValues: [that, scrollIdx],
+        apiImpl: this,
       ),
-      constMeta:
-          kCrateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIdxConstMeta,
-      argValues: [that, scrollIdx],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta
-      get kCrateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIdxConstMeta =>
-          const TaskConstMeta(
-            debugName:
-                "app_handle_get_finalized_not_junk_short_payment_by_scroll_idx",
-            argNames: ["that", "scrollIdx"],
-          );
+  get kCrateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIdxConstMeta =>
+      const TaskConstMeta(
+        debugName:
+            "app_handle_get_finalized_not_junk_short_payment_by_scroll_idx",
+        argNames: ["that", "scrollIdx"],
+      );
 
   @override
-  ShortPaymentAndIndex? crateFfiAppAppHandleGetFinalizedShortPaymentByScrollIdx(
-      {required AppHandle that, required int scrollIdx}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_opt_box_autoadd_short_payment_and_index,
-        decodeErrorData: null,
+  ShortPaymentAndIndex?
+  crateFfiAppAppHandleGetFinalizedShortPaymentByScrollIdx({
+    required AppHandle that,
+    required int scrollIdx,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_short_payment_and_index,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateFfiAppAppHandleGetFinalizedShortPaymentByScrollIdxConstMeta,
+        argValues: [that, scrollIdx],
+        apiImpl: this,
       ),
-      constMeta:
-          kCrateFfiAppAppHandleGetFinalizedShortPaymentByScrollIdxConstMeta,
-      argValues: [that, scrollIdx],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta
-      get kCrateFfiAppAppHandleGetFinalizedShortPaymentByScrollIdxConstMeta =>
-          const TaskConstMeta(
-            debugName: "app_handle_get_finalized_short_payment_by_scroll_idx",
-            argNames: ["that", "scrollIdx"],
-          );
+  get kCrateFfiAppAppHandleGetFinalizedShortPaymentByScrollIdxConstMeta =>
+      const TaskConstMeta(
+        debugName: "app_handle_get_finalized_short_payment_by_scroll_idx",
+        argNames: ["that", "scrollIdx"],
+      );
 
   @override
-  int crateFfiAppAppHandleGetNumFinalizedNotJunkPayments(
-      {required AppHandle that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_CastedPrimitive_usize,
-        decodeErrorData: null,
+  int crateFfiAppAppHandleGetNumFinalizedNotJunkPayments({
+    required AppHandle that,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_CastedPrimitive_usize,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiAppAppHandleGetNumFinalizedNotJunkPaymentsConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleGetNumFinalizedNotJunkPaymentsConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta
-      get kCrateFfiAppAppHandleGetNumFinalizedNotJunkPaymentsConstMeta =>
-          const TaskConstMeta(
-            debugName: "app_handle_get_num_finalized_not_junk_payments",
-            argNames: ["that"],
-          );
+  get kCrateFfiAppAppHandleGetNumFinalizedNotJunkPaymentsConstMeta =>
+      const TaskConstMeta(
+        debugName: "app_handle_get_num_finalized_not_junk_payments",
+        argNames: ["that"],
+      );
 
   @override
   int crateFfiAppAppHandleGetNumFinalizedPayments({required AppHandle that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_CastedPrimitive_usize,
-        decodeErrorData: null,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_CastedPrimitive_usize,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiAppAppHandleGetNumFinalizedPaymentsConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleGetNumFinalizedPaymentsConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleGetNumFinalizedPaymentsConstMeta =>
@@ -640,20 +767,22 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   int crateFfiAppAppHandleGetNumPayments({required AppHandle that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_CastedPrimitive_usize,
-        decodeErrorData: null,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_CastedPrimitive_usize,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiAppAppHandleGetNumPaymentsConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleGetNumPaymentsConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleGetNumPaymentsConstMeta =>
@@ -663,47 +792,52 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  int crateFfiAppAppHandleGetNumPendingNotJunkPayments(
-      {required AppHandle that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_CastedPrimitive_usize,
-        decodeErrorData: null,
+  int crateFfiAppAppHandleGetNumPendingNotJunkPayments({
+    required AppHandle that,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_CastedPrimitive_usize,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiAppAppHandleGetNumPendingNotJunkPaymentsConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleGetNumPendingNotJunkPaymentsConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta
-      get kCrateFfiAppAppHandleGetNumPendingNotJunkPaymentsConstMeta =>
-          const TaskConstMeta(
-            debugName: "app_handle_get_num_pending_not_junk_payments",
-            argNames: ["that"],
-          );
+  get kCrateFfiAppAppHandleGetNumPendingNotJunkPaymentsConstMeta =>
+      const TaskConstMeta(
+        debugName: "app_handle_get_num_pending_not_junk_payments",
+        argNames: ["that"],
+      );
 
   @override
   int crateFfiAppAppHandleGetNumPendingPayments({required AppHandle that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_CastedPrimitive_usize,
-        decodeErrorData: null,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_CastedPrimitive_usize,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiAppAppHandleGetNumPendingPaymentsConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleGetNumPendingPaymentsConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleGetNumPendingPaymentsConstMeta =>
@@ -713,23 +847,27 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Payment? crateFfiAppAppHandleGetPaymentByVecIdx(
-      {required AppHandle that, required int vecIdx}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_CastedPrimitive_usize(vecIdx, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_opt_box_autoadd_payment,
-        decodeErrorData: null,
+  Payment? crateFfiAppAppHandleGetPaymentByVecIdx({
+    required AppHandle that,
+    required int vecIdx,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_CastedPrimitive_usize(vecIdx, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_payment,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiAppAppHandleGetPaymentByVecIdxConstMeta,
+        argValues: [that, vecIdx],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleGetPaymentByVecIdxConstMeta,
-      argValues: [that, vecIdx],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleGetPaymentByVecIdxConstMeta =>
@@ -740,80 +878,92 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   ShortPaymentAndIndex?
-      crateFfiAppAppHandleGetPendingNotJunkShortPaymentByScrollIdx(
-          {required AppHandle that, required int scrollIdx}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_opt_box_autoadd_short_payment_and_index,
-        decodeErrorData: null,
+  crateFfiAppAppHandleGetPendingNotJunkShortPaymentByScrollIdx({
+    required AppHandle that,
+    required int scrollIdx,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_short_payment_and_index,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateFfiAppAppHandleGetPendingNotJunkShortPaymentByScrollIdxConstMeta,
+        argValues: [that, scrollIdx],
+        apiImpl: this,
       ),
-      constMeta:
-          kCrateFfiAppAppHandleGetPendingNotJunkShortPaymentByScrollIdxConstMeta,
-      argValues: [that, scrollIdx],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta
-      get kCrateFfiAppAppHandleGetPendingNotJunkShortPaymentByScrollIdxConstMeta =>
-          const TaskConstMeta(
-            debugName:
-                "app_handle_get_pending_not_junk_short_payment_by_scroll_idx",
-            argNames: ["that", "scrollIdx"],
-          );
+  get kCrateFfiAppAppHandleGetPendingNotJunkShortPaymentByScrollIdxConstMeta =>
+      const TaskConstMeta(
+        debugName:
+            "app_handle_get_pending_not_junk_short_payment_by_scroll_idx",
+        argNames: ["that", "scrollIdx"],
+      );
 
   @override
-  ShortPaymentAndIndex? crateFfiAppAppHandleGetPendingShortPaymentByScrollIdx(
-      {required AppHandle that, required int scrollIdx}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_opt_box_autoadd_short_payment_and_index,
-        decodeErrorData: null,
+  ShortPaymentAndIndex? crateFfiAppAppHandleGetPendingShortPaymentByScrollIdx({
+    required AppHandle that,
+    required int scrollIdx,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_short_payment_and_index,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateFfiAppAppHandleGetPendingShortPaymentByScrollIdxConstMeta,
+        argValues: [that, scrollIdx],
+        apiImpl: this,
       ),
-      constMeta:
-          kCrateFfiAppAppHandleGetPendingShortPaymentByScrollIdxConstMeta,
-      argValues: [that, scrollIdx],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta
-      get kCrateFfiAppAppHandleGetPendingShortPaymentByScrollIdxConstMeta =>
-          const TaskConstMeta(
-            debugName: "app_handle_get_pending_short_payment_by_scroll_idx",
-            argNames: ["that", "scrollIdx"],
-          );
+  get kCrateFfiAppAppHandleGetPendingShortPaymentByScrollIdxConstMeta =>
+      const TaskConstMeta(
+        debugName: "app_handle_get_pending_short_payment_by_scroll_idx",
+        argNames: ["that", "scrollIdx"],
+      );
 
   @override
-  ShortPaymentAndIndex? crateFfiAppAppHandleGetShortPaymentByScrollIdx(
-      {required AppHandle that, required int scrollIdx}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_opt_box_autoadd_short_payment_and_index,
-        decodeErrorData: null,
+  ShortPaymentAndIndex? crateFfiAppAppHandleGetShortPaymentByScrollIdx({
+    required AppHandle that,
+    required int scrollIdx,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_short_payment_and_index,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiAppAppHandleGetShortPaymentByScrollIdxConstMeta,
+        argValues: [that, scrollIdx],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleGetShortPaymentByScrollIdxConstMeta,
-      argValues: [that, scrollIdx],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleGetShortPaymentByScrollIdxConstMeta =>
@@ -823,24 +973,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<int?> crateFfiAppAppHandleGetVecIdxByPaymentIndex(
-      {required AppHandle that, required PaymentIndex paymentIndex}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_box_autoadd_payment_index(paymentIndex, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 19, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_opt_CastedPrimitive_usize,
-        decodeErrorData: null,
+  Future<int?> crateFfiAppAppHandleGetVecIdxByPaymentIndex({
+    required AppHandle that,
+    required PaymentIndex paymentIndex,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_payment_index(paymentIndex, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 19,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_CastedPrimitive_usize,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiAppAppHandleGetVecIdxByPaymentIndexConstMeta,
+        argValues: [that, paymentIndex],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleGetVecIdxByPaymentIndexConstMeta,
-      argValues: [that, paymentIndex],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleGetVecIdxByPaymentIndexConstMeta =>
@@ -850,23 +1008,30 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<ListChannelsResponse> crateFfiAppAppHandleListChannels(
-      {required AppHandle that}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 20, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_list_channels_response,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<ListChannelsResponse> crateFfiAppAppHandleListChannels({
+    required AppHandle that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 20,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_channels_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleListChannelsConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleListChannelsConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleListChannelsConstMeta =>
@@ -876,23 +1041,30 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<List<RevocableClient>> crateFfiAppAppHandleListClients(
-      {required AppHandle that}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 21, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_list_revocable_client,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<List<RevocableClient>> crateFfiAppAppHandleListClients({
+    required AppHandle that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 21,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_revocable_client,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleListClientsConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleListClientsConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleListClientsConstMeta =>
@@ -903,45 +1075,55 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   Future<AppHandle?> crateFfiAppAppHandleLoad({required Config config}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_config(config, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 22, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_opt_box_autoadd_app_handle,
-        decodeErrorData: sse_decode_AnyhowException,
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_config(config, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 22,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_app_handle,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleLoadConstMeta,
+        argValues: [config],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleLoadConstMeta,
-      argValues: [config],
-      apiImpl: this,
-    ));
+    );
   }
 
-  TaskConstMeta get kCrateFfiAppAppHandleLoadConstMeta => const TaskConstMeta(
-        debugName: "app_handle_load",
-        argNames: ["config"],
-      );
+  TaskConstMeta get kCrateFfiAppAppHandleLoadConstMeta =>
+      const TaskConstMeta(debugName: "app_handle_load", argNames: ["config"]);
 
   @override
   Future<NodeInfo> crateFfiAppAppHandleNodeInfo({required AppHandle that}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 23, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_node_info,
-        decodeErrorData: sse_decode_AnyhowException,
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 23,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_node_info,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleNodeInfoConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleNodeInfoConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleNodeInfoConstMeta =>
@@ -951,24 +1133,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<OpenChannelResponse> crateFfiAppAppHandleOpenChannel(
-      {required AppHandle that, required OpenChannelRequest req}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_box_autoadd_open_channel_request(req, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 24, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_open_channel_response,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<OpenChannelResponse> crateFfiAppAppHandleOpenChannel({
+    required AppHandle that,
+    required OpenChannelRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_open_channel_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 24,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_open_channel_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleOpenChannelConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleOpenChannelConstMeta,
-      argValues: [that, req],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleOpenChannelConstMeta =>
@@ -978,24 +1168,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<PayInvoiceResponse> crateFfiAppAppHandlePayInvoice(
-      {required AppHandle that, required PayInvoiceRequest req}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_box_autoadd_pay_invoice_request(req, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 25, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_pay_invoice_response,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<PayInvoiceResponse> crateFfiAppAppHandlePayInvoice({
+    required AppHandle that,
+    required PayInvoiceRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_pay_invoice_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 25,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_pay_invoice_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandlePayInvoiceConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandlePayInvoiceConstMeta,
-      argValues: [that, req],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandlePayInvoiceConstMeta =>
@@ -1005,24 +1203,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<PayOfferResponse> crateFfiAppAppHandlePayOffer(
-      {required AppHandle that, required PayOfferRequest req}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_box_autoadd_pay_offer_request(req, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 26, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_pay_offer_response,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<PayOfferResponse> crateFfiAppAppHandlePayOffer({
+    required AppHandle that,
+    required PayOfferRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_pay_offer_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 26,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_pay_offer_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandlePayOfferConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandlePayOfferConstMeta,
-      argValues: [that, req],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandlePayOfferConstMeta =>
@@ -1032,24 +1238,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<PayOnchainResponse> crateFfiAppAppHandlePayOnchain(
-      {required AppHandle that, required PayOnchainRequest req}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_box_autoadd_pay_onchain_request(req, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 27, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_pay_onchain_response,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<PayOnchainResponse> crateFfiAppAppHandlePayOnchain({
+    required AppHandle that,
+    required PayOnchainRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_pay_onchain_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 27,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_pay_onchain_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandlePayOnchainConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandlePayOnchainConstMeta,
-      argValues: [that, req],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandlePayOnchainConstMeta =>
@@ -1060,24 +1274,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   Future<PreflightCloseChannelResponse>
-      crateFfiAppAppHandlePreflightCloseChannel(
-          {required AppHandle that, required CloseChannelRequest req}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_box_autoadd_close_channel_request(req, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 28, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_preflight_close_channel_response,
-        decodeErrorData: sse_decode_AnyhowException,
+  crateFfiAppAppHandlePreflightCloseChannel({
+    required AppHandle that,
+    required CloseChannelRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_close_channel_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 28,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_preflight_close_channel_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandlePreflightCloseChannelConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandlePreflightCloseChannelConstMeta,
-      argValues: [that, req],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandlePreflightCloseChannelConstMeta =>
@@ -1087,24 +1309,36 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<PreflightOpenChannelResponse> crateFfiAppAppHandlePreflightOpenChannel(
-      {required AppHandle that, required PreflightOpenChannelRequest req}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_box_autoadd_preflight_open_channel_request(req, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 29, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_preflight_open_channel_response,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<PreflightOpenChannelResponse>
+  crateFfiAppAppHandlePreflightOpenChannel({
+    required AppHandle that,
+    required PreflightOpenChannelRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_preflight_open_channel_request(
+            req,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 29,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_preflight_open_channel_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandlePreflightOpenChannelConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandlePreflightOpenChannelConstMeta,
-      argValues: [that, req],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandlePreflightOpenChannelConstMeta =>
@@ -1114,24 +1348,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<PreflightPayInvoiceResponse> crateFfiAppAppHandlePreflightPayInvoice(
-      {required AppHandle that, required PreflightPayInvoiceRequest req}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_box_autoadd_preflight_pay_invoice_request(req, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 30, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_preflight_pay_invoice_response,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<PreflightPayInvoiceResponse> crateFfiAppAppHandlePreflightPayInvoice({
+    required AppHandle that,
+    required PreflightPayInvoiceRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_preflight_pay_invoice_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 30,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_preflight_pay_invoice_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandlePreflightPayInvoiceConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandlePreflightPayInvoiceConstMeta,
-      argValues: [that, req],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandlePreflightPayInvoiceConstMeta =>
@@ -1141,24 +1383,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<PreflightPayOfferResponse> crateFfiAppAppHandlePreflightPayOffer(
-      {required AppHandle that, required PreflightPayOfferRequest req}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_box_autoadd_preflight_pay_offer_request(req, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 31, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_preflight_pay_offer_response,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<PreflightPayOfferResponse> crateFfiAppAppHandlePreflightPayOffer({
+    required AppHandle that,
+    required PreflightPayOfferRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_preflight_pay_offer_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 31,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_preflight_pay_offer_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandlePreflightPayOfferConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandlePreflightPayOfferConstMeta,
-      argValues: [that, req],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandlePreflightPayOfferConstMeta =>
@@ -1168,24 +1418,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<PreflightPayOnchainResponse> crateFfiAppAppHandlePreflightPayOnchain(
-      {required AppHandle that, required PreflightPayOnchainRequest req}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_box_autoadd_preflight_pay_onchain_request(req, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 32, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_preflight_pay_onchain_response,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<PreflightPayOnchainResponse> crateFfiAppAppHandlePreflightPayOnchain({
+    required AppHandle that,
+    required PreflightPayOnchainRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_preflight_pay_onchain_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 32,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_preflight_pay_onchain_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandlePreflightPayOnchainConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandlePreflightPayOnchainConstMeta,
-      argValues: [that, req],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandlePreflightPayOnchainConstMeta =>
@@ -1195,27 +1453,34 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<AppHandle> crateFfiAppAppHandleRestore(
-      {required Config config,
-      required String googleAuthCode,
-      required RootSeed rootSeed}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_config(config, serializer);
-        sse_encode_String(googleAuthCode, serializer);
-        sse_encode_box_autoadd_root_seed(rootSeed, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 33, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_app_handle,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<AppHandle> crateFfiAppAppHandleRestore({
+    required Config config,
+    required String googleAuthCode,
+    required RootSeed rootSeed,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_config(config, serializer);
+          sse_encode_String(googleAuthCode, serializer);
+          sse_encode_box_autoadd_root_seed(rootSeed, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 33,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_app_handle,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleRestoreConstMeta,
+        argValues: [config, googleAuthCode, rootSeed],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleRestoreConstMeta,
-      argValues: [config, googleAuthCode, rootSeed],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleRestoreConstMeta =>
@@ -1226,20 +1491,22 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   SettingsDb crateFfiAppAppHandleSettingsDb({required AppHandle that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 34)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_settings_db,
-        decodeErrorData: null,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 34)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_settings_db,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiAppAppHandleSettingsDbConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleSettingsDbConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleSettingsDbConstMeta =>
@@ -1249,61 +1516,68 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<AppHandle> crateFfiAppAppHandleSignup(
-      {required Config config,
-      required String googleAuthCode,
-      required String password,
-      String? signupCode,
-      String? partner}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_config(config, serializer);
-        sse_encode_String(googleAuthCode, serializer);
-        sse_encode_String(password, serializer);
-        sse_encode_opt_String(signupCode, serializer);
-        sse_encode_opt_String(partner, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 35, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_app_handle,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<AppHandle> crateFfiAppAppHandleSignup({
+    required Config config,
+    required String googleAuthCode,
+    required String password,
+    String? signupCode,
+    String? partner,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_config(config, serializer);
+          sse_encode_String(googleAuthCode, serializer);
+          sse_encode_String(password, serializer);
+          sse_encode_opt_String(signupCode, serializer);
+          sse_encode_opt_String(partner, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 35,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_app_handle,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleSignupConstMeta,
+        argValues: [config, googleAuthCode, password, signupCode, partner],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleSignupConstMeta,
-      argValues: [config, googleAuthCode, password, signupCode, partner],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleSignupConstMeta => const TaskConstMeta(
-        debugName: "app_handle_signup",
-        argNames: [
-          "config",
-          "googleAuthCode",
-          "password",
-          "signupCode",
-          "partner"
-        ],
-      );
+    debugName: "app_handle_signup",
+    argNames: ["config", "googleAuthCode", "password", "signupCode", "partner"],
+  );
 
   @override
   Future<bool> crateFfiAppAppHandleSyncPayments({required AppHandle that}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 36, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_bool,
-        decodeErrorData: sse_decode_AnyhowException,
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 36,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleSyncPaymentsConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleSyncPaymentsConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleSyncPaymentsConstMeta =>
@@ -1313,24 +1587,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<void> crateFfiAppAppHandleUpdateClient(
-      {required AppHandle that, required UpdateClientRequest req}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_box_autoadd_update_client_request(req, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 37, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<void> crateFfiAppAppHandleUpdateClient({
+    required AppHandle that,
+    required UpdateClientRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_update_client_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 37,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleUpdateClientConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleUpdateClientConstMeta,
-      argValues: [that, req],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleUpdateClientConstMeta =>
@@ -1340,24 +1622,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<void> crateFfiAppAppHandleUpdatePaymentNote(
-      {required AppHandle that, required UpdatePaymentNote req}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        sse_encode_box_autoadd_update_payment_note(req, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 38, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<void> crateFfiAppAppHandleUpdatePaymentNote({
+    required AppHandle that,
+    required UpdatePaymentNote req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_update_payment_note(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 38,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleUpdatePaymentNoteConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleUpdatePaymentNoteConstMeta,
-      argValues: [that, req],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleUpdatePaymentNoteConstMeta =>
@@ -1368,20 +1658,22 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   AppUserInfo crateFfiAppAppHandleUserInfo({required AppHandle that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_app_handle(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 39)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_app_user_info,
-        decodeErrorData: null,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 39)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_app_user_info,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiAppAppHandleUserInfoConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiAppAppHandleUserInfoConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiAppAppHandleUserInfoConstMeta =>
@@ -1392,43 +1684,44 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   ClientPaymentId crateFfiTypesClientPaymentIdGenNew() {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 40)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_client_payment_id,
-        decodeErrorData: null,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 40)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_client_payment_id,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiTypesClientPaymentIdGenNewConstMeta,
+        argValues: [],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiTypesClientPaymentIdGenNewConstMeta,
-      argValues: [],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiTypesClientPaymentIdGenNewConstMeta =>
-      const TaskConstMeta(
-        debugName: "client_payment_id_gen_new",
-        argNames: [],
-      );
+      const TaskConstMeta(debugName: "client_payment_id_gen_new", argNames: []);
 
   @override
   void crateFfiDebugDeleteLatestProvisioned({required Config config}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_config(config, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 41)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_AnyhowException,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_config(config, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 41)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiDebugDeleteLatestProvisionedConstMeta,
+        argValues: [config],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiDebugDeleteLatestProvisionedConstMeta,
-      argValues: [config],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiDebugDeleteLatestProvisionedConstMeta =>
@@ -1439,20 +1732,22 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   void crateFfiDebugDeleteSecretStore({required Config config}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_config(config, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 42)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_AnyhowException,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_config(config, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 42)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiDebugDeleteSecretStoreConstMeta,
+        argValues: [config],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiDebugDeleteSecretStoreConstMeta,
-      argValues: [config],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiDebugDeleteSecretStoreConstMeta =>
@@ -1463,68 +1758,73 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   DeployEnv crateFfiTypesDeployEnvFromStr({required String s}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_String(s, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 43)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_deploy_env,
-        decodeErrorData: sse_decode_AnyhowException,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(s, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 43)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_deploy_env,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiTypesDeployEnvFromStrConstMeta,
+        argValues: [s],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiTypesDeployEnvFromStrConstMeta,
-      argValues: [s],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiTypesDeployEnvFromStrConstMeta =>
-      const TaskConstMeta(
-        debugName: "deploy_env_from_str",
-        argNames: ["s"],
-      );
+      const TaskConstMeta(debugName: "deploy_env_from_str", argNames: ["s"]);
 
   @override
   Future<Uint8List> crateFfiQrEncode({required List<int> data}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_list_prim_u_8_loose(data, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 44, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_list_prim_u_8_strict,
-        decodeErrorData: sse_decode_AnyhowException,
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(data, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 44,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_prim_u_8_strict,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiQrEncodeConstMeta,
+        argValues: [data],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiQrEncodeConstMeta,
-      argValues: [data],
-      apiImpl: this,
-    ));
+    );
   }
 
-  TaskConstMeta get kCrateFfiQrEncodeConstMeta => const TaskConstMeta(
-        debugName: "encode",
-        argNames: ["data"],
-      );
+  TaskConstMeta get kCrateFfiQrEncodeConstMeta =>
+      const TaskConstMeta(debugName: "encode", argNames: ["data"]);
 
   @override
   int crateFfiQrEncodedPixelsPerSide({required int dataLenBytes}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_CastedPrimitive_usize(dataLenBytes, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 45)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_CastedPrimitive_usize,
-        decodeErrorData: sse_decode_AnyhowException,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_CastedPrimitive_usize(dataLenBytes, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 45)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_CastedPrimitive_usize,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiQrEncodedPixelsPerSideConstMeta,
+        argValues: [dataLenBytes],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiQrEncodedPixelsPerSideConstMeta,
-      argValues: [dataLenBytes],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiQrEncodedPixelsPerSideConstMeta =>
@@ -1534,31 +1834,38 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<String> crateFfiGdriveGDriveClientDumpState(
-      {required GDriveClient that,
-      required DeployEnv deployEnv,
-      required Network network,
-      required bool useSgx,
-      required RootSeed rootSeed}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_g_drive_client(that, serializer);
-        sse_encode_deploy_env(deployEnv, serializer);
-        sse_encode_network(network, serializer);
-        sse_encode_bool(useSgx, serializer);
-        sse_encode_box_autoadd_root_seed(rootSeed, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 46, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_String,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<String> crateFfiGdriveGDriveClientDumpState({
+    required GDriveClient that,
+    required DeployEnv deployEnv,
+    required Network network,
+    required bool useSgx,
+    required RootSeed rootSeed,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_g_drive_client(that, serializer);
+          sse_encode_deploy_env(deployEnv, serializer);
+          sse_encode_network(network, serializer);
+          sse_encode_bool(useSgx, serializer);
+          sse_encode_box_autoadd_root_seed(rootSeed, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 46,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiGdriveGDriveClientDumpStateConstMeta,
+        argValues: [that, deployEnv, network, useSgx, rootSeed],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiGdriveGDriveClientDumpStateConstMeta,
-      argValues: [that, deployEnv, network, useSgx, rootSeed],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiGdriveGDriveClientDumpStateConstMeta =>
@@ -1568,22 +1875,25 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  GDriveRestoreClient crateFfiGdriveGDriveClientIntoRestoreClient(
-      {required GDriveClient that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_g_drive_client(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 47)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_g_drive_restore_client,
-        decodeErrorData: null,
+  GDriveRestoreClient crateFfiGdriveGDriveClientIntoRestoreClient({
+    required GDriveClient that,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_g_drive_client(that, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 47)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_g_drive_restore_client,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiGdriveGDriveClientIntoRestoreClientConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiGdriveGDriveClientIntoRestoreClientConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiGdriveGDriveClientIntoRestoreClientConstMeta =>
@@ -1594,20 +1904,22 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   String? crateFfiGdriveGDriveClientServerCode({required GDriveClient that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_g_drive_client(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 48)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_opt_String,
-        decodeErrorData: null,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_g_drive_client(that, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 48)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiGdriveGDriveClientServerCodeConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiGdriveGDriveClientServerCodeConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiGdriveGDriveClientServerCodeConstMeta =>
@@ -1617,24 +1929,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<GDriveClient> crateFfiGdriveGDriveOAuth2FlowExchange(
-      {required GDriveOAuth2Flow that, required String resultUri}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_g_drive_o_auth_2_flow(that, serializer);
-        sse_encode_String(resultUri, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 49, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_g_drive_client,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<GDriveClient> crateFfiGdriveGDriveOAuth2FlowExchange({
+    required GDriveOAuth2Flow that,
+    required String resultUri,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_g_drive_o_auth_2_flow(that, serializer);
+          sse_encode_String(resultUri, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 49,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_g_drive_client,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiGdriveGDriveOAuth2FlowExchangeConstMeta,
+        argValues: [that, resultUri],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiGdriveGDriveOAuth2FlowExchangeConstMeta,
-      argValues: [that, resultUri],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiGdriveGDriveOAuth2FlowExchangeConstMeta =>
@@ -1644,23 +1964,27 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  GDriveOAuth2Flow crateFfiGdriveGDriveOAuth2FlowInit(
-      {required String clientId, required String serverClientId}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_String(clientId, serializer);
-        sse_encode_String(serverClientId, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 50)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_g_drive_o_auth_2_flow,
-        decodeErrorData: null,
+  GDriveOAuth2Flow crateFfiGdriveGDriveOAuth2FlowInit({
+    required String clientId,
+    required String serverClientId,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(clientId, serializer);
+          sse_encode_String(serverClientId, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 50)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_g_drive_o_auth_2_flow,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiGdriveGDriveOAuth2FlowInitConstMeta,
+        argValues: [clientId, serverClientId],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiGdriveGDriveOAuth2FlowInitConstMeta,
-      argValues: [clientId, serverClientId],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiGdriveGDriveOAuth2FlowInitConstMeta =>
@@ -1670,23 +1994,27 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  RootSeed crateFfiGdriveGDriveRestoreCandidateTryDecrypt(
-      {required GDriveRestoreCandidate that, required String password}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_g_drive_restore_candidate(that, serializer);
-        sse_encode_String(password, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 51)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_root_seed,
-        decodeErrorData: sse_decode_AnyhowException,
+  RootSeed crateFfiGdriveGDriveRestoreCandidateTryDecrypt({
+    required GDriveRestoreCandidate that,
+    required String password,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_g_drive_restore_candidate(that, serializer);
+          sse_encode_String(password, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 51)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_root_seed,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiGdriveGDriveRestoreCandidateTryDecryptConstMeta,
+        argValues: [that, password],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiGdriveGDriveRestoreCandidateTryDecryptConstMeta,
-      argValues: [that, password],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiGdriveGDriveRestoreCandidateTryDecryptConstMeta =>
@@ -1696,22 +2024,25 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  String crateFfiGdriveGDriveRestoreCandidateUserPk(
-      {required GDriveRestoreCandidate that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_g_drive_restore_candidate(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 52)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_String,
-        decodeErrorData: null,
+  String crateFfiGdriveGDriveRestoreCandidateUserPk({
+    required GDriveRestoreCandidate that,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_g_drive_restore_candidate(that, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 52)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiGdriveGDriveRestoreCandidateUserPkConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiGdriveGDriveRestoreCandidateUserPkConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiGdriveGDriveRestoreCandidateUserPkConstMeta =>
@@ -1722,58 +2053,73 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   Future<List<GDriveRestoreCandidate>>
-      crateFfiGdriveGDriveRestoreClientFindRestoreCandidates(
-          {required GDriveRestoreClient that,
-          required DeployEnv deployEnv,
-          required Network network,
-          required bool useSgx}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_g_drive_restore_client(that, serializer);
-        sse_encode_deploy_env(deployEnv, serializer);
-        sse_encode_network(network, serializer);
-        sse_encode_bool(useSgx, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 53, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_list_g_drive_restore_candidate,
-        decodeErrorData: sse_decode_AnyhowException,
+  crateFfiGdriveGDriveRestoreClientFindRestoreCandidates({
+    required GDriveRestoreClient that,
+    required DeployEnv deployEnv,
+    required Network network,
+    required bool useSgx,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_g_drive_restore_client(that, serializer);
+          sse_encode_deploy_env(deployEnv, serializer);
+          sse_encode_network(network, serializer);
+          sse_encode_bool(useSgx, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 53,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_g_drive_restore_candidate,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta:
+            kCrateFfiGdriveGDriveRestoreClientFindRestoreCandidatesConstMeta,
+        argValues: [that, deployEnv, network, useSgx],
+        apiImpl: this,
       ),
-      constMeta:
-          kCrateFfiGdriveGDriveRestoreClientFindRestoreCandidatesConstMeta,
-      argValues: [that, deployEnv, network, useSgx],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta
-      get kCrateFfiGdriveGDriveRestoreClientFindRestoreCandidatesConstMeta =>
-          const TaskConstMeta(
-            debugName: "g_drive_restore_client_find_restore_candidates",
-            argNames: ["that", "deployEnv", "network", "useSgx"],
-          );
+  get kCrateFfiGdriveGDriveRestoreClientFindRestoreCandidatesConstMeta =>
+      const TaskConstMeta(
+        debugName: "g_drive_restore_client_find_restore_candidates",
+        argNames: ["that", "deployEnv", "network", "useSgx"],
+      );
 
   @override
   Stream<String> crateFfiLoggerInitRustLogStream({required String rustLog}) {
     final rustLogTx = RustStreamSink<String>();
-    unawaited(handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_StreamSink_String_Sse(rustLogTx, serializer);
-        sse_encode_String(rustLog, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 54, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: null,
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_StreamSink_String_Sse(rustLogTx, serializer);
+            sse_encode_String(rustLog, serializer);
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 54,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta: kCrateFfiLoggerInitRustLogStreamConstMeta,
+          argValues: [rustLogTx, rustLog],
+          apiImpl: this,
+        ),
       ),
-      constMeta: kCrateFfiLoggerInitRustLogStreamConstMeta,
-      argValues: [rustLogTx, rustLog],
-      apiImpl: this,
-    )));
+    );
     return rustLogTx.stream;
   }
 
@@ -1785,47 +2131,54 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   Network crateFfiTypesNetworkFromStr({required String s}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_String(s, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 55)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_network,
-        decodeErrorData: sse_decode_AnyhowException,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(s, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 55)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_network,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiTypesNetworkFromStrConstMeta,
+        argValues: [s],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiTypesNetworkFromStrConstMeta,
-      argValues: [s],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiTypesNetworkFromStrConstMeta =>
-      const TaskConstMeta(
-        debugName: "network_from_str",
-        argNames: ["s"],
-      );
+      const TaskConstMeta(debugName: "network_from_str", argNames: ["s"]);
 
   @override
-  Future<PaymentMethod> crateFfiPaymentUriResolveBest(
-      {required Network network, required String uriStr}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_network(network, serializer);
-        sse_encode_String(uriStr, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 56, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_payment_method,
-        decodeErrorData: sse_decode_AnyhowException,
+  Future<PaymentMethod> crateFfiPaymentUriResolveBest({
+    required Network network,
+    required String uriStr,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_network(network, serializer);
+          sse_encode_String(uriStr, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 56,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_payment_method,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiPaymentUriResolveBestConstMeta,
+        argValues: [network, uriStr],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiPaymentUriResolveBestConstMeta,
-      argValues: [network, uriStr],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiPaymentUriResolveBestConstMeta =>
@@ -1836,20 +2189,22 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   String crateFfiTypesRootSeedExposeSecretHex({required RootSeed that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_root_seed(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 57)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_String,
-        decodeErrorData: null,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_root_seed(that, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 57)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiTypesRootSeedExposeSecretHexConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiTypesRootSeedExposeSecretHexConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiTypesRootSeedExposeSecretHexConstMeta =>
@@ -1860,45 +2215,47 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   SecretStore crateFfiSecretStoreSecretStoreNew({required Config config}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_config(config, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 58)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_secret_store,
-        decodeErrorData: null,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_config(config, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 58)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_secret_store,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiSecretStoreSecretStoreNewConstMeta,
+        argValues: [config],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiSecretStoreSecretStoreNewConstMeta,
-      argValues: [config],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiSecretStoreSecretStoreNewConstMeta =>
-      const TaskConstMeta(
-        debugName: "secret_store_new",
-        argNames: ["config"],
-      );
+      const TaskConstMeta(debugName: "secret_store_new", argNames: ["config"]);
 
   @override
-  RootSeed? crateFfiSecretStoreSecretStoreReadRootSeed(
-      {required SecretStore that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_secret_store(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 59)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_opt_box_autoadd_root_seed,
-        decodeErrorData: sse_decode_AnyhowException,
+  RootSeed? crateFfiSecretStoreSecretStoreReadRootSeed({
+    required SecretStore that,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_secret_store(that, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 59)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_root_seed,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiSecretStoreSecretStoreReadRootSeedConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiSecretStoreSecretStoreReadRootSeedConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiSecretStoreSecretStoreReadRootSeedConstMeta =>
@@ -1909,70 +2266,72 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   Settings crateFfiSettingsSettingsDbRead({required SettingsDb that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_settings_db(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 60)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_settings,
-        decodeErrorData: null,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_settings_db(that, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 60)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_settings,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiSettingsSettingsDbReadConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiSettingsSettingsDbReadConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiSettingsSettingsDbReadConstMeta =>
-      const TaskConstMeta(
-        debugName: "settings_db_read",
-        argNames: ["that"],
-      );
+      const TaskConstMeta(debugName: "settings_db_read", argNames: ["that"]);
 
   @override
   void crateFfiSettingsSettingsDbReset({required SettingsDb that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_settings_db(that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 61)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: null,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_settings_db(that, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 61)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiSettingsSettingsDbResetConstMeta,
+        argValues: [that],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiSettingsSettingsDbResetConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiSettingsSettingsDbResetConstMeta =>
-      const TaskConstMeta(
-        debugName: "settings_db_reset",
-        argNames: ["that"],
-      );
+      const TaskConstMeta(debugName: "settings_db_reset", argNames: ["that"]);
 
   @override
-  void crateFfiSettingsSettingsDbUpdate(
-      {required SettingsDb that, required Settings update}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_settings_db(that, serializer);
-        sse_encode_box_autoadd_settings(update, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 62)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_AnyhowException,
+  void crateFfiSettingsSettingsDbUpdate({
+    required SettingsDb that,
+    required Settings update,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_settings_db(that, serializer);
+          sse_encode_box_autoadd_settings(update, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 62)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiSettingsSettingsDbUpdateConstMeta,
+        argValues: [that, update],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiSettingsSettingsDbUpdateConstMeta,
-      argValues: [that, update],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiSettingsSettingsDbUpdateConstMeta =>
@@ -1983,91 +2342,98 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @override
   Future<void> crateFfiDebugUnconditionalError() {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 63, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_AnyhowException,
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 63,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiDebugUnconditionalErrorConstMeta,
+        argValues: [],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiDebugUnconditionalErrorConstMeta,
-      argValues: [],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiDebugUnconditionalErrorConstMeta =>
-      const TaskConstMeta(
-        debugName: "unconditional_error",
-        argNames: [],
-      );
+      const TaskConstMeta(debugName: "unconditional_error", argNames: []);
 
   @override
   Future<void> crateFfiDebugUnconditionalPanic() {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 64, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: null,
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 64,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiDebugUnconditionalPanicConstMeta,
+        argValues: [],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiDebugUnconditionalPanicConstMeta,
-      argValues: [],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiDebugUnconditionalPanicConstMeta =>
-      const TaskConstMeta(
-        debugName: "unconditional_panic",
-        argNames: [],
-      );
+      const TaskConstMeta(debugName: "unconditional_panic", argNames: []);
 
   @override
   UserChannelId crateFfiTypesUserChannelIdGenNew() {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 65)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_user_channel_id,
-        decodeErrorData: null,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 65)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_user_channel_id,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiTypesUserChannelIdGenNewConstMeta,
+        argValues: [],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiTypesUserChannelIdGenNewConstMeta,
-      argValues: [],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiTypesUserChannelIdGenNewConstMeta =>
-      const TaskConstMeta(
-        debugName: "user_channel_id_gen_new",
-        argNames: [],
-      );
+      const TaskConstMeta(debugName: "user_channel_id_gen_new", argNames: []);
 
   @override
   String? crateFfiFormValidatePassword({required String password}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_String(password, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 66)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_opt_String,
-        decodeErrorData: null,
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(password, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 66)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiFormValidatePasswordConstMeta,
+        argValues: [password],
+        apiImpl: this,
       ),
-      constMeta: kCrateFfiFormValidatePasswordConstMeta,
-      argValues: [password],
-      apiImpl: this,
-    ));
+    );
   }
 
   TaskConstMeta get kCrateFfiFormValidatePasswordConstMeta =>
@@ -2083,52 +2449,52 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       wire.rust_arc_decrement_strong_count_RustOpaque_App;
 
   RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_GDriveClientInner =>
-          wire.rust_arc_increment_strong_count_RustOpaque_GDriveClientInner;
+  get rust_arc_increment_strong_count_GDriveClientInner =>
+      wire.rust_arc_increment_strong_count_RustOpaque_GDriveClientInner;
 
   RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_GDriveClientInner =>
-          wire.rust_arc_decrement_strong_count_RustOpaque_GDriveClientInner;
+  get rust_arc_decrement_strong_count_GDriveClientInner =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_GDriveClientInner;
 
   RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_GDriveRestoreCandidateRs => wire
-          .rust_arc_increment_strong_count_RustOpaque_GDriveRestoreCandidateRs;
+  get rust_arc_increment_strong_count_GDriveRestoreCandidateRs =>
+      wire.rust_arc_increment_strong_count_RustOpaque_GDriveRestoreCandidateRs;
 
   RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_GDriveRestoreCandidateRs => wire
-          .rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreCandidateRs;
+  get rust_arc_decrement_strong_count_GDriveRestoreCandidateRs =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreCandidateRs;
 
   RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_GDriveRestoreClientRs =>
-          wire.rust_arc_increment_strong_count_RustOpaque_GDriveRestoreClientRs;
+  get rust_arc_increment_strong_count_GDriveRestoreClientRs =>
+      wire.rust_arc_increment_strong_count_RustOpaque_GDriveRestoreClientRs;
 
   RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_GDriveRestoreClientRs =>
-          wire.rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreClientRs;
+  get rust_arc_decrement_strong_count_GDriveRestoreClientRs =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreClientRs;
 
   RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_RootSeedRs =>
-          wire.rust_arc_increment_strong_count_RustOpaque_RootSeedRs;
+  get rust_arc_increment_strong_count_RootSeedRs =>
+      wire.rust_arc_increment_strong_count_RustOpaque_RootSeedRs;
 
   RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_RootSeedRs =>
-          wire.rust_arc_decrement_strong_count_RustOpaque_RootSeedRs;
+  get rust_arc_decrement_strong_count_RootSeedRs =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_RootSeedRs;
 
   RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_SecretStoreRs =>
-          wire.rust_arc_increment_strong_count_RustOpaque_SecretStoreRs;
+  get rust_arc_increment_strong_count_SecretStoreRs =>
+      wire.rust_arc_increment_strong_count_RustOpaque_SecretStoreRs;
 
   RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_SecretStoreRs =>
-          wire.rust_arc_decrement_strong_count_RustOpaque_SecretStoreRs;
+  get rust_arc_decrement_strong_count_SecretStoreRs =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_SecretStoreRs;
 
   RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_SettingsDbRs =>
-          wire.rust_arc_increment_strong_count_RustOpaque_SettingsDbRs;
+  get rust_arc_increment_strong_count_SettingsDbRs =>
+      wire.rust_arc_increment_strong_count_RustOpaque_SettingsDbRs;
 
   RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_SettingsDbRs =>
-          wire.rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs;
+  get rust_arc_decrement_strong_count_SettingsDbRs =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs;
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
@@ -2140,21 +2506,24 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   int dco_decode_CastedPrimitive_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     throw UnimplementedError(
-        'Not implemented in this codec, please use the other one');
+      'Not implemented in this codec, please use the other one',
+    );
   }
 
   @protected
   int dco_decode_CastedPrimitive_u_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     throw UnimplementedError(
-        'Not implemented in this codec, please use the other one');
+      'Not implemented in this codec, please use the other one',
+    );
   }
 
   @protected
   int dco_decode_CastedPrimitive_usize(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     throw UnimplementedError(
-        'Not implemented in this codec, please use the other one');
+      'Not implemented in this codec, please use the other one',
+    );
   }
 
   @protected
@@ -2171,15 +2540,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   GDriveRestoreCandidateRs dco_decode_RustOpaque_GDriveRestoreCandidateRs(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return GDriveRestoreCandidateRsImpl.frbInternalDcoDecode(
-        raw as List<dynamic>);
+      raw as List<dynamic>,
+    );
   }
 
   @protected
   GDriveRestoreClientRs dco_decode_RustOpaque_GDriveRestoreClientRs(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return GDriveRestoreClientRsImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
@@ -2220,9 +2592,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return AppHandle(
-      inner: dco_decode_RustOpaque_App(arr[0]),
-    );
+    return AppHandle(inner: dco_decode_RustOpaque_App(arr[0]));
   }
 
   @protected
@@ -2273,7 +2643,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   CloseChannelRequest dco_decode_box_autoadd_close_channel_request(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_close_channel_request(raw);
   }
@@ -2286,14 +2657,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   CreateClientRequest dco_decode_box_autoadd_create_client_request(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_create_client_request(raw);
   }
 
   @protected
   CreateInvoiceRequest dco_decode_box_autoadd_create_invoice_request(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_create_invoice_request(raw);
   }
@@ -2324,14 +2697,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   GDriveRestoreCandidate dco_decode_box_autoadd_g_drive_restore_candidate(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_g_drive_restore_candidate(raw);
   }
 
   @protected
   GDriveRestoreClient dco_decode_box_autoadd_g_drive_restore_client(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_g_drive_restore_client(raw);
   }
@@ -2392,28 +2767,29 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   PreflightOpenChannelRequest
-      dco_decode_box_autoadd_preflight_open_channel_request(dynamic raw) {
+  dco_decode_box_autoadd_preflight_open_channel_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_preflight_open_channel_request(raw);
   }
 
   @protected
   PreflightPayInvoiceRequest
-      dco_decode_box_autoadd_preflight_pay_invoice_request(dynamic raw) {
+  dco_decode_box_autoadd_preflight_pay_invoice_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_preflight_pay_invoice_request(raw);
   }
 
   @protected
   PreflightPayOfferRequest dco_decode_box_autoadd_preflight_pay_offer_request(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_preflight_pay_offer_request(raw);
   }
 
   @protected
   PreflightPayOnchainRequest
-      dco_decode_box_autoadd_preflight_pay_onchain_request(dynamic raw) {
+  dco_decode_box_autoadd_preflight_pay_onchain_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_preflight_pay_onchain_request(raw);
   }
@@ -2444,7 +2820,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   ShortPaymentAndIndex dco_decode_box_autoadd_short_payment_and_index(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_short_payment_and_index(raw);
   }
@@ -2457,7 +2834,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   UpdateClientRequest dco_decode_box_autoadd_update_client_request(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_update_client_request(raw);
   }
@@ -2474,9 +2852,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return ClientPaymentId(
-      id: dco_decode_u_8_array_32(arr[0]),
-    );
+    return ClientPaymentId(id: dco_decode_u_8_array_32(arr[0]));
   }
 
   @protected
@@ -2485,9 +2861,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return CloseChannelRequest(
-      channelId: dco_decode_String(arr[0]),
-    );
+    return CloseChannelRequest(channelId: dco_decode_String(arr[0]));
   }
 
   @protected
@@ -2556,9 +2930,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return CreateInvoiceResponse(
-      invoice: dco_decode_invoice(arr[0]),
-    );
+    return CreateInvoiceResponse(invoice: dco_decode_invoice(arr[0]));
   }
 
   @protected
@@ -2580,9 +2952,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return CreateOfferResponse(
-      offer: dco_decode_offer(arr[0]),
-    );
+    return CreateOfferResponse(offer: dco_decode_offer(arr[0]));
   }
 
   @protected
@@ -2603,9 +2973,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return FeeEstimate(
-      amountSats: dco_decode_CastedPrimitive_u_64(arr[0]),
-    );
+    return FeeEstimate(amountSats: dco_decode_CastedPrimitive_u_64(arr[0]));
   }
 
   @protected
@@ -2638,9 +3006,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return GDriveClient(
-      inner: dco_decode_RustOpaque_GDriveClientInner(arr[0]),
-    );
+    return GDriveClient(inner: dco_decode_RustOpaque_GDriveClientInner(arr[0]));
   }
 
   @protected
@@ -2727,7 +3093,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   List<GDriveRestoreCandidate> dco_decode_list_g_drive_restore_candidate(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>)
         .map(dco_decode_g_drive_restore_candidate)
@@ -2845,9 +3212,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return OpenChannelResponse(
-      channelId: dco_decode_String(arr[0]),
-    );
+    return OpenChannelResponse(channelId: dco_decode_String(arr[0]));
   }
 
   @protected
@@ -2918,7 +3283,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   ShortPaymentAndIndex? dco_decode_opt_box_autoadd_short_payment_and_index(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null
         ? null
@@ -2950,9 +3316,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return PayInvoiceResponse(
-      index: dco_decode_payment_index(arr[0]),
-    );
+    return PayInvoiceResponse(index: dco_decode_payment_index(arr[0]));
   }
 
   @protected
@@ -2975,9 +3339,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return PayOfferResponse(
-      index: dco_decode_payment_index(arr[0]),
-    );
+    return PayOfferResponse(index: dco_decode_payment_index(arr[0]));
   }
 
   @protected
@@ -3044,9 +3406,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return PaymentIndex(
-      field0: dco_decode_String(arr[0]),
-    );
+    return PaymentIndex(field0: dco_decode_String(arr[0]));
   }
 
   @protected
@@ -3060,17 +3420,11 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
       case 0:
-        return PaymentMethod_Onchain(
-          dco_decode_box_autoadd_onchain(raw[1]),
-        );
+        return PaymentMethod_Onchain(dco_decode_box_autoadd_onchain(raw[1]));
       case 1:
-        return PaymentMethod_Invoice(
-          dco_decode_box_autoadd_invoice(raw[1]),
-        );
+        return PaymentMethod_Invoice(dco_decode_box_autoadd_invoice(raw[1]));
       case 2:
-        return PaymentMethod_Offer(
-          dco_decode_box_autoadd_offer(raw[1]),
-        );
+        return PaymentMethod_Offer(dco_decode_box_autoadd_offer(raw[1]));
       default:
         throw Exception("unreachable");
     }
@@ -3084,7 +3438,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   PreflightCloseChannelResponse dco_decode_preflight_close_channel_response(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
@@ -3096,7 +3451,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   PreflightOpenChannelRequest dco_decode_preflight_open_channel_request(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
@@ -3108,7 +3464,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   PreflightOpenChannelResponse dco_decode_preflight_open_channel_response(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
@@ -3120,7 +3477,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   PreflightPayInvoiceRequest dco_decode_preflight_pay_invoice_request(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 2)
@@ -3133,7 +3491,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   PreflightPayInvoiceResponse dco_decode_preflight_pay_invoice_response(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 2)
@@ -3159,7 +3518,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   PreflightPayOfferResponse dco_decode_preflight_pay_offer_response(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 2)
@@ -3172,7 +3532,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   PreflightPayOnchainRequest dco_decode_preflight_pay_onchain_request(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 2)
@@ -3185,7 +3546,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   PreflightPayOnchainResponse dco_decode_preflight_pay_onchain_response(
-      dynamic raw) {
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 3)
@@ -3217,9 +3579,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return RootSeed(
-      inner: dco_decode_RustOpaque_RootSeedRs(arr[0]),
-    );
+    return RootSeed(inner: dco_decode_RustOpaque_RootSeedRs(arr[0]));
   }
 
   @protected
@@ -3234,9 +3594,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SecretStore.raw(
-      inner: dco_decode_RustOpaque_SecretStoreRs(arr[0]),
-    );
+    return SecretStore.raw(inner: dco_decode_RustOpaque_SecretStoreRs(arr[0]));
   }
 
   @protected
@@ -3258,9 +3616,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SettingsDb(
-      inner: dco_decode_RustOpaque_SettingsDbRs(arr[0]),
-    );
+    return SettingsDb(inner: dco_decode_RustOpaque_SettingsDbRs(arr[0]));
   }
 
   @protected
@@ -3358,9 +3714,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return UserChannelId(
-      id: dco_decode_u_8_array_16(arr[0]),
-    );
+    return UserChannelId(id: dco_decode_u_8_array_16(arr[0]));
   }
 
   @protected
@@ -3401,59 +3755,79 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   App sse_decode_RustOpaque_App(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return AppImpl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
   }
 
   @protected
   GDriveClientInner sse_decode_RustOpaque_GDriveClientInner(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return GDriveClientInnerImpl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
   }
 
   @protected
   GDriveRestoreCandidateRs sse_decode_RustOpaque_GDriveRestoreCandidateRs(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return GDriveRestoreCandidateRsImpl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
   }
 
   @protected
   GDriveRestoreClientRs sse_decode_RustOpaque_GDriveRestoreClientRs(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return GDriveRestoreClientRsImpl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
   }
 
   @protected
   RootSeedRs sse_decode_RustOpaque_RootSeedRs(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return RootSeedRsImpl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
   }
 
   @protected
   SecretStoreRs sse_decode_RustOpaque_SecretStoreRs(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return SecretStoreRsImpl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
   }
 
   @protected
   SettingsDbRs sse_decode_RustOpaque_SettingsDbRs(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return SettingsDbRsImpl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
   }
 
   @protected
   RustStreamSink<String> sse_decode_StreamSink_String_Sse(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     throw UnimplementedError('Unreachable ()');
   }
@@ -3479,7 +3853,10 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_nodePk = sse_decode_String(deserializer);
     var var_nodePkProof = sse_decode_String(deserializer);
     return AppUserInfo(
-        userPk: var_userPk, nodePk: var_nodePk, nodePkProof: var_nodePkProof);
+      userPk: var_userPk,
+      nodePk: var_nodePk,
+      nodePkProof: var_nodePkProof,
+    );
   }
 
   @protected
@@ -3489,14 +3866,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_onchainSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_lightningSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_lightningUsableSats = sse_decode_CastedPrimitive_u_64(deserializer);
-    var var_lightningMaxSendableSats =
-        sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_lightningMaxSendableSats = sse_decode_CastedPrimitive_u_64(
+      deserializer,
+    );
     return Balance(
-        totalSats: var_totalSats,
-        onchainSats: var_onchainSats,
-        lightningSats: var_lightningSats,
-        lightningUsableSats: var_lightningUsableSats,
-        lightningMaxSendableSats: var_lightningMaxSendableSats);
+      totalSats: var_totalSats,
+      onchainSats: var_onchainSats,
+      lightningSats: var_lightningSats,
+      lightningUsableSats: var_lightningUsableSats,
+      lightningMaxSendableSats: var_lightningMaxSendableSats,
+    );
   }
 
   @protected
@@ -3519,7 +3898,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   CloseChannelRequest sse_decode_box_autoadd_close_channel_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_close_channel_request(deserializer));
   }
@@ -3532,56 +3912,64 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   CreateClientRequest sse_decode_box_autoadd_create_client_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_create_client_request(deserializer));
   }
 
   @protected
   CreateInvoiceRequest sse_decode_box_autoadd_create_invoice_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_create_invoice_request(deserializer));
   }
 
   @protected
   CreateOfferRequest sse_decode_box_autoadd_create_offer_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_create_offer_request(deserializer));
   }
 
   @protected
   FeeEstimate sse_decode_box_autoadd_fee_estimate(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_fee_estimate(deserializer));
   }
 
   @protected
   GDriveClient sse_decode_box_autoadd_g_drive_client(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_g_drive_client(deserializer));
   }
 
   @protected
   GDriveOAuth2Flow sse_decode_box_autoadd_g_drive_o_auth_2_flow(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_g_drive_o_auth_2_flow(deserializer));
   }
 
   @protected
   GDriveRestoreCandidate sse_decode_box_autoadd_g_drive_restore_candidate(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_g_drive_restore_candidate(deserializer));
   }
 
   @protected
   GDriveRestoreClient sse_decode_box_autoadd_g_drive_restore_client(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_g_drive_restore_client(deserializer));
   }
@@ -3606,28 +3994,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   OpenChannelRequest sse_decode_box_autoadd_open_channel_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_open_channel_request(deserializer));
   }
 
   @protected
   PayInvoiceRequest sse_decode_box_autoadd_pay_invoice_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_pay_invoice_request(deserializer));
   }
 
   @protected
   PayOfferRequest sse_decode_box_autoadd_pay_offer_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_pay_offer_request(deserializer));
   }
 
   @protected
   PayOnchainRequest sse_decode_box_autoadd_pay_onchain_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_pay_onchain_request(deserializer));
   }
@@ -3640,38 +4032,43 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   PaymentIndex sse_decode_box_autoadd_payment_index(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_payment_index(deserializer));
   }
 
   @protected
   PreflightOpenChannelRequest
-      sse_decode_box_autoadd_preflight_open_channel_request(
-          SseDeserializer deserializer) {
+  sse_decode_box_autoadd_preflight_open_channel_request(
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_preflight_open_channel_request(deserializer));
   }
 
   @protected
   PreflightPayInvoiceRequest
-      sse_decode_box_autoadd_preflight_pay_invoice_request(
-          SseDeserializer deserializer) {
+  sse_decode_box_autoadd_preflight_pay_invoice_request(
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_preflight_pay_invoice_request(deserializer));
   }
 
   @protected
   PreflightPayOfferRequest sse_decode_box_autoadd_preflight_pay_offer_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_preflight_pay_offer_request(deserializer));
   }
 
   @protected
   PreflightPayOnchainRequest
-      sse_decode_box_autoadd_preflight_pay_onchain_request(
-          SseDeserializer deserializer) {
+  sse_decode_box_autoadd_preflight_pay_onchain_request(
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_preflight_pay_onchain_request(deserializer));
   }
@@ -3684,7 +4081,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   SecretStore sse_decode_box_autoadd_secret_store(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_secret_store(deserializer));
   }
@@ -3703,7 +4101,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   ShortPaymentAndIndex sse_decode_box_autoadd_short_payment_and_index(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_short_payment_and_index(deserializer));
   }
@@ -3716,14 +4115,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   UpdateClientRequest sse_decode_box_autoadd_update_client_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_update_client_request(deserializer));
   }
 
   @protected
   UpdatePaymentNote sse_decode_box_autoadd_update_payment_note(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_update_payment_note(deserializer));
   }
@@ -3737,7 +4138,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   CloseChannelRequest sse_decode_close_channel_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_channelId = sse_decode_String(deserializer);
     return CloseChannelRequest(channelId: var_channelId);
@@ -3754,18 +4156,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_useMockSecretStore = sse_decode_bool(deserializer);
     var var_userAgent = sse_decode_String(deserializer);
     return Config(
-        deployEnv: var_deployEnv,
-        network: var_network,
-        gatewayUrl: var_gatewayUrl,
-        useSgx: var_useSgx,
-        baseAppDataDir: var_baseAppDataDir,
-        useMockSecretStore: var_useMockSecretStore,
-        userAgent: var_userAgent);
+      deployEnv: var_deployEnv,
+      network: var_network,
+      gatewayUrl: var_gatewayUrl,
+      useSgx: var_useSgx,
+      baseAppDataDir: var_baseAppDataDir,
+      useMockSecretStore: var_useMockSecretStore,
+      userAgent: var_userAgent,
+    );
   }
 
   @protected
   ConfirmationPriority sse_decode_confirmation_priority(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return ConfirmationPriority.values[inner];
@@ -3773,7 +4177,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   CreateClientRequest sse_decode_create_client_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_label = sse_decode_opt_String(deserializer);
     var var_scope = sse_decode_scope(deserializer);
@@ -3782,30 +4187,36 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   CreateClientResponse sse_decode_create_client_response(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_client = sse_decode_revocable_client(deserializer);
     var var_credentials = sse_decode_String(deserializer);
     return CreateClientResponse(
-        client: var_client, credentials: var_credentials);
+      client: var_client,
+      credentials: var_credentials,
+    );
   }
 
   @protected
   CreateInvoiceRequest sse_decode_create_invoice_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_expirySecs = sse_decode_u_32(deserializer);
     var var_amountSats = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     var var_description = sse_decode_opt_String(deserializer);
     return CreateInvoiceRequest(
-        expirySecs: var_expirySecs,
-        amountSats: var_amountSats,
-        description: var_description);
+      expirySecs: var_expirySecs,
+      amountSats: var_amountSats,
+      description: var_description,
+    );
   }
 
   @protected
   CreateInvoiceResponse sse_decode_create_invoice_response(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_invoice = sse_decode_invoice(deserializer);
     return CreateInvoiceResponse(invoice: var_invoice);
@@ -3813,20 +4224,23 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   CreateOfferRequest sse_decode_create_offer_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_expirySecs = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_amountSats = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     var var_description = sse_decode_opt_String(deserializer);
     return CreateOfferRequest(
-        expirySecs: var_expirySecs,
-        amountSats: var_amountSats,
-        description: var_description);
+      expirySecs: var_expirySecs,
+      amountSats: var_amountSats,
+      description: var_description,
+    );
   }
 
   @protected
   CreateOfferResponse sse_decode_create_offer_response(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_offer = sse_decode_offer(deserializer);
     return CreateOfferResponse(offer: var_offer);
@@ -3877,7 +4291,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   GDriveOAuth2Flow sse_decode_g_drive_o_auth_2_flow(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_clientId = sse_decode_String(deserializer);
     var var_codeVerifier = sse_decode_String(deserializer);
@@ -3885,25 +4300,29 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_redirectUriScheme = sse_decode_String(deserializer);
     var var_url = sse_decode_String(deserializer);
     return GDriveOAuth2Flow(
-        clientId: var_clientId,
-        codeVerifier: var_codeVerifier,
-        redirectUri: var_redirectUri,
-        redirectUriScheme: var_redirectUriScheme,
-        url: var_url);
+      clientId: var_clientId,
+      codeVerifier: var_codeVerifier,
+      redirectUri: var_redirectUri,
+      redirectUriScheme: var_redirectUriScheme,
+      url: var_url,
+    );
   }
 
   @protected
   GDriveRestoreCandidate sse_decode_g_drive_restore_candidate(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_inner =
-        sse_decode_RustOpaque_GDriveRestoreCandidateRs(deserializer);
+    var var_inner = sse_decode_RustOpaque_GDriveRestoreCandidateRs(
+      deserializer,
+    );
     return GDriveRestoreCandidate(inner: var_inner);
   }
 
   @protected
   GDriveRestoreClient sse_decode_g_drive_restore_client(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_inner = sse_decode_RustOpaque_GDriveRestoreClientRs(deserializer);
     return GDriveRestoreClient(inner: var_inner);
@@ -3931,17 +4350,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_amountSats = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     var var_payeePubkey = sse_decode_String(deserializer);
     return Invoice(
-        string: var_string,
-        description: var_description,
-        createdAt: var_createdAt,
-        expiresAt: var_expiresAt,
-        amountSats: var_amountSats,
-        payeePubkey: var_payeePubkey);
+      string: var_string,
+      description: var_description,
+      createdAt: var_createdAt,
+      expiresAt: var_expiresAt,
+      amountSats: var_amountSats,
+      payeePubkey: var_payeePubkey,
+    );
   }
 
   @protected
   ListChannelsResponse sse_decode_list_channels_response(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_channels = sse_decode_list_lx_channel_details(deserializer);
     return ListChannelsResponse(channels: var_channels);
@@ -3961,7 +4382,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   List<GDriveRestoreCandidate> sse_decode_list_g_drive_restore_candidate(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     var len_ = sse_decode_i_32(deserializer);
@@ -3974,7 +4396,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   List<LxChannelDetails> sse_decode_list_lx_channel_details(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     var len_ = sse_decode_i_32(deserializer);
@@ -4001,7 +4424,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   List<RevocableClient> sse_decode_list_revocable_client(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     var len_ = sse_decode_i_32(deserializer);
@@ -4020,22 +4444,25 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_channelValueSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_isUsable = sse_decode_bool(deserializer);
     var var_ourBalanceSats = sse_decode_CastedPrimitive_u_64(deserializer);
-    var var_outboundCapacitySats =
-        sse_decode_CastedPrimitive_u_64(deserializer);
-    var var_nextOutboundHtlcLimitSats =
-        sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_outboundCapacitySats = sse_decode_CastedPrimitive_u_64(
+      deserializer,
+    );
+    var var_nextOutboundHtlcLimitSats = sse_decode_CastedPrimitive_u_64(
+      deserializer,
+    );
     var var_theirBalanceSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_inboundCapacitySats = sse_decode_CastedPrimitive_u_64(deserializer);
     return LxChannelDetails(
-        channelId: var_channelId,
-        counterpartyNodeId: var_counterpartyNodeId,
-        channelValueSats: var_channelValueSats,
-        isUsable: var_isUsable,
-        ourBalanceSats: var_ourBalanceSats,
-        outboundCapacitySats: var_outboundCapacitySats,
-        nextOutboundHtlcLimitSats: var_nextOutboundHtlcLimitSats,
-        theirBalanceSats: var_theirBalanceSats,
-        inboundCapacitySats: var_inboundCapacitySats);
+      channelId: var_channelId,
+      counterpartyNodeId: var_counterpartyNodeId,
+      channelValueSats: var_channelValueSats,
+      isUsable: var_isUsable,
+      ourBalanceSats: var_ourBalanceSats,
+      outboundCapacitySats: var_outboundCapacitySats,
+      nextOutboundHtlcLimitSats: var_nextOutboundHtlcLimitSats,
+      theirBalanceSats: var_theirBalanceSats,
+      inboundCapacitySats: var_inboundCapacitySats,
+    );
   }
 
   @protected
@@ -4053,10 +4480,11 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_measurement = sse_decode_String(deserializer);
     var var_balance = sse_decode_balance(deserializer);
     return NodeInfo(
-        nodePk: var_nodePk,
-        version: var_version,
-        measurement: var_measurement,
-        balance: var_balance);
+      nodePk: var_nodePk,
+      version: var_version,
+      measurement: var_measurement,
+      balance: var_balance,
+    );
   }
 
   @protected
@@ -4069,12 +4497,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_payee = sse_decode_opt_String(deserializer);
     var var_payeePubkey = sse_decode_opt_String(deserializer);
     return Offer(
-        string: var_string,
-        description: var_description,
-        expiresAt: var_expiresAt,
-        amountSats: var_amountSats,
-        payee: var_payee,
-        payeePubkey: var_payeePubkey);
+      string: var_string,
+      description: var_description,
+      expiresAt: var_expiresAt,
+      amountSats: var_amountSats,
+      payee: var_payee,
+      payeePubkey: var_payeePubkey,
+    );
   }
 
   @protected
@@ -4085,25 +4514,30 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_label = sse_decode_opt_String(deserializer);
     var var_message = sse_decode_opt_String(deserializer);
     return Onchain(
-        address: var_address,
-        amountSats: var_amountSats,
-        label: var_label,
-        message: var_message);
+      address: var_address,
+      amountSats: var_amountSats,
+      label: var_label,
+      message: var_message,
+    );
   }
 
   @protected
   OpenChannelRequest sse_decode_open_channel_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_userChannelId = sse_decode_user_channel_id(deserializer);
     var var_valueSats = sse_decode_CastedPrimitive_u_64(deserializer);
     return OpenChannelRequest(
-        userChannelId: var_userChannelId, valueSats: var_valueSats);
+      userChannelId: var_userChannelId,
+      valueSats: var_valueSats,
+    );
   }
 
   @protected
   OpenChannelResponse sse_decode_open_channel_response(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_channelId = sse_decode_String(deserializer);
     return OpenChannelResponse(channelId: var_channelId);
@@ -4155,7 +4589,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   AppHandle? sse_decode_opt_box_autoadd_app_handle(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
@@ -4178,7 +4613,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   FeeEstimate? sse_decode_opt_box_autoadd_fee_estimate(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
@@ -4234,7 +4670,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   ShortPaymentAndIndex? sse_decode_opt_box_autoadd_short_payment_and_index(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
@@ -4257,21 +4694,25 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   PayInvoiceRequest sse_decode_pay_invoice_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_invoice = sse_decode_String(deserializer);
-    var var_fallbackAmountSats =
-        sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_fallbackAmountSats = sse_decode_opt_CastedPrimitive_u_64(
+      deserializer,
+    );
     var var_note = sse_decode_opt_String(deserializer);
     return PayInvoiceRequest(
-        invoice: var_invoice,
-        fallbackAmountSats: var_fallbackAmountSats,
-        note: var_note);
+      invoice: var_invoice,
+      fallbackAmountSats: var_fallbackAmountSats,
+      note: var_note,
+    );
   }
 
   @protected
   PayInvoiceResponse sse_decode_pay_invoice_response(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_index = sse_decode_payment_index(deserializer);
     return PayInvoiceResponse(index: var_index);
@@ -4282,14 +4723,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_cid = sse_decode_client_payment_id(deserializer);
     var var_offer = sse_decode_String(deserializer);
-    var var_fallbackAmountSats =
-        sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_fallbackAmountSats = sse_decode_opt_CastedPrimitive_u_64(
+      deserializer,
+    );
     var var_note = sse_decode_opt_String(deserializer);
     return PayOfferRequest(
-        cid: var_cid,
-        offer: var_offer,
-        fallbackAmountSats: var_fallbackAmountSats,
-        note: var_note);
+      cid: var_cid,
+      offer: var_offer,
+      fallbackAmountSats: var_fallbackAmountSats,
+      note: var_note,
+    );
   }
 
   @protected
@@ -4301,7 +4744,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   PayOnchainRequest sse_decode_pay_onchain_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_cid = sse_decode_client_payment_id(deserializer);
     var var_address = sse_decode_String(deserializer);
@@ -4309,16 +4753,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_priority = sse_decode_confirmation_priority(deserializer);
     var var_note = sse_decode_opt_String(deserializer);
     return PayOnchainRequest(
-        cid: var_cid,
-        address: var_address,
-        amountSats: var_amountSats,
-        priority: var_priority,
-        note: var_note);
+      cid: var_cid,
+      address: var_address,
+      amountSats: var_amountSats,
+      priority: var_priority,
+      note: var_note,
+    );
   }
 
   @protected
   PayOnchainResponse sse_decode_pay_onchain_response(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_index = sse_decode_payment_index(deserializer);
     var var_txid = sse_decode_String(deserializer);
@@ -4344,21 +4790,22 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_createdAt = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_finalizedAt = sse_decode_opt_CastedPrimitive_i_64(deserializer);
     return Payment(
-        index: var_index,
-        kind: var_kind,
-        direction: var_direction,
-        invoice: var_invoice,
-        offerId: var_offerId,
-        offer: var_offer,
-        txid: var_txid,
-        replacement: var_replacement,
-        amountSat: var_amountSat,
-        feesSat: var_feesSat,
-        status: var_status,
-        statusStr: var_statusStr,
-        note: var_note,
-        createdAt: var_createdAt,
-        finalizedAt: var_finalizedAt);
+      index: var_index,
+      kind: var_kind,
+      direction: var_direction,
+      invoice: var_invoice,
+      offerId: var_offerId,
+      offer: var_offer,
+      txid: var_txid,
+      replacement: var_replacement,
+      amountSat: var_amountSat,
+      feesSat: var_feesSat,
+      status: var_status,
+      statusStr: var_statusStr,
+      note: var_note,
+      createdAt: var_createdAt,
+      finalizedAt: var_finalizedAt,
+    );
   }
 
   @protected
@@ -4411,7 +4858,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   PreflightCloseChannelResponse sse_decode_preflight_close_channel_response(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_feeEstimateSats = sse_decode_CastedPrimitive_u_64(deserializer);
     return PreflightCloseChannelResponse(feeEstimateSats: var_feeEstimateSats);
@@ -4419,7 +4867,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   PreflightOpenChannelRequest sse_decode_preflight_open_channel_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_valueSats = sse_decode_CastedPrimitive_u_64(deserializer);
     return PreflightOpenChannelRequest(valueSats: var_valueSats);
@@ -4427,7 +4876,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   PreflightOpenChannelResponse sse_decode_preflight_open_channel_response(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_feeEstimateSats = sse_decode_CastedPrimitive_u_64(deserializer);
     return PreflightOpenChannelResponse(feeEstimateSats: var_feeEstimateSats);
@@ -4435,68 +4885,88 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   PreflightPayInvoiceRequest sse_decode_preflight_pay_invoice_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_invoice = sse_decode_String(deserializer);
-    var var_fallbackAmountSats =
-        sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_fallbackAmountSats = sse_decode_opt_CastedPrimitive_u_64(
+      deserializer,
+    );
     return PreflightPayInvoiceRequest(
-        invoice: var_invoice, fallbackAmountSats: var_fallbackAmountSats);
+      invoice: var_invoice,
+      fallbackAmountSats: var_fallbackAmountSats,
+    );
   }
 
   @protected
   PreflightPayInvoiceResponse sse_decode_preflight_pay_invoice_response(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_feesSats = sse_decode_CastedPrimitive_u_64(deserializer);
     return PreflightPayInvoiceResponse(
-        amountSats: var_amountSats, feesSats: var_feesSats);
+      amountSats: var_amountSats,
+      feesSats: var_feesSats,
+    );
   }
 
   @protected
   PreflightPayOfferRequest sse_decode_preflight_pay_offer_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_cid = sse_decode_client_payment_id(deserializer);
     var var_offer = sse_decode_String(deserializer);
-    var var_fallbackAmountSats =
-        sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_fallbackAmountSats = sse_decode_opt_CastedPrimitive_u_64(
+      deserializer,
+    );
     return PreflightPayOfferRequest(
-        cid: var_cid,
-        offer: var_offer,
-        fallbackAmountSats: var_fallbackAmountSats);
+      cid: var_cid,
+      offer: var_offer,
+      fallbackAmountSats: var_fallbackAmountSats,
+    );
   }
 
   @protected
   PreflightPayOfferResponse sse_decode_preflight_pay_offer_response(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_feesSats = sse_decode_CastedPrimitive_u_64(deserializer);
     return PreflightPayOfferResponse(
-        amountSats: var_amountSats, feesSats: var_feesSats);
+      amountSats: var_amountSats,
+      feesSats: var_feesSats,
+    );
   }
 
   @protected
   PreflightPayOnchainRequest sse_decode_preflight_pay_onchain_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_address = sse_decode_String(deserializer);
     var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
     return PreflightPayOnchainRequest(
-        address: var_address, amountSats: var_amountSats);
+      address: var_address,
+      amountSats: var_amountSats,
+    );
   }
 
   @protected
   PreflightPayOnchainResponse sse_decode_preflight_pay_onchain_response(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_high = sse_decode_opt_box_autoadd_fee_estimate(deserializer);
     var var_normal = sse_decode_fee_estimate(deserializer);
     var var_background = sse_decode_fee_estimate(deserializer);
     return PreflightPayOnchainResponse(
-        high: var_high, normal: var_normal, background: var_background);
+      high: var_high,
+      normal: var_normal,
+      background: var_background,
+    );
   }
 
   @protected
@@ -4507,10 +4977,11 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_label = sse_decode_opt_String(deserializer);
     var var_scope = sse_decode_scope(deserializer);
     return RevocableClient(
-        pubkey: var_pubkey,
-        createdAt: var_createdAt,
-        label: var_label,
-        scope: var_scope);
+      pubkey: var_pubkey,
+      createdAt: var_createdAt,
+      label: var_label,
+      scope: var_scope,
+    );
   }
 
   @protected
@@ -4541,9 +5012,10 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_fiatCurrency = sse_decode_opt_String(deserializer);
     var var_showSplitBalances = sse_decode_opt_box_autoadd_bool(deserializer);
     return Settings(
-        locale: var_locale,
-        fiatCurrency: var_fiatCurrency,
-        showSplitBalances: var_showSplitBalances);
+      locale: var_locale,
+      fiatCurrency: var_fiatCurrency,
+      showSplitBalances: var_showSplitBalances,
+    );
   }
 
   @protected
@@ -4564,18 +5036,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_note = sse_decode_opt_String(deserializer);
     var var_createdAt = sse_decode_CastedPrimitive_i_64(deserializer);
     return ShortPayment(
-        index: var_index,
-        kind: var_kind,
-        direction: var_direction,
-        amountSat: var_amountSat,
-        status: var_status,
-        note: var_note,
-        createdAt: var_createdAt);
+      index: var_index,
+      kind: var_kind,
+      direction: var_direction,
+      amountSat: var_amountSat,
+      status: var_status,
+      note: var_note,
+      createdAt: var_createdAt,
+    );
   }
 
   @protected
   ShortPaymentAndIndex sse_decode_short_payment_and_index(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_vecIdx = sse_decode_CastedPrimitive_usize(deserializer);
     var var_payment = sse_decode_short_payment(deserializer);
@@ -4621,7 +5095,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   UpdateClientRequest sse_decode_update_client_request(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_pubkey = sse_decode_String(deserializer);
     var var_isRevoked = sse_decode_opt_box_autoadd_bool(deserializer);
@@ -4630,7 +5105,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   UpdatePaymentNote sse_decode_update_payment_note(
-      SseDeserializer deserializer) {
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_index = sse_decode_payment_index(deserializer);
     var var_note = sse_decode_opt_String(deserializer);
@@ -4652,7 +5128,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_AnyhowException(
-      AnyhowException self, SseSerializer serializer) {
+    AnyhowException self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.message, serializer);
   }
@@ -4679,73 +5157,98 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void sse_encode_RustOpaque_App(App self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-        (self as AppImpl).frbInternalSseEncode(move: null), serializer);
+      (self as AppImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
   }
 
   @protected
   void sse_encode_RustOpaque_GDriveClientInner(
-      GDriveClientInner self, SseSerializer serializer) {
+    GDriveClientInner self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-        (self as GDriveClientInnerImpl).frbInternalSseEncode(move: null),
-        serializer);
+      (self as GDriveClientInnerImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
   }
 
   @protected
   void sse_encode_RustOpaque_GDriveRestoreCandidateRs(
-      GDriveRestoreCandidateRs self, SseSerializer serializer) {
+    GDriveRestoreCandidateRs self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-        (self as GDriveRestoreCandidateRsImpl).frbInternalSseEncode(move: null),
-        serializer);
+      (self as GDriveRestoreCandidateRsImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
   }
 
   @protected
   void sse_encode_RustOpaque_GDriveRestoreClientRs(
-      GDriveRestoreClientRs self, SseSerializer serializer) {
+    GDriveRestoreClientRs self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-        (self as GDriveRestoreClientRsImpl).frbInternalSseEncode(move: null),
-        serializer);
+      (self as GDriveRestoreClientRsImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
   }
 
   @protected
   void sse_encode_RustOpaque_RootSeedRs(
-      RootSeedRs self, SseSerializer serializer) {
+    RootSeedRs self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-        (self as RootSeedRsImpl).frbInternalSseEncode(move: null), serializer);
+      (self as RootSeedRsImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
   }
 
   @protected
   void sse_encode_RustOpaque_SecretStoreRs(
-      SecretStoreRs self, SseSerializer serializer) {
+    SecretStoreRs self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-        (self as SecretStoreRsImpl).frbInternalSseEncode(move: null),
-        serializer);
+      (self as SecretStoreRsImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
   }
 
   @protected
   void sse_encode_RustOpaque_SettingsDbRs(
-      SettingsDbRs self, SseSerializer serializer) {
+    SettingsDbRs self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-        (self as SettingsDbRsImpl).frbInternalSseEncode(move: null),
-        serializer);
+      (self as SettingsDbRsImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
   }
 
   @protected
   void sse_encode_StreamSink_String_Sse(
-      RustStreamSink<String> self, SseSerializer serializer) {
+    RustStreamSink<String> self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(
-        self.setupAndSerialize(
-            codec: SseCodec(
+      self.setupAndSerialize(
+        codec: SseCodec(
           decodeSuccessData: sse_decode_String,
           decodeErrorData: sse_decode_AnyhowException,
-        )),
-        serializer);
+        ),
+      ),
+      serializer,
+    );
   }
 
   @protected
@@ -4786,7 +5289,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_box_autoadd_app_handle(
-      AppHandle self, SseSerializer serializer) {
+    AppHandle self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_app_handle(self, serializer);
   }
@@ -4799,7 +5304,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_box_autoadd_close_channel_request(
-      CloseChannelRequest self, SseSerializer serializer) {
+    CloseChannelRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_close_channel_request(self, serializer);
   }
@@ -4812,56 +5319,72 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_box_autoadd_create_client_request(
-      CreateClientRequest self, SseSerializer serializer) {
+    CreateClientRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_create_client_request(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_create_invoice_request(
-      CreateInvoiceRequest self, SseSerializer serializer) {
+    CreateInvoiceRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_create_invoice_request(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_create_offer_request(
-      CreateOfferRequest self, SseSerializer serializer) {
+    CreateOfferRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_create_offer_request(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_fee_estimate(
-      FeeEstimate self, SseSerializer serializer) {
+    FeeEstimate self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_fee_estimate(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_g_drive_client(
-      GDriveClient self, SseSerializer serializer) {
+    GDriveClient self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_g_drive_client(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_g_drive_o_auth_2_flow(
-      GDriveOAuth2Flow self, SseSerializer serializer) {
+    GDriveOAuth2Flow self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_g_drive_o_auth_2_flow(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_g_drive_restore_candidate(
-      GDriveRestoreCandidate self, SseSerializer serializer) {
+    GDriveRestoreCandidate self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_g_drive_restore_candidate(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_g_drive_restore_client(
-      GDriveRestoreClient self, SseSerializer serializer) {
+    GDriveRestoreClient self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_g_drive_restore_client(self, serializer);
   }
@@ -4886,28 +5409,36 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_box_autoadd_open_channel_request(
-      OpenChannelRequest self, SseSerializer serializer) {
+    OpenChannelRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_open_channel_request(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_pay_invoice_request(
-      PayInvoiceRequest self, SseSerializer serializer) {
+    PayInvoiceRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_pay_invoice_request(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_pay_offer_request(
-      PayOfferRequest self, SseSerializer serializer) {
+    PayOfferRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_pay_offer_request(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_pay_onchain_request(
-      PayOnchainRequest self, SseSerializer serializer) {
+    PayOnchainRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_pay_onchain_request(self, serializer);
   }
@@ -4920,70 +5451,90 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_box_autoadd_payment_index(
-      PaymentIndex self, SseSerializer serializer) {
+    PaymentIndex self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_payment_index(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_preflight_open_channel_request(
-      PreflightOpenChannelRequest self, SseSerializer serializer) {
+    PreflightOpenChannelRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_preflight_open_channel_request(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_preflight_pay_invoice_request(
-      PreflightPayInvoiceRequest self, SseSerializer serializer) {
+    PreflightPayInvoiceRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_preflight_pay_invoice_request(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_preflight_pay_offer_request(
-      PreflightPayOfferRequest self, SseSerializer serializer) {
+    PreflightPayOfferRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_preflight_pay_offer_request(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_preflight_pay_onchain_request(
-      PreflightPayOnchainRequest self, SseSerializer serializer) {
+    PreflightPayOnchainRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_preflight_pay_onchain_request(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_root_seed(
-      RootSeed self, SseSerializer serializer) {
+    RootSeed self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_root_seed(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_secret_store(
-      SecretStore self, SseSerializer serializer) {
+    SecretStore self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_secret_store(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_settings(
-      Settings self, SseSerializer serializer) {
+    Settings self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_settings(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_settings_db(
-      SettingsDb self, SseSerializer serializer) {
+    SettingsDb self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_settings_db(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_short_payment_and_index(
-      ShortPaymentAndIndex self, SseSerializer serializer) {
+    ShortPaymentAndIndex self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_short_payment_and_index(self, serializer);
   }
@@ -4996,28 +5547,36 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_box_autoadd_update_client_request(
-      UpdateClientRequest self, SseSerializer serializer) {
+    UpdateClientRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_update_client_request(self, serializer);
   }
 
   @protected
   void sse_encode_box_autoadd_update_payment_note(
-      UpdatePaymentNote self, SseSerializer serializer) {
+    UpdatePaymentNote self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_update_payment_note(self, serializer);
   }
 
   @protected
   void sse_encode_client_payment_id(
-      ClientPaymentId self, SseSerializer serializer) {
+    ClientPaymentId self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_8_array_32(self.id, serializer);
   }
 
   @protected
   void sse_encode_close_channel_request(
-      CloseChannelRequest self, SseSerializer serializer) {
+    CloseChannelRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.channelId, serializer);
   }
@@ -5036,14 +5595,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_confirmation_priority(
-      ConfirmationPriority self, SseSerializer serializer) {
+    ConfirmationPriority self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
   }
 
   @protected
   void sse_encode_create_client_request(
-      CreateClientRequest self, SseSerializer serializer) {
+    CreateClientRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_opt_String(self.label, serializer);
     sse_encode_scope(self.scope, serializer);
@@ -5051,7 +5614,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_create_client_response(
-      CreateClientResponse self, SseSerializer serializer) {
+    CreateClientResponse self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_revocable_client(self.client, serializer);
     sse_encode_String(self.credentials, serializer);
@@ -5059,7 +5624,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_create_invoice_request(
-      CreateInvoiceRequest self, SseSerializer serializer) {
+    CreateInvoiceRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self.expirySecs, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.amountSats, serializer);
@@ -5068,14 +5635,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_create_invoice_response(
-      CreateInvoiceResponse self, SseSerializer serializer) {
+    CreateInvoiceResponse self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_invoice(self.invoice, serializer);
   }
 
   @protected
   void sse_encode_create_offer_request(
-      CreateOfferRequest self, SseSerializer serializer) {
+    CreateOfferRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_opt_box_autoadd_u_32(self.expirySecs, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.amountSats, serializer);
@@ -5084,7 +5655,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_create_offer_response(
-      CreateOfferResponse self, SseSerializer serializer) {
+    CreateOfferResponse self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_offer(self.offer, serializer);
   }
@@ -5129,7 +5702,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_g_drive_o_auth_2_flow(
-      GDriveOAuth2Flow self, SseSerializer serializer) {
+    GDriveOAuth2Flow self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.clientId, serializer);
     sse_encode_String(self.codeVerifier, serializer);
@@ -5140,14 +5715,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_g_drive_restore_candidate(
-      GDriveRestoreCandidate self, SseSerializer serializer) {
+    GDriveRestoreCandidate self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_RustOpaque_GDriveRestoreCandidateRs(self.inner, serializer);
   }
 
   @protected
   void sse_encode_g_drive_restore_client(
-      GDriveRestoreClient self, SseSerializer serializer) {
+    GDriveRestoreClient self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_RustOpaque_GDriveRestoreClientRs(self.inner, serializer);
   }
@@ -5177,14 +5756,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_list_channels_response(
-      ListChannelsResponse self, SseSerializer serializer) {
+    ListChannelsResponse self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_lx_channel_details(self.channels, serializer);
   }
 
   @protected
   void sse_encode_list_fiat_rate(
-      List<FiatRate> self, SseSerializer serializer) {
+    List<FiatRate> self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
@@ -5194,7 +5777,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_list_g_drive_restore_candidate(
-      List<GDriveRestoreCandidate> self, SseSerializer serializer) {
+    List<GDriveRestoreCandidate> self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
@@ -5204,7 +5789,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_list_lx_channel_details(
-      List<LxChannelDetails> self, SseSerializer serializer) {
+    List<LxChannelDetails> self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
@@ -5214,16 +5801,21 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_list_prim_u_8_loose(
-      List<int> self, SseSerializer serializer) {
+    List<int> self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
-    serializer.buffer
-        .putUint8List(self is Uint8List ? self : Uint8List.fromList(self));
+    serializer.buffer.putUint8List(
+      self is Uint8List ? self : Uint8List.fromList(self),
+    );
   }
 
   @protected
   void sse_encode_list_prim_u_8_strict(
-      Uint8List self, SseSerializer serializer) {
+    Uint8List self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
@@ -5231,7 +5823,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_list_revocable_client(
-      List<RevocableClient> self, SseSerializer serializer) {
+    List<RevocableClient> self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
@@ -5241,7 +5835,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_lx_channel_details(
-      LxChannelDetails self, SseSerializer serializer) {
+    LxChannelDetails self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.channelId, serializer);
     sse_encode_String(self.counterpartyNodeId, serializer);
@@ -5291,7 +5887,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_open_channel_request(
-      OpenChannelRequest self, SseSerializer serializer) {
+    OpenChannelRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_user_channel_id(self.userChannelId, serializer);
     sse_encode_CastedPrimitive_u_64(self.valueSats, serializer);
@@ -5299,14 +5897,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_open_channel_response(
-      OpenChannelResponse self, SseSerializer serializer) {
+    OpenChannelResponse self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.channelId, serializer);
   }
 
   @protected
   void sse_encode_opt_CastedPrimitive_i_64(
-      int? self, SseSerializer serializer) {
+    int? self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
@@ -5317,7 +5919,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_opt_CastedPrimitive_u_64(
-      int? self, SseSerializer serializer) {
+    int? self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
@@ -5328,7 +5932,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_opt_CastedPrimitive_usize(
-      int? self, SseSerializer serializer) {
+    int? self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
@@ -5349,7 +5955,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_opt_box_autoadd_app_handle(
-      AppHandle? self, SseSerializer serializer) {
+    AppHandle? self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
@@ -5370,7 +5978,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_opt_box_autoadd_fee_estimate(
-      FeeEstimate? self, SseSerializer serializer) {
+    FeeEstimate? self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
@@ -5381,7 +5991,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_opt_box_autoadd_invoice(
-      Invoice? self, SseSerializer serializer) {
+    Invoice? self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
@@ -5402,7 +6014,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_opt_box_autoadd_payment(
-      Payment? self, SseSerializer serializer) {
+    Payment? self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
@@ -5413,7 +6027,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_opt_box_autoadd_root_seed(
-      RootSeed? self, SseSerializer serializer) {
+    RootSeed? self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
@@ -5424,7 +6040,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_opt_box_autoadd_short_payment_and_index(
-      ShortPaymentAndIndex? self, SseSerializer serializer) {
+    ShortPaymentAndIndex? self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
@@ -5445,7 +6063,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_pay_invoice_request(
-      PayInvoiceRequest self, SseSerializer serializer) {
+    PayInvoiceRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.invoice, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.fallbackAmountSats, serializer);
@@ -5454,14 +6074,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_pay_invoice_response(
-      PayInvoiceResponse self, SseSerializer serializer) {
+    PayInvoiceResponse self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_payment_index(self.index, serializer);
   }
 
   @protected
   void sse_encode_pay_offer_request(
-      PayOfferRequest self, SseSerializer serializer) {
+    PayOfferRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_client_payment_id(self.cid, serializer);
     sse_encode_String(self.offer, serializer);
@@ -5471,14 +6095,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_pay_offer_response(
-      PayOfferResponse self, SseSerializer serializer) {
+    PayOfferResponse self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_payment_index(self.index, serializer);
   }
 
   @protected
   void sse_encode_pay_onchain_request(
-      PayOnchainRequest self, SseSerializer serializer) {
+    PayOnchainRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_client_payment_id(self.cid, serializer);
     sse_encode_String(self.address, serializer);
@@ -5489,7 +6117,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_pay_onchain_response(
-      PayOnchainResponse self, SseSerializer serializer) {
+    PayOnchainResponse self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_payment_index(self.index, serializer);
     sse_encode_String(self.txid, serializer);
@@ -5517,7 +6147,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_payment_direction(
-      PaymentDirection self, SseSerializer serializer) {
+    PaymentDirection self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
   }
@@ -5558,28 +6190,36 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_preflight_close_channel_response(
-      PreflightCloseChannelResponse self, SseSerializer serializer) {
+    PreflightCloseChannelResponse self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_CastedPrimitive_u_64(self.feeEstimateSats, serializer);
   }
 
   @protected
   void sse_encode_preflight_open_channel_request(
-      PreflightOpenChannelRequest self, SseSerializer serializer) {
+    PreflightOpenChannelRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_CastedPrimitive_u_64(self.valueSats, serializer);
   }
 
   @protected
   void sse_encode_preflight_open_channel_response(
-      PreflightOpenChannelResponse self, SseSerializer serializer) {
+    PreflightOpenChannelResponse self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_CastedPrimitive_u_64(self.feeEstimateSats, serializer);
   }
 
   @protected
   void sse_encode_preflight_pay_invoice_request(
-      PreflightPayInvoiceRequest self, SseSerializer serializer) {
+    PreflightPayInvoiceRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.invoice, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.fallbackAmountSats, serializer);
@@ -5587,7 +6227,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_preflight_pay_invoice_response(
-      PreflightPayInvoiceResponse self, SseSerializer serializer) {
+    PreflightPayInvoiceResponse self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
     sse_encode_CastedPrimitive_u_64(self.feesSats, serializer);
@@ -5595,7 +6237,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_preflight_pay_offer_request(
-      PreflightPayOfferRequest self, SseSerializer serializer) {
+    PreflightPayOfferRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_client_payment_id(self.cid, serializer);
     sse_encode_String(self.offer, serializer);
@@ -5604,7 +6248,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_preflight_pay_offer_response(
-      PreflightPayOfferResponse self, SseSerializer serializer) {
+    PreflightPayOfferResponse self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
     sse_encode_CastedPrimitive_u_64(self.feesSats, serializer);
@@ -5612,7 +6258,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_preflight_pay_onchain_request(
-      PreflightPayOnchainRequest self, SseSerializer serializer) {
+    PreflightPayOnchainRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.address, serializer);
     sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
@@ -5620,7 +6268,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_preflight_pay_onchain_response(
-      PreflightPayOnchainResponse self, SseSerializer serializer) {
+    PreflightPayOnchainResponse self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_opt_box_autoadd_fee_estimate(self.high, serializer);
     sse_encode_fee_estimate(self.normal, serializer);
@@ -5629,7 +6279,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_revocable_client(
-      RevocableClient self, SseSerializer serializer) {
+    RevocableClient self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.pubkey, serializer);
     sse_encode_CastedPrimitive_i_64(self.createdAt, serializer);
@@ -5683,7 +6335,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_short_payment_and_index(
-      ShortPaymentAndIndex self, SseSerializer serializer) {
+    ShortPaymentAndIndex self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_CastedPrimitive_usize(self.vecIdx, serializer);
     sse_encode_short_payment(self.payment, serializer);
@@ -5726,7 +6380,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_update_client_request(
-      UpdateClientRequest self, SseSerializer serializer) {
+    UpdateClientRequest self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.pubkey, serializer);
     sse_encode_opt_box_autoadd_bool(self.isRevoked, serializer);
@@ -5734,7 +6390,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_update_payment_note(
-      UpdatePaymentNote self, SseSerializer serializer) {
+    UpdatePaymentNote self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_payment_index(self.index, serializer);
     sse_encode_opt_String(self.note, serializer);
@@ -5742,7 +6400,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   @protected
   void sse_encode_user_channel_id(
-      UserChannelId self, SseSerializer serializer) {
+    UserChannelId self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_8_array_16(self.id, serializer);
   }
@@ -5758,11 +6418,11 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 class AppImpl extends RustOpaque implements App {
   // Not to be used by end users
   AppImpl.frbInternalDcoDecode(List<dynamic> wire)
-      : super.frbInternalDcoDecode(wire, _kStaticData);
+    : super.frbInternalDcoDecode(wire, _kStaticData);
 
   // Not to be used by end users
   AppImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
-      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount:
@@ -5778,12 +6438,13 @@ class AppImpl extends RustOpaque implements App {
 class GDriveClientInnerImpl extends RustOpaque implements GDriveClientInner {
   // Not to be used by end users
   GDriveClientInnerImpl.frbInternalDcoDecode(List<dynamic> wire)
-      : super.frbInternalDcoDecode(wire, _kStaticData);
+    : super.frbInternalDcoDecode(wire, _kStaticData);
 
   // Not to be used by end users
   GDriveClientInnerImpl.frbInternalSseDecode(
-      BigInt ptr, int externalSizeOnNative)
-      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+    BigInt ptr,
+    int externalSizeOnNative,
+  ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount:
@@ -5800,19 +6461,26 @@ class GDriveRestoreCandidateRsImpl extends RustOpaque
     implements GDriveRestoreCandidateRs {
   // Not to be used by end users
   GDriveRestoreCandidateRsImpl.frbInternalDcoDecode(List<dynamic> wire)
-      : super.frbInternalDcoDecode(wire, _kStaticData);
+    : super.frbInternalDcoDecode(wire, _kStaticData);
 
   // Not to be used by end users
   GDriveRestoreCandidateRsImpl.frbInternalSseDecode(
-      BigInt ptr, int externalSizeOnNative)
-      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+    BigInt ptr,
+    int externalSizeOnNative,
+  ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount: AppRs
-        .instance.api.rust_arc_increment_strong_count_GDriveRestoreCandidateRs,
+        .instance
+        .api
+        .rust_arc_increment_strong_count_GDriveRestoreCandidateRs,
     rustArcDecrementStrongCount: AppRs
-        .instance.api.rust_arc_decrement_strong_count_GDriveRestoreCandidateRs,
-    rustArcDecrementStrongCountPtr: AppRs.instance.api
+        .instance
+        .api
+        .rust_arc_decrement_strong_count_GDriveRestoreCandidateRs,
+    rustArcDecrementStrongCountPtr: AppRs
+        .instance
+        .api
         .rust_arc_decrement_strong_count_GDriveRestoreCandidateRsPtr,
   );
 }
@@ -5822,20 +6490,27 @@ class GDriveRestoreClientRsImpl extends RustOpaque
     implements GDriveRestoreClientRs {
   // Not to be used by end users
   GDriveRestoreClientRsImpl.frbInternalDcoDecode(List<dynamic> wire)
-      : super.frbInternalDcoDecode(wire, _kStaticData);
+    : super.frbInternalDcoDecode(wire, _kStaticData);
 
   // Not to be used by end users
   GDriveRestoreClientRsImpl.frbInternalSseDecode(
-      BigInt ptr, int externalSizeOnNative)
-      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+    BigInt ptr,
+    int externalSizeOnNative,
+  ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount: AppRs
-        .instance.api.rust_arc_increment_strong_count_GDriveRestoreClientRs,
+        .instance
+        .api
+        .rust_arc_increment_strong_count_GDriveRestoreClientRs,
     rustArcDecrementStrongCount: AppRs
-        .instance.api.rust_arc_decrement_strong_count_GDriveRestoreClientRs,
+        .instance
+        .api
+        .rust_arc_decrement_strong_count_GDriveRestoreClientRs,
     rustArcDecrementStrongCountPtr: AppRs
-        .instance.api.rust_arc_decrement_strong_count_GDriveRestoreClientRsPtr,
+        .instance
+        .api
+        .rust_arc_decrement_strong_count_GDriveRestoreClientRsPtr,
   );
 }
 
@@ -5843,11 +6518,11 @@ class GDriveRestoreClientRsImpl extends RustOpaque
 class RootSeedRsImpl extends RustOpaque implements RootSeedRs {
   // Not to be used by end users
   RootSeedRsImpl.frbInternalDcoDecode(List<dynamic> wire)
-      : super.frbInternalDcoDecode(wire, _kStaticData);
+    : super.frbInternalDcoDecode(wire, _kStaticData);
 
   // Not to be used by end users
   RootSeedRsImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
-      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount:
@@ -5863,11 +6538,11 @@ class RootSeedRsImpl extends RustOpaque implements RootSeedRs {
 class SecretStoreRsImpl extends RustOpaque implements SecretStoreRs {
   // Not to be used by end users
   SecretStoreRsImpl.frbInternalDcoDecode(List<dynamic> wire)
-      : super.frbInternalDcoDecode(wire, _kStaticData);
+    : super.frbInternalDcoDecode(wire, _kStaticData);
 
   // Not to be used by end users
   SecretStoreRsImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
-      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount:
@@ -5883,11 +6558,11 @@ class SecretStoreRsImpl extends RustOpaque implements SecretStoreRs {
 class SettingsDbRsImpl extends RustOpaque implements SettingsDbRs {
   // Not to be used by end users
   SettingsDbRsImpl.frbInternalDcoDecode(List<dynamic> wire)
-      : super.frbInternalDcoDecode(wire, _kStaticData);
+    : super.frbInternalDcoDecode(wire, _kStaticData);
 
   // Not to be used by end users
   SettingsDbRsImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
-      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount:

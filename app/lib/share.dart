@@ -27,10 +27,7 @@ abstract final class LxShare {
   ///
   /// The `context` parameter is for macOS and iPad, so they can draw the share
   /// popup bubble above that widget.
-  static Future<void> sharePaymentUri(
-    BuildContext context,
-    Uri uri,
-  ) async {
+  static Future<void> sharePaymentUri(BuildContext context, Uri uri) async {
     // TODO(phlip9): if Lexe is the only wallet registered as a handler, tapping
     // "share payment" in Lexe will immediately open... Lexe, again, to handle
     // it... Definitely not what we want.
@@ -67,9 +64,11 @@ abstract final class LxShare {
     }
 
     // Tell the user we can't get anything to work
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text("Lexe doesn't support sharing on this platform yet!"),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Lexe doesn't support sharing on this platform yet!"),
+      ),
+    );
     return;
   }
 
@@ -77,9 +76,7 @@ abstract final class LxShare {
   // payment URI, which is super confusing. We'll need to somehow filter
   // ourselves out of the list of handlers.
   // ignore: unused_element
-  static Future<ShareResultStatus> _tryOpenPaymentUriInOtherApp(
-    Uri uri,
-  ) async {
+  static Future<ShareResultStatus> _tryOpenPaymentUriInOtherApp(Uri uri) async {
     // Try to query if there's any apps that can handle it.
     final canLaunch = await Result.tryAsync<bool, Exception>(
       () => url_launcher.canLaunchUrl(uri),

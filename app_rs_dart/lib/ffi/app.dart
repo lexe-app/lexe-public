@@ -28,116 +28,109 @@ abstract class SettingsDbRs implements RustOpaqueInterface {}
 class AppHandle {
   final App inner;
 
-  const AppHandle({
-    required this.inner,
-  });
+  const AppHandle({required this.inner});
 
   Future<void> closeChannel({required CloseChannelRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandleCloseChannel(that: this, req: req);
 
-  Future<CreateClientResponse> createClient(
-          {required CreateClientRequest req}) =>
+  Future<CreateClientResponse> createClient({
+    required CreateClientRequest req,
+  }) =>
       AppRs.instance.api.crateFfiAppAppHandleCreateClient(that: this, req: req);
 
-  Future<CreateInvoiceResponse> createInvoice(
-          {required CreateInvoiceRequest req}) =>
-      AppRs.instance.api
-          .crateFfiAppAppHandleCreateInvoice(that: this, req: req);
+  Future<CreateInvoiceResponse> createInvoice({
+    required CreateInvoiceRequest req,
+  }) => AppRs.instance.api.crateFfiAppAppHandleCreateInvoice(
+    that: this,
+    req: req,
+  );
 
   Future<CreateOfferResponse> createOffer({required CreateOfferRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandleCreateOffer(that: this, req: req);
 
   /// Delete both the local payment state and the on-disk payment db.
   Future<void> deletePaymentDb() =>
-      AppRs.instance.api.crateFfiAppAppHandleDeletePaymentDb(
-        that: this,
-      );
+      AppRs.instance.api.crateFfiAppAppHandleDeletePaymentDb(that: this);
 
   Future<FiatRates> fiatRates() =>
-      AppRs.instance.api.crateFfiAppAppHandleFiatRates(
-        that: this,
-      );
+      AppRs.instance.api.crateFfiAppAppHandleFiatRates(that: this);
 
   Future<String> getAddress() =>
-      AppRs.instance.api.crateFfiAppAppHandleGetAddress(
+      AppRs.instance.api.crateFfiAppAppHandleGetAddress(that: this);
+
+  ShortPaymentAndIndex? getFinalizedNotJunkShortPaymentByScrollIdx({
+    required int scrollIdx,
+  }) => AppRs.instance.api
+      .crateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIdx(
         that: this,
+        scrollIdx: scrollIdx,
       );
 
-  ShortPaymentAndIndex? getFinalizedNotJunkShortPaymentByScrollIdx(
-          {required int scrollIdx}) =>
-      AppRs.instance.api
-          .crateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIdx(
-              that: this, scrollIdx: scrollIdx);
-
-  ShortPaymentAndIndex? getFinalizedShortPaymentByScrollIdx(
-          {required int scrollIdx}) =>
-      AppRs.instance.api
-          .crateFfiAppAppHandleGetFinalizedShortPaymentByScrollIdx(
-              that: this, scrollIdx: scrollIdx);
-
-  int getNumFinalizedNotJunkPayments() =>
-      AppRs.instance.api.crateFfiAppAppHandleGetNumFinalizedNotJunkPayments(
+  ShortPaymentAndIndex? getFinalizedShortPaymentByScrollIdx({
+    required int scrollIdx,
+  }) => AppRs.instance.api
+      .crateFfiAppAppHandleGetFinalizedShortPaymentByScrollIdx(
         that: this,
+        scrollIdx: scrollIdx,
       );
 
-  int getNumFinalizedPayments() =>
-      AppRs.instance.api.crateFfiAppAppHandleGetNumFinalizedPayments(
-        that: this,
-      );
+  int getNumFinalizedNotJunkPayments() => AppRs.instance.api
+      .crateFfiAppAppHandleGetNumFinalizedNotJunkPayments(that: this);
 
-  int getNumPayments() => AppRs.instance.api.crateFfiAppAppHandleGetNumPayments(
-        that: this,
-      );
+  int getNumFinalizedPayments() => AppRs.instance.api
+      .crateFfiAppAppHandleGetNumFinalizedPayments(that: this);
 
-  int getNumPendingNotJunkPayments() =>
-      AppRs.instance.api.crateFfiAppAppHandleGetNumPendingNotJunkPayments(
-        that: this,
-      );
+  int getNumPayments() =>
+      AppRs.instance.api.crateFfiAppAppHandleGetNumPayments(that: this);
+
+  int getNumPendingNotJunkPayments() => AppRs.instance.api
+      .crateFfiAppAppHandleGetNumPendingNotJunkPayments(that: this);
 
   int getNumPendingPayments() =>
-      AppRs.instance.api.crateFfiAppAppHandleGetNumPendingPayments(
-        that: this,
-      );
+      AppRs.instance.api.crateFfiAppAppHandleGetNumPendingPayments(that: this);
 
   Payment? getPaymentByVecIdx({required int vecIdx}) => AppRs.instance.api
       .crateFfiAppAppHandleGetPaymentByVecIdx(that: this, vecIdx: vecIdx);
 
-  ShortPaymentAndIndex? getPendingNotJunkShortPaymentByScrollIdx(
-          {required int scrollIdx}) =>
-      AppRs.instance.api
-          .crateFfiAppAppHandleGetPendingNotJunkShortPaymentByScrollIdx(
-              that: this, scrollIdx: scrollIdx);
+  ShortPaymentAndIndex? getPendingNotJunkShortPaymentByScrollIdx({
+    required int scrollIdx,
+  }) => AppRs.instance.api
+      .crateFfiAppAppHandleGetPendingNotJunkShortPaymentByScrollIdx(
+        that: this,
+        scrollIdx: scrollIdx,
+      );
 
-  ShortPaymentAndIndex? getPendingShortPaymentByScrollIdx(
-          {required int scrollIdx}) =>
+  ShortPaymentAndIndex? getPendingShortPaymentByScrollIdx({
+    required int scrollIdx,
+  }) =>
       AppRs.instance.api.crateFfiAppAppHandleGetPendingShortPaymentByScrollIdx(
-          that: this, scrollIdx: scrollIdx);
+        that: this,
+        scrollIdx: scrollIdx,
+      );
 
   ShortPaymentAndIndex? getShortPaymentByScrollIdx({required int scrollIdx}) =>
       AppRs.instance.api.crateFfiAppAppHandleGetShortPaymentByScrollIdx(
-          that: this, scrollIdx: scrollIdx);
+        that: this,
+        scrollIdx: scrollIdx,
+      );
 
   Future<int?> getVecIdxByPaymentIndex({required PaymentIndex paymentIndex}) =>
       AppRs.instance.api.crateFfiAppAppHandleGetVecIdxByPaymentIndex(
-          that: this, paymentIndex: paymentIndex);
+        that: this,
+        paymentIndex: paymentIndex,
+      );
 
   Future<ListChannelsResponse> listChannels() =>
-      AppRs.instance.api.crateFfiAppAppHandleListChannels(
-        that: this,
-      );
+      AppRs.instance.api.crateFfiAppAppHandleListChannels(that: this);
 
   Future<List<RevocableClient>> listClients() =>
-      AppRs.instance.api.crateFfiAppAppHandleListClients(
-        that: this,
-      );
+      AppRs.instance.api.crateFfiAppAppHandleListClients(that: this);
 
   static Future<AppHandle?> load({required Config config}) =>
       AppRs.instance.api.crateFfiAppAppHandleLoad(config: config);
 
   Future<NodeInfo> nodeInfo() =>
-      AppRs.instance.api.crateFfiAppAppHandleNodeInfo(
-        that: this,
-      );
+      AppRs.instance.api.crateFfiAppAppHandleNodeInfo(that: this);
 
   Future<OpenChannelResponse> openChannel({required OpenChannelRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandleOpenChannel(that: this, req: req);
@@ -151,74 +144,85 @@ class AppHandle {
   Future<PayOnchainResponse> payOnchain({required PayOnchainRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandlePayOnchain(that: this, req: req);
 
-  Future<PreflightCloseChannelResponse> preflightCloseChannel(
-          {required CloseChannelRequest req}) =>
-      AppRs.instance.api
-          .crateFfiAppAppHandlePreflightCloseChannel(that: this, req: req);
+  Future<PreflightCloseChannelResponse> preflightCloseChannel({
+    required CloseChannelRequest req,
+  }) => AppRs.instance.api.crateFfiAppAppHandlePreflightCloseChannel(
+    that: this,
+    req: req,
+  );
 
-  Future<PreflightOpenChannelResponse> preflightOpenChannel(
-          {required PreflightOpenChannelRequest req}) =>
-      AppRs.instance.api
-          .crateFfiAppAppHandlePreflightOpenChannel(that: this, req: req);
+  Future<PreflightOpenChannelResponse> preflightOpenChannel({
+    required PreflightOpenChannelRequest req,
+  }) => AppRs.instance.api.crateFfiAppAppHandlePreflightOpenChannel(
+    that: this,
+    req: req,
+  );
 
-  Future<PreflightPayInvoiceResponse> preflightPayInvoice(
-          {required PreflightPayInvoiceRequest req}) =>
-      AppRs.instance.api
-          .crateFfiAppAppHandlePreflightPayInvoice(that: this, req: req);
+  Future<PreflightPayInvoiceResponse> preflightPayInvoice({
+    required PreflightPayInvoiceRequest req,
+  }) => AppRs.instance.api.crateFfiAppAppHandlePreflightPayInvoice(
+    that: this,
+    req: req,
+  );
 
-  Future<PreflightPayOfferResponse> preflightPayOffer(
-          {required PreflightPayOfferRequest req}) =>
-      AppRs.instance.api
-          .crateFfiAppAppHandlePreflightPayOffer(that: this, req: req);
+  Future<PreflightPayOfferResponse> preflightPayOffer({
+    required PreflightPayOfferRequest req,
+  }) => AppRs.instance.api.crateFfiAppAppHandlePreflightPayOffer(
+    that: this,
+    req: req,
+  );
 
-  Future<PreflightPayOnchainResponse> preflightPayOnchain(
-          {required PreflightPayOnchainRequest req}) =>
-      AppRs.instance.api
-          .crateFfiAppAppHandlePreflightPayOnchain(that: this, req: req);
+  Future<PreflightPayOnchainResponse> preflightPayOnchain({
+    required PreflightPayOnchainRequest req,
+  }) => AppRs.instance.api.crateFfiAppAppHandlePreflightPayOnchain(
+    that: this,
+    req: req,
+  );
 
-  static Future<AppHandle> restore(
-          {required Config config,
-          required String googleAuthCode,
-          required RootSeed rootSeed}) =>
-      AppRs.instance.api.crateFfiAppAppHandleRestore(
-          config: config, googleAuthCode: googleAuthCode, rootSeed: rootSeed);
+  static Future<AppHandle> restore({
+    required Config config,
+    required String googleAuthCode,
+    required RootSeed rootSeed,
+  }) => AppRs.instance.api.crateFfiAppAppHandleRestore(
+    config: config,
+    googleAuthCode: googleAuthCode,
+    rootSeed: rootSeed,
+  );
 
-  SettingsDb settingsDb() => AppRs.instance.api.crateFfiAppAppHandleSettingsDb(
-        that: this,
-      );
+  SettingsDb settingsDb() =>
+      AppRs.instance.api.crateFfiAppAppHandleSettingsDb(that: this);
 
-  static Future<AppHandle> signup(
-          {required Config config,
-          required String googleAuthCode,
-          required String password,
-          String? signupCode,
-          String? partner}) =>
-      AppRs.instance.api.crateFfiAppAppHandleSignup(
-          config: config,
-          googleAuthCode: googleAuthCode,
-          password: password,
-          signupCode: signupCode,
-          partner: partner);
+  static Future<AppHandle> signup({
+    required Config config,
+    required String googleAuthCode,
+    required String password,
+    String? signupCode,
+    String? partner,
+  }) => AppRs.instance.api.crateFfiAppAppHandleSignup(
+    config: config,
+    googleAuthCode: googleAuthCode,
+    password: password,
+    signupCode: signupCode,
+    partner: partner,
+  );
 
   /// Sync the local payment DB to the remote node.
   ///
   /// Returns `true` if any payment changed, so we know whether to reload the
   /// payment list UI.
   Future<bool> syncPayments() =>
-      AppRs.instance.api.crateFfiAppAppHandleSyncPayments(
-        that: this,
-      );
+      AppRs.instance.api.crateFfiAppAppHandleSyncPayments(that: this);
 
   Future<void> updateClient({required UpdateClientRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandleUpdateClient(that: this, req: req);
 
-  Future<void> updatePaymentNote({required UpdatePaymentNote req}) =>
-      AppRs.instance.api
-          .crateFfiAppAppHandleUpdatePaymentNote(that: this, req: req);
+  Future<void> updatePaymentNote({required UpdatePaymentNote req}) => AppRs
+      .instance
+      .api
+      .crateFfiAppAppHandleUpdatePaymentNote(that: this, req: req);
 
-  AppUserInfo userInfo() => AppRs.instance.api.crateFfiAppAppHandleUserInfo(
-        that: this,
-      );
+  AppUserInfo userInfo() =>
+      AppRs.instance.api.crateFfiAppAppHandleUserInfo(that: this);
 
   @override
   int get hashCode => inner.hashCode;
@@ -238,9 +242,7 @@ class U8Array16 extends NonGrowableListView<int> {
   Uint8List get inner => _inner;
   final Uint8List _inner;
 
-  U8Array16(this._inner)
-      : assert(_inner.length == arraySize),
-        super(_inner);
+  U8Array16(this._inner) : assert(_inner.length == arraySize), super(_inner);
 
   U8Array16.init() : this(Uint8List(arraySize));
 }
@@ -252,9 +254,7 @@ class U8Array32 extends NonGrowableListView<int> {
   Uint8List get inner => _inner;
   final Uint8List _inner;
 
-  U8Array32(this._inner)
-      : assert(_inner.length == arraySize),
-        super(_inner);
+  U8Array32(this._inner) : assert(_inner.length == arraySize), super(_inner);
 
   U8Array32.init() : this(Uint8List(arraySize));
 }

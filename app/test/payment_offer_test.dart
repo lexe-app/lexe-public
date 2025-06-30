@@ -16,10 +16,7 @@ void main() {
       expiresAt: null,
     );
 
-    expect(
-      payment.uri()!.toString(),
-      "lightning:$code",
-    );
+    expect(payment.uri()!.toString(), "lightning:$code");
   });
 
   test("PaymentOffer.uri() (address)", () {
@@ -33,10 +30,7 @@ void main() {
       expiresAt: null,
     );
 
-    expect(
-      payment.uri()!.toString(),
-      "bitcoin:$code",
-    );
+    expect(payment.uri()!.toString(), "bitcoin:$code");
   });
 
   test("PaymentOffer.uri() (offer)", () {
@@ -51,9 +45,6 @@ void main() {
       expiresAt: null,
     );
 
-    expect(
-      payment.uri()!.toString(),
-      "bitcoin:?lno=$code",
-    );
+    expect(payment.uri()!.toString(), "bitcoin:?lno=$code");
   });
 }

@@ -12,7 +12,8 @@ part of 'types.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
+  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
+);
 
 /// @nodoc
 mixin _$BalanceState {
@@ -24,7 +25,7 @@ mixin _$BalanceState {
 
 class _$BalanceStateImpl extends _BalanceState {
   const _$BalanceStateImpl({required this.balanceSats, required this.fiatRate})
-      : super._();
+    : super._();
 
   @override
   final Balance? balanceSats;
@@ -52,9 +53,10 @@ class _$BalanceStateImpl extends _BalanceState {
 }
 
 abstract class _BalanceState extends BalanceState {
-  const factory _BalanceState(
-      {required final Balance? balanceSats,
-      required final FiatRate? fiatRate}) = _$BalanceStateImpl;
+  const factory _BalanceState({
+    required final Balance? balanceSats,
+    required final FiatRate? fiatRate,
+  }) = _$BalanceStateImpl;
   const _BalanceState._() : super._();
 
   @override

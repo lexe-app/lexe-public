@@ -12,16 +12,16 @@ final class FiatAmount {
   const FiatAmount(this.fiat, this.amount);
 
   FiatAmount.fromBtc(FiatRate rate, double amountBtc)
-      : fiat = rate.fiat,
-        amount = amountBtc * rate.rate;
+    : fiat = rate.fiat,
+      amount = amountBtc * rate.rate;
 
   factory FiatAmount.fromSats(FiatRate rate, int amountSats) =>
       FiatAmount.fromBtc(rate, currency_format.satsToBtc(amountSats));
 
   static FiatAmount? maybeFromSats(FiatRate? rate, int? amountSats) =>
       (rate != null && amountSats != null)
-          ? FiatAmount.fromSats(rate, amountSats)
-          : null;
+      ? FiatAmount.fromSats(rate, amountSats)
+      : null;
 
   final String fiat;
   final double amount;
@@ -45,12 +45,11 @@ enum BalanceKind {
   lightning;
 
   static BalanceKind fromPaymentKind(final PaymentKind kind) => switch (kind) {
-        PaymentKind.onchain => BalanceKind.onchain,
-        PaymentKind.invoice ||
-        PaymentKind.spontaneous ||
-        PaymentKind.offer =>
-          BalanceKind.lightning,
-      };
+    PaymentKind.onchain => BalanceKind.onchain,
+    PaymentKind.invoice ||
+    PaymentKind.spontaneous ||
+    PaymentKind.offer => BalanceKind.lightning,
+  };
 }
 
 /// The current wallet balances, combined with the current preferred [FiatRate].
@@ -63,8 +62,10 @@ class BalanceState with _$BalanceState {
 
   const BalanceState._();
 
-  static BalanceState placeholder =
-      const BalanceState(balanceSats: null, fiatRate: null);
+  static BalanceState placeholder = const BalanceState(
+    balanceSats: null,
+    fiatRate: null,
+  );
 
   int? totalSats() => this.balanceSats?.totalSats;
   int? onchainSats() => this.balanceSats?.onchainSats;
@@ -81,9 +82,9 @@ class BalanceState with _$BalanceState {
   }
 
   int? byKindSats(BalanceKind kind) => switch (kind) {
-        BalanceKind.onchain => this.onchainSats(),
-        BalanceKind.lightning => this.lightningSats(),
-      };
+    BalanceKind.onchain => this.onchainSats(),
+    BalanceKind.lightning => this.lightningSats(),
+  };
 
   FiatAmount? totalFiat() => this._convertFiat(this.totalSats());
   FiatAmount? onchainFiat() => this._convertFiat(this.onchainSats());
@@ -92,13 +93,15 @@ class BalanceState with _$BalanceState {
       this._convertFiat(this.lightningMaxSendableSats());
 
   FiatAmount? byKindFiat(BalanceKind kind) => switch (kind) {
-        BalanceKind.onchain => this.onchainFiat(),
-        BalanceKind.lightning => this.lightningFiat(),
-      };
+    BalanceKind.onchain => this.onchainFiat(),
+    BalanceKind.lightning => this.lightningFiat(),
+  };
 
   FiatAmount? _convertFiat(final int? satsBalance) =>
       (satsBalance != null && this.fiatRate != null)
-          ? FiatAmount(this.fiatRate!.fiat,
-              currency_format.satsToBtc(satsBalance) * this.fiatRate!.rate)
-          : null;
+      ? FiatAmount(
+          this.fiatRate!.fiat,
+          currency_format.satsToBtc(satsBalance) * this.fiatRate!.rate,
+        )
+      : null;
 }

@@ -7,8 +7,9 @@ import 'package:lexeapp/stream_ext.dart' show StreamExt;
 Future<void> main() async {
   test("asyncMapUnbuffered", () {
     MockTime().run((time) async {
-      final StreamController<int> source =
-          StreamController.broadcast(sync: true);
+      final StreamController<int> source = StreamController.broadcast(
+        sync: true,
+      );
 
       final outFut = source.stream.asyncMapUnbuffered((foo) async {
         await Future.delayed(const Duration(milliseconds: 500));

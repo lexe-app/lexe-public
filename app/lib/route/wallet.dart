@@ -94,13 +94,15 @@ class WalletPageState extends State<WalletPage> {
   late final FiatRateService fiatRateService;
 
   /// Sync payments on refresh.
-  late final PaymentSyncService paymentSyncService =
-      PaymentSyncService(app: this.widget.app);
+  late final PaymentSyncService paymentSyncService = PaymentSyncService(
+    app: this.widget.app,
+  );
   late final LxListener paymentSyncOnRefresh;
 
   /// Fetch [NodeInfo] on refresh.
-  late final NodeInfoService nodeInfoService =
-      NodeInfoService(app: this.widget.app);
+  late final NodeInfoService nodeInfoService = NodeInfoService(
+    app: this.widget.app,
+  );
   late final LxListener nodeInfoFetchOnRefresh;
 
   /// Compute [BalanceState] from [FiatRate] and [NodeInfo] signals.
@@ -143,12 +145,14 @@ class WalletPageState extends State<WalletPage> {
     );
 
     // Sync payments on refresh.
-    this.paymentSyncOnRefresh =
-        this.refreshService.refresh.listen(this.paymentSyncService.sync);
+    this.paymentSyncOnRefresh = this.refreshService.refresh.listen(
+      this.paymentSyncService.sync,
+    );
 
     // Fetch [NodeInfo] on refresh.
-    this.nodeInfoFetchOnRefresh =
-        this.refreshService.refresh.listen(this.nodeInfoService.fetch);
+    this.nodeInfoFetchOnRefresh = this.refreshService.refresh.listen(
+      this.nodeInfoService.fetch,
+    );
 
     // A stream of `BalanceState`s that gets updated when `nodeInfos` or
     // `fiatRate` are updated.
@@ -156,8 +160,10 @@ class WalletPageState extends State<WalletPage> {
       this.nodeInfoService.nodeInfo,
       this.fiatRateService.fiatRate,
       (nodeInfo, fiatRate) {
-        final balance =
-            BalanceState(balanceSats: nodeInfo?.balance, fiatRate: fiatRate);
+        final balance = BalanceState(
+          balanceSats: nodeInfo?.balance,
+          fiatRate: fiatRate,
+        );
         info("balance-state: $balance");
         return balance;
       },
@@ -172,8 +178,9 @@ class WalletPageState extends State<WalletPage> {
 
     // Listen to platform URI events (e.g., user taps a "lightning:" URI in
     // their browser).
-    this.uriEventsListener =
-        this.widget.uriEvents.uriStream.listen(this.onUriEvent);
+    this.uriEventsListener = this.widget.uriEvents.uriStream.listen(
+      this.onUriEvent,
+    );
 
     // Start us off with an initial refresh.
     scheduleMicrotask(this.refreshService.triggerRefreshUnthrottled);
@@ -209,11 +216,12 @@ class WalletPageState extends State<WalletPage> {
 
       // If the user successfully sent a payment, we'll get the new payment's
       // `PaymentIndex` from the flow. O/w canceling the flow will give us `null`.
-      final SendFlowResult? flowResult =
-          await Navigator.of(this.context).push(MaterialPageRoute(
-        builder: (context) =>
-            SendPaymentPage(sendCtx: result.unwrap(), startNewFlow: true),
-      ));
+      final SendFlowResult? flowResult = await Navigator.of(this.context).push(
+        MaterialPageRoute(
+          builder: (context) =>
+              SendPaymentPage(sendCtx: result.unwrap(), startNewFlow: true),
+        ),
+      );
 
       info("WalletPage: uriEvent: flowResult: $flowResult");
 
@@ -316,11 +324,12 @@ class WalletPageState extends State<WalletPage> {
 
     // If the user successfully sent a payment, we'll get the new payment's
     // `PaymentIndex` from the flow. O/w canceling the flow will give us `null`.
-    final SendFlowResult? flowResult =
-        await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (context) =>
-          SendPaymentPage(sendCtx: sendCtx, startNewFlow: true),
-    ));
+    final SendFlowResult? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) =>
+            SendPaymentPage(sendCtx: sendCtx, startNewFlow: true),
+      ),
+    );
 
     info("WalletPage: onSendPressed: flowResult: $flowResult");
 
@@ -342,12 +351,13 @@ class WalletPageState extends State<WalletPage> {
     //
     // Note: this is inside a MultistepFlow so "back" goes back a step while
     // "close" exits the flow to this page again.
-    final SendFlowResult? flowResult =
-        await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (_context) => MultistepFlow<SendFlowResult>(
-        builder: (_context) => ScanPage(sendCtx: sendCtx),
+    final SendFlowResult? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (_context) => MultistepFlow<SendFlowResult>(
+          builder: (_context) => ScanPage(sendCtx: sendCtx),
+        ),
       ),
-    ));
+    );
     info("WalletPage: onScanPressed: flowResult: $flowResult");
 
     // User canceled
@@ -361,14 +371,12 @@ class WalletPageState extends State<WalletPage> {
   /// flow, and wait until it's available if it's not already immediately
   /// available.
   Future<Result<SendState_NeedUri, TimeoutException>>
-      collectSendContext() async {
+  collectSendContext() async {
     final nodeInfo = this.nodeInfoService.nodeInfo.value;
     if (nodeInfo != null) return Ok(this.nodeInfoIntoSendContext(nodeInfo));
 
     final res = await Result.tryAsync<NodeInfo, TimeoutException>(
-      () => this
-          .nodeInfoService
-          .nodeInfo
+      () => this.nodeInfoService.nodeInfo
           .nextValue()
           .then((nodeInfo) => nodeInfo!)
           .timeout(const Duration(seconds: 15)),
@@ -417,50 +425,55 @@ class WalletPageState extends State<WalletPage> {
   }
 
   /// Called when one of the payments in the [SliverPaymentsList] is tapped.
-  void onPaymentTap(
-    PaymentIndex paymentIndex,
-    PaymentSource paymentSource,
-  ) {
-    Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (context) => PaymentDetailPage(
-        app: this.widget.app,
-        paymentIndex: paymentIndex,
-        paymentSource: paymentSource,
-        paymentsUpdated: this.paymentSyncService.updated,
-        fiatRate: this.fiatRateService.fiatRate,
-        isSyncing: this.paymentSyncService.isSyncing,
-        triggerRefresh: this.triggerRefresh,
+  void onPaymentTap(PaymentIndex paymentIndex, PaymentSource paymentSource) {
+    Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) => PaymentDetailPage(
+          app: this.widget.app,
+          paymentIndex: paymentIndex,
+          paymentSource: paymentSource,
+          paymentsUpdated: this.paymentSyncService.updated,
+          fiatRate: this.fiatRateService.fiatRate,
+          isSyncing: this.paymentSyncService.isSyncing,
+          triggerRefresh: this.triggerRefresh,
+        ),
       ),
-    ));
+    );
   }
 
   /// Called when "Node info" is pressed in the menu drawer.
   void onNodeInfoMenuPressed() {
-    Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (context) => NodeInfoPage(
-        nodeInfo: this.nodeInfoService.nodeInfo,
-        userInfo: this.widget.app.userInfo(),
+    Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) => NodeInfoPage(
+          nodeInfo: this.nodeInfoService.nodeInfo,
+          userInfo: this.widget.app.userInfo(),
+        ),
       ),
-    ));
+    );
   }
 
   /// Called when "SDK client credentials" is pressed in the menu drawer.
   void onClientsMenuPressed() {
-    Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (context) => ClientsPage(app: this.widget.app),
-    ));
+    Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) => ClientsPage(app: this.widget.app),
+      ),
+    );
   }
 
   /// Called when "Debug" is pressed in the menu drawer.
   void onDebugMenuPressed() {
-    Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (context) => DebugPage(
-        config: this.widget.config,
-        app: this.widget.app,
-        settings: this.widget.settings,
-        gdriveAuth: this.widget.gdriveAuth,
+    Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) => DebugPage(
+          config: this.widget.config,
+          app: this.widget.app,
+          settings: this.widget.settings,
+          gdriveAuth: this.widget.gdriveAuth,
+        ),
       ),
-    ));
+    );
   }
 
   @override
@@ -502,40 +515,42 @@ class WalletPageState extends State<WalletPage> {
           // * Balance
           // * Wallet Actions (Fund, Receive, Send, ...)
           SliverToBoxAdapter(
-            child: Column(children: [
-              const SizedBox(height: Space.s1000),
+            child: Column(
+              children: [
+                const SizedBox(height: Space.s1000),
 
-              // Primary wallet balance and sub-balances
-              ValueListenableBuilder(
-                valueListenable: this.balanceState,
-                builder: (context, balanceState, child) => BalanceWidget(
-                  state: balanceState,
-                  settings: this.widget.settings,
-                  onOpenChannelsPage: this.onOpenChannelsPage,
+                // Primary wallet balance and sub-balances
+                ValueListenableBuilder(
+                  valueListenable: this.balanceState,
+                  builder: (context, balanceState, child) => BalanceWidget(
+                    state: balanceState,
+                    settings: this.widget.settings,
+                    onOpenChannelsPage: this.onOpenChannelsPage,
+                  ),
                 ),
-              ),
-              const SizedBox(height: Space.s700),
+                const SizedBox(height: Space.s700),
 
-              // Primary wallet actions
-              WalletActions(
-                // ☐ - Quickly scan a QR code
-                onScanPressed: this.onScanPressed,
-                // ↓ - Open BTC/LN receive payment page
-                onReceivePressed: this.onReceivePressed,
-                // ↑ - Open BTC/LN send payment page
-                onSendPressed: this.onSendPressed,
-              ),
-              const SizedBox(height: Space.s600),
-
-              // Situational hints and prompts
-              ValueListenableBuilder(
-                valueListenable: this.balanceState,
-                builder: (_context, balanceState, _child) => WalletHints(
-                  balanceState: balanceState,
-                  onOpenChannelsPage: this.onOpenChannelsPage,
+                // Primary wallet actions
+                WalletActions(
+                  // ☐ - Quickly scan a QR code
+                  onScanPressed: this.onScanPressed,
+                  // ↓ - Open BTC/LN receive payment page
+                  onReceivePressed: this.onReceivePressed,
+                  // ↑ - Open BTC/LN send payment page
+                  onSendPressed: this.onSendPressed,
                 ),
-              ),
-            ]),
+                const SizedBox(height: Space.s600),
+
+                // Situational hints and prompts
+                ValueListenableBuilder(
+                  valueListenable: this.balanceState,
+                  builder: (_context, balanceState, _child) => WalletHints(
+                    balanceState: balanceState,
+                    onOpenChannelsPage: this.onOpenChannelsPage,
+                  ),
+                ),
+              ],
+            ),
           ),
 
           // Pending payments && not junk + header
@@ -688,7 +703,7 @@ class WalletDrawer extends StatelessWidget {
                   ),
                 );
               },
-            )
+            ),
           ],
         ),
       ),
@@ -711,18 +726,16 @@ class DrawerListItem extends StatelessWidget {
       visualDensity: VisualDensity.standard,
       dense: false,
       leading: (this.icon != null)
-          ? Icon(
-              this.icon!,
-              color: LxColors.foreground,
-              size: Fonts.size700,
-            )
+          ? Icon(this.icon!, color: LxColors.foreground, size: Fonts.size700)
           : null,
       title: (this.title != null)
-          ? Text(this.title!,
+          ? Text(
+              this.title!,
               style: Fonts.fontUI.copyWith(
                 fontSize: Fonts.size400,
                 fontVariations: [Fonts.weightMedium],
-              ))
+              ),
+            )
           : null,
       onTap: this.onTap,
     );
@@ -790,28 +803,25 @@ class BalanceWidget extends StatelessWidget {
     const iconColor = LxColors.fgSecondary;
     const iconBg = LxColors.background;
     final icon = ValueListenableBuilder(
-        valueListenable: this.settings.showSplitBalances,
-        builder: (context, showSplitBalances, child) =>
-            (showSplitBalances ?? true)
-                ? const ListIcon(
-                    Icon(
-                      LxIcons.expandUpSmall,
-                      size: iconSize,
-                      color: iconColor,
-                    ),
-                    background: iconBg,
-                  )
-                : ListIcon(
-                    Transform.translate(
-                      offset: const Offset(0.0, 2.0),
-                      child: const Icon(
-                        LxIcons.expandDownSmall,
-                        size: iconSize,
-                        color: iconColor,
-                      ),
-                    ),
-                    background: iconBg,
-                  ));
+      valueListenable: this.settings.showSplitBalances,
+      builder: (context, showSplitBalances, child) =>
+          (showSplitBalances ?? true)
+          ? const ListIcon(
+              Icon(LxIcons.expandUpSmall, size: iconSize, color: iconColor),
+              background: iconBg,
+            )
+          : ListIcon(
+              Transform.translate(
+                offset: const Offset(0.0, 2.0),
+                child: const Icon(
+                  LxIcons.expandDownSmall,
+                  size: iconSize,
+                  color: iconColor,
+                ),
+              ),
+              background: iconBg,
+            ),
+    );
 
     final totalBalance = Padding(
       padding: const EdgeInsets.symmetric(horizontal: Space.s400),
@@ -822,7 +832,11 @@ class BalanceWidget extends StatelessWidget {
           onTap: this.toggleSplitBalancesExpanded,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
-                Space.s500, Space.s500, Space.s600, Space.s500),
+              Space.s500,
+              Space.s500,
+              Space.s600,
+              Space.s500,
+            ),
             // Use a stack here so the amount text can span the full box and
             // occlude the icon. For large denomination currencies, this should
             // leave us enough space.
@@ -887,10 +901,7 @@ class BalanceWidget extends StatelessWidget {
                     balance: this.state,
                   ),
                   const SizedBox(height: Space.s200),
-                  SubBalanceRow(
-                    kind: BalanceKind.onchain,
-                    balance: this.state,
-                  ),
+                  SubBalanceRow(kind: BalanceKind.onchain, balance: this.state),
                 ],
               ),
             ),
@@ -1053,13 +1064,14 @@ class WalletHints extends StatelessWidget {
             // WidgetSpan(child: SizedBox(height: Space.s550)),
             TextSpan(text: "Tap "),
             TextSpan(
-                text: "Receive",
-                style: TextStyle(fontVariations: [Fonts.weightSemiBold])),
+              text: "Receive",
+              style: TextStyle(fontVariations: [Fonts.weightSemiBold]),
+            ),
             TextSpan(text: " to accept your first Lightning payment.\n"),
             WidgetSpan(child: SizedBox(height: Space.s550)),
             TextSpan(
-                text:
-                    "All just-in-time channel opens are free during our beta!"),
+              text: "All just-in-time channel opens are free during our beta!",
+            ),
           ],
         ),
         style: hintStyle,
@@ -1074,16 +1086,18 @@ class WalletHints extends StatelessWidget {
         TextSpan(
           children: [
             const TextSpan(
-                text:
-                    "You only have on-chain funds. If you want to send Lightning payments, try "),
+              text:
+                  "You only have on-chain funds. If you want to send Lightning payments, try ",
+            ),
             TextSpan(
-                text: "opening a channel!",
-                style: const TextStyle(
-                  decoration: TextDecoration.underline,
-                  decorationColor: LxColors.grey600,
-                ),
-                recognizer: TapGestureRecognizer()
-                  ..onTap = this.onOpenChannelsPage),
+              text: "opening a channel!",
+              style: const TextStyle(
+                decoration: TextDecoration.underline,
+                decorationColor: LxColors.grey600,
+              ),
+              recognizer: TapGestureRecognizer()
+                ..onTap = this.onOpenChannelsPage,
+            ),
           ],
         ),
         style: hintStyle,
@@ -1099,9 +1113,9 @@ class WalletHints extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AnimatedSwitcher(
-        duration: const Duration(milliseconds: 250),
-        child: this.buildChild(),
-      );
+    duration: const Duration(milliseconds: 250),
+    child: this.buildChild(),
+  );
 }
 
 class WalletHintBox extends StatelessWidget {
@@ -1111,13 +1125,17 @@ class WalletHintBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-            Space.s450, Space.s500, Space.s450, Space.s200),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 320.0),
-          child: this.child,
-        ),
-      );
+    padding: const EdgeInsets.fromLTRB(
+      Space.s450,
+      Space.s500,
+      Space.s450,
+      Space.s200,
+    ),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 320.0),
+      child: this.child,
+    ),
+  );
 }
 
 enum PaymentsListFilter {
@@ -1125,22 +1143,19 @@ enum PaymentsListFilter {
   pending,
   pendingNotJunk,
   finalized,
-  finalizedNotJunk,
-  ;
+  finalizedNotJunk;
 
   String asTitle() => switch (this) {
-        all => "Payments",
-        pending => "Pending",
-        pendingNotJunk => "Pending",
-        finalized => "Completed",
-        finalizedNotJunk => "Completed",
-      };
+    all => "Payments",
+    pending => "Pending",
+    pendingNotJunk => "Pending",
+    finalized => "Completed",
+    finalizedNotJunk => "Completed",
+  };
 }
 
-typedef PaymentTapCallback = void Function(
-  PaymentIndex paymentIndex,
-  PaymentSource paymentSource,
-);
+typedef PaymentTapCallback =
+    void Function(PaymentIndex paymentIndex, PaymentSource paymentSource);
 
 class SliverPaymentsList extends StatefulWidget {
   const SliverPaymentsList({
@@ -1163,8 +1178,9 @@ class _SliverPaymentsListState extends State<SliverPaymentsList> {
   // update. All the payment times should also update at the same time, which is
   // why they all share the same ticker, hoisted up here to the parent list
   // widget.
-  final DateTimeNotifier paymentDateUpdates =
-      DateTimeNotifier(period: const Duration(seconds: 30));
+  final DateTimeNotifier paymentDateUpdates = DateTimeNotifier(
+    period: const Duration(seconds: 30),
+  );
 
   @override
   void dispose() {
@@ -1202,7 +1218,9 @@ class _SliverPaymentsListState extends State<SliverPaymentsList> {
               alignment: Alignment.bottomLeft,
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: Space.s400, vertical: Space.s200),
+                  horizontal: Space.s400,
+                  vertical: Space.s200,
+                ),
                 child: Text(
                   this.widget.filter.asTitle(),
                   style: Fonts.fontUI.copyWith(
@@ -1220,23 +1238,22 @@ class _SliverPaymentsListState extends State<SliverPaymentsList> {
           final ShortPaymentAndIndex? result = switch (this.widget.filter) {
             PaymentsListFilter.all =>
               this.widget.app.getShortPaymentByScrollIdx(scrollIdx: scrollIdx),
-            PaymentsListFilter.pending => this
-                .widget
-                .app
-                .getPendingShortPaymentByScrollIdx(scrollIdx: scrollIdx),
-            PaymentsListFilter.pendingNotJunk => this
-                .widget
-                .app
-                .getPendingNotJunkShortPaymentByScrollIdx(scrollIdx: scrollIdx),
-            PaymentsListFilter.finalized => this
-                .widget
-                .app
-                .getFinalizedShortPaymentByScrollIdx(scrollIdx: scrollIdx),
-            PaymentsListFilter.finalizedNotJunk => this
-                .widget
-                .app
-                .getFinalizedNotJunkShortPaymentByScrollIdx(
-                    scrollIdx: scrollIdx),
+            PaymentsListFilter.pending =>
+              this.widget.app.getPendingShortPaymentByScrollIdx(
+                scrollIdx: scrollIdx,
+              ),
+            PaymentsListFilter.pendingNotJunk =>
+              this.widget.app.getPendingNotJunkShortPaymentByScrollIdx(
+                scrollIdx: scrollIdx,
+              ),
+            PaymentsListFilter.finalized =>
+              this.widget.app.getFinalizedShortPaymentByScrollIdx(
+                scrollIdx: scrollIdx,
+              ),
+            PaymentsListFilter.finalizedNotJunk =>
+              this.widget.app.getFinalizedNotJunkShortPaymentByScrollIdx(
+                scrollIdx: scrollIdx,
+              ),
           };
           if (result == null) return null;
 
@@ -1245,9 +1262,9 @@ class _SliverPaymentsListState extends State<SliverPaymentsList> {
             payment: result.payment,
             paymentDateUpdates: this.paymentDateUpdates,
             onTap: () => this.widget.onPaymentTap(
-                  result.payment.index,
-                  PaymentSource.localDb(result.vecIdx),
-                ),
+              result.payment.index,
+              PaymentSource.localDb(result.vecIdx),
+            ),
           );
         },
         // findChildIndexCallback: (Key childKey) => this.app.getPaymentScrollIdxByPaymentId(childKey),
@@ -1268,8 +1285,9 @@ String formatFiatValue({
   final fiatValue = currency_format.satsToBtc(amountSats) * rate.rate;
   final sign = currency_format.directionToSign(direction);
 
-  final NumberFormat currencyFormatter =
-      NumberFormat.simpleCurrency(name: rate.fiat);
+  final NumberFormat currencyFormatter = NumberFormat.simpleCurrency(
+    name: rate.fiat,
+  );
   return "$sign${currencyFormatter.format(fiatValue)}";
 }
 
@@ -1293,8 +1311,9 @@ class PaymentsListEntry extends StatelessWidget {
     final amountSats = this.payment.amountSat;
     final note = this.payment.note;
 
-    final leadingIcon =
-        PaymentListIcon(kind: BalanceKind.fromPaymentKind(kind));
+    final leadingIcon = PaymentListIcon(
+      kind: BalanceKind.fromPaymentKind(kind),
+    );
 
     // TODO(phlip9): figure out a heuristic to get the counterparty name.
     final String primaryStr;
@@ -1340,8 +1359,11 @@ class PaymentsListEntry extends StatelessWidget {
     }
 
     final String amountSatsStr = (amountSats != null)
-        ? currency_format.formatSatsAmount(amountSats,
-            direction: direction, satsSuffix: true)
+        ? currency_format.formatSatsAmount(
+            amountSats,
+            direction: direction,
+            satsSuffix: true,
+          )
         : "";
 
     // ex: "" (certain niche cases w/ failed or pending LN invoice payments)
@@ -1376,7 +1398,7 @@ class PaymentsListEntry extends StatelessWidget {
           // separator should only show if both sides are present
           if (status == PaymentStatus.failed && note != null)
             const TextSpan(text: " · "),
-          if (note != null) TextSpan(text: note)
+          if (note != null) TextSpan(text: note),
         ],
         style: Fonts.fontUI.copyWith(
           fontSize: Fonts.size200,
@@ -1391,31 +1413,33 @@ class PaymentsListEntry extends StatelessWidget {
     // when we refresh.
     final createdAt = DateTime.fromMillisecondsSinceEpoch(payment.createdAt);
     final secondaryDateText = ValueListenableBuilder(
-        valueListenable: this.paymentDateUpdates,
-        builder: (_, now, child) {
-          final createdAtStr =
-              date_format.formatDateCompact(then: createdAt, now: now);
+      valueListenable: this.paymentDateUpdates,
+      builder: (_, now, child) {
+        final createdAtStr = date_format.formatDateCompact(
+          then: createdAt,
+          now: now,
+        );
 
-          // ex: "just now" (less than a min old)
-          // ex: "10min"
-          // ex: "Jun 16"
-          // ex: "14h"
-          return Text(
-            createdAtStr ?? "",
-            maxLines: 1,
-            textAlign: TextAlign.end,
-            style: Fonts.fontUI.copyWith(
-              fontSize: Fonts.size200,
-              color: LxColors.fgTertiary,
-            ),
-          );
-        });
+        // ex: "just now" (less than a min old)
+        // ex: "10min"
+        // ex: "Jun 16"
+        // ex: "14h"
+        return Text(
+          createdAtStr ?? "",
+          maxLines: 1,
+          textAlign: TextAlign.end,
+          style: Fonts.fontUI.copyWith(
+            fontSize: Fonts.size200,
+            color: LxColors.fgTertiary,
+          ),
+        );
+      },
+    );
 
     return ListTile(
       onTap: this.onTap,
 
       // list tile styling
-
       contentPadding: const EdgeInsets.symmetric(
         horizontal: Space.s400,
         vertical: Space.s0,
@@ -1425,24 +1449,20 @@ class PaymentsListEntry extends StatelessWidget {
       dense: true,
 
       // actual content
-
       leading: leadingIcon,
 
       // NOTE: we use a Row() in `title` and `subtitle` instead of `trailing` so
       // that the text baselines align properly.
-
       title: Row(
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.baseline,
         textBaseline: TextBaseline.alphabetic,
         children: [
-          Expanded(
-            child: primaryText,
-          ),
+          Expanded(child: primaryText),
           Padding(
             padding: const EdgeInsets.only(left: Space.s200),
             child: primaryValueText,
-          )
+          ),
         ],
       ),
 
@@ -1451,13 +1471,11 @@ class PaymentsListEntry extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.baseline,
         textBaseline: TextBaseline.alphabetic,
         children: [
-          Expanded(
-            child: secondaryText,
-          ),
+          Expanded(child: secondaryText),
           Padding(
             padding: const EdgeInsets.only(left: Space.s200),
             child: secondaryDateText,
-          )
+          ),
         ],
       ),
     );
@@ -1465,16 +1483,13 @@ class PaymentsListEntry extends StatelessWidget {
 }
 
 class PaymentListIcon extends StatelessWidget {
-  const PaymentListIcon({
-    super.key,
-    required this.kind,
-  });
+  const PaymentListIcon({super.key, required this.kind});
 
   final BalanceKind kind;
 
   @override
   Widget build(BuildContext context) => switch (this.kind) {
-        BalanceKind.lightning => const ListIcon.lightning(),
-        BalanceKind.onchain => const ListIcon.bitcoin(),
-      };
+    BalanceKind.lightning => const ListIcon.lightning(),
+    BalanceKind.onchain => const ListIcon.bitcoin(),
+  };
 }

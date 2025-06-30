@@ -72,20 +72,27 @@ class _NodeInfoPageState extends State<NodeInfoPage> {
               ValueListenableBuilder(
                 valueListenable: this.widget.nodeInfo,
                 builder: (context, nodeInfo, child) => InfoRow(
-                    label: "Measurement", value: nodeInfo?.measurement ?? " "),
+                  label: "Measurement",
+                  value: nodeInfo?.measurement ?? " ",
+                ),
               ),
               InfoRow(label: "Node public key", value: userInfo.nodePk),
               // Show the NodePkProof here so a user can prove possession of their
               // node key pair.
               InfoRow(
-                  label: "Proof-of-Possession", value: userInfo.nodePkProof),
+                label: "Proof-of-Possession",
+                value: userInfo.nodePkProof,
+              ),
             ],
           ),
 
           // UserPk
-          InfoCard(header: "User", children: [
-            InfoRow(label: "User public key", value: userInfo.userPk),
-          ]),
+          InfoCard(
+            header: "User",
+            children: [
+              InfoRow(label: "User public key", value: userInfo.userPk),
+            ],
+          ),
         ],
       ),
     );

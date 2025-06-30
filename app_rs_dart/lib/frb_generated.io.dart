@@ -38,27 +38,27 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       wire._rust_arc_decrement_strong_count_RustOpaque_AppPtr;
 
   CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_GDriveClientInnerPtr =>
-          wire._rust_arc_decrement_strong_count_RustOpaque_GDriveClientInnerPtr;
+  get rust_arc_decrement_strong_count_GDriveClientInnerPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_GDriveClientInnerPtr;
 
   CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_GDriveRestoreCandidateRsPtr => wire
-          ._rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreCandidateRsPtr;
+  get rust_arc_decrement_strong_count_GDriveRestoreCandidateRsPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreCandidateRsPtr;
 
   CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_GDriveRestoreClientRsPtr => wire
-          ._rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreClientRsPtr;
+  get rust_arc_decrement_strong_count_GDriveRestoreClientRsPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreClientRsPtr;
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_RootSeedRsPtr =>
       wire._rust_arc_decrement_strong_count_RustOpaque_RootSeedRsPtr;
 
   CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_SecretStoreRsPtr =>
-          wire._rust_arc_decrement_strong_count_RustOpaque_SecretStoreRsPtr;
+  get rust_arc_decrement_strong_count_SecretStoreRsPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_SecretStoreRsPtr;
 
   CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_SettingsDbRsPtr =>
-          wire._rust_arc_decrement_strong_count_RustOpaque_SettingsDbRsPtr;
+  get rust_arc_decrement_strong_count_SettingsDbRsPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_SettingsDbRsPtr;
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
@@ -80,11 +80,13 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   GDriveRestoreCandidateRs dco_decode_RustOpaque_GDriveRestoreCandidateRs(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   GDriveRestoreClientRs dco_decode_RustOpaque_GDriveRestoreClientRs(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   RootSeedRs dco_decode_RustOpaque_RootSeedRs(dynamic raw);
@@ -130,7 +132,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   CreateInvoiceRequest dco_decode_box_autoadd_create_invoice_request(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   CreateOfferRequest dco_decode_box_autoadd_create_offer_request(dynamic raw);
@@ -146,11 +149,13 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   GDriveRestoreCandidate dco_decode_box_autoadd_g_drive_restore_candidate(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   GDriveRestoreClient dco_decode_box_autoadd_g_drive_restore_client(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   Invoice dco_decode_box_autoadd_invoice(dynamic raw);
@@ -181,19 +186,20 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   PreflightOpenChannelRequest
-      dco_decode_box_autoadd_preflight_open_channel_request(dynamic raw);
+  dco_decode_box_autoadd_preflight_open_channel_request(dynamic raw);
 
   @protected
   PreflightPayInvoiceRequest
-      dco_decode_box_autoadd_preflight_pay_invoice_request(dynamic raw);
+  dco_decode_box_autoadd_preflight_pay_invoice_request(dynamic raw);
 
   @protected
   PreflightPayOfferRequest dco_decode_box_autoadd_preflight_pay_offer_request(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   PreflightPayOnchainRequest
-      dco_decode_box_autoadd_preflight_pay_onchain_request(dynamic raw);
+  dco_decode_box_autoadd_preflight_pay_onchain_request(dynamic raw);
 
   @protected
   RootSeed dco_decode_box_autoadd_root_seed(dynamic raw);
@@ -209,7 +215,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ShortPaymentAndIndex dco_decode_box_autoadd_short_payment_and_index(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
@@ -294,7 +301,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   List<GDriveRestoreCandidate> dco_decode_list_g_drive_restore_candidate(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   List<LxChannelDetails> dco_decode_list_lx_channel_details(dynamic raw);
@@ -364,7 +372,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ShortPaymentAndIndex? dco_decode_opt_box_autoadd_short_payment_and_index(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
@@ -407,38 +416,46 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   PreflightCloseChannelResponse dco_decode_preflight_close_channel_response(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   PreflightOpenChannelRequest dco_decode_preflight_open_channel_request(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   PreflightOpenChannelResponse dco_decode_preflight_open_channel_response(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   PreflightPayInvoiceRequest dco_decode_preflight_pay_invoice_request(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   PreflightPayInvoiceResponse dco_decode_preflight_pay_invoice_response(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   PreflightPayOfferRequest dco_decode_preflight_pay_offer_request(dynamic raw);
 
   @protected
   PreflightPayOfferResponse dco_decode_preflight_pay_offer_response(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   PreflightPayOnchainRequest dco_decode_preflight_pay_onchain_request(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   PreflightPayOnchainResponse dco_decode_preflight_pay_onchain_response(
-      dynamic raw);
+    dynamic raw,
+  );
 
   @protected
   RevocableClient dco_decode_revocable_client(dynamic raw);
@@ -511,29 +528,34 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   GDriveClientInner sse_decode_RustOpaque_GDriveClientInner(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GDriveRestoreCandidateRs sse_decode_RustOpaque_GDriveRestoreCandidateRs(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GDriveRestoreClientRs sse_decode_RustOpaque_GDriveRestoreClientRs(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   RootSeedRs sse_decode_RustOpaque_RootSeedRs(SseDeserializer deserializer);
 
   @protected
   SecretStoreRs sse_decode_RustOpaque_SecretStoreRs(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   SettingsDbRs sse_decode_RustOpaque_SettingsDbRs(SseDeserializer deserializer);
 
   @protected
   RustStreamSink<String> sse_decode_StreamSink_String_Sse(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
@@ -558,41 +580,49 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   CloseChannelRequest sse_decode_box_autoadd_close_channel_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   Config sse_decode_box_autoadd_config(SseDeserializer deserializer);
 
   @protected
   CreateClientRequest sse_decode_box_autoadd_create_client_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   CreateInvoiceRequest sse_decode_box_autoadd_create_invoice_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   CreateOfferRequest sse_decode_box_autoadd_create_offer_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   FeeEstimate sse_decode_box_autoadd_fee_estimate(SseDeserializer deserializer);
 
   @protected
   GDriveClient sse_decode_box_autoadd_g_drive_client(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GDriveOAuth2Flow sse_decode_box_autoadd_g_drive_o_auth_2_flow(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GDriveRestoreCandidate sse_decode_box_autoadd_g_drive_restore_candidate(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GDriveRestoreClient sse_decode_box_autoadd_g_drive_restore_client(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   Invoice sse_decode_box_autoadd_invoice(SseDeserializer deserializer);
@@ -605,45 +635,54 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   OpenChannelRequest sse_decode_box_autoadd_open_channel_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PayInvoiceRequest sse_decode_box_autoadd_pay_invoice_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PayOfferRequest sse_decode_box_autoadd_pay_offer_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PayOnchainRequest sse_decode_box_autoadd_pay_onchain_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   Payment sse_decode_box_autoadd_payment(SseDeserializer deserializer);
 
   @protected
   PaymentIndex sse_decode_box_autoadd_payment_index(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PreflightOpenChannelRequest
-      sse_decode_box_autoadd_preflight_open_channel_request(
-          SseDeserializer deserializer);
+  sse_decode_box_autoadd_preflight_open_channel_request(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PreflightPayInvoiceRequest
-      sse_decode_box_autoadd_preflight_pay_invoice_request(
-          SseDeserializer deserializer);
+  sse_decode_box_autoadd_preflight_pay_invoice_request(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PreflightPayOfferRequest sse_decode_box_autoadd_preflight_pay_offer_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PreflightPayOnchainRequest
-      sse_decode_box_autoadd_preflight_pay_onchain_request(
-          SseDeserializer deserializer);
+  sse_decode_box_autoadd_preflight_pay_onchain_request(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RootSeed sse_decode_box_autoadd_root_seed(SseDeserializer deserializer);
@@ -659,56 +698,67 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ShortPaymentAndIndex sse_decode_box_autoadd_short_payment_and_index(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   UpdateClientRequest sse_decode_box_autoadd_update_client_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   UpdatePaymentNote sse_decode_box_autoadd_update_payment_note(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   ClientPaymentId sse_decode_client_payment_id(SseDeserializer deserializer);
 
   @protected
   CloseChannelRequest sse_decode_close_channel_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   Config sse_decode_config(SseDeserializer deserializer);
 
   @protected
   ConfirmationPriority sse_decode_confirmation_priority(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   CreateClientRequest sse_decode_create_client_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   CreateClientResponse sse_decode_create_client_response(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   CreateInvoiceRequest sse_decode_create_invoice_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   CreateInvoiceResponse sse_decode_create_invoice_response(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   CreateOfferRequest sse_decode_create_offer_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   CreateOfferResponse sse_decode_create_offer_response(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   DeployEnv sse_decode_deploy_env(SseDeserializer deserializer);
@@ -730,15 +780,18 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   GDriveOAuth2Flow sse_decode_g_drive_o_auth_2_flow(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GDriveRestoreCandidate sse_decode_g_drive_restore_candidate(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   GDriveRestoreClient sse_decode_g_drive_restore_client(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -751,18 +804,21 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ListChannelsResponse sse_decode_list_channels_response(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<FiatRate> sse_decode_list_fiat_rate(SseDeserializer deserializer);
 
   @protected
   List<GDriveRestoreCandidate> sse_decode_list_g_drive_restore_candidate(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<LxChannelDetails> sse_decode_list_lx_channel_details(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
@@ -772,7 +828,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   List<RevocableClient> sse_decode_list_revocable_client(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   LxChannelDetails sse_decode_lx_channel_details(SseDeserializer deserializer);
@@ -791,11 +848,13 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   OpenChannelRequest sse_decode_open_channel_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   OpenChannelResponse sse_decode_open_channel_response(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   int? sse_decode_opt_CastedPrimitive_i_64(SseDeserializer deserializer);
@@ -811,14 +870,16 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   AppHandle? sse_decode_opt_box_autoadd_app_handle(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
   FeeEstimate? sse_decode_opt_box_autoadd_fee_estimate(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   Invoice? sse_decode_opt_box_autoadd_invoice(SseDeserializer deserializer);
@@ -834,18 +895,21 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ShortPaymentAndIndex? sse_decode_opt_box_autoadd_short_payment_and_index(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   PayInvoiceRequest sse_decode_pay_invoice_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PayInvoiceResponse sse_decode_pay_invoice_response(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PayOfferRequest sse_decode_pay_offer_request(SseDeserializer deserializer);
@@ -855,11 +919,13 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   PayOnchainRequest sse_decode_pay_onchain_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PayOnchainResponse sse_decode_pay_onchain_response(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   Payment sse_decode_payment(SseDeserializer deserializer);
@@ -881,39 +947,48 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   PreflightCloseChannelResponse sse_decode_preflight_close_channel_response(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PreflightOpenChannelRequest sse_decode_preflight_open_channel_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PreflightOpenChannelResponse sse_decode_preflight_open_channel_response(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PreflightPayInvoiceRequest sse_decode_preflight_pay_invoice_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PreflightPayInvoiceResponse sse_decode_preflight_pay_invoice_response(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PreflightPayOfferRequest sse_decode_preflight_pay_offer_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PreflightPayOfferResponse sse_decode_preflight_pay_offer_response(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PreflightPayOnchainRequest sse_decode_preflight_pay_onchain_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   PreflightPayOnchainResponse sse_decode_preflight_pay_onchain_response(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   RevocableClient sse_decode_revocable_client(SseDeserializer deserializer);
@@ -938,7 +1013,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ShortPaymentAndIndex sse_decode_short_payment_and_index(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -960,11 +1036,13 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   UpdateClientRequest sse_decode_update_client_request(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   UpdatePaymentNote sse_decode_update_payment_note(
-      SseDeserializer deserializer);
+    SseDeserializer deserializer,
+  );
 
   @protected
   UserChannelId sse_decode_user_channel_id(SseDeserializer deserializer);
@@ -974,7 +1052,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_AnyhowException(
-      AnyhowException self, SseSerializer serializer);
+    AnyhowException self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_CastedPrimitive_i_64(int self, SseSerializer serializer);
@@ -990,31 +1070,45 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_RustOpaque_GDriveClientInner(
-      GDriveClientInner self, SseSerializer serializer);
+    GDriveClientInner self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_RustOpaque_GDriveRestoreCandidateRs(
-      GDriveRestoreCandidateRs self, SseSerializer serializer);
+    GDriveRestoreCandidateRs self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_RustOpaque_GDriveRestoreClientRs(
-      GDriveRestoreClientRs self, SseSerializer serializer);
+    GDriveRestoreClientRs self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_RustOpaque_RootSeedRs(
-      RootSeedRs self, SseSerializer serializer);
+    RootSeedRs self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_RustOpaque_SecretStoreRs(
-      SecretStoreRs self, SseSerializer serializer);
+    SecretStoreRs self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_RustOpaque_SettingsDbRs(
-      SettingsDbRs self, SseSerializer serializer);
+    SettingsDbRs self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_StreamSink_String_Sse(
-      RustStreamSink<String> self, SseSerializer serializer);
+    RustStreamSink<String> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
@@ -1033,49 +1127,69 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_box_autoadd_app_handle(
-      AppHandle self, SseSerializer serializer);
+    AppHandle self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_close_channel_request(
-      CloseChannelRequest self, SseSerializer serializer);
+    CloseChannelRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_config(Config self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_create_client_request(
-      CreateClientRequest self, SseSerializer serializer);
+    CreateClientRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_create_invoice_request(
-      CreateInvoiceRequest self, SseSerializer serializer);
+    CreateInvoiceRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_create_offer_request(
-      CreateOfferRequest self, SseSerializer serializer);
+    CreateOfferRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_fee_estimate(
-      FeeEstimate self, SseSerializer serializer);
+    FeeEstimate self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_g_drive_client(
-      GDriveClient self, SseSerializer serializer);
+    GDriveClient self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_g_drive_o_auth_2_flow(
-      GDriveOAuth2Flow self, SseSerializer serializer);
+    GDriveOAuth2Flow self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_g_drive_restore_candidate(
-      GDriveRestoreCandidate self, SseSerializer serializer);
+    GDriveRestoreCandidate self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_g_drive_restore_client(
-      GDriveRestoreClient self, SseSerializer serializer);
+    GDriveRestoreClient self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_invoice(Invoice self, SseSerializer serializer);
@@ -1088,111 +1202,159 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_box_autoadd_open_channel_request(
-      OpenChannelRequest self, SseSerializer serializer);
+    OpenChannelRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_pay_invoice_request(
-      PayInvoiceRequest self, SseSerializer serializer);
+    PayInvoiceRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_pay_offer_request(
-      PayOfferRequest self, SseSerializer serializer);
+    PayOfferRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_pay_onchain_request(
-      PayOnchainRequest self, SseSerializer serializer);
+    PayOnchainRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_payment(Payment self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_payment_index(
-      PaymentIndex self, SseSerializer serializer);
+    PaymentIndex self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_preflight_open_channel_request(
-      PreflightOpenChannelRequest self, SseSerializer serializer);
+    PreflightOpenChannelRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_preflight_pay_invoice_request(
-      PreflightPayInvoiceRequest self, SseSerializer serializer);
+    PreflightPayInvoiceRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_preflight_pay_offer_request(
-      PreflightPayOfferRequest self, SseSerializer serializer);
+    PreflightPayOfferRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_preflight_pay_onchain_request(
-      PreflightPayOnchainRequest self, SseSerializer serializer);
+    PreflightPayOnchainRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_root_seed(
-      RootSeed self, SseSerializer serializer);
+    RootSeed self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_secret_store(
-      SecretStore self, SseSerializer serializer);
+    SecretStore self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_settings(Settings self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_settings_db(
-      SettingsDb self, SseSerializer serializer);
+    SettingsDb self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_short_payment_and_index(
-      ShortPaymentAndIndex self, SseSerializer serializer);
+    ShortPaymentAndIndex self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_update_client_request(
-      UpdateClientRequest self, SseSerializer serializer);
+    UpdateClientRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_update_payment_note(
-      UpdatePaymentNote self, SseSerializer serializer);
+    UpdatePaymentNote self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_client_payment_id(
-      ClientPaymentId self, SseSerializer serializer);
+    ClientPaymentId self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_close_channel_request(
-      CloseChannelRequest self, SseSerializer serializer);
+    CloseChannelRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_config(Config self, SseSerializer serializer);
 
   @protected
   void sse_encode_confirmation_priority(
-      ConfirmationPriority self, SseSerializer serializer);
+    ConfirmationPriority self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_create_client_request(
-      CreateClientRequest self, SseSerializer serializer);
+    CreateClientRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_create_client_response(
-      CreateClientResponse self, SseSerializer serializer);
+    CreateClientResponse self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_create_invoice_request(
-      CreateInvoiceRequest self, SseSerializer serializer);
+    CreateInvoiceRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_create_invoice_response(
-      CreateInvoiceResponse self, SseSerializer serializer);
+    CreateInvoiceResponse self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_create_offer_request(
-      CreateOfferRequest self, SseSerializer serializer);
+    CreateOfferRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_create_offer_response(
-      CreateOfferResponse self, SseSerializer serializer);
+    CreateOfferResponse self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_deploy_env(DeployEnv self, SseSerializer serializer);
@@ -1214,15 +1376,21 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_g_drive_o_auth_2_flow(
-      GDriveOAuth2Flow self, SseSerializer serializer);
+    GDriveOAuth2Flow self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_g_drive_restore_candidate(
-      GDriveRestoreCandidate self, SseSerializer serializer);
+    GDriveRestoreCandidate self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_g_drive_restore_client(
-      GDriveRestoreClient self, SseSerializer serializer);
+    GDriveRestoreClient self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
@@ -1235,33 +1403,45 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_list_channels_response(
-      ListChannelsResponse self, SseSerializer serializer);
+    ListChannelsResponse self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_fiat_rate(List<FiatRate> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_g_drive_restore_candidate(
-      List<GDriveRestoreCandidate> self, SseSerializer serializer);
+    List<GDriveRestoreCandidate> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_lx_channel_details(
-      List<LxChannelDetails> self, SseSerializer serializer);
+    List<LxChannelDetails> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_prim_u_8_strict(
-      Uint8List self, SseSerializer serializer);
+    Uint8List self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_revocable_client(
-      List<RevocableClient> self, SseSerializer serializer);
+    List<RevocableClient> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_lx_channel_details(
-      LxChannelDetails self, SseSerializer serializer);
+    LxChannelDetails self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_network(Network self, SseSerializer serializer);
@@ -1277,11 +1457,15 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_open_channel_request(
-      OpenChannelRequest self, SseSerializer serializer);
+    OpenChannelRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_open_channel_response(
-      OpenChannelResponse self, SseSerializer serializer);
+    OpenChannelResponse self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_CastedPrimitive_i_64(int? self, SseSerializer serializer);
@@ -1291,74 +1475,102 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_opt_CastedPrimitive_usize(
-      int? self, SseSerializer serializer);
+    int? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_app_handle(
-      AppHandle? self, SseSerializer serializer);
+    AppHandle? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_fee_estimate(
-      FeeEstimate? self, SseSerializer serializer);
+    FeeEstimate? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_invoice(
-      Invoice? self, SseSerializer serializer);
+    Invoice? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_offer(Offer? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_payment(
-      Payment? self, SseSerializer serializer);
+    Payment? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_root_seed(
-      RootSeed? self, SseSerializer serializer);
+    RootSeed? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_short_payment_and_index(
-      ShortPaymentAndIndex? self, SseSerializer serializer);
+    ShortPaymentAndIndex? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
   void sse_encode_pay_invoice_request(
-      PayInvoiceRequest self, SseSerializer serializer);
+    PayInvoiceRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_pay_invoice_response(
-      PayInvoiceResponse self, SseSerializer serializer);
+    PayInvoiceResponse self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_pay_offer_request(
-      PayOfferRequest self, SseSerializer serializer);
+    PayOfferRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_pay_offer_response(
-      PayOfferResponse self, SseSerializer serializer);
+    PayOfferResponse self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_pay_onchain_request(
-      PayOnchainRequest self, SseSerializer serializer);
+    PayOnchainRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_pay_onchain_response(
-      PayOnchainResponse self, SseSerializer serializer);
+    PayOnchainResponse self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_payment(Payment self, SseSerializer serializer);
 
   @protected
   void sse_encode_payment_direction(
-      PaymentDirection self, SseSerializer serializer);
+    PaymentDirection self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_payment_index(PaymentIndex self, SseSerializer serializer);
@@ -1374,43 +1586,63 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_preflight_close_channel_response(
-      PreflightCloseChannelResponse self, SseSerializer serializer);
+    PreflightCloseChannelResponse self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_preflight_open_channel_request(
-      PreflightOpenChannelRequest self, SseSerializer serializer);
+    PreflightOpenChannelRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_preflight_open_channel_response(
-      PreflightOpenChannelResponse self, SseSerializer serializer);
+    PreflightOpenChannelResponse self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_preflight_pay_invoice_request(
-      PreflightPayInvoiceRequest self, SseSerializer serializer);
+    PreflightPayInvoiceRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_preflight_pay_invoice_response(
-      PreflightPayInvoiceResponse self, SseSerializer serializer);
+    PreflightPayInvoiceResponse self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_preflight_pay_offer_request(
-      PreflightPayOfferRequest self, SseSerializer serializer);
+    PreflightPayOfferRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_preflight_pay_offer_response(
-      PreflightPayOfferResponse self, SseSerializer serializer);
+    PreflightPayOfferResponse self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_preflight_pay_onchain_request(
-      PreflightPayOnchainRequest self, SseSerializer serializer);
+    PreflightPayOnchainRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_preflight_pay_onchain_response(
-      PreflightPayOnchainResponse self, SseSerializer serializer);
+    PreflightPayOnchainResponse self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_revocable_client(
-      RevocableClient self, SseSerializer serializer);
+    RevocableClient self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_root_seed(RootSeed self, SseSerializer serializer);
@@ -1432,7 +1664,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_short_payment_and_index(
-      ShortPaymentAndIndex self, SseSerializer serializer);
+    ShortPaymentAndIndex self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);
@@ -1454,11 +1688,15 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_update_client_request(
-      UpdateClientRequest self, SseSerializer serializer);
+    UpdateClientRequest self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_update_payment_note(
-      UpdatePaymentNote self, SseSerializer serializer);
+    UpdatePaymentNote self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_user_channel_id(UserChannelId self, SseSerializer serializer);
@@ -1475,23 +1713,22 @@ class AppRsWire implements BaseWire {
 
   /// Holds the symbol lookup function.
   final ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName)
-      _lookup;
+  _lookup;
 
   /// The symbols are looked up in [dynamicLibrary].
   AppRsWire(ffi.DynamicLibrary dynamicLibrary)
-      : _lookup = dynamicLibrary.lookup;
+    : _lookup = dynamicLibrary.lookup;
 
   void rust_arc_increment_strong_count_RustOpaque_App(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_increment_strong_count_RustOpaque_App(
-      ptr,
-    );
+    return _rust_arc_increment_strong_count_RustOpaque_App(ptr);
   }
 
   late final _rust_arc_increment_strong_count_RustOpaque_AppPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_App');
+        'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_App',
+      );
   late final _rust_arc_increment_strong_count_RustOpaque_App =
       _rust_arc_increment_strong_count_RustOpaque_AppPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
@@ -1499,14 +1736,13 @@ class AppRsWire implements BaseWire {
   void rust_arc_decrement_strong_count_RustOpaque_App(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_decrement_strong_count_RustOpaque_App(
-      ptr,
-    );
+    return _rust_arc_decrement_strong_count_RustOpaque_App(ptr);
   }
 
   late final _rust_arc_decrement_strong_count_RustOpaque_AppPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_App');
+        'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_App',
+      );
   late final _rust_arc_decrement_strong_count_RustOpaque_App =
       _rust_arc_decrement_strong_count_RustOpaque_AppPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
@@ -1514,14 +1750,13 @@ class AppRsWire implements BaseWire {
   void rust_arc_increment_strong_count_RustOpaque_GDriveClientInner(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_increment_strong_count_RustOpaque_GDriveClientInner(
-      ptr,
-    );
+    return _rust_arc_increment_strong_count_RustOpaque_GDriveClientInner(ptr);
   }
 
   late final _rust_arc_increment_strong_count_RustOpaque_GDriveClientInnerPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_GDriveClientInner');
+        'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_GDriveClientInner',
+      );
   late final _rust_arc_increment_strong_count_RustOpaque_GDriveClientInner =
       _rust_arc_increment_strong_count_RustOpaque_GDriveClientInnerPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
@@ -1529,14 +1764,13 @@ class AppRsWire implements BaseWire {
   void rust_arc_decrement_strong_count_RustOpaque_GDriveClientInner(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_decrement_strong_count_RustOpaque_GDriveClientInner(
-      ptr,
-    );
+    return _rust_arc_decrement_strong_count_RustOpaque_GDriveClientInner(ptr);
   }
 
   late final _rust_arc_decrement_strong_count_RustOpaque_GDriveClientInnerPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_GDriveClientInner');
+        'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_GDriveClientInner',
+      );
   late final _rust_arc_decrement_strong_count_RustOpaque_GDriveClientInner =
       _rust_arc_decrement_strong_count_RustOpaque_GDriveClientInnerPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
@@ -1551,7 +1785,8 @@ class AppRsWire implements BaseWire {
 
   late final _rust_arc_increment_strong_count_RustOpaque_GDriveRestoreCandidateRsPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_GDriveRestoreCandidateRs');
+        'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_GDriveRestoreCandidateRs',
+      );
   late final _rust_arc_increment_strong_count_RustOpaque_GDriveRestoreCandidateRs =
       _rust_arc_increment_strong_count_RustOpaque_GDriveRestoreCandidateRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
@@ -1566,7 +1801,8 @@ class AppRsWire implements BaseWire {
 
   late final _rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreCandidateRsPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreCandidateRs');
+        'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreCandidateRs',
+      );
   late final _rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreCandidateRs =
       _rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreCandidateRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
@@ -1581,7 +1817,8 @@ class AppRsWire implements BaseWire {
 
   late final _rust_arc_increment_strong_count_RustOpaque_GDriveRestoreClientRsPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_GDriveRestoreClientRs');
+        'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_GDriveRestoreClientRs',
+      );
   late final _rust_arc_increment_strong_count_RustOpaque_GDriveRestoreClientRs =
       _rust_arc_increment_strong_count_RustOpaque_GDriveRestoreClientRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
@@ -1596,7 +1833,8 @@ class AppRsWire implements BaseWire {
 
   late final _rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreClientRsPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreClientRs');
+        'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreClientRs',
+      );
   late final _rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreClientRs =
       _rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreClientRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
@@ -1604,14 +1842,13 @@ class AppRsWire implements BaseWire {
   void rust_arc_increment_strong_count_RustOpaque_RootSeedRs(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_increment_strong_count_RustOpaque_RootSeedRs(
-      ptr,
-    );
+    return _rust_arc_increment_strong_count_RustOpaque_RootSeedRs(ptr);
   }
 
-  late final _rust_arc_increment_strong_count_RustOpaque_RootSeedRsPtr = _lookup<
-          ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-      'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_RootSeedRs');
+  late final _rust_arc_increment_strong_count_RustOpaque_RootSeedRsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_RootSeedRs',
+      );
   late final _rust_arc_increment_strong_count_RustOpaque_RootSeedRs =
       _rust_arc_increment_strong_count_RustOpaque_RootSeedRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
@@ -1619,14 +1856,13 @@ class AppRsWire implements BaseWire {
   void rust_arc_decrement_strong_count_RustOpaque_RootSeedRs(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_decrement_strong_count_RustOpaque_RootSeedRs(
-      ptr,
-    );
+    return _rust_arc_decrement_strong_count_RustOpaque_RootSeedRs(ptr);
   }
 
-  late final _rust_arc_decrement_strong_count_RustOpaque_RootSeedRsPtr = _lookup<
-          ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-      'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_RootSeedRs');
+  late final _rust_arc_decrement_strong_count_RustOpaque_RootSeedRsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_RootSeedRs',
+      );
   late final _rust_arc_decrement_strong_count_RustOpaque_RootSeedRs =
       _rust_arc_decrement_strong_count_RustOpaque_RootSeedRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
@@ -1634,14 +1870,13 @@ class AppRsWire implements BaseWire {
   void rust_arc_increment_strong_count_RustOpaque_SecretStoreRs(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_increment_strong_count_RustOpaque_SecretStoreRs(
-      ptr,
-    );
+    return _rust_arc_increment_strong_count_RustOpaque_SecretStoreRs(ptr);
   }
 
   late final _rust_arc_increment_strong_count_RustOpaque_SecretStoreRsPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_SecretStoreRs');
+        'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_SecretStoreRs',
+      );
   late final _rust_arc_increment_strong_count_RustOpaque_SecretStoreRs =
       _rust_arc_increment_strong_count_RustOpaque_SecretStoreRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
@@ -1649,14 +1884,13 @@ class AppRsWire implements BaseWire {
   void rust_arc_decrement_strong_count_RustOpaque_SecretStoreRs(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_decrement_strong_count_RustOpaque_SecretStoreRs(
-      ptr,
-    );
+    return _rust_arc_decrement_strong_count_RustOpaque_SecretStoreRs(ptr);
   }
 
   late final _rust_arc_decrement_strong_count_RustOpaque_SecretStoreRsPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_SecretStoreRs');
+        'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_SecretStoreRs',
+      );
   late final _rust_arc_decrement_strong_count_RustOpaque_SecretStoreRs =
       _rust_arc_decrement_strong_count_RustOpaque_SecretStoreRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
@@ -1664,14 +1898,13 @@ class AppRsWire implements BaseWire {
   void rust_arc_increment_strong_count_RustOpaque_SettingsDbRs(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_increment_strong_count_RustOpaque_SettingsDbRs(
-      ptr,
-    );
+    return _rust_arc_increment_strong_count_RustOpaque_SettingsDbRs(ptr);
   }
 
-  late final _rust_arc_increment_strong_count_RustOpaque_SettingsDbRsPtr = _lookup<
-          ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-      'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_SettingsDbRs');
+  late final _rust_arc_increment_strong_count_RustOpaque_SettingsDbRsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_SettingsDbRs',
+      );
   late final _rust_arc_increment_strong_count_RustOpaque_SettingsDbRs =
       _rust_arc_increment_strong_count_RustOpaque_SettingsDbRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
@@ -1679,14 +1912,13 @@ class AppRsWire implements BaseWire {
   void rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs(
-      ptr,
-    );
+    return _rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs(ptr);
   }
 
-  late final _rust_arc_decrement_strong_count_RustOpaque_SettingsDbRsPtr = _lookup<
-          ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-      'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs');
+  late final _rust_arc_decrement_strong_count_RustOpaque_SettingsDbRsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs',
+      );
   late final _rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs =
       _rust_arc_decrement_strong_count_RustOpaque_SettingsDbRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();

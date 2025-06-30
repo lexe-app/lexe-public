@@ -20,9 +20,7 @@ abstract class SecretStoreRs implements RustOpaqueInterface {}
 class SecretStore {
   final SecretStoreRs inner;
 
-  const SecretStore.raw({
-    required this.inner,
-  });
+  const SecretStore.raw({required this.inner});
 
   /// Create a handle to the secret store for the current app configuration.
   factory SecretStore({required Config config}) =>
@@ -30,9 +28,7 @@ class SecretStore {
 
   /// Read the user's root seed from the secret store.
   RootSeed? readRootSeed() =>
-      AppRs.instance.api.crateFfiSecretStoreSecretStoreReadRootSeed(
-        that: this,
-      );
+      AppRs.instance.api.crateFfiSecretStoreSecretStoreReadRootSeed(that: this);
 
   @override
   int get hashCode => inner.hashCode;

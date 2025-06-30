@@ -17,15 +17,12 @@ extension StreamControllerExt<T> on StreamController<T> {
 
 extension StreamExt<T> on Stream<T> {
   /// Log for each event or error that occurs on this stream.
-  Stream<T> log({
-    required String id,
-  }) =>
-      this.doOn(
-        data: (data) => info("$id: $data"),
-        error: (err, trace) => error("$id: error: $err, $trace"),
-        // cancel: () => info("$id: cancel"),
-        // done: () => info("$id: done"),
-      );
+  Stream<T> log({required String id}) => this.doOn(
+    data: (data) => info("$id: $data"),
+    error: (err, trace) => error("$id: error: $err, $trace"),
+    // cancel: () => info("$id: cancel"),
+    // done: () => info("$id: done"),
+  );
 
   /// Alias for [Stream.where].
   Stream<T> filter(bool Function(T event) test) => this.where(test);

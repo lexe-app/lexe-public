@@ -57,7 +57,8 @@ sealed class Result<T, E> {
   /// Convenience for `Result.tryAsync` but specialized for calling the Rust
   /// ffi.
   static Future<FfiResult<T>> tryFfiAsync<T>(
-      final Future<T> Function() fn) async {
+    final Future<T> Function() fn,
+  ) async {
     final res = await Result.tryAsync<T, AnyhowException>(fn);
     return res.mapErr(FfiError.fromFfi);
   }

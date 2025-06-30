@@ -61,11 +61,11 @@ class OpenChannelPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MultistepFlow<OpenChannelFlowResult>(
-        builder: (context) => OpenChannelNeedValuePage(
-          app: this.app,
-          balanceState: this.balanceState,
-        ),
-      );
+    builder: (context) => OpenChannelNeedValuePage(
+      app: this.app,
+      balanceState: this.balanceState,
+    ),
+  );
 }
 
 /// The page where we collect the channel value for the new channel the user
@@ -112,10 +112,14 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
 
     // Basic check against balance. More complete checks happen in preflight.
     if (value > onchainSats) {
-      final onchainSatsStr =
-          currency_format.formatSatsAmount(onchainSats, satsSuffix: true);
-      return Err("Channel value can't be larger than your on-chain balance "
-          "($onchainSatsStr).");
+      final onchainSatsStr = currency_format.formatSatsAmount(
+        onchainSats,
+        satsSuffix: true,
+      );
+      return Err(
+        "Channel value can't be larger than your on-chain balance "
+        "($onchainSatsStr).",
+      );
     }
 
     return const Ok(());
@@ -171,18 +175,18 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
     info("preflight_open_channel($valueSats) -> fees: ${resp.feeEstimateSats}");
 
     // Navigate to confirm page and pop with the result if successful
-    final OpenChannelFlowResult? flowResult =
-        await Navigator.of(this.context).push(
-      MaterialPageRoute(
-        builder: (context) => OpenChannelConfirmPage(
-          app: this.widget.app,
-          balanceState: this.widget.balanceState,
-          channelValueSats: valueSats,
-          userChannelId: UserChannelId.genNew(),
-          preflight: resp,
-        ),
-      ),
-    );
+    final OpenChannelFlowResult? flowResult = await Navigator.of(this.context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => OpenChannelConfirmPage(
+              app: this.widget.app,
+              balanceState: this.widget.balanceState,
+              channelValueSats: valueSats,
+              userChannelId: UserChannelId.genNew(),
+              preflight: resp,
+            ),
+          ),
+        );
     info("OpenChannelNeedValuePage: flowResult: $flowResult");
     if (!this.mounted || flowResult == null) return;
 
@@ -200,18 +204,18 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
         body: [
           const HeadingText(text: "Open Lightning channel"),
           const SubheadingText(
-              text: "Move on-chain Bitcoin into a Lightning channel to send "
-                  "payments instantly."),
+            text:
+                "Move on-chain Bitcoin into a Lightning channel to send "
+                "payments instantly.",
+          ),
 
           const SizedBox(height: Space.s500),
 
           // On-chain balance
           ValueListenableBuilder(
             valueListenable: this.widget.balanceState,
-            builder: (context, balanceState, child) => SubBalanceRow(
-              kind: BalanceKind.onchain,
-              balance: balanceState,
-            ),
+            builder: (context, balanceState, child) =>
+                SubBalanceRow(kind: BalanceKind.onchain, balance: balanceState),
           ),
 
           const SizedBox(height: Space.s600),
@@ -307,8 +311,9 @@ class _OpenChannelConfirmPageState extends State<OpenChannelConfirmPage> {
       userChannelId: this.widget.userChannelId,
       valueSats: this.widget.channelValueSats,
     );
-    final result =
-        await Result.tryFfiAsync(() => this.widget.app.openChannel(req: req));
+    final result = await Result.tryFfiAsync(
+      () => this.widget.app.openChannel(req: req),
+    );
 
     if (!this.mounted) return;
 
@@ -360,8 +365,10 @@ class _OpenChannelConfirmPageState extends State<OpenChannelConfirmPage> {
             builder: (context, balanceState, child) {
               final fiatRate = balanceState.fiatRate;
               final channelSats = this.widget.channelValueSats;
-              final channelFiat =
-                  FiatAmount.maybeFromSats(fiatRate, channelSats);
+              final channelFiat = FiatAmount.maybeFromSats(
+                fiatRate,
+                channelSats,
+              );
               final feeSats = this.widget.preflight.feeEstimateSats;
               final feeFiat = FiatAmount.maybeFromSats(fiatRate, feeSats);
 

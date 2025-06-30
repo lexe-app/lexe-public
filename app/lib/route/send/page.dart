@@ -81,10 +81,7 @@ class SendPaymentPage extends StatelessWidget {
 /// need to collect a [PaymentUri] of some kind (bitcoin address, LN invoice,
 /// etc...)
 class SendPaymentNeedUriPage extends StatefulWidget {
-  const SendPaymentNeedUriPage({
-    super.key,
-    required this.sendCtx,
-  });
+  const SendPaymentNeedUriPage({super.key, required this.sendCtx});
 
   final SendState_NeedUri sendCtx;
 
@@ -109,10 +106,11 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
   Future<void> onScanPressed() async {
     info("pressed QR scan button");
 
-    final SendFlowResult? flowResult =
-        await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (_context) => ScanPage(sendCtx: this.widget.sendCtx),
-    ));
+    final SendFlowResult? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (_context) => ScanPage(sendCtx: this.widget.sendCtx),
+      ),
+    );
     if (!this.mounted || flowResult == null) return;
 
     // Successfully sent payment -- return result to parent page.
@@ -157,10 +155,11 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
     // If we still need an amount, then we have to collect that first.
     // Otherwise, a successful payment preflight means we can go directly to the
     // confirm page.
-    final SendFlowResult? flowResult =
-        await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (_) => SendPaymentPage(sendCtx: sendCtx, startNewFlow: false),
-    ));
+    final SendFlowResult? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (_) => SendPaymentPage(sendCtx: sendCtx, startNewFlow: false),
+      ),
+    );
 
     info("SendPaymentNeedUriPage: flowResult: $flowResult, mounted: $mounted");
     if (!this.mounted || flowResult == null) return;
@@ -187,7 +186,9 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
         leading: const LxCloseButton(
-            isLeading: true, kind: LxCloseButtonKind.closeFromRoot),
+          isLeading: true,
+          kind: LxCloseButtonKind.closeFromRoot,
+        ),
         actions: [
           IconButton(
             onPressed: this.onScanPressed,
@@ -211,7 +212,8 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
             textInputAction: TextInputAction.next,
             onEditingComplete: this.onNext,
             decoration: baseInputDecoration.copyWith(
-                hintText: "bc1.. lnbc1.. bitcoin:.."),
+              hintText: "bc1.. lnbc1.. bitcoin:..",
+            ),
             style: Fonts.fontUI.copyWith(
               fontSize: Fonts.size700,
               fontVariations: [Fonts.weightMedium],
@@ -262,17 +264,17 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
                       valueListenable: this.isPending,
                       builder: (_context, isPending, _widget) =>
                           GestureDetector(
-                        onTap: !isPending ? this.onNext : null,
-                        child: StackedButton(
-                          button: AnimatedFillButton(
-                            label: const Icon(LxIcons.next),
-                            icon: const Icon(null),
-                            onTap: this.onNext,
-                            loading: isPending,
+                            onTap: !isPending ? this.onNext : null,
+                            child: StackedButton(
+                              button: AnimatedFillButton(
+                                label: const Icon(LxIcons.next),
+                                icon: const Icon(null),
+                                onTap: this.onNext,
+                                loading: isPending,
+                              ),
+                              label: "Next",
+                            ),
                           ),
-                          label: "Next",
-                        ),
-                      ),
                     ),
                   ),
                 ],
@@ -312,10 +314,7 @@ class StackedButton extends StatelessWidget {
 
 /// Send payment flow: this page collects the [SendAmount] from the user.
 class SendPaymentAmountPage extends StatefulWidget {
-  const SendPaymentAmountPage({
-    super.key,
-    required this.sendCtx,
-  });
+  const SendPaymentAmountPage({super.key, required this.sendCtx});
 
   final SendState_NeedAmount sendCtx;
 
@@ -389,9 +388,11 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     // Everything looks good so far -- navigate to the confirmation page.
     final SendFlowResult? flowResult =
         // ignore: use_build_context_synchronously
-        await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (_) => SendPaymentConfirmPage(sendCtx: nextSendCtx),
-    ));
+        await Navigator.of(this.context).push(
+          MaterialPageRoute(
+            builder: (_) => SendPaymentConfirmPage(sendCtx: nextSendCtx),
+          ),
+        );
 
     // Confirm page results:
     info("SendPaymentAmountPage: flowResult: $flowResult, mounted: $mounted");
@@ -488,10 +489,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 /// 3. Allows the user to adjust the tx priority for high+fast or low+slow
 ///    fee/confirmation time.
 class SendPaymentConfirmPage extends StatefulWidget {
-  const SendPaymentConfirmPage({
-    super.key,
-    required this.sendCtx,
-  });
+  const SendPaymentConfirmPage({super.key, required this.sendCtx});
 
   final SendState_Preflighted sendCtx;
 
@@ -506,8 +504,9 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
   final ValueNotifier<bool> isSending = ValueNotifier(false);
 
   // TODO(phlip9): save/load this from/to user preferences?
-  final ValueNotifier<ConfirmationPriority> confPriority =
-      ValueNotifier(ConfirmationPriority.normal);
+  final ValueNotifier<ConfirmationPriority> confPriority = ValueNotifier(
+    ConfirmationPriority.normal,
+  );
 
   @override
   void dispose() {
@@ -525,8 +524,10 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     this.sendError.value = null;
 
     // Actually start the payment
-    final FfiResult<SendFlowResult> result =
-        await this.widget.sendCtx.pay(this.note(), this.confPriority.value);
+    final FfiResult<SendFlowResult> result = await this.widget.sendCtx.pay(
+      this.note(),
+      this.confPriority.value,
+    );
 
     if (!this.mounted) return;
 
@@ -552,7 +553,8 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
   }
 
   Future<void> chooseOnchainFeeRate(
-      final PreflightedPayment_Onchain preflighted) async {
+    final PreflightedPayment_Onchain preflighted,
+  ) async {
     final ConfirmationPriority? result = await showDialog(
       context: this.context,
       useRootNavigator: false,
@@ -570,33 +572,33 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
   }
 
   int amountSats() => switch (this.widget.sendCtx.preflightedPayment) {
-        PreflightedPayment_Invoice(:final preflight) => preflight.amountSats,
-        PreflightedPayment_Onchain(:final amountSats) => amountSats,
-        PreflightedPayment_Offer(:final preflight) => preflight.amountSats,
-      };
+    PreflightedPayment_Invoice(:final preflight) => preflight.amountSats,
+    PreflightedPayment_Onchain(:final amountSats) => amountSats,
+    PreflightedPayment_Offer(:final preflight) => preflight.amountSats,
+  };
 
   int feeSats() => switch (this.widget.sendCtx.preflightedPayment) {
-        PreflightedPayment_Onchain(:final preflight) => switch (
-              this.confPriority.value) {
-            // invariant: High can not be selected if there are insufficient funds
-            ConfirmationPriority.high => preflight.high!.amountSats,
-            ConfirmationPriority.normal => preflight.normal.amountSats,
-            ConfirmationPriority.background => preflight.background.amountSats,
-          },
-        PreflightedPayment_Invoice(:final preflight) => preflight.feesSats,
-        PreflightedPayment_Offer(:final preflight) => preflight.feesSats,
-      };
+    PreflightedPayment_Onchain(:final preflight) =>
+      switch (this.confPriority.value) {
+        // invariant: High can not be selected if there are insufficient funds
+        ConfirmationPriority.high => preflight.high!.amountSats,
+        ConfirmationPriority.normal => preflight.normal.amountSats,
+        ConfirmationPriority.background => preflight.background.amountSats,
+      },
+    PreflightedPayment_Invoice(:final preflight) => preflight.feesSats,
+    PreflightedPayment_Offer(:final preflight) => preflight.feesSats,
+  };
 
   int totalSats() => this.amountSats() + this.feeSats();
 
   String payee() => switch (this.widget.sendCtx.preflightedPayment) {
-        PreflightedPayment_Invoice(:final invoice) =>
-          invoice.payeePubkey.ellipsizeMid(),
-        PreflightedPayment_Onchain(:final onchain) =>
-          onchain.address.ellipsizeMid(),
-        PreflightedPayment_Offer(:final offer) =>
-          offer.payee ?? offer.payeePubkey?.ellipsizeMid() ?? "(private node)",
-      };
+    PreflightedPayment_Invoice(:final invoice) =>
+      invoice.payeePubkey.ellipsizeMid(),
+    PreflightedPayment_Onchain(:final onchain) =>
+      onchain.address.ellipsizeMid(),
+    PreflightedPayment_Offer(:final offer) =>
+      offer.payee ?? offer.payeePubkey?.ellipsizeMid() ?? "(private node)",
+  };
 
   String? note() => this.noteFieldKey.currentState?.value;
 
@@ -651,8 +653,9 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
               const Text("To", style: textStyleSecondary),
               Text(
                 shortPayee,
-                style: textStylePrimary
-                    .copyWith(fontFeatures: [Fonts.featDisambugation]),
+                style: textStylePrimary.copyWith(
+                  fontFeatures: [Fonts.featDisambugation],
+                ),
               ),
               // TODO(phlip9): button to expand address for full verification
               // and copy-to-clipboard
@@ -665,7 +668,6 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
           //
           // Amount to-be-received by the payee
           //
-
           Row(
             mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -680,7 +682,6 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
           //
           // Network Fee
           //
-
           if (preflighted case PreflightedPayment_Onchain())
             Row(
               mainAxisSize: MainAxisSize.max,
@@ -713,15 +714,14 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
                 ),
                 const Expanded(child: SizedBox()),
                 ValueListenableBuilder(
-                    valueListenable: this.confPriority,
-                    builder: (context, confPriority, child) {
-                      final feeSatsStr =
-                          currency_format.formatSatsAmount(this.feeSats());
-                      return Text(
-                        "~$feeSatsStr",
-                        style: textStyleSecondary,
-                      );
-                    })
+                  valueListenable: this.confPriority,
+                  builder: (context, confPriority, child) {
+                    final feeSatsStr = currency_format.formatSatsAmount(
+                      this.feeSats(),
+                    );
+                    return Text("~$feeSatsStr", style: textStyleSecondary);
+                  },
+                ),
               ],
             ),
 
@@ -739,13 +739,11 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             ),
 
           // sparator - /\/\/\/\/\/\/\/\/\/\/
-
           const ReceiptSeparator(),
 
           //
           // Total amount sent by user/payer
           //
-
           Row(
             mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -766,7 +764,6 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
           //
           // Optional payment note input
           //
-
           ValueListenableBuilder(
             valueListenable: this.isSending,
             builder: (context, isSending, widget) => PaymentNoteInput(
@@ -779,7 +776,6 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
           //
           // Send payment error
           //
-
           ValueListenableBuilder(
             valueListenable: this.sendError,
             builder: (context, sendError, widget) => Padding(
@@ -820,10 +816,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
 class NextButton extends LxFilledButton {
   const NextButton({super.key, required super.onTap})
-      : super(
-          label: const Text("Next"),
-          icon: const Icon(LxIcons.next),
-        );
+    : super(label: const Text("Next"), icon: const Icon(LxIcons.next));
 }
 
 /// The modal dialog for the user to choose the BTC send network fee preset.
@@ -850,7 +843,9 @@ class ChooseOnchainFeeDialog extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(
-              horizontal: Space.s500, vertical: Space.s200),
+            horizontal: Space.s500,
+            vertical: Space.s200,
+          ),
           child: Text(
             "Your payment will complete faster with a higher fee.",
             style: Fonts.fontUI.copyWith(
@@ -927,26 +922,24 @@ class ChooseFeeDialogOption extends StatelessWidget {
         children: [
           Text(this.priority.name, style: Fonts.fontUI),
           const Expanded(child: SizedBox()),
-          Text(
-            "~$feeSatsStr",
-            style: Fonts.fontUI,
-          ),
+          Text("~$feeSatsStr", style: Fonts.fontUI),
         ],
       ),
       subtitle: Row(
-          mainAxisSize: MainAxisSize.max,
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            Text(
-              "~$confDurationStr",
-              style: Fonts.fontUI.copyWith(
-                fontSize: Fonts.size200,
-                color: LxColors.grey450,
-              ),
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Text(
+            "~$confDurationStr",
+            style: Fonts.fontUI.copyWith(
+              fontSize: Fonts.size200,
+              color: LxColors.grey450,
             ),
-            const Expanded(child: SizedBox()),
-            // TODO(phlip9): fee estimate fiat value
-          ]),
+          ),
+          const Expanded(child: SizedBox()),
+          // TODO(phlip9): fee estimate fiat value
+        ],
+      ),
       onTap: () => Navigator.of(context).pop(priority),
     );
   }

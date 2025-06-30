@@ -31,18 +31,15 @@ class Balance with _$Balance {
 
 @freezed
 class CloseChannelRequest with _$CloseChannelRequest {
-  const factory CloseChannelRequest({
-    required String channelId,
-  }) = _CloseChannelRequest;
+  const factory CloseChannelRequest({required String channelId}) =
+      _CloseChannelRequest;
 }
 
 /// See [`common::api::revocable_clients::CreateRevocableClientRequest`].
 @freezed
 class CreateClientRequest with _$CreateClientRequest {
-  const factory CreateClientRequest({
-    String? label,
-    required Scope scope,
-  }) = _CreateClientRequest;
+  const factory CreateClientRequest({String? label, required Scope scope}) =
+      _CreateClientRequest;
 }
 
 @freezed
@@ -66,9 +63,8 @@ class CreateInvoiceRequest with _$CreateInvoiceRequest {
 /// See [`lexe_api::command::CreateInvoiceResponse`].
 @freezed
 class CreateInvoiceResponse with _$CreateInvoiceResponse {
-  const factory CreateInvoiceResponse({
-    required Invoice invoice,
-  }) = _CreateInvoiceResponse;
+  const factory CreateInvoiceResponse({required Invoice invoice}) =
+      _CreateInvoiceResponse;
 }
 
 /// See [`lexe_api::command::CreateOfferRequest`].
@@ -84,25 +80,20 @@ class CreateOfferRequest with _$CreateOfferRequest {
 /// See [`lexe_api::command::CreateOfferResponse`].
 @freezed
 class CreateOfferResponse with _$CreateOfferResponse {
-  const factory CreateOfferResponse({
-    required Offer offer,
-  }) = _CreateOfferResponse;
+  const factory CreateOfferResponse({required Offer offer}) =
+      _CreateOfferResponse;
 }
 
 /// See [`lexe_api::command::FeeEstimate`].
 @freezed
 class FeeEstimate with _$FeeEstimate {
-  const factory FeeEstimate({
-    required int amountSats,
-  }) = _FeeEstimate;
+  const factory FeeEstimate({required int amountSats}) = _FeeEstimate;
 }
 
 @freezed
 class FiatRate with _$FiatRate {
-  const factory FiatRate({
-    required String fiat,
-    required double rate,
-  }) = _FiatRate;
+  const factory FiatRate({required String fiat, required double rate}) =
+      _FiatRate;
 }
 
 @freezed
@@ -140,9 +131,8 @@ class OpenChannelRequest with _$OpenChannelRequest {
 
 @freezed
 class OpenChannelResponse with _$OpenChannelResponse {
-  const factory OpenChannelResponse({
-    required String channelId,
-  }) = _OpenChannelResponse;
+  const factory OpenChannelResponse({required String channelId}) =
+      _OpenChannelResponse;
 }
 
 /// Mirrors the [`lexe_api::command::PayInvoiceRequest`] type.
@@ -159,9 +149,8 @@ class PayInvoiceRequest with _$PayInvoiceRequest {
 /// the response so we get the full `PaymentIndex`.
 @freezed
 class PayInvoiceResponse with _$PayInvoiceResponse {
-  const factory PayInvoiceResponse({
-    required PaymentIndex index,
-  }) = _PayInvoiceResponse;
+  const factory PayInvoiceResponse({required PaymentIndex index}) =
+      _PayInvoiceResponse;
 }
 
 /// See [`lexe_api::command::PayOfferResponse`].
@@ -178,9 +167,8 @@ class PayOfferRequest with _$PayOfferRequest {
 /// See [`lexe_api::command::PayOfferResponse`].
 @freezed
 class PayOfferResponse with _$PayOfferResponse {
-  const factory PayOfferResponse({
-    required PaymentIndex index,
-  }) = _PayOfferResponse;
+  const factory PayOfferResponse({required PaymentIndex index}) =
+      _PayOfferResponse;
 }
 
 /// See [`lexe_api::command::PayOnchainRequest`].
@@ -206,23 +194,20 @@ class PayOnchainResponse with _$PayOnchainResponse {
 
 @freezed
 class PreflightCloseChannelResponse with _$PreflightCloseChannelResponse {
-  const factory PreflightCloseChannelResponse({
-    required int feeEstimateSats,
-  }) = _PreflightCloseChannelResponse;
+  const factory PreflightCloseChannelResponse({required int feeEstimateSats}) =
+      _PreflightCloseChannelResponse;
 }
 
 @freezed
 class PreflightOpenChannelRequest with _$PreflightOpenChannelRequest {
-  const factory PreflightOpenChannelRequest({
-    required int valueSats,
-  }) = _PreflightOpenChannelRequest;
+  const factory PreflightOpenChannelRequest({required int valueSats}) =
+      _PreflightOpenChannelRequest;
 }
 
 @freezed
 class PreflightOpenChannelResponse with _$PreflightOpenChannelResponse {
-  const factory PreflightOpenChannelResponse({
-    required int feeEstimateSats,
-  }) = _PreflightOpenChannelResponse;
+  const factory PreflightOpenChannelResponse({required int feeEstimateSats}) =
+      _PreflightOpenChannelResponse;
 }
 
 /// See [`lexe_api::command::PreflightPayInvoiceRequest`].
@@ -284,17 +269,13 @@ class PreflightPayOnchainResponse with _$PreflightPayOnchainResponse {
 /// See [`common::api::revocable_clients::UpdateClientRequest`].
 @freezed
 class UpdateClientRequest with _$UpdateClientRequest {
-  const factory UpdateClientRequest({
-    required String pubkey,
-    bool? isRevoked,
-  }) = _UpdateClientRequest;
+  const factory UpdateClientRequest({required String pubkey, bool? isRevoked}) =
+      _UpdateClientRequest;
 }
 
 /// See [`common::api::user::UpdatePaymentNote`].
 @freezed
 class UpdatePaymentNote with _$UpdatePaymentNote {
-  const factory UpdatePaymentNote({
-    required PaymentIndex index,
-    String? note,
-  }) = _UpdatePaymentNote;
+  const factory UpdatePaymentNote({required PaymentIndex index, String? note}) =
+      _UpdatePaymentNote;
 }

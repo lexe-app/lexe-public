@@ -12,7 +12,8 @@ part of 'types.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
+  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
+);
 
 /// @nodoc
 mixin _$AppUserInfo {
@@ -24,8 +25,11 @@ mixin _$AppUserInfo {
 /// @nodoc
 
 class _$AppUserInfoImpl implements _AppUserInfo {
-  const _$AppUserInfoImpl(
-      {required this.userPk, required this.nodePk, required this.nodePkProof});
+  const _$AppUserInfoImpl({
+    required this.userPk,
+    required this.nodePk,
+    required this.nodePkProof,
+  });
 
   @override
   final String userPk;
@@ -55,10 +59,11 @@ class _$AppUserInfoImpl implements _AppUserInfo {
 }
 
 abstract class _AppUserInfo implements AppUserInfo {
-  const factory _AppUserInfo(
-      {required final String userPk,
-      required final String nodePk,
-      required final String nodePkProof}) = _$AppUserInfoImpl;
+  const factory _AppUserInfo({
+    required final String userPk,
+    required final String nodePk,
+    required final String nodePkProof,
+  }) = _$AppUserInfoImpl;
 
   @override
   String get userPk;
@@ -122,14 +127,15 @@ mixin _$Config {
 /// @nodoc
 
 class _$ConfigImpl implements _Config {
-  const _$ConfigImpl(
-      {required this.deployEnv,
-      required this.network,
-      required this.gatewayUrl,
-      required this.useSgx,
-      required this.baseAppDataDir,
-      required this.useMockSecretStore,
-      required this.userAgent});
+  const _$ConfigImpl({
+    required this.deployEnv,
+    required this.network,
+    required this.gatewayUrl,
+    required this.useSgx,
+    required this.baseAppDataDir,
+    required this.useMockSecretStore,
+    required this.userAgent,
+  });
 
   @override
   final DeployEnv deployEnv;
@@ -171,19 +177,28 @@ class _$ConfigImpl implements _Config {
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, deployEnv, network, gatewayUrl,
-      useSgx, baseAppDataDir, useMockSecretStore, userAgent);
+  int get hashCode => Object.hash(
+    runtimeType,
+    deployEnv,
+    network,
+    gatewayUrl,
+    useSgx,
+    baseAppDataDir,
+    useMockSecretStore,
+    userAgent,
+  );
 }
 
 abstract class _Config implements Config {
-  const factory _Config(
-      {required final DeployEnv deployEnv,
-      required final Network network,
-      required final String gatewayUrl,
-      required final bool useSgx,
-      required final String baseAppDataDir,
-      required final bool useMockSecretStore,
-      required final String userAgent}) = _$ConfigImpl;
+  const factory _Config({
+    required final DeployEnv deployEnv,
+    required final Network network,
+    required final String gatewayUrl,
+    required final bool useSgx,
+    required final String baseAppDataDir,
+    required final bool useMockSecretStore,
+    required final String userAgent,
+  }) = _$ConfigImpl;
 
   @override
   DeployEnv get deployEnv;
@@ -214,13 +229,14 @@ mixin _$Invoice {
 /// @nodoc
 
 class _$InvoiceImpl implements _Invoice {
-  const _$InvoiceImpl(
-      {required this.string,
-      this.description,
-      required this.createdAt,
-      required this.expiresAt,
-      this.amountSats,
-      required this.payeePubkey});
+  const _$InvoiceImpl({
+    required this.string,
+    this.description,
+    required this.createdAt,
+    required this.expiresAt,
+    this.amountSats,
+    required this.payeePubkey,
+  });
 
   @override
   final String string;
@@ -259,18 +275,26 @@ class _$InvoiceImpl implements _Invoice {
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, string, description, createdAt,
-      expiresAt, amountSats, payeePubkey);
+  int get hashCode => Object.hash(
+    runtimeType,
+    string,
+    description,
+    createdAt,
+    expiresAt,
+    amountSats,
+    payeePubkey,
+  );
 }
 
 abstract class _Invoice implements Invoice {
-  const factory _Invoice(
-      {required final String string,
-      final String? description,
-      required final int createdAt,
-      required final int expiresAt,
-      final int? amountSats,
-      required final String payeePubkey}) = _$InvoiceImpl;
+  const factory _Invoice({
+    required final String string,
+    final String? description,
+    required final int createdAt,
+    required final int expiresAt,
+    final int? amountSats,
+    required final String payeePubkey,
+  }) = _$InvoiceImpl;
 
   @override
   String get string;
@@ -299,13 +323,14 @@ mixin _$Offer {
 /// @nodoc
 
 class _$OfferImpl implements _Offer {
-  const _$OfferImpl(
-      {required this.string,
-      this.description,
-      this.expiresAt,
-      this.amountSats,
-      this.payee,
-      this.payeePubkey});
+  const _$OfferImpl({
+    required this.string,
+    this.description,
+    this.expiresAt,
+    this.amountSats,
+    this.payee,
+    this.payeePubkey,
+  });
 
   @override
   final String string;
@@ -343,18 +368,26 @@ class _$OfferImpl implements _Offer {
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, string, description, expiresAt,
-      amountSats, payee, payeePubkey);
+  int get hashCode => Object.hash(
+    runtimeType,
+    string,
+    description,
+    expiresAt,
+    amountSats,
+    payee,
+    payeePubkey,
+  );
 }
 
 abstract class _Offer implements Offer {
-  const factory _Offer(
-      {required final String string,
-      final String? description,
-      final int? expiresAt,
-      final int? amountSats,
-      final String? payee,
-      final String? payeePubkey}) = _$OfferImpl;
+  const factory _Offer({
+    required final String string,
+    final String? description,
+    final int? expiresAt,
+    final int? amountSats,
+    final String? payee,
+    final String? payeePubkey,
+  }) = _$OfferImpl;
 
   @override
   String get string;
@@ -381,8 +414,12 @@ mixin _$Onchain {
 /// @nodoc
 
 class _$OnchainImpl implements _Onchain {
-  const _$OnchainImpl(
-      {required this.address, this.amountSats, this.label, this.message});
+  const _$OnchainImpl({
+    required this.address,
+    this.amountSats,
+    this.label,
+    this.message,
+  });
 
   @override
   final String address;
@@ -416,11 +453,12 @@ class _$OnchainImpl implements _Onchain {
 }
 
 abstract class _Onchain implements Onchain {
-  const factory _Onchain(
-      {required final String address,
-      final int? amountSats,
-      final String? label,
-      final String? message}) = _$OnchainImpl;
+  const factory _Onchain({
+    required final String address,
+    final int? amountSats,
+    final String? label,
+    final String? message,
+  }) = _$OnchainImpl;
 
   @override
   String get address;
@@ -454,22 +492,23 @@ mixin _$Payment {
 /// @nodoc
 
 class _$PaymentImpl implements _Payment {
-  const _$PaymentImpl(
-      {required this.index,
-      required this.kind,
-      required this.direction,
-      this.invoice,
-      this.offerId,
-      this.offer,
-      this.txid,
-      this.replacement,
-      this.amountSat,
-      required this.feesSat,
-      required this.status,
-      required this.statusStr,
-      this.note,
-      required this.createdAt,
-      this.finalizedAt});
+  const _$PaymentImpl({
+    required this.index,
+    required this.kind,
+    required this.direction,
+    this.invoice,
+    this.offerId,
+    this.offer,
+    this.txid,
+    this.replacement,
+    this.amountSat,
+    required this.feesSat,
+    required this.status,
+    required this.statusStr,
+    this.note,
+    required this.createdAt,
+    this.finalizedAt,
+  });
 
   @override
   final PaymentIndex index;
@@ -537,41 +576,43 @@ class _$PaymentImpl implements _Payment {
 
   @override
   int get hashCode => Object.hash(
-      runtimeType,
-      index,
-      kind,
-      direction,
-      invoice,
-      offerId,
-      offer,
-      txid,
-      replacement,
-      amountSat,
-      feesSat,
-      status,
-      statusStr,
-      note,
-      createdAt,
-      finalizedAt);
+    runtimeType,
+    index,
+    kind,
+    direction,
+    invoice,
+    offerId,
+    offer,
+    txid,
+    replacement,
+    amountSat,
+    feesSat,
+    status,
+    statusStr,
+    note,
+    createdAt,
+    finalizedAt,
+  );
 }
 
 abstract class _Payment implements Payment {
-  const factory _Payment(
-      {required final PaymentIndex index,
-      required final PaymentKind kind,
-      required final PaymentDirection direction,
-      final Invoice? invoice,
-      final String? offerId,
-      final Offer? offer,
-      final String? txid,
-      final String? replacement,
-      final int? amountSat,
-      required final int feesSat,
-      required final PaymentStatus status,
-      required final String statusStr,
-      final String? note,
-      required final int createdAt,
-      final int? finalizedAt}) = _$PaymentImpl;
+  const factory _Payment({
+    required final PaymentIndex index,
+    required final PaymentKind kind,
+    required final PaymentDirection direction,
+    final Invoice? invoice,
+    final String? offerId,
+    final Offer? offer,
+    final String? txid,
+    final String? replacement,
+    final int? amountSat,
+    required final int feesSat,
+    required final PaymentStatus status,
+    required final String statusStr,
+    final String? note,
+    required final int createdAt,
+    final int? finalizedAt,
+  }) = _$PaymentImpl;
 
   @override
   PaymentIndex get index;
@@ -764,14 +805,15 @@ mixin _$ShortPayment {
 /// @nodoc
 
 class _$ShortPaymentImpl implements _ShortPayment {
-  const _$ShortPaymentImpl(
-      {required this.index,
-      required this.kind,
-      required this.direction,
-      this.amountSat,
-      required this.status,
-      this.note,
-      required this.createdAt});
+  const _$ShortPaymentImpl({
+    required this.index,
+    required this.kind,
+    required this.direction,
+    this.amountSat,
+    required this.status,
+    this.note,
+    required this.createdAt,
+  });
 
   @override
   final PaymentIndex index;
@@ -812,18 +854,27 @@ class _$ShortPaymentImpl implements _ShortPayment {
 
   @override
   int get hashCode => Object.hash(
-      runtimeType, index, kind, direction, amountSat, status, note, createdAt);
+    runtimeType,
+    index,
+    kind,
+    direction,
+    amountSat,
+    status,
+    note,
+    createdAt,
+  );
 }
 
 abstract class _ShortPayment implements ShortPayment {
-  const factory _ShortPayment(
-      {required final PaymentIndex index,
-      required final PaymentKind kind,
-      required final PaymentDirection direction,
-      final int? amountSat,
-      required final PaymentStatus status,
-      final String? note,
-      required final int createdAt}) = _$ShortPaymentImpl;
+  const factory _ShortPayment({
+    required final PaymentIndex index,
+    required final PaymentKind kind,
+    required final PaymentDirection direction,
+    final int? amountSat,
+    required final PaymentStatus status,
+    final String? note,
+    required final int createdAt,
+  }) = _$ShortPaymentImpl;
 
   @override
   PaymentIndex get index;

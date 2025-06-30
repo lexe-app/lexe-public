@@ -86,10 +86,11 @@ class _ScanPageState extends State<ScanPage> {
     // If we still need an amount, then we have to collect that first.
     // Otherwise, a successful payment preflight means we can go directly to the
     // confirm page.
-    final SendFlowResult? flowResult =
-        await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (_) => SendPaymentPage(sendCtx: sendCtx, startNewFlow: false),
-    ));
+    final SendFlowResult? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (_) => SendPaymentPage(sendCtx: sendCtx, startNewFlow: false),
+      ),
+    );
 
     info("SendPaymentNeedUriPage: flow result: $flowResult, mounted: $mounted");
     if (!this.mounted || flowResult == null) return;

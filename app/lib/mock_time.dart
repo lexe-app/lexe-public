@@ -121,13 +121,16 @@ class MockTime {
 
 class MockTimer implements Timer {
   MockTimer(this._runtime, this.deadline, void Function() callback)
-      : _callback = callback,
-        _period = null;
+    : _callback = callback,
+      _period = null;
 
-  MockTimer.periodic(this._runtime, this.deadline,
-      void Function(Timer) callback, Duration period)
-      : _callback = callback,
-        _period = period;
+  MockTimer.periodic(
+    this._runtime,
+    this.deadline,
+    void Function(Timer) callback,
+    Duration period,
+  ) : _callback = callback,
+      _period = period;
 
   /// The simulation time this [Timer] should trigger at.
   Duration deadline;

@@ -18,10 +18,7 @@ const Set<String> prodLexeDevUserPks = {
 final class FeatureFlags {
   /// Determine the enabled feature flags based on the deployment environment
   /// and `userPk`.
-  factory FeatureFlags({
-    required DeployEnv deployEnv,
-    required String userPk,
-  }) {
+  factory FeatureFlags({required DeployEnv deployEnv, required String userPk}) {
     switch (deployEnv) {
       case DeployEnv.dev:
         return const FeatureFlags.all();
@@ -37,14 +34,10 @@ final class FeatureFlags {
   }
 
   /// Disable all features.
-  const FeatureFlags.none({
-    this.showBolt12OffersRecvPage = false,
-  });
+  const FeatureFlags.none({this.showBolt12OffersRecvPage = false});
 
   /// Enable all features.
-  const FeatureFlags.all({
-    this.showBolt12OffersRecvPage = true,
-  });
+  const FeatureFlags.all({this.showBolt12OffersRecvPage = true});
 
   /// On the Wallet > Receive page, show the experimental BOLT12 offer receive
   /// QR code.

@@ -43,14 +43,18 @@ final bool test = Platform.environment.containsKey("FLUTTER_TEST");
 // NOTE: we need default values otherwise the dart LSP constantly complains...
 
 // env $DEPLOY_ENVIRONMENT
-const String _deployEnvStr =
-    String.fromEnvironment("DEPLOY_ENVIRONMENT", defaultValue: "dev");
+const String _deployEnvStr = String.fromEnvironment(
+  "DEPLOY_ENVIRONMENT",
+  defaultValue: "dev",
+);
 // This call should never fail after the compile-time checks below.
 final DeployEnv deployEnv = DeployEnv.fromStr(s: _deployEnvStr);
 
 // env $NETWORK
-const String _networkStr =
-    String.fromEnvironment("NETWORK", defaultValue: "regtest");
+const String _networkStr = String.fromEnvironment(
+  "NETWORK",
+  defaultValue: "regtest",
+);
 // This call should never fail after the compile-time checks below.
 final Network network = Network.fromStr(s: _networkStr);
 
@@ -59,8 +63,10 @@ const String _useSgxStr = String.fromEnvironment("SGX", defaultValue: "false");
 const bool _useSgx = _useSgxStr == "true";
 
 // env $RUST_LOG
-const String _rustLogStr =
-    String.fromEnvironment("RUST_LOG", defaultValue: "info");
+const String _rustLogStr = String.fromEnvironment(
+  "RUST_LOG",
+  defaultValue: "info",
+);
 
 // TODO(phlip9): need a more production-ready way to configure this
 const String _devGatewayUrlStr = String.fromEnvironment(
@@ -72,8 +78,9 @@ const String _devGatewayUrlStr = String.fromEnvironment(
 
 // The expected `DeployEnv` value for a given `--flavor=<appFlavor>`.
 // We'll assert on this down below.
-const String _flavorDeployEnvStr =
-    (dev || design) ? "dev" : (staging ? "staging" : (prod ? "prod" : "ERROR"));
+const String _flavorDeployEnvStr = (dev || design)
+    ? "dev"
+    : (staging ? "staging" : (prod ? "prod" : "ERROR"));
 
 // The expected `Network` value for a given `--flavor=<appFlavor>`.
 // We'll assert on this down below.
@@ -83,23 +90,23 @@ const String _flavorNetworkStr = (dev || design)
 
 // The expected `useSgx` value for a given `--flavor=<appFlavor>`.
 // We'll assert on this down below.
-const bool _flavorUseSgx =
-    (dev || design) ? _useSgx : ((staging || prod) ? true : false);
+const bool _flavorUseSgx = (dev || design)
+    ? _useSgx
+    : ((staging || prod) ? true : false);
 
 // Compile-time assertions so we can throw a compile error if these somehow get
 // misconfigured.
 
 class _AssertDeployEnv {
   const _AssertDeployEnv(String s)
-      : assert(s == "prod" || s == "staging" || s == "dev");
+    : assert(s == "prod" || s == "staging" || s == "dev");
 }
 
 class _AssertNetworkEnv {
   const _AssertNetworkEnv(String s)
-      : assert(s == "mainnet" ||
-            s == "testnet3" ||
-            s == "testnet4" ||
-            s == "regtest");
+    : assert(
+        s == "mainnet" || s == "testnet3" || s == "testnet4" || s == "regtest",
+      );
 }
 
 class _AssertBoolEnv {
@@ -115,10 +122,10 @@ class _AssertAppFlavor {
     String flavorNetwork,
     bool flavorUseSgx,
   ) : assert(
-          envDeployEnv == flavorDeployEnv &&
-              envNetwork == flavorNetwork &&
-              envUseSgx == flavorUseSgx,
-        );
+        envDeployEnv == flavorDeployEnv &&
+            envNetwork == flavorNetwork &&
+            envUseSgx == flavorUseSgx,
+      );
 }
 
 // ignore: unused_element,  constant_identifier_names
@@ -198,9 +205,9 @@ final class UserAgent {
   });
 
   UserAgent.dummy()
-      : osName = Platform.operatingSystem,
-        appName = "Lexe",
-        version = "0.0.0+0";
+    : osName = Platform.operatingSystem,
+      appName = "Lexe",
+      version = "0.0.0+0";
 
   /// The operating system name (ex: "ios", "android", "macos", ...)
   final String osName;
@@ -217,14 +224,14 @@ final class UserAgent {
   /// NOTE: the platform info should be cached after the first successful attempt.
   static Future<UserAgent> fromPlatform() async {
     final res = (await Result.tryAsync<PackageInfo, Exception>(
-            PackageInfo.fromPlatform))
-        .inspectErr((err) => error("Failed to lookup app package info: $err"));
+      PackageInfo.fromPlatform,
+    )).inspectErr((err) => error("Failed to lookup app package info: $err"));
     return switch (res) {
       Ok(:final ok) => UserAgent(
-          osName: Platform.operatingSystem,
-          appName: ok.appName,
-          version: "${ok.version}+${ok.buildNumber}",
-        ),
+        osName: Platform.operatingSystem,
+        appName: ok.appName,
+        version: "${ok.version}+${ok.buildNumber}",
+      ),
       // Somehow platform API is not working, just return something.
       Err() => UserAgent.dummy(),
     };

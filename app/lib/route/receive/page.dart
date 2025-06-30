@@ -77,11 +77,11 @@ class ReceivePaymentPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ReceivePaymentPageInner(
-        app: this.app,
-        featureFlags: this.featureFlags,
-        fiatRate: this.fiatRate,
-        viewportWidth: MediaQuery.sizeOf(context).width,
-      );
+    app: this.app,
+    featureFlags: this.featureFlags,
+    fiatRate: this.fiatRate,
+    viewportWidth: MediaQuery.sizeOf(context).width,
+  );
 }
 
 /// We need this extra intermediate "inner" widget so we can init the
@@ -118,25 +118,17 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
   /// Inputs that determine when we should fetch a new lightning invoice.
   final ValueNotifier<LnInvoiceInputs> lnInvoiceInputs = ValueNotifier(
-    const LnInvoiceInputs(
-      amountSats: null,
-      description: null,
-    ),
+    const LnInvoiceInputs(amountSats: null, description: null),
   );
 
   /// Inputs that determine when we should fetch a new lightning offer.
   final ValueNotifier<LnOfferInputs> lnOfferInputs = ValueNotifier(
-    const LnOfferInputs(
-      amountSats: null,
-      description: null,
-    ),
+    const LnOfferInputs(amountSats: null, description: null),
   );
 
   /// Inputs that determine when we should fetch a new bitcoin address.
   final ValueNotifier<BtcAddrInputs> btcAddrInputs = ValueNotifier(
-    const BtcAddrInputs(
-      kind: BtcAddrKind.segwit,
-    ),
+    const BtcAddrInputs(kind: BtcAddrKind.segwit),
   );
 
   /// Each page offer.
@@ -214,12 +206,14 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
   /// Create a new inner [PageController] for the carousel of [PaymentOfferPage]s.
   PageController newPageController() => PageController(
-        initialPage: this.selectedPageIndex.value,
-        // Use at most `targetPagePropWidth` of the screen width to ensure
-        // we always show a small sliver of the next page.
-        viewportFraction:
-            min(targetPagePropWidth, maxPageWidth / this.widget.viewportWidth),
-      );
+    initialPage: this.selectedPageIndex.value,
+    // Use at most `targetPagePropWidth` of the screen width to ensure
+    // we always show a small sliver of the next page.
+    viewportFraction: min(
+      targetPagePropWidth,
+      maxPageWidth / this.widget.viewportWidth,
+    ),
+  );
 
   ValueNotifier<PaymentOffer> currentPaymentOffer() =>
       this.paymentOffers[this.selectedPageIndex.value];
@@ -233,9 +227,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
   /// Fetch a bitcoin address for the given [BtcAddrInputs] and return a
   /// full [PaymentOffer].
-  Future<PaymentOffer?> fetchBtc(
-    BtcAddrInputs inputs,
-  ) async {
+  Future<PaymentOffer?> fetchBtc(BtcAddrInputs inputs) async {
     // TODO(phlip9): actually add ability to fetch a taproot address
     // assert(btcKind != PaymentOfferKind.btcTaproot);
 
@@ -317,7 +309,8 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     // Stale request => ignore
     if (prev != lnInvoicePaymentOffer.value) {
       info(
-          "ReceivePaymentPage: doFetchLnInvoice: stale request, ignoring response");
+        "ReceivePaymentPage: doFetchLnInvoice: stale request, ignoring response",
+      );
       return;
     }
 
@@ -326,9 +319,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   }
 
   /// Fetch the Lightning invoice for the given inputs.
-  Future<PaymentOffer?> fetchLnInvoice(
-    LnInvoiceInputs inputs,
-  ) async {
+  Future<PaymentOffer?> fetchLnInvoice(LnInvoiceInputs inputs) async {
     final req = CreateInvoiceRequest(
       expirySecs: 24 * 60 * 60,
       amountSats: inputs.amountSats,
@@ -337,15 +328,17 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
     info("ReceivePaymentPage: fetchLnInvoice: inputs: $inputs");
 
-    final result =
-        await Result.tryFfiAsync(() => this.widget.app.createInvoice(req: req));
+    final result = await Result.tryFfiAsync(
+      () => this.widget.app.createInvoice(req: req),
+    );
 
     final Invoice invoice;
     switch (result) {
       case Err(:final err):
         // TODO(phlip9): error display
         error(
-            "ReceivePaymentPage: doFetchLnInvoice: failed to create invoice: $err");
+          "ReceivePaymentPage: doFetchLnInvoice: failed to create invoice: $err",
+        );
         return null;
 
       case Ok(:final ok):
@@ -379,7 +372,8 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     // Stale request => ignore
     if (prev != lnOfferPaymentOffer.value) {
       info(
-          "ReceivePaymentPage: doFetchLnOffer: stale request, ignoring response");
+        "ReceivePaymentPage: doFetchLnOffer: stale request, ignoring response",
+      );
       return;
     }
 
@@ -388,9 +382,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   }
 
   /// Fetch the Lightning offer for the given inputs.
-  Future<PaymentOffer?> fetchLnOffer(
-    LnOfferInputs inputs,
-  ) async {
+  Future<PaymentOffer?> fetchLnOffer(LnOfferInputs inputs) async {
     final req = CreateOfferRequest(
       expirySecs: null,
       amountSats: inputs.amountSats,
@@ -399,15 +391,17 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
     info("ReceivePaymentPage: fetchLnOffer: inputs: $inputs");
 
-    final result =
-        await Result.tryFfiAsync(() => this.widget.app.createOffer(req: req));
+    final result = await Result.tryFfiAsync(
+      () => this.widget.app.createOffer(req: req),
+    );
 
     final Offer offer;
     switch (result) {
       case Err(:final err):
         // TODO(phlip9): error display
         error(
-            "ReceivePaymentPage: fetchLnOffer: failed to create offer: $err, req: req: { amountStas: ${req.amountSats}, exp: ${req.expirySecs} }");
+          "ReceivePaymentPage: fetchLnOffer: failed to create offer: $err, req: req: { amountStas: ${req.amountSats}, exp: ${req.expirySecs} }",
+        );
         return null;
 
       case Ok(:final ok):
@@ -551,24 +545,24 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
                   if (!this.mounted) return;
                   this.selectedPageIndex.value = pageIdx;
                 },
-                children: this
-                    .paymentOffers
-                    .map((offer) => ValueListenableBuilder(
-                          valueListenable: offer,
-                          builder: (_context, offer, _child) =>
-                              PaymentOfferPage(
-                            paymentOffer: offer,
-                            fiatRate: this.widget.fiatRate,
-                            openSetAmountPage: () =>
-                                this.openEditPage(offer.kind),
-                            refreshPaymentOffer:
-                                // Only invoices need to be refresh-able since
-                                // they're single-use.
-                                offer.kind == PaymentOfferKind.lightningInvoice
-                                    ? this.doRefreshLnInvoice
-                                    : null,
-                          ),
-                        ))
+                children: this.paymentOffers
+                    .map(
+                      (offer) => ValueListenableBuilder(
+                        valueListenable: offer,
+                        builder: (_context, offer, _child) => PaymentOfferPage(
+                          paymentOffer: offer,
+                          fiatRate: this.widget.fiatRate,
+                          openSetAmountPage: () =>
+                              this.openEditPage(offer.kind),
+                          refreshPaymentOffer:
+                              // Only invoices need to be refresh-able since
+                              // they're single-use.
+                              offer.kind == PaymentOfferKind.lightningInvoice
+                              ? this.doRefreshLnInvoice
+                              : null,
+                        ),
+                      ),
+                    )
                     .toList(),
               ),
             ),
@@ -579,12 +573,18 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
           child: CarouselIndicatorsAndButtons(
             numPages: this.paymentOffers.length,
             selectedPageIndex: this.selectedPageIndex,
-            onTapPrev: () => unawaited(this.pageController.previousPage(
+            onTapPrev: () => unawaited(
+              this.pageController.previousPage(
                 duration: const Duration(milliseconds: 500),
-                curve: Curves.ease)),
-            onTapNext: () => unawaited(this.pageController.nextPage(
+                curve: Curves.ease,
+              ),
+            ),
+            onTapNext: () => unawaited(
+              this.pageController.nextPage(
                 duration: const Duration(milliseconds: 500),
-                curve: Curves.ease)),
+                curve: Curves.ease,
+              ),
+            ),
           ),
         ),
       ),
@@ -753,7 +753,8 @@ class PaymentOfferPage extends StatelessWidget {
                       child: (uri != null)
                           ? Container(
                               decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(6.0)),
+                                borderRadius: BorderRadius.circular(6.0),
+                              ),
                               clipBehavior: Clip.antiAlias,
                               child: InteractiveQrImage(
                                 // `AnimatedSwitcher` should also run the switch
@@ -797,8 +798,10 @@ class PaymentOfferPage extends StatelessWidget {
                         OutlinedButton(
                           onPressed: this.onTapSetAmount,
                           style: const ButtonStyle(
-                            visualDensity:
-                                VisualDensity(horizontal: -3.0, vertical: -3.0),
+                            visualDensity: VisualDensity(
+                              horizontal: -3.0,
+                              vertical: -3.0,
+                            ),
                           ),
                           child: const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -834,16 +837,18 @@ class PaymentOfferPage extends StatelessWidget {
                             // Amount (sats)
                             if (amountSatsStr != null)
                               Padding(
-                                padding:
-                                    const EdgeInsets.only(bottom: Space.s100),
+                                padding: const EdgeInsets.only(
+                                  bottom: Space.s100,
+                                ),
                                 child: Text.rich(
                                   TextSpan(
                                     children: [
                                       TextSpan(text: amountSatsStr),
                                       const TextSpan(
                                         text: " sats",
-                                        style:
-                                            TextStyle(color: LxColors.grey550),
+                                        style: TextStyle(
+                                          color: LxColors.grey550,
+                                        ),
                                       ),
                                     ],
                                     style: const TextStyle(
@@ -866,10 +871,13 @@ class PaymentOfferPage extends StatelessWidget {
 
                                 final String? amountFiatStr;
                                 if (fiatRate != null) {
-                                  final amountFiat = fiatRate.rate *
+                                  final amountFiat =
+                                      fiatRate.rate *
                                       currency_format.satsToBtc(amountSats);
                                   amountFiatStr = currency_format.formatFiat(
-                                      amountFiat, fiatRate.fiat);
+                                    amountFiat,
+                                    fiatRate.fiat,
+                                  );
                                 } else {
                                   amountFiatStr = null;
                                 }
@@ -883,10 +891,7 @@ class PaymentOfferPage extends StatelessWidget {
                                 );
 
                                 return (amountFiatStr != null)
-                                    ? Text(
-                                        "≈ $amountFiatStr",
-                                        style: style,
-                                      )
+                                    ? Text("≈ $amountFiatStr", style: style)
                                     : const FilledTextPlaceholder(
                                         width: Space.s900,
                                         color: LxColors.background,
@@ -950,32 +955,36 @@ class PaymentOfferPage extends StatelessWidget {
           // Warning/info block
           if (warningStr != null)
             Padding(
-              padding:
-                  const EdgeInsets.only(left: Space.s450, right: Space.s200),
+              padding: const EdgeInsets.only(
+                left: Space.s450,
+                right: Space.s200,
+              ),
               child: Row(
                 children: [
                   Expanded(
                     child: Text.rich(
-                      TextSpan(children: [
-                        TextSpan(text: warningStr),
+                      TextSpan(
+                        children: [
+                          TextSpan(text: warningStr),
 
-                        // // Zero-conf ()
-                        // TextSpan(text: "Receiving more than "),
-                        // TextSpan(
-                        //   text: "150,000 sats",
-                        //   style: TextStyle(
-                        //     fontVariations: [Fonts.weightSemiBold],
-                        //   ),
-                        // ),
-                        // TextSpan(text: " will incur an initial setup fee of "),
-                        // TextSpan(
-                        //   text: "2,500 sats",
-                        //   style: TextStyle(
-                        //     fontVariations: [Fonts.weightSemiBold],
-                        //   ),
-                        // ),
-                        // TextSpan(text: "."),
-                      ]),
+                          // // Zero-conf ()
+                          // TextSpan(text: "Receiving more than "),
+                          // TextSpan(
+                          //   text: "150,000 sats",
+                          //   style: TextStyle(
+                          //     fontVariations: [Fonts.weightSemiBold],
+                          //   ),
+                          // ),
+                          // TextSpan(text: " will incur an initial setup fee of "),
+                          // TextSpan(
+                          //   text: "2,500 sats",
+                          //   style: TextStyle(
+                          //     fontVariations: [Fonts.weightSemiBold],
+                          //   ),
+                          // ),
+                          // TextSpan(text: "."),
+                        ],
+                      ),
                       style: const TextStyle(
                         color: LxColors.grey550,
                         fontSize: Fonts.size100,
@@ -1044,26 +1053,29 @@ class CardBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: LxColors.grey1000,
-          borderRadius: BorderRadius.circular(LxRadius.r300),
-        ),
-        padding: const EdgeInsets.fromLTRB(
-          Space.s450,
-          Space.s200,
-          Space.s450,
-          Space.s450,
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: child,
-      );
+    decoration: BoxDecoration(
+      color: LxColors.grey1000,
+      borderRadius: BorderRadius.circular(LxRadius.r300),
+    ),
+    padding: const EdgeInsets.fromLTRB(
+      Space.s450,
+      Space.s200,
+      Space.s450,
+      Space.s450,
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: child,
+  );
 }
 
 /// The button at the top of the PaymentOfferPage that copies the code to the
 /// clipboard. Displays a loading placeholder if the code is not yet available.
 class CopyCodeButtonOrPlaceholder extends StatelessWidget {
-  const CopyCodeButtonOrPlaceholder(
-      {super.key, this.code, required this.onTapCopy});
+  const CopyCodeButtonOrPlaceholder({
+    super.key,
+    this.code,
+    required this.onTapCopy,
+  });
 
   final String? code;
   final VoidContextCallback onTapCopy;
@@ -1090,10 +1102,7 @@ class CopyCodeButtonOrPlaceholder extends StatelessWidget {
             address_format.ellipsizeBtcAddress(code),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: fontSize,
-              color: fontColor,
-            ),
+            style: const TextStyle(fontSize: fontSize, color: fontColor),
           ),
           label: const Icon(
             LxIcons.copy,
@@ -1111,8 +1120,9 @@ class CopyCodeButtonOrPlaceholder extends StatelessWidget {
                 horizontal: buttonPadHoriz,
               ),
             ),
-            minimumSize:
-                WidgetStatePropertyAll(Size(buttonWidth, buttonHeight)),
+            minimumSize: WidgetStatePropertyAll(
+              Size(buttonWidth, buttonHeight),
+            ),
             maximumSize: WidgetStatePropertyAll(Size.fromHeight(buttonHeight)),
             visualDensity: VisualDensity(horizontal: 0.0, vertical: 0.0),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1126,10 +1136,7 @@ class CopyCodeButtonOrPlaceholder extends StatelessWidget {
         child: Center(
           child: FilledTextPlaceholder(
             color: LxColors.background,
-            style: TextStyle(
-              fontSize: fontSize,
-              color: fontColor,
-            ),
+            style: TextStyle(fontSize: fontSize, color: fontColor),
           ),
         ),
       );

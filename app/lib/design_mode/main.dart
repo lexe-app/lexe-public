@@ -132,8 +132,11 @@ Future<void> main() async {
 }
 
 class LexeDesignPage extends StatefulWidget {
-  const LexeDesignPage(
-      {super.key, required this.config, required this.uriEvents});
+  const LexeDesignPage({
+    super.key,
+    required this.config,
+    required this.uriEvents,
+  });
 
   final Config config;
   final UriEvents uriEvents;
@@ -145,8 +148,9 @@ class LexeDesignPage extends StatefulWidget {
 class _LexeDesignPageState extends State<LexeDesignPage> {
   // When this stream ticks, all the payments' createdAt label should update.
   // This stream ticks every 30 seconds.
-  final DateTimeNotifier paymentDateUpdates =
-      DateTimeNotifier(period: const Duration(seconds: 30));
+  final DateTimeNotifier paymentDateUpdates = DateTimeNotifier(
+    period: const Duration(seconds: 30),
+  );
 
   @override
   void dispose() {
@@ -156,10 +160,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
 
   ValueListenable<FiatRate?> makeFiatRateStream() =>
       Stream.fromIterable(<FiatRate?>[
-        const FiatRate(fiat: "USD", rate: 97111.19),
-        const FiatRate(fiat: "USD", rate: 97222.29),
-        const FiatRate(fiat: "USD", rate: 97333.39),
-      ])
+            const FiatRate(fiat: "USD", rate: 97111.19),
+            const FiatRate(fiat: "USD", rate: 97222.29),
+            const FiatRate(fiat: "USD", rate: 97333.39),
+          ])
           .interval(const Duration(seconds: 2))
           .shareValueSeeded(null)
           .streamValueNotifier();
@@ -168,14 +172,16 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
   ValueNotifier<Payment> makeCompletingPayment(final Payment payment) {
     final notifier = ValueNotifier(payment);
 
-    unawaited(Future.delayed(const Duration(seconds: 4), () {
-      final p = notifier.value;
-      notifier.value = p.copyWith(
-        status: PaymentStatus.completed,
-        statusStr: "completed",
-        finalizedAt: DateTime.now().millisecondsSinceEpoch,
-      );
-    }));
+    unawaited(
+      Future.delayed(const Duration(seconds: 4), () {
+        final p = notifier.value;
+        notifier.value = p.copyWith(
+          status: PaymentStatus.completed,
+          statusStr: "completed",
+          finalizedAt: DateTime.now().millisecondsSinceEpoch,
+        );
+      }),
+    );
 
     return notifier;
   }
@@ -195,10 +201,16 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
     final mockSignupApi = mocks.MockSignupApi(app: mockApp);
     const mockSignupApiErr = mocks.MockSignupApiErr();
     final mockRestoreApi = mocks.MockRestoreApi(app: mockApp);
-    final mockSignupCtx =
-        SignupCtx(this.widget.config, GDriveAuth.mock, mockSignupApi);
-    final mockSignupCtxErr =
-        SignupCtx(this.widget.config, GDriveAuth.mockError, mockSignupApiErr);
+    final mockSignupCtx = SignupCtx(
+      this.widget.config,
+      GDriveAuth.mock,
+      mockSignupApi,
+    );
+    final mockSignupCtxErr = SignupCtx(
+      this.widget.config,
+      GDriveAuth.mockError,
+      mockSignupApiErr,
+    );
 
     final cidBytes = List.generate(32, (idx) => idx);
     final cid = ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
@@ -244,7 +256,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "SignupPage (real gdrive)",
               (context) => SignupPage(
                 ctx: SignupCtx(
-                    this.widget.config, GDriveAuth.prod, mockSignupApi),
+                  this.widget.config,
+                  GDriveAuth.prod,
+                  mockSignupApi,
+                ),
               ),
             ),
             Component(
@@ -285,14 +300,17 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (context) => RestoreChooseWalletPage(
                 candidates: const [
                   MockGDriveRestoreCandidate(
-                      userPk:
-                          "4072836db6c62f1fd07281feb1f2d6d1b8f05f8be3f0019a9205edff244017f1"),
+                    userPk:
+                        "4072836db6c62f1fd07281feb1f2d6d1b8f05f8be3f0019a9205edff244017f1",
+                  ),
                   MockGDriveRestoreCandidate(
-                      userPk:
-                          "ef64652cc9fc1d79d174bb52d0ffb7ad365db842e72e056aa5c4bfe00bcb20da"),
+                    userPk:
+                        "ef64652cc9fc1d79d174bb52d0ffb7ad365db842e72e056aa5c4bfe00bcb20da",
+                  ),
                 ],
-                serverAuthCode:
-                    const GDriveServerAuthCode(serverAuthCode: "fake"),
+                serverAuthCode: const GDriveServerAuthCode(
+                  serverAuthCode: "fake",
+                ),
                 config: widget.config,
                 restoreApi: mockRestoreApi,
               ),
@@ -301,10 +319,12 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "RestorePasswordPage",
               (context) => RestorePasswordPage(
                 candidate: const MockGDriveRestoreCandidate(
-                    userPk:
-                        "ef64652cc9fc1d79d174bb52d0ffb7ad365db842e72e056aa5c4bfe00bcb20da"),
-                serverAuthCode:
-                    const GDriveServerAuthCode(serverAuthCode: "fake"),
+                  userPk:
+                      "ef64652cc9fc1d79d174bb52d0ffb7ad365db842e72e056aa5c4bfe00bcb20da",
+                ),
+                serverAuthCode: const GDriveServerAuthCode(
+                  serverAuthCode: "fake",
+                ),
                 config: widget.config,
                 restoreApi: mockRestoreApi,
               ),
@@ -376,7 +396,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   cid: cid,
                   paymentMethod: const PaymentMethod.onchain(
                     Onchain(
-                        address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"),
+                      address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+                    ),
                   ),
                 ),
               ),
@@ -391,14 +412,16 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   configNetwork: widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
-                  paymentMethod: const PaymentMethod.invoice(Invoice(
-                    string:
-                        "lnbcrt1qqp4ydsdq22dhxzcmtwvpp5kv0433rmqrm6rj9r70dv4z5w3vyfdda97lzacf2z2ue06tdrz45ssp54jrpc79t9myqyywfslvr5f94tt938xpxcvm8hzu7hc7275lq9stq9qyysgqcqpcxq9p4yd3l05qyptltyujph97g7t9yw6exnlxce76uk9qcqq7h2hdp28qagh9cc77fn6vhukccvr8hedgmq0y6r84vusrsz3z86d4ty2scldj3eqq3mm4ln",
-                    createdAt: 1741232485000,
-                    expiresAt: 1741233485000,
-                    payeePubkey:
-                        "28157d6ca3555a0a3275817d0832c535955b28b20a55f9596f6873434feebfd797d4b245397fab8f8f94dcdd32aac475d64893aa042f18b8d725e116082ae909",
-                  )),
+                  paymentMethod: const PaymentMethod.invoice(
+                    Invoice(
+                      string:
+                          "lnbcrt1qqp4ydsdq22dhxzcmtwvpp5kv0433rmqrm6rj9r70dv4z5w3vyfdda97lzacf2z2ue06tdrz45ssp54jrpc79t9myqyywfslvr5f94tt938xpxcvm8hzu7hc7275lq9stq9qyysgqcqpcxq9p4yd3l05qyptltyujph97g7t9yw6exnlxce76uk9qcqq7h2hdp28qagh9cc77fn6vhukccvr8hedgmq0y6r84vusrsz3z86d4ty2scldj3eqq3mm4ln",
+                      createdAt: 1741232485000,
+                      expiresAt: 1741233485000,
+                      payeePubkey:
+                          "28157d6ca3555a0a3275817d0832c535955b28b20a55f9596f6873434feebfd797d4b245397fab8f8f94dcdd32aac475d64893aa042f18b8d725e116082ae909",
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -414,7 +437,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   cid: cid,
                   paymentMethod: const PaymentMethod.onchain(
                     Onchain(
-                        address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"),
+                      address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+                    ),
                   ),
                 ),
               ),
@@ -431,7 +455,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   cid: cid,
                   preflightedPayment: const PreflightedPayment_Onchain(
                     onchain: Onchain(
-                        address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"),
+                      address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+                    ),
                     preflight: feeEstimates,
                     amountSats: 2500,
                   ),
@@ -527,8 +552,9 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               subtitle: "ln invoice pending inbound",
               (context) => PaymentDetailPageInner(
                 app: mockApp,
-                payment: this
-                    .makeCompletingPayment(mocks.dummyInvoiceInboundPending01),
+                payment: this.makeCompletingPayment(
+                  mocks.dummyInvoiceInboundPending01,
+                ),
                 paymentDateUpdates: this.paymentDateUpdates,
                 fiatRate: this.makeFiatRateStream(),
                 isSyncing: ValueNotifier(false),
@@ -567,7 +593,9 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 nodeInfoService.nodeInfo,
                 fiatRate,
                 (nodeInfo, fiatRate) => BalanceState(
-                    balanceSats: nodeInfo?.balance, fiatRate: fiatRate),
+                  balanceSats: nodeInfo?.balance,
+                  fiatRate: fiatRate,
+                ),
               );
               return ChannelsPage(
                 app: mockApp,
@@ -580,10 +608,12 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "OpenChannelPage",
               (context) => OpenChannelPage(
                 app: mockApp,
-                balanceState: ValueNotifier(const BalanceState(
-                  balanceSats: mocks.balanceOnchainOnly,
-                  fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
-                )),
+                balanceState: ValueNotifier(
+                  const BalanceState(
+                    balanceSats: mocks.balanceOnchainOnly,
+                    fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
+                  ),
+                ),
               ),
             ),
             Component(
@@ -591,24 +621,29 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               subtitle: "preflight error",
               (context) => OpenChannelPage(
                 app: mockAppErr,
-                balanceState: ValueNotifier(const BalanceState(
-                  balanceSats: mocks.balanceOnchainOnly,
-                  fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
-                )),
+                balanceState: ValueNotifier(
+                  const BalanceState(
+                    balanceSats: mocks.balanceOnchainOnly,
+                    fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
+                  ),
+                ),
               ),
             ),
             Component(
               "OpenChannelConfirmPage",
               (context) => OpenChannelConfirmPage(
                 app: mockApp,
-                balanceState: ValueNotifier(const BalanceState(
-                  balanceSats: mocks.balanceOnchainOnly,
-                  fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
-                )),
+                balanceState: ValueNotifier(
+                  const BalanceState(
+                    balanceSats: mocks.balanceOnchainOnly,
+                    fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
+                  ),
+                ),
                 channelValueSats: 6500,
                 userChannelId: UserChannelId(id: U8Array16.init()),
-                preflight:
-                    const PreflightOpenChannelResponse(feeEstimateSats: 122),
+                preflight: const PreflightOpenChannelResponse(
+                  feeEstimateSats: 122,
+                ),
               ),
             ),
             Component(
@@ -616,14 +651,17 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               subtitle: "error",
               (context) => OpenChannelConfirmPage(
                 app: mockAppErr,
-                balanceState: ValueNotifier(const BalanceState(
-                  balanceSats: mocks.balanceOnchainOnly,
-                  fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
-                )),
+                balanceState: ValueNotifier(
+                  const BalanceState(
+                    balanceSats: mocks.balanceOnchainOnly,
+                    fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
+                  ),
+                ),
                 channelValueSats: 6500,
                 userChannelId: UserChannelId(id: U8Array16.init()),
-                preflight:
-                    const PreflightOpenChannelResponse(feeEstimateSats: 122),
+                preflight: const PreflightOpenChannelResponse(
+                  feeEstimateSats: 122,
+                ),
               ),
             ),
             Component(
@@ -631,8 +669,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (context) => CloseChannelPage(
                 app: mockApp,
                 fiatRate: this.makeFiatRateStream(),
-                channels: ValueNotifier(ChannelsList.fromApi(
-                    ListChannelsResponse(channels: mockApp.channels))),
+                channels: ValueNotifier(
+                  ChannelsList.fromApi(
+                    ListChannelsResponse(channels: mockApp.channels),
+                  ),
+                ),
               ),
             ),
             Component(
@@ -641,8 +682,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (context) => CloseChannelPage(
                 app: mockAppErr,
                 fiatRate: this.makeFiatRateStream(),
-                channels: ValueNotifier(ChannelsList.fromApi(
-                    ListChannelsResponse(channels: mockApp.channels))),
+                channels: ValueNotifier(
+                  ChannelsList.fromApi(
+                    ListChannelsResponse(channels: mockApp.channels),
+                  ),
+                ),
               ),
             ),
             Component(
@@ -653,8 +697,9 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 channelId:
                     "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",
                 channelOurBalanceSats: 300231,
-                preflight:
-                    const PreflightCloseChannelResponse(feeEstimateSats: 1100),
+                preflight: const PreflightCloseChannelResponse(
+                  feeEstimateSats: 1100,
+                ),
               ),
             ),
             Component(
@@ -666,8 +711,9 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 channelId:
                     "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",
                 channelOurBalanceSats: 300231,
-                preflight:
-                    const PreflightCloseChannelResponse(feeEstimateSats: 1100),
+                preflight: const PreflightCloseChannelResponse(
+                  feeEstimateSats: 1100,
+                ),
               ),
             ),
             Component(
@@ -683,19 +729,18 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 ),
               ),
             ),
-            Component(
-              "NodeInfoPage",
-              (_) {
-                final nodeInfo = ValueNotifier<NodeInfo?>(null);
-                const userInfo = AppUserInfo(
-                  userPk:
-                      "52b999003525a3d905f9916eff26cee6625a3976fc25270ce5b3e79aa3c16f45",
-                  nodePk:
-                      "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",
-                  nodePkProof:
-                      "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b46304402206f762d23d206f3af2ffa452a71a11bca3df68838408851ab77931d7eb7fa1ef6022057141408428d6885d00ca6ca50e6d702aeab227c1550135be5fce4af4e726736",
-                );
-                unawaited(Future.delayed(const Duration(seconds: 1), () {
+            Component("NodeInfoPage", (_) {
+              final nodeInfo = ValueNotifier<NodeInfo?>(null);
+              const userInfo = AppUserInfo(
+                userPk:
+                    "52b999003525a3d905f9916eff26cee6625a3976fc25270ce5b3e79aa3c16f45",
+                nodePk:
+                    "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",
+                nodePkProof:
+                    "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b46304402206f762d23d206f3af2ffa452a71a11bca3df68838408851ab77931d7eb7fa1ef6022057141408428d6885d00ca6ca50e6d702aeab227c1550135be5fce4af4e726736",
+              );
+              unawaited(
+                Future.delayed(const Duration(seconds: 1), () {
                   nodeInfo.value = NodeInfo(
                     nodePk: userInfo.nodePk,
                     version: "1.2.3",
@@ -703,14 +748,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                         "1d97c2c837b09ec7b0e0b26cb6fa9a211be84c8fdb53299cc9ee8884c7a25ac1",
                     balance: mocks.balanceZero,
                   );
-                }));
-                return NodeInfoPage(nodeInfo: nodeInfo, userInfo: userInfo);
-              },
-            ),
-            Component(
-              "SdkClientsPage",
-              (_) => ClientsPage(app: mockApp),
-            ),
+                }),
+              );
+              return NodeInfoPage(nodeInfo: nodeInfo, userInfo: userInfo);
+            }),
+            Component("SdkClientsPage", (_) => ClientsPage(app: mockApp)),
             Component(
               "SdkClientsPage",
               subtitle: "error",
@@ -746,8 +788,9 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (_) => ReceivePaymentPage(
                 app: mocks.MockAppHandleScreenshots(),
                 featureFlags: const FeatureFlags.all(),
-                fiatRate:
-                    ValueNotifier(const FiatRate(fiat: "USD", rate: 96626.76)),
+                fiatRate: ValueNotifier(
+                  const FiatRate(fiat: "USD", rate: 96626.76),
+                ),
               ),
             ),
             Component(
@@ -767,7 +810,9 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                       createdAt: 1686743442000,
                       expiresAt: 1686745442000,
                       payeePubkey: mocks
-                          .dummyInvoiceOutboundPending01.invoice!.payeePubkey,
+                          .dummyInvoiceOutboundPending01
+                          .invoice!
+                          .payeePubkey,
                       amountSats: 10000,
                     ),
                     preflight: const PreflightPayInvoiceResponse(
@@ -791,7 +836,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "ShowQrPage",
               subtitle: "bitcoin address only",
               (_) => const ShowQrPage(
-                  value: "bitcoin:BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4"),
+                value: "bitcoin:BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
+              ),
             ),
             Component(
               "ShowQrPage",
@@ -801,18 +847,12 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday&lightning=LNBC10U1P3PJ257PP5YZTKWJCZ5FTL5LAXKAV23ZMZEKAW37ZK6KMV80PK4XAEV5QHTZ7QDPDWD3XGER9WD5KWM36YPRX7U3QD36KUCMGYP282ETNV3SHJCQZPGXQYZ5VQSP5USYC4LK9CHSFP53KVCNVQ456GANH60D89REYKDNGSMTJ6YW3NHVQ9QYYSSQJCEWM5CJWZ4A6RFJX77C490YCED6PEMK0UPKXHY89CMM7SCT66K8GNEANWYKZGDRWRFJE69H9U5U0W57RRCSYSAS7GADWMZXC8C6T0SPJAZUP6",
               ),
             ),
-            Component(
-              "Buttons",
-              (_) => const ButtonDesignPage(),
-            ),
+            Component("Buttons", (_) => const ButtonDesignPage()),
             Component(
               "ModalAsyncFlow",
               (_) => const ModalAsyncFlowDesignPage(),
             ),
-            Component(
-              "Markdown",
-              (context) => const MarkdownPage(),
-            ),
+            Component("Markdown", (context) => const MarkdownPage()),
             Component(
               "SplitAmountText",
               (context) => const SplitAmountTextPage(),
@@ -829,10 +869,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "ErrorMessageSection",
               (context) => const ErrorMessageSectionPage(),
             ),
-            Component(
-              "SaveFile",
-              (context) => const SaveFilePage(),
-            ),
+            Component("SaveFile", (context) => const SaveFilePage()),
             const SizedBox(height: Space.s800),
           ],
         ),
@@ -865,9 +902,7 @@ class Component extends StatelessWidget {
             )
           : null,
       onTap: () {
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: this.builder,
-        ));
+        Navigator.of(context).push(MaterialPageRoute(builder: this.builder));
       },
     );
   }
@@ -937,17 +972,11 @@ class ButtonDesignPage extends StatelessWidget {
             const SizedBox(height: Space.s400),
 
             // normal
-            const LxFilledButton(
-              onTap: onTap,
-              label: Text("Send"),
-            ),
+            const LxFilledButton(onTap: onTap, label: Text("Send")),
             const SizedBox(height: Space.s400),
 
             // disabled
-            const LxFilledButton(
-              onTap: null,
-              label: Text("Send"),
-            ),
+            const LxFilledButton(onTap: null, label: Text("Send")),
             const SizedBox(height: Space.s400),
 
             // moneyGoUp + icon
@@ -983,8 +1012,8 @@ class ButtonDesignPage extends StatelessWidget {
             const Row(
               children: [
                 Expanded(
-                    child:
-                        LxOutlinedButton(onTap: onTap, label: Text("Cancel"))),
+                  child: LxOutlinedButton(onTap: onTap, label: Text("Cancel")),
+                ),
                 SizedBox(width: Space.s400),
                 Expanded(
                   child: LxFilledButton(
@@ -1000,11 +1029,12 @@ class ButtonDesignPage extends StatelessWidget {
             const Row(
               children: [
                 Expanded(
-                    child:
-                        LxOutlinedButton(onTap: onTap, label: Text("Cancel"))),
+                  child: LxOutlinedButton(onTap: onTap, label: Text("Cancel")),
+                ),
                 SizedBox(width: Space.s200),
                 Expanded(
-                    child: LxOutlinedButton(onTap: onTap, label: Text("Skip"))),
+                  child: LxOutlinedButton(onTap: onTap, label: Text("Skip")),
+                ),
                 SizedBox(width: Space.s200),
                 Expanded(
                   child: LxFilledButton(onTap: onTap, label: Text("Next")),
@@ -1088,8 +1118,10 @@ class ButtonDesignPage extends StatelessWidget {
                   OutlinedButton(
                     onPressed: onTap,
                     style: ButtonStyle(
-                      visualDensity:
-                          VisualDensity(horizontal: -3.0, vertical: -3.0),
+                      visualDensity: VisualDensity(
+                        horizontal: -3.0,
+                        vertical: -3.0,
+                      ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -1178,7 +1210,8 @@ class ModalAsyncFlowDesignPage extends StatelessWidget {
       future: Future.delayed(
         const Duration(milliseconds: 1500),
         () => const Err(
-            "W/WindowOnBackDispatcher(26148): Set 'android:enableOnBackInvokedCallback=\"true\"' in the application manifest."),
+          "W/WindowOnBackDispatcher(26148): Set 'android:enableOnBackInvokedCallback=\"true\"' in the application manifest.",
+        ),
       ),
       errorBuilder: (context, err) => AlertDialog(
         title: const Text("Issue with payment"),
@@ -1302,35 +1335,39 @@ class SplitAmountTextPage extends StatelessWidget {
     // const double amount = 255.01;
 
     Widget forLocaleFiat(String locale, String fiatName) => Padding(
-          padding: const EdgeInsets.only(bottom: Space.s100),
-          child: SplitAmountText(
-              amount: amount, fiatName: fiatName, style: style, locale: locale),
-        );
+      padding: const EdgeInsets.only(bottom: Space.s100),
+      child: SplitAmountText(
+        amount: amount,
+        fiatName: fiatName,
+        style: style,
+        locale: locale,
+      ),
+    );
 
     Widget forLocale(String locale) => Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Align(
-              alignment: Alignment.topLeft,
-              child: HeadingText(text: locale),
-            ),
-            //
-            forLocaleFiat(locale, "USD"),
-            forLocaleFiat(locale, "EUR"),
-            forLocaleFiat(locale, "MXN"),
-            forLocaleFiat(locale, "RUB"),
-            const SizedBox(height: Space.s100),
-            //
-            forLocaleFiat(locale, "ETB"),
-            forLocaleFiat(locale, "DKK"),
-            const SizedBox(height: Space.s100),
-            //
-            forLocaleFiat(locale, "JPY"),
-            forLocaleFiat(locale, "KRW"),
-            const SizedBox(height: Space.s300),
-          ],
-        );
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Align(
+          alignment: Alignment.topLeft,
+          child: HeadingText(text: locale),
+        ),
+        //
+        forLocaleFiat(locale, "USD"),
+        forLocaleFiat(locale, "EUR"),
+        forLocaleFiat(locale, "MXN"),
+        forLocaleFiat(locale, "RUB"),
+        const SizedBox(height: Space.s100),
+        //
+        forLocaleFiat(locale, "ETB"),
+        forLocaleFiat(locale, "DKK"),
+        const SizedBox(height: Space.s100),
+        //
+        forLocaleFiat(locale, "JPY"),
+        forLocaleFiat(locale, "KRW"),
+        const SizedBox(height: Space.s300),
+      ],
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -1385,15 +1422,9 @@ class FilledTextPlaceholderPage extends StatelessWidget {
               children: [
                 Text("Kjg", style: Fonts.fontUI),
                 SizedBox(width: Space.s200),
-                FilledTextPlaceholder(
-                  width: Space.s700,
-                  style: Fonts.fontUI,
-                ),
+                FilledTextPlaceholder(width: Space.s700, style: Fonts.fontUI),
                 SizedBox(width: Space.s200),
-                FilledTextPlaceholder(
-                  width: Space.s900,
-                  style: Fonts.fontLogo,
-                ),
+                FilledTextPlaceholder(width: Space.s900, style: Fonts.fontLogo),
                 SizedBox(width: Space.s200),
                 Text("Ref", style: Fonts.fontLogo),
               ],
@@ -1417,20 +1448,24 @@ class ChannelBalanceBarRowPage extends StatelessWidget {
     List<Widget> channelBars = [];
     for (final isUsable in [true, false]) {
       for (final width in widths) {
-        channelBars.add(Padding(
-          padding: const EdgeInsets.symmetric(vertical: Space.s100),
-          child: Text("width = $width"),
-        ));
+        channelBars.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: Space.s100),
+            child: Text("width = $width"),
+          ),
+        );
 
         for (final value in values) {
-          channelBars.add(Padding(
-            padding: const EdgeInsets.symmetric(vertical: Space.s100),
-            child: ChannelBalanceBarRow(
-              value: value,
-              width: width,
-              isUsable: isUsable,
+          channelBars.add(
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: Space.s100),
+              child: ChannelBalanceBarRow(
+                value: value,
+                width: width,
+                isUsable: isUsable,
+              ),
             ),
-          ));
+          );
         }
         channelBars.add(const SizedBox(height: Space.s400));
       }
@@ -1445,8 +1480,9 @@ class ChannelBalanceBarRowPage extends StatelessWidget {
         body: [
           const HeadingText(text: "ChannelBalanceBarPage"),
           const SubheadingText(
-              text:
-                  "Ensure channel balance bars look good at all values and sizes"),
+            text:
+                "Ensure channel balance bars look good at all values and sizes",
+          ),
           const SizedBox(height: Space.s700),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: Space.s200),
@@ -1486,13 +1522,12 @@ class _ErrorMessageSectionPageState extends State<ErrorMessageSectionPage> {
     const short1 = ErrorMessage(
       title: "We couldn't find any Lexe Wallet backups for this account",
     );
-    const short2 = ErrorMessage(
-      message: "Unrecognized payment code",
-    );
+    const short2 = ErrorMessage(message: "Unrecognized payment code");
     const long1 = ErrorMessage(
-        title: "Failed to send payment",
-        message:
-            "Could not find route to recipient\n\nCaused by:\n  1. Failed to find a path to the given destination");
+      title: "Failed to send payment",
+      message:
+          "Could not find route to recipient\n\nCaused by:\n  1. Failed to find a path to the given destination",
+    );
     const long2 = ErrorMessage(
       title: "There was an error connecting your Google Drive",
       message:
@@ -1513,10 +1548,11 @@ class _ErrorMessageSectionPageState extends State<ErrorMessageSectionPage> {
     );
 
     Widget testButton(String name, ErrorMessage? error) => Expanded(
-            child: LxFilledButton(
-          onTap: () => this.errorMessage.value = error,
-          label: Text(name),
-        ));
+      child: LxFilledButton(
+        onTap: () => this.errorMessage.value = error,
+        label: Text(name),
+      ),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -1580,7 +1616,9 @@ class SaveFilePage extends StatelessWidget {
 
     const dataStr = '{"foo": "bar"}';
     final res = await save_file.openDialog(
-        filename: "foo.json", data: utf8.encode(dataStr));
+      filename: "foo.json",
+      data: utf8.encode(dataStr),
+    );
 
     info("File save result: $res");
   }

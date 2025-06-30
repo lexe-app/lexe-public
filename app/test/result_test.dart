@@ -76,13 +76,16 @@ Future<void> main() async {
   // The fake panic messages may include a stacktrace after the error message
   // when `RUST_BACKTRACE=1`, so we'll only compare the first line.
 
-  test("result : tryFfiAsync (panic)",
-      skip: "panics always dump to stdout, cluttering test output", () async {
-    try {
-      final res1 = await Result.tryFfiAsync(unconditionalPanic);
-      throw Exception("Panics should NOT be caught, res: $res1");
-    } on PanicException catch (err) {
-      expectFirstLineEq(err.message, "Panic inside app-rs");
-    }
-  });
+  test(
+    "result : tryFfiAsync (panic)",
+    skip: "panics always dump to stdout, cluttering test output",
+    () async {
+      try {
+        final res1 = await Result.tryFfiAsync(unconditionalPanic);
+        throw Exception("Panics should NOT be caught, res: $res1");
+      } on PanicException catch (err) {
+        expectFirstLineEq(err.message, "Panic inside app-rs");
+      }
+    },
+  );
 }

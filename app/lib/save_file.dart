@@ -27,8 +27,9 @@ Future<Result<FilePath?, Exception>> openDialog({
   required String filename,
   required Uint8List data,
 }) async {
-  final res = await Result.tryAsync<String, Exception>(() =>
-      FlutterFileSaver().writeFileAsBytes(fileName: filename, bytes: data));
+  final res = await Result.tryAsync<String, Exception>(
+    () => FlutterFileSaver().writeFileAsBytes(fileName: filename, bytes: data),
+  );
   switch (res) {
     case Ok(:final ok):
       return Ok(FilePath(ok));

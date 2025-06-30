@@ -38,10 +38,7 @@ String directionToSign(PaymentDirection direction) =>
 ///   100,000,000 =>  "1.00000000"
 /// 2,300,000,000 => "23.00000000"
 /// 2,300,056,700 => "23.00056700"
-String formatSatsToBtcForUri(
-  int sats, {
-  bool padded = false,
-}) {
+String formatSatsToBtcForUri(int sats, {bool padded = false}) {
   final (wholeBtc, satsFrac) = divRem(sats.abs(), satsPerBtc);
 
   final wholeBtcStr = wholeBtc.toString();
@@ -113,11 +110,7 @@ String formatSatsAmount(
 }
 
 /// Format a fiat currency amount.
-String formatFiat(
-  double amountFiat,
-  String fiatName, {
-  String? locale,
-}) {
+String formatFiat(double amountFiat, String fiatName, {String? locale}) {
   final NumberFormat currencyFormatter = NumberFormat.simpleCurrency(
     name: fiatName,
     locale: locale,

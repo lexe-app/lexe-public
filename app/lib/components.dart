@@ -72,9 +72,8 @@ class ScrollableSinglePageBody extends StatelessWidget {
     this.bottom,
     this.bottomAlignment = Alignment.bottomCenter,
     this.bottomPadding = const EdgeInsets.only(bottom: Space.s600),
-  }) :
-        // can't both be non-null
-        assert(body == null || bodySlivers == null);
+  }) : // can't both be non-null
+       assert(body == null || bodySlivers == null);
 
   /// If true, this page will always use the full screen width. Otherwise, by
   /// default, the page will be centered with a max-width on larger screens.
@@ -121,24 +120,23 @@ class ScrollableSinglePageBody extends StatelessWidget {
           hasScrollBody: false,
           child: Align(
             alignment: this.bottomAlignment,
-            child: Padding(
-              padding: this.bottomPadding,
-              child: bottom,
-            ),
+            child: Padding(padding: this.bottomPadding, child: bottom),
           ),
         ),
     ];
 
     final List<Widget> slivers = (!this.useFullWidth)
         ? sliversPrePadding
-            .map((sliver) => SliverPadding(
+              .map(
+                (sliver) => SliverPadding(
                   padding: innerPadding,
                   sliver: SliverConstrainedCrossAxis(
                     maxExtent: maxWidth,
                     sliver: sliver,
                   ),
-                ))
-            .toList()
+                ),
+              )
+              .toList()
         : sliversPrePadding;
 
     return Padding(
@@ -158,14 +156,12 @@ class ScrollableSinglePageBody extends StatelessWidget {
 /// This pull-to-refresh doesn't provide any visual feedback, just a haptic
 /// buzz when the refresh is armed.
 class SliverPullToRefresh extends CupertinoSliverRefreshControl {
-  SliverPullToRefresh({
-    super.key,
-    required VoidCallback? onRefresh,
-  }) : super(
-          builder: null,
-          refreshIndicatorExtent: 0.0,
-          onRefresh: (onRefresh != null) ? (() async => onRefresh()) : null,
-        );
+  SliverPullToRefresh({super.key, required VoidCallback? onRefresh})
+    : super(
+        builder: null,
+        refreshIndicatorExtent: 0.0,
+        onRefresh: (onRefresh != null) ? (() async => onRefresh()) : null,
+      );
 }
 
 /// Start a new multistep UI flow.
@@ -315,16 +311,16 @@ class FilledPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: this.width,
-        height: this.height,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: this.color,
-            borderRadius: BorderRadius.circular(this.borderRadius),
-          ),
-          child: this.child,
-        ),
-      );
+    width: this.width,
+    height: this.height,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: this.color,
+        borderRadius: BorderRadius.circular(this.borderRadius),
+      ),
+      child: this.child,
+    ),
+  );
 }
 
 /// A simple colored box that we can show while we wait for some text content to
@@ -354,20 +350,20 @@ class FilledTextPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: this.width,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: this.color,
-            borderRadius: BorderRadius.circular(this.borderRadius),
-          ),
-          child: Text(
-            " ",
-            style: this.style,
-            maxLines: 1,
-            overflow: TextOverflow.clip,
-          ),
-        ),
-      );
+    width: this.width,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: this.color,
+        borderRadius: BorderRadius.circular(this.borderRadius),
+      ),
+      child: Text(
+        " ",
+        style: this.style,
+        maxLines: 1,
+        overflow: TextOverflow.clip,
+      ),
+    ),
+  );
 }
 
 /// A simple colored box that we can show while we wait for some text content to
@@ -381,22 +377,18 @@ class FilledTextPlaceholderSpan extends WidgetSpan {
     double width = double.infinity,
     double borderRadius = LxRadius.r200,
   }) : super(
-          baseline: TextBaseline.alphabetic,
-          alignment: PlaceholderAlignment.baseline,
-          child: FilledTextPlaceholder(
-            style: style,
-            color: color,
-            width: width,
-            borderRadius: borderRadius,
-          ),
-        );
+         baseline: TextBaseline.alphabetic,
+         alignment: PlaceholderAlignment.baseline,
+         child: FilledTextPlaceholder(
+           style: style,
+           color: color,
+           width: width,
+           borderRadius: borderRadius,
+         ),
+       );
 }
 
-enum LxCloseButtonKind {
-  closeFromTop,
-  closeFromRoot,
-  closeDrawer,
-}
+enum LxCloseButtonKind { closeFromTop, closeFromRoot, closeDrawer }
 
 /// × - Close button, usually placed on the [AppBar].
 ///
@@ -436,8 +428,9 @@ class LxCloseButton extends StatelessWidget {
 
     if (this.isLeading) {
       return Padding(
-          padding: const EdgeInsets.only(left: Space.leadingTweakLeftPadding),
-          child: button);
+        padding: const EdgeInsets.only(left: Space.leadingTweakLeftPadding),
+        child: button,
+      );
     } else {
       return button;
     }
@@ -451,10 +444,7 @@ class LxCloseButton extends StatelessWidget {
 ///
 /// * Go back to the previous page In a multi-step form.
 class LxBackButton extends StatelessWidget {
-  const LxBackButton({
-    super.key,
-    this.isLeading = false,
-  });
+  const LxBackButton({super.key, this.isLeading = false});
 
   final bool isLeading;
 
@@ -467,8 +457,9 @@ class LxBackButton extends StatelessWidget {
 
     if (this.isLeading) {
       return Padding(
-          padding: const EdgeInsets.only(left: Space.leadingTweakLeftPadding),
-          child: button);
+        padding: const EdgeInsets.only(left: Space.leadingTweakLeftPadding),
+        child: button,
+      );
     } else {
       return button;
     }
@@ -495,26 +486,26 @@ class LxRefreshButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ValueListenableBuilder(
-        valueListenable: this.isRefreshing,
-        builder: (_context, isRefreshing, _child) => IconButton(
-          // disable while we're refreshing.
-          onPressed: (isRefreshing) ? null : this.triggerRefresh,
+    valueListenable: this.isRefreshing,
+    builder: (_context, isRefreshing, _child) => IconButton(
+      // disable while we're refreshing.
+      onPressed: (isRefreshing) ? null : this.triggerRefresh,
 
-          // animate icon to a spinner while we're refreshing.
-          icon: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 150),
-            child: (!isRefreshing)
-                ? const Icon(LxIcons.refresh)
-                : const SizedBox.square(
-                    dimension: Fonts.size500,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 3.0,
-                      color: LxColors.fgTertiary,
-                    ),
-                  ),
-          ),
-        ),
-      );
+      // animate icon to a spinner while we're refreshing.
+      icon: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 150),
+        child: (!isRefreshing)
+            ? const Icon(LxIcons.refresh)
+            : const SizedBox.square(
+                dimension: Fonts.size500,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3.0,
+                  color: LxColors.fgTertiary,
+                ),
+              ),
+      ),
+    ),
+  );
 }
 
 /// An outlined button with an icon. Used as a secondary action button.
@@ -539,18 +530,18 @@ class LxFilledButton extends StatelessWidget {
     this.icon,
     ButtonStyle? style,
   }) : this.style = ButtonStyle(
-          foregroundColor: WidgetStateProperty.resolveWith(
-            (states) => (!states.contains(WidgetState.disabled))
-                ? LxColors.grey1000
-                : null,
-          ),
-          backgroundColor: WidgetStateProperty.resolveWith(
-            (states) => (!states.contains(WidgetState.disabled))
-                ? LxColors.moneyGoUp
-                : null,
-          ),
-          iconColor: const WidgetStatePropertyAll(LxColors.grey1000),
-        ).merge(style);
+         foregroundColor: WidgetStateProperty.resolveWith(
+           (states) => (!states.contains(WidgetState.disabled))
+               ? LxColors.grey1000
+               : null,
+         ),
+         backgroundColor: WidgetStateProperty.resolveWith(
+           (states) => (!states.contains(WidgetState.disabled))
+               ? LxColors.moneyGoUp
+               : null,
+         ),
+         iconColor: const WidgetStatePropertyAll(LxColors.grey1000),
+       ).merge(style);
 
   /// High emphasis button. black-bg, white-fg, filled button.
   LxFilledButton.strong({
@@ -560,19 +551,19 @@ class LxFilledButton extends StatelessWidget {
     this.icon,
     ButtonStyle? style,
   }) : this.style = ButtonStyle(
-          foregroundColor: WidgetStateProperty.resolveWith(
-            (states) => (!states.contains(WidgetState.disabled))
-                ? LxColors.background
-                : null,
-          ),
-          backgroundColor: WidgetStateProperty.resolveWith(
-            (states) => (!states.contains(WidgetState.disabled))
-                ? LxColors.foreground
-                : null,
-          ),
-          iconColor: const WidgetStatePropertyAll(LxColors.grey1000),
-          overlayColor: const WidgetStatePropertyAll(LxColors.clearW200),
-        ).merge(style);
+         foregroundColor: WidgetStateProperty.resolveWith(
+           (states) => (!states.contains(WidgetState.disabled))
+               ? LxColors.background
+               : null,
+         ),
+         backgroundColor: WidgetStateProperty.resolveWith(
+           (states) => (!states.contains(WidgetState.disabled))
+               ? LxColors.foreground
+               : null,
+         ),
+         iconColor: const WidgetStatePropertyAll(LxColors.grey1000),
+         overlayColor: const WidgetStatePropertyAll(LxColors.clearW200),
+       ).merge(style);
 
   final Widget? label;
   final Widget? icon;
@@ -619,7 +610,7 @@ class LxOutlinedButton extends StatelessWidget {
 
 class ButtonChild extends StatelessWidget {
   const ButtonChild({super.key, this.label, this.icon})
-      : assert(label != null || icon != null);
+    : assert(label != null || icon != null);
 
   final Widget? label;
   final Widget? icon;
@@ -649,10 +640,7 @@ class ButtonChild extends StatelessWidget {
 
 /// Heading/title text that sits directly beneath the AppBar.
 class HeadingText extends StatelessWidget {
-  const HeadingText({
-    super.key,
-    required this.text,
-  });
+  const HeadingText({super.key, required this.text});
 
   final String text;
 
@@ -753,14 +741,8 @@ class ItemizedAmountRow extends StatelessWidget {
       letterSpacing: -0.25,
     );
     final satsOrPlaceholder = (satsAmount != null)
-        ? Text(
-            currency_format.formatSatsAmount(satsAmount),
-            style: satsStyle,
-          )
-        : FilledTextPlaceholder(
-            width: Space.s800,
-            style: satsStyle,
-          );
+        ? Text(currency_format.formatSatsAmount(satsAmount), style: satsStyle)
+        : FilledTextPlaceholder(width: Space.s800, style: satsStyle);
 
     const fiatSize = Fonts.size300;
     final fiatStyle = Fonts.fontUI.copyWith(
@@ -782,10 +764,7 @@ class ItemizedAmountRow extends StatelessWidget {
               letterSpacing: -0.25,
             ),
           )
-        : FilledTextPlaceholder(
-            width: Space.s900,
-            style: fiatStyle,
-          );
+        : FilledTextPlaceholder(width: Space.s900, style: fiatStyle);
 
     return ListTile(
       // list tile styling
@@ -800,7 +779,6 @@ class ItemizedAmountRow extends StatelessWidget {
       dense: true,
 
       // actual content
-
       leading: this.icon,
 
       // NOTE: we use a Row() in `title` and `subtitle` instead of `trailing` so
@@ -824,7 +802,7 @@ class ItemizedAmountRow extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(left: Space.s200),
               child: fiatOrPlaceholder,
-            )
+            ),
           ],
         ),
       ),
@@ -846,7 +824,7 @@ class ItemizedAmountRow extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: Space.s200),
             child: satsOrPlaceholder,
-          )
+          ),
         ],
       ),
     );
@@ -888,8 +866,11 @@ class SplitAmountText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // ex: 1234.56 -> "$1,234.56" (locale dependent) -> ("$1,234", ".56")
-    final (amountWhole, amountFract) = currency_format
-        .formatFiatParts(this.amount, this.fiatName, locale: this.locale);
+    final (amountWhole, amountFract) = currency_format.formatFiatParts(
+      this.amount,
+      this.fiatName,
+      locale: this.locale,
+    );
 
     final TextStyle styleFract =
         this.styleFract ?? const TextStyle(color: LxColors.fgTertiary);
@@ -898,10 +879,7 @@ class SplitAmountText extends StatelessWidget {
       TextSpan(
         children: <TextSpan>[
           TextSpan(text: amountWhole),
-          TextSpan(
-            text: amountFract,
-            style: styleFract,
-          ),
+          TextSpan(text: amountFract, style: styleFract),
         ],
         style: this.style,
       ),
@@ -969,8 +947,10 @@ class PaymentAmountInput extends StatelessWidget {
     return TextFormField(
       key: this.fieldKey,
       autofocus: true,
-      keyboardType:
-          const TextInputType.numberWithOptions(signed: false, decimal: false),
+      keyboardType: const TextInputType.numberWithOptions(
+        signed: false,
+        decimal: false,
+      ),
       initialValue: (initialValue != null)
           ? this.intInputFormatter.formatInt(initialValue)
           : "0",
@@ -1056,23 +1036,30 @@ class PaymentNoteInput extends StatelessWidget {
         counterStyle: TextStyle(color: LxColors.grey550),
         border: OutlineInputBorder(),
         enabledBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: LxColors.fgTertiary)),
+          borderSide: BorderSide(color: LxColors.fgTertiary),
+        ),
         focusedBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: LxColors.foreground)),
+          borderSide: BorderSide(color: LxColors.foreground),
+        ),
       ),
 
       // Only show "XX/YY" character limit counter when text area is focused.
-      buildCounter: (context,
-              {required int currentLength,
-              required int? maxLength,
-              required bool isFocused}) =>
-          (isFocused && maxLength != null)
-              ? Text("$currentLength/$maxLength",
-                  style: const TextStyle(
-                      fontSize: Fonts.size100,
-                      color: LxColors.grey550,
-                      height: 1.0))
-              : const SizedBox(height: Fonts.size100),
+      buildCounter:
+          (
+            context, {
+            required int currentLength,
+            required int? maxLength,
+            required bool isFocused,
+          }) => (isFocused && maxLength != null)
+          ? Text(
+              "$currentLength/$maxLength",
+              style: const TextStyle(
+                fontSize: Fonts.size100,
+                color: LxColors.grey550,
+                height: 1.0,
+              ),
+            )
+          : const SizedBox(height: Fonts.size100),
 
       style: Fonts.fontBody.copyWith(
         fontSize: Fonts.size200,
@@ -1084,10 +1071,8 @@ class PaymentNoteInput extends StatelessWidget {
   }
 }
 
-typedef StateStreamWidgetBuilder<T> = Widget Function(
-  BuildContext context,
-  T data,
-);
+typedef StateStreamWidgetBuilder<T> =
+    Widget Function(BuildContext context, T data);
 
 /// A small helper [Widget] that builds a new widget every time a [StateStream]
 /// gets an update.
@@ -1100,17 +1085,15 @@ class StateStreamBuilder<T> extends StreamBuilder<T> {
     required StateStream<T> stream,
     required StateStreamWidgetBuilder builder,
   }) : super(
-          stream: stream,
-          initialData: stream.value,
-          builder: (BuildContext context, AsyncSnapshot<T> snapshot) =>
-              builder(context, snapshot.data),
-        );
+         stream: stream,
+         initialData: stream.value,
+         builder: (BuildContext context, AsyncSnapshot<T> snapshot) =>
+             builder(context, snapshot.data),
+       );
 }
 
-typedef ValueStreamWidgetBuilder<T> = Widget Function(
-  BuildContext context,
-  T? data,
-);
+typedef ValueStreamWidgetBuilder<T> =
+    Widget Function(BuildContext context, T? data);
 
 /// A small helper [Widget] that builds a new widget every time a [ValueStream]
 /// gets an update.
@@ -1123,21 +1106,24 @@ class ValueStreamBuilder<T> extends StreamBuilder<T> {
     required ValueStream<T> stream,
     required ValueStreamWidgetBuilder<T> builder,
   }) : super(
-          stream: stream,
-          initialData: stream.value,
-          builder: (BuildContext context, AsyncSnapshot<T> snapshot) =>
-              builder(context, snapshot.data),
-        );
+         stream: stream,
+         initialData: stream.value,
+         builder: (BuildContext context, AsyncSnapshot<T> snapshot) =>
+             builder(context, snapshot.data),
+       );
 }
 
 /// The receipt-style separator on various confirm pages.
 class ReceiptSeparator extends SizedBox {
   const ReceiptSeparator({super.key})
-      : super(
-          height: Space.s650,
-          child: const ZigZag(
-              color: LxColors.grey750, zigWidth: 14.0, strokeWidth: 1.0),
-        );
+    : super(
+        height: Space.s650,
+        child: const ZigZag(
+          color: LxColors.grey750,
+          zigWidth: 14.0,
+          strokeWidth: 1.0,
+        ),
+      );
 }
 
 /// A zigzag line that spans the width of its container.
@@ -1308,15 +1294,15 @@ class ChannelBalanceBar extends StatelessWidget {
     super.key,
     required this.value,
     this.height = Space.s300,
-  })  : color = LxColors.moneyGoUp,
-        backgroundColor = LxColors.moneyGoUpSecondary;
+  }) : color = LxColors.moneyGoUp,
+       backgroundColor = LxColors.moneyGoUpSecondary;
 
   const ChannelBalanceBar.pending({
     super.key,
     required this.value,
     this.height = Space.s300,
-  })  : color = LxColors.grey800,
-        backgroundColor = LxColors.grey850;
+  }) : color = LxColors.grey800,
+       backgroundColor = LxColors.grey850;
 
   final Color color;
   final Color backgroundColor;
@@ -1570,17 +1556,17 @@ class SheetDragHandle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Container(
-          margin: const EdgeInsets.only(top: Space.s200),
-          width: Space.s800,
-          height: 4,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: this.color,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      );
+    child: Container(
+      margin: const EdgeInsets.only(top: Space.s200),
+      width: Space.s800,
+      height: 4,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: this.color,
+        borderRadius: BorderRadius.circular(2),
+      ),
+    ),
+  );
 }
 
 typedef ErrorDialogBuilder<E> = Widget Function(BuildContext context, E err);
@@ -1632,7 +1618,7 @@ Future<Result<T, E>?> showModalAsyncFlow<T, E>({
 /// An error title and message. Used with [ErrorMessageSection].
 final class ErrorMessage {
   const ErrorMessage({this.title, this.message})
-      : assert(title != null || message != null);
+    : assert(title != null || message != null);
 
   final String? title;
   final String? message;
@@ -1827,8 +1813,10 @@ class _ErrorMessageSectionState extends State<ErrorMessageSection> {
                   final needsExpandable = _needsExpandable(
                     context: context,
                     // account for horizontal Padding below
-                    maxWidth: (size.maxWidth - (2.0 * horizPad))
-                        .clamp(0.0, double.infinity),
+                    maxWidth: (size.maxWidth - (2.0 * horizPad)).clamp(
+                      0.0,
+                      double.infinity,
+                    ),
                     message: message,
                     title: title,
                   );
@@ -1841,9 +1829,15 @@ class _ErrorMessageSectionState extends State<ErrorMessageSection> {
                       // account for v caret icon in bottom padding
                       padding: needsExpandable
                           ? const EdgeInsets.fromLTRB(
-                              horizPad, vertPad, horizPad, Space.s100)
+                              horizPad,
+                              vertPad,
+                              horizPad,
+                              Space.s100,
+                            )
                           : const EdgeInsets.symmetric(
-                              horizontal: horizPad, vertical: vertPad),
+                              horizontal: horizPad,
+                              vertical: vertPad,
+                            ),
 
                       // Outer Row(Expanded(..)) forces error card to take full
                       // horizontal space
@@ -1861,21 +1855,22 @@ class _ErrorMessageSectionState extends State<ErrorMessageSection> {
                                   Padding(
                                     padding: (message != null)
                                         ? const EdgeInsets.only(
-                                            bottom: Space.s200)
+                                            bottom: Space.s200,
+                                          )
                                         : EdgeInsets.zero,
                                     child: ValueListenableBuilder(
                                       valueListenable: this.isExpanded,
                                       builder: (_context, isExpanded, _child) =>
                                           Text(
-                                        title,
-                                        maxLines: (needsExpandable)
-                                            ? ((isExpanded)
-                                                // null doesn't work -- then it never wraps
-                                                ? 4
-                                                : titleMaxLines)
-                                            : titleMaxLines,
-                                        style: titleStyle,
-                                      ),
+                                            title,
+                                            maxLines: (needsExpandable)
+                                                ? ((isExpanded)
+                                                      // null doesn't work -- then it never wraps
+                                                      ? 4
+                                                      : titleMaxLines)
+                                                : titleMaxLines,
+                                            style: titleStyle,
+                                          ),
                                     ),
                                   ),
 
@@ -1884,14 +1879,13 @@ class _ErrorMessageSectionState extends State<ErrorMessageSection> {
                                 if (message != null)
                                   ValueListenableBuilder(
                                     valueListenable: this.isExpanded,
-                                    builder: (_context, isExpanded, _child) =>
-                                        Text(
+                                    builder: (_context, isExpanded, _child) => Text(
                                       message,
                                       maxLines: (needsExpandable)
                                           ? ((isExpanded)
-                                              // null doesn't work -- then it never wraps
-                                              ? 100
-                                              : messageMaxLines)
+                                                // null doesn't work -- then it never wraps
+                                                ? 100
+                                                : messageMaxLines)
                                           : messageMaxLines,
                                       style: messageStyle,
                                     ),
@@ -1902,19 +1896,20 @@ class _ErrorMessageSectionState extends State<ErrorMessageSection> {
                                   Center(
                                     child: Padding(
                                       padding: const EdgeInsets.only(
-                                          top: Space.s100),
+                                        top: Space.s100,
+                                      ),
                                       child: ValueListenableBuilder(
                                         valueListenable: this.isExpanded,
                                         builder:
                                             (_context, isExpanded, _child) =>
                                                 Icon(
-                                          (isExpanded)
-                                              ? LxIcons.expandUpSmall
-                                              : LxIcons.expandDownSmall,
-                                          // color: LxColors.errorText,
-                                          color: LxColors.foreground,
-                                          weight: LxIcons.weightLight,
-                                        ),
+                                                  (isExpanded)
+                                                      ? LxIcons.expandUpSmall
+                                                      : LxIcons.expandDownSmall,
+                                                  // color: LxColors.errorText,
+                                                  color: LxColors.foreground,
+                                                  weight: LxIcons.weightLight,
+                                                ),
                                       ),
                                     ),
                                   ),
@@ -1978,54 +1973,47 @@ class FilledCircle extends DecoratedBox {
     required Color color,
     Widget? child,
   }) : super(
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.all(Radius.circular(0.5 * size)),
-          ),
-          child: SizedBox.square(dimension: size, child: child),
-        );
+         decoration: BoxDecoration(
+           color: color,
+           borderRadius: BorderRadius.all(Radius.circular(0.5 * size)),
+         ),
+         child: SizedBox.square(dimension: size, child: child),
+       );
 }
 
 /// An icon inside a filled circle.
 class ListIcon extends StatelessWidget {
-  const ListIcon(
-    this.icon, {
-    super.key,
-    required this.background,
-  });
+  const ListIcon(this.icon, {super.key, required this.background});
 
   const ListIcon.lightning({super.key})
-      : icon = const Icon(
-          LxIcons.lightning,
-          size: Space.s500,
-          color: LxColors.fgSecondary,
-          fill: 1.0,
-          weight: LxIcons.weightLight,
-        ),
-        background = LxColors.grey850;
+    : icon = const Icon(
+        LxIcons.lightning,
+        size: Space.s500,
+        color: LxColors.fgSecondary,
+        fill: 1.0,
+        weight: LxIcons.weightLight,
+      ),
+      background = LxColors.grey850;
 
   const ListIcon.bitcoin({super.key})
-      : icon = const Icon(
-          LxIcons.bitcoin,
-          size: Space.s500,
-          color: LxColors.fgSecondary,
-        ),
-        background = LxColors.grey850;
+    : icon = const Icon(
+        LxIcons.bitcoin,
+        size: Space.s500,
+        color: LxColors.fgSecondary,
+      ),
+      background = LxColors.grey850;
 
   factory ListIcon.byBalanceKind(BalanceKind kind) => switch (kind) {
-        BalanceKind.onchain => const ListIcon.bitcoin(),
-        BalanceKind.lightning => const ListIcon.lightning(),
-      };
+    BalanceKind.onchain => const ListIcon.bitcoin(),
+    BalanceKind.lightning => const ListIcon.lightning(),
+  };
 
   final Widget icon;
   final Color background;
 
   @override
-  Widget build(BuildContext context) => FilledCircle(
-        size: Space.s650,
-        color: this.background,
-        child: this.icon,
-      );
+  Widget build(BuildContext context) =>
+      FilledCircle(size: Space.s650, color: this.background, child: this.icon);
 }
 
 /// A [Column] of [InfoRow]s, surrounded by a white rounded card. Includes
@@ -2050,9 +2038,7 @@ class InfoCard extends StatelessWidget {
       margin: const EdgeInsets.all(0),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: Space.s300 / 2),
-        child: Column(
-          children: this.children,
-        ),
+        child: Column(children: this.children),
       ),
     );
 
@@ -2066,8 +2052,10 @@ class InfoCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding:
-                  EdgeInsets.only(left: this.bodyPadding, bottom: Space.s200),
+              padding: EdgeInsets.only(
+                left: this.bodyPadding,
+                bottom: Space.s200,
+              ),
               child: Text(
                 header,
                 style: const TextStyle(
@@ -2198,11 +2186,7 @@ class InfoRow extends StatelessWidget {
     }
 
     final maybeCopyOnTapRow = (isMobile)
-        ? InkWell(
-            onTap: onTap,
-            onLongPress: copyValue,
-            child: row,
-          )
+        ? InkWell(onTap: onTap, onLongPress: copyValue, child: row)
         : row;
 
     return maybeCopyOnTapRow;

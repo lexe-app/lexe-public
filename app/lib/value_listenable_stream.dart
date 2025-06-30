@@ -30,7 +30,8 @@ class ValueListenableStream<T> extends Stream<T> implements ValueStream<T> {
   }) {
     if (this._controller != null) {
       throw StateError(
-          "There's already a listener on this ValueListenableStream");
+        "There's already a listener on this ValueListenableStream",
+      );
     }
 
     this._controller = StreamController<T>(
@@ -41,11 +42,11 @@ class ValueListenableStream<T> extends Stream<T> implements ValueStream<T> {
     );
 
     return this._controller!.stream.listen(
-          onData,
-          onError: onError,
-          onDone: onDone,
-          cancelOnError: cancelOnError,
-        );
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
   }
 
   /// This callback is registered with the inner `_valueListenable` and gets

@@ -31,10 +31,7 @@ import 'package:lexeapp/style.dart' show LxColors, LxIcons, Space;
 
 /// This page lets users add, edit, and revoke SDK client credentials.
 class ClientsPage extends StatefulWidget {
-  const ClientsPage({
-    super.key,
-    required this.app,
-  });
+  const ClientsPage({super.key, required this.app});
 
   final AppHandle app;
 
@@ -44,8 +41,9 @@ class ClientsPage extends StatefulWidget {
 
 class _ClientsPageState extends State<ClientsPage> {
   /// List clients on refresh.
-  late final ClientsService clientsService =
-      ClientsService(app: this.widget.app);
+  late final ClientsService clientsService = ClientsService(
+    app: this.widget.app,
+  );
 
   @override
   void initState() {
@@ -64,26 +62,31 @@ class _ClientsPageState extends State<ClientsPage> {
   }
 
   Future<void> onCreatePressed() async {
-    final CreateClientResponse? response =
-        await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (context) => CreateClientPage(app: this.widget.app),
-    ));
+    final CreateClientResponse? response = await Navigator.of(this.context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => CreateClientPage(app: this.widget.app),
+          ),
+        );
     if (!this.mounted || response == null) return;
 
     // Refresh list in the background
     this.triggerRefresh();
 
-    await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (context) => ShowCredentialsPage(response: response),
-    ));
+    await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) => ShowCredentialsPage(response: response),
+      ),
+    );
   }
 
   Future<void> onRevokePressed(RevocableClient client) async {
     info("pressed revoke client (${client.pubkey})");
 
     final req = UpdateClientRequest(pubkey: client.pubkey, isRevoked: true);
-    final fut =
-        Result.tryFfiAsync(() => this.widget.app.updateClient(req: req));
+    final fut = Result.tryFfiAsync(
+      () => this.widget.app.updateClient(req: req),
+    );
 
     final res = await showModalAsyncFlow(
       context: this.context,
@@ -148,31 +151,33 @@ class _ClientsPageState extends State<ClientsPage> {
             builder: (_context, listResult, _widget) => switch (listResult) {
               // Failed to fetch clients
               Err(:final err) => SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: Space.s500),
-                    child: ErrorMessageSection(ErrorMessage(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: Space.s500),
+                  child: ErrorMessageSection(
+                    ErrorMessage(
                       title: "Failed to fetch clients",
                       message: err.message,
-                    )),
+                    ),
                   ),
                 ),
+              ),
               // List of clients
               Ok(:final ok) => SliverFixedExtentList.builder(
-                  itemExtent: Space.s850,
-                  itemCount: ok.length,
-                  itemBuilder: (context, index) {
-                    final clients = ok;
-                    if (index >= clients.length) {
-                      return null;
-                    }
+                itemExtent: Space.s850,
+                itemCount: ok.length,
+                itemBuilder: (context, index) {
+                  final clients = ok;
+                  if (index >= clients.length) {
+                    return null;
+                  }
 
-                    final client = clients[index];
-                    return ClientListEntry(
-                      client: client,
-                      onRevokedPressed: this.onRevokePressed,
-                    );
-                  },
-                ),
+                  final client = clients[index];
+                  return ClientListEntry(
+                    client: client,
+                    onRevokedPressed: this.onRevokePressed,
+                  );
+                },
+              ),
             },
           ),
         ],
@@ -194,8 +199,11 @@ typedef RevokeCallback = Future<void> Function(RevocableClient client);
 
 /// A single entry in the list of clients.
 class ClientListEntry extends StatelessWidget {
-  const ClientListEntry(
-      {super.key, required this.client, required this.onRevokedPressed});
+  const ClientListEntry({
+    super.key,
+    required this.client,
+    required this.onRevokedPressed,
+  });
 
   final RevocableClient client;
   final RevokeCallback onRevokedPressed;
@@ -206,8 +214,10 @@ class ClientListEntry extends StatelessWidget {
   Widget build(BuildContext context) {
     final client = this.client;
     final label = client.label;
-    final createdAtUtc =
-        DateTime.fromMillisecondsSinceEpoch(client.createdAt, isUtc: true);
+    final createdAtUtc = DateTime.fromMillisecondsSinceEpoch(
+      client.createdAt,
+      isUtc: true,
+    );
     final createdAt = date_format.formatDateFull(createdAtUtc);
 
     final subtitle = "created: $createdAt\npublic key: ${client.pubkey}";
@@ -218,10 +228,7 @@ class ClientListEntry extends StatelessWidget {
           : null,
       subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
       trailing: IconButton(
-        icon: const Icon(
-          LxIcons.delete,
-          weight: LxIcons.weightMedium,
-        ),
+        icon: const Icon(LxIcons.delete, weight: LxIcons.weightMedium),
         onPressed: this._onRevokedPressed,
       ),
     );
@@ -392,8 +399,10 @@ class _ShowCredentialsPageState extends State<ShowCredentialsPage> {
           ),
           Padding(
             padding: const EdgeInsets.only(top: Space.s500, bottom: Space.s300),
-            child:
-                LxFilledButton(label: const Text("Copy"), onTap: onCopyPressed),
+            child: LxFilledButton(
+              label: const Text("Copy"),
+              onTap: onCopyPressed,
+            ),
           ),
           InfoCard(
             children: [
@@ -402,7 +411,7 @@ class _ShowCredentialsPageState extends State<ShowCredentialsPage> {
                 value: this.widget.response.credentials,
               ),
             ],
-          )
+          ),
         ],
       ),
     );

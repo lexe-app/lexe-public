@@ -47,15 +47,17 @@ class _DebugPageState extends State<DebugPage> {
   Future<void> doDeleteLocalPaymentDb() async {
     info("Deleting local PaymentDb");
 
-    (await Result.tryFfiAsync(this.widget.app.deletePaymentDb))
-        .inspectErr((err) => error(err.message));
+    (await Result.tryFfiAsync(
+      this.widget.app.deletePaymentDb,
+    )).inspectErr((err) => error(err.message));
   }
 
   void doDeleteSecretStore() {
     info("Deleting SecretStore");
 
-    Result.tryFfi(() => debug.deleteSecretStore(config: this.widget.config))
-        .inspectErr((err) => error(err.message));
+    Result.tryFfi(
+      () => debug.deleteSecretStore(config: this.widget.config),
+    ).inspectErr((err) => error(err.message));
   }
 
   // void doDeleteLatestProvisionedFile() {
@@ -151,11 +153,16 @@ class _DebugPageState extends State<DebugPage> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text("Reset settings"),
-            subtitle: const Text.rich(TextSpan(children: [
+            subtitle: const Text.rich(
               TextSpan(
-                  text: "Resets all settings to their default values.",
-                  style: TextStyle(color: LxColors.fgTertiary)),
-            ])),
+                children: [
+                  TextSpan(
+                    text: "Resets all settings to their default values.",
+                    style: TextStyle(color: LxColors.fgTertiary),
+                  ),
+                ],
+              ),
+            ),
             onTap: this.doResetSettingsDb,
           ),
 
@@ -186,15 +193,21 @@ class _DebugPageState extends State<DebugPage> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text("Delete local secrets"),
-            subtitle: const Text.rich(TextSpan(children: [
+            subtitle: const Text.rich(
               TextSpan(
-                  text: "WARNING: ",
-                  style: TextStyle(color: Color(0xffeb5d47))),
-              TextSpan(
-                  text:
-                      "you will need to recover from backup to use this wallet again",
-                  style: TextStyle(color: LxColors.fgTertiary)),
-            ])),
+                children: [
+                  TextSpan(
+                    text: "WARNING: ",
+                    style: TextStyle(color: Color(0xffeb5d47)),
+                  ),
+                  TextSpan(
+                    text:
+                        "you will need to recover from backup to use this wallet again",
+                    style: TextStyle(color: LxColors.fgTertiary),
+                  ),
+                ],
+              ),
+            ),
             onTap: this.doDeleteSecretStore,
           ),
 
@@ -202,15 +215,22 @@ class _DebugPageState extends State<DebugPage> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text("Copy RootSeed to clipboard"),
-            subtitle: const Text.rich(TextSpan(children: [
+            subtitle: const Text.rich(
               TextSpan(
-                  text: "WARNING: ",
-                  style: TextStyle(color: Color(0xffeb5d47))),
-              TextSpan(
-                  text: "this is the root seed for your wallet. Anyone "
-                      "with this secret also controls your funds.",
-                  style: TextStyle(color: LxColors.fgTertiary)),
-            ])),
+                children: [
+                  TextSpan(
+                    text: "WARNING: ",
+                    style: TextStyle(color: Color(0xffeb5d47)),
+                  ),
+                  TextSpan(
+                    text:
+                        "this is the root seed for your wallet. Anyone "
+                        "with this secret also controls your funds.",
+                    style: TextStyle(color: LxColors.fgTertiary),
+                  ),
+                ],
+              ),
+            ),
             onTap: this.copyRootSeed,
           ),
 
@@ -218,15 +238,21 @@ class _DebugPageState extends State<DebugPage> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text("Dump node state from GDrive"),
-            subtitle: const Text.rich(TextSpan(children: [
+            subtitle: const Text.rich(
               TextSpan(
-                  text: "WARNING: ",
-                  style: TextStyle(color: Color(0xffeb5d47))),
-              TextSpan(
-                  text:
-                      "this contains some secrets and sensitive information about your node. Only share this with someone you trust.",
-                  style: TextStyle(color: LxColors.fgTertiary)),
-            ])),
+                children: [
+                  TextSpan(
+                    text: "WARNING: ",
+                    style: TextStyle(color: Color(0xffeb5d47)),
+                  ),
+                  TextSpan(
+                    text:
+                        "this contains some secrets and sensitive information about your node. Only share this with someone you trust.",
+                    style: TextStyle(color: LxColors.fgTertiary),
+                  ),
+                ],
+              ),
+            ),
             onTap: this.dumpNodeStateFromGdrive,
           ),
         ],

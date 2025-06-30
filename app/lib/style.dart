@@ -23,67 +23,67 @@ final class LxTheme {
   // theme: light, icons: dark, background: light
   static const SystemUiOverlayStyle systemOverlayStyleLight =
       SystemUiOverlayStyle(
-    // From: SystemUiOverlayStyle.dark
-    systemNavigationBarIconBrightness: Brightness.light,
-    statusBarIconBrightness: Brightness.dark,
-    statusBarBrightness: Brightness.light,
-    // Lexe overrides
-    statusBarColor: LxColors.background,
-    systemNavigationBarColor: LxColors.background,
-    systemNavigationBarDividerColor: LxColors.background,
-  );
+        // From: SystemUiOverlayStyle.dark
+        systemNavigationBarIconBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        // Lexe overrides
+        statusBarColor: LxColors.background,
+        systemNavigationBarColor: LxColors.background,
+        systemNavigationBarDividerColor: LxColors.background,
+      );
 
   // theme: light, icons: dark, background: clear
   static const SystemUiOverlayStyle systemOverlayStyleLightClearBg =
       SystemUiOverlayStyle(
-    // From: SystemUiOverlayStyle.dark
-    systemNavigationBarIconBrightness: Brightness.light,
-    statusBarIconBrightness: Brightness.dark,
-    statusBarBrightness: Brightness.light,
-    // Lexe overrides
-    statusBarColor: LxColors.clearW0,
-    systemNavigationBarColor: LxColors.clearW0,
-    systemNavigationBarDividerColor: LxColors.clearW0,
-  );
+        // From: SystemUiOverlayStyle.dark
+        systemNavigationBarIconBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        // Lexe overrides
+        statusBarColor: LxColors.clearW0,
+        systemNavigationBarColor: LxColors.clearW0,
+        systemNavigationBarDividerColor: LxColors.clearW0,
+      );
 
   // theme: light, icons: dark, background: white
   static const SystemUiOverlayStyle systemOverlayStyleLightWhiteBg =
       SystemUiOverlayStyle(
-    // From: SystemUiOverlayStyle.dark
-    systemNavigationBarIconBrightness: Brightness.light,
-    statusBarIconBrightness: Brightness.dark,
-    statusBarBrightness: Brightness.light,
-    // Lexe overrides
-    statusBarColor: LxColors.background,
-    systemNavigationBarColor: LxColors.grey1000,
-    systemNavigationBarDividerColor: LxColors.grey1000,
-  );
+        // From: SystemUiOverlayStyle.dark
+        systemNavigationBarIconBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        // Lexe overrides
+        statusBarColor: LxColors.background,
+        systemNavigationBarColor: LxColors.grey1000,
+        systemNavigationBarDividerColor: LxColors.grey1000,
+      );
 
   // theme: dark, icons: light, background: dark
   static const SystemUiOverlayStyle systemOverlayStyleDark =
       SystemUiOverlayStyle(
-    // From: SystemUiOverlayStyle.light
-    systemNavigationBarIconBrightness: Brightness.light,
-    statusBarIconBrightness: Brightness.light,
-    statusBarBrightness: Brightness.dark,
-    // Lexe overrides
-    statusBarColor: LxColors.foreground,
-    systemNavigationBarColor: LxColors.foreground,
-    systemNavigationBarDividerColor: LxColors.foreground,
-  );
+        // From: SystemUiOverlayStyle.light
+        systemNavigationBarIconBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        // Lexe overrides
+        statusBarColor: LxColors.foreground,
+        systemNavigationBarColor: LxColors.foreground,
+        systemNavigationBarDividerColor: LxColors.foreground,
+      );
 
   // theme: dark, icons: light, background: clear
   static const SystemUiOverlayStyle systemOverlayStyleDarkClearBg =
       SystemUiOverlayStyle(
-    // From: SystemUiOverlayStyle.light
-    systemNavigationBarIconBrightness: Brightness.light,
-    statusBarIconBrightness: Brightness.light,
-    statusBarBrightness: Brightness.dark,
-    // Lexe overrides
-    statusBarColor: LxColors.clearB0,
-    systemNavigationBarColor: LxColors.clearB0,
-    systemNavigationBarDividerColor: LxColors.clearB0,
-  );
+        // From: SystemUiOverlayStyle.light
+        systemNavigationBarIconBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        // Lexe overrides
+        statusBarColor: LxColors.clearB0,
+        systemNavigationBarColor: LxColors.clearB0,
+        systemNavigationBarDividerColor: LxColors.clearB0,
+      );
 
   /// The global, Lexe-specific light theme.
   static ThemeData light() {
@@ -112,9 +112,7 @@ final class LxTheme {
           displayColor: LxColors.foreground,
           bodyColor: LxColors.foreground,
         )
-        .copyWith(
-          headlineSmall: Fonts.fontHeadlineSmall,
-        );
+        .copyWith(headlineSmall: Fonts.fontHeadlineSmall);
 
     // Start with a basic theme generated from our greyscale colors. This will
     // provide somewhat reasonable default styling for things that we haven't
@@ -185,36 +183,43 @@ final class LxTheme {
 
       // [OutlinedButton]
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: LxColors.foreground,
-          backgroundColor: LxColors.clearB0,
-          iconColor: LxColors.foreground,
-          disabledForegroundColor: LxColors.fgTertiary,
-          disabledBackgroundColor: LxColors.clearB0,
-          disabledIconColor: LxColors.fgTertiary,
-          padding: const EdgeInsets.all(Space.buttonPadding),
-          minimumSize: const Size.square(Space.buttonMinDim),
-          maximumSize: const Size.fromHeight(Space.buttonMinDim),
-          // Use visualDensity=0 to avoid touching tight min/max height
-          // constraints. Otherwise we get render overflows in some niche
-          // situations (Button in Column in ScrollableSinglePageBody.bottom).
-          visualDensity: const VisualDensity(horizontal: 0.0, vertical: 0.0),
-          textStyle: Fonts.fontButton,
-          iconSize: Fonts.size600,
-        ).copyWith(
-          // Place dynamic styles here, i.e., styles that should change in
-          // different button states (ex: normal, focused, disabled, hover, ...)
+        style:
+            OutlinedButton.styleFrom(
+              foregroundColor: LxColors.foreground,
+              backgroundColor: LxColors.clearB0,
+              iconColor: LxColors.foreground,
+              disabledForegroundColor: LxColors.fgTertiary,
+              disabledBackgroundColor: LxColors.clearB0,
+              disabledIconColor: LxColors.fgTertiary,
+              padding: const EdgeInsets.all(Space.buttonPadding),
+              minimumSize: const Size.square(Space.buttonMinDim),
+              maximumSize: const Size.fromHeight(Space.buttonMinDim),
+              // Use visualDensity=0 to avoid touching tight min/max height
+              // constraints. Otherwise we get render overflows in some niche
+              // situations (Button in Column in ScrollableSinglePageBody.bottom).
+              visualDensity: const VisualDensity(
+                horizontal: 0.0,
+                vertical: 0.0,
+              ),
+              textStyle: Fonts.fontButton,
+              iconSize: Fonts.size600,
+            ).copyWith(
+              // Place dynamic styles here, i.e., styles that should change in
+              // different button states (ex: normal, focused, disabled, hover, ...)
 
-          // deemphasize disabled button border
-          side: WidgetStateProperty.resolveWith((Set<WidgetState> states) {
-            // disabled => deemphasized border
-            if (states.contains(WidgetState.disabled)) {
-              return const BorderSide(color: LxColors.fgTertiary, width: 2.0);
-            }
-            // normal
-            return const BorderSide(color: LxColors.foreground, width: 2.0);
-          }),
-        ),
+              // deemphasize disabled button border
+              side: WidgetStateProperty.resolveWith((Set<WidgetState> states) {
+                // disabled => deemphasized border
+                if (states.contains(WidgetState.disabled)) {
+                  return const BorderSide(
+                    color: LxColors.fgTertiary,
+                    width: 2.0,
+                  );
+                }
+                // normal
+                return const BorderSide(color: LxColors.foreground, width: 2.0);
+              }),
+            ),
       ),
 
       // [FilledButton]
@@ -241,10 +246,11 @@ final class LxTheme {
 
       // [Radio] button
       radioTheme: RadioThemeData(
-        fillColor: WidgetStateProperty.resolveWith((states) =>
-            (states.contains(WidgetState.disabled))
-                ? LxColors.fgTertiary
-                : LxColors.foreground),
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) => (states.contains(WidgetState.disabled))
+              ? LxColors.fgTertiary
+              : LxColors.foreground,
+        ),
       ),
 
       // [ListTile]
@@ -270,8 +276,9 @@ final class LxTheme {
         backgroundColor: LxColors.background,
         elevation: 0.0,
         shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.all(Radius.elliptical(LxRadius.r400, LxRadius.r400)),
+          borderRadius: BorderRadius.all(
+            Radius.elliptical(LxRadius.r400, LxRadius.r400),
+          ),
         ),
         barrierColor: LxColors.clearB300,
       ),

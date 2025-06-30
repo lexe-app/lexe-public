@@ -92,10 +92,8 @@ class RefreshService {
     this._isBurstRefreshing = false;
   }
 
-  Timer _makeBackgroundTimer() => Timer(
-        const Duration(minutes: 1),
-        this.triggerRefresh,
-      );
+  Timer _makeBackgroundTimer() =>
+      Timer(const Duration(minutes: 1), this.triggerRefresh);
 
   void dispose() {
     assert(!this.isDisposed);

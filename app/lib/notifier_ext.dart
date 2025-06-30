@@ -146,7 +146,8 @@ class ComputedValueListenable<T> extends ValueNotifier<T> {
   @override
   set value(T newValue) {
     throw UnsupportedError(
-        "CombinedValueListenable doesn't support setting the value");
+      "CombinedValueListenable doesn't support setting the value",
+    );
   }
 }
 

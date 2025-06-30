@@ -60,14 +60,15 @@ class _ProdSignupApi implements SignupApi {
     required String password,
     required String? signupCode,
     required String? partner,
-  }) =>
-      Result.tryFfiAsync(() => AppHandle.signup(
-            config: config,
-            googleAuthCode: googleAuthCode,
-            password: password,
-            signupCode: signupCode,
-            partner: partner,
-          ));
+  }) => Result.tryFfiAsync(
+    () => AppHandle.signup(
+      config: config,
+      googleAuthCode: googleAuthCode,
+      password: password,
+      signupCode: signupCode,
+      partner: partner,
+    ),
+  );
 }
 
 /// The entry point for the signup flow.
@@ -78,10 +79,10 @@ class SignupPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MultistepFlow<AppHandle?>(
-        builder: (_) => (requireSignupCode)
-            ? SignupCodePage(ctx: this.ctx)
-            : SignupGDriveAuthPage(ctx: this.ctx, signupCode: null),
-      );
+    builder: (_) => (requireSignupCode)
+        ? SignupCodePage(ctx: this.ctx)
+        : SignupGDriveAuthPage(ctx: this.ctx, signupCode: null),
+  );
 }
 
 /// Ask the user for a signup code. While we're in closed beta, we'll require a
@@ -191,8 +192,11 @@ class _SignupCodePageState extends State<SignupCodePage> {
 
 /// This page has a button to ask for the user's consent for GDrive permissions.
 class SignupGDriveAuthPage extends StatefulWidget {
-  const SignupGDriveAuthPage(
-      {super.key, required this.ctx, required this.signupCode});
+  const SignupGDriveAuthPage({
+    super.key,
+    required this.ctx,
+    required this.signupCode,
+  });
 
   final SignupCtx ctx;
   final String? signupCode;
@@ -505,8 +509,9 @@ password manager!
             textInputAction: TextInputAction.done,
             validator: (str) => this.validateConfirmPassword(str).err,
             onEditingComplete: this.onSubmit,
-            decoration:
-                baseInputDecoration.copyWith(hintText: "Confirm password"),
+            decoration: baseInputDecoration.copyWith(
+              hintText: "Confirm password",
+            ),
             obscureText: true,
             style: textFieldStyle,
           ),

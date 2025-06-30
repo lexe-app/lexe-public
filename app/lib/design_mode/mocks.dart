@@ -78,12 +78,13 @@ class MockApp extends App {
 
 // TODO(phlip9): unhack
 class MockAppHandle extends AppHandle {
-  MockAppHandle(
-      {required this.balance, required this.payments, required this.channels})
-      : assert(payments.isSortedBy((payment) => payment.index.field0)),
-        assert(
-            balance.totalSats == balance.lightningSats + balance.onchainSats),
-        super(inner: MockApp());
+  MockAppHandle({
+    required this.balance,
+    required this.payments,
+    required this.channels,
+  }) : assert(payments.isSortedBy((payment) => payment.index.field0)),
+       assert(balance.totalSats == balance.lightningSats + balance.onchainSats),
+       super(inner: MockApp());
 
   // Wallet balance
   Balance balance;
@@ -99,109 +100,116 @@ class MockAppHandle extends AppHandle {
 
   @override
   AppUserInfo userInfo() => const AppUserInfo(
-        userPk:
-            "52b999003525a3d905f9916eff26cee6625a3976fc25270ce5b3e79aa3c16f45",
-        nodePk:
-            "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",
-        nodePkProof:
-            "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b46304402206f762d23d206f3af2ffa452a71a11bca3df68838408851ab77931d7eb7fa1ef6022057141408428d6885d00ca6ca50e6d702aeab227c1550135be5fce4af4e726736",
-      );
+    userPk: "52b999003525a3d905f9916eff26cee6625a3976fc25270ce5b3e79aa3c16f45",
+    nodePk:
+        "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",
+    nodePkProof:
+        "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b46304402206f762d23d206f3af2ffa452a71a11bca3df68838408851ab77931d7eb7fa1ef6022057141408428d6885d00ca6ca50e6d702aeab227c1550135be5fce4af4e726736",
+  );
 
   @override
-  Future<NodeInfo> nodeInfo() =>
-      Future.delayed(const Duration(milliseconds: 1000), () {
-        return NodeInfo(
-          nodePk:
-              "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",
-          version: "1.2.3",
-          measurement:
-              "1d97c2c837b09ec7b0e0b26cb6fa9a211be84c8fdb53299cc9ee8884c7a25ac1",
-          balance: this.balance,
-        );
-      });
+  Future<NodeInfo>
+  nodeInfo() => Future.delayed(const Duration(milliseconds: 1000), () {
+    return NodeInfo(
+      nodePk:
+          "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",
+      version: "1.2.3",
+      measurement:
+          "1d97c2c837b09ec7b0e0b26cb6fa9a211be84c8fdb53299cc9ee8884c7a25ac1",
+      balance: this.balance,
+    );
+  });
 
   @override
   Future<ListChannelsResponse> listChannels() => Future.delayed(
-      const Duration(milliseconds: 1000),
-      () => ListChannelsResponse(channels: this.channels));
+    const Duration(milliseconds: 1000),
+    () => ListChannelsResponse(channels: this.channels),
+  );
 
   @override
-  Future<PreflightOpenChannelResponse> preflightOpenChannel(
-          {required PreflightOpenChannelRequest req}) =>
-      Future.delayed(const Duration(milliseconds: 1000),
-          () => const PreflightOpenChannelResponse(feeEstimateSats: 123));
+  Future<PreflightOpenChannelResponse> preflightOpenChannel({
+    required PreflightOpenChannelRequest req,
+  }) => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => const PreflightOpenChannelResponse(feeEstimateSats: 123),
+  );
 
   @override
   Future<OpenChannelResponse> openChannel({required OpenChannelRequest req}) =>
-      Future.delayed(const Duration(milliseconds: 1000),
-          () => OpenChannelResponse(channelId: this.channels[1].channelId));
+      Future.delayed(
+        const Duration(milliseconds: 1000),
+        () => OpenChannelResponse(channelId: this.channels[1].channelId),
+      );
 
   @override
   Future<void> closeChannel({required CloseChannelRequest req}) =>
       Future.delayed(const Duration(milliseconds: 1000), () {});
 
   @override
-  Future<PreflightCloseChannelResponse> preflightCloseChannel(
-          {required CloseChannelRequest req}) =>
-      Future.delayed(const Duration(milliseconds: 1000),
-          () => const PreflightCloseChannelResponse(feeEstimateSats: 1100));
+  Future<PreflightCloseChannelResponse> preflightCloseChannel({
+    required CloseChannelRequest req,
+  }) => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => const PreflightCloseChannelResponse(feeEstimateSats: 1100),
+  );
 
   @override
   Future<FiatRates> fiatRates() => Future.delayed(
-        const Duration(milliseconds: 2000),
-        () => const FiatRates(
-          timestampMs: 1732136733,
-          rates: [
-            FiatRate(fiat: "USD", rate: 94385.79 /* USD/BTC */),
-            FiatRate(
-              fiat: "EUR",
-              rate: 94385.79 /* USD/BTC */ * 1.10 /* EUR/USD */,
-            ),
-          ],
+    const Duration(milliseconds: 2000),
+    () => const FiatRates(
+      timestampMs: 1732136733,
+      rates: [
+        FiatRate(fiat: "USD", rate: 94385.79 /* USD/BTC */),
+        FiatRate(
+          fiat: "EUR",
+          rate: 94385.79 /* USD/BTC */ * 1.10 /* EUR/USD */,
         ),
-      );
+      ],
+    ),
+  );
 
   @override
   Future<PayOnchainResponse> payOnchain({
     required PayOnchainRequest req,
-  }) =>
-      Future.delayed(
-        const Duration(milliseconds: 1200),
-        () => const PayOnchainResponse(
-          index: PaymentIndex(
-              field0:
-                  "0000001687385080000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68"),
-          txid:
-              "f5f119aca79fa3ff1c95793c87ecf7bcd84fa326dfedde3d3c2181a6c733e689",
-        ),
-      );
+  }) => Future.delayed(
+    const Duration(milliseconds: 1200),
+    () => const PayOnchainResponse(
+      index: PaymentIndex(
+        field0:
+            "0000001687385080000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+      ),
+      txid: "f5f119aca79fa3ff1c95793c87ecf7bcd84fa326dfedde3d3c2181a6c733e689",
+    ),
+  );
 
   @override
-  Future<PreflightPayOnchainResponse> preflightPayOnchain(
-          {required PreflightPayOnchainRequest req}) =>
-      Future.delayed(
-        const Duration(seconds: 1),
-        () => const PreflightPayOnchainResponse(
-          high: FeeEstimate(amountSats: 849),
-          normal: FeeEstimate(amountSats: 722),
-          background: FeeEstimate(amountSats: 563),
-        ),
-        // () => throw FfiError("Request timed out").toFfi(),
-      );
+  Future<PreflightPayOnchainResponse> preflightPayOnchain({
+    required PreflightPayOnchainRequest req,
+  }) => Future.delayed(
+    const Duration(seconds: 1),
+    () => const PreflightPayOnchainResponse(
+      high: FeeEstimate(amountSats: 849),
+      normal: FeeEstimate(amountSats: 722),
+      background: FeeEstimate(amountSats: 563),
+    ),
+    // () => throw FfiError("Request timed out").toFfi(),
+  );
 
   @override
   Future<String> getAddress() => Future.delayed(
-        const Duration(milliseconds: 1200),
-        () => "bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl",
-      );
+    const Duration(milliseconds: 1200),
+    () => "bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl",
+  );
 
   @override
-  Future<CreateInvoiceResponse> createInvoice(
-      {required CreateInvoiceRequest req}) {
+  Future<CreateInvoiceResponse> createInvoice({
+    required CreateInvoiceRequest req,
+  }) {
     final now = DateTime.now();
     final createdAt = now.millisecondsSinceEpoch;
-    final expiresAt =
-        now.add(Duration(seconds: req.expirySecs)).millisecondsSinceEpoch;
+    final expiresAt = now
+        .add(Duration(seconds: req.expirySecs))
+        .millisecondsSinceEpoch;
 
     final dummy = dummyInvoiceInboundPending01.invoice!;
 
@@ -223,35 +231,35 @@ class MockAppHandle extends AppHandle {
   @override
   Future<PayInvoiceResponse> payInvoice({
     required PayInvoiceRequest req,
-  }) =>
-      Future.delayed(
-        const Duration(milliseconds: 1200),
-        () => const PayInvoiceResponse(
-          index: PaymentIndex(
-              field0:
-                  "0000001686744442000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0"),
-        ),
-      );
+  }) => Future.delayed(
+    const Duration(milliseconds: 1200),
+    () => const PayInvoiceResponse(
+      index: PaymentIndex(
+        field0:
+            "0000001686744442000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
+      ),
+    ),
+  );
 
   @override
-  Future<PreflightPayInvoiceResponse> preflightPayInvoice(
-          {required PreflightPayInvoiceRequest req}) =>
-      Future.delayed(
-        const Duration(seconds: 1),
-        // () => throw FfiError("Request timed out").toFfi(),
-        () => PreflightPayInvoiceResponse(
-          amountSats: req.fallbackAmountSats ?? 9999,
-          feesSats: 123,
-        ),
-      );
+  Future<PreflightPayInvoiceResponse> preflightPayInvoice({
+    required PreflightPayInvoiceRequest req,
+  }) => Future.delayed(
+    const Duration(seconds: 1),
+    // () => throw FfiError("Request timed out").toFfi(),
+    () => PreflightPayInvoiceResponse(
+      amountSats: req.fallbackAmountSats ?? 9999,
+      feesSats: 123,
+    ),
+  );
 
   @override
   Future<CreateOfferResponse> createOffer({required CreateOfferRequest req}) {
     final expirySecs = req.expirySecs;
     final expiresAt = (expirySecs != null)
         ? DateTime.now()
-            .add(Duration(seconds: expirySecs))
-            .millisecondsSinceEpoch
+              .add(Duration(seconds: expirySecs))
+              .millisecondsSinceEpoch
         : null;
 
     return Future.delayed(
@@ -269,35 +277,35 @@ class MockAppHandle extends AppHandle {
   }
 
   @override
-  Future<PayOfferResponse> payOffer({
-    required PayOfferRequest req,
-  }) =>
+  Future<PayOfferResponse> payOffer({required PayOfferRequest req}) =>
       Future.delayed(
         const Duration(milliseconds: 1200),
         () => PayOfferResponse(index: dummyOfferOutboundPayment01.index),
       );
 
   @override
-  Future<PreflightPayOfferResponse> preflightPayOffer(
-          {required PreflightPayOfferRequest req}) =>
-      Future.delayed(
-        const Duration(seconds: 1),
-        // () => throw FfiError("Request timed out").toFfi(),
-        () => PreflightPayOfferResponse(
-          amountSats: req.fallbackAmountSats ?? 9999,
-          feesSats: 123,
-        ),
-      );
+  Future<PreflightPayOfferResponse> preflightPayOffer({
+    required PreflightPayOfferRequest req,
+  }) => Future.delayed(
+    const Duration(seconds: 1),
+    // () => throw FfiError("Request timed out").toFfi(),
+    () => PreflightPayOfferResponse(
+      amountSats: req.fallbackAmountSats ?? 9999,
+      feesSats: 123,
+    ),
+  );
 
   @override
   Future<bool> syncPayments() =>
       Future.delayed(const Duration(milliseconds: 1500), () => true);
 
   @override
-  Future<int?> getVecIdxByPaymentIndex(
-      {required PaymentIndex paymentIndex}) async {
-    final vecIdx =
-        this.payments.indexWhere((payment) => payment.index == paymentIndex);
+  Future<int?> getVecIdxByPaymentIndex({
+    required PaymentIndex paymentIndex,
+  }) async {
+    final vecIdx = this.payments.indexWhere(
+      (payment) => payment.index == paymentIndex,
+    );
     if (vecIdx >= 0) {
       return vecIdx;
     } else {
@@ -330,30 +338,36 @@ class MockAppHandle extends AppHandle {
       this._getByScrollIdx(filter: (_) => true, scrollIdx: scrollIdx);
 
   @override
-  ShortPaymentAndIndex? getPendingShortPaymentByScrollIdx(
-          {required int scrollIdx}) =>
-      this._getByScrollIdx(
-          filter: (payment) => payment.isPending(), scrollIdx: scrollIdx);
+  ShortPaymentAndIndex? getPendingShortPaymentByScrollIdx({
+    required int scrollIdx,
+  }) => this._getByScrollIdx(
+    filter: (payment) => payment.isPending(),
+    scrollIdx: scrollIdx,
+  );
 
   @override
-  ShortPaymentAndIndex? getPendingNotJunkShortPaymentByScrollIdx(
-          {required int scrollIdx}) =>
-      this._getByScrollIdx(
-          filter: (payment) => payment.isPendingNotJunk(),
-          scrollIdx: scrollIdx);
+  ShortPaymentAndIndex? getPendingNotJunkShortPaymentByScrollIdx({
+    required int scrollIdx,
+  }) => this._getByScrollIdx(
+    filter: (payment) => payment.isPendingNotJunk(),
+    scrollIdx: scrollIdx,
+  );
 
   @override
-  ShortPaymentAndIndex? getFinalizedShortPaymentByScrollIdx(
-          {required int scrollIdx}) =>
-      this._getByScrollIdx(
-          filter: (payment) => payment.isFinalized(), scrollIdx: scrollIdx);
+  ShortPaymentAndIndex? getFinalizedShortPaymentByScrollIdx({
+    required int scrollIdx,
+  }) => this._getByScrollIdx(
+    filter: (payment) => payment.isFinalized(),
+    scrollIdx: scrollIdx,
+  );
 
   @override
-  ShortPaymentAndIndex? getFinalizedNotJunkShortPaymentByScrollIdx(
-          {required int scrollIdx}) =>
-      this._getByScrollIdx(
-          filter: (payment) => payment.isFinalizedNotJunk(),
-          scrollIdx: scrollIdx);
+  ShortPaymentAndIndex? getFinalizedNotJunkShortPaymentByScrollIdx({
+    required int scrollIdx,
+  }) => this._getByScrollIdx(
+    filter: (payment) => payment.isFinalizedNotJunk(),
+    scrollIdx: scrollIdx,
+  );
 
   @override
   int getNumPayments() => this.payments.length;
@@ -379,49 +393,46 @@ class MockAppHandle extends AppHandle {
       Future.delayed(const Duration(milliseconds: 1000), () => ());
 
   @override
-  Future<CreateClientResponse> createClient(
-          {required CreateClientRequest req}) =>
-      Future.delayed(
-        const Duration(milliseconds: 1000),
-        () => const CreateClientResponse(
-          client: RevocableClient(
-            pubkey:
-                "7088af1fc12ab04ad6dd165bc3a3c5eb3062b411a2f55a166b0e400b390fe4db",
-            createdAt: 1747011336000,
-            scope: Scope.nodeConnect,
-          ),
-          credentials:
-              "eyJsZXhlX2F1dGhfdG9rZW4iOiI5ZFRDVXZDOHk3cWNOeVVicXluejNud0lRUUhiUXFQVktlTWhYVWoxQWZyLXZnajlFMjE3XzJ0Q1MxSVFNN0xGcWZCVUM4RWM5ZmNiLWRRaUNSeTZvdDJGTi1rUjYwZWRSRkpVenRBYTJSeGFvMVEwQlMxczZ2RThncmdmaE1ZSUFKRExNV2dBQUFBQVNFNHphQUFBQUFCcGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhUUUiLCJjbGllbnRfcGsiOiI3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiIiwiY2xpZW50X2tleV9kZXIiOiIzMDUzMDIwMTAxMzAwNTA2MDMyYjY1NzAwNDIyMDQyMDBmNTgwZDM0NjFjNGVhMGIzNmI4MzZkNDUxYzFjMTk5ZWUzZTA2NDZhZDBkNjQyMzUzNzk3MzlkNjg2OTkyODlhMTIzMDMyMTAwNzA4OGFmMWZjMTJhYjA0YWQ2ZGQxNjViYzNhM2M1ZWIzMDYyYjQxMWEyZjU1YTE2NmIwZTQwMGIzOTBmZTRkYiIsImNsaWVudF9jZXJ0X2RlciI6IjMwODIwMTgzMzA4MjAxMzVhMDAzMDIwMTAyMDIxNDQwYmVkYzU2ZDAzZDZiNTJmMjg0MmQ2NGRmOTBkMDJkNmRhMzZhNWIzMDA1MDYwMzJiNjU3MDMwNTYzMTBiMzAwOTA2MDM1NTA0MDYwYzAyNTU1MzMxMGIzMDA5MDYwMzU1MDQwODBjMDI0MzQxMzExMTMwMGYwNjAzNTUwNDBhMGMwODZjNjU3ODY1MmQ2MTcwNzAzMTI3MzAyNTA2MDM1NTA0MDMwYzFlNGM2NTc4NjUyMDcyNjU3NjZmNjM2MTYyNmM2NTIwNjk3MzczNzU2OTZlNjcyMDQzNDEyMDYzNjU3Mjc0MzAyMDE3MGQzNzM1MzAzMTMwMzEzMDMwMzAzMDMwMzA1YTE4MGYzNDMwMzkzNjMwMzEzMDMxMzAzMDMwMzAzMDMwNWEzMDUyMzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyMzMwMjEwNjAzNTUwNDAzMGMxYTRjNjU3ODY1MjA3MjY1NzY2ZjYzNjE2MjZjNjUyMDYzNmM2OTY1NmU3NDIwNjM2NTcyNzQzMDJhMzAwNTA2MDMyYjY1NzAwMzIxMDA3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiYTMxNzMwMTUzMDEzMDYwMzU1MWQxMTA0MGMzMDBhODIwODZjNjU3ODY1MmU2MTcwNzAzMDA1MDYwMzJiNjU3MDAzNDEwMDdiMTdiYzk1MzgyNjdiMzU0ZjA3MjZkODljYjFlYzMxMGIxMDJlNDIyYWI5Njk2Yjg3ZDlhZTcwMGNlZjJlODNjMTM2NmQwYWQxOTAzNWQ5ZTNlZDA0Y2Y1ZjdmMDVkZWY2OGE3MWRlMjEyYjg5ODM0NDc3OTQyYWU3NjNhMjBmIiwiY2FfY2VydF9kZXIiOiIzMDgyMDFiYTMwODIwMTZjYTAwMzAyMDEwMjAyMTQwY2RjYzJkMGVhM2MzMjI4MDc1OWNkNGFiN2E1MzBmNDNiODAwMjA5MzAwNTA2MDMyYjY1NzAzMDU2MzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyNzMwMjUwNjAzNTUwNDAzMGMxZTRjNjU3ODY1MjA3MjY1NzY2ZjYzNjE2MjZjNjUyMDY5NzM3Mzc1Njk2ZTY3MjA0MzQxMjA2MzY1NzI3NDMwMjAxNzBkMzczNTMwMzEzMDMxMzAzMDMwMzAzMDMwNWExODBmMzQzMDM5MzYzMDMxMzAzMTMwMzAzMDMwMzAzMDVhMzA1NjMxMGIzMDA5MDYwMzU1MDQwNjBjMDI1NTUzMzEwYjMwMDkwNjAzNTUwNDA4MGMwMjQzNDEzMTExMzAwZjA2MDM1NTA0MGEwYzA4NmM2NTc4NjUyZDYxNzA3MDMxMjczMDI1MDYwMzU1MDQwMzBjMWU0YzY1Nzg2NTIwNzI2NTc2NmY2MzYxNjI2YzY1MjA2OTczNzM3NTY5NmU2NzIwNDM0MTIwNjM2NTcyNzQzMDJhMzAwNTA2MDMyYjY1NzAwMzIxMDBjOTM2ZDhlNzhiMDc4ZDkyODQ5YWRjMzYyZGVjYzNlYTMxNzA1ZTQ0ODZiZDAwZDgxYmU2NGFmZDYzZTg4NzU5YTM0YTMwNDgzMDEzMDYwMzU1MWQxMTA0MGMzMDBhODIwODZjNjU3ODY1MmU2MTcwNzAzMDFkMDYwMzU1MWQwZTA0MTYwNDE0MGNkY2MyZDBlYTNjMzIyODA3NTljZDRhYjdhNTMwZjQzYjgwMDIwOTMwMTIwNjAzNTUxZDEzMDEwMWZmMDQwODMwMDYwMTAxZmYwMjAxMDAzMDA1MDYwMzJiNjU3MDAzNDEwMGVhNzJlOTY3MGY5OTFjODdlZDVlMmMxZGY3YzgyZWNlN2VjMjAxMGM1NzY1NGJmYWU4Y2Q1ZmE5NzMzNmYyNTViMzRkN2FjNzQzOTk5NThkYWQwY2U0NDU2ZDcwYjAzOWMyYzIzMmU0YjVhZDljZTNjYzRhMWZhMTljNzA1MTA0In0=",
-        ),
-      );
+  Future<CreateClientResponse> createClient({
+    required CreateClientRequest req,
+  }) => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => const CreateClientResponse(
+      client: RevocableClient(
+        pubkey:
+            "7088af1fc12ab04ad6dd165bc3a3c5eb3062b411a2f55a166b0e400b390fe4db",
+        createdAt: 1747011336000,
+        scope: Scope.nodeConnect,
+      ),
+      credentials:
+          "eyJsZXhlX2F1dGhfdG9rZW4iOiI5ZFRDVXZDOHk3cWNOeVVicXluejNud0lRUUhiUXFQVktlTWhYVWoxQWZyLXZnajlFMjE3XzJ0Q1MxSVFNN0xGcWZCVUM4RWM5ZmNiLWRRaUNSeTZvdDJGTi1rUjYwZWRSRkpVenRBYTJSeGFvMVEwQlMxczZ2RThncmdmaE1ZSUFKRExNV2dBQUFBQVNFNHphQUFBQUFCcGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhUUUiLCJjbGllbnRfcGsiOiI3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiIiwiY2xpZW50X2tleV9kZXIiOiIzMDUzMDIwMTAxMzAwNTA2MDMyYjY1NzAwNDIyMDQyMDBmNTgwZDM0NjFjNGVhMGIzNmI4MzZkNDUxYzFjMTk5ZWUzZTA2NDZhZDBkNjQyMzUzNzk3MzlkNjg2OTkyODlhMTIzMDMyMTAwNzA4OGFmMWZjMTJhYjA0YWQ2ZGQxNjViYzNhM2M1ZWIzMDYyYjQxMWEyZjU1YTE2NmIwZTQwMGIzOTBmZTRkYiIsImNsaWVudF9jZXJ0X2RlciI6IjMwODIwMTgzMzA4MjAxMzVhMDAzMDIwMTAyMDIxNDQwYmVkYzU2ZDAzZDZiNTJmMjg0MmQ2NGRmOTBkMDJkNmRhMzZhNWIzMDA1MDYwMzJiNjU3MDMwNTYzMTBiMzAwOTA2MDM1NTA0MDYwYzAyNTU1MzMxMGIzMDA5MDYwMzU1MDQwODBjMDI0MzQxMzExMTMwMGYwNjAzNTUwNDBhMGMwODZjNjU3ODY1MmQ2MTcwNzAzMTI3MzAyNTA2MDM1NTA0MDMwYzFlNGM2NTc4NjUyMDcyNjU3NjZmNjM2MTYyNmM2NTIwNjk3MzczNzU2OTZlNjcyMDQzNDEyMDYzNjU3Mjc0MzAyMDE3MGQzNzM1MzAzMTMwMzEzMDMwMzAzMDMwMzA1YTE4MGYzNDMwMzkzNjMwMzEzMDMxMzAzMDMwMzAzMDMwNWEzMDUyMzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyMzMwMjEwNjAzNTUwNDAzMGMxYTRjNjU3ODY1MjA3MjY1NzY2ZjYzNjE2MjZjNjUyMDYzNmM2OTY1NmU3NDIwNjM2NTcyNzQzMDJhMzAwNTA2MDMyYjY1NzAwMzIxMDA3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiYTMxNzMwMTUzMDEzMDYwMzU1MWQxMTA0MGMzMDBhODIwODZjNjU3ODY1MmU2MTcwNzAzMDA1MDYwMzJiNjU3MDAzNDEwMDdiMTdiYzk1MzgyNjdiMzU0ZjA3MjZkODljYjFlYzMxMGIxMDJlNDIyYWI5Njk2Yjg3ZDlhZTcwMGNlZjJlODNjMTM2NmQwYWQxOTAzNWQ5ZTNlZDA0Y2Y1ZjdmMDVkZWY2OGE3MWRlMjEyYjg5ODM0NDc3OTQyYWU3NjNhMjBmIiwiY2FfY2VydF9kZXIiOiIzMDgyMDFiYTMwODIwMTZjYTAwMzAyMDEwMjAyMTQwY2RjYzJkMGVhM2MzMjI4MDc1OWNkNGFiN2E1MzBmNDNiODAwMjA5MzAwNTA2MDMyYjY1NzAzMDU2MzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyNzMwMjUwNjAzNTUwNDAzMGMxZTRjNjU3ODY1MjA3MjY1NzY2ZjYzNjE2MjZjNjUyMDY5NzM3Mzc1Njk2ZTY3MjA0MzQxMjA2MzY1NzI3NDMwMjAxNzBkMzczNTMwMzEzMDMxMzAzMDMwMzAzMDMwNWExODBmMzQzMDM5MzYzMDMxMzAzMTMwMzAzMDMwMzAzMDVhMzA1NjMxMGIzMDA5MDYwMzU1MDQwNjBjMDI1NTUzMzEwYjMwMDkwNjAzNTUwNDA4MGMwMjQzNDEzMTExMzAwZjA2MDM1NTA0MGEwYzA4NmM2NTc4NjUyZDYxNzA3MDMxMjczMDI1MDYwMzU1MDQwMzBjMWU0YzY1Nzg2NTIwNzI2NTc2NmY2MzYxNjI2YzY1MjA2OTczNzM3NTY5NmU2NzIwNDM0MTIwNjM2NTcyNzQzMDJhMzAwNTA2MDMyYjY1NzAwMzIxMDBjOTM2ZDhlNzhiMDc4ZDkyODQ5YWRjMzYyZGVjYzNlYTMxNzA1ZTQ0ODZiZDAwZDgxYmU2NGFmZDYzZTg4NzU5YTM0YTMwNDgzMDEzMDYwMzU1MWQxMTA0MGMzMDBhODIwODZjNjU3ODY1MmU2MTcwNzAzMDFkMDYwMzU1MWQwZTA0MTYwNDE0MGNkY2MyZDBlYTNjMzIyODA3NTljZDRhYjdhNTMwZjQzYjgwMDIwOTMwMTIwNjAzNTUxZDEzMDEwMWZmMDQwODMwMDYwMTAxZmYwMjAxMDAzMDA1MDYwMzJiNjU3MDAzNDEwMGVhNzJlOTY3MGY5OTFjODdlZDVlMmMxZGY3YzgyZWNlN2VjMjAxMGM1NzY1NGJmYWU4Y2Q1ZmE5NzMzNmYyNTViMzRkN2FjNzQzOTk5NThkYWQwY2U0NDU2ZDcwYjAzOWMyYzIzMmU0YjVhZDljZTNjYzRhMWZhMTljNzA1MTA0In0=",
+    ),
+  );
 
   @override
   Future<List<RevocableClient>> listClients() => Future.delayed(
-        const Duration(milliseconds: 1000),
-        () => <RevocableClient>[
-          const RevocableClient(
-            createdAt: 1747095626000,
-            label: "SDK client 1",
-            pubkey:
-                "d6f34a82bf64b68a28b2f0934d715271580afebc29a4b37bfd355999705f43ff",
-            scope: Scope.nodeConnect,
-          ),
-          const RevocableClient(
-            createdAt: 1746095626000,
-            label: null,
-            pubkey:
-                "90cdb0fa319acd1b5cbf79c027fbadeafbaed593c3b0d81c88e0746fe0dc2016",
-            scope: Scope.nodeConnect,
-          ),
-        ],
-      );
+    const Duration(milliseconds: 1000),
+    () => <RevocableClient>[
+      const RevocableClient(
+        createdAt: 1747095626000,
+        label: "SDK client 1",
+        pubkey:
+            "d6f34a82bf64b68a28b2f0934d715271580afebc29a4b37bfd355999705f43ff",
+        scope: Scope.nodeConnect,
+      ),
+      const RevocableClient(
+        createdAt: 1746095626000,
+        label: null,
+        pubkey:
+            "90cdb0fa319acd1b5cbf79c027fbadeafbaed593c3b0d81c88e0746fe0dc2016",
+        scope: Scope.nodeConnect,
+      ),
+    ],
+  );
 
   @override
   Future<void> updateClient({required UpdateClientRequest req}) =>
-      Future.delayed(
-        const Duration(milliseconds: 1000),
-        () => {},
-      );
+      Future.delayed(const Duration(milliseconds: 1000), () => {});
 }
 
 /// An [AppHandle] that usually errors first.
@@ -433,91 +444,96 @@ class MockAppHandleErr extends MockAppHandle {
   });
 
   @override
-  Future<CreateInvoiceResponse> createInvoice(
-      {required CreateInvoiceRequest req}) {
+  Future<CreateInvoiceResponse> createInvoice({
+    required CreateInvoiceRequest req,
+  }) {
     return Future.delayed(
       const Duration(milliseconds: 1000),
-      () => throw const FfiError("[106=Command] Failed to register new payment")
-          .toFfi(),
+      () => throw const FfiError(
+        "[106=Command] Failed to register new payment",
+      ).toFfi(),
     );
   }
 
   @override
-  Future<PayInvoiceResponse> payInvoice({required PayInvoiceRequest req}) =>
-      Future.delayed(
-          const Duration(milliseconds: 1000),
-          () => throw const FfiError(
-                  "[106=Command] Already tried to pay this invoice: Error handling new payment: Payment already exists: finalized")
-              .toFfi());
+  Future<PayInvoiceResponse> payInvoice({
+    required PayInvoiceRequest req,
+  }) => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => throw const FfiError(
+      "[106=Command] Already tried to pay this invoice: Error handling new payment: Payment already exists: finalized",
+    ).toFfi(),
+  );
 
   @override
-  Future<PreflightPayOnchainResponse> preflightPayOnchain(
-          {required PreflightPayOnchainRequest req}) =>
-      Future.delayed(
-          const Duration(milliseconds: 1000),
-          () => throw const FfiError(
-                  "[106=Command] Failed to build onchain send tx: Insufficient funds: 433 sat available of 16546 sat needed")
-              .toFfi());
+  Future<PreflightPayOnchainResponse> preflightPayOnchain({
+    required PreflightPayOnchainRequest req,
+  }) => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => throw const FfiError(
+      "[106=Command] Failed to build onchain send tx: Insufficient funds: 433 sat available of 16546 sat needed",
+    ).toFfi(),
+  );
 
   @override
-  Future<PreflightOpenChannelResponse> preflightOpenChannel(
-          {required PreflightOpenChannelRequest req}) =>
-      Future.delayed(
-        const Duration(milliseconds: 1000),
-        () => throw const FfiError(
-                "[106=Command] Channel value is below limit 5000 sats")
-            .toFfi(),
-      );
+  Future<PreflightOpenChannelResponse> preflightOpenChannel({
+    required PreflightOpenChannelRequest req,
+  }) => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => throw const FfiError(
+      "[106=Command] Channel value is below limit 5000 sats",
+    ).toFfi(),
+  );
 
   @override
   Future<OpenChannelResponse> openChannel({required OpenChannelRequest req}) =>
       Future.delayed(
         const Duration(milliseconds: 1000),
         () => throw const FfiError(
-                "[106=Command] Waiting for channel close event: deadline has elapsed")
-            .toFfi(),
+          "[106=Command] Waiting for channel close event: deadline has elapsed",
+        ).toFfi(),
       );
 
   @override
-  Future<PreflightCloseChannelResponse> preflightCloseChannel(
-          {required CloseChannelRequest req}) =>
-      Future.delayed(
-          const Duration(milliseconds: 1000),
-          () => throw const FfiError("[106=Command] No channel with this id")
-              .toFfi());
+  Future<PreflightCloseChannelResponse> preflightCloseChannel({
+    required CloseChannelRequest req,
+  }) => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => throw const FfiError("[106=Command] No channel with this id").toFfi(),
+  );
 
   @override
   Future<void> closeChannel({required CloseChannelRequest req}) =>
       Future.delayed(
         const Duration(milliseconds: 1000),
         () => throw const FfiError(
-                "[106=Command] Waiting for channel close event: deadline has elapsed")
-            .toFfi(),
+          "[106=Command] Waiting for channel close event: deadline has elapsed",
+        ).toFfi(),
       );
 
   @override
-  Future<CreateClientResponse> createClient(
-          {required CreateClientRequest req}) =>
-      Future.delayed(
-        const Duration(milliseconds: 1000),
-        () => throw const FfiError(
-                "[106=Command] Failed to create client: label is too long")
-            .toFfi(),
-      );
+  Future<CreateClientResponse> createClient({
+    required CreateClientRequest req,
+  }) => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => throw const FfiError(
+      "[106=Command] Failed to create client: label is too long",
+    ).toFfi(),
+  );
 
   @override
   Future<List<RevocableClient>> listClients() => Future.delayed(
-        const Duration(milliseconds: 1000),
-        () => throw const FfiError("[106=Command] Failed to list clients")
-            .toFfi(),
-      );
+    const Duration(milliseconds: 1000),
+    () => throw const FfiError("[106=Command] Failed to list clients").toFfi(),
+  );
 
   @override
   Future<void> updateClient({required UpdateClientRequest req}) =>
       Future.delayed(
         const Duration(milliseconds: 1000),
-        () => throw const FfiError("[106=Command] Failed to update client")
-            .toFfi(),
+        () => throw const FfiError(
+          "[106=Command] Failed to update client",
+        ).toFfi(),
       );
 }
 
@@ -527,54 +543,60 @@ class MockAppHandleErr extends MockAppHandle {
 /// * TODO(phlip9): easily configure language and localization
 class MockAppHandleScreenshots extends MockAppHandle {
   MockAppHandleScreenshots()
-      : super(
-          payments: [
-            dummyOnchainInboundCompleted02,
-            dummyInvoiceOutboundCompleted01,
-            dummyInvoiceInboundCompleted02,
-          ],
-          channels: [],
-          balance: balanceDefault,
-        );
+    : super(
+        payments: [
+          dummyOnchainInboundCompleted02,
+          dummyInvoiceOutboundCompleted01,
+          dummyInvoiceInboundCompleted02,
+        ],
+        channels: [],
+        balance: balanceDefault,
+      );
 
   @override
   Future<bool> syncPayments() => Future.value(false);
 
   @override
-  Future<FiatRates> fiatRates() => Future.value(const FiatRates(
-        timestampMs: 1732136733,
-        rates: [
-          FiatRate(fiat: "USD", rate: 96626.76 /* USD/BTC */),
-          FiatRate(
-            fiat: "EUR",
-            rate: 96626.76 /* USD/BTC */ * 0.9559 /* EUR/USD */,
-          ),
-        ],
-      ));
-
-  @override
-  Future<NodeInfo> nodeInfo() => Future.value(const NodeInfo(
-        nodePk:
-            "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",
-        version: "0.6.15",
-        measurement:
-            "1d97c2c837b09ec7b0e0b26cb6fa9a211be84c8fdb53299cc9ee8884c7a25ac1",
-        balance: Balance(
-          totalSats: 233671,
-          lightningSats: 154226,
-          lightningUsableSats: 154226,
-          lightningMaxSendableSats: 154226 - 4500,
-          onchainSats: 233671 - 154226,
+  Future<FiatRates> fiatRates() => Future.value(
+    const FiatRates(
+      timestampMs: 1732136733,
+      rates: [
+        FiatRate(fiat: "USD", rate: 96626.76 /* USD/BTC */),
+        FiatRate(
+          fiat: "EUR",
+          rate: 96626.76 /* USD/BTC */ * 0.9559 /* EUR/USD */,
         ),
-      ));
+      ],
+    ),
+  );
 
   @override
-  Future<CreateInvoiceResponse> createInvoice(
-      {required CreateInvoiceRequest req}) {
+  Future<NodeInfo> nodeInfo() => Future.value(
+    const NodeInfo(
+      nodePk:
+          "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",
+      version: "0.6.15",
+      measurement:
+          "1d97c2c837b09ec7b0e0b26cb6fa9a211be84c8fdb53299cc9ee8884c7a25ac1",
+      balance: Balance(
+        totalSats: 233671,
+        lightningSats: 154226,
+        lightningUsableSats: 154226,
+        lightningMaxSendableSats: 154226 - 4500,
+        onchainSats: 233671 - 154226,
+      ),
+    ),
+  );
+
+  @override
+  Future<CreateInvoiceResponse> createInvoice({
+    required CreateInvoiceRequest req,
+  }) {
     final now = DateTime.now();
     final createdAt = now.millisecondsSinceEpoch;
-    final expiresAt =
-        now.add(Duration(seconds: req.expirySecs)).millisecondsSinceEpoch;
+    final expiresAt = now
+        .add(Duration(seconds: req.expirySecs))
+        .millisecondsSinceEpoch;
 
     final dummy = dummyInvoiceInboundPending01.invoice!;
 
@@ -633,11 +655,7 @@ class MockSignupApi implements SignupApi {
     required String password,
     required String? signupCode,
     required String? partner,
-  }) =>
-      Future.delayed(
-        const Duration(milliseconds: 2000),
-        () => Ok(this.app),
-      );
+  }) => Future.delayed(const Duration(milliseconds: 2000), () => Ok(this.app));
 }
 
 class MockSignupApiErr implements SignupApi {
@@ -650,11 +668,10 @@ class MockSignupApiErr implements SignupApi {
     required String password,
     required String? signupCode,
     required String? partner,
-  }) =>
-      Future.delayed(
-        const Duration(milliseconds: 1000),
-        () => const Err(FfiError("[Connect=10] Could not connect")),
-      );
+  }) => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => const Err(FfiError("[Connect=10] Could not connect")),
+  );
 }
 
 class MockRestoreApi implements RestoreApi {
@@ -667,11 +684,7 @@ class MockRestoreApi implements RestoreApi {
     required Config config,
     required String googleAuthCode,
     required RootSeed rootSeed,
-  }) =>
-      Future.delayed(
-        const Duration(milliseconds: 2000),
-        () => Ok(this.app),
-      );
+  }) => Future.delayed(const Duration(milliseconds: 2000), () => Ok(this.app));
 }
 
 //
@@ -708,8 +721,9 @@ const Balance balanceOnchainOnly = Balance(
 
 const Payment dummyOnchainInboundPending01 = Payment(
   index: PaymentIndex(
-      field0:
-          "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68"),
+    field0:
+        "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+  ),
   kind: PaymentKind.onchain,
   direction: PaymentDirection.inbound,
   txid: "238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
@@ -725,8 +739,9 @@ const Payment dummyOnchainInboundPending01 = Payment(
 
 const Payment dummyOnchainInboundCompleted01 = Payment(
   index: PaymentIndex(
-      field0:
-          "0000001670090492000-bc_551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66"),
+    field0:
+        "0000001670090492000-bc_551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66",
+  ),
   kind: PaymentKind.onchain,
   direction: PaymentDirection.inbound,
   txid: "551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66",
@@ -742,8 +757,9 @@ const Payment dummyOnchainInboundCompleted01 = Payment(
 
 const Payment dummyOnchainInboundCompleted02 = Payment(
   index: PaymentIndex(
-      field0:
-          "0000001739386001000-bc_70596383fb7dd5c578a5ef348ec77c5979a65ecb4b10bae0ce60e814c35f04f1"),
+    field0:
+        "0000001739386001000-bc_70596383fb7dd5c578a5ef348ec77c5979a65ecb4b10bae0ce60e814c35f04f1",
+  ),
   kind: PaymentKind.onchain,
   direction: PaymentDirection.inbound,
   txid: "70596383fb7dd5c578a5ef348ec77c5979a65ecb4b10bae0ce60e814c35f04f1",
@@ -759,8 +775,9 @@ const Payment dummyOnchainInboundCompleted02 = Payment(
 
 const Payment dummyOnchainOutboundCompleted01 = Payment(
   index: PaymentIndex(
-      field0:
-          "0000001687385080000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68"),
+    field0:
+        "0000001687385080000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+  ),
   kind: PaymentKind.onchain,
   direction: PaymentDirection.outbound,
   txid: "0a882813f2bb937a45f18568ff0d09d83d437558e85e369629226d0f7405c52e",
@@ -775,8 +792,9 @@ const Payment dummyOnchainOutboundCompleted01 = Payment(
 
 const Payment dummyOnchainOutboundFailed01 = Payment(
   index: PaymentIndex(
-      field0:
-          "0000001671818392000-bc_46e52089b60b00de067c84ce58d34a75ffd71a106f720855bc099f20da11700c"),
+    field0:
+        "0000001671818392000-bc_46e52089b60b00de067c84ce58d34a75ffd71a106f720855bc099f20da11700c",
+  ),
   kind: PaymentKind.onchain,
   direction: PaymentDirection.outbound,
   txid: "e9e3db092c9b4f94d1c603dd503a0f9bb95f9369897a25aafef2960053f8ccab",
@@ -792,8 +810,9 @@ const Payment dummyOnchainOutboundFailed01 = Payment(
 
 const Payment dummySpontaneousOutboundPending01 = Payment(
   index: PaymentIndex(
-      field0:
-          "0000001686938392000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0"),
+    field0:
+        "0000001686938392000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
+  ),
   kind: PaymentKind.spontaneous,
   direction: PaymentDirection.outbound,
   amountSat: 123000,
@@ -806,8 +825,9 @@ const Payment dummySpontaneousOutboundPending01 = Payment(
 
 const Payment dummyInvoiceOutboundPending01 = Payment(
   index: PaymentIndex(
-      field0:
-          "0000001686744442000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0"),
+    field0:
+        "0000001686744442000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
+  ),
   kind: PaymentKind.invoice,
   direction: PaymentDirection.outbound,
   invoice: Invoice(
@@ -830,8 +850,9 @@ const Payment dummyInvoiceOutboundPending01 = Payment(
 
 const Payment dummyInvoiceInboundPending01 = Payment(
   index: PaymentIndex(
-      field0:
-          "0000001687140003000-ln_bbe27583bf7ee269387bbad48c48fcae10e41537d35e49b14d81cc7306f486cb"),
+    field0:
+        "0000001687140003000-ln_bbe27583bf7ee269387bbad48c48fcae10e41537d35e49b14d81cc7306f486cb",
+  ),
   kind: PaymentKind.invoice,
   direction: PaymentDirection.inbound,
   invoice: Invoice(
@@ -856,8 +877,9 @@ const Payment dummyInvoiceInboundPending01 = Payment(
 // Junk payment
 const Payment dummyInvoiceInboundPending02 = Payment(
   index: PaymentIndex(
-      field0:
-          "0000001714432815000-ln_c6e5e46c59267114f91d64df0e069b0dae176f9a134656820bba1e6164318980"),
+    field0:
+        "0000001714432815000-ln_c6e5e46c59267114f91d64df0e069b0dae176f9a134656820bba1e6164318980",
+  ),
   kind: PaymentKind.invoice,
   direction: PaymentDirection.inbound,
   invoice: Invoice(
@@ -880,8 +902,9 @@ const Payment dummyInvoiceInboundPending02 = Payment(
 
 const Payment dummyInvoiceInboundCompleted01 = Payment(
   index: PaymentIndex(
-      field0:
-          "0000001687100002000-ln_801ffce9fbe74fecc7ec6fa72716d7de6167cc5607635062b24797b54f9ba4be"),
+    field0:
+        "0000001687100002000-ln_801ffce9fbe74fecc7ec6fa72716d7de6167cc5607635062b24797b54f9ba4be",
+  ),
   kind: PaymentKind.invoice,
   direction: PaymentDirection.inbound,
   invoice: Invoice(
@@ -905,8 +928,9 @@ const Payment dummyInvoiceInboundCompleted01 = Payment(
 
 const Payment dummyInvoiceInboundCompleted02 = Payment(
   index: PaymentIndex(
-      field0:
-          "0000001739490952000-ln_4ca99b7534df3a98afb69757b770faffead8b0794e5d618fbbf9b4cfd1f157cf"),
+    field0:
+        "0000001739490952000-ln_4ca99b7534df3a98afb69757b770faffead8b0794e5d618fbbf9b4cfd1f157cf",
+  ),
   kind: PaymentKind.invoice,
   direction: PaymentDirection.inbound,
   invoice: Invoice(
@@ -931,8 +955,9 @@ const Payment dummyInvoiceInboundCompleted02 = Payment(
 // Junk payment (failed)
 const Payment dummyInvoiceInboundFailed01 = Payment(
   index: PaymentIndex(
-      field0:
-          "0000001700222815000-ln_034a21eee2bea4288ec9582b10a4abd6bfdca83855b25257279e67dd02f77d43"),
+    field0:
+        "0000001700222815000-ln_034a21eee2bea4288ec9582b10a4abd6bfdca83855b25257279e67dd02f77d43",
+  ),
   kind: PaymentKind.invoice,
   direction: PaymentDirection.inbound,
   invoice: Invoice(
@@ -955,8 +980,9 @@ const Payment dummyInvoiceInboundFailed01 = Payment(
 
 const Payment dummyInvoiceOutboundCompleted01 = Payment(
   index: PaymentIndex(
-      field0:
-          "0000001739487454000-ln_432ec4be62f494b0498c76145fd31b302d0be4ac8cffe7c4102ad1f1c056bec9"),
+    field0:
+        "0000001739487454000-ln_432ec4be62f494b0498c76145fd31b302d0be4ac8cffe7c4102ad1f1c056bec9",
+  ),
   kind: PaymentKind.invoice,
   direction: PaymentDirection.outbound,
   invoice: Invoice(
@@ -980,8 +1006,9 @@ const Payment dummyInvoiceOutboundCompleted01 = Payment(
 
 const Payment dummyOfferOutboundPayment01 = Payment(
   index: PaymentIndex(
-      field0:
-          "0000001748993362000-fs_1a0863b5785d35c34e008e8bd879e78a93b795640c2ad9e941a7d12f44356804"),
+    field0:
+        "0000001748993362000-fs_1a0863b5785d35c34e008e8bd879e78a93b795640c2ad9e941a7d12f44356804",
+  ),
   kind: PaymentKind.offer,
   direction: PaymentDirection.outbound,
   offerId: "7bcb7b222189c07dfa6d55da519bdaf0d06c90597aab5dd5fc919c62db17c218",
@@ -1005,8 +1032,9 @@ const Payment dummyOfferOutboundPayment01 = Payment(
 
 const Payment dummyOfferInboundPayment01 = Payment(
   index: PaymentIndex(
-      field0:
-          "0000001748999074000-fr_016041408597e243d2b7a8fddf2304288f4763809e340b94df32c12deb894927"),
+    field0:
+        "0000001748999074000-fr_016041408597e243d2b7a8fddf2304288f4763809e340b94df32c12deb894927",
+  ),
   kind: PaymentKind.offer,
   direction: PaymentDirection.inbound,
   offerId: "e492e1d9c1919d0f37547abcb05f80ce31dcb0b70dff7433f0a0ebdc1cba8539",

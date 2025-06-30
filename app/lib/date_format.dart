@@ -48,8 +48,9 @@ String formatDateFullInner(DateTime t) {
   // impl mostly copied from <https://api.flutter.dev/flutter/dart-core/DateTime/toIso8601String.html>
 
   final year = t.year;
-  String y =
-      (year >= -9999 && year <= 9999) ? _fourDigits(year) : _sixDigits(year);
+  String y = (year >= -9999 && year <= 9999)
+      ? _fourDigits(year)
+      : _sixDigits(year);
   String m = _twoDigits(t.month);
   String d = _twoDigits(t.day);
   String h = _twoDigits(t.hour);
@@ -102,8 +103,12 @@ String? formatDate({
   if (span.inSeconds < 60) {
     return justNowStr(locale: locale);
   } else if (span.inDays <= 3) {
-    return formatDurationCompact(span,
-        abbreviated: false, addAgo: true, locale: locale);
+    return formatDurationCompact(
+      span,
+      abbreviated: false,
+      addAgo: true,
+      locale: locale,
+    );
   } else if (span.inDays <= 31 * 6) {
     return DateFormat.MMMd(locale).format(then);
   } else {
@@ -148,8 +153,12 @@ String? formatDateCompact({
   if (span.inSeconds < 60) {
     return justNowStr(locale: locale);
   } else if (span.inDays <= 3) {
-    return formatDurationCompact(span,
-        abbreviated: true, addAgo: false, locale: locale);
+    return formatDurationCompact(
+      span,
+      abbreviated: true,
+      addAgo: false,
+      locale: locale,
+    );
   } else if (span.inDays <= 31 * 6) {
     return DateFormat.MMMd(locale).format(then);
   } else {

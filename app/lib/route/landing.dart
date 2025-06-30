@@ -73,13 +73,17 @@ class _LandingPageState extends State<LandingPage> {
   Future<void> doSignupFlow() async {
     info("landing: begin signup flow");
 
-    final AppHandle? flowResult =
-        await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (_) => SignupPage(
-        ctx: SignupCtx(
-            this.widget.config, this.widget.gdriveAuth, this.widget.signupApi),
+    final AppHandle? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (_) => SignupPage(
+          ctx: SignupCtx(
+            this.widget.config,
+            this.widget.gdriveAuth,
+            this.widget.signupApi,
+          ),
+        ),
       ),
-    ));
+    );
 
     if (flowResult == null) return;
     if (!this.mounted) return;
@@ -89,18 +93,24 @@ class _LandingPageState extends State<LandingPage> {
     final app = flowResult;
     final settings = LxSettings(app.settingsDb());
     final featureFlags = FeatureFlags(
-        deployEnv: this.widget.config.deployEnv, userPk: app.userInfo().userPk);
+      deployEnv: this.widget.config.deployEnv,
+      userPk: app.userInfo().userPk,
+    );
 
-    unawaited(Navigator.of(this.context).pushReplacement(MaterialPageRoute(
-      builder: (_) => WalletPage(
-        config: this.widget.config,
-        app: app,
-        settings: settings,
-        featureFlags: featureFlags,
-        uriEvents: this.widget.uriEvents,
-        gdriveAuth: this.widget.gdriveAuth,
+    unawaited(
+      Navigator.of(this.context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => WalletPage(
+            config: this.widget.config,
+            app: app,
+            settings: settings,
+            featureFlags: featureFlags,
+            uriEvents: this.widget.uriEvents,
+            gdriveAuth: this.widget.gdriveAuth,
+          ),
+        ),
       ),
-    )));
+    );
   }
 
   /// Start the Wallet Restore UI flow. Future resolves when the user has either
@@ -108,13 +118,15 @@ class _LandingPageState extends State<LandingPage> {
   Future<void> doRestoreFlow() async {
     info("landing: begin restore flow");
 
-    final AppHandle? flowResult =
-        await Navigator.of(this.context).push(MaterialPageRoute(
-            builder: (_) => RestorePage(
-                  config: this.widget.config,
-                  gdriveAuth: this.widget.gdriveAuth,
-                  restoreApi: this.widget.restoreApi,
-                )));
+    final AppHandle? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (_) => RestorePage(
+          config: this.widget.config,
+          gdriveAuth: this.widget.gdriveAuth,
+          restoreApi: this.widget.restoreApi,
+        ),
+      ),
+    );
 
     if (flowResult == null) return;
     if (!this.mounted) return;
@@ -124,32 +136,42 @@ class _LandingPageState extends State<LandingPage> {
     final app = flowResult;
     final settings = LxSettings(app.settingsDb());
     final featureFlags = FeatureFlags(
-        deployEnv: this.widget.config.deployEnv, userPk: app.userInfo().userPk);
+      deployEnv: this.widget.config.deployEnv,
+      userPk: app.userInfo().userPk,
+    );
 
-    unawaited(Navigator.of(this.context).pushReplacement(MaterialPageRoute(
-      builder: (_) => WalletPage(
-        config: this.widget.config,
-        app: app,
-        settings: settings,
-        featureFlags: featureFlags,
-        uriEvents: this.widget.uriEvents,
-        gdriveAuth: this.widget.gdriveAuth,
+    unawaited(
+      Navigator.of(this.context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => WalletPage(
+            config: this.widget.config,
+            app: app,
+            settings: settings,
+            featureFlags: featureFlags,
+            uriEvents: this.widget.uriEvents,
+            gdriveAuth: this.widget.gdriveAuth,
+          ),
+        ),
       ),
-    )));
+    );
   }
 
   void prevPage() {
-    unawaited(this.carouselScrollController.previousPage(
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.ease,
-        ));
+    unawaited(
+      this.carouselScrollController.previousPage(
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.ease,
+      ),
+    );
   }
 
   void nextPage() {
-    unawaited(this.carouselScrollController.nextPage(
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.ease,
-        ));
+    unawaited(
+      this.carouselScrollController.nextPage(
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.ease,
+      ),
+    );
   }
 
   @override
@@ -211,13 +233,13 @@ We run your node in a **Secure Enclave** so your funds are protected, even if we
 With LEXE, **only you control your funds**. Let us handle the infrastructure.
       '''),
 
-// TODO(phlip9): add this page after we actually implement paid liquidity.
-//       //
-//       LandingMarkdownBody('''
-// ## AUTOMATIC INBOUND LIQUIDITY.
-//
-// Your node can automatically top-up liquidity so you **never miss a payment again**.
-//       '''),
+      // TODO(phlip9): add this page after we actually implement paid liquidity.
+      //       //
+      //       LandingMarkdownBody('''
+      // ## AUTOMATIC INBOUND LIQUIDITY.
+      //
+      // Your node can automatically top-up liquidity so you **never miss a payment again**.
+      //       '''),
 
       //
       LandingMarkdownBody('''
@@ -237,89 +259,106 @@ Your wallet always verifies your node's software before sharing any keys.
       value: LxTheme.systemOverlayStyleLightClearBg,
       child: Scaffold(
         backgroundColor: LxColors.background,
-        body: Stack(children: [
-          // Background shader.
-          InkuShader(
-            carouselScrollController: this.carouselScrollController,
-            fixedShaderTime: this.widget.fixedShaderTime,
-            child: const Center(),
-          ),
+        body: Stack(
+          children: [
+            // Background shader.
+            InkuShader(
+              carouselScrollController: this.carouselScrollController,
+              fixedShaderTime: this.widget.fixedShaderTime,
+              child: const Center(),
+            ),
 
-          // Main body content, with max width and height, centered in the
-          // viewport.
-          LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints viewport) {
-              final viewportHeight = viewport.maxHeight;
+            // Main body content, with max width and height, centered in the
+            // viewport.
+            LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints viewport) {
+                final viewportHeight = viewport.maxHeight;
 
-              const minHeight = 525.0;
-              const verticalBreakpoint = 725.0;
+                const minHeight = 525.0;
+                const verticalBreakpoint = 725.0;
 
-              final maxHeight = max(minHeight, viewportHeight);
-              final top = (viewportHeight > verticalBreakpoint) ? 196.0 : 64.0;
-              final bottom =
-                  (viewportHeight > verticalBreakpoint) ? 64.0 : 32.0;
+                final maxHeight = max(minHeight, viewportHeight);
+                final top = (viewportHeight > verticalBreakpoint)
+                    ? 196.0
+                    : 64.0;
+                final bottom = (viewportHeight > verticalBreakpoint)
+                    ? 64.0
+                    : 32.0;
 
-              const horizPadding = Space.s400;
+                const horizPadding = Space.s400;
 
-              return Center(
-                child: Container(
-                  constraints: BoxConstraints(
-                    minHeight: minHeight,
-                    maxHeight: maxHeight,
-                  ),
-                  child: Stack(fit: StackFit.passthrough, children: [
-                    // Landing marketing pages.
-                    Container(
-                      padding: EdgeInsets.only(top: top),
-                      child: PageView.builder(
-                        controller: this.carouselScrollController,
-                        scrollBehavior: const CupertinoScrollBehavior(),
-                        onPageChanged: (pageIndex) {
-                          if (!this.mounted) return;
-                          this.selectedPageIndex.value = pageIndex;
-                        },
-                        itemBuilder: (context, idx) {
-                          if (idx < 0 || idx >= numPages) return null;
-
-                          return Container(
-                            alignment: Alignment.topCenter,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: horizPadding),
-                            child: ConstrainedBox(
-                              constraints:
-                                  const BoxConstraints(maxWidth: maxWidth),
-                              child: landingPages[idx],
-                            ),
-                          );
-                        },
-                      ),
+                return Center(
+                  child: Container(
+                    constraints: BoxConstraints(
+                      minHeight: minHeight,
+                      maxHeight: maxHeight,
                     ),
+                    child: Stack(
+                      fit: StackFit.passthrough,
+                      children: [
+                        // Landing marketing pages.
+                        Container(
+                          padding: EdgeInsets.only(top: top),
+                          child: PageView.builder(
+                            controller: this.carouselScrollController,
+                            scrollBehavior: const CupertinoScrollBehavior(),
+                            onPageChanged: (pageIndex) {
+                              if (!this.mounted) return;
+                              this.selectedPageIndex.value = pageIndex;
+                            },
+                            itemBuilder: (context, idx) {
+                              if (idx < 0 || idx >= numPages) return null;
 
-                    // Action buttons (signup, restore) and page indicators.
-                    Container(
-                      padding: EdgeInsets.fromLTRB(
-                          horizPadding, 0, horizPadding, bottom),
-                      alignment: Alignment.bottomCenter,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: maxWidth),
-                        child: LandingButtons(
-                          config: this.widget.config,
-                          numPages: numPages,
-                          selectedPageIndex: this.selectedPageIndex,
-                          onSignupPressed: () => unawaited(this.doSignupFlow()),
-                          onRestorePressed: () =>
-                              unawaited(this.doRestoreFlow()),
-                          onTapPrev: this.prevPage,
-                          onTapNext: this.nextPage,
+                              return Container(
+                                alignment: Alignment.topCenter,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: horizPadding,
+                                ),
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: maxWidth,
+                                  ),
+                                  child: landingPages[idx],
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ),
+
+                        // Action buttons (signup, restore) and page indicators.
+                        Container(
+                          padding: EdgeInsets.fromLTRB(
+                            horizPadding,
+                            0,
+                            horizPadding,
+                            bottom,
+                          ),
+                          alignment: Alignment.bottomCenter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxWidth: maxWidth,
+                            ),
+                            child: LandingButtons(
+                              config: this.widget.config,
+                              numPages: numPages,
+                              selectedPageIndex: this.selectedPageIndex,
+                              onSignupPressed: () =>
+                                  unawaited(this.doSignupFlow()),
+                              onRestorePressed: () =>
+                                  unawaited(this.doRestoreFlow()),
+                              onTapPrev: this.prevPage,
+                              onTapNext: this.nextPage,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ]),
-                ),
-              );
-            },
-          ),
-        ]),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -355,11 +394,7 @@ Future<void> _onTapLink(String _text, String? href, String _title) async {
 /// [MarkdownBody] but styled for the landing page.
 class LandingMarkdownBody extends MarkdownBody {
   LandingMarkdownBody(final String data, {super.key})
-      : super(
-          data: data,
-          styleSheet: _landingStyleSheet,
-          onTapLink: _onTapLink,
-        );
+    : super(data: data, styleSheet: _landingStyleSheet, onTapLink: _onTapLink);
 }
 
 class LandingButtons extends StatelessWidget {
@@ -419,8 +454,9 @@ class LandingButtons extends StatelessWidget {
         LxOutlinedButton(
           onTap: this.onRestorePressed,
           style: ButtonStyle(
-            fixedSize:
-                WidgetStateProperty.all(const Size(maxWidth, Space.s800)),
+            fixedSize: WidgetStateProperty.all(
+              const Size(maxWidth, Space.s800),
+            ),
           ),
           label: const Text("I have a Lexe wallet"),
         ),
@@ -450,24 +486,26 @@ class InkuShader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-        future: InkuShader.load(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            error(
-                "Error loading shader: ${snapshot.error}:\n${snapshot.stackTrace}");
-            return const SizedBox();
-          }
-          if (!snapshot.hasData) {
-            return const SizedBox();
-          }
-
-          return AnimatedShader(
-            shader: snapshot.data!,
-            carouselScrollController: this.carouselScrollController,
-            fixedShaderTime: this.fixedShaderTime,
-            child: this.child,
+      future: InkuShader.load(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          error(
+            "Error loading shader: ${snapshot.error}:\n${snapshot.stackTrace}",
           );
-        });
+          return const SizedBox();
+        }
+        if (!snapshot.hasData) {
+          return const SizedBox();
+        }
+
+        return AnimatedShader(
+          shader: snapshot.data!,
+          carouselScrollController: this.carouselScrollController,
+          fixedShaderTime: this.fixedShaderTime,
+          child: this.child,
+        );
+      },
+    );
   }
 }
 

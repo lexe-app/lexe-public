@@ -82,20 +82,20 @@ class FiatRateService {
 Future<Result<FiatRates, void>?> _fetchWithRetries({
   required AppHandle app,
   required bool Function() isCanceled,
-}) async =>
-    retryWithBackoff(
-      () => _fetch(app),
-      backoff: const ClampedExpBackoff(
-        base: Duration(milliseconds: 2500),
-        exp: 2.0,
-        max: Duration(minutes: 1),
-      ),
-      isCanceled: isCanceled,
-    );
+}) async => retryWithBackoff(
+  () => _fetch(app),
+  backoff: const ClampedExpBackoff(
+    base: Duration(milliseconds: 2500),
+    exp: 2.0,
+    max: Duration(minutes: 1),
+  ),
+  isCanceled: isCanceled,
+);
 
 Future<Result<FiatRates, void>> _fetch(AppHandle app) async =>
-    (await Result.tryFfiAsync(app.fiatRates))
-        .mapErr((err) => error("fiatRates: Failed to fetch: $err"));
+    (await Result.tryFfiAsync(
+      app.fiatRates,
+    )).mapErr((err) => error("fiatRates: Failed to fetch: $err"));
 
 bool _alwaysFalse() => false;
 

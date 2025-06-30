@@ -12,7 +12,8 @@ Future<void> main() async {
       final expect = countLinesOracle(s);
       if (actual != expect) {
         fail(
-            "expect: $expect\nactual: $actual\n input: \"$s\"\n codes: ${s.codeUnits}");
+          "expect: $expect\nactual: $actual\n input: \"$s\"\n codes: ${s.codeUnits}",
+        );
       }
     }
   });
@@ -23,8 +24,11 @@ int countLinesOracle(final String s) => s.split('\n').length;
 extension RandomExt on Random {
   String genString() {
     final len = this.nextInt(1024);
-    final utf16 =
-        List.generate(len, (_idx) => this.genUtf16Code(), growable: false);
+    final utf16 = List.generate(
+      len,
+      (_idx) => this.genUtf16Code(),
+      growable: false,
+    );
     return String.fromCharCodes(utf16);
   }
 

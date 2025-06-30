@@ -20,11 +20,7 @@ import 'package:lexeapp/style.dart' show LxColors, Space;
 /// Encode `value` as a QR image and then display it in `dimension` pixels
 /// width and height.
 class QrImage extends StatelessWidget {
-  const QrImage({
-    super.key,
-    required this.value,
-    required this.dimension,
-  });
+  const QrImage({super.key, required this.value, required this.dimension});
 
   final String value;
   final double dimension;
@@ -64,10 +60,12 @@ class InteractiveQrImage extends StatefulWidget {
 class _InteractiveQrImageState extends State<InteractiveQrImage> {
   /// Open the QR image in a new fullscreen modal dialog.
   void openQrPage() {
-    unawaited(showDialog(
-      context: this.context,
-      builder: (_) => FullscreenQrDialog(value: this.widget.value),
-    ));
+    unawaited(
+      showDialog(
+        context: this.context,
+        builder: (_) => FullscreenQrDialog(value: this.widget.value),
+      ),
+    );
   }
 
   @override
@@ -79,10 +77,7 @@ class _InteractiveQrImageState extends State<InteractiveQrImage> {
       child: Stack(
         children: [
           // Draw the QR below the splasher
-          QrImage(
-            value: this.widget.value,
-            dimension: this.widget.dimension,
-          ),
+          QrImage(value: this.widget.value, dimension: this.widget.dimension),
           // Interactive splasher material
           Material(
             type: MaterialType.transparency,
@@ -102,10 +97,7 @@ class _InteractiveQrImageState extends State<InteractiveQrImage> {
 
 /// A fullscreen modal QR image. Generally used with [showDialog].
 class FullscreenQrDialog extends StatelessWidget {
-  const FullscreenQrDialog({
-    super.key,
-    required this.value,
-  });
+  const FullscreenQrDialog({super.key, required this.value});
 
   final String value;
 
@@ -123,8 +115,11 @@ class FullscreenQrDialog extends StatelessWidget {
           builder: (context, constraints) => QrImage(
             value: this.value,
             // The largest square QR image we can show, within reasonable constraints.
-            dimension:
-                clampDouble(constraints.biggest.shortestSide, 200.0, 500.0),
+            dimension: clampDouble(
+              constraints.biggest.shortestSide,
+              200.0,
+              500.0,
+            ),
           ),
         ),
       ),
@@ -148,12 +143,7 @@ class ShowQrPage extends StatelessWidget {
       body: ScrollableSinglePageBody(
         body: [
           const SizedBox(height: Space.s900),
-          Center(
-            child: QrImage(
-              value: this.value,
-              dimension: 300,
-            ),
-          )
+          Center(child: QrImage(value: this.value, dimension: 300)),
         ],
       ),
     );
@@ -191,22 +181,16 @@ class QrImageProvider extends ImageProvider<QrImageKey> {
     // pixels, so no need to account for device pixel ratio.
     final scale = (size != null)
         ? qr.encodedPixelsPerSide(dataLenBytes: len).toDouble() /
-            size.shortestSide
+              size.shortestSide
         : 1.0;
 
     return SynchronousFuture<QrImageKey>(
-      QrImageKey(
-        value: this.value,
-        scale: scale,
-      ),
+      QrImageKey(value: this.value, scale: scale),
     );
   }
 
   @override
-  ImageStreamCompleter loadImage(
-    QrImageKey key,
-    ImageDecoderCallback decode,
-  ) {
+  ImageStreamCompleter loadImage(QrImageKey key, ImageDecoderCallback decode) {
     // Technically this could use `OneFrameImageStreamCompleter` but it seems
     // more complicated...
     return MultiFrameImageStreamCompleter(
@@ -235,10 +219,7 @@ class QrImageProvider extends ImageProvider<QrImageKey> {
 /// Uniquely identifies a QR image in the global image cache.
 @immutable
 class QrImageKey {
-  const QrImageKey({
-    required this.value,
-    required this.scale,
-  });
+  const QrImageKey({required this.value, required this.scale});
 
   /// The UTF-8 encoded string that will be encoded into a QR code image.
   final Uint8List value;
@@ -256,9 +237,5 @@ class QrImageKey {
   }
 
   @override
-  int get hashCode => Object.hash(
-        this.runtimeType,
-        this.value,
-        this.scale,
-      );
+  int get hashCode => Object.hash(this.runtimeType, this.value, this.scale);
 }
