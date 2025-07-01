@@ -49,7 +49,7 @@ impl<R: RngCore + CryptoRng> Crng for R {
 
 /// Minimal extension trait on [`rand_core::RngCore`], containing small utility
 /// methods for generating random values.
-pub trait RngExt: RngCore {
+pub trait RngExt: RngCore + Rng {
     fn gen_bytes<const N: usize>(&mut self) -> [u8; N];
     fn gen_bool(&mut self) -> bool;
     fn gen_u8(&mut self) -> u8;
@@ -57,13 +57,15 @@ pub trait RngExt: RngCore {
     fn gen_u32(&mut self) -> u32;
     fn gen_u64(&mut self) -> u64;
     fn gen_u128(&mut self) -> u128;
+    fn gen_f32(&mut self) -> f32;
+    fn gen_f64(&mut self) -> f64;
 
     /// Generate `N` (nearly uniformly random) alphanumeric (0-9, A-Z, a-z)
     /// bytes.
     fn gen_alphanum_bytes<const N: usize>(&mut self) -> [u8; N];
 }
 
-impl<R: RngCore> RngExt for R {
+impl<R: RngCore + Rng> RngExt for R {
     fn gen_bytes<const N: usize>(&mut self) -> [u8; N] {
         let mut out = [0u8; N];
         self.fill_bytes(&mut out);
@@ -104,6 +106,16 @@ impl<R: RngCore> RngExt for R {
     #[inline]
     fn gen_u128(&mut self) -> u128 {
         u128::from_le_bytes(self.gen_bytes())
+    }
+
+    #[inline]
+    fn gen_f32(&mut self) -> f32 {
+        self.gen::<f32>()
+    }
+
+    #[inline]
+    fn gen_f64(&mut self) -> f64 {
+        self.gen::<f64>()
     }
 }
 
