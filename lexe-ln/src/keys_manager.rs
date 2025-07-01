@@ -311,11 +311,13 @@ mod test {
             msg in ".*",
         )| {
             // Create users 1 and 2
-            let wallet1 = LexeWallet::dummy(&root_seed1);
+            let maybe_changeset = None;
+            let wallet1 = LexeWallet::dummy(&root_seed1, maybe_changeset);
             let keys_manager1 =
                 LexeKeysManager::new(&mut rng, &root_seed1, wallet1).unwrap();
             let node_pk1 = keys_manager1.node_pk();
-            let wallet2 = LexeWallet::dummy(&root_seed2);
+            let maybe_changeset = None;
+            let wallet2 = LexeWallet::dummy(&root_seed2, maybe_changeset);
             let keys_manager2 =
                 LexeKeysManager::new(&mut rng, &root_seed2, wallet2).unwrap();
 

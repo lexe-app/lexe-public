@@ -221,7 +221,28 @@ impl LexeWallet {
                 );
             }
             let wallet = match maybe_wallet {
-                Some(w) => w,
+                Some(mut w) => {
+                    // We're loading an existing wallet.
+                    //
+                    // Since we persist the bdk wallet out-of-line, we can
+                    // potentially reveal+use an spk and then crash before the
+                    // BDK wallet persists. Without any mitigation, we would
+                    // restart and fail to sync the spk since it appears
+                    // unrevealed.
+                    //
+                    // To mitigate this, we'll reveal an spk per keychain if
+                    // there are no unused spks in that keychain. Since our
+                    // incremental sync always syncs any unused spks, if we
+                    // always have one unused spk after init we'll be able to
+                    // catch one used-before-crash spk.
+                    //
+                    // Technically we can also reveal and use multiple spks
+                    // before crashing, but we're only going to try to handle
+                    // one spk used-before-crash per keychain for now.
+                    w.reveal_spk_if_no_unused(KeychainKind::External);
+                    w.reveal_spk_if_no_unused(KeychainKind::Internal);
+                    w
+                }
                 None => create_wallet()?,
             };
 
@@ -261,11 +282,13 @@ impl LexeWallet {
 
     /// Constructs a dummy [`LexeWallet`] useful for tests.
     #[cfg(test)]
-    pub(crate) fn dummy(root_seed: &RootSeed) -> Self {
+    pub(crate) fn dummy(
+        root_seed: &RootSeed,
+        maybe_changeset: Option<ChangeSet>,
+    ) -> Self {
         let fee_estimates = FeeEstimates::dummy();
         let coin_selector = LexeCoinSelector::default();
         let network = LxNetwork::Regtest;
-        let maybe_changeset = None;
         let (persist_tx, _persist_rx) = notify::channel();
         let (wallet, _wallet_created) = LexeWallet::new(
             root_seed,
@@ -516,34 +539,11 @@ impl LexeWallet {
             }
         }
 
-        // HACK: We'll also sync the next unrevealed spks for both keychains, in
-        // case we revealed an index, used it, then crashed before the BDK
-        // wallet persisted.
-        //
-        // NOTE: The unrevealed spk might not be in the cache. I don't really
-        // want to acquire a write lock to build the sync request, so we'll just
-        // ignore if we would need to derive a new batch of spks.
-        let keychain = KeychainKind::External;
-        let next_unrevealed_external_spk =
-            keychains.next_index(keychain).and_then(|(index, _new)| {
-                keychains
-                    .spk_at_index(keychain, index)
-                    .map(|spk| ((keychain, index), spk))
-            });
-        let keychain = KeychainKind::Internal;
-        let next_unrevealed_internal_spk =
-            keychains.next_index(keychain).and_then(|(index, _new)| {
-                keychains
-                    .spk_at_index(keychain, index)
-                    .map(|spk| ((keychain, index), spk))
-            });
-
         // Collect some basic stats on how many spks for each keychain we're
         // going to sync.
-        let (syncing_external, syncing_internal) = spk_infos
-            .values()
-            // Start with (1, 1) to include next unrevealed
-            .fold((1_u32, 1_u32), |(num_ext, num_int), spk_info| {
+        let (syncing_external, syncing_internal) = spk_infos.values().fold(
+            (0_u32, 0_u32),
+            |(num_ext, num_int), spk_info| {
                 if !spk_info.needs_sync() {
                     (num_ext, num_int)
                 } else if spk_info.is_internal() {
@@ -551,7 +551,8 @@ impl LexeWallet {
                 } else {
                     (num_ext + 1, num_int)
                 }
-            });
+            },
+        );
         let total_external = keychains
             .last_revealed_index(KeychainKind::External)
             .map(|index| index + 1)
@@ -578,8 +579,6 @@ impl LexeWallet {
         SyncRequest::<(KeychainKind, u32)>::builder_at(synced_at.to_secs())
             .chain_tip(chain_tip)
             .spks_with_indexes(spks_to_sync)
-            .spks_with_indexes(next_unrevealed_external_spk)
-            .spks_with_indexes(next_unrevealed_internal_spk)
             // All relevant txids for the spks we want to sync, so BDK can
             // determine if a tx was evicted.
             .expected_spk_txids(expected_spk_txids)
@@ -1172,6 +1171,32 @@ impl CoinSelectionAlgorithm for LexeCoinSelector {
     }
 }
 
+/// An extension trait on the (locked) BDK `Wallet`.
+trait BdkWalletExt {
+    /// Returns `true` if we have at least one revealed but unused spk in the
+    /// given keychain.
+    fn have_unused_spk(&self, keychain: KeychainKind) -> bool;
+
+    /// Reveals an spk in the given keychain if there are no unused spks
+    /// available.
+    fn reveal_spk_if_no_unused(&mut self, keychain: KeychainKind);
+}
+
+impl BdkWalletExt for Wallet {
+    fn have_unused_spk(&self, keychain: KeychainKind) -> bool {
+        self.spk_index()
+            .unused_keychain_spks(keychain)
+            .next()
+            .is_some()
+    }
+
+    fn reveal_spk_if_no_unused(&mut self, keychain: KeychainKind) {
+        if !self.have_unused_spk(keychain) {
+            let _ = self.reveal_next_address(keychain);
+        }
+    }
+}
+
 /// Use this fake TXO drain script to prevent the BDK wallet from modifying its
 /// internal state when building fake txs, like the ones used to estimate fees
 /// during preflight.
@@ -1388,12 +1413,14 @@ mod test {
     struct Harness {
         wallet: LexeWallet,
         network: LxNetwork,
+        root_seed: RootSeed,
     }
 
     impl Harness {
         fn new(seed: u64) -> Self {
             let root_seed = RootSeed::from_u64(seed);
-            let wallet = LexeWallet::dummy(&root_seed);
+            let maybe_changeset = None;
+            let wallet = LexeWallet::dummy(&root_seed, maybe_changeset);
             let network = LxNetwork::Regtest;
 
             // Add some initial confirmed blocks
@@ -1403,7 +1430,13 @@ mod test {
                 w.add_checkpoint(900);
             }
 
-            Harness { wallet, network }
+            let h = Harness {
+                wallet,
+                network,
+                root_seed,
+            };
+            h.persist();
+            h
         }
 
         /// Get the wallet write lock.
@@ -1421,13 +1454,22 @@ mod test {
             self.wr().now()
         }
 
+        // "Persist" the current staged wallet changes into the in-memory
+        // changeset.
+        fn persist(&self) {
+            let staged = self.ww().take_staged();
+            if let Some(update) = staged {
+                self.wallet.changeset.lock().unwrap().merge(update);
+            }
+        }
+
         /// Check that running the given function `f` does not generate any new
         /// persists in the wallet.
         fn assert_no_persists_in<F, R>(&mut self, f: F) -> R
         where
             F: FnOnce(&mut Self) -> R,
         {
-            let _ = self.ww().take_staged();
+            self.persist();
             let ret = f(self);
             assert_eq!(None, self.ww().take_staged());
             ret
@@ -1495,7 +1537,14 @@ mod test {
                 })
                 .collect::<BTreeMap<_, _>>();
 
-            expected.extend(self.wr().next_unrevealed_spks());
+            // Expect all unused spks
+            expected.extend(
+                self.wr()
+                    .spk_index()
+                    .inner()
+                    .unused_spks(..)
+                    .map(|(_, spk)| (spk, BTreeSet::new())),
+            );
 
             if actual != expected {
                 println!("Actual:");
@@ -1508,12 +1557,30 @@ mod test {
                 }
                 panic!("SyncRequest did not return expected spks");
             }
+
+            // We can also check this invariant here
+            self.assert_have_unused_after_reload();
+        }
+
+        /// Assert that we always have at least one unused internal and external
+        /// spk after loading the wallet.
+        #[track_caller]
+        fn assert_have_unused_after_reload(&self) {
+            let mut changeset = self.wallet.changeset.lock().unwrap().clone();
+            let staged = self.wr().staged().cloned();
+            if let Some(update) = staged {
+                changeset.merge(update);
+            }
+
+            let wallet = LexeWallet::dummy(&self.root_seed, Some(changeset));
+            assert!(wallet.read().have_unused_spk(KeychainKind::External));
+            assert!(wallet.read().have_unused_spk(KeychainKind::Internal));
         }
     }
 
     /// An extension trait on the (locked) BDK `Wallet` to make writing wallet
     /// tests more ergonomic.
-    trait WalletExt {
+    trait BdkWalletTestExt {
         fn height(&self) -> u32;
 
         /// A fake clock timestamp that's just `unix time := height * 100 sec`.
@@ -1542,14 +1609,9 @@ mod test {
 
         /// Add a new block checkpoint at `height + blocks`.
         fn add_checkpoint(&mut self, blocks: u32) -> ConfirmationBlockTime;
-
-        /// Return the next unrevealed internal and external spks.
-        fn next_unrevealed_spks(
-            &self,
-        ) -> BTreeMap<bitcoin::ScriptBuf, BTreeSet<Txid>>;
     }
 
-    impl WalletExt for Wallet {
+    impl BdkWalletTestExt for Wallet {
         fn height(&self) -> u32 {
             self.local_chain().tip().height()
         }
@@ -1622,22 +1684,6 @@ mod test {
             };
             self.apply_update(update).unwrap();
             self.add_checkpoint(confs - 1);
-        }
-
-        fn next_unrevealed_spks(
-            &self,
-        ) -> BTreeMap<bitcoin::ScriptBuf, BTreeSet<Txid>> {
-            let keychains = self.spk_index();
-            let keychain = KeychainKind::External;
-            let next_external = keychains
-                .next_index(keychain)
-                .and_then(|(index, _)| keychains.spk_at_index(keychain, index));
-            let keychain = KeychainKind::Internal;
-            let next_internal = keychains
-                .next_index(keychain)
-                .and_then(|(index, _)| keychains.spk_at_index(keychain, index));
-            let next_both = next_external.into_iter().chain(next_internal);
-            next_both.map(|spk| (spk, BTreeSet::new())).collect()
         }
     }
 
@@ -1918,8 +1964,7 @@ mod test {
     fn test_build_sync_request() {
         let h = Harness::new(2869818889840);
 
-        // Empty wallet should build SyncRequest with just first unrevealed
-        // external/internal spks.
+        // Empty wallet should build empty SyncRequest.
         h.assert_sync(map! {});
 
         trace!("== unconfirmed fund ===");
