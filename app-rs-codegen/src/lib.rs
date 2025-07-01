@@ -116,6 +116,15 @@ impl Args {
             .status()
             .context("Failed to run `cargo fmt` with nightly compiler")?;
 
+        // re-re-run `dart format` because somehow it's not getting formatted??
+        // TODO(phlip9): maybe this a new frb version will fix this? (as of
+        // frb-v2.7.1)
+        Command::new("dart")
+            .args(["format", "--line-length=80", "."])
+            .current_dir(&app_rs_dart_dir)
+            .status()
+            .context("Failed to run `dart format` on generated Dart code")?;
+
         // Maybe update `app_rs_dart/build_rust_ios_macos.input.xcfilelist`.
         // This file is used in `app_rs_dart`'s CocoaPods/Xcode integration.
         let xcfilelist_path =
