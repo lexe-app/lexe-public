@@ -1052,51 +1052,59 @@ pub fn spawn_wallet_persister_task<PS: LexePersister>(
     persister: PS,
     wallet: LexeWallet,
     mut wallet_persister_rx: notify::Receiver,
+    // TODO(phlip9): only shutdown persisters after "activity" generating tasks
+    // shutdown.
     mut shutdown: NotifyOnce,
 ) -> LxTask<()> {
     LxTask::spawn("wallet persister", async move {
         loop {
             tokio::select! {
+                biased;
                 () = wallet_persister_rx.recv() => {
-                    // Take any staged changes from the wallet and merge them
-                    // into the combined changeset (i.e. our write-back cache),
-                    // then serialize + encrypt these to a VFS file.
-                    let file = {
-                        let mut locked_wallet = wallet.inner.write().unwrap();
-                        let new_changes = match locked_wallet.take_staged() {
-                            Some(c) => c,
-                            None => {
-                                debug!("Skipping persist: no new changes");
-                                continue;
-                            }
-                        };
-                        let mut locked_changeset =
-                            wallet.changeset.lock().unwrap();
-                        locked_changeset.merge(new_changes);
-
-                        let file_id = VfsFileId::new(
-                            SINGLETON_DIRECTORY, WALLET_CHANGESET_FILENAME
-                        );
-                        persister.encrypt_json(file_id, &*locked_changeset)
-                    };
-
-                    // Finish the current persist attempt before responding to
-                    // any shutdown signal received in the meantime.
-                    let persist_result = persister
-                        .persist_file(&file, IMPORTANT_PERSIST_RETRIES)
-                        .await;
-
-                    match persist_result {
-                        Ok(()) => debug!("Success: persisted wallet db"),
-                        Err(e) => warn!("Wallet DB persist error: {e:#}"),
-                    }
+                    do_wallet_persist(&persister, &wallet).await;
                 }
                 () = shutdown.recv() => break,
             }
         }
-
-        info!("wallet db persister task shutting down");
+        info!("wallet db persister task shutdown");
     })
+}
+
+/// Persist the current BDK wallet state if there are any outstanding changes.
+async fn do_wallet_persist<PS: LexePersister>(
+    persister: &PS,
+    wallet: &LexeWallet,
+) {
+    // Take any staged changes from the wallet and merge them
+    // into the combined changeset (i.e. our write-back cache),
+    // then serialize + encrypt these to a VFS file.
+    let file = {
+        let new_changes = match wallet.write().take_staged() {
+            Some(c) => c,
+            None => {
+                debug!("Skipping persist: no new changes");
+                return;
+            }
+        };
+
+        let mut locked_changeset = wallet.changeset.lock().unwrap();
+        locked_changeset.merge(new_changes);
+
+        let file_id =
+            VfsFileId::new(SINGLETON_DIRECTORY, WALLET_CHANGESET_FILENAME);
+        persister.encrypt_json(file_id, &*locked_changeset)
+    };
+
+    // Finish the current persist attempt before responding to
+    // any shutdown signal received in the meantime.
+    let persist_result = persister
+        .persist_file(&file, IMPORTANT_PERSIST_RETRIES)
+        .await;
+
+    match persist_result {
+        Ok(()) => debug!("Success: persisted wallet db"),
+        Err(e) => warn!("Wallet DB persist error: {e:#}"),
+    }
 }
 
 /// A [`CoinSelectionAlgorithm`] impl which spends the oldest UTXOs first,

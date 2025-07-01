@@ -199,7 +199,7 @@ impl UserNode {
         let config = channel_manager::get_config();
 
         // Collect all handles to static tasks
-        let mut static_tasks = Vec::with_capacity(10);
+        let mut static_tasks = Vec::with_capacity(15);
 
         // Only accept esplora urls whitelisted in the given `network`.
         // - Note that seeing a non-whitelisted url does not necessary mean we
@@ -468,6 +468,7 @@ impl UserNode {
         ));
 
         // Init gossip sync
+        // TODO(phlip9): does node even need gossip sync anymore?
         let utxo_lookup = None;
         let gossip_sync = Arc::new(P2PGossipSync::new(
             network_graph.clone(),
