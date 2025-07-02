@@ -166,6 +166,8 @@ where
         unconfirmed: num_unconfirmed_utxos,
     } = utxo_counts;
 
+    let best_block_height = channel_manager.current_best_block().height;
+
     let pending_monitor_updates = chain_monitor
         .list_pending_monitor_updates()
         .values()
@@ -185,6 +187,7 @@ where
         num_utxos,
         num_confirmed_utxos,
         num_unconfirmed_utxos,
+        best_block_height,
         pending_monitor_updates,
     }
 }

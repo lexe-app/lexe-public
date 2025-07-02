@@ -50,6 +50,9 @@ pub struct NodeInfo {
     /// The # of unconfirmed UTXOs tracked by BDK.
     pub num_unconfirmed_utxos: usize,
 
+    /// The channel manager's best synced block height.
+    pub best_block_height: u32,
+
     /// The number of pending channel monitor updates.
     /// If this isn't 0, it's likely that at least one channel is paused.
     // TODO(max): This field is in the wrong place and should be removed.
