@@ -179,11 +179,11 @@ impl UserPk {
     }
 
     /// Used to quickly construct `UserPk`s for tests.
-    pub fn from_u64(v: i64) -> Self {
-        // Convert i64 to [u8; 8]
+    pub fn from_u64(v: u64) -> Self {
+        // Convert u64 to [u8; 8]
         let bytes = v.to_le_bytes();
 
-        // Fill the first 8 bytes with the i64 bytes
+        // Fill the first 8 bytes with the u64 bytes
         let mut inner = [0u8; 32];
         inner[0..8].copy_from_slice(&bytes);
 
