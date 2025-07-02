@@ -14,6 +14,13 @@ const Set<String> prodLexeDevUserPks = {
   "7b99af3b38ccec46bd691d1f091053868dc70e5a3945908825beb0271cfe01c9",
 };
 
+/// Enable all experimental features for alpha users.
+/// See: <doc/ALPHA_USERS.md>
+// TODO(phlip9): should be set server side
+const Set<String> prodAlphaUserPks = {
+  "43989a38fdf9b4485b6d2342310953111524921c43fb009077098b9e1fedba22",
+};
+
 @immutable
 final class FeatureFlags {
   /// Determine the enabled feature flags based on the deployment environment
@@ -26,6 +33,8 @@ final class FeatureFlags {
         return const FeatureFlags.all();
       case DeployEnv.prod:
         if (prodLexeDevUserPks.contains(userPk)) {
+          return const FeatureFlags.all();
+        } else if (prodAlphaUserPks.contains(userPk)) {
           return const FeatureFlags.all();
         } else {
           return const FeatureFlags.none();
