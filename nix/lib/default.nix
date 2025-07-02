@@ -65,11 +65,17 @@
       system = system;
       config = {
         android_sdk.accept_license = true;
-        allowUnfreePredicate = pkg:
-          builtins.elem (lib.getName pkg) [
-            "android-sdk-tools"
-            "android-sdk-cmdline-tools"
-          ];
+        allowUnfreePredicate = let
+          allowed = {
+            android-sdk-build-tools = null;
+            android-sdk-cmdline-tools = null;
+            android-sdk-platform-tools = null;
+            android-sdk-platforms = null;
+            android-sdk-tools = null;
+            android-sdk-ndk = null;
+          };
+        in
+          pkg: allowed ? ${lib.getName pkg};
       };
     };
 }
