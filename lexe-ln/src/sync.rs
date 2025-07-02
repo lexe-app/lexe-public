@@ -21,8 +21,10 @@ use crate::{
 // This should be fairly infrequent because both sync using a transaction-based
 // API which makes HTTP requests to third party services.
 const SYNC_INTERVAL: Duration = Duration::from_secs(60 * 10);
+// TODO(phlip9): reduce this once we fix LDK sync timing out after 30sec on
+// our LSP...
 /// How long BDK / LDK sync can proceed before we consider sync to have failed.
-const SYNC_TIMEOUT: Duration = Duration::from_secs(30);
+pub const SYNC_TIMEOUT: Duration = Duration::from_secs(110);
 
 // TODO(max): The control flow / logic in these two functions are sufficiently
 // complex and similar that it's probably a good idea to extract a helper fn.
