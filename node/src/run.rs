@@ -75,7 +75,7 @@ use tracing::{debug, info, info_span, warn};
 use crate::{
     activity::InactivityTimer,
     alias::{ChainMonitorType, OnionMessengerType, PaymentsManagerType},
-    api::{BackendApiClient, RunnerApiClient},
+    api::BackendApiClient,
     channel_manager::NodeChannelManager,
     context::{MegaContext, UserContext},
     event_handler::{self, NodeEventHandler},
@@ -137,7 +137,6 @@ pub struct UserNode {
 struct SyncContext {
     init_start: Instant,
     ldk_sync_client: Arc<EsploraSyncClientType>,
-    runner_api: Arc<dyn RunnerApiClient + Send + Sync>,
     onchain_recv_tx: notify::Sender,
     bdk_resync_rx: mpsc::Receiver<BdkSyncRequest>,
     ldk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
@@ -847,7 +846,6 @@ impl UserNode {
             sync: Some(SyncContext {
                 init_start,
                 ldk_sync_client,
-                runner_api,
                 onchain_recv_tx,
                 bdk_resync_rx,
                 ldk_resync_rx,
@@ -946,12 +944,6 @@ impl UserNode {
             )
         };
         self.static_tasks.push(ports_responder_task);
-
-        // TODO(max): Remove this once we remove the `run` command.
-        ctxt.runner_api
-            .ready_run(&self.run_ports)
-            .await
-            .context("Could not notify runner of ready status")?;
 
         let total_elapsed = ctxt.init_start.elapsed().as_millis();
         info!("Sync complete. Total init + sync time: <{total_elapsed}ms>");

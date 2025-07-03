@@ -28,7 +28,7 @@ use lexe_api::{
     rest::{RequestBuilderExt, RestClient, POST},
     types::{
         payments::{DbPayment, MaybeDbPayment, VecDbPayment, VecLxPaymentId},
-        ports::{MegaPorts, RunPorts},
+        ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         Empty,
     },
@@ -90,17 +90,6 @@ impl RunnerApiClient for RunnerClient {}
 
 #[async_trait]
 impl NodeRunnerApi for RunnerClient {
-    async fn ready_run(
-        &self,
-        ports: &RunPorts,
-    ) -> Result<Empty, RunnerApiError> {
-        let runner = &self.runner_url;
-        let req = self.rest.post(format!("{runner}/node/ready/run"), &ports);
-        // TODO(phlip9): authenticate runner callbacks?
-        // .bearer_auth(&self.auth_token().await?);
-        self.rest.send(req).await
-    }
-
     async fn renew_lease(
         &self,
         req: &UserLeaseRenewalRequest,

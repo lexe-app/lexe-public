@@ -101,7 +101,7 @@ use crate::{
             DbPayment, MaybeDbPayment, VecBasicPayment, VecDbPayment,
             VecLxPaymentId,
         },
-        ports::{MegaPorts, RunPorts},
+        ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         Empty,
     },
@@ -657,12 +657,6 @@ pub trait NodeLspApi {
 /// Defines the api that the runner exposes to the node.
 #[async_trait]
 pub trait NodeRunnerApi {
-    /// POST /node/ready/run [`RunPorts`] -> [`Empty`]
-    async fn ready_run(
-        &self,
-        ports: &RunPorts,
-    ) -> Result<Empty, RunnerApiError>;
-
     /// POST /node/renew_lease [`UserLeaseRenewalRequest`] -> [`Empty`]
     ///
     /// Renew's a user node's lease with the megarunner.

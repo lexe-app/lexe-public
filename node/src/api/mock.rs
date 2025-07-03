@@ -122,6 +122,7 @@ fn node_pk(user_pk: UserPk) -> NodePk {
 // --- The mock clients --- //
 
 pub(crate) struct MockRunnerClient {
+    #[allow(dead_code)] // TODO(claude): Remove when cleaning up mock
     notifs_tx: mpsc::Sender<RunPorts>,
     notifs_rx: Mutex<Option<mpsc::Receiver<RunPorts>>>,
 }
@@ -168,13 +169,6 @@ impl MegaRunnerApi for MockRunnerClient {
 
 #[async_trait]
 impl NodeRunnerApi for MockRunnerClient {
-    async fn ready_run(
-        &self,
-        run_ports: &RunPorts,
-    ) -> Result<Empty, RunnerApiError> {
-        let _ = self.notifs_tx.try_send(*run_ports);
-        Ok(Empty {})
-    }
     async fn renew_lease(
         &self,
         _req: &UserLeaseRenewalRequest,
