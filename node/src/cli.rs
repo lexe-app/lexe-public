@@ -2,29 +2,18 @@ use std::env;
 
 use anyhow::{bail, Context};
 use common::{
-    cli::{
-        node::{MegaArgs, RunArgs},
-        EnclaveArgs,
-    },
+    cli::{node::MegaArgs, EnclaveArgs},
     enclave,
     rng::SysRng,
 };
-use lexe_tokio::notify_once::NotifyOnce;
 
-use crate::{
-    context::{MegaContext, UserContext},
-    mega,
-    run::UserNode,
-    DEV_VERSION, SEMVER_VERSION,
-};
+use crate::{mega, DEV_VERSION, SEMVER_VERSION};
 
 /// Commands accepted by the user node.
 pub enum NodeCommand {
     /// Runs a mega node which can provision users or load user nodes.
     Mega(MegaArgs),
-    /// Runs an individual user node directly.
-    /// Avoids the need to specify provision-specific args.
-    Run(RunArgs),
+    // NOTE: More variants can be added here
 }
 
 impl NodeCommand {
@@ -54,11 +43,6 @@ impl NodeCommand {
                     .context("Invalid MegaArgs JSON string")?;
                 Ok(Some(NodeCommand::Mega(args)))
             }
-            (Some("run"), Some(args_str)) => {
-                let args = RunArgs::from_json_str(&args_str)
-                    .context("Invalid RunArgs JSON string")?;
-                Ok(Some(NodeCommand::Run(args)))
-            }
             _ => bail!("Invalid CLI options"),
         }
     }
@@ -66,7 +50,6 @@ impl NodeCommand {
     /// Gets the value for `RUST_LOG` passed from args.
     pub fn rust_log(&self) -> Option<&str> {
         match self {
-            Self::Run(args) => args.rust_log.as_deref(),
             Self::Mega(args) => args.rust_log.as_deref(),
         }
     }
@@ -74,7 +57,6 @@ impl NodeCommand {
     /// Gets the value for `RUST_BACKTRACE` passed from args.
     pub fn rust_backtrace(&self) -> Option<&str> {
         match self {
-            Self::Run(args) => args.rust_backtrace.as_deref(),
             Self::Mega(args) => args.rust_backtrace.as_deref(),
         }
     }
@@ -99,42 +81,6 @@ impl NodeCommand {
             Self::Mega(args) => rt
                 .block_on(mega::run(&mut rng, args))
                 .context("Mega instance error"),
-            // TODO(max): Remove this command entirely.
-            Self::Run(args) => rt
-                .block_on(async {
-                    let user_shutdown = NotifyOnce::new();
-                    let user_ctxt = UserContext {
-                        lease_id: None, // Run mode doesn't have lease renewal
-                        user_shutdown: user_shutdown.clone(),
-                        ..Default::default()
-                    };
-                    let allow_mock = true;
-                    let (mega_ctxt, static_tasks) = MegaContext::init(
-                        &mut rng,
-                        allow_mock,
-                        args.backend_url.clone(),
-                        args.lsp.clone(),
-                        args.runner_url.clone(),
-                        args.untrusted_deploy_env,
-                        args.untrusted_esplora_urls.clone(),
-                        args.untrusted_network,
-                        user_shutdown,
-                    )
-                    .await
-                    .context("Error initializing mega context")?;
-                    let mut node = UserNode::init(
-                        &mut rng,
-                        args,
-                        mega_ctxt,
-                        user_ctxt,
-                        static_tasks,
-                    )
-                    .await
-                    .context("Error during run init")?;
-                    node.sync().await.context("Error while syncing")?;
-                    node.run().await.context("Error while running")
-                })
-                .context("Error running node"),
         }
     }
 }
@@ -142,7 +88,7 @@ impl NodeCommand {
 /// Print out CLI help.
 pub fn print_help() {
     println!(
-        "CLI format: <bin_path> <help|version|mega|run> \
-         [<JSON-string-serialized `MegaArgs` or `RunArgs`>]"
+        "CLI format: <bin_path> <help|version|mega> \
+         [<JSON-string-serialized `MegaArgs`>]"
     );
 }
