@@ -37,7 +37,8 @@ use lexe_api::{
 use lexe_tls::attestation::{self, NodeMode};
 use lightning::events::Event;
 
-use crate::api::{BackendApiClient, RunnerApiClient};
+/// The user agent string for external requests.
+pub static USER_AGENT_EXTERNAL: &str = lexe_api::user_agent_external!();
 
 /// Used for both [`MegaRunnerApi`] and [`NodeRunnerApi`].
 pub(crate) struct RunnerClient {
@@ -84,9 +85,6 @@ impl MegaRunnerApi for RunnerClient {
         self.rest.send(req).await
     }
 }
-
-#[async_trait]
-impl RunnerApiClient for RunnerClient {}
 
 #[async_trait]
 impl NodeRunnerApi for RunnerClient {
@@ -197,9 +195,8 @@ impl NodeBackendClient {
     }
 }
 
-#[async_trait]
-impl BackendApiClient for NodeBackendClient {
-    async fn upsert_file_with_retries(
+impl NodeBackendClient {
+    pub(crate) async fn upsert_file_with_retries(
         &self,
         data: &VfsFile,
         auth: BearerAuthToken,

@@ -76,8 +76,11 @@ use tokio::sync::mpsc;
 use tracing::{error, info};
 
 use crate::{
-    activity, alias::PaymentsManagerType, api::RunnerApiClient,
-    channel_manager::NodeChannelManager, persister::NodePersister,
+    activity,
+    alias::PaymentsManagerType,
+    channel_manager::NodeChannelManager,
+    client::{NodeLspClient, RunnerClient},
+    persister::NodePersister,
 };
 
 #[derive(Clone)]
@@ -90,8 +93,8 @@ pub struct NodeEventHandler {
 pub(crate) struct EventCtx {
     pub user_pk: UserPk,
     pub lsp: LspInfo,
-    pub lsp_api: Arc<dyn NodeLspApi + Send + Sync>,
-    pub runner_api: Arc<dyn RunnerApiClient + Send + Sync>,
+    pub lsp_api: Arc<NodeLspClient>,
+    pub runner_api: Arc<RunnerClient>,
     pub persister: Arc<NodePersister>,
     pub fee_estimates: Arc<FeeEstimates>,
     pub tx_broadcaster: Arc<TxBroadcaster>,

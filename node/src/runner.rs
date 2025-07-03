@@ -352,11 +352,13 @@ mod helpers {
 
     use anyhow::Context;
     use common::{api::MegaId, cli::node::RunArgs, rng::SysRng};
-    use lexe_api::{models::runner::UserFinishedRequest, types::LeaseId};
+    use lexe_api::{
+        def::MegaRunnerApi, models::runner::UserFinishedRequest, types::LeaseId,
+    };
     use tracing::{error, info};
 
     use super::*;
-    use crate::{api::RunnerApiClient, context::UserContext, run::UserNode};
+    use crate::{client::RunnerClient, context::UserContext, run::UserNode};
 
     pub(super) fn spawn_user_node(
         mega_args: &MegaArgs,
@@ -482,7 +484,7 @@ mod helpers {
 
     /// Spawns a task to notify the runner that a user has finished.
     pub(super) fn spawn_user_finished_task(
-        runner_api: Arc<dyn RunnerApiClient + Send + Sync>,
+        runner_api: Arc<RunnerClient>,
         user_pk: UserPk,
         lease_id: LeaseId,
         mega_id: MegaId,

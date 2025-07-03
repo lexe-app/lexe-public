@@ -53,6 +53,7 @@ use common::{
 use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
 use lexe_api::{
     auth::BearerAuthenticator,
+    def::NodeBackendApi,
     error::BackendApiError,
     models::command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
     types::{
@@ -101,8 +102,8 @@ use tracing::{debug, error, info, info_span, warn};
 
 use crate::{
     alias::{ChainMonitorType, ChannelManagerType},
-    api::BackendApiClient,
     approved_versions::ApprovedVersions,
+    client::NodeBackendClient,
 };
 
 /// Data discrepancy evaluation and resolution.
@@ -115,7 +116,7 @@ const GDRIVE_CREDENTIALS_FILENAME: &str = "gdrive_credentials";
 const GVFS_ROOT_FILENAME: &str = "gvfs_root";
 
 pub struct NodePersister {
-    backend_api: Arc<dyn BackendApiClient + Send + Sync>,
+    backend_api: Arc<NodeBackendClient>,
     authenticator: Arc<BearerAuthenticator>,
     vfs_master_key: Arc<AesMasterKey>,
     google_vfs: Option<Arc<GoogleVfs>>,
@@ -127,7 +128,7 @@ pub struct NodePersister {
 
 /// General helper for upserting well-formed [`VfsFile`]s.
 pub(crate) async fn persist_file(
-    backend_api: &(dyn BackendApiClient + Send + Sync),
+    backend_api: &NodeBackendClient,
     authenticator: &BearerAuthenticator,
     file: &VfsFile,
 ) -> anyhow::Result<()> {
@@ -159,7 +160,7 @@ pub(crate) fn encrypt_gdrive_credentials(
 }
 
 pub(crate) async fn read_gdrive_credentials(
-    backend_api: &(dyn BackendApiClient + Send + Sync),
+    backend_api: &NodeBackendClient,
     authenticator: &BearerAuthenticator,
     vfs_master_key: &AesMasterKey,
 ) -> anyhow::Result<GDriveCredentials> {
@@ -188,7 +189,7 @@ pub(crate) async fn read_gdrive_credentials(
 
 pub(crate) async fn persist_gvfs_root(
     rng: &mut impl Crng,
-    backend_api: &(dyn BackendApiClient + Send + Sync),
+    backend_api: &NodeBackendClient,
     authenticator: &BearerAuthenticator,
     vfs_master_key: &AesMasterKey,
     gvfs_root: &GvfsRoot,
@@ -211,7 +212,7 @@ pub(crate) async fn persist_gvfs_root(
 }
 
 pub(crate) async fn read_gvfs_root(
-    backend_api: &(dyn BackendApiClient + Send + Sync),
+    backend_api: &NodeBackendClient,
     authenticator: &BearerAuthenticator,
     vfs_master_key: &AesMasterKey,
 ) -> anyhow::Result<Option<GvfsRoot>> {
@@ -327,7 +328,7 @@ impl NodePersister {
     /// Initialize a [`NodePersister`].
     /// `google_vfs` MUST be [`Some`] if we are running in staging or prod.
     pub(crate) fn new(
-        backend_api: Arc<dyn BackendApiClient + Send + Sync>,
+        backend_api: Arc<NodeBackendClient>,
         authenticator: Arc<BearerAuthenticator>,
         vfs_master_key: Arc<AesMasterKey>,
         google_vfs: Option<Arc<GoogleVfs>>,
@@ -902,7 +903,7 @@ impl Persist<SignerType> for NodePersister {
             // We need to decrypt since the ciphertext is bound to its path,
             // but we can avoid a needless deserialization + reserialization.
             let source_plaintext = multi::read(
-                &*backend_api,
+                &backend_api,
                 &authenticator,
                 &vfs_master_key,
                 maybe_google_vfs.as_deref(),
@@ -923,7 +924,7 @@ impl Persist<SignerType> for NodePersister {
 
             // 3) Persist the monitor at the monitor archive namespace.
             multi::upsert(
-                &*backend_api,
+                &backend_api,
                 &authenticator,
                 maybe_google_vfs.as_deref(),
                 archive_file,
@@ -933,7 +934,7 @@ impl Persist<SignerType> for NodePersister {
 
             // 4) Finally, delete the monitor at the regular namespace.
             multi::delete(
-                &*backend_api,
+                &backend_api,
                 &authenticator,
                 maybe_google_vfs.as_deref(),
                 &source_file_id,

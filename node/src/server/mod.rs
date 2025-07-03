@@ -51,8 +51,8 @@ use tower::util::MapRequestLayer;
 use crate::{
     activity,
     alias::{ChainMonitorType, PaymentsManagerType},
-    api::RunnerApiClient,
     channel_manager::NodeChannelManager,
+    client::RunnerClient,
     peer_manager::NodePeerManager,
     persister::NodePersister,
 };
@@ -68,7 +68,7 @@ pub(crate) struct AppRouterState {
     pub measurement: Measurement,
     pub version: semver::Version,
     pub config: Arc<ArcSwap<UserConfig>>,
-    pub runner_api: Arc<dyn RunnerApiClient + Send + Sync>,
+    pub runner_api: Arc<RunnerClient>,
     pub persister: Arc<NodePersister>,
     pub chain_monitor: Arc<ChainMonitorType>,
     pub fee_estimates: Arc<FeeEstimates>,

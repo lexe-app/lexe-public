@@ -7,7 +7,7 @@ use tokio::sync::mpsc;
 
 use crate::{
     activity::InactivityTimer,
-    api::client::RunnerClient,
+    client::RunnerClient,
     context::MegaContext,
     provision::{ProvisionArgs, ProvisionInstance},
     runner::UserRunner,

@@ -16,12 +16,12 @@ pub mod cli;
 mod activity;
 /// Type aliases.
 mod alias;
-/// Lexe API.
-mod api;
 /// Version approval and revocation.
 mod approved_versions;
 /// `NodeChannelManager` and related configs.
 mod channel_manager;
+/// API clients.
+mod client;
 /// Context shared between usernodess or initialized per usernode.
 mod context;
 /// `NodeEventHandler`.

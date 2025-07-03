@@ -9,18 +9,19 @@ use common::{aes::AesMasterKey, constants::IMPORTANT_PERSIST_RETRIES};
 use gdrive::GoogleVfs;
 use lexe_api::{
     auth::BearerAuthenticator,
+    def::NodeBackendApi,
     vfs::{VfsFile, VfsFileId},
 };
 use lexe_ln::persister;
 use lexe_std::backoff;
 use secrecy::Secret;
 
-use crate::api::BackendApiClient;
+use crate::client::NodeBackendClient;
 
 /// Helper to read a VFS from both Google Drive and Lexe's DB.
 /// The read from GDrive is skipped if `maybe_google_vfs` is [`None`].
 pub(super) async fn read(
-    backend_api: &(dyn BackendApiClient + Send + Sync),
+    backend_api: &NodeBackendClient,
     authenticator: &BearerAuthenticator,
     vfs_master_key: &AesMasterKey,
     maybe_google_vfs: Option<&GoogleVfs>,
@@ -86,7 +87,7 @@ pub(super) async fn read(
 /// - Up to [`IMPORTANT_PERSIST_RETRIES`] additional attempts will be made if
 ///   the first attempt fails.
 pub(super) async fn upsert(
-    backend_api: &(dyn BackendApiClient + Send + Sync),
+    backend_api: &NodeBackendClient,
     authenticator: &BearerAuthenticator,
     maybe_google_vfs: Option<&GoogleVfs>,
     file: VfsFile,
@@ -142,7 +143,7 @@ pub(super) async fn upsert(
 /// Helper to delete a VFS file from both Google Drive and Lexe's DB.
 /// The deletion from GDrive is skipped if `maybe_google_vfs` is [`None`].
 pub(super) async fn delete(
-    backend_api: &(dyn BackendApiClient + Send + Sync),
+    backend_api: &NodeBackendClient,
     authenticator: &BearerAuthenticator,
     maybe_google_vfs: Option<&GoogleVfs>,
     file_id: &VfsFileId,

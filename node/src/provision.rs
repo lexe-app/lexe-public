@@ -45,7 +45,7 @@ use lexe_tokio::{
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, info_span};
 
-use crate::{api::client::NodeBackendClient, persister};
+use crate::{client::NodeBackendClient, persister};
 
 /// Args needed by the [`ProvisionInstance`].
 /// These are built from [`MegaArgs`] which is passed in via CLI.
@@ -441,7 +441,7 @@ mod helpers {
     ) -> Result<(), NodeApiError> {
         // See if we have a persisted gvfs root.
         let maybe_persisted_gvfs_root = persister::read_gvfs_root(
-            &*state.backend_client,
+            &state.backend_client,
             authenticator,
             vfs_master_key,
         )
@@ -474,7 +474,7 @@ mod helpers {
             if let Some(new_gvfs_root) = maybe_new_gvfs_root {
                 persister::persist_gvfs_root(
                     &mut state.rng,
-                    &*state.backend_client,
+                    &state.backend_client,
                     authenticator,
                     vfs_master_key,
                     &new_gvfs_root,

@@ -1,6 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use common::api::user::UserPk;
+use lexe_api::def::NodeRunnerApi;
 use lexe_tokio::{
     events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
 };
@@ -10,7 +11,7 @@ use tokio::{
 };
 use tracing::{debug, info, info_span, warn};
 
-use crate::api::RunnerApiClient;
+use crate::client::RunnerClient;
 
 /// Notifies various listeners of user or node activity.
 ///
@@ -22,7 +23,7 @@ pub(crate) fn notify_listeners(
     user_pk: UserPk,
     mega_activity_bus: &EventsBus<UserPk>,
     user_activity_bus: &EventsBus<()>,
-    runner_api: Arc<dyn RunnerApiClient + Send + Sync>,
+    runner_api: Arc<RunnerClient>,
     eph_tasks_tx: &mpsc::Sender<LxTask<()>>,
 ) {
     debug!("Notifying listeners of activity");

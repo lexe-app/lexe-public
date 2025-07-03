@@ -27,6 +27,7 @@ use futures::future::FutureExt;
 use gdrive::{gvfs::GvfsRootName, GoogleVfs};
 use lexe_api::{
     auth::BearerAuthenticator,
+    def::{NodeBackendApi, NodeLspApi, NodeRunnerApi},
     error::MegaApiError,
     models::runner::UserLeaseRenewalRequest,
     server::LayerConfig,
@@ -75,8 +76,8 @@ use tracing::{debug, info, info_span, warn};
 use crate::{
     activity::InactivityTimer,
     alias::{ChainMonitorType, OnionMessengerType, PaymentsManagerType},
-    api::BackendApiClient,
     channel_manager::NodeChannelManager,
+    client::NodeBackendClient,
     context::{MegaContext, UserContext},
     event_handler::{self, NodeEventHandler},
     gdrive_persister, p2p,
@@ -1003,7 +1004,7 @@ struct ProvisionedSecrets {
 // marked as incomplete and not yet safe to use as of 2023-02-01.
 // https://github.com/rust-lang/rust/issues/65991
 async fn fetch_provisioned_secrets(
-    backend_api: &(dyn BackendApiClient + Send + Sync),
+    backend_api: &NodeBackendClient,
     user_pk: UserPk,
     measurement: Measurement,
     machine_id: MachineId,
@@ -1080,7 +1081,7 @@ async fn fetch_provisioned_secrets(
 /// Helper to efficiently initialize a [`GoogleVfs`] and handle related work.
 /// Also spawns a task which persists updated GDrive credentials.
 async fn init_google_vfs(
-    backend_api: Arc<dyn BackendApiClient + Send + Sync>,
+    backend_api: Arc<NodeBackendClient>,
     authenticator: Arc<BearerAuthenticator>,
     vfs_master_key: Arc<AesMasterKey>,
     gvfs_root_name: GvfsRootName,
@@ -1089,12 +1090,12 @@ async fn init_google_vfs(
     // Fetch the encrypted GDriveCredentials and persisted GVFS root.
     let (try_gdrive_credentials, try_persisted_gvfs_root) = tokio::join!(
         persister::read_gdrive_credentials(
-            &*backend_api,
+            &backend_api,
             &authenticator,
             &vfs_master_key,
         ),
         persister::read_gvfs_root(
-            &*backend_api,
+            &backend_api,
             &authenticator,
             &vfs_master_key
         ),
@@ -1119,7 +1120,7 @@ async fn init_google_vfs(
     if let Some(new_gvfs_root) = maybe_new_gvfs_root {
         persister::persist_gvfs_root(
             &mut rng,
-            &*backend_api,
+            &backend_api,
             &authenticator,
             &vfs_master_key,
             &new_gvfs_root,
@@ -1144,7 +1145,7 @@ async fn init_google_vfs(
                             );
 
                         let try_persist = persister::persist_file(
-                            &*backend_api,
+                            &backend_api,
                             &authenticator,
                             &credentials_file,
                         )

@@ -31,8 +31,8 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::info;
 
 use crate::{
-    api::{self, BackendApiClient, RunnerApiClient},
     channel_manager,
+    client::{NodeBackendClient, NodeLspClient, RunnerClient},
 };
 
 /// Usernode-specific context initialized by the meganode.
@@ -50,7 +50,7 @@ pub(crate) struct UserContext {
 #[derive(Clone)]
 pub(crate) struct MegaContext {
     /// The backend API client for user nodes.
-    pub backend_api: Arc<dyn BackendApiClient + Send + Sync>,
+    pub backend_api: Arc<NodeBackendClient>,
     /// The channel config for user nodes.
     pub config: Arc<ArcSwap<UserConfig>>,
     /// The Esplora client for blockchain data.
@@ -64,7 +64,7 @@ pub(crate) struct MegaContext {
     /// The logger for user nodes.
     pub logger: LexeTracingLogger,
     /// The LSP API client for user nodes.
-    pub lsp_api: Arc<dyn NodeLspApi + Send + Sync>,
+    pub lsp_api: Arc<NodeLspClient>,
     /// The machine ID of the enclave.
     pub machine_id: enclave::MachineId,
     /// The measurement of the enclave.
@@ -74,7 +74,7 @@ pub(crate) struct MegaContext {
     /// The Lightning Network graph for routing.
     pub network_graph: Arc<NetworkGraphType>,
     /// The runner API client for user nodes.
-    pub runner_api: Arc<dyn RunnerApiClient + Send + Sync>,
+    pub runner_api: Arc<RunnerClient>,
     /// The probabilistic scorer for pathfinding.
     pub scorer: Arc<Mutex<ProbabilisticScorerType>>,
     /// The untrusted deploy environment.
@@ -112,24 +112,32 @@ impl MegaContext {
 
         let config = channel_manager::get_config();
 
-        let backend_api = api::new_backend_api(
+        let backend_api = NodeBackendClient::new(
             rng,
             untrusted_deploy_env,
             Self::NODE_MODE,
             backend_url,
-        )?;
-        let runner_api = api::new_runner_api(
+        )
+        .map(Arc::new)
+        .context("Failed to init BackendClient")?;
+
+        let runner_api = RunnerClient::new(
             rng,
             untrusted_deploy_env,
             Self::NODE_MODE,
             runner_url,
-        )?;
-        let lsp_api = api::new_lsp_api(
+        )
+        .map(Arc::new)
+        .context("Failed to init RunnerClient")?;
+
+        let lsp_api = NodeLspClient::new(
             rng,
             untrusted_deploy_env,
             Self::NODE_MODE,
             lsp.node_api_url.clone(),
-        )?;
+        )
+        .map(Arc::new)
+        .context("Failed to init LspClient")?;
 
         let mut static_tasks = Vec::with_capacity(20);
 
@@ -150,7 +158,7 @@ impl MegaContext {
         let (try_esplora_init, try_network_graph_bytes, try_scorer_bytes) =
             tokio::join!(
                 LexeEsplora::init_any(
-                    api::USER_AGENT_EXTERNAL,
+                    crate::client::USER_AGENT_EXTERNAL,
                     rng,
                     esplora_urls,
                     mega_shutdown.clone(),
@@ -248,28 +256,31 @@ impl MegaContext {
         let fake_runner_url = String::new();
         let fake_lsp_url = String::new();
 
-        let backend_api = api::new_backend_api(
+        let backend_api = NodeBackendClient::new(
             &mut rng,
             deploy_env,
             Self::NODE_MODE,
             fake_backend_url,
         )
+        .map(Arc::new)
         .expect("Should create backend API with fake URL");
 
-        let runner_api = api::new_runner_api(
+        let runner_api = RunnerClient::new(
             &mut rng,
             deploy_env,
             Self::NODE_MODE,
             fake_runner_url,
         )
+        .map(Arc::new)
         .expect("Should create runner API with fake URL");
 
-        let lsp_api = api::new_lsp_api(
+        let lsp_api = NodeLspClient::new(
             &mut rng,
             deploy_env,
             Self::NODE_MODE,
             fake_lsp_url,
         )
+        .map(Arc::new)
         .expect("Should create LSP API with fake URL");
 
         // Create dummy esplora and fee estimates
