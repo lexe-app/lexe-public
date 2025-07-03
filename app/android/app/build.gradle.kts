@@ -48,7 +48,7 @@ android {
     //     }
     // }
 
-    flavorDimensions += "flavor"
+    flavorDimensions += "default"
 
     // We're now using different application "flavors" to differentiate
     // prod/staging/dev/design instead of flutter `--dart-define` args.
@@ -57,48 +57,9 @@ android {
     // app on-device. This way we can have multiple flavors installed
     // simultaneously. The app variants then don't step on each other's toes.
     productFlavors {
-        create("dev") {
-            // (Default) Local development against a local lexe backend.
-            dimension = "flavor"
-            // The app name. ex: displayed under the icon on the user's home screen.
-            resValue("string", "app_name", "Lexe Dev")
-            applicationIdSuffix = ".dev"
-            versionNameSuffix = "-dev"
-
-            // AndroidManifest.xml requires this value to be set, even though
-            // local dev doesn't use gDrive.
-            resValue("string", "google_callback_uri_scheme", "DUMMY")
-        }
-
-        create("staging") {
-            // Lexe testnet/staging backend.
-            dimension = "flavor"
-            // The app name. ex: displayed under the icon on the user's home screen.
-            resValue("string", "app_name", "Lexe Staging")
-            applicationIdSuffix = ".staging"
-            versionNameSuffix = "-staging"
-
-            // The google drive oauth2 callback URI scheme
-            // Keep in sync with <app/lib/gdrive_auth.dart::_GDriveCredentials>
-            // Signer: <debug>
-            resValue("string", "google_callback_uri_scheme", "com.googleusercontent.apps.495704988639-fvkq7thnksbqi7n3tanpopu5brr2pa4a")
-        }
-
-        create("prod") {
-            // Lexe mainnet/production backend.
-            dimension = "flavor"
-            // The app name. ex: displayed under the icon on the user's home screen.
-            resValue("string", "app_name", "Lexe")
-
-            // The google drive oauth2 callback URI scheme
-            // Keep in sync with <app/lib/gdrive_auth.dart::_GDriveCredentials>
-            // Signer: <Google Play>
-            resValue("string", "google_callback_uri_scheme", "com.googleusercontent.apps.495704988639-cr7bvcr117n7aks3p3e3qntoa7ps0lj1")
-        }
-
         create("design") {
             // Lexe design mode.
-            dimension = "flavor"
+            dimension = "default"
             // The app name. ex: displayed under the icon on the user's home screen.
             resValue("string", "app_name", "Lexe Design")
             applicationIdSuffix = ".design"
@@ -107,7 +68,46 @@ android {
             // The google drive oauth2 callback URI scheme
             // Keep in sync with <app/lib/gdrive_auth.dart::_GDriveCredentials>
             // Signer: <debug>
-            resValue("string", "google_callback_uri_scheme", "com.googleusercontent.apps.495704988639-qhjbk0nkfaibgr16h0gimlqcae8cl13e")
+            resValue(type = "string", name = "google_callback_uri_scheme", value = "com.googleusercontent.apps.495704988639-qhjbk0nkfaibgr16h0gimlqcae8cl13e")
+        }
+
+        create("dev") {
+            // (Default) Local development against a local lexe backend.
+            dimension = "default"
+            // The app name. ex: displayed under the icon on the user's home screen.
+            resValue(type = "string", name = "app_name", value = "Lexe Dev")
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+
+            // AndroidManifest.xml requires this value to be set, even though
+            // local dev doesn't use gDrive.
+            resValue(type = "string", name = "google_callback_uri_scheme", value = "DUMMY")
+        }
+
+        create("staging") {
+            // Lexe testnet/staging backend.
+            dimension = "default"
+            // The app name. ex: displayed under the icon on the user's home screen.
+            resValue(type = "string", name = "app_name", value = "Lexe Staging")
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-staging"
+
+            // The google drive oauth2 callback URI scheme
+            // Keep in sync with <app/lib/gdrive_auth.dart::_GDriveCredentials>
+            // Signer: <debug>
+            resValue(type = "string", name = "google_callback_uri_scheme", value = "com.googleusercontent.apps.495704988639-fvkq7thnksbqi7n3tanpopu5brr2pa4a")
+        }
+
+        create("prod") {
+            // Lexe mainnet/production backend.
+            dimension = "default"
+            // The app name. ex: displayed under the icon on the user's home screen.
+            resValue(type = "string", name = "app_name", value = "Lexe")
+
+            // The google drive oauth2 callback URI scheme
+            // Keep in sync with <app/lib/gdrive_auth.dart::_GDriveCredentials>
+            // Signer: <Google Play>
+            resValue(type = "string", name = "google_callback_uri_scheme", value = "com.googleusercontent.apps.495704988639-cr7bvcr117n7aks3p3e3qntoa7ps0lj1")
         }
     }
 }
