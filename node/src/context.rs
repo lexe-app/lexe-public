@@ -94,9 +94,9 @@ impl MegaContext {
     /// `mega_shutdown` is notified. They are awaited on by the meganode itself.
     pub async fn init(
         rng: &mut impl Crng,
-        backend_url: Option<String>,
+        backend_url: String,
         lsp: LspInfo,
-        runner_url: Option<String>,
+        runner_url: String,
         untrusted_deploy_env: DeployEnv,
         untrusted_esplora_urls: Vec<String>,
         untrusted_network: LxNetwork,
@@ -114,26 +114,21 @@ impl MegaContext {
 
         let backend_api = api::new_backend_api(
             rng,
-            false,
             untrusted_deploy_env,
             Self::NODE_MODE,
             backend_url,
         )?;
         let runner_api = api::new_runner_api(
             rng,
-            false,
             untrusted_deploy_env,
             Self::NODE_MODE,
             runner_url,
         )?;
         let lsp_api = api::new_lsp_api(
             rng,
-            false,
             untrusted_deploy_env,
-            untrusted_network,
             Self::NODE_MODE,
             lsp.node_api_url.clone(),
-            logger.clone(),
         )?;
 
         let mut static_tasks = Vec::with_capacity(20);
@@ -255,30 +250,25 @@ impl MegaContext {
 
         let backend_api = api::new_backend_api(
             &mut rng,
-            false,
             deploy_env,
             Self::NODE_MODE,
-            Some(fake_backend_url),
+            fake_backend_url,
         )
         .expect("Should create backend API with fake URL");
 
         let runner_api = api::new_runner_api(
             &mut rng,
-            false,
             deploy_env,
             Self::NODE_MODE,
-            Some(fake_runner_url),
+            fake_runner_url,
         )
         .expect("Should create runner API with fake URL");
 
         let lsp_api = api::new_lsp_api(
             &mut rng,
-            false,
             deploy_env,
-            network,
             Self::NODE_MODE,
-            Some(fake_lsp_url),
-            logger.clone(),
+            fake_lsp_url,
         )
         .expect("Should create LSP API with fake URL");
 

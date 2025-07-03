@@ -898,8 +898,6 @@ impl UserNode {
         // as it's our signal to the LSP that we are ready to receive messages.
         let maybe_connector_task = maybe_reconnect_to_lsp(
             self.peer_manager.clone(),
-            self.deploy_env,
-            self.args.allow_mock,
             &self.args.lsp,
             self.eph_tasks_tx.clone(),
             self.shutdown.clone(),
@@ -1170,45 +1168,23 @@ async fn init_google_vfs(
     Ok((google_vfs, credentials_persister_task))
 }
 
-/// Handles the logic of whether to spawn the task which reconnects to Lexe's
-/// LSP, taking in account whether we are intend to mock out the LSP as well.
-///
-/// If we are on testnet/mainnet, mocking out the LSP is not allowed. Ignore all
-/// mock arguments and attempt to reconnect to Lexe's LSP, notifying our p2p
+/// Spawns the task which reconnects to Lexe's LSP, notifying our p2p
 /// reconnector to continuously reconnect if we disconnect for some reason.
-///
-/// If we are NOT on testnet/mainnet, we MAY skip reconnecting to the LSP.
-/// This will be done ONLY IF [`LspInfo::node_api_url`] is `None` AND we have
-/// set the `allow_mock` safeguard which helps prevent accidental mocking.
 async fn maybe_reconnect_to_lsp(
     peer_manager: NodePeerManager,
-    deploy_env: DeployEnv,
-    allow_mock: bool,
     lsp: &LspInfo,
     eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     shutdown: NotifyOnce,
 ) -> anyhow::Result<MaybeLxTask<()>> {
-    if deploy_env.is_staging_or_prod() || lsp.node_api_url.is_some() {
-        // If --allow-mock was set, the caller may have made an error.
-        ensure!(
-            !allow_mock,
-            "--allow-mock was set but a LSP url was supplied"
-        );
+    info!("Spawning LSP connector task");
+    let task = p2p::connect_to_lsp_then_spawn_connector_task(
+        peer_manager,
+        lsp,
+        eph_tasks_tx,
+        shutdown,
+    )
+    .await
+    .context("connect_to_lsp_then_spawn_connector_task failed")?;
 
-        info!("Spawning LSP connector task");
-        let task = p2p::connect_to_lsp_then_spawn_connector_task(
-            peer_manager,
-            lsp,
-            eph_tasks_tx,
-            shutdown,
-        )
-        .await
-        .context("connect_to_lsp_then_spawn_connector_task failed")?;
-
-        Ok(MaybeLxTask(Some(task)))
-    } else {
-        ensure!(allow_mock, "To mock the LSP, allow_mock must be set");
-        info!("Skipping P2P reconnection to LSP");
-        Ok(MaybeLxTask(None))
-    }
+    Ok(MaybeLxTask(Some(task)))
 }

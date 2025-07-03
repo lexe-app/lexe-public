@@ -116,30 +116,13 @@ pub struct RunArgs {
     /// Interval at which user nodes should renew their leases (in seconds).
     pub lease_renewal_interval_secs: u64,
 
-    /// whether the node is allowed to use mock clients instead of real ones.
-    /// This option exists as a safeguard to prevent accidentally using a mock
-    /// client by forgetting to pass `Some(url)` for the various Lexe services.
-    /// Mock clients are only available during dev, and are cfg'd out in prod.
-    // TODO(max): Remove this
-    pub allow_mock: bool,
+    /// protocol://host:port of the backend.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
+    pub backend_url: String,
 
-    /// protocol://host:port of the backend. Defaults to a mock client if not
-    /// supplied, provided that `--allow-mock` is set and we are not in prod.
-    // TODO(max): Make real url non-optional
-    #[cfg_attr(
-        test,
-        proptest(strategy = "arbitrary::any_option_simple_string()")
-    )]
-    pub backend_url: Option<String>,
-
-    /// protocol://host:port of the runner. Defaults to a mock client if not
-    /// supplied, provided that `--allow-mock` is set and we are not in prod.
-    // TODO(max): Make real url non-optional
-    #[cfg_attr(
-        test,
-        proptest(strategy = "arbitrary::any_option_simple_string()")
-    )]
-    pub runner_url: Option<String>,
+    /// protocol://host:port of the runner.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
+    pub runner_url: String,
 
     /// info relating to Lexe's LSP.
     pub lsp: LspInfo,

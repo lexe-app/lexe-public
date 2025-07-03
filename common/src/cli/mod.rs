@@ -50,13 +50,11 @@ pub trait EnclaveArgs: Serialize + DeserializeOwned {
 #[cfg_attr(test, derive(Arbitrary))]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LspInfo {
-    /// The protocol://host:port of the LSP's HTTP server. The node will
-    /// default to a mock client if not supplied, provided that
-    /// `--allow-mock` is set and we are not in prod.
+    /// The protocol://host:port of the LSP's HTTP server.
     // compat: alias added in {node,lsp}-v0.7.0
     #[serde(rename = "url", alias = "node_api_url")]
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
-    pub node_api_url: Option<String>,
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
+    pub node_api_url: String,
     pub node_pk: NodePk,
     /// The socket on which the LSP accepts P2P LN connections from user nodes
     // compat: alias added in {node,lsp}-v0.7.0
@@ -168,7 +166,7 @@ impl LspInfo {
         };
 
         Self {
-            node_api_url: Some(test_utils::DUMMY_LSP_URL.to_owned()),
+            node_api_url: test_utils::DUMMY_LSP_URL.to_owned(),
             node_pk,
             private_p2p_addr: addr,
             lsp_usernode_base_fee_msat: 0,
