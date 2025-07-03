@@ -427,6 +427,7 @@ mod helpers {
             lease_lifetime_secs,
             lease_renewal_interval_secs,
             lsp,
+            lsp_url: _,
             memory_overhead: _,
             oauth: _,
             runner_url,

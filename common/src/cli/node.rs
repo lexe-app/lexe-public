@@ -35,6 +35,10 @@ pub struct MegaArgs {
     /// info relating to Lexe's LSP.
     pub lsp: LspInfo,
 
+    /// protocol://host:port of the LSP's HTTP server.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
+    pub lsp_url: String,
+
     /// An estimate of the amount of enclave heap consumed by shared meganode
     /// components such as the network graph, Tokio, connection pools, etc.
     pub memory_overhead: u64,

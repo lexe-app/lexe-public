@@ -6,8 +6,8 @@ use std::{
 use anyhow::{anyhow, ensure, Context};
 use arc_swap::ArcSwap;
 use common::{
-    api::user::UserPk, cli::LspInfo, enclave, env::DeployEnv,
-    ln::network::LxNetwork, rng::Crng,
+    api::user::UserPk, enclave, env::DeployEnv, ln::network::LxNetwork,
+    rng::Crng,
 };
 use lexe_api::{
     def::NodeLspApi,
@@ -95,7 +95,7 @@ impl MegaContext {
     pub async fn init(
         rng: &mut impl Crng,
         backend_url: String,
-        lsp: LspInfo,
+        lsp_url: String,
         runner_url: String,
         untrusted_deploy_env: DeployEnv,
         untrusted_esplora_urls: Vec<String>,
@@ -134,7 +134,7 @@ impl MegaContext {
             rng,
             untrusted_deploy_env,
             Self::NODE_MODE,
-            lsp.node_api_url.clone(),
+            lsp_url,
         )
         .map(Arc::new)
         .context("Failed to init LspClient")?;

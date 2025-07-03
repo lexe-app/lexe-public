@@ -22,7 +22,7 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     let (mega_ctxt, mut static_tasks) = MegaContext::init(
         rng,
         args.backend_url.clone(),
-        args.lsp.clone(),
+        args.lsp_url.clone(),
         args.runner_url.clone(),
         args.untrusted_deploy_env,
         args.untrusted_esplora_urls.clone(),

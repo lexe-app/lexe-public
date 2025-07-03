@@ -50,11 +50,6 @@ pub trait EnclaveArgs: Serialize + DeserializeOwned {
 #[cfg_attr(test, derive(Arbitrary))]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LspInfo {
-    /// The protocol://host:port of the LSP's HTTP server.
-    // compat: alias added in {node,lsp}-v0.7.0
-    #[serde(rename = "url", alias = "node_api_url")]
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
-    pub node_api_url: String,
     pub node_pk: NodePk,
     /// The socket on which the LSP accepts P2P LN connections from user nodes
     // compat: alias added in {node,lsp}-v0.7.0
@@ -156,7 +151,7 @@ impl LspInfo {
     pub fn dummy() -> Self {
         use std::net::Ipv6Addr;
 
-        use crate::{rng::FastRng, root_seed::RootSeed, test_utils};
+        use crate::{rng::FastRng, root_seed::RootSeed};
 
         let mut rng = FastRng::from_u64(20230216);
         let node_pk = RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng);
@@ -166,7 +161,6 @@ impl LspInfo {
         };
 
         Self {
-            node_api_url: test_utils::DUMMY_LSP_URL.to_owned(),
             node_pk,
             private_p2p_addr: addr,
             lsp_usernode_base_fee_msat: 0,
