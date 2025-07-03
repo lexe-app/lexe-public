@@ -758,20 +758,21 @@ impl UserNode {
         };
         static_tasks.push(node_info_task);
 
-        // Spawn lease renewal task if we have a lease ID
-        if let Some(lease_id) = user_ctxt.lease_id {
-            let user_pk = args.user_pk;
-            let lease_renewal_interval =
-                Duration::from_secs(args.lease_renewal_interval_secs);
-            let mut renewal_timer =
-                tokio::time::interval(lease_renewal_interval);
-            let runner_api = runner_api.clone();
-            let mut shutdown = shutdown.clone();
+        // Spawn lease renewal task
+        const SPAN_NAME: &str = "(lease-renewer)";
+        let lease_renewal_task =
+            LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), {
+                let lease_id = user_ctxt.lease_id;
+                let user_pk = args.user_pk;
 
-            const SPAN_NAME: &str = "(lease-renewer)";
-            let lease_renewal_task = LxTask::spawn_with_span(
-                SPAN_NAME,
-                info_span!(SPAN_NAME),
+                let lease_renewal_interval =
+                    Duration::from_secs(args.lease_renewal_interval_secs);
+                let mut renewal_timer =
+                    tokio::time::interval(lease_renewal_interval);
+
+                let runner_api = runner_api.clone();
+                let mut shutdown = shutdown.clone();
+
                 async move {
                     let do_renew_lease = || async {
                         debug!("Renewing lease {lease_id} for user {user_pk}");
@@ -791,10 +792,9 @@ impl UserNode {
                             () = shutdown.recv() => return,
                         }
                     }
-                },
-            );
-            static_tasks.push(lease_renewal_task);
-        }
+                }
+            });
+        static_tasks.push(lease_renewal_task);
 
         // Init background processor.
         let bg_processor_task = background_processor::start(
