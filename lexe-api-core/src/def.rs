@@ -669,4 +669,10 @@ pub trait NodeRunnerApi {
     ///
     /// Indicates the node received some activity from its user.
     async fn activity(&self, user_pk: UserPk) -> Result<Empty, RunnerApiError>;
+
+    /// POST /node/sync_success [`UserPkStruct`] -> [`Empty`]
+    ///
+    /// Indicates the node successfully completed sync.
+    async fn sync_succ(&self, user_pk: UserPk)
+        -> Result<Empty, RunnerApiError>;
 }

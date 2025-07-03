@@ -107,6 +107,18 @@ impl NodeRunnerApi for RunnerClient {
         // .bearer_auth(&self.auth_token().await?);
         self.rest.send(req).await
     }
+
+    async fn sync_succ(
+        &self,
+        user_pk: UserPk,
+    ) -> Result<Empty, RunnerApiError> {
+        let runner = &self.runner_url;
+        let data = UserPkStruct { user_pk };
+        let req = self.rest.post(format!("{runner}/node/sync_success"), &data);
+        // TODO(phlip9): authenticate runner callbacks?
+        // .bearer_auth(&self.auth_token().await?);
+        self.rest.send(req).await
+    }
 }
 
 pub(crate) struct NodeLspClient {
