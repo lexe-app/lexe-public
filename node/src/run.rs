@@ -68,6 +68,7 @@ use lightning::{
     chain::{chainmonitor::ChainMonitor, Watch},
     ln::{peer_handler::IgnoringMessageHandler, types::ChannelId},
 };
+use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, info, info_span, warn};
 
@@ -167,7 +168,6 @@ impl UserNode {
             esplora,
             fee_estimates,
             gossip_sync,
-            ldk_sync_client,
             logger,
             lsp_api,
             machine_id,
@@ -354,6 +354,14 @@ impl UserNode {
             .unwrap_or_default()
             .apply(RwLock::new)
             .apply(Arc::new);
+
+        // Create a fresh EsploraSyncClient for this user node. The sync client
+        // maintains internal state and cannot be shared between nodes, though
+        // we can share the underlying LexeEsplora connection pool.
+        let ldk_sync_client = Arc::new(EsploraSyncClient::from_client(
+            esplora.client().clone(),
+            logger.clone(),
+        ));
 
         // Init BDK wallet; share esplora connection pool, spawn persister task
         let (wallet_persister_tx, wallet_persister_rx) = notify::channel();

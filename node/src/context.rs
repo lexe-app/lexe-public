@@ -15,10 +15,7 @@ use lexe_api::{
     types::{ports::RunPorts, LeaseId},
 };
 use lexe_ln::{
-    alias::{
-        EsploraSyncClientType, NetworkGraphType, P2PGossipSyncType,
-        ProbabilisticScorerType,
-    },
+    alias::{NetworkGraphType, P2PGossipSyncType, ProbabilisticScorerType},
     esplora::{self, FeeEstimates, LexeEsplora},
     logger::LexeTracingLogger,
 };
@@ -30,7 +27,6 @@ use lightning::{
     routing::gossip::P2PGossipSync,
     util::{config::UserConfig, ser::ReadableArgs},
 };
-use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot};
 use tracing::info;
 
@@ -75,13 +71,13 @@ pub(crate) struct MegaContext {
     /// The channel config for user nodes.
     pub config: Arc<ArcSwap<UserConfig>>,
     /// The Esplora client for blockchain data.
+    /// NOTE: LexeEsplora can be shared but EsploraSyncClient can't because
+    /// EsploraSyncClient holds state internally.
     pub esplora: Arc<LexeEsplora>,
     /// On-chain fee estimates, periodically updated by [`LexeEsplora`].
     pub fee_estimates: Arc<FeeEstimates>,
     /// The P2P gossip sync for network graph updates.
     pub gossip_sync: Arc<P2PGossipSyncType>,
-    /// The LDK transaction sync client for blockchain synchronization.
-    pub ldk_sync_client: Arc<EsploraSyncClientType>,
     /// The logger for user nodes.
     pub logger: LexeTracingLogger,
     /// The LSP API client for user nodes.
@@ -201,12 +197,6 @@ impl MegaContext {
         info!(%esplora_url);
         static_tasks.push(refresh_fees_task);
 
-        // Init LDK transaction sync client; share LexeEsplora's connection pool
-        let ldk_sync_client = Arc::new(EsploraSyncClient::from_client(
-            esplora.client().clone(),
-            logger.clone(),
-        ));
-
         // Initialize network graph
         let network_graph = {
             let network_graph_bytes = try_network_graph_bytes
@@ -250,7 +240,6 @@ impl MegaContext {
             esplora,
             fee_estimates,
             gossip_sync,
-            ldk_sync_client,
             logger,
             lsp_api,
             machine_id,
@@ -345,12 +334,6 @@ impl MegaContext {
             logger.clone(),
         ));
 
-        // Create LDK sync client from dummy esplora
-        let ldk_sync_client = Arc::new(EsploraSyncClient::from_client(
-            esplora.client().clone(),
-            logger.clone(),
-        ));
-
         // Create other required fields
         let config = channel_manager::get_config();
         let version = crate::version();
@@ -364,7 +347,6 @@ impl MegaContext {
             esplora,
             fee_estimates,
             gossip_sync,
-            ldk_sync_client,
             logger,
             lsp_api,
             machine_id,
