@@ -19,10 +19,8 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
 
     // Create mega context for user nodes
     let mega_shutdown = NotifyOnce::new();
-    let allow_mock = false;
     let (mega_ctxt, mut static_tasks) = MegaContext::init(
         rng,
-        allow_mock,
         Some(args.backend_url.clone()),
         args.lsp.clone(),
         Some(args.runner_url.clone()),

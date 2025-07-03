@@ -390,13 +390,11 @@ mod helpers {
             async move {
                 let try_future = async move {
                     let mut rng = SysRng::new();
-                    let static_tasks = Vec::new();
                     let mut node = UserNode::init(
                         &mut rng,
                         run_args,
                         mega_ctxt,
                         user_context,
-                        static_tasks,
                     )
                     .await
                     .context("Error during run init")?;

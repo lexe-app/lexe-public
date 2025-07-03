@@ -97,7 +97,6 @@ const_assert!(MIN_INTERCEPT_SCIDS <= lexe_ln::command::MAX_INTERCEPT_HINTS);
 #[allow(dead_code)] // Many unread fields are used as type annotations
 pub struct UserNode {
     // --- General --- //
-    // TODO(max): Can avoid some cloning by removing this field
     args: RunArgs,
     deploy_env: DeployEnv,
     run_ports: RunPorts,
@@ -125,12 +124,7 @@ pub struct UserNode {
 
     // --- Contexts --- //
     sync: Option<SyncContext>,
-    // This is moved out of self during `run`.
-    // TODO(max): Add RunContext if there are more fields
-    eph_tasks_rx: mpsc::Receiver<LxTask<()>>,
-    // This is moved out of self during `run`.
-    // TODO(max): Add RunContext if there are more fields
-    user_activity_bus: EventsBus<()>,
+    run: Option<RunContext>,
 }
 
 /// Fields which are "moved" out of [`UserNode`] during `sync`.
@@ -144,6 +138,12 @@ struct SyncContext {
         mpsc::Receiver<oneshot::Sender<Result<RunPorts, MegaApiError>>>,
 }
 
+/// Fields which are "moved" out of [`UserNode`] during `run`.
+struct RunContext {
+    eph_tasks_rx: mpsc::Receiver<LxTask<()>>,
+    user_activity_bus: EventsBus<()>,
+}
+
 impl UserNode {
     // TODO(max): We can speed up initializing all the LDK actors by separating
     // into two stages: (1) fetch and (2) deserialize. Optimistically fetch all
@@ -154,9 +154,6 @@ impl UserNode {
         args: RunArgs,
         mega_ctxt: MegaContext,
         user_ctxt: UserContext,
-        // TODO(max): This should be removed once the `run` command is removed.
-        // See `MegaContext::init` docs for why.
-        mut static_tasks: Vec<LxTask<()>>,
     ) -> anyhow::Result<Self> {
         info!(%args.user_pk, "Initializing node");
         let init_start = Instant::now();
@@ -229,6 +226,8 @@ impl UserNode {
             {network}!={untrusted_network}",
         );
         // From here, `deploy_env` and `network` can be treated as trusted.
+
+        let mut static_tasks = Vec::new();
 
         // If we're in staging or prod, init a GoogleVfs.
         let authenticator =
@@ -851,8 +850,10 @@ impl UserNode {
                 ldk_resync_rx,
                 user_ready_waiter_rx: user_ctxt.user_ready_waiter_rx,
             }),
-            eph_tasks_rx,
-            user_activity_bus,
+            run: Some(RunContext {
+                eph_tasks_rx,
+                user_activity_bus,
+            }),
         })
     }
 
@@ -954,6 +955,7 @@ impl UserNode {
     pub async fn run(mut self) -> anyhow::Result<()> {
         info!("Running...");
         assert!(self.sync.is_none(), "Must sync before run");
+        let ctxt = self.run.take().expect("run() must be called only once");
 
         // Sync complete. Trigger a shutdown if we were asked to shut down after
         // sync. Otherwise, start the inactivity timer.
@@ -962,7 +964,7 @@ impl UserNode {
         } else {
             let inactivity_timer = InactivityTimer::new(
                 self.args.inactivity_timer_sec,
-                self.user_activity_bus,
+                ctxt.user_activity_bus,
                 self.shutdown.clone(),
             );
             self.static_tasks.push(inactivity_timer.spawn_into_task());
@@ -977,7 +979,7 @@ impl UserNode {
 
         task::try_join_tasks_and_shutdown(
             self.static_tasks,
-            self.eph_tasks_rx,
+            ctxt.eph_tasks_rx,
             self.shutdown.clone(),
             constants::USER_NODE_SHUTDOWN_TIMEOUT,
         )

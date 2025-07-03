@@ -90,27 +90,17 @@ impl MegaContext {
 
     /// Creates a [`MegaContext`]; also returns spawned `static_tasks`.
     ///
-    /// TODO(max): The returned `static_tasks` are expected to shutdown after
-    /// `user_or_mega_shutdown` is notified. Once we are meganode only, it no
-    /// longer needs to be passed into `UserNode::init` for the user node to
-    /// await on; they will be awaited on by the meganode itself.
+    /// The returned `static_tasks` are expected to shutdown after
+    /// `mega_shutdown` is notified. They are awaited on by the meganode itself.
     pub async fn init(
         rng: &mut impl Crng,
-        // TODO(max): This can be removed once the `run` command is removed.
-        allow_mock: bool,
         backend_url: Option<String>,
         lsp: LspInfo,
         runner_url: Option<String>,
         untrusted_deploy_env: DeployEnv,
         untrusted_esplora_urls: Vec<String>,
         untrusted_network: LxNetwork,
-        // - If this MegaContext was created for the entire meganode, this
-        //   should contain the shutdown channel for the meganode.
-        // - If this MegaContext was created just for a usernode, this should
-        //   contain the shutdown channel for that usernode.
-        // TODO(max): This can be removed once the `run` command is removed;
-        // at that point, it would exclusively use `mega_shutdown`.
-        user_or_mega_shutdown: NotifyOnce,
+        mega_shutdown: NotifyOnce,
     ) -> anyhow::Result<(Self, Vec<LxTask<()>>)> {
         let logger = LexeTracingLogger::new();
 
@@ -124,21 +114,21 @@ impl MegaContext {
 
         let backend_api = api::new_backend_api(
             rng,
-            allow_mock,
+            false,
             untrusted_deploy_env,
             Self::NODE_MODE,
             backend_url,
         )?;
         let runner_api = api::new_runner_api(
             rng,
-            allow_mock,
+            false,
             untrusted_deploy_env,
             Self::NODE_MODE,
             runner_url,
         )?;
         let lsp_api = api::new_lsp_api(
             rng,
-            allow_mock,
+            false,
             untrusted_deploy_env,
             untrusted_network,
             Self::NODE_MODE,
@@ -168,7 +158,7 @@ impl MegaContext {
                     api::USER_AGENT_EXTERNAL,
                     rng,
                     esplora_urls,
-                    user_or_mega_shutdown.clone(),
+                    mega_shutdown.clone(),
                 ),
                 lsp_api.get_network_graph(),
                 lsp_api.get_prob_scorer(),
@@ -259,14 +249,13 @@ impl MegaContext {
         let deploy_env = DeployEnv::Dev;
 
         let mut rng = SysRng::new();
-        let allow_mock = false;
         let fake_backend_url = String::new();
         let fake_runner_url = String::new();
         let fake_lsp_url = String::new();
 
         let backend_api = api::new_backend_api(
             &mut rng,
-            allow_mock,
+            false,
             deploy_env,
             Self::NODE_MODE,
             Some(fake_backend_url),
@@ -275,7 +264,7 @@ impl MegaContext {
 
         let runner_api = api::new_runner_api(
             &mut rng,
-            allow_mock,
+            false,
             deploy_env,
             Self::NODE_MODE,
             Some(fake_runner_url),
@@ -284,7 +273,7 @@ impl MegaContext {
 
         let lsp_api = api::new_lsp_api(
             &mut rng,
-            allow_mock,
+            false,
             deploy_env,
             network,
             Self::NODE_MODE,
