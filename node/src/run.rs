@@ -77,7 +77,7 @@ use crate::{
     activity::InactivityTimer,
     alias::{ChainMonitorType, OnionMessengerType, PaymentsManagerType},
     channel_manager::NodeChannelManager,
-    client::NodeBackendClient,
+    client::{NodeBackendClient, RunnerClient},
     context::{MegaContext, UserContext},
     event_handler::{self, NodeEventHandler},
     gdrive_persister, p2p,
@@ -104,6 +104,8 @@ pub struct UserNode {
     static_tasks: Vec<LxTask<()>>,
     eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     shutdown: NotifyOnce,
+    user_pk: UserPk,
+    runner_api: Arc<RunnerClient>,
 
     // --- Actors --- //
     chain_monitor: Arc<ChainMonitorType>,
@@ -823,6 +825,8 @@ impl UserNode {
             static_tasks,
             eph_tasks_tx,
             shutdown,
+            user_pk,
+            runner_api,
 
             // Actors
             chain_monitor,
@@ -893,6 +897,26 @@ impl UserNode {
             tokio::try_join!(bdk_sync_fut, ldk_sync_fut)?;
         try_first_bdk_sync.context("Initial BDK sync failed")?;
         try_first_ldk_sync.context("Initial LDK sync failed")?;
+
+        // Notify runner of our successful sync.
+        // We spawn in a task so as not to delay the ready callback.
+        let sync_succ_task = {
+            let runner_api = self.runner_api.clone();
+            let user_pk = self.user_pk;
+
+            const SPAN_NAME: &str = "(sync-success-notify)";
+            LxTask::spawn_with_span(
+                SPAN_NAME,
+                info_span!(SPAN_NAME),
+                async move {
+                    match runner_api.sync_succ(user_pk).await {
+                        Ok(_) => debug!("Notified runner of successful sync"),
+                        Err(e) => warn!("Failed to notify sync success: {e:#}"),
+                    }
+                },
+            )
+        };
+        let _ = self.eph_tasks_tx.send(sync_succ_task).await;
 
         // Reconnect to Lexe's LSP.
         // We only reconnect to the LSP *after* we have completed init + sync,
