@@ -61,7 +61,6 @@ impl RunnerClient {
     }
 }
 
-#[async_trait]
 impl MegaRunnerApi for RunnerClient {
     async fn mega_ready(
         &self,
@@ -86,7 +85,6 @@ impl MegaRunnerApi for RunnerClient {
     }
 }
 
-#[async_trait]
 impl NodeRunnerApi for RunnerClient {
     async fn renew_lease(
         &self,
@@ -142,7 +140,6 @@ impl NodeLspClient {
     }
 }
 
-#[async_trait]
 impl NodeLspApi for NodeLspClient {
     async fn get_new_scids(
         &self,
@@ -238,7 +235,6 @@ impl BearerAuthBackendApi for NodeBackendClient {
     }
 }
 
-#[async_trait]
 impl NodeBackendApi for NodeBackendClient {
     // not authenticated, node calls this to get sealed seed on startup
     async fn get_user(

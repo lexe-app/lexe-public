@@ -19,8 +19,6 @@ use tracing::{debug, info, info_span};
 
 use crate::context::MegaContext;
 
-// TODO(max): Add inactivity timers for meganode, usernode
-
 /// Indicates a usernode has shutdown (or been evicted).
 pub(crate) struct UserShutdown;
 

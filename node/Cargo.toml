@@ -62,7 +62,6 @@ async-trait.workspace = true
 axum.workspace = true
 bitcoin.workspace = true
 bytes.workspace = true
-cfg-if.workspace = true
 futures.workspace = true
 lightning.workspace = true
 lightning-transaction-sync.workspace = true

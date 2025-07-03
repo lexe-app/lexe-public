@@ -433,7 +433,6 @@ pub trait LexeNodeRunApi {
 }
 
 /// Defines the API the runner exposes to mega nodes.
-#[async_trait] // TODO(max): Remove once we remove `RunnerApiClient`.
 pub trait MegaRunnerApi {
     /// POST /mega/ready [`MegaPorts`] -> [`Empty`]
     ///
@@ -454,7 +453,6 @@ pub trait MegaRunnerApi {
 }
 
 /// Defines the api that the backend exposes to the node.
-#[async_trait]
 pub trait NodeBackendApi {
     // --- Unauthenticated --- //
 
@@ -617,7 +615,6 @@ pub trait NodeBackendApi {
 }
 
 /// Defines the api that the LSP exposes to user nodes.
-#[async_trait]
 pub trait NodeLspApi {
     /// GET /node/v1/scids [`GetNewScidsRequest`] -> [`Scids`]
     async fn get_new_scids(
@@ -655,7 +652,6 @@ pub trait NodeLspApi {
 }
 
 /// Defines the api that the runner exposes to the node.
-#[async_trait]
 pub trait NodeRunnerApi {
     /// POST /node/renew_lease [`UserLeaseRenewalRequest`] -> [`Empty`]
     ///

@@ -2840,7 +2840,6 @@ dependencies = [
  "axum",
  "bitcoin",
  "bytes",
- "cfg-if 1.0.1",
  "common",
  "futures",
  "gdrive",
