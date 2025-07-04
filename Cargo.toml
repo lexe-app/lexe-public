@@ -114,8 +114,8 @@ hyper = { version = "1", default-features = false, features = ["http2"] }
 ignore = "0.4"
 # Cross-platform access to host secret storage
 keyring = { version = "2.0", default-features = false }
-# Efficient LRU cache backed by a linked-list.
-lru = "0.14"
+# Efficient LRU cache backed by a linked list.
+lru = { version = "0.14", default-features = false }
 # For symbolizing backtrace frames from the enclave
 object = { version = "0.30", default-features = false, features = ["read_core", "compression", "elf"] }
 # Pieter Wuille's simpler alternative to Bitcoin Script
