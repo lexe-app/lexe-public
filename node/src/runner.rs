@@ -52,7 +52,14 @@ pub(crate) struct UserRunner {
     mega_args: MegaArgs,
     mega_ctxt: MegaContext,
     mega_activity_bus: EventsBus<UserPk>,
+
+    /// Shutdown channel for the meganode overall.
     mega_shutdown: NotifyOnce,
+    /// A shutdown channel specifically used for the mega API server.
+    /// This is a separate channel because the meganode needs to continue
+    /// responding to liveness checks while the UserRunner shuts down.
+    /// This is notified only once the UserRunner finishes running.
+    mega_server_shutdown: NotifyOnce,
 
     eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     runner_rx: mpsc::Receiver<RunnerCommand>,
@@ -90,6 +97,7 @@ impl UserRunner {
         mega_args: MegaArgs,
         mega_ctxt: MegaContext,
         mega_shutdown: NotifyOnce,
+        mega_server_shutdown: NotifyOnce,
         runner_rx: mpsc::Receiver<RunnerCommand>,
         eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     ) -> Self {
@@ -99,6 +107,7 @@ impl UserRunner {
             mega_ctxt,
             mega_activity_bus,
             mega_shutdown,
+            mega_server_shutdown,
 
             eph_tasks_tx,
             runner_rx,
@@ -219,6 +228,10 @@ impl UserRunner {
                 }
             }
         }
+
+        // We're done shutting down usernodes, so we can stop responding to
+        // liveness checks. Trigger a shutdown of the meganode API server.
+        self.mega_server_shutdown.send();
     }
 
     fn handle_user_run_request(&mut self, run_req: UserRunnerUserRunRequest) {

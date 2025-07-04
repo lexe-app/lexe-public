@@ -45,10 +45,12 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     let (runner_tx, runner_rx) =
         mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
     let mega_activity_bus = mega_ctxt.mega_activity_bus.clone();
+    let mega_server_shutdown = NotifyOnce::new();
     let user_runner = UserRunner::new(
         args.clone(),
         mega_ctxt,
         mega_shutdown.clone(),
+        mega_server_shutdown.clone(),
         runner_rx,
         eph_tasks_tx,
     );
@@ -62,7 +64,7 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
         mega_shutdown: mega_shutdown.clone(),
     };
     let (mega_task, lexe_mega_port, _mega_url) =
-        mega_server::spawn_server_task(mega_state)
+        mega_server::spawn_server_task(mega_state, mega_server_shutdown)
             .context("Failed to spawn mega server task")?;
     static_tasks.push(mega_task);
 
@@ -131,9 +133,12 @@ mod mega_server {
     /// Spawns the Lexe mega server task; returns the task, port, and url.
     pub(super) fn spawn_server_task(
         state: MegaRouterState,
+        // A shutdown channel specifically used for the mega API server.
+        // Not to be confused with `mega_shutdown`.
+        // This is a separate channel because the meganode needs to continue
+        // responding to liveness checks while the UserRunner shuts down.
+        mega_server_shutdown: NotifyOnce,
     ) -> anyhow::Result<(LxTask<()>, Port, String)> {
-        let lexe_mega_shutdown = state.mega_shutdown.clone();
-
         const SERVER_SPAN_NAME: &str = "(mega-server)";
         let lexe_mega_listener =
             TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
@@ -151,7 +156,7 @@ mod mega_server {
                 tls_and_dns,
                 Cow::from(SERVER_SPAN_NAME),
                 info_span!(SERVER_SPAN_NAME),
-                lexe_mega_shutdown,
+                mega_server_shutdown,
             )
             .context("Failed to spawn Lexe mega server task")?;
 
@@ -162,6 +167,8 @@ mod mega_server {
     pub(super) struct MegaRouterState {
         pub mega_id: MegaId,
         pub runner_tx: mpsc::Sender<RunnerCommand>,
+        /// Shutdown channel for the meganode overall.
+        /// Not to be confused with `mega_server_shutdown`.
         pub mega_shutdown: NotifyOnce,
     }
 
