@@ -349,14 +349,18 @@ mod helpers {
     use std::sync::Arc;
 
     use anyhow::Context;
-    use common::{api::MegaId, cli::node::RunArgs, rng::SysRng};
+    use common::{api::MegaId, rng::SysRng};
     use lexe_api::{
         def::MegaRunnerApi, models::runner::UserFinishedRequest, types::LeaseId,
     };
     use tracing::{error, info};
 
     use super::*;
-    use crate::{client::RunnerClient, context::UserContext, run::UserNode};
+    use crate::{
+        client::RunnerClient,
+        context::UserContext,
+        run::{RunArgs, UserNode},
+    };
 
     pub(super) fn spawn_user_node(
         mega_args: &MegaArgs,

@@ -12,7 +12,7 @@ use common::{
         revocable_clients::RevocableClients,
         user::{GetNewScidsRequest, NodePk, User, UserPk},
     },
-    cli::{node::RunArgs, LspInfo},
+    cli::LspInfo,
     constants::{self},
     ed25519,
     enclave::{MachineId, Measurement},
@@ -93,6 +93,56 @@ use crate::{
 const MIN_INTERCEPT_SCIDS: usize = 1;
 // Ensure we don't request more than we'll ever use.
 const_assert!(MIN_INTERCEPT_SCIDS <= lexe_ln::command::MAX_INTERCEPT_HINTS);
+
+/// Run a user node
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RunArgs {
+    /// the Lexe user pk used in queries to the persistence API
+    pub user_pk: UserPk,
+
+    /// whether the node should shut down after completing sync and other
+    /// maintenance tasks. Can be used to start nodes for maintenance purposes.
+    pub shutdown_after_sync: bool,
+
+    /// How long the usernode stays online (in seconds) without any activity
+    /// before shutting itself down. The timer resets whenever activity is
+    /// seen.
+    pub inactivity_timer_sec: u64,
+
+    /// Maximum duration for user node leases (in seconds).
+    pub lease_lifetime_secs: u64,
+
+    /// Interval at which user nodes should renew their leases (in seconds).
+    pub lease_renewal_interval_secs: u64,
+
+    /// protocol://host:port of the backend.
+    pub backend_url: String,
+
+    /// protocol://host:port of the runner.
+    pub runner_url: String,
+
+    /// info relating to Lexe's LSP.
+    pub lsp: LspInfo,
+
+    /// The value to set for `RUST_BACKTRACE`. Does nothing if set to [`None`].
+    /// Passed as an arg since envs aren't available in SGX.
+    pub rust_backtrace: Option<String>,
+
+    /// The value to set for `RUST_LOG`. Does nothing if set to [`None`].
+    /// Passed as an arg since envs aren't available in SGX.
+    pub rust_log: Option<String>,
+
+    /// The current deploy environment passed to us by Lexe (or someone in
+    /// Lexe's cloud). This input should be treated as untrusted.
+    pub untrusted_deploy_env: DeployEnv,
+
+    /// Esplora urls which someone in Lexe's infra says we should use.
+    /// We'll only use urls contained in our whitelist.
+    pub untrusted_esplora_urls: Vec<String>,
+
+    /// bitcoin, testnet, regtest, or signet.
+    pub untrusted_network: LxNetwork,
+}
 
 /// A user's node.
 #[allow(dead_code)] // Many unread fields are used as type annotations
