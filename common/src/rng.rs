@@ -9,6 +9,7 @@ use proptest::{
     arbitrary::{any, Arbitrary},
     strategy::{BoxedStrategy, Strategy},
 };
+use rand::prelude::Distribution;
 pub use rand::Rng;
 use rand_core::le::read_u32_into;
 pub use rand_core::{CryptoRng, RngCore, SeedableRng};
@@ -108,14 +109,16 @@ impl<R: RngCore + Rng> RngExt for R {
         u128::from_le_bytes(self.gen_bytes())
     }
 
+    /// Generates a [`f32`] uniformly distributed in `[0, 1)`.
     #[inline]
     fn gen_f32(&mut self) -> f32 {
-        self.gen::<f32>()
+        rand::distributions::Standard.sample(self)
     }
 
+    /// Generates a [`f64`] uniformly distributed in `[0, 1)`.
     #[inline]
     fn gen_f64(&mut self) -> f64 {
-        self.gen::<f64>()
+        rand::distributions::Standard.sample(self)
     }
 }
 
