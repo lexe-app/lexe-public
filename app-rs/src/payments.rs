@@ -1305,7 +1305,7 @@ mod test {
                     let finalize_idx = finalize_idx.index(pending_payments.len());
                     let payment = &pending_payments[finalize_idx];
                     finalized_payments.push(payment.index());
-                    let new_status = if rng2.gen_bool() {
+                    let new_status = if rng2.gen_boolean() {
                         PaymentStatus::Completed
                     } else {
                         PaymentStatus::Failed

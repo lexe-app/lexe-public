@@ -52,7 +52,7 @@ impl<R: RngCore + CryptoRng> Crng for R {
 /// methods for generating random values.
 pub trait RngExt: RngCore + Rng {
     fn gen_bytes<const N: usize>(&mut self) -> [u8; N];
-    fn gen_bool(&mut self) -> bool;
+    fn gen_boolean(&mut self) -> bool;
     fn gen_u8(&mut self) -> u8;
     fn gen_u16(&mut self) -> u16;
     fn gen_u32(&mut self) -> u32;
@@ -79,7 +79,8 @@ impl<R: RngCore + Rng> RngExt for R {
         out
     }
 
-    fn gen_bool(&mut self) -> bool {
+    /// Named `gen_boolean` to avoid ambiguity with [`Rng::gen_bool`].
+    fn gen_boolean(&mut self) -> bool {
         let byte: [u8; 1] = self.gen_bytes();
         byte[0] & 0x1 == 0
     }
