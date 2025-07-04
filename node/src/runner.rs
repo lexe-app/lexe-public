@@ -1,9 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
-use common::{api::user::UserPk, cli::node::MegaArgs, time::TimestampMs};
+use common::{
+    api::user::UserPk, cli::node::MegaArgs, constants, time::TimestampMs,
+};
 use futures::{stream::FuturesUnordered, StreamExt};
 use lexe_api::{
-    error::MegaApiError,
+    error::{MegaApiError, MegaErrorKind},
     models::runner::{MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest},
     types::{ports::RunPorts, LeaseId},
 };
@@ -15,7 +17,7 @@ use tokio::{
     sync::{mpsc, oneshot},
     task::JoinError,
 };
-use tracing::{debug, info, info_span};
+use tracing::{debug, info, info_span, warn};
 
 use crate::context::MegaContext;
 
@@ -119,6 +121,8 @@ impl UserRunner {
         let mega_activity_bus = self.mega_activity_bus.clone();
         let mut mega_activity_rx = mega_activity_bus.subscribe();
 
+        // --- Regular operation --- //
+
         loop {
             tokio::select! {
                 Some(cmd) = self.runner_rx.recv() => match cmd {
@@ -134,7 +138,85 @@ impl UserRunner {
                 user_pk = mega_activity_rx.recv() =>
                     self.handle_user_activity(user_pk),
 
-                () = self.mega_shutdown.recv() => return,
+                () = self.mega_shutdown.recv() =>
+                    break info!("Initiating shutdown of UserRunner"),
+            }
+        }
+
+        // --- Graceful shutdown --- //
+
+        let shutdown_timeout =
+            tokio::time::sleep(constants::USER_RUNNER_SHUTDOWN_TIMEOUT);
+        tokio::pin!(shutdown_timeout);
+
+        // User shutdown waiters received during shutdown which will be notified
+        // once runner shutdown completes.
+        let mut user_shutdown_waiters = Vec::new();
+
+        // Send shutdown signal to all running usernodes
+        for (user_pk, handle) in self.user_nodes.iter() {
+            debug!(%user_pk, "Sending shutdown signal to usernode");
+            handle.user_shutdown.send();
+        }
+
+        loop {
+            tokio::select! {
+                // Continue to pop off commands and handle them during shutdown.
+                // Immediately notify Run requests with error.
+                // Save any user eviction requests to be notified later.
+                Some(cmd) = self.runner_rx.recv() => {
+                    match cmd {
+                        RunnerCommand::UserRunRequest(req) => {
+                            let error = MegaApiError {
+                                kind: MegaErrorKind::RunnerUnreachable,
+                                msg: "UserRunner is shutting down".to_string(),
+                                ..Default::default()
+                            };
+                            let _ =
+                                req.user_ready_waiter.send(Err(error));
+                        }
+                        RunnerCommand::UserEvictRequest(req) => {
+                            user_shutdown_waiters
+                                .push(req.user_shutdown_waiter);
+                        }
+                    }
+                }
+
+                // Continue to pop off user tasks from the stream, ideally
+                // until all tasks have finished.
+                maybe_join_result = self.user_stream.next() => {
+                    match maybe_join_result {
+                        Some(join_result) =>
+                            self.handle_finished_user_node(join_result),
+                        None => {
+                            info!("All usernodes finished successfully.");
+
+                            // Notify all user shutdown waiters of success
+                            for waiter in user_shutdown_waiters {
+                                let _ = waiter.send(Ok(UserShutdown));
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // If we hit the shutdown timeout, that means that at least one
+                // usernode hung. Notify all user shutdown waiters of error.
+                () = &mut shutdown_timeout => {
+                    let error = MegaApiError {
+                        kind: MegaErrorKind::RunnerUnreachable,
+                        msg: "UserRunner shutdown timeout reached".to_string(),
+                        ..Default::default()
+                    };
+                    for waiter in user_shutdown_waiters {
+                        let _ = waiter.send(Err(error.clone()));
+                    }
+
+                    let num_hung = self.user_stream.len();
+                    warn!(num_hung, "UserRunner shutdown timeout reached");
+
+                    break;
+                }
             }
         }
     }

@@ -1,5 +1,7 @@
 use std::{include_bytes, time::Duration};
 
+use lexe_std::const_assert;
+
 use crate::enclave::{Measurement, MrShort};
 
 // --- General --- //
@@ -21,8 +23,17 @@ pub const DEFAULT_PAYMENTS_BATCH_SIZE: u16 = 50;
 pub const MAX_PAYMENT_NOTE_BYTES: usize = 512;
 
 /// The amount of time user node tasks have to finish after a graceful shutdown
-/// signal is received before the program is forced to exit.
+/// signal is received before the task is forced to exit.
 pub const USER_NODE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// The amount of time user the user runner has to finish after a graceful
+/// shutdown signal is received before the program is forced to exit.
+pub const USER_RUNNER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(12);
+
+const_assert!(
+    USER_NODE_SHUTDOWN_TIMEOUT.as_secs()
+        < USER_RUNNER_SHUTDOWN_TIMEOUT.as_secs()
+);
 
 /// Computing `max_flow` takes ~30s at 10 iterations and ~50s at 17 iterations.
 /// Set `LayerConfig::handling_timeout` and `reqwest::RequestBuilder::timeout`
