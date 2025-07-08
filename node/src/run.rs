@@ -96,7 +96,7 @@ const_assert!(MIN_INTERCEPT_SCIDS <= lexe_ln::command::MAX_INTERCEPT_HINTS);
 
 /// Run a user node
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct RunArgs {
+pub(crate) struct RunArgs {
     /// the Lexe user pk used in queries to the persistence API
     pub user_pk: UserPk,
 
@@ -123,14 +123,6 @@ pub struct RunArgs {
 
     /// info relating to Lexe's LSP.
     pub lsp: LspInfo,
-
-    /// The value to set for `RUST_BACKTRACE`. Does nothing if set to [`None`].
-    /// Passed as an arg since envs aren't available in SGX.
-    pub rust_backtrace: Option<String>,
-
-    /// The value to set for `RUST_LOG`. Does nothing if set to [`None`].
-    /// Passed as an arg since envs aren't available in SGX.
-    pub rust_log: Option<String>,
 
     /// The current deploy environment passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.

@@ -61,14 +61,6 @@ pub(crate) struct ProvisionArgs {
     /// Required only if running in staging / prod.
     pub oauth: Option<OAuthConfig>,
 
-    /// The value to set for `RUST_BACKTRACE`. Does nothing if set to [`None`].
-    /// Passed as an arg since envs aren't available in SGX.
-    pub rust_backtrace: Option<String>,
-
-    /// The value to set for `RUST_LOG`. Does nothing if set to [`None`].
-    /// Passed as an arg since envs aren't available in SGX.
-    pub rust_log: Option<String>,
-
     /// The current deploy environment passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.
     pub untrusted_deploy_env: DeployEnv,
@@ -86,8 +78,6 @@ impl From<&MegaArgs> for ProvisionArgs {
             oauth: args.oauth.clone(),
             untrusted_deploy_env: args.untrusted_deploy_env,
             untrusted_network: args.untrusted_network,
-            rust_log: args.rust_log.clone(),
-            rust_backtrace: args.rust_backtrace.clone(),
         }
     }
 }

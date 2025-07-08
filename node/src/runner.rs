@@ -530,8 +530,8 @@ mod helpers {
             memory_overhead: _,
             oauth: _,
             runner_url,
-            rust_backtrace,
-            rust_log,
+            rust_backtrace: _,
+            rust_log: _,
             untrusted_deploy_env,
             untrusted_esplora_urls: esplora_urls,
             untrusted_network,
@@ -552,8 +552,6 @@ mod helpers {
             lsp: lsp.clone(),
             untrusted_deploy_env: *untrusted_deploy_env,
             untrusted_network: *untrusted_network,
-            rust_backtrace: rust_backtrace.clone(),
-            rust_log: rust_log.clone(),
         }
     }
 
