@@ -29,15 +29,20 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
         args.untrusted_network,
         mega_shutdown.clone(),
     )
-    .await?;
+    .await
+    .context("Couldn't init MegaContext")?;
 
     // Init the provision service. Since it's a static service that should
     // live as long as the mega node itself, we can reuse the mega_shutdown.
     let provision_args = ProvisionArgs::from(&args);
-    let provision =
-        ProvisionInstance::init(rng, provision_args, mega_shutdown.clone())
-            .await?;
-    let measurement = provision.measurement();
+    let provision = ProvisionInstance::init(
+        rng,
+        provision_args,
+        mega_ctxt.clone(),
+        mega_shutdown.clone(),
+    )
+    .await
+    .context("Couldn't init ProvisionInstance")?;
     let provision_ports = provision.ports();
     static_tasks.push(provision.spawn_into_task());
 
@@ -45,6 +50,7 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     let (runner_tx, runner_rx) =
         mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
     let mega_activity_bus = mega_ctxt.mega_activity_bus.clone();
+    let measurement = mega_ctxt.measurement;
     let mega_server_shutdown = NotifyOnce::new();
     let user_runner = UserRunner::new(
         args.clone(),

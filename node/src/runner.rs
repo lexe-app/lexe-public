@@ -126,7 +126,7 @@ impl UserRunner {
         })
     }
 
-    pub async fn run(mut self) {
+    async fn run(mut self) {
         let mega_activity_bus = self.mega_activity_bus.clone();
         let mut mega_activity_rx = mega_activity_bus.subscribe();
 

@@ -50,6 +50,7 @@ pub(crate) struct UserContext {
 #[derive(Clone)]
 pub(crate) struct MegaContext {
     /// The backend API client for user nodes.
+    /// NOTE: This uses NodeMode::Run so should not be used for provisioning.
     pub backend_api: Arc<NodeBackendClient>,
     /// The channel config for user nodes.
     pub config: Arc<ArcSwap<UserConfig>>,
@@ -64,6 +65,7 @@ pub(crate) struct MegaContext {
     /// The logger for user nodes.
     pub logger: LexeTracingLogger,
     /// The LSP API client for user nodes.
+    /// NOTE: This uses NodeMode::Run so should not be used for provisioning.
     pub lsp_api: Arc<NodeLspClient>,
     /// The machine ID of the enclave.
     pub machine_id: enclave::MachineId,
@@ -74,6 +76,7 @@ pub(crate) struct MegaContext {
     /// The Lightning Network graph for routing.
     pub network_graph: Arc<NetworkGraphType>,
     /// The runner API client for user nodes.
+    /// NOTE: This uses NodeMode::Run so should not be used for provisioning.
     pub runner_api: Arc<RunnerClient>,
     /// The probabilistic scorer for pathfinding.
     pub scorer: Arc<Mutex<ProbabilisticScorerType>>,

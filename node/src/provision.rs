@@ -22,8 +22,7 @@ use axum::{routing::post, Router};
 use common::{
     api::provision::NodeProvisionRequest,
     cli::{node::MegaArgs, OAuthConfig},
-    constants,
-    enclave::{self, MachineId, Measurement},
+    constants, enclave,
     env::DeployEnv,
     ln::network::LxNetwork,
     net,
@@ -45,7 +44,7 @@ use lexe_tokio::{
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, info_span};
 
-use crate::{client::NodeBackendClient, persister};
+use crate::{client::NodeBackendClient, context::MegaContext, persister};
 
 /// Args needed by the [`ProvisionInstance`].
 /// These are built from [`MegaArgs`] which is passed in via CLI.
@@ -84,7 +83,7 @@ impl From<&MegaArgs> for ProvisionArgs {
 
 pub(crate) struct ProvisionInstance {
     static_tasks: Vec<LxTask<()>>,
-    measurement: enclave::Measurement,
+    #[allow(dead_code)]
     ports: ProvisionPorts,
     shutdown: NotifyOnce,
 }
@@ -93,17 +92,18 @@ impl ProvisionInstance {
     pub async fn init(
         rng: &mut impl Crng,
         args: ProvisionArgs,
+        mega_ctx: MegaContext,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<Self> {
         info!("Initializing provision service");
 
-        // Init API clients.
-        let measurement = enclave::measurement();
+        // Create a backend client for provisioning
+        let measurement = mega_ctx.measurement;
         let mr_short = measurement.short();
         let node_mode = NodeMode::Provision { mr_short };
         let backend_client = NodeBackendClient::new(
             rng,
-            args.untrusted_deploy_env,
+            mega_ctx.untrusted_deploy_env,
             node_mode,
             args.backend_url.clone(),
         )
@@ -112,15 +112,16 @@ impl ProvisionInstance {
         // Set up the request context and API servers.
         let args = Arc::new(args);
         let client = gdrive::ReqwestClient::new();
-        let machine_id = enclave::machine_id();
         let state = AppRouterState {
             args: args.clone(),
+            backend_api: Arc::new(backend_client),
             client,
-            machine_id,
+            machine_id: mega_ctx.machine_id,
             measurement,
-            backend_client: Arc::new(backend_client),
             // TODO(phlip9): use passed in rng
             rng: SysRng::new(),
+            untrusted_deploy_env: mega_ctx.untrusted_deploy_env,
+            untrusted_network: mega_ctx.untrusted_network,
         };
 
         const APP_SERVER_SPAN_NAME: &str = "(app-node-provision-server)";
@@ -156,13 +157,12 @@ impl ProvisionInstance {
 
         Ok(Self {
             static_tasks,
-            measurement,
             ports,
             shutdown,
         })
     }
 
-    pub async fn run(self) -> anyhow::Result<()> {
+    async fn run(self) -> anyhow::Result<()> {
         // Wait for API servers to recv shutdown signal and gracefully shut down
         let (_, eph_tasks_rx) = mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
         task::try_join_tasks_and_shutdown(
@@ -173,10 +173,6 @@ impl ProvisionInstance {
         )
         .await
         .context("Error awaiting tasks")
-    }
-
-    pub fn measurement(&self) -> enclave::Measurement {
-        self.measurement
     }
 
     pub fn ports(&self) -> ProvisionPorts {
@@ -197,12 +193,14 @@ impl ProvisionInstance {
 #[derive(Clone)]
 struct AppRouterState {
     args: Arc<ProvisionArgs>,
+    backend_api: Arc<NodeBackendClient>,
     client: gdrive::ReqwestClient,
-    machine_id: MachineId,
-    measurement: Measurement,
-    backend_client: Arc<NodeBackendClient>,
+    machine_id: enclave::MachineId,
+    measurement: enclave::Measurement,
     // TODO(phlip9): make generic, use test rng in test
     rng: SysRng,
+    untrusted_deploy_env: DeployEnv,
+    untrusted_network: LxNetwork,
 }
 
 /// Implements [`AppNodeProvisionApi`] - only callable by the node owner.
@@ -230,13 +228,13 @@ mod handlers {
 
         // Sanity check with no meaningful security; an attacker with cloud
         // access can still set the deploy env or network to whatever they need.
-        if state.args.untrusted_deploy_env != req.deploy_env
-            || state.args.untrusted_network != req.network
+        if state.untrusted_deploy_env != req.deploy_env
+            || state.untrusted_network != req.network
         {
             let req_env = req.deploy_env;
-            let req_net = req.deploy_env;
-            let ctx_env = state.args.untrusted_deploy_env;
-            let ctx_net = state.args.untrusted_deploy_env;
+            let req_net = req.network;
+            let ctx_env = state.untrusted_deploy_env;
+            let ctx_net = state.untrusted_network;
             return Err(NodeApiError::provision(format!(
                 "Probable configuration error, client and node don't agree on current env: \
                  client: ({req_env}, {req_net}), node: ({ctx_env}, {ctx_net})"
@@ -266,7 +264,7 @@ mod handlers {
         let authenticator =
             BearerAuthenticator::new(user_key_pair, maybe_token);
         let token = authenticator
-            .get_token(state.backend_client.as_ref(), SystemTime::now())
+            .get_token(state.backend_api.as_ref(), SystemTime::now())
             .await
             .map_err(NodeApiError::bad_auth)?;
 
@@ -313,7 +311,7 @@ mod handlers {
         // provision (which seems to happen more often than I'd like) doesn't
         // fill up our capacity with broken nodes that can't run.
         state
-            .backend_client
+            .backend_api
             .create_sealed_seed(&sealed_seed, token)
             .await
             .context("Could not persist sealed seed")
@@ -376,7 +374,7 @@ mod helpers {
                     &credentials,
                 );
                 persister::persist_file(
-                    state.backend_client.as_ref(),
+                    state.backend_api.as_ref(),
                     authenticator,
                     &credentials_file,
                 )
@@ -390,7 +388,7 @@ mod helpers {
                 // No auth code was provided. Ensure that credentials already
                 // exist.
                 let credentials = persister::read_gdrive_credentials(
-                    state.backend_client.as_ref(),
+                    state.backend_api.as_ref(),
                     authenticator,
                     vfs_master_key,
                 )
@@ -431,7 +429,7 @@ mod helpers {
     ) -> Result<(), NodeApiError> {
         // See if we have a persisted gvfs root.
         let maybe_persisted_gvfs_root = persister::read_gvfs_root(
-            &state.backend_client,
+            &state.backend_api,
             authenticator,
             vfs_master_key,
         )
@@ -464,7 +462,7 @@ mod helpers {
             if let Some(new_gvfs_root) = maybe_new_gvfs_root {
                 persister::persist_gvfs_root(
                     &mut state.rng,
-                    &state.backend_client,
+                    &state.backend_api,
                     authenticator,
                     vfs_master_key,
                     &new_gvfs_root,
@@ -534,13 +532,13 @@ mod helpers {
                 for (revoked_version, revoked_measurement) in revoked {
                     let token = authenticator
                         .get_token(
-                            state.backend_client.as_ref(),
+                            state.backend_api.as_ref(),
                             SystemTime::now(),
                         )
                         .await
                         .map_err(NodeApiError::bad_auth)?;
                     let try_delete = state
-                        .backend_client
+                        .backend_api
                         .delete_sealed_seeds(revoked_measurement, token.clone())
                         .await;
 
@@ -581,7 +579,7 @@ mod helpers {
                 );
 
                 persister::persist_file(
-                    state.backend_client.as_ref(),
+                    state.backend_api.as_ref(),
                     authenticator,
                     &credentials_file,
                 )
