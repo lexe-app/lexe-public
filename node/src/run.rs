@@ -97,17 +97,8 @@ const_assert!(MIN_INTERCEPT_SCIDS <= lexe_ln::command::MAX_INTERCEPT_HINTS);
 /// Run a user node
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RunArgs {
-    /// the Lexe user pk used in queries to the persistence API
-    pub user_pk: UserPk,
-
-    /// whether the node should shut down after completing sync and other
-    /// maintenance tasks. Can be used to start nodes for maintenance purposes.
-    pub shutdown_after_sync: bool,
-
-    /// How long the usernode stays online (in seconds) without any activity
-    /// before shutting itself down. The timer resets whenever activity is
-    /// seen.
-    pub inactivity_timer_sec: u64,
+    /// protocol://host:port of the backend.
+    pub backend_url: String,
 
     /// Maximum duration for user node leases (in seconds).
     pub lease_lifetime_secs: u64,
@@ -115,14 +106,15 @@ pub(crate) struct RunArgs {
     /// Interval at which user nodes should renew their leases (in seconds).
     pub lease_renewal_interval_secs: u64,
 
-    /// protocol://host:port of the backend.
-    pub backend_url: String,
+    /// info relating to Lexe's LSP.
+    pub lsp: LspInfo,
 
     /// protocol://host:port of the runner.
     pub runner_url: String,
 
-    /// info relating to Lexe's LSP.
-    pub lsp: LspInfo,
+    /// whether the node should shut down after completing sync and other
+    /// maintenance tasks. Can be used to start nodes for maintenance purposes.
+    pub shutdown_after_sync: bool,
 
     /// The current deploy environment passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.
@@ -134,6 +126,13 @@ pub(crate) struct RunArgs {
 
     /// bitcoin, testnet, regtest, or signet.
     pub untrusted_network: LxNetwork,
+
+    /// How long the usernode can remain inactive (in seconds) before it gets
+    /// evicted by the UserRunner.
+    pub user_inactivity_secs: u64,
+
+    /// the Lexe user pk used in queries to the persistence API
+    pub user_pk: UserPk,
 }
 
 /// A user's node.
@@ -1028,7 +1027,7 @@ impl UserNode {
             self.shutdown.send();
         } else {
             let inactivity_timer = InactivityTimer::new(
-                self.args.inactivity_timer_sec,
+                self.args.user_inactivity_secs,
                 ctxt.user_activity_bus,
                 self.shutdown.clone(),
             );

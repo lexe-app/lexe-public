@@ -68,11 +68,11 @@ pub struct InactivityTimer<T> {
 
 impl<T: Clone + Send + 'static> InactivityTimer<T> {
     pub fn new(
-        inactivity_timer_sec: u64,
+        inactivity_secs: u64,
         activity_bus: EventsBus<T>,
         shutdown: NotifyOnce,
     ) -> Self {
-        let duration = Duration::from_secs(inactivity_timer_sec);
+        let duration = Duration::from_secs(inactivity_secs);
         Self {
             duration,
             activity_bus,
@@ -129,12 +129,12 @@ mod tests {
         shutdown: NotifyOnce,
     }
 
-    fn get_test_context(inactivity_timer_sec: u64) -> TestContext {
+    fn get_test_context(inactivity_secs: u64) -> TestContext {
         let activity_bus = EventsBus::new();
         let shutdown = NotifyOnce::new();
         let actor_shutdown = shutdown.clone();
         let actor = InactivityTimer::new(
-            inactivity_timer_sec,
+            inactivity_secs,
             activity_bus.clone(),
             actor_shutdown,
         );
@@ -196,8 +196,8 @@ mod tests {
     #[test]
     fn case_1() {
         do_test_paused_time(async {
-            let inactivity_timer_sec = 1;
-            let ctxt = get_test_context(inactivity_timer_sec);
+            let inactivity_secs = 1;
+            let ctxt = get_test_context(inactivity_secs);
             ctxt.activity_bus.send(());
             let actor_fut = ctxt.actor.run();
 
@@ -210,8 +210,8 @@ mod tests {
     #[test]
     fn case_2() {
         do_test_paused_time(async {
-            let inactivity_timer_sec = 1;
-            let ctxt = get_test_context(inactivity_timer_sec);
+            let inactivity_secs = 1;
+            let ctxt = get_test_context(inactivity_secs);
             let actor_fut = ctxt.actor.run();
 
             // Actor should finish at about 1000ms (1 sec)
@@ -223,8 +223,8 @@ mod tests {
     #[test]
     fn case_3() {
         do_test_paused_time(async {
-            let inactivity_timer_sec = 1;
-            let ctxt = get_test_context(inactivity_timer_sec);
+            let inactivity_secs = 1;
+            let ctxt = get_test_context(inactivity_secs);
             let actor_fut = ctxt.actor.run();
 
             // Spawn a task to generate an activity event 500ms in
@@ -246,8 +246,8 @@ mod tests {
     #[test]
     fn case_4() {
         do_test_paused_time(async {
-            let inactivity_timer_sec = 1;
-            let ctxt = get_test_context(inactivity_timer_sec);
+            let inactivity_secs = 1;
+            let ctxt = get_test_context(inactivity_secs);
             let actor_fut = ctxt.actor.run();
 
             // Spawn a task to generate an activity event 500ms in and a

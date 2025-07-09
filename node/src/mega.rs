@@ -101,7 +101,7 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     // We're now ready.
     // Start the inactivity timer so we shut ourselves down if we're inactive.
     let inactivity_timer = InactivityTimer::new(
-        args.inactivity_timer_sec,
+        args.user_inactivity_secs,
         mega_activity_bus,
         mega_shutdown.clone(),
     );

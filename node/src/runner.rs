@@ -387,7 +387,7 @@ impl UserRunner {
     fn evict_any_inactive_usernodes(&mut self, now: TimestampMs) {
         // If a user is inactive for at least this long, we'll shut them down.
         let user_inactivity_threshold =
-            Duration::from_secs(self.mega_args.inactivity_timer_sec);
+            Duration::from_secs(self.mega_args.user_inactivity_secs);
 
         // Cutoff timestamp: users with last_used before this are inactive
         let inactive_ts = now.saturating_sub(user_inactivity_threshold);
@@ -585,7 +585,6 @@ mod helpers {
             mega_id: _,
             backend_url,
 
-            inactivity_timer_sec,
             lease_lifetime_secs,
             lease_renewal_interval_secs,
             lsp,
@@ -599,22 +598,23 @@ mod helpers {
             untrusted_esplora_urls: esplora_urls,
             untrusted_network,
             sgx_heap_size: _,
+            user_inactivity_secs,
             usernode_buffer_slots: _,
             usernode_memory: _,
         } = mega_args;
 
         RunArgs {
-            user_pk,
-            shutdown_after_sync,
-            inactivity_timer_sec: *inactivity_timer_sec,
+            backend_url: backend_url.clone(),
             lease_lifetime_secs: *lease_lifetime_secs,
             lease_renewal_interval_secs: *lease_renewal_interval_secs,
-            backend_url: backend_url.clone(),
-            runner_url: runner_url.clone(),
-            untrusted_esplora_urls: esplora_urls.clone(),
             lsp: lsp.clone(),
+            runner_url: runner_url.clone(),
+            shutdown_after_sync,
             untrusted_deploy_env: *untrusted_deploy_env,
+            untrusted_esplora_urls: esplora_urls.clone(),
             untrusted_network: *untrusted_network,
+            user_inactivity_secs: *user_inactivity_secs,
+            user_pk,
         }
     }
 

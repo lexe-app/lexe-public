@@ -21,11 +21,6 @@ pub struct MegaArgs {
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
     pub backend_url: String,
 
-    /// How long the usernode stays online (in seconds) without any activity
-    /// before shutting itself down. The timer resets whenever activity is
-    /// seen. The meganode also uses this value + a few seconds.
-    pub inactivity_timer_sec: u64,
-
     /// Maximum duration for user node leases (in seconds).
     pub lease_lifetime_secs: u64,
 
@@ -85,6 +80,10 @@ pub struct MegaArgs {
     /// The current deploy network passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.
     pub untrusted_network: LxNetwork,
+
+    /// How long the usernode can remain inactive (in seconds) before it gets
+    /// evicted by the UserRunner.
+    pub user_inactivity_secs: u64,
 
     /// The # of usernodes that the meganode tries to maintain capacity for.
     /// Users are evicted when remaining memory fits fewer than this amount.
