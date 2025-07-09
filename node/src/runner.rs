@@ -144,10 +144,12 @@ impl UserRunner {
         // --- Regular operation --- //
 
         loop {
+            let now = TimestampMs::now();
+
             tokio::select! {
                 Some(cmd) = self.runner_rx.recv() => match cmd {
                     RunnerCommand::UserRunRequest(run_req) =>
-                        self.handle_user_run_request(run_req),
+                        self.handle_user_run_request(run_req, now),
                     RunnerCommand::UserEvictRequest(evict_req) =>
                         self.handle_user_evict_request(evict_req),
                 },
@@ -156,10 +158,10 @@ impl UserRunner {
                     self.handle_finished_usernode(join_result),
 
                 user_pk = mega_activity_rx.recv() =>
-                    self.handle_user_activity(user_pk),
+                    self.handle_user_activity(user_pk, now),
 
                 _ = inactive_user_eviction_interval.tick() =>
-                    self.evict_any_inactive_usernodes(),
+                    self.evict_any_inactive_usernodes(now),
 
                 () = self.mega_shutdown.recv() =>
                     break info!("Initiating shutdown of UserRunner"),
@@ -248,7 +250,11 @@ impl UserRunner {
         self.mega_server_shutdown.send();
     }
 
-    fn handle_user_run_request(&mut self, run_req: UserRunnerUserRunRequest) {
+    fn handle_user_run_request(
+        &mut self,
+        run_req: UserRunnerUserRunRequest,
+        now: TimestampMs,
+    ) {
         let UserRunnerUserRunRequest {
             inner: run_req,
             user_ready_waiter,
@@ -304,15 +310,15 @@ impl UserRunner {
         self.user_stream.push(user_task);
 
         // Add to LRU queue
-        self.user_lru.push(user_pk, TimestampMs::now());
+        self.user_lru.push(user_pk, now);
 
         // We just spawned a node. Check for evictions.
-        self.evict_usernodes_if_needed();
+        self.evict_usernodes_if_needed(now);
     }
 
-    fn handle_user_activity(&mut self, user_pk: UserPk) {
+    fn handle_user_activity(&mut self, user_pk: UserPk, now: TimestampMs) {
         debug!(%user_pk, "Received user activity, updating LRU");
-        self.usernode_used_now(&user_pk);
+        self.usernode_used_now(&user_pk, now);
     }
 
     fn handle_user_evict_request(
@@ -378,13 +384,12 @@ impl UserRunner {
 
     /// Checks for and evicts any usernodes which have been inactive for at
     /// least `user_inactivity_threshold`.
-    fn evict_any_inactive_usernodes(&mut self) {
+    fn evict_any_inactive_usernodes(&mut self, now: TimestampMs) {
         // If a user is inactive for at least this long, we'll shut them down.
         let user_inactivity_threshold =
             Duration::from_secs(self.mega_args.inactivity_timer_sec);
 
         // Cutoff timestamp: users with last_used before this are inactive
-        let now = TimestampMs::now();
         let inactive_ts = now.saturating_sub(user_inactivity_threshold);
 
         // Collect users to evict (can't mutate while iterating)
@@ -402,12 +407,12 @@ impl UserRunner {
 
         // Evict each inactive user
         for user_pk in inactive_users {
-            let evicted = self.evict_usernode(user_pk);
+            let evicted = self.evict_usernode(user_pk, now);
             assert!(evicted, "User was just in LRU");
         }
     }
 
-    fn evict_usernodes_if_needed(&mut self) {
+    fn evict_usernodes_if_needed(&mut self, now: TimestampMs) {
         // Available memory for usernodes after accounting for overhead
         let hard_memory_limit = self.hard_memory_limit();
 
@@ -420,18 +425,18 @@ impl UserRunner {
 
         while self.current_memory() - self.evicting_memory() > soft_memory_limit
         {
-            let evicted = self.evict_lru_usernode();
+            let evicted = self.evict_lru_usernode(now);
             assert!(evicted, "Unevicted memory over limit => can evict");
         }
     }
 
     /// Evicts the least recently used usernode.
     /// Returns whether a usernode was evicted.
-    fn evict_lru_usernode(&mut self) -> bool {
+    fn evict_lru_usernode(&mut self, now: TimestampMs) -> bool {
         if let Some((user_pk, lru)) = self.user_lru.peek_lru() {
-            helpers::log_eviction(*lru, "Evicting LRU usernode.");
+            helpers::log_eviction(*lru, now, "Evicting LRU usernode.");
 
-            let evicted = self.evict_usernode(*user_pk);
+            let evicted = self.evict_usernode(*user_pk, now);
             assert!(evicted, "LRU usernode should be evictable");
 
             true
@@ -442,11 +447,11 @@ impl UserRunner {
 
     /// Evicts the given usernode.
     /// Returns whether the usernode was evicted (was in the LRU queue).
-    fn evict_usernode(&mut self, user_pk: UserPk) -> bool {
+    fn evict_usernode(&mut self, user_pk: UserPk, now: TimestampMs) -> bool {
         // Pop from LRU and mark as evicting
         match self.user_lru.pop(&user_pk) {
             Some(last_used) =>
-                helpers::log_eviction(last_used, "Evicted usernode."),
+                helpers::log_eviction(last_used, now, "Evicted usernode."),
             None => return false,
         }
         self.user_evicting.insert(user_pk);
@@ -463,10 +468,10 @@ impl UserRunner {
 
     /// Marks a usernode as the most recently used node and updates its
     /// `last_used` timestamp.
-    fn usernode_used_now(&mut self, user_pk: &UserPk) {
+    fn usernode_used_now(&mut self, user_pk: &UserPk, now: TimestampMs) {
         // NOTE: `get_mut` promotes the entry to the head (MRU) of the queue.
         if let Some(last_used) = self.user_lru.get_mut(user_pk) {
-            *last_used = TimestampMs::now();
+            *last_used = now;
         }
     }
 
@@ -667,11 +672,12 @@ mod helpers {
     }
 
     /// Logs an eviction with the time since last use.
-    pub(super) fn log_eviction(last_used: TimestampMs, msg: &str) {
-        // NOTE: TimestampMs::now() is only used for a log, so no need to allow
-        // mocking it for tests.
-        let inactive_secs =
-            last_used.absolute_diff(TimestampMs::now()).as_secs();
+    pub(super) fn log_eviction(
+        last_used: TimestampMs,
+        now: TimestampMs,
+        msg: &str,
+    ) {
+        let inactive_secs = last_used.absolute_diff(now).as_secs();
         info!(%inactive_secs, "{msg}");
     }
 }
