@@ -52,8 +52,6 @@ pub trait EnclaveArgs: Serialize + DeserializeOwned {
 pub struct LspInfo {
     pub node_pk: NodePk,
     /// The socket on which the LSP accepts P2P LN connections from user nodes
-    // compat: alias added in {node,lsp}-v0.7.0
-    #[serde(rename = "addr", alias = "private_p2p_addr")]
     pub private_p2p_addr: LxSocketAddress,
 
     // -- LSP -> User fees -- //
@@ -62,19 +60,12 @@ pub struct LspInfo {
     /// - For inbound payments, this fee is encoded in the invoice route hints
     ///   (as part of the `RoutingFees` struct)
     /// - Also used to estimate how much can be sent to another Lexe user.
-    // compat: alias added in {node,lsp}-v0.7.0
-    #[serde(rename = "base_msat", alias = "lsp_usernode_base_fee_msat")]
     pub lsp_usernode_base_fee_msat: u32,
     /// LSP's configured prop fee for forwarding over LSP -> User channels.
     ///
     /// - For inbound payments, this fee is encoded in the invoice route hints
     ///   (as part of the `RoutingFees` struct)
     /// - Also used to estimate how much can be sent to another Lexe user.
-    // compat: alias added in {node,lsp}-v0.7.0
-    #[serde(
-        rename = "proportional_millionths",
-        alias = "lsp_usernode_prop_fee_ppm"
-    )]
     pub lsp_usernode_prop_fee_ppm: u32,
 
     // -- LSP -> External fees -- //
