@@ -143,7 +143,7 @@ impl UserRunner {
                 },
 
                 Some(join_result) = self.user_stream.next() =>
-                    self.handle_finished_user_node(join_result),
+                    self.handle_finished_usernode(join_result),
 
                 user_pk = mega_activity_rx.recv() =>
                     self.handle_user_activity(user_pk),
@@ -197,7 +197,7 @@ impl UserRunner {
                 maybe_join_result = self.user_stream.next() => {
                     match maybe_join_result {
                         Some(join_result) =>
-                            self.handle_finished_user_node(join_result),
+                            self.handle_finished_usernode(join_result),
                         None => {
                             info!("All usernodes finished successfully.");
 
@@ -331,7 +331,7 @@ impl UserRunner {
         handle.user_shutdown_waiters.push(user_shutdown_waiter);
     }
 
-    fn handle_finished_user_node(
+    fn handle_finished_usernode(
         &mut self,
         join_result: Result<UserPk, JoinError>,
     ) {
