@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashSet, sync::Arc, time::Duration};
 
 use common::api::user::UserPk;
 use lexe_api::def::NodeRunnerApi;
@@ -44,7 +44,8 @@ pub(crate) fn notify_listeners(
     let task = LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), {
         let runner_api = runner_api.clone();
         async move {
-            if let Err(e) = runner_api.activity(user_pk).await {
+            let user_pks = HashSet::from_iter([user_pk]);
+            if let Err(e) = runner_api.activity(user_pks).await {
                 warn!("Couldn't notify runner (active): {e:#}");
             }
         }

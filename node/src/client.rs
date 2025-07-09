@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::Context;
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -6,7 +8,7 @@ use common::{
         auth::{BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken},
         user::{
             GetNewScidsRequest, MaybeScid, MaybeUser, NodePk, NodePkStruct,
-            ScidStruct, Scids, UserPk, UserPkStruct,
+            ScidStruct, Scids, UserPk, UserPkSet, UserPkStruct,
         },
         version::MeasurementStruct,
     },
@@ -97,9 +99,12 @@ impl NodeRunnerApi for RunnerClient {
         self.rest.send(req).await
     }
 
-    async fn activity(&self, user_pk: UserPk) -> Result<Empty, RunnerApiError> {
+    async fn activity(
+        &self,
+        user_pks: HashSet<UserPk>,
+    ) -> Result<Empty, RunnerApiError> {
         let runner = &self.runner_url;
-        let data = UserPkStruct { user_pk };
+        let data = UserPkSet { user_pks };
         let req = self.rest.post(format!("{runner}/node/activity"), &data);
         // TODO(phlip9): authenticate runner callbacks?
         // .bearer_auth(&self.auth_token().await?);

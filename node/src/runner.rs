@@ -805,7 +805,8 @@ mod helpers {
         const SPAN_NAME: &str = "(megarunner-activity-notif)";
         let task = LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), {
             async move {
-                if let Err(e) = runner_api.activity(user_pk).await {
+                let user_pks = HashSet::from_iter([user_pk]);
+                if let Err(e) = runner_api.activity(user_pks).await {
                     warn!("Couldn't notify megarunner of activity: {e:#}");
                 }
             }

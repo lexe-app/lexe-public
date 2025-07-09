@@ -31,12 +31,16 @@
 // We don't export our traits currently so auto trait stability is not relevant.
 #![allow(async_fn_in_trait)]
 
+use std::collections::HashSet;
+
 use async_trait::async_trait;
 use bytes::Bytes;
 #[cfg(doc)]
 use common::{
-    api::user::NodePkStruct, api::user::UserPkStruct,
-    api::version::MeasurementStruct, api::MegaIdStruct,
+    api::user::NodePkStruct,
+    api::user::{UserPkSet, UserPkStruct},
+    api::version::MeasurementStruct,
+    api::MegaIdStruct,
 };
 use common::{
     api::{
@@ -661,10 +665,13 @@ pub trait NodeRunnerApi {
         req: &UserLeaseRenewalRequest,
     ) -> Result<Empty, RunnerApiError>;
 
-    /// POST /node/activity [`UserPkStruct`] -> [`Empty`]
+    /// POST /node/activity [`UserPkSet`] -> [`Empty`]
     ///
-    /// Indicates the node received some activity from its user.
-    async fn activity(&self, user_pk: UserPk) -> Result<Empty, RunnerApiError>;
+    /// Indicates the meganode received some activity from its users.
+    async fn activity(
+        &self,
+        user_pks: HashSet<UserPk>,
+    ) -> Result<Empty, RunnerApiError>;
 
     /// POST /node/sync_success [`UserPkStruct`] -> [`Empty`]
     ///
