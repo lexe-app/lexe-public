@@ -5,6 +5,7 @@
 //! [`Strategy`]: proptest::strategy::Strategy
 
 use std::{
+    collections::HashSet,
     net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
     ops::RangeInclusive,
     time::Duration,
@@ -104,6 +105,29 @@ pub fn any_option_simple_string() -> impl Strategy<Value = Option<String>> {
 /// A [`Vec`] version of [`any_simple_string`]. Contains 0-8 strings.
 pub fn any_vec_simple_string() -> impl Strategy<Value = Vec<String>> {
     vec(any_simple_string(), 0..=8)
+}
+
+/// Like [`any::<HashSet<T>>()`], but is available inside SGX.
+///
+/// Generated sets have anywhere from 0 to 8 elements.
+///
+/// ```
+/// use common::test_utils::arbitrary;
+/// use proptest_derive::Arbitrary;
+/// use std::collections::HashSet;
+/// use common::api::user::UserPk;
+///
+/// #[derive(Debug, Arbitrary)]
+/// struct Foo {
+///     #[proptest(strategy = "arbitrary::any_hashset::<UserPk>()")]
+///     items: HashSet<UserPk>,
+/// }
+/// ```
+pub fn any_hashset<T>() -> impl Strategy<Value = HashSet<T>>
+where
+    T: proptest::arbitrary::Arbitrary + std::hash::Hash + Eq,
+{
+    vec(any::<T>(), 0..=8).prop_map(HashSet::from_iter)
 }
 
 /// `Hostname` is a DNS-like string with 1..=255 alphanumeric + '-' + '.' chars.

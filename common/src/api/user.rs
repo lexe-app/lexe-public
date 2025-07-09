@@ -1,4 +1,4 @@
-use std::{fmt, str::FromStr};
+use std::{collections::HashSet, fmt, str::FromStr};
 
 use bitcoin::{secp256k1, secp256k1::Secp256k1};
 use byte_array::ByteArray;
@@ -18,6 +18,8 @@ use thiserror::Error;
 use crate::rng::FastRng;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::root_seed::RootSeed;
+#[cfg(any(test, feature = "test-utils"))]
+use crate::test_utils::arbitrary;
 use crate::{
     ed25519::{self, Signable},
     rng::Crng,
@@ -54,6 +56,17 @@ pub struct ShortUserPk(#[serde(with = "hexstr_or_bytes")] [u8; 4]);
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct UserPkStruct {
     pub user_pk: UserPk,
+}
+
+/// Upgradeable API struct for a set of user pks
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct UserPkSet {
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_hashset::<UserPk>()")
+    )]
+    pub user_pks: HashSet<UserPk>,
 }
 
 /// A simple wrapper around [`secp256k1::PublicKey`] which allows for
