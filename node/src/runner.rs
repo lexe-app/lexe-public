@@ -79,7 +79,6 @@ pub(crate) struct UserRunner {
     mega_last_used: TimestampMs,
 
     user_nodes: HashMap<UserPk, UserHandle>,
-    // TODO(max): Assert invariant: TimestampMs is monotonically increasing
     user_lru: LruCache<UserPk, TimestampMs>,
     user_evicting: HashSet<UserPk>,
     user_stream: FuturesUnordered<LxTask<UserPk>>,
@@ -181,6 +180,8 @@ impl UserRunner {
                 () = self.mega_shutdown.recv() =>
                     break info!("Initiating shutdown of UserRunner"),
             }
+
+            self.assert_invariants();
         }
 
         // --- Graceful shutdown --- //
@@ -260,6 +261,8 @@ impl UserRunner {
                     break;
                 }
             }
+
+            self.assert_invariants();
         }
 
         // We're done shutting down usernodes, so we can stop responding to
@@ -558,6 +561,65 @@ impl UserRunner {
     fn target_buffer_memory(&self) -> u64 {
         self.mega_args.usernode_buffer_slots as u64
             * self.mega_args.usernode_memory
+    }
+
+    /// Asserts invariants, to be called after every state transition. Since it
+    /// only executes logic in debug mode, operations within can be arbitrarily
+    /// expensive. Invariants which have a negligible runtime cost can be
+    /// asserted directly in the places where they are most easily checked.
+    fn assert_invariants(&self) {
+        if !cfg!(debug_assertions) {
+            return;
+        }
+
+        // Every user should be in user_lru XOR user_evicting.
+        for user_pk in self.user_nodes.keys() {
+            let in_lru = self.user_lru.contains(user_pk);
+            let in_evicting = self.user_evicting.contains(user_pk);
+            assert!(
+                in_lru ^ in_evicting,
+                "User {user_pk} should be in exactly one of \
+                 `user_lru` or `user_evicting`"
+            );
+        }
+
+        // Reverse: Everything in `user_lru` is in `user_nodes`.
+        for (user_pk, _) in self.user_lru.iter() {
+            assert!(
+                self.user_nodes.contains_key(user_pk),
+                "LRU user {user_pk} not in user_nodes"
+            );
+        }
+
+        // Reverse: Everything in `user_evicting` is in `user_nodes`.
+        for user_pk in self.user_evicting.iter() {
+            assert!(
+                self.user_nodes.contains_key(user_pk),
+                "Evicting user {user_pk} not in user_nodes"
+            );
+        }
+
+        // `user_lru` timestamps are in LRU order.
+        // NOTE: `LruCache::iter` returns items in MRU order.
+        let mut prev_ts = None;
+        for (_, timestamp) in self.user_lru.iter().rev() {
+            if let Some(prev) = prev_ts {
+                assert!(
+                    timestamp >= &prev,
+                    "User LRU timestamps are not in LRU order"
+                );
+            }
+            prev_ts = Some(*timestamp);
+        }
+
+        // `user_nodes.len() == user_stream.len()`
+        let user_state_len = self.user_nodes.len();
+        let user_stream_len = self.user_stream.len();
+        assert_eq!(
+            user_state_len, user_stream_len,
+            "Usernode state length ({user_state_len}) does not match \
+             user stream length ({user_stream_len})"
+        );
     }
 }
 
