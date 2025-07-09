@@ -291,6 +291,11 @@ impl UserRunner {
             // Pass the waiter to the node.
             let _ =
                 user_handle.user_ready_waiter_tx.try_send(user_ready_waiter);
+
+            // Mark the usernode and meganode as active.
+            self.meganode_used_now(now);
+            self.usernode_used_now(&user_pk, now);
+
             return;
         }
         // From here, we know the user is not already running.
@@ -329,6 +334,9 @@ impl UserRunner {
         // Add to LRU queue
         self.user_lru.push(user_pk, now);
 
+        // Mark meganode as active
+        self.meganode_used_now(now);
+
         // We just spawned a node. Check for evictions.
         self.evict_usernodes_if_needed(now);
     }
@@ -337,7 +345,7 @@ impl UserRunner {
         debug!(%user_pk, "Received user activity, updating LRU");
 
         // Update the last_used value for the meganode itself.
-        self.mega_last_used = now;
+        self.meganode_used_now(now);
 
         // Update the LRU queue for this user.
         self.usernode_used_now(&user_pk, now);
@@ -502,6 +510,11 @@ impl UserRunner {
         usernode.user_shutdown.send();
 
         true
+    }
+
+    /// Marks the meganode as active by updating the `mega_last_used` timestamp.
+    fn meganode_used_now(&mut self, now: TimestampMs) {
+        self.mega_last_used = now;
     }
 
     /// Marks a usernode as the most recently used node and updates its
