@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
 
 use common::{
     api::user::UserPk, cli::node::MegaArgs, constants, time::TimestampMs,
@@ -20,6 +23,9 @@ use tokio::{
 use tracing::{debug, info, info_span, warn};
 
 use crate::context::MegaContext;
+
+/// How frequently the UserRunner checks for (and evicts) inactive usernodes.
+const INACTIVE_USER_EVICTION_INTERVAL: Duration = Duration::from_secs(30);
 
 /// Indicates a usernode has shutdown (or been evicted).
 pub(crate) struct UserShutdown;
@@ -131,6 +137,10 @@ impl UserRunner {
         let mega_activity_bus = self.mega_activity_bus.clone();
         let mut mega_activity_rx = mega_activity_bus.subscribe();
 
+        let mut inactive_user_eviction_interval =
+            tokio::time::interval(INACTIVE_USER_EVICTION_INTERVAL);
+        inactive_user_eviction_interval.tick().await;
+
         // --- Regular operation --- //
 
         loop {
@@ -147,6 +157,9 @@ impl UserRunner {
 
                 user_pk = mega_activity_rx.recv() =>
                     self.handle_user_activity(user_pk),
+
+                _ = inactive_user_eviction_interval.tick() =>
+                    self.evict_any_inactive_usernodes(),
 
                 () = self.mega_shutdown.recv() =>
                     break info!("Initiating shutdown of UserRunner"),
@@ -361,6 +374,37 @@ impl UserRunner {
             self.mega_args.mega_id,
         );
         let _ = self.eph_tasks_tx.try_send(task);
+    }
+
+    /// Checks for and evicts any usernodes which have been inactive for at
+    /// least `user_inactivity_threshold`.
+    fn evict_any_inactive_usernodes(&mut self) {
+        // If a user is inactive for at least this long, we'll shut them down.
+        let user_inactivity_threshold =
+            Duration::from_secs(self.mega_args.inactivity_timer_sec);
+
+        // Cutoff timestamp: users with last_used before this are inactive
+        let now = TimestampMs::now();
+        let inactive_ts = now.saturating_sub(user_inactivity_threshold);
+
+        // Collect users to evict (can't mutate while iterating)
+        let inactive_users = self
+            .user_lru
+            // NOTE: `LruCache::iter` returns entries in MRU order.
+            .iter()
+            .rev()
+            // Find all users with a `last_used` ts older than `inactive_ts`.
+            // Stops upon finding a user that is still active.
+            // Leverages invariant that timestamps are monotonically increasing.
+            .take_while(|(_, last_used)| **last_used < inactive_ts)
+            .map(|(user_pk, _)| *user_pk)
+            .collect::<Vec<UserPk>>();
+
+        // Evict each inactive user
+        for user_pk in inactive_users {
+            let evicted = self.evict_usernode(user_pk);
+            assert!(evicted, "User was just in LRU");
+        }
     }
 
     fn evict_usernodes_if_needed(&mut self) {
