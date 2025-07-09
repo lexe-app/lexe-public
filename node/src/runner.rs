@@ -589,6 +589,7 @@ mod helpers {
             lease_renewal_interval_secs,
             lsp,
             lsp_url: _,
+            mega_inactivity_secs: _,
             memory_overhead: _,
             oauth: _,
             runner_url,

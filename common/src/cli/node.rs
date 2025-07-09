@@ -34,6 +34,9 @@ pub struct MegaArgs {
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
     pub lsp_url: String,
 
+    /// How long the meganode can remain inactive before it shuts itself down.
+    pub mega_inactivity_secs: u64,
+
     /// An estimate of the amount of enclave heap consumed by shared meganode
     /// components such as the network graph, Tokio, connection pools, etc.
     pub memory_overhead: u64,
