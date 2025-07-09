@@ -349,6 +349,13 @@ impl UserRunner {
 
         // Update the LRU queue for this user.
         self.usernode_used_now(&user_pk, now);
+
+        // Notify the megarunner.
+        helpers::notify_megarunner_user_activity(
+            &self.eph_tasks_tx,
+            self.mega_ctxt.runner_api.clone(),
+            user_pk,
+        );
     }
 
     fn handle_user_evict_request(
@@ -560,9 +567,11 @@ mod helpers {
     use anyhow::Context;
     use common::{api::MegaId, rng::SysRng};
     use lexe_api::{
-        def::MegaRunnerApi, models::runner::UserFinishedRequest, types::LeaseId,
+        def::{MegaRunnerApi, NodeRunnerApi},
+        models::runner::UserFinishedRequest,
+        types::LeaseId,
     };
-    use tracing::{error, info};
+    use tracing::{error, info, warn};
 
     use super::*;
     use crate::{
@@ -721,6 +730,25 @@ mod helpers {
                 }
             },
         )
+    }
+
+    /// Spawns a task to notify the megarunner of user activity.
+    pub(super) fn notify_megarunner_user_activity(
+        eph_tasks_tx: &mpsc::Sender<LxTask<()>>,
+        runner_api: Arc<RunnerClient>,
+        user_pk: UserPk,
+    ) {
+        // TODO(max): Batch
+
+        const SPAN_NAME: &str = "(megarunner-activity-notif)";
+        let task = LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), {
+            async move {
+                if let Err(e) = runner_api.activity(user_pk).await {
+                    warn!("Couldn't notify megarunner of activity: {e:#}");
+                }
+            }
+        });
+        let _ = eph_tasks_tx.try_send(task);
     }
 
     /// Logs an eviction with the time since last use.
