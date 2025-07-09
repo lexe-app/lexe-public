@@ -24,8 +24,10 @@ use tracing::{debug, info, info_span, warn};
 
 use crate::context::MegaContext;
 
-/// How frequently the UserRunner checks for (and evicts) inactive usernodes.
-const INACTIVE_USER_EVICTION_INTERVAL: Duration = Duration::from_secs(30);
+/// How frequently the UserRunner checks for inactivity.
+/// - Inactive usernodes are evicted.
+/// - If the meganode itself is inactive, a meganode shutdown is initiated.
+const INACTIVITY_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 
 /// Indicates a usernode has shutdown (or been evicted).
 pub(crate) struct UserShutdown;
@@ -73,6 +75,9 @@ pub(crate) struct UserRunner {
     eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     runner_rx: mpsc::Receiver<RunnerCommand>,
 
+    /// The last time any usernode on this meganode was active.
+    mega_last_used: TimestampMs,
+
     user_nodes: HashMap<UserPk, UserHandle>,
     // TODO(max): Assert invariant: TimestampMs is monotonically increasing
     user_lru: LruCache<UserPk, TimestampMs>,
@@ -104,6 +109,7 @@ impl Drop for UserHandle {
 
 impl UserRunner {
     pub fn new(
+        now: TimestampMs,
         mega_args: MegaArgs,
         mega_ctxt: MegaContext,
         mega_shutdown: NotifyOnce,
@@ -121,6 +127,8 @@ impl UserRunner {
 
             eph_tasks_tx,
             runner_rx,
+
+            mega_last_used: now,
 
             user_nodes: HashMap::new(),
             user_lru: LruCache::unbounded(),
@@ -140,9 +148,9 @@ impl UserRunner {
         let mega_activity_bus = self.mega_activity_bus.clone();
         let mut mega_activity_rx = mega_activity_bus.subscribe();
 
-        let mut inactive_user_eviction_interval =
-            tokio::time::interval(INACTIVE_USER_EVICTION_INTERVAL);
-        inactive_user_eviction_interval.tick().await;
+        let mut inactivity_check_interval =
+            tokio::time::interval(INACTIVITY_CHECK_INTERVAL);
+        inactivity_check_interval.tick().await;
 
         // --- Regular operation --- //
 
@@ -165,8 +173,10 @@ impl UserRunner {
                 user_pk = mega_activity_rx.recv() =>
                     self.handle_user_activity(user_pk, now),
 
-                _ = inactive_user_eviction_interval.tick() =>
-                    self.evict_any_inactive_usernodes(now),
+                _ = inactivity_check_interval.tick() => {
+                    self.evict_any_inactive_usernodes(now);
+                    self.shutdown_meganode_if_inactive(now);
+                }
 
                 () = self.mega_shutdown.recv() =>
                     break info!("Initiating shutdown of UserRunner"),
@@ -325,6 +335,11 @@ impl UserRunner {
 
     fn handle_user_activity(&mut self, user_pk: UserPk, now: TimestampMs) {
         debug!(%user_pk, "Received user activity, updating LRU");
+
+        // Update the last_used value for the meganode itself.
+        self.mega_last_used = now;
+
+        // Update the LRU queue for this user.
         self.usernode_used_now(&user_pk, now);
     }
 
@@ -390,14 +405,14 @@ impl UserRunner {
     }
 
     /// Checks for and evicts any usernodes which have been inactive for at
-    /// least `user_inactivity_threshold`.
+    /// least `user_inactivity_duration`.
     fn evict_any_inactive_usernodes(&mut self, now: TimestampMs) {
         // If a user is inactive for at least this long, we'll shut them down.
-        let user_inactivity_threshold =
+        let user_inactivity_duration =
             Duration::from_secs(self.mega_args.user_inactivity_secs);
 
         // Cutoff timestamp: users with last_used before this are inactive
-        let inactive_ts = now.saturating_sub(user_inactivity_threshold);
+        let inactive_ts = now.saturating_sub(user_inactivity_duration);
 
         // Collect users to evict (can't mutate while iterating)
         let inactive_users = self
@@ -416,6 +431,22 @@ impl UserRunner {
         for user_pk in inactive_users {
             let evicted = self.evict_usernode(user_pk, now);
             assert!(evicted, "User was just in LRU");
+        }
+    }
+
+    /// Checks if the meganode has been inactive and initiates shutdown if so.
+    fn shutdown_meganode_if_inactive(&mut self, now: TimestampMs) {
+        let mega_inactivity_duration =
+            Duration::from_secs(self.mega_args.mega_inactivity_secs);
+
+        let mega_inactive_ts = now.saturating_sub(mega_inactivity_duration);
+
+        if self.mega_last_used < mega_inactive_ts {
+            let inactive_secs =
+                self.mega_last_used.absolute_diff(now).as_secs();
+            info!(%inactive_secs, "Meganode inactive, initiating shutdown");
+
+            self.mega_shutdown.send();
         }
     }
 

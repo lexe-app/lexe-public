@@ -1,5 +1,5 @@
 use anyhow::Context;
-use common::{cli::node::MegaArgs, constants, rng::Crng};
+use common::{cli::node::MegaArgs, constants, rng::Crng, time::TimestampMs};
 use lexe_api::{def::MegaRunnerApi, types::ports::MegaPorts};
 use lexe_tls::attestation::NodeMode;
 use lexe_tokio::{notify_once::NotifyOnce, task};
@@ -50,10 +50,12 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     static_tasks.push(provision.spawn_into_task());
 
     // Start the usernode runner.
+    let now = TimestampMs::now();
     let mega_activity_bus = mega_ctxt.mega_activity_bus.clone();
     let measurement = mega_ctxt.measurement;
     let mega_server_shutdown = NotifyOnce::new();
     let user_runner = UserRunner::new(
+        now,
         args.clone(),
         mega_ctxt,
         mega_shutdown.clone(),
