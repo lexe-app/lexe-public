@@ -14,6 +14,8 @@ use crate::{
 };
 
 pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
+    let (runner_tx, runner_rx) =
+        mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
     let (eph_tasks_tx, eph_tasks_rx) =
         mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
 
@@ -27,6 +29,7 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
         args.untrusted_deploy_env,
         args.untrusted_esplora_urls.clone(),
         args.untrusted_network,
+        runner_tx.clone(),
         mega_shutdown.clone(),
     )
     .await
@@ -47,8 +50,6 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     static_tasks.push(provision.spawn_into_task());
 
     // Start the usernode runner.
-    let (runner_tx, runner_rx) =
-        mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
     let mega_activity_bus = mega_ctxt.mega_activity_bus.clone();
     let measurement = mega_ctxt.measurement;
     let mega_server_shutdown = NotifyOnce::new();

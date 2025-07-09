@@ -55,6 +55,7 @@ use crate::{
     client::RunnerClient,
     peer_manager::NodePeerManager,
     persister::NodePersister,
+    runner::RunnerCommand,
 };
 
 /// Handlers for commands that can only be initiated by the app.
@@ -89,6 +90,7 @@ pub(crate) struct AppRouterState {
     pub mega_activity_bus: EventsBus<UserPk>,
     pub channel_events_bus: EventsBus<ChannelEvent>,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
+    pub runner_tx: mpsc::Sender<RunnerCommand>,
 }
 
 /// Implements [`AppNodeRunApi`] - endpoints only callable by the app.
@@ -107,6 +109,7 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
     let mega_activity_bus = state.mega_activity_bus.clone();
     let runner_api = state.runner_api.clone();
     let eph_tasks_tx = state.eph_tasks_tx.clone();
+    let runner_tx = state.runner_tx.clone();
 
     #[rustfmt::skip]
     let router = Router::new()
@@ -147,8 +150,9 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
                     user_pk,
                     &mega_activity_bus,
                     &user_activity_bus,
-                    runner_api.clone(),
+                    &runner_tx,
                     &eph_tasks_tx,
+                    runner_api.clone(),
                 );
             }
 

@@ -11,7 +11,7 @@ use tokio::{
 };
 use tracing::{debug, info, info_span, warn};
 
-use crate::client::RunnerClient;
+use crate::{client::RunnerClient, runner::RunnerCommand};
 
 /// Notifies various listeners of user or node activity.
 ///
@@ -21,10 +21,12 @@ use crate::client::RunnerClient;
 /// 4) Notifies the MegaRunner of user activity.
 pub(crate) fn notify_listeners(
     user_pk: UserPk,
+    // TODO(max): Remove these two buses.
     mega_activity_bus: &EventsBus<UserPk>,
     user_activity_bus: &EventsBus<()>,
-    runner_api: Arc<RunnerClient>,
+    runner_tx: &mpsc::Sender<RunnerCommand>,
     eph_tasks_tx: &mpsc::Sender<LxTask<()>>,
+    runner_api: Arc<RunnerClient>,
 ) {
     debug!("Notifying listeners of activity");
 
@@ -35,6 +37,7 @@ pub(crate) fn notify_listeners(
     // 2) Reset the meganode's inactivity timer.
     // 3) Notify the UserRunner of user activity.
     mega_activity_bus.send(user_pk);
+    let _ = runner_tx.try_send(RunnerCommand::UserActivity(user_pk));
 
     // 4) Spawn a task to notify the MegaRunner of user activity.
     const SPAN_NAME: &str = "(megarunner-activity-notif)";

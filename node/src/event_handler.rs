@@ -81,6 +81,7 @@ use crate::{
     channel_manager::NodeChannelManager,
     client::{NodeLspClient, RunnerClient},
     persister::NodePersister,
+    runner::RunnerCommand,
 };
 
 #[derive(Clone)]
@@ -110,6 +111,7 @@ pub(crate) struct EventCtx {
     pub htlcs_forwarded_bus: EventsBus<HtlcsForwarded>,
     pub mega_activity_bus: EventsBus<UserPk>,
     pub user_activity_bus: EventsBus<()>,
+    pub runner_tx: mpsc::Sender<RunnerCommand>,
     pub test_event_tx: TestEventSender,
     pub shutdown: NotifyOnce,
 }
@@ -359,8 +361,9 @@ async fn do_handle_event(
                 ctx.user_pk,
                 &ctx.mega_activity_bus,
                 &ctx.user_activity_bus,
-                ctx.runner_api.clone(),
+                &ctx.runner_tx,
                 &ctx.eph_tasks_tx,
+                ctx.runner_api.clone(),
             );
 
             // TODO(phlip9): unwrap once all replaying PaymentClaimable events

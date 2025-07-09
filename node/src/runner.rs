@@ -30,9 +30,12 @@ const INACTIVE_USER_EVICTION_INTERVAL: Duration = Duration::from_secs(30);
 /// Indicates a usernode has shutdown (or been evicted).
 pub(crate) struct UserShutdown;
 
+#[allow(clippy::enum_variant_names)]
 pub(crate) enum RunnerCommand {
     UserRunRequest(UserRunnerUserRunRequest),
     UserEvictRequest(UserRunnerUserEvictRequest),
+    /// Indicates that a usernode received some activity.
+    UserActivity(UserPk),
 }
 
 /// A [`MegaNodeApiUserRunRequest`] but includes a waiter with which to respond.
@@ -152,6 +155,8 @@ impl UserRunner {
                         self.handle_user_run_request(run_req, now),
                     RunnerCommand::UserEvictRequest(evict_req) =>
                         self.handle_user_evict_request(evict_req),
+                    RunnerCommand::UserActivity(user_pk) =>
+                        self.handle_user_activity(user_pk, now),
                 },
 
                 Some(join_result) = self.user_stream.next() =>
@@ -204,6 +209,8 @@ impl UserRunner {
                             user_shutdown_waiters
                                 .push(req.user_shutdown_waiter);
                         }
+                        // Ignore
+                        RunnerCommand::UserActivity(_) => (),
                     }
                 }
 

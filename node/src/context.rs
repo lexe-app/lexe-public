@@ -33,6 +33,7 @@ use tracing::info;
 use crate::{
     channel_manager,
     client::{NodeBackendClient, NodeLspClient, RunnerClient},
+    runner::RunnerCommand,
 };
 
 /// Usernode-specific context initialized by the meganode.
@@ -78,6 +79,8 @@ pub(crate) struct MegaContext {
     /// The runner API client for user nodes.
     /// NOTE: This uses NodeMode::Run so should not be used for provisioning.
     pub runner_api: Arc<RunnerClient>,
+    /// Channel to send commands to the UserRunner.
+    pub runner_tx: mpsc::Sender<RunnerCommand>,
     /// The probabilistic scorer for pathfinding.
     pub scorer: Arc<Mutex<ProbabilisticScorerType>>,
     /// The untrusted deploy environment.
@@ -103,6 +106,7 @@ impl MegaContext {
         untrusted_deploy_env: DeployEnv,
         untrusted_esplora_urls: Vec<String>,
         untrusted_network: LxNetwork,
+        runner_tx: mpsc::Sender<RunnerCommand>,
         mega_shutdown: NotifyOnce,
     ) -> anyhow::Result<(Self, Vec<LxTask<()>>)> {
         let logger = LexeTracingLogger::new();
@@ -226,6 +230,7 @@ impl MegaContext {
             mega_activity_bus,
             network_graph,
             runner_api,
+            runner_tx,
             scorer,
             untrusted_deploy_env,
             untrusted_network,
@@ -317,6 +322,9 @@ impl MegaContext {
         let measurement = enclave::measurement();
         let mega_activity_bus = EventsBus::new();
 
+        // Create a dummy runner_tx channel
+        let (runner_tx, _runner_rx) = mpsc::channel(16);
+
         Self {
             backend_api,
             config,
@@ -330,6 +338,7 @@ impl MegaContext {
             mega_activity_bus,
             network_graph,
             runner_api,
+            runner_tx,
             scorer,
             untrusted_deploy_env: deploy_env,
             untrusted_network: network,

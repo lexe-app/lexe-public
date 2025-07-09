@@ -215,6 +215,7 @@ impl UserNode {
             mega_activity_bus,
             network_graph,
             runner_api,
+            runner_tx,
             scorer,
             untrusted_deploy_env,
             untrusted_network,
@@ -613,6 +614,7 @@ impl UserNode {
                 htlcs_forwarded_bus: EventsBus::new(),
                 mega_activity_bus: mega_activity_bus.clone(),
                 user_activity_bus: user_activity_bus.clone(),
+                runner_tx: runner_tx.clone(),
                 test_event_tx: test_event_tx.clone(),
                 shutdown: shutdown.clone(),
             }),
@@ -680,6 +682,7 @@ impl UserNode {
             mega_activity_bus: mega_activity_bus.clone(),
             channel_events_bus,
             eph_tasks_tx: eph_tasks_tx.clone(),
+            runner_tx: runner_tx.clone(),
         });
         let app_listener =
             TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
