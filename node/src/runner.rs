@@ -65,6 +65,7 @@ pub(crate) struct UserRunner {
     runner_rx: mpsc::Receiver<RunnerCommand>,
 
     user_nodes: HashMap<UserPk, UserHandle>,
+    // TODO(max): Assert invariant: TimestampMs is monotonically increasing
     user_lru: LruCache<UserPk, TimestampMs>,
     user_evicting: HashSet<UserPk>,
     user_stream: FuturesUnordered<LxTask<UserPk>>,
@@ -375,32 +376,45 @@ impl UserRunner {
 
         while self.current_memory() - self.evicting_memory() > soft_memory_limit
         {
-            let evicted = self.evict_usernode();
+            let evicted = self.evict_lru_usernode();
             assert!(evicted, "Unevicted memory over limit => can evict");
         }
     }
 
     /// Evicts the least recently used usernode.
     /// Returns whether a usernode was evicted.
-    fn evict_usernode(&mut self) -> bool {
-        if let Some((user_pk, lru)) = self.user_lru.pop_lru() {
-            let now = TimestampMs::now();
-            let inactive_secs = lru.absolute_diff(now).as_secs();
-            info!(%inactive_secs, "Evicted usernode.");
+    fn evict_lru_usernode(&mut self) -> bool {
+        if let Some((user_pk, lru)) = self.user_lru.peek_lru() {
+            helpers::log_eviction(*lru, "Evicting LRU usernode.");
 
-            self.user_evicting.insert(user_pk);
-
-            // Send a shutdown signal to the user node.
-            let usernode = self
-                .user_nodes
-                .get(&user_pk)
-                .expect("LRU user_pk should exist in user_nodes");
-            usernode.user_shutdown.send();
+            let evicted = self.evict_usernode(*user_pk);
+            assert!(evicted, "LRU usernode should be evictable");
 
             true
         } else {
             false
         }
+    }
+
+    /// Evicts the given usernode.
+    /// Returns whether the usernode was evicted (was in the LRU queue).
+    fn evict_usernode(&mut self, user_pk: UserPk) -> bool {
+        // Pop from LRU and mark as evicting
+        match self.user_lru.pop(&user_pk) {
+            Some(last_used) =>
+                helpers::log_eviction(last_used, "Evicted usernode."),
+            None => return false,
+        }
+        self.user_evicting.insert(user_pk);
+
+        // Send a shutdown signal to the user node.
+        let usernode = self
+            .user_nodes
+            .get(&user_pk)
+            .expect("LRU user_pk should exist in user_nodes");
+        usernode.user_shutdown.send();
+
+        true
     }
 
     /// Marks a usernode as the most recently used node and updates its
@@ -606,5 +620,14 @@ mod helpers {
                 }
             },
         )
+    }
+
+    /// Logs an eviction with the time since last use.
+    pub(super) fn log_eviction(last_used: TimestampMs, msg: &str) {
+        // NOTE: TimestampMs::now() is only used for a log, so no need to allow
+        // mocking it for tests.
+        let inactive_secs =
+            last_used.absolute_diff(TimestampMs::now()).as_secs();
+        info!(%inactive_secs, "{msg}");
     }
 }
