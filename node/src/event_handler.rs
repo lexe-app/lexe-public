@@ -76,12 +76,8 @@ use tokio::sync::mpsc;
 use tracing::{error, info};
 
 use crate::{
-    activity,
-    alias::PaymentsManagerType,
-    channel_manager::NodeChannelManager,
-    client::{NodeLspClient, RunnerClient},
-    persister::NodePersister,
-    runner::RunnerCommand,
+    alias::PaymentsManagerType, channel_manager::NodeChannelManager,
+    client::NodeLspClient, persister::NodePersister, runner::RunnerCommand,
 };
 
 #[derive(Clone)]
@@ -95,7 +91,6 @@ pub(crate) struct EventCtx {
     pub user_pk: UserPk,
     pub lsp: LspInfo,
     pub lsp_api: Arc<NodeLspClient>,
-    pub runner_api: Arc<RunnerClient>,
     pub persister: Arc<NodePersister>,
     pub fee_estimates: Arc<FeeEstimates>,
     pub tx_broadcaster: Arc<TxBroadcaster>,
@@ -109,8 +104,6 @@ pub(crate) struct EventCtx {
     pub channel_events_bus: EventsBus<ChannelEvent>,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     pub htlcs_forwarded_bus: EventsBus<HtlcsForwarded>,
-    pub mega_activity_bus: EventsBus<UserPk>,
-    pub user_activity_bus: EventsBus<()>,
     pub runner_tx: mpsc::Sender<RunnerCommand>,
     pub test_event_tx: TestEventSender,
     pub shutdown: NotifyOnce,
@@ -356,15 +349,9 @@ async fn do_handle_event(
             payment_id,
         } => {
             // If we received a BOLT 12 payment, the usernode should continue
-            // running. Notify listeners of usernode activity.
-            activity::notify_listeners(
-                ctx.user_pk,
-                &ctx.mega_activity_bus,
-                &ctx.user_activity_bus,
-                &ctx.runner_tx,
-                &ctx.eph_tasks_tx,
-                ctx.runner_api.clone(),
-            );
+            // running. Send an activity notification.
+            let runner_cmd = RunnerCommand::UserActivity(ctx.user_pk);
+            let _ = ctx.runner_tx.try_send(runner_cmd);
 
             // TODO(phlip9): unwrap once all replaying PaymentClaimable events
             // drain in prod.

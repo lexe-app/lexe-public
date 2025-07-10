@@ -12,8 +12,6 @@ pub const DEV_VERSION: Option<&str> = option_env!("DEV_VERSION");
 
 pub mod cli;
 
-/// `InactivityTimer` and related helpers.
-mod activity;
 /// Type aliases.
 mod alias;
 /// Version approval and revocation.

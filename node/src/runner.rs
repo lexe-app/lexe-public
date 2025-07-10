@@ -12,9 +12,7 @@ use lexe_api::{
     models::runner::{MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest},
     types::{ports::RunPorts, LeaseId},
 };
-use lexe_tokio::{
-    events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
-};
+use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lru::LruCache;
 use tokio::{
     sync::{mpsc, oneshot},
@@ -62,7 +60,6 @@ pub(crate) struct UserRunnerUserEvictRequest {
 pub(crate) struct UserRunner {
     mega_args: MegaArgs,
     mega_ctxt: MegaContext,
-    mega_activity_bus: EventsBus<UserPk>,
 
     /// Shutdown channel for the meganode overall.
     mega_shutdown: NotifyOnce,
@@ -116,11 +113,9 @@ impl UserRunner {
         runner_rx: mpsc::Receiver<RunnerCommand>,
         eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     ) -> Self {
-        let mega_activity_bus = mega_ctxt.mega_activity_bus.clone();
         Self {
             mega_args,
             mega_ctxt,
-            mega_activity_bus,
             mega_shutdown,
             mega_server_shutdown,
 
@@ -144,9 +139,6 @@ impl UserRunner {
     }
 
     async fn run(mut self) {
-        let mega_activity_bus = self.mega_activity_bus.clone();
-        let mut mega_activity_rx = mega_activity_bus.subscribe();
-
         let mut inactivity_check_interval =
             tokio::time::interval(INACTIVITY_CHECK_INTERVAL);
         inactivity_check_interval.tick().await;
@@ -168,9 +160,6 @@ impl UserRunner {
 
                 Some(join_result) = self.user_stream.next() =>
                     self.handle_finished_usernode(join_result),
-
-                user_pk = mega_activity_rx.recv() =>
-                    self.handle_user_activity(user_pk, now),
 
                 _ = inactivity_check_interval.tick() => {
                     self.evict_any_inactive_usernodes(now);
@@ -800,8 +789,6 @@ mod helpers {
         runner_api: Arc<RunnerClient>,
         user_pk: UserPk,
     ) {
-        // TODO(max): Batch
-
         const SPAN_NAME: &str = "(megarunner-activity-notif)";
         let task = LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), {
             async move {

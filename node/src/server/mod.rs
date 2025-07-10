@@ -49,10 +49,8 @@ use tokio::{
 use tower::util::MapRequestLayer;
 
 use crate::{
-    activity,
     alias::{ChainMonitorType, PaymentsManagerType},
     channel_manager::NodeChannelManager,
-    client::RunnerClient,
     peer_manager::NodePeerManager,
     persister::NodePersister,
     runner::RunnerCommand,
@@ -69,7 +67,6 @@ pub(crate) struct AppRouterState {
     pub measurement: Measurement,
     pub version: semver::Version,
     pub config: Arc<ArcSwap<UserConfig>>,
-    pub runner_api: Arc<RunnerClient>,
     pub persister: Arc<NodePersister>,
     pub chain_monitor: Arc<ChainMonitorType>,
     pub fee_estimates: Arc<FeeEstimates>,
@@ -86,8 +83,6 @@ pub(crate) struct AppRouterState {
     pub eph_ca_cert_der: Arc<LxCertificateDer>,
     pub rev_ca_cert: Arc<RevocableIssuingCaCert>,
     pub revocable_clients: Arc<RwLock<RevocableClients>>,
-    pub user_activity_bus: EventsBus<()>,
-    pub mega_activity_bus: EventsBus<UserPk>,
     pub channel_events_bus: EventsBus<ChannelEvent>,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     pub runner_tx: mpsc::Sender<RunnerCommand>,
@@ -105,10 +100,6 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
     let last_activity_callback = Arc::new(Mutex::new(Instant::now()));
 
     let user_pk = state.user_pk;
-    let user_activity_bus = state.user_activity_bus.clone();
-    let mega_activity_bus = state.mega_activity_bus.clone();
-    let runner_api = state.runner_api.clone();
-    let eph_tasks_tx = state.eph_tasks_tx.clone();
     let runner_tx = state.runner_tx.clone();
 
     #[rustfmt::skip]
@@ -139,21 +130,14 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
                 .put(app::update_revocable_client)
         )
         .with_state(state)
-        // Send an activity event and notify the runner anytime /app is hit
+        // Send an activity notification anytime /app is hit.
         .layer(MapRequestLayer::new(move |request| {
-            // Notify the megarunner.
             let mut locked_instant = last_activity_callback.lock().unwrap();
             if locked_instant.elapsed() > MIN_ACTIVITY_NOTIFY_INTERVAL {
                 *locked_instant = Instant::now();
 
-                activity::notify_listeners(
-                    user_pk,
-                    &mega_activity_bus,
-                    &user_activity_bus,
-                    &runner_tx,
-                    &eph_tasks_tx,
-                    runner_api.clone(),
-                );
+                let runner_cmd = RunnerCommand::UserActivity(user_pk);
+                let _ = runner_tx.try_send(runner_cmd);
             }
 
             request

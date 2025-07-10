@@ -74,7 +74,6 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, info, info_span, warn};
 
 use crate::{
-    activity::InactivityTimer,
     alias::{ChainMonitorType, OnionMessengerType, PaymentsManagerType},
     channel_manager::NodeChannelManager,
     client::{NodeBackendClient, RunnerClient},
@@ -185,7 +184,6 @@ struct SyncContext {
 /// Fields which are "moved" out of [`UserNode`] during `run`.
 struct RunContext {
     eph_tasks_rx: mpsc::Receiver<LxTask<()>>,
-    user_activity_bus: EventsBus<()>,
 }
 
 impl UserNode {
@@ -212,7 +210,6 @@ impl UserNode {
             lsp_api,
             machine_id,
             measurement,
-            mega_activity_bus,
             network_graph,
             runner_api,
             runner_tx,
@@ -226,7 +223,6 @@ impl UserNode {
         let user_pk = args.user_pk;
 
         // Init channels
-        let user_activity_bus = EventsBus::new();
         let (gdrive_persister_tx, gdrive_persister_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (channel_monitor_persister_tx, channel_monitor_persister_rx) =
@@ -598,7 +594,6 @@ impl UserNode {
                 user_pk,
                 lsp: args.lsp.clone(),
                 lsp_api: lsp_api.clone(),
-                runner_api: runner_api.clone(),
                 persister: persister.clone(),
                 fee_estimates: fee_estimates.clone(),
                 tx_broadcaster: tx_broadcaster.clone(),
@@ -612,8 +607,6 @@ impl UserNode {
                 channel_events_bus: channel_events_bus.clone(),
                 eph_tasks_tx: eph_tasks_tx.clone(),
                 htlcs_forwarded_bus: EventsBus::new(),
-                mega_activity_bus: mega_activity_bus.clone(),
-                user_activity_bus: user_activity_bus.clone(),
                 runner_tx: runner_tx.clone(),
                 test_event_tx: test_event_tx.clone(),
                 shutdown: shutdown.clone(),
@@ -661,7 +654,6 @@ impl UserNode {
             measurement,
             version: version.clone(),
             config: config.clone(),
-            runner_api: runner_api.clone(),
             persister: persister.clone(),
             chain_monitor: chain_monitor.clone(),
             fee_estimates: fee_estimates.clone(),
@@ -678,8 +670,6 @@ impl UserNode {
             eph_ca_cert_der: eph_ca_cert_der.clone(),
             rev_ca_cert: rev_ca_cert.clone(),
             revocable_clients: revocable_clients.clone(),
-            user_activity_bus: user_activity_bus.clone(),
-            mega_activity_bus: mega_activity_bus.clone(),
             channel_events_bus,
             eph_tasks_tx: eph_tasks_tx.clone(),
             runner_tx: runner_tx.clone(),
@@ -899,10 +889,7 @@ impl UserNode {
                 ldk_resync_rx,
                 user_ready_waiter_rx: user_ctxt.user_ready_waiter_rx,
             }),
-            run: Some(RunContext {
-                eph_tasks_rx,
-                user_activity_bus,
-            }),
+            run: Some(RunContext { eph_tasks_rx }),
         })
     }
 
@@ -1024,17 +1011,9 @@ impl UserNode {
         assert!(self.sync.is_none(), "Must sync before run");
         let ctxt = self.run.take().expect("run() must be called only once");
 
-        // Sync complete. Trigger a shutdown if we were asked to shut down after
-        // sync. Otherwise, start the inactivity timer.
+        // Sync complete. Trigger shutdown if we were asked to do so after sync.
         if self.args.shutdown_after_sync {
             self.shutdown.send();
-        } else {
-            let inactivity_timer = InactivityTimer::new(
-                self.args.user_inactivity_secs,
-                ctxt.user_activity_bus,
-                self.shutdown.clone(),
-            );
-            self.static_tasks.push(inactivity_timer.spawn_into_task());
         }
 
         // --- Run --- //

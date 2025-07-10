@@ -5,10 +5,7 @@ use std::{
 
 use anyhow::{anyhow, ensure, Context};
 use arc_swap::ArcSwap;
-use common::{
-    api::user::UserPk, enclave, env::DeployEnv, ln::network::LxNetwork,
-    rng::Crng,
-};
+use common::{enclave, env::DeployEnv, ln::network::LxNetwork, rng::Crng};
 use lexe_api::{
     def::NodeLspApi,
     error::MegaApiError,
@@ -20,9 +17,7 @@ use lexe_ln::{
     logger::LexeTracingLogger,
 };
 use lexe_tls::attestation::NodeMode;
-use lexe_tokio::{
-    events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
-};
+use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::{
     routing::gossip::P2PGossipSync,
     util::{config::UserConfig, ser::ReadableArgs},
@@ -72,8 +67,6 @@ pub(crate) struct MegaContext {
     pub machine_id: enclave::MachineId,
     /// The measurement of the enclave.
     pub measurement: enclave::Measurement,
-    /// Notifies the meganode's runner and inactivity timer of user activity.
-    pub mega_activity_bus: EventsBus<UserPk>,
     /// The Lightning Network graph for routing.
     pub network_graph: Arc<NetworkGraphType>,
     /// The runner API client for user nodes.
@@ -214,9 +207,6 @@ impl MegaContext {
             logger.clone(),
         ));
 
-        // Meganode activity channel
-        let mega_activity_bus = EventsBus::new();
-
         let context = Self {
             backend_api,
             config,
@@ -227,7 +217,6 @@ impl MegaContext {
             lsp_api,
             machine_id,
             measurement,
-            mega_activity_bus,
             network_graph,
             runner_api,
             runner_tx,
@@ -320,7 +309,6 @@ impl MegaContext {
         let version = crate::version();
         let machine_id = enclave::machine_id();
         let measurement = enclave::measurement();
-        let mega_activity_bus = EventsBus::new();
 
         // Create a dummy runner_tx channel
         let (runner_tx, _runner_rx) = mpsc::channel(16);
@@ -335,7 +323,6 @@ impl MegaContext {
             lsp_api,
             machine_id,
             measurement,
-            mega_activity_bus,
             network_graph,
             runner_api,
             runner_tx,
