@@ -19,6 +19,7 @@ const Set<String> prodLexeDevUserPks = {
 // TODO(phlip9): should be set server side
 const Set<String> prodAlphaUserPks = {
   "43989a38fdf9b4485b6d2342310953111524921c43fb009077098b9e1fedba22",
+  "486f839fc2a30d4f66346d57432ab24673bd869fd1f78ff1848800b0e8551229",
 };
 
 @immutable
