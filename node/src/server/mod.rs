@@ -6,10 +6,7 @@
 //! Lexe cannot spend funds on behalf of the user; Lexe's endpoints are either
 //! used purely for maintenance or only enabled in tests.
 
-use std::{
-    sync::{Arc, Mutex, RwLock},
-    time::Duration,
-};
+use std::sync::{Arc, RwLock};
 
 use arc_swap::ArcSwap;
 use axum::{
@@ -42,10 +39,7 @@ use lexe_tokio::{
     events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
 };
 use lightning::util::config::UserConfig;
-use tokio::{
-    sync::{mpsc, oneshot},
-    time::Instant,
-};
+use tokio::sync::{mpsc, oneshot};
 use tower::util::MapRequestLayer;
 
 use crate::{
@@ -92,13 +86,6 @@ pub(crate) struct AppRouterState {
 ///
 /// [`AppNodeRunApi`]: lexe_api::def::AppNodeRunApi
 pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
-    /// The minimum interval between activity notifications from requests to
-    /// `/app` endpoints. Prevents spamming the megarunner with requests.
-    const MIN_ACTIVITY_NOTIFY_INTERVAL: Duration = Duration::from_secs(60);
-
-    // The last time we sent a request to runner `/node/activity`.
-    let last_activity_callback = Arc::new(Mutex::new(Instant::now()));
-
     let user_pk = state.user_pk;
     let runner_tx = state.runner_tx.clone();
 
@@ -132,14 +119,8 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
         .with_state(state)
         // Send an activity notification anytime /app is hit.
         .layer(MapRequestLayer::new(move |request| {
-            let mut locked_instant = last_activity_callback.lock().unwrap();
-            if locked_instant.elapsed() > MIN_ACTIVITY_NOTIFY_INTERVAL {
-                *locked_instant = Instant::now();
-
-                let runner_cmd = RunnerCommand::UserActivity(user_pk);
-                let _ = runner_tx.try_send(runner_cmd);
-            }
-
+            let runner_cmd = RunnerCommand::UserActivity(user_pk);
+            let _ = runner_tx.try_send(runner_cmd);
             request
         }));
     router

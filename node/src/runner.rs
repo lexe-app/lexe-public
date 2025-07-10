@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    mem,
     time::Duration,
 };
 
@@ -26,6 +27,10 @@ use crate::context::MegaContext;
 /// - Inactive usernodes are evicted.
 /// - If the meganode itself is inactive, a meganode shutdown is initiated.
 const INACTIVITY_CHECK_INTERVAL: Duration = Duration::from_secs(30);
+
+/// How frequently we send activity notifications to the megarunner.
+/// If no notifications are queued, the notification is skipped.
+const MEGARUNNER_NOTIFICATION_INTERVAL: Duration = Duration::from_secs(15);
 
 /// Indicates a usernode has shutdown (or been evicted).
 pub(crate) struct UserShutdown;
@@ -74,6 +79,8 @@ pub(crate) struct UserRunner {
 
     /// The last time any usernode on this meganode was active.
     mega_last_used: TimestampMs,
+    /// Recently active users that we haven't yet notified the megarunner of.
+    megarunner_activity_queue: HashSet<UserPk>,
 
     user_nodes: HashMap<UserPk, UserHandle>,
     user_lru: LruCache<UserPk, TimestampMs>,
@@ -123,6 +130,7 @@ impl UserRunner {
             runner_rx,
 
             mega_last_used: now,
+            megarunner_activity_queue: HashSet::new(),
 
             user_nodes: HashMap::new(),
             user_lru: LruCache::unbounded(),
@@ -142,6 +150,10 @@ impl UserRunner {
         let mut inactivity_check_interval =
             tokio::time::interval(INACTIVITY_CHECK_INTERVAL);
         inactivity_check_interval.tick().await;
+
+        let mut megarunner_notif_interval =
+            tokio::time::interval(MEGARUNNER_NOTIFICATION_INTERVAL);
+        megarunner_notif_interval.tick().await;
 
         // --- Regular operation --- //
 
@@ -165,6 +177,9 @@ impl UserRunner {
                     self.evict_any_inactive_usernodes(now);
                     self.shutdown_meganode_if_inactive(now);
                 }
+
+                _ = megarunner_notif_interval.tick() =>
+                    self.maybe_notify_megarunner_user_activity(),
 
                 () = self.mega_shutdown.recv() =>
                     break info!("Initiating shutdown of UserRunner"),
@@ -342,12 +357,8 @@ impl UserRunner {
         // Update the LRU queue for this user.
         self.usernode_used_now(&user_pk, now);
 
-        // Notify the megarunner.
-        helpers::notify_megarunner_user_activity(
-            &self.eph_tasks_tx,
-            self.mega_ctxt.runner_api.clone(),
-            user_pk,
-        );
+        // Add user to notification queue
+        self.megarunner_activity_queue.insert(user_pk);
     }
 
     fn handle_user_evict_request(
@@ -550,6 +561,21 @@ impl UserRunner {
     fn target_buffer_memory(&self) -> u64 {
         self.mega_args.usernode_buffer_slots as u64
             * self.mega_args.usernode_memory
+    }
+
+    /// Sends any queued activity notifications to the megarunner.
+    fn maybe_notify_megarunner_user_activity(&mut self) {
+        if self.megarunner_activity_queue.is_empty() {
+            return;
+        }
+
+        let user_pks = mem::take(&mut self.megarunner_activity_queue);
+
+        helpers::notify_megarunner_user_activity(
+            &self.eph_tasks_tx,
+            self.mega_ctxt.runner_api.clone(),
+            user_pks,
+        );
     }
 
     /// Asserts invariants, to be called after every state transition. Since it
@@ -787,12 +813,11 @@ mod helpers {
     pub(super) fn notify_megarunner_user_activity(
         eph_tasks_tx: &mpsc::Sender<LxTask<()>>,
         runner_api: Arc<RunnerClient>,
-        user_pk: UserPk,
+        user_pks: HashSet<UserPk>,
     ) {
         const SPAN_NAME: &str = "(megarunner-activity-notif)";
         let task = LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), {
             async move {
-                let user_pks = HashSet::from_iter([user_pk]);
                 if let Err(e) = runner_api.activity(user_pks).await {
                     warn!("Couldn't notify megarunner of activity: {e:#}");
                 }
