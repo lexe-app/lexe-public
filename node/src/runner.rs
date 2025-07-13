@@ -319,11 +319,19 @@ impl UserRunner {
         }
 
         // Spawn the user node.
-        let (user_task, user_handle) = helpers::spawn_user_node(
+        #[cfg(not(test))]
+        let (user_task, user_handle) = helpers::spawn_usernode(
             &self.mega_args,
             run_req,
             self.mega_ctxt.clone(),
         );
+
+        #[cfg(test)]
+        let (user_task, user_handle) = {
+            let _ = &self.mega_args;
+            let _ = &self.mega_ctxt;
+            helpers::spawn_dummy_usernode(run_req)
+        };
 
         // Immediately queue the `user_ready_waiter`.
         // It will live in the channel until the user node is ready.
@@ -569,6 +577,11 @@ impl UserRunner {
             return;
         }
 
+        if cfg!(test) {
+            self.megarunner_activity_queue.clear();
+            return;
+        }
+
         let user_pks = mem::take(&mut self.megarunner_activity_queue);
 
         helpers::notify_megarunner_user_activity(
@@ -657,7 +670,8 @@ mod helpers {
         run::{RunArgs, UserNode},
     };
 
-    pub(super) fn spawn_user_node(
+    #[cfg_attr(test, allow(dead_code))]
+    pub(super) fn spawn_usernode(
         mega_args: &MegaArgs,
         run_req: MegaNodeApiUserRunRequest,
         mega_ctxt: MegaContext,
@@ -704,6 +718,54 @@ mod helpers {
                 match try_future.await {
                     Ok(()) => info!(%user_pk, "Usernode finished successfully"),
                     Err(e) => error!(%user_pk, "Usernode errored: {e:#}"),
+                }
+
+                user_pk
+            },
+        );
+
+        (task, handle)
+    }
+
+    #[cfg(test)]
+    pub(super) fn spawn_dummy_usernode(
+        run_req: MegaNodeApiUserRunRequest,
+    ) -> (LxTask<UserPk>, UserHandle) {
+        let user_pk = run_req.user_pk;
+
+        let (user_ready_waiter_tx, user_ready_waiter_rx) =
+            mpsc::channel(lexe_tokio::DEFAULT_CHANNEL_SIZE);
+        let mut user_shutdown = NotifyOnce::new();
+
+        let handle = UserHandle {
+            lease_id: run_req.lease_id,
+            user_ready_waiter_tx,
+            user_shutdown: user_shutdown.clone(),
+            user_shutdown_waiters: Vec::new(),
+        };
+
+        let usernode_span = build_usernode_span(&user_pk);
+        let task = LxTask::spawn_with_span(
+            format!("Dummy usernode {user_pk}"),
+            usernode_span,
+            async move {
+                let run_ports = RunPorts {
+                    user_pk,
+                    app_port: user_pk.to_u64() as u16,
+                    lexe_port: (user_pk.to_u64().wrapping_add(1)) as u16,
+                };
+
+                let mut ready_rx = user_ready_waiter_rx;
+
+                loop {
+                    tokio::select! {
+                        Some(waiter) = ready_rx.recv() => {
+                            // Immediately respond with Ok(ports)
+                            let _ = waiter.send(Ok(run_ports));
+                        }
+                        () = user_shutdown.recv() =>
+                            break info!(%user_pk, "Dummy user shutting down"),
+                    }
                 }
 
                 user_pk
