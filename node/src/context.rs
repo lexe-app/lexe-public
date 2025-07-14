@@ -4,7 +4,6 @@ use std::{
 };
 
 use anyhow::{anyhow, ensure, Context};
-use arc_swap::ArcSwap;
 use common::{enclave, env::DeployEnv, ln::network::LxNetwork, rng::Crng};
 use lexe_api::{
     def::NodeLspApi,
@@ -45,8 +44,8 @@ pub(crate) struct MegaContext {
     /// The backend API client for user nodes.
     /// NOTE: This uses NodeMode::Run so should not be used for provisioning.
     pub backend_api: Arc<NodeBackendClient>,
-    /// The channel config for user nodes.
-    pub config: Arc<ArcSwap<UserConfig>>,
+    /// The channel manager config for user nodes.
+    pub config: Arc<UserConfig>,
     /// The Esplora client for blockchain data.
     /// NOTE: LexeEsplora can be shared but EsploraSyncClient can't because
     /// EsploraSyncClient holds state internally.

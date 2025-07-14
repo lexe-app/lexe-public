@@ -37,7 +37,6 @@
 use std::{str::FromStr, sync::Arc, time::SystemTime};
 
 use anyhow::{anyhow, ensure, Context};
-use arc_swap::ArcSwap;
 use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
 use common::{
@@ -474,7 +473,7 @@ impl NodePersister {
     /// NOTE: See module docs for info on how manager/monitor persist works.
     pub(crate) async fn read_channel_manager(
         &self,
-        config: &ArcSwap<UserConfig>,
+        config: UserConfig,
         channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
         keys_manager: Arc<LexeKeysManager>,
         fee_estimator: Arc<FeeEstimatorType>,
@@ -502,7 +501,7 @@ impl NodePersister {
             router,
             message_router,
             logger,
-            **config.load(),
+            config,
             channel_monitor_refs,
         );
 

@@ -1,7 +1,6 @@
 use std::{collections::HashMap, ops::Deref, sync::Arc, time::SystemTime};
 
 use anyhow::Context;
-use arc_swap::ArcSwap;
 use bitcoin::BlockHash;
 use common::{constants, ln::network::LxNetwork};
 use lexe_ln::{
@@ -48,9 +47,8 @@ const TIME_TO_CONTEST_FRAUDULENT_CLOSES: u16 = 6 * 24 * 7; // 7 days
 const MAXIMUM_TIME_TO_RECLAIM_FUNDS: u16 = 6 * 24 * 4; // four days
 
 // This fn prevents the rest of the crate from instantiating configs directly.
-pub(crate) fn get_config() -> Arc<ArcSwap<UserConfig>> {
-    // ArcSwap doesn't impl Clone, so we have to wrap in yet another Arc.
-    Arc::new(ArcSwap::new(Arc::new(user_config())))
+pub(crate) fn get_config() -> Arc<UserConfig> {
+    Arc::new(user_config())
 }
 
 const fn user_config() -> UserConfig {
@@ -208,7 +206,7 @@ impl Deref for NodeChannelManager {
 impl NodeChannelManager {
     pub(crate) fn init(
         network: LxNetwork,
-        config: &ArcSwap<UserConfig>,
+        config: UserConfig,
         maybe_manager: Option<(BlockHash, ChannelManagerType)>,
         keys_manager: Arc<LexeKeysManager>,
         fee_estimator: Arc<FeeEstimatorType>,
@@ -248,7 +246,7 @@ impl NodeChannelManager {
                     keys_manager.clone(),
                     keys_manager.clone(),
                     keys_manager,
-                    **config.load(),
+                    config,
                     chain_params,
                     current_timestamp_secs,
                 );
@@ -261,9 +259,9 @@ impl NodeChannelManager {
     }
 
     /// Ensures that all channels are using the most up-to-date channel config.
-    pub(crate) fn check_channel_configs(&self, config: &ArcSwap<UserConfig>) {
+    pub(crate) fn check_channel_configs(&self, config: &UserConfig) {
         let channels = self.0.list_channels();
-        let expected_config = config.load().channel_config;
+        let expected_config = config.channel_config;
 
         // Construct a map of `counterparty_pk -> Vec<channel_id>`
         // corresponding to channels whose configs need to be updated

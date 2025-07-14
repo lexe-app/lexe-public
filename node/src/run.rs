@@ -472,7 +472,7 @@ impl UserNode {
         ));
         let maybe_manager = persister
             .read_channel_manager(
-                &config,
+                *config,
                 &mut channel_monitors,
                 keys_manager.clone(),
                 fee_estimates.clone(),
@@ -488,7 +488,7 @@ impl UserNode {
         // Init the NodeChannelManager
         let channel_manager = NodeChannelManager::init(
             network,
-            &config,
+            *config,
             maybe_manager,
             keys_manager.clone(),
             fee_estimates.clone(),

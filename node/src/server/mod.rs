@@ -8,7 +8,6 @@
 
 use std::sync::{Arc, RwLock};
 
-use arc_swap::ArcSwap;
 use axum::{
     routing::{get, post, put},
     Router,
@@ -60,7 +59,7 @@ pub(crate) struct AppRouterState {
     pub network: LxNetwork,
     pub measurement: Measurement,
     pub version: semver::Version,
-    pub config: Arc<ArcSwap<UserConfig>>,
+    pub config: Arc<UserConfig>,
     pub persister: Arc<NodePersister>,
     pub chain_monitor: Arc<ChainMonitorType>,
     pub fee_estimates: Arc<FeeEstimates>,
