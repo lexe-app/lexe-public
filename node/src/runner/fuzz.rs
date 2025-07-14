@@ -15,7 +15,7 @@ use lexe_api::models::runner::{
 use tokio::sync::oneshot;
 
 use super::{
-    RunnerCommand, UserRunner, UserRunnerUserEvictRequest,
+    UserRunner, UserRunnerCommand, UserRunnerUserEvictRequest,
     UserRunnerUserRunRequest,
 };
 
@@ -38,14 +38,14 @@ impl UserRunnerFuzzer {
     }
 
     /// Executes a command and asserts invariants are upheld.
-    fn execute_command(&mut self, command: RunnerCommand) {
+    fn execute_command(&mut self, command: UserRunnerCommand) {
         match command {
-            RunnerCommand::UserRunRequest(user_run_request) => self
+            UserRunnerCommand::UserRunRequest(user_run_request) => self
                 .runner
                 .handle_user_run_request(user_run_request, self.now),
-            RunnerCommand::UserEvictRequest(user_evict_request) =>
+            UserRunnerCommand::UserEvictRequest(user_evict_request) =>
                 self.runner.handle_user_evict_request(user_evict_request),
-            RunnerCommand::UserActivity(user_pk) =>
+            UserRunnerCommand::UserActivity(user_pk) =>
                 self.runner.handle_user_activity(user_pk, self.now),
         }
 
@@ -65,7 +65,7 @@ impl UserRunnerFuzzer {
         }
     }
 
-    fn generate_command(&mut self) -> RunnerCommand {
+    fn generate_command(&mut self) -> UserRunnerCommand {
         let p = self.rng.gen_f64();
 
         if p < 0.6 {
@@ -90,7 +90,7 @@ impl UserRunnerFuzzer {
                     user_ready_waiter: user_ready_tx,
                 };
 
-                RunnerCommand::UserRunRequest(user_run_request)
+                UserRunnerCommand::UserRunRequest(user_run_request)
             } else {
                 // Generate a bogus UserRunRequest with wrong mega_id
                 let user_pk = helpers::sample_user_pk(&mut self.rng);
@@ -111,7 +111,7 @@ impl UserRunnerFuzzer {
                     user_ready_waiter: user_ready_tx,
                 };
 
-                RunnerCommand::UserRunRequest(user_run_request)
+                UserRunnerCommand::UserRunRequest(user_run_request)
             }
         } else if p < 0.8 {
             // -- UserEvictRequest -- // (20% probability)
@@ -140,7 +140,7 @@ impl UserRunnerFuzzer {
                     user_shutdown_waiter: shutdown_tx,
                 };
 
-                RunnerCommand::UserEvictRequest(user_evict_request)
+                UserRunnerCommand::UserEvictRequest(user_evict_request)
             } else {
                 // Generate a bogus UserEvictRequest for a non-existent user
                 let user_pk = helpers::sample_user_pk(&mut self.rng);
@@ -154,7 +154,7 @@ impl UserRunnerFuzzer {
                     user_shutdown_waiter: shutdown_tx,
                 };
 
-                RunnerCommand::UserEvictRequest(user_evict_request)
+                UserRunnerCommand::UserEvictRequest(user_evict_request)
             }
         } else {
             // -- UserActivity -- // (20% probability)
@@ -166,11 +166,11 @@ impl UserRunnerFuzzer {
                 let user_idx = (self.rng.gen_u64() as usize) % users.len();
                 let user_pk = users[user_idx];
 
-                RunnerCommand::UserActivity(user_pk)
+                UserRunnerCommand::UserActivity(user_pk)
             } else {
                 // No active users, generate activity for a random user
                 let user_pk = helpers::sample_user_pk(&mut self.rng);
-                RunnerCommand::UserActivity(user_pk)
+                UserRunnerCommand::UserActivity(user_pk)
             }
         }
     }

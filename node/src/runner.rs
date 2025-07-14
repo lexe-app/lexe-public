@@ -39,7 +39,7 @@ const MEGARUNNER_NOTIFICATION_INTERVAL: Duration = Duration::from_secs(15);
 pub(crate) struct UserShutdown;
 
 #[allow(clippy::enum_variant_names)]
-pub(crate) enum RunnerCommand {
+pub(crate) enum UserRunnerCommand {
     UserRunRequest(UserRunnerUserRunRequest),
     UserEvictRequest(UserRunnerUserEvictRequest),
     /// Indicates that a usernode received some activity.
@@ -78,7 +78,7 @@ pub(crate) struct UserRunner {
     mega_server_shutdown: NotifyOnce,
 
     eph_tasks_tx: mpsc::Sender<LxTask<()>>,
-    runner_rx: mpsc::Receiver<RunnerCommand>,
+    runner_rx: mpsc::Receiver<UserRunnerCommand>,
 
     /// The last time any usernode on this meganode was active.
     mega_last_used: TimestampMs,
@@ -120,7 +120,7 @@ impl UserRunner {
         mega_ctxt: MegaContext,
         mega_shutdown: NotifyOnce,
         mega_server_shutdown: NotifyOnce,
-        runner_rx: mpsc::Receiver<RunnerCommand>,
+        runner_rx: mpsc::Receiver<UserRunnerCommand>,
         eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     ) -> Self {
         Self {
@@ -165,11 +165,11 @@ impl UserRunner {
 
             tokio::select! {
                 Some(cmd) = self.runner_rx.recv() => match cmd {
-                    RunnerCommand::UserRunRequest(run_req) =>
+                    UserRunnerCommand::UserRunRequest(run_req) =>
                         self.handle_user_run_request(run_req, now),
-                    RunnerCommand::UserEvictRequest(evict_req) =>
+                    UserRunnerCommand::UserEvictRequest(evict_req) =>
                         self.handle_user_evict_request(evict_req),
-                    RunnerCommand::UserActivity(user_pk) =>
+                    UserRunnerCommand::UserActivity(user_pk) =>
                         self.handle_user_activity(user_pk, now),
                 },
 
@@ -214,7 +214,7 @@ impl UserRunner {
                 // Save any user eviction requests to be notified later.
                 Some(cmd) = self.runner_rx.recv() => {
                     match cmd {
-                        RunnerCommand::UserRunRequest(req) => {
+                        UserRunnerCommand::UserRunRequest(req) => {
                             let error = MegaApiError {
                                 kind: MegaErrorKind::RunnerUnreachable,
                                 msg: "UserRunner is shutting down".to_string(),
@@ -223,12 +223,12 @@ impl UserRunner {
                             let _ =
                                 req.user_ready_waiter.send(Err(error));
                         }
-                        RunnerCommand::UserEvictRequest(req) => {
+                        UserRunnerCommand::UserEvictRequest(req) => {
                             user_shutdown_waiters
                                 .push(req.user_shutdown_waiter);
                         }
                         // Ignore
-                        RunnerCommand::UserActivity(_) => (),
+                        UserRunnerCommand::UserActivity(_) => (),
                     }
                 }
 

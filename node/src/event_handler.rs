@@ -77,7 +77,7 @@ use tracing::{error, info};
 
 use crate::{
     alias::PaymentsManagerType, channel_manager::NodeChannelManager,
-    client::NodeLspClient, persister::NodePersister, runner::RunnerCommand,
+    client::NodeLspClient, persister::NodePersister, runner::UserRunnerCommand,
 };
 
 #[derive(Clone)]
@@ -104,7 +104,7 @@ pub(crate) struct EventCtx {
     pub channel_events_bus: EventsBus<ChannelEvent>,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     pub htlcs_forwarded_bus: EventsBus<HtlcsForwarded>,
-    pub runner_tx: mpsc::Sender<RunnerCommand>,
+    pub runner_tx: mpsc::Sender<UserRunnerCommand>,
     pub test_event_tx: TestEventSender,
     pub shutdown: NotifyOnce,
 }
@@ -350,7 +350,7 @@ async fn do_handle_event(
         } => {
             // If we received a BOLT 12 payment, the usernode should continue
             // running. Send an activity notification.
-            let runner_cmd = RunnerCommand::UserActivity(ctx.user_pk);
+            let runner_cmd = UserRunnerCommand::UserActivity(ctx.user_pk);
             let _ = ctx.runner_tx.try_send(runner_cmd);
 
             // TODO(phlip9): unwrap once all replaying PaymentClaimable events

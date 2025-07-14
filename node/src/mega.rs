@@ -128,7 +128,7 @@ mod mega_server {
     use tracing::info_span;
 
     use super::handlers;
-    use crate::runner::RunnerCommand;
+    use crate::runner::UserRunnerCommand;
 
     /// Spawns the Lexe mega server task; returns the task, port, and url.
     pub(super) fn spawn_server_task(
@@ -166,7 +166,7 @@ mod mega_server {
     #[derive(Clone)]
     pub(super) struct MegaRouterState {
         pub mega_id: MegaId,
-        pub runner_tx: mpsc::Sender<RunnerCommand>,
+        pub runner_tx: mpsc::Sender<UserRunnerCommand>,
         /// Shutdown channel for the meganode overall.
         /// Not to be confused with `mega_server_shutdown`.
         pub mega_shutdown: NotifyOnce,
@@ -205,7 +205,7 @@ mod handlers {
 
     use super::mega_server::MegaRouterState;
     use crate::runner::{
-        RunnerCommand, UserRunnerUserEvictRequest, UserRunnerUserRunRequest,
+        UserRunnerCommand, UserRunnerUserEvictRequest, UserRunnerUserRunRequest,
     };
 
     pub(super) async fn run_user(
@@ -225,7 +225,7 @@ mod handlers {
             inner: req,
             user_ready_waiter: user_ready_tx,
         };
-        let cmd = RunnerCommand::UserRunRequest(req_with_tx);
+        let cmd = UserRunnerCommand::UserRunRequest(req_with_tx);
         state.runner_tx.try_send(cmd).map_err(|e| MegaApiError {
             kind: MegaErrorKind::RunnerUnreachable,
             msg: e.to_string(),
@@ -282,7 +282,7 @@ mod handlers {
             inner: req,
             user_shutdown_waiter: user_shutdown_tx,
         };
-        let cmd = RunnerCommand::UserEvictRequest(req_with_tx);
+        let cmd = UserRunnerCommand::UserEvictRequest(req_with_tx);
         state.runner_tx.try_send(cmd).map_err(|e| MegaApiError {
             kind: MegaErrorKind::RunnerUnreachable,
             msg: e.to_string(),

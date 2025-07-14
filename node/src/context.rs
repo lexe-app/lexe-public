@@ -24,7 +24,7 @@ use tracing::info;
 use crate::{
     channel_manager,
     client::{NodeBackendClient, NodeLspClient, RunnerClient},
-    runner::RunnerCommand,
+    runner::UserRunnerCommand,
 };
 
 /// Usernode-specific context initialized by the meganode.
@@ -67,7 +67,7 @@ pub(crate) struct MegaContext {
     /// NOTE: This uses NodeMode::Run so should not be used for provisioning.
     pub runner_api: Arc<RunnerClient>,
     /// Channel to send commands to the UserRunner.
-    pub runner_tx: mpsc::Sender<RunnerCommand>,
+    pub runner_tx: mpsc::Sender<UserRunnerCommand>,
     /// The probabilistic scorer for pathfinding.
     pub scorer: Arc<Mutex<ProbabilisticScorerType>>,
     /// The untrusted deploy environment.
@@ -93,7 +93,7 @@ impl MegaContext {
         untrusted_deploy_env: DeployEnv,
         untrusted_esplora_urls: Vec<String>,
         untrusted_network: LxNetwork,
-        runner_tx: mpsc::Sender<RunnerCommand>,
+        runner_tx: mpsc::Sender<UserRunnerCommand>,
         mega_shutdown: NotifyOnce,
     ) -> anyhow::Result<(Self, Vec<LxTask<()>>)> {
         let logger = LexeTracingLogger::new();

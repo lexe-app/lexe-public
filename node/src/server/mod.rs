@@ -46,7 +46,7 @@ use crate::{
     channel_manager::NodeChannelManager,
     peer_manager::NodePeerManager,
     persister::NodePersister,
-    runner::RunnerCommand,
+    runner::UserRunnerCommand,
 };
 
 /// Handlers for commands that can only be initiated by the app.
@@ -78,7 +78,7 @@ pub(crate) struct AppRouterState {
     pub revocable_clients: Arc<RwLock<RevocableClients>>,
     pub channel_events_bus: EventsBus<ChannelEvent>,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
-    pub runner_tx: mpsc::Sender<RunnerCommand>,
+    pub runner_tx: mpsc::Sender<UserRunnerCommand>,
 }
 
 /// Implements [`AppNodeRunApi`] - endpoints only callable by the app.
@@ -118,7 +118,7 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
         .with_state(state)
         // Send an activity notification anytime /app is hit.
         .layer(MapRequestLayer::new(move |request| {
-            let runner_cmd = RunnerCommand::UserActivity(user_pk);
+            let runner_cmd = UserRunnerCommand::UserActivity(user_pk);
             let _ = runner_tx.try_send(runner_cmd);
             request
         }));
