@@ -923,6 +923,10 @@ api_error_kind! {
         EvictionFailure = 107,
         /// The requested user is not known to the runner
         UnknownUser = 108,
+        /// Tried to renew a lease that has already expired
+        LeaseExpired = 109,
+        /// Tried to renew a lease belonging to a different user
+        WrongLease = 110,
     }
 }
 
@@ -949,6 +953,8 @@ impl ToHttpStatus for RunnerErrorKind {
             Boot => SERVER_500_INTERNAL_SERVER_ERROR,
             EvictionFailure => SERVER_500_INTERNAL_SERVER_ERROR,
             UnknownUser => CLIENT_404_NOT_FOUND,
+            LeaseExpired => CLIENT_400_BAD_REQUEST,
+            WrongLease => CLIENT_400_BAD_REQUEST,
         }
     }
 }
