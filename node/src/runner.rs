@@ -660,9 +660,7 @@ mod helpers {
     use anyhow::Context;
     use common::{api::MegaId, rng::SysRng};
     use lexe_api::{
-        def::{MegaRunnerApi, NodeRunnerApi},
-        models::runner::UserFinishedRequest,
-        types::LeaseId,
+        def::MegaRunnerApi, models::runner::UserFinishedRequest, types::LeaseId,
     };
     use tracing::{error, info, warn};
 

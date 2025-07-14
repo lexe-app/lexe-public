@@ -75,6 +75,18 @@ impl MegaRunnerApi for RunnerClient {
         self.rest.send(req).await
     }
 
+    async fn activity(
+        &self,
+        user_pks: HashSet<UserPk>,
+    ) -> Result<Empty, RunnerApiError> {
+        let runner = &self.runner_url;
+        let data = UserPkSet { user_pks };
+        let req = self.rest.post(format!("{runner}/mega/activity"), &data);
+        // TODO(phlip9): authenticate runner callbacks?
+        // .bearer_auth(&self.auth_token().await?);
+        self.rest.send(req).await
+    }
+
     async fn user_finished(
         &self,
         req: &UserFinishedRequest,
@@ -94,18 +106,6 @@ impl NodeRunnerApi for RunnerClient {
     ) -> Result<Empty, RunnerApiError> {
         let runner = &self.runner_url;
         let req = self.rest.post(format!("{runner}/node/renew_lease"), req);
-        // TODO(phlip9): authenticate runner callbacks?
-        // .bearer_auth(&self.auth_token().await?);
-        self.rest.send(req).await
-    }
-
-    async fn activity(
-        &self,
-        user_pks: HashSet<UserPk>,
-    ) -> Result<Empty, RunnerApiError> {
-        let runner = &self.runner_url;
-        let data = UserPkSet { user_pks };
-        let req = self.rest.post(format!("{runner}/node/activity"), &data);
         // TODO(phlip9): authenticate runner callbacks?
         // .bearer_auth(&self.auth_token().await?);
         self.rest.send(req).await

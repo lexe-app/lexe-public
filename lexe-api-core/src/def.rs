@@ -446,6 +446,14 @@ pub trait MegaRunnerApi {
         ports: &MegaPorts,
     ) -> Result<Empty, RunnerApiError>;
 
+    /// POST /mega/activity [`UserPkSet`] -> [`Empty`]
+    ///
+    /// Indicates the meganode received some activity from its users.
+    async fn activity(
+        &self,
+        user_pks: HashSet<UserPk>,
+    ) -> Result<Empty, RunnerApiError>;
+
     /// POST /mega/user_finished [`UserFinishedRequest`] -> [`Empty`]
     ///
     /// Notifies the runner that a user has shut down,
@@ -655,7 +663,7 @@ pub trait NodeLspApi {
     async fn payment_path(&self, event: &Event) -> Result<Empty, LspApiError>;
 }
 
-/// Defines the api that the runner exposes to the node.
+/// Defines the api that the runner exposes to the user node.
 pub trait NodeRunnerApi {
     /// POST /node/renew_lease [`UserLeaseRenewalRequest`] -> [`Empty`]
     ///
@@ -663,14 +671,6 @@ pub trait NodeRunnerApi {
     async fn renew_lease(
         &self,
         req: &UserLeaseRenewalRequest,
-    ) -> Result<Empty, RunnerApiError>;
-
-    /// POST /node/activity [`UserPkSet`] -> [`Empty`]
-    ///
-    /// Indicates the meganode received some activity from its users.
-    async fn activity(
-        &self,
-        user_pks: HashSet<UserPk>,
     ) -> Result<Empty, RunnerApiError>;
 
     /// POST /node/sync_success [`UserPkStruct`] -> [`Empty`]
