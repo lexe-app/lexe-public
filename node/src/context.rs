@@ -12,16 +12,13 @@ use lexe_api::{
     types::{ports::RunPorts, LeaseId},
 };
 use lexe_ln::{
-    alias::{NetworkGraphType, P2PGossipSyncType, ProbabilisticScorerType},
+    alias::{NetworkGraphType, ProbabilisticScorerType},
     esplora::{self, FeeEstimates, LexeEsplora},
     logger::LexeTracingLogger,
 };
 use lexe_tls::attestation::NodeMode;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
-use lightning::{
-    routing::gossip::P2PGossipSync,
-    util::{config::UserConfig, ser::ReadableArgs},
-};
+use lightning::util::{config::UserConfig, ser::ReadableArgs};
 use tokio::sync::{mpsc, oneshot};
 use tracing::info;
 
@@ -56,8 +53,6 @@ pub(crate) struct MegaContext {
     pub esplora: Arc<LexeEsplora>,
     /// On-chain fee estimates, periodically updated by [`LexeEsplora`].
     pub fee_estimates: Arc<FeeEstimates>,
-    /// The P2P gossip sync for network graph updates.
-    pub gossip_sync: Arc<P2PGossipSyncType>,
     /// The logger for user nodes.
     pub logger: LexeTracingLogger,
     /// The LSP API client for user nodes.
@@ -198,21 +193,11 @@ impl MegaContext {
                 .map_err(|e| anyhow!("Couldn't deser prob scorer: {e:#}"))?
         };
 
-        // Initialize gossip sync
-        // TODO(phlip9): does node even need gossip sync anymore?
-        let utxo_lookup = None;
-        let gossip_sync = Arc::new(P2PGossipSync::new(
-            network_graph.clone(),
-            utxo_lookup,
-            logger.clone(),
-        ));
-
         let context = Self {
             backend_api,
             config,
             esplora,
             fee_estimates,
-            gossip_sync,
             logger,
             lsp_api,
             machine_id,
@@ -240,8 +225,7 @@ impl MegaContext {
         use common::{env::DeployEnv, ln::network::LxNetwork, rng::SysRng};
         use lexe_ln::{esplora::LexeEsplora, logger::LexeTracingLogger};
         use lightning::routing::{
-            gossip::{NetworkGraph, P2PGossipSync},
-            scoring::ProbabilisticScorer,
+            gossip::NetworkGraph, scoring::ProbabilisticScorer,
         };
 
         let logger = LexeTracingLogger::new();
@@ -296,14 +280,6 @@ impl MegaContext {
             logger.clone(),
         )));
 
-        // Create gossip sync
-        let utxo_lookup = None;
-        let gossip_sync = Arc::new(P2PGossipSync::new(
-            network_graph.clone(),
-            utxo_lookup,
-            logger.clone(),
-        ));
-
         // Create other required fields
         let config = channel_manager::get_config();
         let version = crate::version();
@@ -318,7 +294,6 @@ impl MegaContext {
             config,
             esplora,
             fee_estimates,
-            gossip_sync,
             logger,
             lsp_api,
             machine_id,

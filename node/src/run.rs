@@ -205,7 +205,6 @@ impl UserNode {
             config,
             esplora,
             fee_estimates,
-            gossip_sync,
             logger,
             lsp_api,
             machine_id,
@@ -558,6 +557,16 @@ impl UserNode {
             async_payments_msg_handler,
             dns_resolver,
             custom_onion_msg_handler,
+        ));
+
+        // Initialize gossip sync. NOTE: Gossip sync holds internal state so it
+        // can't be shared across user nodes.
+        // TODO(phlip9): does node even need gossip sync anymore?
+        let utxo_lookup = None;
+        let gossip_sync = Arc::new(P2PGossipSyncType::new(
+            network_graph.clone(),
+            utxo_lookup,
+            logger.clone(),
         ));
 
         // Initialize PeerManager
