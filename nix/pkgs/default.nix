@@ -454,6 +454,7 @@
       "34.0.0" # gradle android plugin seems to want this?
     ];
     includeNDK = true;
+    # TODO(phlip9): use `28.1.13356709` for 16KiB page size support
     ndkVersion = "27.0.12077973";
     ndkVersions = [
       ndkVersion # lexe, flutter_zxing

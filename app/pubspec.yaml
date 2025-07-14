@@ -119,6 +119,10 @@ dependencies:
   url_launcher: ^6.3.0
 
 dev_dependencies:
+  # Used to embed the `public-master` git revision as an asset in the app.
+  app_embed_git_rev:
+    path: ../app_embed_git_rev
+
   # Used by freezed for codegen. app-rs-codegen runs this after generating the
   # flutter_rust_bridge bindings.
   build_runner: ^2.4.7
@@ -157,10 +161,10 @@ flutter:
   # TODO(phlip9): disable pre-release
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  assets:
+    - path: assets/git_rev
+      transformers:
+        - package: app_embed_git_rev
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

@@ -10,7 +10,7 @@
 /build/
 
 # Don't commit pubspec.lock, since this is a library package
-pubspec.lock
+/pubspec.lock
 
 # Symbolication related
 app.*.symbols

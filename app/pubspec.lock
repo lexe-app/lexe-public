@@ -22,6 +22,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.11.0"
+  app_embed_git_rev:
+    dependency: "direct dev"
+    description:
+      path: "../app_embed_git_rev"
+      relative: true
+    source: path
+    version: "1.0.0"
   app_links:
     dependency: "direct main"
     description:
