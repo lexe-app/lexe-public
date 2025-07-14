@@ -23,6 +23,9 @@ use tracing::{debug, info, info_span, warn};
 
 use crate::context::MegaContext;
 
+#[cfg(test)]
+mod fuzz;
+
 /// How frequently the UserRunner checks for inactivity.
 /// - Inactive usernodes are evicted.
 /// - If the meganode itself is inactive, a meganode shutdown is initiated.
