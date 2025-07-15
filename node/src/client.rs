@@ -7,8 +7,8 @@ use common::{
     api::{
         auth::{BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken},
         user::{
-            GetNewScidsRequest, MaybeScid, MaybeUser, NodePk, NodePkStruct,
-            ScidStruct, Scids, UserPk, UserPkSet, UserPkStruct,
+            GetNewScidsRequest, MaybeScid, MaybeUser, Scids, UserPk, UserPkSet,
+            UserPkStruct,
         },
         version::MeasurementStruct,
     },
@@ -152,16 +152,6 @@ impl NodeLspApi for NodeLspClient {
     ) -> Result<Scids, LspApiError> {
         let lsp = &self.lsp_url;
         let req = self.rest.get(format!("{lsp}/node/v1/scids"), &req);
-        self.rest.send(req).await
-    }
-
-    async fn get_new_scid(
-        &self,
-        node_pk: NodePk,
-    ) -> Result<ScidStruct, LspApiError> {
-        let lsp = &self.lsp_url;
-        let data = NodePkStruct { node_pk };
-        let req = self.rest.get(format!("{lsp}/node/v1/scid"), &data);
         self.rest.send(req).await
     }
 

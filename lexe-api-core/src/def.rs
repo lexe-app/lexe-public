@@ -60,10 +60,7 @@ use common::{
             UpdateClientResponse,
         },
         test_event::TestEventOp,
-        user::{
-            GetNewScidsRequest, MaybeScid, MaybeUser, NodePk, ScidStruct,
-            Scids, UserPk,
-        },
+        user::{GetNewScidsRequest, MaybeScid, MaybeUser, Scids, UserPk},
         version::NodeRelease,
         MegaId,
     },
@@ -633,14 +630,6 @@ pub trait NodeLspApi {
         &self,
         req: &GetNewScidsRequest,
     ) -> Result<Scids, LspApiError>;
-
-    /// GET /node/v1/scid [`NodePkStruct`] -> [`ScidStruct`]
-    // NOTE: Keep this def around until we can remove the LSP handler.
-    #[deprecated(note = "since node-v0.7.3: Use multi scid version instead")]
-    async fn get_new_scid(
-        &self,
-        node_pk: NodePk,
-    ) -> Result<ScidStruct, LspApiError>;
 
     /// GET /node/v1/network_graph [`Empty`] -> [`Bytes`] (LDK-serialized graph)
     ///
