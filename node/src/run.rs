@@ -71,7 +71,7 @@ use lightning::{
 };
 use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, info, info_span, warn};
+use tracing::{debug, error, info, info_span, warn};
 
 use crate::{
     alias::{ChainMonitorType, OnionMessengerType, PaymentsManagerType},
@@ -805,9 +805,10 @@ impl UserNode {
 
         // Spawn lease renewal task
         const SPAN_NAME: &str = "(lease-renewer)";
+        let lease_id = user_ctxt.lease_id;
+        let lease_renewal_span = info_span!(SPAN_NAME, %user_pk, %lease_id);
         let lease_renewal_task =
-            LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), {
-                let lease_id = user_ctxt.lease_id;
+            LxTask::spawn_with_span(SPAN_NAME, lease_renewal_span, {
                 let user_pk = args.user_pk;
 
                 let lease_renewal_interval =
@@ -819,21 +820,27 @@ impl UserNode {
                 let mut shutdown = shutdown.clone();
 
                 async move {
-                    let do_renew_lease = || async {
-                        debug!("Renewing lease {lease_id} for user {user_pk}");
-                        let req = UserLeaseRenewalRequest {
-                            lease_id,
-                            user_pk,
-                            timestamp: TimestampMs::now(),
-                        };
-                        if let Err(e) = runner_api.renew_lease(&req).await {
-                            warn!("Failed to renew lease: {e:#}");
-                        }
-                    };
-
                     loop {
                         tokio::select! {
-                            _ = renewal_timer.tick() => do_renew_lease().await,
+                            _ = renewal_timer.tick() => {
+                                debug!("Renewing lease");
+
+                                let req = UserLeaseRenewalRequest {
+                                    lease_id,
+                                    user_pk,
+                                    timestamp: TimestampMs::now(),
+                                };
+
+                                match runner_api.renew_lease(&req).await {
+                                    Ok(_) => debug!("Success: renewed lease"),
+                                    Err(e) => {
+                                        error!("Failed to renew lease: {e:#}");
+                                        // If we fail to renew the lease for any
+                                        // reason, we should shut down.
+                                        return shutdown.send();
+                                    }
+                                }
+                            }
                             () = shutdown.recv() => return,
                         }
                     }
