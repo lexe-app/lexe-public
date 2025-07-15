@@ -20,6 +20,7 @@ const Set<String> prodLexeDevUserPks = {
 const Set<String> prodAlphaUserPks = {
   "43989a38fdf9b4485b6d2342310953111524921c43fb009077098b9e1fedba22",
   "486f839fc2a30d4f66346d57432ab24673bd869fd1f78ff1848800b0e8551229",
+  "340a72fc315c235ccf23320e2baff7cbb48a84f9c80dfe753a95bfae66db2cec",
 };
 
 @immutable
