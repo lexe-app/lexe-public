@@ -1,1 +1,2 @@
-this is just a dummy file. see `app_embed_git_rev` for more details.
+this git_rev file is a dummy file. see `app_embed_git_rev` for more details.
+cache_bust=1752691111000 to force flutter to rerun the asset transformer.
