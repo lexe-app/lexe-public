@@ -22,10 +22,12 @@ test-utils = ["common/test-utils", "lexe-ln/test-utils"]
 # dumps registers if `debug = true`.
 debug = true
 # Heap size in bytes. Default: 0x200_0000.
-# TODO(max): Switch to allocator which does heap compaction.
-# TODO(max): The network graph is taking at least 75MB of memory. User nodes
-# share a private routing enclave to reduce the amount of memory required.
+#
+# Very large; should include enough for `NODE_MAX_GRAPH_MEMORY` + plenty of
+# space for other data structures.
+#
 # Current: 1 GiB
+# TODO(max): Switch to allocator which does heap compaction.
 heap-size = 0x4000_0000
 # SSA frame size (in pages) for each thread. Default: 1.
 # You normally don't need to change the SSA frame size.
