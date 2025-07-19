@@ -115,7 +115,7 @@ impl ProvisionInstance {
         let state = AppRouterState {
             args: args.clone(),
             backend_api: Arc::new(backend_client),
-            client,
+            gdrive_client: client,
             machine_id: mega_ctx.machine_id,
             measurement,
             // TODO(phlip9): use passed in rng
@@ -194,7 +194,7 @@ impl ProvisionInstance {
 struct AppRouterState {
     args: Arc<ProvisionArgs>,
     backend_api: Arc<NodeBackendClient>,
-    client: gdrive::ReqwestClient,
+    gdrive_client: gdrive::ReqwestClient,
     machine_id: enclave::MachineId,
     measurement: enclave::Measurement,
     // TODO(phlip9): make generic, use test rng in test
@@ -268,48 +268,7 @@ mod handlers {
             .await
             .map_err(NodeApiError::bad_auth)?;
 
-        // If we're in staging/prod, we need to handle gDrive. We'll save the
-        // gDrive credentials (so we can get access after the token expires)
-        // and potentially init the GVFS setup (make directories, etc...).
-        if req.deploy_env.is_staging_or_prod() {
-            // If we're given an auth_code, complete the OAuth2 flow and persist
-            // the gDrive credentials.
-            let vfs_master_key = req.root_seed.derive_vfs_master_key();
-            let credentials = helpers::provision_gdrive_credentials(
-                &mut state,
-                req.google_auth_code.as_deref(),
-                &authenticator,
-                &vfs_master_key,
-            )
-            .await?;
-
-            // If we're allowed to provision GVFS, init the GVFS structure if
-            // it's not already init'ed.
-            if req.allow_gvfs_access {
-                helpers::provision_gvfs(
-                    &mut state,
-                    &req,
-                    &authenticator,
-                    credentials,
-                    &vfs_master_key,
-                    &user_pk,
-                )
-                .await?;
-            } else if req.encrypted_seed.is_some() {
-                // It is a usage error if they also provided a pw-encrypted seed
-                // but we are not allowed to provision GVFS.
-                return Err(NodeApiError::provision(
-                    "A root seed backup was provided, but it cannot be \
-                     persisted because `allow_gvfs_access=false`",
-                ));
-            }
-        }
-
-        // Finally, store the sealed seed and new node metadata in the backend.
-        //
-        // We do this last so that a new user signup where gdrive fails to
-        // provision (which seems to happen more often than I'd like) doesn't
-        // fill up our capacity with broken nodes that can't run.
+        // Store the sealed seed and new node metadata in the backend.
         state
             .backend_api
             .create_sealed_seed(&sealed_seed, token)
@@ -317,12 +276,95 @@ mod handlers {
             .context("Could not persist sealed seed")
             .map_err(NodeApiError::provision)?;
 
+        if req.deploy_env.is_dev() {
+            // If we're in dev, we don't need to provision GDrive credentials
+            // or set up the GVFS.
+            return Ok(LxJson(Empty {}));
+        }
+        // From here, we're in staging or prod.
+
+        // Update approved versions
+        let vfs_master_key = req.root_seed.derive_vfs_master_key();
+        helpers::update_approved_versions(
+            &mut state.rng,
+            &state.backend_api,
+            &authenticator,
+            &vfs_master_key,
+            &user_pk,
+            state.measurement,
+        )
+        .await?;
+
+        let oauth = state.args.oauth.as_ref().ok_or_else(|| {
+            NodeApiError::provision("OAuthConfig required in staging/prod")
+        })?;
+
+        // Handle GDrive credentials.
+        let credentials = match req.google_auth_code.as_deref() {
+            // If we were given an auth_code, complete the OAuth2 flow and
+            // persist the freshly minted gDrive credentials.
+            Some(code) =>
+                helpers::exchange_code_and_persist_credentials(
+                    &mut state.rng,
+                    &state.backend_api,
+                    &state.gdrive_client,
+                    oauth,
+                    code,
+                    &authenticator,
+                    &vfs_master_key,
+                )
+                .await?,
+            None => {
+                // No auth code. Try to read GDrive credentials from Lexe's DB.
+                let maybe_credentials =
+                    helpers::maybe_read_and_validate_credentials(
+                        &state,
+                        oauth,
+                        &authenticator,
+                        &vfs_master_key,
+                    )
+                    .await?;
+
+                match maybe_credentials {
+                    Some(creds) => creds,
+                    // No GDrive credentials were found in Lexe's DB;
+                    // GDrive is not enabled for this user. Nothing left to do.
+                    None => return Ok(LxJson(Empty {})),
+                }
+            }
+        };
+
+        // If the client provided a pw-encrypted seed to backup, but we are not
+        // allowed to access GVFS, this is a usage error.
+        if !req.allow_gvfs_access && req.encrypted_seed.is_some() {
+            return Err(NodeApiError::provision(
+                "A root seed backup was provided, but it cannot be \
+                 persisted because `allow_gvfs_access=false`",
+            ));
+        }
+
+        // If we're not allowed to access GVFS, there is nothing more to do.
+        if !req.allow_gvfs_access {
+            return Ok(LxJson(Empty {}));
+        }
+
+        // Init the GVFS structure if it's not already initialized.
+        helpers::setup_gvfs_and_persist_seed(
+            &mut state,
+            req,
+            &authenticator,
+            credentials,
+            &vfs_master_key,
+            &user_pk,
+        )
+        .await?;
+
         Ok(LxJson(Empty {}))
     }
 }
 
 mod helpers {
-    use common::{aes::AesMasterKey, api::user::UserPk};
+    use common::{aes::AesMasterKey, api::user::UserPk, enclave::Measurement};
     use gdrive::{gvfs::GvfsRootName, oauth2::GDriveCredentials};
     use lexe_api::error::{BackendApiError, BackendErrorKind};
     use tracing::warn;
@@ -330,98 +372,169 @@ mod helpers {
     use super::*;
     use crate::approved_versions::ApprovedVersions;
 
-    /// If we're given a gDrive auth_code (e.g., the user is signing up for the
-    /// first time), then we'll complete the OAuth2 flow to get an access_token
-    /// and refresh_token. We'll want to persist these credentials to Lexe infra
-    /// (encrypted ofc) so this node can get access_token's again in the future.
-    ///
-    /// Otherwise, we'll just sanity check the already persisted credentials.
-    pub(super) async fn provision_gdrive_credentials(
-        state: &mut AppRouterState,
-        google_auth_code: Option<&str>,
+    /// Update [`ApprovedVersions`]:
+    /// - Fetch the approved versions list from Lexe's DB (or create a new one)
+    /// - Approve the current version
+    /// - Revoke old/yanked versions based on a rolling window
+    /// - Re-persist if updated
+    /// - Delete sealed seeds for revoked versions.
+    pub(super) async fn update_approved_versions(
+        rng: &mut impl Crng,
+        backend_api: &NodeBackendClient,
+        authenticator: &BearerAuthenticator,
+        vfs_master_key: &AesMasterKey,
+        user_pk: &UserPk,
+        measurement: Measurement,
+    ) -> Result<(), NodeApiError> {
+        // Fetch the approved versions list or create an empty one.
+        let mut approved_versions = persister::read_approved_versions(
+            backend_api,
+            authenticator,
+            vfs_master_key,
+        )
+        .await
+        .context("Couldn't read approved versions")
+        .map_err(NodeApiError::provision)?
+        .unwrap_or_else(ApprovedVersions::new);
+
+        // Approve the current version, revoke old/yanked versions, etc.
+        let (updated, revoked) = approved_versions
+            .approve_and_revoke(user_pk, measurement)
+            .context("Error updating approved versions")
+            .map_err(NodeApiError::provision)?;
+
+        // If the list was updated, we need to (re)persist it.
+        if updated {
+            persister::persist_approved_versions(
+                rng,
+                backend_api,
+                authenticator,
+                vfs_master_key,
+                &approved_versions,
+            )
+            .await
+            .context("Persist approved versions failed")
+            .map_err(NodeApiError::provision)?;
+        }
+
+        // If any versions were revoked, delete their sealed seeds.
+        // Ok to delete serially bc usually there's only 1
+        for (revoked_version, revoked_measurement) in revoked {
+            let token = authenticator
+                .get_token(backend_api, SystemTime::now())
+                .await
+                .map_err(NodeApiError::bad_auth)?;
+            let try_delete = backend_api
+                .delete_sealed_seeds(revoked_measurement, token.clone())
+                .await;
+
+            match try_delete {
+                Ok(_) => info!(
+                    %user_pk, %revoked_version, %revoked_measurement,
+                    "Deleted revoked sealed seed"
+                ),
+                Err(BackendApiError {
+                    kind: BackendErrorKind::NotFound,
+                    msg,
+                    ..
+                }) => warn!(
+                    %user_pk, %revoked_version, %revoked_measurement,
+                    "Failed to delete revoked sealed seeds: \
+                     revoked measurement wasn't found in DB: {msg}"
+                ),
+                Err(e) =>
+                    return Err(NodeApiError::provision(format!(
+                        "Error deleting revoked sealed seeds: {e:#}"
+                    ))),
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Completes the OAuth2 flow by exchanging the `auth_code` for an
+    /// `access_token` and `refresh_token`, then persists the
+    /// [`GDriveCredentials`] (which are encrypted) to Lexe's DB.
+    pub(super) async fn exchange_code_and_persist_credentials(
+        rng: &mut impl Crng,
+        backend_api: &NodeBackendClient,
+        gdrive_client: &gdrive::ReqwestClient,
+        oauth: &OAuthConfig,
+        google_auth_code: &str,
         authenticator: &BearerAuthenticator,
         vfs_master_key: &AesMasterKey,
     ) -> Result<GDriveCredentials, NodeApiError> {
-        let oauth = state
-            .args
-            .oauth
-            .clone()
-            .context("Missing OAuthConfig from Lexe operators")
+        let code_verifier = None;
+        let credentials = gdrive::oauth2::auth_code_for_token(
+            gdrive_client,
+            &oauth.client_id,
+            Some(&oauth.client_secret),
+            &oauth.redirect_uri,
+            google_auth_code,
+            code_verifier,
+        )
+        .await
+        .context("Couldn't get tokens using code")
+        .map_err(NodeApiError::provision)?;
+
+        let credentials_file = persister::encrypt_gdrive_credentials(
+            rng,
+            vfs_master_key,
+            &credentials,
+        );
+
+        persister::persist_file(backend_api, authenticator, &credentials_file)
+            .await
+            .context("Could not persist new GDrive credentials")
             .map_err(NodeApiError::provision)?;
-        let credentials = match google_auth_code {
-            Some(code) => {
-                // We were given an auth code. Exchange for credentials and
-                // persist.
 
-                // Use the auth code to get a GDriveCredentials.
-                let code_verifier = None;
-                let credentials = gdrive::oauth2::auth_code_for_token(
-                    &state.client,
-                    &oauth.client_id,
-                    Some(&oauth.client_secret),
-                    &oauth.redirect_uri,
-                    code,
-                    code_verifier,
-                )
-                .await
-                .context("Couldn't get tokens using code")
-                .map_err(NodeApiError::provision)?;
-
-                // Encrypt the GDriveCredentials and upsert into Lexe's DB.
-                let credentials_file = persister::encrypt_gdrive_credentials(
-                    &mut state.rng,
-                    vfs_master_key,
-                    &credentials,
-                );
-                persister::persist_file(
-                    state.backend_api.as_ref(),
-                    authenticator,
-                    &credentials_file,
-                )
-                .await
-                .context("Could not persist new GDrive credentials")
-                .map_err(NodeApiError::provision)?;
-
-                credentials
-            }
-            None => {
-                // No auth code was provided. Ensure that credentials already
-                // exist.
-                let credentials = persister::read_gdrive_credentials(
-                    state.backend_api.as_ref(),
-                    authenticator,
-                    vfs_master_key,
-                )
-                .await
-                .context("GDriveCredentials invalid or missing")
-                .map_err(NodeApiError::provision)?;
-
-                // Sanity check the returned credentials
-                if oauth.client_id != credentials.client_id {
-                    return Err(NodeApiError::provision(
-                        "`client_id`s didn't match!",
-                    ));
-                }
-                if Some(oauth.client_secret) != credentials.client_secret {
-                    return Err(NodeApiError::provision(
-                        "`client_secret`s didn't match!",
-                    ));
-                }
-
-                credentials
-            }
-        };
         Ok(credentials)
+    }
+
+    /// Reads the GDrive credentials from Lexe's DB and sanity checks them.
+    pub(super) async fn maybe_read_and_validate_credentials(
+        state: &AppRouterState,
+        oauth: &OAuthConfig,
+        authenticator: &BearerAuthenticator,
+        vfs_master_key: &AesMasterKey,
+    ) -> Result<Option<GDriveCredentials>, NodeApiError> {
+        // See if credentials already exist.
+        let maybe_credentials = persister::read_gdrive_credentials(
+            state.backend_api.as_ref(),
+            authenticator,
+            vfs_master_key,
+        )
+        .await
+        .context("Couldn't read GDrive credentials")
+        .map_err(NodeApiError::provision)?;
+
+        let credentials = match maybe_credentials {
+            Some(creds) => creds,
+            None => return Ok(None),
+        };
+
+        // Sanity check the returned credentials
+        if credentials.client_id != oauth.client_id {
+            return Err(NodeApiError::provision("`client_id`s didn't match!"));
+        }
+        if credentials.client_secret.as_deref()
+            != Some(oauth.client_secret.as_ref())
+        {
+            return Err(NodeApiError::provision(
+                "`client_secret`s didn't match!",
+            ));
+        }
+
+        Ok(Some(credentials))
     }
 
     /// Set up the "Google VFS" in the user's GDrive.
     ///
     /// - Creates the GVFS file folder structure (if it didn't exist)
-    /// - Backup up the encrypted root seed (if it didn't exist)
-    /// - Updates the approved versions list for rollback protection
-    pub(super) async fn provision_gvfs(
+    /// - Persist the encrypted root seed to GDrive (if provided).
+    pub(super) async fn setup_gvfs_and_persist_seed(
         state: &mut AppRouterState,
-        req: &NodeProvisionRequest,
+        req: NodeProvisionRequest,
         authenticator: &BearerAuthenticator,
         credentials: GDriveCredentials,
         vfs_master_key: &AesMasterKey,
@@ -478,88 +591,26 @@ mod helpers {
                 persister::password_encrypted_root_seed_exists(&google_vfs)
                     .await;
 
-            // If no backup exists in GDrive, we should create one, or error if
-            // no pw-encrypted root seed was provided.
-            if !backup_exists {
-                let encrypted_seed = req
-                    .encrypted_seed
-                    .clone()
-                    .context(
-                        "Missing pw-encrypted root seed backup in GDrive; \
-                        please provide one in another provision request",
+            match req.encrypted_seed {
+                Some(enc_seed) => {
+                    // If we were given a seed, persist it unconditionally, as
+                    // the user may have rotated their encryption password.
+                    persister::upsert_password_encrypted_root_seed(
+                        &google_vfs,
+                        enc_seed,
                     )
-                    .map_err(NodeApiError::provision)?;
-
-                persister::persist_password_encrypted_root_seed(
-                    &google_vfs,
-                    encrypted_seed,
-                )
-                .await
-                .context("Failed to persist encrypted root seed")
-                .map_err(NodeApiError::provision)?;
-            }
-
-            // Fetch the approved versions list or create an empty one.
-            let mut approved_versions =
-                persister::read_approved_versions(&google_vfs, vfs_master_key)
                     .await
-                    .context("Couldn't read approved versions")
-                    .map_err(NodeApiError::provision)?
-                    .unwrap_or_else(ApprovedVersions::new);
-
-            // Approve the current version, revoke old/yanked versions, etc.
-            let (updated, revoked) = approved_versions
-                .approve_and_revoke(user_pk, state.measurement)
-                .context("Error updating approved versions")
-                .map_err(NodeApiError::provision)?;
-
-            // If the list was updated, we need to (re)persist it.
-            if updated {
-                persister::persist_approved_versions(
-                    &mut state.rng,
-                    &google_vfs,
-                    vfs_master_key,
-                    &approved_versions,
-                )
-                .await
-                .context("Persist approved versions failed")
-                .map_err(NodeApiError::provision)?;
-            }
-
-            // If any versions were revoked, delete their sealed seeds.
-            if !revoked.is_empty() {
-                // Ok to delete serially bc usually there's only 1
-                for (revoked_version, revoked_measurement) in revoked {
-                    let token = authenticator
-                        .get_token(
-                            state.backend_api.as_ref(),
-                            SystemTime::now(),
-                        )
-                        .await
-                        .map_err(NodeApiError::bad_auth)?;
-                    let try_delete = state
-                        .backend_api
-                        .delete_sealed_seeds(revoked_measurement, token.clone())
-                        .await;
-
-                    match try_delete {
-                        Ok(_) => info!(
-                            %user_pk, %revoked_version, %revoked_measurement,
-                            "Deleted revoked sealed seed"
-                        ),
-                        Err(BackendApiError {
-                            kind: BackendErrorKind::NotFound,
-                            msg,
-                            ..
-                        }) => warn!(
-                            %user_pk, %revoked_version, %revoked_measurement,
-                            "Failed to delete revoked sealed seeds: \
-                             revoked measurement wasn't found in DB: {msg}"
-                        ),
-                        Err(e) =>
-                            return Err(NodeApiError::provision(format!(
-                                "Error deleting revoked sealed seeds: {e:#}"
-                            ))),
+                    .context("Failed to persist encrypted root seed")
+                    .map_err(NodeApiError::provision)?;
+                }
+                None => {
+                    // GDrive is enabled and the user doesn't have a seed
+                    // backup, and didn't provide one. For safety, require it.
+                    if !backup_exists {
+                        return Err(NodeApiError::provision(
+                            "Missing pw-encrypted root seed backup in GDrive; \
+                             please provide one in another provision request",
+                        ));
                     }
                 }
             }

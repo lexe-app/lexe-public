@@ -281,7 +281,8 @@ impl UserNode {
                 use_sgx: cfg!(target_env = "sgx"),
                 user_pk,
             };
-            let (google_vfs, credentials_persister_task) = init_google_vfs(
+
+            let maybe_gvfs_and_task = maybe_init_google_vfs(
                 backend_api.clone(),
                 authenticator.clone(),
                 vfs_master_key.clone(),
@@ -289,9 +290,15 @@ impl UserNode {
                 shutdown.clone(),
             )
             .await
-            .context("init_google_vfs failed")?;
-            static_tasks.push(credentials_persister_task);
-            Some(Arc::new(google_vfs))
+            .context("maybe_init_google_vfs failed")?;
+
+            match maybe_gvfs_and_task {
+                Some((google_vfs, credentials_persister_task)) => {
+                    static_tasks.push(credentials_persister_task);
+                    Some(Arc::new(google_vfs))
+                }
+                None => None,
+            }
         } else {
             None
         };
@@ -299,7 +306,7 @@ impl UserNode {
         // Initialize Persister
         let persister = Arc::new(NodePersister::new(
             backend_api.clone(),
-            authenticator,
+            authenticator.clone(),
             vfs_master_key.clone(),
             maybe_google_vfs.clone(),
             channel_monitor_persister_tx,
@@ -308,14 +315,12 @@ impl UserNode {
             shutdown.clone(),
         ));
 
-        // A closure to read the approved versions list if we have a gvfs.
-        let read_maybe_approved_versions = async {
-            let google_vfs = match maybe_google_vfs {
-                None => return Ok(None),
-                Some(ref gvfs) => gvfs,
-            };
-            persister::read_approved_versions(google_vfs, &vfs_master_key).await
-        };
+        // A future which reads the approved versions list
+        let read_maybe_approved_versions = persister::read_approved_versions(
+            &backend_api,
+            &authenticator,
+            &vfs_master_key,
+        );
 
         // Read as much as possible concurrently to reduce init time
         #[rustfmt::skip] // Does not respect 80 char line width
@@ -335,16 +340,15 @@ impl UserNode {
             persister.read_json::<RevocableClients>(&REVOCABLE_CLIENTS_FILE_ID),
         );
         if deploy_env.is_staging_or_prod() {
-            let maybe_approved_versions = try_maybe_approved_versions
-                .context("Couldn't read approved versions")?;
             // Erroring here prevents an attacker with access to a target user's
             // gdrive from deleting the user's approved versions list in an
             // attempt to roll back the user to an older vulnerable version.
-            let approved_versions = maybe_approved_versions.context(
-                "No approved versions list found; \
-                 for safety we'll assume that *nothing* has been approved; \
-                 shutting down.",
-            )?;
+            let approved_versions = try_maybe_approved_versions
+                .context("Couldn't read approved versions")?
+                .context(
+                    "No approved versions list found; we'll assume that \
+                     *nothing* has been approved; shutting down.",
+                )?;
             let current_version = semver::Version::parse(SEMVER_VERSION)
                 .expect("Checked in approved_versions tests");
             let approved_measurement =
@@ -1143,13 +1147,14 @@ async fn fetch_provisioned_secrets(
 
 /// Helper to efficiently initialize a [`GoogleVfs`] and handle related work.
 /// Also spawns a task which persists updated GDrive credentials.
-async fn init_google_vfs(
+/// Returns None if GDrive credentials are not available.
+async fn maybe_init_google_vfs(
     backend_api: Arc<NodeBackendClient>,
     authenticator: Arc<BearerAuthenticator>,
     vfs_master_key: Arc<AesMasterKey>,
     gvfs_root_name: GvfsRootName,
     mut shutdown: NotifyOnce,
-) -> anyhow::Result<(GoogleVfs, LxTask<()>)> {
+) -> anyhow::Result<Option<(GoogleVfs, LxTask<()>)>> {
     // Fetch the encrypted GDriveCredentials and persisted GVFS root.
     let (try_gdrive_credentials, try_persisted_gvfs_root) = tokio::join!(
         persister::read_gdrive_credentials(
@@ -1163,10 +1168,18 @@ async fn init_google_vfs(
             &vfs_master_key
         ),
     );
-    let gdrive_credentials =
+    let maybe_gdrive_credentials =
         try_gdrive_credentials.context("Could not read GDrive credentials")?;
     let persisted_gvfs_root =
         try_persisted_gvfs_root.context("Could not read gvfs root")?;
+
+    let gdrive_credentials = match maybe_gdrive_credentials {
+        Some(creds) => creds,
+        None => {
+            info!("No GDrive credentials found; running without GoogleVfs");
+            return Ok(None);
+        }
+    };
 
     let (google_vfs, maybe_new_gvfs_root, mut credentials_rx) =
         GoogleVfs::init(
@@ -1229,7 +1242,7 @@ async fn init_google_vfs(
         })
     };
 
-    Ok((google_vfs, credentials_persister_task))
+    Ok(Some((google_vfs, credentials_persister_task)))
 }
 
 /// Spawns the task which reconnects to Lexe's LSP, notifying our p2p

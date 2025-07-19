@@ -162,7 +162,7 @@ pub(crate) async fn read_gdrive_credentials(
     backend_api: &NodeBackendClient,
     authenticator: &BearerAuthenticator,
     vfs_master_key: &AesMasterKey,
-) -> anyhow::Result<GDriveCredentials> {
+) -> anyhow::Result<Option<GDriveCredentials>> {
     let file_id =
         VfsFileId::new(SINGLETON_DIRECTORY, GDRIVE_CREDENTIALS_FILENAME);
     let token = authenticator
@@ -170,20 +170,21 @@ pub(crate) async fn read_gdrive_credentials(
         .await
         .context("Could not get auth token")?;
 
-    let file = backend_api
+    let maybe_file = backend_api
         .get_file(&file_id, token)
         .await
         .context("Failed to fetch file")?
-        .maybe_file
-        .context(
-            "No GDriveCredentials VFS file returned from DB; \
-             perhaps it was never provisioned?",
-        )?;
+        .maybe_file;
 
-    let gdrive_credentials =
-        persister::decrypt_json_file(vfs_master_key, &file_id, file)?;
-
-    Ok(gdrive_credentials)
+    match maybe_file {
+        Some(file) => {
+            let credentials =
+                persister::decrypt_json_file(vfs_master_key, &file_id, file)
+                    .context("Failed to decrypt GDrive credentials file")?;
+            Ok(Some(credentials))
+        }
+        None => Ok(None),
+    }
 }
 
 pub(crate) async fn persist_gvfs_root(
@@ -250,12 +251,9 @@ pub(crate) async fn password_encrypted_root_seed_exists(
 }
 
 /// Persists the given password-encrypted [`RootSeed`] to GDrive.
-/// Uses CREATE semantics (i.e. errors if the file already exists) because it
-/// seems dangerous to overwrite a (possibly different) [`RootSeed`] which could
-/// be storing funds.
 ///
 /// [`RootSeed`]: common::root_seed::RootSeed
-pub(crate) async fn persist_password_encrypted_root_seed(
+pub(crate) async fn upsert_password_encrypted_root_seed(
     google_vfs: &GoogleVfs,
     encrypted_seed: Vec<u8>,
 ) -> anyhow::Result<()> {
@@ -264,41 +262,46 @@ pub(crate) async fn persist_password_encrypted_root_seed(
         vfs::PW_ENC_ROOT_SEED_FILENAME,
         encrypted_seed,
     );
+    // Upsert, not create, as the user may have rotated their password
     google_vfs
-        .create_file(file)
+        .upsert_file(file)
         .await
         .context("Failed to create root seed file")?;
     Ok(())
 }
 
-/// Read the [`ApprovedVersions`] list from Google Drive, if it exists.
+/// Read the [`ApprovedVersions`] list from backend storage, if it exists.
+// XXX(max): For real protection, this *must* read from 3rd party VSS rather
+// than the Lexe DB.
 pub(crate) async fn read_approved_versions(
-    google_vfs: &GoogleVfs,
+    backend_api: &NodeBackendClient,
+    authenticator: &BearerAuthenticator,
     vfs_master_key: &AesMasterKey,
 ) -> anyhow::Result<Option<ApprovedVersions>> {
     let file_id = VfsFileId::new(SINGLETON_DIRECTORY, "approved_versions");
-    let maybe_file = google_vfs
-        .get_file(&file_id)
+    let token = authenticator
+        .get_token(backend_api, SystemTime::now())
         .await
-        .context("Could not fetch approved versions file")?;
+        .context("Could not get auth token")?;
 
-    let approved_versions = match maybe_file {
-        Some(file) => persister::decrypt_json_file::<ApprovedVersions>(
-            vfs_master_key,
-            &file_id,
-            file,
-        )
-        .context("Failed to decrypt approved versions file")?,
-        None => return Ok(None),
-    };
-
-    Ok(Some(approved_versions))
+    backend_api
+        .get_file(&file_id, token)
+        .await
+        .context("Failed to fetch file")?
+        .maybe_file
+        .map(|file| {
+            persister::decrypt_json_file(vfs_master_key, &file_id, file)
+        })
+        .transpose()
 }
 
-/// Persists the given [`ApprovedVersions`] to GDrive.
+/// Persists the given [`ApprovedVersions`] to backend storage.
+// XXX(max): For real protection, this *must* persist to 3rd party VSS rather
+// than the Lexe DB.
 pub(crate) async fn persist_approved_versions(
     rng: &mut impl Crng,
-    google_vfs: &GoogleVfs,
+    backend_api: &NodeBackendClient,
+    authenticator: &BearerAuthenticator,
     vfs_master_key: &AesMasterKey,
     approved_versions: &ApprovedVersions,
 ) -> anyhow::Result<()> {
@@ -315,8 +318,13 @@ pub(crate) async fn persist_approved_versions(
         approved_versions,
     );
 
-    google_vfs
-        .upsert_file(file)
+    let token = authenticator
+        .get_token(backend_api, SystemTime::now())
+        .await
+        .context("Could not get auth token")?;
+
+    backend_api
+        .upsert_file(&file, token)
         .await
         .context("Failed to upsert approved versions file")?;
 

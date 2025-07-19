@@ -26,8 +26,8 @@ pub struct NodeProvisionRequest {
     /// - Applicable only in staging/prod.
     /// - If provided, the provisioning node will acquire the full set of
     ///   GDrive credentials and persist them (encrypted ofc) in Lexe's DB.
-    /// - If NOT provided, the provisioning node will ensure that a set of
-    ///   GDrive credentials has already been persisted in Lexe's DB.
+    /// - If NOT provided, the provisioning node will attempt to use a set of
+    ///   GDrive credentials which have already been persisted to Lexe's DB.
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
     pub google_auth_code: Option<String>,
     /// Whether this provision instance is allowed to access the user's
@@ -52,14 +52,15 @@ pub struct NodeProvisionRequest {
     ///
     /// See `GoogleVfs::gid_cache` for more info on GVFS consistency.
     pub allow_gvfs_access: bool,
-    /// The password-encrypted [`RootSeed`] which should be backed up in
+    /// The password-encrypted [`RootSeed`] which can be backed up in
     /// GDrive.
-    /// - Applicable only in staging/prod.
+    /// - Applicable only in staging/prod, and if GDrive is enabled.
     /// - Requires `allow_gvfs_access=true` if `Some`; errors otherwise.
-    /// - If `Some`, the provision instance will back up this encrypted
-    ///   [`RootSeed`] in Google Drive. If a backup already exists, it is not
-    ///   overwritten.
-    /// - If `None`, then this will error if we are missing the backup.
+    /// - If `Some`, and GDrive is enabled, the provision instance will back up
+    ///   this encrypted [`RootSeed`] in Google Drive. If a backup already
+    ///   exists, it is overwritten.
+    /// - If `None`, and GDrive is enabled, and we are missing a backup,
+    ///   provision will error.
     /// - The mobile app should set this to `Some` at least on the very first
     ///   provision. The mobile app can also pass `None` to avoid unnecessary
     ///   work when it is known that the user already has a root seed backup.

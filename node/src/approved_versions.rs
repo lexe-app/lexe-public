@@ -2,7 +2,7 @@
 //! implement a revocation system which prevents Lexe from running old versions
 //! which are no longer approved by the user, or which may be vulnerable.
 //! This node version approval and revocation system relies on the rollback
-//! protection provided by the user's 3rd party cloud.
+//! protection provided by a 3rd data store.
 
 use std::collections::{btree_map::Entry, BTreeMap};
 
@@ -23,7 +23,7 @@ use crate::SEMVER_VERSION;
 /// - *Approval*: When a node version is provisioned, its semver version and
 ///   measurement are added to the [`approved`] list, if it didn't exist. If the
 ///   [`ApprovedVersions`] was updated, it is E2E-encrypted and (re)persisted to
-///   the user's 3rd party cloud.
+///   the user's 3rd party data store.
 /// - *Rolling revocations*: If adding the provisioned node version results in
 ///   the [`approved`] list having greater than [`MAX_SIZE`] entries, the
 ///   version(s) which are no longer in the [`MAX_SIZE`] newest versions
@@ -31,9 +31,9 @@ use crate::SEMVER_VERSION;
 ///   Lexe knows not to schedule this version, the corresponding sealed seed is
 ///   also deleted from Lexe's DB (although the user has no way to verify this).
 /// - *Enforcement*: At user node runtime, the [`ApprovedVersions`] is fetched
-///   from the 3rd party cloud. If the current version and measurement is not
-///   contained in the [`approved`] list, or if the list is not found at all,
-///   the user node shuts itself down.
+///   from the 3rd party data store. If the current version and measurement is
+///   not contained in the [`approved`] list, or if the list is not found at
+///   all, the user node shuts itself down.
 /// - *Yanking*: If there is a vulnerability or critical error discovered in
 ///   some release, it is added to [`YANKED_NODE_VERSIONS`] and
 ///   [`YANKED_NODE_MEASUREMENTS`]. The next user node release will contain the
@@ -84,10 +84,7 @@ impl ApprovedVersions {
         if self.approved.len() > Self::MAX_SIZE {
             let approved_len = self.approved.len();
             // This will be corrected later
-            warn!(
-                "Approval list somehow had {approved_len} entries. \
-                Did the user modify the data in their cloud?"
-            );
+            warn!("Approval list somehow had {approved_len} entries.");
         }
 
         // Try adding the current version to the approved list
