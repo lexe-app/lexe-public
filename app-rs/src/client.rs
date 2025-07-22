@@ -804,15 +804,36 @@ impl ClientCredentials {
         }
     }
 
+    /// Encodes a [`ClientCredentials`] to a base64 blob using
+    /// [`base64::engine::general_purpose::STANDARD_NO_PAD`].
+    // We use `STANDARD_NO_PAD` because trailing `=`s cause problems with
+    // autocomplete on iPhone. For example, if the base64 string ends with:
+    //
+    // - `NzB2mIn0=`
+    // - `NzBm2In0=`
+    //
+    // the iPhone autocompletes it to the following respectively when pasted
+    // into iMessage, even if you 'tap away' to reject the suggestion:
+    //
+    // - `NzB2mIn0=120 secs`
+    // - `NzBm2In0=0 in`
     pub fn to_base64_blob(&self) -> String {
         let json_str =
             serde_json::to_string(self).expect("Failed to JSON serialize");
-        base64::engine::general_purpose::STANDARD.encode(json_str.as_bytes())
+        base64::engine::general_purpose::STANDARD_NO_PAD
+            .encode(json_str.as_bytes())
     }
 
+    /// Decodes a [`ClientCredentials`] from a base64 blob encoded with either
+    /// [`base64::engine::general_purpose::STANDARD`] or
+    /// [`base64::engine::general_purpose::STANDARD_NO_PAD`].
+    // NOTE: This function accepts `STANDARD` encodings because historical
+    // client credentials were encoded with the `STANDARD` engine until we
+    // discovered that iPhones interpret the trailing `=` as part of a unit
+    // conversion, resulting in unintended autocompletions.
     pub fn try_from_base64_blob(s: &str) -> anyhow::Result<Self> {
-        let s = s.trim();
-        let bytes = base64::engine::general_purpose::STANDARD
+        let s = s.trim().trim_end_matches('=');
+        let bytes = base64::engine::general_purpose::STANDARD_NO_PAD
             .decode(s)
             .context("String is not valid base64")?;
         let string =
@@ -832,11 +853,64 @@ impl FromStr for ClientCredentials {
 #[cfg(test)]
 mod test {
     use common::{byte_str::ByteStr, rng::FastRng};
+    use proptest::{prelude::any, prop_assert_eq, proptest};
     use shared_seed::certs::{
         EphemeralIssuingCaCert, RevocableClientCert, RevocableIssuingCaCert,
     };
 
     use super::*;
+
+    /// Tests [`ClientCredentials`] roundtrip to/from base64.
+    ///
+    /// We also test compatibility: client credentials encoded with the old
+    /// STANDARD engine can be decoded with the new try_from_base64_blob method
+    /// which should accept both STANDARD and STANDARD_NO_PAD.
+    #[test]
+    fn prop_client_credentials_base64_roundtrip() {
+        proptest!(|(creds1 in any::<ClientCredentials>())| {
+            // Encode using `to_base64_blob` (STANDARD_NO_PAD).
+            // Decode using `try_from_base64_blob`.
+            {
+                let new_base64_blob = creds1.to_base64_blob();
+
+                let creds2 =
+                    ClientCredentials::try_from_base64_blob(&new_base64_blob)
+                        .expect("Failed to decode from new format");
+
+                prop_assert_eq!(&creds1, &creds2);
+            }
+
+            // Compatibility test:
+            // Encode using the engine used by old clients (STANDARD).
+            // Decode using `try_from_base64_blob`.
+            {
+                let json_str = serde_json::to_string(&creds1)
+                    .expect("Failed to JSON serialize");
+                let old_base64_blob = base64::engine::general_purpose::STANDARD
+                    .encode(json_str.as_bytes());
+                let creds2 =
+                    ClientCredentials::try_from_base64_blob(&old_base64_blob)
+                        .expect("Failed to decode from old format");
+
+                prop_assert_eq!(&creds1, &creds2);
+            }
+        })
+    }
+
+    /// Tests that the `STANDARD_NO_PAD` engine can decode any base64 string
+    /// encoded with the `STANDARD` engine after removing trailing `=`s.
+    #[test]
+    fn prop_base64_pad_to_no_pad_compat() {
+        proptest!(|(bytes1 in any::<Vec<u8>>())| {
+            let string =
+                base64::engine::general_purpose::STANDARD.encode(&bytes1);
+            let trimmed = string.trim_end_matches('=');
+            let bytes2 = base64::engine::general_purpose::STANDARD_NO_PAD
+                .decode(trimmed)
+                .expect("Failed to decode base64");
+            prop_assert_eq!(bytes1, bytes2);
+        })
+    }
 
     #[test]
     fn test_url_base_eq() {
@@ -949,7 +1023,7 @@ mod test {
 
         let client_auth_str = client_auth.to_base64_blob();
         // json: ~2.2 KiB, base64(json): ~2.9 KiB
-        let expected_str = "eyJsZXhlX2F1dGhfdG9rZW4iOiI5ZFRDVXZDOHk3cWNOeVVicXluejNud0lRUUhiUXFQVktlTWhYVWoxQWZyLXZnajlFMjE3XzJ0Q1MxSVFNN0xGcWZCVUM4RWM5ZmNiLWRRaUNSeTZvdDJGTi1rUjYwZWRSRkpVenRBYTJSeGFvMVEwQlMxczZ2RThncmdmaE1ZSUFKRExNV2dBQUFBQVNFNHphQUFBQUFCcGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhUUUiLCJjbGllbnRfcGsiOiI3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiIiwicmV2X2NsaWVudF9rZXlfZGVyIjoiMzA1MzAyMDEwMTMwMDUwNjAzMmI2NTcwMDQyMjA0MjAwZjU4MGQzNDYxYzRlYTBiMzZiODM2ZDQ1MWMxYzE5OWVlM2UwNjQ2YWQwZDY0MjM1Mzc5NzM5ZDY4Njk5Mjg5YTEyMzAzMjEwMDcwODhhZjFmYzEyYWIwNGFkNmRkMTY1YmMzYTNjNWViMzA2MmI0MTFhMmY1NWExNjZiMGU0MDBiMzkwZmU0ZGIiLCJyZXZfY2xpZW50X2NlcnRfZGVyIjoiMzA4MjAxODMzMDgyMDEzNWEwMDMwMjAxMDIwMjE0NDBiZWRjNTZkMDNkNmI1MmYyODQyZDY0ZGY5MGQwMmQ2ZGEzNmE1YjMwMDUwNjAzMmI2NTcwMzA1NjMxMGIzMDA5MDYwMzU1MDQwNjBjMDI1NTUzMzEwYjMwMDkwNjAzNTUwNDA4MGMwMjQzNDEzMTExMzAwZjA2MDM1NTA0MGEwYzA4NmM2NTc4NjUyZDYxNzA3MDMxMjczMDI1MDYwMzU1MDQwMzBjMWU0YzY1Nzg2NTIwNzI2NTc2NmY2MzYxNjI2YzY1MjA2OTczNzM3NTY5NmU2NzIwNDM0MTIwNjM2NTcyNzQzMDIwMTcwZDM3MzUzMDMxMzAzMTMwMzAzMDMwMzAzMDVhMTgwZjM0MzAzOTM2MzAzMTMwMzEzMDMwMzAzMDMwMzA1YTMwNTIzMTBiMzAwOTA2MDM1NTA0MDYwYzAyNTU1MzMxMGIzMDA5MDYwMzU1MDQwODBjMDI0MzQxMzExMTMwMGYwNjAzNTUwNDBhMGMwODZjNjU3ODY1MmQ2MTcwNzAzMTIzMzAyMTA2MDM1NTA0MDMwYzFhNGM2NTc4NjUyMDcyNjU3NjZmNjM2MTYyNmM2NTIwNjM2YzY5NjU2ZTc0MjA2MzY1NzI3NDMwMmEzMDA1MDYwMzJiNjU3MDAzMjEwMDcwODhhZjFmYzEyYWIwNGFkNmRkMTY1YmMzYTNjNWViMzA2MmI0MTFhMmY1NWExNjZiMGU0MDBiMzkwZmU0ZGJhMzE3MzAxNTMwMTMwNjAzNTUxZDExMDQwYzMwMGE4MjA4NmM2NTc4NjUyZTYxNzA3MDMwMDUwNjAzMmI2NTcwMDM0MTAwN2IxN2JjOTUzODI2N2IzNTRmMDcyNmQ4OWNiMWVjMzEwYjEwMmU0MjJhYjk2OTZiODdkOWFlNzAwY2VmMmU4M2MxMzY2ZDBhZDE5MDM1ZDllM2VkMDRjZjVmN2YwNWRlZjY4YTcxZGUyMTJiODk4MzQ0Nzc5NDJhZTc2M2EyMGYiLCJlcGhfY2FfY2VydF9kZXIiOiIzMDgyMDFhZTMwODIwMTYwYTAwMzAyMDEwMjAyMTQxMGNkNWM5OTg5Zjk2NTIwOTQ5ZTBlOWFiNGNlNGRiZTE0NzY2NzEwMzAwNTA2MDMyYjY1NzAzMDUwMzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyMTMwMWYwNjAzNTUwNDAzMGMxODRjNjU3ODY1MjA3MzY4NjE3MjY1NjQyMDczNjU2NTY0MjA0MzQxMjA2MzY1NzI3NDMwMjAxNzBkMzczNTMwMzEzMDMxMzAzMDMwMzAzMDMwNWExODBmMzQzMDM5MzYzMDMxMzAzMTMwMzAzMDMwMzAzMDVhMzA1MDMxMGIzMDA5MDYwMzU1MDQwNjBjMDI1NTUzMzEwYjMwMDkwNjAzNTUwNDA4MGMwMjQzNDEzMTExMzAwZjA2MDM1NTA0MGEwYzA4NmM2NTc4NjUyZDYxNzA3MDMxMjEzMDFmMDYwMzU1MDQwMzBjMTg0YzY1Nzg2NTIwNzM2ODYxNzI2NTY0MjA3MzY1NjU2NDIwNDM0MTIwNjM2NTcyNzQzMDJhMzAwNTA2MDMyYjY1NzAwMzIxMDBlZmU5Y2UxYWJjYWVhYmNlZjhlYTJmNTRhNTY5NTUwZGNlZDRhOGYzYThjYmIwNGNkOTQ1ZDFiNGUyNDVmNjg3YTM0YTMwNDgzMDEzMDYwMzU1MWQxMTA0MGMzMDBhODIwODZjNjU3ODY1MmU2MTcwNzAzMDFkMDYwMzU1MWQwZTA0MTYwNDE0OTBjZDVjOTk4OWY5NjUyMDk0OWUwZTlhYjRjZTRkYmUxNDc2NjcxMDMwMTIwNjAzNTUxZDEzMDEwMWZmMDQwODMwMDYwMTAxZmYwMjAxMDAzMDA1MDYwMzJiNjU3MDAzNDEwMDM3MjU0MjlmNWJjYTgwNTYyMWMyYjJkYzQ0NTgwMmVkMjFjYWIyNDZiNDVhZDEyMWRkMmE0MzJlZmEyZjkzZWY3MjVlZmExNzgyZTY0MTA4ZDIyOThlODY5NGY0Njg2Y2VkOThjZTkyODBlZDc0OWQwYWQ0YjQ0YTRhMWNlZTBkIn0=";
+        let expected_str = "eyJsZXhlX2F1dGhfdG9rZW4iOiI5ZFRDVXZDOHk3cWNOeVVicXluejNud0lRUUhiUXFQVktlTWhYVWoxQWZyLXZnajlFMjE3XzJ0Q1MxSVFNN0xGcWZCVUM4RWM5ZmNiLWRRaUNSeTZvdDJGTi1rUjYwZWRSRkpVenRBYTJSeGFvMVEwQlMxczZ2RThncmdmaE1ZSUFKRExNV2dBQUFBQVNFNHphQUFBQUFCcGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhUUUiLCJjbGllbnRfcGsiOiI3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiIiwicmV2X2NsaWVudF9rZXlfZGVyIjoiMzA1MzAyMDEwMTMwMDUwNjAzMmI2NTcwMDQyMjA0MjAwZjU4MGQzNDYxYzRlYTBiMzZiODM2ZDQ1MWMxYzE5OWVlM2UwNjQ2YWQwZDY0MjM1Mzc5NzM5ZDY4Njk5Mjg5YTEyMzAzMjEwMDcwODhhZjFmYzEyYWIwNGFkNmRkMTY1YmMzYTNjNWViMzA2MmI0MTFhMmY1NWExNjZiMGU0MDBiMzkwZmU0ZGIiLCJyZXZfY2xpZW50X2NlcnRfZGVyIjoiMzA4MjAxODMzMDgyMDEzNWEwMDMwMjAxMDIwMjE0NDBiZWRjNTZkMDNkNmI1MmYyODQyZDY0ZGY5MGQwMmQ2ZGEzNmE1YjMwMDUwNjAzMmI2NTcwMzA1NjMxMGIzMDA5MDYwMzU1MDQwNjBjMDI1NTUzMzEwYjMwMDkwNjAzNTUwNDA4MGMwMjQzNDEzMTExMzAwZjA2MDM1NTA0MGEwYzA4NmM2NTc4NjUyZDYxNzA3MDMxMjczMDI1MDYwMzU1MDQwMzBjMWU0YzY1Nzg2NTIwNzI2NTc2NmY2MzYxNjI2YzY1MjA2OTczNzM3NTY5NmU2NzIwNDM0MTIwNjM2NTcyNzQzMDIwMTcwZDM3MzUzMDMxMzAzMTMwMzAzMDMwMzAzMDVhMTgwZjM0MzAzOTM2MzAzMTMwMzEzMDMwMzAzMDMwMzA1YTMwNTIzMTBiMzAwOTA2MDM1NTA0MDYwYzAyNTU1MzMxMGIzMDA5MDYwMzU1MDQwODBjMDI0MzQxMzExMTMwMGYwNjAzNTUwNDBhMGMwODZjNjU3ODY1MmQ2MTcwNzAzMTIzMzAyMTA2MDM1NTA0MDMwYzFhNGM2NTc4NjUyMDcyNjU3NjZmNjM2MTYyNmM2NTIwNjM2YzY5NjU2ZTc0MjA2MzY1NzI3NDMwMmEzMDA1MDYwMzJiNjU3MDAzMjEwMDcwODhhZjFmYzEyYWIwNGFkNmRkMTY1YmMzYTNjNWViMzA2MmI0MTFhMmY1NWExNjZiMGU0MDBiMzkwZmU0ZGJhMzE3MzAxNTMwMTMwNjAzNTUxZDExMDQwYzMwMGE4MjA4NmM2NTc4NjUyZTYxNzA3MDMwMDUwNjAzMmI2NTcwMDM0MTAwN2IxN2JjOTUzODI2N2IzNTRmMDcyNmQ4OWNiMWVjMzEwYjEwMmU0MjJhYjk2OTZiODdkOWFlNzAwY2VmMmU4M2MxMzY2ZDBhZDE5MDM1ZDllM2VkMDRjZjVmN2YwNWRlZjY4YTcxZGUyMTJiODk4MzQ0Nzc5NDJhZTc2M2EyMGYiLCJlcGhfY2FfY2VydF9kZXIiOiIzMDgyMDFhZTMwODIwMTYwYTAwMzAyMDEwMjAyMTQxMGNkNWM5OTg5Zjk2NTIwOTQ5ZTBlOWFiNGNlNGRiZTE0NzY2NzEwMzAwNTA2MDMyYjY1NzAzMDUwMzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyMTMwMWYwNjAzNTUwNDAzMGMxODRjNjU3ODY1MjA3MzY4NjE3MjY1NjQyMDczNjU2NTY0MjA0MzQxMjA2MzY1NzI3NDMwMjAxNzBkMzczNTMwMzEzMDMxMzAzMDMwMzAzMDMwNWExODBmMzQzMDM5MzYzMDMxMzAzMTMwMzAzMDMwMzAzMDVhMzA1MDMxMGIzMDA5MDYwMzU1MDQwNjBjMDI1NTUzMzEwYjMwMDkwNjAzNTUwNDA4MGMwMjQzNDEzMTExMzAwZjA2MDM1NTA0MGEwYzA4NmM2NTc4NjUyZDYxNzA3MDMxMjEzMDFmMDYwMzU1MDQwMzBjMTg0YzY1Nzg2NTIwNzM2ODYxNzI2NTY0MjA3MzY1NjU2NDIwNDM0MTIwNjM2NTcyNzQzMDJhMzAwNTA2MDMyYjY1NzAwMzIxMDBlZmU5Y2UxYWJjYWVhYmNlZjhlYTJmNTRhNTY5NTUwZGNlZDRhOGYzYThjYmIwNGNkOTQ1ZDFiNGUyNDVmNjg3YTM0YTMwNDgzMDEzMDYwMzU1MWQxMTA0MGMzMDBhODIwODZjNjU3ODY1MmU2MTcwNzAzMDFkMDYwMzU1MWQwZTA0MTYwNDE0OTBjZDVjOTk4OWY5NjUyMDk0OWUwZTlhYjRjZTRkYmUxNDc2NjcxMDMwMTIwNjAzNTUxZDEzMDEwMWZmMDQwODMwMDYwMTAxZmYwMjAxMDAzMDA1MDYwMzJiNjU3MDAzNDEwMDM3MjU0MjlmNWJjYTgwNTYyMWMyYjJkYzQ0NTgwMmVkMjFjYWIyNDZiNDVhZDEyMWRkMmE0MzJlZmEyZjkzZWY3MjVlZmExNzgyZTY0MTA4ZDIyOThlODY5NGY0Njg2Y2VkOThjZTkyODBlZDc0OWQwYWQ0YjQ0YTRhMWNlZTBkIn0";
         assert_eq!(client_auth_str, expected_str);
 
         let client_auth2 =
