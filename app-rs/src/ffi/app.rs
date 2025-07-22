@@ -98,7 +98,9 @@ impl AppHandle {
 
     pub async fn signup(
         config: Config,
+        // TODO(max): Should be optional, as GDrive is now optional.
         google_auth_code: String,
+        // TODO(max): Should be optional, as GDrive is now optional.
         password: &str,
         signup_code: Option<String>,
         partner: Option<String>,

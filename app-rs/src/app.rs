@@ -151,24 +151,20 @@ impl App {
             None => true,
         };
         if do_reprovision {
-            // TODO(max): We might want to ask Lexe if our GDriveCredentials are
-            // currently working. If not, we should run the user through the
-            // oauth flow again then pass this as Some().
             let google_auth_code = None;
-            // TODO(max): We should probably check whether the root seed backup
-            // already exists before proceeding to set this as None. Or if we
-            // have access to the password somewhere, we could always set this
-            // to Some(_) to ensure the user always has a root seed backup.
-            let password = None;
-            Self::do_provision(
-                rng,
+            let allow_gvfs_access = true;
+            // To avoid computing 600K HMAC iterations on every node upgrade,
+            // we only pass an encrypted seed during `signup`.
+            let maybe_encrypted_seed = None;
+            Self::provision(
                 &node_client,
                 &latest_release,
                 &user_config,
                 &root_seed,
                 &provision_ffs,
                 google_auth_code,
-                password,
+                allow_gvfs_access,
+                maybe_encrypted_seed,
             )
             .await
             .context("Re-provision failed")?;
@@ -264,16 +260,17 @@ impl App {
         );
 
         // Reprovision credentials to most recent node version
-        let password = None;
-        Self::do_provision(
-            rng,
+        let allow_gvfs_access = true;
+        let maybe_encrypted_seed = None;
+        Self::provision(
             &node_client,
             &latest_release,
             &user_config,
             root_seed,
             &provision_ffs,
             google_auth_code,
-            password,
+            allow_gvfs_access,
+            maybe_encrypted_seed,
         )
         .await
         .context("Re-provision failed")?;
@@ -299,8 +296,9 @@ impl App {
 
     /// Signup a new user.
     ///
-    /// `google_auth_code`: see [`NodeProvisionRequest::google_auth_code`]
-    /// `password`: see [`NodeProvisionRequest::encrypted_seed`]
+    /// - `google_auth_code`: see [`NodeProvisionRequest::google_auth_code`]
+    /// - `password`: if [`Some`], then [`NodeProvisionRequest::encrypted_seed`]
+    ///   will also be set to [`Some`].
     #[instrument(skip_all, name = "(signup)")]
     pub async fn signup(
         rng: &mut impl Crng,
@@ -381,20 +379,26 @@ impl App {
             try_latest_release.context("Could not fetch latest release")?;
 
         // Provision the node for the first time and update latest_provisioned.
+        // NOTE: This computes 600K HMAC iterations! We only do this at signup.
         // TODO(max): Ensure that user has approved this version before
-        // proceeding to re-provision.
-        Self::do_provision(
-            rng,
+        // proceeding to provision.
+        let allow_gvfs_access = true;
+        let maybe_encrypted_seed = password
+            .map(|pass| root_seed.password_encrypt(rng, pass))
+            .transpose()
+            .context("Could not encrypt root seed under password")?;
+        Self::provision(
             &node_client,
             &latest_release,
             &user_config,
             root_seed,
             &provision_ffs,
             google_auth_code,
-            password,
+            allow_gvfs_access,
+            maybe_encrypted_seed,
         )
         .await
-        .context("First provision failed")?;
+        .context("Initial provision failed")?;
 
         // we've successfully signed up and provisioned our node; we can finally
         // "commit" and persist our root seed
@@ -472,16 +476,21 @@ impl App {
         &self.payment_db
     }
 
-    /// Provision to the given release and update the "latest_provisioned" file.
-    async fn do_provision(
-        rng: &mut impl Crng,
+    /// Helper to provision to the given release and update the
+    /// "latest_provisioned" file.
+    ///
+    /// - `allow_gvfs_access`: See [`NodeProvisionRequest::allow_gvfs_access`].
+    /// - `google_auth_code`: See [`NodeProvisionRequest::google_auth_code`].
+    /// - `maybe_encrypted_seed`: See [`NodeProvisionRequest::encrypted_seed`].
+    async fn provision(
         node_client: &NodeClient,
         node_release: &NodeRelease,
         user_config: &AppConfigWithUserPk,
         root_seed: &RootSeed,
         app_data_ffs: &impl Ffs,
         google_auth_code: Option<String>,
-        maybe_password: Option<&str>,
+        allow_gvfs_access: bool,
+        encrypted_seed: Option<Vec<u8>>,
     ) -> anyhow::Result<()> {
         // TODO(phlip9): we could get rid of this extra RootSeed copy on the
         // stack by using something like a `Cow<'a, &RootSeed>` in
@@ -490,17 +499,13 @@ impl App {
         // harder for us to zeroize...
         let root_seed_clone =
             RootSeed::new(Secret::new(*root_seed.expose_secret()));
-        let encrypted_seed = maybe_password
-            .map(|pass| root_seed.password_encrypt(rng, pass))
-            .transpose()
-            .context("Could not encrypt root seed under password")?;
 
         let provision_req = NodeProvisionRequest {
             root_seed: root_seed_clone,
             deploy_env: user_config.config.deploy_env,
             network: user_config.config.network,
             google_auth_code,
-            allow_gvfs_access: true,
+            allow_gvfs_access,
             encrypted_seed,
         };
         node_client
