@@ -58,6 +58,130 @@ pub struct App {
 }
 
 impl App {
+    /// Signup a new user.
+    ///
+    /// - `google_auth_code`: see [`NodeProvisionRequest::google_auth_code`]
+    /// - `password`: if [`Some`], then [`NodeProvisionRequest::encrypted_seed`]
+    ///   will also be set to [`Some`].
+    #[instrument(skip_all, name = "(signup)")]
+    pub async fn signup(
+        rng: &mut impl Crng,
+        config: AppConfig,
+        root_seed: &RootSeed,
+        google_auth_code: Option<String>,
+        password: Option<&str>,
+        signup_code: Option<String>,
+        partner: Option<UserPk>,
+    ) -> anyhow::Result<Self> {
+        // derive user key and node key
+        let user_key_pair = root_seed.derive_user_key_pair();
+        let user_pk = UserPk::from(*user_key_pair.public_key());
+        let node_key_pair = root_seed.derive_node_key_pair(rng);
+        let node_pk = NodePk(node_key_pair.public_key());
+        let user_config = AppConfigWithUserPk::new(config, user_pk);
+
+        // gen + sign the UserSignupRequestWireV1
+        let node_pk_proof = NodePkProof::sign(rng, &node_key_pair);
+        let user_info = AppUserInfoRs {
+            user_pk,
+            node_pk,
+            node_pk_proof: node_pk_proof.clone(),
+        };
+        let signup_req = UserSignupRequestWire::V2(UserSignupRequestWireV2 {
+            v1: UserSignupRequestWireV1 {
+                node_pk_proof,
+                signup_code,
+            },
+            partner,
+        });
+        let (_, signed_signup_req) = user_key_pair
+            .sign_struct(&signup_req)
+            .expect("Should never fail to serialize UserSignupRequestWire");
+
+        // build NodeClient, GatewayClient
+        let gateway_client = GatewayClient::new(
+            user_config.config.deploy_env,
+            user_config.config.gateway_url.clone(),
+            user_config.config.user_agent.clone(),
+        )
+        .context("Failed to build GatewayClient")?;
+        let node_client = NodeClient::new(
+            rng,
+            user_config.config.use_sgx,
+            user_config.config.deploy_env,
+            gateway_client.clone(),
+            Credentials::from_root_seed(root_seed),
+        )
+        .context("Failed to build NodeClient")?;
+
+        // Create new provision DB
+        let provision_ffs =
+            FlatFileFs::create_clean_dir_all(user_config.provision_db_dir())
+                .context("Could not create provision ffs")?;
+
+        // Create new settings DB
+        let settings_ffs =
+            FlatFileFs::create_clean_dir_all(user_config.settings_db_dir())
+                .context("Could not create settings ffs")?;
+        let settings_db = Arc::new(SettingsDb::load(settings_ffs));
+
+        // Create new payments DB
+        let payments_ffs =
+            FlatFileFs::create_clean_dir_all(user_config.payment_db_dir())
+                .context("Could not create payments ffs")?;
+        let payment_db = Mutex::new(PaymentDb::empty(payments_ffs));
+
+        // TODO(phlip9): retries?
+
+        // signup the user and get the latest release
+        let (try_signup, try_latest_release) = tokio::join!(
+            gateway_client.signup_v2(&signed_signup_req),
+            gateway_client.latest_release(),
+        );
+        try_signup.context("Failed to signup user")?;
+        let latest_release =
+            try_latest_release.context("Could not fetch latest release")?;
+
+        // Provision the node for the first time and update latest_provisioned.
+        // NOTE: This computes 600K HMAC iterations! We only do this at signup.
+        // TODO(max): Ensure that user has approved this version before
+        // proceeding to provision.
+        let allow_gvfs_access = true;
+        let maybe_encrypted_seed = password
+            .map(|pass| root_seed.password_encrypt(rng, pass))
+            .transpose()
+            .context("Could not encrypt root seed under password")?;
+        Self::provision(
+            &node_client,
+            &latest_release,
+            &user_config,
+            root_seed,
+            &provision_ffs,
+            google_auth_code,
+            allow_gvfs_access,
+            maybe_encrypted_seed,
+        )
+        .await
+        .context("Initial provision failed")?;
+
+        // we've successfully signed up and provisioned our node; we can finally
+        // "commit" and persist our root seed
+        let secret_store = SecretStore::new(&user_config.config);
+        secret_store
+            .write_root_seed(root_seed)
+            .context("Failed to persist root seed")?;
+
+        info!(%user_pk, %node_pk, "new user signed up and node provisioned");
+        Ok(Self {
+            node_client,
+            gateway_client,
+            payment_db,
+            payment_sync_lock: tokio::sync::Mutex::new(()),
+            settings_db,
+            user_info,
+        })
+    }
+
     /// Try to load the root seed from the platform secret store and app state
     /// from the local storage. Returns `None` if this is the first run.
     #[instrument(skip_all, name = "(load)")]
@@ -284,130 +408,6 @@ impl App {
             .context("Failed to persist root seed")?;
 
         info!(%user_pk, %node_pk, "restored user");
-        Ok(Self {
-            node_client,
-            gateway_client,
-            payment_db,
-            payment_sync_lock: tokio::sync::Mutex::new(()),
-            settings_db,
-            user_info,
-        })
-    }
-
-    /// Signup a new user.
-    ///
-    /// - `google_auth_code`: see [`NodeProvisionRequest::google_auth_code`]
-    /// - `password`: if [`Some`], then [`NodeProvisionRequest::encrypted_seed`]
-    ///   will also be set to [`Some`].
-    #[instrument(skip_all, name = "(signup)")]
-    pub async fn signup(
-        rng: &mut impl Crng,
-        config: AppConfig,
-        root_seed: &RootSeed,
-        google_auth_code: Option<String>,
-        password: Option<&str>,
-        signup_code: Option<String>,
-        partner: Option<UserPk>,
-    ) -> anyhow::Result<Self> {
-        // derive user key and node key
-        let user_key_pair = root_seed.derive_user_key_pair();
-        let user_pk = UserPk::from(*user_key_pair.public_key());
-        let node_key_pair = root_seed.derive_node_key_pair(rng);
-        let node_pk = NodePk(node_key_pair.public_key());
-        let user_config = AppConfigWithUserPk::new(config, user_pk);
-
-        // gen + sign the UserSignupRequestWireV1
-        let node_pk_proof = NodePkProof::sign(rng, &node_key_pair);
-        let user_info = AppUserInfoRs {
-            user_pk,
-            node_pk,
-            node_pk_proof: node_pk_proof.clone(),
-        };
-        let signup_req = UserSignupRequestWire::V2(UserSignupRequestWireV2 {
-            v1: UserSignupRequestWireV1 {
-                node_pk_proof,
-                signup_code,
-            },
-            partner,
-        });
-        let (_, signed_signup_req) = user_key_pair
-            .sign_struct(&signup_req)
-            .expect("Should never fail to serialize UserSignupRequestWire");
-
-        // build NodeClient, GatewayClient
-        let gateway_client = GatewayClient::new(
-            user_config.config.deploy_env,
-            user_config.config.gateway_url.clone(),
-            user_config.config.user_agent.clone(),
-        )
-        .context("Failed to build GatewayClient")?;
-        let node_client = NodeClient::new(
-            rng,
-            user_config.config.use_sgx,
-            user_config.config.deploy_env,
-            gateway_client.clone(),
-            Credentials::from_root_seed(root_seed),
-        )
-        .context("Failed to build NodeClient")?;
-
-        // Create new provision DB
-        let provision_ffs =
-            FlatFileFs::create_clean_dir_all(user_config.provision_db_dir())
-                .context("Could not create provision ffs")?;
-
-        // Create new settings DB
-        let settings_ffs =
-            FlatFileFs::create_clean_dir_all(user_config.settings_db_dir())
-                .context("Could not create settings ffs")?;
-        let settings_db = Arc::new(SettingsDb::load(settings_ffs));
-
-        // Create new payments DB
-        let payments_ffs =
-            FlatFileFs::create_clean_dir_all(user_config.payment_db_dir())
-                .context("Could not create payments ffs")?;
-        let payment_db = Mutex::new(PaymentDb::empty(payments_ffs));
-
-        // TODO(phlip9): retries?
-
-        // signup the user and get the latest release
-        let (try_signup, try_latest_release) = tokio::join!(
-            gateway_client.signup_v2(&signed_signup_req),
-            gateway_client.latest_release(),
-        );
-        try_signup.context("Failed to signup user")?;
-        let latest_release =
-            try_latest_release.context("Could not fetch latest release")?;
-
-        // Provision the node for the first time and update latest_provisioned.
-        // NOTE: This computes 600K HMAC iterations! We only do this at signup.
-        // TODO(max): Ensure that user has approved this version before
-        // proceeding to provision.
-        let allow_gvfs_access = true;
-        let maybe_encrypted_seed = password
-            .map(|pass| root_seed.password_encrypt(rng, pass))
-            .transpose()
-            .context("Could not encrypt root seed under password")?;
-        Self::provision(
-            &node_client,
-            &latest_release,
-            &user_config,
-            root_seed,
-            &provision_ffs,
-            google_auth_code,
-            allow_gvfs_access,
-            maybe_encrypted_seed,
-        )
-        .await
-        .context("Initial provision failed")?;
-
-        // we've successfully signed up and provisioned our node; we can finally
-        // "commit" and persist our root seed
-        let secret_store = SecretStore::new(&user_config.config);
-        secret_store
-            .write_root_seed(root_seed)
-            .context("Failed to persist root seed")?;
-
-        info!(%user_pk, %node_pk, "new user signed up and node provisioned");
         Ok(Self {
             node_client,
             gateway_client,
