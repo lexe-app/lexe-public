@@ -336,11 +336,11 @@ impl BearerAuthToken {
 
     /// base64 decode the bearer auth token into the internal raw bytes.
     pub fn decode_into_raw_bytes(&self) -> Result<Vec<u8>, Error> {
-        Self::decode_inner_into_raw_bytes(self.0.as_bytes())
+        Self::decode_slice_into_raw_bytes(self.0.as_bytes())
     }
 
-    /// base64 decode a string bearer auth token into the internal raw bytes.
-    pub fn decode_inner_into_raw_bytes(bytes: &[u8]) -> Result<Vec<u8>, Error> {
+    /// base64 decode a given string bearer auth token into internal raw bytes.
+    pub fn decode_slice_into_raw_bytes(bytes: &[u8]) -> Result<Vec<u8>, Error> {
         base64::engine::general_purpose::URL_SAFE_NO_PAD
             .decode(bytes)
             .map_err(|_| Error::Base64Decode)
@@ -350,6 +350,31 @@ impl BearerAuthToken {
 impl fmt::Display for BearerAuthToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.0.as_str())
+    }
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+mod arbitrary_impl {
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
+    };
+
+    use super::*;
+
+    impl Arbitrary for BearerAuthToken {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            // Generate a random byte array and encode it
+            // This simulates a valid bearer token format
+            any::<Vec<u8>>()
+                .prop_map(|bytes| {
+                    BearerAuthToken::encode_from_raw_bytes(&bytes)
+                })
+                .boxed()
+        }
     }
 }
 

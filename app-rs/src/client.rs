@@ -69,6 +69,8 @@ use lexe_tls::{
     attestation, lexe_ca, rustls, shared_seed,
     types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
 };
+#[cfg(test)]
+use proptest_derive::Arbitrary;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -115,7 +117,7 @@ pub enum Credentials<'a> {
 ///
 /// This is exposed to users as a base64-encoded JSON blob.
 #[derive(Serialize, Deserialize)]
-#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq, Arbitrary))]
 pub struct ClientCredentials {
     /// The base64 encoded long-lived connect token.
     pub lexe_auth_token: BearerAuthToken,

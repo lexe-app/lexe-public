@@ -168,6 +168,26 @@ impl<'de> de::Deserialize<'de> for ByteStr {
     }
 }
 
+#[cfg(any(test, feature = "test-utils"))]
+mod arbitrary_impl {
+    use proptest::{
+        arbitrary::Arbitrary,
+        strategy::{BoxedStrategy, Strategy},
+    };
+
+    use super::*;
+    use crate::test_utils::arbitrary;
+
+    impl Arbitrary for ByteStr {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            arbitrary::any_string().prop_map(ByteStr::from).boxed()
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use proptest::{
