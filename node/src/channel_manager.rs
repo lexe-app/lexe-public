@@ -133,6 +133,9 @@ const fn channel_handshake_config() -> ChannelHandshakeConfig {
         // The additional 'security' provided by this setting is pointless.
         // Also, we want to be able to sweep all funds to an address specified
         // at the time of channel close, instead of committing upfront.
+        //
+        // If we change this to `true`, we may need to reevaluate
+        // `LexeKeysManager::get_shutdown_scriptpubkey`.
         commit_upfront_shutdown_pubkey: false,
         // See docs on the const
         their_channel_reserve_proportional_millionths:

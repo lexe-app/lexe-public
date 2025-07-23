@@ -701,6 +701,13 @@ where
     // TODO(max): Maybe we should add another output for privacy?
     let spendable_output_descriptors = &outputs.iter().collect::<Vec<_>>();
     let destination_outputs = Vec::new();
+    // + We occasionally experience `SpendableOutputs` replaying unsuccessfully
+    //   over and over until we manually resolve them.
+    // + We don't want to accidentally reveal a new internal spk for each
+    //   failing event replay, leading to many useless internal spks that we
+    //   have to track forever (because they're revealed but unused).
+    // + On success we immediately broadcast (and thus "use") this spk.
+    // ==> Just get the next unused internal address
     let destination_change_script =
         wallet.get_internal_address().script_pubkey();
     let feerate_sat_per_1000_weight = fee_estimates

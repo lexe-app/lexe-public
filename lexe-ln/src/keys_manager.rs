@@ -242,22 +242,26 @@ impl SignerProvider for LexeKeysManager {
         self.inner.read_chan_signer(reader)
     }
 
-    // TODO(max): LDK says we should return a different script each time
-    // this is called, but address reuse here should be fairly rare.
+    /// Returns the scriptpubkey that we should receive time-locked, contestible
+    /// channel force-close outputs to.
+    ///
+    /// See: `LexeWallet::get_destination_script`.
     fn get_destination_script(
         &self,
         _channel_keys_id: [u8; 32],
     ) -> Result<bitcoin::ScriptBuf, ()> {
-        // Use an internal address so we only have to watch it once.
-        let sweep_address = self.wallet.get_internal_address();
-        let destination_script = sweep_address.script_pubkey();
-        Ok(destination_script)
+        Ok(self.wallet.get_destination_script())
     }
 
-    // TODO(max): LDK says we should return a different script each time
-    // this is called, but address reuse here should be fairly rare.
+    /// Returns the (BOLT2-compatible) scriptpubkey that we should receive
+    /// channel coop-close outputs to. This is called once during a channel
+    /// coop-close.
+    ///
+    /// We currently set `commit_upfront_shutdown_pubkey=false`, so we only
+    /// `get_shutdown_scriptpubkey` when we actually initiate a channel
+    /// coop-close. This means the shutdown spk should be "used" soon after it's
+    /// revealed (e.g., we broadcast or observe a relevant coop-close tx).
     fn get_shutdown_scriptpubkey(&self) -> Result<ShutdownScript, ()> {
-        // Use an internal address so we only have to watch it once.
         let sweep_address = self.wallet.get_internal_address();
         let witness_program = sweep_address
             .witness_program()

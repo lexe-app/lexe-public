@@ -684,12 +684,18 @@ impl LexeWallet {
         locked_wallet.list_unspent().collect()
     }
 
-    /// Returns the last unused address derived using the external descriptor.
+    /// Return the next unused address from the external descriptor. If there
+    /// are no unused addresses, this will reveal and return the next one.
     ///
-    /// We employ this address index selection strategy because it prevents a
-    /// DoS attack where `get_address` is called repeatedly, making transaction
-    /// sync (which generally requires one API call per watched address)
-    /// extremely expensive.
+    /// We do this because it prevents a DoS attack where a `get_address` that
+    /// returns `reveal_next_address` is called repeatedly. This would reveal
+    /// an unbounded number of external spks and make our transaction sync
+    /// extremely expensive, as sync requires ~one API call per external spk
+    /// ever revealed.
+    ///
+    /// NOTE: an address is "used" from BDK's perspective if we've broadcasted a
+    /// relevant transaction or we've seen a relevant transaction on-chain or
+    /// in the mempool.
     ///
     /// NOTE: If a user tries to send two on-chain txs to their wallet in quick
     /// succession, the second call to `get_address` will return the same
@@ -699,35 +705,66 @@ impl LexeWallet {
     /// simply avoid this scenario in the first place).
     pub fn get_address(&self) -> bitcoin::Address {
         let address = self
-            .inner
             .write()
-            .unwrap()
             .next_unused_address(KeychainKind::External)
             .address;
         self.trigger_persist();
         address
     }
 
-    /// Returns the last unused address from the internal (change) descriptor.
+    /// Return the next unused address from the internal (change) descriptor.
+    /// If there are no unused addresses, this will reveal and return the next
+    /// one.
     ///
     /// This method should be preferred over `get_address` when the address will
-    /// never be exposed to the user in any way, e.g. internal transactions,
-    /// as it allows our [`sync`] implementation to avoid checking the address
-    /// for updates after it has been used.
+    /// never be exposed to the user in any way, e.g. protocol transactions,
+    /// change outputs, etc.... It allows our [`sync`] implementation to avoid
+    /// checking the address for updates after it has been finalized, i.e.,
+    /// outputs in and inputs out are both balanced and all input spends have at
+    /// least `CONFS_TO_FINALIZE` confs.
     ///
-    /// NOTE: If a user somehow sees this address and sends funds to it, their
-    /// funds will not show up in the wallet, because it won't be synced!
+    /// NOTE: an address is "used" from BDK's perspective if we've broadcasted a
+    /// relevant transaction or we've seen a relevant transaction on-chain or
+    /// in the mempool.
+    ///
+    /// NOTE: If a user somehow sees this address and sends funds to it after it
+    /// has been finalized, their funds will not show up in the wallet, because
+    /// it won't be synced! If this happens somehow, we will need to trigger a
+    /// [`Self::full_sync`] to pick up the funds.
     ///
     /// [`sync`]: Self::sync
     pub fn get_internal_address(&self) -> bitcoin::Address {
         let address = self
-            .inner
             .write()
-            .unwrap()
             .next_unused_address(KeychainKind::Internal)
             .address;
         self.trigger_persist();
         address
+    }
+
+    /// Returns the scriptpubkey that we should receive channel force-close
+    /// outputs to.
+    ///
+    /// We now send all time-locked, contestible channel force-close outputs to
+    /// the same external address (the one at index 0).
+    ///
+    /// We previously returned `get_internal_address` here (next unused), but
+    /// that was unsafe because we have to commit to this spk upfront at channel
+    /// open, and other txs or channel close txs could end up using the same
+    /// internal address but close at very different times. This could cause the
+    /// internal spk to finalize and prevent us from detecting funds from a
+    /// force-close tx broadcasted by our counterparty.
+    ///
+    /// If we returned e.g. `reveal_next` here, we would "leak" an internal
+    /// address (i.e., it would stay unused and get synced forever) in the
+    /// normal case where a channel is never force-closed.
+    ///
+    /// Returning a fixed external address is extremely simple and ensures we
+    /// always pick up force close outputs, at the cost of rare address reuse.
+    pub(crate) fn get_destination_script(&self) -> bitcoin::ScriptBuf {
+        let spk = self.write().external_spk_0();
+        self.trigger_persist();
+        spk
     }
 
     /// Notifies the BDK wallet that a transaction created by us was
@@ -1188,6 +1225,13 @@ trait BdkWalletExt {
     /// Reveals an spk in the given keychain if there are no unused spks
     /// available.
     fn reveal_spk_if_no_unused(&mut self, keychain: KeychainKind);
+
+    /// Returns the number of revealed spks for this keychain.
+    fn num_revealed_spks(&self, keychain: KeychainKind) -> u32;
+
+    /// Returns the first external spk (at index 0). Reveals it if it hasn't
+    /// already been revealed.
+    fn external_spk_0(&mut self) -> bitcoin::ScriptBuf;
 }
 
 impl BdkWalletExt for Wallet {
@@ -1201,6 +1245,25 @@ impl BdkWalletExt for Wallet {
     fn reveal_spk_if_no_unused(&mut self, keychain: KeychainKind) {
         if !self.have_unused_spk(keychain) {
             let _ = self.reveal_next_address(keychain);
+        }
+    }
+
+    fn num_revealed_spks(&self, keychain: KeychainKind) -> u32 {
+        self.spk_index()
+            .last_revealed_index(keychain)
+            .map(|index| index + 1)
+            .unwrap_or(0)
+    }
+
+    fn external_spk_0(&mut self) -> bitcoin::ScriptBuf {
+        if self.num_revealed_spks(KeychainKind::External) > 0 {
+            // we've already revealed an external spk, just return it
+            self.spk_index()
+                .spk_at_index(KeychainKind::External, 0)
+                .expect("We just checked that there's at least one revealed")
+        } else {
+            self.reveal_next_address(KeychainKind::External)
+                .script_pubkey()
         }
     }
 }
@@ -1462,12 +1525,15 @@ mod test {
             self.wr().now()
         }
 
-        // "Persist" the current staged wallet changes into the in-memory
-        // changeset.
-        fn persist(&self) {
+        /// "Persist" the current staged wallet changes into the in-memory
+        /// changeset. Returns `true` if there were any staged changes.
+        fn persist(&self) -> bool {
             let staged = self.ww().take_staged();
             if let Some(update) = staged {
                 self.wallet.changeset.lock().unwrap().merge(update);
+                true
+            } else {
+                false
             }
         }
 
@@ -1734,7 +1800,10 @@ mod test {
             {
                 #[allow(unused_mut)]
                 let mut map = std::collections::BTreeMap::new();
-                $(map.insert($key.clone(), $value.clone());)*
+                #[allow(unused_mut)]
+                let mut all_unique = true;
+                $(all_unique &= map.insert($key.clone(), $value.clone()).is_none();)*
+                assert!(all_unique, "All map keys must be unique");
                 map
             }
         };
@@ -1745,10 +1814,33 @@ mod test {
             {
                 #[allow(unused_mut)]
                 let mut map = std::collections::BTreeSet::new();
-                $(map.insert($key.clone());)*
+                #[allow(unused_mut)]
+                let mut all_unique = true;
+                $(all_unique &= map.insert($key.clone());)*
+                assert!(all_unique, "All set items must be unique");
                 map
             }
         };
+    }
+
+    #[test]
+    fn external_spk_0() {
+        let mut h = Harness::new(789981416358);
+
+        // we have no reveled external spks initially
+        assert_eq!(h.wr().num_revealed_spks(KeychainKind::External), 0);
+
+        // first external_spk_0 call also reveals it
+        let spk_a = h.ww().external_spk_0();
+        assert!(h.persist());
+        assert_eq!(h.wr().num_revealed_spks(KeychainKind::External), 1);
+
+        // external_spk_0 again should not change state
+        let spk_b = h.assert_no_persists_in(|h| h.ww().external_spk_0());
+        let spk_c = h.assert_no_persists_in(|h| h.ww().external_spk_0());
+        assert_eq!(h.wr().num_revealed_spks(KeychainKind::External), 1);
+        assert_eq!(spk_a, spk_b);
+        assert_eq!(spk_a, spk_c);
     }
 
     #[test]
@@ -2158,6 +2250,16 @@ mod test {
         h.assert_sync(map! {
             spke0 => set! { txide0_1, txide0_2 },
             spki2 => set! { txidi2_1 },
+        });
+
+        // If we generate an internal addresses without using it, it should
+        // be synced separately.
+        let a3 = h.wallet.get_internal_address();
+        let spki3 = a3.script_pubkey();
+        h.assert_sync(map! {
+            spke0 => set! { txide0_1, txide0_2 },
+            spki2 => set! { txidi2_1 },
+            spki3 => set! {},
         });
     }
 
