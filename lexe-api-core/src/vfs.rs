@@ -166,27 +166,6 @@ pub trait Vfs {
     }
 
     /// Reads, decrypts, and deserializes a [`VfsDirectory`] of LDK
-    /// [`ReadableArgs`] of type `T` with read args `A` from the DB.
-    async fn read_dir_readableargs<T, A>(
-        &self,
-        dir: &VfsDirectory,
-        read_args: A,
-    ) -> anyhow::Result<Vec<(VfsFileId, T)>>
-    where
-        T: ReadableArgs<A>,
-        A: Clone + Send,
-    {
-        let ids_and_bytes = self.read_dir_bytes(dir).await?;
-        let mut ids_and_values = Vec::with_capacity(ids_and_bytes.len());
-        for (file_id, bytes) in ids_and_bytes {
-            let value =
-                Self::deser_readableargs(&file_id, &bytes, read_args.clone())?;
-            ids_and_values.push((file_id, value));
-        }
-        Ok(ids_and_values)
-    }
-
-    /// Reads, decrypts, and deserializes a [`VfsDirectory`] of LDK
     /// [`MaybeReadable`]s from the DB, along with their [`VfsFileId`]s.
     /// [`None`] values are omitted from the result.
     async fn read_dir_maybereadable<T: MaybeReadable>(

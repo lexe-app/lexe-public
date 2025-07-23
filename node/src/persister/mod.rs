@@ -34,7 +34,7 @@
 //! - Write: Write to Lexe DB and trigger an asynchronous GDrive backup.
 //! - Archive: Write to and delete from both Lexe's DB and GDrive synchronously.
 
-use std::{str::FromStr, sync::Arc, time::SystemTime};
+use std::{io::Cursor, str::FromStr, sync::Arc, time::SystemTime};
 
 use anyhow::{anyhow, ensure, Context};
 use async_trait::async_trait;
@@ -92,7 +92,10 @@ use lightning::{
         transaction::OutPoint, ChannelMonitorUpdateStatus,
     },
     ln::channelmanager::ChannelManagerReadArgs,
-    util::{config::UserConfig, ser::Writeable},
+    util::{
+        config::UserConfig,
+        ser::{ReadableArgs, Writeable},
+    },
 };
 use secrecy::ExposeSecret;
 use serde::Serialize;
@@ -519,25 +522,46 @@ impl NodePersister {
             .context("Failed to read channel manager")
     }
 
-    /// NOTE: See module docs for info on how manager/monitor persist works.
-    pub(crate) async fn read_channel_monitors(
+    /// Fetches channel monitor bytes without deserializing.
+    /// This allows fetching to happen concurrently with other operations.
+    pub(crate) async fn fetch_channel_monitor_bytes(
         &self,
+    ) -> anyhow::Result<Vec<(VfsFileId, Vec<u8>)>> {
+        debug!("Fetching channel monitor bytes");
+        let dir = VfsDirectory::new(vfs::CHANNEL_MONITORS_DIR);
+        self.read_dir_bytes(&dir).await
+    }
+
+    /// Deserializes channel monitors from previously fetched bytes.
+    /// NOTE: See module docs for info on how manager/monitor persist works.
+    pub(crate) fn deserialize_channel_monitors(
+        ids_and_bytes: Vec<(VfsFileId, Vec<u8>)>,
         keys_manager: &LexeKeysManager,
     ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
-        debug!("Reading channel monitors");
-
-        let dir = VfsDirectory::new(vfs::CHANNEL_MONITORS_DIR);
+        debug!("Deserializing channel monitors");
 
         // XXX(max): Read channel manager from multiple independent VSS stores
         let read_args = (keys_manager, keys_manager);
-        let ids_and_values = self
-            .read_dir_readableargs::<(BlockHash, ChannelMonitorType), _>(
-                &dir, read_args,
-            )
-            .await?;
+        let mut values = Vec::with_capacity(ids_and_bytes.len());
+
+        // Deserialize each channel monitor.
+        for (file_id, bytes) in &ids_and_bytes {
+            let mut reader = Cursor::new(bytes);
+            let value =
+                <(BlockHash, ChannelMonitorType)>::read(&mut reader, read_args)
+                    .map_err(|err| {
+                        anyhow!(
+                            "ChannelMonitor deserialization failed for file: \
+                             {file_id}: {err:?}"
+                        )
+                    })?;
+            values.push(value);
+        }
 
         // Check that each monitor's funding txo matches the file_id.
-        for (file_id, (_blockhash, channel_monitor)) in &ids_and_values {
+        for ((file_id, _bytes), (_blockhash, channel_monitor)) in
+            ids_and_bytes.iter().zip(values.iter())
+        {
             let expected_txo = LxOutPoint::from_str(&file_id.filename)
                 .with_context(|| file_id.filename.clone())
                 .context("Invalid funding txo string")?;
@@ -552,13 +576,7 @@ impl NodePersister {
             );
         }
 
-        ids_and_values
-            .into_iter()
-            .map(|(_file_id, (blockhash, channel_monitor))| {
-                (blockhash, channel_monitor)
-            })
-            .collect::<Vec<_>>()
-            .apply(Ok)
+        Ok(values)
     }
 }
 

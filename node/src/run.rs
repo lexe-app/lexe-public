@@ -331,6 +331,7 @@ impl UserNode {
             try_pending_payments,
             try_finalized_payment_ids,
             try_maybe_revocable_clients,
+            try_channel_monitor_bytes,
         ) = tokio::join!(
             read_maybe_approved_versions,
             persister.read_wallet_changeset(),
@@ -338,6 +339,7 @@ impl UserNode {
             persister.read_pending_payments(),
             persister.read_finalized_payment_ids(),
             persister.read_json::<RevocableClients>(&REVOCABLE_CLIENTS_FILE_ID),
+            persister.fetch_channel_monitor_bytes(),
         );
         if deploy_env.is_staging_or_prod() {
             // Erroring here prevents an attacker with access to a target user's
@@ -452,13 +454,14 @@ impl UserNode {
                 .map(Arc::new)
                 .context("Failed to construct keys manager")?;
 
-        // Read channel monitors
-        // TODO(max): Split into fetch and deserialize steps so the fetching can
-        // be done concurrently with other fetches.
-        let mut channel_monitors = persister
-            .read_channel_monitors(&keys_manager)
-            .await
-            .context("Could not read channel monitors")?;
+        // Deserialize channel monitors from previously fetched bytes
+        let channel_monitor_bytes = try_channel_monitor_bytes
+            .context("Could not fetch channel monitor bytes")?;
+        let mut channel_monitors = NodePersister::deserialize_channel_monitors(
+            channel_monitor_bytes,
+            &keys_manager,
+        )
+        .context("Could not deserialize channel monitors")?;
 
         // Initialize Router
         let router = Arc::new(LexeRouter::new_user_node(
