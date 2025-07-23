@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bitcoin::secp256k1;
-use common::{cli::LspInfo, rng::SysRngDerefHack};
+use common::{cli::LspInfo, ln::addr::LxSocketAddress, rng::SysRngDerefHack};
 #[cfg(doc)]
 use lightning::ln::msgs::OnionMessage;
 use lightning::{
@@ -9,6 +9,7 @@ use lightning::{
         message::{BlindedMessagePath, MessageContext, MessageForwardNode},
         IntroductionNode,
     },
+    ln::msgs::SocketAddress,
     onion_message::messenger::{Destination, MessageRouter, OnionMessagePath},
     routing::gossip::NodeId,
 };
@@ -129,18 +130,33 @@ impl MessageRouter for LexeMessageRouter {
             Kind::Lsp => {
                 match network_graph.node(&NodeId::from_pubkey(intro_node)) {
                     // This is an external node in the network graph. We can
-                    // only route to them if they have an announced address
+                    // only route to them if they support onion messages and
+                    // have an announced address that we support.
                     Some(node_info) => node_info
                         .announcement_info
                         .as_ref()
                         .and_then(|announce| {
-                            // external intro_node must have an announced
-                            // address and support onion messages
+                            // external intro_node must support onion messages
                             let supports_om =
                                 announce.features().supports_onion_messages();
-                            let addrs = announce.addresses();
-                            if supports_om && !addrs.is_empty() {
-                                Some(addrs.to_vec())
+                            if !supports_om {
+                                return None;
+                            }
+
+                            // only allow supported addresses (i.e., no TOR
+                            // onion addresses)
+                            let addrs = announce
+                                .addresses()
+                                .iter()
+                                .filter_map(|addr| {
+                                    LxSocketAddress::try_from(addr.clone())
+                                        .ok()
+                                        .map(SocketAddress::from)
+                                })
+                                .collect::<Vec<SocketAddress>>();
+
+                            if !addrs.is_empty() {
+                                Some(addrs)
                             } else {
                                 None
                             }
@@ -347,7 +363,7 @@ mod tests {
                 intermediate_nodes: vec![],
                 destination: Destination::Node(external_pk),
                 // Should lazy connect to indirect external peer
-                first_node_addresses: Some(dummy_external_addrs()),
+                first_node_addresses: Some(dummy_supported_external_addrs()),
             },
         );
 
@@ -495,10 +511,19 @@ mod tests {
         PublicKey::from_str(s).unwrap()
     }
 
-    fn dummy_external_addrs() -> Vec<SocketAddress> {
+    fn dummy_supported_external_addrs() -> Vec<SocketAddress> {
         vec![SocketAddress::TcpIpV4 {
             addr: [10, 0, 0, 69],
             port: 9735,
         }]
+    }
+    fn dummy_external_addrs() -> Vec<SocketAddress> {
+        vec![
+            SocketAddress::TcpIpV4 {
+                addr: [10, 0, 0, 69],
+                port: 9735,
+            },
+            SocketAddress::OnionV2([0x42; 12]),
+        ]
     }
 }

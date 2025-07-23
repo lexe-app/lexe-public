@@ -209,6 +209,7 @@ impl lightning::sign::EntropySource for SysRng {
 
 /// Dumb hack so we can pass `SysRng` as an `EntropySource` without wrapping
 /// in an Arc/Box.
+#[repr(transparent)]
 pub struct SysRngDerefHack(pub SysRng);
 
 impl SysRngDerefHack {
