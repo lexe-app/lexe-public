@@ -14,13 +14,27 @@ pub struct MeasurementStruct {
 }
 
 /// The semver version and measurement of a node release.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+///
+/// [`Ord`]ered by [`semver::Version`] precedence.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct NodeRelease {
     /// e.g. "0.1.0", "0.0.0-dev.1"
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_semver_version()"))]
     pub version: semver::Version,
     pub measurement: Measurement,
+}
+
+impl Ord for NodeRelease {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.version.cmp_precedence(&other.version)
+    }
+}
+
+impl PartialOrd for NodeRelease {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 #[cfg(test)]
