@@ -60,6 +60,18 @@ impl ProvisionHistory {
         Ok(was_inserted)
     }
 
+    /// Given the latest releases from the API, returns the subset of them which
+    /// haven't yet been provisioned (i.e. those not in the provision history).
+    pub fn to_provision(
+        &self,
+        latest_releases: BTreeSet<NodeRelease>,
+    ) -> BTreeSet<NodeRelease> {
+        latest_releases
+            .into_iter()
+            .filter(|release| !self.provisioned.contains(release))
+            .collect()
+    }
+
     // /// Delete the provision history file from storage.
     // pub fn delete_from_ffs(app_data_ffs: &impl Ffs) -> anyhow::Result<()> {
     //     match app_data_ffs.delete(Self::FFS_FILENAME) {

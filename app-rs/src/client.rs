@@ -94,6 +94,7 @@ pub struct GatewayClient {
 ///   only known at provisioning time. This is also desirable because provision
 ///   requests generally happen only once, so there is no need to maintain a
 ///   connection pool after provisioning has complete.
+#[derive(Clone)]
 pub struct NodeClient {
     gateway_client: GatewayClient,
     /// The [`RestClient`] used to communicate with a Run node.

@@ -139,6 +139,7 @@ pub trait AppGatewayApi {
     /// Get the measurement and semver version of the latest node release.
     ///
     /// GET /app/v1/latest_release [`Empty`] -> [`NodeRelease`]
+    #[deprecated(note = "since app-v0.8.1: Use latest_releases() instead")]
     async fn latest_release(&self) -> Result<NodeRelease, GatewayApiError>;
 
     /// Get the measurements and versions of the three latest node releases.

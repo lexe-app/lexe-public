@@ -2,6 +2,7 @@
 //! Rust, without any FFI weirdness.
 
 use std::{
+    collections::BTreeSet,
     fmt,
     path::PathBuf,
     sync::{Arc, Mutex},
@@ -29,8 +30,9 @@ use common::{
 };
 use lexe_api::def::{AppBackendApi, AppGatewayApi, AppNodeProvisionApi};
 use lexe_std::Apply;
+use lexe_tokio::task::LxTask;
 use secrecy::ExposeSecret;
-use tracing::{info, instrument, warn};
+use tracing::{info, info_span, instrument, warn};
 
 use crate::{
     client::{Credentials, GatewayClient, NodeClient},
@@ -78,7 +80,7 @@ impl App {
         let user_pk = UserPk::from(*user_key_pair.public_key());
         let node_key_pair = root_seed.derive_node_key_pair(rng);
         let node_pk = NodePk(node_key_pair.public_key());
-        let user_config = AppConfigWithUserPk::new(config, user_pk);
+        let user_config = UserAppConfig::new(config, user_pk);
 
         // gen + sign the UserSignupRequestWireV1
         let node_pk_proof = NodePkProof::sign(rng, &node_key_pair);
@@ -132,36 +134,38 @@ impl App {
         let payment_db = Mutex::new(PaymentDb::empty(payments_ffs));
 
         // Create new provision history
-        let mut provision_history = ProvisionHistory::new();
+        let provision_history = ProvisionHistory::new();
 
         // TODO(phlip9): retries?
 
-        // signup the user and get the latest release
-        let (try_signup, try_latest_release) = tokio::join!(
+        // signup the user and get the latest releases
+        let (try_signup, try_latest_releases) = tokio::join!(
             gateway_client.signup_v2(&signed_signup_req),
-            gateway_client.latest_release(),
+            gateway_client.latest_releases(),
         );
         try_signup.context("Failed to signup user")?;
-        let latest_release =
-            try_latest_release.context("Could not fetch latest release")?;
+        let latest_releases =
+            try_latest_releases.context("Could not fetch latest releases")?;
 
         // Provision the node for the first time and update latest_provisioned.
         // NOTE: This computes 600K HMAC iterations! We only do this at signup.
-        // TODO(max): Ensure that user has approved this version before
-        // proceeding to provision.
         let allow_gvfs_access = true;
         let maybe_encrypted_seed = password
             .map(|pass| root_seed.password_encrypt(rng, pass))
             .transpose()
             .context("Could not encrypt root seed under password")?;
 
-        Self::provision(
-            &node_client,
-            &latest_release,
-            &user_config,
-            root_seed,
-            &provision_ffs,
-            &mut provision_history,
+        // This will provision all recent releases.
+        let to_provision =
+            provision_history.to_provision(latest_releases.releases);
+
+        helpers::provision(
+            provision_ffs,
+            node_client.clone(),
+            user_config.clone(),
+            helpers::clone_root_seed(root_seed),
+            provision_history,
+            to_provision,
             google_auth_code,
             allow_gvfs_access,
             maybe_encrypted_seed,
@@ -169,7 +173,7 @@ impl App {
         .await
         .context("Initial provision failed")?;
 
-        // we've successfully signed up and provisioned our node; we can finally
+        // We've successfully signed up and provisioned our node; we can finally
         // "commit" and persist our root seed
         let secret_store = SecretStore::new(&user_config.config);
         secret_store
@@ -209,7 +213,7 @@ impl App {
         // Derive and add user_pk to config
         let user_key_pair = root_seed.derive_user_key_pair();
         let user_pk = UserPk::from(*user_key_pair.public_key());
-        let user_config = AppConfigWithUserPk::new(config, user_pk);
+        let user_config = UserAppConfig::new(config, user_pk);
         let node_key_pair = root_seed.derive_node_key_pair(rng);
         let user_info = AppUserInfoRs::new(rng, user_pk, &node_key_pair);
 
@@ -249,9 +253,8 @@ impl App {
             .apply(Mutex::new);
 
         // Load provision history
-        let mut provision_history =
-            ProvisionHistory::read_from_ffs(&provision_ffs)
-                .context("Could not read provision history")?;
+        let provision_history = ProvisionHistory::read_from_ffs(&provision_ffs)
+            .context("Could not read provision history")?;
         match provision_history.provisioned.last() {
             Some(latest) => info!(
                 version = %latest.version, measurement = %latest.measurement,
@@ -260,42 +263,38 @@ impl App {
             None => info!("Empty provision history"),
         }
 
-        // Fetch the latest release.
-        let latest_release = gateway_client
-            .latest_release()
+        // Fetch the latest releases.
+        let latest_releases = gateway_client
+            .latest_releases()
             .await
-            .context("Could not fetch latest release")?;
-        info!(
-            version = %latest_release.version,
-            measurement = %latest_release.measurement,
-            "Latest release",
-        );
+            .context("Could not fetch latest releases")?;
 
-        // Provision to the latest release if we haven't already.
-        // TODO(max): Ensure that user has approved this version before
-        // proceeding to re-provision.
-        if !provision_history.provisioned.contains(&latest_release) {
+        // Provision all recent releases we haven't already provisioned
+        let to_provision =
+            provision_history.to_provision(latest_releases.releases);
+
+        if !to_provision.is_empty() {
+            info!("Provisioning releases: {to_provision:?}");
             let google_auth_code = None;
             let allow_gvfs_access = true;
             // To avoid computing 600K HMAC iterations on every node upgrade,
             // we only pass an encrypted seed during `signup`.
             let maybe_encrypted_seed = None;
-            Self::provision(
-                &node_client,
-                &latest_release,
-                &user_config,
-                &root_seed,
-                &provision_ffs,
-                &mut provision_history,
+            helpers::provision(
+                provision_ffs,
+                node_client.clone(),
+                user_config,
+                helpers::clone_root_seed(&root_seed),
+                provision_history,
+                to_provision,
                 google_auth_code,
                 allow_gvfs_access,
                 maybe_encrypted_seed,
             )
             .await
-            .context("Re-provision failed")?;
-            info!("Successfully re-provisioned to latest release");
+            .context("Re-provision(s) failed")?;
         } else {
-            info!("Already provisioned to latest release")
+            info!("Already provisioned to all recent releases")
         }
 
         {
@@ -337,7 +336,7 @@ impl App {
         let user_pk = UserPk::from(*user_key_pair.public_key());
         let node_key_pair = root_seed.derive_node_key_pair(rng);
         let node_pk = NodePk(node_key_pair.public_key());
-        let user_config = AppConfigWithUserPk::new(config, user_pk);
+        let user_config = UserAppConfig::new(config, user_pk);
         let user_info = AppUserInfoRs::new(rng, user_pk, &node_key_pair);
 
         // build NodeClient, GatewayClient
@@ -373,37 +372,35 @@ impl App {
                 .context("Could not create payments ffs")?;
         let payment_db = Mutex::new(PaymentDb::empty(payments_ffs));
 
-        // Ask gateway for latest release
-        let latest_release = gateway_client
-            .latest_release()
+        // Ask gateway for latest releases
+        let latest_releases = gateway_client
+            .latest_releases()
             .await
-            .context("Could not fetch latest release")?;
-        info!(
-            version = %latest_release.version,
-            measurement = %latest_release.measurement,
-            "Latest release",
-        );
+            .context("Could not fetch latest releases")?;
 
-        // Reprovision credentials to most recent node version
+        // We don't have a provision history, so provision credentials to all
+        // recent node versions.
         let allow_gvfs_access = true;
         let maybe_encrypted_seed = None;
-        let mut provision_history = ProvisionHistory::new();
-        Self::provision(
-            &node_client,
-            &latest_release,
-            &user_config,
-            root_seed,
-            &provision_ffs,
-            &mut provision_history,
+        let provision_history = ProvisionHistory::new();
+        let to_provision =
+            provision_history.to_provision(latest_releases.releases);
+        helpers::provision(
+            provision_ffs,
+            node_client.clone(),
+            user_config.clone(),
+            helpers::clone_root_seed(root_seed),
+            provision_history,
+            to_provision,
             google_auth_code,
             allow_gvfs_access,
             maybe_encrypted_seed,
         )
         .await
         .context("Re-provision failed")?;
-        info!("Successfully re-provisioned to latest release");
+        info!("Successfully re-provisioned to latest releases");
 
-        // we've successfully signed up and provisioned our node; we can finally
+        // We've successfully restored and provisioned our node; we can finally
         // "commit" and persist our root seed
         let secret_store = SecretStore::new(&user_config.config);
         secret_store
@@ -478,56 +475,150 @@ impl App {
     pub fn payment_db(&self) -> &Mutex<PaymentDb<FlatFileFs>> {
         &self.payment_db
     }
+}
 
-    /// Helper to provision to the given release and update the
+mod helpers {
+    use super::*;
+
+    /// Helper to provision to the given releases and update the
     /// provision history.
     ///
     /// - `allow_gvfs_access`: See [`NodeProvisionRequest::allow_gvfs_access`].
     /// - `google_auth_code`: See [`NodeProvisionRequest::google_auth_code`].
     /// - `maybe_encrypted_seed`: See [`NodeProvisionRequest::encrypted_seed`].
-    async fn provision(
-        node_client: &NodeClient,
-        node_release: &NodeRelease,
-        user_config: &AppConfigWithUserPk,
-        root_seed: &RootSeed,
-        app_data_ffs: &impl Ffs,
-        provision_history: &mut ProvisionHistory,
+    pub(super) async fn provision(
+        provision_ffs: impl Ffs + Clone + Send + Sync + 'static,
+        node_client: NodeClient,
+        user_config: UserAppConfig,
+        root_seed: RootSeed,
+        mut provision_history: ProvisionHistory,
+        mut to_provision: BTreeSet<NodeRelease>,
         google_auth_code: Option<String>,
         allow_gvfs_access: bool,
         encrypted_seed: Option<Vec<u8>>,
     ) -> anyhow::Result<()> {
-        // TODO(phlip9): we could get rid of this extra RootSeed copy on the
-        // stack by using something like a `Cow<'a, &RootSeed>` in
-        // `NodeProvisionRequest`. Ofc we still have the seed serialized in a
-        // heap-allocated json blob when we make the request, which is much
-        // harder for us to zeroize...
-        let root_seed_clone =
-            RootSeed::new(Secret::new(*root_seed.expose_secret()));
+        info!("Starting provisioning: {to_provision:?}");
 
-        let provision_req = NodeProvisionRequest {
-            root_seed: root_seed_clone,
-            deploy_env: user_config.config.deploy_env,
-            network: user_config.config.network,
-            google_auth_code,
-            allow_gvfs_access,
-            encrypted_seed,
+        /// Provisions a single release and updates the provision history.
+        async fn provision_inner(
+            provision_ffs: &impl Ffs,
+            node_client: &NodeClient,
+            user_config: &UserAppConfig,
+            provision_history: &mut ProvisionHistory,
+            root_seed: RootSeed,
+            release: NodeRelease,
+            google_auth_code: Option<String>,
+            allow_gvfs_access: bool,
+            // TODO(max): We could have cheaper cloning by using Bytes here
+            encrypted_seed: Option<Vec<u8>>,
+        ) -> anyhow::Result<()> {
+            let provision_req = NodeProvisionRequest {
+                root_seed,
+                deploy_env: user_config.config.deploy_env,
+                network: user_config.config.network,
+                google_auth_code,
+                allow_gvfs_access,
+                encrypted_seed,
+            };
+            node_client
+                .provision(release.measurement, provision_req)
+                .await
+                .context("Failed to provision node")?;
+
+            // Provision success; Mark this release as provisioned
+            provision_history
+                .update_and_persist(release.clone(), provision_ffs)
+                .context("Could not add to provision history")?;
+
+            info!(
+                version = %release.version,
+                measurement = %release.measurement,
+                "Provision success:"
+            );
+
+            Ok(())
+        }
+
+        // Make sure the latest version is provisioned before we return. Then
+        // when we make our first run request, Lexe will run the latest version.
+        let latest = match to_provision.pop_last() {
+            Some(release) => release,
+            None => {
+                info!("No releases to provision");
+                return Ok(());
+            }
         };
-        node_client
-            .provision(node_release.measurement, provision_req)
-            .await
-            .context("Failed to provision node")?;
 
-        // Provision success; Mark this release as provisioned
-        provision_history
-            .update_and_persist(node_release.clone(), app_data_ffs)
-            .context("Could not add to provision history")?;
+        // Provision the latest release inline
+        provision_inner(
+            &provision_ffs,
+            &node_client,
+            &user_config,
+            &mut provision_history,
+            helpers::clone_root_seed(&root_seed),
+            latest,
+            google_auth_code.clone(),
+            allow_gvfs_access,
+            encrypted_seed.clone(),
+        )
+        .await?;
 
-        info!(
-            version = %node_release.version,
-            measurement = %node_release.measurement,
-            "Provision success:"
+        // Early return if no work left to do
+        if to_provision.is_empty() {
+            return Ok(());
+        }
+
+        // Provision remaining versions asynchronously so that we don't block
+        // app startup.
+        const SPAN_NAME: &str = "(async-provision)";
+        let task = LxTask::spawn_with_span(
+            SPAN_NAME,
+            info_span!(SPAN_NAME),
+            async move {
+                // NOTE: We provision releases serially because each provision
+                // updates the approved versions list, and we don't currently
+                // have a locking mechanism.
+                for node_release in to_provision {
+                    let provision_result = provision_inner(
+                        &provision_ffs,
+                        &node_client,
+                        &user_config,
+                        &mut provision_history,
+                        helpers::clone_root_seed(&root_seed),
+                        node_release.clone(),
+                        google_auth_code.clone(),
+                        allow_gvfs_access,
+                        encrypted_seed.clone(),
+                    )
+                    .await;
+
+                    if let Err(e) = provision_result {
+                        warn!(
+                            version = %node_release.version,
+                            measurement = %node_release.measurement,
+                            "Async provision failed: {e:#}"
+                        );
+                    }
+                }
+
+                info!("Async provisioning complete");
+            },
         );
+
+        // TODO(max): Is there anywhere we can await on this ephemeral task for
+        // structured concurrency?
+        task.detach();
+
         Ok(())
+    }
+
+    /// Clone a RootSeed reference into a new RootSeed instance.
+    // TODO(phlip9): we should get rid of this helper eventually. We could
+    // use something like a `Cow<'a, &RootSeed>` in `NodeProvisionRequest`. Ofc
+    // we still have the seed serialized in a heap-allocated json blob when we
+    // make the request, which is much harder for us to zeroize...
+    pub(super) fn clone_root_seed(root_seed_ref: &RootSeed) -> RootSeed {
+        RootSeed::new(Secret::new(*root_seed_ref.expose_secret()))
     }
 }
 
@@ -608,12 +699,14 @@ impl AppConfig {
     }
 }
 
-struct AppConfigWithUserPk {
+/// Wraps a [`AppConfig`] to include user-specific data.
+#[derive(Clone)]
+struct UserAppConfig {
     config: AppConfig,
     user_data_dir: PathBuf,
 }
 
-impl AppConfigWithUserPk {
+impl UserAppConfig {
     fn new(config: AppConfig, user_pk: UserPk) -> Self {
         let user_data_dir = config.user_data_dir(&user_pk);
         Self {
