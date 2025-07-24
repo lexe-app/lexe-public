@@ -193,6 +193,7 @@ dependencies = [
  "reqwest",
  "roaring",
  "secrecy",
+ "semver",
  "serde",
  "serde_json",
  "tempfile",

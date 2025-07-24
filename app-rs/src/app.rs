@@ -156,8 +156,10 @@ impl App {
             .context("Could not encrypt root seed under password")?;
 
         // This will provision all recent releases.
-        let to_provision =
-            provision_history.to_provision(latest_releases.releases);
+        let releases_to_provision = provision_history.releases_to_provision(
+            user_config.config.deploy_env,
+            latest_releases,
+        );
 
         helpers::provision(
             provision_ffs,
@@ -165,7 +167,7 @@ impl App {
             user_config.clone(),
             helpers::clone_root_seed(root_seed),
             provision_history,
-            to_provision,
+            releases_to_provision,
             google_auth_code,
             allow_gvfs_access,
             maybe_encrypted_seed,
@@ -270,11 +272,13 @@ impl App {
             .context("Could not fetch latest releases")?;
 
         // Provision all recent releases we haven't already provisioned
-        let to_provision =
-            provision_history.to_provision(latest_releases.releases);
+        let releases_to_provision = provision_history.releases_to_provision(
+            user_config.config.deploy_env,
+            latest_releases,
+        );
 
-        if !to_provision.is_empty() {
-            info!("Provisioning releases: {to_provision:?}");
+        if !releases_to_provision.is_empty() {
+            info!("Provisioning releases: {releases_to_provision:?}");
             let google_auth_code = None;
             let allow_gvfs_access = true;
             // To avoid computing 600K HMAC iterations on every node upgrade,
@@ -286,7 +290,7 @@ impl App {
                 user_config,
                 helpers::clone_root_seed(&root_seed),
                 provision_history,
-                to_provision,
+                releases_to_provision,
                 google_auth_code,
                 allow_gvfs_access,
                 maybe_encrypted_seed,
@@ -383,15 +387,17 @@ impl App {
         let allow_gvfs_access = true;
         let maybe_encrypted_seed = None;
         let provision_history = ProvisionHistory::new();
-        let to_provision =
-            provision_history.to_provision(latest_releases.releases);
+        let releases_to_provision = provision_history.releases_to_provision(
+            user_config.config.deploy_env,
+            latest_releases,
+        );
         helpers::provision(
             provision_ffs,
             node_client.clone(),
             user_config.clone(),
             helpers::clone_root_seed(root_seed),
             provision_history,
-            to_provision,
+            releases_to_provision,
             google_auth_code,
             allow_gvfs_access,
             maybe_encrypted_seed,
@@ -492,12 +498,12 @@ mod helpers {
         user_config: UserAppConfig,
         root_seed: RootSeed,
         mut provision_history: ProvisionHistory,
-        mut to_provision: BTreeSet<NodeRelease>,
+        mut releases_to_provision: BTreeSet<NodeRelease>,
         google_auth_code: Option<String>,
         allow_gvfs_access: bool,
         encrypted_seed: Option<Vec<u8>>,
     ) -> anyhow::Result<()> {
-        info!("Starting provisioning: {to_provision:?}");
+        info!("Starting provisioning: {releases_to_provision:?}");
 
         /// Provisions a single release and updates the provision history.
         async fn provision_inner(
@@ -541,7 +547,7 @@ mod helpers {
 
         // Make sure the latest version is provisioned before we return. Then
         // when we make our first run request, Lexe will run the latest version.
-        let latest = match to_provision.pop_last() {
+        let latest = match releases_to_provision.pop_last() {
             Some(release) => release,
             None => {
                 info!("No releases to provision");
@@ -564,7 +570,7 @@ mod helpers {
         .await?;
 
         // Early return if no work left to do
-        if to_provision.is_empty() {
+        if releases_to_provision.is_empty() {
             return Ok(());
         }
 
@@ -578,7 +584,7 @@ mod helpers {
                 // NOTE: We provision releases serially because each provision
                 // updates the approved versions list, and we don't currently
                 // have a locking mechanism.
-                for node_release in to_provision {
+                for node_release in releases_to_provision {
                     let provision_result = provision_inner(
                         &provision_ffs,
                         &node_client,
@@ -626,7 +632,7 @@ mod helpers {
 #[derive(Clone)]
 pub struct AppConfig {
     pub deploy_env: DeployEnv,
-    pub network: common::ln::network::LxNetwork,
+    pub network: LxNetwork,
     pub use_sgx: bool,
     pub gateway_url: String,
     pub base_app_data_dir: PathBuf,

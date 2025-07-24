@@ -1,7 +1,15 @@
-use std::{collections::BTreeSet, io};
+use std::{
+    collections::{BTreeMap, BTreeSet, HashSet},
+    io,
+};
 
 use anyhow::{anyhow, Context};
-use common::api::version::NodeRelease;
+use common::{
+    api::version::{NodeRelease, NodeReleases},
+    env::DeployEnv,
+    releases::Release,
+};
+use serde::Deserialize;
 
 use crate::ffs::Ffs;
 
@@ -61,13 +69,32 @@ impl ProvisionHistory {
     }
 
     /// Given the latest releases from the API, returns the subset of them which
-    /// haven't yet been provisioned (i.e. those not in the provision history).
-    pub fn to_provision(
+    /// are approved (contained in the hard-coded releases.json) but haven't
+    /// yet been provisioned (not in the provision history).
+    /// In dev, all releases are allowed.
+    pub fn releases_to_provision(
         &self,
-        latest_releases: BTreeSet<NodeRelease>,
+        deploy_env: DeployEnv,
+        latest_releases: NodeReleases,
     ) -> BTreeSet<NodeRelease> {
+        let trusted_releases = trusted_releases();
+        let trusted_measurements = trusted_releases
+            .values()
+            .map(|release| release.measurement)
+            .collect::<HashSet<_>>();
+
         latest_releases
+            .releases
             .into_iter()
+            // If we're in staging or prod, only consider approved releases.
+            .filter(|release| {
+                if deploy_env.is_staging_or_prod() {
+                    trusted_measurements.contains(&release.measurement)
+                } else {
+                    true
+                }
+            })
+            // Filter out already provisioned releases.
             .filter(|release| !self.provisioned.contains(release))
             .collect()
     }
@@ -80,4 +107,32 @@ impl ProvisionHistory {
     //         Err(e) => Err(anyhow!("Ffs::delete failed: {e:#}")),
     //     }
     // }
+}
+
+/// Returns the set of trusted node releases (populated from releases.json).
+/// The user trusts these releases simply by installing the open-source app
+/// which has these values hard-coded. This prevents Lexe from pushing out
+/// unilateral node updates without the user's consent.
+pub fn trusted_releases() -> BTreeMap<semver::Version, Release> {
+    const RELEASES_JSON: &str = include_str!("../../releases.json");
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    struct ReleasesJson(BTreeMap<String, BTreeMap<semver::Version, Release>>);
+
+    serde_json::from_str::<ReleasesJson>(RELEASES_JSON)
+        .expect("Checked in tests")
+        .0
+        .remove("node")
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_trusted_releases() {
+        trusted_releases();
+    }
 }

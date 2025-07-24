@@ -42,6 +42,7 @@ keyring = { workspace = true, default-features = false }
 reqwest = { workspace = true, features = ["json"] }
 roaring.workspace = true
 secrecy.workspace = true
+semver = { workspace = true, features = ["serde"] }
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
