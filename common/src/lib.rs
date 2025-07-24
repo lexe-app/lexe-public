@@ -40,6 +40,8 @@ pub mod net;
 pub mod or_env;
 /// Password-based encryption for arbitrary bytes.
 pub mod password;
+/// Types related to `releases.json`.
+pub mod releases;
 /// Random number generation.
 pub mod rng;
 /// `RootSeed`.
