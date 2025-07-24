@@ -106,9 +106,9 @@
       # <https://docs.fastlane.tools/getting-started/ios/setup/>
       LANG = "en_US.UTF-8";
       LC_ALL = "en_US.UTF-8";
-      LEXE_XCODE_VERSION = "16.3";
-      LEXE_MACOS_SDK_VERSION = "15.4";
-      LEXE_IOS_SDK_VERSION = "18.4";
+      LEXE_XCODE_VERSION = "16.4";
+      LEXE_MACOS_SDK_VERSION = "15.5";
+      LEXE_IOS_SDK_VERSION = "18.5";
     };
 
     shellHook = ''
@@ -162,14 +162,18 @@
       # Check macOS SDK version
       if ! xcodebuild -version -sdk "macosx$LEXE_MACOS_SDK_VERSION" >/dev/null; then
         echo >&2 "error: couldn't find macOS SDK version $LEXE_MACOS_SDK_VERSION"
-        echo >&2 "suggestion: open Xcode and poke around? IDK"
+        echo >&2 "suggestion: Go to Xcode > Settings > Components and ensure"
+        echo >&2 "            the macOS platform is installed and up-to-date."
+        echo >&2 "            You may need to update the app-ios-macos devShell."
         exit 1
       fi
 
       # Check iOS SDK version
       if ! xcodebuild -version -sdk "iphoneos$LEXE_IOS_SDK_VERSION" >/dev/null; then
         echo >&2 "error: couldn't find iOS SDK version $LEXE_IOS_SDK_VERSION"
-        echo >&2 "suggestion: open Xcode and poke around? IDK"
+        echo >&2 "suggestion: Go to Xcode > Settings > Components and ensure"
+        echo >&2 "            the iOS platform is installed and up-to-date."
+        echo >&2 "            You may need to update the app-ios-macos devShell."
         exit 1
       fi
 
