@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -11,6 +13,21 @@ use crate::test_utils::arbitrary;
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct MeasurementStruct {
     pub measurement: Measurement,
+}
+
+/// API-upgradeable struct for a [`Vec<NodeRelease>`].
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
+pub struct NodeReleases {
+    /// The three latest node releases.
+    pub releases: BTreeSet<NodeRelease>,
+}
+
+impl NodeReleases {
+    /// Returns the latest (most recent) node release, if any.
+    pub fn latest(&self) -> Option<&NodeRelease> {
+        self.releases.last()
+    }
 }
 
 /// The semver version and measurement of a node release.
