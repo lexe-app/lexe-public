@@ -36,9 +36,9 @@ use crate::{
     client::{Credentials, GatewayClient, NodeClient},
     ffs::{Ffs, FlatFileFs},
     payments::{self, PaymentDb, PaymentSyncSummary},
+    provision_history::ProvisionHistory,
     secret_store::SecretStore,
     settings::SettingsDb,
-    storage,
 };
 
 pub struct App {
@@ -131,6 +131,9 @@ impl App {
                 .context("Could not create payments ffs")?;
         let payment_db = Mutex::new(PaymentDb::empty(payments_ffs));
 
+        // Create new provision history
+        let mut provision_history = ProvisionHistory::new();
+
         // TODO(phlip9): retries?
 
         // signup the user and get the latest release
@@ -151,12 +154,14 @@ impl App {
             .map(|pass| root_seed.password_encrypt(rng, pass))
             .transpose()
             .context("Could not encrypt root seed under password")?;
+
         Self::provision(
             &node_client,
             &latest_release,
             &user_config,
             root_seed,
             &provision_ffs,
+            &mut provision_history,
             google_auth_code,
             allow_gvfs_access,
             maybe_encrypted_seed,
@@ -243,18 +248,19 @@ impl App {
             .context("Failed to load payment db")?
             .apply(Mutex::new);
 
-        // See if there is a newer version we haven't provisioned to yet.
-        // If so, re-provision to it and update the latest_provisioned file.
-        let maybe_latest_provisioned =
-            storage::read_latest_provisioned(&provision_ffs)
-                .context("Colud not read latest provisioned")?;
-        match &maybe_latest_provisioned {
-            Some(x) =>
-                info!(version = %x.version, measurement = %x.measurement, "latest provisioned"),
-            None =>
-                warn!("Could not find latest provisioned file. Was it deleted?"),
+        // Load provision history
+        let mut provision_history =
+            ProvisionHistory::read_from_ffs(&provision_ffs)
+                .context("Could not read provision history")?;
+        match provision_history.provisioned.last() {
+            Some(latest) => info!(
+                version = %latest.version, measurement = %latest.measurement,
+                "Latest provisioned: "
+            ),
+            None => info!("Empty provision history"),
         }
 
+        // Fetch the latest release.
         let latest_release = gateway_client
             .latest_release()
             .await
@@ -262,19 +268,13 @@ impl App {
         info!(
             version = %latest_release.version,
             measurement = %latest_release.measurement,
-            "latest release",
+            "Latest release",
         );
 
+        // Provision to the latest release if we haven't already.
         // TODO(max): Ensure that user has approved this version before
         // proceeding to re-provision.
-        let do_reprovision = match maybe_latest_provisioned {
-            // Compare `semver::Version`s.
-            Some(latest_provisioned) =>
-                latest_provisioned.version < latest_release.version,
-            // If there is no latest provision release, just (re-)provision.
-            None => true,
-        };
-        if do_reprovision {
+        if !provision_history.provisioned.contains(&latest_release) {
             let google_auth_code = None;
             let allow_gvfs_access = true;
             // To avoid computing 600K HMAC iterations on every node upgrade,
@@ -286,6 +286,7 @@ impl App {
                 &user_config,
                 &root_seed,
                 &provision_ffs,
+                &mut provision_history,
                 google_auth_code,
                 allow_gvfs_access,
                 maybe_encrypted_seed,
@@ -299,8 +300,8 @@ impl App {
 
         {
             let node_pk = root_seed.derive_node_pk(rng);
-            let lock = payment_db.lock().unwrap();
-            let db_state = lock.state();
+            let locked_payment_db = payment_db.lock().unwrap();
+            let db_state = locked_payment_db.state();
             info!(
                 %user_pk,
                 %node_pk,
@@ -380,18 +381,20 @@ impl App {
         info!(
             version = %latest_release.version,
             measurement = %latest_release.measurement,
-            "latest release",
+            "Latest release",
         );
 
         // Reprovision credentials to most recent node version
         let allow_gvfs_access = true;
         let maybe_encrypted_seed = None;
+        let mut provision_history = ProvisionHistory::new();
         Self::provision(
             &node_client,
             &latest_release,
             &user_config,
             root_seed,
             &provision_ffs,
+            &mut provision_history,
             google_auth_code,
             allow_gvfs_access,
             maybe_encrypted_seed,
@@ -477,7 +480,7 @@ impl App {
     }
 
     /// Helper to provision to the given release and update the
-    /// "latest_provisioned" file.
+    /// provision history.
     ///
     /// - `allow_gvfs_access`: See [`NodeProvisionRequest::allow_gvfs_access`].
     /// - `google_auth_code`: See [`NodeProvisionRequest::google_auth_code`].
@@ -488,6 +491,7 @@ impl App {
         user_config: &AppConfigWithUserPk,
         root_seed: &RootSeed,
         app_data_ffs: &impl Ffs,
+        provision_history: &mut ProvisionHistory,
         google_auth_code: Option<String>,
         allow_gvfs_access: bool,
         encrypted_seed: Option<Vec<u8>>,
@@ -513,8 +517,10 @@ impl App {
             .await
             .context("Failed to provision node")?;
 
-        storage::write_latest_provisioned(app_data_ffs, node_release)
-            .context("Could not write latest provisioned")?;
+        // Provision success; Mark this release as provisioned
+        provision_history
+            .update_and_persist(node_release.clone(), app_data_ffs)
+            .context("Could not add to provision history")?;
 
         info!(
             version = %node_release.version,
@@ -573,7 +579,8 @@ impl AppConfig {
         };
 
         // The base app data directory.
-        // See: dart fn [`path_provider.getApplicationSupportDirectory()`](https://pub.dev/documentation/path_provider/latest/path_provider/getApplicationSupportDirectory.html)
+        // See: dart fn `path_provider.getApplicationSupportDirectory()`
+        // https://pub.dev/documentation/path_provider/latest/path_provider/getApplicationSupportDirectory.html
         let base_app_data_dir = PathBuf::from(base_app_data_dir);
 
         {

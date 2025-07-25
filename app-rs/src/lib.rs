@@ -27,6 +27,8 @@ pub(crate) mod frb_generated;
 mod logger;
 /// App-local payment db and payment sync from node.
 pub(crate) mod payments;
+/// `ProvisionHistory`
+mod provision_history;
 /// QR code generation for the app
 #[cfg(feature = "flutter")]
 pub(crate) mod qr;
@@ -35,5 +37,3 @@ pub(crate) mod qr;
 pub mod secret_store;
 /// Settings DB
 mod settings;
-/// Misc utilities related to local app storage.
-pub mod storage;
