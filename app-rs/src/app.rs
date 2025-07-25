@@ -138,14 +138,14 @@ impl App {
 
         // TODO(phlip9): retries?
 
-        // signup the user and get the latest releases
-        let (try_signup, try_latest_releases) = tokio::join!(
+        // signup the user and get the current releases
+        let (try_signup, try_current_releases) = tokio::join!(
             gateway_client.signup_v2(&signed_signup_req),
-            gateway_client.latest_releases(),
+            gateway_client.current_releases(),
         );
         try_signup.context("Failed to signup user")?;
-        let latest_releases =
-            try_latest_releases.context("Could not fetch latest releases")?;
+        let current_releases =
+            try_current_releases.context("Could not fetch current releases")?;
 
         // Provision the node for the first time and update latest_provisioned.
         // NOTE: This computes 600K HMAC iterations! We only do this at signup.
@@ -158,7 +158,7 @@ impl App {
         // This will provision all recent releases.
         let releases_to_provision = provision_history.releases_to_provision(
             user_config.config.deploy_env,
-            latest_releases,
+            current_releases,
         );
 
         helpers::provision(
@@ -265,16 +265,16 @@ impl App {
             None => info!("Empty provision history"),
         }
 
-        // Fetch the latest releases.
-        let latest_releases = gateway_client
-            .latest_releases()
+        // Fetch the current releases.
+        let current_releases = gateway_client
+            .current_releases()
             .await
-            .context("Could not fetch latest releases")?;
+            .context("Could not fetch current releases")?;
 
         // Provision all recent releases we haven't already provisioned
         let releases_to_provision = provision_history.releases_to_provision(
             user_config.config.deploy_env,
-            latest_releases,
+            current_releases,
         );
 
         if !releases_to_provision.is_empty() {
@@ -376,11 +376,11 @@ impl App {
                 .context("Could not create payments ffs")?;
         let payment_db = Mutex::new(PaymentDb::empty(payments_ffs));
 
-        // Ask gateway for latest releases
-        let latest_releases = gateway_client
-            .latest_releases()
+        // Ask gateway for current releases
+        let current_releases = gateway_client
+            .current_releases()
             .await
-            .context("Could not fetch latest releases")?;
+            .context("Could not fetch current releases")?;
 
         // We don't have a provision history, so provision credentials to all
         // recent node versions.
@@ -389,7 +389,7 @@ impl App {
         let provision_history = ProvisionHistory::new();
         let releases_to_provision = provision_history.releases_to_provision(
             user_config.config.deploy_env,
-            latest_releases,
+            current_releases,
         );
         helpers::provision(
             provision_ffs,

@@ -61,7 +61,7 @@ use common::{
         },
         test_event::TestEventOp,
         user::{GetNewScidsRequest, MaybeScid, MaybeUser, Scids, UserPk},
-        version::{NodeRelease, NodeReleases},
+        version::{CurrentReleases, NodeRelease},
         MegaId,
     },
     ed25519,
@@ -139,13 +139,15 @@ pub trait AppGatewayApi {
     /// Get the measurement and semver version of the latest node release.
     ///
     /// GET /app/v1/latest_release [`Empty`] -> [`NodeRelease`]
-    #[deprecated(note = "since app-v0.8.1: Use latest_releases() instead")]
+    #[deprecated(note = "since app-v0.8.1: Use current_releases() instead")]
     async fn latest_release(&self) -> Result<NodeRelease, GatewayApiError>;
 
-    /// Get the measurements and versions of the three latest node releases.
+    /// Get the measurements and versions of the three current node releases.
     ///
-    /// GET /app/v1/latest_releases [`Empty`] -> [`NodeReleases`]
-    async fn latest_releases(&self) -> Result<NodeReleases, GatewayApiError>;
+    /// GET /app/v1/current_releases [`Empty`] -> [`CurrentReleases`]
+    async fn current_releases(
+        &self,
+    ) -> Result<CurrentReleases, GatewayApiError>;
 }
 
 /// Defines the api that the node exposes to the app during provisioning.

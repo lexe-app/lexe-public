@@ -15,15 +15,15 @@ pub struct MeasurementStruct {
     pub measurement: Measurement,
 }
 
-/// API-upgradeable struct for a [`Vec<NodeRelease>`].
+/// API-upgradeable struct for a [`BTreeSet<NodeRelease>`].
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
-pub struct NodeReleases {
+pub struct CurrentReleases {
     /// The three latest node releases.
     pub releases: BTreeSet<NodeRelease>,
 }
 
-impl NodeReleases {
+impl CurrentReleases {
     /// Returns the latest (most recent) node release, if any.
     pub fn latest(&self) -> Option<&NodeRelease> {
         self.releases.last()

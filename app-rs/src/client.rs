@@ -33,7 +33,7 @@ use common::{
             GetRevocableClients, RevocableClient, RevocableClients,
             UpdateClientRequest, UpdateClientResponse,
         },
-        version::{NodeRelease, NodeReleases},
+        version::{CurrentReleases, NodeRelease},
     },
     constants::{self, node_provision_dns},
     ed25519,
@@ -209,11 +209,13 @@ impl AppGatewayApi for GatewayClient {
         self.rest.send(req).await
     }
 
-    async fn latest_releases(&self) -> Result<NodeReleases, GatewayApiError> {
+    async fn current_releases(
+        &self,
+    ) -> Result<CurrentReleases, GatewayApiError> {
         let gateway_url = &self.gateway_url;
         let req = self
             .rest
-            .get(format!("{gateway_url}/app/v1/latest_releases"), &Empty {});
+            .get(format!("{gateway_url}/app/v1/current_releases"), &Empty {});
         self.rest.send(req).await
     }
 }

@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use common::{
-    api::version::{NodeRelease, NodeReleases},
+    api::version::{CurrentReleases, NodeRelease},
     env::DeployEnv,
     releases::Release,
 };
@@ -68,14 +68,14 @@ impl ProvisionHistory {
         Ok(was_inserted)
     }
 
-    /// Given the latest releases from the API, returns the subset of them which
-    /// are approved (contained in the hard-coded releases.json) but haven't
-    /// yet been provisioned (not in the provision history).
+    /// Given the current releases from the API, returns the subset of them
+    /// which are approved (contained in the hard-coded releases.json) but
+    /// haven't yet been provisioned (not in the provision history).
     /// In dev, all releases are allowed.
     pub fn releases_to_provision(
         &self,
         deploy_env: DeployEnv,
-        latest_releases: NodeReleases,
+        current_releases: CurrentReleases,
     ) -> BTreeSet<NodeRelease> {
         let trusted_releases = trusted_releases();
         let trusted_measurements = trusted_releases
@@ -83,7 +83,7 @@ impl ProvisionHistory {
             .map(|release| release.measurement)
             .collect::<HashSet<_>>();
 
-        latest_releases
+        current_releases
             .releases
             .into_iter()
             // If we're in staging or prod, only consider approved releases.
