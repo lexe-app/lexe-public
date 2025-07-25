@@ -19,7 +19,7 @@ pub struct MeasurementStruct {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct CurrentReleases {
-    /// The three latest node releases.
+    /// All current node releases.
     pub releases: BTreeSet<NodeRelease>,
 }
 

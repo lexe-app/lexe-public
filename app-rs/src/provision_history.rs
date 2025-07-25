@@ -6,6 +6,7 @@ use std::{
 use anyhow::{anyhow, Context};
 use common::{
     api::version::{CurrentReleases, NodeRelease},
+    constants,
     env::DeployEnv,
     releases::Release,
 };
@@ -69,44 +70,47 @@ impl ProvisionHistory {
     }
 
     /// Given the current releases from the API, returns the subset of them
-    /// which are approved (contained in the hard-coded releases.json) but
-    /// haven't yet been provisioned (not in the provision history).
+    /// which are:
+    ///
+    /// 1) trusted (contained in the hard-coded releases.json),
+    /// 2) not yet provisioned (not in the provision history), and
+    /// 3) recent (contained in the three latest trusted releases)
+    ///
     /// In dev, all releases are allowed.
+    // We use `current_releases` instead of a `latest_releases` API because this
+    // gives old app clients (which may not trust any of the last N releases) a
+    // chance to still provision the latest releases that they trust.
     pub fn releases_to_provision(
         &self,
         deploy_env: DeployEnv,
         current_releases: CurrentReleases,
     ) -> BTreeSet<NodeRelease> {
         let trusted_releases = trusted_releases();
-        let trusted_measurements = trusted_releases
+
+        // Only consider the three latest trusted releases.
+        // There is no need to provision anything older than this.
+        let latest_trusted_measurements = trusted_releases
             .values()
+            .rev()
+            .take(constants::RELEASE_WINDOW_SIZE)
             .map(|release| release.measurement)
             .collect::<HashSet<_>>();
 
         current_releases
             .releases
             .into_iter()
-            // If we're in staging or prod, only consider approved releases.
+            // If we're in staging or prod, only consider trusted releases
             .filter(|release| {
                 if deploy_env.is_staging_or_prod() {
-                    trusted_measurements.contains(&release.measurement)
+                    latest_trusted_measurements.contains(&release.measurement)
                 } else {
                     true
                 }
             })
-            // Filter out already provisioned releases.
+            // Filter out any releases which have already been provisioned
             .filter(|release| !self.provisioned.contains(release))
             .collect()
     }
-
-    // /// Delete the provision history file from storage.
-    // pub fn delete_from_ffs(app_data_ffs: &impl Ffs) -> anyhow::Result<()> {
-    //     match app_data_ffs.delete(Self::FFS_FILENAME) {
-    //         Ok(()) => Ok(()),
-    //         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-    //         Err(e) => Err(anyhow!("Ffs::delete failed: {e:#}")),
-    //     }
-    // }
 }
 
 /// Returns the set of trusted node releases (populated from releases.json).

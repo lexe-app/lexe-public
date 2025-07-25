@@ -9,7 +9,7 @@ use std::collections::{btree_map::Entry, BTreeMap};
 use anyhow::ensure;
 use common::{
     api::user::UserPk,
-    constants::{YANKED_NODE_MEASUREMENTS, YANKED_NODE_VERSIONS},
+    constants::{self, YANKED_NODE_MEASUREMENTS, YANKED_NODE_VERSIONS},
     enclave::Measurement,
 };
 use serde::{Deserialize, Serialize};
@@ -18,18 +18,19 @@ use tracing::{info, warn};
 use crate::SEMVER_VERSION;
 
 /// The set of versions which are currently approved to run.
-/// Contains up to [`MAX_SIZE`] approved versions.
+/// Contains up to [`RELEASE_WINDOW_SIZE`] approved versions.
 ///
 /// - *Approval*: When a node version is provisioned, its semver version and
 ///   measurement are added to the [`approved`] list, if it didn't exist. If the
 ///   [`ApprovedVersions`] was updated, it is E2E-encrypted and (re)persisted to
 ///   the user's 3rd party data store.
 /// - *Rolling revocations*: If adding the provisioned node version results in
-///   the [`approved`] list having greater than [`MAX_SIZE`] entries, the
-///   version(s) which are no longer in the [`MAX_SIZE`] newest versions
-///   according to semver precedence are removed from the list (revoked). So
-///   Lexe knows not to schedule this version, the corresponding sealed seed is
-///   also deleted from Lexe's DB (although the user has no way to verify this).
+///   the [`approved`] list having greater than [`RELEASE_WINDOW_SIZE`] entries,
+///   the version(s) which are no longer in the [`RELEASE_WINDOW_SIZE`] newest
+///   versions according to semver precedence are removed from the list
+///   (revoked). So Lexe knows not to schedule this version, the corresponding
+///   sealed seed is also deleted from Lexe's DB (although the user has no way
+///   to verify this).
 /// - *Enforcement*: At user node runtime, the [`ApprovedVersions`] is fetched
 ///   from the 3rd party data store. If the current version and measurement is
 ///   not contained in the [`approved`] list, or if the list is not found at
@@ -42,8 +43,8 @@ use crate::SEMVER_VERSION;
 ///   For safety, Lexe, who always has access to the up-to-date consts, will
 ///   also not schedule versions which are found in these consts.
 ///
-/// [`MAX_SIZE`]: Self::MAX_SIZE
 /// [`approved`]: Self::approved
+/// [`RELEASE_WINDOW_SIZE`]: constants::RELEASE_WINDOW_SIZE
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) struct ApprovedVersions {
     /// List of currently-approved versions, along with their measurements.
@@ -51,12 +52,9 @@ pub(crate) struct ApprovedVersions {
 }
 
 // Implementation assumption
-lexe_std::const_assert!(ApprovedVersions::MAX_SIZE > 0);
+lexe_std::const_assert!(constants::RELEASE_WINDOW_SIZE > 0);
 
 impl ApprovedVersions {
-    /// The maximum number of approved versions.
-    const MAX_SIZE: usize = 3;
-
     /// Get a new [`ApprovedVersions`] which is completely empty.
     pub(crate) fn new() -> Self {
         let approved = BTreeMap::new();
@@ -81,7 +79,7 @@ impl ApprovedVersions {
         let cur_version =
             semver::Version::parse(SEMVER_VERSION).expect("Checked in tests");
 
-        if self.approved.len() > Self::MAX_SIZE {
+        if self.approved.len() > constants::RELEASE_WINDOW_SIZE {
             let approved_len = self.approved.len();
             // This will be corrected later
             warn!("Approval list somehow had {approved_len} entries.");
@@ -127,8 +125,8 @@ impl ApprovedVersions {
             }
         }
 
-        // Ensure that we have at most `MAX_SIZE` entries
-        while self.approved.len() > Self::MAX_SIZE {
+        // Ensure that we have at most `RELEASE_WINDOW_SIZE` entries
+        while self.approved.len() > constants::RELEASE_WINDOW_SIZE {
             let (old_version, old_measurement) =
                 self.approved.pop_first().expect("Checked by const_assert");
             info!(%user_pk, "Rolling revocation of version {old_version}");
@@ -163,7 +161,7 @@ mod arbitrary_impl {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            let size_range = 0..=ApprovedVersions::MAX_SIZE;
+            let size_range = 0..=constants::RELEASE_WINDOW_SIZE;
             let any_approved = collection::btree_map(
                 arbitrary::any_semver_version(),
                 any::<Measurement>(),

@@ -545,8 +545,8 @@ mod helpers {
             Ok(())
         }
 
-        // Make sure the latest version is provisioned before we return. Then
-        // when we make our first run request, Lexe will run the latest version.
+        // Make sure the latest trusted version is provisioned before we return,
+        // so that when we request a node run, Lexe runs the latest version.
         let latest = match releases_to_provision.pop_last() {
             Some(release) => release,
             None => {
@@ -555,7 +555,7 @@ mod helpers {
             }
         };
 
-        // Provision the latest release inline
+        // Provision the latest trusted release inline
         provision_inner(
             &provision_ffs,
             &node_client,
@@ -576,7 +576,26 @@ mod helpers {
 
         // Provision remaining versions asynchronously so that we don't block
         // app startup.
-        const SPAN_NAME: &str = "(async-provision)";
+
+        // TODO(max): In the future we may want to drive the secondary
+        // provisioning in function calls instead of background tasks. Some sage
+        // advice from wizard Philip:
+        //
+        // """
+        // I've found that structuring everything as function calls driven by
+        // the flutter frontend to the app-rs library ends up being the
+        // best approach in the end.
+        //
+        // - The flutter frontend owns the page and app lifecycle, best
+        //   understands what calls and services are relevant, and trying to
+        //   keep that in sync with Rust is cumbersome.
+        // - It's much easier to mock out RPC-style fn calls for design work.
+        // - Reporting errors to the user is also easy, since the error gets
+        //   bubbled up to the frontend to display.
+        // - If a background task has an error, there's no clear way to report
+        //   to the user, so you just log and things are silently broken.
+        // """
+        const SPAN_NAME: &str = "(secondary-provision)";
         let task = LxTask::spawn_with_span(
             SPAN_NAME,
             info_span!(SPAN_NAME),
@@ -602,17 +621,18 @@ mod helpers {
                         warn!(
                             version = %node_release.version,
                             measurement = %node_release.measurement,
-                            "Async provision failed: {e:#}"
+                            "Secondary provision failed: {e:#}"
                         );
                     }
                 }
 
-                info!("Async provisioning complete");
+                info!("Secondary provisioning complete");
             },
         );
 
-        // TODO(max): Is there anywhere we can await on this ephemeral task for
-        // structured concurrency?
+        // TODO(max): Ideally, we could await on this ephemeral task somewhere
+        // for structured concurrency. But not sure if it even matters, as the
+        // mobile OS will often just kill the app.
         task.detach();
 
         Ok(())

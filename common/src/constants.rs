@@ -9,6 +9,7 @@ use crate::enclave::{Measurement, MrShort};
 /// If a node release needs to be yanked, add its semver version and measurement
 /// here. See `node::approved_versions` for more info.
 // e.g. "0.1.0", "0.2.1-alpha.1".
+// TODO(max): We could replace these by baking in `releases-archive.json`.
 pub const YANKED_NODE_VERSIONS: [&str; 0] = [];
 pub const YANKED_NODE_MEASUREMENTS: [Measurement; 0] = [];
 lexe_std::const_assert!(
@@ -40,6 +41,20 @@ const_assert!(
 /// to this value to ensure that callers can get a response.
 /// See `compute_max_flow_to_recipient` for more details.
 pub const MAX_FLOW_TIMEOUT: Duration = Duration::from_secs(60);
+
+/// This is both:
+///
+/// - The size of the `ApprovedVersions` window.
+/// - The number of trusted versions that the app will try to keep provisioned.
+///
+/// This strikes a balance between:
+///
+/// 1) having a sufficient number of recent versions approved so that Lexe has
+///    the ability to downgrade users (by yanking versions) if it is discovered
+///    that a node release is broken in some way, and
+/// 2) having so many versions approved that Lexe could downgrade users to an
+///    old version that may contain vulnerabilities.
+pub const RELEASE_WINDOW_SIZE: usize = 3;
 
 // --- Channels and liquidity --- //
 
