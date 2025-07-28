@@ -40,7 +40,8 @@ use lexe_ln::{
         LexeOnionMessengerType, NetworkGraphType, P2PGossipSyncType,
         ProbabilisticScorerType,
     },
-    background_processor, channel_monitor,
+    background_processor,
+    channel_monitor::ChannelMonitorPersister,
     esplora::LexeEsplora,
     event,
     keys_manager::LexeKeysManager,
@@ -636,7 +637,7 @@ impl UserNode {
         // Set up the channel monitor persistence task
         let monitor_persister_shutdown = NotifyOnce::new();
         let gdrive_persister_shutdown = NotifyOnce::new();
-        let task = channel_monitor::spawn_channel_monitor_persister_task(
+        let task = ChannelMonitorPersister::new(
             persister.clone(),
             channel_manager.clone(),
             chain_monitor.clone(),
@@ -644,7 +645,8 @@ impl UserNode {
             shutdown.clone(),
             monitor_persister_shutdown.clone(),
             Some(gdrive_persister_shutdown.clone()),
-        );
+        )
+        .spawn();
         static_tasks.push(task);
 
         // GDrive persister task
