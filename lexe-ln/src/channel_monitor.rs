@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     fmt::{self, Display},
+    mem,
     sync::Arc,
     time::Duration,
 };
@@ -83,11 +84,8 @@ struct State {
     /// queue it here. Since we persist the full channel monitor each time,
     /// we can coalesce pending writes to the same channel monitor, i.e., we
     /// only need to track the latest pending update id.
-    pending_update: Option<Update>,
-}
-
-struct Update {
-    update_id: u64,
+    pending_updates: Vec<u64>,
+    /// The span of the latest pending update.
     span: tracing::Span,
 }
 
@@ -195,19 +193,18 @@ where
             self.chanmon_states
                 .entry(funding_txo)
                 .or_insert_with(|| State {
-                    pending_update: None,
+                    pending_updates: Vec::new(),
+                    span: span.clone(),
                 });
 
-        if state.pending_update.is_none() {
-            // If there's no pending update, start persisting immediately.
-            self.spawn_persist(funding_txo, update_id, span);
+        if state.pending_updates.is_empty() {
+            // If there's no pending updates, start persisting immediately.
+            self.spawn_persist(funding_txo, vec![update_id], span);
         } else {
-            // Otherwise, overwrite the pending update with this newer one.
-            // This is ok since we persist the full monitor each time.
-            //
-            // I'm not sure when this would even happen, since LDK should
-            // effectively be freezing the monitor while a persist is in-flight.
-            state.pending_update = Some(Update { update_id, span });
+            // If there's already a persist in-flight, we need to queue this
+            // update id.
+            state.pending_updates.push(update_id);
+            state.span = span;
         }
     }
 
@@ -216,7 +213,7 @@ where
     fn spawn_persist(
         &mut self,
         funding_txo: LxOutPoint,
-        update_id: u64,
+        updates: Vec<u64>,
         span: tracing::Span,
     ) {
         let task = LxTask::spawn_with_span(
@@ -226,7 +223,7 @@ where
                 self.persister.clone(),
                 self.chain_monitor.clone(),
                 funding_txo,
-                update_id,
+                updates,
             ),
         );
         self.pending_persists.push(task);
@@ -247,13 +244,10 @@ where
             Ok(funding_txo) => {
                 // Check if there's another queued update for this channel
                 if let Some(state) = self.chanmon_states.get_mut(&funding_txo) {
-                    if let Some(queued_update) = state.pending_update.take() {
-                        // Start the persist for the queued update
-                        self.spawn_persist(
-                            funding_txo,
-                            queued_update.update_id,
-                            queued_update.span,
-                        );
+                    if !state.pending_updates.is_empty() {
+                        let span = state.span.clone();
+                        let updates = mem::take(&mut state.pending_updates);
+                        self.spawn_persist(funding_txo, updates, span);
                     }
                 }
                 Ok(())
@@ -329,7 +323,7 @@ where
         persister: PS,
         chain_monitor: Arc<LexeChainMonitorType<PS>>,
         funding_txo: LxOutPoint,
-        update_id: u64,
+        updates: Vec<u64>,
     ) -> Result<LxOutPoint, ()> {
         debug!("Handling channel monitor update");
 
@@ -337,7 +331,7 @@ where
             &persister,
             &chain_monitor,
             funding_txo,
-            update_id,
+            updates,
         )
         .await;
 
@@ -357,15 +351,15 @@ where
         persister: &PS,
         chain_monitor: &LexeChainMonitorType<PS>,
         funding_txo: LxOutPoint,
-        update_id: u64,
+        updates: Vec<u64>,
     ) -> anyhow::Result<()> {
-        // Persist the monitor.
+        // Persist the entire channel monitor.
         persister
             .persist_channel_monitor(chain_monitor, &funding_txo)
             .await
             .context("persist_channel_monitor failed")?;
 
-        // Notify the chain monitor that the monitor update has been persisted.
+        // Notify the chain monitor for _each monitor update id separately_.
         // - This should trigger a log like "Completed off-chain monitor update"
         // - NOTE: After this update, there may still be more updates to
         //   persist. The LDK log message will say "all off-chain updates
@@ -374,11 +368,14 @@ where
         // - NOTE: Only after *all* channel monitor updates are handled will the
         //   channel be reenabled and the BGP woken to process events via the
         //   chain monitor future.
-        chain_monitor
-            .channel_monitor_updated(OutPoint::from(funding_txo), update_id)
-            .map_err(|e| {
-                anyhow!("channel_monitor_updated returned Err: {e:?}")
-            })?;
+        for update_id in &updates {
+            let funding_txo_ldk = OutPoint::from(funding_txo);
+            chain_monitor
+                .channel_monitor_updated(funding_txo_ldk, *update_id)
+                .map_err(|e| {
+                    anyhow!("channel_monitor_updated returned Err: {e:?}")
+                })?;
+        }
 
         Ok(())
     }
