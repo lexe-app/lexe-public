@@ -64,6 +64,17 @@ where
 
     /// Active persist operations
     pending_persists: FuturesUnordered<LxTask<Result<LxOutPoint, ()>>>,
+
+    /// The number of in-flight pending persists.
+    num_pending_persists: usize,
+
+    /// The maximum number of concurrent channel monitor persists we allow at
+    /// any given time.
+    ///
+    /// If this value is too large, we may overload the backend and persists
+    /// will timeout, leading to immediate shutdown. If this value is too
+    /// small, we may lose some perf.
+    max_pending_persists: usize,
 }
 
 /// Tracks the persist state for a specific channel monitor.
@@ -117,6 +128,7 @@ where
         shutdown: NotifyOnce,
         monitor_persister_shutdown: NotifyOnce,
         gdrive_persister_shutdown: Option<NotifyOnce>,
+        max_pending_persists: usize,
     ) -> Self {
         Self {
             persister,
@@ -128,6 +140,8 @@ where
             gdrive_persister_shutdown,
             chanmon_states: HashMap::new(),
             pending_persists: FuturesUnordered::new(),
+            num_pending_persists: 0,
+            max_pending_persists,
         }
     }
 
@@ -142,10 +156,14 @@ where
     async fn run(&mut self) {
         loop {
             tokio::select! {
-                Some(update) = self.channel_monitor_persister_rx.recv() => {
+                Some(update) = self.channel_monitor_persister_rx.recv(),
+                    if self.num_pending_persists < self.max_pending_persists =>
+                {
                     self.handle_update(update).await;
                 }
-                Some(result) = self.pending_persists.next(), if !self.pending_persists.is_empty() => {
+                Some(result) = self.pending_persists.next(),
+                    if !self.pending_persists.is_empty() =>
+                {
                     if let Err(()) = self.handle_persist_completion(result).await {
                         // Channel monitor persistence errors are fatal.
                         // Return immediately to prevent further monitor
@@ -212,6 +230,7 @@ where
             ),
         );
         self.pending_persists.push(task);
+        self.num_pending_persists += 1;
     }
 
     /// Handle the completion of a channel monitor persist task.
@@ -219,6 +238,8 @@ where
         &mut self,
         result: Result<Result<LxOutPoint, ()>, tokio::task::JoinError>,
     ) -> Result<(), ()> {
+        self.num_pending_persists -= 1;
+
         // Flatten result
         let result = result.map_err(|_| ()).and_then(|r| r);
 
@@ -274,10 +295,14 @@ where
                         }
                     }
                 }
-                Some(update) = self.channel_monitor_persister_rx.recv() => {
+                Some(update) = self.channel_monitor_persister_rx.recv(),
+                    if self.num_pending_persists < self.max_pending_persists =>
+                {
                     self.handle_update(update).await;
                 }
-                Some(result) = self.pending_persists.next(), if !self.pending_persists.is_empty() => {
+                Some(result) = self.pending_persists.next(),
+                    if !self.pending_persists.is_empty() =>
+                {
                     if let Err(()) = self.handle_persist_completion(result).await {
                         // Fatal error during persist - exit immediately
                         return;
