@@ -22,9 +22,15 @@ use crate::{
 /// An actor which persists channel monitors. Channel monitors are persisted
 /// serially per-channel, and concurrently across channels.
 ///
+/// Updates to a single channel monitor are coalesced, meaning that if multiple
+/// updates are queued for the same channel funding_txo, we only persist the
+/// channel monitor once, though we still have to notify the chain monitor for
+/// each update_id in the batch.
+///
 /// The primary source for updates is the
 /// `Persist<SignerType>::update_persisted_channel` trait, which is impl'd by a
-/// [`LexePersister`] implementor.
+/// [`LexePersister`] implementor. We receive these updates via the
+/// `channel_monitor_persister_rx` channel.
 ///
 /// # Shutdown
 ///
@@ -60,6 +66,10 @@ where
     monitor_persister_shutdown: NotifyOnce,
     gdrive_persister_shutdown: Option<NotifyOnce>,
 
+    /// Used to receive a batch of `LxChannelMonitorUpdate` from
+    /// `channel_monitor_persister_rx`.
+    updates_buffer: Vec<LxChannelMonitorUpdate>,
+
     /// Per-channel monitor state
     chanmon_states: HashMap<LxOutPoint, State>,
 
@@ -82,10 +92,19 @@ where
 struct State {
     /// If a persist is already in-flight but we get another update, we'll
     /// queue it here. Since we persist the full channel monitor each time,
-    /// we can coalesce pending writes to the same channel monitor, i.e., we
-    /// only need to track the latest pending update id.
-    pending_updates: Vec<u64>,
+    /// we can coalesce pending writes to the same channel monitor. We do still
+    /// need to notify the chain monitor for each individual update id.
+    pending_update_ids: Vec<u64>,
     /// The span of the latest pending update.
+    span: tracing::Span,
+}
+
+/// A batch of channel monitor updates for a single channel. Since we persist
+/// the entire channel monitor, we can persist once and notify the chain monitor
+/// for all updates in the batch.
+struct UpdateBatch {
+    funding_txo: LxOutPoint,
+    update_ids: Vec<u64>,
     span: tracing::Span,
 }
 
@@ -128,6 +147,8 @@ where
         gdrive_persister_shutdown: Option<NotifyOnce>,
         max_pending_persists: usize,
     ) -> Self {
+        assert!(max_pending_persists > 0);
+
         Self {
             persister,
             channel_manager,
@@ -137,6 +158,7 @@ where
             monitor_persister_shutdown,
             gdrive_persister_shutdown,
             chanmon_states: HashMap::new(),
+            updates_buffer: Vec::with_capacity(max_pending_persists),
             pending_persists: FuturesUnordered::new(),
             num_pending_persists: 0,
             max_pending_persists,
@@ -153,16 +175,18 @@ where
 
     async fn run(&mut self) {
         loop {
+            let available_slots = self.available_slots();
             tokio::select! {
-                Some(update) = self.channel_monitor_persister_rx.recv(),
-                    if self.num_pending_persists < self.max_pending_persists =>
-                {
-                    self.handle_update(update).await;
+                _num_updates = self.channel_monitor_persister_rx.recv_many(
+                    &mut self.updates_buffer,
+                    available_slots,
+                ), if available_slots > 0 => {
+                    self.handle_updates().await;
                 }
-                Some(result) = self.pending_persists.next(),
+                Some(res) = self.pending_persists.next(),
                     if !self.pending_persists.is_empty() =>
                 {
-                    if let Err(()) = self.handle_persist_completion(result).await {
+                    if let Err(()) = self.handle_persist_completion(res).await {
                         // Channel monitor persistence errors are fatal.
                         // Return immediately to prevent further monitor
                         // persists (which may skip the current monitor update
@@ -171,7 +195,7 @@ where
                     }
                 }
                 () = self.monitor_persister_shutdown.recv() => {
-                    debug!("channel monitor persister task beginning shutdown");
+                    debug!("channel monitor persister task shutting down");
                     break;
                 }
             }
@@ -183,47 +207,70 @@ where
         self.shutdown_quiescence().await;
     }
 
-    /// Handle a new channel monitor update -> persist channel monitor request.
-    async fn handle_update(&mut self, update: LxChannelMonitorUpdate) {
-        let funding_txo = update.funding_txo;
-        let update_id = update.update_id;
-        let span = update.span();
+    #[inline]
+    fn available_slots(&self) -> usize {
+        self.max_pending_persists - self.num_pending_persists
+    }
 
-        let state =
-            self.chanmon_states
-                .entry(funding_txo)
-                .or_insert_with(|| State {
-                    pending_updates: Vec::new(),
-                    span: span.clone(),
-                });
+    /// Handle all channel monitor updates received on the channel. We batch
+    /// and coalesce updates to the same `funding_txo` so that we only persist
+    /// the channel monitor once per `funding_txo`, even if there are multiple
+    /// updates for the same channel.
+    async fn handle_updates(&mut self) {
+        let mut updates_buffer = mem::take(&mut self.updates_buffer);
 
-        if state.pending_updates.is_empty() {
+        let num_updates = updates_buffer.len();
+        let mut num_persists = 0;
+
+        // Group and batch updates by funding_txo
+        for batch in helpers::iter_update_batches(&mut updates_buffer) {
+            num_persists += 1;
+            self.handle_update(batch);
+        }
+
+        debug!(
+            "spawned channel monitor persists: \
+             {num_persists}/{num_updates} (persists/updates)"
+        );
+
+        // Clear and reuse the allocation
+        updates_buffer.clear();
+        self.updates_buffer = updates_buffer;
+    }
+
+    /// Handle a single channel monitor update batch -> persist channel monitor
+    /// request.
+    fn handle_update(&mut self, batch: UpdateBatch) {
+        let state = self
+            .chanmon_states
+            .entry(batch.funding_txo)
+            .or_insert_with(|| State {
+                pending_update_ids: Vec::new(),
+                span: batch.span.clone(),
+            });
+
+        if state.pending_update_ids.is_empty() {
             // If there's no pending updates, start persisting immediately.
-            self.spawn_persist(funding_txo, vec![update_id], span);
+            self.spawn_persist(batch);
         } else {
-            // If there's already a persist in-flight, we need to queue this
-            // update id.
-            state.pending_updates.push(update_id);
-            state.span = span;
+            // If there's already a persist in-flight, we need to queue these
+            // update ids.
+            state.pending_update_ids.extend(batch.update_ids);
+            state.span = batch.span;
         }
     }
 
     /// Spawn a task to persist a single channel monitor and notify the chain
     /// monitor.
-    fn spawn_persist(
-        &mut self,
-        funding_txo: LxOutPoint,
-        updates: Vec<u64>,
-        span: tracing::Span,
-    ) {
+    fn spawn_persist(&mut self, batch: UpdateBatch) {
         let task = LxTask::spawn_with_span(
             "chanmon-persist",
-            span,
+            batch.span,
             Self::persist_channel_monitor(
                 self.persister.clone(),
                 self.chain_monitor.clone(),
-                funding_txo,
-                updates,
+                batch.funding_txo,
+                batch.update_ids,
             ),
         );
         self.pending_persists.push(task);
@@ -244,10 +291,15 @@ where
             Ok(funding_txo) => {
                 // Check if there's another queued update for this channel
                 if let Some(state) = self.chanmon_states.get_mut(&funding_txo) {
-                    if !state.pending_updates.is_empty() {
+                    if !state.pending_update_ids.is_empty() {
                         let span = state.span.clone();
-                        let updates = mem::take(&mut state.pending_updates);
-                        self.spawn_persist(funding_txo, updates, span);
+                        let updates = mem::take(&mut state.pending_update_ids);
+                        let batch = UpdateBatch {
+                            funding_txo,
+                            update_ids: updates,
+                            span,
+                        };
+                        self.spawn_persist(batch);
                     }
                 }
                 Ok(())
@@ -272,6 +324,7 @@ where
         const QUIESCENT_TIMEOUT: Duration = Duration::from_millis(10);
 
         loop {
+            let available_slots = self.available_slots();
             tokio::select! {
                 biased;
                 // Channel manager persist
@@ -289,22 +342,23 @@ where
                         }
                     }
                 }
-                Some(update) = self.channel_monitor_persister_rx.recv(),
-                    if self.num_pending_persists < self.max_pending_persists =>
-                {
-                    self.handle_update(update).await;
+                _num_updates = self.channel_monitor_persister_rx.recv_many(
+                    &mut self.updates_buffer,
+                    available_slots,
+                ), if available_slots > 0 => {
+                    self.handle_updates().await;
                 }
-                Some(result) = self.pending_persists.next(),
+                Some(res) = self.pending_persists.next(),
                     if !self.pending_persists.is_empty() =>
                 {
-                    if let Err(()) = self.handle_persist_completion(result).await {
+                    if let Err(()) = self.handle_persist_completion(res).await {
                         // Fatal error during persist - exit immediately
                         return;
                     }
                 }
                 _ = tokio::time::sleep(QUIESCENT_TIMEOUT) => {
                     if self.pending_persists.is_empty() {
-                        info!("Channel mgr and monitors quiescent; shutting down.");
+                        info!("chanmgr and monitors quiescent; shutting down.");
                         break;
                     }
                 }
@@ -323,7 +377,7 @@ where
         persister: PS,
         chain_monitor: Arc<LexeChainMonitorType<PS>>,
         funding_txo: LxOutPoint,
-        updates: Vec<u64>,
+        update_ids: Vec<u64>,
     ) -> Result<LxOutPoint, ()> {
         debug!("Handling channel monitor update");
 
@@ -331,7 +385,7 @@ where
             &persister,
             &chain_monitor,
             funding_txo,
-            updates,
+            update_ids,
         )
         .await;
 
@@ -351,7 +405,7 @@ where
         persister: &PS,
         chain_monitor: &LexeChainMonitorType<PS>,
         funding_txo: LxOutPoint,
-        updates: Vec<u64>,
+        update_ids: Vec<u64>,
     ) -> anyhow::Result<()> {
         // Persist the entire channel monitor.
         persister
@@ -368,7 +422,7 @@ where
         // - NOTE: Only after *all* channel monitor updates are handled will the
         //   channel be reenabled and the BGP woken to process events via the
         //   chain monitor future.
-        for update_id in &updates {
+        for update_id in &update_ids {
             let funding_txo_ldk = OutPoint::from(funding_txo);
             chain_monitor
                 .channel_monitor_updated(funding_txo_ldk, *update_id)
@@ -417,5 +471,35 @@ impl Display for ChannelMonitorUpdateKind {
             Self::New => write!(f, "new"),
             Self::Updated => write!(f, "updated"),
         }
+    }
+}
+
+// --- helpers --- //
+
+mod helpers {
+    use super::*;
+
+    /// Return an iterator over batched updates grouped by funding_txo
+    pub(super) fn iter_update_batches(
+        updates: &mut [LxChannelMonitorUpdate],
+    ) -> impl Iterator<Item = UpdateBatch> + '_ {
+        // Group by funding_txo. Technically we don't need to sort the
+        // update_ids, but it probably helps keep us on the happy path.
+        updates.sort_unstable_by_key(|u| (u.funding_txo, u.update_id));
+        updates
+            .chunk_by(|a, b| a.funding_txo == b.funding_txo)
+            .map(|chunk| {
+                let last = chunk.last().expect("chunk is non-empty");
+                let funding_txo = last.funding_txo;
+                let span = last.span();
+                let update_ids: Vec<u64> =
+                    chunk.iter().map(|u| u.update_id).collect();
+
+                UpdateBatch {
+                    funding_txo,
+                    update_ids,
+                    span,
+                }
+            })
     }
 }

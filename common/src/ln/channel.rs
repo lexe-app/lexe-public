@@ -377,7 +377,7 @@ impl LxChannelDetails {
 /// Since the persister relies on the string representation to identify
 /// channels, having a newtype (instead of upstreaming these impls to LDK)
 /// ensures that the serialization scheme does not change from beneath us.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct LxOutPoint {
