@@ -69,16 +69,17 @@ where
 
     /// Used to receive a batch of `LxChannelMonitorUpdate` from
     /// `channel_monitor_persister_rx`.
-    updates_buffer: Vec<LxChannelMonitorUpdate>,
+    updates_buf: Vec<LxChannelMonitorUpdate>,
 
-    /// Per-channel monitor state
-    chanmon_states: HashMap<LxOutPoint, State>,
+    /// Per-channel monitor persist state.
+    chanmon_persist_states: HashMap<LxOutPoint, MonitorPersistState>,
 
-    /// Active persist operations
-    pending_persists: FuturesUnordered<LxTask<Result<LxOutPoint, ()>>>,
+    /// Active persist operations that are currently in-flight.
+    active_persists: FuturesUnordered<LxTask<Result<LxOutPoint, FatalError>>>,
 
-    /// The number of in-flight pending persists.
-    num_pending_persists: usize,
+    /// The number of in-flight pending persists. This is
+    /// `active_persists.len()` but doesn't require traversing the whole queue.
+    num_active_persists: u32,
 
     /// The maximum number of concurrent channel monitor persists we allow at
     /// any given time.
@@ -86,17 +87,17 @@ where
     /// If this value is too large, we may overload the backend and persists
     /// will timeout, leading to immediate shutdown. If this value is too
     /// small, we may lose some perf.
-    max_pending_persists: usize,
+    max_active_persists: u32,
 }
 
 /// Tracks the persist state for a specific channel monitor.
-struct State {
+struct MonitorPersistState {
     /// If a persist is already in-flight but we get another update, we'll
     /// queue it here. Since we persist the full channel monitor each time,
     /// we can coalesce pending writes to the same channel monitor. We do still
     /// need to notify the chain monitor for each individual update id.
-    pending_update_ids: Vec<u64>,
-    /// The span of the latest pending update.
+    queued_update_ids: Vec<u64>,
+    /// The span of the latest queued update.
     span: tracing::Span,
 }
 
@@ -131,6 +132,9 @@ pub enum ChannelMonitorUpdateKind {
     Updated,
 }
 
+/// A fatal error that occurs during channel monitor persistence.
+struct FatalError;
+
 // --- impl ChannelMonitorPersister --- //
 
 impl<CM, PS> ChannelMonitorPersister<CM, PS>
@@ -146,9 +150,9 @@ where
         shutdown: NotifyOnce,
         monitor_persister_shutdown: NotifyOnce,
         gdrive_persister_shutdown: Option<NotifyOnce>,
-        max_pending_persists: usize,
+        max_active_persists: u32,
     ) -> Self {
-        assert!(max_pending_persists > 0);
+        assert!(max_active_persists > 0);
 
         Self {
             persister,
@@ -159,11 +163,11 @@ where
             shutdown,
             monitor_persister_shutdown,
             gdrive_persister_shutdown,
-            chanmon_states: HashMap::new(),
-            updates_buffer: Vec::with_capacity(max_pending_persists),
-            pending_persists: FuturesUnordered::new(),
-            num_pending_persists: 0,
-            max_pending_persists,
+            chanmon_persist_states: HashMap::new(),
+            updates_buf: Vec::with_capacity(max_active_persists as usize),
+            active_persists: FuturesUnordered::new(),
+            num_active_persists: 0,
+            max_active_persists,
         }
     }
 
@@ -180,22 +184,26 @@ where
             let available_slots = self.available_slots();
             tokio::select! {
                 num_updates = self.channel_monitor_persister_rx.recv_many(
-                    &mut self.updates_buffer,
+                    &mut self.updates_buf,
                     available_slots,
-                ), if self.rx_rdy() => {
+                ), if self.rx_ready() => {
                     self.handle_updates(num_updates).await;
                 }
-                Some(res) = self.pending_persists.next(),
-                    if !self.pending_persists.is_empty() =>
+
+                Some(res) = self.active_persists.next(),
+                    if !self.active_persists.is_empty() =>
                 {
-                    if let Err(()) = self.handle_persist_completion(res).await {
+                    let res = self.handle_persist_completion(res).await;
+                    if let Err(FatalError) = res {
                         // Channel monitor persistence errors are fatal.
                         // Return immediately to prevent further monitor
                         // persists (which may skip the current monitor update
                         // if using incremental persist)
+                        self.shutdown();
                         return;
                     }
                 }
+
                 () = self.monitor_persister_shutdown.recv() => {
                     debug!("channel monitor persister task shutting down");
                     break;
@@ -213,13 +221,13 @@ where
     /// `channel_monitor_persister_rx` in the next recv.
     #[inline]
     fn available_slots(&self) -> usize {
-        self.max_pending_persists - self.num_pending_persists
+        (self.max_active_persists - self.num_active_persists) as usize
     }
 
     /// Returns `true` if we should poll `channel_monitor_persister_rx` for more
     /// updates.
     #[inline]
-    fn rx_rdy(&self) -> bool {
+    fn rx_ready(&self) -> bool {
         !self.rx_is_closed && self.available_slots() > 0
     }
 
@@ -235,13 +243,13 @@ where
             return;
         }
 
-        let mut updates_buffer = mem::take(&mut self.updates_buffer);
+        let mut updates_buf = mem::take(&mut self.updates_buf);
 
-        let num_updates = updates_buffer.len();
+        let num_updates = updates_buf.len();
         let mut num_persists = 0;
 
         // Group and batch updates by funding_txo
-        for batch in helpers::iter_update_batches(&mut updates_buffer) {
+        for batch in helpers::iter_update_batches(&mut updates_buf) {
             num_persists += 1;
             self.handle_update(batch);
         }
@@ -252,28 +260,28 @@ where
         );
 
         // Clear and reuse the allocation
-        updates_buffer.clear();
-        self.updates_buffer = updates_buffer;
+        updates_buf.clear();
+        self.updates_buf = updates_buf;
     }
 
     /// Handle a single channel monitor update batch -> persist channel monitor
     /// request.
     fn handle_update(&mut self, batch: UpdateBatch) {
         let state = self
-            .chanmon_states
+            .chanmon_persist_states
             .entry(batch.funding_txo)
-            .or_insert_with(|| State {
-                pending_update_ids: Vec::new(),
+            .or_insert_with(|| MonitorPersistState {
+                queued_update_ids: Vec::new(),
                 span: batch.span.clone(),
             });
 
-        if state.pending_update_ids.is_empty() {
+        if state.queued_update_ids.is_empty() {
             // If there's no pending updates, start persisting immediately.
             self.spawn_persist(batch);
         } else {
             // If there's already a persist in-flight, we need to queue these
             // update ids.
-            state.pending_update_ids.extend(batch.update_ids);
+            state.queued_update_ids.extend(batch.update_ids);
             state.span = batch.span;
         }
     }
@@ -283,54 +291,40 @@ where
     fn spawn_persist(&mut self, batch: UpdateBatch) {
         let task = LxTask::spawn_with_span(
             "chanmon-persist",
-            batch.span,
-            Self::persist_channel_monitor(
+            batch.span.clone(),
+            Self::persist_monitor_batch(
                 self.persister.clone(),
                 self.chain_monitor.clone(),
-                batch.funding_txo,
-                batch.update_ids,
+                batch,
             ),
         );
-        self.pending_persists.push(task);
-        self.num_pending_persists += 1;
+        self.active_persists.push(task);
+        self.num_active_persists += 1;
     }
 
     /// Handle the completion of a channel monitor persist task.
     async fn handle_persist_completion(
         &mut self,
-        result: Result<Result<LxOutPoint, ()>, tokio::task::JoinError>,
-    ) -> Result<(), ()> {
-        self.num_pending_persists -= 1;
+        result: Result<Result<LxOutPoint, FatalError>, tokio::task::JoinError>,
+    ) -> Result<(), FatalError> {
+        self.num_active_persists -= 1;
 
-        // Flatten result
-        let result = result.map_err(|_| ()).and_then(|r| r);
+        let funding_txo = result.map_err(|_| FatalError).and_then(|r| r)?;
 
-        match result {
-            Ok(funding_txo) => {
-                // Check if there's another queued update for this channel
-                if let Some(state) = self.chanmon_states.get_mut(&funding_txo) {
-                    if !state.pending_update_ids.is_empty() {
-                        let span = state.span.clone();
-                        let updates = mem::take(&mut state.pending_update_ids);
-                        let batch = UpdateBatch {
-                            funding_txo,
-                            update_ids: updates,
-                            span,
-                        };
-                        self.spawn_persist(batch);
-                    }
-                }
-                Ok(())
-            }
-            Err(_) => {
-                // Persist failed - trigger shutdown
-                self.shutdown.send();
-                if let Some(shutdown) = &self.gdrive_persister_shutdown {
-                    shutdown.send();
-                }
-                Err(())
+        // Check if there's another queued update for this channel
+        if let Some(state) = self.chanmon_persist_states.get_mut(&funding_txo) {
+            if !state.queued_update_ids.is_empty() {
+                let span = state.span.clone();
+                let updates = mem::take(&mut state.queued_update_ids);
+                let batch = UpdateBatch {
+                    funding_txo,
+                    update_ids: updates,
+                    span,
+                };
+                self.spawn_persist(batch);
             }
         }
+        Ok(())
     }
 
     /// After we've received a shutdown signal, ensure both the channel manager
@@ -345,7 +339,7 @@ where
             let available_slots = self.available_slots();
             tokio::select! {
                 biased;
-                // Channel manager persist
+
                 () = self.channel_manager
                          .get_event_or_persistence_needed_future() =>
                 {
@@ -360,22 +354,26 @@ where
                         }
                     }
                 }
+
                 num_updates = self.channel_monitor_persister_rx.recv_many(
-                    &mut self.updates_buffer,
+                    &mut self.updates_buf,
                     available_slots,
-                ), if self.rx_rdy() => {
+                ), if self.rx_ready() => {
                     self.handle_updates(num_updates).await;
                 }
-                Some(res) = self.pending_persists.next(),
-                    if !self.pending_persists.is_empty() =>
+
+                Some(res) = self.active_persists.next(),
+                    if !self.active_persists.is_empty() =>
                 {
-                    if let Err(()) = self.handle_persist_completion(res).await {
+                    let res = self.handle_persist_completion(res).await;
+                    if let Err(FatalError) = res {
                         // Fatal error during persist - exit immediately
-                        return;
+                        break;
                     }
                 }
+
                 _ = tokio::time::sleep(QUIESCENT_TIMEOUT) => {
-                    if self.pending_persists.is_empty() {
+                    if self.active_persists.is_empty() {
                         info!("chanmgr and monitors quiescent; shutting down.");
                         break;
                     }
@@ -383,51 +381,56 @@ where
             };
         }
 
+        self.shutdown();
+    }
+
+    fn shutdown(&self) {
+        self.shutdown.send();
+
         // For user nodes, trigger the GDrive persister shutdown now that the
         // monitor persister is completely done.
+        // TODO(phlip9): OwnedLxTask.into_shutdown().await when that exists
         if let Some(shutdown) = &self.gdrive_persister_shutdown {
             shutdown.send();
         }
     }
 
-    /// Persist a single channel monitor and notify the chain monitor.
-    async fn persist_channel_monitor(
+    /// Persist a single channel monitor update batch and notify the chain
+    /// monitor.
+    async fn persist_monitor_batch(
         persister: PS,
         chain_monitor: Arc<LexeChainMonitorType<PS>>,
-        funding_txo: LxOutPoint,
-        update_ids: Vec<u64>,
-    ) -> Result<LxOutPoint, ()> {
+        batch: UpdateBatch,
+    ) -> Result<LxOutPoint, FatalError> {
         debug!("Handling channel monitor update");
 
-        let result = Self::persist_channel_monitor_inner(
+        let result = Self::persist_monitor_batch_inner(
             &persister,
             &chain_monitor,
-            funding_txo,
-            update_ids,
+            &batch,
         )
         .await;
 
         match result {
             Ok(()) => {
                 info!("Success: persisted monitor");
-                Ok(funding_txo)
+                Ok(batch.funding_txo)
             }
             Err(e) => {
                 error!("Fatal: Monitor persist error: {e:#}");
-                Err(())
+                Err(FatalError)
             }
         }
     }
 
-    async fn persist_channel_monitor_inner(
+    async fn persist_monitor_batch_inner(
         persister: &PS,
         chain_monitor: &LexeChainMonitorType<PS>,
-        funding_txo: LxOutPoint,
-        update_ids: Vec<u64>,
+        batch: &UpdateBatch,
     ) -> anyhow::Result<()> {
         // Persist the entire channel monitor.
         persister
-            .persist_channel_monitor(chain_monitor, &funding_txo)
+            .persist_channel_monitor(chain_monitor, &batch.funding_txo)
             .await
             .context("persist_channel_monitor failed")?;
 
@@ -440,8 +443,8 @@ where
         // - NOTE: Only after *all* channel monitor updates are handled will the
         //   channel be reenabled and the BGP woken to process events via the
         //   chain monitor future.
-        for update_id in &update_ids {
-            let funding_txo_ldk = OutPoint::from(funding_txo);
+        for update_id in &batch.update_ids {
+            let funding_txo_ldk = OutPoint::from(batch.funding_txo);
             chain_monitor
                 .channel_monitor_updated(funding_txo_ldk, *update_id)
                 .map_err(|e| {

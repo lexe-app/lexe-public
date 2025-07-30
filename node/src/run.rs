@@ -637,7 +637,7 @@ impl UserNode {
         // Set up the channel monitor persistence task
         let monitor_persister_shutdown = NotifyOnce::new();
         let gdrive_persister_shutdown = NotifyOnce::new();
-        let max_pending_persists = 4;
+        let max_active_persists = 4;
         let task = ChannelMonitorPersister::new(
             persister.clone(),
             channel_manager.clone(),
@@ -646,7 +646,7 @@ impl UserNode {
             shutdown.clone(),
             monitor_persister_shutdown.clone(),
             Some(gdrive_persister_shutdown.clone()),
-            max_pending_persists,
+            max_active_persists,
         )
         .spawn();
         static_tasks.push(task);
