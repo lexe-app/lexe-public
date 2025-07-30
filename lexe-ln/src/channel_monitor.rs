@@ -62,6 +62,7 @@ where
     channel_manager: CM,
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
     channel_monitor_persister_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
+    rx_is_closed: bool,
     shutdown: NotifyOnce,
     monitor_persister_shutdown: NotifyOnce,
     gdrive_persister_shutdown: Option<NotifyOnce>,
@@ -154,6 +155,7 @@ where
             channel_manager,
             chain_monitor,
             channel_monitor_persister_rx,
+            rx_is_closed: false,
             shutdown,
             monitor_persister_shutdown,
             gdrive_persister_shutdown,
@@ -177,11 +179,11 @@ where
         loop {
             let available_slots = self.available_slots();
             tokio::select! {
-                _num_updates = self.channel_monitor_persister_rx.recv_many(
+                num_updates = self.channel_monitor_persister_rx.recv_many(
                     &mut self.updates_buffer,
                     available_slots,
-                ), if available_slots > 0 => {
-                    self.handle_updates().await;
+                ), if self.rx_rdy() => {
+                    self.handle_updates(num_updates).await;
                 }
                 Some(res) = self.pending_persists.next(),
                     if !self.pending_persists.is_empty() =>
@@ -207,16 +209,32 @@ where
         self.shutdown_quiescence().await;
     }
 
+    /// Returns the max number of updates we'll accept off
+    /// `channel_monitor_persister_rx` in the next recv.
     #[inline]
     fn available_slots(&self) -> usize {
         self.max_pending_persists - self.num_pending_persists
+    }
+
+    /// Returns `true` if we should poll `channel_monitor_persister_rx` for more
+    /// updates.
+    #[inline]
+    fn rx_rdy(&self) -> bool {
+        !self.rx_is_closed && self.available_slots() > 0
     }
 
     /// Handle all channel monitor updates received on the channel. We batch
     /// and coalesce updates to the same `funding_txo` so that we only persist
     /// the channel monitor once per `funding_txo`, even if there are multiple
     /// updates for the same channel.
-    async fn handle_updates(&mut self) {
+    async fn handle_updates(&mut self, num_updates: usize) {
+        // recv_many returns 0 if the channel is closed and there are no more
+        // updates queued => stop polling it
+        if num_updates == 0 {
+            self.rx_is_closed = true;
+            return;
+        }
+
         let mut updates_buffer = mem::take(&mut self.updates_buffer);
 
         let num_updates = updates_buffer.len();
@@ -342,11 +360,11 @@ where
                         }
                     }
                 }
-                _num_updates = self.channel_monitor_persister_rx.recv_many(
+                num_updates = self.channel_monitor_persister_rx.recv_many(
                     &mut self.updates_buffer,
                     available_slots,
-                ), if available_slots > 0 => {
-                    self.handle_updates().await;
+                ), if self.rx_rdy() => {
+                    self.handle_updates(num_updates).await;
                 }
                 Some(res) = self.pending_persists.next(),
                     if !self.pending_persists.is_empty() =>
