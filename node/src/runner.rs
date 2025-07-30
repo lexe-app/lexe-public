@@ -878,7 +878,7 @@ mod helpers {
         runner_api: Arc<RunnerClient>,
         user_pks: HashSet<UserPk>,
     ) {
-        const SPAN_NAME: &str = "(megarunner-activity-notif)";
+        const SPAN_NAME: &str = "(megarunner-activity)";
         let task = LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), {
             async move {
                 if let Err(e) = runner_api.activity(user_pks).await {

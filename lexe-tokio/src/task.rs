@@ -74,12 +74,9 @@ pub async fn try_join_tasks_and_shutdown(
             biased;
             () = shutdown.recv() => break,
             Some(task) = eph_tasks_rx.recv() => {
-                debug!("Received ephemeral task: {name}", name = task.name());
                 ephemeral_tasks.push(task.logged());
             }
-            Some(name) = ephemeral_tasks.next() => {
-                debug!("Ephemeral task finished: {name}");
-            }
+            Some(_name) = ephemeral_tasks.next() => {}
             Some(name) = static_tasks.next() => {
                 // A static task finished prematurely. Set our result to an
                 // error, initiate a shutdown, and wait on the remaining tasks.
@@ -365,8 +362,6 @@ impl<T> Future for LxTask<T> {
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        use std::io::Write;
-
         let result = match Pin::new(&mut self.task).poll(cx) {
             Poll::Ready(result) => result,
             Poll::Pending => return Poll::Pending,
@@ -379,15 +374,8 @@ impl<T> Future for LxTask<T> {
                 // This is bc backtraces are getting swallowed by SGX.
                 {
                     let name = self.name();
-                    println!("FATAL TASK ERROR: {join_err:#} {name}");
                     eprintln!("FATAL TASK ERROR: {join_err:#} {name}");
                     tracing::error!(%name, "FATAL TASK ERROR: {join_err:#}");
-                    if let Err(e) = std::io::stdout().flush() {
-                        eprintln!("Toilet clogged! {e:#}");
-                    }
-                    if let Err(e) = std::io::stderr().flush() {
-                        println!("Toilet clogged! {e:#}");
-                    }
                 }
 
                 match join_err.try_into_panic() {
@@ -448,7 +436,7 @@ impl<T> Future for LoggedLxTask<T> {
             } else if log_warn {
                 warn!("{msg}")
             } else {
-                info!("{msg}")
+                debug!("{msg}")
             }
 
             self.0.name.clone()
