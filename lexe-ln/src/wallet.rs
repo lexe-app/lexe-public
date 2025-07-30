@@ -36,8 +36,10 @@ use std::{
 
 use anyhow::{ensure, Context};
 use bdk_chain::{
-    spk_client::{FullScanRequest, SyncRequest},
-    CanonicalizationParams, Merge,
+    spk_client::{
+        FullScanRequest, FullScanResponse, SyncRequest, SyncResponse,
+    },
+    CanonicalizationParams, Merge, TxUpdate,
 };
 use bdk_esplora::EsploraAsyncExt;
 pub use bdk_wallet::ChangeSet;
@@ -125,6 +127,31 @@ pub struct UtxoCounts {
     pub total: usize,
     pub confirmed: usize,
     pub unconfirmed: usize,
+}
+
+/// Various stats collected about an on-chain BDK wallet sync
+#[derive(Default)]
+pub struct SyncStats {
+    /// Whether this sync was a full sync or an incremental sync
+    pub is_full_sync: bool,
+    /// The total number of (revealed) external spks
+    pub total_external: u32,
+    /// The number of external spks we want to sync (incremental only)
+    pub syncing_external: u32,
+    /// The total number of (revealed) internal spks
+    pub total_internal: u32,
+    /// The number of internal spks we want to sync (incremental only)
+    pub syncing_internal: u32,
+    /// The number of transactions synced
+    pub txs: u32,
+    /// The number of transaction outputs synced
+    pub txouts: u32,
+    /// The number of chain anchors (relevant block headers) synced
+    pub anchors: u32,
+    /// The number of relevant transactions seen in the mempool
+    pub seen: u32,
+    /// The number of relevant transactions discovered evicted from the mempool
+    pub evicted: u32,
 }
 
 impl LexeWallet {
@@ -324,9 +351,13 @@ impl LexeWallet {
 
     /// Syncs the [`Wallet`] using a remote Esplora backend.
     #[instrument(skip_all, name = "(bdk-sync)")]
-    pub async fn sync(&self, esplora: &LexeEsplora) -> anyhow::Result<()> {
+    pub async fn sync(
+        &self,
+        esplora: &LexeEsplora,
+    ) -> anyhow::Result<SyncStats> {
         // Build a SyncRequest with everything we're interested in syncing.
-        let sync_request = self.build_sync_request_at(TimestampMs::now());
+        let now = TimestampMs::now();
+        let (sync_request, mut sync_stats) = self.build_sync_request_at(now);
 
         // Check for updates on everything we specified in the SyncRequest.
         let sync_result = esplora
@@ -334,16 +365,7 @@ impl LexeWallet {
             .sync(sync_request, BDK_CONCURRENCY)
             .await
             .context("`EsploraAsyncExt::sync` failed")?;
-
-        let tx = &sync_result.tx_update;
-        info!(
-            txs = tx.txs.len(),
-            txouts = tx.txouts.len(),
-            anchors = tx.anchors.len(),
-            seen_ats = tx.seen_ats.len(),
-            evicted_ats = tx.evicted_ats.len(),
-            "result stats"
-        );
+        sync_stats.with_sync_response(&sync_result);
 
         // Apply the update to the wallet.
         {
@@ -354,7 +376,7 @@ impl LexeWallet {
         }
         self.trigger_persist();
 
-        Ok(())
+        Ok(sync_stats)
     }
 
     /// Build an incremental sync request to efficiently sync our local BDK
@@ -388,7 +410,7 @@ impl LexeWallet {
     fn build_sync_request_at(
         &self,
         synced_at: TimestampMs,
-    ) -> SyncRequest<(KeychainKind, u32)> {
+    ) -> (SyncRequest<(KeychainKind, u32)>, SyncStats) {
         let locked_wallet = self.inner.read().unwrap();
 
         let keychains = locked_wallet.spk_index();
@@ -561,11 +583,14 @@ impl LexeWallet {
             .last_revealed_index(KeychainKind::Internal)
             .map(|index| index + 1)
             .unwrap_or(0);
-        info!(
-            "BDK sync request spk stats: \
-             external: ({syncing_external}/{total_external}), \
-             internal: ({syncing_internal}/{total_internal})"
-        );
+        let sync_stats = SyncStats {
+            is_full_sync: false,
+            total_external,
+            syncing_external,
+            total_internal,
+            syncing_internal,
+            ..SyncStats::default()
+        };
 
         let spks_to_sync = spk_infos
             .into_iter()
@@ -576,13 +601,16 @@ impl LexeWallet {
             .into_iter()
             .map(|(spk, txid)| (spk.clone(), txid));
 
-        SyncRequest::<(KeychainKind, u32)>::builder_at(synced_at.to_secs())
-            .chain_tip(chain_tip)
-            .spks_with_indexes(spks_to_sync)
-            // All relevant txids for the spks we want to sync, so BDK can
-            // determine if a tx was evicted.
-            .expected_spk_txids(expected_spk_txids)
-            .build()
+        let sync_req =
+            SyncRequest::<(KeychainKind, u32)>::builder_at(synced_at.to_secs())
+                .chain_tip(chain_tip)
+                .spks_with_indexes(spks_to_sync)
+                // All relevant txids for the spks we want to sync, so BDK can
+                // determine if a tx was evicted.
+                .expected_spk_txids(expected_spk_txids)
+                .build();
+
+        (sync_req, sync_stats)
     }
 
     /// Conducts a full sync of all script pubkeys derived from all of our
@@ -591,9 +619,12 @@ impl LexeWallet {
     /// This should be done rarely, i.e. only when creating the wallet or if we
     /// need to restore from a existing seed. See BDK's examples for more info.
     #[instrument(skip_all, name = "(bdk-full-sync)")]
-    pub async fn full_sync(&self, esplora: &LexeEsplora) -> anyhow::Result<()> {
-        let full_scan_request =
-            self.build_full_scan_request_at(TimestampMs::now());
+    pub async fn full_sync(
+        &self,
+        esplora: &LexeEsplora,
+    ) -> anyhow::Result<SyncStats> {
+        let now = TimestampMs::now();
+        let full_scan_request = self.build_full_scan_request_at(now);
 
         // Scan the blockchain for our keychain script pubkeys until we hit the
         // `stop_gap`.
@@ -607,15 +638,11 @@ impl LexeWallet {
             .await
             .context("EsploraAsyncExt::full_scan failed")?;
 
-        let tx = &full_scan_result.tx_update;
-        info!(
-            txs = tx.txs.len(),
-            txouts = tx.txouts.len(),
-            anchors = tx.anchors.len(),
-            seen_ats = tx.seen_ats.len(),
-            evicted_ats = tx.evicted_ats.len(),
-            "result stats"
-        );
+        let mut sync_stats = SyncStats {
+            is_full_sync: true,
+            ..SyncStats::default()
+        };
+        sync_stats.with_full_scan_response(&full_scan_result);
 
         // Apply the combined update to the wallet.
         {
@@ -627,7 +654,7 @@ impl LexeWallet {
 
         self.trigger_persist();
 
-        Ok(())
+        Ok(sync_stats)
     }
 
     fn build_full_scan_request_at(
@@ -1268,6 +1295,56 @@ impl BdkWalletExt for Wallet {
     }
 }
 
+// --- impl SyncStats --- //
+
+impl SyncStats {
+    fn with_sync_response(&mut self, resp: &SyncResponse) {
+        self.with_tx_update(&resp.tx_update);
+    }
+
+    fn with_full_scan_response(
+        &mut self,
+        resp: &FullScanResponse<KeychainKind>,
+    ) {
+        self.with_tx_update(&resp.tx_update);
+    }
+
+    fn with_tx_update<A>(&mut self, tx: &TxUpdate<A>) {
+        self.txs += tx.txs.len() as u32;
+        self.txouts += tx.txouts.len() as u32;
+        self.anchors += tx.anchors.len() as u32;
+        self.seen += tx.seen_ats.len() as u32;
+        self.evicted += tx.evicted_ats.len() as u32;
+    }
+
+    pub(crate) fn log_sync_complete(&self, elapsed_ms: u128) {
+        let num_ext = self.total_external;
+        let sync_ext = self.syncing_external;
+        let num_int = self.total_internal;
+        let sync_int = self.syncing_internal;
+        let txs = self.txs;
+        let txouts = self.txouts;
+        let anchors = self.anchors;
+        let seen = self.seen;
+        let evicted = self.evicted;
+        if self.is_full_sync {
+            info!(
+                "BDK full sync complete <{elapsed_ms}ms> | \
+                 {num_int} int, {num_ext} ext | \
+                 resp: txs={txs}, txouts={txouts}, anchors={anchors}, \
+                 seen={seen}, evicted={evicted}",
+            );
+        } else {
+            info!(
+                "BDK sync complete <{elapsed_ms}ms> | \
+                 req: {sync_int}/{num_int} int, {sync_ext}/{num_ext} ext | \
+                 resp: txs={txs}, txouts={txouts}, anchors={anchors}, \
+                 seen={seen}, evicted={evicted}",
+            );
+        }
+    }
+}
+
 /// Use this fake TXO drain script to prevent the BDK wallet from modifying its
 /// internal state when building fake txs, like the ones used to estimate fees
 /// during preflight.
@@ -1599,7 +1676,8 @@ mod test {
             &self,
             mut expected: BTreeMap<bitcoin::ScriptBuf, BTreeSet<Txid>>,
         ) {
-            let mut sync_req = self.wallet.build_sync_request_at(self.now());
+            let (mut sync_req, _sync_stats) =
+                self.wallet.build_sync_request_at(self.now());
 
             let actual = sync_req
                 .iter_spks_with_expected_txids()

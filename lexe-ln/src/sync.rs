@@ -89,14 +89,14 @@ pub fn spawn_bdk_sync_task(
                         _ = timeout => Err(anyhow!("BDK sync timed out")),
                         () = shutdown.recv() => break,
                     };
-                    let elapsed = start.elapsed().as_millis();
+                    let elapsed_ms = start.elapsed().as_millis();
 
                     // Return and log the results of the first sync
                     if let Some(sync_tx) = maybe_first_bdk_sync_tx.take() {
                         // 'Clone' the sync result
                         let first_bdk_sync_res = sync_result
                             .as_ref()
-                            .map(|&()| ())
+                            .map(|_| ())
                             .map_err(|e| anyhow!("{e:#}"));
 
                         if sync_tx.send(first_bdk_sync_res).is_err() {
@@ -105,14 +105,14 @@ pub fn spawn_bdk_sync_task(
                     }
 
                     match sync_result {
-                        Ok(()) => {
-                            info!("BDK sync completed <{elapsed}ms>");
+                        Ok(sync_stats) => {
+                            sync_stats.log_sync_complete(elapsed_ms);
                             onchain_recv_tx.send();
                             for tx in synced_txs.drain(..) {
                                 let _ = tx.send(());
                             }
                         }
-                        Err(e) => error!("BDK sync error <{elapsed}ms>: {e:#}"),
+                        Err(e) => error!("BDK sync error <{elapsed_ms}ms>: {e:#}"),
                     }
                 }
                 () = shutdown.recv() => break,
