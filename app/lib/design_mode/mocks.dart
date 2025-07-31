@@ -1127,3 +1127,31 @@ const List<LxChannelDetails> defaultDummyChannels = [
   dummyChannelUsable02,
   dummyChannelUnusable02,
 ];
+
+// A sample 24-word seed phrase
+const List<String> seedWords1 = [
+  "music",
+  "mystery",
+  "deliver",
+  "gospel",
+  "profit",
+  "blanket",
+  "leaf",
+  "tell",
+  "photo",
+  "segment",
+  "letter",
+  "degree",
+  "nice",
+  "plastic",
+  "duty",
+  "canyon",
+  "mammal",
+  "marble",
+  "bicycle",
+  "economy",
+  "unique",
+  "find",
+  "cream",
+  "dune",
+];

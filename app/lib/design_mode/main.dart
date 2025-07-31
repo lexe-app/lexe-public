@@ -83,7 +83,12 @@ import 'package:lexeapp/route/send/state.dart'
         SendState_Preflighted;
 import 'package:lexeapp/route/show_qr.dart' show ShowQrPage;
 import 'package:lexeapp/route/signup.dart'
-    show SignupBackupPasswordPage, SignupCtx, SignupPage;
+    show
+        SignupBackupPasswordPage,
+        SignupBackupSeedConfirmPage,
+        SignupBackupSeedPage,
+        SignupCtx,
+        SignupPage;
 import 'package:lexeapp/route/wallet.dart' show WalletActionButton, WalletPage;
 import 'package:lexeapp/save_file.dart' as save_file;
 import 'package:lexeapp/service/node_info.dart';
@@ -278,6 +283,14 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
                 signupCode: null,
               ),
+            ),
+            Component(
+              "SignupBackupSeedConfirmPage",
+              (context) => const SignupBackupSeedConfirmPage(),
+            ),
+            Component(
+              "SignupBackupSeedPage",
+              (context) => SignupBackupSeedPage(seedWords: mocks.seedWords1),
             ),
             Component(
               "RestorePage (mock gdrive)",

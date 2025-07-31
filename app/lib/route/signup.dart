@@ -6,6 +6,7 @@ import 'package:app_rs_dart/ffi/types.dart' show Config, DeployEnv;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
+import 'package:lexeapp/clipboard.dart';
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
@@ -18,12 +19,14 @@ import 'package:lexeapp/components.dart'
         LxFilledButton,
         MultistepFlow,
         ScrollableSinglePageBody,
+        SubheadingText,
         baseInputDecoration;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
+import 'package:lexeapp/route/send/page.dart' show StackedButton;
 import 'package:lexeapp/style.dart'
-    show Fonts, LxColors, LxIcons, LxTheme, Space;
+    show Fonts, LxColors, LxIcons, LxRadius, LxTheme, Space;
 
 /// Require a signup code to complete signup.
 const bool requireSignupCode = true;
@@ -545,6 +548,313 @@ password manager!
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Ask the user to really confirm that they want a seed phrase-only backup.
+///
+/// This option provides weaker recoverability and unilateral exit guarantees
+/// vs. active Google Drive backup. We still want to support users without a
+/// Google Drive account though, so we give them this option.
+///
+/// Once we have VSS backup to a third party, the messaging can change since
+/// all users will be OK.
+class SignupBackupSeedConfirmPage extends StatelessWidget {
+  const SignupBackupSeedConfirmPage({super.key});
+
+  void onConfirmPressed(BuildContext context) {}
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
+        leading: const LxBackButton(isLeading: true),
+        actions: const [
+          LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
+          SizedBox(width: Space.s400),
+        ],
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const HeadingText(text: "Only backup seed phrase?"),
+          const SizedBox(height: Space.s300),
+          MarkdownBody(
+            data: '''
+A seed phrase-only backup allows you to restore your node if you lose your
+phone, but relies on Lexe to provide your encrypted recovery data.
+
+[Learn more](learn-more)
+''',
+            // styleSheet: LxTheme.buildMarkdownStyle(),
+            styleSheet: LxTheme.markdownStyle.copyWith(
+              a: const TextStyle(
+                color: LxColors.foreground,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+        ],
+        bottom: Padding(
+          padding: const EdgeInsets.only(top: Space.s500),
+          child: LxFilledButton(
+            label: const Text("Confirm"),
+            icon: const Icon(LxIcons.next),
+            onTap: () => this.onConfirmPressed(context),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Show the user their 24 word seed phrase. Require them to actively confirm
+/// that they've backed it up before they can finish signup.
+class SignupBackupSeedPage extends StatefulWidget {
+  const SignupBackupSeedPage({super.key, required this.seedWords})
+    : assert(seedWords.length == 24);
+
+  final List<String> seedWords;
+
+  @override
+  State<SignupBackupSeedPage> createState() => _SignupBackupSeedPageState();
+}
+
+class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
+  /// Whether the user has tapped the "switch" tile to confirm they've backed
+  /// up their seed phrase.
+  final ValueNotifier<bool> isConfirmed = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    this.isConfirmed.dispose();
+    super.dispose();
+  }
+
+  void onConfirm(bool value) {
+    this.isConfirmed.value = value;
+  }
+
+  void onCopy() {
+    final words = this.widget.seedWords.indexed
+        .map((x) => "${x.$1 + 1}. ${x.$2}")
+        .join(" ");
+    unawaited(LxClipboard.copyTextWithFeedback(this.context, words));
+  }
+
+  void onNext() {
+    info("tap");
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
+        leading: const LxBackButton(isLeading: true),
+        actions: const [
+          LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
+          SizedBox(width: Space.s400),
+        ],
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const HeadingText(text: "Backup your seed phrase"),
+          const SubheadingText(
+            text: "Store this in a safe place, like a password manager.",
+          ),
+          const SizedBox(height: Space.s600),
+
+          Align(
+            alignment: Alignment.center,
+            child: SeedWordsCard(seedWords: this.widget.seedWords),
+          ),
+
+          const SizedBox(height: Space.s500),
+          ValueListenableBuilder(
+            valueListenable: this.isConfirmed,
+            builder: (context, isConfirmed, child) {
+              return SwitchListTile(
+                value: isConfirmed,
+                onChanged: this.onConfirm,
+                // onChanged: null,
+                title: const Text(
+                  "I have backed up my seed phrase",
+                  style: TextStyle(fontSize: Fonts.size300, height: 1.4),
+                ),
+                contentPadding: EdgeInsets.zero,
+                inactiveTrackColor: LxColors.grey1000,
+                activeTrackColor: LxColors.moneyGoUp,
+                inactiveThumbColor: LxColors.grey850,
+                controlAffinity: ListTileControlAffinity.leading,
+              );
+            },
+          ),
+        ],
+        // Bottom buttons (paste, next ->)
+        bottom: Padding(
+          padding: const EdgeInsets.only(top: Space.s300, bottom: Space.s200),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Row(
+                children: [
+                  // Copy
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: this.onCopy,
+                      child: StackedButton(
+                        button: LxFilledButton(
+                          onTap: this.onCopy,
+                          icon: const Center(child: Icon(LxIcons.copy)),
+                        ),
+                        label: "Copy",
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: Space.s200),
+                  // Next ->
+                  Expanded(
+                    child: ValueListenableBuilder(
+                      valueListenable: this.isConfirmed,
+                      builder: (_context, isConfirmed, _widget) =>
+                          GestureDetector(
+                            onTap: isConfirmed ? this.onNext : null,
+                            child: StackedButton(
+                              button: LxFilledButton(
+                                onTap: isConfirmed ? this.onNext : null,
+                                icon: const Center(child: Icon(LxIcons.next)),
+                              ),
+                              label: "Next",
+                            ),
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A rounded card the displays all 24 words of a seed phrase in two columns.
+class SeedWordsCard extends StatelessWidget {
+  const SeedWordsCard({super.key, required this.seedWords});
+
+  final List<String> seedWords;
+
+  @override
+  Widget build(BuildContext context) {
+    const double spaceWordGroup = Space.s200;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        // slightly less left-padding to visually center contents
+        Space.s450,
+        Space.s550,
+        Space.s500,
+        Space.s550,
+      ),
+      decoration: BoxDecoration(
+        color: LxColors.grey1000,
+        borderRadius: BorderRadius.circular(LxRadius.r300),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        // Layout the words in two columns, with regular spacing between each
+        // group of three words.
+        children: [
+          // words column 1-12
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int i = 0; i < 3; i++)
+                SeedWord(index: i, word: this.seedWords[i]),
+              const SizedBox(height: spaceWordGroup),
+              for (int i = 3; i < 6; i++)
+                SeedWord(index: i, word: this.seedWords[i]),
+              const SizedBox(height: spaceWordGroup),
+              for (int i = 6; i < 9; i++)
+                SeedWord(index: i, word: this.seedWords[i]),
+              const SizedBox(height: spaceWordGroup),
+              for (int i = 9; i < 12; i++)
+                SeedWord(index: i, word: this.seedWords[i]),
+            ],
+          ),
+
+          const SizedBox(width: Space.s500),
+
+          // words column 13-24
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int i = 12; i < 15; i++)
+                SeedWord(index: i, word: this.seedWords[i]),
+              const SizedBox(height: spaceWordGroup),
+              for (int i = 15; i < 18; i++)
+                SeedWord(index: i, word: this.seedWords[i]),
+              const SizedBox(height: spaceWordGroup),
+              for (int i = 18; i < 21; i++)
+                SeedWord(index: i, word: this.seedWords[i]),
+              const SizedBox(height: spaceWordGroup),
+              for (int i = 21; i < 24; i++)
+                SeedWord(index: i, word: this.seedWords[i]),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A single "{idx}. {word}" line in the [SeedWordsCard].
+class SeedWord extends StatelessWidget {
+  const SeedWord({super.key, required this.index, required this.word});
+
+  final int index;
+  final String word;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        SizedBox(
+          width: Space.s550,
+          child: Text(
+            "${this.index + 1}.",
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              fontSize: Fonts.size200,
+              color: LxColors.fgSecondary,
+              fontFeatures: [Fonts.featTabularNumbers],
+              fontVariations: [Fonts.weightLight],
+            ),
+          ),
+        ),
+        const SizedBox(width: Space.s300),
+        Text(
+          this.word,
+          textAlign: TextAlign.left,
+          style: const TextStyle(
+            fontSize: Fonts.size300,
+            fontVariations: [Fonts.weightSemiBold],
+          ),
+        ),
+      ],
     );
   }
 }
