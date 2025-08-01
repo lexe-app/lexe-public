@@ -1658,9 +1658,13 @@ final class ErrorMessage {
 // TODO(phlip9): handle structured errors
 // TODO(phlip9): slide up/down animation
 class ErrorMessageSection extends StatefulWidget {
-  const ErrorMessageSection(this.errorMessage, {super.key});
+  const ErrorMessageSection(this.errorMessage, {super.key, this.other});
 
+  /// The error message to display, or `null` if there's no error.
   final ErrorMessage? errorMessage;
+
+  /// An optional widget to display when there's no error.
+  final Widget? other;
 
   @override
   State<ErrorMessageSection> createState() => _ErrorMessageSectionState();
@@ -1923,7 +1927,7 @@ class _ErrorMessageSectionState extends State<ErrorMessageSection> {
                 },
               ),
             )
-          : null,
+          : this.widget.other,
     );
   }
 }

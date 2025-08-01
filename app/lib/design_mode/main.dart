@@ -308,6 +308,12 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
             Component(
               "SignupBackupSeedPage",
+              subtitle: "signup error",
+              (context) =>
+                  SignupBackupSeedPage(ctx: mockSignupCtxErr, signupCode: null),
+            ),
+            Component(
+              "SignupBackupSeedPage",
               subtitle: "random",
               (context) => SignupBackupSeedPage(
                 ctx: SignupCtx(

@@ -651,11 +651,14 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
   /// Whether the signup request is in progress.
   final ValueNotifier<bool> isSigningUp = ValueNotifier(false);
 
+  final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
+
   /// The 24 seed words to display.
   late final List<String> seedWords = widget.ctx.rootSeed.seedPhrase();
 
   @override
   void dispose() {
+    this.errorMessage.dispose();
     this.isSigningUp.dispose();
     this.isConfirmed.dispose();
     super.dispose();
@@ -674,6 +677,9 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
 
   Future<void> onSubmit() async {
     if (this.isSigningUp.value) return;
+
+    // Clear error message
+    this.errorMessage.value = null;
 
     info("SignupBackupSeedPage: signing up with seed phrase-only backup");
 
@@ -702,7 +708,10 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
         flowResult = ok;
       case Err(:final err):
         error("Failed to signup: $err");
-        // TODO(phlip9): show error message
+        this.errorMessage.value = ErrorMessage(
+          title: "Failed to signup",
+          message: err.message,
+        );
         return;
     }
 
@@ -728,29 +737,52 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
           ),
           const SizedBox(height: Space.s600),
 
+          // 24-words seed phrase card
           Align(
             alignment: Alignment.center,
             child: SeedWordsCard(seedWords: this.seedWords),
           ),
-
           const SizedBox(height: Space.s500),
+
+          // Confirm switch or error message
+          //
+          // Show the error message in place of the switch if there's an error,
+          // since we don't have enough space otherwise. We also don't need the
+          // switch if there's an error, since the user must have already
+          // confirmed in order to attempt signing up.
           ValueListenableBuilder(
-            valueListenable: this.isConfirmed,
-            builder: (context, isConfirmed, child) {
-              return SwitchListTile(
-                value: isConfirmed,
-                onChanged: this.onConfirm,
-                title: const Text(
-                  "I have backed up my seed phrase",
-                  style: TextStyle(fontSize: Fonts.size300, height: 1.4),
-                ),
-                contentPadding: EdgeInsets.zero,
-                inactiveTrackColor: LxColors.grey1000,
-                activeTrackColor: LxColors.moneyGoUp,
-                inactiveThumbColor: LxColors.grey850,
-                controlAffinity: ListTileControlAffinity.leading,
-              );
-            },
+            valueListenable: this.errorMessage,
+            builder: (_context, errorMessage, _widget) => ErrorMessageSection(
+              errorMessage,
+              // Require user to confirm
+              other: ValueListenableBuilder(
+                valueListenable: this.isConfirmed,
+                builder: (context, isConfirmed, child) {
+                  return ValueListenableBuilder(
+                    valueListenable: this.isSigningUp,
+                    builder: (context, isSigningUp, child) {
+                      return SwitchListTile(
+                        value: isConfirmed,
+                        // Disable switch while signing up
+                        onChanged: (!isSigningUp) ? this.onConfirm : null,
+                        title: const Text(
+                          "I have backed up my seed phrase",
+                          style: TextStyle(
+                            fontSize: Fonts.size300,
+                            height: 1.4,
+                          ),
+                        ),
+                        contentPadding: EdgeInsets.zero,
+                        inactiveTrackColor: LxColors.grey1000,
+                        activeTrackColor: LxColors.moneyGoUp,
+                        inactiveThumbColor: LxColors.grey850,
+                        controlAffinity: ListTileControlAffinity.leading,
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
           ),
         ],
         // Bottom buttons (copy, sign up ->)
@@ -783,8 +815,8 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
                       builder: (_context, isConfirmed, _widget) =>
                           ValueListenableBuilder(
                             valueListenable: this.isSigningUp,
-                            builder: (context, isLoading, child) {
-                              final isEnabled = isConfirmed && !isLoading;
+                            builder: (context, isSigningUp, child) {
+                              final isEnabled = isConfirmed && !isSigningUp;
 
                               return GestureDetector(
                                 onTap: isEnabled ? this.onSubmit : null,
@@ -793,7 +825,7 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
                                     label: const Icon(LxIcons.next),
                                     icon: const Center(),
                                     onTap: isEnabled ? this.onSubmit : null,
-                                    isLoading: isLoading,
+                                    isLoading: isSigningUp,
                                   ),
                                   label: "Sign up",
                                 ),
