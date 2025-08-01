@@ -741,6 +741,10 @@ mod test {
     fn root_seed_mnemonic_round_trip() {
         proptest!(|(root_seed1 in any::<RootSeed>())| {
             let mnemonic = root_seed1.to_mnemonic();
+
+            // All mnemonics should have exactly 24 words.
+            prop_assert_eq!(mnemonic.word_count(), 24);
+
             let root_seed2 = RootSeed::try_from(mnemonic).unwrap();
             prop_assert_eq!(
                 root_seed1.expose_secret(), root_seed2.expose_secret()

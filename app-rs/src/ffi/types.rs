@@ -157,6 +157,14 @@ impl RootSeed {
     pub fn expose_secret_hex(&self) -> String {
         hex::encode(self.inner.expose_secret().as_slice())
     }
+
+    /// Return the 24-word BIP-39 seed phrase for this root seed.
+    #[frb(sync)]
+    pub fn seed_phrase(&self) -> Vec<String> {
+        let mnemonic = self.inner.to_mnemonic();
+        assert_eq!(mnemonic.word_count(), 24);
+        mnemonic.words().map(|w| w.to_owned()).collect::<Vec<_>>()
+    }
 }
 
 impl From<RootSeedRs> for RootSeed {

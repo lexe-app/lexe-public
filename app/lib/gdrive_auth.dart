@@ -274,4 +274,32 @@ class MockRootSeed implements RootSeed {
   @override
   String exposeSecretHex() =>
       "5c2aa5fdd678112c8b13d745b5c1d1e1a81ace76721ec72f1424bd2eb387a8af";
+
+  @override
+  List<String> seedPhrase() => [
+    "music",
+    "mystery",
+    "deliver",
+    "gospel",
+    "profit",
+    "blanket",
+    "leaf",
+    "tell",
+    "photo",
+    "segment",
+    "letter",
+    "degree",
+    "nice",
+    "plastic",
+    "duty",
+    "canyon",
+    "mammal",
+    "marble",
+    "bicycle",
+    "economy",
+    "unique",
+    "find",
+    "cream",
+    "dune",
+  ];
 }

@@ -276,6 +276,10 @@ class RootSeed {
   static RootSeed fromSysRng() =>
       AppRs.instance.api.crateFfiTypesRootSeedFromSysRng();
 
+  /// Return the 24-word BIP-39 seed phrase for this root seed.
+  List<String> seedPhrase() =>
+      AppRs.instance.api.crateFfiTypesRootSeedSeedPhrase(that: this);
+
   @override
   int get hashCode => inner.hashCode;
 

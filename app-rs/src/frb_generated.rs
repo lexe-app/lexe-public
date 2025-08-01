@@ -46,7 +46,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.7.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1102873209;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1831416433;
 
 // Section: executor
 
@@ -912,6 +912,19 @@ fn wire__crate__ffi__types__root_seed_from_sys_rng_impl(
                      let output_ok = Result::<_,()>::Ok(crate::ffi::types::RootSeed::from_sys_rng())?;   Ok(output_ok)
                 })()) })
 }
+fn wire__crate__ffi__types__root_seed_seed_phrase_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "root_seed_seed_phrase", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::types::RootSeed>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, ()>((move || {
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::types::RootSeed::seed_phrase(&api_that))?;   Ok(output_ok)
+                })()) })
+}
 fn wire__crate__ffi__secret_store__secret_store_new_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -1517,6 +1530,20 @@ impl SseDecode for crate::ffi::types::Invoice {
             amount_sats: var_amountSats,
             payee_pubkey: var_payeePubkey,
         };
+    }
+}
+
+impl SseDecode for Vec<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<String>::sse_decode(deserializer));
+        }
+        return ans_;
     }
 }
 
@@ -2571,8 +2598,8 @@ fn pde_ffi_dispatcher_primary_impl(
 53 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
 54 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
 56 => wire__crate__ffi__payment_uri__resolve_best_impl(port, ptr, rust_vec_len, data_len),
-64 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
-65 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
+65 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
+66 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -2611,13 +2638,14 @@ fn pde_ffi_dispatcher_sync_impl(
 55 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
 57 => wire__crate__ffi__types__root_seed_expose_secret_hex_impl(ptr, rust_vec_len, data_len),
 58 => wire__crate__ffi__types__root_seed_from_sys_rng_impl(ptr, rust_vec_len, data_len),
-59 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
-60 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
-61 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
-62 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
-63 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-66 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
-67 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
+59 => wire__crate__ffi__types__root_seed_seed_phrase_impl(ptr, rust_vec_len, data_len),
+60 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
+61 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
+62 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
+63 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
+64 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
+67 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
+68 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -4426,6 +4454,19 @@ impl SseEncode for crate::ffi::types::Invoice {
         <i64>::sse_encode(self.expires_at, serializer);
         <Option<u64>>::sse_encode(self.amount_sats, serializer);
         <String>::sse_encode(self.payee_pubkey, serializer);
+    }
+}
+
+impl SseEncode for Vec<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <String>::sse_encode(item, serializer);
+        }
     }
 }
 
