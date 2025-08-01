@@ -540,16 +540,11 @@ password manager!
           padding: const EdgeInsets.symmetric(vertical: Space.s400),
           child: ValueListenableBuilder(
             valueListenable: this.isSigningUp,
-            builder: (context, isSending, widget) => AnimatedFillButton(
+            builder: (context, isSending, widget) => SignupButton(
               label: const Text("Sign up"),
               icon: const Icon(LxIcons.next),
               onTap: this.onSubmit,
-              loading: isSending,
-              style: FilledButton.styleFrom(
-                backgroundColor: LxColors.moneyGoUp,
-                foregroundColor: LxColors.grey1000,
-                iconColor: LxColors.grey1000,
-              ),
+              isLoading: isSending,
             ),
           ),
         ),
@@ -632,8 +627,12 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
   /// up their seed phrase.
   final ValueNotifier<bool> isConfirmed = ValueNotifier(false);
 
+  /// Whether the signup request is in progress.
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+
   @override
   void dispose() {
+    this.isLoading.dispose();
     this.isConfirmed.dispose();
     super.dispose();
   }
@@ -649,8 +648,16 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
     unawaited(LxClipboard.copyTextWithFeedback(this.context, words));
   }
 
-  void onNext() {
-    info("tap");
+  Future<void> onSignUp() async {
+    if (this.isLoading.value) return;
+
+    this.isLoading.value = true;
+
+    // TODO(phlip9): impl
+    // final ctx = this.widget.ctx;
+    // if (!this.mounted) return;
+
+    this.isLoading.value = false;
   }
 
   @override
@@ -684,7 +691,6 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
               return SwitchListTile(
                 value: isConfirmed,
                 onChanged: this.onConfirm,
-                // onChanged: null,
                 title: const Text(
                   "I have backed up my seed phrase",
                   style: TextStyle(fontSize: Fonts.size300, height: 1.4),
@@ -698,7 +704,7 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
             },
           ),
         ],
-        // Bottom buttons (paste, next ->)
+        // Bottom buttons (copy, sign up ->)
         bottom: Padding(
           padding: const EdgeInsets.only(top: Space.s300, bottom: Space.s200),
           child: Column(
@@ -721,20 +727,29 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
                     ),
                   ),
                   const SizedBox(width: Space.s200),
-                  // Next ->
+                  // Sign up ->
                   Expanded(
                     child: ValueListenableBuilder(
                       valueListenable: this.isConfirmed,
                       builder: (_context, isConfirmed, _widget) =>
-                          GestureDetector(
-                            onTap: isConfirmed ? this.onNext : null,
-                            child: StackedButton(
-                              button: LxFilledButton(
-                                onTap: isConfirmed ? this.onNext : null,
-                                icon: const Center(child: Icon(LxIcons.next)),
-                              ),
-                              label: "Next",
-                            ),
+                          ValueListenableBuilder(
+                            valueListenable: this.isLoading,
+                            builder: (context, isLoading, child) {
+                              final isEnabled = isConfirmed && !isLoading;
+
+                              return GestureDetector(
+                                onTap: isEnabled ? this.onSignUp : null,
+                                child: StackedButton(
+                                  button: SignupButton(
+                                    label: const Icon(LxIcons.next),
+                                    icon: const Center(),
+                                    onTap: isEnabled ? this.onSignUp : null,
+                                    isLoading: isLoading,
+                                  ),
+                                  label: "Sign up",
+                                ),
+                              );
+                            },
                           ),
                     ),
                   ),
@@ -861,6 +876,36 @@ class SeedWord extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class SignupButton extends StatelessWidget {
+  const SignupButton({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    required this.isLoading,
+  });
+
+  final Widget label;
+  final Widget icon;
+  final VoidCallback? onTap;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedFillButton(
+      label: this.label,
+      icon: this.icon,
+      onTap: this.onTap,
+      loading: this.isLoading,
+      style: FilledButton.styleFrom(
+        backgroundColor: LxColors.moneyGoUp,
+        foregroundColor: LxColors.grey1000,
+        iconColor: LxColors.grey1000,
+      ),
     );
   }
 }
