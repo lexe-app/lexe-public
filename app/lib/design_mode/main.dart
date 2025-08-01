@@ -26,6 +26,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         Payment,
         PaymentMethod,
         PaymentStatus,
+        RootSeed,
         UserChannelId;
 import 'package:app_rs_dart/ffi/types.ext.dart' show PaymentExt;
 import 'package:flutter/foundation.dart';
@@ -295,13 +296,27 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
             Component(
               "SignupBackupSeedConfirmPage",
-              (context) => const SignupBackupSeedConfirmPage(),
+              (context) => SignupBackupSeedConfirmPage(
+                ctx: mockSignupCtx,
+                signupCode: null,
+              ),
             ),
             Component(
               "SignupBackupSeedPage",
+              (context) =>
+                  SignupBackupSeedPage(ctx: mockSignupCtx, signupCode: null),
+            ),
+            Component(
+              "SignupBackupSeedPage",
+              subtitle: "random",
               (context) => SignupBackupSeedPage(
-                ctx: mockSignupCtx,
-                seedWords: mocks.seedWords1,
+                ctx: SignupCtx(
+                  this.widget.config,
+                  RootSeed.fromSysRng(),
+                  GDriveAuth.mock,
+                  mockSignupApi,
+                ),
+                signupCode: null,
               ),
             ),
             Component(

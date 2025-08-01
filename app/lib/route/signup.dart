@@ -562,9 +562,26 @@ password manager!
 /// Once we have VSS backup to a third party, the messaging can change since
 /// all users will be OK.
 class SignupBackupSeedConfirmPage extends StatelessWidget {
-  const SignupBackupSeedConfirmPage({super.key});
+  const SignupBackupSeedConfirmPage({
+    super.key,
+    required this.ctx,
+    required this.signupCode,
+  });
 
-  void onConfirmPressed(BuildContext context) {}
+  final SignupCtx ctx;
+  final String? signupCode;
+
+  Future<void> onConfirmPressed(BuildContext context) async {
+    final AppHandle? flowResult = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            SignupBackupSeedPage(ctx: this.ctx, signupCode: this.signupCode),
+      ),
+    );
+    if (flowResult == null || !context.mounted) return;
+
+    unawaited(Navigator.of(context).maybePop(flowResult));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -616,11 +633,11 @@ class SignupBackupSeedPage extends StatefulWidget {
   const SignupBackupSeedPage({
     super.key,
     required this.ctx,
-    required this.seedWords,
-  }) : assert(seedWords.length == 24);
+    required this.signupCode,
+  });
 
   final SignupCtx ctx;
-  final List<String> seedWords;
+  final String? signupCode;
 
   @override
   State<SignupBackupSeedPage> createState() => _SignupBackupSeedPageState();
@@ -632,11 +649,14 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
   final ValueNotifier<bool> isConfirmed = ValueNotifier(false);
 
   /// Whether the signup request is in progress.
-  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+  final ValueNotifier<bool> isSigningUp = ValueNotifier(false);
+
+  /// The 24 seed words to display.
+  late final List<String> seedWords = widget.ctx.rootSeed.seedPhrase();
 
   @override
   void dispose() {
-    this.isLoading.dispose();
+    this.isSigningUp.dispose();
     this.isConfirmed.dispose();
     super.dispose();
   }
@@ -646,22 +666,47 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
   }
 
   void onCopy() {
-    final words = this.widget.seedWords.indexed
+    final words = this.seedWords.indexed
         .map((x) => "${x.$1 + 1}. ${x.$2}")
         .join(" ");
     unawaited(LxClipboard.copyTextWithFeedback(this.context, words));
   }
 
-  Future<void> onSignUp() async {
-    if (this.isLoading.value) return;
+  Future<void> onSubmit() async {
+    if (this.isSigningUp.value) return;
 
-    this.isLoading.value = true;
+    info("SignupBackupSeedPage: signing up with seed phrase-only backup");
 
-    // TODO(phlip9): impl
-    // final ctx = this.widget.ctx;
-    // if (!this.mounted) return;
+    this.isSigningUp.value = true;
+    try {
+      await this.onSubmitInner();
+    } finally {
+      if (this.mounted) this.isSigningUp.value = false;
+    }
+  }
 
-    this.isLoading.value = false;
+  Future<void> onSubmitInner() async {
+    final ctx = this.widget.ctx;
+    final result = await ctx.signupApi.signup(
+      config: ctx.config,
+      rootSeed: ctx.rootSeed,
+      gdriveSignupCreds: null,
+      signupCode: null,
+      partner: null,
+    );
+    if (!this.mounted) return;
+
+    final AppHandle flowResult;
+    switch (result) {
+      case Ok(:final ok):
+        flowResult = ok;
+      case Err(:final err):
+        error("Failed to signup: $err");
+        // TODO(phlip9): show error message
+        return;
+    }
+
+    unawaited(Navigator.of(this.context).maybePop(flowResult));
   }
 
   @override
@@ -685,7 +730,7 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
 
           Align(
             alignment: Alignment.center,
-            child: SeedWordsCard(seedWords: this.widget.seedWords),
+            child: SeedWordsCard(seedWords: this.seedWords),
           ),
 
           const SizedBox(height: Space.s500),
@@ -737,17 +782,17 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
                       valueListenable: this.isConfirmed,
                       builder: (_context, isConfirmed, _widget) =>
                           ValueListenableBuilder(
-                            valueListenable: this.isLoading,
+                            valueListenable: this.isSigningUp,
                             builder: (context, isLoading, child) {
                               final isEnabled = isConfirmed && !isLoading;
 
                               return GestureDetector(
-                                onTap: isEnabled ? this.onSignUp : null,
+                                onTap: isEnabled ? this.onSubmit : null,
                                 child: StackedButton(
                                   button: SignupButton(
                                     label: const Icon(LxIcons.next),
                                     icon: const Center(),
-                                    onTap: isEnabled ? this.onSignUp : null,
+                                    onTap: isEnabled ? this.onSubmit : null,
                                     isLoading: isLoading,
                                   ),
                                   label: "Sign up",
@@ -769,7 +814,8 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
 
 /// A rounded card the displays all 24 words of a seed phrase in two columns.
 class SeedWordsCard extends StatelessWidget {
-  const SeedWordsCard({super.key, required this.seedWords});
+  const SeedWordsCard({super.key, required this.seedWords})
+    : assert(seedWords.length == 24);
 
   final List<String> seedWords;
 
@@ -780,7 +826,7 @@ class SeedWordsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(
         // slightly less left-padding to visually center contents
-        Space.s450,
+        Space.s400,
         Space.s550,
         Space.s500,
         Space.s550,
