@@ -52,7 +52,11 @@ import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/design_mode/mocks.dart' as mocks;
 import 'package:lexeapp/feature_flags.dart' show FeatureFlags;
 import 'package:lexeapp/gdrive_auth.dart'
-    show GDriveAuth, GDriveServerAuthCode, MockGDriveRestoreCandidate;
+    show
+        GDriveAuth,
+        GDriveServerAuthCode,
+        MockGDriveRestoreCandidate,
+        MockRootSeed;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/result.dart';
@@ -206,13 +210,16 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
     final mockSignupApi = mocks.MockSignupApi(app: mockApp);
     const mockSignupApiErr = mocks.MockSignupApiErr();
     final mockRestoreApi = mocks.MockRestoreApi(app: mockApp);
+    const mockRootSeed = MockRootSeed();
     final mockSignupCtx = SignupCtx(
       this.widget.config,
+      mockRootSeed,
       GDriveAuth.mock,
       mockSignupApi,
     );
     final mockSignupCtxErr = SignupCtx(
       this.widget.config,
+      mockRootSeed,
       GDriveAuth.mockError,
       mockSignupApiErr,
     );
@@ -242,6 +249,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "LandingPage",
               (context) => LandingPage(
                 config: widget.config,
+                rootSeed: mockRootSeed,
                 gdriveAuth: GDriveAuth.mock,
                 signupApi: mockSignupApi,
                 restoreApi: mockRestoreApi,
@@ -262,6 +270,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (context) => SignupPage(
                 ctx: SignupCtx(
                   this.widget.config,
+                  mockRootSeed,
                   GDriveAuth.prod,
                   mockSignupApi,
                 ),
@@ -290,7 +299,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
             Component(
               "SignupBackupSeedPage",
-              (context) => SignupBackupSeedPage(seedWords: mocks.seedWords1),
+              (context) => SignupBackupSeedPage(
+                ctx: mockSignupCtx,
+                seedWords: mocks.seedWords1,
+              ),
             ),
             Component(
               "RestorePage (mock gdrive)",
@@ -776,6 +788,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               subtitle: "LandingPage",
               (context) => LandingPage(
                 config: widget.config,
+                rootSeed: mockRootSeed,
                 gdriveAuth: GDriveAuth.mock,
                 signupApi: mockSignupApi,
                 restoreApi: mockRestoreApi,

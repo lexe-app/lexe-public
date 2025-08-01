@@ -47,9 +47,10 @@ abstract interface class SignupApi {
 
 /// Collect all the context required for the Signup flow.
 final class SignupCtx {
-  const SignupCtx(this.config, this.gdriveAuth, this.signupApi);
+  const SignupCtx(this.config, this.rootSeed, this.gdriveAuth, this.signupApi);
 
   final Config config;
+  final RootSeed rootSeed;
   final GDriveAuth gdriveAuth;
   final SignupApi signupApi;
 }
@@ -421,14 +422,13 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
 
   Future<void> onSubmitInner(String password) async {
     final ctx = this.widget.ctx;
-    final rootSeed = RootSeed.fromSysRng();
     final gdriveSignupCreds = GDriveSignupCredentials(
       serverAuthCode: this.widget.authInfo.serverAuthCode,
       password: password,
     );
     final result = await ctx.signupApi.signup(
       config: ctx.config,
-      rootSeed: rootSeed,
+      rootSeed: ctx.rootSeed,
       gdriveSignupCreds: gdriveSignupCreds,
       signupCode: this.widget.signupCode,
       partner: null,
@@ -613,9 +613,13 @@ phone, but relies on Lexe to provide your encrypted recovery data.
 /// Show the user their 24 word seed phrase. Require them to actively confirm
 /// that they've backed it up before they can finish signup.
 class SignupBackupSeedPage extends StatefulWidget {
-  const SignupBackupSeedPage({super.key, required this.seedWords})
-    : assert(seedWords.length == 24);
+  const SignupBackupSeedPage({
+    super.key,
+    required this.ctx,
+    required this.seedWords,
+  }) : assert(seedWords.length == 24);
 
+  final SignupCtx ctx;
   final List<String> seedWords;
 
   @override

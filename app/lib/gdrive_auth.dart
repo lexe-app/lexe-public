@@ -259,14 +259,14 @@ class MockGDriveRestoreCandidate implements GDriveRestoreCandidate {
   @override
   RootSeed tryDecrypt({required String password}) =>
       // throw AnyhowException("Password decryption failed: ciphertext malformed");
-      const MockRootSeed._();
+      const MockRootSeed();
 
   @override
   String userPk() => this._userPk;
 }
 
 class MockRootSeed implements RootSeed {
-  const MockRootSeed._();
+  const MockRootSeed();
 
   @override
   RootSeedRs get inner => throw UnimplementedError();

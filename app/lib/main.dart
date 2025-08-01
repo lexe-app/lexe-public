@@ -1,6 +1,6 @@
 import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
-import 'package:app_rs_dart/ffi/types.dart' show Config, DeployEnv;
+import 'package:app_rs_dart/ffi/types.dart' show Config, DeployEnv, RootSeed;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show Intl;
 import 'package:intl/intl_standalone.dart' as intl_standalone;
@@ -78,6 +78,7 @@ Future<void> main() async {
     // no wallet persisted => first run -> show landing
     child = LandingPage(
       config: config,
+      rootSeed: RootSeed.fromSysRng(),
       gdriveAuth: gdriveAuth,
       signupApi: SignupApi.prod,
       restoreApi: RestoreApi.prod,

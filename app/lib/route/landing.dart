@@ -3,7 +3,7 @@ import 'dart:math' show max;
 import 'dart:ui' as ui;
 
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
-import 'package:app_rs_dart/ffi/types.dart' show Config;
+import 'package:app_rs_dart/ffi/types.dart' show Config, RootSeed;
 import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -31,6 +31,7 @@ class LandingPage extends StatefulWidget {
   const LandingPage({
     super.key,
     required this.config,
+    required this.rootSeed,
     required this.gdriveAuth,
     required this.signupApi,
     required this.restoreApi,
@@ -39,6 +40,7 @@ class LandingPage extends StatefulWidget {
   });
 
   final Config config;
+  final RootSeed rootSeed;
   final GDriveAuth gdriveAuth;
   final SignupApi signupApi;
   final RestoreApi restoreApi;
@@ -78,6 +80,7 @@ class _LandingPageState extends State<LandingPage> {
         builder: (_) => SignupPage(
           ctx: SignupCtx(
             this.widget.config,
+            this.widget.rootSeed,
             this.widget.gdriveAuth,
             this.widget.signupApi,
           ),
