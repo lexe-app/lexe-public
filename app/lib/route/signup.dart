@@ -264,12 +264,27 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
         ),
       ),
     );
-    if (flowResult == null) return;
-    if (!this.mounted) return;
+    if (flowResult == null || !this.mounted) return;
 
     info("SignupGDriveAuthPage: successful signup");
 
     // ignore: use_build_context_synchronously
+    unawaited(Navigator.of(this.context).maybePop(flowResult));
+  }
+
+  Future<void> onSeedOnlyPressed() async {
+    info("SignupGDriveAuthPage: user tapped seed phrase-only backup");
+
+    final AppHandle? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (_) => SignupBackupSeedConfirmPage(
+          ctx: this.widget.ctx,
+          signupCode: this.widget.signupCode,
+        ),
+      ),
+    );
+    if (flowResult == null || !this.mounted) return;
+
     unawaited(Navigator.of(this.context).maybePop(flowResult));
   }
 
@@ -317,10 +332,21 @@ of critical data on a regular basis.
         ],
         bottom: Padding(
           padding: const EdgeInsets.only(top: Space.s500),
-          child: LxFilledButton.strong(
-            label: const Text("Connect Google Drive"),
-            icon: const Icon(LxIcons.next),
-            onTap: this.onAuthPressed,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              LxFilledButton.strong(
+                label: const Text("Connect Google Drive"),
+                icon: const Icon(LxIcons.next),
+                onTap: this.onAuthPressed,
+              ),
+              const SizedBox(height: Space.s300),
+              LxFilledButton(
+                label: const Center(child: Text("Seed phrase-only backup")),
+                onTap: this.onSeedOnlyPressed,
+              ),
+            ],
           ),
         ),
       ),
@@ -572,6 +598,11 @@ class SignupBackupSeedConfirmPage extends StatelessWidget {
   final String? signupCode;
 
   Future<void> onConfirmPressed(BuildContext context) async {
+    info(
+      "SignupBackupSeedConfirmPage: user confirmed they want seed "
+      "phrase-only backup",
+    );
+
     final AppHandle? flowResult = await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) =>
@@ -616,7 +647,7 @@ phone, but relies on Lexe to provide your encrypted recovery data.
         ],
         bottom: Padding(
           padding: const EdgeInsets.only(top: Space.s500),
-          child: LxFilledButton(
+          child: LxFilledButton.strong(
             label: const Text("Confirm"),
             icon: const Icon(LxIcons.next),
             onTap: () => this.onConfirmPressed(context),
