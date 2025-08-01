@@ -44,6 +44,7 @@ import 'package:app_rs_dart/ffi/types.dart'
     show
         AppUserInfo,
         Config,
+        GDriveSignupCredentials,
         Invoice,
         LxChannelDetails,
         Offer,
@@ -651,8 +652,8 @@ class MockSignupApi implements SignupApi {
   @override
   Future<FfiResult<AppHandle>> signup({
     required Config config,
-    required String googleAuthCode,
-    required String password,
+    required RootSeed rootSeed,
+    required GDriveSignupCredentials? gdriveSignupCreds,
     required String? signupCode,
     required String? partner,
   }) => Future.delayed(const Duration(milliseconds: 2000), () => Ok(this.app));
@@ -664,8 +665,8 @@ class MockSignupApiErr implements SignupApi {
   @override
   Future<FfiResult<AppHandle>> signup({
     required Config config,
-    required String googleAuthCode,
-    required String password,
+    required RootSeed rootSeed,
+    required GDriveSignupCredentials? gdriveSignupCreds,
     required String? signupCode,
     required String? partner,
   }) => Future.delayed(

@@ -31,7 +31,9 @@ use lexe_api::types::{
     },
 };
 
-use crate::app::AppConfig;
+use crate::{
+    app::AppConfig, types::GDriveSignupCredentials as GDriveSignupCredentialsRs,
+};
 
 /// See [`common::env::DeployEnv`]
 #[frb(dart_metadata=("freezed"))]
@@ -142,6 +144,14 @@ pub struct RootSeed {
 }
 
 impl RootSeed {
+    /// Generate a new RootSeed from the secure system RNG.
+    #[frb(sync)]
+    pub fn from_sys_rng() -> Self {
+        Self {
+            inner: RustOpaqueNom::new(RootSeedRs::from_rng(&mut SysRng::new())),
+        }
+    }
+
     /// Hex-encode the root seed secret. Should only be used for debugging.
     #[frb(sync)]
     pub fn expose_secret_hex(&self) -> String {
@@ -153,6 +163,23 @@ impl From<RootSeedRs> for RootSeed {
     fn from(inner: RootSeedRs) -> Self {
         Self {
             inner: RustOpaqueNom::new(inner),
+        }
+    }
+}
+
+pub struct GDriveSignupCredentials {
+    /// The server auth code passed to the node enclave during provisioning.
+    pub server_auth_code: String,
+    /// The user's backup password, used to encrypt their [`RootSeed`] backup
+    /// on Google Drive.
+    pub password: String,
+}
+
+impl From<GDriveSignupCredentials> for GDriveSignupCredentialsRs {
+    fn from(creds: GDriveSignupCredentials) -> Self {
+        Self {
+            server_auth_code: creds.server_auth_code,
+            password: creds.password,
         }
     }
 }

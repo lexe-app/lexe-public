@@ -15,7 +15,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 /// Some assorted user/node info. This is kinda hacked together currently just
 /// to support account deletion requests.
@@ -62,6 +62,31 @@ enum DeployEnv {
 
   static DeployEnv fromStr({required String s}) =>
       AppRs.instance.api.crateFfiTypesDeployEnvFromStr(s: s);
+}
+
+class GDriveSignupCredentials {
+  /// The server auth code passed to the node enclave during provisioning.
+  final String serverAuthCode;
+
+  /// The user's backup password, used to encrypt their [`RootSeed`] backup
+  /// on Google Drive.
+  final String password;
+
+  const GDriveSignupCredentials({
+    required this.serverAuthCode,
+    required this.password,
+  });
+
+  @override
+  int get hashCode => serverAuthCode.hashCode ^ password.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GDriveSignupCredentials &&
+          runtimeType == other.runtimeType &&
+          serverAuthCode == other.serverAuthCode &&
+          password == other.password;
 }
 
 /// A lightning invoice with useful fields parsed out for the flutter frontend.
@@ -246,6 +271,10 @@ class RootSeed {
   /// Hex-encode the root seed secret. Should only be used for debugging.
   String exposeSecretHex() =>
       AppRs.instance.api.crateFfiTypesRootSeedExposeSecretHex(that: this);
+
+  /// Generate a new RootSeed from the secure system RNG.
+  static RootSeed fromSysRng() =>
+      AppRs.instance.api.crateFfiTypesRootSeedFromSysRng();
 
   @override
   int get hashCode => inner.hashCode;

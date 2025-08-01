@@ -194,14 +194,14 @@ class AppHandle {
 
   static Future<AppHandle> signup({
     required Config config,
-    required String googleAuthCode,
-    required String password,
+    required RootSeed rootSeed,
+    GDriveSignupCredentials? gdriveSignupCreds,
     String? signupCode,
     String? partner,
   }) => AppRs.instance.api.crateFfiAppAppHandleSignup(
     config: config,
-    googleAuthCode: googleAuthCode,
-    password: password,
+    rootSeed: rootSeed,
+    gdriveSignupCreds: gdriveSignupCreds,
     signupCode: signupCode,
     partner: partner,
   );

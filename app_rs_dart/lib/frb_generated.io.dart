@@ -158,6 +158,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  GDriveSignupCredentials dco_decode_box_autoadd_g_drive_signup_credentials(
+    dynamic raw,
+  );
+
+  @protected
   Invoice dco_decode_box_autoadd_invoice(dynamic raw);
 
   @protected
@@ -285,6 +290,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   GDriveRestoreClient dco_decode_g_drive_restore_client(dynamic raw);
 
   @protected
+  GDriveSignupCredentials dco_decode_g_drive_signup_credentials(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
@@ -357,6 +365,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   FeeEstimate? dco_decode_opt_box_autoadd_fee_estimate(dynamic raw);
+
+  @protected
+  GDriveSignupCredentials?
+  dco_decode_opt_box_autoadd_g_drive_signup_credentials(dynamic raw);
 
   @protected
   Invoice? dco_decode_opt_box_autoadd_invoice(dynamic raw);
@@ -625,6 +637,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  GDriveSignupCredentials sse_decode_box_autoadd_g_drive_signup_credentials(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Invoice sse_decode_box_autoadd_invoice(SseDeserializer deserializer);
 
   @protected
@@ -794,6 +811,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  GDriveSignupCredentials sse_decode_g_drive_signup_credentials(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
@@ -878,6 +900,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   FeeEstimate? sse_decode_opt_box_autoadd_fee_estimate(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GDriveSignupCredentials?
+  sse_decode_opt_box_autoadd_g_drive_signup_credentials(
     SseDeserializer deserializer,
   );
 
@@ -1192,6 +1220,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_g_drive_signup_credentials(
+    GDriveSignupCredentials self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_invoice(Invoice self, SseSerializer serializer);
 
   @protected
@@ -1393,6 +1427,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_g_drive_signup_credentials(
+    GDriveSignupCredentials self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
@@ -1494,6 +1534,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_opt_box_autoadd_fee_estimate(
     FeeEstimate? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_g_drive_signup_credentials(
+    GDriveSignupCredentials? self,
     SseSerializer serializer,
   );
 

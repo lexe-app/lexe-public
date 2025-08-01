@@ -46,7 +46,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.7.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1708969092;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1102873209;
 
 // Section: executor
 
@@ -572,12 +572,12 @@ fn wire__crate__ffi__app__app_handle_signup_impl(
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_config = <crate::ffi::types::Config>::sse_decode(&mut deserializer);
-let api_google_auth_code = <String>::sse_decode(&mut deserializer);
-let api_password = <String>::sse_decode(&mut deserializer);
+let api_root_seed = <crate::ffi::types::RootSeed>::sse_decode(&mut deserializer);
+let api_gdrive_signup_creds = <Option<crate::ffi::types::GDriveSignupCredentials>>::sse_decode(&mut deserializer);
 let api_signup_code = <Option<String>>::sse_decode(&mut deserializer);
 let api_partner = <Option<String>>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::signup(api_config, api_google_auth_code, &api_password, api_signup_code, api_partner).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::signup(api_config, api_root_seed, api_gdrive_signup_creds, api_signup_code, api_partner).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -897,6 +897,19 @@ fn wire__crate__ffi__types__root_seed_expose_secret_hex_impl(
             let api_that = <crate::ffi::types::RootSeed>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
                      let output_ok = Result::<_,()>::Ok(crate::ffi::types::RootSeed::expose_secret_hex(&api_that))?;   Ok(output_ok)
+                })()) })
+}
+fn wire__crate__ffi__types__root_seed_from_sys_rng_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "root_seed_from_sys_rng", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+                transform_result_sse::<_, ()>((move || {
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::types::RootSeed::from_sys_rng())?;   Ok(output_ok)
                 })()) })
 }
 fn wire__crate__ffi__secret_store__secret_store_new_impl(
@@ -1453,6 +1466,20 @@ impl SseDecode for crate::ffi::gdrive::GDriveRestoreClient {
     }
 }
 
+impl SseDecode for crate::ffi::types::GDriveSignupCredentials {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_serverAuthCode = <String>::sse_decode(deserializer);
+        let mut var_password = <String>::sse_decode(deserializer);
+        return crate::ffi::types::GDriveSignupCredentials {
+            server_auth_code: var_serverAuthCode,
+            password: var_password,
+        };
+    }
+}
+
 impl SseDecode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -1805,6 +1832,23 @@ impl SseDecode for Option<crate::ffi::api::FeeEstimate> {
             return Some(<crate::ffi::api::FeeEstimate>::sse_decode(
                 deserializer,
             ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::ffi::types::GDriveSignupCredentials> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::ffi::types::GDriveSignupCredentials>::sse_decode(
+                    deserializer,
+                ),
+            );
         } else {
             return None;
         }
@@ -2527,8 +2571,8 @@ fn pde_ffi_dispatcher_primary_impl(
 53 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
 54 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
 56 => wire__crate__ffi__payment_uri__resolve_best_impl(port, ptr, rust_vec_len, data_len),
-63 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
-64 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
+64 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
+65 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -2566,13 +2610,14 @@ fn pde_ffi_dispatcher_sync_impl(
 52 => wire__crate__ffi__gdrive__g_drive_restore_candidate_user_pk_impl(ptr, rust_vec_len, data_len),
 55 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
 57 => wire__crate__ffi__types__root_seed_expose_secret_hex_impl(ptr, rust_vec_len, data_len),
-58 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
-59 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
-60 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
-61 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
-62 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-65 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
-66 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
+58 => wire__crate__ffi__types__root_seed_from_sys_rng_impl(ptr, rust_vec_len, data_len),
+59 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
+60 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
+61 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
+62 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
+63 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
+66 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
+67 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -3003,6 +3048,31 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::gdrive::GDriveRestoreClient>
     for crate::ffi::gdrive::GDriveRestoreClient
 {
     fn into_into_dart(self) -> crate::ffi::gdrive::GDriveRestoreClient {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::ffi::types::GDriveSignupCredentials
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.server_auth_code.into_into_dart().into_dart(),
+            self.password.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::GDriveSignupCredentials
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<
+        crate::ffi::types::GDriveSignupCredentials,
+    > for crate::ffi::types::GDriveSignupCredentials
+{
+    fn into_into_dart(self) -> crate::ffi::types::GDriveSignupCredentials {
         self
     }
 }
@@ -4313,6 +4383,17 @@ impl SseEncode for crate::ffi::gdrive::GDriveRestoreClient {
     }
 }
 
+impl SseEncode for crate::ffi::types::GDriveSignupCredentials {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <String>::sse_encode(self.server_auth_code, serializer);
+        <String>::sse_encode(self.password, serializer);
+    }
+}
+
 impl SseEncode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -4619,6 +4700,21 @@ impl SseEncode for Option<crate::ffi::api::FeeEstimate> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::ffi::api::FeeEstimate>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::ffi::types::GDriveSignupCredentials> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::ffi::types::GDriveSignupCredentials>::sse_encode(
+                value, serializer,
+            );
         }
     }
 }

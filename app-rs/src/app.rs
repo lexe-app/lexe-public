@@ -41,6 +41,7 @@ use crate::{
     provision_history::ProvisionHistory,
     secret_store::SecretStore,
     settings::SettingsDb,
+    types::GDriveSignupCredentials,
 };
 
 pub struct App {
@@ -62,16 +63,14 @@ pub struct App {
 impl App {
     /// Signup a new user.
     ///
-    /// - `google_auth_code`: see [`NodeProvisionRequest::google_auth_code`]
-    /// - `password`: if [`Some`], then [`NodeProvisionRequest::encrypted_seed`]
-    ///   will also be set to [`Some`].
+    /// - `gdrive_signup_creds`: set to `Some` if the user is signing up with
+    ///   active Google Drive backup.
     #[instrument(skip_all, name = "(signup)")]
     pub async fn signup(
         rng: &mut impl Crng,
         config: AppConfig,
         root_seed: &RootSeed,
-        google_auth_code: Option<String>,
-        password: Option<&str>,
+        gdrive_signup_creds: Option<GDriveSignupCredentials>,
         signup_code: Option<String>,
         partner: Option<UserPk>,
     ) -> anyhow::Result<Self> {
@@ -150,7 +149,9 @@ impl App {
         // Provision the node for the first time and update latest_provisioned.
         // NOTE: This computes 600K HMAC iterations! We only do this at signup.
         let allow_gvfs_access = true;
-        let maybe_encrypted_seed = password
+        let maybe_encrypted_seed = gdrive_signup_creds
+            .as_ref()
+            .map(|c| &c.password)
             .map(|pass| root_seed.password_encrypt(rng, pass))
             .transpose()
             .context("Could not encrypt root seed under password")?;
@@ -161,6 +162,7 @@ impl App {
             current_releases,
         );
 
+        let google_auth_code = gdrive_signup_creds.map(|c| c.server_auth_code);
         helpers::provision(
             provision_ffs,
             node_client.clone(),

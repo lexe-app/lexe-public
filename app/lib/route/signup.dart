@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/form.dart' as form;
-import 'package:app_rs_dart/ffi/types.dart' show Config, DeployEnv;
+import 'package:app_rs_dart/ffi/types.dart'
+    show Config, DeployEnv, GDriveSignupCredentials, RootSeed;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
@@ -37,8 +38,8 @@ abstract interface class SignupApi {
 
   Future<FfiResult<AppHandle>> signup({
     required Config config,
-    required String googleAuthCode,
-    required String password,
+    required RootSeed rootSeed,
+    required GDriveSignupCredentials? gdriveSignupCreds,
     required String? signupCode,
     required String? partner,
   });
@@ -59,15 +60,15 @@ class _ProdSignupApi implements SignupApi {
   @override
   Future<FfiResult<AppHandle>> signup({
     required Config config,
-    required String googleAuthCode,
-    required String password,
+    required RootSeed rootSeed,
+    required GDriveSignupCredentials? gdriveSignupCreds,
     required String? signupCode,
     required String? partner,
   }) => Result.tryFfiAsync(
     () => AppHandle.signup(
       config: config,
-      googleAuthCode: googleAuthCode,
-      password: password,
+      rootSeed: rootSeed,
+      gdriveSignupCreds: gdriveSignupCreds,
       signupCode: signupCode,
       partner: partner,
     ),
@@ -420,10 +421,15 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
 
   Future<void> onSubmitInner(String password) async {
     final ctx = this.widget.ctx;
+    final rootSeed = RootSeed.fromSysRng();
+    final gdriveSignupCreds = GDriveSignupCredentials(
+      serverAuthCode: this.widget.authInfo.serverAuthCode,
+      password: password,
+    );
     final result = await ctx.signupApi.signup(
       config: ctx.config,
-      googleAuthCode: this.widget.authInfo.serverAuthCode,
-      password: password,
+      rootSeed: rootSeed,
+      gdriveSignupCreds: gdriveSignupCreds,
       signupCode: this.widget.signupCode,
       partner: null,
     );

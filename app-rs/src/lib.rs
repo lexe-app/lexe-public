@@ -37,3 +37,5 @@ pub(crate) mod qr;
 pub mod secret_store;
 /// Settings DB
 mod settings;
+/// App rust types.
+pub mod types;

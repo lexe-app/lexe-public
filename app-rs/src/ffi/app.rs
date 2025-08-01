@@ -9,7 +9,6 @@ use common::{
     },
     env::DeployEnv,
     rng::SysRng,
-    root_seed::RootSeed as RootSeedRs,
 };
 use flutter_rust_bridge::{frb, RustOpaqueNom};
 use hex::FromHex;
@@ -30,27 +29,33 @@ use lexe_api::{
 };
 use tracing::instrument;
 
-use crate::ffi::{
-    api::{
-        CloseChannelRequest, CreateClientRequest, CreateClientResponse,
-        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-        CreateOfferResponse, FiatRates, ListChannelsResponse, NodeInfo,
-        OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-        PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-        PayOnchainRequest, PayOnchainResponse, PreflightCloseChannelRequest,
-        PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-        PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-        PreflightPayInvoiceResponse, PreflightPayOfferRequest,
-        PreflightPayOfferResponse, PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse, UpdateClientRequest, UpdatePaymentNote,
-    },
-    settings::SettingsDb,
-    types::{
-        AppUserInfo, Config, Payment, PaymentIndex, RevocableClient, RootSeed,
-        ShortPayment, ShortPaymentAndIndex,
-    },
-};
 pub(crate) use crate::{app::App, settings::SettingsDb as SettingsDbRs};
+use crate::{
+    app::AppConfig,
+    ffi::{
+        api::{
+            CloseChannelRequest, CreateClientRequest, CreateClientResponse,
+            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+            CreateOfferResponse, FiatRates, ListChannelsResponse, NodeInfo,
+            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+            PayOnchainRequest, PayOnchainResponse,
+            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOfferRequest, PreflightPayOfferResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            UpdateClientRequest, UpdatePaymentNote,
+        },
+        settings::SettingsDb,
+        types::{
+            AppUserInfo, Config, GDriveSignupCredentials, Payment,
+            PaymentIndex, RevocableClient, RootSeed, ShortPayment,
+            ShortPaymentAndIndex,
+        },
+    },
+    types::GDriveSignupCredentials as GDriveSignupCredentialsRs,
+};
 
 /// The `AppHandle` is a Dart representation of an [`App`] instance.
 pub struct AppHandle {
@@ -98,34 +103,37 @@ impl AppHandle {
 
     pub async fn signup(
         config: Config,
-        // TODO(max): Should be optional, as GDrive is now optional.
-        google_auth_code: String,
-        // TODO(max): Should be optional, as GDrive is now optional.
-        password: &str,
+        root_seed: RootSeed,
+        gdrive_signup_creds: Option<GDriveSignupCredentials>,
         signup_code: Option<String>,
         partner: Option<String>,
     ) -> anyhow::Result<AppHandle> {
-        // Ignored in local dev.
-        //
-        // Single-use `serverAuthCode` from Google OAuth 2 consent flow, used by
-        // the enclave to get access+refresh tokens.
-        let google_auth_code = match DeployEnv::from(config.deploy_env) {
-            DeployEnv::Dev => None,
-            DeployEnv::Prod | DeployEnv::Staging => Some(google_auth_code),
-        };
+        let config = AppConfig::from(config);
 
-        let mut rng = SysRng::new();
-        let root_seed = RootSeedRs::from_rng(&mut rng);
+        // When user signs up with active Google Drive backup, this is the
+        // backup password + single-use `serverAuthCode` from Google OAuth 2
+        // consent flow, used by the enclave to get access+refresh tokens.
+        let gdrive_signup_creds = gdrive_signup_creds.and_then(|c| {
+            match config.deploy_env {
+                // Ignored in local dev.
+                DeployEnv::Dev => None,
+                // TODO(phlip9): don't know why frb keeps trying to add a
+                // conversion for the Rust-only type...
+                DeployEnv::Prod | DeployEnv::Staging =>
+                    Some(GDriveSignupCredentialsRs::from(c)),
+            }
+        });
+
         let partner = partner
             .map(|p| UserPk::from_hex(&p))
             .transpose()
             .context("Failed to parse partner id")?;
+
         App::signup(
-            &mut rng,
-            config.into(),
-            &root_seed,
-            google_auth_code,
-            Some(password),
+            &mut SysRng::new(),
+            config,
+            &root_seed.inner,
+            gdrive_signup_creds,
             signup_code,
             partner,
         )
