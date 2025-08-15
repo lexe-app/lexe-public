@@ -171,6 +171,8 @@ impl MegaContext {
         let network_graph = {
             let network_graph_bytes = try_network_graph_bytes
                 .context("Could not fetch serialized network graph")?;
+            let network_graph_size = network_graph_bytes.len();
+            info!("Network graph binary size: {network_graph_size} bytes");
             let mut reader = Cursor::new(&network_graph_bytes);
             let read_args = logger.clone();
             NetworkGraphType::read(&mut reader, read_args)
