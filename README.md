@@ -129,7 +129,7 @@ features, and tell the VM to sign its store packages:
 ```bash
 $ orb push -m linux-builder ./nix/linux-builder/configuration.nix /tmp/configuration.nix
 $ orb run -m linux-builder --user root --shell <<EOF
-sed "s/{{ username }}/$USER/" /tmp/configuration.nix > /etc/nixos/configuration.nix
+sed "s/{{ username }}/$USER/g" /tmp/configuration.nix > /etc/nixos/configuration.nix
 chown root:root /etc/nixos/configuration.nix
 nixos-rebuild switch
 EOF
