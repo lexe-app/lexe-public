@@ -92,6 +92,8 @@ where
 
 /// Tracks the persist state for a specific channel monitor.
 struct MonitorPersistState {
+    /// Whether a persist operation is currently in-flight for this monitor.
+    is_persisting: bool,
     /// If a persist is already in-flight but we get another update, we'll
     /// queue it here. Since we persist the full channel monitor each time,
     /// we can coalesce pending writes to the same channel monitor. We do still
@@ -271,12 +273,14 @@ where
             .chanmon_persist_states
             .entry(batch.funding_txo)
             .or_insert_with(|| MonitorPersistState {
+                is_persisting: false,
                 queued_update_ids: Vec::new(),
                 span: batch.span.clone(),
             });
 
-        if state.queued_update_ids.is_empty() {
-            // If there's no pending updates, start persisting immediately.
+        if !state.is_persisting {
+            // If there's no persist in-flight, start persisting immediately.
+            state.is_persisting = true;
             self.spawn_persist(batch);
         } else {
             // If there's already a persist in-flight, we need to queue these
@@ -311,7 +315,8 @@ where
 
         let funding_txo = result.map_err(|_| FatalError).and_then(|r| r)?;
 
-        // Check if there's another queued update for this channel
+        // If there's another queued update for this channel, spawn another
+        // persist task for it. Otherwise, reset `is_persisting` back to false.
         if let Some(state) = self.chanmon_persist_states.get_mut(&funding_txo) {
             if !state.queued_update_ids.is_empty() {
                 let span = state.span.clone();
@@ -321,7 +326,10 @@ where
                     update_ids: updates,
                     span,
                 };
+                // Keep is_persisting true since we're spawning another persist
                 self.spawn_persist(batch);
+            } else {
+                state.is_persisting = false;
             }
         }
         Ok(())
