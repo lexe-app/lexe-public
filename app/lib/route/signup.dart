@@ -309,8 +309,8 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
             data: '''
 # Connect your Google Drive
 
-Your **node needs access to Drive** to persist small amounts
-of critical data on a regular basis.
+You **node needs access to Drive** to keep your recovery data up-to-date.
+With Drive backup you can **always recover your funds** even if Lexe goes away.
 
 - Your node can only access the files it creates in the **LexeData** folder.
 - Lexe cannot access any files in your Drive.
@@ -633,16 +633,17 @@ class SignupBackupSeedConfirmPage extends StatelessWidget {
             data: '''
 A seed phrase-only backup allows you to restore your node if you lose your
 phone, but relies on Lexe to provide your encrypted recovery data.
-
-[Learn more](learn-more)
 ''',
+            // TODO(phlip9): add a real link to our future help docs.
+            // [Learn more](learn-more)
+            // styleSheet: LxTheme.markdownStyle.copyWith(
+            //   a: const TextStyle(
+            //     color: LxColors.foreground,
+            //     decoration: TextDecoration.underline,
+            //   ),
+            // ),
             // styleSheet: LxTheme.buildMarkdownStyle(),
-            styleSheet: LxTheme.markdownStyle.copyWith(
-              a: const TextStyle(
-                color: LxColors.foreground,
-                decoration: TextDecoration.underline,
-              ),
-            ),
+            styleSheet: LxTheme.markdownStyle,
           ),
         ],
         bottom: Padding(
@@ -797,9 +798,9 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
                         // Disable switch while signing up
                         onChanged: (!isSigningUp) ? this.onConfirm : null,
                         title: const Text(
-                          "I have backed up my seed phrase",
+                          "I have backed up my seed phrase. I understand my funds cannot be recovered if I lose the seed phrase.",
                           style: TextStyle(
-                            fontSize: Fonts.size300,
+                            fontSize: Fonts.size200,
                             height: 1.4,
                           ),
                         ),
