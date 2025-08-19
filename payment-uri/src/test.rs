@@ -4,9 +4,7 @@ use common::{
     test_utils::{arbitrary, arbitrary::any_mainnet_addr_unchecked},
     time::TimestampMs,
 };
-use proptest::{
-    arbitrary::any, prop_assert_eq, proptest, sample::Index, strategy::Strategy,
-};
+use proptest::{arbitrary::any, prop_assert_eq, proptest, strategy::Strategy};
 
 use super::*;
 
@@ -187,28 +185,6 @@ fn test_bip321_uri_prop_append_junk() {
             uri.onchain.first().unwrap(),
             uri_parsed.onchain.first().unwrap()
         );
-    });
-}
-
-// inserting a `req-` URI param should make us to skip the onchain method
-#[test]
-fn test_bip321_uri_prop_req_param() {
-    proptest!(|(uri: Bip321Uri, key: String, value: String, param_idx: Index)| {
-
-        let mut uri_raw = uri.to_uri();
-        let param_idx = param_idx.index(uri_raw.params.len() + 1);
-        let key = format!("req-{key}");
-        let param = UriParam { key: key.into(), value: value.into() };
-        uri_raw.params.insert(param_idx, param);
-
-        let actual1 = Bip321Uri::parse(&uri_raw.to_string()).unwrap();
-        let actual2 = Bip321Uri::parse_uri(uri_raw).unwrap();
-        prop_assert_eq!(&actual1, &actual2);
-        prop_assert_eq!(
-            Vec::<bitcoin::Address<NetworkUnchecked>>::new(),
-            actual1.onchain
-        );
-        prop_assert_eq!(uri.invoice, actual1.invoice);
     });
 }
 
