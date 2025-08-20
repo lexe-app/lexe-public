@@ -602,6 +602,13 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
   String? note() => this.noteFieldKey.currentState?.value;
 
+  String? description() => switch (this.widget.sendCtx.preflightedPayment) {
+    PreflightedPayment_Invoice(:final invoice) => invoice.description,
+    PreflightedPayment_Onchain(:final onchain) =>
+      onchain.message ?? onchain.label,
+    PreflightedPayment_Offer(:final offer) => offer.description,
+  };
+
   @override
   Widget build(BuildContext context) {
     final preflighted = this.widget.sendCtx.preflightedPayment;
@@ -630,6 +637,8 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
         "Sending bitcoin via lightning spontaneous payment",
       PaymentKind.offer => "Sending bitcoin via lightning offer",
     };
+
+    final description = this.description();
 
     return Scaffold(
       appBar: AppBar(
@@ -759,7 +768,31 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             ],
           ),
 
-          const SizedBox(height: Space.s700),
+          const SizedBox(height: Space.s600),
+
+          //
+          // Description
+          //
+          if (description != null)
+            Row(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              spacing: Space.s400,
+              children: [
+                const Text("Description", style: textStyleSecondary),
+                Flexible(
+                  child: Text(
+                    description,
+                    style: textStyleSecondary.copyWith(fontSize: Fonts.size200),
+                    textAlign: TextAlign.end,
+                  ),
+                ),
+              ],
+            ),
+
+          if (this.description() != null) const SizedBox(height: Space.s500),
 
           //
           // Optional payment note input

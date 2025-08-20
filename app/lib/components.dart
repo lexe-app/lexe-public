@@ -1117,7 +1117,7 @@ class ValueStreamBuilder<T> extends StreamBuilder<T> {
 class ReceiptSeparator extends SizedBox {
   const ReceiptSeparator({super.key})
     : super(
-        height: Space.s650,
+        height: Space.s600,
         child: const ZigZag(
           color: LxColors.grey750,
           zigWidth: 14.0,
