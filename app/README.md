@@ -285,7 +285,7 @@ $ gem --version
 ```
 
 Install the `cocoapods` gem. This command also updates `cocoapods` if already
-intalled.
+installed.
 
 ```bash
 $ gem install cocoapods
@@ -295,7 +295,7 @@ Sanity check
 
 ```bash
 $ pod --version
-1.15.0
+1.16.2
 ```
 
 #### Ensure the iOS Simulator app works
