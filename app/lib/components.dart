@@ -1032,7 +1032,7 @@ class PaymentNoteInput extends StatelessWidget {
 
       decoration: const InputDecoration(
         hintStyle: TextStyle(color: LxColors.grey550),
-        hintText: "What's this payment for? (optional)",
+        hintText: "Optional personal note (for yourself only)",
         counterStyle: TextStyle(color: LxColors.grey550),
         border: OutlineInputBorder(),
         enabledBorder: OutlineInputBorder(
