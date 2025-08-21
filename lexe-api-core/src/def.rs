@@ -521,7 +521,7 @@ pub trait NodeBackendApi {
     ) -> Result<MaybeScid, BackendApiError>;
 
     /// GET /node/v1/file [`VfsFileId`] -> [`MaybeVfsFile`]
-    async fn get_file(
+    async fn get_file_v1(
         &self,
         file_id: &VfsFileId,
         auth: BearerAuthToken,

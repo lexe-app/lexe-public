@@ -33,7 +33,7 @@ pub(super) async fn read(
             .await
             .context("Could not get token")?;
         backend_api
-            .get_file(file_id, token)
+            .get_file_v1(file_id, token)
             .await
             .with_context(|| format!("{file_id}"))
             .context("Couldn't fetch from Lexe")

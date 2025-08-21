@@ -174,7 +174,7 @@ pub(crate) async fn read_gdrive_credentials(
         .context("Could not get auth token")?;
 
     let maybe_file = backend_api
-        .get_file(&file_id, token)
+        .get_file_v1(&file_id, token)
         .await
         .context("Failed to fetch file")?
         .maybe_file;
@@ -226,7 +226,7 @@ pub(crate) async fn read_gvfs_root(
         .context("Could not get auth token")?;
 
     let maybe_gvfs_root = backend_api
-        .get_file(&file_id, token)
+        .get_file_v1(&file_id, token)
         .await
         .context("Failed to fetch file")?
         .maybe_file
@@ -288,7 +288,7 @@ pub(crate) async fn read_approved_versions(
         .context("Could not get auth token")?;
 
     backend_api
-        .get_file(&file_id, token)
+        .get_file_v1(&file_id, token)
         .await
         .context("Failed to fetch file")?
         .maybe_file
@@ -588,7 +588,7 @@ impl Vfs for NodePersister {
     ) -> Result<Option<VfsFile>, BackendApiError> {
         let token = self.get_token().await?;
         self.backend_api
-            .get_file(file_id, token)
+            .get_file_v1(file_id, token)
             .await
             .map(|MaybeVfsFile { maybe_file }| maybe_file)
     }

@@ -305,7 +305,7 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn get_file(
+    async fn get_file_v1(
         &self,
         data: &VfsFileId,
         auth: BearerAuthToken,
