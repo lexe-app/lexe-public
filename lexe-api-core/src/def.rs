@@ -551,7 +551,7 @@ pub trait NodeBackendApi {
     ) -> Result<Empty, BackendApiError>;
 
     /// GET /node/v1/directory [`VfsDirectory`] -> [`VecVfsFile`]
-    async fn get_directory(
+    async fn get_directory_v1(
         &self,
         dir: &VfsDirectory,
         auth: BearerAuthToken,

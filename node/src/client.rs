@@ -360,7 +360,7 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn get_directory(
+    async fn get_directory_v1(
         &self,
         data: &VfsDirectory,
         auth: BearerAuthToken,

@@ -618,7 +618,7 @@ impl Vfs for NodePersister {
     ) -> Result<Vec<VfsFile>, BackendApiError> {
         let token = self.get_token().await?;
         self.backend_api
-            .get_directory(dir, token)
+            .get_directory_v1(dir, token)
             .await
             .map(|VecVfsFile { files }| files)
     }
