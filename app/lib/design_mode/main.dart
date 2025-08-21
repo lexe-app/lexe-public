@@ -443,6 +443,9 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   paymentMethod: const PaymentMethod.onchain(
                     Onchain(
                       address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+                      message:
+                          "Rocks, stones, and ancient old thrones; "
+                          "petals, blooms, and whispering tunes.",
                     ),
                   ),
                 ),
@@ -464,6 +467,9 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                           "lnbcrt1qqp4ydsdq22dhxzcmtwvpp5kv0433rmqrm6rj9r70dv4z5w3vyfdda97lzacf2z2ue06tdrz45ssp54jrpc79t9myqyywfslvr5f94tt938xpxcvm8hzu7hc7275lq9stq9qyysgqcqpcxq9p4yd3l05qyptltyujph97g7t9yw6exnlxce76uk9qcqq7h2hdp28qagh9cc77fn6vhukccvr8hedgmq0y6r84vusrsz3z86d4ty2scldj3eqq3mm4ln",
                       createdAt: 1741232485000,
                       expiresAt: 1741233485000,
+                      description:
+                          "Snips, snails and puppy-dog tails; "
+                          "sugar, spice, and everything nice.",
                       payeePubkey:
                           "28157d6ca3555a0a3275817d0832c535955b28b20a55f9596f6873434feebfd797d4b245397fab8f8f94dcdd32aac475d64893aa042f18b8d725e116082ae909",
                     ),
@@ -484,6 +490,9 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   paymentMethod: const PaymentMethod.onchain(
                     Onchain(
                       address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+                      label:
+                          "Sighs, leers, and crocodile tears; "
+                          "rings, jings, and other fine things.",
                     ),
                   ),
                 ),

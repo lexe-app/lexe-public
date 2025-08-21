@@ -8,7 +8,12 @@ import 'package:app_rs_dart/ffi/api.dart'
     show FeeEstimate, PreflightPayOnchainResponse;
 import 'package:app_rs_dart/ffi/api.ext.dart';
 import 'package:app_rs_dart/ffi/types.dart'
-    show ConfirmationPriority, PaymentKind;
+    show
+        ConfirmationPriority,
+        PaymentKind,
+        PaymentMethod_Invoice,
+        PaymentMethod_Offer,
+        PaymentMethod_Onchain;
 import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:flutter/material.dart';
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
@@ -418,6 +423,12 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     return const Ok(());
   }
 
+  String? description() => switch (this.widget.sendCtx.paymentMethod) {
+    PaymentMethod_Invoice(:final field0) => field0.description,
+    PaymentMethod_Onchain(:final field0) => field0.message ?? field0.label,
+    PaymentMethod_Offer(:final field0) => field0.description,
+  };
+
   @override
   Widget build(BuildContext context) {
     final kind = this.widget.sendCtx.paymentMethod.kind();
@@ -426,6 +437,14 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
       balance.maxSendableByKind(kind),
       satsSuffix: true,
     );
+
+    const textStyleSecondary = TextStyle(
+      fontSize: Fonts.size300,
+      color: LxColors.grey550,
+      fontVariations: [],
+    );
+
+    final description = this.description();
 
     return Scaffold(
       appBar: AppBar(
@@ -451,7 +470,30 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
             allowEmpty: false,
           ),
 
-          const SizedBox(height: Space.s700),
+          // Description (if available)
+          if (description != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: Space.s600),
+              child: Row(
+                mainAxisSize: MainAxisSize.max,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                spacing: Space.s400,
+                children: [
+                  const Text("Description", style: textStyleSecondary),
+                  Flexible(
+                    child: Text(
+                      description,
+                      style: textStyleSecondary.copyWith(
+                        fontSize: Fonts.size200,
+                      ),
+                      textAlign: TextAlign.end,
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
           // Error fetching fee estimate
           ValueListenableBuilder(
@@ -463,7 +505,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 
         // Next ->
         bottom: Padding(
-          padding: const EdgeInsets.only(top: Space.s500),
+          padding: const EdgeInsets.symmetric(vertical: Space.s500),
           child: ValueListenableBuilder(
             valueListenable: this.estimatingFee,
             builder: (_context, estimatingFee, _widget) => AnimatedFillButton(
