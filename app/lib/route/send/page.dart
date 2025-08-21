@@ -655,6 +655,9 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
           SubheadingText(text: subheading),
           const SizedBox(height: Space.s700),
 
+          //
+          // To   <address/invoice/etc...>
+          //
           Row(
             mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -675,77 +678,90 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
           const SizedBox(height: Space.s500),
 
           //
-          // Amount to-be-received by the payee
+          // Amount         XXX sats
+          // Network Fee   ~YYY sats
           //
-          Row(
-            mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Amount", style: textStyleSecondary),
-              Text(amountSatsStr, style: textStyleSecondary),
-            ],
-          ),
-
-          const SizedBox(height: Space.s100),
-
-          //
-          // Network Fee
-          //
-          if (preflighted case PreflightedPayment_Onchain())
-            Row(
-              mainAxisSize: MainAxisSize.max,
-              mainAxisAlignment: MainAxisAlignment.start,
+          // HACK(phlip9): wrap the whole section in a GestureDetector for
+          // "tap to change fee rate". This makes the tap target area large
+          // enough for good accessibility without messing up the row height
+          // layouting vs. a TextButton. I couldn't figure out how to do this
+          // with OverflowBox or Stack.
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: (preflighted is PreflightedPayment_Onchain)
+                ? () async => this.chooseOnchainFeeRate(preflighted)
+                : null,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                TextButton(
-                  onPressed: () async => this.chooseOnchainFeeRate(preflighted),
-                  style: TextButton.styleFrom(
-                    textStyle: textStyleSecondary,
-                    foregroundColor: LxColors.grey550,
-                    shape: const LinearBorder(),
-                    padding: const EdgeInsets.only(right: Space.s200),
-                  ),
-                  // Sadly flutter doesn't allow us to increase the space b/w the
-                  // text and the underline. The default text decoration looks
-                  // ugly af. So we have this hack to draw a dashed line...
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
+                //
+                // Amount to-be-received by the payee
+                //
+                Row(
+                  mainAxisSize: MainAxisSize.max,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text("Amount", style: textStyleSecondary),
+                    Text(amountSatsStr, style: textStyleSecondary),
+                  ],
+                ),
+
+                const SizedBox(height: Space.s100),
+
+                //
+                // Network Fee
+                //
+                if (preflighted case PreflightedPayment_Onchain())
+                  Row(
+                    mainAxisSize: MainAxisSize.max,
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      Text("Network Fee"),
-                      SizedBox(width: Space.s200),
-                      Icon(
-                        LxIcons.edit,
-                        size: Fonts.size300,
-                        color: LxColors.grey625,
+                      const Text("Network Fee", style: textStyleSecondary),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: Space.s200),
+                        child: Icon(
+                          LxIcons.edit,
+                          size: Fonts.size300,
+                          color: LxColors.grey625,
+                        ),
+                      ),
+
+                      // ~XXX sats
+                      Expanded(
+                        child: ValueListenableBuilder(
+                          valueListenable: this.confPriority,
+                          builder: (context, confPriority, child) {
+                            final feeSatsStr = currency_format.formatSatsAmount(
+                              this.feeSats(),
+                            );
+                            return Text(
+                              "~$feeSatsStr",
+                              style: textStyleSecondary,
+                              textAlign: TextAlign.end,
+                            );
+                          },
+                        ),
                       ),
                     ],
                   ),
-                ),
-                const Expanded(child: SizedBox()),
-                ValueListenableBuilder(
-                  valueListenable: this.confPriority,
-                  builder: (context, confPriority, child) {
-                    final feeSatsStr = currency_format.formatSatsAmount(
-                      this.feeSats(),
-                    );
-                    return Text("~$feeSatsStr", style: textStyleSecondary);
-                  },
-                ),
-              ],
-            ),
 
-          if (preflighted case PreflightedPayment_Invoice(:final preflight))
-            Row(
-              mainAxisSize: MainAxisSize.max,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text("Network Fee", style: textStyleSecondary),
-                Text(
-                  currency_format.formatSatsAmount(preflight.feesSats),
-                  style: textStyleSecondary,
-                ),
+                if (preflighted case PreflightedPayment_Invoice(
+                  :final preflight,
+                ))
+                  Row(
+                    mainAxisSize: MainAxisSize.max,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Network Fee", style: textStyleSecondary),
+                      Text(
+                        currency_format.formatSatsAmount(preflight.feesSats),
+                        style: textStyleSecondary,
+                      ),
+                    ],
+                  ),
               ],
             ),
+          ),
 
           // sparator - /\/\/\/\/\/\/\/\/\/\/
           const ReceiptSeparator(),
