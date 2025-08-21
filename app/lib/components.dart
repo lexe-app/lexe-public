@@ -990,19 +990,21 @@ class PaymentAmountInput extends StatelessWidget {
   }
 }
 
-/// Text entry field for a user to set a payment's note.
+/// Text entry field for a user to set a payment's note or description.
 class PaymentNoteInput extends StatelessWidget {
   const PaymentNoteInput({
     super.key,
     required this.fieldKey,
     required this.onSubmit,
     this.initialNote,
+    this.hintText = "Optional note (visible to you only)",
     this.isEnabled = true,
   });
 
   final GlobalKey<FormFieldState<String>> fieldKey;
   final VoidCallback onSubmit;
   final String? initialNote;
+  final String hintText;
   final bool isEnabled;
 
   @override
@@ -1030,15 +1032,15 @@ class PaymentNoteInput extends StatelessWidget {
         MaxUtf8BytesInputFormatter(maxBytes: MAX_PAYMENT_NOTE_BYTES),
       ],
 
-      decoration: const InputDecoration(
-        hintStyle: TextStyle(color: LxColors.grey550),
-        hintText: "Optional note (only visible to you)",
-        counterStyle: TextStyle(color: LxColors.grey550),
-        border: OutlineInputBorder(),
-        enabledBorder: OutlineInputBorder(
+      decoration: InputDecoration(
+        hintStyle: const TextStyle(color: LxColors.grey550),
+        hintText: this.hintText,
+        counterStyle: const TextStyle(color: LxColors.grey550),
+        border: const OutlineInputBorder(),
+        enabledBorder: const OutlineInputBorder(
           borderSide: BorderSide(color: LxColors.fgTertiary),
         ),
-        focusedBorder: OutlineInputBorder(
+        focusedBorder: const OutlineInputBorder(
           borderSide: BorderSide(color: LxColors.foreground),
         ),
       ),

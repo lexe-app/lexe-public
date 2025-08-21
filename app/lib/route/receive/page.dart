@@ -24,6 +24,7 @@ import 'package:lexeapp/components.dart'
         PaymentAmountInput,
         PaymentNoteInput,
         ScrollableSinglePageBody,
+        SubheadingText,
         VoidContextCallback;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/feature_flags.dart' show FeatureFlags;
@@ -1346,8 +1347,11 @@ class _ReceivePaymentEditInvoicePageState
       ),
       body: ScrollableSinglePageBody(
         body: [
-          const HeadingText(text: "Set receive amount"),
-          const SizedBox(height: Space.s800),
+          const HeadingText(text: "Set amount and description"),
+          const SubheadingText(
+            text: "Both amount and description are optional",
+          ),
+          const SizedBox(height: Space.s700),
 
           // <amount> sats
           PaymentAmountInput(
@@ -1357,12 +1361,13 @@ class _ReceivePaymentEditInvoicePageState
             initialValue: this.widget.prev.amountSats,
           ),
 
-          const SizedBox(height: Space.s800),
+          const SizedBox(height: Space.s700),
 
           PaymentNoteInput(
             fieldKey: this.descriptionFieldKey,
             onSubmit: this.onConfirm,
             initialNote: this.widget.prev.description,
+            hintText: "Optional description (visible to sender)",
           ),
 
           const SizedBox(height: Space.s400),
