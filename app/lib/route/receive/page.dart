@@ -661,6 +661,8 @@ class PaymentOfferPage extends StatelessWidget {
 
     final isInvoice =
         this.paymentOffer.kind == PaymentOfferKind.lightningInvoice;
+    final isOffer = this.paymentOffer.kind == PaymentOfferKind.lightningOffer;
+    final isEditable = isInvoice || isOffer;
 
     final String? warningStr = this.paymentOffer.warningStr();
 
@@ -784,42 +786,62 @@ class PaymentOfferPage extends StatelessWidget {
                   },
                 ),
 
-                // + Amount button
+                if (!isEditable && amountSatsStr == null && description == null)
+                  const SizedBox(height: Space.s300),
+
+                // "Edit amount or description" button
                 //
                 // We only allow editing the amount for LN, since we can't yet
                 // accurately correlate info we put in a BIP21 URI with the
                 // actual tx that comes in.
-                if (isInvoice && amountSatsStr == null && description == null)
+                if (isEditable && amountSatsStr == null && description == null)
                   Padding(
-                    padding: const EdgeInsets.only(top: Space.s400),
+                    padding: const EdgeInsets.only(
+                      top: Space.s100,
+                      bottom: Space.s100,
+                    ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.max,
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
-                        OutlinedButton(
-                          onPressed: this.onTapSetAmount,
-                          style: const ButtonStyle(
-                            visualDensity: VisualDensity(
-                              horizontal: -3.0,
-                              vertical: -3.0,
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(width: Space.s200),
-                              Icon(LxIcons.add),
-                              SizedBox(width: Space.s200),
-                              Text(
-                                "Amount",
-                                style: TextStyle(fontSize: Fonts.size300),
+                        Expanded(
+                          child: TextButton.icon(
+                            onPressed: this.onTapEdit,
+                            style: const ButtonStyle(
+                              padding: WidgetStatePropertyAll(EdgeInsets.zero),
+                              visualDensity: VisualDensity(
+                                horizontal: -3.0,
+                                vertical: -3.0,
                               ),
-                              SizedBox(width: Space.s400),
-                            ],
+                            ),
+                            label: const Row(
+                              mainAxisSize: MainAxisSize.max,
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Edit amount or description",
+                                  style: TextStyle(
+                                    fontSize: Fonts.size200,
+                                    color: LxColors.fgSecondary,
+                                    fontVariations: [Fonts.weightNormal],
+                                    letterSpacing: -0.25,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            icon: const Icon(
+                              LxIcons.edit,
+                              size: Fonts.size300,
+                              color: LxColors.fgSecondary,
+                              opticalSize: LxIcons.opszDense,
+                              weight: LxIcons.weightNormal,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
+
                 if (amountSatsStr != null || description != null)
                   const SizedBox(height: Space.s400),
 
@@ -901,7 +923,7 @@ class PaymentOfferPage extends StatelessWidget {
                             ),
 
                             if (amountSatsStr != null && description != null)
-                              const SizedBox(height: Space.s400),
+                              const SizedBox(height: Space.s300),
 
                             // Description
                             if (description != null)
@@ -916,15 +938,18 @@ class PaymentOfferPage extends StatelessWidget {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
+
+                            const SizedBox(height: Space.s300),
                           ],
                         ),
                       ),
 
-                      // TODO(phlip9): fix bottom padding when 1-line description
-
                       // edit icon
                       Transform.translate(
-                        offset: const Offset(Space.s200, -Space.s200),
+                        // TODO(phlip9): this should be baseline aligned?
+                        offset: (amountSatsStr != null)
+                            ? const Offset(Space.s200, -Space.s200)
+                            : const Offset(Space.s200, -Space.s300),
                         // offset: const Offset(Space.s200, 0.0),
                         child: TextButton.icon(
                           onPressed: this.onTapEdit,
@@ -948,7 +973,7 @@ class PaymentOfferPage extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: Space.s450),
+          const SizedBox(height: Space.s400),
 
           // Under-card section
 
@@ -1061,7 +1086,7 @@ class CardBox extends StatelessWidget {
       Space.s450,
       Space.s200,
       Space.s450,
-      Space.s450,
+      Space.s200,
     ),
     clipBehavior: Clip.antiAlias,
     child: child,
