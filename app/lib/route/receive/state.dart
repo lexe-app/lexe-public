@@ -26,6 +26,38 @@ enum BtcAddrKind {
   };
 }
 
+/// Amount and description.
+@immutable
+class AmountDescription {
+  const AmountDescription({
+    required this.amountSats,
+    required this.description,
+  });
+
+  final int? amountSats;
+  final String? description;
+
+  @override
+  String toString() {
+    return "AmountDescription(amountSats: $amountSats, description: $description)";
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == this.runtimeType &&
+            other is AmountDescription &&
+            (identical(other.amountSats, this.amountSats) ||
+                other.amountSats == this.amountSats) &&
+            (identical(other.description, this.description) ||
+                other.description == this.description));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(this.runtimeType, this.amountSats, this.description);
+}
+
 /// The inputs used to generate a Lightning invoice [PaymentOffer].
 @immutable
 class LnInvoiceInputs {

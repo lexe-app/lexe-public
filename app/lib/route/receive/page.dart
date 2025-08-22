@@ -33,6 +33,7 @@ import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/receive/state.dart'
     show
+        AmountDescription,
         BtcAddrInputs,
         BtcAddrKind,
         LnInvoiceInputs,
@@ -468,27 +469,28 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   // Open an edit page when we press a "+ Amount" or "Edit" button for the given
   // page.
   Future<void> openEditPage(PaymentOfferKind kind) async {
-    // Only support setting amount/desc for invoices atm.
-    if (kind != PaymentOfferKind.lightningInvoice) return;
-
     switch (kind) {
       case PaymentOfferKind.lightningInvoice:
-        await this.openEditInvoicePage();
+        await this.openEditLnInvoicePage();
         return;
-
+      case PaymentOfferKind.lightningOffer:
+        await this.openEditLnOfferPage();
+        return;
       // Other kinds don't support editing amount/description yet.
       default:
         return;
     }
   }
 
-  Future<void> openEditInvoicePage() async {
-    final prev = this.lnInvoiceInputs.value;
+  Future<void> openEditLnInvoicePage() async {
+    final prevInvoice = this.lnInvoiceInputs.value;
+    final prev = AmountDescription(
+      amountSats: prevInvoice.amountSats,
+      description: prevInvoice.description,
+    );
 
-    final LnInvoiceInputs? flowResult = await Navigator.of(this.context).push(
-      MaterialPageRoute(
-        builder: (_) => ReceivePaymentEditInvoicePage(prev: prev),
-      ),
+    final AmountDescription? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(builder: (_) => ReceivePaymentEditPage(prev: prev)),
     );
 
     if (!this.mounted || flowResult == null || flowResult == prev) return;
@@ -505,7 +507,43 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     );
 
     // Update inputs to fetch new invoice.
-    this.lnInvoiceInputs.value = flowResult;
+    final inputs = LnInvoiceInputs(
+      amountSats: flowResult.amountSats,
+      description: flowResult.description,
+    );
+    this.lnInvoiceInputs.value = inputs;
+  }
+
+  Future<void> openEditLnOfferPage() async {
+    final prevOffer = this.lnOfferInputs.value;
+    final prev = AmountDescription(
+      amountSats: prevOffer.amountSats,
+      description: prevOffer.description,
+    );
+
+    final AmountDescription? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(builder: (_) => ReceivePaymentEditPage(prev: prev)),
+    );
+
+    if (!this.mounted || flowResult == null || flowResult == prev) return;
+
+    // Clear LN offer code so it's clear we're fetching a new one.
+    final lnOfferPaymentOffer = this.lnOfferPaymentOffer();
+    final lnOffer = lnOfferPaymentOffer.value;
+    lnOfferPaymentOffer.value = PaymentOffer(
+      kind: lnOffer.kind,
+      code: null,
+      expiresAt: null,
+      amountSats: flowResult.amountSats,
+      description: flowResult.description,
+    );
+
+    // Update inputs to fetch new offer.
+    final inputs = LnOfferInputs(
+      amountSats: flowResult.amountSats,
+      description: flowResult.description,
+    );
+    this.lnOfferInputs.value = inputs;
   }
 
   @override
@@ -1283,20 +1321,18 @@ class CopyCodeButtonOrPlaceholder extends StatelessWidget {
 //   }
 // }
 
-/// A page for the user to set a desired amount and optional description on
-/// their payment offer.
-class ReceivePaymentEditInvoicePage extends StatefulWidget {
-  const ReceivePaymentEditInvoicePage({super.key, required this.prev});
+/// A page for the user to set an optional amount and/or optional description on
+/// their inbound payment details.
+class ReceivePaymentEditPage extends StatefulWidget {
+  const ReceivePaymentEditPage({super.key, required this.prev});
 
-  final LnInvoiceInputs prev;
+  final AmountDescription prev;
 
   @override
-  State<ReceivePaymentEditInvoicePage> createState() =>
-      _ReceivePaymentEditInvoicePageState();
+  State<ReceivePaymentEditPage> createState() => _ReceivePaymentEditPageState();
 }
 
-class _ReceivePaymentEditInvoicePageState
-    extends State<ReceivePaymentEditInvoicePage> {
+class _ReceivePaymentEditPageState extends State<ReceivePaymentEditPage> {
   final GlobalKey<FormFieldState<String>> amountFieldKey = GlobalKey();
   final GlobalKey<FormFieldState<String>> descriptionFieldKey = GlobalKey();
 
@@ -1331,7 +1367,7 @@ class _ReceivePaymentEditInvoicePageState
       description = null;
     }
 
-    final flowResult = LnInvoiceInputs(
+    final flowResult = AmountDescription(
       amountSats: amountSats,
       description: description,
     );

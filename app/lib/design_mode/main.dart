@@ -72,8 +72,8 @@ import 'package:lexeapp/route/open_channel.dart'
     show OpenChannelConfirmPage, OpenChannelPage;
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
 import 'package:lexeapp/route/receive/page.dart'
-    show ReceivePaymentEditInvoicePage, ReceivePaymentPage;
-import 'package:lexeapp/route/receive/state.dart' show LnInvoiceInputs;
+    show ReceivePaymentEditPage, ReceivePaymentPage;
+import 'package:lexeapp/route/receive/state.dart' show AmountDescription;
 import 'package:lexeapp/route/restore.dart'
     show RestoreChooseWalletPage, RestorePage, RestorePasswordPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
@@ -574,9 +574,9 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               ),
             ),
             Component(
-              "ReceivePaymentEditInvoicePage",
-              (context) => const ReceivePaymentEditInvoicePage(
-                prev: LnInvoiceInputs(amountSats: null, description: null),
+              "ReceivePaymentEditPage",
+              (context) => const ReceivePaymentEditPage(
+                prev: AmountDescription(amountSats: null, description: null),
               ),
             ),
             Component(
