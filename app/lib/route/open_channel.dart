@@ -227,6 +227,7 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
             onEditingComplete: this.onNext,
             validate: this.validateValue,
             allowEmpty: false,
+            allowZero: false,
           ),
 
           const SizedBox(height: Space.s700),

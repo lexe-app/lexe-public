@@ -895,6 +895,7 @@ class PaymentAmountInput extends StatelessWidget {
     required this.fieldKey,
     required this.intInputFormatter,
     required this.allowEmpty,
+    required this.allowZero,
     this.validate,
     this.onEditingComplete,
     this.initialValue,
@@ -903,7 +904,12 @@ class PaymentAmountInput extends StatelessWidget {
   final GlobalKey<FormFieldState<String>> fieldKey;
 
   final IntInputFormatter intInputFormatter;
+
+  /// If true, `.validate()` will allow an empty field value (`null`).
   final bool allowEmpty;
+
+  /// If true, `.validate()` will allow a zero field value (`0`).
+  final bool allowZero;
 
   /// Additional validation to perform on the value. We already validate that
   /// the value is a non-zero unsigned integer. Return `Err(null)` to prevent
@@ -931,7 +937,11 @@ class PaymentAmountInput extends StatelessWidget {
         return const Err("Amount must be a number.");
     }
 
-    if (amount <= 0) {
+    if (!this.allowZero && amount == 0) {
+      return const Err("");
+    }
+
+    if (amount < 0) {
       return const Err("");
     }
 

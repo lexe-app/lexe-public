@@ -1358,6 +1358,7 @@ class _ReceivePaymentEditInvoicePageState
             fieldKey: this.amountFieldKey,
             intInputFormatter: this.intInputFormatter,
             allowEmpty: true,
+            allowZero: true,
             initialValue: this.widget.prev.amountSats,
           ),
 

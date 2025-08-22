@@ -468,6 +468,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
             onEditingComplete: this.onNext,
             validate: this.validateAmount,
             allowEmpty: false,
+            allowZero: false,
           ),
 
           // Description (if available)
