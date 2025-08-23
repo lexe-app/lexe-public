@@ -309,7 +309,7 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
             data: '''
 # Connect your Google Drive
 
-You **node needs access to Drive** to keep your recovery data up-to-date.
+Your **node needs access to Drive** to keep your recovery data up-to-date.
 With Drive backup you can **always recover your funds** even if Lexe goes away.
 
 - Your node can only access the files it creates in the **LexeData** folder.
