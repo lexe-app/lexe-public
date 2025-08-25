@@ -60,6 +60,7 @@ import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxRadius, Space;
 import 'package:lexeapp/types.dart' show BalanceKind, BalanceState;
 import 'package:lexeapp/uri_events.dart' show UriEvents;
+import 'package:lexeapp/url.dart' as url;
 
 class WalletPage extends StatefulWidget {
   const WalletPage({
@@ -687,6 +688,35 @@ class WalletDrawer extends StatelessWidget {
             //   ),
             // ),
             // const SizedBox(height: Space.s600),
+
+            // Social media links row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              spacing: Space.s100,
+              children: [
+                IconButton(
+                  onPressed: () => url.open("https://lexe.app"),
+                  icon: const Icon(LxIcons.website, size: Fonts.size600),
+                  color: LxColors.foreground,
+                ),
+                IconButton(
+                  onPressed: () => url.open("https://x.com/lexeapp"),
+                  icon: const Icon(LxIcons.twitter, size: Fonts.size600),
+                  color: LxColors.foreground,
+                ),
+                IconButton(
+                  onPressed: () => url.open("https://discord.gg/zybuBYgdbr"),
+                  icon: const Icon(LxIcons.discord, size: Fonts.size600),
+                  color: LxColors.foreground,
+                ),
+                IconButton(
+                  onPressed: () => url.open("https://github.com/lexe-app"),
+                  icon: const Icon(LxIcons.github, size: Fonts.size600),
+                  color: LxColors.foreground,
+                ),
+              ],
+            ),
+            const SizedBox(height: Space.s400),
 
             // Show currently installed app version.
             // ex: "Lexe · v0.6.2+5"

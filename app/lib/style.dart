@@ -937,6 +937,18 @@ final class LxIcons {
 
   /// Google Drive icon (gdrive + up arrow)
   static const IconData gdrive = Symbols.drive_export_rounded;
+
+  /// Website icon (globe/web)
+  static const IconData website = Symbols.language_rounded;
+
+  /// X/Twitter icon (bird/twitter)
+  static const IconData twitter = Symbols.group_rounded;
+
+  /// Discord icon (chat bubble)
+  static const IconData discord = Symbols.forum_rounded;
+
+  /// GitHub icon (code/repository)
+  static const IconData github = Symbols.code_rounded;
 }
 
 /// Screen width breakpoints
