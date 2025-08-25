@@ -192,6 +192,9 @@ flutter:
         - asset: fonts/InterVariable.ttf
         - asset: fonts/InterVariable-Italic.ttf
           style: italic
+    - family: "Lexe Icons"
+      fonts:
+        - asset: fonts/lexeicons.ttf
 
   # GLSL GPU fragment shaders
   #

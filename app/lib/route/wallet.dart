@@ -701,7 +701,7 @@ class WalletDrawer extends StatelessWidget {
                 ),
                 IconButton(
                   onPressed: () => url.open("https://x.com/lexeapp"),
-                  icon: const Icon(LxIcons.twitter, size: Fonts.size600),
+                  icon: const Icon(LxIcons.x, size: Fonts.size600),
                   color: LxColors.foreground,
                 ),
                 IconButton(
@@ -710,7 +710,8 @@ class WalletDrawer extends StatelessWidget {
                   color: LxColors.foreground,
                 ),
                 IconButton(
-                  onPressed: () => url.open("https://github.com/lexe-app"),
+                  onPressed: () =>
+                      url.open("https://github.com/lexe-app/lexe-public"),
                   icon: const Icon(LxIcons.github, size: Fonts.size600),
                   color: LxColors.foreground,
                 ),

@@ -941,14 +941,21 @@ final class LxIcons {
   /// Website icon (globe/web)
   static const IconData website = Symbols.language_rounded;
 
-  /// X/Twitter icon (bird/twitter)
-  static const IconData twitter = Symbols.group_rounded;
+  // Custom brand icons (Material Icons/Symbols don't have any brand logos)
+  // See: <app/fonts/README.md> for how these were sourced and generated.
 
-  /// Discord icon (chat bubble)
-  static const IconData discord = Symbols.forum_rounded;
+  /// Discord icon (discord logo)
+  static const IconData discord = LxCustomIconData(0xe800);
 
-  /// GitHub icon (code/repository)
-  static const IconData github = Symbols.code_rounded;
+  /// GitHub icon (github logo)
+  static const IconData github = LxCustomIconData(0xe801);
+
+  /// X/Twitter icon (X logo)
+  static const IconData x = LxCustomIconData(0xe802);
+}
+
+class LxCustomIconData extends IconData {
+  const LxCustomIconData(super.codePoint) : super(fontFamily: 'Lexe Icons');
 }
 
 /// Screen width breakpoints
