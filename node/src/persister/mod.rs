@@ -140,7 +140,7 @@ pub(crate) async fn persist_file(
         .context("Could not get auth token")?;
 
     backend_api
-        .upsert_file(file, token)
+        .upsert_file_v1(file, token)
         .await
         .context("Could not upsert file")?;
 
@@ -207,7 +207,7 @@ pub(crate) async fn persist_gvfs_root(
         .context("Could not get auth token")?;
 
     backend_api
-        .upsert_file(&file, token)
+        .upsert_file_v1(&file, token)
         .await
         .context("Could not upsert file")?;
 
@@ -327,7 +327,7 @@ pub(crate) async fn persist_approved_versions(
         .context("Could not get auth token")?;
 
     backend_api
-        .upsert_file(&file, token)
+        .upsert_file_v1(&file, token)
         .await
         .context("Failed to upsert approved versions file")?;
 

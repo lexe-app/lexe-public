@@ -318,7 +318,7 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn create_file(
+    async fn create_file_v1(
         &self,
         data: &VfsFile,
         auth: BearerAuthToken,
@@ -331,7 +331,7 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn upsert_file(
+    async fn upsert_file_v1(
         &self,
         data: &VfsFile,
         auth: BearerAuthToken,

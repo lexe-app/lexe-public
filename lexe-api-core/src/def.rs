@@ -528,14 +528,14 @@ pub trait NodeBackendApi {
     ) -> Result<MaybeVfsFile, BackendApiError>;
 
     /// POST /node/v1/file [`VfsFile`] -> [`Empty`]
-    async fn create_file(
+    async fn create_file_v1(
         &self,
         file: &VfsFile,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
     /// PUT /node/v1/file [`VfsFile`] -> [`Empty`]
-    async fn upsert_file(
+    async fn upsert_file_v1(
         &self,
         file: &VfsFile,
         auth: BearerAuthToken,
