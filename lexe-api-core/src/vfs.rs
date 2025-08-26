@@ -392,6 +392,13 @@ pub struct VecVfsFile {
     pub files: Vec<VfsFile>,
 }
 
+/// A list of all filenames within a [`VfsDirectory`].
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct VfsDirectoryList {
+    pub dirname: Cow<'static, str>,
+    pub filenames: Vec<String>,
+}
+
 /// An upgradeable version of [`Vec<VfsFileId>`].
 // TODO(max): Use basically VfsDirectory but with a Vec of filenames
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

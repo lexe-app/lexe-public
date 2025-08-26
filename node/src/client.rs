@@ -34,7 +34,10 @@ use lexe_api::{
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         Empty,
     },
-    vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
+    vfs::{
+        MaybeVfsFile, VecVfsFile, VfsDirectory, VfsDirectoryList, VfsFile,
+        VfsFileId,
+    },
 };
 use lexe_tls::attestation::{self, NodeMode};
 use lightning::events::Event;
@@ -369,6 +372,19 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .get(format!("{backend}/node/v1/directory"), data)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn list_directory(
+        &self,
+        dir: &VfsDirectory,
+        auth: BearerAuthToken,
+    ) -> Result<VfsDirectoryList, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .get(format!("{backend}/node/v2/directory"), dir)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }

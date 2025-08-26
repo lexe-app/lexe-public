@@ -106,7 +106,10 @@ use crate::{
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         Empty,
     },
-    vfs::{MaybeVfsFile, VecVfsFile, VfsDirectory, VfsFile, VfsFileId},
+    vfs::{
+        MaybeVfsFile, VecVfsFile, VfsDirectory, VfsDirectoryList, VfsFile,
+        VfsFileId,
+    },
 };
 
 // TODO(max): To make clear that only upgradeable structs are being serialized,
@@ -556,6 +559,13 @@ pub trait NodeBackendApi {
         dir: &VfsDirectory,
         auth: BearerAuthToken,
     ) -> Result<VecVfsFile, BackendApiError>;
+
+    /// GET /node/v2/directory [`VfsDirectory`] -> [`VecVfsFile`]
+    async fn list_directory(
+        &self,
+        dir: &VfsDirectory,
+        auth: BearerAuthToken,
+    ) -> Result<VfsDirectoryList, BackendApiError>;
 
     /// GET /node/v1/payments [`PaymentIndexStruct`] -> [`MaybeDbPayment`]
     async fn get_payment(
