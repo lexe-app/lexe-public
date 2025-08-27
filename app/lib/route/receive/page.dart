@@ -691,7 +691,7 @@ class PaymentOfferPage extends StatelessWidget {
     // final amountSats = 5300;
     // final amountSats = null;
     final amountSatsStr = (amountSats != null)
-        ? currency_format.formatSatsAmount(amountSats, satsSuffix: false)
+        ? currency_format.formatSatsAmount(amountSats, bitcoinSymbol: false)
         : null;
 
     final description = this.paymentOffer.description;

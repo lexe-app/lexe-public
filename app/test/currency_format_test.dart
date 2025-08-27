@@ -30,29 +30,57 @@ void main() {
   });
 
   test("currency_format.formatSatsAmount", () {
-    expect(currency_format.formatSatsAmount(0, locale: "en_US"), "0 sats");
-    expect(currency_format.formatSatsAmount(0, locale: "da_DK"), "0 sats");
-    expect(currency_format.formatSatsAmount(0, locale: "fr_FR"), "0 sats");
+    // Test zero amounts
+    expect(currency_format.formatSatsAmount(0, locale: "en_US"), "₿0");
+    expect(currency_format.formatSatsAmount(0, locale: "da_DK"), "0\xa0₿");
+    expect(currency_format.formatSatsAmount(0, locale: "fr_FR"), "0\xa0₿");
 
-    expect(
-      currency_format.formatSatsAmount(73000, locale: "en_US"),
-      "73,000 sats",
-    );
+    // Test standard amounts with bitcoin symbol
+    // (should position correctly per locale)
+    expect(currency_format.formatSatsAmount(73000, locale: "en_US"), "₿73,000");
     expect(
       currency_format.formatSatsAmount(73000, locale: "da_DK"),
-      "73.000 sats",
+      "73.000\xa0₿",
     );
-    // \u202f - thousands separator
+    // \xa0 - non-breaking space before symbol in French and Danish
+    // \u202f - thousands separator in French
     expect(
       currency_format.formatSatsAmount(73000, locale: "fr_FR"),
-      "73\u202F000 sats",
+      "73\u202F000\xa0₿",
     );
 
+    // Test with direction signs and bitcoin symbol
     expect(
       currency_format.formatSatsAmount(
         73000,
         direction: PaymentDirection.inbound,
-        satsSuffix: false,
+        locale: "en_US",
+      ),
+      "+₿73,000",
+    );
+    expect(
+      currency_format.formatSatsAmount(
+        73000,
+        direction: PaymentDirection.outbound,
+        locale: "en_US",
+      ),
+      "-₿73,000",
+    );
+    expect(
+      currency_format.formatSatsAmount(
+        73000,
+        direction: PaymentDirection.inbound,
+        locale: "fr_FR",
+      ),
+      "+73\u202F000\xa0₿",
+    );
+
+    // Test without bitcoin symbol (plain number formatting)
+    expect(
+      currency_format.formatSatsAmount(
+        73000,
+        direction: PaymentDirection.inbound,
+        bitcoinSymbol: false,
         locale: "en_US",
       ),
       "+73,000",
@@ -61,7 +89,7 @@ void main() {
       currency_format.formatSatsAmount(
         73000,
         direction: PaymentDirection.inbound,
-        satsSuffix: false,
+        bitcoinSymbol: false,
         locale: "da_DK",
       ),
       "+73.000",
@@ -70,11 +98,25 @@ void main() {
       currency_format.formatSatsAmount(
         73000,
         direction: PaymentDirection.inbound,
-        satsSuffix: false,
+        bitcoinSymbol: false,
         locale: "fr_FR",
       ),
       // \u202f - unicode thousands separator
       "+73\u202f000",
+    );
+
+    // Test larger amounts to verify thousands separators
+    expect(
+      currency_format.formatSatsAmount(1234567, locale: "en_US"),
+      "₿1,234,567",
+    );
+    expect(
+      currency_format.formatSatsAmount(1234567, locale: "da_DK"),
+      "1.234.567\xa0₿",
+    );
+    expect(
+      currency_format.formatSatsAmount(1234567, locale: "fr_FR"),
+      "1\u202F234\u202F567\xa0₿",
     );
   });
 

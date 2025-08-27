@@ -415,7 +415,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     if (amount > balanceMaxSendableSats) {
       final balanceMaxSendableStr = currency_format.formatSatsAmount(
         balanceMaxSendableSats,
-        satsSuffix: true,
+        bitcoinSymbol: true,
       );
       return Err("Can't send more than $balanceMaxSendableStr");
     }
@@ -435,7 +435,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     final balance = this.widget.sendCtx.balance;
     final balanceMaxSendableStr = currency_format.formatSatsAmount(
       balance.maxSendableByKind(kind),
-      satsSuffix: true,
+      bitcoinSymbol: true,
     );
 
     const textStyleSecondary = TextStyle(

@@ -114,7 +114,7 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
     if (value > onchainSats) {
       final onchainSatsStr = currency_format.formatSatsAmount(
         onchainSats,
-        satsSuffix: true,
+        bitcoinSymbol: true,
       );
       return Err(
         "Channel value can't be larger than your on-chain balance "

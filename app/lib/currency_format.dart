@@ -79,34 +79,48 @@ String formatSatsToBtcForUri(int sats, {bool padded = false}) {
 /// Format a bitcoin amount in satoshis.
 ///
 /// * Specify the sign ('+' vs '-') with the `direction`.
-/// * Include the " sats" suffix with `satsSuffix: true`.
+/// * Include the "₿" symbol with `bitcoinSymbol: true`, positioned according
+///   to locale conventions (prefix for en_US, suffix for fr_FR, etc.).
 ///
 /// ### Examples
 ///
 /// ```dart
-/// assert("73,000 sats" == formatSatsAmount(73000));
-/// assert("+73,000 sats" == formatSatsAmount(73000, direction: PaymentDirection.inbound));
-/// assert("-73,000 sats" == formatSatsAmount(73000, direction: PaymentDirection.outbound));
-/// assert("73,000" == formatSatsAmount(73000, satsSuffix: false));
+/// assert("₿73,000" == formatSatsAmount(73000, locale: "en_US"));
+/// assert("73 000 ₿" == formatSatsAmount(73000, locale: "fr_FR"));
+/// assert("+₿73,000" == formatSatsAmount(73000, direction: PaymentDirection.inbound, locale: "en_US"));
+/// assert("-₿73,000" == formatSatsAmount(73000, direction: PaymentDirection.outbound, locale: "en_US"));
+/// assert("+73 000 ₿" == formatSatsAmount(73000, direction: PaymentDirection.inbound, locale: "fr_FR"));
+/// assert("-73 000 ₿" == formatSatsAmount(73000, direction: PaymentDirection.outbound, locale: "fr_FR"));
+/// assert("73,000" == formatSatsAmount(73000, bitcoinSymbol: false, locale: "en_US"));
+/// assert("73 000" == formatSatsAmount(73000, bitcoinSymbol: false, locale: "fr_FR"));
 /// ```
 String formatSatsAmount(
   int amountSats, {
   PaymentDirection? direction,
-  bool satsSuffix = true,
+  bool bitcoinSymbol = true,
   String? locale,
 }) {
-  final NumberFormat formatter = NumberFormat.decimalPatternDigits(
-    decimalDigits: 0,
-    locale: locale,
-  );
-
   final sign = (direction != null) ? directionToSign(direction) : "";
 
-  final suffix = (satsSuffix) ? " sats" : "";
-
-  final amountStr = formatter.format(amountSats);
-
-  return "$sign$amountStr$suffix";
+  if (bitcoinSymbol) {
+    // Use currency formatting to position the ₿ symbol correctly for the locale
+    // `symbol` directly sets what symbol to use in place of the currency
+    final NumberFormat currencyFormatter = NumberFormat.currency(
+      locale: locale,
+      symbol: "₿",
+      decimalDigits: 0,
+    );
+    final amountStr = currencyFormatter.format(amountSats);
+    return "$sign$amountStr";
+  } else {
+    // Just format the number without any currency symbol
+    final NumberFormat formatter = NumberFormat.decimalPatternDigits(
+      decimalDigits: 0,
+      locale: locale,
+    );
+    final amountStr = formatter.format(amountSats);
+    return "$sign$amountStr";
+  }
 }
 
 /// Format a fiat currency amount.

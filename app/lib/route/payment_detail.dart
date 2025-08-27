@@ -397,7 +397,7 @@ class PaymentDetailPageInner extends StatelessWidget {
 String formatSatsAmountFiatBelow(int amountSats, FiatRate? fiatRate) {
   final amountSatsStr = currency_format.formatSatsAmount(
     amountSats,
-    satsSuffix: true,
+    bitcoinSymbol: true,
   );
   if (fiatRate != null) {
     final fiatAmount = currency_format.satsToBtc(amountSats) * fiatRate.rate;
@@ -893,7 +893,7 @@ class PaymentDetailPrimaryAmount extends StatelessWidget {
     final amountSatsStr = currency_format.formatSatsAmount(
       this.amountSat,
       direction: this.direction,
-      satsSuffix: true,
+      bitcoinSymbol: true,
     );
 
     final maybeAmountFiatStr = this.maybeAmountFiatStr();

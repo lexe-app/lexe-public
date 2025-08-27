@@ -1393,7 +1393,7 @@ class PaymentsListEntry extends StatelessWidget {
         ? currency_format.formatSatsAmount(
             amountSats,
             direction: direction,
-            satsSuffix: true,
+            bitcoinSymbol: true,
           )
         : "";
 

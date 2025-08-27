@@ -441,7 +441,7 @@ class TotalChannelsBalanceWidget extends StatelessWidget {
             TextSpan(
               text: currency_format.formatSatsAmount(
                 ourPunishmentReservesSats,
-                satsSuffix: true,
+                bitcoinSymbol: true,
               ),
               style: textStyleWarningSats,
             )
@@ -764,7 +764,7 @@ class ChannelsListEntry extends StatelessWidget {
     final ourBalanceSats = Text(
       currency_format.formatSatsAmount(
         this.channel.ourBalanceSats,
-        satsSuffix: true,
+        bitcoinSymbol: true,
       ),
       style: secondaryStyle,
     );
@@ -788,7 +788,7 @@ class ChannelsListEntry extends StatelessWidget {
     final theirBalanceSats = Text(
       currency_format.formatSatsAmount(
         this.channel.theirBalanceSats,
-        satsSuffix: true,
+        bitcoinSymbol: true,
       ),
       style: secondaryStyle,
     );
