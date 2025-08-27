@@ -1,14 +1,5 @@
 {
   "node": {
-    "0.8.3": {
-      "measurement": "eaadadf6d8862915fa104a94b820b731df14bf8b24ea8cef816c0766c498cecc",
-      "revision": "e78209c614a596d14f4f1b67b26f8d1008b2c4b2",
-      "release-date": "2025-08-16",
-      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.8.3",
-      "heap-size": 1610612736,
-      "stack-size": 8388608,
-      "threads": 2
-    },
     "0.8.4": {
       "measurement": "ed6543184253ceb313d30447b7e7a304157da707343435a54c262b46e2e90bc8",
       "revision": "231ec3e8284b03125703d187c7428488464a5f07",
