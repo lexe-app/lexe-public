@@ -306,8 +306,9 @@ Download the latest iOS platform (~7.5 GiB)
 $ xcodebuild -downloadPlatform iOS
 ```
 
-Search for "Simulator" in Spotlight and then open it. An emulated iPhone should
-pop up after a minute or so.
+Search for "Simulator" in Spotlight and then open it. If Spotlight doesn't work,
+you can open it with `open -a Simulator`. An emulated iPhone should pop up after
+a minute or so.
 
 Flutter should then pick up the simulated iPhone as an available target:
 
