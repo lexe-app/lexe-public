@@ -720,6 +720,8 @@ api_error_kind! {
         // NOTE: Intentionally NOT descriptive.
         // These get displayed on the app UI frequently and should be concise.
         Command = 102,
+        /// Resource not found
+        NotFound = 103,
     }
 }
 
@@ -741,6 +743,7 @@ impl ToHttpStatus for LspErrorKind {
             Provision => SERVER_500_INTERNAL_SERVER_ERROR,
             Scid => SERVER_500_INTERNAL_SERVER_ERROR,
             Command => SERVER_500_INTERNAL_SERVER_ERROR,
+            NotFound => CLIENT_404_NOT_FOUND,
         }
     }
 }
@@ -1228,6 +1231,16 @@ impl LspApiError {
     pub fn rejection(error: impl fmt::Display) -> Self {
         let msg = format!("{error:#}");
         let kind = LspErrorKind::Rejection;
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
+
+    pub fn not_found(error: impl fmt::Display) -> Self {
+        let msg = format!("{error:#}");
+        let kind = LspErrorKind::NotFound;
         Self {
             kind,
             msg,
