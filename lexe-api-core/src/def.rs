@@ -551,6 +551,14 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
+    /// PUT /node/v2/file [`VfsFileId`] (query) + [`Bytes`] (body) -> [`Empty`]
+    async fn upsert_file(
+        &self,
+        file_id: &VfsFileId,
+        data: bytes::Bytes,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError>;
+
     /// DELETE /node/v1/file [`VfsFileId`] -> [`Empty`]
     ///
     /// Returns [`Ok`] only if exactly one row was deleted.

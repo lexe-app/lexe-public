@@ -27,7 +27,7 @@ use lexe_api::{
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         runner::{UserFinishedRequest, UserLeaseRenewalRequest},
     },
-    rest::{RequestBuilderExt, RestClient, POST},
+    rest::{RequestBuilderExt, RestClient, POST, PUT},
     types::{
         payments::{DbPayment, MaybeDbPayment, VecDbPayment, VecLxPaymentId},
         ports::MegaPorts,
@@ -205,13 +205,15 @@ impl NodeBackendClient {
 impl NodeBackendClient {
     pub(crate) async fn upsert_file_with_retries(
         &self,
-        data: &VfsFile,
+        file: &VfsFile,
         auth: BearerAuthToken,
         retries: usize,
     ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
-        let url = format!("{backend}/node/v1/file");
-        let req = self.rest.put(url, data).bearer_auth(&auth);
+        let req = self
+            .rest
+            .put(format!("{backend}/node/v1/file"), file)
+            .bearer_auth(&auth);
         self.rest.send_with_retries(req, retries, &[]).await
     }
 }
@@ -356,6 +358,22 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .put(format!("{backend}/node/v1/file"), data)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn upsert_file(
+        &self,
+        file_id: &VfsFileId,
+        data: bytes::Bytes,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .builder(PUT, format!("{backend}/node/v2/file"))
+            .query(file_id)
+            .body(data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
