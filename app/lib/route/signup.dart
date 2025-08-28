@@ -729,7 +729,7 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
       config: ctx.config,
       rootSeed: ctx.rootSeed,
       gdriveSignupCreds: null,
-      signupCode: null,
+      signupCode: this.widget.signupCode,
       partner: null,
     );
     if (!this.mounted) return;
