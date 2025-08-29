@@ -461,7 +461,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           SubheadingText(text: "Send up to $balanceMaxSendableStr"),
           const SizedBox(height: Space.s850),
 
-          // <amount> sats
+          // "₿<amount>" (en_US)
+          // "<amount> ₿" (fr_FR)
           PaymentAmountInput(
             fieldKey: this.amountFieldKey,
             intInputFormatter: this.intInputFormatter,

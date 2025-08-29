@@ -953,49 +953,67 @@ class PaymentAmountInput extends StatelessWidget {
   Widget build(BuildContext context) {
     final int? initialValue = this.initialValue;
 
-    // <amount> sats
-    return TextFormField(
-      key: this.fieldKey,
-      autofocus: true,
-      keyboardType: const TextInputType.numberWithOptions(
-        signed: false,
-        decimal: false,
-      ),
-      initialValue: (initialValue != null)
-          ? this.intInputFormatter.formatInt(initialValue)
-          : "0",
-      textDirection: TextDirection.ltr,
-      textInputAction: TextInputAction.next,
-      textAlign: TextAlign.right,
-      onEditingComplete: this.onEditingComplete,
-      validator: (str) => this.validateAmountStr(str).err,
-      decoration: baseInputDecoration.copyWith(
-        hintText: "0",
-        // Goal: I want the amount to be right-aligned, starting from the
-        //       center of the screen.
-        //
-        // |    vvvvvvv            |
-        // |    123,456| sats      |
-        // |                       |
-        //
-        // There's probably a better way to do this, but this works. Just
-        // expand the " sats" suffix so that it takes up half the width (minus
-        // some correction).
-        suffix: LayoutBuilder(
-          builder: (context, constraints) => ConstrainedBox(
-            constraints: BoxConstraints(
-              minWidth: max(0.0, (constraints.maxWidth / 2) - Space.s450),
+    // Check locale-specific positioning by formatting a dummy amount
+    // Call formatSatsAmount on a dummy value using currently active locale
+    final formattedTest = currency_format.formatSatsAmount(
+      69,
+      bitcoinSymbol: true,
+    );
+
+    // Determine where the ₿ symbol appears based on locale formatting.
+    // If the formatted test doesn't clearly show the symbol at start or end
+    // (e.g., due to unexpected leading/trailing characters), we default to
+    // showing it as a prefix to ensure the symbol is always visible.
+    final showSuffix = formattedTest.endsWith("₿");
+    final showPrefix = !showSuffix;
+
+    // Common text style for amount input and bitcoin symbol
+    final amountTextStyle = Fonts.fontUI.copyWith(
+      fontSize: Fonts.size800,
+      fontVariations: [Fonts.weightMedium],
+      letterSpacing: -0.5,
+    );
+
+    // "₿ <amount>" or "<amount> ₿" depending on locale
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Left bitcoin symbol (only if locale uses prefix)
+        if (showPrefix)
+          Text("₿ ", style: amountTextStyle.copyWith(color: LxColors.grey700)),
+        // The text field with intrinsic width
+        IntrinsicWidth(
+          child: TextFormField(
+            key: this.fieldKey,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(
+              signed: false,
+              decimal: false,
             ),
-            child: const Text(" sats"),
+            initialValue: (initialValue != null)
+                ? this.intInputFormatter.formatInt(initialValue)
+                : "0",
+            textDirection: TextDirection.ltr,
+            textInputAction: TextInputAction.next,
+            textAlign: TextAlign.left,
+            onEditingComplete: this.onEditingComplete,
+            validator: (str) => this.validateAmountStr(str).err,
+            decoration: baseInputDecoration.copyWith(
+              hintText: "0",
+              // Remove default padding to make it more compact
+              contentPadding: EdgeInsets.zero,
+              // Ensure there's no collapse of the field when empty
+              constraints: const BoxConstraints(minWidth: Space.s700),
+            ),
+            inputFormatters: [this.intInputFormatter],
+            style: amountTextStyle,
           ),
         ),
-      ),
-      inputFormatters: [this.intInputFormatter],
-      style: Fonts.fontUI.copyWith(
-        fontSize: Fonts.size800,
-        fontVariations: [Fonts.weightMedium],
-        letterSpacing: -0.5,
-      ),
+        // Right bitcoin symbol (only if locale uses suffix)
+        if (showSuffix)
+          Text(" ₿", style: amountTextStyle.copyWith(color: LxColors.grey700)),
+      ],
     );
   }
 }
