@@ -530,6 +530,13 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<MaybeVfsFile, BackendApiError>;
 
+    /// GET /node/v2/file [`VfsFileId`] -> [`Bytes`] ([`VfsFile::data`])
+    async fn get_file(
+        &self,
+        file_id: &VfsFileId,
+        token: BearerAuthToken,
+    ) -> Result<Bytes, BackendApiError>;
+
     /// POST /node/v1/file [`VfsFile`] -> [`Empty`]
     async fn create_file_v1(
         &self,

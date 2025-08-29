@@ -321,6 +321,19 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
+    async fn get_file(
+        &self,
+        file_id: &VfsFileId,
+        token: BearerAuthToken,
+    ) -> Result<bytes::Bytes, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .get(format!("{backend}/node/v2/file"), file_id)
+            .bearer_auth(&token);
+        self.rest.send_no_deserialize(req).await
+    }
+
     async fn create_file_v1(
         &self,
         data: &VfsFile,
