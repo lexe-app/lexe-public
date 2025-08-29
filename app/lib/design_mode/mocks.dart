@@ -693,11 +693,11 @@ class MockRestoreApi implements RestoreApi {
 //
 
 const Balance balanceDefault = Balance(
-  lightningSats: 274466,
-  lightningUsableSats: 274466,
-  lightningMaxSendableSats: 274466 - 2300,
-  onchainSats: 21214,
-  totalSats: 274466 + 21214,
+  lightningSats: 1097864,
+  lightningUsableSats: 1097864,
+  lightningMaxSendableSats: 1097864 - 2300,
+  onchainSats: 84856,
+  totalSats: 1097864 + 84856,
 );
 
 const Balance balanceZero = Balance(
@@ -820,7 +820,7 @@ const Payment dummySpontaneousOutboundPending01 = Payment(
   feesSat: 615,
   status: PaymentStatus.pending,
   statusStr: "pending",
-  note: "🍑🍑🍑🍆🍆🍆😂😂😂",
+  note: "😎⚡️🚀😩",
   createdAt: 1686938392000,
 );
 
@@ -871,7 +871,7 @@ const Payment dummyInvoiceInboundPending01 = Payment(
   status: PaymentStatus.pending,
   statusStr: "claiming",
   note:
-      "My super long note that really is too long it just keeps going and going",
+      "To be, or not to be, that is the question: Whether 'tis nobler in the mind to suffer The slings and arrows of outrageous fortune, Or to take arms against a sea of troubles And by opposing end them.",
   createdAt: 1687140003000,
 );
 
