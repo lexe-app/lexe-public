@@ -462,6 +462,16 @@ impl VfsFile {
             data,
         }
     }
+
+    /// Prefer to use this constructor because `Into<Vec<u8>>` may have useful
+    /// optimizations. For example, [`bytes::Bytes`] avoids a copy if the
+    /// refcount is 1, but AIs like to use `bytes.to_vec()` which always copies.
+    pub fn from_parts(id: VfsFileId, data: impl Into<Vec<u8>>) -> Self {
+        Self {
+            id,
+            data: data.into(),
+        }
+    }
 }
 
 impl Display for VfsDirectory {
