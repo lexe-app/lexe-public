@@ -349,6 +349,22 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
+    async fn create_file(
+        &self,
+        file_id: &VfsFileId,
+        data: bytes::Bytes,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .builder(POST, format!("{backend}/node/v2/file"))
+            .query(file_id)
+            .body(data)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
     async fn upsert_file_v1(
         &self,
         data: &VfsFile,
