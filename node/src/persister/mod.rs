@@ -53,7 +53,7 @@ use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
 use lexe_api::{
     auth::BearerAuthenticator,
     def::NodeBackendApi,
-    error::BackendApiError,
+    error::{BackendApiError, BackendErrorKind},
     models::command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
     types::{
         payments::{
@@ -63,7 +63,7 @@ use lexe_api::{
         Empty,
     },
     vfs::{
-        self, MaybeVfsFile, VecVfsFile, Vfs, VfsDirectory, VfsFile, VfsFileId,
+        self, VecVfsFile, Vfs, VfsDirectory, VfsFile, VfsFileId,
         SINGLETON_DIRECTORY,
     },
 };
@@ -173,20 +173,19 @@ pub(crate) async fn read_gdrive_credentials(
         .await
         .context("Could not get auth token")?;
 
-    let maybe_file = backend_api
-        .get_file_v1(&file_id, token)
-        .await
-        .context("Failed to fetch file")?
-        .maybe_file;
-
-    match maybe_file {
-        Some(file) => {
+    match backend_api.get_file(&file_id, token).await {
+        Ok(data) => {
+            let file = VfsFile::from_parts(file_id.clone(), data);
             let credentials =
                 persister::decrypt_json_file(vfs_master_key, &file_id, file)
                     .context("Failed to decrypt GDrive credentials file")?;
             Ok(Some(credentials))
         }
-        None => Ok(None),
+        Err(BackendApiError {
+            kind: BackendErrorKind::NotFound,
+            ..
+        }) => Ok(None),
+        Err(e) => Err(e).context("Failed to fetch file")?,
     }
 }
 
@@ -225,15 +224,19 @@ pub(crate) async fn read_gvfs_root(
         .await
         .context("Could not get auth token")?;
 
-    let maybe_gvfs_root = backend_api
-        .get_file_v1(&file_id, token)
-        .await
-        .context("Failed to fetch file")?
-        .maybe_file
-        .map(|file| {
-            persister::decrypt_json_file(vfs_master_key, &file_id, file)
-        })
-        .transpose()?;
+    let maybe_gvfs_root = match backend_api.get_file(&file_id, token).await {
+        Ok(data) => {
+            let file = VfsFile::from_parts(file_id.clone(), data);
+            let gvfs_root =
+                persister::decrypt_json_file(vfs_master_key, &file_id, file)?;
+            Some(gvfs_root)
+        }
+        Err(BackendApiError {
+            kind: BackendErrorKind::NotFound,
+            ..
+        }) => None,
+        Err(e) => return Err(e).context("Failed to fetch file"),
+    };
 
     Ok(maybe_gvfs_root)
 }
@@ -287,15 +290,19 @@ pub(crate) async fn read_approved_versions(
         .await
         .context("Could not get auth token")?;
 
-    backend_api
-        .get_file_v1(&file_id, token)
-        .await
-        .context("Failed to fetch file")?
-        .maybe_file
-        .map(|file| {
-            persister::decrypt_json_file(vfs_master_key, &file_id, file)
-        })
-        .transpose()
+    match backend_api.get_file(&file_id, token).await {
+        Ok(data) => {
+            let file = VfsFile::from_parts(file_id.clone(), data);
+            let approved_versions =
+                persister::decrypt_json_file(vfs_master_key, &file_id, file)?;
+            Ok(Some(approved_versions))
+        }
+        Err(BackendApiError {
+            kind: BackendErrorKind::NotFound,
+            ..
+        }) => Ok(None),
+        Err(e) => Err(e).context("Failed to fetch file"),
+    }
 }
 
 /// Persists the given [`ApprovedVersions`] to backend storage.
@@ -587,10 +594,14 @@ impl Vfs for NodePersister {
         file_id: &VfsFileId,
     ) -> Result<Option<VfsFile>, BackendApiError> {
         let token = self.get_token().await?;
-        self.backend_api
-            .get_file_v1(file_id, token)
-            .await
-            .map(|MaybeVfsFile { maybe_file }| maybe_file)
+        match self.backend_api.get_file(file_id, token).await {
+            Ok(data) => Ok(Some(VfsFile::from_parts(file_id.clone(), data))),
+            Err(BackendApiError {
+                kind: BackendErrorKind::NotFound,
+                ..
+            }) => Ok(None),
+            Err(e) => Err(e),
+        }
     }
 
     async fn upsert_file(

@@ -524,6 +524,7 @@ pub trait NodeBackendApi {
     ) -> Result<MaybeScid, BackendApiError>;
 
     /// GET /node/v1/file [`VfsFileId`] -> [`MaybeVfsFile`]
+    #[deprecated(note = "since node-v0.8.5: Use get_file instead")]
     async fn get_file_v1(
         &self,
         file_id: &VfsFileId,

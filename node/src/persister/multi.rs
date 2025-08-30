@@ -10,6 +10,7 @@ use gdrive::GoogleVfs;
 use lexe_api::{
     auth::BearerAuthenticator,
     def::NodeBackendApi,
+    error::BackendErrorKind,
     vfs::{VfsFile, VfsFileId},
 };
 use lexe_ln::persister;
@@ -33,8 +34,13 @@ pub(super) async fn read(
             .await
             .context("Could not get token")?;
         backend_api
-            .get_file_v1(file_id, token)
+            .get_file(file_id, token)
             .await
+            .map(|data| Some(VfsFile::from_parts(file_id.clone(), data)))
+            .or_else(|e| match e.kind {
+                BackendErrorKind::NotFound => Ok(None),
+                _ => Err(e),
+            })
             .with_context(|| format!("{file_id}"))
             .context("Couldn't fetch from Lexe")
     };
@@ -60,7 +66,7 @@ pub(super) async fn read(
                 gvfs,
                 file_id,
                 maybe_google_file,
-                maybe_lexe_file.maybe_file,
+                maybe_lexe_file,
             )
             .await
             .context("Evaluation and resolution failed")?
@@ -68,7 +74,6 @@ pub(super) async fn read(
         None => {
             let maybe_lexe_file = read_from_lexe.await?;
             maybe_lexe_file
-                .maybe_file
                 .map(|file| {
                     persister::decrypt_file(vfs_master_key, file_id, file)
                         .map(Secret::new)
