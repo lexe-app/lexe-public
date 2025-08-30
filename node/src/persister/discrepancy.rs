@@ -7,6 +7,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Context};
+use bytes::Bytes;
 use common::{aes::AesMasterKey, debug_panic_release_log, Secret};
 use gdrive::GoogleVfs;
 use lexe_api::{
@@ -108,20 +109,18 @@ pub(super) async fn evaluate_and_resolve(
                 .await
                 .context("Could not get auth token")?;
             let correct_file = maybe_google_file.expect("google_bytes is Some");
+            let correct_file_id = &correct_file.id;
+            let correct_data = Bytes::from(correct_file.data);
 
             // Update Lexe's version if it was corrupt, otherwise create it.
             if lexe_corrupt {
                 backend_api
-                    .upsert_file(
-                        &correct_file.id,
-                        correct_file.data.into(),
-                        token,
-                    )
+                    .upsert_file(correct_file_id, correct_data.clone(), token)
                     .await
                     .context("Failed to update Lexe's version")?;
             } else {
                 backend_api
-                    .create_file_v1(&correct_file, token)
+                    .create_file(correct_file_id, correct_data, token)
                     .await
                     .context("Failed to create Lexe's version")?;
             }

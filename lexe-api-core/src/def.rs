@@ -539,6 +539,7 @@ pub trait NodeBackendApi {
     ) -> Result<Bytes, BackendApiError>;
 
     /// POST /node/v1/file [`VfsFile`] -> [`Empty`]
+    #[deprecated(note = "since node-v0.8.5: Use create_file instead")]
     async fn create_file_v1(
         &self,
         file: &VfsFile,
