@@ -83,13 +83,40 @@ pub trait Vfs {
         file_id: &VfsFileId,
     ) -> Result<Empty, BackendApiError>;
 
+    /// List all filenames in the given [`VfsDirectory`].
+    ///
+    /// Returns a [`VfsDirectoryList`] containing the directory name and all
+    /// filenames.
+    async fn list_directory(
+        &self,
+        dir: &VfsDirectory,
+    ) -> Result<VfsDirectoryList, BackendApiError>;
+
     /// Fetches all files in the given [`VfsDirectory`] from the backend.
     ///
     /// Prefer [`Vfs::read_dir_files`] which adds logging and error context.
     async fn get_directory(
         &self,
         dir: &VfsDirectory,
-    ) -> Result<Vec<VfsFile>, BackendApiError>;
+    ) -> Result<Vec<VfsFile>, BackendApiError> {
+        // Get all filenames in the directory
+        let directory_list = self.list_directory(dir).await?;
+
+        // Fetch all files concurrently
+        let fetch_futs = directory_list.filenames.into_iter().map(|filename| {
+            let file_id =
+                VfsFileId::new(directory_list.dirname.clone(), filename);
+            async move { self.get_file(&file_id).await }
+        });
+
+        // TODO(max): Would be nice to add a semaphore, but don't want
+        // `lexe-api-core` to depend on `tokio`.
+
+        let maybe_files = futures::future::try_join_all(fetch_futs).await?;
+        let files = maybe_files.into_iter().flatten().collect();
+
+        Ok(files)
+    }
 
     /// Serialize a LDK [`Writeable`] then encrypt it under the VFS master key.
     fn encrypt_ldk_writeable<W: Writeable>(

@@ -2409,6 +2409,7 @@ dependencies = [
  "byte-array",
  "bytes",
  "common",
+ "futures",
  "hex 0.0.0",
  "http",
  "http-body-util",

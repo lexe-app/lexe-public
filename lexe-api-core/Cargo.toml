@@ -35,6 +35,7 @@ async-trait.workspace = true
 bcs.workspace = true
 bitcoin = { workspace = true, features = ["serde"] }
 bytes.workspace = true
+futures.workspace = true
 http.workspace = true
 lightning.workspace = true
 lightning-invoice.workspace = true

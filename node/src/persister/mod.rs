@@ -63,7 +63,7 @@ use lexe_api::{
         Empty,
     },
     vfs::{
-        self, VecVfsFile, Vfs, VfsDirectory, VfsFile, VfsFileId,
+        self, Vfs, VfsDirectory, VfsDirectoryList, VfsFile, VfsFileId,
         SINGLETON_DIRECTORY,
     },
 };
@@ -623,15 +623,12 @@ impl Vfs for NodePersister {
         self.backend_api.delete_file(file_id, token).await
     }
 
-    async fn get_directory(
+    async fn list_directory(
         &self,
         dir: &VfsDirectory,
-    ) -> Result<Vec<VfsFile>, BackendApiError> {
+    ) -> Result<VfsDirectoryList, BackendApiError> {
         let token = self.get_token().await?;
-        self.backend_api
-            .get_directory_v1(dir, token)
-            .await
-            .map(|VecVfsFile { files }| files)
+        self.backend_api.list_directory(dir, token).await
     }
 
     #[inline]

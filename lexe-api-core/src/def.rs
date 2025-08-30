@@ -580,6 +580,7 @@ pub trait NodeBackendApi {
     ) -> Result<Empty, BackendApiError>;
 
     /// GET /node/v1/directory [`VfsDirectory`] -> [`VecVfsFile`]
+    #[deprecated(note = "since node-v0.8.5: Use list_directory instead")]
     async fn get_directory_v1(
         &self,
         dir: &VfsDirectory,
