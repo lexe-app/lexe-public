@@ -16,6 +16,7 @@ ${PODS_TARGET_SRCROOT}/../../lexe-tls/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-tokio/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../logger/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../node/Cargo.toml
+${PODS_TARGET_SRCROOT}/../../payment-uri-core/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../payment-uri/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../run-sgx/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../rust-toolchain.toml

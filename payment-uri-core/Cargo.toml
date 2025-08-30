@@ -1,0 +1,29 @@
+[package]
+name = "payment-uri-core"
+description = "Core types for parsing Bitcoin addresses and payment URIs."
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+
+# --- LEXE --- #
+
+common.path = "../common"
+lexe-api-core.path = "../lexe-api-core"
+
+# --- WORKSPACE --- #
+
+anyhow.workspace = true
+bitcoin.workspace = true
+percent-encoding.workspace = true
+rust_decimal.workspace = true
+rust_decimal_macros.workspace = true
+
+[dev-dependencies]
+common = { path = "../common", features = ["test-utils"] }
+lexe-api-core = { path = "../lexe-api-core", features = ["test-utils"] }
+
+proptest = { workspace = true, features = ["alloc"] }
+proptest-derive.workspace = true

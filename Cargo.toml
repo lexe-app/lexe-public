@@ -17,6 +17,7 @@ members = [
     "logger",
     "node",
     "payment-uri",
+    "payment-uri-core",
     "run-sgx",
     "sdk-core",
     "sdk-sidecar",
