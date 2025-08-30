@@ -84,7 +84,7 @@ pub(super) async fn evaluate_and_resolve(
             let correct_file = maybe_google_file.expect("google_bytes is Some");
 
             backend_api
-                .upsert_file_v1(&correct_file, token)
+                .upsert_file(&correct_file.id, correct_file.data.into(), token)
                 .await
                 .context("Failed to update Lexe's version")?;
 
@@ -112,7 +112,11 @@ pub(super) async fn evaluate_and_resolve(
             // Update Lexe's version if it was corrupt, otherwise create it.
             if lexe_corrupt {
                 backend_api
-                    .upsert_file_v1(&correct_file, token)
+                    .upsert_file(
+                        &correct_file.id,
+                        correct_file.data.into(),
+                        token,
+                    )
                     .await
                     .context("Failed to update Lexe's version")?;
             } else {
@@ -157,7 +161,7 @@ pub(super) async fn evaluate_and_resolve(
 
             // Update Google's version if it was corrupt, otherwise create it.
             if google_corrupt {
-                gvfs.upsert_file(correct_file)
+                gvfs.upsert_file(&correct_file.id, correct_file.data.into())
                     .await
                     .context("Failed to update Google's version")?;
             } else {

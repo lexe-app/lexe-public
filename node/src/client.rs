@@ -205,14 +205,17 @@ impl NodeBackendClient {
 impl NodeBackendClient {
     pub(crate) async fn upsert_file_with_retries(
         &self,
-        file: &VfsFile,
+        file_id: &VfsFileId,
+        data: bytes::Bytes,
         auth: BearerAuthToken,
         retries: usize,
     ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .put(format!("{backend}/node/v1/file"), file)
+            .builder(PUT, format!("{backend}/node/v2/file"))
+            .query(file_id)
+            .body(data)
             .bearer_auth(&auth);
         self.rest.send_with_retries(req, retries, &[]).await
     }

@@ -5,6 +5,7 @@
 use std::time::SystemTime;
 
 use anyhow::Context;
+use bytes::Bytes;
 use common::{aes::AesMasterKey, constants::IMPORTANT_PERSIST_RETRIES};
 use gdrive::GoogleVfs;
 use lexe_api::{
@@ -97,11 +98,14 @@ pub(super) async fn upsert(
     maybe_google_vfs: Option<&GoogleVfs>,
     file: VfsFile,
 ) -> anyhow::Result<()> {
+    let file_id = file.id;
+    let data = Bytes::from(file.data);
+
     let google_upsert_future = async {
         match maybe_google_vfs {
             Some(gvfs) => {
                 let mut try_upsert = gvfs
-                    .upsert_file(file.clone())
+                    .upsert_file(&file_id, data.clone())
                     .await
                     .context("(First attempt)");
 
@@ -114,7 +118,7 @@ pub(super) async fn upsert(
                     tokio::time::sleep(backoff_iter.next().unwrap()).await;
 
                     try_upsert = gvfs
-                        .upsert_file(file.clone())
+                        .upsert_file(&file_id, data.clone())
                         .await
                         .with_context(|| format!("(Retry #{i})"));
                 }
@@ -130,7 +134,12 @@ pub(super) async fn upsert(
             .await
             .context("Could not get token")?;
         backend_api
-            .upsert_file_with_retries(&file, token, IMPORTANT_PERSIST_RETRIES)
+            .upsert_file_with_retries(
+                &file_id,
+                data.clone(),
+                token,
+                IMPORTANT_PERSIST_RETRIES,
+            )
             .await
             .map(|_| ())
             .context("Failed to upsert to Lexe DB")

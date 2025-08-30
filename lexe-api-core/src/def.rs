@@ -554,6 +554,7 @@ pub trait NodeBackendApi {
     ) -> Result<Empty, BackendApiError>;
 
     /// PUT /node/v1/file [`VfsFile`] -> [`Empty`]
+    #[deprecated(note = "since node-v0.8.5: Use upsert_file instead")]
     async fn upsert_file_v1(
         &self,
         file: &VfsFile,

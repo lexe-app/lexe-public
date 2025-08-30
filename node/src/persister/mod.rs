@@ -140,7 +140,7 @@ pub(crate) async fn persist_file(
         .context("Could not get auth token")?;
 
     backend_api
-        .upsert_file_v1(file, token)
+        .upsert_file(&file.id, file.data.clone().into(), token)
         .await
         .context("Could not upsert file")?;
 
@@ -206,7 +206,7 @@ pub(crate) async fn persist_gvfs_root(
         .context("Could not get auth token")?;
 
     backend_api
-        .upsert_file_v1(&file, token)
+        .upsert_file(&file.id, file.data.into(), token)
         .await
         .context("Could not upsert file")?;
 
@@ -270,7 +270,7 @@ pub(crate) async fn upsert_password_encrypted_root_seed(
     );
     // Upsert, not create, as the user may have rotated their password
     google_vfs
-        .upsert_file(file)
+        .upsert_file(&file.id, file.data.into())
         .await
         .context("Failed to create root seed file")?;
     Ok(())
@@ -334,7 +334,7 @@ pub(crate) async fn persist_approved_versions(
         .context("Could not get auth token")?;
 
     backend_api
-        .upsert_file_v1(&file, token)
+        .upsert_file(&file.id, file.data.into(), token)
         .await
         .context("Failed to upsert approved versions file")?;
 
@@ -377,7 +377,8 @@ impl NodePersister {
     // TODO(max): This fn should be reused in more places.
     pub(crate) async fn upsert_gdrive_if_available(
         &self,
-        file: VfsFile,
+        file_id: &VfsFileId,
+        data: bytes::Bytes,
         retries: usize,
     ) -> anyhow::Result<()> {
         let gvfs = match self.google_vfs.as_ref() {
@@ -385,9 +386,7 @@ impl NodePersister {
             None => return Ok(()),
         };
 
-        let file_id = file.id.clone();
-
-        let mut upsert_result = gvfs.upsert_file(file.clone()).await;
+        let mut upsert_result = gvfs.upsert_file(file_id, data.clone()).await;
 
         let mut backoff_iter = backoff::get_backoff_iter();
         for i in 0..retries {
@@ -398,14 +397,14 @@ impl NodePersister {
             tokio::time::sleep(backoff_iter.next().unwrap()).await;
 
             upsert_result = gvfs
-                .upsert_file(file.clone())
+                .upsert_file(file_id, data.clone())
                 .await
                 .with_context(|| format!("Retry #{i}"));
         }
 
         upsert_result
             .context("Failed to upsert to GDrive")
-            .with_context(|| file_id)
+            .with_context(|| file_id.clone())
     }
 
     pub(crate) async fn read_scids(&self) -> anyhow::Result<Vec<Scid>> {
@@ -606,12 +605,13 @@ impl Vfs for NodePersister {
 
     async fn upsert_file(
         &self,
-        file: &VfsFile,
+        file_id: &VfsFileId,
+        data: bytes::Bytes,
         retries: usize,
     ) -> Result<Empty, BackendApiError> {
         let token = self.get_token().await?;
         self.backend_api
-            .upsert_file_with_retries(file, token, retries)
+            .upsert_file_with_retries(file_id, data, token, retries)
             .await
     }
 

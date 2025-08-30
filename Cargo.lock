@@ -1841,6 +1841,7 @@ dependencies = [
  "anyhow",
  "base64",
  "byte-array",
+ "bytes",
  "common",
  "futures",
  "lexe-api-core",

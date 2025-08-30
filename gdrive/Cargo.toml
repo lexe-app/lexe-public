@@ -18,6 +18,7 @@ sha256.path = "../sha256"
 
 anyhow.workspace = true
 base64.workspace = true
+bytes.workspace = true
 futures.workspace = true
 thiserror.workspace = true
 reqwest = { workspace = true, features = ["json", "multipart"] }

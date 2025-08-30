@@ -8,6 +8,7 @@
 use std::{collections::BTreeMap, fmt, str::FromStr};
 
 use anyhow::{anyhow, ensure, Context};
+use bytes::Bytes;
 use common::{api::user::UserPk, env::DeployEnv, ln::network::LxNetwork};
 use lexe_api_core::{
     vfs,
@@ -355,14 +356,18 @@ impl GoogleVfs {
 
     // TODO(max): GoogleVfs should impl the Vfs trait
     #[instrument(skip_all, name = "(gvfs-upsert-file)")]
-    pub async fn upsert_file(&self, vfile: VfsFile) -> anyhow::Result<()> {
+    pub async fn upsert_file(
+        &self,
+        vfile_id: &VfsFileId,
+        data: Bytes,
+    ) -> anyhow::Result<()> {
         let mut locked_cache = self.gid_cache.write().await;
 
         // If the file exists, update it
-        if let Some(gid) = locked_cache.get(&vfile.id) {
+        if let Some(gid) = locked_cache.get(vfile_id) {
             return self
                 .client
-                .update_blob_file(gid.clone(), vfile.data)
+                .update_blob_file(gid.clone(), data)
                 .await
                 .map(|_| ())
                 .context("update_blob_file");
@@ -371,18 +376,18 @@ impl GoogleVfs {
         // NOTE: We don't use `create_file` here in order to avoid a deadlock.
 
         // Upload the blob file into the GVFS root.
-        let gvfile_id = GvfsFileId::try_from(&vfile.id)?;
+        let gvfile_id = GvfsFileId::try_from(vfile_id)?;
         let gid = self
             .client
             .create_blob_file(
                 self.gvfs_root.gid.clone(),
                 gvfile_id.into_inner(),
-                vfile.data,
+                data.into(),
             )
             .await
             .context("create_blob_file")?
             .id;
-        locked_cache.insert(vfile.id, gid);
+        locked_cache.insert(vfile_id.clone(), gid);
 
         Ok(())
     }
@@ -653,13 +658,17 @@ mod test {
         assert_eq!(get_file1.data, vec![1]);
 
         // Upsert file1's data to vec![2]
-        gvfs.upsert_file(file1_data2.clone()).await.unwrap();
+        gvfs.upsert_file(&file1_data2.id, file1_data2.data.clone().into())
+            .await
+            .unwrap();
         let file1_resp = gvfs.get_file(&file1_data2.id).await.unwrap().unwrap();
         assert_eq!(file1_resp.data, vec![2]);
 
         // Create file2 in the same directory, this time via upsert.
         // Fetch both files using `get_directory`.
-        gvfs.upsert_file(file2.clone()).await.unwrap();
+        gvfs.upsert_file(&file2.id, file2.data.clone().into())
+            .await
+            .unwrap();
         let node_dir = VfsDirectory::new("dir");
         let get_dir_resp = gvfs.get_directory(&node_dir).await.unwrap();
         assert_eq!(get_dir_resp, vec![file1_data2.clone(), file2.clone()]);

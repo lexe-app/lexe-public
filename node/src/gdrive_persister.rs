@@ -97,7 +97,10 @@ async fn drain_persist_queue(
     /*
     let retries = constants::IMPORTANT_PERSIST_RETRIES;
     for (file_id, file) in persist_queue.drain() {
-        match persister.upsert_gdrive_if_available(file, retries).await {
+        match persister
+            .upsert_gdrive_if_available(&file_id, file.data.into(), retries)
+            .await
+        {
             Ok(()) => info!("Successful backup to GDrive: {file_id}"),
             Err(e) => {
                 error!("FATAL: Backup to GDrive failed, shutting down: {e:#}");
@@ -111,7 +114,10 @@ async fn drain_persist_queue(
         .drain()
         .map(|(file_id, file)| async move {
             let retries = constants::IMPORTANT_PERSIST_RETRIES;
-            match persister.upsert_gdrive_if_available(file, retries).await {
+            match persister
+                .upsert_gdrive_if_available(&file_id, file.data.into(), retries)
+                .await
+            {
                 Ok(()) => info!("Successful backup to GDrive: {file_id}"),
                 Err(e) => {
                     // Since we're persisting critical state, if persist fails,

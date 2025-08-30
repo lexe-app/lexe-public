@@ -65,12 +65,13 @@ pub trait Vfs {
         file_id: &VfsFileId,
     ) -> Result<Option<VfsFile>, BackendApiError>;
 
-    /// Upsert the given [`VfsFile`] to the backend with the given # of retries.
+    /// Upsert the given file to the backend with the given # of retries.
     ///
     /// Prefer [`Vfs::persist_file`] which adds logging and error context.
     async fn upsert_file(
         &self,
-        file: &VfsFile,
+        file_id: &VfsFileId,
+        data: bytes::Bytes,
         retries: usize,
     ) -> Result<Empty, BackendApiError>;
 
@@ -312,7 +313,7 @@ pub trait Vfs {
         debug!("Persisting file {file_id} <{bytes} bytes>");
 
         let result = self
-            .upsert_file(file, retries)
+            .upsert_file(&file.id, file.data.clone().into(), retries)
             .await
             .map(|_| ())
             .with_context(|| format!("Couldn't persist file to DB: {file_id}"));

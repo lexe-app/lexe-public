@@ -1,6 +1,7 @@
 use std::ops::DerefMut;
 
 use anyhow::{ensure, Context};
+use bytes::Bytes;
 use reqwest::{IntoUrl, Method};
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::sync::watch;
@@ -234,7 +235,7 @@ impl GDriveClient {
     pub async fn update_blob_file(
         &self,
         id: GFileId,
-        data: Vec<u8>,
+        data: Bytes,
     ) -> Result<GFile, Error> {
         let method = Method::PATCH;
         let url = format!("{BASE_UPLOAD_URL}/files/{id}");
