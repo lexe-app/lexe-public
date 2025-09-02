@@ -61,6 +61,13 @@ class MaxUtf8BytesInputFormatter extends TextInputFormatter {
 ///
 /// If we start with "123", then type "4", the text field will auto-format to
 /// "1,234" (for en_US locale).
+///
+/// ### Separator behavior
+///
+/// When the cursor is adjacent to a separator (e.g., "12,|345"):
+/// - Backspace just moves the cursor left over the separator without deleting
+/// - Delete key just moves the cursor right over the separator without deleting
+/// This matches standard text field behavior where separators act as single units.
 class IntInputFormatter extends TextInputFormatter {
   IntInputFormatter({String? locale})
     : formatter = NumberFormat.decimalPatternDigits(
@@ -106,13 +113,83 @@ class IntInputFormatter extends TextInputFormatter {
 
     final newText = this.formatter.format(numValue);
 
+    // Calculate the new cursor position
+    final int newCursorPosition = _calculateCursorPosition(
+      newValue.text,
+      newText,
+      newValue.selection.baseOffset,
+    );
+
     return TextEditingValue(
       text: newText,
-      // TODO(phlip9): This will always force the input cursor to the end of the
-      // text field. In theory, we could be smarter and correctly compute the
-      // updated cursor location when the user is editing the middle of the
-      // text. Black-box decimal formatting makes this hard though.
-      selection: TextSelection.collapsed(offset: newText.length),
+      selection: TextSelection.collapsed(offset: newCursorPosition),
     );
+  }
+
+  /// Calculates where the cursor should be positioned after formatting.
+  ///
+  /// This algorithm preserves cursor position based on the number of digits
+  /// before it, not character position. This makes it work across all edit
+  /// operations (typing, backspace, delete) and locales (commas, dots, spaces).
+  ///
+  /// ## Why we don't need to know the operation type:
+  ///
+  /// Flutter already positions the cursor correctly after any edit:
+  /// - Type "5" at position 2 in "1234" → "12534" with cursor at position 3
+  /// - Backspace at position 3 in "1234" → "124" with cursor at position 2
+  /// - Right delete at position 2 in "1234" → "124" with cursor at position 2
+  /// - Select "23" and type "5" in "1234" → "154" with cursor at position 2
+  ///
+  /// We just maintain this position when adding/removing separators.
+  ///
+  /// ## Algorithm:
+  ///
+  /// 1. Count digits before cursor (ignoring separators)
+  ///    Example: cursor at position 4 in "1,2534" → 3 digits before
+  ///
+  /// 2. Format the number: "12534" → "12,534"
+  ///
+  /// 3. Find where the same digit count occurs in formatted text
+  ///    Example: 3 digits in "12,534" → position 4
+  ///
+  /// Separators are treated as decoration that we skip when counting.
+  int _calculateCursorPosition(
+    String newText,
+    String formattedText,
+    int cursorPosition,
+  ) {
+    // Count digits before cursor in the unformatted text
+    int digitsBeforeCursor = 0;
+    for (int i = 0; i < cursorPosition && i < newText.length; i++) {
+      if (_isDigit(newText.codeUnitAt(i))) {
+        digitsBeforeCursor++;
+      }
+    }
+
+    // Special case: cursor at beginning stays at beginning.
+    // Without this block, the loop below never matches 0 (increments before
+    // comparing) and cursor incorrectly jumps to end
+    if (digitsBeforeCursor == 0) {
+      return 0;
+    }
+
+    // Find position in formatted text with same number of digits
+    int digitCount = 0;
+    for (int i = 0; i < formattedText.length; i++) {
+      if (_isDigit(formattedText.codeUnitAt(i))) {
+        digitCount++;
+        if (digitCount == digitsBeforeCursor) {
+          return i + 1; // Position cursor after this digit
+        }
+      }
+    }
+
+    // If we couldn't find the position (e.g., cursor was after all digits),
+    // place cursor at the end
+    return formattedText.length;
+  }
+
+  bool _isDigit(int codeUnit) {
+    return codeUnit >= 0x30 && codeUnit <= 0x39; // ASCII '0' to '9'
   }
 }
