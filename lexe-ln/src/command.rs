@@ -1709,7 +1709,7 @@ pub async fn create_revocable_client(
 
     let retries = 0;
     persister
-        .persist_file(&updated_file, retries)
+        .persist_file(updated_file, retries)
         .await
         .context("Failed to persisted updated RevocableClients")?;
 
@@ -1805,7 +1805,7 @@ pub async fn update_revocable_client(
     // similar doesn't seem worth the minimal consistency benefit.
     let retries = 0;
     persister
-        .persist_file(&updated_file, retries)
+        .persist_file(updated_file, retries)
         .await
         .context("Failed to persisted updated RevocableClients")?;
 

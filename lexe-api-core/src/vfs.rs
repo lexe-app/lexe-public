@@ -315,7 +315,7 @@ pub trait Vfs {
         retries: usize,
     ) -> anyhow::Result<()> {
         let file = self.encrypt_ldk_writeable(file_id, writeable);
-        self.persist_file(&file, retries).await
+        self.persist_file(file, retries).await
     }
 
     /// JSON-serializes, encrypts, then persists a type `T` to the DB.
@@ -326,13 +326,13 @@ pub trait Vfs {
         retries: usize,
     ) -> anyhow::Result<()> {
         let file = self.encrypt_json::<T>(file_id, value);
-        self.persist_file(&file, retries).await
+        self.persist_file(file, retries).await
     }
 
     /// Wraps [`Vfs::upsert_file`] to add logging and error context.
     async fn persist_file(
         &self,
-        file: &VfsFile,
+        file: VfsFile,
         retries: usize,
     ) -> anyhow::Result<()> {
         let file_id = &file.id;
@@ -340,7 +340,7 @@ pub trait Vfs {
         debug!("Persisting file {file_id} <{bytes} bytes>");
 
         let result = self
-            .upsert_file(&file.id, file.data.clone().into(), retries)
+            .upsert_file(&file.id, file.data.into(), retries)
             .await
             .map(|_| ())
             .with_context(|| format!("Couldn't persist file to DB: {file_id}"));

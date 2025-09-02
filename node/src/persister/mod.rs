@@ -806,7 +806,7 @@ impl LexeInnerPersister for NodePersister {
 
         // Persist to Lexe VFS
         // XXX(max): Channel manager should be persisted to multiple VSS stores.
-        self.persist_file(&file, retries)
+        self.persist_file(file, retries)
             .await
             .context("Failed to persist channel manager")
     }
@@ -840,7 +840,7 @@ impl LexeInnerPersister for NodePersister {
         // Persist to Lexe VFS
         // XXX(max): Channel monitor should be persisted to multiple VSS stores.
         let retries = constants::IMPORTANT_PERSIST_RETRIES;
-        self.persist_file(&file, retries)
+        self.persist_file(file, retries)
             .await
             .context("Failed to persist channel monitor")
     }

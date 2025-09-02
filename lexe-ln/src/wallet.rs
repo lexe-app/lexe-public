@@ -1162,7 +1162,7 @@ async fn do_wallet_persist<PS: LexePersister>(
     // Finish the current persist attempt before responding to
     // any shutdown signal received in the meantime.
     let persist_result = persister
-        .persist_file(&file, IMPORTANT_PERSIST_RETRIES)
+        .persist_file(file, IMPORTANT_PERSIST_RETRIES)
         .await;
 
     match persist_result {
