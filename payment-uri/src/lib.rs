@@ -9,7 +9,7 @@ pub use payment_uri_core::*;
 // liquidity/balance to decide onchain vs LN, or returning all methods and
 // giving the user a choice. This'll also need to be async in the future, as
 // we'll need to fetch invoices from any LNURL endpoints we come across.
-pub fn resolve_best(
+pub async fn resolve_best(
     network: LxNetwork,
     payment_uri: PaymentUri,
 ) -> anyhow::Result<PaymentMethod> {

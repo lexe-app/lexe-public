@@ -876,14 +876,14 @@ fn wire__crate__ffi__payment_uri__resolve_best_impl(
     rust_vec_len_: i32,
     data_len_: i32,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "resolve_best", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "resolve_best", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_network = <crate::ffi::types::Network>::sse_decode(&mut deserializer);
-let api_uri_str = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
-                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move ||  {
-                         let output_ok = crate::ffi::payment_uri::resolve_best(api_network, api_uri_str)?;   Ok(output_ok)
-                    })())
+let api_uri_str = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
+                         let output_ok = crate::ffi::payment_uri::resolve_best(api_network, api_uri_str).await?;   Ok(output_ok)
+                    })().await)
                 } })
 }
 fn wire__crate__ffi__types__root_seed_expose_secret_hex_impl(
