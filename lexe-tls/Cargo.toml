@@ -28,6 +28,7 @@ sha256.path = "../sha256"
 
 anyhow.workspace = true
 asn1-rs.workspace = true
+base64.workspace = true
 dcap-ql.workspace = true
 num-bigint.workspace = true
 rcgen.workspace = true
@@ -38,6 +39,7 @@ rustls.workspace = true
 secrecy.workspace = true
 serde.workspace = true
 sgx-isa.workspace = true
+thiserror.workspace = true
 time.workspace = true
 tokio = { workspace = true, features = ["time"] }
 webpki.workspace = true

@@ -14,6 +14,8 @@ use x509_parser::{
 pub mod attestation;
 /// Certs and utilities related to Lexe's CA.
 pub mod lexe_ca;
+/// ECDSA P-256 key pairs for webpki TLS certs.
+pub mod p256;
 /// mTLS based on a shared `RootSeed`.
 pub mod shared_seed;
 /// TLS newtypes, namely DER-encoded certs and cert keys.
