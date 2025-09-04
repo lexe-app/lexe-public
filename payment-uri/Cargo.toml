@@ -9,8 +9,11 @@ version.workspace = true
 
 # --- LEXE --- #
 
+common.path = "../common"
 payment-uri-core.path = "../payment-uri-core"
 
 # --- WORKSPACE --- #
+
+anyhow.workspace = true
 
 [dev-dependencies]

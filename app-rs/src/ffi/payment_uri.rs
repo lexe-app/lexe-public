@@ -12,8 +12,8 @@ pub fn resolve_best(
     network: Network,
     uri_str: String,
 ) -> anyhow::Result<PaymentMethod> {
-    payment_uri::PaymentUri::parse(&uri_str)
-        .context("Unrecognized payment code")?
-        .resolve_best(network.into())
+    let payment_uri = payment_uri::PaymentUri::parse(&uri_str)
+        .context("Unrecognized payment code")?;
+    payment_uri::resolve_best(network.into(), payment_uri)
         .map(PaymentMethod::from)
 }

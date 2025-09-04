@@ -74,7 +74,7 @@ impl Onchain {
     }
 
     /// Returns the relative priority for this onchain address. Higher = better.
-    pub(crate) fn relative_priority(&self) -> usize {
+    pub fn relative_priority(&self) -> usize {
         use bitcoin::AddressType::*;
         let address_type =
             match self.address.assume_checked_ref().address_type() {
