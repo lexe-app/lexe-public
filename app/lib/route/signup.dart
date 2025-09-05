@@ -500,7 +500,7 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
           const SizedBox(height: Space.s100),
           MarkdownBody(
             data: '''
-## Enter a backup password
+## Enter your backup password
 
 Enter at least 12 characters.
 
