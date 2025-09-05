@@ -309,13 +309,13 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
             data: '''
 # Connect your Google Drive
 
-Your **node needs access to Drive** to keep your recovery data up-to-date.
-With Drive backup you can **always recover your funds** even if Lexe goes away.
+Lexe will create a **LexeData** folder in your Google Drive to store
+encrypted recovery data and keep it up-to-date.
 
-- Your node can only access the files it creates in the **LexeData** folder.
-- Lexe cannot access any files in your Drive.
-- All data in Drive is stored end-to-end encrypted and is only readable by
-  you and your node.
+- Your node can only access the files it creates, and **nothing else**.
+- Neither Google nor Lexe can decrypt your recovery data, but you can, using
+  your **backup password**.
+- With your recovery data, **you can always recover your funds**—even if Lexe goes away.
 ''',
             // styleSheet: LxTheme.buildMarkdownStyle(),
             styleSheet: LxTheme.markdownStyle,
