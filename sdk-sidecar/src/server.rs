@@ -11,12 +11,22 @@ pub(crate) struct RouterState {
 }
 
 pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
+    // NOTE: If making a breaking change, bump the version of *all* endpoints.
+    // This is because we don't want to trip up dumb AIs which fail to
+    // distinguish between v1/v2. A consistent version is more reliable.
     Router::new()
+        // v2
+        .route("/v2/health", get(sidecar::health))
+        .route("/v2/node/node_info", get(node::node_info))
+        .route("/v2/node/create_invoice", post(node::create_invoice))
+        .route("/v2/node/pay_invoice", post(node::pay_invoice))
+        .route("/v2/node/payment", get(node::get_payment))
+        // v1 (legacy)
         .route("/v1/health", get(sidecar::health))
         .route("/v1/node/node_info", get(node::node_info))
         .route("/v1/node/create_invoice", post(node::create_invoice))
         .route("/v1/node/pay_invoice", post(node::pay_invoice))
-        .route("/v1/node/payment", get(node::get_payment))
+        .route("/v1/node/payment", get(node::get_payment_v1))
         .with_state(state)
 }
 
@@ -138,8 +148,31 @@ mod node {
         Ok(LxJson(resp))
     }
 
+    /// NOTE: For the v2 endpoint and above, we return the response as a
+    /// [`SdkPayment`] rather than a [`SdkGetPaymentResponse`], because the
+    /// `{ "payment": { ... } }` nesting trips up dumb AIs when vibe-coding on
+    /// the Sidecar SDK, as discovered by Mat Balez et al. If the payment is
+    /// missing, we use HTTP 404 to indicate this.
+    ///
+    /// If we need to add more fields to the response which don't fit in
+    /// [`SdkPayment`], we can always reintroduce the response type but with
+    /// `#[serde(flatten)]` on the [`SdkPayment`] field (since missing payments
+    /// are now indicated by HTTP 404), or do another version bump.
     #[instrument(skip_all, name = "(get-payment)")]
     pub(crate) async fn get_payment(
+        state: State<Arc<RouterState>>,
+        req: LxQuery<SdkGetPaymentRequest>,
+    ) -> Result<LxJson<SdkPayment>, SdkApiError> {
+        // Wraps the v1 logic to return HTTP 404 if the payment was not found.
+        match get_payment_v1(state, req).await?.0.payment {
+            Some(payment) => Ok(LxJson(payment)),
+            None => Err(SdkApiError::not_found("Payment not found")),
+        }
+    }
+
+    /// Legacy: Returns `{ "payment": null }` if not found.
+    #[instrument(skip_all, name = "(get-payment-v1)")]
+    pub(crate) async fn get_payment_v1(
         state: State<Arc<RouterState>>,
         LxQuery(req): LxQuery<SdkGetPaymentRequest>,
     ) -> Result<LxJson<SdkGetPaymentResponse>, SdkApiError> {

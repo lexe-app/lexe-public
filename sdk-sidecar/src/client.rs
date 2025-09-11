@@ -6,7 +6,8 @@ use sdk_core::{
         SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfoResponse,
         SdkPayInvoiceRequest, SdkPayInvoiceResponse,
     },
-    SdkApiError,
+    types::SdkPayment,
+    SdkApiError, SdkErrorKind,
 };
 
 use crate::{api::HealthCheckResponse, def::UserSidecarApi};
@@ -39,7 +40,7 @@ impl SidecarClient {
 
 impl UserSidecarApi for SidecarClient {
     async fn health_check(&self) -> Result<HealthCheckResponse, SdkApiError> {
-        let url = format!("{base}/v1/health", base = self.sidecar_url);
+        let url = format!("{base}/v2/health", base = self.sidecar_url);
         let http_req = self.rest.get(url, &Empty {});
         self.rest.send(http_req).await
     }
@@ -47,7 +48,7 @@ impl UserSidecarApi for SidecarClient {
 
 impl SdkApi for SidecarClient {
     async fn node_info(&self) -> Result<SdkNodeInfoResponse, SdkApiError> {
-        let url = format!("{base}/v1/node/node_info", base = self.sidecar_url);
+        let url = format!("{base}/v2/node/node_info", base = self.sidecar_url);
         let http_req = self.rest.get(url, &Empty {});
         self.rest.send(http_req).await
     }
@@ -57,7 +58,7 @@ impl SdkApi for SidecarClient {
         req: &SdkCreateInvoiceRequest,
     ) -> Result<SdkCreateInvoiceResponse, SdkApiError> {
         let sidecar = &self.sidecar_url;
-        let url = format!("{sidecar}/v1/node/create_invoice");
+        let url = format!("{sidecar}/v2/node/create_invoice");
         let http_req = self.rest.post(url, req);
         self.rest.send(http_req).await
     }
@@ -67,18 +68,31 @@ impl SdkApi for SidecarClient {
         req: &SdkPayInvoiceRequest,
     ) -> Result<SdkPayInvoiceResponse, SdkApiError> {
         let sidecar = &self.sidecar_url;
-        let url = format!("{sidecar}/v1/node/pay_invoice");
+        let url = format!("{sidecar}/v2/node/pay_invoice");
         let http_req = self.rest.post(url, req);
         self.rest.send(http_req).await
     }
 
+    /// NOTE: See server handler for why we deserialize as [`SdkPayment`]
+    /// rather than [`SdkGetPaymentResponse`], and why we check for HTTP 404.
     async fn get_payment(
         &self,
         req: &SdkGetPaymentRequest,
     ) -> Result<SdkGetPaymentResponse, SdkApiError> {
         let sidecar = &self.sidecar_url;
-        let url = format!("{sidecar}/v1/node/payment");
+        let url = format!("{sidecar}/v2/node/payment");
         let http_req = self.rest.get(url, req);
-        self.rest.send(http_req).await
+
+        self.rest
+            .send::<SdkPayment, SdkApiError>(http_req)
+            .await
+            .map(|payment| SdkGetPaymentResponse {
+                payment: Some(payment),
+            })
+            .or_else(|error| match error.kind {
+                SdkErrorKind::NotFound =>
+                    Ok(SdkGetPaymentResponse { payment: None }),
+                _ => Err(error),
+            })
     }
 }

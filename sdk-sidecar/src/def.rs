@@ -14,7 +14,7 @@ use crate::api::HealthCheckResponse;
 
 /// The API that `lexe-sidecar` exposes to the SDK user.
 pub trait UserSidecarApi: SdkApi {
-    /// GET /v1/health [`Empty`] -> [`HealthCheckResponse`]
+    /// GET /v2/health [`Empty`] -> [`HealthCheckResponse`]
     ///
     /// Check the health of the sidecar itself.
     async fn health_check(&self) -> Result<HealthCheckResponse, SdkApiError>;
