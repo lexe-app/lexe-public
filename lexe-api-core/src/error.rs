@@ -851,6 +851,8 @@ api_error_kind! {
         // NOTE: Intentionally NOT descriptive.
         // These get displayed on the app UI frequently and should be concise.
         Command = 106,
+        /// Resource not found
+        NotFound = 107,
     }
 }
 
@@ -876,6 +878,7 @@ impl ToHttpStatus for NodeErrorKind {
             BadAuth => CLIENT_401_UNAUTHORIZED,
             Proxy => SERVER_502_BAD_GATEWAY,
             Command => SERVER_500_INTERNAL_SERVER_ERROR,
+            NotFound => CLIENT_404_NOT_FOUND,
         }
     }
 }
@@ -1356,6 +1359,16 @@ impl NodeApiError {
     pub fn bad_auth(error: impl fmt::Display) -> Self {
         let msg = format!("{error:#}");
         let kind = NodeErrorKind::BadAuth;
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
+
+    pub fn not_found(error: impl fmt::Display) -> Self {
+        let msg = format!("{error:#}");
+        let kind = NodeErrorKind::NotFound;
         Self {
             kind,
             msg,
