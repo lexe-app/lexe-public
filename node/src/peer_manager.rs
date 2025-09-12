@@ -10,7 +10,6 @@ use common::{
     rng::{Crng, RngExt},
 };
 use lexe_ln::{
-    alias::P2PGossipSyncType,
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
     p2p::{spawn_process_events_task, ConnectionTx, PeerManagerTrait},
@@ -47,14 +46,14 @@ impl NodePeerManager {
         mut rng: &mut dyn Crng,
         keys_manager: Arc<LexeKeysManager>,
         channel_manager: NodeChannelManager,
-        gossip_sync: Arc<P2PGossipSyncType>,
+        routing_msg_handler: Arc<IgnoringMessageHandler>,
         onion_messenger: Arc<OnionMessengerType>,
         logger: LexeTracingLogger,
         shutdown: NotifyOnce,
     ) -> (Self, LxTask<()>) {
         let lightning_msg_handler = MessageHandler {
             chan_handler: channel_manager,
-            route_handler: gossip_sync,
+            route_handler: routing_msg_handler,
             onion_message_handler: onion_messenger,
             custom_message_handler: Arc::new(IgnoringMessageHandler {}),
         };

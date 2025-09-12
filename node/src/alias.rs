@@ -5,10 +5,11 @@ use std::sync::Arc;
 use lexe_ln::{
     alias::{
         LexeChainMonitorType, LexeChannelManagerType, LexeOnionMessengerType,
-        LexePeerManagerType, P2PGossipSyncType,
+        LexePeerManagerType,
     },
     payments::manager::PaymentsManager,
 };
+use lightning::ln::peer_handler::IgnoringMessageHandler;
 
 use crate::{channel_manager::NodeChannelManager, persister::NodePersister};
 
@@ -22,4 +23,4 @@ pub(crate) type PaymentsManagerType =
     PaymentsManager<NodeChannelManager, Arc<NodePersister>>;
 
 pub(crate) type PeerManagerType =
-    LexePeerManagerType<NodeChannelManager, Arc<P2PGossipSyncType>>;
+    LexePeerManagerType<NodeChannelManager, Arc<IgnoringMessageHandler>>;

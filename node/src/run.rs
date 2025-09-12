@@ -37,8 +37,7 @@ use lexe_api::{
 use lexe_ln::{
     alias::{
         BroadcasterType, EsploraSyncClientType, FeeEstimatorType,
-        LexeOnionMessengerType, NetworkGraphType, P2PGossipSyncType,
-        ProbabilisticScorerType,
+        LexeOnionMessengerType, NetworkGraphType, ProbabilisticScorerType,
     },
     background_processor,
     channel_monitor::ChannelMonitorPersister,
@@ -155,7 +154,6 @@ pub struct UserNode {
     wallet: LexeWallet,
     fee_estimates: Arc<FeeEstimatorType>,
     tx_broadcaster: Arc<BroadcasterType>,
-    gossip_sync: Arc<P2PGossipSyncType>,
     keys_manager: Arc<LexeKeysManager>,
     logger: LexeTracingLogger,
     network_graph: Arc<NetworkGraphType>,
@@ -567,22 +565,13 @@ impl UserNode {
             custom_onion_msg_handler,
         ));
 
-        // Initialize gossip sync. NOTE: Gossip sync holds internal state so it
-        // can't be shared across user nodes.
-        // TODO(phlip9): does node even need gossip sync anymore?
-        let utxo_lookup = None;
-        let gossip_sync = Arc::new(P2PGossipSyncType::new(
-            network_graph.clone(),
-            utxo_lookup,
-            logger.clone(),
-        ));
-
         // Initialize PeerManager
+        let routing_msg_handler = Arc::new(IgnoringMessageHandler {});
         let (peer_manager, process_events_task) = NodePeerManager::init(
             rng,
             keys_manager.clone(),
             channel_manager.clone(),
-            gossip_sync.clone(),
+            routing_msg_handler,
             onion_messenger.clone(),
             logger.clone(),
             shutdown.clone(),
@@ -896,7 +885,6 @@ impl UserNode {
             wallet,
             fee_estimates,
             tx_broadcaster,
-            gossip_sync,
             keys_manager,
             logger,
             network_graph,
