@@ -10,9 +10,7 @@ use lightning::{
     },
     onion_message::messenger::OnionMessenger,
     routing::{
-        gossip::{NetworkGraph, P2PGossipSync},
-        scoring::ProbabilisticScorer,
-        utxo::UtxoLookup,
+        gossip::NetworkGraph, scoring::ProbabilisticScorer, utxo::UtxoLookup,
     },
     sign::InMemorySigner,
 };
@@ -93,12 +91,6 @@ pub type FeeEstimatorType = FeeEstimates;
 pub type MessageRouterType = LexeMessageRouter;
 
 pub type NetworkGraphType = NetworkGraph<LexeTracingLogger>;
-
-pub type P2PGossipSyncType = P2PGossipSync<
-    Arc<NetworkGraphType>,
-    Arc<UtxoLookupType>,
-    LexeTracingLogger,
->;
 
 pub type ProbabilisticScorerType =
     ProbabilisticScorer<Arc<NetworkGraphType>, LexeTracingLogger>;
