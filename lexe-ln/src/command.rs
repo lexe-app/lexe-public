@@ -1,6 +1,6 @@
 use std::{
-    collections::HashMap, convert::Infallible, num::NonZeroU64, sync::RwLock,
-    time::Duration,
+    collections::HashMap, convert::Infallible, num::NonZeroU64, ops::Deref,
+    sync::RwLock, time::Duration,
 };
 
 use anyhow::{anyhow, bail, ensure, Context};
@@ -66,6 +66,7 @@ use lightning::{
         channelmanager::{
             PaymentId, RecipientOnionFields, RetryableSendFailure,
         },
+        msgs::RoutingMessageHandler,
         types::ChannelId,
     },
     routing::{gossip::NodeId, router::RouteParameters},
@@ -132,7 +133,7 @@ pub enum CreateInvoiceCaller {
 }
 
 #[instrument(skip_all, name = "(node-info)")]
-pub fn node_info<CM, PM, PS>(
+pub fn node_info<CM, PM, PS, RMH>(
     version: semver::Version,
     measurement: Measurement,
     user_pk: UserPk,
@@ -145,8 +146,10 @@ pub fn node_info<CM, PM, PS>(
 ) -> NodeInfo
 where
     CM: LexeChannelManager<PS>,
-    PM: LexePeerManager<CM, PS>,
+    PM: LexePeerManager<CM, PS, RMH>,
     PS: LexePersister,
+    RMH: Deref,
+    RMH::Target: RoutingMessageHandler,
 {
     let node_pk = NodePk(channel_manager.get_our_node_id());
 

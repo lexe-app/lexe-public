@@ -67,10 +67,11 @@ pub type LexeOnionMessengerType<CHANNEL_MANAGER> = OnionMessenger<
     IgnoringMessageHandler,
 >;
 
-pub type LexePeerManagerType<CHANNEL_MANAGER> = PeerManager<
+pub type LexePeerManagerType<CHANNEL_MANAGER, RMH> = PeerManager<
     ConnectionTx,
     CHANNEL_MANAGER,
-    Arc<P2PGossipSyncType>,
+    // RoutingMessageHandler
+    RMH,
     Arc<LexeOnionMessengerType<CHANNEL_MANAGER>>,
     LexeTracingLogger,
     Arc<IgnoringMessageHandler>,

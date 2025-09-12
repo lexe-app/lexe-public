@@ -1,7 +1,8 @@
-use std::{sync::Arc, time::Duration};
+use std::{ops::Deref, sync::Arc, time::Duration};
 
 use common::time::DisplayMs;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
+use lightning::ln::msgs::RoutingMessageHandler;
 use tokio::time::Instant;
 use tracing::{debug, error, info, info_span, warn, Instrument};
 
@@ -40,7 +41,7 @@ mod delay {
 /// A Tokio-native background processor that runs on a single task and does not
 /// spawn any OS threads. Modeled after the lightning-background-processor crate
 /// provided by LDK - see that crate's implementation for more details.
-pub fn start<CM, PM, PS, EH>(
+pub fn start<CM, PM, PS, EH, RMH>(
     channel_manager: CM,
     peer_manager: PM,
     persister: PS,
@@ -51,9 +52,11 @@ pub fn start<CM, PM, PS, EH>(
 ) -> LxTask<()>
 where
     CM: LexeChannelManager<PS>,
-    PM: LexePeerManager<CM, PS>,
+    PM: LexePeerManager<CM, PS, RMH>,
     PS: LexePersister,
     EH: LexeEventHandler,
+    RMH: Deref,
+    RMH::Target: RoutingMessageHandler,
 {
     LxTask::spawn_with_span(
         "background processor",

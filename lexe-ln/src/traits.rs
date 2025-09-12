@@ -11,6 +11,7 @@ use lexe_tokio::notify_once::NotifyOnce;
 use lightning::{
     chain::chainmonitor::Persist,
     events::{Event, ReplayEvent},
+    ln::msgs::RoutingMessageHandler,
     util::ser::Writeable,
 };
 
@@ -155,11 +156,15 @@ where
 }
 
 /// A 'trait alias' defining all the requirements of a Lexe peer manager.
-pub trait LexePeerManager<CM, PS>:
-    Clone + Send + Sync + 'static + Deref<Target = LexePeerManagerType<CM>>
+pub trait LexePeerManager<CM, PS, RMH>:
+    Clone + Send + Sync + 'static + Deref<Target = LexePeerManagerType<CM, RMH>>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
+    // TODO(max): Tried to create a `LexeRoutingMessageHandler` alias for these
+    // bounds so the don't propagate everywhere, but couldn't get it to work.
+    RMH: Deref,
+    RMH::Target: RoutingMessageHandler,
 {
     /// Returns `true` if we're connected to a peer with `node_pk`.
     fn is_connected(&self, node_pk: &NodePk) -> bool {
@@ -168,11 +173,17 @@ where
     }
 }
 
-impl<PM, CM, PS> LexePeerManager<CM, PS> for PM
+impl<PM, CM, PS, RMH> LexePeerManager<CM, PS, RMH> for PM
 where
-    PM: Clone + Send + Sync + 'static + Deref<Target = LexePeerManagerType<CM>>,
+    PM: Clone
+        + Send
+        + Sync
+        + 'static
+        + Deref<Target = LexePeerManagerType<CM, RMH>>,
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
+    RMH: Deref,
+    RMH::Target: RoutingMessageHandler,
 {
 }
 
