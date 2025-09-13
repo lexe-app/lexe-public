@@ -1,7 +1,7 @@
 use std::{fmt, future::Future, str::FromStr, sync::Mutex, time::Duration};
 
 use anyhow::{anyhow, Context};
-use bitcoin::{absolute, secp256k1};
+use bitcoin::{absolute, consensus::Encodable, secp256k1};
 #[cfg(test)]
 use common::test_utils::arbitrary;
 use common::{
@@ -10,6 +10,7 @@ use common::{
     rng::{Crng, RngExt, SysRng},
     time::{DisplayMs, TimestampMs},
 };
+use lexe_api::vfs::{self, Vfs, VfsFile, VfsFileId};
 use lexe_tokio::{events_bus::EventsBus, task::LxTask};
 use lightning::{
     chain::{
@@ -39,6 +40,7 @@ use crate::{
     },
     tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
+    TxDisplay,
 };
 
 // --- EventHandleError --- //
@@ -157,6 +159,13 @@ impl EventId {
             nonce,
             name,
         }
+    }
+
+    /// A short version of the event ID: `<timestamp_ms>-<nonce>`.
+    pub fn short(&self) -> String {
+        let timestamp = &self.timestamp;
+        let nonce = &self.nonce;
+        format!("{timestamp}-{nonce}")
     }
 }
 
@@ -680,16 +689,23 @@ pub fn handle_pending_htlcs_forwardable<CM, PS>(
 //
 // Event sources:
 // - `EventHandler` -> `Event::SpendableOutputs` (replayable)
+// NOTE: Err(Replay) ==> must be handled idempotently
 // TODO(phlip9): idempotency audit
+// TODO(max): Re idempotency, we may want to first check if the outputs have
+// actually been spent in some other way before trying to spend them.
 pub async fn handle_spendable_outputs<CM, PS>(
     channel_manager: CM,
-    keys_manager: &LexeKeysManager,
+    persister: PS,
     fee_estimates: &FeeEstimates,
+    keys_manager: &LexeKeysManager,
+    test_event_tx: &TestEventSender,
     tx_broadcaster: &TxBroadcaster,
     wallet: &LexeWallet,
-    test_event_tx: &TestEventSender,
+    gdrive_persister_tx: Option<&mpsc::Sender<VfsFile>>,
+    event_id: &EventId,
     outputs: Vec<SpendableOutputDescriptor>,
-) -> anyhow::Result<()>
+    channel_id: LxChannelId,
+) -> Result<(), EventHandleError>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
@@ -720,29 +736,152 @@ where
         .inspect_err(|e| warn!(%best_height, "Invalid locktime height: {e:#}"))
         .ok();
 
-    let maybe_spending_tx = keys_manager.spend_spendable_outputs(
-        spendable_output_descriptors,
-        destination_outputs,
-        destination_change_script,
-        feerate_sat_per_1000_weight,
-        maybe_locktime,
-        &secp_ctx,
-    )?;
-    if let Some(spending_tx) = maybe_spending_tx {
-        debug!("Broadcasting tx to spend spendable outputs");
-        tx_broadcaster
-            .broadcast_transaction(spending_tx)
-            .await
-            .context("Couldn't spend spendable outputs")?;
+    // Returns `None` if all outputs given to us were static outputs already
+    // managed by BDK.
+    let maybe_sweep_tx = keys_manager
+        .spend_spendable_outputs(
+            spendable_output_descriptors,
+            destination_outputs,
+            destination_change_script,
+            feerate_sat_per_1000_weight,
+            maybe_locktime,
+            &secp_ctx,
+        )
+        .with_context(|| format!("{channel_id}"))
+        .context("Error creating spending tx for spendable outputs")
+        // Must replay because the outputs are lost if they are not spent.
+        .map_err(EventHandleError::Replay)?;
+
+    // Early return if there's nothing to broadcast; event successfully handled.
+    let sweep_tx = match maybe_sweep_tx {
+        Some(tx) => tx,
+        None => {
+            test_event_tx.send(TestEvent::SpendableOutputs);
+            return Ok(());
+        }
+    };
+
+    // - Early return with success if broadcast succeeds.
+    // - Early return with replay if broadcast fails for a reason OTHER THAN a
+    //   spent or missing input.
+    // - Continue handling if broadcast fails due to spent or missing inputs.
+    debug!("Broadcasting tx to spend spendable outputs");
+    match tx_broadcaster.broadcast_transaction(sweep_tx.clone()).await {
+        Ok(()) => {
+            test_event_tx.send(TestEvent::SpendableOutputs);
+            return Ok(());
+        }
+
+        Err(e) =>
+            if !e.is_spent_or_missing_inputs() {
+                return Err(e)
+                    .with_context(|| format!("{channel_id}"))
+                    .context("Error broadcasting spendable outputs tx")
+                    .map_err(EventHandleError::Replay);
+            } else {
+                // Proceed with further handling below.
+            },
     }
 
-    test_event_tx.send(TestEvent::SpendableOutputs);
-    Ok(())
+    // From here, we know we cannot broadcast this tx because one or more of its
+    // inputs are spent or missing. We don't know whether `SpendableOutputs` has
+    // been properly handled, but we also don't want to leave the event in our
+    // event queue to be replayed over and over again, spamming Esplora with
+    // unbroadcastable txs.
+    //
+    // Instead, we persist the `SpendableOutputs` event and unbroadcastable tx
+    // to separate VFS namespaces (and GDrive, if enabled) to be handled
+    // inspected and handled later.
+
+    let short_event_id = event_id.short();
+
+    // Persist the `SpendableOutputs` event to the VFS (and GDrive):
+    // `unswept_outputs-events/<timestamp>-<nonce>`
+    {
+        let event = Event::SpendableOutputs {
+            outputs,
+            channel_id: Some(channel_id.into()),
+        };
+
+        let file_id =
+            VfsFileId::new(vfs::UNSWEPT_OUTPUTS_EVENTS, short_event_id.clone());
+        let file = persister.encrypt_ldk_writeable(file_id, &event);
+
+        // Persist event to GDrive.
+        if let Some(gdrive_tx) = gdrive_persister_tx {
+            gdrive_tx
+                .try_send(file.clone())
+                .context("GDrive persister queue full")
+                .map_err(EventHandleError::Replay)?;
+        }
+
+        // Persist event to VFS.
+        let retries = 1;
+        persister
+            .persist_file(file, retries)
+            .await
+            .context(
+                "Failed to persist unswept outputs event which failed \
+                 to broadcast due to spent or missing tx inputs",
+            )
+            .map_err(EventHandleError::Replay)?;
+    }
+
+    let tx_display = TxDisplay(&sweep_tx);
+    let tx_context = format!("channel_id={channel_id}, {tx_display}");
+
+    // Persist the unbroadcastable tx to the VFS (and GDrive):
+    // `unswept_outputs-txs/<timestamp>-<nonce>-<txid>`
+    {
+        let raw_tx = {
+            let mut buf = Vec::new();
+            sweep_tx
+                .consensus_encode(&mut buf)
+                .with_context(|| tx_context.clone())
+                .context("Failed to encode bitcoin tx with bad inputs")
+                .map_err(EventHandleError::Replay)?;
+            buf
+        };
+
+        let txid = sweep_tx.compute_txid();
+        let file_id = VfsFileId::new(
+            vfs::UNSWEPT_OUTPUTS_TXS,
+            format!("{short_event_id}-{txid}"),
+        );
+
+        let file = persister.encrypt_bytes(file_id, &raw_tx);
+
+        // Backup unbroadcastable tx to GDrive.
+        if let Some(gdrive_tx) = gdrive_persister_tx {
+            gdrive_tx
+                .try_send(file.clone())
+                .context("GDrive persister queue full")
+                .map_err(EventHandleError::Replay)?;
+        }
+
+        // Persist unbroadcastable tx to VFS.
+        let retries = 1;
+        persister
+            .persist_file(file, retries)
+            .await
+            .with_context(|| tx_context.clone())
+            .context("Failed to persist unbroadcastable tx")
+            .map_err(EventHandleError::Replay)?;
+    }
+
+    // We successfully moved the unswept outputs event to a different 'queue'.
+    // Still return an error, but let the original event be discarded.
+    Err(EventHandleError::Discard(anyhow!(
+        "An input to the spendable outputs sweep tx was missing or \
+         spent. Event and tx persisted to VFS for later handling: \
+         short_event_id={short_event_id}, {tx_context}"
+    )))
 }
 
 #[cfg(test)]
 mod test {
     use common::test_utils::roundtrip;
+    use proptest::{prop_assert, proptest};
 
     use super::*;
 
@@ -770,5 +909,19 @@ mod test {
     fn event_id_roundtrips() {
         roundtrip::json_string_roundtrip_proptest::<EventId>();
         roundtrip::fromstr_display_roundtrip_proptest::<EventId>();
+    }
+
+    /// Proptest: For all valid [`EventId`]s, [`EventId::short`] is a prefix of
+    /// [`EventId::to_string`].
+    #[test]
+    fn prop_event_id_short_is_prefix_of_event_id() {
+        proptest!(|(event_id: EventId)| {
+            let short = event_id.short();
+            let full = event_id.to_string();
+            prop_assert!(
+                full.starts_with(&short),
+                "short() = {short}, to_string() = {full}",
+            );
+        });
     }
 }

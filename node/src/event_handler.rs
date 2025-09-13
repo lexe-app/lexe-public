@@ -53,6 +53,7 @@ use common::{
 use lexe_api::{
     def::NodeLspApi,
     types::payments::{LnClaimId, LxPaymentHash, LxPaymentId},
+    vfs::VfsFile,
 };
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
@@ -103,6 +104,7 @@ pub(crate) struct EventCtx {
 
     pub channel_events_bus: EventsBus<ChannelEvent>,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
+    pub gdrive_persister_tx: mpsc::Sender<VfsFile>,
     pub htlcs_forwarded_bus: EventsBus<HtlcsForwarded>,
     pub runner_tx: mpsc::Sender<UserRunnerCommand>,
     pub test_event_tx: TestEventSender,
@@ -140,10 +142,10 @@ impl LexeEventHandler for NodeEventHandler {
 
     fn handle_event(
         &self,
-        _event_id: &EventId,
+        event_id: &EventId,
         event: Event,
     ) -> impl Future<Output = Result<(), EventHandleError>> + Send {
-        do_handle_event(&self.ctx, event)
+        do_handle_event(&self.ctx, event_id, event)
     }
 
     fn persister(&self) -> &impl LexePersister {
@@ -156,6 +158,7 @@ impl LexeEventHandler for NodeEventHandler {
 
 async fn do_handle_event(
     ctx: &Arc<EventCtx>,
+    event_id: &EventId,
     event: Event,
 ) -> Result<(), EventHandleError> {
     event::handle_network_graph_update(&ctx.network_graph, &event);
@@ -566,22 +569,22 @@ async fn do_handle_event(
             outputs,
             channel_id,
         } => {
-            // NOTE: Err(Replay) ==> must be handled idempotently
-            let channel_id = channel_id.map(LxChannelId::from);
+            let channel_id =
+                LxChannelId::from(channel_id.expect("Launched after v0.0.107"));
             event::handle_spendable_outputs(
                 ctx.channel_manager.clone(),
-                &ctx.keys_manager,
+                ctx.persister.clone(),
                 &ctx.fee_estimates,
+                &ctx.keys_manager,
+                &ctx.test_event_tx,
                 &ctx.tx_broadcaster,
                 &ctx.wallet,
-                &ctx.test_event_tx,
+                Some(&ctx.gdrive_persister_tx),
+                event_id,
                 outputs,
+                channel_id,
             )
-            .await
-            .with_context(|| format!("{channel_id:?}"))
-            .context("Error handling SpendableOutputs")
-            // Must replay because the outputs are lost if they aren't swept.
-            .map_err(EventHandleError::Replay)?;
+            .await?;
         }
 
         Event::DiscardFunding { .. } => {

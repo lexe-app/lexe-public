@@ -309,7 +309,7 @@ impl UserNode {
             vfs_master_key.clone(),
             maybe_google_vfs.clone(),
             channel_monitor_persister_tx,
-            gdrive_persister_tx,
+            gdrive_persister_tx.clone(),
             eph_tasks_tx.clone(),
             shutdown.clone(),
         ));
@@ -612,6 +612,7 @@ impl UserNode {
 
                 channel_events_bus: channel_events_bus.clone(),
                 eph_tasks_tx: eph_tasks_tx.clone(),
+                gdrive_persister_tx,
                 htlcs_forwarded_bus: EventsBus::new(),
                 runner_tx: runner_tx.clone(),
                 test_event_tx: test_event_tx.clone(),
