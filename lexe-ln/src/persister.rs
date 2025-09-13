@@ -42,7 +42,7 @@ pub fn encrypt_json(
 ///
 /// You should prefer [`encrypt_json`] and [`encrypt_ldk_writeable`] over this,
 /// since those fns avoid the need to write to an intermediate plaintext buffer.
-pub fn encrypt_plaintext_bytes(
+pub fn encrypt_bytes(
     rng: &mut impl Crng,
     vfs_master_key: &AesMasterKey,
     file_id: VfsFileId,

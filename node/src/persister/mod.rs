@@ -657,6 +657,21 @@ impl Vfs for NodePersister {
     }
 
     #[inline]
+    fn encrypt_bytes(
+        &self,
+        file_id: VfsFileId,
+        plaintext_bytes: &[u8],
+    ) -> VfsFile {
+        let mut rng = SysRng::new();
+        persister::encrypt_bytes(
+            &mut rng,
+            &self.vfs_master_key,
+            file_id,
+            plaintext_bytes,
+        )
+    }
+
+    #[inline]
     fn decrypt_file(
         &self,
         expected_file_id: &VfsFileId,
@@ -948,7 +963,7 @@ impl Persist<SignerType> for NodePersister {
 
             // 2) Reencrypt the monitor for the monitor archive namespace.
             let mut rng = SysRng::new();
-            let archive_file = persister::encrypt_plaintext_bytes(
+            let archive_file = persister::encrypt_bytes(
                 &mut rng,
                 &vfs_master_key,
                 archive_file_id,

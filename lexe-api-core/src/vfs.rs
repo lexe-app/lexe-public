@@ -118,6 +118,13 @@ pub trait Vfs {
         Ok(files)
     }
 
+    /// Serialize `T` then encrypt it to a file under the VFS master key.
+    fn encrypt_json<T: Serialize>(
+        &self,
+        file_id: VfsFileId,
+        value: &T,
+    ) -> VfsFile;
+
     /// Serialize a LDK [`Writeable`] then encrypt it under the VFS master key.
     fn encrypt_ldk_writeable<W: Writeable>(
         &self,
@@ -125,11 +132,14 @@ pub trait Vfs {
         writeable: &W,
     ) -> VfsFile;
 
-    /// Serialize `T` then encrypt it to a file under the VFS master key.
-    fn encrypt_json<T: Serialize>(
+    /// Encrypt plaintext bytes to a file under the VFS master key.
+    ///
+    /// Prefer [`Vfs::encrypt_json`] and [`Vfs::encrypt_ldk_writeable`], since
+    /// those avoid the need to write to an intermediate plaintext buffer.
+    fn encrypt_bytes(
         &self,
         file_id: VfsFileId,
-        value: &T,
+        plaintext_bytes: &[u8],
     ) -> VfsFile;
 
     /// Decrypt a file previously encrypted under the VFS master key.
@@ -307,6 +317,17 @@ pub trait Vfs {
         Ok(value)
     }
 
+    /// JSON-serializes, encrypts, then persists a type `T` to the DB.
+    async fn persist_json<T: Serialize + Send + Sync>(
+        &self,
+        file_id: VfsFileId,
+        value: &T,
+        retries: usize,
+    ) -> anyhow::Result<()> {
+        let file = self.encrypt_json::<T>(file_id, value);
+        self.persist_file(file, retries).await
+    }
+
     /// Serializes, encrypts, then persists a LDK [`Writeable`] to the DB.
     async fn persist_ldk_writeable<W: Writeable + Send + Sync>(
         &self,
@@ -318,14 +339,17 @@ pub trait Vfs {
         self.persist_file(file, retries).await
     }
 
-    /// JSON-serializes, encrypts, then persists a type `T` to the DB.
-    async fn persist_json<T: Serialize + Send + Sync>(
+    /// Encrypts plaintext bytes then persists them to the DB.
+    ///
+    /// Prefer [`Vfs::persist_json`] and [`Vfs::persist_ldk_writeable`], since
+    /// those avoid the need to write to an intermediate plaintext buffer.
+    async fn persist_bytes(
         &self,
         file_id: VfsFileId,
-        value: &T,
+        plaintext_bytes: &[u8],
         retries: usize,
     ) -> anyhow::Result<()> {
-        let file = self.encrypt_json::<T>(file_id, value);
+        let file = self.encrypt_bytes(file_id, plaintext_bytes);
         self.persist_file(file, retries).await
     }
 
