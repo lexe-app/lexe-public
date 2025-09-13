@@ -5,6 +5,7 @@ use common::api::test_event::TestEvent;
 use lexe_std::const_assert;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask, DEFAULT_CHANNEL_SIZE};
 use lightning::chain::chaininterface::BroadcasterInterface;
+use thiserror::Error;
 use tokio::sync::{
     mpsc::{self, error::TrySendError},
     oneshot,
@@ -15,8 +16,31 @@ use crate::{
     esplora::{self, LexeEsplora},
     test_event::TestEventSender,
     wallet::LexeWallet,
-    BoxedAnyhowFuture, DisplaySlice,
+    BoxedAnyhowFuture, TxDisplay,
 };
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("Broadcast error: {0:#}")]
+    Broadcast(esplora_client::Error),
+    #[error("Other error: {0:#}")]
+    Other(#[from] anyhow::Error),
+}
+
+impl Error {
+    /// Whether this error indicates that the transaction had bad inputs;
+    /// i.e. the inputs were missing or already spent.
+    /// In such a case we should persist the tx and not broadcast it again.
+    pub fn is_spent_or_missing_inputs(&self) -> bool {
+        match self {
+            Error::Broadcast(esplora_client::Error::HttpResponse {
+                message,
+                ..
+            }) => message.contains("bad-txns-inputs-missingorspent"),
+            _ => false,
+        }
+    }
+}
 
 /// Maximum time we'll wait for a response from the broadcaster task.
 const BROADCAST_RESPONSE_TIMEOUT: Duration = Duration::from_secs(15);
@@ -33,7 +57,7 @@ struct BroadcastRequest {
     tx: bitcoin::Transaction,
     /// The span from which the broadcast was initiated.
     span: tracing::Span,
-    responder: oneshot::Sender<anyhow::Result<()>>,
+    responder: oneshot::Sender<Result<(), Error>>,
 }
 
 /// A handle to a task responsible for broadcasting transactions.
@@ -94,7 +118,7 @@ impl TxBroadcaster {
     pub async fn broadcast_transaction(
         &self,
         tx: bitcoin::Transaction,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), Error> {
         let (responder, receiver) = oneshot::channel();
         let span = tracing::Span::current();
         let request = BroadcastRequest {
@@ -108,9 +132,11 @@ impl TxBroadcaster {
 
         match tokio::time::timeout(BROADCAST_RESPONSE_TIMEOUT, receiver).await {
             Ok(Ok(Ok(()))) => Ok(()),
-            Ok(Ok(Err(e))) => Err(e.context("Broadcast failed")),
-            Ok(Err(_)) => Err(anyhow!("Sender dropped")),
-            Err(_) => Err(anyhow!("Timed out waiting for broadcast result")),
+            Ok(Ok(Err(e))) => Err(e),
+            Ok(Err(_)) => Err(Error::Other(anyhow!("Sender dropped"))),
+            Err(_) => Err(Error::Other(anyhow!(
+                "Timed out waiting for broadcast result"
+            ))),
         }
     }
 
@@ -124,27 +150,7 @@ impl TxBroadcaster {
     ) {
         // Log some useful information about the transaction.
         let tx = &request.tx;
-        let txid = tx.compute_txid();
-        let tx_info = {
-            let num_inputs = tx.input.len();
-            let num_outputs = tx.output.len();
-            let inputs = tx
-                .input
-                .iter()
-                .map(|i| &i.previous_output)
-                .collect::<Vec<_>>();
-            let inputs_display = DisplaySlice(&inputs);
-            let outputs = tx
-                .output
-                .iter()
-                .map(|o| (&o.value, &o.script_pubkey))
-                .collect::<Vec<_>>();
-            format!(
-                "txid={txid}, \
-                 num_inputs={num_inputs}, num_outputs={num_outputs}, \
-                 inputs={inputs_display}, outputs={outputs:?}",
-            )
-        };
+        let tx_info = TxDisplay(tx);
         info!("Broadcasting transaction: {tx_info}");
 
         let result =
@@ -169,7 +175,7 @@ impl TxBroadcaster {
         esplora: &LexeEsplora,
         broadcast_hook: Option<PreBroadcastHook>,
         tx: &bitcoin::Transaction,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), Error> {
         // Run the pre-broadcast hook if one exists.
         if let Some(hook) = broadcast_hook {
             let try_future = hook(tx);
@@ -181,7 +187,7 @@ impl TxBroadcaster {
             .client()
             .broadcast(tx)
             .await
-            .context("AsyncClient::broadcast failed")
+            .map_err(Error::Broadcast)
     }
 }
 
