@@ -47,8 +47,8 @@ use crate::{
 ///
 /// bitcoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?somethingyoudontunderstand=50&somethingelseyoudontget=999
 /// ```
-#[derive(Debug, Default, Eq, PartialEq)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[derive(Debug, Default)]
+#[cfg_attr(test, derive(Arbitrary, Eq, PartialEq))]
 pub struct Bip321Uri {
     #[cfg_attr(
         test,

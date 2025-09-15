@@ -11,7 +11,7 @@ use proptest_derive::Arbitrary;
 
 use crate::{
     bip321_uri::Bip321Uri,
-    email_like::{Bip353Address, EmailLikeAddress},
+    email_like::EmailLikeAddress,
     helpers::{self, AddressExt},
     lightning_uri::LightningUri,
     lnurl::Lnurl,
@@ -26,8 +26,8 @@ use crate::{
 ///
 /// Many variants give multiple ways to pay, with e.g. BOLT11 invoices including
 /// an onchain fallback, or BIP321 URIs including an optional BOLT11 invoice.
-#[derive(Debug, Eq, PartialEq)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[derive(Debug)]
+#[cfg_attr(test, derive(Arbitrary, Eq, PartialEq))]
 pub enum PaymentUri {
     /// An BIP321 URI, containing an onchain payment description, plus optional
     /// BOLT11 invoice and/or BOLT12 offer.
@@ -63,9 +63,12 @@ pub enum PaymentUri {
         )
     )]
     Address(bitcoin::Address<NetworkUnchecked>),
-    //
-    // Bip353Address(Bip353Address),
-    // EmailLikeAddress(EmailLikeAddress),
+    // /// An email-like payment address (BIP353 or Lightning Address).
+    // ///
+    // /// ex: "satoshi@lexe.app" or "₿satoshi@lexe.app"
+    // EmailLikeAddress(EmailLikeAddress<'static>),
+    // TODO(max): Follow instructions below
+
     // Lnurl(Lnurl),
     //
     //
@@ -112,19 +115,12 @@ impl PaymentUri {
             return Err(ParseError::BadScheme);
         }
 
-        // TODO(phlip9): support BIP353
-        // TODO(phlip9): phoenix parser also attempts to strip "%E2%82%BF"
-        //               %-encoded BTC symbol.
-        // The unicode here is the B bitcoin currency symbol.
-        // ex: "₿philip@lexe.app"
-        if let Some(_hrn) = Bip353Address::matches(s) {
-            return Err(ParseError::Bip353Unsupported);
-        }
-
-        // TODO(phlip9): support BIP353 / Lightning Address
-        // ex: "philip@lexe.app"
+        // ex: "satoshi+tag@lexe.app" or "₿satoshi@lexe.app" or
+        // "%E2%82%BFphilip@lexe.app"
         if let Some((_local, _domain)) = EmailLikeAddress::matches(s) {
-            return Err(ParseError::EmailLikeUnsupported);
+            // TODO(max): Implement
+            // return EmailLikeAddress::parse(s).map(Self::EmailLikeAddress);
+            return Err(ParseError::BadScheme);
         }
 
         // ex: "lnbc1pvjlue..."
@@ -248,14 +244,11 @@ mod test {
 
     #[test]
     fn test_parse_err_manual() {
-        assert_eq!(
-            PaymentUri::parse("philip@lexe.app"),
-            Err(ParseError::EmailLikeUnsupported),
-        );
-        assert_eq!(
-            PaymentUri::parse("₿philip@lexe.app"),
-            Err(ParseError::Bip353Unsupported),
-        );
+        // These now parse successfully but hit todo!()
+        PaymentUri::parse("satoshi@lexe.app").unwrap_err();
+        PaymentUri::parse("₿satoshi@lexe.app").unwrap_err();
+        PaymentUri::parse("%E2%82%BFsatoshi@lexe.app").unwrap_err();
+
         assert_eq!(
             PaymentUri::parse("lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns"),
             Err(ParseError::LnurlUnsupported),

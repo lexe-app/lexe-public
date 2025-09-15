@@ -21,7 +21,10 @@
 // See: <https://github.com/proptest-rs/proptest/issues/447>
 #![allow(non_local_definitions)]
 
-use std::fmt::{self, Display};
+use std::{
+    borrow::Cow,
+    fmt::{self, Display},
+};
 
 use lexe_api_core::types::{invoice, offer};
 
@@ -29,6 +32,9 @@ use lexe_api_core::types::{invoice, offer};
 /// The containing modules are used only for internal organization, and are
 /// intentionally private so crate users have a simple, flat namespace.
 pub use crate::{
+    bip321_uri::Bip321Uri,
+    email_like::EmailLikeAddress,
+    lightning_uri::LightningUri,
     payment_method::{Onchain, PaymentMethod},
     payment_uri::PaymentUri,
 };
@@ -59,8 +65,7 @@ pub enum ParseError {
     TooLong,
     BadScheme,
     UnknownCode,
-    EmailLikeUnsupported,
-    Bip353Unsupported,
+    EmailLike(Cow<'static, str>),
     LnurlUnsupported,
     InvalidInvoice(invoice::ParseError),
     InvalidOffer(offer::ParseError),
@@ -78,11 +83,8 @@ impl fmt::Display for ParseError {
             ),
             Self::BadScheme => write!(f, "Unrecognized payment URI scheme"),
             Self::UnknownCode => write!(f, "Unrecognized payment code"),
-            Self::EmailLikeUnsupported => write!(
-                f,
-                "Lightning Addresses and BIP353 are not supported yet"
-            ),
-            Self::Bip353Unsupported => write!(f, "BIP353 is not supported yet"),
+            Self::EmailLike(msg) =>
+                write!(f, "Failed to parse BIP353 / Lightning Address: {msg}"),
             Self::LnurlUnsupported => write!(f, "LNURL is not supported yet"),
             Self::InvalidInvoice(err) => Display::fmt(err, f),
             Self::InvalidOffer(err) => Display::fmt(err, f),
