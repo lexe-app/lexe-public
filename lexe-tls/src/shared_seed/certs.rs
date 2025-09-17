@@ -120,7 +120,7 @@ impl EphemeralServerCert {
     const COMMON_NAME: &'static str = "Lexe ephemeral server cert";
 
     /// Generate an ephemeral server cert with a randomly-sampled keypair.
-    pub fn from_rng(rng: &mut impl Crng, dns_name: String) -> Self {
+    pub fn from_rng(rng: &mut impl Crng, dns_names: &[&str]) -> Self {
         let key_pair = ed25519::KeyPair::from_rng(rng);
         let now = time::OffsetDateTime::now_utc();
         let not_before = now - time::Duration::HOUR;
@@ -132,7 +132,11 @@ impl EphemeralServerCert {
         // cert into the `ResolvesClientCert`/`ResolvesServerCert` resolver used
         // on both the client and server side.
         let not_after = now + (90 * time::Duration::DAY);
-        let subject_alt_names = vec![rcgen::SanType::DnsName(dns_name)];
+
+        let subject_alt_names = dns_names
+            .iter()
+            .map(|&dns_name| rcgen::SanType::DnsName(dns_name.to_owned()))
+            .collect();
 
         Self(tls::build_rcgen_cert(
             Self::COMMON_NAME,
@@ -268,8 +272,9 @@ mod test {
             .unwrap();
         assert_parseable(eph_client_cert_der);
 
-        let dns_name = "run.lexe.app".to_owned();
-        let eph_server_cert = EphemeralServerCert::from_rng(&mut rng, dns_name);
+        let dns_names = &["run.lexe.app"];
+        let eph_server_cert =
+            EphemeralServerCert::from_rng(&mut rng, dns_names);
         let eph_server_cert_der = eph_server_cert
             .serialize_der_ca_signed(&eph_ca_cert)
             .unwrap();

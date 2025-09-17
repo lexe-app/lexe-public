@@ -118,8 +118,8 @@ pub fn node_run_server_config(
     revocable_clients: Arc<RwLock<RevocableClients>>,
 ) -> anyhow::Result<(Arc<rustls::ServerConfig>, String)> {
     // Build ephemeral server cert and sign with derived CA
-    let dns_name = constants::NODE_RUN_DNS.to_owned();
-    let eph_server_cert = EphemeralServerCert::from_rng(rng, dns_name.clone());
+    let dns_name = constants::NODE_RUN_DNS;
+    let eph_server_cert = EphemeralServerCert::from_rng(rng, &[dns_name]);
     let eph_server_cert_der = eph_server_cert
         .serialize_der_ca_signed(eph_ca_cert)
         .context("Failed to sign and serialize ephemeral server cert")?;
@@ -144,7 +144,7 @@ pub fn node_run_server_config(
         .alpn_protocols
         .clone_from(&crate::LEXE_ALPN_PROTOCOLS);
 
-    Ok((Arc::new(config), dns_name))
+    Ok((Arc::new(config), dns_name.to_owned()))
 }
 
 /// Client-side TLS config for app (with root seed) -> node connections.
@@ -587,7 +587,7 @@ mod test {
             .unwrap()
         };
 
-        test_utils::do_tls_handshake(client_config, server_config, server_dns)
+        test_utils::do_tls_handshake(client_config, server_config, &server_dns)
             .await
     }
 
@@ -715,7 +715,7 @@ mod test {
             .unwrap()
         };
 
-        test_utils::do_tls_handshake(client_config, server_config, server_dns)
+        test_utils::do_tls_handshake(client_config, server_config, &server_dns)
             .await
     }
 }

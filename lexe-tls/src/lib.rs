@@ -24,27 +24,25 @@ pub use rustls;
 
 use self::types::EdRcgenKeypair;
 
-/// Whether the given DER-encoded cert is bound to the given DNS name.
-/// Returns [`false`] if the cert failed to parse or is otherwise invalid.
+/// Whether the given DER-encoded cert is bound to the given DNS names.
+///
+/// Returns [`false`] if the cert doesn't contain all the dns names, fails to
+/// parse, or is otherwise invalid.
 #[must_use]
-pub fn cert_contains_dns(cert_der: &[u8], expected_dns: &str) -> bool {
-    fn contains_dns(cert_der: &[u8], expected_dns: &str) -> Option<()> {
+pub fn cert_contains_dns(cert_der: &[u8], expected_dns: &[&str]) -> bool {
+    fn contains_dns(cert_der: &[u8], expected_dns: &[&str]) -> Option<()> {
+        if expected_dns.is_empty() {
+            return Some(());
+        }
+
         let (_unparsed, cert) = X509Certificate::from_der(cert_der).ok()?;
 
-        let contains_dns = cert
-            .subject_alternative_name()
-            .ok()??
-            .value
-            .general_names
-            .iter()
-            .any(|gen_name| {
-                matches!(
-                    gen_name,
-                    GeneralName::DNSName(dns) if *dns == expected_dns
-                )
-            });
+        let sans = &cert.subject_alternative_name().ok()??.value.general_names;
 
-        contains_dns.then_some(())
+        expected_dns
+            .iter()
+            .all(|dns_name| sans.contains(&GeneralName::DNSName(dns_name)))
+            .then_some(())
     }
 
     contains_dns(cert_der, expected_dns).is_some()
@@ -274,7 +272,7 @@ pub mod test_utils {
         client_config: Arc<ClientConfig>,
         server_config: Arc<ServerConfig>,
         // This is the DNS name that the *client* expects the server to have.
-        expected_dns: String,
+        expected_dns: &str,
     ) -> [Result<(), String>; 2] {
         // a fake pair of connected streams
         let (client_stream, server_stream) = tokio::io::duplex(4096);
@@ -282,7 +280,7 @@ pub mod test_utils {
         // client connects, sends "hello", receives "goodbye"
         let client = async move {
             let connector = tokio_rustls::TlsConnector::from(client_config);
-            let sni = ServerName::try_from(expected_dns).unwrap();
+            let sni = ServerName::try_from(expected_dns.to_owned()).unwrap();
             let mut stream = connector
                 .connect(sni, client_stream)
                 .await

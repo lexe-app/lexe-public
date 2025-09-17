@@ -850,9 +850,8 @@ mod test {
         let dns_name = "run.lexe.app".to_owned();
         let lifetime = Duration::from_secs(60);
 
-        let cert =
-            AttestationCert::generate(&mut rng, dns_name.clone(), lifetime)
-                .unwrap();
+        let cert = AttestationCert::generate(&mut rng, &[&dns_name], lifetime)
+            .unwrap();
         let cert_der = cert.serialize_der_self_signed().unwrap();
 
         let verifier = AttestationCertVerifier {
@@ -895,7 +894,8 @@ mod test {
         let lifetime = Duration::from_secs(60 * 60 * 24 * 365 * 1000);
 
         let attest_cert =
-            AttestationCert::generate(&mut rng, dns_name, lifetime).unwrap();
+            AttestationCert::generate(&mut rng, &[&dns_name], lifetime)
+                .unwrap();
 
         println!("measurement: '{}'", enclave::measurement());
         println!("Set `SERVER_MRENCLAVE` to this value.");

@@ -44,7 +44,7 @@ impl AttestationCert {
     /// evidence embedded, and which is bound to the given DNS name.
     pub fn generate(
         rng: &mut impl Crng,
-        dns_name: String,
+        dns_names: &[&str],
         lifetime: Duration,
     ) -> anyhow::Result<Self> {
         // Generate a fresh key pair, which we'll use for the attestation cert.
@@ -67,7 +67,11 @@ impl AttestationCert {
         let now = time::OffsetDateTime::now_utc();
         let not_before = now - time::Duration::HOUR;
         let not_after = now + lifetime;
-        let subject_alt_names = vec![rcgen::SanType::DnsName(dns_name)];
+
+        let subject_alt_names = dns_names
+            .iter()
+            .map(|&dns_name| rcgen::SanType::DnsName(dns_name.to_owned()))
+            .collect();
 
         let cert = tls::build_rcgen_cert(
             Self::COMMON_NAME,
@@ -198,11 +202,11 @@ mod test {
     #[test]
     fn test_gen_cert() {
         let mut rng = FastRng::from_u64(20240217);
-        let dns_name = "hello.world".to_owned();
+        let dns_name = "hello.world";
         let lifetime = Duration::from_secs(3600);
 
         let cert =
-            AttestationCert::generate(&mut rng, dns_name, lifetime).unwrap();
+            AttestationCert::generate(&mut rng, &[dns_name], lifetime).unwrap();
         let _cert_bytes = cert.serialize_der_self_signed().unwrap();
         // println!("cert:\n{}", pretty_hex(&cert_bytes));
 

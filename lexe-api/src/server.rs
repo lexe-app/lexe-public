@@ -184,7 +184,7 @@ pub fn build_server_fut(
     bind_addr: SocketAddr,
     router: Router<()>,
     layer_config: LayerConfig,
-    // TLS config + DNS name
+    // TLS config + primary DNS name
     maybe_tls_and_dns: Option<(Arc<rustls::ServerConfig>, &str)>,
     server_span_name: &str,
     server_span: tracing::Span,
@@ -193,7 +193,7 @@ pub fn build_server_fut(
 ) -> anyhow::Result<(impl Future<Output = ()>, String)> {
     let listener =
         TcpListener::bind(bind_addr).context("Could not bind TCP listener")?;
-    let (server_fut, server_url) = build_server_fut_with_listener(
+    let (server_fut, primary_server_url) = build_server_fut_with_listener(
         listener,
         router,
         layer_config,
@@ -203,7 +203,7 @@ pub fn build_server_fut(
         shutdown,
     )
     .context("Could not build server future")?;
-    Ok((server_fut, server_url))
+    Ok((server_fut, primary_server_url))
 }
 
 /// [`build_server_fut`] but takes a [`TcpListener`] instead of [`SocketAddr`].
@@ -213,27 +213,33 @@ pub fn build_server_fut_with_listener(
     listener: TcpListener,
     router: Router<()>,
     layer_config: LayerConfig,
-    // TLS config + DNS name
+    // TLS config + primary DNS name
     maybe_tls_and_dns: Option<(Arc<rustls::ServerConfig>, &str)>,
     server_span_name: &str,
     server_span: tracing::Span,
     // Send on this channel to begin a graceful shutdown of the server.
     mut shutdown: NotifyOnce,
 ) -> anyhow::Result<(impl Future<Output = ()>, String)> {
-    // Build the url here bc it's easy to mess up. `http[s]://{dns:port,addr}`
-    let using_tls = maybe_tls_and_dns.is_some();
+    // Build the url here bc it's easy to mess up.
+    // ex: `https://lexe.app` (port=443)
+    // ex: `https://relay.lexe.app:4396`
+    // ex: `http://[::1]:8080`
     let (maybe_tls_config, maybe_dns_name) = maybe_tls_and_dns.unzip();
     let server_addr = listener
         .local_addr()
         .context("Could not get local address of TcpListener")?;
-    let server_url = if using_tls {
-        let dns_name = maybe_dns_name.expect("Must be Some bc using_tls=true");
-        let server_port = server_addr.port();
-        format!("https://{dns_name}:{server_port}")
+
+    let primary_server_url = if let Some(dns_name) = &maybe_dns_name {
+        let port = server_addr.port();
+        if port == 443 {
+            format!("https://{dns_name}")
+        } else {
+            format!("https://{dns_name}:{port}")
+        }
     } else {
         format!("http://{server_addr}")
     };
-    info!("Url for {server_span_name}: {server_url}");
+    info!("Url for {server_span_name}: {primary_server_url}");
 
     // Add Lexe's default fallback if it is enabled in the LayerConfig.
     let router = if layer_config.default_fallback {
@@ -401,7 +407,7 @@ pub fn build_server_fut_with_listener(
     }
     .instrument(server_span);
 
-    Ok((combined_fut, server_url))
+    Ok((combined_fut, primary_server_url))
 }
 
 /// [`build_server_fut`] but additionally spawns the server future into an
@@ -411,7 +417,7 @@ pub fn spawn_server_task(
     bind_addr: SocketAddr,
     router: Router<()>,
     layer_config: LayerConfig,
-    // TLS config + DNS name
+    // TLS config + primary DNS name
     maybe_tls_and_dns: Option<(Arc<rustls::ServerConfig>, &str)>,
     server_span_name: Cow<'static, str>,
     server_span: tracing::Span,
@@ -422,7 +428,7 @@ pub fn spawn_server_task(
         .context(bind_addr)
         .context("Failed to bind TcpListener")?;
 
-    let (server_task, server_url) = spawn_server_task_with_listener(
+    let (server_task, primary_server_url) = spawn_server_task_with_listener(
         listener,
         router,
         layer_config,
@@ -433,7 +439,7 @@ pub fn spawn_server_task(
     )
     .context("spawn_server_task_with_listener failed")?;
 
-    Ok((server_task, server_url))
+    Ok((server_task, primary_server_url))
 }
 
 /// [`spawn_server_task`] but takes [`TcpListener`] instead of [`SocketAddr`].
@@ -441,14 +447,14 @@ pub fn spawn_server_task_with_listener(
     listener: TcpListener,
     router: Router<()>,
     layer_config: LayerConfig,
-    // TLS config + DNS name
+    // TLS config + primary DNS name
     maybe_tls_and_dns: Option<(Arc<rustls::ServerConfig>, &str)>,
     server_span_name: Cow<'static, str>,
     server_span: tracing::Span,
     // Send on this channel to begin a graceful shutdown of the server.
     shutdown: NotifyOnce,
 ) -> anyhow::Result<(LxTask<()>, String)> {
-    let (server_fut, server_url) = build_server_fut_with_listener(
+    let (server_fut, primary_server_url) = build_server_fut_with_listener(
         listener,
         router,
         layer_config,
@@ -462,7 +468,7 @@ pub fn spawn_server_task_with_listener(
     let server_task =
         LxTask::spawn_with_span(server_span_name, server_span, server_fut);
 
-    Ok((server_task, server_url))
+    Ok((server_task, primary_server_url))
 }
 
 // --- LxJson --- //

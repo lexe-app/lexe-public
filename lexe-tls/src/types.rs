@@ -39,7 +39,7 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use serde::{Deserialize, Serialize};
 
 /// Convenience struct to pass around a DER-encoded cert with its private key
-/// and the DNS name it was bound to.
+/// and the primary DNS name it was bound to.
 #[derive(Clone, Serialize, Deserialize)]
 #[cfg_attr(
     any(test, feature = "test-utils"),
@@ -48,6 +48,8 @@ use serde::{Deserialize, Serialize};
 pub struct DnsCertWithKey {
     pub cert: CertWithKey,
 
+    /// The _primary_ DNS name used by a service. Clients should use this when
+    /// making TLS/HTTPS requests.
     #[cfg_attr(
         any(test, feature = "test-utils"),
         proptest(strategy = "arbitrary::any_string()")

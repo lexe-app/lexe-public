@@ -711,7 +711,7 @@ impl UserNode {
                 app_listener,
                 server::app_router(app_router_state),
                 app_layer_config,
-                Some((app_tls_config, app_dns.as_str())),
+                Some((app_tls_config, &app_dns)),
                 APP_SERVER_SPAN_NAME.into(),
                 info_span!(APP_SERVER_SPAN_NAME),
                 shutdown.clone(),

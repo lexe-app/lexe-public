@@ -18,7 +18,7 @@ use crate::{
 pub async fn do_http_request(
     client_config: rustls::ClientConfig,
     server_config: Arc<rustls::ServerConfig>,
-    // The DNS name used to reach the server.
+    // The primary DNS name used by the server.
     server_dns: &str,
 ) {
     // Request/response structs and handler used by `do_tls_handshake_with_http`

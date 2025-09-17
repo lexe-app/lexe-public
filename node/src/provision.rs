@@ -140,7 +140,7 @@ impl ProvisionInstance {
                 app_listener,
                 app_router(state),
                 LayerConfig::default(),
-                Some((Arc::new(app_tls_config), app_dns.as_str())),
+                Some((Arc::new(app_tls_config), &app_dns)),
                 APP_SERVER_SPAN_NAME.into(),
                 info_span!(APP_SERVER_SPAN_NAME),
                 shutdown.clone(),

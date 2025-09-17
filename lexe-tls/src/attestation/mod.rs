@@ -237,12 +237,9 @@ fn get_or_generate_node_attestation_cert(
 
     let attestation_cert = static_cert
         .get_or_init(|| {
-            let cert = cert::AttestationCert::generate(
-                rng,
-                dns_name.clone(),
-                lifetime,
-            )
-            .context("Could not generate remote attestation cert")?;
+            let cert =
+                cert::AttestationCert::generate(rng, &[&dns_name], lifetime)
+                    .context("Could not generate remote attestation cert")?;
             let cert_der = cert
                 .serialize_der_self_signed()
                 .context("Failed to sign and serialize attestation cert")?;
@@ -417,7 +414,11 @@ mod test {
                 .map(|(config, _dns)| Arc::new(config))
                 .unwrap();
 
-        test_utils::do_tls_handshake(client_config, server_config, expected_dns)
-            .await
+        test_utils::do_tls_handshake(
+            client_config,
+            server_config,
+            &expected_dns,
+        )
+        .await
     }
 }
