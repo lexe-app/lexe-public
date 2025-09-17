@@ -15,9 +15,8 @@ use crate::{
     helpers::{self, AddressExt},
     lightning_uri::LightningUri,
     lnurl::Lnurl,
-    payment_method::{Onchain, PaymentMethod},
     uri::Uri,
-    ParseError, MAX_INPUT_LEN_KIB,
+    Onchain, ParseError, PaymentMethod, MAX_INPUT_LEN_KIB,
 };
 
 /// A decoded "Payment URI", usually from a scanned QR code, manually pasted
@@ -63,12 +62,11 @@ pub enum PaymentUri {
         )
     )]
     Address(bitcoin::Address<NetworkUnchecked>),
-    // /// An email-like payment address (BIP353 or Lightning Address).
-    // ///
-    // /// ex: "satoshi@lexe.app" or "₿satoshi@lexe.app"
-    // EmailLikeAddress(EmailLikeAddress<'static>),
-    // TODO(max): Follow instructions below
 
+    /// An email-like payment address (BIP353 or Lightning Address).
+    ///
+    /// ex: "satoshi@lexe.app" or "₿satoshi@lexe.app"
+    EmailLikeAddress(EmailLikeAddress<'static>),
     // Lnurl(Lnurl),
     //
     //
@@ -81,6 +79,26 @@ pub enum PaymentUri {
 }
 
 impl PaymentUri {
+    /// If this [`PaymentUri`] does not require any further resolution,
+    /// (e.g. it is not BIP353, Lightning Address, or LNURL),
+    /// "flatten" the [`PaymentUri`] into its component [`PaymentMethod`]s.
+    /// Returns `None` if the URI requires further resolution.
+    pub fn flatten(self) -> Option<Vec<PaymentMethod>> {
+        match self {
+            PaymentUri::Bip321Uri(bip321) => Some(bip321.flatten()),
+            PaymentUri::LightningUri(lnuri) => Some(lnuri.flatten()),
+            PaymentUri::Invoice(invoice) =>
+                Some(helpers::flatten_invoice(invoice)),
+            PaymentUri::Offer(offer) => Some(vec![PaymentMethod::Offer(offer)]),
+            PaymentUri::Address(address) =>
+                Some(vec![PaymentMethod::Onchain(Onchain::from(address))]),
+
+            // Requires further resolution
+            PaymentUri::EmailLikeAddress(_) => None,
+            // PaymentUri::Lnurl(_) => None,
+        }
+    }
+
     pub fn parse(s: &str) -> Result<Self, ParseError> {
         // Refuse to parse anything longer than `MAX_LEN_KIB` KiB
         if s.len() > (MAX_INPUT_LEN_KIB << 10) {
@@ -117,10 +135,10 @@ impl PaymentUri {
 
         // ex: "satoshi+tag@lexe.app" or "₿satoshi@lexe.app" or
         // "%E2%82%BFphilip@lexe.app"
-        if let Some((_local, _domain)) = EmailLikeAddress::matches(s) {
-            // TODO(max): Implement
-            // return EmailLikeAddress::parse(s).map(Self::EmailLikeAddress);
-            return Err(ParseError::BadScheme);
+        if let Some((username, domain)) = EmailLikeAddress::matches(s) {
+            return EmailLikeAddress::parse_from_parts(username, domain)
+                .map(EmailLikeAddress::into_owned)
+                .map(Self::EmailLikeAddress);
         }
 
         // ex: "lnbc1pvjlue..."
@@ -158,36 +176,6 @@ impl PaymentUri {
 
         Err(ParseError::UnknownCode)
     }
-
-    /// "Flatten" the [`PaymentUri`] into its component [`PaymentMethod`]s.
-    pub fn flatten(self) -> Vec<PaymentMethod> {
-        match self {
-            Self::Bip321Uri(bip321) => bip321.flatten(),
-            Self::LightningUri(lnuri) => lnuri.flatten(),
-            Self::Invoice(invoice) => {
-                let mut out = Vec::with_capacity(1);
-                helpers::flatten_invoice_into(invoice, &mut out);
-                out
-            }
-            Self::Offer(offer) => vec![PaymentMethod::Offer(offer)],
-            Self::Address(address) =>
-                vec![PaymentMethod::Onchain(Onchain::from(address))],
-        }
-    }
-
-    /// Returns true if there are any usable [`PaymentMethod`]s in this URI.
-    ///
-    /// This method is equivalent to `!self.flatten().is_empty()`, but doesn't
-    /// require consuming the `PaymentUri` and flattening.
-    pub fn any_usable(&self) -> bool {
-        match self {
-            Self::Bip321Uri(uri) => uri.any_usable(),
-            Self::LightningUri(uri) => uri.any_usable(),
-            Self::Invoice(_) => true,
-            Self::Offer(_) => true,
-            Self::Address(_) => true,
-        }
-    }
 }
 
 impl fmt::Display for PaymentUri {
@@ -200,6 +188,7 @@ impl fmt::Display for PaymentUri {
             Self::Offer(offer) => Display::fmt(offer, f),
             Self::LightningUri(ln_uri) => Display::fmt(ln_uri, f),
             Self::Bip321Uri(bip321_uri) => Display::fmt(bip321_uri, f),
+            Self::EmailLikeAddress(email_like) => Display::fmt(email_like, f),
         }
     }
 }
@@ -213,13 +202,9 @@ mod test {
 
     #[test]
     fn test_payment_uri_roundtrip() {
-        proptest!(|(uri: PaymentUri)| {
-            let any_usable = uri.any_usable();
-            let actual = PaymentUri::parse(&uri.to_string());
-            prop_assert_eq!(Ok(&uri), actual.as_ref());
-
-            let any_usable_via_flatten = !uri.flatten().is_empty();
-            prop_assert_eq!(any_usable, any_usable_via_flatten);
+        proptest!(|(uri1: PaymentUri)| {
+            let uri2 = PaymentUri::parse(&uri1.to_string());
+            prop_assert_eq!(Ok(&uri1), uri2.as_ref());
         });
     }
 
@@ -244,11 +229,6 @@ mod test {
 
     #[test]
     fn test_parse_err_manual() {
-        // These now parse successfully but hit todo!()
-        PaymentUri::parse("satoshi@lexe.app").unwrap_err();
-        PaymentUri::parse("₿satoshi@lexe.app").unwrap_err();
-        PaymentUri::parse("%E2%82%BFsatoshi@lexe.app").unwrap_err();
-
         assert_eq!(
             PaymentUri::parse("lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns"),
             Err(ParseError::LnurlUnsupported),

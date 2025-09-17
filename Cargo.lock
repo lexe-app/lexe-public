@@ -1395,6 +1395,11 @@ name = "dnssec-prover"
 version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96487aad690d45a83f2b9876828ba856c5430bbb143cb5730d8a5d04a4805179"
+dependencies = [
+ "bitcoin_hashes",
+ "hex_lit",
+ "tokio",
+]
 
 [[package]]
 name = "dotenvy"
@@ -3136,6 +3141,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "common",
+ "dnssec-prover",
  "payment-uri-core",
 ]
 

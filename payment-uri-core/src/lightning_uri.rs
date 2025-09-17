@@ -37,7 +37,7 @@ pub struct LightningUri {
 impl LightningUri {
     const URI_SCHEME: &'static str = "lightning";
 
-    /// See: [`crate::payment_uri::PaymentUri::any_usable`]
+    /// Returns true if there are any usable payment methods in this URI.
     pub fn any_usable(&self) -> bool {
         self.invoice.is_some() || self.offer.is_some()
     }
@@ -124,7 +124,7 @@ impl LightningUri {
         out
     }
 
-    pub(crate) fn flatten(self) -> Vec<PaymentMethod> {
+    pub fn flatten(self) -> Vec<PaymentMethod> {
         let mut out = Vec::with_capacity(
             self.invoice.is_some() as usize + self.offer.is_some() as usize,
         );

@@ -92,6 +92,8 @@ chrono = { version = "0.4", default-features = false, features = [
 ] }
 # For verifying SGX Report MACs
 cmac = { version = "0.7", features = ["std", "zeroize"] }
+# Create and validate transferable DNS proofs (by BlueMatt)
+dnssec-prover = { version = "0.6", default-features = false }
 # Allows setting environment variables using a .env file.
 # dotenvy is a better maintained fork of dotenv
 dotenvy = "0.15"

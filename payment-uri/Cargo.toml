@@ -10,10 +10,22 @@ version.workspace = true
 # --- LEXE --- #
 
 common.path = "../common"
+lexe-tls-core = { path = "../lexe-tls-core", features = ["webpki-roots"] }
+logger.path = "../logger"
 payment-uri-core.path = "../payment-uri-core"
 
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
+base64.workspace = true
+dnssec-prover = { workspace = true, features = ["std", "tokio", "validation"] }
+reqwest.workspace = true
+rustls.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
+
+# --- WORKSPACE --- #
+
+logger = { path = "../logger", features = ["test-utils"] }
+tokio = { workspace = true, features = ["macros", "test-util"] }

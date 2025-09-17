@@ -81,7 +81,7 @@ pub struct Bip321Uri {
 impl Bip321Uri {
     const URI_SCHEME: &'static str = "bitcoin";
 
-    /// See: [`crate::payment_uri::PaymentUri::any_usable`]
+    /// Returns true if there are any usable payment methods in this URI.
     pub fn any_usable(&self) -> bool {
         !self.onchain.is_empty()
             || self.invoice.is_some()
@@ -306,7 +306,7 @@ impl Bip321Uri {
     }
 
     /// "Flatten" the [`Bip321Uri`] into its component [`PaymentMethod`]s.
-    pub(crate) fn flatten(self) -> Vec<PaymentMethod> {
+    pub fn flatten(self) -> Vec<PaymentMethod> {
         let mut out = Vec::with_capacity(
             self.onchain.len()
                 + self.invoice.is_some() as usize
@@ -393,7 +393,7 @@ mod test {
     use proptest::{prop_assert_eq, proptest};
 
     use super::*;
-    use crate::{payment_uri::PaymentUri, uri::UriParam};
+    use crate::uri::UriParam;
 
     #[test]
     fn test_bip321_uri_manual() {
@@ -544,28 +544,37 @@ mod test {
     #[rustfmt::skip] // Stop breaking comments
     #[test]
     fn test_bip321_test_vectors() {
-        // Must parse and roundtrip
+        use crate::PaymentUri;
+
+        /// Assert string parses to BIP321 and back
         #[track_caller]
         fn parse_ok_rt(s: &str) -> PaymentUri {
             let uri = PaymentUri::parse(s).unwrap();
+            assert!(matches!(&uri, PaymentUri::Bip321Uri(_)));
             // Ensure it roundtrips
             assert_eq!(s, uri.to_string());
             uri
         }
 
-        // It'll at least parse with some usable `PaymentMethod`s
+        /// Assert string parses as BIP321 with >=1 usable `PaymentMethod`s.
         #[track_caller]
         fn parse_ok(s: &str) -> PaymentUri {
             let uri = PaymentUri::parse(s).unwrap();
-            assert!(uri.any_usable());
+            match &uri {
+                PaymentUri::Bip321Uri(bip321) => assert!(bip321.any_usable()),
+                _ => panic!("Expected Bip321Uri variant"),
+            }
             uri
         }
 
-        // Parses but no usable `PaymentMethod`
+        /// Assert string parses but with no usable `PaymentMethod`s
         #[track_caller]
         fn parse_ok_unusable(s: &str) {
             let uri = PaymentUri::parse(s).unwrap();
-            assert!(!uri.any_usable());
+            match &uri {
+                PaymentUri::Bip321Uri(bip321) => assert!(!bip321.any_usable()),
+                _ => panic!("Expected Bip321Uri variant"),
+            }
         }
 
         // NOTE: these test vectors are edited to use valid

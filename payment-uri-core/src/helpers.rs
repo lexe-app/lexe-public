@@ -3,6 +3,38 @@ use lexe_api_core::types::invoice::LxInvoice;
 
 use crate::payment_method::{Onchain, PaymentMethod};
 
+/// "Flatten" an [`LxInvoice`] into its "component" [`PaymentMethod`]s.
+pub fn flatten_invoice(invoice: LxInvoice) -> Vec<PaymentMethod> {
+    let mut out = Vec::with_capacity(1);
+    flatten_invoice_into(invoice, &mut out);
+    out
+}
+
+/// "Flatten" an [`LxInvoice`] into its "component" [`PaymentMethod`]s,
+/// pushing them into an existing `Vec`.
+pub fn flatten_invoice_into(invoice: LxInvoice, out: &mut Vec<PaymentMethod>) {
+    let onchain_fallback_addrs = invoice.onchain_fallbacks();
+    out.reserve(1 + onchain_fallback_addrs.len());
+
+    // BOLT11 invoices may include onchain fallback addresses.
+    if !onchain_fallback_addrs.is_empty() {
+        let description = invoice.description_str().map(str::to_owned);
+        let amount = invoice.amount();
+
+        for addr in onchain_fallback_addrs {
+            let address = addr.into_unchecked();
+            out.push(PaymentMethod::Onchain(Onchain {
+                address,
+                amount,
+                label: None,
+                message: description.clone(),
+            }));
+        }
+    }
+
+    out.push(PaymentMethod::Invoice(invoice));
+}
+
 pub(crate) trait AddressExt {
     /// Returns `true` if the given string matches any HRP prefix for BTC
     /// addresses.
@@ -72,34 +104,4 @@ impl AddressExt for bitcoin::Address<NetworkUnchecked> {
             _ => true,
         }
     }
-}
-
-/// "Flatten" an [`LxInvoice`] into its "component" [`PaymentMethod`]s,
-/// pushing them into an existing `Vec`.
-pub(crate) fn flatten_invoice_into(
-    invoice: LxInvoice,
-    out: &mut Vec<PaymentMethod>,
-) {
-    let onchain_fallback_addrs = invoice.onchain_fallbacks();
-    out.reserve(1 + onchain_fallback_addrs.len());
-
-    // BOLT11 invoices may include onchain fallback addresses.
-    if !onchain_fallback_addrs.is_empty() {
-        let description = invoice.description_str().map(str::to_owned);
-        let amount = invoice.amount();
-
-        for addr in onchain_fallback_addrs {
-            // TODO(max): Upstream an `Address::into_unchecked` to avoid
-            // clone
-            let address = addr.as_unchecked().clone();
-            out.push(PaymentMethod::Onchain(Onchain {
-                address,
-                amount,
-                label: None,
-                message: description.clone(),
-            }));
-        }
-    }
-
-    out.push(PaymentMethod::Invoice(invoice));
 }

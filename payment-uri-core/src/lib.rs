@@ -39,6 +39,9 @@ pub use crate::{
     payment_uri::PaymentUri,
 };
 
+/// Helper functions and utilities; some of these are public.
+pub mod helpers;
+
 /// BIP321 / BIP21 parsing and formatting.
 mod bip321_uri;
 /// Email-like payment URIs, including Lightning Addresses and BIP353.
@@ -53,9 +56,6 @@ mod payment_method;
 mod payment_uri;
 /// Low level URI building blocks: `Uri`, `UriParam`, `UriParamKey`
 mod uri;
-
-/// Private helper functions and utilities shared between modules.
-mod helpers;
 
 /// Refuse to parse any input longer than this many KiB.
 const MAX_INPUT_LEN_KIB: usize = 8;

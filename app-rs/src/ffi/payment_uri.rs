@@ -14,7 +14,11 @@ pub async fn resolve_best(
 ) -> anyhow::Result<PaymentMethod> {
     let payment_uri = payment_uri::PaymentUri::parse(&uri_str)
         .context("Unrecognized payment code")?;
-    payment_uri::resolve_best(network.into(), payment_uri)
-        .await
-        .map(PaymentMethod::from)
+    payment_uri::resolve_best(
+        network.into(),
+        payment_uri,
+        payment_uri::bip353::GOOGLE_DOH_ENDPOINT,
+    )
+    .await
+    .map(PaymentMethod::from)
 }
