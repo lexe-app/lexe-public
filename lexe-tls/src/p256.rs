@@ -8,7 +8,8 @@ use ring::{
     rand::SystemRandom,
     signature::{EcdsaKeyPair, ECDSA_P256_SHA256_ASN1_SIGNING},
 };
-use secrecy::{ExposeSecret, Secret, Zeroize};
+use rustls::pki_types::pem::PemObject;
+use secrecy::{ExposeSecret, Secret};
 use thiserror::Error;
 
 /// An ECDSA P-256 key pair.
@@ -70,49 +71,22 @@ impl KeyPair {
     }
 
     pub fn serialize_pkcs8_pem(&self) -> Secret<String> {
-        let pkcs8_der = self.pkcs8_bytes.expose_secret();
-
         // Intentionally over-allocate to avoid reallocs (and thus leave secrets
         // smeared around the heap).
-
-        let mut base64_encoded = String::with_capacity(512);
-        base64::engine::general_purpose::STANDARD
-            .encode_string(pkcs8_der, &mut base64_encoded);
-
         let mut pem = String::with_capacity(512);
-        pem.push_str("-----BEGIN PRIVATE KEY-----\n");
-        for chunk in base64_encoded.as_bytes().chunks(64) {
-            pem.push_str(
-                std::str::from_utf8(chunk).expect("base64 is valid ASCII"),
-            );
-            pem.push('\n');
-        }
-        pem.push_str("-----END PRIVATE KEY-----\n");
 
-        // Zero out intermediate buffer
-        base64_encoded.zeroize();
+        pem.push_str("-----BEGIN PRIVATE KEY-----\n");
+        base64::engine::general_purpose::STANDARD
+            .encode_string(self.pkcs8_bytes.expose_secret(), &mut pem);
+        pem.push_str("\n-----END PRIVATE KEY-----\n");
 
         Secret::new(pem)
     }
 
-    #[cfg(test)]
-    fn deserialize_pkcs8_pem(pem: &str) -> Result<Self, Error> {
-        let pem = pem.trim();
-
-        let (_, rest) = pem
-            .split_once("-----BEGIN PRIVATE KEY-----")
-            .ok_or(Error::KeyDeserializeError)?;
-        let (body, _) = rest
-            .split_once("-----END PRIVATE KEY-----")
-            .ok_or(Error::KeyDeserializeError)?;
-        let body = body.trim();
-
-        let base64_content = body.replace('\n', "");
-        let der_bytes = base64::engine::general_purpose::STANDARD
-            .decode(&base64_content)
+    pub fn deserialize_pkcs8_pem(pem: &[u8]) -> Result<Self, Error> {
+        let der = rustls::pki_types::PrivatePkcs8KeyDer::from_pem_slice(pem)
             .map_err(|_| Error::KeyDeserializeError)?;
-
-        Self::deserialize_pkcs8_der(&der_bytes)
+        Self::deserialize_pkcs8_der(der.secret_pkcs8_der())
     }
 }
 
@@ -134,7 +108,8 @@ mod test {
         let keypair_1 = KeyPair::from_sysrng().unwrap();
         let pem = keypair_1.serialize_pkcs8_pem();
         let keypair_2 =
-            KeyPair::deserialize_pkcs8_pem(pem.expose_secret()).unwrap();
+            KeyPair::deserialize_pkcs8_pem(pem.expose_secret().as_bytes())
+                .unwrap();
 
         let pkcs8_1 = keypair_1.as_pkcs8_der();
         let pkcs8_2 = keypair_2.as_pkcs8_der();

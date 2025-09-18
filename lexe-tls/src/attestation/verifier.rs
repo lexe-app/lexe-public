@@ -3,7 +3,6 @@
 use std::{
     fmt::{self, Debug, Display},
     include_bytes,
-    io::Cursor,
     sync::{Arc, LazyLock},
 };
 
@@ -16,13 +15,13 @@ use common::{
     env::DeployEnv,
 };
 use dcap_ql::quote::{
-    Qe3CertDataPckCertChain, Quote, Quote3SignatureEcdsaP256,
+    CertificationDataType, Quote, Quote3SignatureEcdsaP256, RawQe3CertData,
 };
 use rustls::{
     client::danger::{
         HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,
     },
-    pki_types::{CertificateDer, ServerName, UnixTime},
+    pki_types::{pem::PemObject, CertificateDer, ServerName, UnixTime},
     server::danger::{ClientCertVerified, ClientCertVerifier},
     DigitallySignedStruct, DistinguishedName,
 };
@@ -396,11 +395,16 @@ impl SgxQuoteVerifier {
             .map_err(DisplayErr::new)
             .context("Failed to parse SGX ECDSA Quote signature")?;
 
+        ensure!(
+            sig.certification_data_type()
+                == CertificationDataType::PckCertificateChain,
+            "unexpected SGX quote certification data type",
+        );
+
         let cert_chain_pem = sig
-            .certification_data::<Qe3CertDataPckCertChain>()
+            .certification_data::<RawQe3CertData>()
             .map_err(DisplayErr::new)
-            .context("Failed to parse PCK cert chain")?
-            .certs;
+            .context("Failed to parse PCK cert chain")?;
 
         // 1. Verify the local SGX platform PCK cert is endorsed by the Intel
         //    SGX trust root CA.
@@ -408,18 +412,15 @@ impl SgxQuoteVerifier {
         // [0] : PCK cert
         // [1] : PCK platform cert
         // [2] : SGX root CA cert
-        ensure!(
-            cert_chain_pem.len() == 3,
-            "unexpected number of certificates"
-        );
-
-        let pck_cert_der = parse_cert_pem_to_der(&cert_chain_pem[0])
-            .context("Failed to parse PCK cert PEM string")?;
+        let mut cert_iter = CertificateDer::pem_slice_iter(&cert_chain_pem);
+        let pck_cert_der = cert_iter.next().context("Missing PCK cert")??;
         let pck_platform_cert_der =
-            parse_cert_pem_to_der(&cert_chain_pem[1])
-                .context("Failed to parse PCK platform cert PEM string")?;
+            cert_iter.next().context("Missing PCK platform cert")??;
+        let sgx_root_ca_cert_der =
+            cert_iter.next().context("Missing SGX root CA cert")??;
+        ensure!(cert_iter.next().is_none(), "unexpected extra certificate");
 
-        let pck_cert = webpki::EndEntityCert::try_from(pck_cert_der.as_slice())
+        let pck_cert = webpki::EndEntityCert::try_from(&*pck_cert_der)
             .context("Invalid PCK cert")?;
 
         let now = webpki::Time::from_seconds_since_unix_epoch(now.as_secs());
@@ -434,7 +435,7 @@ impl SgxQuoteVerifier {
             .verify_is_valid_tls_server_cert(
                 SUPPORTED_SIG_ALGS,
                 &TlsServerTrustAnchors(&*INTEL_SGX_TRUST_ANCHOR),
-                &[&pck_platform_cert_der],
+                &[&pck_platform_cert_der, &sgx_root_ca_cert_der],
                 now,
             )
             .context("PCK cert chain failed validation")?;
@@ -523,19 +524,6 @@ impl Display for DisplayErr {
 impl std::error::Error for DisplayErr {
     fn description(&self) -> &str {
         &self.0
-    }
-}
-
-fn parse_cert_pem_to_der(s: &str) -> anyhow::Result<Vec<u8>> {
-    let mut cursor = Cursor::new(s.as_bytes());
-
-    let item = rustls_pemfile::read_one(&mut cursor)
-        .context("Not valid PEM-encoded cert")?
-        .ok_or_else(|| format_err!("The PEM file contains no entries"))?;
-
-    match item {
-        rustls_pemfile::Item::X509Certificate(der) => Ok(der),
-        _ => bail!("First entry in PEM file is not a cert"),
     }
 }
 
@@ -783,10 +771,12 @@ mod test {
 
     #[test]
     fn test_intel_sgx_trust_anchor_der_pem_equal() {
-        let sgx_trust_anchor_der = INTEL_SGX_ROOT_CA_CERT_DER;
-        let sgx_trust_anchor_pem =
-            parse_cert_pem_to_der(INTEL_SGX_ROOT_CA_CERT_PEM).unwrap();
-        assert_eq!(sgx_trust_anchor_der, sgx_trust_anchor_pem);
+        let sgx_trust_anchor_der1 = INTEL_SGX_ROOT_CA_CERT_DER;
+        let sgx_trust_anchor_der2 = CertificateDer::from_pem_slice(
+            INTEL_SGX_ROOT_CA_CERT_PEM.as_bytes(),
+        )
+        .unwrap();
+        assert_eq!(sgx_trust_anchor_der1, &*sgx_trust_anchor_der2);
 
         // this should not panic
         let _sgx_trust_anchor = &*INTEL_SGX_TRUST_ANCHOR;
@@ -794,7 +784,9 @@ mod test {
 
     #[test]
     fn test_verify_sgx_server_quote() {
-        let cert_der = parse_cert_pem_to_der(SGX_SERVER_CERT_PEM).unwrap();
+        let cert_der =
+            CertificateDer::from_pem_slice(SGX_SERVER_CERT_PEM.as_bytes())
+                .unwrap();
         let evidence = AttestEvidence::parse_cert_der(&cert_der).unwrap();
 
         let now = UnixTime::now();
@@ -813,7 +805,9 @@ mod test {
 
     #[test]
     fn test_verify_sgx_server_cert() {
-        let cert_der = parse_cert_pem_to_der(SGX_SERVER_CERT_PEM).unwrap();
+        let cert_der =
+            CertificateDer::from_pem_slice(SGX_SERVER_CERT_PEM.as_bytes())
+                .unwrap();
 
         let verifier = AttestationCertVerifier {
             expect_dummy_quote: false,
@@ -829,7 +823,7 @@ mod test {
 
         verifier
             .verify_server_cert(
-                &CertificateDer::from(cert_der),
+                &cert_der,
                 intermediates,
                 &ServerName::try_from("localhost").unwrap(),
                 ocsp_response,

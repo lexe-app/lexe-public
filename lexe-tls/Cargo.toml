@@ -33,7 +33,6 @@ dcap-ql.workspace = true
 num-bigint.workspace = true
 rcgen.workspace = true
 ring.workspace = true
-rustls-pemfile.workspace = true
 rustls-webpki.workspace = true
 rustls.workspace = true
 secrecy.workspace = true
@@ -42,8 +41,8 @@ sgx-isa.workspace = true
 thiserror.workspace = true
 time.workspace = true
 tokio = { workspace = true, features = ["time"] }
-webpki.workspace = true
 webpki-roots.workspace = true
+webpki.workspace = true
 x509-parser.workspace = true
 yasna.workspace = true
 

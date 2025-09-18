@@ -147,8 +147,6 @@ rust_decimal_macros = { version = "1", default-features = false }
 rustc-demangle = "0.1"
 # TLS library
 rustls = { version = "0.22", default-features = false, features = ["ring"] }
-# Deserialize PEM certs
-rustls-pemfile = "1"
 # Required to name our signature algorithms.
 # The version should match that used by rustls.
 # For some reason this breaks if we don't specify `package = "rustls-webpki"`

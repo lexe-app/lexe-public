@@ -2510,7 +2510,6 @@ dependencies = [
  "rcgen",
  "ring",
  "rustls",
- "rustls-pemfile 1.0.4",
  "rustls-webpki",
  "secrecy",
  "serde",
