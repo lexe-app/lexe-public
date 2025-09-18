@@ -23,12 +23,12 @@ pub fn app_gateway_client_config(
 ) -> rustls::ClientConfig {
     // Only trust Lexe's CA, no WebPKI roots, no client auth.
     let lexe_verifier = lexe_server_verifier(deploy_env);
-    let mut config = super::client_config_builder()
+    let mut config = lexe_tls_core::client_config_builder()
         .with_webpki_verifier(lexe_verifier)
         .with_no_client_auth();
     config
         .alpn_protocols
-        .clone_from(&super::LEXE_ALPN_PROTOCOLS);
+        .clone_from(&lexe_tls_core::LEXE_ALPN_PROTOCOLS);
 
     config
 }
@@ -59,7 +59,7 @@ pub fn lexe_server_verifier(
         .expect("Checked in tests");
     WebPkiServerVerifier::builder_with_provider(
         Arc::new(lexe_roots),
-        super::LEXE_CRYPTO_PROVIDER.clone(),
+        lexe_tls_core::LEXE_CRYPTO_PROVIDER.clone(),
     )
     .build()
     .expect("Checked in tests")
@@ -77,7 +77,7 @@ pub fn lexe_client_verifier(
 
     WebPkiClientVerifier::builder_with_provider(
         Arc::new(roots),
-        super::LEXE_CRYPTO_PROVIDER.clone(),
+        lexe_tls_core::LEXE_CRYPTO_PROVIDER.clone(),
     )
     .build()
     .expect("Checked in tests")

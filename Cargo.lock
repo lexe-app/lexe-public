@@ -2454,6 +2454,7 @@ dependencies = [
  "lexe-api",
  "lexe-std",
  "lexe-tls",
+ "lexe-tls-core",
  "lexe-tokio",
  "lightning",
  "lightning-invoice",
@@ -2504,6 +2505,7 @@ dependencies = [
  "common",
  "dcap-ql",
  "hex 0.0.0",
+ "lexe-tls-core",
  "num-bigint",
  "proptest",
  "proptest-derive",
@@ -2523,6 +2525,15 @@ dependencies = [
  "webpki-roots",
  "x509-parser",
  "yasna",
+]
+
+[[package]]
+name = "lexe-tls-core"
+version = "0.0.0"
+dependencies = [
+ "rustls",
+ "rustls-webpki",
+ "webpki-roots",
 ]
 
 [[package]]

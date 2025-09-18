@@ -19,6 +19,7 @@ hex.path = "../hex"
 lexe-api.path = "../lexe-api"
 lexe-std.path = "../lexe-std"
 lexe-tls.path = "../lexe-tls"
+lexe-tls-core = { path = "../lexe-tls-core", features = ["webpki-roots"] }
 lexe-tokio.path = "../lexe-tokio"
 
 # --- WORKSPACE --- #

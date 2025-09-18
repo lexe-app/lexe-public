@@ -109,13 +109,13 @@ pub fn app_node_provision_server_config(
             .context("Failed to get or generate node attestation cert")?;
     let (cert_chain, cert_key) = attestation_cert.clone().into_chain_and_key();
 
-    let mut config = super::server_config_builder()
+    let mut config = lexe_tls_core::server_config_builder()
         .with_no_client_auth()
         .with_single_cert(cert_chain, cert_key)
         .context("Failed to build TLS config")?;
     config
         .alpn_protocols
-        .clone_from(&super::LEXE_ALPN_PROTOCOLS);
+        .clone_from(&lexe_tls_core::LEXE_ALPN_PROTOCOLS);
 
     Ok((config, dns_name))
 }
@@ -142,13 +142,13 @@ pub fn app_node_provision_client_config(
         attestation_verifier,
     };
 
-    let mut config = super::client_config_builder()
+    let mut config = lexe_tls_core::client_config_builder()
         .dangerous()
         .with_custom_certificate_verifier(Arc::new(server_cert_verifier))
         .with_no_client_auth();
     config
         .alpn_protocols
-        .clone_from(&super::LEXE_ALPN_PROTOCOLS);
+        .clone_from(&lexe_tls_core::LEXE_ALPN_PROTOCOLS);
 
     config
 }
@@ -172,13 +172,13 @@ pub fn node_lexe_client_config(
             .context("Failed to get or generate node attestation cert")?;
     let (cert_chain, cert_key) = attestation_cert.clone().into_chain_and_key();
 
-    let mut config = super::client_config_builder()
+    let mut config = lexe_tls_core::client_config_builder()
         .with_webpki_verifier(lexe_server_verifier)
         .with_client_auth_cert(cert_chain, cert_key)
         .context("Failed to build TLS config")?;
     config
         .alpn_protocols
-        .clone_from(&super::LEXE_ALPN_PROTOCOLS);
+        .clone_from(&lexe_tls_core::LEXE_ALPN_PROTOCOLS);
 
     Ok(config)
 }
@@ -344,12 +344,12 @@ impl ServerCertVerifier for AppNodeProvisionVerifier {
             message,
             cert,
             dss,
-            &super::LEXE_SIGNATURE_ALGORITHMS,
+            &lexe_tls_core::LEXE_SIGNATURE_ALGORITHMS,
         )
     }
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        super::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
+        lexe_tls_core::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
     }
 }
 

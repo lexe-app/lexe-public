@@ -1,0 +1,27 @@
+[package]
+name = "lexe-tls-core"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[features]
+default = []
+webpki-roots = ["dep:webpki-roots"]
+
+[dependencies]
+# This crate is meant to have minimal dependencies.
+# Beyond `rustls`, please only add dependencies behind a feature flag.
+
+# --- LEXE --- #
+
+# --- WORKSPACE --- #
+
+rustls.workspace = true
+rustls-webpki.workspace = true
+
+# --- CRATE-SPECIFIC --- #
+
+# --- OPTIONAL --- #
+
+webpki-roots = { optional = true, workspace = true }

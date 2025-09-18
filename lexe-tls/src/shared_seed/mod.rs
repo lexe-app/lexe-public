@@ -133,7 +133,7 @@ pub fn node_run_server_config(
     )
     .context("Failed to build shared seed client cert verifier")?;
 
-    let mut config = crate::server_config_builder()
+    let mut config = lexe_tls_core::server_config_builder()
         .with_client_cert_verifier(Arc::new(client_cert_verifier))
         .with_single_cert(
             vec![eph_server_cert_der.into()],
@@ -142,7 +142,7 @@ pub fn node_run_server_config(
         .context("Failed to build rustls::ServerConfig")?;
     config
         .alpn_protocols
-        .clone_from(&crate::LEXE_ALPN_PROTOCOLS);
+        .clone_from(&lexe_tls_core::LEXE_ALPN_PROTOCOLS);
 
     Ok((Arc::new(config), dns_name.to_owned()))
 }
@@ -177,7 +177,7 @@ pub fn app_node_run_client_config(
         .context("Failed to sign and serialize ephemeral client cert")?;
     let client_cert_key_der = client_cert.serialize_key_der();
 
-    let mut config = crate::client_config_builder()
+    let mut config = lexe_tls_core::client_config_builder()
         .dangerous()
         .with_custom_certificate_verifier(Arc::new(server_cert_verifier))
         // NOTE: .with_single_cert() uses a client cert resolver which always
@@ -198,7 +198,7 @@ pub fn app_node_run_client_config(
         .context("Failed to build rustls::ClientConfig")?;
     config
         .alpn_protocols
-        .clone_from(&crate::LEXE_ALPN_PROTOCOLS);
+        .clone_from(&lexe_tls_core::LEXE_ALPN_PROTOCOLS);
 
     Ok(config)
 }
@@ -222,7 +222,7 @@ pub fn sdk_node_run_client_config(
         lexe_server_verifier,
     };
 
-    let mut config = crate::client_config_builder()
+    let mut config = lexe_tls_core::client_config_builder()
         .dangerous()
         .with_custom_certificate_verifier(Arc::new(server_cert_verifier))
         // NOTE: .with_single_cert() uses a client cert resolver which always
@@ -243,7 +243,7 @@ pub fn sdk_node_run_client_config(
         .context("Failed to build rustls::ClientConfig")?;
     config
         .alpn_protocols
-        .clone_from(&crate::LEXE_ALPN_PROTOCOLS);
+        .clone_from(&lexe_tls_core::LEXE_ALPN_PROTOCOLS);
 
     Ok(config)
 }
@@ -258,7 +258,7 @@ pub fn ephemeral_ca_verifier(
         .context("Failed to re-parse ephemeral CA cert")?;
     let verifier = WebPkiServerVerifier::builder_with_provider(
         Arc::new(roots),
-        crate::LEXE_CRYPTO_PROVIDER.clone(),
+        lexe_tls_core::LEXE_CRYPTO_PROVIDER.clone(),
     )
     .build()
     .context("Could not build ephemeral server verifier")?;
@@ -344,12 +344,12 @@ impl ServerCertVerifier for AppNodeRunVerifier {
             message,
             cert,
             dss,
-            &crate::LEXE_SIGNATURE_ALGORITHMS,
+            &lexe_tls_core::LEXE_SIGNATURE_ALGORITHMS,
         )
     }
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        crate::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
+        lexe_tls_core::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
     }
 }
 
@@ -383,7 +383,7 @@ impl SharedSeedClientCertVerifier {
 
             WebPkiClientVerifier::builder_with_provider(
                 Arc::new(eph_roots),
-                crate::LEXE_CRYPTO_PROVIDER.clone(),
+                lexe_tls_core::LEXE_CRYPTO_PROVIDER.clone(),
             )
             .build()
             .context("Failed to build ephemeral CA verifier")?
@@ -401,7 +401,7 @@ impl SharedSeedClientCertVerifier {
 
             WebPkiClientVerifier::builder_with_provider(
                 Arc::new(rev_roots),
-                crate::LEXE_CRYPTO_PROVIDER.clone(),
+                lexe_tls_core::LEXE_CRYPTO_PROVIDER.clone(),
             )
             .build()
             .context("Failed to build ephemeral CA verifier")?
@@ -502,12 +502,12 @@ impl ClientCertVerifier for SharedSeedClientCertVerifier {
             message,
             cert,
             dss,
-            &crate::LEXE_SIGNATURE_ALGORITHMS,
+            &lexe_tls_core::LEXE_SIGNATURE_ALGORITHMS,
         )
     }
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        crate::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
+        lexe_tls_core::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
     }
 }
 

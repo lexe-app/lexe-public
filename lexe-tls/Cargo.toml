@@ -21,6 +21,7 @@ test-utils = [
 
 byte-array.path = "../byte-array"
 common.path = "../common"
+lexe-tls-core.path = "../lexe-tls-core"
 hex.path = "../hex"
 sha256.path = "../sha256"
 

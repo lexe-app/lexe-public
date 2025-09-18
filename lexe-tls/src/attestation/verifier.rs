@@ -131,7 +131,7 @@ impl AttestationCertVerifier {
                 let webpki_verifier =
                     rustls::server::WebPkiClientVerifier::builder_with_provider(
                         Arc::new(trust_roots),
-                        crate::LEXE_CRYPTO_PROVIDER.clone(),
+                        lexe_tls_core::LEXE_CRYPTO_PROVIDER.clone(),
                     )
                     .build()
                     .map_err(|e| rustls::Error::General(e.to_string()))?;
@@ -146,7 +146,7 @@ impl AttestationCertVerifier {
                 let webpki_verifier =
                     rustls::client::WebPkiServerVerifier::builder_with_provider(
                         Arc::new(trust_roots),
-                        crate::LEXE_CRYPTO_PROVIDER.clone(),
+                        lexe_tls_core::LEXE_CRYPTO_PROVIDER.clone(),
                     )
                     .build()
                     .map_err(|e| rustls::Error::General(e.to_string()))?;
@@ -246,12 +246,12 @@ impl ServerCertVerifier for AttestationCertVerifier {
             message,
             cert,
             dss,
-            &crate::LEXE_SIGNATURE_ALGORITHMS,
+            &lexe_tls_core::LEXE_SIGNATURE_ALGORITHMS,
         )
     }
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        crate::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
+        lexe_tls_core::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
     }
 }
 
@@ -302,12 +302,12 @@ impl ClientCertVerifier for AttestationCertVerifier {
             message,
             cert,
             dss,
-            &crate::LEXE_SIGNATURE_ALGORITHMS,
+            &lexe_tls_core::LEXE_SIGNATURE_ALGORITHMS,
         )
     }
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        crate::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
+        lexe_tls_core::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
     }
 }
 
