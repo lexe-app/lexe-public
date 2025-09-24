@@ -1,13 +1,20 @@
-use std::{ops::Deref, sync::Arc, time::Duration};
+use std::{ops::Deref, pin::Pin, sync::Arc, time::Duration};
 
-use common::time::DisplayMs;
-use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
+use common::{
+    rng::{Rng, ThreadFastRng},
+    time::DisplayMs,
+};
+use lexe_tokio::{
+    events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
+};
 use lightning::ln::msgs::RoutingMessageHandler;
+use rand::distributions::uniform::SampleRange;
 use tokio::time::Instant;
-use tracing::{debug, error, info, info_span, warn, Instrument};
+use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 
 use crate::{
     alias::LexeChainMonitorType,
+    event::HtlcsForwarded,
     traits::{
         LexeChannelManager, LexeEventHandler, LexeInnerPersister,
         LexePeerManager, LexePersister,
@@ -47,6 +54,9 @@ pub fn start<CM, PM, PS, EH, RMH>(
     persister: PS,
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
     event_handler: EH,
+    // The range (in millis) from which to pick a random forwarding delay.
+    forward_delay_range_ms: impl SampleRange<u64> + Clone + Send + Sync + 'static,
+    htlcs_forwarded_bus: EventsBus<HtlcsForwarded>,
     monitor_persister_shutdown: NotifyOnce,
     mut shutdown: NotifyOnce,
 ) -> LxTask<()>
@@ -75,6 +85,8 @@ where
                 tokio::time::interval_at(timer_start, interval)
             };
 
+            let mut rng = ThreadFastRng::new();
+
             let mut process_events_timer =
                 mk_interval(delay::PROCESS_EVENTS, interval::PROCESS_EVENTS);
             let mut pm_timer =
@@ -86,19 +98,23 @@ where
             let mk_event_handler_fut =
                 |event| event_handler.get_ldk_handler_future(event);
 
+            // Optional future for the HTLC forwarding delay. Set to Some when
+            // we first detect pending HTLCs and None after processing them.
+            let mut forward_delay_timer = None::<Pin<Box<tokio::time::Sleep>>>;
+
             loop {
                 // A future that completes when any of the following applies:
                 //
                 // - Our process events timer ticked
-                // - The channel manager got an update (event or repersist)
+                // - The channel manager got a new event, needs persistence, or
+                //   there are pending HTLCs to be forwarded.
                 // - The chain monitor got an update (typically that all updates
                 //   were persisted for a channel monitor)
-                // - The onion messenger got an update
                 let process_events_fut = async {
                     tokio::select! {
                         biased;
                         _ = process_events_timer.tick() =>
-                            debug!("Triggered: process_events_timer ticked"),
+                            trace!("Triggered: process_events_timer ticked"),
                         () = channel_manager
                             .get_event_or_persistence_needed_future() =>
                             debug!("Triggered: Channel manager update"),
@@ -114,8 +130,17 @@ where
 
                 tokio::select! {
                     () = process_events_fut => {
-                        debug!("Processing pending events");
+                        trace!("Processing pending events");
                         let process_start = Instant::now();
+
+                        // NOTE: Event processing + channel manager persist
+                        // matches LDK's BGP implementation ordering.
+                        // LDK notes that "`PeerManager::process_events` may
+                        // block on ChannelManager's locks, hence it comes
+                        // [after async event handling]. When the ChannelManager
+                        // finishes whatever it's doing, we want to ensure we
+                        // start persisting the channel manager as quickly as we
+                        // can, especially without [async event processing]."
 
                         channel_manager
                             .process_pending_events_async(mk_event_handler_fut)
@@ -125,18 +150,63 @@ where
                             .process_pending_events_async(mk_event_handler_fut)
                             .instrument(info_span!("(events)(chain-mon)"))
                             .await;
+                        // NOTE: Onion messenger events are handled by the
+                        // OnionMessengerEventHandler.
 
-                        // NOTE(phlip9): worried the `Connection` ->
-                        // `process_events` flow might starve the BGP if it
-                        // grabs the `process_events` lock and is forced to do
-                        // a neverending amount of work under load.
-                        //
-                        // TODO(phlip9): Consider sending a notification to the
-                        // new `process_events` task and waiting for that to
-                        // complete?
+                        // Wrapped in a future for instrumentation only.
                         async {
+                            // NOTE(phlip9): worried the `Connection` ->
+                            // `process_events` flow might starve the BGP if it
+                            // grabs the `process_events` lock and is forced to
+                            // do a neverending amount of work under load.
+                            //
+                            // TODO(phlip9): Consider sending a notification to
+                            // the new `process_events` task and waiting for
+                            // that to complete?
                             peer_manager.process_events();
                         }.instrument(info_span!("(events)(peer-man)")).await;
+
+                        // If any HTLCs need forwarding, the channel manager's
+                        // `.get_event_or_persistence_needed_future()` will be
+                        // notified, bringing us here. Here, we start a timer
+                        // with a random delay to forward the HTLCs, if not
+                        // already started. This randomized forwarding delay:
+                        // (1) batches HTLCs that arrive close together and
+                        // (2) makes timing analysis harder, improving privacy.
+                        // https://delvingbitcoin.org/t/latency-and-privacy-in-lightning/1723#p-5107-understanding-forwarding-delays-privacy-1
+                        //
+                        // TODO(max): Currently, the HTLC forwarding timer below
+                        // is disabled, as the LSP's `HTLCIntercepted` handler
+                        // currently relies on a `PendingHTLCsForwardable` event
+                        // to wait on HTLC forwarding via `htlcs_forwarded_bus`.
+                        // We can't just disable the `PendingHTLCsForwardable`
+                        // handling and replace it with the logic below, as
+                        // channel_manager.needs_pending_htlc_processing() is
+                        // only available in LDK v0.2, meaning that we'd have to
+                        // fall back to polling for HTLC forwards, which would
+                        // cause spurious wakeups of the HTLCIntercepted handler
+                        // before any HTLCs were actually forwarded. An
+                        // alternative approach is to have the HTLCIntercepted
+                        // poll for a change in the channel balance, but that's
+                        // hacky and not worth pursuing especially as we'll
+                        // switch back to the original behavior (waiting on
+                        // `htlcs_forwarded_bus`) once LDK v0.2 is released.
+                        // Thus, we leave in the PendingHTLCsForwardable-based
+                        // forwarding logic, and once we upgrade to LDK v0.2
+                        // which removes the PendingHTLCsForwardable event, we
+                        // can just delete all PendingHTLCsForwardable handling
+                        // logic and uncomment the if statement below.
+                        if false
+                        // if forward_delay_timer.is_none()
+                        //     && channel_manager.needs_pending_htlc_processing()
+                        {
+                            let delay_ms =
+                                rng.gen_range(forward_delay_range_ms.clone());
+                            let delay = Duration::from_millis(delay_ms);
+                            let sleep_fut = tokio::time::sleep(delay);
+                            forward_delay_timer = Some(Box::pin(sleep_fut));
+                            trace!("Started HTLC forward timer: {delay_ms}ms");
+                        }
 
                         if channel_manager.get_and_clear_needs_persistence() {
                             let try_persist = persister
@@ -161,6 +231,24 @@ where
                         } else {
                             debug!("Event processing took {elapsed_ms}");
                         }
+                    }
+
+                    // If the HTLC forward timer elapses,
+                    // process pending HTLC forwards and clear the timer.
+                    //
+                    // About this weird Option<impl Future> polling:
+                    // https://github.com/tokio-rs/tokio/issues/2583#issuecomment-638212772
+                    _ = async {
+                        Pin::new(&mut forward_delay_timer)
+                            .as_pin_mut()
+                            .unwrap()
+                            .await
+                    }, if forward_delay_timer.is_some() => {
+                        debug!("Processing pending HTLC forwards");
+                        channel_manager.process_pending_htlc_forwards();
+
+                        htlcs_forwarded_bus.send(HtlcsForwarded);
+                        forward_delay_timer = None;
                     }
 
                     _ = pm_timer.tick() =>

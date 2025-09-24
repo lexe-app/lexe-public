@@ -595,6 +595,7 @@ impl UserNode {
 
         // Initialize the event handler
         let channel_events_bus = EventsBus::new();
+        let htlcs_forwarded_bus = EventsBus::new();
         let event_handler = NodeEventHandler {
             ctx: Arc::new(event_handler::EventCtx {
                 user_pk,
@@ -613,7 +614,7 @@ impl UserNode {
                 channel_events_bus: channel_events_bus.clone(),
                 eph_tasks_tx: eph_tasks_tx.clone(),
                 gdrive_persister_tx,
-                htlcs_forwarded_bus: EventsBus::new(),
+                htlcs_forwarded_bus: htlcs_forwarded_bus.clone(),
                 runner_tx: runner_tx.clone(),
                 test_event_tx: test_event_tx.clone(),
                 shutdown: shutdown.clone(),
@@ -849,13 +850,17 @@ impl UserNode {
             });
         static_tasks.push(lease_renewal_task);
 
-        // Init background processor.
+        // Init background processor. User nodes can't be observed from the
+        // outside, so there is no point in having any forwarding delay.
+        let forward_delay_range_ms = 0..=0;
         let bg_processor_task = background_processor::start(
             channel_manager.clone(),
             peer_manager.clone(),
             persister.clone(),
             chain_monitor.clone(),
             event_handler,
+            forward_delay_range_ms,
+            htlcs_forwarded_bus,
             monitor_persister_shutdown,
             shutdown.clone(),
         );
