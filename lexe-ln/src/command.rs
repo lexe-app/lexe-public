@@ -1401,6 +1401,8 @@ where
         None
     };
     // TODO(phlip9): actual_amount = amount * quantity
+    // TODO(phlip9): support over-paying offers? `offer_amount` is actually a
+    //               _minimum_ amount and the spec allows over-paying.
     // Compute the amount; handle amountless offers.
     let amount =
         validate::pay_amount("offers", offer.amount(), req.fallback_amount)?;

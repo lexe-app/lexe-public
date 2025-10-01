@@ -174,9 +174,17 @@ impl LxOffer {
     /// Returns the Bitcoin-denominated [`Amount`], if any.
     pub fn amount(&self) -> Option<Amount> {
         match self.0.amount()? {
-            offer::Amount::Bitcoin { amount_msats } =>
+            // To unify handling across invoices and offers, we'll treat
+            // `offer_amount=None` and `offer_amount=Some(0)` as the same thing
+            // (an amount-less offer).
+            //
+            // The BOLT12 spec treats `offer_amount` as the _minimum_ payment
+            // amount, so `offer_amount=Some(0)` is semantically the same as
+            // `offer_amount=None`.
+            offer::Amount::Bitcoin { amount_msats } if amount_msats > 0 =>
                 Some(Amount::from_msat(amount_msats)),
             offer::Amount::Currency { .. } => None,
+            _ => None,
         }
     }
 
@@ -660,6 +668,10 @@ mod test {
         parse_ok("lno1pqqnyzsmx5cx6umpwssx6atvw35j6ut4v9h8g6t50ysx7enxv4epyrmjw4ehgcm0wfczucm0d5hxzag5qqtzzq3lxgva5qlw9xsjmeqs0ek9cdj0vpec9ur972l7mywa66u3q7dlhs");
         parse_ok("lno1qsgqqqqqqqqqqqqqqqqqqqqqqqqqqzsv23jhxapqwejkxar0wfe3vggzamrjghtt05kvkvpcp0a79gmy3nt6jsn98ad2xs8de6sl9qmgvcvs");
         parse_ok("lno1pqpzwyq2p32x2um5ypmx2cm5dae8x93pqthvwfzadd7jejes8q9lhc4rvjxd022zv5l44g6qah82ru5rdpnpj");
+
+        // offer_amount=Some(0) coerces to None
+        let o = parse_ok("lno1qgsqvgnwgcg35z6ee2h3yczraddm72xrfua9uve2rlrm9deu7xyfzrcgqq9qq93pqvv5dla0t723qkw63fqr543d764z8xmkwkwlk7qq43easjcetsqjc");
+        assert_eq!(o.amount(), None);
     }
 
     #[test]
