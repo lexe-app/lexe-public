@@ -25,11 +25,11 @@ pub const MAX_PAYMENT_NOTE_BYTES: usize = 512;
 
 /// The amount of time user node tasks have to finish after a graceful shutdown
 /// signal is received before the task is forced to exit.
-pub const USER_NODE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
+pub const USER_NODE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(25);
 
 /// The amount of time user the user runner has to finish after a graceful
 /// shutdown signal is received before the program is forced to exit.
-pub const USER_RUNNER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(12);
+pub const USER_RUNNER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(27);
 
 const_assert!(
     USER_NODE_SHUTDOWN_TIMEOUT.as_secs()
