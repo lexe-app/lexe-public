@@ -369,6 +369,12 @@ $ git clone \
     ~/.local/flutter
 ```
 
+Check flutter version on `pubspec.yaml`and ckeckout to the flutter tag of specific version.
+
+```
+$ git checkout tags/3.32.0
+```
+
 Disable their pesky telemetry : )
 
 ```bash
