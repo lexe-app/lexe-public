@@ -317,16 +317,6 @@ $ brew tap MaterializeInc/homebrew-crosstools https://github.com/MaterializeInc/
 $ brew install materializeinc/crosstools/x86_64-unknown-linux-gnu
 ```
 
-Install the enclave toolchain (does not appear to work on M1 Macs)
-
-```bash
-$ cd ~
-$ git clone --branch lexe-2023_09_27 https://github.com/lexe-app/rust-sgx.git
-$ cd rust-sgx
-$ cargo install --path intel-sgx/fortanix-sgx-tools
-$ cargo install --path intel-sgx/sgxs-tools
-```
-
 Non-`x86_64` linux hosts should also add the following to their
 `~/.cargo/config.toml`:
 
@@ -345,6 +335,14 @@ If running the node or running tests in SGX, install our runners:
 $ git clone https://github.com/lexe-app/lexe-public
 $ cd lexe-public # or $ cd lexe/public
 $ cargo install --path run-sgx
+```
+
+If you are building the node or running test on non-`x86_64` unix host
+you should first follow Nix setup instructions above.
+Then use nix dev shell:
+
+```
+$ nix develop .#sgx
 ```
 
 (Optional) We use the nightly rust toolchain for `cargo fmt`.
@@ -372,6 +370,7 @@ Build the node
 # Build for the local environment (non-SGX)
 $ cargo build -p node
 # Build for SGX
+$ nix develop .#sgx
 $ cargo build -p node --target=x86_64-fortanix-unknown-sgx
 $ cargo build -p node --release --target=x86_64-fortanix-unknown-sgx
 ```
