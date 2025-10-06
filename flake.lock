@@ -38,16 +38,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1750883756,
-        "narHash": "sha256-CkNtnUMlfWKAwAjr+0msJ7GcElnxWPGblbOCKhCj2Ec=",
+        "lastModified": 1759788928,
+        "narHash": "sha256-Q2DsbYBQdmaF8bCuZ8kdTgT2iSHmJwNR+NERrmHGiPQ=",
         "owner": "phlip9",
         "repo": "nixpkgs",
-        "rev": "3ae5969abdfd3c7922e35fff7908810cca6e0fbb",
+        "rev": "a15dd8c86483f01a49c6c2171120a122483f0c03",
         "type": "github"
       },
       "original": {
         "owner": "phlip9",
-        "ref": "release-25.05-sgx-psw-v2.26",
+        "ref": "lexe-nixos-25.05-20251006",
         "repo": "nixpkgs",
         "type": "github"
       }

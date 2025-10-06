@@ -63,19 +63,25 @@
   mkPkgsUnfree = nixpkgsFlake: system:
     import nixpkgsFlake {
       system = system;
-      config = {
+      config = let
+        allowed = {
+          android-sdk-build-tools = null;
+          android-sdk-cmdline-tools = null;
+          android-sdk-ndk = null;
+          android-sdk-platform-tools = null;
+          android-sdk-platforms = null;
+          android-sdk-tools = null;
+          build-tools = null;
+          cmake = null;
+          cmdline-tools = null;
+          ndk = null;
+          platform-tools = null;
+          platforms = null;
+          tools = null;
+        };
+      in {
         android_sdk.accept_license = true;
-        allowUnfreePredicate = let
-          allowed = {
-            android-sdk-build-tools = null;
-            android-sdk-cmdline-tools = null;
-            android-sdk-platform-tools = null;
-            android-sdk-platforms = null;
-            android-sdk-tools = null;
-            android-sdk-ndk = null;
-          };
-        in
-          pkg: allowed ? ${lib.getName pkg};
+        allowUnfreePredicate = pkg: allowed ? ${lib.getName pkg};
       };
     };
 }

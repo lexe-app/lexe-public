@@ -3,9 +3,9 @@
 
   inputs = {
     # NixOS/nixpkgs - nixos-stable branch for the current release
-    # nixpkgs.url = "github:nixos/nixpkgs/release-25.05";
-    nixpkgs.url = "github:phlip9/nixpkgs/release-25.05-sgx-psw-v2.26";
-    # nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    # * sgx-psw+aesmd: 2.25 -> 2.26
+    # * blockstream-electrs: 0.4.1-unstable-2024-11-25 -> 0.4.1-unstable-2025-09-29
+    nixpkgs.url = "github:phlip9/nixpkgs/lexe-nixos-25.05-20251006";
 
     # library for building rust projects. supports basic incremental cargo
     # artifact caching.
@@ -102,26 +102,28 @@
         pkgs = pkgs;
         lexePubPkgs = lexePubPkgs;
       };
-    in rec {
-      # The default dev shell for `nix develop`.
-      default = sgx;
+    in
+      rec {
+        # The default dev shell for `nix develop`.
+        default = sgx;
 
-      # compile Rust SGX enclaves
-      sgx = lexePubDevShells.sgx;
+        # compile Rust SGX enclaves
+        sgx = lexePubDevShells.sgx;
 
-      #
-      # app
-      #
+        #
+        # app
+        #
 
-      # app flutter_rust_bridge codegen
-      app-rs-codegen = lexePubDevShells.app-rs-codegen;
+        # app flutter_rust_bridge codegen
+        app-rs-codegen = lexePubDevShells.app-rs-codegen;
 
-      # Android app development toolchains
-      app-android = lexePubDevShells.app-android;
-
-      # iOS/macOS app development toolchains
-      app-ios-macos = lexePubDevShells.app-ios-macos;
-    });
+        # Android app development toolchains
+        app-android = lexePubDevShells.app-android;
+      }
+      // lib.optionalAttrs pkgs.hostPlatform.isDarwin {
+        # iOS/macOS app development toolchains
+        app-ios-macos = lexePubDevShells.app-ios-macos;
+      });
 
     # The *.nix file formatter.
     # Run with `nix fmt`.
