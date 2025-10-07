@@ -70,7 +70,6 @@ impl LightningUri {
         };
 
         // Try parsing the body as an invoice or offer
-
         if let Ok(invoice) = LxInvoice::from_str(&uri.body) {
             out.invoice = Some(invoice);
         } else if let Ok(offer) = LxOffer::from_str(&uri.body) {
@@ -79,7 +78,6 @@ impl LightningUri {
         }
 
         // Try parsing from the query params
-
         for param in uri.params {
             let key = param.key_parsed();
 
@@ -100,12 +98,12 @@ impl LightningUri {
         let mut out = Uri {
             scheme: Self::URI_SCHEME,
             body: Cow::Borrowed(""),
+            authority: false,
             params: Vec::new(),
         };
 
         // For now, we'll prioritize BOLT11 invoice in the body position, for
         // compatibility.
-
         if let Some(invoice) = &self.invoice {
             out.body = Cow::Owned(invoice.to_string());
 

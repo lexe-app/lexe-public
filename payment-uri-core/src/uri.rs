@@ -3,15 +3,20 @@ use std::{borrow::Cow, fmt};
 /// A raw, parsed URI. The params (both key and value) are percent-encoded. See
 /// [URI syntax - RFC 3986](https://datatracker.ietf.org/doc/html/rfc3986).
 ///
-/// ex: `http://example.com?foo=bar%20baz`
+/// ex: `http://example.com/path?foo=bar%20baz`
 /// -> Uri {
 ///     scheme: "http",
-///     body: "//example.com",
+///     authority: true,
+///     body: "example.com/path",
 ///     params: [("foo", "bar baz")],
 /// }
 #[derive(Debug)]
 pub(crate) struct Uri<'a> {
+    /// e.g. "https", "bitcoin", "lightning"
     pub scheme: &'a str,
+    /// [`true`] if this URI had "//" after the `:` scheme separator.
+    pub authority: bool,
+    /// "example.com/path"
     pub body: Cow<'a, str>,
     pub params: Vec<UriParam<'a>>,
 }
@@ -32,7 +37,7 @@ impl<'a> Uri<'a> {
             .remove(b'_')
             .remove(b'~');
 
-    // syntax: `<scheme>:<body>?<key1>=<value1>&<key2>=<value2>&...`
+    // syntax: "{scheme}:[//]{body}?{key1}={value1}&{key2}={value2}&..."
     pub fn parse(s: &'a str) -> Option<Self> {
         // parse scheme
         // ex: "bitcoin:bc1qfj..." -> `scheme = "bitcoin"`
@@ -45,7 +50,17 @@ impl<'a> Uri<'a> {
         }
 
         // ex: "bitcoin:bc1qfj...?message=hello" -> `body = "bc1qfj..."`
+        // ex: "http://example.com?foo=bar" -> `body = "example.com"`
+        // ex: "http://example.com/foo/bar" -> `body = "example.com/foo/bar"`
         let (body, rest) = rest.split_once('?').unwrap_or((rest, ""));
+
+        // Check if the URI has an authority (starts with "//")
+        let (authority, body) = if let Some(stripped) = body.strip_prefix("//")
+        {
+            (true, stripped)
+        } else {
+            (false, body)
+        };
 
         // ex: "bitcoin:bc1qfj...?message=hello%20world&amount=0.1"
         //     -> `params = [("message", "hello world"), ("amount", "0.1")]`
@@ -57,24 +72,26 @@ impl<'a> Uri<'a> {
         Some(Self {
             scheme,
             body: Cow::Borrowed(body),
+            authority,
             params,
         })
     }
 }
 
-// "{scheme}:{body}?{key1}={value1}&{key2}={value2}&..."
+// "{scheme}:[//]{body}?{key1}={value1}&{key2}={value2}&..."
 impl fmt::Display for Uri<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let scheme = self.scheme;
+        let scheme_sep = if self.authority { "://" } else { ":" };
         let body = &self.body;
+        write!(f, "{scheme}{scheme_sep}{body}")?;
 
-        write!(f, "{scheme}:{body}")?;
-
-        let mut sep: char = '?';
+        let mut param_sep: char = '?';
         for param in &self.params {
-            write!(f, "{sep}{param}")?;
-            sep = '&';
+            write!(f, "{param_sep}{param}")?;
+            param_sep = '&';
         }
+
         Ok(())
     }
 }

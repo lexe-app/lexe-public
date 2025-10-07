@@ -215,11 +215,11 @@ impl Bip321Uri {
         let mut out = Uri {
             scheme: Self::URI_SCHEME,
             body: Cow::Borrowed(""),
+            authority: false,
             params: Vec::new(),
         };
 
-        // If the first address is supported in the URI body, use it as the
-        // body.
+        // If the first addr is supported in the URI body, use it as the body.
         let onchain = match self.onchain.split_first() {
             Some((address, rest)) if address.is_supported_in_uri_body() => {
                 out.body = Cow::Owned(address.assume_checked_ref().to_string());
