@@ -4,6 +4,8 @@
 
 /// BIP353 resolution.
 pub mod bip353;
+/// LNURL-pay and Lightning Address resolution.
+pub mod lnurl;
 
 use anyhow::{anyhow, ensure, Context};
 use common::ln::network::LxNetwork;
@@ -18,6 +20,7 @@ pub use payment_uri_core::*;
 // giving the user a choice. This'll also need to be async in the future, as
 // we'll need to fetch invoices from any LNURL endpoints we come across.
 pub async fn resolve_best(
+    lnurl_client: &lnurl::LnurlClient,
     network: LxNetwork,
     payment_uri: PaymentUri,
     doh_endpoint: &str,
@@ -25,7 +28,7 @@ pub async fn resolve_best(
     // A single scanned/opened PaymentUri can contain multiple different payment
     // methods (e.g., a LN BOLT11 invoice + an onchain fallback address).
     let mut payment_methods =
-        resolve_payment_methods(payment_uri, doh_endpoint)
+        resolve_payment_methods(lnurl_client, payment_uri, doh_endpoint)
             .await
             .context("Failed to resolve payment URI into payment methods")?;
 
@@ -53,48 +56,138 @@ pub async fn resolve_best(
 
 /// Resolve the [`PaymentUri`] into its component [`PaymentMethod`]s.
 async fn resolve_payment_methods(
+    lnurl_client: &lnurl::LnurlClient,
     payment_uri: PaymentUri,
     doh_endpoint: &str,
 ) -> anyhow::Result<Vec<PaymentMethod>> {
     let payment_methods = match payment_uri {
         PaymentUri::Bip321Uri(bip321) => bip321.flatten(),
+
         PaymentUri::LightningUri(lnuri) => lnuri.flatten(),
+
         PaymentUri::Invoice(invoice) =>
             payment_uri_core::helpers::flatten_invoice(invoice),
+
         PaymentUri::Offer(offer) => vec![PaymentMethod::Offer(offer)],
+
         PaymentUri::Address(address) =>
             vec![PaymentMethod::Onchain(Onchain::from(address))],
 
         PaymentUri::EmailLikeAddress(email_like) => {
-            let maybe_bip353_result = match email_like.bip353_fqdn {
-                Some(bip353_fqdn) => {
-                    let bip353_result =
-                        bip353::resolve_bip353_fqdn(bip353_fqdn, doh_endpoint)
-                            .await
-                            .context("Failed to resolve BIP353 address");
-                    Some(bip353_result)
-                }
-                None => None,
-            };
+            let mut methods = Vec::with_capacity(3);
+            let mut errors = Vec::with_capacity(2);
 
-            // Prefer BIP353 if available
-            if let Some(Ok(bip353_methods)) = maybe_bip353_result {
-                return Ok(bip353_methods);
+            // Try resolving BIP353 if this is a valid BIP353 address.
+            if let Some(bip353_fqdn) = email_like.bip353_fqdn {
+                let bip353_result =
+                    bip353::resolve_bip353_fqdn(bip353_fqdn, doh_endpoint)
+                        .await
+                        .context("Failed to resolve BIP353 address");
+                match bip353_result {
+                    Ok(bip353_methods) => {
+                        // Early return if we found any non-onchain methods,
+                        // as we can pay those immediately.
+                        // NOTE: Revisit if/when we support paying via ecash?
+                        if bip353_methods.iter().any(|m| !m.is_onchain()) {
+                            return Ok(bip353_methods);
+                        } else {
+                            methods.extend(bip353_methods);
+                        }
+                    }
+                    Err(e) => errors.push(format!("{e:#}")),
+                }
             }
 
-            // TODO(max): We can simplify maybe_bip353_result if we don't ever
-            // use the BIP353 error here.
-            // TODO(max): Also resolve as LN address.
+            // Always try resolving Lightning Address
+            let ln_address_result = lnurl_client
+                .get_pay_request(&email_like.lightning_address_url)
+                .await
+                .context("Failed to resolve Lightning Address url");
+            match ln_address_result {
+                Ok(pay_request) =>
+                    methods.push(PaymentMethod::LnurlPayRequest(pay_request)),
+                Err(e) => errors.push(format!("{e:#}")),
+            }
 
-            Vec::new()
+            // Consider it a success if we resolved at least one method, since
+            // receivers may support only one of BIP353 or Lightning Address.
+            // Otherwise, return a combined error.
+            if !methods.is_empty() {
+                methods
+            } else {
+                debug_assert!(!errors.is_empty());
+                let joined_errs = errors.join("; ");
+                return Err(anyhow!("{joined_errs}"));
+            }
         }
 
         PaymentUri::Lnurl(lnurl) => {
-            // TODO(max): Implement LNURL resolution
-            let _ = lnurl;
-            return Err(anyhow!("LNURL resolution not supported yet"));
+            let pay_request = lnurl_client
+                .get_pay_request(&lnurl.http_url)
+                .await
+                .context("Failed to resolve LNURL-pay url")?;
+
+            vec![PaymentMethod::LnurlPayRequest(pay_request)]
         }
     };
 
     Ok(payment_methods)
+}
+
+#[cfg(test)]
+mod test {
+    use std::time::Duration;
+
+    use common::ln::network::LxNetwork;
+    use lexe_std::Apply;
+    use tracing::info;
+
+    use super::*;
+
+    /// Live test that resolves Matt's BIP353 address using resolve_best.
+    ///
+    /// As of 2025-10-11, "matt@mattcorallo.com" doesn't support Lightning
+    /// Address--Lightning Address resolution is expected to fail. This is a
+    /// common case whenever we resolve email-like addresses that start with the
+    /// `₿` prefix. This tests that Lightning Address resolution fails quickly
+    /// in this case rather than always adding a delay equivalent to
+    /// [`lnurl::LNURL_HTTP_TIMEOUT`].
+    ///
+    /// ```bash
+    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_resolve_best_bluematt -- --ignored --nocapture
+    /// ```
+    #[tokio::test]
+    #[ignore]
+    async fn test_resolve_best_bluematt() {
+        /// Both BIP353 pass + Lightning Address fail should happen within this.
+        const RESOLVE_BEST_TIMEOUT: Duration = Duration::from_secs(5);
+        lexe_std::const_assert!(
+            lnurl::LNURL_HTTP_TIMEOUT.as_secs()
+                > RESOLVE_BEST_TIMEOUT.as_secs()
+        );
+
+        logger::init_for_testing();
+
+        let payment_uri = PaymentUri::parse("matt@mattcorallo.com").unwrap();
+        info!("Resolving best payment method for matt@mattcorallo.com");
+
+        let lnurl_client = lnurl::LnurlClient::new().unwrap();
+
+        let payment_method = resolve_best(
+            &lnurl_client,
+            LxNetwork::Mainnet,
+            payment_uri,
+            bip353::GOOGLE_DOH_ENDPOINT,
+        )
+        .apply(|fut| tokio::time::timeout(RESOLVE_BEST_TIMEOUT, fut))
+        .await
+        .expect("Timed out")
+        .unwrap();
+
+        // Payment methods are Offer and Onchain, but Offer is higher priority.
+        assert!(matches!(payment_method, PaymentMethod::Offer(_)));
+        assert!(payment_method.supports_network(LxNetwork::Mainnet));
+
+        info!("Successfully resolved BlueMatt's payment methods");
+    }
 }

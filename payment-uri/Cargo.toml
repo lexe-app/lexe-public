@@ -18,14 +18,22 @@ payment-uri-core.path = "../payment-uri-core"
 
 anyhow.workspace = true
 base64.workspace = true
+bitcoin.workspace = true
 dnssec-prover = { workspace = true, features = ["std", "tokio", "validation"] }
+lightning-invoice.workspace = true
 reqwest.workspace = true
 rustls.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
 
+# --- LEXE --- #
+
+lexe-std.path = "../lexe-std"
+logger = { path = "../logger", features = ["test-utils"] }
+
 # --- WORKSPACE --- #
 
-logger = { path = "../logger", features = ["test-utils"] }
 tokio = { workspace = true, features = ["macros", "test-util"] }

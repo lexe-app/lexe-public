@@ -3144,6 +3144,7 @@ dependencies = [
  "bitcoin",
  "common",
  "dnssec-prover",
+ "lexe-std",
  "lexe-tls-core",
  "lightning-invoice",
  "logger",
