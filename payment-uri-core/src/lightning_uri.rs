@@ -8,7 +8,7 @@ use crate::{
     helpers,
     payment_method::PaymentMethod,
     uri::{Uri, UriParam},
-    ParseError,
+    Error,
 };
 
 /// A "lightning:" URI, containing a BOLT11 invoice or BOLT12 offer.
@@ -49,12 +49,12 @@ impl LightningUri {
         scheme.eq_ignore_ascii_case(Self::URI_SCHEME)
     }
 
-    pub fn parse(s: &str) -> Result<Self, ParseError> {
+    pub fn parse(s: &str) -> Result<Self, Error> {
         let s = s.trim();
         let uri = Uri::parse(s)?;
 
         if !Self::matches_uri_scheme(uri.scheme) {
-            return Err(ParseError::LightningUri(Cow::from(
+            return Err(Error::InvalidLightningUri(Cow::from(
                 "URI scheme must be 'lightning'",
             )));
         }

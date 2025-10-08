@@ -42,7 +42,7 @@
 
 use std::{borrow::Cow, fmt};
 
-use crate::ParseError;
+use crate::Error;
 
 /// Maximum DNS name length in text form (excluding trailing dot), per
 /// [RFC 2181 §11](https://www.rfc-editor.org/rfc/rfc2181#section-11).
@@ -112,10 +112,10 @@ impl<'a> EmailLikeAddress<'a> {
     }
 
     /// Parses an email-like address.
-    pub fn parse(s: &'a str) -> Result<Self, ParseError> {
+    pub fn parse(s: &'a str) -> Result<Self, Error> {
         let (unstripped_username, domain) = Self::matches(s)
             .ok_or(Cow::from("Must contain '@' character"))
-            .map_err(ParseError::EmailLike)?;
+            .map_err(Error::InvalidEmailLike)?;
 
         Self::parse_from_parts(unstripped_username, domain)
     }
@@ -128,7 +128,7 @@ impl<'a> EmailLikeAddress<'a> {
     pub(crate) fn parse_from_parts(
         unstripped_username: &'a str,
         domain: &'a str,
-    ) -> Result<Self, ParseError> {
+    ) -> Result<Self, Error> {
         // Strip out Bitcoin symbol prefix:
         // Either UTF-8 '₿' or URL-encoded '%E2%82%BF'
         let (bip353_prefix, username_with_tag) = if let Some(rem) =
@@ -149,12 +149,12 @@ impl<'a> EmailLikeAddress<'a> {
             .unwrap_or((username_with_tag, None));
 
         if username.is_empty() {
-            return Err(ParseError::EmailLike(Cow::from(
+            return Err(Error::InvalidEmailLike(Cow::from(
                 "username cannot be empty",
             )));
         }
         if domain.is_empty() {
-            return Err(ParseError::EmailLike(Cow::from(
+            return Err(Error::InvalidEmailLike(Cow::from(
                 "domain part cannot be empty",
             )));
         }
@@ -162,7 +162,7 @@ impl<'a> EmailLikeAddress<'a> {
         // LUD-16 apparently supports .onion domains (BIP353 does not).
         // We could maybe possibly™ support them in the future. Conceivably.
         if domain.ends_with(".onion") {
-            return Err(ParseError::EmailLike(Cow::from(
+            return Err(Error::InvalidEmailLike(Cow::from(
                 ".onion domains are not supported",
             )));
         }
@@ -219,7 +219,7 @@ impl<'a> EmailLikeAddress<'a> {
             .map_err(|ln_error| {
                 if let Some(ref bip353_error) = bip353_error {
                     if bip353_prefix {
-                        return ParseError::EmailLike(Cow::from(format!(
+                        return Error::InvalidEmailLike(Cow::from(format!(
                             "{bip353_error:#}"
                         )));
                     }
@@ -230,7 +230,7 @@ impl<'a> EmailLikeAddress<'a> {
                         format!("{bip353_error:#}; {ln_error:#}"),
                     None => format!("{ln_error:#}"),
                 };
-                ParseError::EmailLike(Cow::from(combined_msg))
+                Error::InvalidEmailLike(Cow::from(combined_msg))
             })
     }
 }
@@ -676,18 +676,18 @@ mod test {
 
     /// Asserts that a parse error contains a specific message.
     fn assert_error_msg(
-        result: Result<EmailLikeAddress, ParseError>,
+        result: Result<EmailLikeAddress, Error>,
         expected_msg: &str,
     ) {
         match result {
-            Err(ParseError::EmailLike(msg)) => {
+            Err(Error::InvalidEmailLike(msg)) => {
                 assert!(
                     msg.contains(expected_msg),
                     "Expected error to contain '{expected_msg}', but got: {msg}"
                 );
             }
             _ => panic!(
-                "Expected ParseError::EmailLike containing '{expected_msg}'"
+                "Expected Error::InvalidEmailLike containing '{expected_msg}'"
             ),
         }
     }

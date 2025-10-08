@@ -58,40 +58,42 @@ mod payment_uri;
 mod uri;
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum ParseError {
-    /// [`PaymentUri`] errors.
-    PaymentUri(Cow<'static, str>),
-    /// [`Bip321Uri`] errors.
-    Bip321Uri(Cow<'static, str>),
-    /// [`LightningUri`] errors.
-    LightningUri(Cow<'static, str>),
+pub enum Error {
+    /// [`PaymentUri`] parsing errors.
+    InvalidPaymentUri(Cow<'static, str>),
+    /// [`Bip321Uri`] parsing errors.
+    InvalidBip321Uri(Cow<'static, str>),
+    /// [`LightningUri`] parsing errors.
+    InvalidLightningUri(Cow<'static, str>),
     // `uri::Uri`
-    Uri(Cow<'static, str>),
-    /// [`EmailLikeAddress`] errors.
-    EmailLike(Cow<'static, str>),
+    InvalidUri(Cow<'static, str>),
+    /// [`EmailLikeAddress`] parsing errors.
+    InvalidEmailLike(Cow<'static, str>),
     LnurlUnsupported,
     InvalidInvoice(invoice::ParseError),
     InvalidOffer(offer::ParseError),
     InvalidBtcAddress(bitcoin::address::ParseError),
 }
 
-impl std::error::Error for ParseError {}
+impl std::error::Error for Error {}
 
-impl fmt::Display for ParseError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Uri(msg) => write!(f, "Invalid URI: {msg}"),
-            Self::PaymentUri(msg) => write!(f, "Invalid payment URI: {msg}"),
-            Self::Bip321Uri(msg) => write!(f, "Invalid 'bitcoin:' URI: {msg}"),
-            Self::LightningUri(msg) =>
+            Self::InvalidUri(msg) => write!(f, "Invalid URI: {msg}"),
+            Self::InvalidPaymentUri(msg) =>
+                write!(f, "Invalid payment URI: {msg}"),
+            Self::InvalidBip321Uri(msg) =>
+                write!(f, "Invalid 'bitcoin:' URI: {msg}"),
+            Self::InvalidLightningUri(msg) =>
                 write!(f, "Invalid 'lightning:' URI: {msg}"),
-            Self::EmailLike(msg) =>
-                write!(f, "Failed to parse BIP353 / Lightning Address: {msg}"),
+            Self::InvalidEmailLike(msg) =>
+                write!(f, "Invalid BIP353 / Lightning Address: {msg}"),
             Self::LnurlUnsupported => write!(f, "LNURL is not supported yet"),
             Self::InvalidInvoice(err) => Display::fmt(err, f),
             Self::InvalidOffer(err) => Display::fmt(err, f),
             Self::InvalidBtcAddress(err) =>
-                write!(f, "Failed to parse on-chain address: {err}"),
+                write!(f, "Invalid on-chain address: {err}"),
         }
     }
 }

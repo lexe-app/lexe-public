@@ -22,7 +22,7 @@ use crate::{
     helpers::AddressExt,
     payment_method::{Onchain, PaymentMethod},
     uri::{Uri, UriParam},
-    ParseError,
+    Error,
 };
 
 /// A [BIP321](https://github.com/bitcoin/bips/pull/1555/files) /
@@ -95,12 +95,12 @@ impl Bip321Uri {
         scheme.eq_ignore_ascii_case(Self::URI_SCHEME)
     }
 
-    pub fn parse(s: &str) -> Result<Self, ParseError> {
+    pub fn parse(s: &str) -> Result<Self, Error> {
         let s = s.trim();
         let uri = Uri::parse(s)?;
 
         if !Self::matches_uri_scheme(uri.scheme) {
-            return Err(ParseError::Bip321Uri(Cow::from(
+            return Err(Error::InvalidBip321Uri(Cow::from(
                 "URI scheme must be 'bitcoin'",
             )));
         }

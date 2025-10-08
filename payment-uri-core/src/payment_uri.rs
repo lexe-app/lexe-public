@@ -16,7 +16,7 @@ use crate::{
     lightning_uri::LightningUri,
     lnurl::Lnurl,
     uri::Uri,
-    Onchain, ParseError, PaymentMethod,
+    Error, Onchain, PaymentMethod,
 };
 
 /// Refuse to parse any input longer than this many KiB.
@@ -102,10 +102,10 @@ impl PaymentUri {
         }
     }
 
-    pub fn parse(s: &str) -> Result<Self, ParseError> {
+    pub fn parse(s: &str) -> Result<Self, Error> {
         // Refuse to parse anything longer than `MAX_LEN_KIB` KiB
         if s.len() > (MAX_INPUT_LEN_KIB << 10) {
-            return Err(ParseError::PaymentUri(Cow::from(
+            return Err(Error::InvalidPaymentUri(Cow::from(
                 "Payment code is too long to parse (>8 KiB)",
             )));
         }
@@ -130,10 +130,10 @@ impl PaymentUri {
             }
 
             if Lnurl::matches_scheme(uri.scheme) {
-                return Err(ParseError::LnurlUnsupported);
+                return Err(Error::LnurlUnsupported);
             }
 
-            return Err(ParseError::PaymentUri(Cow::from(
+            return Err(Error::InvalidPaymentUri(Cow::from(
                 "Unrecognized URI scheme",
             )));
         }
@@ -150,26 +150,26 @@ impl PaymentUri {
         if LxInvoice::matches_hrp_prefix(s) {
             return LxInvoice::from_str(s)
                 .map(Self::Invoice)
-                .map_err(ParseError::InvalidInvoice);
+                .map_err(Error::InvalidInvoice);
         }
 
         // ex: "lno1pqps7sj..."
         if LxOffer::matches_hrp_prefix(s) {
             return LxOffer::from_str(s)
                 .map(Self::Offer)
-                .map_err(ParseError::InvalidOffer);
+                .map_err(Error::InvalidOffer);
         }
 
         // ex: "lnurl1dp68g..."
         if Lnurl::matches_hrp_prefix(s) {
-            return Err(ParseError::LnurlUnsupported);
+            return Err(Error::LnurlUnsupported);
         }
 
         // ex: "bc1qfjeyfl..."
         if bitcoin::Address::matches_hrp_prefix(s) {
             return bitcoin::Address::from_str(s)
                 .map(Self::Address)
-                .map_err(ParseError::InvalidBtcAddress);
+                .map_err(Error::InvalidBtcAddress);
         }
         // The block above only handles modern bech32 segwit+taproot addresses.
         // We don't have a good way to know ahead of time if this is a legacy
@@ -179,7 +179,7 @@ impl PaymentUri {
             return Ok(Self::Address(address));
         }
 
-        Err(ParseError::PaymentUri(Cow::from(
+        Err(Error::InvalidPaymentUri(Cow::from(
             "Unrecognized payment code",
         )))
     }
@@ -238,19 +238,19 @@ mod test {
     fn test_parse_err_manual() {
         assert_eq!(
             PaymentUri::parse("lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns"),
-            Err(ParseError::LnurlUnsupported),
+            Err(Error::LnurlUnsupported),
         );
         assert_eq!(
             PaymentUri::parse("lnurl:lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns"),
-            Err(ParseError::LnurlUnsupported),
+            Err(Error::LnurlUnsupported),
         );
         assert_eq!(
             PaymentUri::parse("lnurlp:lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns"),
-            Err(ParseError::LnurlUnsupported),
+            Err(Error::LnurlUnsupported),
         );
         assert_eq!(
             PaymentUri::parse("lnurlp://lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns"),
-            Err(ParseError::LnurlUnsupported),
+            Err(Error::LnurlUnsupported),
         );
     }
 }
