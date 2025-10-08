@@ -93,6 +93,40 @@ impl<'a> Uri<'a> {
             params,
         })
     }
+
+    /// Whether this URI starts with "https://" (case-insensitive).
+    pub fn is_https(&self) -> bool {
+        self.scheme.eq_ignore_ascii_case("https") && self.authority
+    }
+
+    /// Whether this URI starts with "http://" (case-insensitive).
+    pub fn is_http(&self) -> bool {
+        self.scheme.eq_ignore_ascii_case("http") && self.authority
+    }
+
+    /// Whether this URI's domain ends with ".onion" (case-insensitive).
+    ///
+    /// Does NOT check for "http://" or "https://".
+    // This is so we can use this method for e.g. "lnurlp://blargh.onion"
+    pub fn ends_with_onion(&self) -> bool {
+        const ONION_SUFFIX: &str = ".onion";
+        const ONION_SUFFIX_LEN: usize = ONION_SUFFIX.len();
+
+        // Extract just the domain part (before any path)
+        let domain = self
+            .body
+            .split_once('/')
+            .map(|(domain, _path)| domain)
+            .unwrap_or(self.body.as_ref());
+
+        let suffix =
+            match domain.as_bytes().split_last_chunk::<ONION_SUFFIX_LEN>() {
+                Some((_, s)) => s,
+                _ => return false,
+            };
+
+        suffix.eq_ignore_ascii_case(ONION_SUFFIX.as_bytes())
+    }
 }
 
 // "{scheme}:[//]{body}?{key1}={value1}&{key2}={value2}&..."

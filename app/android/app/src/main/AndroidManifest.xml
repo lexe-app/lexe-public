@@ -51,6 +51,11 @@
         <data android:scheme="LIGHTNING" />
         <data android:scheme="bitcoin" />
         <data android:scheme="lightning" />
+        <data android:scheme="lnurlp" />
+        <!-- Uncomment if we support these someday -->
+        <!-- <data android:scheme="lnurlw" /> -->
+        <!-- <data android:scheme="lnurlc" /> -->
+        <!-- <data android:scheme="keyauth" /> -->
       </intent-filter>
 
       <!-- While we're using app_links to handle deep links (e.g. "bitcoin:" and

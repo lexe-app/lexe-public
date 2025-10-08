@@ -5,7 +5,7 @@
 /// BIP353 resolution.
 pub mod bip353;
 
-use anyhow::{ensure, Context};
+use anyhow::{anyhow, ensure, Context};
 use common::ln::network::LxNetwork;
 pub use payment_uri_core::*;
 
@@ -86,6 +86,12 @@ async fn resolve_payment_methods(
             // TODO(max): Also resolve as LN address.
 
             Vec::new()
+        }
+
+        PaymentUri::Lnurl(lnurl) => {
+            // TODO(max): Implement LNURL resolution
+            let _ = lnurl;
+            return Err(anyhow!("LNURL resolution not supported yet"));
         }
     };
 

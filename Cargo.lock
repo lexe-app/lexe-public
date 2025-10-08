@@ -3140,9 +3140,20 @@ name = "payment-uri"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "base64",
+ "bitcoin",
  "common",
  "dnssec-prover",
+ "lexe-tls-core",
+ "lightning-invoice",
+ "logger",
  "payment-uri-core",
+ "reqwest",
+ "rustls",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -3150,6 +3161,7 @@ name = "payment-uri-core"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "bech32",
  "bitcoin",
  "common",
  "lexe-api-core",

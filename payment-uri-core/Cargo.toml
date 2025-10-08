@@ -16,6 +16,7 @@ lexe-api-core.path = "../lexe-api-core"
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
+bech32.workspace = true
 bitcoin.workspace = true
 percent-encoding.workspace = true
 rust_decimal.workspace = true

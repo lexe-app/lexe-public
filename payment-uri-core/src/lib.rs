@@ -35,6 +35,7 @@ pub use crate::{
     bip321_uri::Bip321Uri,
     email_like::EmailLikeAddress,
     lightning_uri::LightningUri,
+    lnurl::Lnurl,
     payment_method::{Onchain, PaymentMethod},
     payment_uri::PaymentUri,
 };
@@ -69,7 +70,7 @@ pub enum Error {
     InvalidUri(Cow<'static, str>),
     /// [`EmailLikeAddress`] parsing errors.
     InvalidEmailLike(Cow<'static, str>),
-    LnurlUnsupported,
+    InvalidLnurl(Cow<'static, str>),
     InvalidInvoice(invoice::ParseError),
     InvalidOffer(offer::ParseError),
     InvalidBtcAddress(bitcoin::address::ParseError),
@@ -89,7 +90,7 @@ impl fmt::Display for Error {
                 write!(f, "Invalid 'lightning:' URI: {msg}"),
             Self::InvalidEmailLike(msg) =>
                 write!(f, "Invalid BIP353 / Lightning Address: {msg}"),
-            Self::LnurlUnsupported => write!(f, "LNURL is not supported yet"),
+            Self::InvalidLnurl(msg) => write!(f, "Invalid LNURL: {msg}"),
             Self::InvalidInvoice(err) => Display::fmt(err, f),
             Self::InvalidOffer(err) => Display::fmt(err, f),
             Self::InvalidBtcAddress(err) =>

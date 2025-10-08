@@ -70,7 +70,11 @@ pub enum PaymentUri {
     ///
     /// ex: "satoshi@lexe.app" or "₿satoshi@lexe.app"
     EmailLikeAddress(EmailLikeAddress<'static>),
-    // Lnurl(Lnurl),
+
+    /// An LNURL.
+    ///
+    /// ex: "lnurl1dp68g..." (LUD-01) or "lnurlp://domain.com/path" (LUD-17)
+    Lnurl(Lnurl<'static>),
     //
     //
     // NOTE: adding support for a new URI scheme? Remember to add it in these
@@ -82,26 +86,6 @@ pub enum PaymentUri {
 }
 
 impl PaymentUri {
-    /// If this [`PaymentUri`] does not require any further resolution,
-    /// (e.g. it is not BIP353, Lightning Address, or LNURL),
-    /// "flatten" the [`PaymentUri`] into its component [`PaymentMethod`]s.
-    /// Returns `None` if the URI requires further resolution.
-    pub fn flatten(self) -> Option<Vec<PaymentMethod>> {
-        match self {
-            PaymentUri::Bip321Uri(bip321) => Some(bip321.flatten()),
-            PaymentUri::LightningUri(lnuri) => Some(lnuri.flatten()),
-            PaymentUri::Invoice(invoice) =>
-                Some(helpers::flatten_invoice(invoice)),
-            PaymentUri::Offer(offer) => Some(vec![PaymentMethod::Offer(offer)]),
-            PaymentUri::Address(address) =>
-                Some(vec![PaymentMethod::Onchain(Onchain::from(address))]),
-
-            // Requires further resolution
-            PaymentUri::EmailLikeAddress(_) => None,
-            // PaymentUri::Lnurl(_) => None,
-        }
-    }
-
     pub fn parse(s: &str) -> Result<Self, Error> {
         // Refuse to parse anything longer than `MAX_LEN_KIB` KiB
         if s.len() > (MAX_INPUT_LEN_KIB << 10) {
@@ -123,14 +107,32 @@ impl PaymentUri {
                 return Ok(Self::Bip321Uri(Bip321Uri::parse_uri(uri)));
             }
 
+            // ex: "lnurlp://domain.com/path"
+            if Lnurl::matches_lud17_uri_scheme(uri.scheme)?.is_some() {
+                return Lnurl::parse_lud17_uri(uri)
+                    .map(Lnurl::into_owned)
+                    .map(Self::Lnurl);
+            }
+
+            // ex: "https://service.com?lightning=lnurl1dp68g..."
+            if let Some(bech32) = Lnurl::matches_http_with_bech32_param(&uri) {
+                return Ok(Self::Lnurl(Lnurl::parse_bech32(&bech32)?));
+            }
+
+            // ex: "lightning:lnurl1dp68g..."
+            if let Some(bech32) =
+                Lnurl::matches_lightning_with_bech32_body(&uri)
+            {
+                return Ok(Self::Lnurl(Lnurl::parse_bech32(&bech32)?));
+            }
+
+            // NOTE: Goes *after* `Lnurl::matches_lightning_with_bech32_body`,
+            //       otherwise we'd never parse "lightning:lnurl1dp68g..."
+            //
             // ex: "lightning:lnbc1pvjlue..." or
             //     "lightning:lno1pqps7..."
             if LightningUri::matches_uri_scheme(uri.scheme) {
                 return Ok(Self::LightningUri(LightningUri::parse_uri(uri)));
-            }
-
-            if Lnurl::matches_scheme(uri.scheme) {
-                return Err(Error::LnurlUnsupported);
             }
 
             return Err(Error::InvalidPaymentUri(Cow::from(
@@ -161,8 +163,8 @@ impl PaymentUri {
         }
 
         // ex: "lnurl1dp68g..."
-        if Lnurl::matches_hrp_prefix(s) {
-            return Err(Error::LnurlUnsupported);
+        if Lnurl::matches_bech32_hrp_prefix(s) {
+            return Ok(Self::Lnurl(Lnurl::parse_bech32(s)?));
         }
 
         // ex: "bc1qfjeyfl..."
@@ -183,6 +185,26 @@ impl PaymentUri {
             "Unrecognized payment code",
         )))
     }
+
+    /// If this [`PaymentUri`] does not require any further resolution,
+    /// (e.g. it is not BIP353, Lightning Address, or LNURL),
+    /// "flatten" the [`PaymentUri`] into its component [`PaymentMethod`]s.
+    /// Returns `None` if the URI requires further resolution.
+    pub fn flatten(self) -> Option<Vec<PaymentMethod>> {
+        match self {
+            PaymentUri::Bip321Uri(bip321) => Some(bip321.flatten()),
+            PaymentUri::LightningUri(lnuri) => Some(lnuri.flatten()),
+            PaymentUri::Invoice(invoice) =>
+                Some(helpers::flatten_invoice(invoice)),
+            PaymentUri::Offer(offer) => Some(vec![PaymentMethod::Offer(offer)]),
+            PaymentUri::Address(address) =>
+                Some(vec![PaymentMethod::Onchain(Onchain::from(address))]),
+
+            // Requires further resolution
+            PaymentUri::EmailLikeAddress(_) => None,
+            PaymentUri::Lnurl(_) => None,
+        }
+    }
 }
 
 impl fmt::Display for PaymentUri {
@@ -196,6 +218,7 @@ impl fmt::Display for PaymentUri {
             Self::LightningUri(ln_uri) => Display::fmt(ln_uri, f),
             Self::Bip321Uri(bip321_uri) => Display::fmt(bip321_uri, f),
             Self::EmailLikeAddress(email_like) => Display::fmt(email_like, f),
+            Self::Lnurl(lnurl) => Display::fmt(lnurl, f),
         }
     }
 }
@@ -203,13 +226,21 @@ impl fmt::Display for PaymentUri {
 #[cfg(test)]
 mod test {
     use common::{rng::FastRng, test_utils::arbitrary};
-    use proptest::{arbitrary::any, prop_assert_eq, proptest};
+    use proptest::{arbitrary::any, prop_assert_eq, prop_assume, proptest};
 
     use super::*;
 
     #[test]
     fn test_payment_uri_roundtrip() {
         proptest!(|(uri1: PaymentUri)| {
+            // Skip Lnurl with Https/HttpOnion schemes
+            // - plain https:// URLs aren't recognized as LNURLs during parsing,
+            // - .onion LNURLs are not supported
+            if let PaymentUri::Lnurl(ref lnurl) = uri1 {
+                prop_assume!(lnurl.scheme != crate::lnurl::LnurlScheme::Https);
+                prop_assume!(lnurl.scheme != crate::lnurl::LnurlScheme::HttpOnion);
+            }
+
             let uri2 = PaymentUri::parse(&uri1.to_string());
             prop_assert_eq!(Ok(&uri1), uri2.as_ref());
         });
@@ -232,25 +263,5 @@ mod test {
         for (idx, value) in value_iter.take(50).enumerate() {
             println!("{idx:>3}: \"{value}\"");
         }
-    }
-
-    #[test]
-    fn test_parse_err_manual() {
-        assert_eq!(
-            PaymentUri::parse("lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns"),
-            Err(Error::LnurlUnsupported),
-        );
-        assert_eq!(
-            PaymentUri::parse("lnurl:lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns"),
-            Err(Error::LnurlUnsupported),
-        );
-        assert_eq!(
-            PaymentUri::parse("lnurlp:lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns"),
-            Err(Error::LnurlUnsupported),
-        );
-        assert_eq!(
-            PaymentUri::parse("lnurlp://lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns"),
-            Err(Error::LnurlUnsupported),
-        );
     }
 }

@@ -35,6 +35,11 @@
           <string>LIGHTNING</string>
           <string>bitcoin</string>
           <string>lightning</string>
+          <string>lnurlp</string>
+          <!-- Uncomment if we support these someday -->
+          <!-- <string>lnurlw</string> -->
+          <!-- <string>lnurlc</string> -->
+          <!-- <string>keyauth</string> -->
           </array>
         </dict>
     </array>
