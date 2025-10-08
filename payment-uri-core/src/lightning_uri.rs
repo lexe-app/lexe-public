@@ -8,6 +8,7 @@ use crate::{
     helpers,
     payment_method::PaymentMethod,
     uri::{Uri, UriParam},
+    ParseError,
 };
 
 /// A "lightning:" URI, containing a BOLT11 invoice or BOLT12 offer.
@@ -42,27 +43,27 @@ impl LightningUri {
         self.invoice.is_some() || self.offer.is_some()
     }
 
-    pub(crate) fn matches_scheme(scheme: &str) -> bool {
+    pub(crate) fn matches_uri_scheme(scheme: &str) -> bool {
         // Use `eq_ignore_ascii_case` as it's technically in-spec for the scheme
         // to be upper, lower, or even mixed case.
         scheme.eq_ignore_ascii_case(Self::URI_SCHEME)
     }
 
-    pub fn parse(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Result<Self, ParseError> {
         let s = s.trim();
         let uri = Uri::parse(s)?;
-        Self::parse_uri(uri)
-    }
 
-    fn parse_uri(uri: Uri) -> Option<Self> {
-        if !Self::matches_scheme(uri.scheme) {
-            return None;
+        if !Self::matches_uri_scheme(uri.scheme) {
+            return Err(ParseError::LightningUri(Cow::from(
+                "URI scheme must be 'lightning'",
+            )));
         }
-        Some(Self::parse_uri_inner(uri))
+
+        Ok(Self::parse_uri(uri))
     }
 
-    pub(crate) fn parse_uri_inner(uri: Uri) -> Self {
-        debug_assert!(Self::matches_scheme(uri.scheme));
+    pub(crate) fn parse_uri(uri: Uri) -> Self {
+        debug_assert!(Self::matches_uri_scheme(uri.scheme));
 
         let mut out = LightningUri {
             invoice: None,
@@ -222,7 +223,7 @@ mod test {
     fn test_lightning_uri_roundtrip() {
         proptest!(|(uri: LightningUri)| {
             let actual = LightningUri::parse(&uri.to_string());
-            prop_assert_eq!(Some(uri), actual);
+            prop_assert_eq!(Ok(uri), actual);
         });
     }
 }

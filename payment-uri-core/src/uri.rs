@@ -1,5 +1,7 @@
 use std::{borrow::Cow, fmt};
 
+use crate::ParseError;
+
 /// A raw, parsed URI. The params (both key and value) are percent-encoded. See
 /// [URI syntax - RFC 3986](https://datatracker.ietf.org/doc/html/rfc3986).
 ///
@@ -38,15 +40,30 @@ impl<'a> Uri<'a> {
             .remove(b'~');
 
     // syntax: "{scheme}:[//]{body}?{key1}={value1}&{key2}={value2}&..."
-    pub fn parse(s: &'a str) -> Option<Self> {
+    pub fn parse(s: &'a str) -> Result<Self, ParseError> {
+        /// Maximum length of a URI in bytes.
+        const MAX_URI_LEN: usize = 4096;
+
+        // Check URI length limit
+        let uri_len = s.len();
+        if uri_len > MAX_URI_LEN {
+            return Err(ParseError::Uri(Cow::from(
+                "URI too long (>4096 bytes)",
+            )));
+        }
+
         // parse scheme
         // ex: "bitcoin:bc1qfj..." -> `scheme = "bitcoin"`
-        let (scheme, rest) = s.split_once(':')?;
+        let (scheme, rest) = s.split_once(':').ok_or_else(|| {
+            ParseError::Uri(Cow::from("Missing ':' separator"))
+        })?;
 
         // heuristic: limit scheme to 12 characters. If an input exceeds this,
         // then it's probably not a URI.
         if scheme.len() > 12 {
-            return None;
+            return Err(ParseError::Uri(Cow::from(
+                "URI scheme too long (>12 chars)",
+            )));
         }
 
         // ex: "bitcoin:bc1qfj...?message=hello" -> `body = "bc1qfj..."`
@@ -69,7 +86,7 @@ impl<'a> Uri<'a> {
             .filter_map(UriParam::parse)
             .collect::<Vec<_>>();
 
-        Some(Self {
+        Ok(Self {
             scheme,
             body: Cow::Borrowed(body),
             authority,

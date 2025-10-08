@@ -57,14 +57,17 @@ mod payment_uri;
 /// Low level URI building blocks: `Uri`, `UriParam`, `UriParamKey`
 mod uri;
 
-/// Refuse to parse any input longer than this many KiB.
-const MAX_INPUT_LEN_KIB: usize = 8;
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum ParseError {
-    TooLong,
-    BadScheme,
-    UnknownCode,
+    /// [`PaymentUri`] errors.
+    PaymentUri(Cow<'static, str>),
+    /// [`Bip321Uri`] errors.
+    Bip321Uri(Cow<'static, str>),
+    /// [`LightningUri`] errors.
+    LightningUri(Cow<'static, str>),
+    // `uri::Uri`
+    Uri(Cow<'static, str>),
+    /// [`EmailLikeAddress`] errors.
     EmailLike(Cow<'static, str>),
     LnurlUnsupported,
     InvalidInvoice(invoice::ParseError),
@@ -77,12 +80,11 @@ impl std::error::Error for ParseError {}
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::TooLong => write!(
-                f,
-                "Payment code is too long to parse (>{MAX_INPUT_LEN_KIB} KiB)"
-            ),
-            Self::BadScheme => write!(f, "Unrecognized payment URI scheme"),
-            Self::UnknownCode => write!(f, "Unrecognized payment code"),
+            Self::Uri(msg) => write!(f, "Invalid URI: {msg}"),
+            Self::PaymentUri(msg) => write!(f, "Invalid payment URI: {msg}"),
+            Self::Bip321Uri(msg) => write!(f, "Invalid 'bitcoin:' URI: {msg}"),
+            Self::LightningUri(msg) =>
+                write!(f, "Invalid 'lightning:' URI: {msg}"),
             Self::EmailLike(msg) =>
                 write!(f, "Failed to parse BIP353 / Lightning Address: {msg}"),
             Self::LnurlUnsupported => write!(f, "LNURL is not supported yet"),

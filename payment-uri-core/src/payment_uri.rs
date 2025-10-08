@@ -1,4 +1,4 @@
-use std::{fmt, str::FromStr};
+use std::{borrow::Cow, fmt, str::FromStr};
 
 use bitcoin::address::NetworkUnchecked;
 #[cfg(test)]
@@ -16,8 +16,11 @@ use crate::{
     lightning_uri::LightningUri,
     lnurl::Lnurl,
     uri::Uri,
-    Onchain, ParseError, PaymentMethod, MAX_INPUT_LEN_KIB,
+    Onchain, ParseError, PaymentMethod,
 };
+
+/// Refuse to parse any input longer than this many KiB.
+const MAX_INPUT_LEN_KIB: usize = 8;
 
 /// A decoded "Payment URI", usually from a scanned QR code, manually pasted
 /// code, or handling a URI open (like tapping a `bitcoin:bc1qfjeyfl...` URI in
@@ -102,7 +105,9 @@ impl PaymentUri {
     pub fn parse(s: &str) -> Result<Self, ParseError> {
         // Refuse to parse anything longer than `MAX_LEN_KIB` KiB
         if s.len() > (MAX_INPUT_LEN_KIB << 10) {
-            return Err(ParseError::TooLong);
+            return Err(ParseError::PaymentUri(Cow::from(
+                "Payment code is too long to parse (>8 KiB)",
+            )));
         }
 
         let s = s.trim();
@@ -112,25 +117,25 @@ impl PaymentUri {
         // ex: "bitcoin:bc1qfj..." or
         //     "lightning:lnbc1pvjlue..." or
         //     "lightning:lno1pqps7..." or ...
-        if let Some(uri) = Uri::parse(s) {
+        if let Ok(uri) = Uri::parse(s) {
             // ex: "bitcoin:bc1qfj..."
-            if Bip321Uri::matches_scheme(uri.scheme) {
-                return Ok(Self::Bip321Uri(Bip321Uri::parse_uri_inner(uri)));
+            if Bip321Uri::matches_uri_scheme(uri.scheme) {
+                return Ok(Self::Bip321Uri(Bip321Uri::parse_uri(uri)));
             }
 
             // ex: "lightning:lnbc1pvjlue..." or
             //     "lightning:lno1pqps7..."
-            if LightningUri::matches_scheme(uri.scheme) {
-                return Ok(Self::LightningUri(LightningUri::parse_uri_inner(
-                    uri,
-                )));
+            if LightningUri::matches_uri_scheme(uri.scheme) {
+                return Ok(Self::LightningUri(LightningUri::parse_uri(uri)));
             }
 
             if Lnurl::matches_scheme(uri.scheme) {
                 return Err(ParseError::LnurlUnsupported);
             }
 
-            return Err(ParseError::BadScheme);
+            return Err(ParseError::PaymentUri(Cow::from(
+                "Unrecognized URI scheme",
+            )));
         }
 
         // ex: "satoshi+tag@lexe.app" or "₿satoshi@lexe.app" or
@@ -174,7 +179,9 @@ impl PaymentUri {
             return Ok(Self::Address(address));
         }
 
-        Err(ParseError::UnknownCode)
+        Err(ParseError::PaymentUri(Cow::from(
+            "Unrecognized payment code",
+        )))
     }
 }
 

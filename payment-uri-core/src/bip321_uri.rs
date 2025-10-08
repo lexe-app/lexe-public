@@ -22,6 +22,7 @@ use crate::{
     helpers::AddressExt,
     payment_method::{Onchain, PaymentMethod},
     uri::{Uri, UriParam},
+    ParseError,
 };
 
 /// A [BIP321](https://github.com/bitcoin/bips/pull/1555/files) /
@@ -88,28 +89,27 @@ impl Bip321Uri {
             || self.offer.is_some()
     }
 
-    pub fn matches_scheme(scheme: &str) -> bool {
+    pub(crate) fn matches_uri_scheme(scheme: &str) -> bool {
         // Use `eq_ignore_ascii_case` as it's technically in-spec for the scheme
         // to be upper, lower, or even mixed case.
         scheme.eq_ignore_ascii_case(Self::URI_SCHEME)
     }
 
-    pub fn parse(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Result<Self, ParseError> {
         let s = s.trim();
         let uri = Uri::parse(s)?;
-        Self::parse_uri(uri)
-    }
 
-    fn parse_uri(uri: Uri) -> Option<Self> {
-        if !Self::matches_scheme(uri.scheme) {
-            return None;
+        if !Self::matches_uri_scheme(uri.scheme) {
+            return Err(ParseError::Bip321Uri(Cow::from(
+                "URI scheme must be 'bitcoin'",
+            )));
         }
 
-        Some(Self::parse_uri_inner(uri))
+        Ok(Self::parse_uri(uri))
     }
 
-    pub(crate) fn parse_uri_inner(uri: Uri) -> Self {
-        debug_assert!(Self::matches_scheme(uri.scheme));
+    pub(crate) fn parse_uri(uri: Uri) -> Self {
+        debug_assert!(Self::matches_uri_scheme(uri.scheme));
 
         let mut out = Self {
             onchain: Vec::new(),
@@ -405,7 +405,7 @@ mod test {
                 .unwrap();
         assert_eq!(
             Bip321Uri::parse("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU"),
-            Some(Bip321Uri {
+            Ok(Bip321Uri {
                 onchain: vec![address.clone()],
                 ..Bip321Uri::default()
             }),
@@ -416,7 +416,7 @@ mod test {
             Bip321Uri::parse(
                 "bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?foo=%aA"
             ),
-            Some(Bip321Uri {
+            Ok(Bip321Uri {
                 onchain: vec![address.clone()],
                 ..Bip321Uri::default()
             }),
@@ -427,7 +427,7 @@ mod test {
             Bip321Uri::parse(
                 "BItCoIn:3Hk4jJkZkzzGe7oKHw8awFBz9YhRcQ4iAV?amount=23.456"
             ),
-            Some(Bip321Uri {
+            Ok(Bip321Uri {
                 onchain: vec![bitcoin::Address::from_str(
                     "3Hk4jJkZkzzGe7oKHw8awFBz9YhRcQ4iAV"
                 )
@@ -442,7 +442,7 @@ mod test {
             Bip321Uri::parse(
                 "BITCOIN:BC1QFJEYFL9PHSDANZ5YAYLAS3P393MU9Z99YA9MNH?label=Luke%20Jr"
             ),
-            Some(Bip321Uri {
+            Ok(Bip321Uri {
                 onchain: vec![
                     bitcoin::Address::from_str("bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh").unwrap(),
                 ],
@@ -456,7 +456,7 @@ mod test {
             Bip321Uri::parse(
                 "bitcoin:bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw?asdf-dfjsijdf=sodifjoisdjf&message=hello%20world&amount=0.00000001&message=ignored"
             ),
-            Some(Bip321Uri {
+            Ok(Bip321Uri {
                 onchain: vec![
                     bitcoin::Address::from_str("bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw").unwrap(),
                 ],
@@ -471,7 +471,7 @@ mod test {
             Bip321Uri::parse(
                 "bitcoin:bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw?asdf-dfjsijdf=sodifjoisdjf&req-foo=bar&message=hello%20world&amount=0.00000001&message=ignored"
             ),
-            Some(Bip321Uri::default()),
+            Ok(Bip321Uri::default()),
         );
 
         // BOLT12 offer
@@ -481,7 +481,7 @@ mod test {
         let offer_str =
             "lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q";
         let offer = LxOffer::from_str(offer_str).unwrap();
-        let expected = Some(Bip321Uri {
+        let expected = Ok(Bip321Uri {
             onchain: vec![address.clone()],
             offer: Some(offer.clone()),
             ..Bip321Uri::default()
@@ -501,7 +501,7 @@ mod test {
     fn test_bip321_uri_prop_roundtrip() {
         proptest!(|(uri: Bip321Uri)| {
             let actual = Bip321Uri::parse(&uri.to_string());
-            prop_assert_eq!(Some(uri), actual);
+            prop_assert_eq!(Ok(uri), actual);
         });
     }
 
@@ -533,7 +533,7 @@ mod test {
             let param = UriParam { key: "lightning".into(), value: offer_str };
             uri_raw.params.insert(0, param);
 
-            let actual = Bip321Uri::parse_uri(uri_raw).unwrap();
+            let actual = Bip321Uri::parse_uri(uri_raw);
             let mut expected = uri;
             expected.offer = Some(offer);
 
