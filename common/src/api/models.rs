@@ -1,7 +1,11 @@
+#[cfg(any(test, feature = "test-utils"))]
+use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use super::user::NodePk;
-use crate::time::TimestampMs;
+use crate::{
+    ln::hashes::LxTxid, serde_helpers::hexstr_or_bytes, time::TimestampMs,
+};
 
 /// A response to a status check.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -40,4 +44,39 @@ pub struct VerifyMsgRequest {
 pub struct VerifyMsgResponse {
     /// Whether the signature for the message was valid under the given pk.
     pub is_valid: bool,
+}
+
+/// The user node or LSP broadcasted an on-chain transaction.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct BroadcastedTx {
+    /// (PK)
+    pub txid: LxTxid,
+    /// Consensus-encoded [`bitcoin::Transaction`].
+    #[serde(with = "hexstr_or_bytes")]
+    pub tx: Vec<u8>,
+
+    /// When this tx was broadcasted.
+    pub created_at: TimestampMs,
+}
+
+impl BroadcastedTx {
+    pub fn new(txid: LxTxid, tx: Vec<u8>) -> Self {
+        Self {
+            txid,
+            tx,
+            created_at: TimestampMs::now(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::test_utils::roundtrip;
+
+    #[test]
+    fn broadcasted_tx_roundtrip_proptest() {
+        roundtrip::json_value_roundtrip_proptest::<BroadcastedTx>();
+    }
 }

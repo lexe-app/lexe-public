@@ -5,10 +5,11 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, ensure, Context};
-use bitcoin::secp256k1;
+use bitcoin::{consensus::Encodable, secp256k1};
 use common::{
     aes::AesMasterKey,
     api::{
+        models::BroadcastedTx,
         revocable_clients::RevocableClients,
         user::{GetNewScidsRequest, NodePk, User, UserPk},
     },
@@ -17,7 +18,10 @@ use common::{
     ed25519,
     enclave::{MachineId, Measurement},
     env::DeployEnv,
-    ln::{balance::OnchainBalance, channel::LxOutPoint, network::LxNetwork},
+    ln::{
+        balance::OnchainBalance, channel::LxOutPoint, hashes::LxTxid,
+        network::LxNetwork,
+    },
     net,
     rng::{Crng, SysRng},
     root_seed::RootSeed,
@@ -32,7 +36,7 @@ use lexe_api::{
     models::runner::UserLeaseRenewalRequest,
     server::LayerConfig,
     types::{ports::RunPorts, sealed_seed::SealedSeedId},
-    vfs::{Vfs, REVOCABLE_CLIENTS_FILE_ID},
+    vfs::{self, Vfs, VfsFileId, REVOCABLE_CLIENTS_FILE_ID},
 };
 use lexe_ln::{
     alias::{
@@ -53,6 +57,7 @@ use lexe_ln::{
     traits::LexeInnerPersister,
     tx_broadcaster::TxBroadcaster,
     wallet::{self, LexeCoinSelector, LexeWallet},
+    BoxedAnyhowFuture,
 };
 use lexe_std::{const_assert, Apply};
 use lexe_tls::shared_seed::certs::{
@@ -427,12 +432,47 @@ impl UserNode {
             shutdown.clone(),
         ));
 
-        // Init tx broadcaster
-        let broadcast_hook = None;
+        // Init tx broadcaster with a hook which logs into VFS all broadcasted
+        // txs.
+        let broadcast_hook = {
+            let persister = persister.clone();
+            Arc::new(move |tx: &bitcoin::Transaction| {
+                let persister = persister.clone();
+                let txid = tx.compute_txid();
+
+                let mut tx_buf = Vec::new();
+                let encoded_result = tx
+                    .consensus_encode(&mut tx_buf)
+                    .context("Failed to consensus encode bitcoin tx");
+
+                Box::pin(async move {
+                    encoded_result?;
+
+                    let broadcasted_tx =
+                        BroadcastedTx::new(LxTxid(txid), tx_buf);
+
+                    let file_id = VfsFileId::new(
+                        vfs::BROADCASTED_TXS_DIR,
+                        txid.to_string(),
+                    );
+
+                    debug!("Persisting broadcasted tx");
+                    let file = persister.encrypt_json(file_id, &broadcasted_tx);
+                    let retries = 1;
+                    persister
+                        .persist_file(file, retries)
+                        .await
+                        .context("Failed to persist broadcasted tx")?;
+
+                    Ok::<_, anyhow::Error>(())
+                }) as BoxedAnyhowFuture
+            })
+        };
+
         let (tx_broadcaster, broadcaster_task) = TxBroadcaster::start(
             esplora.clone(),
             wallet.clone(),
-            broadcast_hook,
+            Some(broadcast_hook),
             test_event_tx.clone(),
             shutdown.clone(),
         );
