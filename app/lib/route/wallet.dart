@@ -27,6 +27,7 @@ import 'package:lexeapp/components.dart'
         FilledTextPlaceholder,
         ListIcon,
         LxRefreshButton,
+        MultiTapDetector,
         MultistepFlow,
         ScrollableSinglePageBody,
         SliverPullToRefresh,
@@ -666,14 +667,6 @@ class WalletDrawer extends StatelessWidget {
             //   icon: LxIcons.support,
             //   onTap: this.onSupportPressed,
             // ),
-
-            // Debugging
-            DrawerListItem(
-              title: "Debug",
-              icon: LxIcons.debug,
-              onTap: this.onDebugMenuPressed,
-            ),
-
             const SizedBox(height: Space.s600),
 
             // TODO(phlip9): impl
@@ -725,12 +718,15 @@ class WalletDrawer extends StatelessWidget {
               future: UserAgent.fromPlatform(),
               builder: (context, out) {
                 final userAgent = out.data ?? UserAgent.dummy();
-                return Text(
-                  "${userAgent.appName} · v${userAgent.version}",
-                  textAlign: TextAlign.center,
-                  style: Fonts.fontUI.copyWith(
-                    color: LxColors.grey600,
-                    fontSize: Fonts.size200,
+                return MultiTapDetector(
+                  onMultiTapDetected: () => this.onDebugMenuPressed!(),
+                  child: Text(
+                    "${userAgent.appName} · v${userAgent.version}",
+                    textAlign: TextAlign.center,
+                    style: Fonts.fontUI.copyWith(
+                      color: LxColors.grey600,
+                      fontSize: Fonts.size200,
+                    ),
                   ),
                 );
               },

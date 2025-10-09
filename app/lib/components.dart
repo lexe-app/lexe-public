@@ -1,7 +1,7 @@
 /// Reusable flutter UI components
 library;
 
-import 'dart:async' show unawaited;
+import 'dart:async' show Timer, unawaited;
 import 'dart:io' show Platform;
 import 'dart:math' show max;
 
@@ -2224,5 +2224,51 @@ class InfoRow extends StatelessWidget {
         : row;
 
     return maybeCopyOnTapRow;
+  }
+}
+
+class MultiTapDetector extends StatefulWidget {
+  const MultiTapDetector({
+    super.key,
+    required this.child,
+    required this.onMultiTapDetected,
+    this.tapCount = 3,
+    this.timeout = const Duration(seconds: 1),
+  });
+
+  final Widget child;
+  final VoidCallback onMultiTapDetected;
+  final int tapCount;
+  final Duration timeout;
+
+  @override
+  State<MultiTapDetector> createState() => _MultiTapDetectorState();
+}
+
+class _MultiTapDetectorState extends State<MultiTapDetector> {
+  int _count = 0;
+  Timer? _timer;
+
+  void onTap() {
+    this._count++;
+    this._timer?.cancel();
+
+    if (this._count == widget.tapCount) {
+      this._count = 0;
+      widget.onMultiTapDetected();
+    } else {
+      this._timer = Timer(widget.timeout, () => this._count = 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    this._timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(onTap: this.onTap, child: widget.child);
   }
 }
