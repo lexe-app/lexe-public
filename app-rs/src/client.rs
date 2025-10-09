@@ -732,6 +732,16 @@ impl AppNodeRunApi for NodeClient {
         let req = self.run_rest.put(url, &req);
         self.run_rest.send(req).await
     }
+
+    async fn list_broadcasted_txs(
+        &self,
+    ) -> Result<serde_json::Value, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/list_broadcasted_txs");
+        let req = self.run_rest.get(url, &Empty {});
+        self.run_rest.send(req).await
+    }
 }
 
 fn url_base_eq(u1: &Url, u2: &Url) -> bool {

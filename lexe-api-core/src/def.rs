@@ -37,6 +37,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 #[cfg(doc)]
 use common::{
+    api::models::BroadcastedTxInfo,
     api::user::NodePkStruct,
     api::user::{UserPkSet, UserPkStruct},
     api::version::MeasurementStruct,
@@ -366,6 +367,13 @@ pub trait AppNodeRunApi {
         &self,
         req: UpdateClientRequest,
     ) -> Result<UpdateClientResponse, NodeApiError>;
+
+    /// List all broadcasted transactions.
+    ///
+    /// GET /app/list_broadcasted_txs [`Empty`] -> [`Vec<BroadcastedTxInfo>`]
+    async fn list_broadcasted_txs(
+        &self,
+    ) -> Result<serde_json::Value, NodeApiError>;
 }
 
 /// The bearer auth API exposed by the backend (sometimes via the gateway) to

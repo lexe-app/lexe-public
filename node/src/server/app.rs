@@ -5,8 +5,8 @@ use axum::extract::State;
 use common::{
     api::{
         models::{
-            SignMsgRequest, SignMsgResponse, VerifyMsgRequest,
-            VerifyMsgResponse,
+            BroadcastedTx, BroadcastedTxInfo, SignMsgRequest, SignMsgResponse,
+            VerifyMsgRequest, VerifyMsgResponse,
         },
         revocable_clients::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
@@ -35,6 +35,7 @@ use lexe_api::{
     },
     server::{extract::LxQuery, LxJson},
     types::{payments::VecBasicPayment, Empty},
+    vfs::{self, Vfs, VfsDirectory},
 };
 use lexe_ln::{command::CreateInvoiceCaller, p2p};
 use lexe_tokio::task::MaybeLxTask;
@@ -467,4 +468,38 @@ pub(super) async fn update_revocable_client(
     .await
     .map(LxJson)
     .map_err(NodeApiError::command)
+}
+
+pub(super) async fn list_broadcasted_txs(
+    State(state): State<Arc<AppRouterState>>,
+) -> Result<LxJson<Vec<BroadcastedTxInfo>>, NodeApiError> {
+    let directory = VfsDirectory {
+        dirname: vfs::BROADCASTED_TXS_DIR.into(),
+    };
+    let broadcasted_txs = state
+        .persister
+        .read_dir_json::<BroadcastedTx>(&directory)
+        .await
+        .map_err(NodeApiError::command)?;
+
+    let txs = broadcasted_txs
+        .into_iter()
+        .map(|(_, broadcasted_tx)| {
+            let confirmation_block_height = state
+                .wallet
+                .get_tx_details(broadcasted_tx.txid)
+                .and_then(|details| {
+                    details.chain_position.confirmation_height_upper_bound()
+                });
+
+            let tx_info = BroadcastedTxInfo::from_broadcasted_tx(
+                broadcasted_tx,
+                state.network,
+                confirmation_block_height,
+            )?;
+            Ok::<_, anyhow::Error>(tx_info)
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(NodeApiError::command)?;
+    Ok(LxJson(txs))
 }

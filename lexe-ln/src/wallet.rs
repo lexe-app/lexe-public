@@ -48,8 +48,8 @@ use bdk_wallet::{
         CoinSelectionAlgorithm, CoinSelectionResult, InsufficientFunds,
     },
     template::Bip84,
-    CreateParams, KeychainKind, LoadParams, SignOptions, TxBuilder, Wallet,
-    WeightedUtxo,
+    CreateParams, KeychainKind, LoadParams, SignOptions, TxBuilder, TxDetails,
+    Wallet, WeightedUtxo,
 };
 use bitcoin::{Psbt, Transaction};
 #[cfg(test)]
@@ -57,8 +57,8 @@ use common::ln::channel::LxOutPoint;
 use common::{
     constants::IMPORTANT_PERSIST_RETRIES,
     ln::{
-        amount::Amount, balance::OnchainBalance, network::LxNetwork,
-        priority::ConfirmationPriority,
+        amount::Amount, balance::OnchainBalance, hashes::LxTxid,
+        network::LxNetwork, priority::ConfirmationPriority,
     },
     root_seed::RootSeed,
     time::TimestampMs,
@@ -709,6 +709,13 @@ impl LexeWallet {
     pub fn get_utxos(&self) -> Vec<bdk_wallet::LocalOutput> {
         let locked_wallet = self.inner.read().unwrap();
         locked_wallet.list_unspent().collect()
+    }
+
+    /// Get a [`TxDetails`] for given [`LxTxid`] inside of the wallet.
+    /// If not found, returns `None`.
+    pub fn get_tx_details(&self, txid: LxTxid) -> Option<TxDetails> {
+        let locked_wallet = self.inner.read().unwrap();
+        locked_wallet.tx_details(txid.0)
     }
 
     /// Return the next unused address from the external descriptor. If there
