@@ -567,4 +567,16 @@ impl AppHandle {
             .await?;
         Ok(())
     }
+
+    #[instrument(skip_all, name = "(list-broadcasted-txs)")]
+    pub async fn list_broadcasted_txs(&self) -> anyhow::Result<String> {
+        let resp = self
+            .inner
+            .node_client()
+            .list_broadcasted_txs()
+            .await
+            .map_err(anyhow::Error::new)?;
+        serde_json::to_string_pretty(&resp)
+            .context("Failed to serialize broadcasted txs")
+    }
 }

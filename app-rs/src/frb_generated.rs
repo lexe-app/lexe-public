@@ -46,7 +46,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.7.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1831416433;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 447277648;
 
 // Section: executor
 
@@ -326,6 +326,21 @@ let api_payment_index = <crate::ffi::types::PaymentIndex>::sse_decode(&mut deser
                     transform_result_sse::<_, ()>((move ||  {
                          let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::get_vec_idx_by_payment_index(&api_that, api_payment_index))?;   Ok(output_ok)
                     })())
+                } })
+}
+fn wire__crate__ffi__app__app_handle_list_broadcasted_txs_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_list_broadcasted_txs", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
+                         let output_ok = crate::ffi::app::AppHandle::list_broadcasted_txs(&api_that).await?;   Ok(output_ok)
+                    })().await)
                 } })
 }
 fn wire__crate__ffi__app__app_handle_list_channels_impl(
@@ -2574,32 +2589,33 @@ fn pde_ffi_dispatcher_primary_impl(
 6 => wire__crate__ffi__app__app_handle_fiat_rates_impl(port, ptr, rust_vec_len, data_len),
 7 => wire__crate__ffi__app__app_handle_get_address_impl(port, ptr, rust_vec_len, data_len),
 19 => wire__crate__ffi__app__app_handle_get_vec_idx_by_payment_index_impl(port, ptr, rust_vec_len, data_len),
-20 => wire__crate__ffi__app__app_handle_list_channels_impl(port, ptr, rust_vec_len, data_len),
-21 => wire__crate__ffi__app__app_handle_list_clients_impl(port, ptr, rust_vec_len, data_len),
-22 => wire__crate__ffi__app__app_handle_load_impl(port, ptr, rust_vec_len, data_len),
-23 => wire__crate__ffi__app__app_handle_node_info_impl(port, ptr, rust_vec_len, data_len),
-24 => wire__crate__ffi__app__app_handle_open_channel_impl(port, ptr, rust_vec_len, data_len),
-25 => wire__crate__ffi__app__app_handle_pay_invoice_impl(port, ptr, rust_vec_len, data_len),
-26 => wire__crate__ffi__app__app_handle_pay_offer_impl(port, ptr, rust_vec_len, data_len),
-27 => wire__crate__ffi__app__app_handle_pay_onchain_impl(port, ptr, rust_vec_len, data_len),
-28 => wire__crate__ffi__app__app_handle_preflight_close_channel_impl(port, ptr, rust_vec_len, data_len),
-29 => wire__crate__ffi__app__app_handle_preflight_open_channel_impl(port, ptr, rust_vec_len, data_len),
-30 => wire__crate__ffi__app__app_handle_preflight_pay_invoice_impl(port, ptr, rust_vec_len, data_len),
-31 => wire__crate__ffi__app__app_handle_preflight_pay_offer_impl(port, ptr, rust_vec_len, data_len),
-32 => wire__crate__ffi__app__app_handle_preflight_pay_onchain_impl(port, ptr, rust_vec_len, data_len),
-33 => wire__crate__ffi__app__app_handle_restore_impl(port, ptr, rust_vec_len, data_len),
-35 => wire__crate__ffi__app__app_handle_signup_impl(port, ptr, rust_vec_len, data_len),
-36 => wire__crate__ffi__app__app_handle_sync_payments_impl(port, ptr, rust_vec_len, data_len),
-37 => wire__crate__ffi__app__app_handle_update_client_impl(port, ptr, rust_vec_len, data_len),
-38 => wire__crate__ffi__app__app_handle_update_payment_note_impl(port, ptr, rust_vec_len, data_len),
-44 => wire__crate__ffi__qr__encode_impl(port, ptr, rust_vec_len, data_len),
-46 => wire__crate__ffi__gdrive__g_drive_client_dump_state_impl(port, ptr, rust_vec_len, data_len),
-49 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_exchange_impl(port, ptr, rust_vec_len, data_len),
-53 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
-54 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
-56 => wire__crate__ffi__payment_uri__resolve_best_impl(port, ptr, rust_vec_len, data_len),
-65 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
-66 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
+20 => wire__crate__ffi__app__app_handle_list_broadcasted_txs_impl(port, ptr, rust_vec_len, data_len),
+21 => wire__crate__ffi__app__app_handle_list_channels_impl(port, ptr, rust_vec_len, data_len),
+22 => wire__crate__ffi__app__app_handle_list_clients_impl(port, ptr, rust_vec_len, data_len),
+23 => wire__crate__ffi__app__app_handle_load_impl(port, ptr, rust_vec_len, data_len),
+24 => wire__crate__ffi__app__app_handle_node_info_impl(port, ptr, rust_vec_len, data_len),
+25 => wire__crate__ffi__app__app_handle_open_channel_impl(port, ptr, rust_vec_len, data_len),
+26 => wire__crate__ffi__app__app_handle_pay_invoice_impl(port, ptr, rust_vec_len, data_len),
+27 => wire__crate__ffi__app__app_handle_pay_offer_impl(port, ptr, rust_vec_len, data_len),
+28 => wire__crate__ffi__app__app_handle_pay_onchain_impl(port, ptr, rust_vec_len, data_len),
+29 => wire__crate__ffi__app__app_handle_preflight_close_channel_impl(port, ptr, rust_vec_len, data_len),
+30 => wire__crate__ffi__app__app_handle_preflight_open_channel_impl(port, ptr, rust_vec_len, data_len),
+31 => wire__crate__ffi__app__app_handle_preflight_pay_invoice_impl(port, ptr, rust_vec_len, data_len),
+32 => wire__crate__ffi__app__app_handle_preflight_pay_offer_impl(port, ptr, rust_vec_len, data_len),
+33 => wire__crate__ffi__app__app_handle_preflight_pay_onchain_impl(port, ptr, rust_vec_len, data_len),
+34 => wire__crate__ffi__app__app_handle_restore_impl(port, ptr, rust_vec_len, data_len),
+36 => wire__crate__ffi__app__app_handle_signup_impl(port, ptr, rust_vec_len, data_len),
+37 => wire__crate__ffi__app__app_handle_sync_payments_impl(port, ptr, rust_vec_len, data_len),
+38 => wire__crate__ffi__app__app_handle_update_client_impl(port, ptr, rust_vec_len, data_len),
+39 => wire__crate__ffi__app__app_handle_update_payment_note_impl(port, ptr, rust_vec_len, data_len),
+45 => wire__crate__ffi__qr__encode_impl(port, ptr, rust_vec_len, data_len),
+47 => wire__crate__ffi__gdrive__g_drive_client_dump_state_impl(port, ptr, rust_vec_len, data_len),
+50 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_exchange_impl(port, ptr, rust_vec_len, data_len),
+54 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
+55 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
+57 => wire__crate__ffi__payment_uri__resolve_best_impl(port, ptr, rust_vec_len, data_len),
+66 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
+67 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -2623,29 +2639,29 @@ fn pde_ffi_dispatcher_sync_impl(
 16 => wire__crate__ffi__app__app_handle_get_pending_not_junk_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
 17 => wire__crate__ffi__app__app_handle_get_pending_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
 18 => wire__crate__ffi__app__app_handle_get_short_payment_by_scroll_idx_impl(ptr, rust_vec_len, data_len),
-34 => wire__crate__ffi__app__app_handle_settings_db_impl(ptr, rust_vec_len, data_len),
-39 => wire__crate__ffi__app__app_handle_user_info_impl(ptr, rust_vec_len, data_len),
-40 => wire__crate__ffi__types__client_payment_id_gen_new_impl(ptr, rust_vec_len, data_len),
-41 => wire__crate__ffi__debug__delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
-42 => wire__crate__ffi__debug__delete_secret_store_impl(ptr, rust_vec_len, data_len),
-43 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
-45 => wire__crate__ffi__qr__encoded_pixels_per_side_impl(ptr, rust_vec_len, data_len),
-47 => wire__crate__ffi__gdrive__g_drive_client_into_restore_client_impl(ptr, rust_vec_len, data_len),
-48 => wire__crate__ffi__gdrive__g_drive_client_server_code_impl(ptr, rust_vec_len, data_len),
-50 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_init_impl(ptr, rust_vec_len, data_len),
-51 => wire__crate__ffi__gdrive__g_drive_restore_candidate_try_decrypt_impl(ptr, rust_vec_len, data_len),
-52 => wire__crate__ffi__gdrive__g_drive_restore_candidate_user_pk_impl(ptr, rust_vec_len, data_len),
-55 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
-57 => wire__crate__ffi__types__root_seed_expose_secret_hex_impl(ptr, rust_vec_len, data_len),
-58 => wire__crate__ffi__types__root_seed_from_sys_rng_impl(ptr, rust_vec_len, data_len),
-59 => wire__crate__ffi__types__root_seed_seed_phrase_impl(ptr, rust_vec_len, data_len),
-60 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
-61 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
-62 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
-63 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
-64 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-67 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
-68 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
+35 => wire__crate__ffi__app__app_handle_settings_db_impl(ptr, rust_vec_len, data_len),
+40 => wire__crate__ffi__app__app_handle_user_info_impl(ptr, rust_vec_len, data_len),
+41 => wire__crate__ffi__types__client_payment_id_gen_new_impl(ptr, rust_vec_len, data_len),
+42 => wire__crate__ffi__debug__delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
+43 => wire__crate__ffi__debug__delete_secret_store_impl(ptr, rust_vec_len, data_len),
+44 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
+46 => wire__crate__ffi__qr__encoded_pixels_per_side_impl(ptr, rust_vec_len, data_len),
+48 => wire__crate__ffi__gdrive__g_drive_client_into_restore_client_impl(ptr, rust_vec_len, data_len),
+49 => wire__crate__ffi__gdrive__g_drive_client_server_code_impl(ptr, rust_vec_len, data_len),
+51 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_init_impl(ptr, rust_vec_len, data_len),
+52 => wire__crate__ffi__gdrive__g_drive_restore_candidate_try_decrypt_impl(ptr, rust_vec_len, data_len),
+53 => wire__crate__ffi__gdrive__g_drive_restore_candidate_user_pk_impl(ptr, rust_vec_len, data_len),
+56 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
+58 => wire__crate__ffi__types__root_seed_expose_secret_hex_impl(ptr, rust_vec_len, data_len),
+59 => wire__crate__ffi__types__root_seed_from_sys_rng_impl(ptr, rust_vec_len, data_len),
+60 => wire__crate__ffi__types__root_seed_seed_phrase_impl(ptr, rust_vec_len, data_len),
+61 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
+62 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
+63 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
+64 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
+65 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
+68 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
+69 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }

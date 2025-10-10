@@ -450,6 +450,7 @@ class WalletPageState extends State<WalletPage> {
         builder: (context) => NodeInfoPage(
           nodeInfo: this.nodeInfoService.nodeInfo,
           userInfo: this.widget.app.userInfo(),
+          app: this.widget.app,
         ),
       ),
     );

@@ -297,6 +297,45 @@ class MockAppHandle extends AppHandle {
   );
 
   @override
+  Future<String> listBroadcastedTxs() => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => '''
+[
+  {
+    "txid": "5b048ac8145854c7e71c91d9240056c3a7b36a7f2de7d5e73c8f9a0b1d2e3f4a",
+    "tx": "02000000000101017ff733112b14139b0e5d4e3c2b1a0f8e7d6c5b4a39281706f5e4d3c2b1a0f0000000001716001429324fc927e0fcae78cfea47b69ff938d87e8a26ffffffff0130750000000000001600141234567890123456789012345678901234567802473044022012345678901234567890123456789012345678901234567890123456789012340220abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd012102abcdef1234567890abcdef1234567890abcdef1234567890abcdef123456789000000000",
+    "created_at": 1760127289784,
+    "total_outputs": {
+      "sats": 98830
+    },
+    "output_destinations": [
+      "bcrt1q70apjn9dtgum7hq6w906p5np40zqvj9llah36v"
+    ],
+    "inputs": [
+      "29324fc927e0fcae78cfea47b69ff938d87e8a26:0"
+    ],
+    "confirmation_block_height": null
+  },
+  {
+    "txid": "5b048ac8145854c7e71c91d9240056c3a7b36a7f2de7d5e73c8f9a0b1d2e3f4a",
+    "tx": "02000000000101017ff733112b14139b0e5d4e3c2b1a0f8e7d6c5b4a39281706f5e4d3c2b1a0f0000000001716001429324fc927e0fcae78cfea47b69ff938d87e8a26ffffffff0130750000000000001600141234567890123456789012345678901234567802473044022012345678901234567890123456789012345678901234567890123456789012340220abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd012102abcdef1234567890abcdef1234567890abcdef1234567890abcdef123456789000000000",
+    "created_at": 1760127289784,
+    "total_outputs": {
+      "sats": 98830
+    },
+    "output_destinations": [
+      "bcrt1q70apjn9dtgum7hq6w906p5np40zqvj9llah36v"
+    ],
+    "inputs": [
+      "29324fc927e0fcae78cfea47b69ff938d87e8a26:0"
+    ],
+    "confirmation_block_height": null
+  }
+]
+''',
+  );
+
+  @override
   Future<bool> syncPayments() =>
       Future.delayed(const Duration(milliseconds: 1500), () => true);
 

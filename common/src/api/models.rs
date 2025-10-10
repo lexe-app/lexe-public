@@ -1,10 +1,10 @@
 use anyhow::Context;
 use bitcoin::{consensus::Decodable, io::Cursor};
-#[cfg(any(test, feature = "test-utils"))]
-use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use super::user::NodePk;
+#[cfg(any(test, feature = "test-utils"))]
+use crate::test_utils::arbitrary;
 use crate::{
     ln::{amount::Amount, hashes::LxTxid, network::LxNetwork},
     serde_helpers::hexstr_or_bytes,
@@ -52,7 +52,6 @@ pub struct VerifyMsgResponse {
 
 /// The user node or LSP broadcasted an on-chain transaction.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct BroadcastedTx {
     /// (PK)
     pub txid: LxTxid,
@@ -140,6 +139,83 @@ impl BroadcastedTxInfo {
     }
 }
 
+#[cfg(any(test, feature = "test-utils"))]
+mod arbitrary_impl {
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        collection::vec,
+        option,
+        strategy::{BoxedStrategy, Strategy},
+    };
+
+    use super::*;
+
+    impl Arbitrary for BroadcastedTx {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (
+                arbitrary::any_raw_tx_bytes(),
+                any::<LxTxid>(),
+                any::<TimestampMs>(),
+            )
+                .prop_map(|(tx, txid, created_at)| Self {
+                    tx,
+                    txid,
+                    created_at,
+                })
+                .boxed()
+        }
+    }
+
+    impl Arbitrary for BroadcastedTxInfo {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let any_vec_input_str = vec(
+                (arbitrary::any_outpoint())
+                    .prop_map(|outpoint| outpoint.to_string()),
+                0..=8,
+            );
+            let any_vec_output_destination_str = vec(
+                (arbitrary::any_mainnet_addr())
+                    .prop_map(|address| address.to_string()),
+                0..=8,
+            );
+            let any_confirmation_block_height_optional =
+                option::of(any::<u32>());
+
+            (
+                any::<BroadcastedTx>(),
+                any::<Amount>(),
+                any_vec_output_destination_str,
+                any_vec_input_str,
+                any_confirmation_block_height_optional,
+            )
+                .prop_map(
+                    |(
+                        tx,
+                        total_outputs,
+                        output_destinations,
+                        inputs,
+                        confirmation_block_height,
+                    )| Self {
+                        txid: tx.txid,
+                        tx: tx.tx,
+                        created_at: tx.created_at,
+                        total_outputs,
+                        output_destinations,
+                        inputs,
+                        confirmation_block_height,
+                    },
+                )
+                .boxed()
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -148,5 +224,10 @@ mod test {
     #[test]
     fn broadcasted_tx_roundtrip_proptest() {
         roundtrip::json_value_roundtrip_proptest::<BroadcastedTx>();
+    }
+
+    #[test]
+    fn broadcasted_tx_info_roundtrip_proptest() {
+        roundtrip::json_value_roundtrip_proptest::<BroadcastedTxInfo>();
     }
 }

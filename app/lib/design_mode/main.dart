@@ -806,7 +806,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   );
                 }),
               );
-              return NodeInfoPage(nodeInfo: nodeInfo, userInfo: userInfo);
+              return NodeInfoPage(
+                nodeInfo: nodeInfo,
+                userInfo: userInfo,
+                app: mockApp,
+              );
             }),
             Component("SdkClientsPage", (_) => ClientsPage(app: mockApp)),
             Component(

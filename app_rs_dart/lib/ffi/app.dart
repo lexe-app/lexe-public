@@ -120,6 +120,9 @@ class AppHandle {
         paymentIndex: paymentIndex,
       );
 
+  Future<String> listBroadcastedTxs() =>
+      AppRs.instance.api.crateFfiAppAppHandleListBroadcastedTxs(that: this);
+
   Future<ListChannelsResponse> listChannels() =>
       AppRs.instance.api.crateFfiAppAppHandleListChannels(that: this);
 

@@ -700,6 +700,16 @@ final class Fonts {
     decoration: TextDecoration.none,
   );
 
+  static const TextStyle fontUIMono = TextStyle(
+    debugLabel: "Fonts.fontUIMono",
+    fontFamily: "monospace",
+    fontSize: Fonts.size200,
+    color: LxColors.foreground,
+    height: 1.25,
+    fontVariations: [Fonts.weightNormal],
+    decoration: TextDecoration.none,
+  );
+
   static const TextStyle fontButton = TextStyle(
     debugLabel: "Fonts.fontButton",
     fontFamily: "Inter V",

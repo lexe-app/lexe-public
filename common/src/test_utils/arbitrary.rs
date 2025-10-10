@@ -15,6 +15,7 @@ use bitcoin::{
     absolute,
     address::NetworkUnchecked,
     blockdata::{script, transaction},
+    consensus::Encodable,
     hashes::{sha256d, Hash},
     script::PushBytesBuf,
     secp256k1, Address, Network, OutPoint, ScriptBuf, ScriptHash, Sequence,
@@ -452,6 +453,14 @@ pub fn any_raw_tx() -> impl Strategy<Value = bitcoin::Transaction> {
                 output,
             }
         })
+}
+
+pub fn any_raw_tx_bytes() -> impl Strategy<Value = Vec<u8>> {
+    any_raw_tx().prop_map(|tx| {
+        let mut tx_buf = Vec::new();
+        let _ = tx.consensus_encode(&mut tx_buf).unwrap();
+        tx_buf
+    })
 }
 
 /// An `Arbitrary`-like [`Strategy`] for a [`Txid`].
