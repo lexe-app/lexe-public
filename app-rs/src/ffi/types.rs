@@ -392,6 +392,8 @@ pub enum PaymentMethod {
     Onchain(Onchain),
     Invoice(Invoice),
     Offer(Offer),
+    #[allow(dead_code)] // TODO(max): Remove
+    LnurlPayRequest(LnurlPayRequest),
 }
 
 impl From<payment_uri::PaymentMethod> for PaymentMethod {
@@ -402,6 +404,8 @@ impl From<payment_uri::PaymentMethod> for PaymentMethod {
             payment_uri::PaymentMethod::Invoice(x) =>
                 Self::Invoice(Invoice::from(x)),
             payment_uri::PaymentMethod::Offer(x) => Self::Offer(Offer::from(x)),
+            payment_uri::PaymentMethod::LnurlPayRequest(x) =>
+                Self::LnurlPayRequest(LnurlPayRequest::from(x)),
         }
     }
 }
@@ -501,6 +505,52 @@ impl From<LxOffer> for Offer {
     #[inline]
     fn from(value: LxOffer) -> Self {
         Self::from(&value)
+    }
+}
+
+#[allow(dead_code)] // TODO(max): Remove
+pub struct LnurlPayRequest {
+    pub callback: String,
+    pub min_sendable_msat: u64,
+    pub max_sendable_msat: u64,
+    pub metadata: LnurlPayRequestMetadata,
+}
+
+#[allow(dead_code)] // TODO(max): Remove
+pub struct LnurlPayRequestMetadata {
+    pub description: String,
+    pub long_description: Option<String>,
+    pub image_png_base64: Option<String>,
+    pub image_jpeg_base64: Option<String>,
+    pub identifier: Option<String>,
+    pub email: Option<String>,
+    pub description_hash: [u8; 32],
+    pub raw: String,
+}
+
+impl From<payment_uri::LnurlPayRequest> for LnurlPayRequest {
+    fn from(value: payment_uri::LnurlPayRequest) -> Self {
+        Self {
+            callback: value.callback,
+            min_sendable_msat: value.min_sendable.msat(),
+            max_sendable_msat: value.max_sendable.msat(),
+            metadata: LnurlPayRequestMetadata::from(value.metadata),
+        }
+    }
+}
+
+impl From<payment_uri::LnurlPayRequestMetadata> for LnurlPayRequestMetadata {
+    fn from(value: payment_uri::LnurlPayRequestMetadata) -> Self {
+        Self {
+            description: value.description,
+            long_description: value.long_description,
+            image_png_base64: value.image_png_base64,
+            image_jpeg_base64: value.image_jpeg_base64,
+            identifier: value.identifier,
+            email: value.email,
+            description_hash: value.description_hash,
+            raw: value.raw,
+        }
     }
 }
 

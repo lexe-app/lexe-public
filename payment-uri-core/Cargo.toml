@@ -12,6 +12,7 @@ version.workspace = true
 
 common.path = "../common"
 lexe-api-core.path = "../lexe-api-core"
+sha256.path = "../sha256"
 
 # --- WORKSPACE --- #
 
@@ -21,6 +22,7 @@ bitcoin.workspace = true
 percent-encoding.workspace = true
 rust_decimal.workspace = true
 rust_decimal_macros.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }

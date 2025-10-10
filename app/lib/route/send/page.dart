@@ -12,6 +12,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         ConfirmationPriority,
         PaymentKind,
         PaymentMethod_Invoice,
+        PaymentMethod_LnurlPayRequest,
         PaymentMethod_Offer,
         PaymentMethod_Onchain;
 import 'package:app_rs_dart/ffi/types.ext.dart';
@@ -427,6 +428,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     PaymentMethod_Invoice(:final field0) => field0.description,
     PaymentMethod_Onchain(:final field0) => field0.message ?? field0.label,
     PaymentMethod_Offer(:final field0) => field0.description,
+    PaymentMethod_LnurlPayRequest(:final field0) => field0.metadata.description,
   };
 
   @override

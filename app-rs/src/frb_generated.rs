@@ -1695,6 +1695,55 @@ impl SseDecode for Vec<crate::ffi::types::RevocableClient> {
     }
 }
 
+impl SseDecode for crate::ffi::types::LnurlPayRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_callback = <String>::sse_decode(deserializer);
+        let mut var_minSendableMsat = <u64>::sse_decode(deserializer);
+        let mut var_maxSendableMsat = <u64>::sse_decode(deserializer);
+        let mut var_metadata =
+            <crate::ffi::types::LnurlPayRequestMetadata>::sse_decode(
+                deserializer,
+            );
+        return crate::ffi::types::LnurlPayRequest {
+            callback: var_callback,
+            min_sendable_msat: var_minSendableMsat,
+            max_sendable_msat: var_maxSendableMsat,
+            metadata: var_metadata,
+        };
+    }
+}
+
+impl SseDecode for crate::ffi::types::LnurlPayRequestMetadata {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_description = <String>::sse_decode(deserializer);
+        let mut var_longDescription =
+            <Option<String>>::sse_decode(deserializer);
+        let mut var_imagePngBase64 = <Option<String>>::sse_decode(deserializer);
+        let mut var_imageJpegBase64 =
+            <Option<String>>::sse_decode(deserializer);
+        let mut var_identifier = <Option<String>>::sse_decode(deserializer);
+        let mut var_email = <Option<String>>::sse_decode(deserializer);
+        let mut var_descriptionHash = <[u8; 32]>::sse_decode(deserializer);
+        let mut var_raw = <String>::sse_decode(deserializer);
+        return crate::ffi::types::LnurlPayRequestMetadata {
+            description: var_description,
+            long_description: var_longDescription,
+            image_png_base64: var_imagePngBase64,
+            image_jpeg_base64: var_imageJpegBase64,
+            identifier: var_identifier,
+            email: var_email,
+            description_hash: var_descriptionHash,
+            raw: var_raw,
+        };
+    }
+}
+
 impl SseDecode for crate::ffi::types::LxChannelDetails {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -2261,6 +2310,15 @@ impl SseDecode for crate::ffi::types::PaymentMethod {
                 let mut var_field0 =
                     <crate::ffi::types::Offer>::sse_decode(deserializer);
                 return crate::ffi::types::PaymentMethod::Offer(var_field0);
+            }
+            3 => {
+                let mut var_field0 =
+                    <crate::ffi::types::LnurlPayRequest>::sse_decode(
+                        deserializer,
+                    );
+                return crate::ffi::types::PaymentMethod::LnurlPayRequest(
+                    var_field0,
+                );
             }
             _ => {
                 unimplemented!("");
@@ -3241,6 +3299,60 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::ListChannelsResponse>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::LnurlPayRequest {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.callback.into_into_dart().into_dart(),
+            self.min_sendable_msat.into_into_dart().into_dart(),
+            self.max_sendable_msat.into_into_dart().into_dart(),
+            self.metadata.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::LnurlPayRequest
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::LnurlPayRequest>
+    for crate::ffi::types::LnurlPayRequest
+{
+    fn into_into_dart(self) -> crate::ffi::types::LnurlPayRequest {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::ffi::types::LnurlPayRequestMetadata
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.description.into_into_dart().into_dart(),
+            self.long_description.into_into_dart().into_dart(),
+            self.image_png_base64.into_into_dart().into_dart(),
+            self.image_jpeg_base64.into_into_dart().into_dart(),
+            self.identifier.into_into_dart().into_dart(),
+            self.email.into_into_dart().into_dart(),
+            self.description_hash.into_into_dart().into_dart(),
+            self.raw.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::LnurlPayRequestMetadata
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<
+        crate::ffi::types::LnurlPayRequestMetadata,
+    > for crate::ffi::types::LnurlPayRequestMetadata
+{
+    fn into_into_dart(self) -> crate::ffi::types::LnurlPayRequestMetadata {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::types::LxChannelDetails {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -3652,6 +3764,8 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentMethod {
                 [1.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
             crate::ffi::types::PaymentMethod::Offer(field0) =>
                 [2.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            crate::ffi::types::PaymentMethod::LnurlPayRequest(field0) =>
+                [3.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -4666,6 +4780,39 @@ impl SseEncode for Vec<crate::ffi::types::RevocableClient> {
     }
 }
 
+impl SseEncode for crate::ffi::types::LnurlPayRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <String>::sse_encode(self.callback, serializer);
+        <u64>::sse_encode(self.min_sendable_msat, serializer);
+        <u64>::sse_encode(self.max_sendable_msat, serializer);
+        <crate::ffi::types::LnurlPayRequestMetadata>::sse_encode(
+            self.metadata,
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::ffi::types::LnurlPayRequestMetadata {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <String>::sse_encode(self.description, serializer);
+        <Option<String>>::sse_encode(self.long_description, serializer);
+        <Option<String>>::sse_encode(self.image_png_base64, serializer);
+        <Option<String>>::sse_encode(self.image_jpeg_base64, serializer);
+        <Option<String>>::sse_encode(self.identifier, serializer);
+        <Option<String>>::sse_encode(self.email, serializer);
+        <[u8; 32]>::sse_encode(self.description_hash, serializer);
+        <String>::sse_encode(self.raw, serializer);
+    }
+}
+
 impl SseEncode for crate::ffi::types::LxChannelDetails {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -5153,6 +5300,12 @@ impl SseEncode for crate::ffi::types::PaymentMethod {
             crate::ffi::types::PaymentMethod::Offer(field0) => {
                 <i32>::sse_encode(2, serializer);
                 <crate::ffi::types::Offer>::sse_encode(field0, serializer);
+            }
+            crate::ffi::types::PaymentMethod::LnurlPayRequest(field0) => {
+                <i32>::sse_encode(3, serializer);
+                <crate::ffi::types::LnurlPayRequest>::sse_encode(
+                    field0, serializer,
+                );
             }
             _ => {
                 unimplemented!("");

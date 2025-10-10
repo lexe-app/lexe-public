@@ -15,6 +15,15 @@
 //! + [ACINQ/phoenix - Parser](https://github.com/ACINQ/phoenix/blob/master/phoenix-shared/src/commonMain/kotlin/fr.acinq.phoenix/utils/Parser.kt)
 //! + [breez/breez-sdk - input_parser.rs](https://github.com/breez/breez-sdk-greenlight/blob/main/libs/sdk-common/src/input_parser.rs)
 //! + [MutinyWallet/bitcoin_waila (unmaintained)](https://github.com/MutinyWallet/bitcoin-waila/blob/master/waila/src/lib.rs)
+//!
+//! # Prompts
+//!
+//! ```md
+//! Please read these URI parser impls:
+//! - `~/lexe/github/breez-sdk-greenlight/libs/sdk-common/src/input_parser.rs`
+//! - `~/lexe/github/phoenix/phoenix-shared/src/commonMain/kotlin/fr.acinq.phoenix/utils/Parser.kt` (and files nearby)
+//! - `~/lexe/github/bitcoin-waila/waila/src/lib.rs`
+//! ```
 
 // `proptest_derive::Arbitrary` issue. This will hard-error for edition 2024 so
 // hopefully it gets fixed soon...
@@ -35,7 +44,10 @@ pub use crate::{
     bip321_uri::Bip321Uri,
     email_like::EmailLikeAddress,
     lightning_uri::LightningUri,
-    lnurl::Lnurl,
+    lnurl::{
+        lud06::{LnurlPayRequest, LnurlPayRequestMetadata},
+        Lnurl,
+    },
     payment_method::{Onchain, PaymentMethod},
     payment_uri::PaymentUri,
 };

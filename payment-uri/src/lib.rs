@@ -41,8 +41,9 @@ pub async fn resolve_best(
     let best = payment_methods
         .into_iter()
         .max_by_key(|x| match x {
-            PaymentMethod::Invoice(_) => 30,
-            PaymentMethod::Offer(_) => 20,
+            PaymentMethod::Invoice(_) => 40,
+            PaymentMethod::Offer(_) => 30,
+            PaymentMethod::LnurlPayRequest(_) => 20,
             PaymentMethod::Onchain(o) => 10 + o.relative_priority(),
         })
         .expect("We just checked there's at least one method");

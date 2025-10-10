@@ -15,7 +15,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         PreflightOpenChannelResponse,
         PreflightPayInvoiceResponse,
         PreflightPayOnchainResponse;
-import 'package:app_rs_dart/ffi/app.dart' show U8Array16, U8Array32;
+import 'package:app_rs_dart/ffi/app.dart' show U8Array16;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         AppUserInfo,
@@ -29,6 +29,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         RootSeed,
         UserChannelId;
 import 'package:app_rs_dart/ffi/types.ext.dart' show PaymentExt;
+import 'package:app_rs_dart/lib.dart' show U8Array32;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;

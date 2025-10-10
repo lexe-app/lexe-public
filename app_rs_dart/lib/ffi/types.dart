@@ -15,7 +15,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 /// Some assorted user/node info. This is kinda hacked together currently just
 /// to support account deletion requests.
@@ -101,6 +101,84 @@ class Invoice with _$Invoice {
     int? amountSats,
     required String payeePubkey,
   }) = _Invoice;
+}
+
+class LnurlPayRequest {
+  final String callback;
+  final int minSendableMsat;
+  final int maxSendableMsat;
+  final LnurlPayRequestMetadata metadata;
+
+  const LnurlPayRequest({
+    required this.callback,
+    required this.minSendableMsat,
+    required this.maxSendableMsat,
+    required this.metadata,
+  });
+
+  @override
+  int get hashCode =>
+      callback.hashCode ^
+      minSendableMsat.hashCode ^
+      maxSendableMsat.hashCode ^
+      metadata.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LnurlPayRequest &&
+          runtimeType == other.runtimeType &&
+          callback == other.callback &&
+          minSendableMsat == other.minSendableMsat &&
+          maxSendableMsat == other.maxSendableMsat &&
+          metadata == other.metadata;
+}
+
+class LnurlPayRequestMetadata {
+  final String description;
+  final String? longDescription;
+  final String? imagePngBase64;
+  final String? imageJpegBase64;
+  final String? identifier;
+  final String? email;
+  final U8Array32 descriptionHash;
+  final String raw;
+
+  const LnurlPayRequestMetadata({
+    required this.description,
+    this.longDescription,
+    this.imagePngBase64,
+    this.imageJpegBase64,
+    this.identifier,
+    this.email,
+    required this.descriptionHash,
+    required this.raw,
+  });
+
+  @override
+  int get hashCode =>
+      description.hashCode ^
+      longDescription.hashCode ^
+      imagePngBase64.hashCode ^
+      imageJpegBase64.hashCode ^
+      identifier.hashCode ^
+      email.hashCode ^
+      descriptionHash.hashCode ^
+      raw.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LnurlPayRequestMetadata &&
+          runtimeType == other.runtimeType &&
+          description == other.description &&
+          longDescription == other.longDescription &&
+          imagePngBase64 == other.imagePngBase64 &&
+          imageJpegBase64 == other.imageJpegBase64 &&
+          identifier == other.identifier &&
+          email == other.email &&
+          descriptionHash == other.descriptionHash &&
+          raw == other.raw;
 }
 
 class LxChannelDetails {
@@ -230,6 +308,8 @@ sealed class PaymentMethod with _$PaymentMethod {
   const factory PaymentMethod.onchain(Onchain field0) = PaymentMethod_Onchain;
   const factory PaymentMethod.invoice(Invoice field0) = PaymentMethod_Invoice;
   const factory PaymentMethod.offer(Offer field0) = PaymentMethod_Offer;
+  const factory PaymentMethod.lnurlPayRequest(LnurlPayRequest field0) =
+      PaymentMethod_LnurlPayRequest;
 }
 
 enum PaymentStatus { pending, completed, failed }

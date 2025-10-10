@@ -166,6 +166,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Invoice dco_decode_box_autoadd_invoice(dynamic raw);
 
   @protected
+  LnurlPayRequest dco_decode_box_autoadd_lnurl_pay_request(dynamic raw);
+
+  @protected
   Offer dco_decode_box_autoadd_offer(dynamic raw);
 
   @protected
@@ -329,6 +332,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   List<RevocableClient> dco_decode_list_revocable_client(dynamic raw);
+
+  @protected
+  LnurlPayRequest dco_decode_lnurl_pay_request(dynamic raw);
+
+  @protected
+  LnurlPayRequestMetadata dco_decode_lnurl_pay_request_metadata(dynamic raw);
 
   @protected
   LxChannelDetails dco_decode_lx_channel_details(dynamic raw);
@@ -657,6 +666,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Invoice sse_decode_box_autoadd_invoice(SseDeserializer deserializer);
 
   @protected
+  LnurlPayRequest sse_decode_box_autoadd_lnurl_pay_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Offer sse_decode_box_autoadd_offer(SseDeserializer deserializer);
 
   @protected
@@ -870,6 +884,14 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   List<RevocableClient> sse_decode_list_revocable_client(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  LnurlPayRequest sse_decode_lnurl_pay_request(SseDeserializer deserializer);
+
+  @protected
+  LnurlPayRequestMetadata sse_decode_lnurl_pay_request_metadata(
     SseDeserializer deserializer,
   );
 
@@ -1257,6 +1279,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_box_autoadd_invoice(Invoice self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_lnurl_pay_request(
+    LnurlPayRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_offer(Offer self, SseSerializer serializer);
 
   @protected
@@ -1511,6 +1539,18 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_list_revocable_client(
     List<RevocableClient> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_lnurl_pay_request(
+    LnurlPayRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_lnurl_pay_request_metadata(
+    LnurlPayRequestMetadata self,
     SseSerializer serializer,
   );
 

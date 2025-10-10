@@ -29,6 +29,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentKind,
         PaymentMethod,
         PaymentMethod_Invoice,
+        PaymentMethod_LnurlPayRequest,
         PaymentMethod_Offer,
         PaymentMethod_Onchain,
         PaymentStatus;
@@ -158,6 +159,7 @@ class SendState_NeedAmount implements SendState {
     PaymentMethod_Onchain(:final field0) => field0.amountSats,
     PaymentMethod_Invoice(:final field0) => field0.amountSats,
     PaymentMethod_Offer(:final field0) => field0.amountSats,
+    PaymentMethod_LnurlPayRequest() => null,
   };
 
   /// Using the current [PaymentMethod], preflight the payment with the given
@@ -240,6 +242,9 @@ class SendState_NeedAmount implements SendState {
           case Err(:final err):
             return Err(err);
         }
+
+      case PaymentMethod_LnurlPayRequest():
+        throw UnimplementedError("LNURL-Pay not implemented yet");
     }
 
     return Ok(

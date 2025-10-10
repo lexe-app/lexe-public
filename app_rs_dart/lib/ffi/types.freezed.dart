@@ -792,6 +792,41 @@ abstract class PaymentMethod_Offer extends PaymentMethod {
 }
 
 /// @nodoc
+
+class _$PaymentMethod_LnurlPayRequestImpl
+    extends PaymentMethod_LnurlPayRequest {
+  const _$PaymentMethod_LnurlPayRequestImpl(this.field0) : super._();
+
+  @override
+  final LnurlPayRequest field0;
+
+  @override
+  String toString() {
+    return 'PaymentMethod.lnurlPayRequest(field0: $field0)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PaymentMethod_LnurlPayRequestImpl &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+}
+
+abstract class PaymentMethod_LnurlPayRequest extends PaymentMethod {
+  const factory PaymentMethod_LnurlPayRequest(final LnurlPayRequest field0) =
+      _$PaymentMethod_LnurlPayRequestImpl;
+  const PaymentMethod_LnurlPayRequest._() : super._();
+
+  @override
+  LnurlPayRequest get field0;
+}
+
+/// @nodoc
 mixin _$ShortPayment {
   PaymentIndex get index => throw _privateConstructorUsedError;
   PaymentKind get kind => throw _privateConstructorUsedError;

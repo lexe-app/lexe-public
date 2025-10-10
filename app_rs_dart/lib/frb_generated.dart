@@ -2912,6 +2912,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  LnurlPayRequest dco_decode_box_autoadd_lnurl_pay_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_lnurl_pay_request(raw);
+  }
+
+  @protected
   Offer dco_decode_box_autoadd_offer(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_offer(raw);
@@ -3344,6 +3350,38 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  LnurlPayRequest dco_decode_lnurl_pay_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return LnurlPayRequest(
+      callback: dco_decode_String(arr[0]),
+      minSendableMsat: dco_decode_CastedPrimitive_u_64(arr[1]),
+      maxSendableMsat: dco_decode_CastedPrimitive_u_64(arr[2]),
+      metadata: dco_decode_lnurl_pay_request_metadata(arr[3]),
+    );
+  }
+
+  @protected
+  LnurlPayRequestMetadata dco_decode_lnurl_pay_request_metadata(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return LnurlPayRequestMetadata(
+      description: dco_decode_String(arr[0]),
+      longDescription: dco_decode_opt_String(arr[1]),
+      imagePngBase64: dco_decode_opt_String(arr[2]),
+      imageJpegBase64: dco_decode_opt_String(arr[3]),
+      identifier: dco_decode_opt_String(arr[4]),
+      email: dco_decode_opt_String(arr[5]),
+      descriptionHash: dco_decode_u_8_array_32(arr[6]),
+      raw: dco_decode_String(arr[7]),
+    );
+  }
+
+  @protected
   LxChannelDetails dco_decode_lx_channel_details(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -3670,6 +3708,10 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         return PaymentMethod_Invoice(dco_decode_box_autoadd_invoice(raw[1]));
       case 2:
         return PaymentMethod_Offer(dco_decode_box_autoadd_offer(raw[1]));
+      case 3:
+        return PaymentMethod_LnurlPayRequest(
+          dco_decode_box_autoadd_lnurl_pay_request(raw[1]),
+        );
       default:
         throw Exception("unreachable");
     }
@@ -4235,6 +4277,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  LnurlPayRequest sse_decode_box_autoadd_lnurl_pay_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_lnurl_pay_request(deserializer));
+  }
+
+  @protected
   Offer sse_decode_box_autoadd_offer(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_offer(deserializer));
@@ -4724,6 +4774,46 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  LnurlPayRequest sse_decode_lnurl_pay_request(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_callback = sse_decode_String(deserializer);
+    var var_minSendableMsat = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_maxSendableMsat = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_metadata = sse_decode_lnurl_pay_request_metadata(deserializer);
+    return LnurlPayRequest(
+      callback: var_callback,
+      minSendableMsat: var_minSendableMsat,
+      maxSendableMsat: var_maxSendableMsat,
+      metadata: var_metadata,
+    );
+  }
+
+  @protected
+  LnurlPayRequestMetadata sse_decode_lnurl_pay_request_metadata(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_description = sse_decode_String(deserializer);
+    var var_longDescription = sse_decode_opt_String(deserializer);
+    var var_imagePngBase64 = sse_decode_opt_String(deserializer);
+    var var_imageJpegBase64 = sse_decode_opt_String(deserializer);
+    var var_identifier = sse_decode_opt_String(deserializer);
+    var var_email = sse_decode_opt_String(deserializer);
+    var var_descriptionHash = sse_decode_u_8_array_32(deserializer);
+    var var_raw = sse_decode_String(deserializer);
+    return LnurlPayRequestMetadata(
+      description: var_description,
+      longDescription: var_longDescription,
+      imagePngBase64: var_imagePngBase64,
+      imageJpegBase64: var_imageJpegBase64,
+      identifier: var_identifier,
+      email: var_email,
+      descriptionHash: var_descriptionHash,
+      raw: var_raw,
+    );
+  }
+
+  @protected
   LxChannelDetails sse_decode_lx_channel_details(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_channelId = sse_decode_String(deserializer);
@@ -5171,6 +5261,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       case 2:
         var var_field0 = sse_decode_box_autoadd_offer(deserializer);
         return PaymentMethod_Offer(var_field0);
+      case 3:
+        var var_field0 = sse_decode_box_autoadd_lnurl_pay_request(deserializer);
+        return PaymentMethod_LnurlPayRequest(var_field0);
       default:
         throw UnimplementedError('');
     }
@@ -5736,6 +5829,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_lnurl_pay_request(
+    LnurlPayRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_lnurl_pay_request(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_offer(Offer self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_offer(self, serializer);
@@ -6202,6 +6304,34 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_lnurl_pay_request(
+    LnurlPayRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.callback, serializer);
+    sse_encode_CastedPrimitive_u_64(self.minSendableMsat, serializer);
+    sse_encode_CastedPrimitive_u_64(self.maxSendableMsat, serializer);
+    sse_encode_lnurl_pay_request_metadata(self.metadata, serializer);
+  }
+
+  @protected
+  void sse_encode_lnurl_pay_request_metadata(
+    LnurlPayRequestMetadata self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.description, serializer);
+    sse_encode_opt_String(self.longDescription, serializer);
+    sse_encode_opt_String(self.imagePngBase64, serializer);
+    sse_encode_opt_String(self.imageJpegBase64, serializer);
+    sse_encode_opt_String(self.identifier, serializer);
+    sse_encode_opt_String(self.email, serializer);
+    sse_encode_u_8_array_32(self.descriptionHash, serializer);
+    sse_encode_String(self.raw, serializer);
+  }
+
+  @protected
   void sse_encode_lx_channel_details(
     LxChannelDetails self,
     SseSerializer serializer,
@@ -6583,6 +6713,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       case PaymentMethod_Offer(field0: final field0):
         sse_encode_i_32(2, serializer);
         sse_encode_box_autoadd_offer(field0, serializer);
+      case PaymentMethod_LnurlPayRequest(field0: final field0):
+        sse_encode_i_32(3, serializer);
+        sse_encode_box_autoadd_lnurl_pay_request(field0, serializer);
     }
   }
 

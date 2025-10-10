@@ -11,6 +11,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentKind,
         PaymentMethod,
         PaymentMethod_Invoice,
+        PaymentMethod_LnurlPayRequest,
         PaymentMethod_Offer,
         PaymentMethod_Onchain,
         PaymentStatus,
@@ -106,12 +107,16 @@ extension PaymentMethodExt on PaymentMethod {
     PaymentMethod_Onchain(:final field0) => field0.amountSats,
     PaymentMethod_Invoice(:final field0) => field0.amountSats,
     PaymentMethod_Offer(:final field0) => field0.amountSats,
+    PaymentMethod_LnurlPayRequest() => null,
   };
 
   PaymentKind kind() => switch (this) {
     PaymentMethod_Onchain() => PaymentKind.onchain,
     PaymentMethod_Invoice() => PaymentKind.invoice,
     PaymentMethod_Offer() => PaymentKind.offer,
+    PaymentMethod_LnurlPayRequest() => throw UnimplementedError(
+      "LNURL-Pay not implemented yet",
+    ),
   };
 }
 

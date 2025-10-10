@@ -8,6 +8,8 @@ use proptest::strategy::Strategy;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
+use crate::LnurlPayRequest;
+
 /// A single "payment method" -- each kind here should correspond with a single
 /// linear payment flow for a user, where there are no other alternate methods.
 ///
@@ -19,6 +21,7 @@ pub enum PaymentMethod {
     Onchain(Onchain),
     Invoice(LxInvoice),
     Offer(LxOffer),
+    LnurlPayRequest(LnurlPayRequest),
 }
 
 impl PaymentMethod {
@@ -36,9 +39,10 @@ impl PaymentMethod {
 
     pub fn supports_network(&self, network: LxNetwork) -> bool {
         match self {
-            Self::Onchain(x) => x.supports_network(network),
-            Self::Invoice(x) => x.supports_network(network),
-            Self::Offer(x) => x.supports_network(network),
+            Self::Onchain(o) => o.supports_network(network),
+            Self::Invoice(i) => i.supports_network(network),
+            Self::Offer(o) => o.supports_network(network),
+            Self::LnurlPayRequest(_) => true,
         }
     }
 }
