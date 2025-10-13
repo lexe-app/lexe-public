@@ -18,6 +18,7 @@ import 'package:lexeapp/components.dart'
         LxBackButton,
         LxCloseButton,
         LxCloseButtonKind,
+        LxFilledButton,
         MultistepFlow,
         ScrollableSinglePageBody,
         SubheadingText,
@@ -56,9 +57,8 @@ class _ProdRestoreApi implements RestoreApi {
   );
 }
 
-/// The entry point into the gdrive wallet restore UI flow.
-class RestoreGDrivePage extends StatelessWidget {
-  const RestoreGDrivePage({
+class RestorePage extends StatelessWidget {
+  const RestorePage({
     super.key,
     required this.config,
     required this.gdriveAuth,
@@ -69,12 +69,75 @@ class RestoreGDrivePage extends StatelessWidget {
   final GDriveAuth gdriveAuth;
   final RestoreApi restoreApi;
 
+  Future<void> onGDrivePressed(BuildContext context) async {
+    final AppHandle? flowResult = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RestoreGDriveAuthPage(
+          config: this.config,
+          gdriveAuth: this.gdriveAuth,
+          restoreApi: this.restoreApi,
+        ),
+      ),
+    );
+    if (flowResult == null || !context.mounted) return;
+
+    unawaited(Navigator.of(context).maybePop(flowResult));
+  }
+
+  void onSeedPhrasePressed() {}
+
   @override
   Widget build(BuildContext context) => MultistepFlow<AppHandle?>(
-    builder: (_) => RestoreGDriveAuthPage(
-      config: this.config,
-      gdriveAuth: this.gdriveAuth,
-      restoreApi: this.restoreApi,
+    builder: (_) => Scaffold(
+      appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
+        leading: const LxBackButton(isLeading: true),
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const Icon(
+            LxIcons.nodeInfo,
+            size: Space.s900,
+            weight: 300,
+            opticalSize: 48,
+            grade: -50,
+          ),
+          MarkdownBody(
+            data: '''
+# Restore Wallet
+
+Already have a Lexe Wallet?
+Connect your Google Drive to restore from an existing Lexe
+Wallet backup or use your Seed Phrase.
+''',
+            styleSheet: LxTheme.markdownStyle,
+          ),
+        ],
+        bottom: Padding(
+          padding: const EdgeInsets.only(top: Space.s500),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              LxFilledButton(
+                onTap: () => this.onGDrivePressed(context),
+                label: const Text("Restore from Google Drive"),
+                icon: const Icon(LxIcons.next),
+                style: FilledButton.styleFrom(
+                  backgroundColor: LxColors.foreground,
+                  foregroundColor: LxColors.background,
+                  iconColor: LxColors.background,
+                ),
+              ),
+              const SizedBox(height: Space.s400),
+              LxFilledButton(
+                onTap: this.onSeedPhrasePressed,
+                label: const Text("Restore from Seed Phrase"),
+                icon: const Icon(LxIcons.next),
+              ),
+            ],
+          ),
+        ),
+      ),
     ),
   );
 }
@@ -255,7 +318,7 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
             data: '''
 # Restore wallet from Google Drive
 
-Already have a Lexe Wallet? Connect your Google Drive to restore from an existing Lexe Wallet backup.
+Connect your Google Drive to restore from an existing Lexe Wallet backup.
 
 - **Your wallet backup is encrypted**. You'll need your backup password in a moment.
 - Lexe cannot access any files in your Drive.
