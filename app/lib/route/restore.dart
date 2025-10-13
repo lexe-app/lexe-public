@@ -57,8 +57,8 @@ class _ProdRestoreApi implements RestoreApi {
 }
 
 /// The entry point into the gdrive wallet restore UI flow.
-class RestorePage extends StatelessWidget {
-  const RestorePage({
+class RestoreGDrivePage extends StatelessWidget {
+  const RestoreGDrivePage({
     super.key,
     required this.config,
     required this.gdriveAuth,

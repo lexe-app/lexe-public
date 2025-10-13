@@ -75,7 +75,7 @@ import 'package:lexeapp/route/receive/page.dart'
     show ReceivePaymentEditPage, ReceivePaymentPage;
 import 'package:lexeapp/route/receive/state.dart' show AmountDescription;
 import 'package:lexeapp/route/restore.dart'
-    show RestoreChooseWalletPage, RestorePage, RestorePasswordPage;
+    show RestoreChooseWalletPage, RestoreGDrivePage, RestorePasswordPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
@@ -326,16 +326,16 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               ),
             ),
             Component(
-              "RestorePage (mock gdrive)",
-              (context) => RestorePage(
+              "RestoreGDrivePage (mock gdrive)",
+              (context) => RestoreGDrivePage(
                 config: widget.config,
                 gdriveAuth: GDriveAuth.mock,
                 restoreApi: mockRestoreApi,
               ),
             ),
             Component(
-              "RestorePage (real gdrive)",
-              (context) => RestorePage(
+              "RestoreGDrivePage (real gdrive)",
+              (context) => RestoreGDrivePage(
                 config: widget.config,
                 gdriveAuth: GDriveAuth.prod,
                 restoreApi: mockRestoreApi,
