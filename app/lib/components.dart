@@ -2272,3 +2272,69 @@ class _MultiTapDetectorState extends State<MultiTapDetector> {
     return GestureDetector(onTap: this.onTap, child: widget.child);
   }
 }
+
+/// A single "{idx}. {word}" line in a SeedWordCard.
+class SeedWord extends StatelessWidget {
+  const SeedWord({super.key, required this.index, required this.word})
+    : _onRemove = null;
+
+  const SeedWord.removable({
+    super.key,
+    required this.index,
+    required this.word,
+    required VoidCallback onRemove,
+  }) : _onRemove = onRemove;
+
+  final int index;
+  final String word;
+  final VoidCallback? _onRemove;
+
+  static const _indexStyle = TextStyle(
+    fontSize: Fonts.size200,
+    color: LxColors.fgSecondary,
+    fontFeatures: [Fonts.featTabularNumbers],
+    fontVariations: [Fonts.weightLight],
+  );
+
+  static const _wordStyle = TextStyle(
+    fontSize: Fonts.size200,
+    fontVariations: [Fonts.weightSemiBold],
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: Space.s500,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          SizedBox(
+            width: Space.s550,
+            child: Text(
+              "${this.index + 1}.",
+              textAlign: TextAlign.right,
+              style: _indexStyle,
+            ),
+          ),
+          const SizedBox(width: Space.s300),
+          Text(this.word, textAlign: TextAlign.left, style: _wordStyle),
+
+          if (this._onRemove != null)
+            GestureDetector(
+              onTap: this._onRemove,
+              child: const Padding(
+                padding: EdgeInsets.only(left: Space.s100),
+                child: Icon(
+                  LxIcons.close,
+                  size: Fonts.size200,
+                  color: LxColors.fgSecondary,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}

@@ -22,6 +22,7 @@ import 'package:lexeapp/components.dart'
         LxFilledButton,
         MultistepFlow,
         ScrollableSinglePageBody,
+        SeedWord,
         SubheadingText,
         baseInputDecoration;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
@@ -905,12 +906,16 @@ class EnteredWordDisplay extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: List.generate(numberOfWords, (index) {
           final wordIndex = startIndex + index;
-          return EnteredWordSlot(
-            index: wordIndex,
-            word: wordIndex < words.length ? words[wordIndex] : "",
-            isLast: wordIndex == words.length - 1,
-            onRemove: this.onRemoveLast,
-          );
+          final isLast = wordIndex == words.length - 1;
+          final word = wordIndex < words.length ? words[wordIndex] : "";
+          if (isLast) {
+            return SeedWord.removable(
+              index: wordIndex,
+              word: word,
+              onRemove: this.onRemoveLast,
+            );
+          }
+          return SeedWord(index: wordIndex, word: word);
         }),
       ),
     );
@@ -935,74 +940,6 @@ class EnteredWordDisplay extends StatelessWidget {
           this._wordColumn(12, 0),
           const SizedBox(width: Space.s400),
           this._wordColumn(12, 12),
-        ],
-      ),
-    );
-  }
-}
-
-class EnteredWordSlot extends StatelessWidget {
-  const EnteredWordSlot({
-    super.key,
-    required this.index,
-    required this.word,
-    required this.isLast,
-    required this.onRemove,
-  });
-
-  final int index;
-  final String word;
-  final bool isLast;
-  final VoidCallback onRemove;
-
-  // TODO(Maurice): Use styles instead of inline style
-  @override
-  Widget build(BuildContext context) {
-    final hasWord = word.isNotEmpty;
-    const fontSize = Fonts.size200;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: Space.s200),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: Space.s600,
-            child: Text(
-              "${index + 1}.",
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: fontSize,
-                color: hasWord ? LxColors.fgSecondary : LxColors.grey375,
-                fontFeatures: const [Fonts.featTabularNumbers],
-                fontVariations: const [Fonts.weightLight],
-              ),
-            ),
-          ),
-          Text(
-            hasWord ? " $word" : "",
-            textAlign: TextAlign.left,
-            style: TextStyle(
-              fontSize: fontSize,
-              fontVariations: hasWord
-                  ? [Fonts.weightMedium]
-                  : [Fonts.weightLight],
-              color: hasWord ? LxColors.foreground : LxColors.grey850,
-            ),
-          ),
-
-          if (hasWord && isLast)
-            GestureDetector(
-              onTap: onRemove,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: Space.s100),
-                child: Icon(
-                  LxIcons.close,
-                  size: fontSize,
-                  color: LxColors.fgSecondary,
-                ),
-              ),
-            ),
         ],
       ),
     );

@@ -20,6 +20,7 @@ import 'package:lexeapp/components.dart'
         LxFilledButton,
         MultistepFlow,
         ScrollableSinglePageBody,
+        SeedWord,
         SubheadingText,
         baseInputDecoration;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
@@ -949,47 +950,6 @@ class SeedWordsCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// A single "{idx}. {word}" line in the [SeedWordsCard].
-class SeedWord extends StatelessWidget {
-  const SeedWord({super.key, required this.index, required this.word});
-
-  final int index;
-  final String word;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      textBaseline: TextBaseline.alphabetic,
-      children: [
-        SizedBox(
-          width: Space.s550,
-          child: Text(
-            "${this.index + 1}.",
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              fontSize: Fonts.size200,
-              color: LxColors.fgSecondary,
-              fontFeatures: [Fonts.featTabularNumbers],
-              fontVariations: [Fonts.weightLight],
-            ),
-          ),
-        ),
-        const SizedBox(width: Space.s300),
-        Text(
-          this.word,
-          textAlign: TextAlign.left,
-          style: const TextStyle(
-            fontSize: Fonts.size300,
-            fontVariations: [Fonts.weightSemiBold],
-          ),
-        ),
-      ],
     );
   }
 }
