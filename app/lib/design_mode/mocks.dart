@@ -722,7 +722,7 @@ class MockRestoreApi implements RestoreApi {
   @override
   Future<FfiResult<AppHandle>> restore({
     required Config config,
-    required String googleAuthCode,
+    String? googleAuthCode,
     required RootSeed rootSeed,
   }) => Future.delayed(const Duration(milliseconds: 2000), () => Ok(this.app));
 }

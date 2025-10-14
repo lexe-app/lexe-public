@@ -184,7 +184,7 @@ class AppHandle {
 
   static Future<AppHandle> restore({
     required Config config,
-    required String googleAuthCode,
+    String? googleAuthCode,
     required RootSeed rootSeed,
   }) => AppRs.instance.api.crateFfiAppAppHandleRestore(
     config: config,

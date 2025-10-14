@@ -165,6 +165,15 @@ impl RootSeed {
         assert_eq!(mnemonic.word_count(), 24);
         mnemonic.words().map(|w| w.to_owned()).collect::<Vec<_>>()
     }
+
+    #[frb(sync)]
+    pub fn from_mnemonic(mnemonic: Vec<String>) -> anyhow::Result<Self> {
+        let words = mnemonic.join(" ");
+        let root_seed_rs = RootSeedRs::try_from(words.as_str())?;
+        Ok(Self {
+            inner: RustOpaqueNom::new(root_seed_rs),
+        })
+    }
 }
 
 impl From<RootSeedRs> for RootSeed {

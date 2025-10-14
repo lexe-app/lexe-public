@@ -78,7 +78,7 @@ impl AppHandle {
 
     pub async fn restore(
         config: Config,
-        google_auth_code: String,
+        google_auth_code: Option<String>,
         root_seed: RootSeed,
     ) -> anyhow::Result<AppHandle> {
         // Ignored in local dev.
@@ -87,7 +87,7 @@ impl AppHandle {
         // the enclave to get access+refresh tokens.
         let google_auth_code = match DeployEnv::from(config.deploy_env) {
             DeployEnv::Dev => None,
-            DeployEnv::Prod | DeployEnv::Staging => Some(google_auth_code),
+            DeployEnv::Prod | DeployEnv::Staging => google_auth_code,
         };
 
         App::restore(
