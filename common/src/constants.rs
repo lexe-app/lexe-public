@@ -139,7 +139,7 @@ pub const TESTNET3_LEXE_BLOCKSTREAM_ESPLORA: &str =
 pub const TESTNET3_PUBLIC_BLOCKSTREAM_ESPLORA: &str =
     "https://blockstream.info/testnet/api";
 pub const TESTNET3_LTBL_ESPLORA: &str = "https://testnet.ltbl.io/api";
-pub const TESTNET3_LEXE_ESPLORA: &str = "http://testnet.esplora.lexe.app:3001";
+pub const TESTNET3_LEXE_ESPLORA: &str = "https://esplora.staging.lexe.app/api";
 pub const TESTNET3_ESPLORA_WHITELIST: [&str; 5] = [
     TESTNET3_LEXE_BLOCKSTREAM_ESPLORA,
     TESTNET3_PUBLIC_BLOCKSTREAM_ESPLORA,
