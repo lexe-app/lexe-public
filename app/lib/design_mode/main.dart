@@ -216,6 +216,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
     final mockSignupApi = mocks.MockSignupApi(app: mockApp);
     const mockSignupApiErr = mocks.MockSignupApiErr();
     final mockRestoreApi = mocks.MockRestoreApi(app: mockApp);
+    const mockRestoreApiErr = mocks.MockRestoreApiErr();
     const mockRootSeed = MockRootSeed();
     final mockSignupCtx = SignupCtx(
       this.widget.config,
@@ -393,6 +394,13 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (context) => RestoreSeedPhrasePage(
                 config: widget.config,
                 restoreApi: mockRestoreApi,
+              ),
+            ),
+            Component(
+              "RestoreSeedPhrasePage (Error)",
+              (context) => RestoreSeedPhrasePage(
+                config: widget.config,
+                restoreApi: mockRestoreApiErr,
               ),
             ),
             Component(

@@ -727,6 +727,20 @@ class MockRestoreApi implements RestoreApi {
   }) => Future.delayed(const Duration(milliseconds: 2000), () => Ok(this.app));
 }
 
+class MockRestoreApiErr implements RestoreApi {
+  const MockRestoreApiErr();
+
+  @override
+  Future<FfiResult<AppHandle>> restore({
+    required Config config,
+    String? googleAuthCode,
+    required RootSeed rootSeed,
+  }) => Future.delayed(
+    const Duration(milliseconds: 2000),
+    () => const Err(FfiError("[Connect=10] Could not connect")),
+  );
+}
+
 //
 // Dummy balance data
 //
