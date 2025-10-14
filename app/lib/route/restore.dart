@@ -638,7 +638,7 @@ class RestoreSeedPhrasePage extends StatefulWidget {
 class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
   final TextEditingController textController = TextEditingController();
   final FocusNode textFocusNode = FocusNode();
-  final ValueNotifier<List<String>> enteredWords = ValueNotifier([]);
+  final ValueNotifier<List<String>> mnemonicWords = ValueNotifier([]);
   final ValueNotifier<List<String>> suggestions = ValueNotifier([]);
   final ValueNotifier<bool> isRestoring = ValueNotifier(false);
   final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
@@ -648,7 +648,7 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
   void dispose() {
     textController.dispose();
     textFocusNode.dispose();
-    enteredWords.dispose();
+    mnemonicWords.dispose();
     suggestions.dispose();
     isRestoring.dispose();
     errorMessage.dispose();
@@ -673,12 +673,12 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
   }
 
   void onWordSelected(String word) {
-    final currentWords = this.enteredWords.value;
+    final currentWords = this.mnemonicWords.value;
 
     if (currentWords.length >= amountWords) return;
     if (!this.isValidWord(word)) return;
 
-    this.enteredWords.value = [...currentWords, word];
+    this.mnemonicWords.value = [...currentWords, word];
     this.textController.clear();
     suggestions.value = [];
     errorMessage.value = null;
@@ -686,9 +686,9 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
   }
 
   void onRemoveLastWord() {
-    final currentWords = this.enteredWords.value;
+    final currentWords = this.mnemonicWords.value;
     if (currentWords.isEmpty) return;
-    enteredWords.value = currentWords.sublist(0, currentWords.length - 1);
+    mnemonicWords.value = currentWords.sublist(0, currentWords.length - 1);
     textFocusNode.requestFocus();
   }
 
@@ -709,7 +709,7 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
 
   Future<void> onSubmitInner() async {
     info("restore: user restores from seed");
-    final wordList = this.enteredWords.value;
+    final wordList = this.mnemonicWords.value;
     final restoreApi = this.widget.restoreApi;
     final config = this.widget.config;
     final rootSeedResult = Result.tryFfi(
@@ -785,9 +785,9 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
           ),
           const SizedBox(height: Space.s200),
           ValueListenableBuilder(
-            valueListenable: this.enteredWords,
-            builder: (context, enteredWords, widget) => EnteredWordDisplay(
-              words: this.enteredWords,
+            valueListenable: this.mnemonicWords,
+            builder: (context, mnemonicWords, widget) => EnteredWordDisplay(
+              words: this.mnemonicWords,
               onRemoveLast: this.onRemoveLastWord,
             ),
           ),
@@ -801,12 +801,12 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
         bottom: Padding(
           padding: const EdgeInsets.only(top: Space.s500),
           child: ValueListenableBuilder(
-            valueListenable: this.enteredWords,
+            valueListenable: this.mnemonicWords,
             builder: (context, value, child) {
               return ValueListenableBuilder(
                 valueListenable: this.isRestoring,
                 builder: (context, isRestoring, widget) => AnimatedFillButton(
-                  onTap: this.enteredWords.value.length >= amountWords
+                  onTap: this.mnemonicWords.value.length >= amountWords
                       ? this.onSubmit
                       : null,
                   loading: isRestoring,
