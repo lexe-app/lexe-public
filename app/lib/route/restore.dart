@@ -36,7 +36,7 @@ abstract interface class RestoreApi {
 
   Future<FfiResult<AppHandle>> restore({
     required Config config,
-    required String googleAuthCode,
+    String? googleAuthCode,
     required RootSeed rootSeed,
   });
 }
@@ -47,7 +47,7 @@ class _ProdRestoreApi implements RestoreApi {
   @override
   Future<FfiResult<AppHandle>> restore({
     required Config config,
-    required String googleAuthCode,
+    String? googleAuthCode,
     required RootSeed rootSeed,
   }) => Result.tryFfiAsync(
     () => AppHandle.restore(
@@ -630,6 +630,7 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
   final ValueNotifier<List<String>> suggestions = ValueNotifier([]);
   final ValueNotifier<bool> isRestoring = ValueNotifier(false);
   final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
+  static const amountWords = 24;
 
   @override
   void dispose() {
@@ -662,7 +663,7 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
   void onWordSelected(String word) {
     final currentWords = this.enteredWords.value;
 
-    if (currentWords.length >= 24) return;
+    if (currentWords.length >= amountWords) return;
     if (!this.isValidWord(word)) return;
 
     this.enteredWords.value = [...currentWords, word];
@@ -683,8 +684,56 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
     return form.isMnemonicWord(word: word);
   }
 
-  void onSubmit() {
-    // TODO(Maurice): Do something.
+  Future<void> onSubmit() async {
+    if (this.isRestoring.value) return;
+
+    this.isRestoring.value = true;
+    try {
+      await this.onSubmitInner();
+    } finally {
+      if (this.mounted) this.isRestoring.value = false;
+    }
+  }
+
+  Future<void> onSubmitInner() async {
+    info("restore: user restores from seed");
+    final wordList = this.enteredWords.value;
+    final restoreApi = this.widget.restoreApi;
+    final config = this.widget.config;
+    final rootSeedResult = Result.tryFfi(
+      () => RootSeed.fromMnemonic(mnemonic: wordList),
+    );
+    final RootSeed rootSeed;
+    switch (rootSeedResult) {
+      case Ok(:final ok):
+        rootSeed = ok;
+      case Err(:final err):
+        this.errorMessage.value = ErrorMessage(
+          title: "Error restoring wallet",
+          message: err.message,
+        );
+        return;
+    }
+
+    final result = await restoreApi.restore(
+      config: config,
+      googleAuthCode: null,
+      rootSeed: rootSeed,
+    );
+    if (!this.mounted) return;
+    final AppHandle flowResult;
+    switch (result) {
+      case Ok(:final ok):
+        flowResult = ok;
+      case Err(:final err):
+        error("restore: AppHandle.restore failed: $err");
+        this.errorMessage.value = ErrorMessage(
+          title: "Error restoring wallet",
+          message: err.message,
+        );
+        return;
+    }
+    unawaited(Navigator.of(this.context).maybePop(flowResult));
   }
 
   @override
@@ -730,29 +779,35 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
               onRemoveLast: this.onRemoveLastWord,
             ),
           ),
-          // TODO(Maurice): add error message when pressed Done in iOS and word does not exists.
+          const SizedBox(height: Space.s200),
           ValueListenableBuilder(
             valueListenable: this.errorMessage,
             builder: (context, errorMessage, _) =>
                 ErrorMessageSection(errorMessage),
           ),
         ],
-        // Restore ->
         bottom: Padding(
           padding: const EdgeInsets.only(top: Space.s500),
           child: ValueListenableBuilder(
-            valueListenable: this.isRestoring,
-            builder: (context, isRestoring, widget) => AnimatedFillButton(
-              onTap: this.onSubmit,
-              loading: isRestoring,
-              label: const Text("Restore"),
-              icon: const Icon(LxIcons.next),
-              style: FilledButton.styleFrom(
-                backgroundColor: LxColors.moneyGoUp,
-                foregroundColor: LxColors.grey1000,
-                iconColor: LxColors.grey1000,
-              ),
-            ),
+            valueListenable: this.enteredWords,
+            builder: (context, value, child) {
+              return ValueListenableBuilder(
+                valueListenable: this.isRestoring,
+                builder: (context, isRestoring, widget) => AnimatedFillButton(
+                  onTap: this.enteredWords.value.length >= amountWords
+                      ? this.onSubmit
+                      : null,
+                  loading: isRestoring,
+                  label: const Text("Restore"),
+                  icon: const Icon(LxIcons.next),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: LxColors.moneyGoUp,
+                    foregroundColor: LxColors.grey1000,
+                    iconColor: LxColors.grey1000,
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
