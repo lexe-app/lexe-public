@@ -85,7 +85,19 @@ class RestorePage extends StatelessWidget {
     unawaited(Navigator.of(context).maybePop(flowResult));
   }
 
-  void onSeedPhrasePressed() {}
+  Future<void> onSeedPhrasePressed(BuildContext context) async {
+    final AppHandle? flowResult = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RestoreSeedPhrasePage(
+          config: this.config,
+          restoreApi: this.restoreApi,
+        ),
+      ),
+    );
+    if (flowResult == null) return;
+    if (!context.mounted) return;
+    unawaited(Navigator.of(context).maybePop(flowResult));
+  }
 
   @override
   Widget build(BuildContext context) => MultistepFlow<AppHandle?>(
@@ -131,7 +143,7 @@ Wallet backup or use your Seed Phrase.
               ),
               const SizedBox(height: Space.s400),
               LxFilledButton(
-                onTap: this.onSeedPhrasePressed,
+                onTap: () => this.onSeedPhrasePressed(context),
                 label: const Text("Restore from Seed Phrase"),
                 icon: const Icon(LxIcons.next),
               ),
