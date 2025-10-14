@@ -79,7 +79,8 @@ import 'package:lexeapp/route/restore.dart'
         RestoreChooseWalletPage,
         RestoreGDriveAuthPage,
         RestorePage,
-        RestorePasswordPage;
+        RestorePasswordPage,
+        RestoreSeedPhrasePage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
@@ -383,6 +384,13 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 serverAuthCode: const GDriveServerAuthCode(
                   serverAuthCode: "fake",
                 ),
+                config: widget.config,
+                restoreApi: mockRestoreApi,
+              ),
+            ),
+            Component(
+              "RestoreSeedPhrasePage",
+              (context) => RestoreSeedPhrasePage(
                 config: widget.config,
                 restoreApi: mockRestoreApi,
               ),

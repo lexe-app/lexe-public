@@ -27,7 +27,7 @@ import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/style.dart'
-    show Fonts, LxColors, LxIcons, LxTheme, Space;
+    show Fonts, LxColors, LxIcons, LxRadius, LxTheme, Space;
 
 /// A tiny interface so we can mock the [AppHandle.restore] call in design mode.
 abstract interface class RestoreApi {
@@ -603,6 +603,346 @@ class _RestorePasswordPageState extends State<RestorePasswordPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class RestoreSeedPhrasePage extends StatefulWidget {
+  const RestoreSeedPhrasePage({
+    super.key,
+    required this.config,
+    required this.restoreApi,
+  });
+
+  final Config config;
+  final RestoreApi restoreApi;
+
+  @override
+  State<RestoreSeedPhrasePage> createState() => _RestoreSeedPhrasePageState();
+}
+
+class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
+  final TextEditingController textController = TextEditingController();
+  final FocusNode textFocusNode = FocusNode();
+  final ValueNotifier<List<String>> enteredWords = ValueNotifier([]);
+  final ValueNotifier<List<String>> suggestions = ValueNotifier([]);
+  final ValueNotifier<bool> isRestoring = ValueNotifier(false);
+  final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
+
+  static const List<String> bip39Words = ["hello"];
+
+  @override
+  void dispose() {
+    textController.dispose();
+    textFocusNode.dispose();
+    enteredWords.dispose();
+    suggestions.dispose();
+    isRestoring.dispose();
+    errorMessage.dispose();
+    super.dispose();
+  }
+
+  void onTextChanged(String value) {
+    final word = value.trim().toLowerCase();
+    if (value.endsWith(' ')) textController.text = value.trim();
+
+    if (word.isEmpty) {
+      suggestions.value = [];
+      return;
+    }
+
+    if (value.endsWith(' ') && this.isValidWord(word)) {
+      this.onWordSelected(word);
+      return;
+    }
+
+    this.suggestions.value = bip39Words
+        .where((w) => w.startsWith(word))
+        .take(4)
+        .toList();
+  }
+
+  void onWordSelected(String word) {
+    final currentWords = this.enteredWords.value;
+
+    if (currentWords.length >= 24) return;
+    if (!this.isValidWord(word)) return;
+
+    this.enteredWords.value = [...currentWords, word];
+    this.textController.clear();
+    suggestions.value = [];
+    errorMessage.value = null;
+    textFocusNode.requestFocus();
+  }
+
+  void onRemoveLastWord() {
+    final currentWords = this.enteredWords.value;
+    if (currentWords.isEmpty) return;
+    enteredWords.value = currentWords.sublist(0, currentWords.length - 1);
+    textFocusNode.requestFocus();
+  }
+
+  bool isValidWord(String word) {
+    return bip39Words.contains(word);
+  }
+
+  void onSubmit() {
+    // TODO(Maurice): Do something.
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
+        leading: const LxBackButton(isLeading: true),
+        actions: const [
+          LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
+          SizedBox(width: Space.s400),
+        ],
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const HeadingText(text: "Enter your seed phrase"),
+          const SizedBox(height: Space.s200),
+          const SubheadingText(
+            text: "Your recovery phrase is a list of 24 words.",
+          ),
+          const SizedBox(height: Space.s600),
+          TextField(
+            controller: this.textController,
+            focusNode: this.textFocusNode,
+            onChanged: this.onTextChanged,
+            decoration: baseInputDecoration.copyWith(hintText: "Enter word"),
+            autocorrect: false,
+            enableSuggestions: false,
+            textInputAction: TextInputAction.done,
+          ),
+          ValueListenableBuilder(
+            valueListenable: this.suggestions,
+            builder: (context, suggestions, widget) => WordSuggestionsRow(
+              suggestions: this.suggestions,
+              onWordTap: this.onWordSelected,
+            ),
+          ),
+          const SizedBox(height: Space.s200),
+          ValueListenableBuilder(
+            valueListenable: this.enteredWords,
+            builder: (context, enteredWords, widget) => EnteredWordDisplay(
+              words: this.enteredWords,
+              onRemoveLast: this.onRemoveLastWord,
+            ),
+          ),
+          // TODO(Maurice): add error message when pressed Done in iOS and word does not exists.
+          ValueListenableBuilder(
+            valueListenable: this.errorMessage,
+            builder: (context, errorMessage, _) =>
+                ErrorMessageSection(errorMessage),
+          ),
+        ],
+        // Restore ->
+        bottom: Padding(
+          padding: const EdgeInsets.only(top: Space.s500),
+          child: ValueListenableBuilder(
+            valueListenable: this.isRestoring,
+            builder: (context, isRestoring, widget) => AnimatedFillButton(
+              onTap: this.onSubmit,
+              loading: isRestoring,
+              label: const Text("Restore"),
+              icon: const Icon(LxIcons.next),
+              style: FilledButton.styleFrom(
+                backgroundColor: LxColors.moneyGoUp,
+                foregroundColor: LxColors.grey1000,
+                iconColor: LxColors.grey1000,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class WordSuggestionsRow extends StatelessWidget {
+  const WordSuggestionsRow({
+    super.key,
+    required this.suggestions,
+    required this.onWordTap,
+  });
+
+  final ValueNotifier<List<String>> suggestions;
+  final ValueChanged<String> onWordTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final suggestions = this.suggestions.value;
+    if (suggestions.isEmpty) return const SizedBox(height: Space.s800);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: Space.s200),
+      height: Space.s800,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: suggestions.length,
+        separatorBuilder: (context, index) => const SizedBox(width: Space.s200),
+        itemBuilder: (context, index) {
+          final word = suggestions[index];
+          return SuggestionChip(word: word, onTap: () => onWordTap(word));
+        },
+      ),
+    );
+  }
+}
+
+class SuggestionChip extends StatelessWidget {
+  const SuggestionChip({super.key, required this.word, required this.onTap});
+
+  final String word;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: this.onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: Space.s400,
+          vertical: Space.s100,
+        ),
+        child: Text(
+          this.word,
+          style: const TextStyle(
+            fontSize: Fonts.size200,
+            fontVariations: [Fonts.weightMedium],
+            color: LxColors.linkText,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// TODO(Maurice): Check and match style with the signup flow.
+class EnteredWordDisplay extends StatelessWidget {
+  const EnteredWordDisplay({
+    super.key,
+    required this.words,
+    required this.onRemoveLast,
+  });
+
+  final ValueNotifier<List<String>> words;
+  final VoidCallback onRemoveLast;
+
+  Widget _wordColumn(int numberOfWords, int startIndex) {
+    final words = this.words.value;
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: List.generate(numberOfWords, (index) {
+          final wordIndex = startIndex + index;
+          return EnteredWordSlot(
+            index: wordIndex,
+            word: wordIndex < words.length ? words[wordIndex] : "",
+            isLast: wordIndex == words.length - 1,
+            onRemove: this.onRemoveLast,
+          );
+        }),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        vertical: Space.s400,
+        horizontal: Space.s400,
+      ),
+      decoration: BoxDecoration(
+        color: LxColors.grey950,
+        borderRadius: BorderRadius.circular(LxRadius.r400),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          this._wordColumn(12, 0),
+          const SizedBox(width: Space.s400),
+          this._wordColumn(12, 12),
+        ],
+      ),
+    );
+  }
+}
+
+class EnteredWordSlot extends StatelessWidget {
+  const EnteredWordSlot({
+    super.key,
+    required this.index,
+    required this.word,
+    required this.isLast,
+    required this.onRemove,
+  });
+
+  final int index;
+  final String word;
+  final bool isLast;
+  final VoidCallback onRemove;
+
+  // TODO(Maurice): Use styles instead of inline style
+  @override
+  Widget build(BuildContext context) {
+    final hasWord = word.isNotEmpty;
+    const fontSizePlaceholder = Fonts.size200;
+    const fontSizeWord = Fonts.size300;
+    final fontSize = hasWord ? fontSizeWord : fontSizePlaceholder;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Space.s200),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: Space.s600,
+            child: Text(
+              "${index + 1}.",
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: fontSizePlaceholder,
+                color: hasWord ? LxColors.fgSecondary : LxColors.grey375,
+                fontFeatures: const [Fonts.featTabularNumbers],
+                fontVariations: const [Fonts.weightLight],
+              ),
+            ),
+          ),
+          Text(
+            hasWord ? " $word" : "",
+            textAlign: TextAlign.left,
+            style: TextStyle(
+              fontSize: fontSize,
+              fontVariations: hasWord
+                  ? [Fonts.weightMedium]
+                  : [Fonts.weightLight],
+              color: hasWord ? LxColors.foreground : LxColors.grey850,
+            ),
+          ),
+
+          if (hasWord && isLast)
+            GestureDetector(
+              onTap: onRemove,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Space.s100),
+                child: Icon(
+                  LxIcons.close,
+                  size: fontSize,
+                  color: LxColors.fgSecondary,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
