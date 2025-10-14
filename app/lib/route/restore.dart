@@ -4,6 +4,7 @@ library;
 import 'dart:async' show unawaited;
 
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/form.dart' as form;
 import 'package:app_rs_dart/ffi/gdrive.dart'
     show GDriveClient, GDriveRestoreCandidate;
 import 'package:app_rs_dart/ffi/types.dart' show Config, RootSeed;
@@ -630,8 +631,6 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
   final ValueNotifier<bool> isRestoring = ValueNotifier(false);
   final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
 
-  static const List<String> bip39Words = ["hello"];
-
   @override
   void dispose() {
     textController.dispose();
@@ -657,10 +656,7 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
       return;
     }
 
-    this.suggestions.value = bip39Words
-        .where((w) => w.startsWith(word))
-        .take(4)
-        .toList();
+    this.suggestions.value = form.suggestMnemonicWords(prefix: word, take: 4);
   }
 
   void onWordSelected(String word) {
@@ -684,7 +680,7 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
   }
 
   bool isValidWord(String word) {
-    return bip39Words.contains(word);
+    return form.isMnemonicWord(word: word);
   }
 
   void onSubmit() {
@@ -785,7 +781,7 @@ class WordSuggestionsRow extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: suggestions.length,
-        separatorBuilder: (context, index) => const SizedBox(width: Space.s200),
+        separatorBuilder: (context, index) => const SizedBox(width: Space.s100),
         itemBuilder: (context, index) {
           final word = suggestions[index];
           return SuggestionChip(word: word, onTap: () => onWordTap(word));
@@ -896,9 +892,7 @@ class EnteredWordSlot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasWord = word.isNotEmpty;
-    const fontSizePlaceholder = Fonts.size200;
-    const fontSizeWord = Fonts.size300;
-    final fontSize = hasWord ? fontSizeWord : fontSizePlaceholder;
+    const fontSize = Fonts.size200;
     return Padding(
       padding: const EdgeInsets.only(bottom: Space.s200),
       child: Row(
@@ -911,7 +905,7 @@ class EnteredWordSlot extends StatelessWidget {
               "${index + 1}.",
               textAlign: TextAlign.right,
               style: TextStyle(
-                fontSize: fontSizePlaceholder,
+                fontSize: fontSize,
                 color: hasWord ? LxColors.fgSecondary : LxColors.grey375,
                 fontFeatures: const [Fonts.featTabularNumbers],
                 fontVariations: const [Fonts.weightLight],
@@ -933,8 +927,8 @@ class EnteredWordSlot extends StatelessWidget {
           if (hasWord && isLast)
             GestureDetector(
               onTap: onRemove,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Space.s100),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: Space.s100),
                 child: Icon(
                   LxIcons.close,
                   size: fontSize,

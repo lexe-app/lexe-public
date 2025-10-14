@@ -19,3 +19,14 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// `FormField` validator API.
 String? validatePassword({required String password}) =>
     AppRs.instance.api.crateFfiFormValidatePassword(password: password);
+
+List<String> suggestMnemonicWords({
+  required String prefix,
+  required int take,
+}) => AppRs.instance.api.crateFfiFormSuggestMnemonicWords(
+  prefix: prefix,
+  take: take,
+);
+
+bool isMnemonicWord({required String word}) =>
+    AppRs.instance.api.crateFfiFormIsMnemonicWord(word: word);

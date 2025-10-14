@@ -36,6 +36,7 @@ arc-swap.workspace = true
 async-trait.workspace = true
 base64.workspace = true
 bitcoin.workspace = true
+bip39.workspace = true
 cfg-if.workspace = true
 http.workspace = true
 keyring = { workspace = true, default-features = false }

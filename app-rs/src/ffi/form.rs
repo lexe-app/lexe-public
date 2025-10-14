@@ -19,3 +19,18 @@ pub fn validate_password(mut password: String) -> Option<String> {
         Err(err) => Some(err.to_string()),
     }
 }
+
+#[frb(sync)]
+pub fn suggest_mnemonic_words(prefix: &str, take: usize) -> Vec<String> {
+    bip39::Language::English
+        .words_by_prefix(prefix)
+        .iter()
+        .take(take)
+        .map(|w| w.to_owned().to_string())
+        .collect()
+}
+
+#[frb(sync)]
+pub fn is_mnemonic_word(word: &str) -> bool {
+    bip39::Language::English.find_word(word).is_some()
+}
