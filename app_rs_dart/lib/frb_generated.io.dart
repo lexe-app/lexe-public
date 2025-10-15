@@ -169,6 +169,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Offer dco_decode_box_autoadd_offer(dynamic raw);
 
   @protected
+  OnboardingStatus dco_decode_box_autoadd_onboarding_status(dynamic raw);
+
+  @protected
   Onchain dco_decode_box_autoadd_onchain(dynamic raw);
 
   @protected
@@ -340,6 +343,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Offer dco_decode_offer(dynamic raw);
 
   @protected
+  OnboardingStatus dco_decode_onboarding_status(dynamic raw);
+
+  @protected
   Onchain dco_decode_onchain(dynamic raw);
 
   @protected
@@ -378,6 +384,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Offer? dco_decode_opt_box_autoadd_offer(dynamic raw);
+
+  @protected
+  OnboardingStatus? dco_decode_opt_box_autoadd_onboarding_status(dynamic raw);
 
   @protected
   Payment? dco_decode_opt_box_autoadd_payment(dynamic raw);
@@ -651,6 +660,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Offer sse_decode_box_autoadd_offer(SseDeserializer deserializer);
 
   @protected
+  OnboardingStatus sse_decode_box_autoadd_onboarding_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Onchain sse_decode_box_autoadd_onchain(SseDeserializer deserializer);
 
   @protected
@@ -872,6 +886,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Offer sse_decode_offer(SseDeserializer deserializer);
 
   @protected
+  OnboardingStatus sse_decode_onboarding_status(SseDeserializer deserializer);
+
+  @protected
   Onchain sse_decode_onchain(SseDeserializer deserializer);
 
   @protected
@@ -920,6 +937,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Offer? sse_decode_opt_box_autoadd_offer(SseDeserializer deserializer);
+
+  @protected
+  OnboardingStatus? sse_decode_opt_box_autoadd_onboarding_status(
+    SseDeserializer deserializer,
+  );
 
   @protected
   Payment? sse_decode_opt_box_autoadd_payment(SseDeserializer deserializer);
@@ -1238,6 +1260,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_box_autoadd_offer(Offer self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_onboarding_status(
+    OnboardingStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_onchain(Onchain self, SseSerializer serializer);
 
   @protected
@@ -1502,6 +1530,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_offer(Offer self, SseSerializer serializer);
 
   @protected
+  void sse_encode_onboarding_status(
+    OnboardingStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_onchain(Onchain self, SseSerializer serializer);
 
   @protected
@@ -1560,6 +1594,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_offer(Offer? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_onboarding_status(
+    OnboardingStatus? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_payment(

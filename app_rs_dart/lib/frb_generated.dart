@@ -2830,6 +2830,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  OnboardingStatus dco_decode_box_autoadd_onboarding_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_onboarding_status(raw);
+  }
+
+  @protected
   Onchain dco_decode_box_autoadd_onchain(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_onchain(raw);
@@ -3305,6 +3311,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  OnboardingStatus dco_decode_onboarding_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return OnboardingStatus(
+      hasConnectedGdrive: dco_decode_opt_box_autoadd_bool(arr[0]),
+      hasBackedUpSeedPhrase: dco_decode_opt_box_autoadd_bool(arr[1]),
+    );
+  }
+
+  @protected
   Onchain dco_decode_onchain(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -3400,6 +3418,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Offer? dco_decode_opt_box_autoadd_offer(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_offer(raw);
+  }
+
+  @protected
+  OnboardingStatus? dco_decode_opt_box_autoadd_onboarding_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_onboarding_status(raw);
   }
 
   @protected
@@ -3734,12 +3758,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Settings dco_decode_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return Settings(
       locale: dco_decode_opt_String(arr[0]),
       fiatCurrency: dco_decode_opt_String(arr[1]),
       showSplitBalances: dco_decode_opt_box_autoadd_bool(arr[2]),
+      onboardingStatus: dco_decode_opt_box_autoadd_onboarding_status(arr[3]),
     );
   }
 
@@ -4125,6 +4150,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Offer sse_decode_box_autoadd_offer(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_offer(deserializer));
+  }
+
+  @protected
+  OnboardingStatus sse_decode_box_autoadd_onboarding_status(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_onboarding_status(deserializer));
   }
 
   @protected
@@ -4673,6 +4706,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  OnboardingStatus sse_decode_onboarding_status(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_hasConnectedGdrive = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_hasBackedUpSeedPhrase = sse_decode_opt_box_autoadd_bool(
+      deserializer,
+    );
+    return OnboardingStatus(
+      hasConnectedGdrive: var_hasConnectedGdrive,
+      hasBackedUpSeedPhrase: var_hasBackedUpSeedPhrase,
+    );
+  }
+
+  @protected
   Onchain sse_decode_onchain(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_address = sse_decode_String(deserializer);
@@ -4821,6 +4867,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_offer(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  OnboardingStatus? sse_decode_opt_box_autoadd_onboarding_status(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_onboarding_status(deserializer));
     } else {
       return null;
     }
@@ -5191,10 +5250,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_locale = sse_decode_opt_String(deserializer);
     var var_fiatCurrency = sse_decode_opt_String(deserializer);
     var var_showSplitBalances = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_onboardingStatus = sse_decode_opt_box_autoadd_onboarding_status(
+      deserializer,
+    );
     return Settings(
       locale: var_locale,
       fiatCurrency: var_fiatCurrency,
       showSplitBalances: var_showSplitBalances,
+      onboardingStatus: var_onboardingStatus,
     );
   }
 
@@ -5588,6 +5651,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void sse_encode_box_autoadd_offer(Offer self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_offer(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_onboarding_status(
+    OnboardingStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_onboarding_status(self, serializer);
   }
 
   @protected
@@ -6085,6 +6157,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_onboarding_status(
+    OnboardingStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_bool(self.hasConnectedGdrive, serializer);
+    sse_encode_opt_box_autoadd_bool(self.hasBackedUpSeedPhrase, serializer);
+  }
+
+  @protected
   void sse_encode_onchain(Onchain self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.address, serializer);
@@ -6230,6 +6312,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_offer(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_onboarding_status(
+    OnboardingStatus? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_onboarding_status(self, serializer);
     }
   }
 
@@ -6534,6 +6629,10 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_opt_String(self.locale, serializer);
     sse_encode_opt_String(self.fiatCurrency, serializer);
     sse_encode_opt_box_autoadd_bool(self.showSplitBalances, serializer);
+    sse_encode_opt_box_autoadd_onboarding_status(
+      self.onboardingStatus,
+      serializer,
+    );
   }
 
   @protected

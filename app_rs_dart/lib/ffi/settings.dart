@@ -13,18 +13,46 @@ import 'app.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `new`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `try_from`
+
+class OnboardingStatus {
+  final bool? hasConnectedGdrive;
+  final bool? hasBackedUpSeedPhrase;
+
+  const OnboardingStatus({this.hasConnectedGdrive, this.hasBackedUpSeedPhrase});
+
+  @override
+  int get hashCode =>
+      hasConnectedGdrive.hashCode ^ hasBackedUpSeedPhrase.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OnboardingStatus &&
+          runtimeType == other.runtimeType &&
+          hasConnectedGdrive == other.hasConnectedGdrive &&
+          hasBackedUpSeedPhrase == other.hasBackedUpSeedPhrase;
+}
 
 class Settings {
   final String? locale;
   final String? fiatCurrency;
   final bool? showSplitBalances;
+  final OnboardingStatus? onboardingStatus;
 
-  const Settings({this.locale, this.fiatCurrency, this.showSplitBalances});
+  const Settings({
+    this.locale,
+    this.fiatCurrency,
+    this.showSplitBalances,
+    this.onboardingStatus,
+  });
 
   @override
   int get hashCode =>
-      locale.hashCode ^ fiatCurrency.hashCode ^ showSplitBalances.hashCode;
+      locale.hashCode ^
+      fiatCurrency.hashCode ^
+      showSplitBalances.hashCode ^
+      onboardingStatus.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -33,7 +61,8 @@ class Settings {
           runtimeType == other.runtimeType &&
           locale == other.locale &&
           fiatCurrency == other.fiatCurrency &&
-          showSplitBalances == other.showSplitBalances;
+          showSplitBalances == other.showSplitBalances &&
+          onboardingStatus == other.onboardingStatus;
 }
 
 class SettingsDb {

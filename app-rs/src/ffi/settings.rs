@@ -7,16 +7,25 @@ use common::api::fiat_rates::IsoCurrencyCode;
 use flutter_rust_bridge::{frb, RustOpaqueNom};
 
 pub(crate) use crate::settings::SettingsDb as SettingsDbRs;
-use crate::settings::{SchemaVersion, Settings as SettingsRs};
+use crate::settings::{
+    OnboardingStatus as OnboardingStatusRs, SchemaVersion,
+    Settings as SettingsRs,
+};
 
 pub struct SettingsDb {
     pub inner: RustOpaqueNom<SettingsDbRs>,
+}
+
+pub struct OnboardingStatus {
+    pub has_connected_gdrive: Option<bool>,
+    pub has_backed_up_seed_phrase: Option<bool>,
 }
 
 pub struct Settings {
     pub locale: Option<String>,
     pub fiat_currency: Option<String>,
     pub show_split_balances: Option<bool>,
+    pub onboarding_status: Option<OnboardingStatus>,
 }
 
 // --- impl SettingsDb --- //
@@ -62,6 +71,25 @@ impl From<SettingsRs> for Settings {
             locale: s.locale,
             fiat_currency: s.fiat_currency.map(|x| x.as_str().to_owned()),
             show_split_balances: s.show_split_balances,
+            onboarding_status: s.onboarding_status.map(OnboardingStatus::from),
+        }
+    }
+}
+
+impl From<OnboardingStatusRs> for OnboardingStatus {
+    fn from(s: OnboardingStatusRs) -> Self {
+        Self {
+            has_connected_gdrive: s.has_connected_gdrive,
+            has_backed_up_seed_phrase: s.has_backed_up_seed_phrase,
+        }
+    }
+}
+
+impl From<OnboardingStatus> for OnboardingStatusRs {
+    fn from(s: OnboardingStatus) -> Self {
+        Self {
+            has_connected_gdrive: s.has_connected_gdrive,
+            has_backed_up_seed_phrase: s.has_backed_up_seed_phrase,
         }
     }
 }
@@ -78,6 +106,9 @@ impl TryFrom<Settings> for SettingsRs {
                 .map(IsoCurrencyCode::from_str)
                 .transpose()?,
             show_split_balances: s.show_split_balances,
+            onboarding_status: s
+                .onboarding_status
+                .map(OnboardingStatusRs::from),
         })
     }
 }

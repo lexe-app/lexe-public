@@ -1740,6 +1740,22 @@ impl SseDecode for crate::ffi::types::Offer {
     }
 }
 
+impl SseDecode for crate::ffi::settings::OnboardingStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_hasConnectedGdrive =
+            <Option<bool>>::sse_decode(deserializer);
+        let mut var_hasBackedUpSeedPhrase =
+            <Option<bool>>::sse_decode(deserializer);
+        return crate::ffi::settings::OnboardingStatus {
+            has_connected_gdrive: var_hasConnectedGdrive,
+            has_backed_up_seed_phrase: var_hasBackedUpSeedPhrase,
+        };
+    }
+}
+
 impl SseDecode for crate::ffi::types::Onchain {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -1919,6 +1935,21 @@ impl SseDecode for Option<crate::ffi::types::Offer> {
     ) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::ffi::types::Offer>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::ffi::settings::OnboardingStatus> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::ffi::settings::OnboardingStatus>::sse_decode(
+                deserializer,
+            ));
         } else {
             return None;
         }
@@ -2407,10 +2438,14 @@ impl SseDecode for crate::ffi::settings::Settings {
         let mut var_fiatCurrency = <Option<String>>::sse_decode(deserializer);
         let mut var_showSplitBalances =
             <Option<bool>>::sse_decode(deserializer);
+        let mut var_onboardingStatus = <Option<
+            crate::ffi::settings::OnboardingStatus,
+        >>::sse_decode(deserializer);
         return crate::ffi::settings::Settings {
             locale: var_locale,
             fiat_currency: var_fiatCurrency,
             show_split_balances: var_showSplitBalances,
+            onboarding_status: var_onboardingStatus,
         };
     }
 }
@@ -3264,6 +3299,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Offer>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::settings::OnboardingStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.has_connected_gdrive.into_into_dart().into_dart(),
+            self.has_backed_up_seed_phrase.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::settings::OnboardingStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::settings::OnboardingStatus>
+    for crate::ffi::settings::OnboardingStatus
+{
+    fn into_into_dart(self) -> crate::ffi::settings::OnboardingStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::types::Onchain {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -3891,6 +3947,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::settings::Settings {
             self.locale.into_into_dart().into_dart(),
             self.fiat_currency.into_into_dart().into_dart(),
             self.show_split_balances.into_into_dart().into_dart(),
+            self.onboarding_status.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4633,6 +4690,17 @@ impl SseEncode for crate::ffi::types::Offer {
     }
 }
 
+impl SseEncode for crate::ffi::settings::OnboardingStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <Option<bool>>::sse_encode(self.has_connected_gdrive, serializer);
+        <Option<bool>>::sse_encode(self.has_backed_up_seed_phrase, serializer);
+    }
+}
+
 impl SseEncode for crate::ffi::types::Onchain {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -4798,6 +4866,21 @@ impl SseEncode for Option<crate::ffi::types::Offer> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::ffi::types::Offer>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::ffi::settings::OnboardingStatus> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::ffi::settings::OnboardingStatus>::sse_encode(
+                value, serializer,
+            );
         }
     }
 }
@@ -5216,6 +5299,10 @@ impl SseEncode for crate::ffi::settings::Settings {
         <Option<String>>::sse_encode(self.locale, serializer);
         <Option<String>>::sse_encode(self.fiat_currency, serializer);
         <Option<bool>>::sse_encode(self.show_split_balances, serializer);
+        <Option<crate::ffi::settings::OnboardingStatus>>::sse_encode(
+            self.onboarding_status,
+            serializer,
+        );
     }
 }
 

@@ -26,11 +26,13 @@ pub(crate) struct Settings {
     pub fiat_currency: Option<IsoCurrencyCode>,
     /// Show lightning and bitcoin sub-balances on the wallet home-page.
     pub show_split_balances: Option<bool>,
+    /// Onboarding state.
+    pub onboarding_status: Option<OnboardingStatus>,
 }
 
-impl Settings {
+impl Update for Settings {
     /// Merge updated settings from `update` into `self`.
-    pub(crate) fn update(&mut self, update: Self) -> anyhow::Result<()> {
+    fn update(&mut self, update: Self) -> anyhow::Result<()> {
         ensure!(
             self.schema == update.schema,
             "Trying to update settings of a different schema version (persisted={}, update={}). \
@@ -39,9 +41,11 @@ impl Settings {
             update.schema.0,
         );
 
-        self.locale.update(update.locale);
-        self.fiat_currency.update(update.fiat_currency);
-        self.show_split_balances.update(update.show_split_balances);
+        self.locale.update(update.locale)?;
+        self.fiat_currency.update(update.fiat_currency)?;
+        self.show_split_balances
+            .update(update.show_split_balances)?;
+        self.onboarding_status.update(update.onboarding_status)?;
 
         Ok(())
     }
@@ -54,6 +58,7 @@ impl Default for Settings {
             locale: None,
             fiat_currency: None,
             show_split_balances: None,
+            onboarding_status: None,
         }
     }
 }
@@ -93,6 +98,26 @@ struct SettingsPersister<F> {
 #[serde(transparent)]
 pub(crate) struct SchemaVersion(pub u32);
 
+/// In-Memory onboarding user state. Used to determine if we should ask
+/// the user to finish their onboarding.
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Debug, Arbitrary))]
+pub(crate) struct OnboardingStatus {
+    /// Whether the user has successfully connected ther Google Drive.
+    pub has_connected_gdrive: Option<bool>,
+    /// Whether the user confirmed they have backed up their seed phrase.
+    pub has_backed_up_seed_phrase: Option<bool>,
+}
+
+impl Update for OnboardingStatus {
+    fn update(&mut self, update: Self) -> anyhow::Result<()> {
+        self.has_connected_gdrive
+            .update(update.has_connected_gdrive)?;
+        self.has_backed_up_seed_phrase
+            .update(update.has_backed_up_seed_phrase)?;
+        Ok(())
+    }
+}
 // --- impl SettingsDb --- //
 
 impl SettingsDb {
@@ -279,18 +304,31 @@ impl SchemaVersion {
     pub(crate) const CURRENT: Self = Self(1);
 }
 
-// --- Option<T>::update --- //
-
-trait OptionExt {
-    /// Replace `self` only if `update` is `Some(_)`.
-    fn update(&mut self, update: Self);
+// --- impl Update --- //
+trait Update: Sized {
+    /// Merge updated settings from `update` into `self`.
+    fn update(&mut self, update: Self) -> anyhow::Result<()> {
+        // Default impl for "Atom" types, where updates jus replace `self` and
+        // don't traverse.
+        *self = update;
+        Ok(())
+    }
 }
 
-impl<T> OptionExt for Option<T> {
-    fn update(&mut self, update: Self) {
-        if let Some(x) = update {
-            *self = Some(x);
+impl Update for IsoCurrencyCode {}
+impl Update for String {}
+impl Update for bool {}
+
+impl<T: Update> Update for Option<T> {
+    fn update(&mut self, update: Self) -> anyhow::Result<()> {
+        match update {
+            None => {}
+            Some(u) => match self {
+                None => *self = Some(u),
+                Some(s) => s.update(u)?,
+            },
         }
+        Ok(())
     }
 }
 
@@ -331,7 +369,11 @@ mod test {
         {
             "schema": 1,
             "fiat_currency": "USD",
-            "show_split_balances": true
+            "show_split_balances": true,
+            "onboarding_status": {
+                "has_connected_gdrive": true,
+                "has_backed_up_seed_phrase": false
+            }
         }
         "#;
         let ffs = MockFfs::new();
@@ -341,6 +383,9 @@ mod test {
         assert_eq!(settings.locale, None);
         assert_eq!(settings.fiat_currency, Some(IsoCurrencyCode::USD));
         assert_eq!(settings.show_split_balances, Some(true));
+        let onboarding_status = settings.onboarding_status.unwrap();
+        assert_eq!(onboarding_status.has_connected_gdrive, Some(true));
+        assert_eq!(onboarding_status.has_backed_up_seed_phrase, Some(false));
     }
 
     /// A tiny model implementation of [`SettingsDb`].
@@ -489,6 +534,52 @@ mod test {
                 }
             );
 
+            // update: onbarding_status={ has_connected_gdrive: true }
+            db.update(Settings {
+                onboarding_status: Some(OnboardingStatus {
+                    has_connected_gdrive: Some(true),
+                    has_backed_up_seed_phrase: None,
+                }),
+                ..Default::default()
+            })
+            .unwrap();
+
+            assert_eq!(
+                db.settings.lock().unwrap().deref(),
+                &Settings {
+                    locale: Some("USD".to_owned()),
+                    fiat_currency: Some(IsoCurrencyCode::USD),
+                    onboarding_status: Some(OnboardingStatus {
+                        has_connected_gdrive: Some(true),
+                        has_backed_up_seed_phrase: None,
+                    }),
+                    ..Default::default()
+                }
+            );
+
+            // update: onbarding_status={ has_connected_gdrive: true }
+            db.update(Settings {
+                onboarding_status: Some(OnboardingStatus {
+                    has_connected_gdrive: None,
+                    has_backed_up_seed_phrase: Some(true),
+                }),
+                ..Default::default()
+            })
+            .unwrap();
+
+            assert_eq!(
+                db.settings.lock().unwrap().deref(),
+                &Settings {
+                    locale: Some("USD".to_owned()),
+                    fiat_currency: Some(IsoCurrencyCode::USD),
+                    onboarding_status: Some(OnboardingStatus {
+                        has_connected_gdrive: Some(true),
+                        has_backed_up_seed_phrase: Some(true),
+                    }),
+                    ..Default::default()
+                }
+            );
+
             db.shutdown().await.unwrap();
         }
 
@@ -499,6 +590,10 @@ mod test {
                 &Settings {
                     locale: Some("USD".to_owned()),
                     fiat_currency: Some(IsoCurrencyCode::USD),
+                    onboarding_status: Some(OnboardingStatus {
+                        has_connected_gdrive: Some(true),
+                        has_backed_up_seed_phrase: Some(true),
+                    }),
                     ..Default::default()
                 }
             );
