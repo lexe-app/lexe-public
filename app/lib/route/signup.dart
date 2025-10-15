@@ -21,6 +21,7 @@ import 'package:lexeapp/components.dart'
         MultistepFlow,
         ScrollableSinglePageBody,
         SeedWord,
+        SeedWordsCard,
         SubheadingText,
         baseInputDecoration;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
@@ -872,83 +873,6 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// A rounded card the displays all 24 words of a seed phrase in two columns.
-class SeedWordsCard extends StatelessWidget {
-  const SeedWordsCard({super.key, required this.seedWords})
-    : assert(seedWords.length == 24);
-
-  final List<String> seedWords;
-
-  @override
-  Widget build(BuildContext context) {
-    const double spaceWordGroup = Space.s200;
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        // slightly less left-padding to visually center contents
-        Space.s400,
-        Space.s550,
-        Space.s500,
-        Space.s550,
-      ),
-      decoration: BoxDecoration(
-        color: LxColors.grey1000,
-        borderRadius: BorderRadius.circular(LxRadius.r300),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        // Layout the words in two columns, with regular spacing between each
-        // group of three words.
-        children: [
-          // words column 1-12
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (int i = 0; i < 3; i++)
-                SeedWord(index: i, word: this.seedWords[i]),
-              const SizedBox(height: spaceWordGroup),
-              for (int i = 3; i < 6; i++)
-                SeedWord(index: i, word: this.seedWords[i]),
-              const SizedBox(height: spaceWordGroup),
-              for (int i = 6; i < 9; i++)
-                SeedWord(index: i, word: this.seedWords[i]),
-              const SizedBox(height: spaceWordGroup),
-              for (int i = 9; i < 12; i++)
-                SeedWord(index: i, word: this.seedWords[i]),
-            ],
-          ),
-
-          const SizedBox(width: Space.s500),
-
-          // words column 13-24
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (int i = 12; i < 15; i++)
-                SeedWord(index: i, word: this.seedWords[i]),
-              const SizedBox(height: spaceWordGroup),
-              for (int i = 15; i < 18; i++)
-                SeedWord(index: i, word: this.seedWords[i]),
-              const SizedBox(height: spaceWordGroup),
-              for (int i = 18; i < 21; i++)
-                SeedWord(index: i, word: this.seedWords[i]),
-              const SizedBox(height: spaceWordGroup),
-              for (int i = 21; i < 24; i++)
-                SeedWord(index: i, word: this.seedWords[i]),
-            ],
-          ),
-        ],
       ),
     );
   }

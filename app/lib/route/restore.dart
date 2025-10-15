@@ -23,6 +23,7 @@ import 'package:lexeapp/components.dart'
         MultistepFlow,
         ScrollableSinglePageBody,
         SeedWord,
+        SeedWordsCard,
         SubheadingText,
         baseInputDecoration;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
@@ -787,9 +788,12 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
           const SizedBox(height: Space.s200),
           ValueListenableBuilder(
             valueListenable: this.mnemonicWords,
-            builder: (context, mnemonicWords, widget) => EnteredWordDisplay(
-              words: this.mnemonicWords,
-              onRemoveLast: this.onRemoveLastWord,
+            builder: (context, mnemonicWords, widget) => Align(
+              alignment: Alignment.center,
+              child: SeedWordsCard.removable(
+                seedWords: this.mnemonicWords.value,
+                onRemove: this.onRemoveLastWord,
+              ),
             ),
           ),
           const SizedBox(height: Space.s200),
@@ -882,65 +886,6 @@ class SuggestionChip extends StatelessWidget {
             color: LxColors.linkText,
           ),
         ),
-      ),
-    );
-  }
-}
-
-// TODO(Maurice): Check and match style with the signup flow.
-class EnteredWordDisplay extends StatelessWidget {
-  const EnteredWordDisplay({
-    super.key,
-    required this.words,
-    required this.onRemoveLast,
-  });
-
-  final ValueNotifier<List<String>> words;
-  final VoidCallback onRemoveLast;
-
-  Widget _wordColumn(int numberOfWords, int startIndex) {
-    final words = this.words.value;
-    return Expanded(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: List.generate(numberOfWords, (index) {
-          final wordIndex = startIndex + index;
-          final isLast = wordIndex == words.length - 1;
-          final word = wordIndex < words.length ? words[wordIndex] : "";
-          if (isLast) {
-            return SeedWord.removable(
-              index: wordIndex,
-              word: word,
-              onRemove: this.onRemoveLast,
-            );
-          }
-          return SeedWord(index: wordIndex, word: word);
-        }),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: Space.s400,
-        horizontal: Space.s400,
-      ),
-      decoration: BoxDecoration(
-        color: LxColors.grey950,
-        borderRadius: BorderRadius.circular(LxRadius.r400),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          this._wordColumn(12, 0),
-          const SizedBox(width: Space.s400),
-          this._wordColumn(12, 12),
-        ],
       ),
     );
   }

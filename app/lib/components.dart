@@ -2303,6 +2303,11 @@ class SeedWord extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Following is an estimation of what's the max word width in our alphabet.
+    // We assume that the word is a bip39 from English language. The longest word
+    // is "tomorrow" with 8 chracters. Then we assume that a chracter in pixels is
+    // 0.7 times the font size.
+    final calculatedMinWidth = _wordStyle.fontSize! * 8 * 0.7;
     return SizedBox(
       height: Space.s500,
       child: Row(
@@ -2319,7 +2324,9 @@ class SeedWord extends StatelessWidget {
             ),
           ),
           const SizedBox(width: Space.s300),
-          Text(this.word, textAlign: TextAlign.left, style: _wordStyle),
+          this.word.isEmpty
+              ? SizedBox(width: calculatedMinWidth)
+              : Text(this.word, textAlign: TextAlign.left, style: _wordStyle),
 
           if (this._onRemove != null)
             GestureDetector(
@@ -2333,6 +2340,96 @@ class SeedWord extends StatelessWidget {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A rounded card the displays all 24 words of a seed phrase in two columns.
+class SeedWordsCard extends StatelessWidget {
+  const SeedWordsCard({super.key, required this.seedWords})
+    : assert(seedWords.length == 24),
+      _onRemove = null;
+
+  const SeedWordsCard.removable({
+    super.key,
+    required this.seedWords,
+    required onRemove,
+  }) : _onRemove = onRemove;
+
+  final List<String> seedWords;
+  final VoidCallback? _onRemove;
+
+  Widget _seedWord(int index) {
+    final word = index < this.seedWords.length ? this.seedWords[index] : "";
+    final isLast = index == this.seedWords.length - 1;
+    if (isLast && _onRemove != null) {
+      return SeedWord.removable(
+        index: index,
+        word: word,
+        onRemove: this._onRemove,
+      );
+    }
+    return SeedWord(index: index, word: word);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const double spaceWordGroup = Space.s200;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        // slightly less left-padding to visually center contents
+        Space.s400,
+        Space.s300,
+        Space.s500,
+        Space.s300,
+      ),
+      decoration: BoxDecoration(
+        color: LxColors.grey1000,
+        borderRadius: BorderRadius.circular(LxRadius.r300),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        // Layout the words in two columns, with regular spacing between each
+        // group of three words.
+        children: [
+          // words column 1-12
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int i = 0; i < 3; i++) this._seedWord(i),
+              const SizedBox(height: spaceWordGroup),
+              for (int i = 3; i < 6; i++) this._seedWord(i),
+              const SizedBox(height: spaceWordGroup),
+              for (int i = 6; i < 9; i++) this._seedWord(i),
+              const SizedBox(height: spaceWordGroup),
+              for (int i = 9; i < 12; i++) this._seedWord(i),
+            ],
+          ),
+
+          const SizedBox(width: Space.s500),
+
+          // words column 13-24
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int i = 12; i < 15; i++) this._seedWord(i),
+              const SizedBox(height: spaceWordGroup),
+              for (int i = 15; i < 18; i++) this._seedWord(i),
+              const SizedBox(height: spaceWordGroup),
+              for (int i = 18; i < 21; i++) this._seedWord(i),
+              const SizedBox(height: spaceWordGroup),
+              for (int i = 21; i < 24; i++) this._seedWord(i),
+            ],
+          ),
         ],
       ),
     );
