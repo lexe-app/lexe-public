@@ -951,6 +951,9 @@ final class LxIcons {
   /// Website icon (globe/web)
   static const IconData website = Symbols.language_rounded;
 
+  /// Code symbol (SDK client)
+  static const IconData sdk = Symbols.code_rounded;
+
   // Custom brand icons (Material Icons/Symbols don't have any brand logos)
   // See: <app/fonts/README.md> for how these were sourced and generated.
 

@@ -49,6 +49,7 @@ import 'package:lexeapp/route/payment_detail.dart'
     show PaymentDetailPage, PaymentSource;
 import 'package:lexeapp/route/receive/page.dart' show ReceivePaymentPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
+import 'package:lexeapp/route/security.dart';
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
     show SendFlowResult, SendState, SendState_NeedUri;
@@ -479,6 +480,15 @@ class WalletPageState extends State<WalletPage> {
     );
   }
 
+  /// Called when "Security" is pressed in the menu drawer.
+  void onSecurityMenuPressed() {
+    Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) => SecurityPage(app: this.widget.app),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -506,6 +516,7 @@ class WalletPageState extends State<WalletPage> {
         onNodeInfoMenuPressed: this.onNodeInfoMenuPressed,
         onClientsMenuPressed: this.onClientsMenuPressed,
         onDebugMenuPressed: this.onDebugMenuPressed,
+        onSecurityMenuPressed: this.onSecurityMenuPressed,
       ),
       body: ScrollableSinglePageBody(
         padding: EdgeInsets.zero,
@@ -595,6 +606,7 @@ class WalletDrawer extends StatelessWidget {
     this.onNodeInfoMenuPressed,
     this.onDebugMenuPressed,
     this.onClientsMenuPressed,
+    this.onSecurityMenuPressed,
     // this.onInvitePressed,
   });
 
@@ -608,6 +620,7 @@ class WalletDrawer extends StatelessWidget {
   final VoidCallback? onNodeInfoMenuPressed;
   final VoidCallback? onDebugMenuPressed;
   final VoidCallback? onClientsMenuPressed;
+  final VoidCallback? onSecurityMenuPressed;
   // final VoidCallback? onInvitePressed;
 
   @override
@@ -639,7 +652,7 @@ class WalletDrawer extends StatelessWidget {
             ),
             DrawerListItem(
               title: "SDK clients",
-              icon: LxIcons.security,
+              icon: LxIcons.sdk,
               onTap: this.onClientsMenuPressed,
             ),
 
@@ -658,11 +671,11 @@ class WalletDrawer extends StatelessWidget {
             //   icon: LxIcons.backup,
             //   onTap: this.onBackupPressed,
             // ),
-            // DrawerListItem(
-            //   title: "Security",
-            //   icon: LxIcons.security,
-            //   onTap: this.onSecurityPressed,
-            // ),
+            DrawerListItem(
+              title: "Security",
+              icon: LxIcons.security,
+              onTap: this.onSecurityMenuPressed,
+            ),
             // DrawerListItem(
             //   title: "Support",
             //   icon: LxIcons.support,
