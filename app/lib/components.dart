@@ -2305,9 +2305,9 @@ class SeedWord extends StatelessWidget {
   Widget build(BuildContext context) {
     // Following is an estimation of what's the max word width in our alphabet.
     // We assume that the word is a bip39 from English language. The longest word
-    // is "tomorrow" with 8 chracters. Then we assume that a chracter in pixels is
-    // 0.7 times the font size.
-    final calculatedMinWidth = _wordStyle.fontSize! * 8 * 0.7;
+    // is "tomorrow" with 8 chracters plus the icon. Then we assume that a chracter
+    // in pixels is 0.7 times the font size.
+    final calculatedMinWidth = _wordStyle.fontSize! * 9 * 0.7;
     return SizedBox(
       height: Space.s500,
       child: Row(
@@ -2324,22 +2324,27 @@ class SeedWord extends StatelessWidget {
             ),
           ),
           const SizedBox(width: Space.s300),
-          this.word.isEmpty
-              ? SizedBox(width: calculatedMinWidth)
-              : Text(this.word, textAlign: TextAlign.left, style: _wordStyle),
 
-          if (this._onRemove != null)
-            GestureDetector(
-              onTap: this._onRemove,
-              child: const Padding(
-                padding: EdgeInsets.only(left: Space.s100),
-                child: Icon(
-                  LxIcons.close,
-                  size: Fonts.size200,
-                  color: LxColors.fgSecondary,
-                ),
-              ),
+          ConstrainedBox(
+            constraints: BoxConstraints(minWidth: calculatedMinWidth),
+            child: Row(
+              children: [
+                Text(this.word, textAlign: TextAlign.left, style: _wordStyle),
+                if (this._onRemove != null)
+                  GestureDetector(
+                    onTap: this._onRemove,
+                    child: const Padding(
+                      padding: EdgeInsets.only(left: Space.s100),
+                      child: Icon(
+                        LxIcons.close,
+                        size: Fonts.size200,
+                        color: LxColors.fgSecondary,
+                      ),
+                    ),
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );

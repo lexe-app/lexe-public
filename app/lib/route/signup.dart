@@ -20,7 +20,6 @@ import 'package:lexeapp/components.dart'
         LxFilledButton,
         MultistepFlow,
         ScrollableSinglePageBody,
-        SeedWord,
         SeedWordsCard,
         SubheadingText,
         baseInputDecoration;
@@ -29,7 +28,7 @@ import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/send/page.dart' show StackedButton;
 import 'package:lexeapp/style.dart'
-    show Fonts, LxColors, LxIcons, LxRadius, LxTheme, Space;
+    show Fonts, LxColors, LxIcons, LxTheme, Space;
 
 /// Require a signup code to complete signup.
 const bool requireSignupCode = true;

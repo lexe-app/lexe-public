@@ -22,7 +22,6 @@ import 'package:lexeapp/components.dart'
         LxFilledButton,
         MultistepFlow,
         ScrollableSinglePageBody,
-        SeedWord,
         SeedWordsCard,
         SubheadingText,
         baseInputDecoration;
@@ -30,7 +29,7 @@ import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/style.dart'
-    show Fonts, LxColors, LxIcons, LxRadius, LxTheme, Space;
+    show Fonts, LxColors, LxIcons, LxTheme, Space;
 
 /// A tiny interface so we can mock the [AppHandle.restore] call in design mode.
 abstract interface class RestoreApi {
@@ -785,7 +784,7 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
               onWordTap: this.onWordSelected,
             ),
           ),
-          const SizedBox(height: Space.s200),
+          const SizedBox(height: Space.s400),
           ValueListenableBuilder(
             valueListenable: this.mnemonicWords,
             builder: (context, mnemonicWords, widget) => Align(
@@ -796,7 +795,7 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
               ),
             ),
           ),
-          const SizedBox(height: Space.s200),
+          const SizedBox(height: Space.s400),
           ValueListenableBuilder(
             valueListenable: this.errorMessage,
             builder: (context, errorMessage, _) =>
@@ -845,15 +844,16 @@ class WordSuggestionsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final suggestions = this.suggestions.value;
-    if (suggestions.isEmpty) return const SizedBox(height: Space.s800);
+    if (suggestions.isEmpty) return const SizedBox(height: Space.s600);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: Space.s200),
-      height: Space.s800,
+      height: Space.s600,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
+
         itemCount: suggestions.length,
-        separatorBuilder: (context, index) => const SizedBox(width: Space.s100),
+        separatorBuilder: (context, index) => const SizedBox(width: Space.s400),
         itemBuilder: (context, index) {
           final word = suggestions[index];
           return SuggestionChip(word: word, onTap: () => onWordTap(word));
@@ -874,10 +874,8 @@ class SuggestionChip extends StatelessWidget {
     return GestureDetector(
       onTap: this.onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: Space.s400,
-          vertical: Space.s100,
-        ),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: Space.s100),
         child: Text(
           this.word,
           style: const TextStyle(
