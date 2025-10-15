@@ -169,7 +169,13 @@ impl RootSeed {
     #[frb(sync)]
     pub fn from_mnemonic(mnemonic: Vec<String>) -> anyhow::Result<Self> {
         let words = mnemonic.join(" ");
-        let root_seed_rs = RootSeedRs::try_from(words.as_str())?;
+        let mnemonic = bip39::Mnemonic::parse_in_normalized(
+            bip39::Language::English,
+            words.as_str(),
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to parse mnemonic: {e}"))?;
+
+        let root_seed_rs = RootSeedRs::try_from(mnemonic)?;
         Ok(Self {
             inner: RustOpaqueNom::new(root_seed_rs),
         })

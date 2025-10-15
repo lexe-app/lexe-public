@@ -299,19 +299,6 @@ impl fmt::Debug for RootSeed {
     }
 }
 
-impl TryFrom<&str> for RootSeed {
-    type Error = anyhow::Error;
-
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        let (entropy, _) =
-            bip39::Mnemonic::parse_in_normalized(bip39::Language::English, s)
-                .map_err(|e| anyhow::anyhow!("Failed to parse mnemonic: {e}"))?
-                .to_entropy_array();
-
-        Self::try_from(&entropy[..Self::LENGTH])
-    }
-}
-
 impl TryFrom<&[u8]> for RootSeed {
     type Error = anyhow::Error;
 
@@ -847,20 +834,6 @@ mod test {
         assert_eq!(seed1.as_bytes(), seed_from_str1.as_bytes());
         assert_eq!(seed2.as_bytes(), seed_from_str2.as_bytes());
         assert_eq!(seed3.as_bytes(), seed_from_str3.as_bytes());
-
-        // Check `RootSeed` from `&str`
-        let seed_from_mnemonic_str1 =
-            RootSeed::try_from(mnemonic_from_str1.to_string().as_str())
-                .unwrap();
-        let seed_from_mnemonic_str2 =
-            RootSeed::try_from(mnemonic_from_str2.to_string().as_str())
-                .unwrap();
-        let seed_from_mnemonic_str3 =
-            RootSeed::try_from(mnemonic_from_str3.to_string().as_str())
-                .unwrap();
-        assert_eq!(seed1.as_bytes(), seed_from_mnemonic_str1.as_bytes());
-        assert_eq!(seed2.as_bytes(), seed_from_mnemonic_str2.as_bytes());
-        assert_eq!(seed3.as_bytes(), seed_from_mnemonic_str3.as_bytes());
 
         // Check `String`
         assert_eq!(str1, seed1.to_mnemonic().to_string());
