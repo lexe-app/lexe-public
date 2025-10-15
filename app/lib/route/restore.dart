@@ -59,6 +59,7 @@ class _ProdRestoreApi implements RestoreApi {
   );
 }
 
+/// The entry point into either GDrive wallet resotre or seed phrase restore.
 class RestorePage extends StatelessWidget {
   const RestorePage({
     super.key,
@@ -617,6 +618,7 @@ class _RestorePasswordPageState extends State<RestorePasswordPage> {
   }
 }
 
+/// Enter a seed phrase to restore a wallet.
 class RestoreSeedPhrasePage extends StatefulWidget {
   const RestoreSeedPhrasePage({
     super.key,
