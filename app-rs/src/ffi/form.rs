@@ -26,7 +26,8 @@ pub fn suggest_mnemonic_words(prefix: &str, take: usize) -> Vec<String> {
         .words_by_prefix(prefix)
         .iter()
         .take(take)
-        .map(|w| w.to_owned().to_string())
+        .copied()
+        .map(|w| w.to_owned())
         .collect()
 }
 
