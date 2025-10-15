@@ -8,6 +8,7 @@ import 'package:app_rs_dart/ffi/form.dart' as form;
 import 'package:app_rs_dart/ffi/gdrive.dart'
     show GDriveClient, GDriveRestoreCandidate;
 import 'package:app_rs_dart/ffi/types.dart' show Config, RootSeed;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
 import 'package:lexeapp/components.dart'
@@ -618,10 +619,10 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
 
   void onTextChanged(String value) {
     final word = value.trim().toLowerCase();
-    if (value.endsWith(' ')) textController.text = value.trim();
+    if (value.endsWith(" ")) this.textController.text = value.trim();
 
     if (word.isEmpty) {
-      suggestions.value = [];
+      this.suggestions.value = [];
       return;
     }
 
@@ -637,24 +638,24 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
     final currentWords = this.mnemonicWords.value;
 
     if (currentWords.length >= amountWords || !this.isValidWord(word)) {
-      textFocusNode.requestFocus();
+      this.textFocusNode.requestFocus();
       return;
     }
 
     this.mnemonicWords.value = [...currentWords, word];
     this.textController.clear();
-    suggestions.value = [];
-    errorMessage.value = null;
+    this.suggestions.value = [];
+    this.errorMessage.value = null;
     if (this.mnemonicWords.value.length < amountWords) {
-      textFocusNode.requestFocus();
+      this.textFocusNode.requestFocus();
     }
   }
 
   void onRemoveLastWord() {
     final currentWords = this.mnemonicWords.value;
     if (currentWords.isEmpty) return;
-    mnemonicWords.value = currentWords.sublist(0, currentWords.length - 1);
-    textFocusNode.requestFocus();
+    this.mnemonicWords.value = currentWords.sublist(0, currentWords.length - 1);
+    this.textFocusNode.requestFocus();
   }
 
   bool isValidWord(String word) {
@@ -741,6 +742,11 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
             enableSuggestions: false,
             textInputAction: TextInputAction.next,
             onSubmitted: this.onWordSelected,
+            style: const TextStyle(
+              fontSize: Fonts.size500,
+              fontVariations: [Fonts.weightMedium],
+              letterSpacing: -0.25,
+            ),
           ),
           ValueListenableBuilder(
             valueListenable: this.suggestions,
@@ -771,11 +777,11 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
           padding: const EdgeInsets.only(top: Space.s500),
           child: ValueListenableBuilder(
             valueListenable: this.mnemonicWords,
-            builder: (context, value, child) {
+            builder: (context, mnemonicWords, child) {
               return ValueListenableBuilder(
                 valueListenable: this.isRestoring,
                 builder: (context, isRestoring, widget) => AnimatedFillButton(
-                  onTap: this.mnemonicWords.value.length >= amountWords
+                  onTap: mnemonicWords.length >= amountWords
                       ? this.onSubmit
                       : null,
                   loading: isRestoring,
@@ -803,26 +809,25 @@ class WordSuggestionsRow extends StatelessWidget {
     required this.onWordTap,
   });
 
-  final ValueNotifier<List<String>> suggestions;
+  static const suggestionCount = 4;
+  final ValueListenable<List<String>> suggestions;
   final ValueChanged<String> onWordTap;
 
   @override
   Widget build(BuildContext context) {
     final suggestions = this.suggestions.value;
-    if (suggestions.isEmpty) return const SizedBox(height: Space.s700);
+    if (suggestions.length < suggestionCount) {
+      suggestions.addAll(
+        List.generate(suggestionCount - suggestions.length, (_) => ""),
+      );
+    }
 
-    return SizedBox(
-      height: Space.s700,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-
-        itemCount: suggestions.length,
-        separatorBuilder: (context, index) => const SizedBox(width: Space.s400),
-        itemBuilder: (context, index) {
-          final word = suggestions[index];
-          return SuggestionChip(word: word, onTap: () => onWordTap(word));
-        },
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: this.suggestions.value.map((suggestion) {
+        final onTap = suggestion.isEmpty ? null : () => onWordTap(suggestion);
+        return SuggestionChip(word: suggestion, onTap: onTap);
+      }).toList(),
     );
   }
 }
@@ -831,7 +836,7 @@ class SuggestionChip extends StatelessWidget {
   const SuggestionChip({super.key, required this.word, required this.onTap});
 
   final String word;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -839,7 +844,11 @@ class SuggestionChip extends StatelessWidget {
       onTap: this.onTap,
       child: Container(
         alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: Space.s100),
+        height: Space.s650,
+        padding: const EdgeInsets.symmetric(
+          horizontal: Space.s400,
+          vertical: Space.s200,
+        ),
         child: Text(
           this.word,
           style: const TextStyle(

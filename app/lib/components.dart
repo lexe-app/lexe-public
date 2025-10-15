@@ -2308,13 +2308,12 @@ class SeedWord extends StatelessWidget {
     // is "tomorrow" with 8 chracters plus the icon. Then we assume that a chracter
     // in pixels is 0.7 times the font size.
     final calculatedMinWidth = _wordStyle.fontSize! * 9 * 0.7;
+    final word = this.word.isNotEmpty ? this.word : " ";
     return ConstrainedBox(
       constraints: const BoxConstraints(maxHeight: Space.s500),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: this.word.isNotEmpty
-            ? CrossAxisAlignment.baseline
-            : CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
         textBaseline: TextBaseline.alphabetic,
         children: [
           SizedBox(
@@ -2329,13 +2328,13 @@ class SeedWord extends StatelessWidget {
 
           ConstrainedBox(
             constraints: BoxConstraints(minWidth: calculatedMinWidth),
-            child: Row(
-              children: [
-                Text(this.word, textAlign: TextAlign.left, style: _wordStyle),
-                if (this._onRemove != null)
-                  GestureDetector(
-                    onTap: this._onRemove,
-                    child: const Padding(
+            child: GestureDetector(
+              onTap: this._onRemove,
+              child: Row(
+                children: [
+                  Text(word, textAlign: TextAlign.left, style: _wordStyle),
+                  if (this._onRemove != null)
+                    const Padding(
                       padding: EdgeInsets.only(left: Space.s100),
                       child: Icon(
                         LxIcons.close,
@@ -2343,8 +2342,8 @@ class SeedWord extends StatelessWidget {
                         color: LxColors.fgSecondary,
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -2389,9 +2388,9 @@ class SeedWordsCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(
         // less right-padding to visually center contents
         Space.s400,
-        Space.s300,
+        Space.s450,
         Space.s100,
-        Space.s300,
+        Space.s450,
       ),
       decoration: BoxDecoration(
         color: LxColors.grey1000,
