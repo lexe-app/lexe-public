@@ -37,7 +37,7 @@ abstract interface class RestoreApi {
 
   Future<FfiResult<AppHandle>> restore({
     required Config config,
-    String? googleAuthCode,
+    required String? googleAuthCode,
     required RootSeed rootSeed,
   });
 }
