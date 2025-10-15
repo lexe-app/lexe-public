@@ -48,7 +48,7 @@ class _ProdRestoreApi implements RestoreApi {
   @override
   Future<FfiResult<AppHandle>> restore({
     required Config config,
-    String? googleAuthCode,
+    required String? googleAuthCode,
     required RootSeed rootSeed,
   }) => Result.tryFfiAsync(
     () => AppHandle.restore(
@@ -72,82 +72,12 @@ class RestorePage extends StatelessWidget {
   final GDriveAuth gdriveAuth;
   final RestoreApi restoreApi;
 
-  Future<void> onGDrivePressed(BuildContext context) async {
-    final AppHandle? flowResult = await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => RestoreGDriveAuthPage(
-          config: this.config,
-          gdriveAuth: this.gdriveAuth,
-          restoreApi: this.restoreApi,
-        ),
-      ),
-    );
-    if (flowResult == null || !context.mounted) return;
-
-    unawaited(Navigator.of(context).maybePop(flowResult));
-  }
-
-  Future<void> onSeedPhrasePressed(BuildContext context) async {
-    final AppHandle? flowResult = await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => RestoreSeedPhrasePage(
-          config: this.config,
-          restoreApi: this.restoreApi,
-        ),
-      ),
-    );
-    if (flowResult == null) return;
-    if (!context.mounted) return;
-    unawaited(Navigator.of(context).maybePop(flowResult));
-  }
-
   @override
   Widget build(BuildContext context) => MultistepFlow<AppHandle?>(
-    builder: (_) => Scaffold(
-      appBar: AppBar(
-        leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxBackButton(isLeading: true),
-      ),
-      body: ScrollableSinglePageBody(
-        body: [
-          const Icon(
-            LxIcons.nodeInfo,
-            size: Space.s900,
-            weight: 300,
-            opticalSize: 48,
-            grade: -50,
-          ),
-          MarkdownBody(
-            data: '''
-# Restore Wallet
-
-Already have a Lexe Wallet?
-Connect your Google Drive to restore from an existing Lexe
-Wallet backup or use your Seed Phrase.
-''',
-            styleSheet: LxTheme.markdownStyle,
-          ),
-        ],
-        bottom: Padding(
-          padding: const EdgeInsets.only(top: Space.s500),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              LxFilledButton.strong(
-                onTap: () => this.onGDrivePressed(context),
-                label: const Text("Restore from Google Drive"),
-                icon: const Icon(LxIcons.next),
-              ),
-              const SizedBox(height: Space.s400),
-              LxFilledButton(
-                onTap: () => this.onSeedPhrasePressed(context),
-                label: const Text("Restore from Seed Phrase"),
-                icon: const Icon(LxIcons.next),
-              ),
-            ],
-          ),
-        ),
-      ),
+    builder: (_) => RestoreGDriveAuthPage(
+      config: this.config,
+      gdriveAuth: this.gdriveAuth,
+      restoreApi: this.restoreApi,
     ),
   );
 }
@@ -180,6 +110,20 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
     this.isRestoring.dispose();
     this.errorMessage.dispose();
     super.dispose();
+  }
+
+  Future<void> onSeedPhrasePressed(BuildContext context) async {
+    final AppHandle? flowResult = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RestoreSeedPhrasePage(
+          config: this.widget.config,
+          restoreApi: this.widget.restoreApi,
+        ),
+      ),
+    );
+    if (flowResult == null || !this.context.mounted) return;
+
+    unawaited(Navigator.of(context).maybePop(flowResult));
   }
 
   Future<void> onAuthPressed() async {
@@ -328,6 +272,7 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
             data: '''
 # Restore wallet from Google Drive
 
+Already have a Lexe Wallet?
 Connect your Google Drive to restore from an existing Lexe Wallet backup.
 
 - **Your wallet backup is encrypted**. You'll need your backup password in a moment.
@@ -348,19 +293,37 @@ Connect your Google Drive to restore from an existing Lexe Wallet backup.
         ],
         bottom: Padding(
           padding: const EdgeInsets.only(top: Space.s500),
-          child: ValueListenableBuilder(
-            valueListenable: this.isRestoring,
-            builder: (context, isRestoring, widget) => AnimatedFillButton(
-              onTap: this.onAuthPressed,
-              loading: isRestoring,
-              label: const Text("Connect Google Drive"),
-              icon: const Icon(LxIcons.next),
-              style: FilledButton.styleFrom(
-                backgroundColor: LxColors.foreground,
-                foregroundColor: LxColors.background,
-                iconColor: LxColors.background,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              ValueListenableBuilder(
+                valueListenable: this.isRestoring,
+                builder: (context, isRestoring, widget) => AnimatedFillButton(
+                  onTap: this.onAuthPressed,
+                  loading: isRestoring,
+                  label: const Text("Connect Google Drive"),
+                  icon: const Icon(LxIcons.next),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: LxColors.foreground,
+                    foregroundColor: LxColors.background,
+                    iconColor: LxColors.background,
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(height: Space.s400),
+
+              ValueListenableBuilder(
+                valueListenable: this.isRestoring,
+                builder: (_, isRestoring, _) => LxFilledButton(
+                  onTap: () {
+                    if (isRestoring) return;
+                    this.onSeedPhrasePressed(context);
+                  },
+                  label: const Text("Restore from Seed Phrase"),
+                  icon: const Icon(LxIcons.next),
+                ),
+              ),
+            ],
           ),
         ),
       ),
