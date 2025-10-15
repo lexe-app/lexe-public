@@ -2297,7 +2297,7 @@ class SeedWord extends StatelessWidget {
   );
 
   static const _wordStyle = TextStyle(
-    fontSize: Fonts.size200,
+    fontSize: Fonts.size300,
     fontVariations: [Fonts.weightSemiBold],
   );
 
@@ -2308,22 +2308,24 @@ class SeedWord extends StatelessWidget {
     // is "tomorrow" with 8 chracters plus the icon. Then we assume that a chracter
     // in pixels is 0.7 times the font size.
     final calculatedMinWidth = _wordStyle.fontSize! * 9 * 0.7;
-    return SizedBox(
-      height: Space.s500,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: Space.s500),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: this.word.isNotEmpty
+            ? CrossAxisAlignment.baseline
+            : CrossAxisAlignment.center,
         textBaseline: TextBaseline.alphabetic,
         children: [
           SizedBox(
-            width: Space.s550,
+            width: Space.s500,
             child: Text(
               "${this.index + 1}.",
               textAlign: TextAlign.right,
               style: _indexStyle,
             ),
           ),
-          const SizedBox(width: Space.s300),
+          const SizedBox(width: Space.s200),
 
           ConstrainedBox(
             constraints: BoxConstraints(minWidth: calculatedMinWidth),
@@ -2385,10 +2387,10 @@ class SeedWordsCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(
-        // slightly less left-padding to visually center contents
+        // less right-padding to visually center contents
         Space.s400,
         Space.s300,
-        Space.s500,
+        Space.s100,
         Space.s300,
       ),
       decoration: BoxDecoration(
@@ -2397,7 +2399,7 @@ class SeedWordsCard extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.center,
         // Layout the words in two columns, with regular spacing between each
         // group of three words.
@@ -2405,8 +2407,8 @@ class SeedWordsCard extends StatelessWidget {
           // words column 1-12
           Column(
             mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               for (int i = 0; i < 3; i++) this._seedWord(i),
               const SizedBox(height: spaceWordGroup),
@@ -2417,8 +2419,6 @@ class SeedWordsCard extends StatelessWidget {
               for (int i = 9; i < 12; i++) this._seedWord(i),
             ],
           ),
-
-          const SizedBox(width: Space.s500),
 
           // words column 13-24
           Column(

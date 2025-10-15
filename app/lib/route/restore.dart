@@ -841,11 +841,10 @@ class WordSuggestionsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final suggestions = this.suggestions.value;
-    if (suggestions.isEmpty) return const SizedBox(height: Space.s600);
+    if (suggestions.isEmpty) return const SizedBox(height: Space.s700);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: Space.s200),
-      height: Space.s600,
+    return SizedBox(
+      height: Space.s700,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
 
