@@ -1,7 +1,17 @@
+import 'dart:async' show unawaited;
+
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:flutter/material.dart';
+import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
-    show HeadingText, LxBackButton, ScrollableSinglePageBody, SubheadingText;
+    show
+        HeadingText,
+        LxBackButton,
+        LxFilledButton,
+        ScrollableSinglePageBody,
+        SeedWordsCard,
+        SubheadingText;
+import 'package:lexeapp/route/send/page.dart' show StackedButton;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 /// Basic security page that leads to displa SeedPhrase, connect GDrive or
@@ -16,7 +26,14 @@ class SecurityPage extends StatefulWidget {
 }
 
 class _SecurityPageState extends State<SecurityPage> {
-  void onViewSeedPhraseTap() {}
+  void onViewSeedPhraseTap() {
+    final seedPhrase = List.generate(24, (_) => "hello");
+    Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) => SeedPhrasePage(seedPhrase: seedPhrase),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -188,6 +205,131 @@ class NodeSecurityButton extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class SeedPhrasePage extends StatefulWidget {
+  const SeedPhrasePage({super.key, required this.seedPhrase});
+
+  final List<String> seedPhrase;
+
+  @override
+  State<SeedPhrasePage> createState() => _SeedPhrasePageState();
+}
+
+class _SeedPhrasePageState extends State<SeedPhrasePage> {
+  /// Whether the user has tapped the "switch" tile to confirm they've backed
+  /// up their seed phrase.
+  final ValueNotifier<bool> isConfirmed = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    this.isConfirmed.dispose();
+    super.dispose();
+  }
+
+  void onConfirm(bool value) {
+    this.isConfirmed.value = value;
+  }
+
+  void onSubmit() {
+    Navigator.of(this.context).pop();
+  }
+
+  void onCopy() {
+    final words = this.widget.seedPhrase.indexed
+        .map((x) => "${x.$1 + 1}. ${x.$2}")
+        .join(" ");
+    unawaited(LxClipboard.copyTextWithFeedback(this.context, words));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(leading: null, automaticallyImplyLeading: false),
+      body: ScrollableSinglePageBody(
+        body: [
+          const HeadingText(text: "Backup seed phrase"),
+          const SubheadingText(
+            text: "Store this in a safe place, like a password manager.",
+          ),
+          const SizedBox(height: Space.s600),
+          Align(
+            alignment: Alignment.center,
+            child: SeedWordsCard(seedWords: this.widget.seedPhrase),
+          ),
+          const SizedBox(height: Space.s500),
+          ValueListenableBuilder(
+            valueListenable: this.isConfirmed,
+            builder: (context, isConfirmed, child) {
+              return SwitchListTile(
+                value: isConfirmed,
+                // Disable switch while signing up
+                onChanged: this.onConfirm,
+                title: const Text(
+                  "I have backed up my seed phrase. I understand my funds cannot be recovered if I lose the seed phrase.",
+                  style: TextStyle(fontSize: Fonts.size200, height: 1.4),
+                ),
+                contentPadding: EdgeInsets.zero,
+                inactiveTrackColor: LxColors.grey1000,
+                activeTrackColor: LxColors.moneyGoUp,
+                inactiveThumbColor: LxColors.grey850,
+                controlAffinity: ListTileControlAffinity.leading,
+              );
+            },
+          ),
+        ],
+
+        bottom: Padding(
+          padding: const EdgeInsets.only(top: Space.s300, bottom: Space.s200),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Row(
+                children: [
+                  // Copy
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: this.onCopy,
+                      child: StackedButton(
+                        button: LxFilledButton(
+                          onTap: this.onCopy,
+                          icon: const Center(child: Icon(LxIcons.copy)),
+                        ),
+                        label: "Copy",
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: Space.s200),
+                  // Sign up ->
+                  Expanded(
+                    child: ValueListenableBuilder(
+                      valueListenable: this.isConfirmed,
+                      builder: (_context, isConfirmed, _widget) {
+                        final isEnabled = isConfirmed;
+
+                        return GestureDetector(
+                          onTap: isEnabled ? this.onSubmit : null,
+                          child: StackedButton(
+                            button: LxFilledButton(
+                              label: const Icon(LxIcons.back),
+                              icon: const Center(),
+                              onTap: isEnabled ? this.onSubmit : null,
+                            ),
+                            label: "Go Back",
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
