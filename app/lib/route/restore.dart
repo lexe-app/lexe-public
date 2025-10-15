@@ -132,15 +132,10 @@ Wallet backup or use your Seed Phrase.
           child: Column(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              LxFilledButton(
+              LxFilledButton.strong(
                 onTap: () => this.onGDrivePressed(context),
                 label: const Text("Restore from Google Drive"),
                 icon: const Icon(LxIcons.next),
-                style: FilledButton.styleFrom(
-                  backgroundColor: LxColors.foreground,
-                  foregroundColor: LxColors.background,
-                  iconColor: LxColors.background,
-                ),
               ),
               const SizedBox(height: Space.s400),
               LxFilledButton(
