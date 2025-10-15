@@ -53,6 +53,7 @@ impl RootSeed {
     /// Creates a [`bip39::Mnemonic`] from this [`RootSeed`]. Use
     /// [`bip39::Mnemonic`]'s `Display` / `FromStr` impls to convert from / to
     /// user-facing strings.
+    #[cfg(any(feature = "bip39", test))]
     pub fn to_mnemonic(&self) -> bip39::Mnemonic {
         bip39::Mnemonic::from_entropy_in(
             bip39::Language::English,
@@ -311,6 +312,7 @@ impl TryFrom<&[u8]> for RootSeed {
     }
 }
 
+#[cfg(any(feature = "bip39", test))]
 impl TryFrom<bip39::Mnemonic> for RootSeed {
     type Error = anyhow::Error;
 

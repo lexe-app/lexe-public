@@ -20,7 +20,7 @@ flutter = [
 [dependencies]
 # --- LEXE --- #
 
-common.path = "../common"
+common = { path = "../common", features = ["bip39"] }
 gdrive.path = "../gdrive"
 hex.path = "../hex"
 lexe-api.path = "../lexe-api"
@@ -72,7 +72,7 @@ fast_qr = { workspace = true, optional = true }
 # jni = "0.21"
 
 [dev-dependencies]
-common = { path = "../common", features = ["test-utils"] }
+common = { path = "../common", features = ["bip39", "test-utils"] }
 lexe-api = { path = "../lexe-api", features = ["test-utils"] }
 
 async-trait.workspace = true

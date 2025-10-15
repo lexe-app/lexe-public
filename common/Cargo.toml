@@ -8,6 +8,8 @@ version.workspace = true
 [features]
 # Explicitly specify that no features should be enabled by default.
 default = []
+# Enables BIP-39 utilities on `RootSeed`.
+bip39 = ["dep:bip39"]
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
 test-utils = [
   "dep:chrono",
@@ -41,7 +43,6 @@ asn1-rs.workspace = true
 async-trait.workspace = true
 base64.workspace = true
 bcs.workspace = true
-bip39.workspace = true
 bitcoin = { workspace = true, features = ["serde"] }
 bytes.workspace = true
 cfg-if.workspace = true
@@ -72,6 +73,7 @@ yasna.workspace = true
 # --- OPTIONAL --- #
 # These must have `optional = true` to prevent infecting production binaries.
 
+bip39 = { optional = true, workspace = true }
 chrono = { optional = true, workspace = true }
 proptest = { optional = true, workspace = true, features = ["alloc"] }
 proptest-derive = { optional = true, workspace = true }
@@ -82,6 +84,7 @@ serde_urlencoded = { optional = true, workspace = true }
 proptest = { optional = true, workspace = true, features = ["std"] }
 
 [dev-dependencies]
+bip39.workspace = true
 chrono.workspace = true
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
