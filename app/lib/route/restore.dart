@@ -673,14 +673,18 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
   void onWordSelected(String word) {
     final currentWords = this.mnemonicWords.value;
 
-    if (currentWords.length >= amountWords) return;
-    if (!this.isValidWord(word)) return;
+    if (currentWords.length >= amountWords || !this.isValidWord(word)) {
+      textFocusNode.requestFocus();
+      return;
+    }
 
     this.mnemonicWords.value = [...currentWords, word];
     this.textController.clear();
     suggestions.value = [];
     errorMessage.value = null;
-    textFocusNode.requestFocus();
+    if (this.mnemonicWords.value.length < amountWords) {
+      textFocusNode.requestFocus();
+    }
   }
 
   void onRemoveLastWord() {
@@ -772,7 +776,8 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
             decoration: baseInputDecoration.copyWith(hintText: "Enter word"),
             autocorrect: false,
             enableSuggestions: false,
-            textInputAction: TextInputAction.done,
+            textInputAction: TextInputAction.next,
+            onSubmitted: this.onWordSelected,
           ),
           ValueListenableBuilder(
             valueListenable: this.suggestions,
