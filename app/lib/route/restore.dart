@@ -651,6 +651,24 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
     }
   }
 
+  void onWordSubmitted(String _) {
+    final currentWords = this.mnemonicWords.value;
+
+    if (currentWords.length >= amountWords || this.suggestions.value.isEmpty) {
+      this.textFocusNode.requestFocus();
+      return;
+    }
+
+    final word = this.suggestions.value.first;
+    this.mnemonicWords.value = [...currentWords, word];
+    this.textController.clear();
+    this.suggestions.value = [];
+    this.errorMessage.value = null;
+    if (this.mnemonicWords.value.length < amountWords) {
+      this.textFocusNode.requestFocus();
+    }
+  }
+
   void onRemoveLastWord() {
     final currentWords = this.mnemonicWords.value;
     if (currentWords.isEmpty) return;
@@ -741,7 +759,7 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
             autocorrect: false,
             enableSuggestions: false,
             textInputAction: TextInputAction.next,
-            onSubmitted: this.onWordSelected,
+            onSubmitted: this.onWordSubmitted,
             style: const TextStyle(
               fontSize: Fonts.size500,
               fontVariations: [Fonts.weightMedium],
