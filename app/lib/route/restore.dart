@@ -635,7 +635,12 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
   void onWordSelected(String word) {
     final currentWords = this.mnemonicWords.value;
 
-    if (currentWords.length >= amountWords || !this.isValidWord(word)) {
+    if (currentWords.length >= amountWords) {
+      this.textFocusNode.unfocus();
+      return;
+    }
+
+    if (!this.isValidWord(word)) {
       this.textFocusNode.requestFocus();
       return;
     }
@@ -646,13 +651,20 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
     this.errorMessage.value = null;
     if (this.mnemonicWords.value.length < amountWords) {
       this.textFocusNode.requestFocus();
+    } else {
+      this.textFocusNode.unfocus();
     }
   }
 
   void onWordSubmitted(String _) {
     final currentWords = this.mnemonicWords.value;
 
-    if (currentWords.length >= amountWords || this.suggestions.value.isEmpty) {
+    if (currentWords.length >= amountWords) {
+      this.textFocusNode.unfocus();
+      return;
+    }
+
+    if (this.suggestions.value.isEmpty) {
       this.textFocusNode.requestFocus();
       return;
     }
@@ -664,6 +676,8 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
     this.errorMessage.value = null;
     if (this.mnemonicWords.value.length < amountWords) {
       this.textFocusNode.requestFocus();
+    } else {
+      this.textFocusNode.unfocus();
     }
   }
 
@@ -749,20 +763,28 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
             text: "Your recovery phrase is a list of 24 words.",
           ),
           const SizedBox(height: Space.s600),
-          TextField(
-            controller: this.textController,
-            focusNode: this.textFocusNode,
-            onChanged: this.onTextChanged,
-            decoration: baseInputDecoration.copyWith(hintText: "Enter word"),
-            autocorrect: false,
-            enableSuggestions: false,
-            textInputAction: TextInputAction.next,
-            onSubmitted: this.onWordSubmitted,
-            style: const TextStyle(
-              fontSize: Fonts.size500,
-              fontVariations: [Fonts.weightMedium],
-              letterSpacing: -0.25,
-            ),
+          ValueListenableBuilder(
+            valueListenable: this.mnemonicWords,
+            builder: (_, mnemonic, _) {
+              return TextField(
+                controller: this.textController,
+                focusNode: this.textFocusNode,
+                onChanged: this.onTextChanged,
+                decoration: baseInputDecoration.copyWith(
+                  hintText: "Enter word",
+                ),
+                autocorrect: false,
+                enableSuggestions: false,
+                enabled: mnemonic.length < amountWords,
+                textInputAction: TextInputAction.next,
+                onSubmitted: this.onWordSubmitted,
+                style: const TextStyle(
+                  fontSize: Fonts.size500,
+                  fontVariations: [Fonts.weightMedium],
+                  letterSpacing: -0.25,
+                ),
+              );
+            },
           ),
           ValueListenableBuilder(
             valueListenable: this.suggestions,
