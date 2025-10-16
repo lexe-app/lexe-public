@@ -7,6 +7,7 @@ import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
         HeadingText,
+        InfoCard,
         LxBackButton,
         LxFilledButton,
         ScrollableSinglePageBody,
@@ -80,31 +81,20 @@ class _SecurityPageState extends State<SecurityPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                HeadingText(text: "Node Security"),
+                HeadingText(text: "Node security"),
                 SubheadingText(
-                  text: "Backup your node and test your security backups.",
+                  text: "Backup your node and test your security backups",
                 ),
                 SizedBox(height: Space.s500),
               ],
             ),
           ),
 
-          InfoCardWithSubtitle(
-            title: const Text(
-              "Seed phrase",
-              style: TextStyle(
-                color: LxColors.fgTertiary,
-                fontSize: Fonts.size200,
-                fontVariations: [Fonts.weightMedium],
-              ),
-            ),
-            subtitle: const Text.rich(
+          InfoCard(
+            description: Text.rich(
               TextSpan(
-                style: TextStyle(
-                  fontVariations: [Fonts.weightNormal],
-                  fontSize: Fonts.size200,
-                ),
-                children: [
+                style: InfoCard.defaultDescriptionStyle,
+                children: const [
                   TextSpan(
                     text: "WARNING: ",
                     style: TextStyle(color: LxColors.warningText),
@@ -113,7 +103,6 @@ class _SecurityPageState extends State<SecurityPage> {
                     text:
                         "This is the root seed for your wallet. Anyone "
                         "with this secret also controls your funds.",
-                    style: TextStyle(color: LxColors.fgTertiary),
                   ),
                 ],
               ),
@@ -125,61 +114,6 @@ class _SecurityPageState extends State<SecurityPage> {
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class InfoCardWithSubtitle extends StatelessWidget {
-  const InfoCardWithSubtitle({
-    super.key,
-    required this.children,
-    required this.title,
-    required this.subtitle,
-    this.bodyPadding = Space.s300,
-  });
-
-  final Text title;
-  final Text subtitle;
-  final List<Widget> children;
-  final double bodyPadding;
-
-  @override
-  Widget build(BuildContext context) {
-    final section = Card(
-      color: LxColors.grey1000,
-      elevation: 0.0,
-      margin: const EdgeInsets.all(0),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: Space.s300 / 2),
-        child: Column(children: this.children),
-      ),
-    );
-
-    const intraCardSpace = Space.s200;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: intraCardSpace),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.only(
-              left: this.bodyPadding,
-              bottom: Space.s200,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                this.title,
-                const SizedBox(height: Space.s200),
-                this.subtitle,
-              ],
-            ),
-          ),
-          section,
         ],
       ),
     );

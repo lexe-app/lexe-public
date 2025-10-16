@@ -2057,16 +2057,61 @@ class InfoCard extends StatelessWidget {
     super.key,
     required this.children,
     this.header,
+    this.description,
     this.bodyPadding = Space.s300,
   });
 
   final String? header;
   final List<Widget> children;
   final double bodyPadding;
+  final Text? description;
+
+  static TextStyle get defaultHeaderStyle =>
+      const TextStyle(color: LxColors.fgTertiary, fontSize: Fonts.size200);
+
+  static TextStyle get defaultDescriptionStyle => const TextStyle(
+    color: LxColors.fgTertiary,
+    fontSize: Fonts.size200,
+    fontVariations: [Fonts.weightNormal],
+  );
 
   @override
   Widget build(BuildContext context) {
-    final section = Card(
+    final header = this.header;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: Space.s200),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (header != null)
+            Padding(
+              padding: EdgeInsets.only(
+                left: this.bodyPadding,
+                bottom: Space.s200,
+              ),
+              child: Text(header, style: defaultHeaderStyle),
+            ),
+          _InfoCard(children: this.children),
+          if (this.description != null)
+            Padding(
+              padding: EdgeInsets.only(top: Space.s200, left: this.bodyPadding),
+              child: this.description,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Inner [InfoCard]
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
       color: LxColors.grey1000,
       elevation: 0.0,
       margin: const EdgeInsets.all(0),
@@ -2075,39 +2120,6 @@ class InfoCard extends StatelessWidget {
         child: Column(children: this.children),
       ),
     );
-
-    const intraCardSpace = Space.s200;
-
-    final header = this.header;
-    if (header != null) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: intraCardSpace),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: EdgeInsets.only(
-                left: this.bodyPadding,
-                bottom: Space.s200,
-              ),
-              child: Text(
-                header,
-                style: const TextStyle(
-                  color: LxColors.fgTertiary,
-                  fontSize: Fonts.size200,
-                ),
-              ),
-            ),
-            section,
-          ],
-        ),
-      );
-    } else {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: intraCardSpace),
-        child: section,
-      );
-    }
   }
 }
 
