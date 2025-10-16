@@ -11,12 +11,13 @@ import 'package:lexeapp/components.dart'
         HeadingText,
         InfoCard,
         InfoRow,
+        InfoRowButton,
         LxCloseButton,
         ScrollableSinglePageBody,
         SubheadingText;
 import 'package:lexeapp/result.dart' show Result;
 import 'package:lexeapp/route/raw_data.dart' show RawDataPage;
-import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
+import 'package:lexeapp/style.dart' show Space;
 
 /// A basic page containing relevant user and user node identities, versions,
 /// etc...
@@ -143,63 +144,11 @@ class _NodeInfoPageState extends State<NodeInfoPage> {
           InfoCard(
             header: Text("Node internals", style: InfoCard.defaultHeaderStyle),
             children: [
-              NodeDetailsButton(
+              InfoRowButton(
                 label: "View broadcasted transactions",
                 onTap: this.onBroadcastedTxsTap,
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class NodeDetailsButton extends StatelessWidget {
-  const NodeDetailsButton({
-    super.key,
-    required this.onTap,
-    required this.label,
-  });
-
-  final VoidCallback? onTap;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isDisabled = (this.onTap == null);
-    final Color color = (!isDisabled)
-        ? LxColors.fgSecondary
-        : LxColors.fgTertiary;
-
-    return InkWell(
-      onTap: this.onTap,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Expanded(child: SizedBox()),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Space.s450,
-              vertical: Space.s200,
-            ),
-            child: Text(
-              this.label,
-              style: Fonts.fontUI.copyWith(
-                fontSize: Fonts.size200,
-                color: color,
-                fontVariations: [Fonts.weightNormal],
-              ),
-            ),
-          ),
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: const EdgeInsets.only(right: Space.s300),
-                child: Icon(LxIcons.next, size: Fonts.size100, color: color),
-              ),
-            ),
           ),
         ],
       ),

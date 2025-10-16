@@ -2123,6 +2123,55 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
+/// A clickable [Row] as button that goes inside a [InfoCard].
+class InfoRowButton extends StatelessWidget {
+  const InfoRowButton({super.key, required this.onTap, required this.label});
+
+  final VoidCallback? onTap;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDisabled = (this.onTap == null);
+    final Color color = (!isDisabled)
+        ? LxColors.fgSecondary
+        : LxColors.fgTertiary;
+
+    return InkWell(
+      onTap: this.onTap,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Expanded(child: SizedBox()),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: Space.s450,
+              vertical: Space.s200,
+            ),
+            child: Text(
+              this.label,
+              style: Fonts.fontUI.copyWith(
+                fontSize: Fonts.size200,
+                color: color,
+                fontVariations: [Fonts.weightNormal],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(right: Space.s300),
+                child: Icon(LxIcons.next, size: Fonts.size100, color: color),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// A [Row] inside an [InfoCard].
 class InfoRow extends StatelessWidget {
   const InfoRow({
