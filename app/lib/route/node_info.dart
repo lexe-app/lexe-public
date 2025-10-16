@@ -103,7 +103,7 @@ class _NodeInfoPageState extends State<NodeInfoPage> {
 
           // NodeInfo and userInfo.nodePk{Proof}
           InfoCard(
-            header: "Node",
+            header: Text("Node", style: InfoCard.defaultHeaderStyle),
             children: [
               ValueListenableBuilder(
                 valueListenable: this.widget.nodeInfo,
@@ -134,14 +134,14 @@ class _NodeInfoPageState extends State<NodeInfoPage> {
 
           // UserPk
           InfoCard(
-            header: "User",
+            header: Text("User", style: InfoCard.defaultHeaderStyle),
             children: [
               InfoRow(label: "User public key", value: userInfo.userPk),
             ],
           ),
 
           InfoCard(
-            header: "Node internals",
+            header: Text("Node internals", style: InfoCard.defaultHeaderStyle),
             children: [
               NodeDetailsButton(
                 label: "View broadcasted transactions",

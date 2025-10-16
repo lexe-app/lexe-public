@@ -133,7 +133,7 @@ class _RawDataPageState extends State<RawDataPage> {
                 ),
               ),
               InfoCard(
-                header: "Data",
+                header: Text("Raw data", style: InfoCard.defaultHeaderStyle),
                 children: [
                   SizedBox(
                     width: double.infinity,

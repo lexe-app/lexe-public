@@ -2061,7 +2061,7 @@ class InfoCard extends StatelessWidget {
     this.bodyPadding = Space.s300,
   });
 
-  final String? header;
+  final Text? header;
   final List<Widget> children;
   final double bodyPadding;
   final Text? description;
@@ -2089,7 +2089,7 @@ class InfoCard extends StatelessWidget {
                 left: this.bodyPadding,
                 bottom: Space.s200,
               ),
-              child: Text(header, style: defaultHeaderStyle),
+              child: header,
             ),
           _InfoCard(children: this.children),
           if (this.description != null)
