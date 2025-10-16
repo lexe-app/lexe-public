@@ -8,7 +8,6 @@ import 'package:app_rs_dart/ffi/form.dart' as form;
 import 'package:app_rs_dart/ffi/gdrive.dart'
     show GDriveClient, GDriveRestoreCandidate;
 import 'package:app_rs_dart/ffi/types.dart' show Config, RootSeed;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
 import 'package:lexeapp/components.dart'
@@ -768,7 +767,7 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
           ValueListenableBuilder(
             valueListenable: this.suggestions,
             builder: (context, suggestions, widget) => WordSuggestionsRow(
-              suggestions: this.suggestions,
+              suggestions: suggestions,
               onWordTap: this.onWordSelected,
             ),
           ),
@@ -827,22 +826,22 @@ class WordSuggestionsRow extends StatelessWidget {
   });
 
   static const suggestionCount = 4;
-  final ValueListenable<List<String>> suggestions;
+  final List<String> suggestions;
   final ValueChanged<String> onWordTap;
 
   @override
   Widget build(BuildContext context) {
-    final suggestions = this.suggestions.value;
+    final List<String?> suggestions = [...this.suggestions];
     if (suggestions.length < suggestionCount) {
       suggestions.addAll(
-        List.generate(suggestionCount - suggestions.length, (_) => ""),
+        List<Null>.generate(suggestionCount - suggestions.length, (_) => null),
       );
     }
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.start,
-      children: this.suggestions.value.map((suggestion) {
-        final onTap = suggestion.isEmpty ? null : () => onWordTap(suggestion);
+      children: suggestions.map((suggestion) {
+        final onTap = suggestion == null ? null : () => onWordTap(suggestion);
         return SuggestionChip(word: suggestion, onTap: onTap);
       }).toList(),
     );
@@ -852,11 +851,12 @@ class WordSuggestionsRow extends StatelessWidget {
 class SuggestionChip extends StatelessWidget {
   const SuggestionChip({super.key, required this.word, required this.onTap});
 
-  final String word;
+  final String? word;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final word = this.word == null ? " " : this.word!;
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: this.onTap,
@@ -868,7 +868,7 @@ class SuggestionChip extends StatelessWidget {
           vertical: Space.s200,
         ),
         child: Text(
-          this.word,
+          word,
           style: const TextStyle(
             fontSize: Fonts.size200,
             fontVariations: [Fonts.weightMedium],
