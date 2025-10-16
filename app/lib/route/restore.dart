@@ -311,15 +311,14 @@ Connect your Google Drive to restore from an existing Lexe Wallet backup.
                   ),
                 ),
               ),
-              const SizedBox(height: Space.s400),
+              const SizedBox(height: Space.s300),
 
               ValueListenableBuilder(
                 valueListenable: this.isRestoring,
                 builder: (_, isRestoring, _) => LxFilledButton(
-                  onTap: () {
-                    if (isRestoring) return;
-                    this.onSeedPhrasePressed(context);
-                  },
+                  onTap: isRestoring
+                      ? null
+                      : () => this.onSeedPhrasePressed(context),
                   label: const Text("Restore from Seed Phrase"),
                   icon: const Icon(LxIcons.next),
                 ),
@@ -859,6 +858,7 @@ class SuggestionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.translucent,
       onTap: this.onTap,
       child: Container(
         alignment: Alignment.center,
