@@ -484,7 +484,7 @@ class WalletPageState extends State<WalletPage> {
   void onSecurityMenuPressed() {
     Navigator.of(this.context).push(
       MaterialPageRoute(
-        builder: (context) => SecurityPage(app: this.widget.app),
+        builder: (context) => SecurityPage(config: this.widget.config),
       ),
     );
   }

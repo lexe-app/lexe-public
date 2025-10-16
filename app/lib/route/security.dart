@@ -1,6 +1,7 @@
 import 'dart:async' show unawaited;
 
-import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/secret_store.dart' show SecretStore;
+import 'package:app_rs_dart/ffi/types.dart';
 import 'package:flutter/material.dart';
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
@@ -11,23 +12,50 @@ import 'package:lexeapp/components.dart'
         ScrollableSinglePageBody,
         SeedWordsCard,
         SubheadingText;
+import 'package:lexeapp/logger.dart';
+import 'package:lexeapp/result.dart' show Err, Ok, Result;
 import 'package:lexeapp/route/send/page.dart' show StackedButton;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 /// Basic security page that leads to displa SeedPhrase, connect GDrive or
 /// test GDrive connection.
 class SecurityPage extends StatefulWidget {
-  const SecurityPage({super.key, required this.app});
+  const SecurityPage({super.key, required this.config});
 
-  final AppHandle app;
+  final Config config;
 
   @override
   State<SecurityPage> createState() => _SecurityPageState();
 }
 
 class _SecurityPageState extends State<SecurityPage> {
+  Result<List<String>, String> getSeedPhrase() {
+    final secretStore = SecretStore(config: this.widget.config);
+    final result = Result.tryFfi(secretStore.readRootSeed);
+    final RootSeed? rootSeed;
+    switch (result) {
+      case Ok(:final ok):
+        rootSeed = ok;
+      case Err(:final err):
+        return Err("$err");
+    }
+
+    if (rootSeed == null) return const Err("Could not open secret store");
+
+    return Ok(rootSeed.seedPhrase());
+  }
+
   void onViewSeedPhraseTap() {
-    final seedPhrase = List.generate(24, (_) => "hello");
+    final seedPhraseResult = this.getSeedPhrase();
+    final List<String> seedPhrase;
+    switch (seedPhraseResult) {
+      case Ok(:final ok):
+        seedPhrase = ok;
+      case Err(:final err):
+        warn(err);
+        return;
+    }
+
     Navigator.of(this.context).push(
       MaterialPageRoute(
         builder: (context) => SeedPhrasePage(seedPhrase: seedPhrase),
