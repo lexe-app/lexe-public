@@ -107,7 +107,7 @@ class _SecurityPageState extends State<SecurityPage> {
                 children: [
                   TextSpan(
                     text: "WARNING: ",
-                    style: TextStyle(color: Color(0xffeb5d47)),
+                    style: TextStyle(color: LxColors.warningText),
                   ),
                   TextSpan(
                     text:

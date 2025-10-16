@@ -391,6 +391,9 @@ final class LxColors {
   /// hsl(257deg 95% 68%)
   static const Color linkText = Color(0xff8d60fb);
 
+  /// 0xeb5d47 - hsl(8.05deg, 80.39%, 60%)
+  static const Color warningText = Color(0xffeb5d47);
+
   /// hsl(158deg 95% 40%)
   // static Color linkText = HSLColor.fromAHSL(1.0, 158.0, 0.95, 0.35).toColor();
   /// hsl(214deg 94% 50%)
