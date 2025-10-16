@@ -83,6 +83,7 @@ import 'package:lexeapp/route/restore.dart'
         RestorePasswordPage,
         RestoreSeedPhrasePage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
+import 'package:lexeapp/route/security.dart' show SecurityPage, SeedPhrasePage;
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
     show
@@ -840,6 +841,14 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 userInfo: userInfo,
                 app: mockApp,
               );
+            }),
+            Component(
+              "SecurityPage",
+              subtitle: "seed phrase will fail",
+              (_) => SecurityPage(config: widget.config),
+            ),
+            Component("SeedPhrasePage", (_) {
+              return const SeedPhrasePage(seedPhrase: mocks.seedWords1);
             }),
             Component("SdkClientsPage", (_) => ClientsPage(app: mockApp)),
             Component(
