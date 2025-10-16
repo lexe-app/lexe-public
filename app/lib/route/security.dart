@@ -10,6 +10,7 @@ import 'package:lexeapp/components.dart'
         InfoCard,
         InfoRowButton,
         LxBackButton,
+        LxCloseButton,
         LxFilledButton,
         ScrollableSinglePageBody,
         SeedWordsCard,
@@ -71,7 +72,7 @@ class _SecurityPageState extends State<SecurityPage> {
     return Scaffold(
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxBackButton(isLeading: true),
+        leading: const LxCloseButton(isLeading: true),
       ),
       body: ScrollableSinglePageBody(
         padding: const EdgeInsets.symmetric(horizontal: Space.s600 - cardPad),
@@ -159,7 +160,10 @@ class _SeedPhrasePageState extends State<SeedPhrasePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(leading: null, automaticallyImplyLeading: false),
+      appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
+        leading: const LxBackButton(isLeading: true),
+      ),
       body: ScrollableSinglePageBody(
         body: [
           const HeadingText(text: "Backup seed phrase"),
