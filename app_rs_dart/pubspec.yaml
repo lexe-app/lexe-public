@@ -19,10 +19,10 @@ dependencies:
     sdk: flutter
 
   # The high-level memory safe interface for generated Rust<->dart ffi bindings.
-  flutter_rust_bridge: 2.7.1
+  flutter_rust_bridge: 2.11.1
 
   # Immutable record types and Rust-style enums in Dart
-  freezed_annotation: ^2.4.1
+  freezed_annotation: ^3.1.0
 
   # Required as a `plugin_ffi` project
   plugin_platform_interface: ^2.0.2
@@ -30,18 +30,18 @@ dependencies:
 dev_dependencies:
   # Used by freezed for codegen. app-rs-codegen runs this after generating the
   # flutter_rust_bridge bindings.
-  build_runner: ^2.4.7
+  build_runner: ^2.9.0
 
   # Used by flutter_rust_bridge to generate the dart ffi bingings at build-time.
-  ffigen: ^16.0.0
+  ffigen: ^19.1.0
 
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
 
   flutter_test:
     sdk: flutter
 
   # Codegen for immutable record types and Rust-style enums in Dart.
-  freezed: ^2.4.5
+  freezed: ^3.2.3
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

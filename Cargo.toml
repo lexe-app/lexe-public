@@ -103,10 +103,10 @@ either = "1"
 fast_qr = { version = "0.12", default-features = false }
 # High-level memory-safe Rust<->Dart FFI bindings.
 # Keep this version in sync with `app_rs_dart/pubspec.yaml`.
-flutter_rust_bridge = { version = "=2.7.1", default-features = false }
+flutter_rust_bridge = { version = "=2.11.1", default-features = false }
 # The Rust+Dart codegen for flutter_rust_bridge
 # Keep this version in sync with `app_rs_dart/pubspec.yaml`.
-flutter_rust_bridge_codegen = { version = "=2.7.1", default-features = false, features = [] }
+flutter_rust_bridge_codegen = { version = "=2.11.1", default-features = false, features = [] }
 # Utils for working with futures
 futures = "0.3"
 # Core HTTP types and utils

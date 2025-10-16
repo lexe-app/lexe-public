@@ -93,7 +93,7 @@ dependencies:
       ref: phlip9/revert-leak-fix-with-gitdep-hack
 
   # Immutable record types and Rust-style enums in Dart.
-  freezed_annotation: ^2.4.1
+  freezed_annotation: ^3.1.0
 
   # International number, currency, and date formatting
   intl: ^0.19.0
@@ -125,20 +125,20 @@ dev_dependencies:
 
   # Used by freezed for codegen. app-rs-codegen runs this after generating the
   # flutter_rust_bridge bindings.
-  build_runner: ^2.4.7
+  build_runner: ^2.9.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
 
   flutter_test:
     sdk: flutter
 
   # Codegen for immutable record types and Rust-style enums in Dart.
-  freezed: ^2.4.5
+  freezed: ^3.2.3
 
   # on-device flutter integration tests
   integration_test:
