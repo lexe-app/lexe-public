@@ -20,15 +20,15 @@ pub use payment_uri_core::*;
 // giving the user a choice. This'll also need to be async in the future, as
 // we'll need to fetch invoices from any LNURL endpoints we come across.
 pub async fn resolve_best(
+    bip353_client: &bip353::Bip353Client,
     lnurl_client: &lnurl::LnurlClient,
     network: LxNetwork,
     payment_uri: PaymentUri,
-    doh_endpoint: &str,
 ) -> anyhow::Result<PaymentMethod> {
     // A single scanned/opened PaymentUri can contain multiple different payment
     // methods (e.g., a LN BOLT11 invoice + an onchain fallback address).
     let mut payment_methods =
-        resolve_payment_methods(lnurl_client, payment_uri, doh_endpoint)
+        resolve_payment_methods(bip353_client, lnurl_client, payment_uri)
             .await
             .context("Failed to resolve payment URI into payment methods")?;
 
@@ -56,9 +56,9 @@ pub async fn resolve_best(
 
 /// Resolve the [`PaymentUri`] into its component [`PaymentMethod`]s.
 async fn resolve_payment_methods(
+    bip353_client: &bip353::Bip353Client,
     lnurl_client: &lnurl::LnurlClient,
     payment_uri: PaymentUri,
-    doh_endpoint: &str,
 ) -> anyhow::Result<Vec<PaymentMethod>> {
     let payment_methods = match payment_uri {
         PaymentUri::Bip321Uri(bip321) => bip321.flatten(),
@@ -79,10 +79,10 @@ async fn resolve_payment_methods(
 
             // Try resolving BIP353 if this is a valid BIP353 address.
             if let Some(bip353_fqdn) = email_like.bip353_fqdn {
-                let bip353_result =
-                    bip353::resolve_bip353_fqdn(bip353_fqdn, doh_endpoint)
-                        .await
-                        .context("Failed to resolve BIP353 address");
+                let bip353_result = bip353_client
+                    .resolve_bip353_fqdn(bip353_fqdn)
+                    .await
+                    .context("Failed to resolve BIP353 address");
                 match bip353_result {
                     Ok(bip353_methods) => {
                         // Early return if we found any non-onchain methods,
@@ -171,13 +171,15 @@ mod test {
         let payment_uri = PaymentUri::parse("matt@mattcorallo.com").unwrap();
         info!("Resolving best payment method for matt@mattcorallo.com");
 
+        let bip353_client =
+            bip353::Bip353Client::new(bip353::GOOGLE_DOH_ENDPOINT).unwrap();
         let lnurl_client = lnurl::LnurlClient::new().unwrap();
 
         let payment_method = resolve_best(
+            &bip353_client,
             &lnurl_client,
             LxNetwork::Mainnet,
             payment_uri,
-            bip353::GOOGLE_DOH_ENDPOINT,
         )
         .apply(|fut| tokio::time::timeout(RESOLVE_BEST_TIMEOUT, fut))
         .await
