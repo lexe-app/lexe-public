@@ -23,7 +23,9 @@ pub(crate) struct ProvisionHistory {
 
 impl ProvisionHistory {
     /// The FFS filename for the file storing the provision history.
-    pub const FFS_FILENAME: &'static str = "provision_history";
+    /// NOTE: on version 0.8.8 file was renamed from "provision_history"
+    /// to "provision_history_v2".
+    pub const FFS_FILENAME: &'static str = "provision_history_v2";
 
     /// Create a new empty provision history.
     pub fn new() -> Self {
