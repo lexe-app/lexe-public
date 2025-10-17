@@ -253,6 +253,7 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
                   // Paste
                   Expanded(
                     child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
                       onTap: this.onPaste,
                       child: StackedButton(
                         button: LxFilledButton(
@@ -270,6 +271,7 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
                       valueListenable: this.isPending,
                       builder: (_context, isPending, _widget) =>
                           GestureDetector(
+                            behavior: HitTestBehavior.translucent,
                             onTap: !isPending ? this.onNext : null,
                             child: StackedButton(
                               button: AnimatedFillButton(

@@ -207,6 +207,7 @@ class _SeedPhrasePageState extends State<SeedPhrasePage> {
                   // Copy
                   Expanded(
                     child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
                       onTap: this.onCopy,
                       child: StackedButton(
                         button: LxFilledButton(
@@ -226,6 +227,7 @@ class _SeedPhrasePageState extends State<SeedPhrasePage> {
                         final isEnabled = isConfirmed;
 
                         return GestureDetector(
+                          behavior: HitTestBehavior.translucent,
                           onTap: isEnabled ? this.onSubmit : null,
                           child: StackedButton(
                             button: LxFilledButton(

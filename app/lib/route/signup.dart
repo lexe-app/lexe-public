@@ -830,6 +830,7 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
                   // Copy
                   Expanded(
                     child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
                       onTap: this.onCopy,
                       child: StackedButton(
                         button: LxFilledButton(
@@ -852,6 +853,7 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
                               final isEnabled = isConfirmed && !isSigningUp;
 
                               return GestureDetector(
+                                behavior: HitTestBehavior.translucent,
                                 onTap: isEnabled ? this.onSubmit : null,
                                 child: StackedButton(
                                   button: SignupButton(
