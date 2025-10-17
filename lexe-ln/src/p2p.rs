@@ -310,7 +310,7 @@ pub fn spawn_process_events_task<PM: PeerManagerTrait>(
             // `process_events_rx` won't run out of work under load. The
             // default 128 await budget is probably too large here.
             iter = iter.wrapping_add(1);
-            if iter % 8 == 0 {
+            if iter.is_multiple_of(8) {
                 tokio::task::yield_now().await;
             }
         }

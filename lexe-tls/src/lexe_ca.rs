@@ -69,7 +69,7 @@ pub fn lexe_server_verifier(
 /// been signed by Lexe's CA (without trusting Mozilla's WebPKI roots).
 pub fn lexe_client_verifier(
     deploy_env: DeployEnv,
-) -> Arc<(dyn ClientCertVerifier + 'static)> {
+) -> Arc<dyn ClientCertVerifier + 'static> {
     let lexe_ca_cert = lexe_ca_cert(deploy_env);
 
     let mut roots = RootCertStore::empty();

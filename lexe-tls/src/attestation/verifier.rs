@@ -670,7 +670,7 @@ impl EnclavePolicy {
 /// }
 /// ```
 fn get_ecdsa_sig_der(sig: &[u8]) -> anyhow::Result<Vec<u8>> {
-    if sig.len() % 2 != 0 {
+    if !sig.len().is_multiple_of(2) {
         bail!("sig not even: {}", sig.len());
     }
 

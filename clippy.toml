@@ -13,12 +13,12 @@ disallowed-methods = [
     { path = "tokio::task::spawn",                       reason = "Use LxTask::spawn" },
     { path = "tokio::runtime::Handle::spawn",            reason = "Use LxTask::spawn" },
     { path = "tokio::runtime::Runtime::spawn",           reason = "Use LxTask::spawn" },
-    { path = "tokio::task::Builder::spawn",              reason = "Use LxTask::spawn" },
+    { path = "tokio::task::Builder::spawn",              reason = "Use LxTask::spawn", allow-invalid = true },
     { path = "tokio::task::join_set::JoinSet::spawn",    reason = "Use LxTask::spawn" },
-    { path = "tokio::task::join_set::Builder::spawn",    reason = "Use LxTask::spawn" },
-    { path = "tokio::task::Builder::spawn_on",           reason = "Use LxTask::spawn" },
+    { path = "tokio::task::join_set::Builder::spawn",    reason = "Use LxTask::spawn", allow-invalid = true },
+    { path = "tokio::task::Builder::spawn_on",           reason = "Use LxTask::spawn", allow-invalid = true },
     { path = "tokio::task::join_set::JoinSet::spawn_on", reason = "Use LxTask::spawn" },
-    { path = "tokio::task::join_set::Builder::spawn_on", reason = "Use LxTask::spawn" },
+    { path = "tokio::task::join_set::Builder::spawn_on", reason = "Use LxTask::spawn", allow-invalid = true },
     # Footgun: `.is_elapsed()` counts as 'using' the future, which may still be unpolled
     { path = "tokio::time::Sleep::is_elapsed",           reason = "Just poll!() the sleep future instead" },
 
@@ -37,34 +37,34 @@ disallowed-types = [
     # - The FromRequestParts impls on foreign (HTTP) types are fine bc they're all infallible.
     { path = "axum::Json",                      reason = "Use LxJson" },
     { path = "axum::Extension",                 reason = "Bad Rejection. Use or add to api::server::extract." },
-    { path = "axum::extract::ConnectInfo",      reason = "Bad Rejection. Use or add to api::server::extract." },
-    { path = "axum::extract::Form",             reason = "Bad Rejection. Use or add to api::server::extract." },
+    { path = "axum::extract::ConnectInfo",      reason = "Bad Rejection. Use or add to api::server::extract.", allow-invalid = true },
+    { path = "axum::extract::Form",             reason = "Bad Rejection. Use or add to api::server::extract.", allow-invalid = true },
     { path = "axum::extract::Host",             reason = "Bad Rejection. Use or add to api::server::extract." },
-    { path = "axum::extract::MatchedPath",      reason = "Bad Rejection. Use or add to api::server::extract." },
-    { path = "axum::extract::Multipart",        reason = "Bad Rejection. Use or add to api::server::extract." },
+    { path = "axum::extract::MatchedPath",      reason = "Bad Rejection. Use or add to api::server::extract.", allow-invalid = true },
+    { path = "axum::extract::Multipart",        reason = "Bad Rejection. Use or add to api::server::extract.", allow-invalid = true },
     { path = "axum::extract::NestedPath",       reason = "Bad Rejection. Use or add to api::server::extract." },
-    { path = "axum::extract::OriginalUri",      reason = "Bad Rejection. Use or add to api::server::extract." },
+    { path = "axum::extract::OriginalUri",      reason = "Bad Rejection. Use or add to api::server::extract.", allow-invalid = true },
     { path = "axum::extract::Path",             reason = "Bad Rejection. Use or add to api::server::extract." },
     { path = "axum::extract::Query",            reason = "Bad Rejection. Use or add to api::server::extract." },
     { path = "axum::extract::RawForm",          reason = "Bad Rejection. Use or add to api::server::extract." },
     { path = "axum::extract::RawPathParams",    reason = "Bad Rejection. Use or add to api::server::extract." },
-    { path = "axum::extract::WebSocketUpgrade", reason = "Bad Rejection. Use or add to api::server::extract." },
+    { path = "axum::extract::WebSocketUpgrade", reason = "Bad Rejection. Use or add to api::server::extract.", allow-invalid = true },
 
     # TODO(max): Also ban other layers like this which return incompatible responses instead of errors
     { path = "tower_http::timeout::Timeout",             reason = """\
         Incompatible HTTP error response. Use tower::timeout::Timeout instead.\
-    """ },
+    """, allow-invalid = true },
     { path = "tower_http::timeout::TimeoutLayer",        reason = """\
         Incompatible HTTP error response. Use tower::timeout::TimeoutLayer instead.\
-    """ },
+    """, allow-invalid = true },
     { path = "tower_http::limit::RequestBodyLimit",      reason = """\
         Incompatible HTTP error response. \
         Use DefaultBodyLimit and axum::RequestExt::with_limited_body instead.\
-    """ },
+    """, allow-invalid = true },
     { path = "tower_http::limit::RequestBodyLimitLayer", reason = """\
         Incompatible HTTP error response. \
         Use DefaultBodyLimit and axum::RequestExt::with_limited_body instead.\
-    """ },
+    """, allow-invalid = true },
 ]
 
 # Suppress useless too_many_arguments lint
