@@ -1,4 +1,4 @@
-use flutter_rust_bridge::{frb, RustOpaqueNom};
+use flutter_rust_bridge::{RustOpaqueNom, frb};
 
 pub(crate) use crate::secret_store::SecretStore as SecretStoreRs;
 use crate::{

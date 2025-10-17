@@ -10,7 +10,7 @@ use common::{
     env::DeployEnv,
     rng::SysRng,
 };
-use flutter_rust_bridge::{frb, RustOpaqueNom};
+use flutter_rust_bridge::{RustOpaqueNom, frb};
 use hex::FromHex;
 use lexe_api::{
     def::{AppGatewayApi, AppNodeRunApi},
@@ -23,8 +23,8 @@ use lexe_api::{
         UpdatePaymentNote as UpdatePaymentNoteRs,
     },
     types::{
-        payments::{LxPaymentId, PaymentIndex as PaymentIndexRs},
         Empty,
+        payments::{LxPaymentId, PaymentIndex as PaymentIndexRs},
     },
 };
 use tracing::instrument;

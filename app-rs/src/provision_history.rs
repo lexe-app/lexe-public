@@ -3,7 +3,7 @@ use std::{
     io,
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use common::{
     api::version::{CurrentEnclaves, NodeEnclave},
     constants,

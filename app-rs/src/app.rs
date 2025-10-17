@@ -9,9 +9,10 @@ use std::{
     time::Instant,
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use bitcoin::secp256k1;
 use common::{
+    Secret,
     api::{
         auth::{
             UserSignupRequestWire, UserSignupRequestWireV1,
@@ -26,7 +27,6 @@ use common::{
     ln::network::LxNetwork,
     rng::Crng,
     root_seed::RootSeed,
-    Secret,
 };
 use lexe_api::def::{AppBackendApi, AppGatewayApi, AppNodeProvisionApi};
 use lexe_std::Apply;

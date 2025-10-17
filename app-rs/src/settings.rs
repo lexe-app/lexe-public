@@ -2,7 +2,7 @@
 
 use std::{io, sync::Arc, time::Duration};
 
-use anyhow::{ensure, Context};
+use anyhow::{Context, ensure};
 use common::{api::fiat_rates::IsoCurrencyCode, debug_panic_release_log};
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 #[cfg(test)]
@@ -361,7 +361,7 @@ mod test {
     use proptest::{proptest, strategy::Strategy};
 
     use super::*;
-    use crate::ffs::{test::MockFfs, FlatFileFs};
+    use crate::ffs::{FlatFileFs, test::MockFfs};
 
     #[test]
     fn test_load_hardcoded() {

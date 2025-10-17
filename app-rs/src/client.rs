@@ -62,8 +62,8 @@ use lexe_api::{
         PreflightPayOfferResponse, PreflightPayOnchainRequest,
         PreflightPayOnchainResponse, UpdatePaymentNote,
     },
-    rest::{RequestBuilderExt, RestClient, POST},
-    types::{payments::VecBasicPayment, Empty},
+    rest::{POST, RequestBuilderExt, RestClient},
+    types::{Empty, payments::VecBasicPayment},
 };
 use lexe_tls::{
     attestation, lexe_ca, rustls, shared_seed,
@@ -1045,7 +1045,9 @@ mod test {
         let client_pk = rev_client_cert.public_key();
 
         let client_auth = ClientCredentials {
-            lexe_auth_token: BearerAuthToken(ByteStr::from_static("9dTCUvC8y7qcNyUbqynz3nwIQQHbQqPVKeMhXUj1Afr-vgj9E217_2tCS1IQM7LFqfBUC8Ec9fcb-dQiCRy6ot2FN-kR60edRFJUztAa2Rxao1Q0BS1s6vE8grgfhMYIAJDLMWgAAAAASE4zaAAAAABpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaQE")),
+            lexe_auth_token: BearerAuthToken(ByteStr::from_static(
+                "9dTCUvC8y7qcNyUbqynz3nwIQQHbQqPVKeMhXUj1Afr-vgj9E217_2tCS1IQM7LFqfBUC8Ec9fcb-dQiCRy6ot2FN-kR60edRFJUztAa2Rxao1Q0BS1s6vE8grgfhMYIAJDLMWgAAAAASE4zaAAAAABpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaQE",
+            )),
             client_pk,
             rev_client_key_der,
             rev_client_cert_der,

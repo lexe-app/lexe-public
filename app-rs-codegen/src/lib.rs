@@ -17,7 +17,7 @@ use std::{
     process::Command,
 };
 
-use anyhow::{format_err, Context};
+use anyhow::{Context, format_err};
 use argh::FromArgs;
 use lib_flutter_rust_bridge_codegen as frb;
 

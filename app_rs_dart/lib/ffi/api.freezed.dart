@@ -1,5 +1,5 @@
-// coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
+// coverage:ignore-file
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
@@ -9,1643 +9,1974 @@ part of 'api.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
-);
-
 /// @nodoc
 mixin _$Balance {
-  int get totalSats => throw _privateConstructorUsedError;
-  int get onchainSats => throw _privateConstructorUsedError;
-  int get lightningSats => throw _privateConstructorUsedError;
-  int get lightningUsableSats => throw _privateConstructorUsedError;
-  int get lightningMaxSendableSats => throw _privateConstructorUsedError;
+
+ int get totalSats; int get onchainSats; int get lightningSats; int get lightningUsableSats; int get lightningMaxSendableSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Balance&&(identical(other.totalSats, totalSats) || other.totalSats == totalSats)&&(identical(other.onchainSats, onchainSats) || other.onchainSats == onchainSats)&&(identical(other.lightningSats, lightningSats) || other.lightningSats == lightningSats)&&(identical(other.lightningUsableSats, lightningUsableSats) || other.lightningUsableSats == lightningUsableSats)&&(identical(other.lightningMaxSendableSats, lightningMaxSendableSats) || other.lightningMaxSendableSats == lightningMaxSendableSats));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,totalSats,onchainSats,lightningSats,lightningUsableSats,lightningMaxSendableSats);
+
+@override
+String toString() {
+  return 'Balance(totalSats: $totalSats, onchainSats: $onchainSats, lightningSats: $lightningSats, lightningUsableSats: $lightningUsableSats, lightningMaxSendableSats: $lightningMaxSendableSats)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$BalanceImpl implements _Balance {
-  const _$BalanceImpl({
-    required this.totalSats,
-    required this.onchainSats,
-    required this.lightningSats,
-    required this.lightningUsableSats,
-    required this.lightningMaxSendableSats,
-  });
 
-  @override
-  final int totalSats;
-  @override
-  final int onchainSats;
-  @override
-  final int lightningSats;
-  @override
-  final int lightningUsableSats;
-  @override
-  final int lightningMaxSendableSats;
+class _Balance implements Balance {
+  const _Balance({required this.totalSats, required this.onchainSats, required this.lightningSats, required this.lightningUsableSats, required this.lightningMaxSendableSats});
+  
 
-  @override
-  String toString() {
-    return 'Balance(totalSats: $totalSats, onchainSats: $onchainSats, lightningSats: $lightningSats, lightningUsableSats: $lightningUsableSats, lightningMaxSendableSats: $lightningMaxSendableSats)';
-  }
+@override final  int totalSats;
+@override final  int onchainSats;
+@override final  int lightningSats;
+@override final  int lightningUsableSats;
+@override final  int lightningMaxSendableSats;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$BalanceImpl &&
-            (identical(other.totalSats, totalSats) ||
-                other.totalSats == totalSats) &&
-            (identical(other.onchainSats, onchainSats) ||
-                other.onchainSats == onchainSats) &&
-            (identical(other.lightningSats, lightningSats) ||
-                other.lightningSats == lightningSats) &&
-            (identical(other.lightningUsableSats, lightningUsableSats) ||
-                other.lightningUsableSats == lightningUsableSats) &&
-            (identical(
-                  other.lightningMaxSendableSats,
-                  lightningMaxSendableSats,
-                ) ||
-                other.lightningMaxSendableSats == lightningMaxSendableSats));
-  }
 
-  @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    totalSats,
-    onchainSats,
-    lightningSats,
-    lightningUsableSats,
-    lightningMaxSendableSats,
-  );
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Balance&&(identical(other.totalSats, totalSats) || other.totalSats == totalSats)&&(identical(other.onchainSats, onchainSats) || other.onchainSats == onchainSats)&&(identical(other.lightningSats, lightningSats) || other.lightningSats == lightningSats)&&(identical(other.lightningUsableSats, lightningUsableSats) || other.lightningUsableSats == lightningUsableSats)&&(identical(other.lightningMaxSendableSats, lightningMaxSendableSats) || other.lightningMaxSendableSats == lightningMaxSendableSats));
 }
 
-abstract class _Balance implements Balance {
-  const factory _Balance({
-    required final int totalSats,
-    required final int onchainSats,
-    required final int lightningSats,
-    required final int lightningUsableSats,
-    required final int lightningMaxSendableSats,
-  }) = _$BalanceImpl;
 
-  @override
-  int get totalSats;
-  @override
-  int get onchainSats;
-  @override
-  int get lightningSats;
-  @override
-  int get lightningUsableSats;
-  @override
-  int get lightningMaxSendableSats;
+@override
+int get hashCode => Object.hash(runtimeType,totalSats,onchainSats,lightningSats,lightningUsableSats,lightningMaxSendableSats);
+
+@override
+String toString() {
+  return 'Balance(totalSats: $totalSats, onchainSats: $onchainSats, lightningSats: $lightningSats, lightningUsableSats: $lightningUsableSats, lightningMaxSendableSats: $lightningMaxSendableSats)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$CloseChannelRequest {
-  String get channelId => throw _privateConstructorUsedError;
+
+ String get channelId;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CloseChannelRequest&&(identical(other.channelId, channelId) || other.channelId == channelId));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,channelId);
+
+@override
+String toString() {
+  return 'CloseChannelRequest(channelId: $channelId)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$CloseChannelRequestImpl implements _CloseChannelRequest {
-  const _$CloseChannelRequestImpl({required this.channelId});
 
-  @override
-  final String channelId;
+class _CloseChannelRequest implements CloseChannelRequest {
+  const _CloseChannelRequest({required this.channelId});
+  
 
-  @override
-  String toString() {
-    return 'CloseChannelRequest(channelId: $channelId)';
-  }
+@override final  String channelId;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$CloseChannelRequestImpl &&
-            (identical(other.channelId, channelId) ||
-                other.channelId == channelId));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, channelId);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CloseChannelRequest&&(identical(other.channelId, channelId) || other.channelId == channelId));
 }
 
-abstract class _CloseChannelRequest implements CloseChannelRequest {
-  const factory _CloseChannelRequest({required final String channelId}) =
-      _$CloseChannelRequestImpl;
 
-  @override
-  String get channelId;
+@override
+int get hashCode => Object.hash(runtimeType,channelId);
+
+@override
+String toString() {
+  return 'CloseChannelRequest(channelId: $channelId)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$CreateClientRequest {
-  String? get label => throw _privateConstructorUsedError;
-  Scope get scope => throw _privateConstructorUsedError;
+
+ String? get label; Scope get scope;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateClientRequest&&(identical(other.label, label) || other.label == label)&&(identical(other.scope, scope) || other.scope == scope));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,label,scope);
+
+@override
+String toString() {
+  return 'CreateClientRequest(label: $label, scope: $scope)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$CreateClientRequestImpl implements _CreateClientRequest {
-  const _$CreateClientRequestImpl({this.label, required this.scope});
 
-  @override
-  final String? label;
-  @override
-  final Scope scope;
+class _CreateClientRequest implements CreateClientRequest {
+  const _CreateClientRequest({this.label, required this.scope});
+  
 
-  @override
-  String toString() {
-    return 'CreateClientRequest(label: $label, scope: $scope)';
-  }
+@override final  String? label;
+@override final  Scope scope;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$CreateClientRequestImpl &&
-            (identical(other.label, label) || other.label == label) &&
-            (identical(other.scope, scope) || other.scope == scope));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, label, scope);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateClientRequest&&(identical(other.label, label) || other.label == label)&&(identical(other.scope, scope) || other.scope == scope));
 }
 
-abstract class _CreateClientRequest implements CreateClientRequest {
-  const factory _CreateClientRequest({
-    final String? label,
-    required final Scope scope,
-  }) = _$CreateClientRequestImpl;
 
-  @override
-  String? get label;
-  @override
-  Scope get scope;
+@override
+int get hashCode => Object.hash(runtimeType,label,scope);
+
+@override
+String toString() {
+  return 'CreateClientRequest(label: $label, scope: $scope)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$CreateClientResponse {
-  RevocableClient get client => throw _privateConstructorUsedError;
-  String get credentials => throw _privateConstructorUsedError;
+
+ RevocableClient get client; String get credentials;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateClientResponse&&(identical(other.client, client) || other.client == client)&&(identical(other.credentials, credentials) || other.credentials == credentials));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,client,credentials);
+
+@override
+String toString() {
+  return 'CreateClientResponse(client: $client, credentials: $credentials)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$CreateClientResponseImpl implements _CreateClientResponse {
-  const _$CreateClientResponseImpl({
-    required this.client,
-    required this.credentials,
-  });
 
-  @override
-  final RevocableClient client;
-  @override
-  final String credentials;
+class _CreateClientResponse implements CreateClientResponse {
+  const _CreateClientResponse({required this.client, required this.credentials});
+  
 
-  @override
-  String toString() {
-    return 'CreateClientResponse(client: $client, credentials: $credentials)';
-  }
+@override final  RevocableClient client;
+@override final  String credentials;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$CreateClientResponseImpl &&
-            (identical(other.client, client) || other.client == client) &&
-            (identical(other.credentials, credentials) ||
-                other.credentials == credentials));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, client, credentials);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateClientResponse&&(identical(other.client, client) || other.client == client)&&(identical(other.credentials, credentials) || other.credentials == credentials));
 }
 
-abstract class _CreateClientResponse implements CreateClientResponse {
-  const factory _CreateClientResponse({
-    required final RevocableClient client,
-    required final String credentials,
-  }) = _$CreateClientResponseImpl;
 
-  @override
-  RevocableClient get client;
-  @override
-  String get credentials;
+@override
+int get hashCode => Object.hash(runtimeType,client,credentials);
+
+@override
+String toString() {
+  return 'CreateClientResponse(client: $client, credentials: $credentials)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$CreateInvoiceRequest {
-  int get expirySecs => throw _privateConstructorUsedError;
-  int? get amountSats => throw _privateConstructorUsedError;
-  String? get description => throw _privateConstructorUsedError;
+
+ int get expirySecs; int? get amountSats; String? get description;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateInvoiceRequest&&(identical(other.expirySecs, expirySecs) || other.expirySecs == expirySecs)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.description, description) || other.description == description));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,expirySecs,amountSats,description);
+
+@override
+String toString() {
+  return 'CreateInvoiceRequest(expirySecs: $expirySecs, amountSats: $amountSats, description: $description)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$CreateInvoiceRequestImpl implements _CreateInvoiceRequest {
-  const _$CreateInvoiceRequestImpl({
-    required this.expirySecs,
-    this.amountSats,
-    this.description,
-  });
 
-  @override
-  final int expirySecs;
-  @override
-  final int? amountSats;
-  @override
-  final String? description;
+class _CreateInvoiceRequest implements CreateInvoiceRequest {
+  const _CreateInvoiceRequest({required this.expirySecs, this.amountSats, this.description});
+  
 
-  @override
-  String toString() {
-    return 'CreateInvoiceRequest(expirySecs: $expirySecs, amountSats: $amountSats, description: $description)';
-  }
+@override final  int expirySecs;
+@override final  int? amountSats;
+@override final  String? description;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$CreateInvoiceRequestImpl &&
-            (identical(other.expirySecs, expirySecs) ||
-                other.expirySecs == expirySecs) &&
-            (identical(other.amountSats, amountSats) ||
-                other.amountSats == amountSats) &&
-            (identical(other.description, description) ||
-                other.description == description));
-  }
 
-  @override
-  int get hashCode =>
-      Object.hash(runtimeType, expirySecs, amountSats, description);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateInvoiceRequest&&(identical(other.expirySecs, expirySecs) || other.expirySecs == expirySecs)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.description, description) || other.description == description));
 }
 
-abstract class _CreateInvoiceRequest implements CreateInvoiceRequest {
-  const factory _CreateInvoiceRequest({
-    required final int expirySecs,
-    final int? amountSats,
-    final String? description,
-  }) = _$CreateInvoiceRequestImpl;
 
-  @override
-  int get expirySecs;
-  @override
-  int? get amountSats;
-  @override
-  String? get description;
+@override
+int get hashCode => Object.hash(runtimeType,expirySecs,amountSats,description);
+
+@override
+String toString() {
+  return 'CreateInvoiceRequest(expirySecs: $expirySecs, amountSats: $amountSats, description: $description)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$CreateInvoiceResponse {
-  Invoice get invoice => throw _privateConstructorUsedError;
+
+ Invoice get invoice;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateInvoiceResponse&&(identical(other.invoice, invoice) || other.invoice == invoice));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,invoice);
+
+@override
+String toString() {
+  return 'CreateInvoiceResponse(invoice: $invoice)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$CreateInvoiceResponseImpl implements _CreateInvoiceResponse {
-  const _$CreateInvoiceResponseImpl({required this.invoice});
 
-  @override
-  final Invoice invoice;
+class _CreateInvoiceResponse implements CreateInvoiceResponse {
+  const _CreateInvoiceResponse({required this.invoice});
+  
 
-  @override
-  String toString() {
-    return 'CreateInvoiceResponse(invoice: $invoice)';
-  }
+@override final  Invoice invoice;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$CreateInvoiceResponseImpl &&
-            (identical(other.invoice, invoice) || other.invoice == invoice));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, invoice);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateInvoiceResponse&&(identical(other.invoice, invoice) || other.invoice == invoice));
 }
 
-abstract class _CreateInvoiceResponse implements CreateInvoiceResponse {
-  const factory _CreateInvoiceResponse({required final Invoice invoice}) =
-      _$CreateInvoiceResponseImpl;
 
-  @override
-  Invoice get invoice;
+@override
+int get hashCode => Object.hash(runtimeType,invoice);
+
+@override
+String toString() {
+  return 'CreateInvoiceResponse(invoice: $invoice)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$CreateOfferRequest {
-  int? get expirySecs => throw _privateConstructorUsedError;
-  int? get amountSats => throw _privateConstructorUsedError;
-  String? get description => throw _privateConstructorUsedError;
+
+ int? get expirySecs; int? get amountSats; String? get description;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateOfferRequest&&(identical(other.expirySecs, expirySecs) || other.expirySecs == expirySecs)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.description, description) || other.description == description));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,expirySecs,amountSats,description);
+
+@override
+String toString() {
+  return 'CreateOfferRequest(expirySecs: $expirySecs, amountSats: $amountSats, description: $description)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$CreateOfferRequestImpl implements _CreateOfferRequest {
-  const _$CreateOfferRequestImpl({
-    this.expirySecs,
-    this.amountSats,
-    this.description,
-  });
 
-  @override
-  final int? expirySecs;
-  @override
-  final int? amountSats;
-  @override
-  final String? description;
+class _CreateOfferRequest implements CreateOfferRequest {
+  const _CreateOfferRequest({this.expirySecs, this.amountSats, this.description});
+  
 
-  @override
-  String toString() {
-    return 'CreateOfferRequest(expirySecs: $expirySecs, amountSats: $amountSats, description: $description)';
-  }
+@override final  int? expirySecs;
+@override final  int? amountSats;
+@override final  String? description;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$CreateOfferRequestImpl &&
-            (identical(other.expirySecs, expirySecs) ||
-                other.expirySecs == expirySecs) &&
-            (identical(other.amountSats, amountSats) ||
-                other.amountSats == amountSats) &&
-            (identical(other.description, description) ||
-                other.description == description));
-  }
 
-  @override
-  int get hashCode =>
-      Object.hash(runtimeType, expirySecs, amountSats, description);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateOfferRequest&&(identical(other.expirySecs, expirySecs) || other.expirySecs == expirySecs)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.description, description) || other.description == description));
 }
 
-abstract class _CreateOfferRequest implements CreateOfferRequest {
-  const factory _CreateOfferRequest({
-    final int? expirySecs,
-    final int? amountSats,
-    final String? description,
-  }) = _$CreateOfferRequestImpl;
 
-  @override
-  int? get expirySecs;
-  @override
-  int? get amountSats;
-  @override
-  String? get description;
+@override
+int get hashCode => Object.hash(runtimeType,expirySecs,amountSats,description);
+
+@override
+String toString() {
+  return 'CreateOfferRequest(expirySecs: $expirySecs, amountSats: $amountSats, description: $description)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$CreateOfferResponse {
-  Offer get offer => throw _privateConstructorUsedError;
+
+ Offer get offer;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateOfferResponse&&(identical(other.offer, offer) || other.offer == offer));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,offer);
+
+@override
+String toString() {
+  return 'CreateOfferResponse(offer: $offer)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$CreateOfferResponseImpl implements _CreateOfferResponse {
-  const _$CreateOfferResponseImpl({required this.offer});
 
-  @override
-  final Offer offer;
+class _CreateOfferResponse implements CreateOfferResponse {
+  const _CreateOfferResponse({required this.offer});
+  
 
-  @override
-  String toString() {
-    return 'CreateOfferResponse(offer: $offer)';
-  }
+@override final  Offer offer;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$CreateOfferResponseImpl &&
-            (identical(other.offer, offer) || other.offer == offer));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, offer);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateOfferResponse&&(identical(other.offer, offer) || other.offer == offer));
 }
 
-abstract class _CreateOfferResponse implements CreateOfferResponse {
-  const factory _CreateOfferResponse({required final Offer offer}) =
-      _$CreateOfferResponseImpl;
 
-  @override
-  Offer get offer;
+@override
+int get hashCode => Object.hash(runtimeType,offer);
+
+@override
+String toString() {
+  return 'CreateOfferResponse(offer: $offer)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$FeeEstimate {
-  int get amountSats => throw _privateConstructorUsedError;
+
+ int get amountSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FeeEstimate&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,amountSats);
+
+@override
+String toString() {
+  return 'FeeEstimate(amountSats: $amountSats)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$FeeEstimateImpl implements _FeeEstimate {
-  const _$FeeEstimateImpl({required this.amountSats});
 
-  @override
-  final int amountSats;
+class _FeeEstimate implements FeeEstimate {
+  const _FeeEstimate({required this.amountSats});
+  
 
-  @override
-  String toString() {
-    return 'FeeEstimate(amountSats: $amountSats)';
-  }
+@override final  int amountSats;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$FeeEstimateImpl &&
-            (identical(other.amountSats, amountSats) ||
-                other.amountSats == amountSats));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, amountSats);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FeeEstimate&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
 }
 
-abstract class _FeeEstimate implements FeeEstimate {
-  const factory _FeeEstimate({required final int amountSats}) =
-      _$FeeEstimateImpl;
 
-  @override
-  int get amountSats;
+@override
+int get hashCode => Object.hash(runtimeType,amountSats);
+
+@override
+String toString() {
+  return 'FeeEstimate(amountSats: $amountSats)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$FiatRate {
-  String get fiat => throw _privateConstructorUsedError;
-  double get rate => throw _privateConstructorUsedError;
+
+ String get fiat; double get rate;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FiatRate&&(identical(other.fiat, fiat) || other.fiat == fiat)&&(identical(other.rate, rate) || other.rate == rate));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,fiat,rate);
+
+@override
+String toString() {
+  return 'FiatRate(fiat: $fiat, rate: $rate)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$FiatRateImpl implements _FiatRate {
-  const _$FiatRateImpl({required this.fiat, required this.rate});
 
-  @override
-  final String fiat;
-  @override
-  final double rate;
+class _FiatRate implements FiatRate {
+  const _FiatRate({required this.fiat, required this.rate});
+  
 
-  @override
-  String toString() {
-    return 'FiatRate(fiat: $fiat, rate: $rate)';
-  }
+@override final  String fiat;
+@override final  double rate;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$FiatRateImpl &&
-            (identical(other.fiat, fiat) || other.fiat == fiat) &&
-            (identical(other.rate, rate) || other.rate == rate));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, fiat, rate);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FiatRate&&(identical(other.fiat, fiat) || other.fiat == fiat)&&(identical(other.rate, rate) || other.rate == rate));
 }
 
-abstract class _FiatRate implements FiatRate {
-  const factory _FiatRate({
-    required final String fiat,
-    required final double rate,
-  }) = _$FiatRateImpl;
 
-  @override
-  String get fiat;
-  @override
-  double get rate;
+@override
+int get hashCode => Object.hash(runtimeType,fiat,rate);
+
+@override
+String toString() {
+  return 'FiatRate(fiat: $fiat, rate: $rate)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$FiatRates {
-  int get timestampMs => throw _privateConstructorUsedError;
-  List<FiatRate> get rates => throw _privateConstructorUsedError;
+
+ int get timestampMs; List<FiatRate> get rates;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FiatRates&&(identical(other.timestampMs, timestampMs) || other.timestampMs == timestampMs)&&const DeepCollectionEquality().equals(other.rates, rates));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,timestampMs,const DeepCollectionEquality().hash(rates));
+
+@override
+String toString() {
+  return 'FiatRates(timestampMs: $timestampMs, rates: $rates)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$FiatRatesImpl implements _FiatRates {
-  const _$FiatRatesImpl({
-    required this.timestampMs,
-    required final List<FiatRate> rates,
-  }) : _rates = rates;
 
-  @override
-  final int timestampMs;
-  final List<FiatRate> _rates;
-  @override
-  List<FiatRate> get rates {
-    if (_rates is EqualUnmodifiableListView) return _rates;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_rates);
-  }
+class _FiatRates implements FiatRates {
+  const _FiatRates({required this.timestampMs, required final  List<FiatRate> rates}): _rates = rates;
+  
 
-  @override
-  String toString() {
-    return 'FiatRates(timestampMs: $timestampMs, rates: $rates)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$FiatRatesImpl &&
-            (identical(other.timestampMs, timestampMs) ||
-                other.timestampMs == timestampMs) &&
-            const DeepCollectionEquality().equals(other._rates, _rates));
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    timestampMs,
-    const DeepCollectionEquality().hash(_rates),
-  );
+@override final  int timestampMs;
+ final  List<FiatRate> _rates;
+@override List<FiatRate> get rates {
+  if (_rates is EqualUnmodifiableListView) return _rates;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_rates);
 }
 
-abstract class _FiatRates implements FiatRates {
-  const factory _FiatRates({
-    required final int timestampMs,
-    required final List<FiatRate> rates,
-  }) = _$FiatRatesImpl;
 
-  @override
-  int get timestampMs;
-  @override
-  List<FiatRate> get rates;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FiatRates&&(identical(other.timestampMs, timestampMs) || other.timestampMs == timestampMs)&&const DeepCollectionEquality().equals(other._rates, _rates));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,timestampMs,const DeepCollectionEquality().hash(_rates));
+
+@override
+String toString() {
+  return 'FiatRates(timestampMs: $timestampMs, rates: $rates)';
+}
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$ListChannelsResponse {
-  List<LxChannelDetails> get channels => throw _privateConstructorUsedError;
+
+ List<LxChannelDetails> get channels;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ListChannelsResponse&&const DeepCollectionEquality().equals(other.channels, channels));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(channels));
+
+@override
+String toString() {
+  return 'ListChannelsResponse(channels: $channels)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$ListChannelsResponseImpl implements _ListChannelsResponse {
-  const _$ListChannelsResponseImpl({
-    required final List<LxChannelDetails> channels,
-  }) : _channels = channels;
 
-  final List<LxChannelDetails> _channels;
-  @override
-  List<LxChannelDetails> get channels {
-    if (_channels is EqualUnmodifiableListView) return _channels;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_channels);
-  }
+class _ListChannelsResponse implements ListChannelsResponse {
+  const _ListChannelsResponse({required final  List<LxChannelDetails> channels}): _channels = channels;
+  
 
-  @override
-  String toString() {
-    return 'ListChannelsResponse(channels: $channels)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$ListChannelsResponseImpl &&
-            const DeepCollectionEquality().equals(other._channels, _channels));
-  }
-
-  @override
-  int get hashCode =>
-      Object.hash(runtimeType, const DeepCollectionEquality().hash(_channels));
+ final  List<LxChannelDetails> _channels;
+@override List<LxChannelDetails> get channels {
+  if (_channels is EqualUnmodifiableListView) return _channels;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_channels);
 }
 
-abstract class _ListChannelsResponse implements ListChannelsResponse {
-  const factory _ListChannelsResponse({
-    required final List<LxChannelDetails> channels,
-  }) = _$ListChannelsResponseImpl;
 
-  @override
-  List<LxChannelDetails> get channels;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ListChannelsResponse&&const DeepCollectionEquality().equals(other._channels, _channels));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_channels));
+
+@override
+String toString() {
+  return 'ListChannelsResponse(channels: $channels)';
+}
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$NodeInfo {
-  String get nodePk => throw _privateConstructorUsedError;
-  String get version => throw _privateConstructorUsedError;
-  String get measurement => throw _privateConstructorUsedError;
-  Balance get balance => throw _privateConstructorUsedError;
+
+ String get nodePk; String get version; String get measurement; Balance get balance;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NodeInfo&&(identical(other.nodePk, nodePk) || other.nodePk == nodePk)&&(identical(other.version, version) || other.version == version)&&(identical(other.measurement, measurement) || other.measurement == measurement)&&(identical(other.balance, balance) || other.balance == balance));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,nodePk,version,measurement,balance);
+
+@override
+String toString() {
+  return 'NodeInfo(nodePk: $nodePk, version: $version, measurement: $measurement, balance: $balance)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$NodeInfoImpl implements _NodeInfo {
-  const _$NodeInfoImpl({
-    required this.nodePk,
-    required this.version,
-    required this.measurement,
-    required this.balance,
-  });
 
-  @override
-  final String nodePk;
-  @override
-  final String version;
-  @override
-  final String measurement;
-  @override
-  final Balance balance;
+class _NodeInfo implements NodeInfo {
+  const _NodeInfo({required this.nodePk, required this.version, required this.measurement, required this.balance});
+  
 
-  @override
-  String toString() {
-    return 'NodeInfo(nodePk: $nodePk, version: $version, measurement: $measurement, balance: $balance)';
-  }
+@override final  String nodePk;
+@override final  String version;
+@override final  String measurement;
+@override final  Balance balance;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$NodeInfoImpl &&
-            (identical(other.nodePk, nodePk) || other.nodePk == nodePk) &&
-            (identical(other.version, version) || other.version == version) &&
-            (identical(other.measurement, measurement) ||
-                other.measurement == measurement) &&
-            (identical(other.balance, balance) || other.balance == balance));
-  }
 
-  @override
-  int get hashCode =>
-      Object.hash(runtimeType, nodePk, version, measurement, balance);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NodeInfo&&(identical(other.nodePk, nodePk) || other.nodePk == nodePk)&&(identical(other.version, version) || other.version == version)&&(identical(other.measurement, measurement) || other.measurement == measurement)&&(identical(other.balance, balance) || other.balance == balance));
 }
 
-abstract class _NodeInfo implements NodeInfo {
-  const factory _NodeInfo({
-    required final String nodePk,
-    required final String version,
-    required final String measurement,
-    required final Balance balance,
-  }) = _$NodeInfoImpl;
 
-  @override
-  String get nodePk;
-  @override
-  String get version;
-  @override
-  String get measurement;
-  @override
-  Balance get balance;
+@override
+int get hashCode => Object.hash(runtimeType,nodePk,version,measurement,balance);
+
+@override
+String toString() {
+  return 'NodeInfo(nodePk: $nodePk, version: $version, measurement: $measurement, balance: $balance)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$OpenChannelRequest {
-  UserChannelId get userChannelId => throw _privateConstructorUsedError;
-  int get valueSats => throw _privateConstructorUsedError;
+
+ UserChannelId get userChannelId; int get valueSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OpenChannelRequest&&(identical(other.userChannelId, userChannelId) || other.userChannelId == userChannelId)&&(identical(other.valueSats, valueSats) || other.valueSats == valueSats));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,userChannelId,valueSats);
+
+@override
+String toString() {
+  return 'OpenChannelRequest(userChannelId: $userChannelId, valueSats: $valueSats)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$OpenChannelRequestImpl implements _OpenChannelRequest {
-  const _$OpenChannelRequestImpl({
-    required this.userChannelId,
-    required this.valueSats,
-  });
 
-  @override
-  final UserChannelId userChannelId;
-  @override
-  final int valueSats;
+class _OpenChannelRequest implements OpenChannelRequest {
+  const _OpenChannelRequest({required this.userChannelId, required this.valueSats});
+  
 
-  @override
-  String toString() {
-    return 'OpenChannelRequest(userChannelId: $userChannelId, valueSats: $valueSats)';
-  }
+@override final  UserChannelId userChannelId;
+@override final  int valueSats;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$OpenChannelRequestImpl &&
-            (identical(other.userChannelId, userChannelId) ||
-                other.userChannelId == userChannelId) &&
-            (identical(other.valueSats, valueSats) ||
-                other.valueSats == valueSats));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, userChannelId, valueSats);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OpenChannelRequest&&(identical(other.userChannelId, userChannelId) || other.userChannelId == userChannelId)&&(identical(other.valueSats, valueSats) || other.valueSats == valueSats));
 }
 
-abstract class _OpenChannelRequest implements OpenChannelRequest {
-  const factory _OpenChannelRequest({
-    required final UserChannelId userChannelId,
-    required final int valueSats,
-  }) = _$OpenChannelRequestImpl;
 
-  @override
-  UserChannelId get userChannelId;
-  @override
-  int get valueSats;
+@override
+int get hashCode => Object.hash(runtimeType,userChannelId,valueSats);
+
+@override
+String toString() {
+  return 'OpenChannelRequest(userChannelId: $userChannelId, valueSats: $valueSats)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$OpenChannelResponse {
-  String get channelId => throw _privateConstructorUsedError;
+
+ String get channelId;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OpenChannelResponse&&(identical(other.channelId, channelId) || other.channelId == channelId));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,channelId);
+
+@override
+String toString() {
+  return 'OpenChannelResponse(channelId: $channelId)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$OpenChannelResponseImpl implements _OpenChannelResponse {
-  const _$OpenChannelResponseImpl({required this.channelId});
 
-  @override
-  final String channelId;
+class _OpenChannelResponse implements OpenChannelResponse {
+  const _OpenChannelResponse({required this.channelId});
+  
 
-  @override
-  String toString() {
-    return 'OpenChannelResponse(channelId: $channelId)';
-  }
+@override final  String channelId;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$OpenChannelResponseImpl &&
-            (identical(other.channelId, channelId) ||
-                other.channelId == channelId));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, channelId);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OpenChannelResponse&&(identical(other.channelId, channelId) || other.channelId == channelId));
 }
 
-abstract class _OpenChannelResponse implements OpenChannelResponse {
-  const factory _OpenChannelResponse({required final String channelId}) =
-      _$OpenChannelResponseImpl;
 
-  @override
-  String get channelId;
+@override
+int get hashCode => Object.hash(runtimeType,channelId);
+
+@override
+String toString() {
+  return 'OpenChannelResponse(channelId: $channelId)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$PayInvoiceRequest {
-  String get invoice => throw _privateConstructorUsedError;
-  int? get fallbackAmountSats => throw _privateConstructorUsedError;
-  String? get note => throw _privateConstructorUsedError;
+
+ String get invoice; int? get fallbackAmountSats; String? get note;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.note, note) || other.note == note));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,note);
+
+@override
+String toString() {
+  return 'PayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, note: $note)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$PayInvoiceRequestImpl implements _PayInvoiceRequest {
-  const _$PayInvoiceRequestImpl({
-    required this.invoice,
-    this.fallbackAmountSats,
-    this.note,
-  });
 
-  @override
-  final String invoice;
-  @override
-  final int? fallbackAmountSats;
-  @override
-  final String? note;
+class _PayInvoiceRequest implements PayInvoiceRequest {
+  const _PayInvoiceRequest({required this.invoice, this.fallbackAmountSats, this.note});
+  
 
-  @override
-  String toString() {
-    return 'PayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, note: $note)';
-  }
+@override final  String invoice;
+@override final  int? fallbackAmountSats;
+@override final  String? note;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$PayInvoiceRequestImpl &&
-            (identical(other.invoice, invoice) || other.invoice == invoice) &&
-            (identical(other.fallbackAmountSats, fallbackAmountSats) ||
-                other.fallbackAmountSats == fallbackAmountSats) &&
-            (identical(other.note, note) || other.note == note));
-  }
 
-  @override
-  int get hashCode =>
-      Object.hash(runtimeType, invoice, fallbackAmountSats, note);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.note, note) || other.note == note));
 }
 
-abstract class _PayInvoiceRequest implements PayInvoiceRequest {
-  const factory _PayInvoiceRequest({
-    required final String invoice,
-    final int? fallbackAmountSats,
-    final String? note,
-  }) = _$PayInvoiceRequestImpl;
 
-  @override
-  String get invoice;
-  @override
-  int? get fallbackAmountSats;
-  @override
-  String? get note;
+@override
+int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,note);
+
+@override
+String toString() {
+  return 'PayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, note: $note)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$PayInvoiceResponse {
-  PaymentIndex get index => throw _privateConstructorUsedError;
+
+ PaymentIndex get index;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayInvoiceResponse&&(identical(other.index, index) || other.index == index));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,index);
+
+@override
+String toString() {
+  return 'PayInvoiceResponse(index: $index)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$PayInvoiceResponseImpl implements _PayInvoiceResponse {
-  const _$PayInvoiceResponseImpl({required this.index});
 
-  @override
-  final PaymentIndex index;
+class _PayInvoiceResponse implements PayInvoiceResponse {
+  const _PayInvoiceResponse({required this.index});
+  
 
-  @override
-  String toString() {
-    return 'PayInvoiceResponse(index: $index)';
-  }
+@override final  PaymentIndex index;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$PayInvoiceResponseImpl &&
-            (identical(other.index, index) || other.index == index));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, index);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayInvoiceResponse&&(identical(other.index, index) || other.index == index));
 }
 
-abstract class _PayInvoiceResponse implements PayInvoiceResponse {
-  const factory _PayInvoiceResponse({required final PaymentIndex index}) =
-      _$PayInvoiceResponseImpl;
 
-  @override
-  PaymentIndex get index;
+@override
+int get hashCode => Object.hash(runtimeType,index);
+
+@override
+String toString() {
+  return 'PayInvoiceResponse(index: $index)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$PayOfferRequest {
-  ClientPaymentId get cid => throw _privateConstructorUsedError;
-  String get offer => throw _privateConstructorUsedError;
-  int? get fallbackAmountSats => throw _privateConstructorUsedError;
-  String? get note => throw _privateConstructorUsedError;
+
+ ClientPaymentId get cid; String get offer; int? get fallbackAmountSats; String? get note;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.note, note) || other.note == note));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,cid,offer,fallbackAmountSats,note);
+
+@override
+String toString() {
+  return 'PayOfferRequest(cid: $cid, offer: $offer, fallbackAmountSats: $fallbackAmountSats, note: $note)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$PayOfferRequestImpl implements _PayOfferRequest {
-  const _$PayOfferRequestImpl({
-    required this.cid,
-    required this.offer,
-    this.fallbackAmountSats,
-    this.note,
-  });
 
-  @override
-  final ClientPaymentId cid;
-  @override
-  final String offer;
-  @override
-  final int? fallbackAmountSats;
-  @override
-  final String? note;
+class _PayOfferRequest implements PayOfferRequest {
+  const _PayOfferRequest({required this.cid, required this.offer, this.fallbackAmountSats, this.note});
+  
 
-  @override
-  String toString() {
-    return 'PayOfferRequest(cid: $cid, offer: $offer, fallbackAmountSats: $fallbackAmountSats, note: $note)';
-  }
+@override final  ClientPaymentId cid;
+@override final  String offer;
+@override final  int? fallbackAmountSats;
+@override final  String? note;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$PayOfferRequestImpl &&
-            (identical(other.cid, cid) || other.cid == cid) &&
-            (identical(other.offer, offer) || other.offer == offer) &&
-            (identical(other.fallbackAmountSats, fallbackAmountSats) ||
-                other.fallbackAmountSats == fallbackAmountSats) &&
-            (identical(other.note, note) || other.note == note));
-  }
 
-  @override
-  int get hashCode =>
-      Object.hash(runtimeType, cid, offer, fallbackAmountSats, note);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.note, note) || other.note == note));
 }
 
-abstract class _PayOfferRequest implements PayOfferRequest {
-  const factory _PayOfferRequest({
-    required final ClientPaymentId cid,
-    required final String offer,
-    final int? fallbackAmountSats,
-    final String? note,
-  }) = _$PayOfferRequestImpl;
 
-  @override
-  ClientPaymentId get cid;
-  @override
-  String get offer;
-  @override
-  int? get fallbackAmountSats;
-  @override
-  String? get note;
+@override
+int get hashCode => Object.hash(runtimeType,cid,offer,fallbackAmountSats,note);
+
+@override
+String toString() {
+  return 'PayOfferRequest(cid: $cid, offer: $offer, fallbackAmountSats: $fallbackAmountSats, note: $note)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$PayOfferResponse {
-  PaymentIndex get index => throw _privateConstructorUsedError;
+
+ PaymentIndex get index;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOfferResponse&&(identical(other.index, index) || other.index == index));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,index);
+
+@override
+String toString() {
+  return 'PayOfferResponse(index: $index)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$PayOfferResponseImpl implements _PayOfferResponse {
-  const _$PayOfferResponseImpl({required this.index});
 
-  @override
-  final PaymentIndex index;
+class _PayOfferResponse implements PayOfferResponse {
+  const _PayOfferResponse({required this.index});
+  
 
-  @override
-  String toString() {
-    return 'PayOfferResponse(index: $index)';
-  }
+@override final  PaymentIndex index;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$PayOfferResponseImpl &&
-            (identical(other.index, index) || other.index == index));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, index);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOfferResponse&&(identical(other.index, index) || other.index == index));
 }
 
-abstract class _PayOfferResponse implements PayOfferResponse {
-  const factory _PayOfferResponse({required final PaymentIndex index}) =
-      _$PayOfferResponseImpl;
 
-  @override
-  PaymentIndex get index;
+@override
+int get hashCode => Object.hash(runtimeType,index);
+
+@override
+String toString() {
+  return 'PayOfferResponse(index: $index)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$PayOnchainRequest {
-  ClientPaymentId get cid => throw _privateConstructorUsedError;
-  String get address => throw _privateConstructorUsedError;
-  int get amountSats => throw _privateConstructorUsedError;
-  ConfirmationPriority get priority => throw _privateConstructorUsedError;
-  String? get note => throw _privateConstructorUsedError;
+
+ ClientPaymentId get cid; String get address; int get amountSats; ConfirmationPriority get priority; String? get note;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOnchainRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.address, address) || other.address == address)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.priority, priority) || other.priority == priority)&&(identical(other.note, note) || other.note == note));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,cid,address,amountSats,priority,note);
+
+@override
+String toString() {
+  return 'PayOnchainRequest(cid: $cid, address: $address, amountSats: $amountSats, priority: $priority, note: $note)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$PayOnchainRequestImpl implements _PayOnchainRequest {
-  const _$PayOnchainRequestImpl({
-    required this.cid,
-    required this.address,
-    required this.amountSats,
-    required this.priority,
-    this.note,
-  });
 
-  @override
-  final ClientPaymentId cid;
-  @override
-  final String address;
-  @override
-  final int amountSats;
-  @override
-  final ConfirmationPriority priority;
-  @override
-  final String? note;
+class _PayOnchainRequest implements PayOnchainRequest {
+  const _PayOnchainRequest({required this.cid, required this.address, required this.amountSats, required this.priority, this.note});
+  
 
-  @override
-  String toString() {
-    return 'PayOnchainRequest(cid: $cid, address: $address, amountSats: $amountSats, priority: $priority, note: $note)';
-  }
+@override final  ClientPaymentId cid;
+@override final  String address;
+@override final  int amountSats;
+@override final  ConfirmationPriority priority;
+@override final  String? note;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$PayOnchainRequestImpl &&
-            (identical(other.cid, cid) || other.cid == cid) &&
-            (identical(other.address, address) || other.address == address) &&
-            (identical(other.amountSats, amountSats) ||
-                other.amountSats == amountSats) &&
-            (identical(other.priority, priority) ||
-                other.priority == priority) &&
-            (identical(other.note, note) || other.note == note));
-  }
 
-  @override
-  int get hashCode =>
-      Object.hash(runtimeType, cid, address, amountSats, priority, note);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOnchainRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.address, address) || other.address == address)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.priority, priority) || other.priority == priority)&&(identical(other.note, note) || other.note == note));
 }
 
-abstract class _PayOnchainRequest implements PayOnchainRequest {
-  const factory _PayOnchainRequest({
-    required final ClientPaymentId cid,
-    required final String address,
-    required final int amountSats,
-    required final ConfirmationPriority priority,
-    final String? note,
-  }) = _$PayOnchainRequestImpl;
 
-  @override
-  ClientPaymentId get cid;
-  @override
-  String get address;
-  @override
-  int get amountSats;
-  @override
-  ConfirmationPriority get priority;
-  @override
-  String? get note;
+@override
+int get hashCode => Object.hash(runtimeType,cid,address,amountSats,priority,note);
+
+@override
+String toString() {
+  return 'PayOnchainRequest(cid: $cid, address: $address, amountSats: $amountSats, priority: $priority, note: $note)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$PayOnchainResponse {
-  PaymentIndex get index => throw _privateConstructorUsedError;
-  String get txid => throw _privateConstructorUsedError;
+
+ PaymentIndex get index; String get txid;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOnchainResponse&&(identical(other.index, index) || other.index == index)&&(identical(other.txid, txid) || other.txid == txid));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,index,txid);
+
+@override
+String toString() {
+  return 'PayOnchainResponse(index: $index, txid: $txid)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$PayOnchainResponseImpl implements _PayOnchainResponse {
-  const _$PayOnchainResponseImpl({required this.index, required this.txid});
 
-  @override
-  final PaymentIndex index;
-  @override
-  final String txid;
+class _PayOnchainResponse implements PayOnchainResponse {
+  const _PayOnchainResponse({required this.index, required this.txid});
+  
 
-  @override
-  String toString() {
-    return 'PayOnchainResponse(index: $index, txid: $txid)';
-  }
+@override final  PaymentIndex index;
+@override final  String txid;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$PayOnchainResponseImpl &&
-            (identical(other.index, index) || other.index == index) &&
-            (identical(other.txid, txid) || other.txid == txid));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, index, txid);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOnchainResponse&&(identical(other.index, index) || other.index == index)&&(identical(other.txid, txid) || other.txid == txid));
 }
 
-abstract class _PayOnchainResponse implements PayOnchainResponse {
-  const factory _PayOnchainResponse({
-    required final PaymentIndex index,
-    required final String txid,
-  }) = _$PayOnchainResponseImpl;
 
-  @override
-  PaymentIndex get index;
-  @override
-  String get txid;
+@override
+int get hashCode => Object.hash(runtimeType,index,txid);
+
+@override
+String toString() {
+  return 'PayOnchainResponse(index: $index, txid: $txid)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$PreflightCloseChannelResponse {
-  int get feeEstimateSats => throw _privateConstructorUsedError;
+
+ int get feeEstimateSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightCloseChannelResponse&&(identical(other.feeEstimateSats, feeEstimateSats) || other.feeEstimateSats == feeEstimateSats));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,feeEstimateSats);
+
+@override
+String toString() {
+  return 'PreflightCloseChannelResponse(feeEstimateSats: $feeEstimateSats)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$PreflightCloseChannelResponseImpl
-    implements _PreflightCloseChannelResponse {
-  const _$PreflightCloseChannelResponseImpl({required this.feeEstimateSats});
 
-  @override
-  final int feeEstimateSats;
+class _PreflightCloseChannelResponse implements PreflightCloseChannelResponse {
+  const _PreflightCloseChannelResponse({required this.feeEstimateSats});
+  
 
-  @override
-  String toString() {
-    return 'PreflightCloseChannelResponse(feeEstimateSats: $feeEstimateSats)';
-  }
+@override final  int feeEstimateSats;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$PreflightCloseChannelResponseImpl &&
-            (identical(other.feeEstimateSats, feeEstimateSats) ||
-                other.feeEstimateSats == feeEstimateSats));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, feeEstimateSats);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightCloseChannelResponse&&(identical(other.feeEstimateSats, feeEstimateSats) || other.feeEstimateSats == feeEstimateSats));
 }
 
-abstract class _PreflightCloseChannelResponse
-    implements PreflightCloseChannelResponse {
-  const factory _PreflightCloseChannelResponse({
-    required final int feeEstimateSats,
-  }) = _$PreflightCloseChannelResponseImpl;
 
-  @override
-  int get feeEstimateSats;
+@override
+int get hashCode => Object.hash(runtimeType,feeEstimateSats);
+
+@override
+String toString() {
+  return 'PreflightCloseChannelResponse(feeEstimateSats: $feeEstimateSats)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$PreflightOpenChannelRequest {
-  int get valueSats => throw _privateConstructorUsedError;
+
+ int get valueSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightOpenChannelRequest&&(identical(other.valueSats, valueSats) || other.valueSats == valueSats));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,valueSats);
+
+@override
+String toString() {
+  return 'PreflightOpenChannelRequest(valueSats: $valueSats)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$PreflightOpenChannelRequestImpl
-    implements _PreflightOpenChannelRequest {
-  const _$PreflightOpenChannelRequestImpl({required this.valueSats});
 
-  @override
-  final int valueSats;
+class _PreflightOpenChannelRequest implements PreflightOpenChannelRequest {
+  const _PreflightOpenChannelRequest({required this.valueSats});
+  
 
-  @override
-  String toString() {
-    return 'PreflightOpenChannelRequest(valueSats: $valueSats)';
-  }
+@override final  int valueSats;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$PreflightOpenChannelRequestImpl &&
-            (identical(other.valueSats, valueSats) ||
-                other.valueSats == valueSats));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, valueSats);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightOpenChannelRequest&&(identical(other.valueSats, valueSats) || other.valueSats == valueSats));
 }
 
-abstract class _PreflightOpenChannelRequest
-    implements PreflightOpenChannelRequest {
-  const factory _PreflightOpenChannelRequest({required final int valueSats}) =
-      _$PreflightOpenChannelRequestImpl;
 
-  @override
-  int get valueSats;
+@override
+int get hashCode => Object.hash(runtimeType,valueSats);
+
+@override
+String toString() {
+  return 'PreflightOpenChannelRequest(valueSats: $valueSats)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$PreflightOpenChannelResponse {
-  int get feeEstimateSats => throw _privateConstructorUsedError;
+
+ int get feeEstimateSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightOpenChannelResponse&&(identical(other.feeEstimateSats, feeEstimateSats) || other.feeEstimateSats == feeEstimateSats));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,feeEstimateSats);
+
+@override
+String toString() {
+  return 'PreflightOpenChannelResponse(feeEstimateSats: $feeEstimateSats)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$PreflightOpenChannelResponseImpl
-    implements _PreflightOpenChannelResponse {
-  const _$PreflightOpenChannelResponseImpl({required this.feeEstimateSats});
 
-  @override
-  final int feeEstimateSats;
+class _PreflightOpenChannelResponse implements PreflightOpenChannelResponse {
+  const _PreflightOpenChannelResponse({required this.feeEstimateSats});
+  
 
-  @override
-  String toString() {
-    return 'PreflightOpenChannelResponse(feeEstimateSats: $feeEstimateSats)';
-  }
+@override final  int feeEstimateSats;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$PreflightOpenChannelResponseImpl &&
-            (identical(other.feeEstimateSats, feeEstimateSats) ||
-                other.feeEstimateSats == feeEstimateSats));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, feeEstimateSats);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightOpenChannelResponse&&(identical(other.feeEstimateSats, feeEstimateSats) || other.feeEstimateSats == feeEstimateSats));
 }
 
-abstract class _PreflightOpenChannelResponse
-    implements PreflightOpenChannelResponse {
-  const factory _PreflightOpenChannelResponse({
-    required final int feeEstimateSats,
-  }) = _$PreflightOpenChannelResponseImpl;
 
-  @override
-  int get feeEstimateSats;
+@override
+int get hashCode => Object.hash(runtimeType,feeEstimateSats);
+
+@override
+String toString() {
+  return 'PreflightOpenChannelResponse(feeEstimateSats: $feeEstimateSats)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$PreflightPayInvoiceRequest {
-  String get invoice => throw _privateConstructorUsedError;
-  int? get fallbackAmountSats => throw _privateConstructorUsedError;
+
+ String get invoice; int? get fallbackAmountSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightPayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats);
+
+@override
+String toString() {
+  return 'PreflightPayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$PreflightPayInvoiceRequestImpl implements _PreflightPayInvoiceRequest {
-  const _$PreflightPayInvoiceRequestImpl({
-    required this.invoice,
-    this.fallbackAmountSats,
-  });
 
-  @override
-  final String invoice;
-  @override
-  final int? fallbackAmountSats;
+class _PreflightPayInvoiceRequest implements PreflightPayInvoiceRequest {
+  const _PreflightPayInvoiceRequest({required this.invoice, this.fallbackAmountSats});
+  
 
-  @override
-  String toString() {
-    return 'PreflightPayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats)';
-  }
+@override final  String invoice;
+@override final  int? fallbackAmountSats;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$PreflightPayInvoiceRequestImpl &&
-            (identical(other.invoice, invoice) || other.invoice == invoice) &&
-            (identical(other.fallbackAmountSats, fallbackAmountSats) ||
-                other.fallbackAmountSats == fallbackAmountSats));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, invoice, fallbackAmountSats);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightPayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats));
 }
 
-abstract class _PreflightPayInvoiceRequest
-    implements PreflightPayInvoiceRequest {
-  const factory _PreflightPayInvoiceRequest({
-    required final String invoice,
-    final int? fallbackAmountSats,
-  }) = _$PreflightPayInvoiceRequestImpl;
 
-  @override
-  String get invoice;
-  @override
-  int? get fallbackAmountSats;
+@override
+int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats);
+
+@override
+String toString() {
+  return 'PreflightPayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$PreflightPayInvoiceResponse {
-  int get amountSats => throw _privateConstructorUsedError;
-  int get feesSats => throw _privateConstructorUsedError;
+
+ int get amountSats; int get feesSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightPayInvoiceResponse&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,amountSats,feesSats);
+
+@override
+String toString() {
+  return 'PreflightPayInvoiceResponse(amountSats: $amountSats, feesSats: $feesSats)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$PreflightPayInvoiceResponseImpl
-    implements _PreflightPayInvoiceResponse {
-  const _$PreflightPayInvoiceResponseImpl({
-    required this.amountSats,
-    required this.feesSats,
-  });
 
-  @override
-  final int amountSats;
-  @override
-  final int feesSats;
+class _PreflightPayInvoiceResponse implements PreflightPayInvoiceResponse {
+  const _PreflightPayInvoiceResponse({required this.amountSats, required this.feesSats});
+  
 
-  @override
-  String toString() {
-    return 'PreflightPayInvoiceResponse(amountSats: $amountSats, feesSats: $feesSats)';
-  }
+@override final  int amountSats;
+@override final  int feesSats;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$PreflightPayInvoiceResponseImpl &&
-            (identical(other.amountSats, amountSats) ||
-                other.amountSats == amountSats) &&
-            (identical(other.feesSats, feesSats) ||
-                other.feesSats == feesSats));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, amountSats, feesSats);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightPayInvoiceResponse&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats));
 }
 
-abstract class _PreflightPayInvoiceResponse
-    implements PreflightPayInvoiceResponse {
-  const factory _PreflightPayInvoiceResponse({
-    required final int amountSats,
-    required final int feesSats,
-  }) = _$PreflightPayInvoiceResponseImpl;
 
-  @override
-  int get amountSats;
-  @override
-  int get feesSats;
+@override
+int get hashCode => Object.hash(runtimeType,amountSats,feesSats);
+
+@override
+String toString() {
+  return 'PreflightPayInvoiceResponse(amountSats: $amountSats, feesSats: $feesSats)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$PreflightPayOfferRequest {
-  ClientPaymentId get cid => throw _privateConstructorUsedError;
-  String get offer => throw _privateConstructorUsedError;
-  int? get fallbackAmountSats => throw _privateConstructorUsedError;
+
+ ClientPaymentId get cid; String get offer; int? get fallbackAmountSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightPayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,cid,offer,fallbackAmountSats);
+
+@override
+String toString() {
+  return 'PreflightPayOfferRequest(cid: $cid, offer: $offer, fallbackAmountSats: $fallbackAmountSats)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$PreflightPayOfferRequestImpl implements _PreflightPayOfferRequest {
-  const _$PreflightPayOfferRequestImpl({
-    required this.cid,
-    required this.offer,
-    this.fallbackAmountSats,
-  });
 
-  @override
-  final ClientPaymentId cid;
-  @override
-  final String offer;
-  @override
-  final int? fallbackAmountSats;
+class _PreflightPayOfferRequest implements PreflightPayOfferRequest {
+  const _PreflightPayOfferRequest({required this.cid, required this.offer, this.fallbackAmountSats});
+  
 
-  @override
-  String toString() {
-    return 'PreflightPayOfferRequest(cid: $cid, offer: $offer, fallbackAmountSats: $fallbackAmountSats)';
-  }
+@override final  ClientPaymentId cid;
+@override final  String offer;
+@override final  int? fallbackAmountSats;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$PreflightPayOfferRequestImpl &&
-            (identical(other.cid, cid) || other.cid == cid) &&
-            (identical(other.offer, offer) || other.offer == offer) &&
-            (identical(other.fallbackAmountSats, fallbackAmountSats) ||
-                other.fallbackAmountSats == fallbackAmountSats));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, cid, offer, fallbackAmountSats);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightPayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats));
 }
 
-abstract class _PreflightPayOfferRequest implements PreflightPayOfferRequest {
-  const factory _PreflightPayOfferRequest({
-    required final ClientPaymentId cid,
-    required final String offer,
-    final int? fallbackAmountSats,
-  }) = _$PreflightPayOfferRequestImpl;
 
-  @override
-  ClientPaymentId get cid;
-  @override
-  String get offer;
-  @override
-  int? get fallbackAmountSats;
+@override
+int get hashCode => Object.hash(runtimeType,cid,offer,fallbackAmountSats);
+
+@override
+String toString() {
+  return 'PreflightPayOfferRequest(cid: $cid, offer: $offer, fallbackAmountSats: $fallbackAmountSats)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$PreflightPayOfferResponse {
-  int get amountSats => throw _privateConstructorUsedError;
-  int get feesSats => throw _privateConstructorUsedError;
+
+ int get amountSats; int get feesSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightPayOfferResponse&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,amountSats,feesSats);
+
+@override
+String toString() {
+  return 'PreflightPayOfferResponse(amountSats: $amountSats, feesSats: $feesSats)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$PreflightPayOfferResponseImpl implements _PreflightPayOfferResponse {
-  const _$PreflightPayOfferResponseImpl({
-    required this.amountSats,
-    required this.feesSats,
-  });
 
-  @override
-  final int amountSats;
-  @override
-  final int feesSats;
+class _PreflightPayOfferResponse implements PreflightPayOfferResponse {
+  const _PreflightPayOfferResponse({required this.amountSats, required this.feesSats});
+  
 
-  @override
-  String toString() {
-    return 'PreflightPayOfferResponse(amountSats: $amountSats, feesSats: $feesSats)';
-  }
+@override final  int amountSats;
+@override final  int feesSats;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$PreflightPayOfferResponseImpl &&
-            (identical(other.amountSats, amountSats) ||
-                other.amountSats == amountSats) &&
-            (identical(other.feesSats, feesSats) ||
-                other.feesSats == feesSats));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, amountSats, feesSats);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightPayOfferResponse&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats));
 }
 
-abstract class _PreflightPayOfferResponse implements PreflightPayOfferResponse {
-  const factory _PreflightPayOfferResponse({
-    required final int amountSats,
-    required final int feesSats,
-  }) = _$PreflightPayOfferResponseImpl;
 
-  @override
-  int get amountSats;
-  @override
-  int get feesSats;
+@override
+int get hashCode => Object.hash(runtimeType,amountSats,feesSats);
+
+@override
+String toString() {
+  return 'PreflightPayOfferResponse(amountSats: $amountSats, feesSats: $feesSats)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$PreflightPayOnchainRequest {
-  String get address => throw _privateConstructorUsedError;
-  int get amountSats => throw _privateConstructorUsedError;
+
+ String get address; int get amountSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightPayOnchainRequest&&(identical(other.address, address) || other.address == address)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,address,amountSats);
+
+@override
+String toString() {
+  return 'PreflightPayOnchainRequest(address: $address, amountSats: $amountSats)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$PreflightPayOnchainRequestImpl implements _PreflightPayOnchainRequest {
-  const _$PreflightPayOnchainRequestImpl({
-    required this.address,
-    required this.amountSats,
-  });
 
-  @override
-  final String address;
-  @override
-  final int amountSats;
+class _PreflightPayOnchainRequest implements PreflightPayOnchainRequest {
+  const _PreflightPayOnchainRequest({required this.address, required this.amountSats});
+  
 
-  @override
-  String toString() {
-    return 'PreflightPayOnchainRequest(address: $address, amountSats: $amountSats)';
-  }
+@override final  String address;
+@override final  int amountSats;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$PreflightPayOnchainRequestImpl &&
-            (identical(other.address, address) || other.address == address) &&
-            (identical(other.amountSats, amountSats) ||
-                other.amountSats == amountSats));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, address, amountSats);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightPayOnchainRequest&&(identical(other.address, address) || other.address == address)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
 }
 
-abstract class _PreflightPayOnchainRequest
-    implements PreflightPayOnchainRequest {
-  const factory _PreflightPayOnchainRequest({
-    required final String address,
-    required final int amountSats,
-  }) = _$PreflightPayOnchainRequestImpl;
 
-  @override
-  String get address;
-  @override
-  int get amountSats;
+@override
+int get hashCode => Object.hash(runtimeType,address,amountSats);
+
+@override
+String toString() {
+  return 'PreflightPayOnchainRequest(address: $address, amountSats: $amountSats)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$PreflightPayOnchainResponse {
-  FeeEstimate? get high => throw _privateConstructorUsedError;
-  FeeEstimate get normal => throw _privateConstructorUsedError;
-  FeeEstimate get background => throw _privateConstructorUsedError;
+
+ FeeEstimate? get high; FeeEstimate get normal; FeeEstimate get background;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightPayOnchainResponse&&(identical(other.high, high) || other.high == high)&&(identical(other.normal, normal) || other.normal == normal)&&(identical(other.background, background) || other.background == background));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,high,normal,background);
+
+@override
+String toString() {
+  return 'PreflightPayOnchainResponse(high: $high, normal: $normal, background: $background)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$PreflightPayOnchainResponseImpl
-    implements _PreflightPayOnchainResponse {
-  const _$PreflightPayOnchainResponseImpl({
-    this.high,
-    required this.normal,
-    required this.background,
-  });
 
-  @override
-  final FeeEstimate? high;
-  @override
-  final FeeEstimate normal;
-  @override
-  final FeeEstimate background;
+class _PreflightPayOnchainResponse implements PreflightPayOnchainResponse {
+  const _PreflightPayOnchainResponse({this.high, required this.normal, required this.background});
+  
 
-  @override
-  String toString() {
-    return 'PreflightPayOnchainResponse(high: $high, normal: $normal, background: $background)';
-  }
+@override final  FeeEstimate? high;
+@override final  FeeEstimate normal;
+@override final  FeeEstimate background;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$PreflightPayOnchainResponseImpl &&
-            (identical(other.high, high) || other.high == high) &&
-            (identical(other.normal, normal) || other.normal == normal) &&
-            (identical(other.background, background) ||
-                other.background == background));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, high, normal, background);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightPayOnchainResponse&&(identical(other.high, high) || other.high == high)&&(identical(other.normal, normal) || other.normal == normal)&&(identical(other.background, background) || other.background == background));
 }
 
-abstract class _PreflightPayOnchainResponse
-    implements PreflightPayOnchainResponse {
-  const factory _PreflightPayOnchainResponse({
-    final FeeEstimate? high,
-    required final FeeEstimate normal,
-    required final FeeEstimate background,
-  }) = _$PreflightPayOnchainResponseImpl;
 
-  @override
-  FeeEstimate? get high;
-  @override
-  FeeEstimate get normal;
-  @override
-  FeeEstimate get background;
+@override
+int get hashCode => Object.hash(runtimeType,high,normal,background);
+
+@override
+String toString() {
+  return 'PreflightPayOnchainResponse(high: $high, normal: $normal, background: $background)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$UpdateClientRequest {
-  String get pubkey => throw _privateConstructorUsedError;
-  bool? get isRevoked => throw _privateConstructorUsedError;
+
+ String get pubkey; bool? get isRevoked;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UpdateClientRequest&&(identical(other.pubkey, pubkey) || other.pubkey == pubkey)&&(identical(other.isRevoked, isRevoked) || other.isRevoked == isRevoked));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,pubkey,isRevoked);
+
+@override
+String toString() {
+  return 'UpdateClientRequest(pubkey: $pubkey, isRevoked: $isRevoked)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$UpdateClientRequestImpl implements _UpdateClientRequest {
-  const _$UpdateClientRequestImpl({required this.pubkey, this.isRevoked});
 
-  @override
-  final String pubkey;
-  @override
-  final bool? isRevoked;
+class _UpdateClientRequest implements UpdateClientRequest {
+  const _UpdateClientRequest({required this.pubkey, this.isRevoked});
+  
 
-  @override
-  String toString() {
-    return 'UpdateClientRequest(pubkey: $pubkey, isRevoked: $isRevoked)';
-  }
+@override final  String pubkey;
+@override final  bool? isRevoked;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$UpdateClientRequestImpl &&
-            (identical(other.pubkey, pubkey) || other.pubkey == pubkey) &&
-            (identical(other.isRevoked, isRevoked) ||
-                other.isRevoked == isRevoked));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, pubkey, isRevoked);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UpdateClientRequest&&(identical(other.pubkey, pubkey) || other.pubkey == pubkey)&&(identical(other.isRevoked, isRevoked) || other.isRevoked == isRevoked));
 }
 
-abstract class _UpdateClientRequest implements UpdateClientRequest {
-  const factory _UpdateClientRequest({
-    required final String pubkey,
-    final bool? isRevoked,
-  }) = _$UpdateClientRequestImpl;
 
-  @override
-  String get pubkey;
-  @override
-  bool? get isRevoked;
+@override
+int get hashCode => Object.hash(runtimeType,pubkey,isRevoked);
+
+@override
+String toString() {
+  return 'UpdateClientRequest(pubkey: $pubkey, isRevoked: $isRevoked)';
 }
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$UpdatePaymentNote {
-  PaymentIndex get index => throw _privateConstructorUsedError;
-  String? get note => throw _privateConstructorUsedError;
+
+ PaymentIndex get index; String? get note;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UpdatePaymentNote&&(identical(other.index, index) || other.index == index)&&(identical(other.note, note) || other.note == note));
 }
+
+
+@override
+int get hashCode => Object.hash(runtimeType,index,note);
+
+@override
+String toString() {
+  return 'UpdatePaymentNote(index: $index, note: $note)';
+}
+
+
+}
+
+
+
+
 
 /// @nodoc
 
-class _$UpdatePaymentNoteImpl implements _UpdatePaymentNote {
-  const _$UpdatePaymentNoteImpl({required this.index, this.note});
 
-  @override
-  final PaymentIndex index;
-  @override
-  final String? note;
+class _UpdatePaymentNote implements UpdatePaymentNote {
+  const _UpdatePaymentNote({required this.index, this.note});
+  
 
-  @override
-  String toString() {
-    return 'UpdatePaymentNote(index: $index, note: $note)';
-  }
+@override final  PaymentIndex index;
+@override final  String? note;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$UpdatePaymentNoteImpl &&
-            (identical(other.index, index) || other.index == index) &&
-            (identical(other.note, note) || other.note == note));
-  }
 
-  @override
-  int get hashCode => Object.hash(runtimeType, index, note);
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UpdatePaymentNote&&(identical(other.index, index) || other.index == index)&&(identical(other.note, note) || other.note == note));
 }
 
-abstract class _UpdatePaymentNote implements UpdatePaymentNote {
-  const factory _UpdatePaymentNote({
-    required final PaymentIndex index,
-    final String? note,
-  }) = _$UpdatePaymentNoteImpl;
 
-  @override
-  PaymentIndex get index;
-  @override
-  String? get note;
+@override
+int get hashCode => Object.hash(runtimeType,index,note);
+
+@override
+String toString() {
+  return 'UpdatePaymentNote(index: $index, note: $note)';
 }
+
+
+}
+
+
+
+
+// dart format on

@@ -175,7 +175,7 @@ mod fsext {
 pub(crate) mod test {
     use std::{cell::RefCell, collections::BTreeMap};
 
-    use common::rng::{shuffle, FastRng};
+    use common::rng::{FastRng, shuffle};
 
     use super::*;
 

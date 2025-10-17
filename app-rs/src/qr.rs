@@ -44,7 +44,7 @@
 
 use std::fmt;
 
-use fast_qr::{qr::QRBuilder, Mode, Module, QRCode, Version, ECL};
+use fast_qr::{ECL, Mode, Module, QRCode, Version, qr::QRBuilder};
 
 // --- public API --- //
 

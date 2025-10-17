@@ -5,15 +5,15 @@ use common::{
     api::user::{NodePk, UserPk},
     rng::SysRng,
 };
-use flutter_rust_bridge::{frb, RustOpaqueNom};
+use flutter_rust_bridge::{RustOpaqueNom, frb};
 pub(crate) use gdrive::restore::{
     GDriveRestoreCandidate as GDriveRestoreCandidateRs,
     GDriveRestoreClient as GDriveRestoreClientRs,
 };
-use gdrive::{gvfs::GvfsRootName, GoogleVfs};
+use gdrive::{GoogleVfs, gvfs::GvfsRootName};
 use lexe_api::vfs::{
-    VfsDirectory, VfsFile, VfsFileId, CHANNEL_MANAGER_FILENAME,
-    CHANNEL_MONITORS_DIR, SINGLETON_DIRECTORY,
+    CHANNEL_MANAGER_FILENAME, CHANNEL_MONITORS_DIR, SINGLETON_DIRECTORY,
+    VfsDirectory, VfsFile, VfsFileId,
 };
 use serde::Serialize;
 use tracing::{error, instrument};

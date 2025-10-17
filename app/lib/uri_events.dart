@@ -12,9 +12,9 @@ import 'package:rxdart/rxdart.dart' show BehaviorSubject;
 /// platform selects Lexe to handle this URI. We only receive events for URIs
 /// that we are registered to handle.
 ///
-/// See: <app/android/app/src/main/AndroidManifest.xml>
-///      <app/ios/Runner/Info.plist>
-///      <app/macos/Runner/Info.plist>
+/// See: app/android/app/src/main/AndroidManifest.xml
+///      app/ios/Runner/Info.plist
+///      app/macos/Runner/Info.plist
 ///
 /// Testing on iOS simulator:
 ///

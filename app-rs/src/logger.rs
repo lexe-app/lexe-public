@@ -8,13 +8,13 @@ use std::{
 };
 
 use lexe_api::{define_trace_id_fns, trace};
-use tracing::{field, span, Event, Level, Subscriber};
+use tracing::{Event, Level, Subscriber, field, span};
 use tracing_subscriber::{
+    Registry,
     filter::{Filtered, Targets},
     layer::{Context, Layer, Layered, SubscriberExt},
     registry::{LookupSpan, SpanRef},
     util::SubscriberInitExt,
-    Registry,
 };
 
 use crate::logger::atomic_log_ptr::{AtomicLogFnPtr, LogFnPtr};
@@ -210,10 +210,10 @@ fn fmt_span_fields<S: Subscriber + for<'a> LookupSpan<'a>>(
 
     for span in scope {
         let exts = span.extensions();
-        if let Some(fields) = exts.get::<FormattedSpanFields>() {
-            if !fields.buf.is_empty() {
-                write!(buf, "{}", fields.buf)?;
-            }
+        if let Some(fields) = exts.get::<FormattedSpanFields>()
+            && !fields.buf.is_empty()
+        {
+            write!(buf, "{}", fields.buf)?;
         }
     }
 

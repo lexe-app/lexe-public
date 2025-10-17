@@ -3,6 +3,7 @@ use std::str::FromStr;
 use anyhow::anyhow;
 pub(crate) use common::root_seed::RootSeed as RootSeedRs;
 use common::{
+    ExposeSecret,
     api::{
         auth::Scope as ScopeRs,
         revocable_clients::RevocableClient as RevocableClientRs,
@@ -18,9 +19,8 @@ use common::{
     },
     rng::SysRng,
     time::TimestampMs,
-    ExposeSecret,
 };
-use flutter_rust_bridge::{frb, RustOpaqueNom};
+use flutter_rust_bridge::{RustOpaqueNom, frb};
 use lexe_api::types::{
     invoice::LxInvoice,
     offer::LxOffer,

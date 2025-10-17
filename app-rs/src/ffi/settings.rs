@@ -4,7 +4,7 @@ use std::{str::FromStr, sync::Arc};
 
 use anyhow::Context;
 use common::api::fiat_rates::IsoCurrencyCode;
-use flutter_rust_bridge::{frb, RustOpaqueNom};
+use flutter_rust_bridge::{RustOpaqueNom, frb};
 
 pub(crate) use crate::settings::SettingsDb as SettingsDbRs;
 use crate::settings::{

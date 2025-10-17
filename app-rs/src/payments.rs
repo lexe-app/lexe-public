@@ -27,7 +27,7 @@
 
 use std::{io, str::FromStr, sync::Mutex};
 
-use anyhow::{format_err, Context};
+use anyhow::{Context, format_err};
 use lexe_api::{
     def::AppNodeRunApi,
     error::NodeApiError,
@@ -416,10 +416,11 @@ impl PaymentDbState {
         }
 
         // (1.)
-        assert!(self
-            .payments
-            .iter()
-            .is_strict_total_order_by_key(BasicPayment::index));
+        assert!(
+            self.payments
+                .iter()
+                .is_strict_total_order_by_key(BasicPayment::index)
+        );
 
         // (2.)
         let rebuilt_pending_index = Self::build_pending_index(&self.payments);
@@ -987,7 +988,7 @@ mod test {
     use tempfile::tempdir;
 
     use super::*;
-    use crate::ffs::{test::MockFfs, FlatFileFs};
+    use crate::ffs::{FlatFileFs, test::MockFfs};
 
     struct MockNode {
         payments: BTreeMap<PaymentIndex, BasicPayment>,

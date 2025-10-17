@@ -17,7 +17,7 @@ const Set<String> prodLexeDevUserPks = {
 };
 
 /// Enable all experimental features for alpha users.
-/// See: <doc/ALPHA_USERS.md>
+/// See: doc/ALPHA_USERS.md
 // TODO(phlip9): should be set server side
 const Set<String> prodAlphaUserPks = {
   "0298d45ec2315e4bae013b03cbdfd326e7355bd88bfcf271f96609c53d67ff76",
