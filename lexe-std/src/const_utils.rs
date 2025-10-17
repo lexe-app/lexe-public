@@ -38,15 +38,6 @@ macro_rules! const_assert_mem_size {
     };
 }
 
-/// [`Option::unwrap`] but works in `const fn`.
-// TODO(phlip9): remove this when const unwrap stabilizes
-pub const fn const_option_unwrap<T: Copy>(option: Option<T>) -> T {
-    match option {
-        Some(value) => value,
-        None => panic!("unwrap on None"),
-    }
-}
-
 /// [`Result::unwrap`] but works in `const fn`.
 // TODO(phlip9): remove this when const unwrap stabilizes
 pub const fn const_result_unwrap<T: Copy, E: Copy>(result: Result<T, E>) -> T {

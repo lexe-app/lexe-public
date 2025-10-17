@@ -730,7 +730,9 @@ mod anonymize {
         let mut anonymity_set =
             HashSet::<NodeId>::with_capacity(MIN_ANONYMITY_SET_SIZE);
         let mut depth = 1;
-        while let Some(departure_hop) = path.hops.last() {
+        while let Some(departure_hop) = path.hops.last()
+            && depth <= MAX_DEPTH
+        {
             let departure_node_id = NodeId::from_pubkey(&departure_hop.pubkey);
             let done = explore(
                 &network_graph,
@@ -750,13 +752,6 @@ mod anonymize {
 
             path.hops.pop();
             depth += 1;
-
-            // TODO(max): Add `&& depth <= MAX_DEPTH` in the while condition
-            // once "if- and while- let chain" syntax is stabilized:
-            // https://github.com/rust-lang/rust/issues/53667
-            if depth > MAX_DEPTH {
-                break;
-            }
         }
 
         info!(
