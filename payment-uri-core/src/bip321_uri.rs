@@ -139,44 +139,43 @@ impl Bip321Uri {
             let key = param.key_parsed();
 
             if key.is("lightning") {
-                if out.invoice.is_none() {
-                    if let Ok(invoice) = LxInvoice::from_str(&param.value) {
-                        out.invoice = Some(invoice);
-                        continue;
-                    }
+                if out.invoice.is_none()
+                    && let Ok(invoice) = LxInvoice::from_str(&param.value)
+                {
+                    out.invoice = Some(invoice);
+                    continue;
                 }
-                if out.offer.is_none() {
-                    if let Ok(offer) = LxOffer::from_str(&param.value) {
-                        // bitcoinqr.dev showcases an offer inside a
-                        // `lightning` parameter
-                        out.offer = Some(offer);
-                        continue;
-                    }
+                if out.offer.is_none()
+                    && let Ok(offer) = LxOffer::from_str(&param.value)
+                {
+                    // bitcoinqr.dev showcases an offer inside a
+                    // `lightning` parameter
+                    out.offer = Some(offer);
+                    continue;
                 }
             } else if key.is("lno") || /* legacy */ key.is("b12") {
                 if out.offer.is_none() {
                     out.offer = LxOffer::from_str(&param.value).ok();
                 }
             } else if key.is("bc") {
-                if let Ok(address) = bitcoin::Address::from_str(&param.value) {
-                    if address.is_valid_for_network(Network::Bitcoin) {
-                        out.onchain.push(address);
-                    }
+                if let Ok(address) = bitcoin::Address::from_str(&param.value)
+                    && address.is_valid_for_network(Network::Bitcoin)
+                {
+                    out.onchain.push(address);
                 }
             } else if key.is("tb") {
-                if let Ok(address) = bitcoin::Address::from_str(&param.value) {
-                    if address.is_valid_for_network(Network::Testnet)
+                if let Ok(address) = bitcoin::Address::from_str(&param.value)
+                    && (address.is_valid_for_network(Network::Testnet)
                         || address.is_valid_for_network(Network::Testnet4)
-                        || address.is_valid_for_network(Network::Signet)
-                    {
-                        out.onchain.push(address);
-                    }
+                        || address.is_valid_for_network(Network::Signet))
+                {
+                    out.onchain.push(address);
                 }
             } else if key.is("bcrt") {
-                if let Ok(address) = bitcoin::Address::from_str(&param.value) {
-                    if address.is_valid_for_network(Network::Regtest) {
-                        out.onchain.push(address);
-                    }
+                if let Ok(address) = bitcoin::Address::from_str(&param.value)
+                    && address.is_valid_for_network(Network::Regtest)
+                {
+                    out.onchain.push(address);
                 }
             } else if key.is("amount") {
                 if out.amount.is_none() {

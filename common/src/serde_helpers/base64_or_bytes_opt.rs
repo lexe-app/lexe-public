@@ -29,7 +29,7 @@ where
     T: ser::Serialize + AsRef<[u8]>,
 {
     match maybe_data {
-        Some(ref data) =>
+        Some(data) =>
             if serializer.is_human_readable() {
                 let s = base64::engine::general_purpose::STANDARD
                     .encode(data.as_ref());

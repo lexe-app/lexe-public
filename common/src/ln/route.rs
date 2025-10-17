@@ -129,8 +129,8 @@ impl fmt::Display for LxPath {
 impl LxPath {
     /// Return the amount paid on this [`LxPath`], excluding the fees.
     pub fn amount(&self) -> Amount {
-        match self.blinded_tail {
-            Some(ref tail) => tail.final_value,
+        match self.blinded_tail.as_ref() {
+            Some(tail) => tail.final_value,
             None => self
                 .hops
                 .last()

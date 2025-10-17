@@ -36,10 +36,10 @@ pub(crate) async fn connect_to_lsp_then_spawn_connector_task(
         p2p::connect_peer_if_necessary(&peer_manager, &lsp_node_pk, &lsp_addrs)
             .await
             .context("Failed initial connection to LSP")?;
-    if let MaybeLxTask(Some(task)) = maybe_task {
-        if eph_tasks_tx.try_send(task).is_err() {
-            warn!("Failed to send LSP connection task (1)");
-        }
+    if let MaybeLxTask(Some(task)) = maybe_task
+        && eph_tasks_tx.try_send(task).is_err()
+    {
+        warn!("Failed to send LSP connection task (1)");
     }
     info!("Completed initial connection to LSP");
 

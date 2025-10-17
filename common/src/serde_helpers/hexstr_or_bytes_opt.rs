@@ -28,7 +28,7 @@ where
     T: ser::Serialize + AsRef<[u8]>,
 {
     match data {
-        Some(ref value) =>
+        Some(value) =>
             if serializer.is_human_readable() {
                 let s = hex::encode(value.as_ref());
                 serializer.serialize_str(&s)

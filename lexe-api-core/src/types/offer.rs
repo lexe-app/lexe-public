@@ -250,10 +250,9 @@ impl LxOffer {
             // Need to special case Lexe LSP to make smoketests pass where there
             // are no public channels.
             if let IntroductionNode::NodeId(node_id) = path.introduction_node()
+                && node_id == lsp_node_pk.as_inner()
             {
-                if node_id == lsp_node_pk.as_inner() {
-                    return Ok(NodePk(*node_id));
-                }
+                return Ok(NodePk(*node_id));
             }
 
             // Look for a public node

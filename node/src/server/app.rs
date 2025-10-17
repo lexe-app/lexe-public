@@ -120,10 +120,10 @@ pub(super) async fn open_channel(
         .await
         .context("Could not connect to Lexe LSP")?;
 
-        if let MaybeLxTask(Some(task)) = maybe_task {
-            if eph_tasks_tx.try_send(task).is_err() {
-                warn!("(open_channel) Couldn't send task");
-            }
+        if let MaybeLxTask(Some(task)) = maybe_task
+            && eph_tasks_tx.try_send(task).is_err()
+        {
+            warn!("(open_channel) Couldn't send task");
         }
 
         Ok(())
@@ -210,10 +210,10 @@ pub(super) async fn close_channel(
         .await
         .context("Could not connect to Lexe LSP")?;
 
-        if let MaybeLxTask(Some(task)) = maybe_task {
-            if eph_tasks_tx.try_send(task).is_err() {
-                warn!("(close_channel) Failed to send connection task");
-            }
+        if let MaybeLxTask(Some(task)) = maybe_task
+            && eph_tasks_tx.try_send(task).is_err()
+        {
+            warn!("(close_channel) Failed to send connection task");
         }
 
         Ok(())

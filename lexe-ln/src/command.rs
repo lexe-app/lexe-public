@@ -1654,21 +1654,21 @@ pub async fn create_revocable_client(
     req: CreateRevocableClientRequest,
 ) -> anyhow::Result<CreateRevocableClientResponse> {
     let mut rng = SysRng::new();
-    let rev_client_cert = RevocableClientCert::generate_from_rng(&mut rng);
 
-    if let Some(label) = &req.label {
-        if label.len() > RevocableClient::MAX_LABEL_LEN {
-            return Err(anyhow!(
-                "Label must not be longer than {} bytes",
-                RevocableClient::MAX_LABEL_LEN
-            ));
-        }
+    if let Some(label) = &req.label
+        && label.len() > RevocableClient::MAX_LABEL_LEN
+    {
+        return Err(anyhow!(
+            "Label must not be longer than {} bytes",
+            RevocableClient::MAX_LABEL_LEN
+        ));
     }
 
     // TODO(max): Might want some logic on req.scope here,
     // e.g. the caller can't assign a more permissive scope than its own scope,
     // and most clients shouldn't have the ability to create clients.
 
+    let rev_client_cert = RevocableClientCert::generate_from_rng(&mut rng);
     let pubkey = rev_client_cert.public_key();
     let now = TimestampMs::now();
     let revocable_client = RevocableClient {

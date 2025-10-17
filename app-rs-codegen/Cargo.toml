@@ -1,7 +1,9 @@
 [package]
 name = "app-rs-codegen"
 authors.workspace = true
-edition.workspace = true
+ # TODO(phlip9): remove after updating flutter_rust_bridge
+edition = "2021"
+# edition.workspace = true
 license.workspace = true
 version.workspace = true
 

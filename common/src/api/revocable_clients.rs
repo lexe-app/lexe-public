@@ -91,10 +91,10 @@ impl RevocableClient {
     /// Whether the client is expired at the given time.
     #[must_use]
     pub fn is_expired_at(&self, now: TimestampMs) -> bool {
-        if let Some(expiration) = self.expires_at {
-            if now > expiration {
-                return true;
-            }
+        if let Some(expiration) = self.expires_at
+            && now > expiration
+        {
+            return true;
         }
 
         false
@@ -209,13 +209,13 @@ impl RevocableClient {
         }
 
         if let Some(maybe_label) = req_label {
-            if let Some(label) = &maybe_label {
-                if label.len() > RevocableClient::MAX_LABEL_LEN {
-                    return Err(anyhow!(
-                        "Label must not be longer than {} bytes",
-                        RevocableClient::MAX_LABEL_LEN,
-                    ));
-                }
+            if let Some(label) = &maybe_label
+                && label.len() > Self::MAX_LABEL_LEN
+            {
+                return Err(anyhow!(
+                    "Label must not be longer than {} bytes",
+                    Self::MAX_LABEL_LEN,
+                ));
             }
             out.label = maybe_label;
         }

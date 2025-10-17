@@ -421,13 +421,12 @@ impl InboundInvoicePayment {
 
         // Fail the HTLCs back if the payer is trying to pay the same invoice
         // twice, i.e., the same payment hash is paid with a different LnClaimId
-        if let Some(claim_id) = claim_id {
-            if let Some(this_claim_id) = self.claim_id {
-                if this_claim_id != claim_id {
-                    warn!("payer is trying to pay the same payment hash twice");
-                    return Err(ClaimableError::FailBackHtlcsTheirFault);
-                }
-            }
+        if let Some(claim_id) = claim_id
+            && let Some(this_claim_id) = self.claim_id
+            && this_claim_id != claim_id
+        {
+            warn!("payer is trying to pay the same payment hash twice");
+            return Err(ClaimableError::FailBackHtlcsTheirFault);
         }
 
         match self.status {
@@ -459,10 +458,10 @@ impl InboundInvoicePayment {
 
         // TODO(phlip9): charge the user for LSP fees on inbound as a skimmed
         // amount, but only up to the expected fee rate and no more.
-        if let Some(invoice_amount) = self.invoice_amount {
-            if amount < invoice_amount {
-                warn!("Requested {invoice_amount} but claiming {amount}");
-            }
+        if let Some(invoice_amount) = self.invoice_amount
+            && amount < invoice_amount
+        {
+            warn!("Requested {invoice_amount} but claiming {amount}");
         }
 
         // TODO(max): In the future, check for on-chain fees here
@@ -515,10 +514,10 @@ impl InboundInvoicePayment {
         }
 
         // TODO(phlip9): don't accept underpaying payments
-        if let Some(invoice_amount) = self.invoice_amount {
-            if amount < invoice_amount {
-                warn!("Requested {invoice_amount} but claimed {amount}");
-            }
+        if let Some(invoice_amount) = self.invoice_amount
+            && amount < invoice_amount
+        {
+            warn!("Requested {invoice_amount} but claimed {amount}");
         }
 
         // TODO(max): In the future, check for on-chain fees here

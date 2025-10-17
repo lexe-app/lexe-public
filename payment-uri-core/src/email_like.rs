@@ -217,12 +217,12 @@ impl<'a> EmailLikeAddress<'a> {
             // only the BIP353 error. Otherwise, return a combined error, as we
             // don't know which payment URI the recipient intended.
             .map_err(|ln_error| {
-                if let Some(ref bip353_error) = bip353_error {
-                    if bip353_prefix {
-                        return Error::InvalidEmailLike(Cow::from(format!(
-                            "{bip353_error:#}"
-                        )));
-                    }
+                if let Some(ref bip353_error) = bip353_error
+                    && bip353_prefix
+                {
+                    return Error::InvalidEmailLike(Cow::from(format!(
+                        "{bip353_error:#}"
+                    )));
                 }
 
                 let combined_msg = match bip353_error {

@@ -673,22 +673,21 @@ mod anonymize {
         // ensure that the failed channel or node is on the anonymized path.
         let network_graph = ctx.network_graph.read_only();
         #[allow(clippy::collapsible_match)] // Suggestion is less readable
-        if let PathFailure::OnPath { network_update } = &failure {
-            if let Some(update) = network_update {
-                match update {
-                    NetworkUpdate::ChannelFailure {
-                        short_channel_id, ..
-                    } => {
-                        let channel =
-                            network_graph.channel(*short_channel_id)?;
-                        let node_pk1 = channel.node_one.as_pubkey().ok()?;
-                        let node_pk2 = channel.node_two.as_pubkey().ok()?;
-                        path.hops.iter().find(|hop| hop.pubkey == node_pk1)?;
-                        path.hops.iter().find(|hop| hop.pubkey == node_pk2)?;
-                    }
-                    NetworkUpdate::NodeFailure { node_id, .. } => {
-                        path.hops.iter().find(|hop| hop.pubkey == *node_id)?;
-                    }
+        if let PathFailure::OnPath { network_update } = &failure
+            && let Some(update) = network_update
+        {
+            match update {
+                NetworkUpdate::ChannelFailure {
+                    short_channel_id, ..
+                } => {
+                    let channel = network_graph.channel(*short_channel_id)?;
+                    let node_pk1 = channel.node_one.as_pubkey().ok()?;
+                    let node_pk2 = channel.node_two.as_pubkey().ok()?;
+                    path.hops.iter().find(|hop| hop.pubkey == node_pk1)?;
+                    path.hops.iter().find(|hop| hop.pubkey == node_pk2)?;
+                }
+                NetworkUpdate::NodeFailure { node_id, .. } => {
+                    path.hops.iter().find(|hop| hop.pubkey == *node_id)?;
                 }
             }
         }

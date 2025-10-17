@@ -378,15 +378,12 @@ impl BasicPayment {
     pub fn is_junk(&self) -> bool {
         // amount-less, description-less inbound BOLT11 invoices are junk
         // payments unless paid.
-        let junk_amountless_invoice = self.status != PaymentStatus::Completed
-            && self.kind == PaymentKind::Invoice
-            && self.direction == PaymentDirection::Inbound
-            && (self.amount.is_none() || self.note_or_description().is_none());
-
         // TODO(phlip9): also don't show pending/failed "superseded" invoices,
         // where the user edited the amount/description.
-
-        junk_amountless_invoice
+        self.status != PaymentStatus::Completed
+            && self.kind == PaymentKind::Invoice
+            && self.direction == PaymentDirection::Inbound
+            && (self.amount.is_none() || self.note_or_description().is_none())
     }
 
     /// Returns the user's note or invoice description, prefering note over

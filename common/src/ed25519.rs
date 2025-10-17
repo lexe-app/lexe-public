@@ -358,8 +358,7 @@ impl KeyPair {
     /// Sign a raw message with this `KeyPair`.
     pub fn sign_raw(&self, msg: &[u8]) -> Signature {
         let sig = self.key_pair.sign(msg);
-        let sig = Signature::try_from(sig.as_ref()).unwrap();
-        sig
+        Signature::try_from(sig.as_ref()).unwrap()
     }
 
     /// Canonically serialize and then sign a [`Signable`] struct `T` with this

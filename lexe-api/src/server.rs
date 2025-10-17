@@ -219,7 +219,7 @@ pub fn build_server_fut_with_listener(
     server_span: tracing::Span,
     // Send on this channel to begin a graceful shutdown of the server.
     mut shutdown: NotifyOnce,
-) -> anyhow::Result<(impl Future<Output = ()>, String)> {
+) -> anyhow::Result<(impl Future<Output = ()> + use<>, String)> {
     // Build the url here bc it's easy to mess up.
     // ex: `https://lexe.app` (port=443)
     // ex: `https://relay.lexe.app:4396`

@@ -579,7 +579,7 @@ pub fn handle_network_graph_update(
     if let Event::PaymentPathFailed {
         failure:
             PathFailure::OnPath {
-                network_update: Some(ref update),
+                network_update: Some(update),
             },
         ..
     } = event
@@ -604,7 +604,7 @@ pub fn handle_scorer_update(
     let now_since_epoch = TimestampMs::now().to_duration();
     match event {
         Event::PaymentPathFailed {
-            ref path,
+            path,
             short_channel_id: Some(scid),
             ..
         } => {
@@ -612,7 +612,7 @@ pub fn handle_scorer_update(
             locked_scorer.payment_path_failed(path, *scid, now_since_epoch);
         }
         Event::PaymentPathFailed {
-            ref path,
+            path,
             payment_failed_permanently: true,
             ..
         } => {

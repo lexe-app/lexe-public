@@ -791,7 +791,7 @@ impl LexeInnerPersister for NodePersister {
             .transpose()
             .context("Could not decrypt payment")?;
 
-        if let Some(ref payment) = maybe_payment {
+        if let Some(payment) = &maybe_payment {
             ensure!(
                 payment.id() == index.id,
                 "ID of returned payment doesn't match"
