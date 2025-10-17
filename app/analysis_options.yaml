@@ -12,6 +12,22 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+# Enable our custom lint rules plugin: ../app_lints
+analyzer:
+  plugins:
+    - custom_lint
+
+custom_lint:
+  rules:
+    # Always require `this.` to access class fields.
+    #
+    # The default dart style discourages using `this.myField` unless strictly
+    # necessary, instead preferring just `myField` without `this`.
+    #
+    # IMO, this makes code unnecessarily hard to follow, as it's no longer clear
+    # at a glance whether a variable is a class field or a local variable.
+    - require_this: true
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
@@ -28,11 +44,6 @@ linter:
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
     # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
 
-    # The default dart style discourages using `this.myField` unless strictly
-    # necessary, instead preferring just `myField` without `this`.
-    #
-    # IMO, this makes code unnecessarily hard to follow, as it's no longer clear
-    # at a glance whether a variable is a class field or a local variable.
     unnecessary_this: false
     # Avoid an extra lambda if you can just pass the function itself.
     unnecessary_lambdas: true

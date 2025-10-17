@@ -123,9 +123,16 @@ dev_dependencies:
   app_embed_git_rev:
     path: ../app_embed_git_rev
 
+  # Shared custom lint rules for Lexe packages.
+  app_lints:
+    path: ../app_lints
+
   # Used by freezed for codegen. app-rs-codegen runs this after generating the
   # flutter_rust_bridge bindings.
   build_runner: ^2.9.0
+
+  # Runs our custom lint plugin.
+  custom_lint: ^0.8.1
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
