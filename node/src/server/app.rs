@@ -380,8 +380,7 @@ pub(super) async fn preflight_pay_onchain(
 pub(super) async fn get_address(
     State(state): State<Arc<AppRouterState>>,
 ) -> LxJson<GetAddressResponse> {
-    // TODO(max): Upstream an `Address::into_unchecked` to avoid clone
-    let addr = state.wallet.get_address().as_unchecked().clone();
+    let addr = state.wallet.get_address().into_unchecked();
     LxJson(GetAddressResponse { addr })
 }
 

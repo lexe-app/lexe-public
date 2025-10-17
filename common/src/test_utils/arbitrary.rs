@@ -523,8 +523,7 @@ pub fn any_mainnet_addr() -> impl Strategy<Value = Address> {
 
 pub fn any_mainnet_addr_unchecked(
 ) -> impl Strategy<Value = Address<NetworkUnchecked>> {
-    // TODO(max): Upstream an `Address::into_unchecked` to avoid clone
-    any_mainnet_addr().prop_map(|addr| addr.as_unchecked().clone())
+    any_mainnet_addr().prop_map(|addr| addr.into_unchecked())
 }
 
 /// Generate an on-chain confirmations value that's in a reasonable range more

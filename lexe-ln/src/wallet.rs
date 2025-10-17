@@ -1962,7 +1962,7 @@ mod test {
         let address = {
             let network = h.network.to_bitcoin();
             let script = Script::from_bytes(&[0x42; 10]);
-            Address::p2wsh(script, network).as_unchecked().clone()
+            Address::p2wsh(script, network).into_unchecked()
         };
         h.assert_no_persists_in(|h| {
             let req = PreflightPayOnchainRequest {

@@ -106,8 +106,7 @@ impl Onchain {
 
 impl<V: NetworkValidation> From<bitcoin::Address<V>> for Onchain {
     fn from(addr: bitcoin::Address<V>) -> Self {
-        // TODO(max): Upstream an `Address::into_unchecked` to avoid clone
-        let address = addr.as_unchecked().clone();
+        let address = addr.into_unchecked().clone();
         Self {
             address,
             amount: None,
