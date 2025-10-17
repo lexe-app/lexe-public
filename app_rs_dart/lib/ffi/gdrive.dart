@@ -46,9 +46,11 @@ class GDriveClient {
     rootSeed: rootSeed,
   );
 
+  /// flutter_rust_bridge:sync
   GDriveRestoreClient intoRestoreClient() => AppRs.instance.api
       .crateFfiGdriveGDriveClientIntoRestoreClient(that: this);
 
+  /// flutter_rust_bridge:sync
   String? serverCode() =>
       AppRs.instance.api.crateFfiGdriveGDriveClientServerCode(that: this);
 
@@ -89,6 +91,8 @@ class GDriveOAuth2Flow {
   /// Begin the OAuth2 flow for the given mobile `client_id`. We'll also get
   /// a `server_code` we can exchange at the node provision enclave, which
   /// uses `server_client_id`.
+  ///
+  /// flutter_rust_bridge:sync
   static GDriveOAuth2Flow init({
     required String clientId,
     required String serverClientId,
@@ -123,12 +127,14 @@ class GDriveRestoreCandidate {
 
   const GDriveRestoreCandidate({required this.inner});
 
+  /// flutter_rust_bridge:sync
   RootSeed tryDecrypt({required String password}) =>
       AppRs.instance.api.crateFfiGdriveGDriveRestoreCandidateTryDecrypt(
         that: this,
         password: password,
       );
 
+  /// flutter_rust_bridge:sync
   String userPk() =>
       AppRs.instance.api.crateFfiGdriveGDriveRestoreCandidateUserPk(that: this);
 

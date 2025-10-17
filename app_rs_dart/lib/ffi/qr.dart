@@ -25,5 +25,7 @@ Future<Uint8List> encode({required List<int> data}) =>
 
 /// Return the size in pixels of one side of the encoded QR code for a given
 /// input `data.len()` in bytes.
+///
+/// flutter_rust_bridge:sync
 int encodedPixelsPerSide({required int dataLenBytes}) => AppRs.instance.api
     .crateFfiQrEncodedPixelsPerSide(dataLenBytes: dataLenBytes);

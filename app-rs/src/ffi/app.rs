@@ -10,7 +10,7 @@ use common::{
     env::DeployEnv,
     rng::SysRng,
 };
-use flutter_rust_bridge::{RustOpaqueNom, frb};
+use flutter_rust_bridge::RustOpaqueNom;
 use hex::FromHex;
 use lexe_api::{
     def::{AppGatewayApi, AppNodeRunApi},
@@ -142,12 +142,12 @@ impl AppHandle {
         .map(Self::new)
     }
 
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn settings_db(&self) -> SettingsDb {
         SettingsDb::new(self.inner.settings_db())
     }
 
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn user_info(&self) -> AppUserInfo {
         let (user_pk, node_pk, node_pk_proof) = self.inner.user_info();
         AppUserInfo {
@@ -389,7 +389,7 @@ impl AppHandle {
         db_lock.state().get_vec_idx_by_payment_index(&payment_index)
     }
 
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn get_payment_by_vec_idx(&self, vec_idx: usize) -> Option<Payment> {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock
@@ -398,7 +398,7 @@ impl AppHandle {
             .map(Payment::from)
     }
 
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn get_short_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
@@ -412,7 +412,7 @@ impl AppHandle {
         )
     }
 
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn get_pending_short_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
@@ -427,7 +427,7 @@ impl AppHandle {
             })
     }
 
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn get_finalized_short_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
@@ -442,7 +442,7 @@ impl AppHandle {
             })
     }
 
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn get_pending_not_junk_short_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
@@ -457,7 +457,7 @@ impl AppHandle {
             })
     }
 
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn get_finalized_not_junk_short_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
@@ -472,31 +472,31 @@ impl AppHandle {
             })
     }
 
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn get_num_payments(&self) -> usize {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock.state().num_payments()
     }
 
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn get_num_pending_payments(&self) -> usize {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock.state().num_pending()
     }
 
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn get_num_finalized_payments(&self) -> usize {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock.state().num_finalized()
     }
 
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn get_num_pending_not_junk_payments(&self) -> usize {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock.state().num_pending_not_junk()
     }
 
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn get_num_finalized_not_junk_payments(&self) -> usize {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock.state().num_finalized_not_junk()

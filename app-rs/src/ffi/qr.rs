@@ -1,7 +1,5 @@
 //! FFI interface for QR code generation
 
-use flutter_rust_bridge::frb;
-
 use crate::qr;
 
 /// Encode `data` as a QR code, then render it as a .bmp image.
@@ -19,7 +17,8 @@ pub fn encode(data: Vec<u8>) -> anyhow::Result<Vec<u8>> {
 
 /// Return the size in pixels of one side of the encoded QR code for a given
 /// input `data.len()` in bytes.
-#[frb(sync)]
+///
+/// flutter_rust_bridge:sync
 pub fn encoded_pixels_per_side(data_len_bytes: usize) -> anyhow::Result<usize> {
     qr::encoded_pixels_per_side(data_len_bytes).map_err(anyhow::Error::new)
 }

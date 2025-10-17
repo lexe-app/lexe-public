@@ -81,15 +81,3 @@ proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
 tempfile.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
-
-# Silence this warning:
-#
-# warning: unexpected `cfg` condition name: `frb_expand`
-#    --> public/app-rs/src/ffi/types.rs:418:5
-#     |
-# 418 |     #[frb(sync)]
-#     |     ^^^^^^^^^^^^
-#
-# TODO(phlip9): maybe we can remove this after updating frb?
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ["cfg(frb_expand)"] }

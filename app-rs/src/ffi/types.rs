@@ -20,7 +20,7 @@ use common::{
     rng::SysRng,
     time::TimestampMs,
 };
-use flutter_rust_bridge::{RustOpaqueNom, frb};
+use flutter_rust_bridge::RustOpaqueNom;
 use lexe_api::types::{
     invoice::LxInvoice,
     offer::LxOffer,
@@ -46,7 +46,7 @@ pub enum DeployEnv {
 }
 
 impl DeployEnv {
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn from_str(s: &str) -> anyhow::Result<Self> {
         DeployEnvRs::from_str(s).map(DeployEnv::from)
     }
@@ -82,7 +82,7 @@ pub enum Network {
 }
 
 impl Network {
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn from_str(s: &str) -> anyhow::Result<Network> {
         NetworkRs::from_str(s).and_then(Network::try_from)
     }
@@ -147,7 +147,8 @@ pub struct RootSeed {
 
 impl RootSeed {
     /// Generate a new RootSeed from the secure system RNG.
-    #[frb(sync)]
+    ///
+    /// flutter_rust_bridge:sync
     pub fn from_sys_rng() -> Self {
         Self {
             inner: RustOpaqueNom::new(RootSeedRs::from_rng(&mut SysRng::new())),
@@ -155,20 +156,22 @@ impl RootSeed {
     }
 
     /// Hex-encode the root seed secret. Should only be used for debugging.
-    #[frb(sync)]
+    ///
+    /// flutter_rust_bridge:sync
     pub fn expose_secret_hex(&self) -> String {
         hex::encode(self.inner.expose_secret().as_slice())
     }
 
     /// Return the 24-word BIP-39 seed phrase for this root seed.
-    #[frb(sync)]
+    ///
+    /// flutter_rust_bridge:sync
     pub fn seed_phrase(&self) -> Vec<String> {
         let mnemonic = self.inner.to_mnemonic();
         assert_eq!(mnemonic.word_count(), 24);
         mnemonic.words().map(|w| w.to_owned()).collect::<Vec<_>>()
     }
 
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn from_mnemonic(mnemonic: Vec<String>) -> anyhow::Result<Self> {
         let words = mnemonic.join(" ");
         let mnemonic = bip39::Mnemonic::parse_in_normalized(
@@ -572,7 +575,7 @@ pub struct ClientPaymentId {
 }
 
 impl ClientPaymentId {
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn gen_new() -> Self {
         ClientPaymentId {
             id: ClientPaymentIdRs::from_rng(&mut SysRng::new()).0,
@@ -599,7 +602,7 @@ pub struct UserChannelId {
 }
 
 impl UserChannelId {
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn gen_new() -> Self {
         UserChannelId {
             id: LxUserChannelIdRs::from_rng(&mut SysRng::new()).0,

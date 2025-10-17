@@ -1,19 +1,19 @@
 //! Debug methods for use during development.
 
-use flutter_rust_bridge::frb;
-
 use crate::{ffi::types::Config, secret_store::SecretStore};
 
 /// Delete the local persisted `SecretStore` and `RootSeed`.
 ///
 /// WARNING: you will need a backup recovery to use the account afterwards.
-#[frb(sync)]
+///
+/// flutter_rust_bridge:sync
 pub fn delete_secret_store(config: Config) -> anyhow::Result<()> {
     SecretStore::new(&config.into()).delete()
 }
 
 /// Delete the local latest_release file.
-#[frb(sync)]
+///
+/// flutter_rust_bridge:sync
 pub fn delete_latest_provisioned(config: Config) -> anyhow::Result<()> {
     let _config = config;
     // TODO(phlip9): re-impl. will need to take `AppHandle`.

@@ -5,7 +5,7 @@ use common::{
     api::user::{NodePk, UserPk},
     rng::SysRng,
 };
-use flutter_rust_bridge::{RustOpaqueNom, frb};
+use flutter_rust_bridge::RustOpaqueNom;
 pub(crate) use gdrive::restore::{
     GDriveRestoreCandidate as GDriveRestoreCandidateRs,
     GDriveRestoreClient as GDriveRestoreClientRs,
@@ -54,7 +54,8 @@ impl GDriveOAuth2Flow {
     /// Begin the OAuth2 flow for the given mobile `client_id`. We'll also get
     /// a `server_code` we can exchange at the node provision enclave, which
     /// uses `server_client_id`.
-    #[frb(sync)]
+    ///
+    /// flutter_rust_bridge:sync
     pub fn init(client_id: String, server_client_id: &str) -> Self {
         let pkce = gdrive::oauth2::OAuth2PkceCodeChallenge::from_rng(
             &mut SysRng::new(),
@@ -130,7 +131,7 @@ impl GDriveOAuth2Flow {
 }
 
 impl GDriveClient {
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn into_restore_client(self) -> GDriveRestoreClient {
         let (client, credentials) = match self.inner.try_unwrap() {
             Ok(inner) => (inner.client, inner.credentials),
@@ -144,7 +145,7 @@ impl GDriveClient {
         }
     }
 
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn server_code(&self) -> Option<String> {
         self.inner.credentials.server_code.clone()
     }
@@ -268,12 +269,12 @@ impl GDriveRestoreClient {
 }
 
 impl GDriveRestoreCandidate {
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn user_pk(&self) -> String {
         self.inner.gvfs_root.name.user_pk.to_string()
     }
 
-    #[frb(sync)]
+    /// flutter_rust_bridge:sync
     pub fn try_decrypt(&self, password: &str) -> anyhow::Result<RootSeed> {
         let root_seed = RootSeedRs::password_decrypt(
             password,

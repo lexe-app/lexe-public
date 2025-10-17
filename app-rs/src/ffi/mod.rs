@@ -41,15 +41,16 @@
 //! * Normal looking pub functions, like `pub fn x() -> u32 { 123 }` look like
 //!   async fn's on the Dart side and are run on a separate threadpool on the
 //!   Rust side to avoid blocking the main Flutter UI isolate.
-//! * Functions with `#[frb(sync)]` do block the calling Dart isolate and are
-//!   run in-place on that isolate.
-//! * `#[frb(sync)]` has ~10x less latency overhead. Think a few 50-100 ns vs a
-//!   few µs overhead per call.
+//! * Functions with `flutter_rust_bridge:sync` do block the calling Dart
+//!   isolate and are run in-place on that isolate.
+//! * `flutter_rust_bridge:sync` has ~10x less latency overhead. Think a few
+//!   50-100 ns vs a few µs overhead per call.
 //! * However, we have to be careful about blocking the main UI isolate, since
 //!   we only have 16 ms frame budget to compute and render the UI without jank.
 //!   Any sync ffi that runs for longer than maybe 1 ms should definitely run as
 //!   a separate task on the threadpool. OTOH, just reading a value out of some
-//!   in-memory state is probably cheaper overall to use `#[frb(sync)]`.
+//!   in-memory state is probably cheaper overall to use
+//!   `flutter_rust_bridge:sync`.
 
 // TODO(phlip9): error messages need to be internationalized
 

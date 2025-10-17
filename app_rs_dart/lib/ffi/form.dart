@@ -17,9 +17,12 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// `address_str` is valid, while `Some(msg)` means it is not (with given
 /// error message). We return in this format to better match the flutter
 /// `FormField` validator API.
+///
+/// flutter_rust_bridge:sync
 String? validatePassword({required String password}) =>
     AppRs.instance.api.crateFfiFormValidatePassword(password: password);
 
+/// flutter_rust_bridge:sync
 List<String> suggestMnemonicWords({
   required String prefix,
   required int take,
@@ -28,5 +31,6 @@ List<String> suggestMnemonicWords({
   take: take,
 );
 
+/// flutter_rust_bridge:sync
 bool isMnemonicWord({required String word}) =>
     AppRs.instance.api.crateFfiFormIsMnemonicWord(word: word);

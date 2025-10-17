@@ -71,16 +71,22 @@ class SettingsDb {
   const SettingsDb({required this.inner});
 
   /// Read all settings.
+  ///
+  /// flutter_rust_bridge:sync
   Settings read() =>
       AppRs.instance.api.crateFfiSettingsSettingsDbRead(that: this);
 
   /// Reset all settings to their defaults.
+  ///
+  /// flutter_rust_bridge:sync
   void reset() =>
       AppRs.instance.api.crateFfiSettingsSettingsDbReset(that: this);
 
   /// Update the in-memory settings by merging in any non-null fields in
   /// `update`. The settings will be persisted asynchronously, outside of this
   /// call.
+  ///
+  /// flutter_rust_bridge:sync
   void update({required Settings update}) => AppRs.instance.api
       .crateFfiSettingsSettingsDbUpdate(that: this, update: update);
 

@@ -23,10 +23,14 @@ class SecretStore {
   const SecretStore.raw({required this.inner});
 
   /// Create a handle to the secret store for the current app configuration.
+  ///
+  /// flutter_rust_bridge:sync
   factory SecretStore({required Config config}) =>
       AppRs.instance.api.crateFfiSecretStoreSecretStoreNew(config: config);
 
   /// Read the user's root seed from the secret store.
+  ///
+  /// flutter_rust_bridge:sync
   RootSeed? readRootSeed() =>
       AppRs.instance.api.crateFfiSecretStoreSecretStoreReadRootSeed(that: this);
 

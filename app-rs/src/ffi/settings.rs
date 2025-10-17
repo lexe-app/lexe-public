@@ -4,7 +4,7 @@ use std::{str::FromStr, sync::Arc};
 
 use anyhow::Context;
 use common::api::fiat_rates::IsoCurrencyCode;
-use flutter_rust_bridge::{RustOpaqueNom, frb};
+use flutter_rust_bridge::RustOpaqueNom;
 
 pub(crate) use crate::settings::SettingsDb as SettingsDbRs;
 use crate::settings::{
@@ -38,13 +38,15 @@ impl SettingsDb {
     }
 
     /// Read all settings.
-    #[frb(sync)]
+    ///
+    /// flutter_rust_bridge:sync
     pub fn read(&self) -> Settings {
         Settings::from(self.inner.read())
     }
 
     /// Reset all settings to their defaults.
-    #[frb(sync)]
+    ///
+    /// flutter_rust_bridge:sync
     pub fn reset(&self) {
         self.inner.reset();
     }
@@ -52,7 +54,8 @@ impl SettingsDb {
     /// Update the in-memory settings by merging in any non-null fields in
     /// `update`. The settings will be persisted asynchronously, outside of this
     /// call.
-    #[frb(sync)]
+    ///
+    /// flutter_rust_bridge:sync
     pub fn update(&self, update: Settings) -> anyhow::Result<()> {
         let update_rs = SettingsRs::try_from(update)
             .context("Dart settings update is invalid")?;

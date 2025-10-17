@@ -38,6 +38,8 @@ sealed class AppUserInfo with _$AppUserInfo {
 sealed class ClientPaymentId with _$ClientPaymentId {
   const ClientPaymentId._();
   const factory ClientPaymentId({required U8Array32 id}) = _ClientPaymentId;
+
+  /// flutter_rust_bridge:sync
   static ClientPaymentId genNew() =>
       AppRs.instance.api.crateFfiTypesClientPaymentIdGenNew();
 }
@@ -68,6 +70,7 @@ enum DeployEnv {
   staging,
   prod;
 
+  /// flutter_rust_bridge:sync
   static DeployEnv fromStr({required String s}) =>
       AppRs.instance.api.crateFfiTypesDeployEnvFromStr(s: s);
 }
@@ -249,6 +252,7 @@ enum Network {
   testnet4,
   regtest;
 
+  /// flutter_rust_bridge:sync
   static Network fromStr({required String s}) =>
       AppRs.instance.api.crateFfiTypesNetworkFromStr(s: s);
 }
@@ -367,17 +371,24 @@ class RootSeed {
   const RootSeed({required this.inner});
 
   /// Hex-encode the root seed secret. Should only be used for debugging.
+  ///
+  /// flutter_rust_bridge:sync
   String exposeSecretHex() =>
       AppRs.instance.api.crateFfiTypesRootSeedExposeSecretHex(that: this);
 
+  /// flutter_rust_bridge:sync
   static RootSeed fromMnemonic({required List<String> mnemonic}) =>
       AppRs.instance.api.crateFfiTypesRootSeedFromMnemonic(mnemonic: mnemonic);
 
   /// Generate a new RootSeed from the secure system RNG.
+  ///
+  /// flutter_rust_bridge:sync
   static RootSeed fromSysRng() =>
       AppRs.instance.api.crateFfiTypesRootSeedFromSysRng();
 
   /// Return the 24-word BIP-39 seed phrase for this root seed.
+  ///
+  /// flutter_rust_bridge:sync
   List<String> seedPhrase() =>
       AppRs.instance.api.crateFfiTypesRootSeedSeedPhrase(that: this);
 
@@ -442,6 +453,8 @@ class ShortPaymentAndIndex {
 sealed class UserChannelId with _$UserChannelId {
   const UserChannelId._();
   const factory UserChannelId({required U8Array16 id}) = _UserChannelId;
+
+  /// flutter_rust_bridge:sync
   static UserChannelId genNew() =>
       AppRs.instance.api.crateFfiTypesUserChannelIdGenNew();
 }

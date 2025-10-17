@@ -15,10 +15,14 @@ import 'types.dart';
 /// Delete the local persisted `SecretStore` and `RootSeed`.
 ///
 /// WARNING: you will need a backup recovery to use the account afterwards.
+///
+/// flutter_rust_bridge:sync
 void deleteSecretStore({required Config config}) =>
     AppRs.instance.api.crateFfiDebugDeleteSecretStore(config: config);
 
 /// Delete the local latest_release file.
+///
+/// flutter_rust_bridge:sync
 void deleteLatestProvisioned({required Config config}) =>
     AppRs.instance.api.crateFfiDebugDeleteLatestProvisioned(config: config);
 

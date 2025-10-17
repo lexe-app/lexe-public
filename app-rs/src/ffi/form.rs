@@ -1,7 +1,6 @@
 //! Form field validators.
 
 use common::password;
-use flutter_rust_bridge::frb;
 use secrecy::Zeroize;
 
 /// Validate whether `password` has an appropriate length.
@@ -10,7 +9,8 @@ use secrecy::Zeroize;
 /// `address_str` is valid, while `Some(msg)` means it is not (with given
 /// error message). We return in this format to better match the flutter
 /// `FormField` validator API.
-#[frb(sync)]
+///
+/// flutter_rust_bridge:sync
 pub fn validate_password(mut password: String) -> Option<String> {
     let result = password::validate_password_len(&password);
     password.zeroize();
@@ -20,7 +20,7 @@ pub fn validate_password(mut password: String) -> Option<String> {
     }
 }
 
-#[frb(sync)]
+/// flutter_rust_bridge:sync
 pub fn suggest_mnemonic_words(prefix: &str, take: usize) -> Vec<String> {
     bip39::Language::English
         .words_by_prefix(prefix)
@@ -31,7 +31,7 @@ pub fn suggest_mnemonic_words(prefix: &str, take: usize) -> Vec<String> {
         .collect()
 }
 
-#[frb(sync)]
+/// flutter_rust_bridge:sync
 pub fn is_mnemonic_word(word: &str) -> bool {
     bip39::Language::English.find_word(word).is_some()
 }
