@@ -93,10 +93,9 @@ class _SecurityPageState extends State<SecurityPage> {
           ),
 
           InfoCard(
-            description: Text.rich(
+            description: const Text.rich(
               TextSpan(
-                style: InfoCard.defaultDescriptionStyle,
-                children: const [
+                children: [
                   TextSpan(
                     text: "WARNING: ",
                     style: TextStyle(color: LxColors.warningText),

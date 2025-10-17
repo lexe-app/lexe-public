@@ -2061,23 +2061,15 @@ class InfoCard extends StatelessWidget {
     this.bodyPadding = Space.s300,
   });
 
-  final Text? header;
+  final Widget? header;
   final List<Widget> children;
   final double bodyPadding;
-  final Text? description;
-
-  static TextStyle get defaultHeaderStyle =>
-      const TextStyle(color: LxColors.fgTertiary, fontSize: Fonts.size200);
-
-  static TextStyle get defaultDescriptionStyle => const TextStyle(
-    color: LxColors.fgTertiary,
-    fontSize: Fonts.size200,
-    fontVariations: [Fonts.weightNormal],
-  );
+  final Widget? description;
 
   @override
   Widget build(BuildContext context) {
     final header = this.header;
+    final description = this.description;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: Space.s200),
       child: Column(
@@ -2088,14 +2080,32 @@ class InfoCard extends StatelessWidget {
               padding: EdgeInsets.only(
                 left: this.bodyPadding,
                 bottom: Space.s200,
+                right: this.bodyPadding,
               ),
-              child: header,
+              child: DefaultTextStyle(
+                style: const TextStyle(
+                  color: LxColors.fgTertiary,
+                  fontSize: Fonts.size200,
+                ),
+                child: header,
+              ),
             ),
           _InfoCard(children: this.children),
-          if (this.description != null)
+          if (description != null)
             Padding(
-              padding: EdgeInsets.only(top: Space.s200, left: this.bodyPadding),
-              child: this.description,
+              padding: EdgeInsets.only(
+                top: Space.s200,
+                left: this.bodyPadding,
+                right: this.bodyPadding,
+              ),
+              child: DefaultTextStyle(
+                style: const TextStyle(
+                  color: LxColors.fgTertiary,
+                  fontSize: Fonts.size200,
+                  fontVariations: [Fonts.weightNormal],
+                ),
+                child: description,
+              ),
             ),
         ],
       ),
