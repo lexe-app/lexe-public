@@ -19,7 +19,7 @@ use common::{
         },
         provision::NodeProvisionRequest,
         user::{NodePk, NodePkProof, UserPk},
-        version::NodeRelease,
+        version::NodeEnclave,
     },
     constants,
     env::DeployEnv,
@@ -501,7 +501,7 @@ mod helpers {
         user_config: UserAppConfig,
         root_seed: RootSeed,
         mut provision_history: ProvisionHistory,
-        mut releases_to_provision: BTreeSet<NodeRelease>,
+        mut releases_to_provision: BTreeSet<NodeEnclave>,
         google_auth_code: Option<String>,
         allow_gvfs_access: bool,
         encrypted_seed: Option<Vec<u8>>,
@@ -515,7 +515,7 @@ mod helpers {
             user_config: &UserAppConfig,
             provision_history: &mut ProvisionHistory,
             root_seed: RootSeed,
-            release: NodeRelease,
+            enclave: NodeEnclave,
             google_auth_code: Option<String>,
             allow_gvfs_access: bool,
             // TODO(max): We could have cheaper cloning by using Bytes here
@@ -530,18 +530,19 @@ mod helpers {
                 encrypted_seed,
             };
             node_client
-                .provision(release.measurement, provision_req)
+                .provision(enclave.measurement, provision_req)
                 .await
                 .context("Failed to provision node")?;
 
             // Provision success; Mark this release as provisioned
             provision_history
-                .update_and_persist(release.clone(), provision_ffs)
+                .update_and_persist(enclave.clone(), provision_ffs)
                 .context("Could not add to provision history")?;
 
             info!(
-                version = %release.version,
-                measurement = %release.measurement,
+                version = %enclave.version,
+                measurement = %enclave.measurement,
+                machine_id = %enclave.machine_id,
                 "Provision success:"
             );
 
@@ -551,7 +552,7 @@ mod helpers {
         // Make sure the latest trusted version is provisioned before we return,
         // so that when we request a node run, Lexe runs the latest version.
         let latest = match releases_to_provision.pop_last() {
-            Some(release) => release,
+            Some(enclave) => enclave,
             None => {
                 info!("No releases to provision");
                 return Ok(());
@@ -606,14 +607,14 @@ mod helpers {
                 // NOTE: We provision releases serially because each provision
                 // updates the approved versions list, and we don't currently
                 // have a locking mechanism.
-                for node_release in releases_to_provision {
+                for node_enclave in releases_to_provision {
                     let provision_result = provision_inner(
                         &provision_ffs,
                         &node_client,
                         &user_config,
                         &mut provision_history,
                         helpers::clone_root_seed(&root_seed),
-                        node_release.clone(),
+                        node_enclave.clone(),
                         google_auth_code.clone(),
                         allow_gvfs_access,
                         encrypted_seed.clone(),
@@ -622,8 +623,9 @@ mod helpers {
 
                     if let Err(e) = provision_result {
                         warn!(
-                            version = %node_release.version,
-                            measurement = %node_release.measurement,
+                            version = %node_enclave.version,
+                            measurement = %node_enclave.measurement,
+                            machine_id = %node_enclave.machine_id,
                             "Secondary provision failed: {e:#}"
                         );
                     }

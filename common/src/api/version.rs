@@ -15,18 +15,20 @@ pub struct MeasurementStruct {
     pub measurement: Measurement,
 }
 
-/// API-upgradeable struct for a [`BTreeSet<NodeRelease>`].
+/// API-upgradeable struct for a [`BTreeSet<NodeEnclave>`].
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
-pub struct CurrentReleases {
-    /// All current node releases.
-    pub releases: BTreeSet<NodeRelease>,
+pub struct CurrentEnclaves {
+    /// All current node enclaves.
+    /// TODO(maurice): remove rename after v0.8.7 is gone.
+    #[serde(rename = "releases", alias = "enclaves")]
+    pub enclaves: BTreeSet<NodeEnclave>,
 }
 
-impl CurrentReleases {
+impl CurrentEnclaves {
     /// Returns the latest (most recent) node release, if any.
-    pub fn latest(&self) -> Option<&NodeRelease> {
-        self.releases.last()
+    pub fn latest(&self) -> Option<&NodeEnclave> {
+        self.enclaves.last()
     }
 }
 
@@ -35,7 +37,7 @@ impl CurrentReleases {
 /// [`Ord`]ered by [`semver::Version`] precedence.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
-pub struct NodeRelease {
+pub struct NodeEnclave {
     /// e.g. "0.1.0", "0.0.0-dev.1"
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_semver_version()"))]
     pub version: semver::Version,
@@ -43,7 +45,7 @@ pub struct NodeRelease {
     pub machine_id: MachineId,
 }
 
-impl Ord for NodeRelease {
+impl Ord for NodeEnclave {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.version
             .cmp_precedence(&other.version)
@@ -51,7 +53,7 @@ impl Ord for NodeRelease {
     }
 }
 
-impl PartialOrd for NodeRelease {
+impl PartialOrd for NodeEnclave {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
@@ -68,7 +70,7 @@ mod test {
     }
 
     #[test]
-    fn node_release_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<NodeRelease>();
+    fn node_enclave_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<NodeEnclave>();
     }
 }

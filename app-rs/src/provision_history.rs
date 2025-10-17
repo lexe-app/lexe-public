@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use common::{
-    api::version::{CurrentReleases, NodeRelease},
+    api::version::{CurrentEnclaves, NodeEnclave},
     constants,
     env::DeployEnv,
     releases::Release,
@@ -18,7 +18,7 @@ use crate::ffs::Ffs;
 #[derive(Debug, Default)]
 pub(crate) struct ProvisionHistory {
     /// All node releases which have previously been provisioned.
-    pub provisioned: BTreeSet<NodeRelease>,
+    pub provisioned: BTreeSet<NodeEnclave>,
 }
 
 impl ProvisionHistory {
@@ -62,21 +62,21 @@ impl ProvisionHistory {
         Ok(Self { provisioned })
     }
 
-    /// Marks a release as having been successfully provisioned,
+    /// Marks a enclave as having been successfully provisioned,
     /// and persists the updated [`ProvisionHistory`] to storage.
     ///
     /// Returns true if the release was newly inserted.
     pub fn update_and_persist(
         &mut self,
-        release: NodeRelease,
+        enclave: NodeEnclave,
         provision_ffs: &impl Ffs,
     ) -> anyhow::Result<bool> {
-        let was_inserted = self.provisioned.insert(release);
+        let was_inserted = self.provisioned.insert(enclave);
         self.write_to_ffs(provision_ffs)?;
         Ok(was_inserted)
     }
 
-    /// Given the current releases from the API, returns the subset of them
+    /// Given the current enclaves from the API, returns the subset of them
     /// which are:
     ///
     /// 1) trusted (contained in the hard-coded releases.json),
@@ -84,14 +84,14 @@ impl ProvisionHistory {
     /// 3) recent (contained in the three latest trusted releases)
     ///
     /// In dev, all releases are allowed.
-    // We use `current_releases` instead of a `latest_releases` API because this
+    // We use `current_enclaves` instead of a `latest_releases` API because this
     // gives old app clients (which may not trust any of the last N releases) a
     // chance to still provision the latest releases that they trust.
     pub fn releases_to_provision(
         &self,
         deploy_env: DeployEnv,
-        current_releases: CurrentReleases,
-    ) -> BTreeSet<NodeRelease> {
+        current_enclaves: CurrentEnclaves,
+    ) -> BTreeSet<NodeEnclave> {
         let trusted_releases = trusted_releases();
 
         // Only consider the three latest trusted releases.
@@ -103,19 +103,19 @@ impl ProvisionHistory {
             .map(|release| release.measurement)
             .collect::<HashSet<_>>();
 
-        current_releases
-            .releases
+        current_enclaves
+            .enclaves
             .into_iter()
             // If we're in staging or prod, only consider trusted releases
-            .filter(|release| {
+            .filter(|enclave| {
                 if deploy_env.is_staging_or_prod() {
-                    latest_trusted_measurements.contains(&release.measurement)
+                    latest_trusted_measurements.contains(&enclave.measurement)
                 } else {
                     true
                 }
             })
-            // Filter out any releases which have already been provisioned
-            .filter(|release| !self.provisioned.contains(release))
+            // Filter out any enclaves which have already been provisioned
+            .filter(|enclave| !self.provisioned.contains(enclave))
             .collect()
     }
 }
@@ -156,22 +156,22 @@ mod test {
         // Dummy provision history
         let provision_history = {
             let provisioned = BTreeSet::from_iter([
-                NodeRelease {
+                NodeEnclave {
                     version: semver::Version::from_str("0.1.0").unwrap(),
                     measurement: enclave::Measurement::new([0x11; 32]),
                     machine_id: enclave::MachineId::MOCK,
                 },
-                NodeRelease {
+                NodeEnclave {
                     version: semver::Version::from_str("0.2.0-beta.1").unwrap(),
                     measurement: enclave::Measurement::new([0x22; 32]),
                     machine_id: enclave::MachineId::MOCK,
                 },
-                NodeRelease {
+                NodeEnclave {
                     version: semver::Version::from_str("1.0.0").unwrap(),
                     measurement: enclave::Measurement::new([0x33; 32]),
                     machine_id: enclave::MachineId::MOCK,
                 },
-                NodeRelease {
+                NodeEnclave {
                     version: semver::Version::from_str("1.0.0-rc.1+build.123")
                         .unwrap(),
                     measurement: enclave::Measurement::new([0x44; 32]),

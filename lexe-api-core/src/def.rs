@@ -63,7 +63,7 @@ use common::{
         },
         test_event::TestEventOp,
         user::{GetNewScidsRequest, MaybeScid, MaybeUser, Scids, UserPk},
-        version::{CurrentReleases, NodeRelease},
+        version::{CurrentEnclaves, NodeEnclave},
     },
     ed25519,
     enclave::Measurement,
@@ -142,16 +142,17 @@ pub trait AppGatewayApi {
 
     /// Get the measurement and semver version of the latest node release.
     ///
-    /// GET /app/v1/latest_release [`Empty`] -> [`NodeRelease`]
+    /// GET /app/v1/latest_release [`Empty`] -> [`NodeEnclave`]
     #[deprecated(note = "since app-v0.8.1: Use current_releases() instead")]
-    async fn latest_release(&self) -> Result<NodeRelease, GatewayApiError>;
+    async fn latest_release(&self) -> Result<NodeEnclave, GatewayApiError>;
 
-    /// Get the measurements and versions of all current node releases.
+    /// Get the measurements, enclave machine id and versions of all
+    /// current node enclaves.
     ///
-    /// GET /app/v1/current_releases [`Empty`] -> [`CurrentReleases`]
+    /// GET /app/v1/current_releases [`Empty`] -> [`CurrentEnclaves`]
     async fn current_releases(
         &self,
-    ) -> Result<CurrentReleases, GatewayApiError>;
+    ) -> Result<CurrentEnclaves, GatewayApiError>;
 }
 
 /// Defines the api that the node exposes to the app during provisioning.
