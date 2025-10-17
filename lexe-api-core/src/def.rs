@@ -460,6 +460,13 @@ pub trait LexeNodeRunApi {
         &self,
         user_pk: UserPk,
     ) -> Result<Empty, NodeApiError>;
+
+    /// POST /lexe/create_invoice [`CreateInvoiceRequest`] ->
+    /// [`CreateInvoiceResponse`]
+    async fn create_invoice(
+        &self,
+        req: CreateInvoiceRequest,
+    ) -> Result<CreateInvoiceResponse, NodeApiError>;
 }
 
 /// Defines the API the runner exposes to mega nodes.
