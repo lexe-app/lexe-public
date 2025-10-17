@@ -36,7 +36,8 @@ use crate::{
 };
 
 /// See [`common::env::DeployEnv`]
-#[frb(dart_metadata=("freezed"))]
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum DeployEnv {
     Dev,
@@ -113,7 +114,8 @@ impl TryFrom<NetworkRs> for Network {
 }
 
 /// Dart-serializable configuration we get from the flutter side.
-#[frb(dart_metadata=("freezed"))]
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct Config {
     pub deploy_env: DeployEnv,
     pub network: Network,
@@ -209,7 +211,8 @@ impl From<GDriveSignupCredentials> for GDriveSignupCredentialsRs {
 
 /// Some assorted user/node info. This is kinda hacked together currently just
 /// to support account deletion requests.
-#[frb(dart_metadata=("freezed"))]
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct AppUserInfo {
     pub user_pk: String,
     pub node_pk: String,
@@ -268,7 +271,8 @@ impl From<PaymentKindRs> for PaymentKind {
 }
 
 /// See [`lexe_api::types::payments::PaymentIndex`].
-#[frb(dart_metadata=("freezed"))]
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PaymentIndex(pub String);
 
 impl From<PaymentIndexRs> for PaymentIndex {
@@ -285,7 +289,8 @@ impl TryFrom<PaymentIndex> for PaymentIndexRs {
 }
 
 /// Just the info we need to display an entry in the payments list UI.
-#[frb(dart_metadata=("freezed"))]
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct ShortPayment {
     pub index: PaymentIndex,
 
@@ -330,7 +335,8 @@ pub struct ShortPaymentAndIndex {
 
 /// The complete payment info, used in the payment detail page. Mirrors the
 /// [`BasicPaymentRs`] type.
-#[frb(dart_metadata=("freezed"))]
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct Payment {
     pub index: PaymentIndex,
 
@@ -411,7 +417,8 @@ impl From<payment_uri::PaymentMethod> for PaymentMethod {
 }
 
 /// A potential onchain Bitcoin payment.
-#[frb(dart_metadata=("freezed"))]
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct Onchain {
     pub address: String,
     pub amount_sats: Option<u64>,
@@ -432,7 +439,8 @@ impl From<payment_uri::Onchain> for Onchain {
 
 /// A lightning invoice with useful fields parsed out for the flutter frontend.
 /// Mirrors the [`LxInvoice`] type.
-#[frb(dart_metadata=("freezed"))]
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct Invoice {
     pub string: String,
 
@@ -472,7 +480,8 @@ impl From<LxInvoice> for Invoice {
 
 /// A lightning offer with useful fields parsed out for the flutter frontend.
 /// Mirrors the [`LxOffer`] type.
-#[frb(dart_metadata=("freezed"))]
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct Offer {
     pub string: String,
 
@@ -556,7 +565,8 @@ impl From<payment_uri::LnurlPayRequestMetadata> for LnurlPayRequestMetadata {
 
 /// A unique, client-generated id for payment types (onchain send,
 /// ln spontaneous send) that need an extra id for idempotency.
-#[frb(dart_metadata=("freezed"))]
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct ClientPaymentId {
     pub id: [u8; 32],
 }
@@ -582,7 +592,8 @@ impl From<ClientPaymentId> for ClientPaymentIdRs {
 ///   `open_channel` retries.
 /// - The `ChannelId` is only assigned when the channel finishes negotiation and
 ///   we build the channel funding txo.
-#[frb(dart_metadata=("freezed"))]
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct UserChannelId {
     pub id: [u8; 16],
 }

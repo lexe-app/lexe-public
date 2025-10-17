@@ -18,7 +18,6 @@ use common::{
         channel::{LxChannelId, LxUserChannelId as LxUserChannelIdRs},
     },
 };
-use flutter_rust_bridge::frb;
 use lexe_api::{
     models::command::{
         CloseChannelRequest as CloseChannelRequestRs,
@@ -62,7 +61,7 @@ use crate::ffi::types::{
     PaymentIndex, RevocableClient, Scope, UserChannelId,
 };
 
-#[frb(dart_metadata=("freezed"))]
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct NodeInfo {
     pub node_pk: String,
     pub version: String,
@@ -82,7 +81,7 @@ impl From<NodeInfoRs> for NodeInfo {
     }
 }
 
-#[frb(dart_metadata=("freezed"))]
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct Balance {
     /// The top-level balance we'll show on the main wallet page. Just
     /// `onchain_sats + lightning_sats` but handles msat.
@@ -133,7 +132,7 @@ impl From<&NodeInfoRs> for Balance {
     }
 }
 
-#[frb(dart_metadata=("freezed"))]
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct ListChannelsResponse {
     pub channels: Vec<LxChannelDetails>,
 }
@@ -150,7 +149,7 @@ impl From<ListChannelsResponseRs> for ListChannelsResponse {
     }
 }
 
-#[frb(dart_metadata=("freezed"))]
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct OpenChannelRequest {
     pub user_channel_id: UserChannelId,
     pub value_sats: u64,
@@ -166,7 +165,7 @@ impl TryFrom<OpenChannelRequest> for OpenChannelRequestRs {
     }
 }
 
-#[frb(dart_metadata=("freezed"))]
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct OpenChannelResponse {
     pub channel_id: String,
 }
@@ -179,7 +178,7 @@ impl From<OpenChannelResponseRs> for OpenChannelResponse {
     }
 }
 
-#[frb(dart_metadata=("freezed"))]
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PreflightOpenChannelRequest {
     pub value_sats: u64,
 }
@@ -193,7 +192,7 @@ impl TryFrom<PreflightOpenChannelRequest> for PreflightOpenChannelRequestRs {
     }
 }
 
-#[frb(dart_metadata=("freezed"))]
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PreflightOpenChannelResponse {
     pub fee_estimate_sats: u64,
 }
@@ -206,7 +205,7 @@ impl From<PreflightOpenChannelResponseRs> for PreflightOpenChannelResponse {
     }
 }
 
-#[frb(dart_metadata=("freezed"))]
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct CloseChannelRequest {
     pub channel_id: String,
     // TODO(phlip9): force_close
@@ -225,7 +224,7 @@ impl TryFrom<CloseChannelRequest> for CloseChannelRequestRs {
 
 pub type PreflightCloseChannelRequest = CloseChannelRequest;
 
-#[frb(dart_metadata=("freezed"))]
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PreflightCloseChannelResponse {
     pub fee_estimate_sats: u64,
 }
@@ -238,7 +237,7 @@ impl From<PreflightCloseChannelResponseRs> for PreflightCloseChannelResponse {
     }
 }
 
-#[frb(dart_metadata=("freezed"))]
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct FiatRates {
     pub timestamp_ms: i64,
     // Sadly, the bridge doesn't currently support maps or tuples so... we'll
@@ -246,7 +245,7 @@ pub struct FiatRates {
     pub rates: Vec<FiatRate>,
 }
 
-#[frb(dart_metadata=("freezed"))]
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct FiatRate {
     pub fiat: String,
     pub rate: f64,
@@ -270,7 +269,7 @@ impl From<FiatRatesRs> for FiatRates {
 
 /// The maximum allowed payment note size in bytes.
 ///
-/// See [`common::constants::MAX_PAYMENT_NOTE_BYTES`].
+/// See `common::constants::MAX_PAYMENT_NOTE_BYTES`.
 pub const MAX_PAYMENT_NOTE_BYTES: usize = 512;
 // Assert that these two constants are exactly equal at compile time.
 const _: [(); MAX_PAYMENT_NOTE_BYTES] =
@@ -284,8 +283,9 @@ fn validate_note(note: String) -> anyhow::Result<String> {
     }
 }
 
-/// See [`lexe_api::command::PayOnchainRequest`].
-#[frb(dart_metadata=("freezed"))]
+/// See `lexe_api::command::PayOnchainRequest`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PayOnchainRequest {
     pub cid: ClientPaymentId,
     pub address: String,
@@ -312,8 +312,9 @@ impl TryFrom<PayOnchainRequest> for PayOnchainRequestRs {
     }
 }
 
-/// See [`lexe_api::command::PayOnchainResponse`].
-#[frb(dart_metadata=("freezed"))]
+/// See `lexe_api::command::PayOnchainResponse`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PayOnchainResponse {
     pub index: PaymentIndex,
     pub txid: String,
@@ -335,8 +336,9 @@ impl PayOnchainResponse {
     }
 }
 
-/// See [`lexe_api::command::PreflightPayOnchainRequest`].
-#[frb(dart_metadata=("freezed"))]
+/// See `lexe_api::command::PreflightPayOnchainRequest`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PreflightPayOnchainRequest {
     pub address: String,
     pub amount_sats: u64,
@@ -354,8 +356,9 @@ impl TryFrom<PreflightPayOnchainRequest> for PreflightPayOnchainRequestRs {
     }
 }
 
-/// See [`lexe_api::command::PreflightPayOnchainResponse`].
-#[frb(dart_metadata=("freezed"))]
+/// See `lexe_api::command::PreflightPayOnchainResponse`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PreflightPayOnchainResponse {
     pub high: Option<FeeEstimate>,
     pub normal: FeeEstimate,
@@ -372,8 +375,9 @@ impl From<PreflightPayOnchainResponseRs> for PreflightPayOnchainResponse {
     }
 }
 
-/// See [`lexe_api::command::FeeEstimate`].
-#[frb(dart_metadata=("freezed"))]
+/// See `lexe_api::command::FeeEstimate`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct FeeEstimate {
     pub amount_sats: u64,
 }
@@ -386,8 +390,9 @@ impl From<FeeEstimateRs> for FeeEstimate {
     }
 }
 
-/// See [`lexe_api::command::CreateInvoiceRequest`].
-#[frb(dart_metadata=("freezed"))]
+/// See `lexe_api::command::CreateInvoiceRequest`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct CreateInvoiceRequest {
     pub expiry_secs: u32,
     pub amount_sats: Option<u64>,
@@ -408,8 +413,9 @@ impl TryFrom<CreateInvoiceRequest> for CreateInvoiceRequestRs {
     }
 }
 
-/// See [`lexe_api::command::CreateInvoiceResponse`].
-#[frb(dart_metadata=("freezed"))]
+/// See `lexe_api::command::CreateInvoiceResponse`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct CreateInvoiceResponse {
     pub invoice: Invoice,
 }
@@ -422,8 +428,9 @@ impl From<CreateInvoiceResponseRs> for CreateInvoiceResponse {
     }
 }
 
-/// Mirrors the [`lexe_api::command::PayInvoiceRequest`] type.
-#[frb(dart_metadata=("freezed"))]
+/// Mirrors the `lexe_api::command::PayInvoiceRequest` type.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PayInvoiceRequest {
     pub invoice: String,
     pub fallback_amount_sats: Option<u64>,
@@ -455,9 +462,10 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
     }
 }
 
-/// Mirrors [`lexe_api::command::PayInvoiceResponse`] the type, but enriches
+/// Mirrors `lexe_api::command::PayInvoiceResponse` the type, but enriches
 /// the response so we get the full `PaymentIndex`.
-#[frb(dart_metadata=("freezed"))]
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PayInvoiceResponse {
     pub index: PaymentIndex,
 }
@@ -477,8 +485,9 @@ impl PayInvoiceResponse {
     }
 }
 
-/// See [`lexe_api::command::PreflightPayInvoiceRequest`].
-#[frb(dart_metadata=("freezed"))]
+/// See `lexe_api::command::PreflightPayInvoiceRequest`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PreflightPayInvoiceRequest {
     pub invoice: String,
     pub fallback_amount_sats: Option<u64>,
@@ -510,8 +519,9 @@ impl TryFrom<PreflightPayInvoiceRequest> for PreflightPayInvoiceRequestRs {
     }
 }
 
-/// See [`lexe_api::command::PreflightPayInvoiceResponse`].
-#[frb(dart_metadata=("freezed"))]
+/// See `lexe_api::command::PreflightPayInvoiceResponse`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PreflightPayInvoiceResponse {
     pub amount_sats: u64,
     pub fees_sats: u64,
@@ -527,8 +537,9 @@ impl From<PreflightPayInvoiceResponseRs> for PreflightPayInvoiceResponse {
     }
 }
 
-/// See [`lexe_api::command::CreateOfferRequest`].
-#[frb(dart_metadata=("freezed"))]
+/// See `lexe_api::command::CreateOfferRequest`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct CreateOfferRequest {
     pub expiry_secs: Option<u32>,
     pub amount_sats: Option<u64>,
@@ -552,8 +563,9 @@ impl TryFrom<CreateOfferRequest> for CreateOfferRequestRs {
     }
 }
 
-/// See [`lexe_api::command::CreateOfferResponse`].
-#[frb(dart_metadata=("freezed"))]
+/// See `lexe_api::command::CreateOfferResponse`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct CreateOfferResponse {
     pub offer: Offer,
 }
@@ -566,8 +578,9 @@ impl From<CreateOfferResponseRs> for CreateOfferResponse {
     }
 }
 
-/// See [`lexe_api::command::PreflightPayOfferRequest`].
-#[frb(dart_metadata=("freezed"))]
+/// See `lexe_api::command::PreflightPayOfferRequest`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PreflightPayOfferRequest {
     pub cid: ClientPaymentId,
     pub offer: String,
@@ -589,8 +602,9 @@ impl TryFrom<PreflightPayOfferRequest> for PreflightPayOfferRequestRs {
     }
 }
 
-/// See [`lexe_api::command::PreflightPayOfferResponse`].
-#[frb(dart_metadata=("freezed"))]
+/// See `lexe_api::command::PreflightPayOfferResponse`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PreflightPayOfferResponse {
     pub amount_sats: u64,
     pub fees_sats: u64,
@@ -606,8 +620,9 @@ impl From<PreflightPayOfferResponseRs> for PreflightPayOfferResponse {
     }
 }
 
-/// See [`lexe_api::command::PayOfferResponse`].
-#[frb(dart_metadata=("freezed"))]
+/// See `lexe_api::command::PayOfferResponse`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PayOfferRequest {
     pub cid: ClientPaymentId,
     pub offer: String,
@@ -631,8 +646,9 @@ impl TryFrom<PayOfferRequest> for PayOfferRequestRs {
     }
 }
 
-/// See [`lexe_api::command::PayOfferResponse`].
-#[frb(dart_metadata=("freezed"))]
+/// See `lexe_api::command::PayOfferResponse`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PayOfferResponse {
     /// When the node registered this payment. Used in the [`PaymentIndex`].
     pub index: PaymentIndex,
@@ -653,8 +669,9 @@ impl PayOfferResponse {
     }
 }
 
-/// See [`common::api::user::UpdatePaymentNote`].
-#[frb(dart_metadata=("freezed"))]
+/// See `common::api::user::UpdatePaymentNote`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct UpdatePaymentNote {
     pub index: PaymentIndex,
     pub note: Option<String>,
@@ -670,8 +687,9 @@ impl TryFrom<UpdatePaymentNote> for UpdatePaymentNoteRs {
     }
 }
 
-/// See [`common::api::revocable_clients::CreateRevocableClientRequest`].
-#[frb(dart_metadata=("freezed"))]
+/// See `common::api::revocable_clients::CreateRevocableClientRequest`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 #[derive(Clone)]
 pub struct CreateClientRequest {
     pub label: Option<String>,
@@ -688,14 +706,15 @@ impl From<CreateClientRequest> for CreateRevocableClientRequestRs {
     }
 }
 
-#[frb(dart_metadata=("freezed"))]
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct CreateClientResponse {
     pub client: RevocableClient,
     pub credentials: String,
 }
 
-/// See [`common::api::revocable_clients::UpdateClientRequest`].
-#[frb(dart_metadata=("freezed"))]
+/// See `common::api::revocable_clients::UpdateClientRequest`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct UpdateClientRequest {
     pub pubkey: String,
     pub is_revoked: Option<bool>,

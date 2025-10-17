@@ -19,6 +19,8 @@ part 'types.freezed.dart';
 
 /// Some assorted user/node info. This is kinda hacked together currently just
 /// to support account deletion requests.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class AppUserInfo with _$AppUserInfo {
   const factory AppUserInfo({
@@ -30,6 +32,8 @@ sealed class AppUserInfo with _$AppUserInfo {
 
 /// A unique, client-generated id for payment types (onchain send,
 /// ln spontaneous send) that need an extra id for idempotency.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class ClientPaymentId with _$ClientPaymentId {
   const ClientPaymentId._();
@@ -39,6 +43,8 @@ sealed class ClientPaymentId with _$ClientPaymentId {
 }
 
 /// Dart-serializable configuration we get from the flutter side.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class Config with _$Config {
   const factory Config({
@@ -55,6 +61,8 @@ sealed class Config with _$Config {
 enum ConfirmationPriority { high, normal, background }
 
 /// See [`common::env::DeployEnv`]
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 enum DeployEnv {
   dev,
   staging,
@@ -91,6 +99,8 @@ class GDriveSignupCredentials {
 
 /// A lightning invoice with useful fields parsed out for the flutter frontend.
 /// Mirrors the [`LxInvoice`] type.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class Invoice with _$Invoice {
   const factory Invoice({
@@ -245,6 +255,8 @@ enum Network {
 
 /// A lightning offer with useful fields parsed out for the flutter frontend.
 /// Mirrors the [`LxOffer`] type.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class Offer with _$Offer {
   const factory Offer({
@@ -258,6 +270,8 @@ sealed class Offer with _$Offer {
 }
 
 /// A potential onchain Bitcoin payment.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class Onchain with _$Onchain {
   const factory Onchain({
@@ -270,6 +284,8 @@ sealed class Onchain with _$Onchain {
 
 /// The complete payment info, used in the payment detail page. Mirrors the
 /// [`BasicPaymentRs`] type.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class Payment with _$Payment {
   const factory Payment({
@@ -294,6 +310,8 @@ sealed class Payment with _$Payment {
 enum PaymentDirection { inbound, outbound }
 
 /// See [`lexe_api::types::payments::PaymentIndex`].
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class PaymentIndex with _$PaymentIndex {
   const factory PaymentIndex({required String field0}) = _PaymentIndex;
@@ -377,6 +395,8 @@ class RootSeed {
 enum Scope { all, nodeConnect }
 
 /// Just the info we need to display an entry in the payments list UI.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class ShortPayment with _$ShortPayment {
   const factory ShortPayment({
@@ -416,6 +436,8 @@ class ShortPaymentAndIndex {
 ///   `open_channel` retries.
 /// - The `ChannelId` is only assigned when the channel finishes negotiation and
 ///   we build the channel funding txo.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class UserChannelId with _$UserChannelId {
   const UserChannelId._();
