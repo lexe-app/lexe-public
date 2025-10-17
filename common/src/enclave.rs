@@ -13,8 +13,8 @@ use proptest_derive::Arbitrary;
 use ref_cast::RefCast;
 use ring::{
     aead::{
-        Aad, BoundKey, Nonce, NonceSequence, OpeningKey, SealingKey,
-        UnboundKey, AES_256_GCM,
+        AES_256_GCM, Aad, BoundKey, Nonce, NonceSequence, OpeningKey,
+        SealingKey, UnboundKey,
     },
     hkdf::{self, HKDF_SHA256},
 };

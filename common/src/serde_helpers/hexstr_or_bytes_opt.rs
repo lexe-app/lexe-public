@@ -17,7 +17,7 @@
 use std::{fmt, marker::PhantomData};
 
 use hex::FromHex;
-use serde::{de, ser, Deserialize, Deserializer, Serializer};
+use serde::{Deserialize, Deserializer, Serializer, de, ser};
 
 pub fn serialize<S, T>(
     data: &Option<T>,

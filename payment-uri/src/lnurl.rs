@@ -76,7 +76,7 @@
 
 use std::{str::FromStr, time::Duration};
 
-use anyhow::{anyhow, ensure, Context};
+use anyhow::{Context, anyhow, ensure};
 use bitcoin::hashes::Hash;
 use common::ln::amount::Amount;
 use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescriptionRef};

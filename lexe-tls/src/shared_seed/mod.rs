@@ -75,7 +75,7 @@ use std::{
 };
 
 use anyhow::Context;
-use asn1_rs::{nom::AsBytes, FromDer};
+use asn1_rs::{FromDer, nom::AsBytes};
 use certs::{
     EphemeralClientCert, EphemeralIssuingCaCert, EphemeralServerCert,
     RevocableIssuingCaCert,
@@ -85,18 +85,18 @@ use common::{
     env::DeployEnv, rng::Crng, root_seed::RootSeed, time::TimestampMs,
 };
 use rustls::{
+    DigitallySignedStruct, DistinguishedName, RootCertStore,
     client::{
+        WebPkiServerVerifier,
         danger::{
             HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,
         },
-        WebPkiServerVerifier,
     },
     pki_types::{CertificateDer, ServerName, UnixTime},
     server::{
-        danger::{ClientCertVerified, ClientCertVerifier},
         WebPkiClientVerifier,
+        danger::{ClientCertVerified, ClientCertVerifier},
     },
-    DigitallySignedStruct, DistinguishedName, RootCertStore,
 };
 use x509_parser::prelude::X509Certificate;
 
@@ -639,9 +639,11 @@ mod test {
                 do_sdk_node_run_tls_handshake(expiration, is_revoked).await;
 
             assert!(client_result.unwrap_err().contains("HandshakeFailure"));
-            assert!(server_result
-                .unwrap_err()
-                .contains("Client was previously revoked"));
+            assert!(
+                server_result
+                    .unwrap_err()
+                    .contains("Client was previously revoked")
+            );
         }
     }
 

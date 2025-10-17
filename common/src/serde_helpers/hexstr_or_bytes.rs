@@ -17,7 +17,7 @@
 use std::{fmt, marker::PhantomData};
 
 use hex::FromHex;
-use serde::{de, ser, Deserializer, Serializer};
+use serde::{Deserializer, Serializer, de, ser};
 
 pub fn serialize<S, T>(data: T, serializer: S) -> Result<S::Ok, S::Error>
 where

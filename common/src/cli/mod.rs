@@ -5,7 +5,7 @@ use anyhow::Context;
 use proptest_derive::Arbitrary;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 #[cfg(test)]
 use crate::test_utils::arbitrary;

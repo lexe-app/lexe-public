@@ -20,7 +20,7 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, instrument, trace};
 
-use crate::{Error, API_SCOPE};
+use crate::{API_SCOPE, Error};
 
 /// The default timeout for requests to Google APIs
 const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
@@ -604,7 +604,9 @@ mod test {
     #[test]
     fn auth_code_url_snapshot() {
         let client_id = "495704988639-2rqsnvobrvlnbkqdin38q2r3cph537l5.apps.googleusercontent.com";
-        let server_client_id = Some("495704988639-19bfg8k5f3runiio4apbicpounc10gh1.apps.googleusercontent.com");
+        let server_client_id = Some(
+            "495704988639-19bfg8k5f3runiio4apbicpounc10gh1.apps.googleusercontent.com",
+        );
         let redirect_uri = "com.googleusercontent.apps.495704988639-2rqsnvobrvlnbkqdin38q2r3cph537l5:/";
         let code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
         let actual = auth_code_url(

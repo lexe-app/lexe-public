@@ -118,8 +118,8 @@ mod mega_server {
 
     use anyhow::Context;
     use axum::{
-        routing::{get, post},
         Router,
+        routing::{get, post},
     };
     use common::{api::MegaId, net};
     use lexe_api::{server::LayerConfig, types::ports::Port};
@@ -189,7 +189,7 @@ mod mega_server {
 mod handlers {
     use axum::extract::State;
     use common::{
-        api::{models::Status, MegaIdStruct},
+        api::{MegaIdStruct, models::Status},
         time::TimestampMs,
     };
     use lexe_api::{
@@ -198,7 +198,7 @@ mod handlers {
             MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest,
             MegaNodeApiUserRunResponse,
         },
-        server::{extract::LxQuery, LxJson},
+        server::{LxJson, extract::LxQuery},
         types::Empty,
     };
     use tokio::sync::oneshot;

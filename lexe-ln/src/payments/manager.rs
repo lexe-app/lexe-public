@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, bail, ensure, Context};
+use anyhow::{Context, anyhow, bail, ensure};
 use bdk_wallet::KeychainKind;
 use common::{
     api::test_event::TestEvent,
@@ -28,10 +28,10 @@ use super::{inbound::InboundOfferReusablePayment, outbound::ExpireError};
 use crate::{
     esplora::{LexeEsplora, TxConfStatus},
     payments::{
+        Payment,
         inbound::{ClaimableError, InboundSpontaneousPayment, LnClaimCtx},
         onchain::OnchainReceive,
         outbound::LxOutboundPaymentFailure,
-        Payment,
     },
     test_event::TestEventSender,
     traits::{LexeChannelManager, LexeInnerPersister, LexePersister},
@@ -1184,7 +1184,7 @@ impl PaymentsData {
 #[cfg(test)]
 mod arb {
     use proptest::{
-        arbitrary::{any, Arbitrary},
+        arbitrary::{Arbitrary, any},
         strategy::{BoxedStrategy, Strategy},
     };
 
@@ -1214,8 +1214,8 @@ mod test {
     use crate::payments::{
         inbound::{InboundInvoicePayment, OfferClaimCtx},
         outbound::{
-            arb::OipParams, OutboundInvoicePayment,
-            OutboundInvoicePaymentStatus, OutboundOfferPayment,
+            OutboundInvoicePayment, OutboundInvoicePaymentStatus,
+            OutboundOfferPayment, arb::OipParams,
         },
     };
 

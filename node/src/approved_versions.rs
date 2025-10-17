@@ -4,7 +4,7 @@
 //! This node version approval and revocation system relies on the rollback
 //! protection provided by a 3rd data store.
 
-use std::collections::{btree_map::Entry, BTreeMap};
+use std::collections::{BTreeMap, btree_map::Entry};
 
 use anyhow::ensure;
 use common::{
@@ -149,7 +149,7 @@ impl ApprovedVersions {
 mod arbitrary_impl {
     use common::test_utils::arbitrary;
     use proptest::{
-        arbitrary::{any, Arbitrary},
+        arbitrary::{Arbitrary, any},
         collection,
         strategy::{BoxedStrategy, Strategy},
     };

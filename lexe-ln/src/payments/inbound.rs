@@ -1,6 +1,6 @@
 use std::num::NonZeroU64;
 
-use anyhow::{anyhow, ensure, Context};
+use anyhow::{Context, anyhow, ensure};
 #[cfg(test)]
 use common::test_utils::arbitrary;
 use common::{ln::amount::Amount, time::TimestampMs};
@@ -24,7 +24,7 @@ use tracing::warn;
 
 #[cfg(doc)]
 use crate::command::create_invoice;
-use crate::payments::{manager::CheckedPayment, Payment};
+use crate::payments::{Payment, manager::CheckedPayment};
 
 // --- ClaimableError --- //
 
@@ -101,8 +101,7 @@ impl LnClaimCtx {
         hash: LxPaymentHash,
         claim_id: Option<LnClaimId>,
     ) -> anyhow::Result<Self> {
-        let no_preimage_msg =
-            "We should always let LDK handle payment preimages for us by \
+        let no_preimage_msg = "We should always let LDK handle payment preimages for us by \
              always using `ChannelManager::create_inbound_payment` instead of \
              `ChannelManager::create_inbound_payment_for_hash`. \
              Either we failed to do this, or there is a bug in LDK.";
@@ -928,7 +927,7 @@ mod arb {
         payments::{LxPaymentPreimage, PaymentStatus},
     };
     use proptest::{
-        arbitrary::{any, any_with, Arbitrary},
+        arbitrary::{Arbitrary, any, any_with},
         strategy::{BoxedStrategy, Strategy},
     };
 

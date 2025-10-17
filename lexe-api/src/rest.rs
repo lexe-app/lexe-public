@@ -3,8 +3,8 @@ use std::{borrow::Cow, time::Duration};
 use bytes::Bytes;
 use common::{ed25519, time::DisplayMs};
 use http::{
-    header::{HeaderValue, CONTENT_TYPE},
     Method,
+    header::{CONTENT_TYPE, HeaderValue},
 };
 use lexe_api_core::error::{
     ApiError, CommonApiError, CommonErrorKind, ErrorCode, ErrorResponse,
@@ -12,8 +12,8 @@ use lexe_api_core::error::{
 use lexe_std::backoff;
 use lightning::util::ser::Writeable;
 use reqwest::IntoUrl;
-use serde::{de::DeserializeOwned, Serialize};
-use tracing::{debug, warn, Instrument};
+use serde::{Serialize, de::DeserializeOwned};
+use tracing::{Instrument, debug, warn};
 
 use crate::{trace, trace::TraceId};
 

@@ -8,7 +8,7 @@ use common::{
 use lexe_api::{
     error::NodeApiError,
     models::command::ResyncRequest,
-    server::{extract::LxQuery, LxJson},
+    server::{LxJson, extract::LxQuery},
     types::Empty,
 };
 use lexe_ln::test_event;

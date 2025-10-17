@@ -36,7 +36,7 @@
 
 use std::{io::Cursor, str::FromStr, sync::Arc, time::SystemTime};
 
-use anyhow::{anyhow, ensure, Context};
+use anyhow::{Context, anyhow, ensure};
 use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
 use common::{
@@ -49,22 +49,22 @@ use common::{
     ln::channel::LxOutPoint,
     rng::{Crng, SysRng},
 };
-use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
+use gdrive::{GoogleVfs, GvfsRoot, oauth2::GDriveCredentials};
 use lexe_api::{
     auth::BearerAuthenticator,
     def::NodeBackendApi,
     error::{BackendApiError, BackendErrorKind},
     models::command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
     types::{
+        Empty,
         payments::{
             BasicPayment, DbPayment, LxPaymentId, PaymentIndex, VecDbPayment,
             VecLxPaymentId,
         },
-        Empty,
     },
     vfs::{
-        self, Vfs, VfsDirectory, VfsDirectoryList, VfsFile, VfsFileId,
-        SINGLETON_DIRECTORY,
+        self, SINGLETON_DIRECTORY, Vfs, VfsDirectory, VfsDirectoryList,
+        VfsFile, VfsFileId,
     },
 };
 use lexe_ln::{
@@ -76,20 +76,19 @@ use lexe_ln::{
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
     payments::{
-        self,
+        self, Payment,
         manager::{CheckedPayment, PersistedPayment},
-        Payment,
     },
     persister,
     traits::{LexeInnerPersister, LexePersister},
     wallet::ChangeSet,
 };
-use lexe_std::{backoff, Apply};
+use lexe_std::{Apply, backoff};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::{
     chain::{
-        chainmonitor::Persist, channelmonitor::ChannelMonitorUpdate,
-        transaction::OutPoint, ChannelMonitorUpdateStatus,
+        ChannelMonitorUpdateStatus, chainmonitor::Persist,
+        channelmonitor::ChannelMonitorUpdate, transaction::OutPoint,
     },
     ln::channelmanager::ChannelManagerReadArgs,
     util::{

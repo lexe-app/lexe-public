@@ -39,21 +39,20 @@ use anyhow::anyhow;
 use lexe_api::{define_trace_id_fns, trace};
 use lightning::util::logger::{Level as LdkLevel, Logger, Record};
 use tracing_core::{
-    dispatcher,
+    Callsite, Event, Kind, Level, LevelFilter, Metadata, dispatcher,
     field::{Field, FieldSet, Value},
     identify_callsite,
     subscriber::Interest,
-    Callsite, Event, Kind, Level, LevelFilter, Metadata,
 };
 use tracing_subscriber::{
+    Layer as LayerTrait, Registry,
     filter::{Filtered, Targets},
     fmt::{
-        format::{Compact, DefaultFields, Format},
         Layer,
+        format::{Compact, DefaultFields, Format},
     },
     layer::{Layered, SubscriberExt},
     util::SubscriberInitExt,
-    Layer as LayerTrait, Registry,
 };
 
 /// Initialize the global `tracing` logger.
@@ -331,8 +330,8 @@ mod test {
 
     use lexe_api::trace::TraceId;
     use tracing_core::{
-        span::{Attributes, Id, Record},
         Dispatch, Subscriber,
+        span::{Attributes, Id, Record},
     };
 
     use super::*;

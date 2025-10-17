@@ -134,8 +134,7 @@ impl SidecarArgs {
             }
             (None, Some(path)) => {
                 let s = fs_ext::read_to_string(&path)?;
-                let client_credentials =
-                    ClientCredentials::from_str(s.trim())?;
+                let client_credentials = ClientCredentials::from_str(s.trim())?;
                 let client_pk = &client_credentials.client_pk;
                 info!(?path, %client_pk, "Client credentials loaded from path");
                 self.client_credentials = Some(client_credentials);

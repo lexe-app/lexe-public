@@ -5,7 +5,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use anyhow::{anyhow, ensure, Context};
+use anyhow::{Context, anyhow, ensure};
 use arc_swap::ArcSwap;
 use bitcoin::OutPoint;
 use common::{
@@ -16,13 +16,13 @@ use common::{
         priority::{ConfirmationPriority, ToNumBlocks},
     },
 };
-use esplora_client::{api::OutputStatus, AsyncClient};
+use esplora_client::{AsyncClient, api::OutputStatus};
 use lexe_tls_core::rustls;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::chaininterface::{
-    ConfirmationTarget, FeeEstimator, FEERATE_FLOOR_SATS_PER_KW,
+    ConfirmationTarget, FEERATE_FLOOR_SATS_PER_KW, FeeEstimator,
 };
-use rand::{seq::SliceRandom, RngCore};
+use rand::{RngCore, seq::SliceRandom};
 use tokio::time;
 use tracing::{debug, info, instrument, warn};
 
@@ -521,7 +521,7 @@ impl LexeEsplora {
 mod arb {
     use common::test_utils::arbitrary;
     use proptest::{
-        arbitrary::{any, Arbitrary},
+        arbitrary::{Arbitrary, any},
         strategy::{BoxedStrategy, Strategy},
     };
 

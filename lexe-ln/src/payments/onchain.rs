@@ -262,8 +262,7 @@ pub enum OnchainReceiveStatus {
     /// - This tx has not received a single confirmation.
     /// - We have not detected a replacement tx spending at least one of this
     ///   tx's inputs with 1 or more confirmations.
-    /// - It has been at least 14 days since we first detected this
-    ///   transaction.
+    /// - It has been at least 14 days since we first detected this transaction.
     ///
     /// 14 days is the default `-mempoolexpiry` value in Bitcoin Core. It is
     /// likely that most nodes will have evicted our transaction from their
@@ -369,7 +368,7 @@ impl OnchainReceive {
 mod arb {
     use common::test_utils::arbitrary;
     use proptest::{
-        arbitrary::{any, Arbitrary},
+        arbitrary::{Arbitrary, any},
         strategy::{BoxedStrategy, Strategy},
     };
 

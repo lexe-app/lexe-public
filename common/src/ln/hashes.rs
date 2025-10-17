@@ -4,7 +4,7 @@ use std::{
     str::FromStr,
 };
 
-use bitcoin::{hashes::Hash as _, Txid};
+use bitcoin::{Txid, hashes::Hash as _};
 use serde::{Deserialize, Serialize};
 
 /// Almost exactly [`bitcoin::Txid`], but fixes the inconsistency between the
@@ -60,7 +60,7 @@ impl PartialOrd for LxTxid {
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
     use proptest::{
-        arbitrary::{any, Arbitrary},
+        arbitrary::{Arbitrary, any},
         strategy::{BoxedStrategy, Strategy},
     };
 

@@ -7,7 +7,7 @@
 
 use std::{collections::BTreeMap, fmt, str::FromStr};
 
-use anyhow::{anyhow, ensure, Context};
+use anyhow::{Context, anyhow, ensure};
 use bytes::Bytes;
 use common::{api::user::UserPk, env::DeployEnv, ln::network::LxNetwork};
 use lexe_api_core::{
@@ -20,12 +20,12 @@ use tokio::sync::watch;
 use tracing::{info, instrument, warn};
 
 use crate::{
+    ReqwestClient,
     api::{self, GDriveClient},
     gvfs_file_id::GvfsFileId,
     lexe_dir,
     models::GFileId,
     oauth2::GDriveCredentials,
-    ReqwestClient,
 };
 
 // Allows tests to assert that these `anyhow::Error`s happened.
@@ -562,7 +562,10 @@ mod test {
             use_sgx: false,
             user_pk: UserPk::from_u64(6546565654654654),
         };
-        assert_eq!("lexe-dev-regtest-dbg-be2e581811421700000000000000000000000000000000000000000000000000", ex.to_string());
+        assert_eq!(
+            "lexe-dev-regtest-dbg-be2e581811421700000000000000000000000000000000000000000000000000",
+            ex.to_string()
+        );
         roundtrip::fromstr_display_roundtrip_proptest::<GvfsRootName>();
 
         // JSON

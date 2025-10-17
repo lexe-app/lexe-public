@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use app_rs::client::NodeClient;
 use axum::{
-    routing::{get, post},
     Router,
+    routing::{get, post},
 };
 
 pub(crate) struct RouterState {
@@ -40,8 +40,8 @@ mod sidecar {
     use crate::api::HealthCheckResponse;
 
     #[instrument(skip_all, name = "(health)")]
-    pub(crate) async fn health(
-    ) -> Result<LxJson<HealthCheckResponse>, SdkApiError> {
+    pub(crate) async fn health()
+    -> Result<LxJson<HealthCheckResponse>, SdkApiError> {
         Ok(LxJson(HealthCheckResponse {
             status: Cow::from("ok"),
         }))
@@ -55,17 +55,17 @@ mod node {
     use lexe_api::{
         def::AppNodeRunApi,
         models::command::{GetNewPayments, PaymentIndexes},
-        server::{extract::LxQuery, LxJson},
+        server::{LxJson, extract::LxQuery},
         types::payments::{LxPaymentId, PaymentIndex},
     };
     use sdk_core::{
+        SdkApiError,
         models::{
             SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
             SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfoResponse,
             SdkPayInvoiceRequest, SdkPayInvoiceResponse,
         },
         types::SdkPayment,
-        SdkApiError,
     };
     use tracing::instrument;
 

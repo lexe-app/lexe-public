@@ -16,7 +16,7 @@
 use std::{borrow::Cow, fmt, marker::PhantomData};
 
 use base64::Engine;
-use serde::{de, ser, Deserializer, Serializer};
+use serde::{Deserializer, Serializer, de, ser};
 
 /// A trait to deserialize something from a base64-encoded string slice.
 ///

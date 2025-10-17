@@ -1,6 +1,6 @@
 use std::{ops::Deref, slice, sync::Arc};
 
-use anyhow::{ensure, Context};
+use anyhow::{Context, ensure};
 use axum::extract::State;
 use common::{
     api::{
@@ -33,8 +33,8 @@ use lexe_api::{
         PreflightPayOfferResponse, PreflightPayOnchainRequest,
         PreflightPayOnchainResponse, UpdatePaymentNote,
     },
-    server::{extract::LxQuery, LxJson},
-    types::{payments::VecBasicPayment, Empty},
+    server::{LxJson, extract::LxQuery},
+    types::{Empty, payments::VecBasicPayment},
     vfs::{self, Vfs, VfsDirectory},
 };
 use lexe_ln::{command::CreateInvoiceCaller, p2p};

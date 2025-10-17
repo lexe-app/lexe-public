@@ -7,11 +7,11 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{bail, ensure, Context};
+use anyhow::{Context, bail, ensure};
 use common::{rng::ThreadFastRng, time::DisplayMs};
 use http::{HeaderName, HeaderValue};
 use rand_core::RngCore;
-use tracing::{span, warn, Dispatch};
+use tracing::{Dispatch, span, warn};
 
 #[cfg(doc)]
 use crate::rest::RestClient;
@@ -261,7 +261,7 @@ impl fmt::Debug for TraceId {
 mod arbitrary_impl {
     use common::rng::FastRng;
     use proptest::{
-        arbitrary::{any, Arbitrary},
+        arbitrary::{Arbitrary, any},
         strategy::{BoxedStrategy, Strategy},
     };
 

@@ -19,10 +19,10 @@ use proptest_derive::Arbitrary;
 use rust_decimal::Decimal;
 
 use crate::{
+    Error,
     helpers::AddressExt,
     payment_method::{Onchain, PaymentMethod},
     uri::{Uri, UriParam},
-    Error,
 };
 
 /// A [BIP321](https://github.com/bitcoin/bips/pull/1555/files) /
@@ -350,8 +350,8 @@ mod arbitrary_impl {
     // Generate a list of BIP321 address to go in a [`Bip321Uri`]. To support
     // roundtripping, we filter out any P2PKH or P2SH addresses that aren't in
     // the first position.
-    pub(crate) fn arb_bip321_addrs(
-    ) -> impl Strategy<Value = Vec<bitcoin::Address<NetworkUnchecked>>> {
+    pub(crate) fn arb_bip321_addrs()
+    -> impl Strategy<Value = Vec<bitcoin::Address<NetworkUnchecked>>> {
         proptest::collection::vec(any_mainnet_addr_unchecked(), 0..3).prop_map(
             |addrs| {
                 addrs
@@ -427,10 +427,12 @@ mod test {
                 "BItCoIn:3Hk4jJkZkzzGe7oKHw8awFBz9YhRcQ4iAV?amount=23.456"
             ),
             Ok(Bip321Uri {
-                onchain: vec![bitcoin::Address::from_str(
-                    "3Hk4jJkZkzzGe7oKHw8awFBz9YhRcQ4iAV"
-                )
-                .unwrap()],
+                onchain: vec![
+                    bitcoin::Address::from_str(
+                        "3Hk4jJkZkzzGe7oKHw8awFBz9YhRcQ4iAV"
+                    )
+                    .unwrap()
+                ],
                 amount: Some(Amount::from_sats_u32(23_4560_0000)),
                 ..Bip321Uri::default()
             }),
@@ -443,7 +445,10 @@ mod test {
             ),
             Ok(Bip321Uri {
                 onchain: vec![
-                    bitcoin::Address::from_str("bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh").unwrap(),
+                    bitcoin::Address::from_str(
+                        "bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh"
+                    )
+                    .unwrap(),
                 ],
                 label: Some("Luke Jr".to_owned()),
                 ..Bip321Uri::default()

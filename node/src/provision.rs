@@ -18,10 +18,10 @@
 use std::{net::TcpListener, sync::Arc, time::SystemTime};
 
 use anyhow::Context;
-use axum::{routing::post, Router};
+use axum::{Router, routing::post};
 use common::{
     api::provision::NodeProvisionRequest,
-    cli::{node::MegaArgs, OAuthConfig},
+    cli::{OAuthConfig, node::MegaArgs},
     constants, enclave,
     env::DeployEnv,
     ln::network::LxNetwork,
@@ -34,7 +34,7 @@ use lexe_api::{
     def::NodeBackendApi,
     error::NodeApiError,
     server::{self, LayerConfig},
-    types::{ports::ProvisionPorts, sealed_seed::SealedSeed, Empty},
+    types::{Empty, ports::ProvisionPorts, sealed_seed::SealedSeed},
 };
 use lexe_tls::attestation::{self, NodeMode};
 use lexe_tokio::{

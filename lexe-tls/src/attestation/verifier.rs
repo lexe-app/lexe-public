@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-use anyhow::{bail, ensure, format_err, Context};
+use anyhow::{Context, bail, ensure, format_err};
 use asn1_rs::FromDer;
 use byte_array::ByteArray;
 use common::{
@@ -18,12 +18,12 @@ use dcap_ql::quote::{
     CertificationDataType, Quote, Quote3SignatureEcdsaP256, RawQe3CertData,
 };
 use rustls::{
+    DigitallySignedStruct, DistinguishedName,
     client::danger::{
         HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,
     },
-    pki_types::{pem::PemObject, CertificateDer, ServerName, UnixTime},
+    pki_types::{CertificateDer, ServerName, UnixTime, pem::PemObject},
     server::danger::{ClientCertVerified, ClientCertVerifier},
-    DigitallySignedStruct, DistinguishedName,
 };
 use webpki::{TlsServerTrustAnchors, TrustAnchor};
 use x509_parser::certificate::X509Certificate;
@@ -692,7 +692,11 @@ fn get_ecdsa_sig_der(sig: &[u8]) -> anyhow::Result<Vec<u8>> {
 fn read_attestation_pk(
     bytes: &[u8],
 ) -> anyhow::Result<ring::signature::UnparsedPublicKey<[u8; 65]>> {
-    ensure!(bytes.len() == 64, "Attestation public key is in an unrecognized format; expected exactly 64 bytes, actual len: {}", bytes.len());
+    ensure!(
+        bytes.len() == 64,
+        "Attestation public key is in an unrecognized format; expected exactly 64 bytes, actual len: {}",
+        bytes.len()
+    );
 
     let mut attestation_public_key = [0u8; 65];
     attestation_public_key[0] = 0x4;

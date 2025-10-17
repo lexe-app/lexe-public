@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Instant};
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use futures::future::Either;
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::Confirm;

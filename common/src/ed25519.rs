@@ -37,7 +37,7 @@
 
 use std::{fmt, str::FromStr};
 
-use asn1_rs::{oid, Oid};
+use asn1_rs::{Oid, oid};
 use byte_array::ByteArray;
 use bytes::{BufMut, Bytes, BytesMut};
 use hex::FromHex;
@@ -47,7 +47,7 @@ use ring::signature::KeyPair as _;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use x509_parser::x509;
-use yasna::{models::ObjectIdentifier, ASN1Error, ASN1ErrorKind};
+use yasna::{ASN1Error, ASN1ErrorKind, models::ObjectIdentifier};
 
 use crate::{
     ed25519,
@@ -805,7 +805,7 @@ impl<T: Signable + Clone> Clone for Signed<T> {
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impls {
     use proptest::{
-        arbitrary::{any, Arbitrary},
+        arbitrary::{Arbitrary, any},
         strategy::{BoxedStrategy, Strategy},
     };
 

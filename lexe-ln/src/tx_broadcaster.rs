@@ -1,22 +1,22 @@
 use std::{sync::Arc, time::Duration};
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use common::api::test_event::TestEvent;
 use lexe_std::const_assert;
-use lexe_tokio::{notify_once::NotifyOnce, task::LxTask, DEFAULT_CHANNEL_SIZE};
+use lexe_tokio::{DEFAULT_CHANNEL_SIZE, notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::chaininterface::BroadcasterInterface;
 use thiserror::Error;
 use tokio::sync::{
     mpsc::{self, error::TrySendError},
     oneshot,
 };
-use tracing::{error, info, info_span, warn, Instrument};
+use tracing::{Instrument, error, info, info_span, warn};
 
 use crate::{
+    BoxedAnyhowFuture, TxDisplay,
     esplora::{self, LexeEsplora},
     test_event::TestEventSender,
     wallet::LexeWallet,
-    BoxedAnyhowFuture, TxDisplay,
 };
 
 #[derive(Debug, Error)]

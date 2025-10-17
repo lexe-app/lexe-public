@@ -16,7 +16,7 @@
 use std::{fmt, marker::PhantomData};
 
 use base64::Engine;
-use serde::{de, ser, Deserialize, Deserializer, Serializer};
+use serde::{Deserialize, Deserializer, Serializer, de, ser};
 
 use crate::serde_helpers::base64_or_bytes::FromBase64;
 

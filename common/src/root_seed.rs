@@ -1,13 +1,14 @@
 use std::{fmt, str::FromStr};
 
-use anyhow::{bail, ensure, Context};
+use anyhow::{Context, bail, ensure};
 use bitcoin::{
+    Network,
     bip32::{self, ChildNumber},
-    secp256k1, Network,
+    secp256k1,
 };
 use lexe_std::array;
 use secrecy::{ExposeSecret, Secret, SecretVec};
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 
 use crate::{
     aes::{self, AesMasterKey},
@@ -385,7 +386,7 @@ impl Serialize for RootSeed {
 #[cfg(any(test, feature = "test-utils"))]
 mod test_impls {
     use proptest::{
-        arbitrary::{any, Arbitrary},
+        arbitrary::{Arbitrary, any},
         strategy::{BoxedStrategy, Strategy},
     };
 

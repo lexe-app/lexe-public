@@ -1,6 +1,6 @@
 use std::{env, fmt, fmt::Display, str::FromStr};
 
-use anyhow::{anyhow, ensure, Context};
+use anyhow::{Context, anyhow, ensure};
 use lexe_std::Apply;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest::strategy::Strategy;
@@ -86,8 +86,8 @@ impl DeployEnv {
 
     /// A strategy for *valid* combinations of [`DeployEnv`] and [`LxNetwork`].
     #[cfg(any(test, feature = "test-utils"))]
-    pub fn any_valid_network_combo(
-    ) -> impl Strategy<Value = (DeployEnv, LxNetwork)> {
+    pub fn any_valid_network_combo()
+    -> impl Strategy<Value = (DeployEnv, LxNetwork)> {
         use proptest::strategy::Just;
         // We *could* extract an associated const [(DeployEnv, Network); N]
         // enumerating all *valid* combos, then iterate over all *possible*

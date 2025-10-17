@@ -195,7 +195,7 @@ pub mod arbitrary_impl {
     use std::time::Duration;
 
     use bitcoin::{
-        hashes::{sha256, Hash},
+        hashes::{Hash, sha256},
         secp256k1::{self, Message},
     };
     use byte_array::ByteArray;
@@ -209,7 +209,7 @@ pub mod arbitrary_impl {
     };
     use lightning_invoice::{Fallback, InvoiceBuilder, MAX_TIMESTAMP};
     use proptest::{
-        arbitrary::{any, Arbitrary},
+        arbitrary::{Arbitrary, any},
         option, result,
         strategy::{BoxedStrategy, Strategy},
     };

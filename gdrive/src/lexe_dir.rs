@@ -208,7 +208,7 @@ mod test {
     use common::{api::user::UserPk, env::DeployEnv, ln::network::LxNetwork};
 
     use super::*;
-    use crate::{oauth2::GDriveCredentials, ReqwestClient};
+    use crate::{ReqwestClient, oauth2::GDriveCredentials};
 
     /// ```bash
     /// export GOOGLE_CLIENT_ID="<client_id>"

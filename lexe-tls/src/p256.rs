@@ -6,7 +6,7 @@
 use base64::Engine;
 use ring::{
     rand::SystemRandom,
-    signature::{EcdsaKeyPair, ECDSA_P256_SHA256_ASN1_SIGNING},
+    signature::{ECDSA_P256_SHA256_ASN1_SIGNING, EcdsaKeyPair},
 };
 use rustls::pki_types::pem::PemObject;
 use secrecy::{ExposeSecret, Secret};

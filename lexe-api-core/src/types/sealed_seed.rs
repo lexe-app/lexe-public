@@ -1,6 +1,6 @@
 use std::{borrow::Cow, fmt};
 
-use anyhow::{ensure, Context};
+use anyhow::{Context, ensure};
 use common::{
     api::user::UserPk,
     ed25519,
@@ -199,7 +199,7 @@ impl fmt::Debug for RootSeedWithMetadata<'_> {
 #[cfg(test)]
 mod test_impls {
     use proptest::{
-        arbitrary::{any, Arbitrary},
+        arbitrary::{Arbitrary, any},
         strategy::{BoxedStrategy, Strategy},
     };
 

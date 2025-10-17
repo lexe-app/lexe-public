@@ -8,7 +8,7 @@
 
 #[cfg(doc)]
 use lexe_api::types::Empty;
-use sdk_core::{def::SdkApi, SdkApiError};
+use sdk_core::{SdkApiError, def::SdkApi};
 
 use crate::api::HealthCheckResponse;
 

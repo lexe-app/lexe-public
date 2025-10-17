@@ -10,7 +10,7 @@ use lexe_tokio::{
 use lightning::ln::msgs::RoutingMessageHandler;
 use rand::distributions::uniform::SampleRange;
 use tokio::time::Instant;
-use tracing::{debug, error, info, info_span, trace, warn, Instrument};
+use tracing::{Instrument, debug, error, info, info_span, trace, warn};
 
 use crate::{
     alias::LexeChainMonitorType,

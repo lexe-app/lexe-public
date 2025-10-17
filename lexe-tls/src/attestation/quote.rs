@@ -52,10 +52,10 @@ mod sgx {
     use std::{borrow::Cow, fmt, net::TcpStream};
 
     use aes::Aes128;
-    use aesm_client::{sgx::AesmClientExt, AesmClient};
-    use anyhow::{ensure, format_err, Context};
+    use aesm_client::{AesmClient, sgx::AesmClientExt};
+    use anyhow::{Context, ensure, format_err};
     use bytemuck::{Pod, Zeroable};
-    use cmac::{digest::generic_array::GenericArray, Cmac, Mac};
+    use cmac::{Cmac, Mac, digest::generic_array::GenericArray};
     use common::rng::{Crng, RngExt};
     use sgx_isa::{Report, Targetinfo};
 

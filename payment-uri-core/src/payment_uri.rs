@@ -10,13 +10,13 @@ use proptest::strategy::Strategy;
 use proptest_derive::Arbitrary;
 
 use crate::{
+    Error, Onchain, PaymentMethod,
     bip321_uri::Bip321Uri,
     email_like::EmailLikeAddress,
     helpers::{self, AddressExt},
     lightning_uri::LightningUri,
     lnurl::Lnurl,
     uri::Uri,
-    Error, Onchain, PaymentMethod,
 };
 
 /// Refuse to parse any input longer than this many KiB.

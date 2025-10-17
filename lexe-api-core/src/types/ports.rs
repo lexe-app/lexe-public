@@ -1,5 +1,5 @@
 use common::{
-    api::{user::UserPk, MegaId},
+    api::{MegaId, user::UserPk},
     enclave::Measurement,
 };
 use serde::{Deserialize, Serialize};

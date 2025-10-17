@@ -239,10 +239,10 @@ impl<'a> EmailLikeAddress<'a> {
 mod validate {
     use std::borrow::Cow;
 
-    use anyhow::{anyhow, ensure, Context};
+    use anyhow::{Context, anyhow, ensure};
 
     // Use consistent `validate::` prefix inside this module as well
-    use super::{construct, validate, MAX_DNS_NAME_LEN};
+    use super::{MAX_DNS_NAME_LEN, construct, validate};
 
     /// Validate the username and domain of a BIP353 address,
     /// returning the validated and normalized username and domain, and the
@@ -560,8 +560,8 @@ mod test_impls {
     }
 
     /// Any Lightning Address (dots/underscores, optional tags)
-    fn any_lightning_address(
-    ) -> impl Strategy<Value = EmailLikeAddress<'static>> {
+    fn any_lightning_address()
+    -> impl Strategy<Value = EmailLikeAddress<'static>> {
         let any_prefix = proptest::bool::ANY;
         let optional_tag = proptest::option::of(any_ln_username_or_tag());
         (
@@ -798,7 +798,7 @@ mod test {
         // Specific error message tests
         assert_error_msg(
             EmailLikeAddress::parse(
-                "user@byfbslyavenz6uz4i4pdwu4t5ixrnmtwmxysip2h54bnzjv3cfwc6qyd.onion"
+                "user@byfbslyavenz6uz4i4pdwu4t5ixrnmtwmxysip2h54bnzjv3cfwc6qyd.onion",
             ),
             ".onion domains are not supported",
         );

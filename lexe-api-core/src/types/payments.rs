@@ -4,8 +4,8 @@ use std::{
     str::FromStr,
 };
 
-use anyhow::{anyhow, bail, ensure, Context};
-use bitcoin::hashes::{sha256, Hash as _};
+use anyhow::{Context, anyhow, bail, ensure};
+use bitcoin::hashes::{Hash as _, sha256};
 use byte_array::ByteArray;
 #[cfg(any(test, feature = "test-utils"))]
 use common::test_utils::arbitrary;

@@ -68,7 +68,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{format_err, Context};
+use anyhow::{Context, format_err};
 use common::{
     constants,
     enclave::{Measurement, MrShort},
@@ -76,14 +76,14 @@ use common::{
     rng::Crng,
 };
 use rustls::{
+    DigitallySignedStruct,
     client::{
+        WebPkiServerVerifier,
         danger::{
             HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,
         },
-        WebPkiServerVerifier,
     },
     pki_types::{CertificateDer, ServerName, UnixTime},
-    DigitallySignedStruct,
 };
 
 use self::verifier::EnclavePolicy;
@@ -383,8 +383,10 @@ mod test {
 
         let client_error = client_result.unwrap_err();
         assert!(client_error.contains("Client didn't connect"));
-        assert!(client_error
-            .contains("our trust policy rejected the remote enclave"));
+        assert!(
+            client_error
+                .contains("our trust policy rejected the remote enclave")
+        );
         assert!(server_result.unwrap_err().contains("Server didn't accept"));
     }
 

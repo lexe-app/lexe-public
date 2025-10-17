@@ -41,7 +41,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use anyhow::{anyhow, bail, ensure, Context};
+use anyhow::{Context, anyhow, bail, ensure};
 use base64::Engine;
 use dnssec_prover::{
     query::{ProofBuilder, QueryBuf},

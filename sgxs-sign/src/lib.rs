@@ -30,9 +30,8 @@ use std::fmt;
 use anyhow::{ensure, format_err};
 use byte_array::ByteArray;
 use common::{
-    enclave,
+    Secret, enclave,
     rng::{Crng, SysRng},
-    Secret,
 };
 use rsa::{
     pkcs1v15::Pkcs1v15Sign,

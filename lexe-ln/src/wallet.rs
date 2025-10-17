@@ -34,22 +34,22 @@ use std::{
     sync::{Arc, RwLockReadGuard, RwLockWriteGuard},
 };
 
-use anyhow::{ensure, Context};
+use anyhow::{Context, ensure};
 use bdk_chain::{
+    CanonicalizationParams, Merge, TxUpdate,
     spk_client::{
         FullScanRequest, FullScanResponse, SyncRequest, SyncResponse,
     },
-    CanonicalizationParams, Merge, TxUpdate,
 };
 use bdk_esplora::EsploraAsyncExt;
 pub use bdk_wallet::ChangeSet;
 use bdk_wallet::{
+    CreateParams, KeychainKind, LoadParams, SignOptions, TxBuilder, TxDetails,
+    Wallet, WeightedUtxo,
     coin_selection::{
         CoinSelectionAlgorithm, CoinSelectionResult, InsufficientFunds,
     },
     template::Bip84,
-    CreateParams, KeychainKind, LoadParams, SignOptions, TxBuilder, TxDetails,
-    Wallet, WeightedUtxo,
 };
 use bitcoin::{Psbt, Transaction};
 #[cfg(test)]
@@ -68,7 +68,7 @@ use lexe_api::{
         FeeEstimate, PayOnchainRequest, PreflightPayOnchainRequest,
         PreflightPayOnchainResponse,
     },
-    vfs::{Vfs, VfsFileId, SINGLETON_DIRECTORY, WALLET_CHANGESET_FILENAME},
+    vfs::{SINGLETON_DIRECTORY, Vfs, VfsFileId, WALLET_CHANGESET_FILENAME},
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use rand::RngCore;
@@ -1370,10 +1370,10 @@ mod arbitrary_impl {
     use std::sync::Arc;
 
     use bdk_chain::{
-        keychain_txout, local_chain, tx_graph, ConfirmationBlockTime,
-        DescriptorId,
+        ConfirmationBlockTime, DescriptorId, keychain_txout, local_chain,
+        tx_graph,
     };
-    use bdk_wallet::{template::DescriptorTemplate, ChangeSet, KeychainKind};
+    use bdk_wallet::{ChangeSet, KeychainKind, template::DescriptorTemplate};
     use bitcoin::hashes::Hash as _;
     use common::{root_seed::RootSeed, test_utils::arbitrary};
     use proptest::{
@@ -1511,8 +1511,8 @@ mod arbitrary_impl {
         })
     }
 
-    fn any_localchain_changeset(
-    ) -> impl Strategy<Value = local_chain::ChangeSet> {
+    fn any_localchain_changeset()
+    -> impl Strategy<Value = local_chain::ChangeSet> {
         proptest::collection::btree_map(
             any::<u32>(),
             option::of(arbitrary::any_blockhash()),
@@ -1521,8 +1521,8 @@ mod arbitrary_impl {
         .prop_map(|blocks| local_chain::ChangeSet { blocks })
     }
 
-    fn any_confirmationblocktime(
-    ) -> impl Strategy<Value = ConfirmationBlockTime> {
+    fn any_confirmationblocktime()
+    -> impl Strategy<Value = ConfirmationBlockTime> {
         (any_blockid(), any::<u64>()).prop_map(
             |(block_id, confirmation_time)| ConfirmationBlockTime {
                 block_id,
@@ -1552,7 +1552,7 @@ mod test {
         AddressInfo,
         KeychainKind::{External, Internal},
     };
-    use bitcoin::{hashes::Hash as _, TxOut, Txid};
+    use bitcoin::{TxOut, Txid, hashes::Hash as _};
     use common::{
         ln::hashes::LxTxid,
         rng::FastRng,

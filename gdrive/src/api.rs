@@ -1,15 +1,15 @@
 use std::ops::DerefMut;
 
-use anyhow::{ensure, Context};
+use anyhow::{Context, ensure};
 use bytes::Bytes;
 use reqwest::{IntoUrl, Method};
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use tokio::sync::watch;
 
 use crate::{
+    Error,
     models::{Empty, GFile, GFileCow, GFileId, ListFiles, ListFilesResponse},
     oauth2::{self, GDriveCredentials, ReqwestClient},
-    Error,
 };
 
 const BASE_URL: &str = "https://www.googleapis.com/drive/v3";

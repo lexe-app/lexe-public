@@ -1,6 +1,6 @@
 use std::{fmt, fmt::Display, str::FromStr};
 
-use anyhow::{ensure, Context};
+use anyhow::{Context, ensure};
 use lexe_api_core::vfs::VfsFileId;
 
 /// Uniquely identifies a file stored in a GVFS.

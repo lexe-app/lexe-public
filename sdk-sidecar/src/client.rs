@@ -1,5 +1,6 @@
 use lexe_api::{rest::RestClient, types::Empty};
 use sdk_core::{
+    SdkApiError, SdkErrorKind,
     def::SdkApi,
     models::{
         SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
@@ -7,7 +8,6 @@ use sdk_core::{
         SdkPayInvoiceRequest, SdkPayInvoiceResponse,
     },
     types::SdkPayment,
-    SdkApiError, SdkErrorKind,
 };
 
 use crate::{api::HealthCheckResponse, def::UserSidecarApi};

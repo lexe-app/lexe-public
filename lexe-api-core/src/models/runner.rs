@@ -1,10 +1,10 @@
 use common::{
-    api::{user::UserPk, MegaId},
+    api::{MegaId, user::UserPk},
     time::TimestampMs,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::types::{ports::RunPorts, LeaseId};
+use crate::types::{LeaseId, ports::RunPorts};
 
 /// A request sent to a meganode API server to run a usernode within a meganode.
 #[derive(Serialize, Deserialize)]

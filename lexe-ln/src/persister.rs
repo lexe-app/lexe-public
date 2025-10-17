@@ -1,8 +1,8 @@
-use anyhow::{ensure, Context};
+use anyhow::{Context, ensure};
 use common::{aes::AesMasterKey, rng::Crng};
 use lexe_api::vfs::{VfsFile, VfsFileId};
 use lightning::util::ser::Writeable;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use tracing::info;
 
 /// Serializes a LDK [`Writeable`] to bytes, encrypts the serialized bytes, and

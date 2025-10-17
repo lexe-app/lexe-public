@@ -4,18 +4,18 @@
 use anyhow::Context;
 use common::{env::DeployEnv, ln::network::LxNetwork};
 use lexe_api_core::vfs::{
-    VfsFile, VfsFileId, PW_ENC_ROOT_SEED_FILENAME, SINGLETON_DIRECTORY,
+    PW_ENC_ROOT_SEED_FILENAME, SINGLETON_DIRECTORY, VfsFile, VfsFileId,
 };
 use tokio::sync::watch;
 use tracing::{instrument, warn};
 
 use crate::{
+    GvfsRoot,
     api::GDriveClient,
     gvfs::GvfsRootName,
     gvfs_file_id::GvfsFileId,
     lexe_dir::find_lexe_dir,
     oauth2::{GDriveCredentials, ReqwestClient},
-    GvfsRoot,
 };
 
 /// A candidate wallet to restore.

@@ -9,8 +9,8 @@
 use std::sync::{Arc, RwLock};
 
 use axum::{
-    routing::{get, post, put},
     Router,
+    routing::{get, post, put},
 };
 use common::{
     api::{

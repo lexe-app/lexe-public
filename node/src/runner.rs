@@ -7,11 +7,11 @@ use std::{
 use common::{
     api::user::UserPk, cli::node::MegaArgs, constants, time::TimestampMs,
 };
-use futures::{stream::FuturesUnordered, StreamExt};
+use futures::{StreamExt, stream::FuturesUnordered};
 use lexe_api::{
     error::{MegaApiError, MegaErrorKind},
     models::runner::{MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest},
-    types::{ports::RunPorts, LeaseId},
+    types::{LeaseId, ports::RunPorts},
 };
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lru::LruCache;

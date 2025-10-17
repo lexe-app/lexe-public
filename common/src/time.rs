@@ -4,7 +4,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use serde::{de, Serialize};
+use serde::{Serialize, de};
 
 /// [`Display`]s a [`Duration`] in ms with 3 decimal places, e.g. "123.456ms".
 ///

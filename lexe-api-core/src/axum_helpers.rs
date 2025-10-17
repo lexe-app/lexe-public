@@ -1,4 +1,4 @@
-use http::{header::CONTENT_TYPE, HeaderValue, StatusCode, Version};
+use http::{HeaderValue, StatusCode, Version, header::CONTENT_TYPE};
 use serde::Serialize;
 use tracing::error;
 

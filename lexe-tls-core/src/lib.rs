@@ -4,15 +4,15 @@ use std::sync::{Arc, LazyLock};
 
 /// Allow accessing [`rustls`] via `lexe_tls::rustls`.
 pub use rustls;
-use rustls::{crypto::WebPkiSupportedAlgorithms, ClientConfig, ServerConfig};
+use rustls::{ClientConfig, ServerConfig, crypto::WebPkiSupportedAlgorithms};
 /// Allow accessing [`webpki_roots`] via `lexe_tls::webpki_roots`.
 #[cfg(feature = "webpki-roots")]
 pub use webpki_roots;
 
 /// Helper to get a builder for a [`ClientConfig`] with Lexe's presets.
 /// NOTE: Remember: Set `alpn_protocols` to [`LEXE_ALPN_PROTOCOLS`] afterwards!
-pub fn client_config_builder(
-) -> rustls::ConfigBuilder<ClientConfig, rustls::WantsVerifier> {
+pub fn client_config_builder()
+-> rustls::ConfigBuilder<ClientConfig, rustls::WantsVerifier> {
     // We use the correct provider and TLS versions here
     #[allow(clippy::disallowed_methods)]
     ClientConfig::builder_with_provider(LEXE_CRYPTO_PROVIDER.clone())
@@ -22,8 +22,8 @@ pub fn client_config_builder(
 
 /// Helper to get a builder for a [`ServerConfig`] with Lexe's presets.
 /// NOTE: Remember: Set `alpn_protocols` to [`LEXE_ALPN_PROTOCOLS`] afterwards!
-pub fn server_config_builder(
-) -> rustls::ConfigBuilder<ServerConfig, rustls::WantsVerifier> {
+pub fn server_config_builder()
+-> rustls::ConfigBuilder<ServerConfig, rustls::WantsVerifier> {
     // We use the correct provider and TLS versions here
     #[allow(clippy::disallowed_methods)]
     ServerConfig::builder_with_provider(LEXE_CRYPTO_PROVIDER.clone())

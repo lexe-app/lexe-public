@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{anyhow, bail, ensure, Context};
+use anyhow::{Context, anyhow, bail, ensure};
 use bitcoin::{consensus::Encodable, secp256k1};
 use common::{
     aes::AesMasterKey,
@@ -28,7 +28,7 @@ use common::{
     time::TimestampMs,
 };
 use futures::future::FutureExt;
-use gdrive::{gvfs::GvfsRootName, GoogleVfs};
+use gdrive::{GoogleVfs, gvfs::GvfsRootName};
 use lexe_api::{
     auth::BearerAuthenticator,
     def::{NodeBackendApi, NodeLspApi, NodeRunnerApi},
@@ -36,9 +36,10 @@ use lexe_api::{
     models::runner::UserLeaseRenewalRequest,
     server::LayerConfig,
     types::{ports::RunPorts, sealed_seed::SealedSeedId},
-    vfs::{self, Vfs, VfsFileId, REVOCABLE_CLIENTS_FILE_ID},
+    vfs::{self, REVOCABLE_CLIENTS_FILE_ID, Vfs, VfsFileId},
 };
 use lexe_ln::{
+    BoxedAnyhowFuture,
     alias::{
         BroadcasterType, EsploraSyncClientType, FeeEstimatorType,
         LexeOnionMessengerType, NetworkGraphType, ProbabilisticScorerType,
@@ -57,21 +58,20 @@ use lexe_ln::{
     traits::LexeInnerPersister,
     tx_broadcaster::TxBroadcaster,
     wallet::{self, LexeCoinSelector, LexeWallet},
-    BoxedAnyhowFuture,
 };
-use lexe_std::{const_assert, Apply};
+use lexe_std::{Apply, const_assert};
 use lexe_tls::shared_seed::certs::{
     EphemeralIssuingCaCert, RevocableIssuingCaCert,
 };
 use lexe_tokio::{
+    DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE,
     events_bus::EventsBus,
     notify,
     notify_once::NotifyOnce,
     task::{self, LxTask, MaybeLxTask},
-    DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE,
 };
 use lightning::{
-    chain::{chainmonitor::ChainMonitor, Watch},
+    chain::{Watch, chainmonitor::ChainMonitor},
     ln::{peer_handler::IgnoringMessageHandler, types::ChannelId},
 };
 use lightning_transaction_sync::EsploraSyncClient;
@@ -79,6 +79,7 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, info_span, warn};
 
 use crate::{
+    SEMVER_VERSION,
     alias::{ChainMonitorType, OnionMessengerType, PaymentsManagerType},
     channel_manager::NodeChannelManager,
     client::{NodeBackendClient, RunnerClient},
@@ -88,7 +89,6 @@ use crate::{
     peer_manager::NodePeerManager,
     persister::{self, NodePersister},
     server::{self, AppRouterState, LexeRouterState},
-    SEMVER_VERSION,
 };
 
 /// The minimum # of intercept scids we want (for inserting into invoices).

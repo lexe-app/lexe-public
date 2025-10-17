@@ -98,15 +98,15 @@ use std::{
     io,
     num::NonZeroUsize,
     sync::{
-        atomic::{AtomicU64, AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicU64, AtomicUsize, Ordering},
     },
     time::Duration,
 };
 
-use anyhow::{anyhow, ensure, Context};
+use anyhow::{Context, anyhow, ensure};
 use common::{api::user::NodePk, ln::addr::LxSocketAddress};
-use lexe_std::{backoff, Apply};
+use lexe_std::{Apply, backoff};
 use lexe_tokio::{
     notify,
     notify_once::NotifyOnce,
@@ -119,11 +119,11 @@ use tokio::{
     io::Interest,
     net::TcpStream,
     sync::{
+        Notify,
         mpsc::{
             self,
             error::{TryRecvError, TrySendError},
         },
-        Notify,
     },
     time,
 };
@@ -941,8 +941,7 @@ impl ConnectionTx {
     fn send_data(&mut self, data: &[u8], resume_read: bool) -> usize {
         trace!(
             write_len = data.len(),
-            resume_read,
-            "ConnectionTx => send_data"
+            resume_read, "ConnectionTx => send_data"
         );
         let bytes_enqueued = self.try_send_data(data);
         if resume_read {
@@ -1139,7 +1138,7 @@ mod test {
     use common::rng::ThreadFastRng;
     use io::BufRead;
     use lexe_tokio::task::LxTask;
-    use rand::{seq::SliceRandom, Rng, RngCore};
+    use rand::{Rng, RngCore, seq::SliceRandom};
     use tokio::{
         io::{AsyncReadExt, AsyncWriteExt},
         sync::oneshot,
@@ -1679,16 +1678,16 @@ mod ldk_test {
     use std::{
         mem,
         sync::{
-            atomic::{AtomicBool, Ordering},
             Arc, Mutex,
+            atomic::{AtomicBool, Ordering},
         },
         time::Duration,
     };
 
     use bitcoin::{
+        Network,
         constants::ChainHash,
         secp256k1::{self, ecdh, ecdsa, schnorr},
-        Network,
     };
     use common::rng::{Crng, FastRng, RngExt, ThreadFastRng};
     use lexe_tokio::task::LxTask;

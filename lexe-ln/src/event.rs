@@ -1,6 +1,6 @@
 use std::{fmt, future::Future, str::FromStr, sync::Mutex, time::Duration};
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use bitcoin::{absolute, consensus::Encodable, secp256k1};
 #[cfg(test)]
 use common::test_utils::arbitrary;
@@ -28,9 +28,10 @@ use proptest_derive::Arbitrary;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, error, info, info_span, warn, Instrument};
+use tracing::{Instrument, debug, error, info, info_span, warn};
 
 use crate::{
+    TxDisplay,
     alias::{NetworkGraphType, ProbabilisticScorerType},
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
@@ -40,7 +41,6 @@ use crate::{
     },
     tx_broadcaster::TxBroadcaster,
     wallet::LexeWallet,
-    TxDisplay,
 };
 
 // --- EventHandleError --- //

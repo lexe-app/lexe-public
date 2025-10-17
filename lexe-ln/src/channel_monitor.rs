@@ -6,9 +6,9 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use common::ln::channel::LxOutPoint;
-use futures::{stream::FuturesUnordered, StreamExt};
+use futures::{StreamExt, stream::FuturesUnordered};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::transaction::OutPoint;
 use tokio::sync::mpsc;

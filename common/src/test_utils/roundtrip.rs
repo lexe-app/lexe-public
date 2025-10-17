@@ -4,12 +4,12 @@ use std::{
 };
 
 use proptest::{
-    arbitrary::{any, Arbitrary},
+    arbitrary::{Arbitrary, any},
     prop_assert_eq, proptest,
     strategy::Strategy,
     test_runner::Config,
 };
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 
 use crate::ed25519;
 

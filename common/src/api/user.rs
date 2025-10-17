@@ -5,7 +5,7 @@ use byte_array::ByteArray;
 use lexe_std::array;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest::{
-    arbitrary::{any, Arbitrary},
+    arbitrary::{Arbitrary, any},
     strategy::{BoxedStrategy, Strategy},
 };
 #[cfg(any(test, feature = "test-utils"))]

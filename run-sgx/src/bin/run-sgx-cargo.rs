@@ -2,7 +2,7 @@
 
 use std::{path::PathBuf, process::Command};
 
-use anyhow::{format_err, Context, Result};
+use anyhow::{Context, Result, format_err};
 use argh::{EarlyExit, FromArgs, TopLevelCommand};
 
 #[derive(Debug)]

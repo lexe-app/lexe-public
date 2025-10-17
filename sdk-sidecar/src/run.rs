@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use app_rs::client::{
     ClientCredentials, Credentials, GatewayClient, NodeClient,
 };
@@ -56,14 +56,17 @@ impl Sidecar {
             (Some(root_seed), None) => CredentialsOwned::RootSeed(root_seed),
             (None, Some(client_credentials)) =>
                 CredentialsOwned::ClientCredentials(client_credentials),
-            (Some(_), Some(_)) => return Err(anyhow!(
-                "Can only provide one of: `--root-seed` or `--client-credentials`"
-            )),
+            (Some(_), Some(_)) =>
+                return Err(anyhow!(
+                    "Can only provide one of: `--root-seed` or `--client-credentials`"
+                )),
             // TODO(phlip9): mention root seed options here when we unhide them
-            (None, None) => return Err(anyhow!(
-                "one of  `--client-credentials`/`$LEXE_CLIENT_CREDENTIALS` \
+            (None, None) =>
+                return Err(anyhow!(
+                    "one of  `--client-credentials`/`$LEXE_CLIENT_CREDENTIALS` \
                  or `--client-credentials-path`/`$LEXE_CLIENT_CREDENTIALS_PATH` \
-                 must be provided")),
+                 must be provided"
+                )),
         };
 
         let listen_addr = args.listen_addr.unwrap_or(DEFAULT_LISTEN_ADDR);

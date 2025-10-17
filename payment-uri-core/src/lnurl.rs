@@ -59,7 +59,7 @@ use proptest::{
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
-use crate::{uri::Uri, Error};
+use crate::{Error, uri::Uri};
 
 /// A parsed LNURL.
 #[derive(Clone, Debug)]
@@ -394,7 +394,7 @@ impl<'a> fmt::Display for Lnurl<'a> {
 /// Types related to LUD-06 (LNURL-pay).
 pub mod lud06 {
     use anyhow::Context;
-    use common::{ln::amount::Amount, ByteArray};
+    use common::{ByteArray, ln::amount::Amount};
 
     /// The validated and parsed LNURL-pay request ("payRequest").
     pub struct LnurlPayRequest {

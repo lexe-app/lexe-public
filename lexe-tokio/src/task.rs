@@ -7,13 +7,13 @@ use std::{
     time::Duration,
 };
 
-use futures::{stream::FuturesUnordered, StreamExt};
+use futures::{StreamExt, stream::FuturesUnordered};
 use thiserror::Error;
 use tokio::{
     sync::mpsc,
     task::{JoinError, JoinHandle},
 };
-use tracing::{debug, error, info, warn, Instrument};
+use tracing::{Instrument, debug, error, info, warn};
 
 use crate::notify_once::NotifyOnce;
 

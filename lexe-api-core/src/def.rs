@@ -37,14 +37,15 @@ use async_trait::async_trait;
 use bytes::Bytes;
 #[cfg(doc)]
 use common::{
+    api::MegaIdStruct,
     api::models::BroadcastedTxInfo,
     api::user::NodePkStruct,
     api::user::{UserPkSet, UserPkStruct},
     api::version::MeasurementStruct,
-    api::MegaIdStruct,
 };
 use common::{
     api::{
+        MegaId,
         auth::{
             BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken,
             UserSignupRequestWire, UserSignupRequestWireV1,
@@ -63,7 +64,6 @@ use common::{
         test_event::TestEventOp,
         user::{GetNewScidsRequest, MaybeScid, MaybeUser, Scids, UserPk},
         version::{CurrentReleases, NodeRelease},
-        MegaId,
     },
     ed25519,
     enclave::Measurement,
@@ -99,13 +99,13 @@ use crate::{
         },
     },
     types::{
+        Empty,
         payments::{
             DbPayment, MaybeDbPayment, VecBasicPayment, VecDbPayment,
             VecLxPaymentId,
         },
         ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
-        Empty,
     },
     vfs::{
         MaybeVfsFile, VecVfsFile, VfsDirectory, VfsDirectoryList, VfsFile,
@@ -174,7 +174,7 @@ pub trait AppNodeRunApi {
 
     /// GET /app/list_channels [`Empty`] -> [`ListChannelsResponse`]
     async fn list_channels(&self)
-        -> Result<ListChannelsResponse, NodeApiError>;
+    -> Result<ListChannelsResponse, NodeApiError>;
 
     /// POST /app/sign_message [`SignMsgRequest`] -> [`SignMsgResponse`]
     ///
@@ -427,7 +427,7 @@ pub trait LexeMegaApi {
 pub trait LexeNodeRunApi {
     /// GET /lexe/status [`UserPkStruct`] -> [`Status`]
     async fn status_run(&self, user_pk: UserPk)
-        -> Result<Status, NodeApiError>;
+    -> Result<Status, NodeApiError>;
 
     /// POST /lexe/resync [`ResyncRequest`] -> [`Empty`]
     ///
@@ -441,7 +441,7 @@ pub trait LexeNodeRunApi {
     /// This endpoint can only be called by one caller at any one time.
     /// Does nothing and returns an error if called in prod.
     async fn test_event(&self, op: &TestEventOp)
-        -> Result<Empty, NodeApiError>;
+    -> Result<Empty, NodeApiError>;
 
     /// GET /lexe/shutdown [`UserPkStruct`] -> [`Empty`]
     ///
@@ -719,5 +719,5 @@ pub trait NodeRunnerApi {
     ///
     /// Indicates the node successfully completed sync.
     async fn sync_succ(&self, user_pk: UserPk)
-        -> Result<Empty, RunnerApiError>;
+    -> Result<Empty, RunnerApiError>;
 }

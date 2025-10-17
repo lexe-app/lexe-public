@@ -39,7 +39,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use common::{
     api::{
         test_event::TestEvent,

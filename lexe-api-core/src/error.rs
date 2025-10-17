@@ -11,9 +11,8 @@ use anyhow::anyhow;
 use common::test_utils::arbitrary;
 use common::{
     api::{
-        auth,
+        MegaId, auth,
         user::{NodePk, UserPk},
-        MegaId,
     },
     enclave::{self, Measurement},
 };
@@ -1456,7 +1455,7 @@ pub fn join_results(results: Vec<anyhow::Result<()>>) -> anyhow::Result<()> {
 #[cfg(any(test, feature = "test-utils"))]
 pub mod invariants {
     use proptest::{
-        arbitrary::{any, Arbitrary},
+        arbitrary::{Arbitrary, any},
         prop_assert, prop_assert_eq, proptest,
     };
 

@@ -27,15 +27,15 @@ use lightning::{
     ln::{channel_state::ChannelDetails, msgs::LightningError},
     routing::{
         router::{
-            DefaultRouter, InFlightHtlcs, Payee, PaymentParameters, Route,
-            RouteParameters, Router, MAX_PATH_LENGTH_ESTIMATE,
+            DefaultRouter, InFlightHtlcs, MAX_PATH_LENGTH_ESTIMATE, Payee,
+            PaymentParameters, Route, RouteParameters, Router,
         },
         scoring::ProbabilisticScoringFeeParameters,
     },
     types::features::BlindedHopFeatures,
 };
 use lightning_invoice::{
-    RouteHint, RouteHintHop, RoutingFees, DEFAULT_MIN_FINAL_CLTV_EXPIRY_DELTA,
+    DEFAULT_MIN_FINAL_CLTV_EXPIRY_DELTA, RouteHint, RouteHintHop, RoutingFees,
 };
 use rust_decimal_macros::dec;
 use tracing::{debug, info};

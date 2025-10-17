@@ -231,13 +231,13 @@ impl UserRunnerFuzzer {
 mod helpers {
     use common::{
         api::user::UserPk,
-        cli::{node::MegaArgs, LspInfo},
+        cli::{LspInfo, node::MegaArgs},
         env::DeployEnv,
         ln::network::LxNetwork,
         rng::{FastRng, Rng, RngExt},
         time::TimestampMs,
     };
-    use lexe_tokio::{notify_once::NotifyOnce, DEFAULT_CHANNEL_SIZE};
+    use lexe_tokio::{DEFAULT_CHANNEL_SIZE, notify_once::NotifyOnce};
     use tokio::sync::mpsc;
 
     use super::UserRunner;

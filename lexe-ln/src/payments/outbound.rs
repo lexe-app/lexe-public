@@ -3,7 +3,7 @@ use std::num::NonZeroU64;
 use anyhow::ensure;
 #[cfg(test)]
 use common::test_utils::arbitrary;
-use common::{ln::amount::Amount, time::TimestampMs, ByteArray};
+use common::{ByteArray, ln::amount::Amount, time::TimestampMs};
 use lexe_api::types::{
     invoice::LxInvoice,
     offer::LxOffer,
@@ -678,7 +678,7 @@ pub(crate) mod arb {
         invoice::arbitrary_impl::LxInvoiceParams, payments::LxPaymentPreimage,
     };
     use proptest::{
-        arbitrary::{any, any_with, Arbitrary},
+        arbitrary::{Arbitrary, any, any_with},
         strategy::{BoxedStrategy, Strategy},
     };
 

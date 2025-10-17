@@ -9,16 +9,16 @@ use anyhow::anyhow;
 #[cfg(doc)]
 use lexe_api::trace::TraceId;
 use lexe_api::{define_trace_id_fns, trace};
-use tracing::{level_filters::LevelFilter, Level};
+use tracing::{Level, level_filters::LevelFilter};
 use tracing_subscriber::{
+    Registry,
     filter::{Filtered, Targets},
     fmt::{
-        format::{Compact, DefaultFields, Format},
         Layer as FmtLayer,
+        format::{Compact, DefaultFields, Format},
     },
     layer::{Layer as LayerTrait, Layered, SubscriberExt},
     util::SubscriberInitExt,
-    Registry,
 };
 
 /// Initialize a global `tracing` logger.

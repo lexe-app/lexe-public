@@ -3,12 +3,12 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use anyhow::{anyhow, ensure, Context};
+use anyhow::{Context, anyhow, ensure};
 use common::{enclave, env::DeployEnv, ln::network::LxNetwork, rng::Crng};
 use lexe_api::{
     def::NodeLspApi,
     error::MegaApiError,
-    types::{ports::RunPorts, LeaseId},
+    types::{LeaseId, ports::RunPorts},
 };
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},

@@ -12,7 +12,7 @@ use common::{
 use lexe_ln::{
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
-    p2p::{spawn_process_events_task, ConnectionTx, PeerManagerTrait},
+    p2p::{ConnectionTx, PeerManagerTrait, spawn_process_events_task},
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use lightning::ln::{

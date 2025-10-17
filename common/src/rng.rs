@@ -6,11 +6,11 @@ use bitcoin::secp256k1::{All, Secp256k1, SignOnly};
 use lexe_std::const_utils::const_option_unwrap;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest::{
-    arbitrary::{any, Arbitrary},
+    arbitrary::{Arbitrary, any},
     strategy::{BoxedStrategy, Strategy},
 };
-use rand::prelude::Distribution;
 pub use rand::Rng;
+use rand::prelude::Distribution;
 use rand_core::le::read_u32_into;
 pub use rand_core::{CryptoRng, RngCore, SeedableRng};
 use ring::rand::SecureRandom;

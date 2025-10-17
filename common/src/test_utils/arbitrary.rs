@@ -12,14 +12,14 @@ use std::{
 };
 
 use bitcoin::{
-    absolute,
+    Address, Network, OutPoint, ScriptBuf, ScriptHash, Sequence, TxIn, TxOut,
+    Txid, Witness, absolute,
     address::NetworkUnchecked,
     blockdata::{script, transaction},
     consensus::Encodable,
-    hashes::{sha256d, Hash},
+    hashes::{Hash, sha256d},
     script::PushBytesBuf,
-    secp256k1, Address, Network, OutPoint, ScriptBuf, ScriptHash, Sequence,
-    TxIn, TxOut, Txid, Witness,
+    secp256k1,
 };
 use bytes::Bytes;
 use chrono::Utc;
@@ -316,8 +316,8 @@ pub fn any_bitcoin_pubkey() -> impl Strategy<Value = bitcoin::PublicKey> {
     })
 }
 
-pub fn any_compressed_pubkey(
-) -> impl Strategy<Value = bitcoin::CompressedPublicKey> {
+pub fn any_compressed_pubkey()
+-> impl Strategy<Value = bitcoin::CompressedPublicKey> {
     any_secp256k1_pubkey().prop_map(bitcoin::CompressedPublicKey)
 }
 
@@ -521,8 +521,8 @@ pub fn any_mainnet_addr() -> impl Strategy<Value = Address> {
     ]
 }
 
-pub fn any_mainnet_addr_unchecked(
-) -> impl Strategy<Value = Address<NetworkUnchecked>> {
+pub fn any_mainnet_addr_unchecked()
+-> impl Strategy<Value = Address<NetworkUnchecked>> {
     any_mainnet_addr().prop_map(|addr| addr.into_unchecked())
 }
 

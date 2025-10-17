@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use axum::{routing::post, Router};
+use axum::{Router, routing::post};
 use common::net;
 use lexe_api_core::error::BackendApiError;
 use lexe_tokio::notify_once::NotifyOnce;

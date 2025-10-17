@@ -4,7 +4,7 @@ use std::{
     str::FromStr,
 };
 
-use anyhow::{ensure, format_err, Context};
+use anyhow::{Context, ensure, format_err};
 use lightning::{ln::msgs::SocketAddress, util::ser::Hostname};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;

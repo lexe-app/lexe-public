@@ -65,7 +65,7 @@ use std::{
 };
 
 use anyhow::format_err;
-use rust_decimal::{prelude::ToPrimitive, Decimal, RoundingStrategy};
+use rust_decimal::{Decimal, RoundingStrategy, prelude::ToPrimitive};
 use rust_decimal_macros::dec;
 use serde::{Deserialize, Deserializer, Serialize};
 

@@ -27,12 +27,12 @@ use lexe_api::{
         command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
         runner::{UserFinishedRequest, UserLeaseRenewalRequest},
     },
-    rest::{RequestBuilderExt, RestClient, POST, PUT},
+    rest::{POST, PUT, RequestBuilderExt, RestClient},
     types::{
+        Empty,
         payments::{DbPayment, MaybeDbPayment, VecDbPayment, VecLxPaymentId},
         ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
-        Empty,
     },
     vfs::{
         MaybeVfsFile, VecVfsFile, VfsDirectory, VfsDirectoryList, VfsFile,

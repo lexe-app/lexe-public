@@ -20,11 +20,11 @@ use std::{
     io::Cursor,
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use async_trait::async_trait;
 use common::serde_helpers::hexstr_or_bytes;
 use lightning::util::ser::{MaybeReadable, ReadableArgs, Writeable};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use tracing::{debug, warn};
 
 use crate::{error::BackendApiError, types::Empty};
@@ -549,7 +549,7 @@ impl Display for VfsFileId {
 mod prop {
     use common::test_utils::arbitrary;
     use proptest::{
-        arbitrary::{any, Arbitrary},
+        arbitrary::{Arbitrary, any},
         strategy::{BoxedStrategy, Strategy},
     };
 

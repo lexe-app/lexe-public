@@ -3,8 +3,8 @@ use std::{
     sync::RwLock, time::Duration,
 };
 
-use anyhow::{anyhow, bail, ensure, Context};
-use bitcoin::hashes::{sha256, Hash as _};
+use anyhow::{Context, anyhow, bail, ensure};
+use bitcoin::hashes::{Hash as _, sha256};
 use common::{
     api::{
         revocable_clients::{
@@ -43,14 +43,14 @@ use lexe_api::{
     },
     rest::API_REQUEST_TIMEOUT,
     types::{
+        Empty,
         invoice::LxInvoice,
         offer::{LxOffer, MaxQuantity},
         payments::LxPaymentId,
-        Empty,
     },
-    vfs::{Vfs, REVOCABLE_CLIENTS_FILE_ID},
+    vfs::{REVOCABLE_CLIENTS_FILE_ID, Vfs},
 };
-use lexe_std::{const_assert, Apply};
+use lexe_std::{Apply, const_assert};
 use lexe_tls::{
     shared_seed::certs::{RevocableClientCert, RevocableIssuingCaCert},
     types::LxCertificateDer,
@@ -85,13 +85,13 @@ use crate::{
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     payments::{
+        Payment,
         inbound::InboundInvoicePayment,
         manager::PaymentsManager,
         outbound::{
-            LxOutboundPaymentFailure, OutboundInvoicePayment,
-            OutboundOfferPayment, OUTBOUND_PAYMENT_RETRY_STRATEGY,
+            LxOutboundPaymentFailure, OUTBOUND_PAYMENT_RETRY_STRATEGY,
+            OutboundInvoicePayment, OutboundOfferPayment,
         },
-        Payment,
     },
     route::{self, LastHopHint, RoutingContext},
     sync::BdkSyncRequest,
@@ -1617,8 +1617,8 @@ mod validate {
                         // isn't enough liquidity from the LSP to the recipient.
                         //
                         // This call to action could then be one of:
-                        // 1) "You must add to your Lightning balance in order to
-                        //    send this amount to this recipient"
+                        // 1) "You must add to your Lightning balance in order
+                        //    to send this amount to this recipient"
                         // 2) "Consider sending a smaller amount or asking the
                         //    recipient to increase their inbound liquidity."
                         anyhow!(
@@ -1757,10 +1757,10 @@ fn maybe_evict_revoked_clients(
             }
             None =>
                 return Err(anyhow!(
-                "Reached maximum # of API clients. For more clients, please \
+                    "Reached maximum # of API clients. For more clients, please \
                  contact Lexe to explain why you need more than {} clients.",
-                RevocableClients::MAX_LEN,
-            )),
+                    RevocableClients::MAX_LEN,
+                )),
         }
     }
 

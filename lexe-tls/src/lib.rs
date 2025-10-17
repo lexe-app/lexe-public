@@ -152,7 +152,7 @@ pub mod test_utils {
     use std::sync::Arc;
 
     use anyhow::Context;
-    use rustls::{pki_types::ServerName, ClientConfig, ServerConfig};
+    use rustls::{ClientConfig, ServerConfig, pki_types::ServerName};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     /// Conducts a TLS handshake without any other [`reqwest`]/[`axum`] infra,

@@ -51,16 +51,16 @@ use std::{
 use anyhow::Context;
 use async_trait::async_trait;
 use axum::{
+    Router, ServiceExt as AxumServiceExt,
     error_handling::HandleErrorLayer,
     extract::{
+        DefaultBodyLimit, FromRequest,
         rejection::{
             BytesRejection, HostRejection, JsonRejection, QueryRejection,
         },
-        DefaultBodyLimit, FromRequest,
     },
     response::IntoResponse,
     routing::RouterIntoService,
-    Router, ServiceExt as AxumServiceExt,
 };
 use axum_server::tls_rustls::RustlsConfig;
 use bytes::Bytes;
@@ -68,19 +68,18 @@ use common::{
     api::auth::{self, Scope},
     ed25519,
 };
-use http::{header::CONTENT_TYPE, HeaderValue, StatusCode};
+use http::{HeaderValue, StatusCode, header::CONTENT_TYPE};
 use lexe_api_core::{
     axum_helpers,
     error::{CommonApiError, CommonErrorKind},
 };
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use tower::{
-    buffer::BufferLayer, limit::ConcurrencyLimitLayer,
+    Layer, buffer::BufferLayer, limit::ConcurrencyLimitLayer,
     load_shed::LoadShedLayer, timeout::TimeoutLayer, util::MapRequestLayer,
-    Layer,
 };
-use tracing::{debug, error, info, warn, Instrument};
+use tracing::{Instrument, debug, error, info, warn};
 
 use crate::{rest, trace};
 

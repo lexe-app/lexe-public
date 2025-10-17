@@ -6,13 +6,13 @@ use std::{
     sync::{LazyLock, OnceLock},
 };
 
-use anyhow::{format_err, Context as _, Result};
+use anyhow::{Context as _, Result, format_err};
 use argh::{EarlyExit, FromArgs, TopLevelCommand};
 use object::{
-    read::{SymbolMap, SymbolMapName},
     Object,
+    read::{SymbolMap, SymbolMapName},
 };
-use rustc_demangle::{demangle, Demangle};
+use rustc_demangle::{Demangle, demangle};
 
 #[derive(Debug)]
 pub struct Args {
@@ -85,11 +85,7 @@ impl Args {
         let bin_path: &Path = &self.opts.bin;
         let maybe_elf_bin_path = self.opts.elf.clone().or_else(|| {
             let elf = bin_path.with_extension("");
-            if elf.exists() {
-                Some(elf)
-            } else {
-                None
-            }
+            if elf.exists() { Some(elf) } else { None }
         });
         // set the ELF binary path so we can symbolize backtraces
         if let Some(elf_bin_path) = maybe_elf_bin_path {
@@ -337,8 +333,8 @@ static ENCLAVE_ELF_BIN_PATH: OnceLock<PathBuf> = OnceLock::new();
 /// This contains a `LazyLock` inside so only load this once, even if there are
 /// multiple panics.
 fn enclave_elf_symbol_map() -> &'static SymbolMap<SymbolMapName<'static>> {
-    fn read_enclave_elf_symbol_map(
-    ) -> anyhow::Result<SymbolMap<SymbolMapName<'static>>> {
+    fn read_enclave_elf_symbol_map()
+    -> anyhow::Result<SymbolMap<SymbolMapName<'static>>> {
         let path = ENCLAVE_ELF_BIN_PATH
             .get()
             .context("ENCLAVE_ELF_BIN_PATH not set")?;
@@ -433,9 +429,11 @@ stack backtrace:
 
         assert!(BacktraceFrame::parse_from_backtrace_line("").is_none());
         assert!(BacktraceFrame::parse_from_backtrace_line("foo bar").is_none());
-        assert!(BacktraceFrame::parse_from_backtrace_line(
-            "enclave panic: panicked at 'failed to spawn thread: Os'"
-        )
-        .is_none());
+        assert!(
+            BacktraceFrame::parse_from_backtrace_line(
+                "enclave panic: panicked at 'failed to spawn thread: Os'"
+            )
+            .is_none()
+        );
     }
 }

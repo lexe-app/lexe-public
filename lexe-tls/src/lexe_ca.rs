@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use common::{constants, ed25519, env::DeployEnv};
 use rustls::{
-    client::WebPkiServerVerifier,
-    server::{danger::ClientCertVerifier, WebPkiClientVerifier},
     RootCertStore,
+    client::WebPkiServerVerifier,
+    server::{WebPkiClientVerifier, danger::ClientCertVerifier},
 };
 
 use super::types::{CertWithKey, LxCertificateDer, LxPrivatePkcs8KeyDer};

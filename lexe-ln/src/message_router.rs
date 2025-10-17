@@ -6,8 +6,8 @@ use common::{cli::LspInfo, ln::addr::LxSocketAddress, rng::SysRngDerefHack};
 use lightning::ln::msgs::OnionMessage;
 use lightning::{
     blinded_path::{
-        message::{BlindedMessagePath, MessageContext, MessageForwardNode},
         IntroductionNode,
+        message::{BlindedMessagePath, MessageContext, MessageForwardNode},
     },
     ln::msgs::SocketAddress,
     onion_message::messenger::{Destination, MessageRouter, OnionMessagePath},
@@ -155,11 +155,7 @@ impl MessageRouter for LexeMessageRouter {
                                 })
                                 .collect::<Vec<SocketAddress>>();
 
-                            if !addrs.is_empty() {
-                                Some(addrs)
-                            } else {
-                                None
-                            }
+                            if !addrs.is_empty() { Some(addrs) } else { None }
                         })
                         .map(|addrs| OnionMessagePath {
                             intermediate_nodes: vec![],

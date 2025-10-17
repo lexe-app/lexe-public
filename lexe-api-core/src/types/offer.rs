@@ -379,7 +379,7 @@ mod arb {
         types::payment::PaymentHash,
     };
     use proptest::{
-        arbitrary::{any, Arbitrary},
+        arbitrary::{Arbitrary, any},
         option, prop_oneof,
         strategy::{BoxedStrategy, Just, Strategy},
     };
@@ -394,9 +394,8 @@ mod arb {
         fn any_payment_id() -> impl Strategy<Value = PaymentId> {
             any::<[u8; 32]>().prop_map(PaymentId)
         }
-        fn any_hmac_sha256(
-        ) -> impl Strategy<Value = Hmac<bitcoin::hashes::sha256::Hash>>
-        {
+        fn any_hmac_sha256()
+        -> impl Strategy<Value = Hmac<bitcoin::hashes::sha256::Hash>> {
             any::<[u8; 32]>().prop_map(Hmac::from_byte_array)
         }
         fn any_payment_hash() -> impl Strategy<Value = PaymentHash> {
@@ -445,8 +444,8 @@ mod arb {
         )
     }
 
-    fn any_path(
-    ) -> impl Strategy<Value = (Vec<MessageForwardNode>, MessageContext)> {
+    fn any_path()
+    -> impl Strategy<Value = (Vec<MessageForwardNode>, MessageContext)> {
         (
             proptest::collection::vec(any_message_forward_node(), 0..=4),
             any_message_context(),
@@ -657,19 +656,31 @@ mod test {
         assert_eq!(o.fiat_amount(), None);
         assert_eq!(o.description(), None);
 
-        let o = parse_ok("lno1pg257enxv4ezqcneype82um50ynhxgrwdajx293pqglnyxw6q0hzngfdusg8umzuxe8kquuz7pjl90ldj8wadwgs0xlmc");
+        let o = parse_ok(
+            "lno1pg257enxv4ezqcneype82um50ynhxgrwdajx293pqglnyxw6q0hzngfdusg8umzuxe8kquuz7pjl90ldj8wadwgs0xlmc",
+        );
         assert!(o.supports_network(LxNetwork::Mainnet));
         assert_eq!(o.amount(), None);
         assert_eq!(o.fiat_amount(), None);
         assert_eq!(o.description(), Some("Offer by rusty's node"));
 
-        parse_ok("lno1qgsyxjtl6luzd9t3pr62xr7eemp6awnejusgf6gw45q75vcfqqqqqqq2p32x2um5ypmx2cm5dae8x93pqthvwfzadd7jejes8q9lhc4rvjxd022zv5l44g6qah82ru5rdpnpj");
-        parse_ok("lno1pqqnyzsmx5cx6umpwssx6atvw35j6ut4v9h8g6t50ysx7enxv4epyrmjw4ehgcm0wfczucm0d5hxzag5qqtzzq3lxgva5qlw9xsjmeqs0ek9cdj0vpec9ur972l7mywa66u3q7dlhs");
-        parse_ok("lno1qsgqqqqqqqqqqqqqqqqqqqqqqqqqqzsv23jhxapqwejkxar0wfe3vggzamrjghtt05kvkvpcp0a79gmy3nt6jsn98ad2xs8de6sl9qmgvcvs");
-        parse_ok("lno1pqpzwyq2p32x2um5ypmx2cm5dae8x93pqthvwfzadd7jejes8q9lhc4rvjxd022zv5l44g6qah82ru5rdpnpj");
+        parse_ok(
+            "lno1qgsyxjtl6luzd9t3pr62xr7eemp6awnejusgf6gw45q75vcfqqqqqqq2p32x2um5ypmx2cm5dae8x93pqthvwfzadd7jejes8q9lhc4rvjxd022zv5l44g6qah82ru5rdpnpj",
+        );
+        parse_ok(
+            "lno1pqqnyzsmx5cx6umpwssx6atvw35j6ut4v9h8g6t50ysx7enxv4epyrmjw4ehgcm0wfczucm0d5hxzag5qqtzzq3lxgva5qlw9xsjmeqs0ek9cdj0vpec9ur972l7mywa66u3q7dlhs",
+        );
+        parse_ok(
+            "lno1qsgqqqqqqqqqqqqqqqqqqqqqqqqqqzsv23jhxapqwejkxar0wfe3vggzamrjghtt05kvkvpcp0a79gmy3nt6jsn98ad2xs8de6sl9qmgvcvs",
+        );
+        parse_ok(
+            "lno1pqpzwyq2p32x2um5ypmx2cm5dae8x93pqthvwfzadd7jejes8q9lhc4rvjxd022zv5l44g6qah82ru5rdpnpj",
+        );
 
         // offer_amount=Some(0) coerces to None
-        let o = parse_ok("lno1qgsqvgnwgcg35z6ee2h3yczraddm72xrfua9uve2rlrm9deu7xyfzrcgqq9qq93pqvv5dla0t723qkw63fqr543d764z8xmkwkwlk7qq43easjcetsqjc");
+        let o = parse_ok(
+            "lno1qgsqvgnwgcg35z6ee2h3yczraddm72xrfua9uve2rlrm9deu7xyfzrcgqq9qq93pqvv5dla0t723qkw63fqr543d764z8xmkwkwlk7qq43easjcetsqjc",
+        );
         assert_eq!(o.amount(), None);
     }
 
@@ -796,8 +807,7 @@ mod test {
     #[ignore]
     #[test]
     fn offer_decode() {
-        let offer_str =
-            "lno1qgsqvgnwgcg35z6ee2h3yczraddm72xrfua9uve2rlrm9deu7xyfzrc2p4zx7mnpw35k7m3q2pskwegwq35rl86qzr7sz0sztfk2ex9hfmq35agpv450kw90sx3ewxhzmcq5324qrl89gv02s54q862yje5mzjagzvvqs5ptwk9x5txt0rgecmsll7qyy2lurdjpcqerqvp0pvxu088jng3v560f94t4ajw6jltszfgh8flzm33w3gpqa6ajuwcqx0wqwsv40gp7rs2e2ywggmx5kjj4xdeq6ph62u7z7j2p8cvntcgyqxwywv86uyuu59033z6tzgsr8gme5g5q9gahnxul2fg44zen05t7w7mr23jqwr2t4hnvqmgpkzydskfzu66cqqec0uw2q0wmqknc2v6t53rpgkv5v9nu05k2w5k4a3kf942q9jgp0gqrrqwyc58k443qt9gfd3mzfmt452dksqc9d7cdls8v7dwlma2yq9275y6lrk4ctdeh0gwjkrtx9j9ncaxnryqzex9cvtpm8nvckhdhr889m4xhx04f5dqvl3d2mq0aex6ynnq4rlz7dsjqtqnrllw3vykzhtw3yrmsdp5kc6tsgpkx27r99eshquqkyypwq633sgq2xqayayzn3t76e49av3ecvdgtnvlst33ctpyg4mu5eps";
+        let offer_str = "lno1qgsqvgnwgcg35z6ee2h3yczraddm72xrfua9uve2rlrm9deu7xyfzrc2p4zx7mnpw35k7m3q2pskwegwq35rl86qzr7sz0sztfk2ex9hfmq35agpv450kw90sx3ewxhzmcq5324qrl89gv02s54q862yje5mzjagzvvqs5ptwk9x5txt0rgecmsll7qyy2lurdjpcqerqvp0pvxu088jng3v560f94t4ajw6jltszfgh8flzm33w3gpqa6ajuwcqx0wqwsv40gp7rs2e2ywggmx5kjj4xdeq6ph62u7z7j2p8cvntcgyqxwywv86uyuu59033z6tzgsr8gme5g5q9gahnxul2fg44zen05t7w7mr23jqwr2t4hnvqmgpkzydskfzu66cqqec0uw2q0wmqknc2v6t53rpgkv5v9nu05k2w5k4a3kf942q9jgp0gqrrqwyc58k443qt9gfd3mzfmt452dksqc9d7cdls8v7dwlma2yq9275y6lrk4ctdeh0gwjkrtx9j9ncaxnryqzex9cvtpm8nvckhdhr889m4xhx04f5dqvl3d2mq0aex6ynnq4rlz7dsjqtqnrllw3vykzhtw3yrmsdp5kc6tsgpkx27r99eshquqkyypwq633sgq2xqayayzn3t76e49av3ecvdgtnvlst33ctpyg4mu5eps";
         let offer = LxOffer::from_str(offer_str).unwrap();
         dbg!(&offer);
         dbg!(offer.id());

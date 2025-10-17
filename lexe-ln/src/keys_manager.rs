@@ -3,7 +3,7 @@ use bitcoin::{
     absolute,
     blockdata::transaction::{Transaction, TxOut},
     secp256k1::{
-        ecdh, ecdsa, scalar::Scalar, schnorr, PublicKey, Secp256k1, Signing,
+        PublicKey, Secp256k1, Signing, ecdh, ecdsa, scalar::Scalar, schnorr,
     },
 };
 use common::{

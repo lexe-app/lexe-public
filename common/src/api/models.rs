@@ -142,7 +142,7 @@ impl BroadcastedTxInfo {
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
     use proptest::{
-        arbitrary::{any, Arbitrary},
+        arbitrary::{Arbitrary, any},
         collection::vec,
         option,
         strategy::{BoxedStrategy, Strategy},

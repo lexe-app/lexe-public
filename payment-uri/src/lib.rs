@@ -7,7 +7,7 @@ pub mod bip353;
 /// LNURL-pay and Lightning Address resolution.
 pub mod lnurl;
 
-use anyhow::{anyhow, ensure, Context};
+use anyhow::{Context, anyhow, ensure};
 use common::ln::network::LxNetwork;
 pub use payment_uri_core::*;
 

@@ -1,13 +1,13 @@
 use std::env;
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use common::{
-    cli::{node::MegaArgs, EnclaveArgs},
+    cli::{EnclaveArgs, node::MegaArgs},
     enclave,
     rng::SysRng,
 };
 
-use crate::{mega, DEV_VERSION, SEMVER_VERSION};
+use crate::{DEV_VERSION, SEMVER_VERSION, mega};
 
 /// Commands accepted by the user node.
 pub enum NodeCommand {
