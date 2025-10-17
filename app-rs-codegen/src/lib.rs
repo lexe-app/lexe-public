@@ -95,6 +95,10 @@ impl Args {
             // `type_64bit_int=true` looks broken when used with `full_dep=true`
             type_64bit_int: Some(true),
 
+            // While we're using a custom nightly rustfmt, don't need to
+            // double-format.
+            rust_format: Some(false),
+
             // Other options
             dart3: Some(true),
             dart_format_line_length: Some(80),
@@ -110,20 +114,11 @@ impl Args {
             "flutter_rust_bridge: failed to generate Rust+Dart ffi bindings ",
         ).unwrap();
 
-        // re-re-run `cargo +nightly-XXX fmt` with our nightly version...
+        // run `rustfmt` with our nightly version
         Command::new("rustup")
             .args(["run", "nightly-2025-10-16", "cargo", "fmt", "--all"])
             .status()
             .context("Failed to run `cargo fmt` with nightly compiler")?;
-
-        // re-re-run `dart format` because somehow it's not getting formatted??
-        // TODO(phlip9): maybe this a new frb version will fix this? (as of
-        // frb-v2.7.1)
-        Command::new("dart")
-            .args(["format", "--line-length=80", "."])
-            .current_dir(&app_rs_dart_dir)
-            .status()
-            .context("Failed to run `dart format` on generated Dart code")?;
 
         // Maybe update `app_rs_dart/build_rust_ios_macos.input.xcfilelist`.
         // This file is used in `app_rs_dart`'s CocoaPods/Xcode integration.
