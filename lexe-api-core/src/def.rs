@@ -150,7 +150,16 @@ pub trait AppGatewayApi {
     /// current node enclaves.
     ///
     /// GET /app/v1/current_releases [`Empty`] -> [`CurrentEnclaves`]
+    #[deprecated(note = "since app-v0.8.8: Use current_enclaves() instead")]
     async fn current_releases(
+        &self,
+    ) -> Result<CurrentEnclaves, GatewayApiError>;
+
+    /// Get the measurements, enclave machine id and versions of all
+    /// current node enclaves.
+    ///
+    /// GET /app/v1/current_enclaves [`Empty`] -> [`CurrentEnclaves`]
+    async fn current_enclaves(
         &self,
     ) -> Result<CurrentEnclaves, GatewayApiError>;
 }

@@ -17,7 +17,7 @@ pub mod revocable_clients;
 pub mod test_event;
 /// User ID-like types: `User`, `UserPk`, `NodePk`, `Scid`
 pub mod user;
-/// Data types which relate to node versions: `NodeRelease`, `MeasurementStruct`
+/// Data types which relate to node versions: `NodeEnclave`, `MeasurementStruct`
 pub mod version;
 
 /// A randomly generated id for each mega node.

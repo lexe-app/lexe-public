@@ -137,14 +137,14 @@ impl App {
 
         // TODO(phlip9): retries?
 
-        // signup the user and get the current releases
-        let (try_signup, try_current_releases) = tokio::join!(
+        // signup the user and get the current enclaves
+        let (try_signup, try_current_enclaves) = tokio::join!(
             gateway_client.signup_v2(&signed_signup_req),
-            gateway_client.current_releases(),
+            gateway_client.current_enclaves(),
         );
         try_signup.context("Failed to signup user")?;
-        let current_releases =
-            try_current_releases.context("Could not fetch current releases")?;
+        let current_enclaves =
+            try_current_enclaves.context("Could not fetch current enclaves")?;
 
         // Provision the node for the first time and update latest_provisioned.
         // NOTE: This computes 600K HMAC iterations! We only do this at signup.
@@ -159,7 +159,7 @@ impl App {
         // This will provision all recent releases.
         let releases_to_provision = provision_history.releases_to_provision(
             user_config.config.deploy_env,
-            current_releases,
+            current_enclaves,
         );
 
         let google_auth_code = gdrive_signup_creds.map(|c| c.server_auth_code);
@@ -268,16 +268,16 @@ impl App {
             None => info!("Empty provision history"),
         }
 
-        // Fetch the current releases.
-        let current_releases = gateway_client
-            .current_releases()
+        // Fetch the current enclaves.
+        let current_enclaves = gateway_client
+            .current_enclaves()
             .await
-            .context("Could not fetch current releases")?;
+            .context("Could not fetch current enclaves")?;
 
-        // Provision all recent releases we haven't already provisioned
+        // Provision all recent enclaves we haven't already provisioned
         let releases_to_provision = provision_history.releases_to_provision(
             user_config.config.deploy_env,
-            current_releases,
+            current_enclaves,
         );
 
         if !releases_to_provision.is_empty() {
@@ -379,11 +379,11 @@ impl App {
                 .context("Could not create payments ffs")?;
         let payment_db = Mutex::new(PaymentDb::empty(payments_ffs));
 
-        // Ask gateway for current releases
-        let current_releases = gateway_client
-            .current_releases()
+        // Ask gateway for current enclaves
+        let current_enclaves = gateway_client
+            .current_enclaves()
             .await
-            .context("Could not fetch current releases")?;
+            .context("Could not fetch current enclaves")?;
 
         // We don't have a provision history, so provision credentials to all
         // recent node versions.
@@ -392,7 +392,7 @@ impl App {
         let provision_history = ProvisionHistory::new();
         let releases_to_provision = provision_history.releases_to_provision(
             user_config.config.deploy_env,
-            current_releases,
+            current_enclaves,
         );
         helpers::provision(
             provision_ffs,

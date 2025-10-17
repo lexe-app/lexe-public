@@ -218,6 +218,16 @@ impl AppGatewayApi for GatewayClient {
             .get(format!("{gateway_url}/app/v1/current_releases"), &Empty {});
         self.rest.send(req).await
     }
+
+    async fn current_enclaves(
+        &self,
+    ) -> Result<CurrentEnclaves, GatewayApiError> {
+        let gateway_url = &self.gateway_url;
+        let req = self
+            .rest
+            .get(format!("{gateway_url}/app/v1/current_enclaves"), &Empty {});
+        self.rest.send(req).await
+    }
 }
 
 // --- impl NodeClient --- //
