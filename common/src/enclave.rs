@@ -322,7 +322,8 @@ pub struct MrShort(#[serde(with = "hexstr_or_bytes")] [u8; 4]);
 /// [CPUSVN]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#security-version-number-svn
 /// [`OWNER_EPOCH`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#owner-epoch
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Hash, Eq, PartialEq, RefCast, Serialize, Deserialize)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct MachineId(#[serde(with = "hexstr_or_bytes")] [u8; 16]);
 

@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-use crate::enclave::Measurement;
+use crate::enclave::{MachineId, Measurement};
 #[cfg(test)]
 use crate::test_utils::arbitrary;
 
@@ -30,7 +30,7 @@ impl CurrentReleases {
     }
 }
 
-/// The semver version and measurement of a node release.
+/// The machine_id, semver version and measurement of a node release.
 ///
 /// [`Ord`]ered by [`semver::Version`] precedence.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -40,11 +40,14 @@ pub struct NodeRelease {
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_semver_version()"))]
     pub version: semver::Version,
     pub measurement: Measurement,
+    pub machine_id: MachineId,
 }
 
 impl Ord for NodeRelease {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.version.cmp_precedence(&other.version)
+        self.version
+            .cmp_precedence(&other.version)
+            .then_with(|| self.machine_id.cmp(&other.machine_id))
     }
 }
 

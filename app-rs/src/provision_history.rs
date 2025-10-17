@@ -15,8 +15,6 @@ use serde::Deserialize;
 use crate::ffs::Ffs;
 
 /// Tracks all node releases that have even been provisioned.
-// TODO(max): Should track provisioned machine ids too, so we can replicate to
-// new machines even if we've already provisioned a release.
 #[derive(Debug, Default)]
 pub(crate) struct ProvisionHistory {
     /// All node releases which have previously been provisioned.
@@ -159,19 +157,23 @@ mod test {
                 NodeRelease {
                     version: semver::Version::from_str("0.1.0").unwrap(),
                     measurement: enclave::Measurement::new([0x11; 32]),
+                    machine_id: enclave::MachineId::MOCK,
                 },
                 NodeRelease {
                     version: semver::Version::from_str("0.2.0-beta.1").unwrap(),
                     measurement: enclave::Measurement::new([0x22; 32]),
+                    machine_id: enclave::MachineId::MOCK,
                 },
                 NodeRelease {
                     version: semver::Version::from_str("1.0.0").unwrap(),
                     measurement: enclave::Measurement::new([0x33; 32]),
+                    machine_id: enclave::MachineId::MOCK,
                 },
                 NodeRelease {
                     version: semver::Version::from_str("1.0.0-rc.1+build.123")
                         .unwrap(),
                     measurement: enclave::Measurement::new([0x44; 32]),
+                    machine_id: enclave::MachineId::MOCK,
                 },
             ]);
 
@@ -183,7 +185,7 @@ mod test {
         let json_str = String::from_utf8(json_bytes.clone()).unwrap();
 
         // Expected serialization (hard-coded snapshot)
-        let json_snapshot = r#"[{"version":"0.1.0","measurement":"1111111111111111111111111111111111111111111111111111111111111111"},{"version":"0.2.0-beta.1","measurement":"2222222222222222222222222222222222222222222222222222222222222222"},{"version":"1.0.0-rc.1+build.123","measurement":"4444444444444444444444444444444444444444444444444444444444444444"},{"version":"1.0.0","measurement":"3333333333333333333333333333333333333333333333333333333333333333"}]"#;
+        let json_snapshot = r#"[{"version":"0.1.0","measurement":"1111111111111111111111111111111111111111111111111111111111111111","machine_id":"52bc575eb9618084083ca7b3a45a2a76"},{"version":"0.2.0-beta.1","measurement":"2222222222222222222222222222222222222222222222222222222222222222","machine_id":"52bc575eb9618084083ca7b3a45a2a76"},{"version":"1.0.0-rc.1+build.123","measurement":"4444444444444444444444444444444444444444444444444444444444444444","machine_id":"52bc575eb9618084083ca7b3a45a2a76"},{"version":"1.0.0","measurement":"3333333333333333333333333333333333333333333333333333333333333333","machine_id":"52bc575eb9618084083ca7b3a45a2a76"}]"#;
 
         assert_eq!(json_str, json_snapshot);
 

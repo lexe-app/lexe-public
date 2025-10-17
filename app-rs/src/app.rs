@@ -262,6 +262,7 @@ impl App {
         match provision_history.provisioned.last() {
             Some(latest) => info!(
                 version = %latest.version, measurement = %latest.measurement,
+                machine_id = %latest.machine_id,
                 "Latest provisioned: "
             ),
             None => info!("Empty provision history"),
