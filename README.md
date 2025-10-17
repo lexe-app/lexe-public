@@ -350,7 +350,7 @@ If you use coc.nvim, you can set the nightly version with this config:
 
 ```json
 {
-  "rust-analyzer.rustfmt.extraArgs": ["+nightly-2024-05-03"]
+  "rust-analyzer.rustfmt.extraArgs": ["+nightly-2025-10-16"]
 }
 ```
 

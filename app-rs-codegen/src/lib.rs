@@ -112,7 +112,7 @@ impl Args {
 
         // re-re-run `cargo +nightly-XXX fmt` with our nightly version...
         Command::new("rustup")
-            .args(["run", "nightly-2024-05-03", "cargo", "fmt", "--all"])
+            .args(["run", "nightly-2025-10-16", "cargo", "fmt", "--all"])
             .status()
             .context("Failed to run `cargo fmt` with nightly compiler")?;
 

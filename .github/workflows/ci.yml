@@ -29,7 +29,7 @@ env:
   # less wasteful caching w/ non-incremental builds
   CARGO_INCREMENTAL: 0
   LEXE_RUST_VERSION: 1.90.0
-  LEXE_RUST_FMT_VERSION: nightly-2024-05-03
+  LEXE_RUST_FMT_VERSION: nightly-2025-10-16
   LEXE_CI: 1
 
 jobs:
