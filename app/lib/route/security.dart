@@ -230,12 +230,12 @@ class _SeedPhrasePageState extends State<SeedPhrasePage> {
                           behavior: HitTestBehavior.translucent,
                           onTap: isEnabled ? this.onSubmit : null,
                           child: StackedButton(
-                            button: LxFilledButton(
-                              label: const Icon(LxIcons.back),
+                            button: LxFilledButton.tonal(
+                              label: const Icon(LxIcons.confirm),
                               icon: const Center(),
                               onTap: isEnabled ? this.onSubmit : null,
                             ),
-                            label: "Go Back",
+                            label: "Confirm",
                           ),
                         );
                       },

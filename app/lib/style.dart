@@ -933,6 +933,9 @@ final class LxIcons {
   /// Debug symbol (bug)
   static const IconData debug = Symbols.bug_report_rounded;
 
+  /// Check symbol used for confirm button
+  static const IconData confirm = Symbols.check_rounded;
+
   /// Success symbol, used inside a small badge (checkmark)
   static const IconData completedBadge = Symbols.check_rounded;
 
