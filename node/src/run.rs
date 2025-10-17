@@ -717,7 +717,7 @@ impl UserNode {
             payments_manager: payments_manager.clone(),
             network_graph: network_graph.clone(),
             lsp_info: lsp_info.clone(),
-            intercept_scids,
+            intercept_scids: intercept_scids.clone(),
             eph_ca_cert_der: eph_ca_cert_der.clone(),
             rev_ca_cert: rev_ca_cert.clone(),
             revocable_clients: revocable_clients.clone(),
@@ -763,9 +763,15 @@ impl UserNode {
         // Start API server for Lexe operators
         let lexe_router_state = Arc::new(LexeRouterState {
             user_pk: args.user_pk,
+            network,
+            lsp_info: lsp_info.clone(),
+            intercept_scids,
+            channel_manager: channel_manager.clone(),
+            keys_manager: keys_manager.clone(),
+            payments_manager: payments_manager.clone(),
+            test_event_rx,
             bdk_resync_tx,
             ldk_resync_tx,
-            test_event_rx,
             shutdown: shutdown.clone(),
         });
         let lexe_listener =

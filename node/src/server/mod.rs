@@ -128,9 +128,15 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
 
 pub(crate) struct LexeRouterState {
     pub user_pk: UserPk,
+    pub network: LxNetwork,
+    pub lsp_info: LspInfo,
+    pub intercept_scids: Vec<Scid>,
+    pub channel_manager: NodeChannelManager,
+    pub keys_manager: Arc<LexeKeysManager>,
+    pub payments_manager: PaymentsManagerType,
+    pub test_event_rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
     pub bdk_resync_tx: mpsc::Sender<BdkSyncRequest>,
     pub ldk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
-    pub test_event_rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
     pub shutdown: NotifyOnce,
 }
 
@@ -143,5 +149,6 @@ pub(crate) fn lexe_router(state: Arc<LexeRouterState>) -> Router<()> {
         .route("/lexe/resync", post(lexe::resync))
         .route("/lexe/test_event", post(lexe::test_event))
         .route("/lexe/shutdown", get(lexe::shutdown))
+        .route("/lexe/create_invoice", post(lexe::create_invoice))
         .with_state(state)
 }
