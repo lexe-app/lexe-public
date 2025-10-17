@@ -3,12 +3,14 @@
 //! Sadly `ed25519` certs aren't widely supported in webpki TLS yet, so we have
 //! to use P-256 keys for now.
 
+use std::borrow::Cow;
+
 use base64::Engine;
 use ring::{
     rand::SystemRandom,
     signature::{ECDSA_P256_SHA256_ASN1_SIGNING, EcdsaKeyPair},
 };
-use rustls::pki_types::pem::PemObject;
+use rustls::pki_types::pem::{self, PemObject};
 use secrecy::{ExposeSecret, Secret};
 use thiserror::Error;
 
@@ -38,20 +40,20 @@ impl KeyPair {
         let pkcs8_document =
             EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, &rng)
                 .map_err(|_| Error::PublicKeyMismatch)?;
-        Self::deserialize_pkcs8_der(pkcs8_document.as_ref())
+        Self::deserialize_pkcs8_der(Cow::Borrowed(pkcs8_document.as_ref()))
     }
 
-    pub fn deserialize_pkcs8_der(bytes: &[u8]) -> Result<Self, Error> {
+    pub fn deserialize_pkcs8_der(bytes: Cow<[u8]>) -> Result<Self, Error> {
         // We can't impl ring::rand::SecureRandom for any of our rngs because
         // it's a sealed trait...
         let rng = SystemRandom::new();
         let key_pair = EcdsaKeyPair::from_pkcs8(
             &ECDSA_P256_SHA256_ASN1_SIGNING,
-            bytes,
+            bytes.as_ref(),
             &rng,
         )
         .map_err(|_| Error::KeyDeserializeError)?;
-        let pkcs8_bytes = Secret::new(bytes.to_vec());
+        let pkcs8_bytes = Secret::new(bytes.into_owned());
         Ok(Self {
             key_pair,
             pkcs8_bytes,
@@ -84,9 +86,20 @@ impl KeyPair {
     }
 
     pub fn deserialize_pkcs8_pem(pem: &[u8]) -> Result<Self, Error> {
-        let der = rustls::pki_types::PrivatePkcs8KeyDer::from_pem_slice(pem)
-            .map_err(|_| Error::KeyDeserializeError)?;
-        Self::deserialize_pkcs8_der(der.secret_pkcs8_der())
+        Self::from_pem_slice(pem).map_err(|_| Error::KeyDeserializeError)
+    }
+}
+
+impl PemObject for KeyPair {
+    fn from_pem(kind: pem::SectionKind, der: Vec<u8>) -> Option<Self> {
+        match kind {
+            pem::SectionKind::PrivateKey =>
+                Self::deserialize_pkcs8_der(Cow::Owned(der)).ok(),
+            // We could also deserialize from SEC1 format here, if we ever need
+            // that for some reason.
+            // pem::SectionKind::EcPrivateKey => ..,
+            _ => None,
+        }
     }
 }
 
@@ -98,7 +111,7 @@ mod test {
     fn test_keypair_pkcs8_der_roundtrip() {
         let keypair_1 = KeyPair::from_sysrng().unwrap();
         let pkcs8_1 = keypair_1.as_pkcs8_der();
-        let keypair_2 = KeyPair::deserialize_pkcs8_der(pkcs8_1).unwrap();
+        let keypair_2 = KeyPair::deserialize_pkcs8_der(pkcs8_1.into()).unwrap();
         let pkcs8_2 = keypair_2.as_pkcs8_der();
         assert_eq!(pkcs8_1, pkcs8_2);
     }

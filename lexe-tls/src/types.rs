@@ -35,7 +35,10 @@ use common::test_utils::arbitrary;
 use common::{ed25519, serde_helpers::hexstr_or_bytes};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
-use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
+use rustls::pki_types::{
+    pem::{self, PemObject},
+    CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer,
+};
 use serde::{Deserialize, Serialize};
 
 /// Convenience struct to pass around a DER-encoded cert with its private key
@@ -132,6 +135,15 @@ impl LxCertificateDer {
     }
 }
 
+impl PemObject for LxCertificateDer {
+    fn from_pem(kind: pem::SectionKind, der: Vec<u8>) -> Option<Self> {
+        match kind {
+            pem::SectionKind::Certificate => Some(Self(der)),
+            _ => None,
+        }
+    }
+}
+
 /// We intentionally avoid the reverse impls because they require re-allocation.
 impl From<LxCertificateDer> for CertificateDer<'static> {
     fn from(lx_cert: LxCertificateDer) -> Self {
@@ -149,6 +161,15 @@ impl<'der> From<&'der LxCertificateDer> for CertificateDer<'der> {
 impl LxPrivatePkcs8KeyDer {
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_slice()
+    }
+}
+
+impl PemObject for LxPrivatePkcs8KeyDer {
+    fn from_pem(kind: pem::SectionKind, der: Vec<u8>) -> Option<Self> {
+        match kind {
+            pem::SectionKind::PrivateKey => Some(Self(der)),
+            _ => None,
+        }
     }
 }
 
