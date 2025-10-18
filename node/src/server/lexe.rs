@@ -7,13 +7,11 @@ use common::{
 };
 use lexe_api::{
     error::NodeApiError,
-    models::command::{
-        CreateInvoiceRequest, CreateInvoiceResponse, ResyncRequest,
-    },
+    models::command::ResyncRequest,
     server::{LxJson, extract::LxQuery},
     types::Empty,
 };
-use lexe_ln::{command::CreateInvoiceCaller, test_event};
+use lexe_ln::test_event;
 
 use crate::server::LexeRouterState;
 
@@ -59,25 +57,4 @@ pub(super) async fn shutdown(
     } else {
         Err(NodeApiError::wrong_user_pk(state.user_pk, req.user_pk))
     }
-}
-
-pub(super) async fn create_invoice(
-    State(state): State<Arc<LexeRouterState>>,
-    LxJson(req): LxJson<CreateInvoiceRequest>,
-) -> Result<LxJson<CreateInvoiceResponse>, NodeApiError> {
-    let caller = CreateInvoiceCaller::UserNode {
-        lsp_info: state.lsp_info.clone(),
-        intercept_scids: state.intercept_scids.clone(),
-    };
-    lexe_ln::command::create_invoice(
-        req,
-        &state.channel_manager,
-        &state.keys_manager,
-        &state.payments_manager,
-        caller,
-        state.network,
-    )
-    .await
-    .map(LxJson)
-    .map_err(NodeApiError::command)
 }

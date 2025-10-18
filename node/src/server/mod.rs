@@ -98,7 +98,7 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
         .route("/app/preflight_open_channel", post(app::preflight_open_channel))
         .route("/app/close_channel", post(app::close_channel))
         .route("/app/preflight_close_channel", post(app::preflight_close_channel))
-        .route("/app/create_invoice", post(app::create_invoice))
+        .route("/app/create_invoice", post(shared::create_invoice))
         .route("/app/pay_invoice", post(app::pay_invoice))
         .route("/app/preflight_pay_invoice", post(app::preflight_pay_invoice))
         .route("/app/create_offer", post(app::create_offer))
@@ -149,6 +149,76 @@ pub(crate) fn lexe_router(state: Arc<LexeRouterState>) -> Router<()> {
         .route("/lexe/resync", post(lexe::resync))
         .route("/lexe/test_event", post(lexe::test_event))
         .route("/lexe/shutdown", get(lexe::shutdown))
-        .route("/lexe/create_invoice", post(lexe::create_invoice))
+        .route("/lexe/create_invoice", post(shared::create_invoice))
         .with_state(state)
+}
+
+mod shared {
+    use std::sync::Arc;
+
+    use axum::extract::{FromRef, State};
+    use lexe_api::{
+        error::NodeApiError,
+        models::command::{CreateInvoiceRequest, CreateInvoiceResponse},
+        server::LxJson,
+    };
+    use lexe_ln::command::CreateInvoiceCaller;
+
+    use super::*;
+
+    pub(super) struct InvoicesState {
+        pub network: LxNetwork,
+        pub lsp_info: LspInfo,
+        pub intercept_scids: Vec<Scid>,
+        pub channel_manager: NodeChannelManager,
+        pub keys_manager: Arc<LexeKeysManager>,
+        pub payments_manager: PaymentsManagerType,
+    }
+
+    impl FromRef<Arc<LexeRouterState>> for InvoicesState {
+        fn from_ref(state: &Arc<LexeRouterState>) -> Self {
+            Self {
+                network: state.network,
+                lsp_info: state.lsp_info.clone(),
+                intercept_scids: state.intercept_scids.clone(),
+                channel_manager: state.channel_manager.clone(),
+                keys_manager: state.keys_manager.clone(),
+                payments_manager: state.payments_manager.clone(),
+            }
+        }
+    }
+
+    impl FromRef<Arc<AppRouterState>> for InvoicesState {
+        fn from_ref(state: &Arc<AppRouterState>) -> Self {
+            Self {
+                network: state.network,
+                lsp_info: state.lsp_info.clone(),
+                intercept_scids: state.intercept_scids.clone(),
+                channel_manager: state.channel_manager.clone(),
+                keys_manager: state.keys_manager.clone(),
+                payments_manager: state.payments_manager.clone(),
+            }
+        }
+    }
+
+    pub(super) async fn create_invoice(
+        State(state): State<InvoicesState>,
+        LxJson(req): LxJson<CreateInvoiceRequest>,
+    ) -> Result<LxJson<CreateInvoiceResponse>, NodeApiError> {
+        let caller = CreateInvoiceCaller::UserNode {
+            lsp_info: state.lsp_info.clone(),
+            intercept_scids: state.intercept_scids.clone(),
+        };
+        lexe_ln::command::create_invoice(
+            req,
+            &state.channel_manager,
+            &state.keys_manager,
+            &state.payments_manager,
+            caller,
+            state.network,
+        )
+        .await
+        .map(LxJson)
+        .map_err(NodeApiError::command)
+    }
 }

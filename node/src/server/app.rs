@@ -21,23 +21,23 @@ use common::{
 use lexe_api::{
     error::NodeApiError,
     models::command::{
-        CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-        CreateOfferRequest, CreateOfferResponse, GetAddressResponse,
-        GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
-        OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-        PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-        PayOnchainResponse, PaymentIndexes, PreflightCloseChannelRequest,
-        PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-        PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-        PreflightPayInvoiceResponse, PreflightPayOfferRequest,
-        PreflightPayOfferResponse, PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse, UpdatePaymentNote,
+        CloseChannelRequest, CreateOfferRequest, CreateOfferResponse,
+        GetAddressResponse, GetNewPayments, ListChannelsResponse, NodeInfo,
+        OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+        PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+        PayOnchainRequest, PayOnchainResponse, PaymentIndexes,
+        PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+        PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+        PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+        PreflightPayOfferRequest, PreflightPayOfferResponse,
+        PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+        UpdatePaymentNote,
     },
     server::{LxJson, extract::LxQuery},
     types::{Empty, payments::VecBasicPayment},
     vfs::{self, Vfs, VfsDirectory},
 };
-use lexe_ln::{command::CreateInvoiceCaller, p2p};
+use lexe_ln::p2p;
 use lexe_tokio::task::MaybeLxTask;
 use tracing::warn;
 
@@ -240,27 +240,6 @@ pub(super) async fn preflight_close_channel(
         &state.chain_monitor,
         &state.fee_estimates,
         req,
-    )
-    .await
-    .map(LxJson)
-    .map_err(NodeApiError::command)
-}
-
-pub(super) async fn create_invoice(
-    State(state): State<Arc<AppRouterState>>,
-    LxJson(req): LxJson<CreateInvoiceRequest>,
-) -> Result<LxJson<CreateInvoiceResponse>, NodeApiError> {
-    let caller = CreateInvoiceCaller::UserNode {
-        lsp_info: state.lsp_info.clone(),
-        intercept_scids: state.intercept_scids.clone(),
-    };
-    lexe_ln::command::create_invoice(
-        req,
-        &state.channel_manager,
-        &state.keys_manager,
-        &state.payments_manager,
-        caller,
-        state.network,
     )
     .await
     .map(LxJson)
