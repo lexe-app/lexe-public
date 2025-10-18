@@ -125,6 +125,7 @@ pub(crate) fn app_router(state: Arc<RouterState>) -> Router<()> {
                 .put(app::update_revocable_client)
         )
         .route("/app/list_broadcasted_txs", get(app::list_broadcasted_txs))
+        .route("/app/backup_info", get(app::backup_info))
         .with_state(state)
         // Send an activity notification anytime /app is hit.
         .layer(MapRequestLayer::new(move |request| {

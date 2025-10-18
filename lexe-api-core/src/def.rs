@@ -79,13 +79,13 @@ use crate::{
     },
     models::{
         command::{
-            CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-            CreateOfferRequest, CreateOfferResponse, GetAddressResponse,
-            GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
-            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-            PayOnchainResponse, PaymentIdStruct, PaymentIndexStruct,
-            PaymentIndexes, PreflightCloseChannelRequest,
+            BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
+            CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
+            GetAddressResponse, GetNewPayments, ListChannelsResponse, NodeInfo,
+            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentIdStruct,
+            PaymentIndexStruct, PaymentIndexes, PreflightCloseChannelRequest,
             PreflightCloseChannelResponse, PreflightOpenChannelRequest,
             PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
             PreflightPayInvoiceResponse, PreflightPayOfferRequest,
@@ -384,6 +384,9 @@ pub trait AppNodeRunApi {
     async fn list_broadcasted_txs(
         &self,
     ) -> Result<serde_json::Value, NodeApiError>;
+
+    /// GET /app/backup_info [`Empty`] -> [`BackupInfo`]
+    async fn backup_info(&self) -> Result<BackupInfo, NodeApiError>;
 }
 
 /// The bearer auth API exposed by the backend (sometimes via the gateway) to

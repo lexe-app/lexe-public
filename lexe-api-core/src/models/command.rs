@@ -62,6 +62,19 @@ pub struct NodeInfo {
     pub pending_monitor_updates: usize,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GDriveBackupStatus {
+    NotFound,
+    Invalid,
+    Operative,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BackupInfo {
+    pub gdrive_backup_status: GDriveBackupStatus,
+}
+
 // --- Channel Management --- //
 
 #[derive(Serialize, Deserialize)]

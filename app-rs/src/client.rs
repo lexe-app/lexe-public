@@ -50,17 +50,18 @@ use lexe_api::{
     },
     error::{BackendApiError, GatewayApiError, NodeApiError, NodeErrorKind},
     models::command::{
-        CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-        CreateOfferRequest, CreateOfferResponse, GetAddressResponse,
-        GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
-        OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-        PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-        PayOnchainResponse, PaymentIndexes, PreflightCloseChannelRequest,
-        PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-        PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-        PreflightPayInvoiceResponse, PreflightPayOfferRequest,
-        PreflightPayOfferResponse, PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse, UpdatePaymentNote,
+        BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
+        CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
+        GetAddressResponse, GetNewPayments, ListChannelsResponse, NodeInfo,
+        OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+        PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+        PayOnchainRequest, PayOnchainResponse, PaymentIndexes,
+        PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+        PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+        PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+        PreflightPayOfferRequest, PreflightPayOfferResponse,
+        PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+        UpdatePaymentNote,
     },
     rest::{POST, RequestBuilderExt, RestClient},
     types::{Empty, payments::VecBasicPayment},
@@ -749,6 +750,14 @@ impl AppNodeRunApi for NodeClient {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/list_broadcasted_txs");
+        let req = self.run_rest.get(url, &Empty {});
+        self.run_rest.send(req).await
+    }
+
+    async fn backup_info(&self) -> Result<BackupInfo, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/backup_info");
         let req = self.run_rest.get(url, &Empty {});
         self.run_rest.send(req).await
     }

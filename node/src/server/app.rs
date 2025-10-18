@@ -21,17 +21,17 @@ use common::{
 use lexe_api::{
     error::NodeApiError,
     models::command::{
-        CloseChannelRequest, CreateOfferRequest, CreateOfferResponse,
-        GetAddressResponse, GetNewPayments, ListChannelsResponse, NodeInfo,
-        OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-        PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-        PayOnchainRequest, PayOnchainResponse, PaymentIndexes,
-        PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-        PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-        PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-        PreflightPayOfferRequest, PreflightPayOfferResponse,
-        PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-        UpdatePaymentNote,
+        BackupInfo, CloseChannelRequest, CreateOfferRequest,
+        CreateOfferResponse, GDriveBackupStatus, GetAddressResponse,
+        GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
+        OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+        PayOfferRequest, PayOfferResponse, PayOnchainRequest,
+        PayOnchainResponse, PaymentIndexes, PreflightCloseChannelRequest,
+        PreflightCloseChannelResponse, PreflightOpenChannelRequest,
+        PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
+        PreflightPayInvoiceResponse, PreflightPayOfferRequest,
+        PreflightPayOfferResponse, PreflightPayOnchainRequest,
+        PreflightPayOnchainResponse, UpdatePaymentNote,
     },
     server::{LxJson, extract::LxQuery},
     types::{Empty, payments::VecBasicPayment},
@@ -480,4 +480,21 @@ pub(super) async fn list_broadcasted_txs(
         .collect::<Result<Vec<_>, _>>()
         .map_err(NodeApiError::command)?;
     Ok(LxJson(txs))
+}
+
+pub(super) async fn backup_info(
+    State(state): State<Arc<RouterState>>,
+) -> Result<LxJson<BackupInfo>, NodeApiError> {
+    let gdrive_status = if state.persister.google_vfs_is_available() {
+        GDriveBackupStatus::Operative
+    } else if state.persister.is_gdrive_credential_known().await {
+        GDriveBackupStatus::Invalid
+    } else {
+        GDriveBackupStatus::NotFound
+    };
+    let backup_info = BackupInfo {
+        gdrive_backup_status: gdrive_status,
+    };
+
+    Ok(LxJson(backup_info))
 }
