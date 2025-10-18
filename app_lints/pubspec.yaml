@@ -11,6 +11,7 @@ dependencies:
   custom_lint_builder: ^0.8.1
 
 dev_dependencies:
+  analyzer_plugin: 0.13.7 # unpin after updating to dart sdk 3.9.0+
   custom_lint: ^0.8.1
   lints: ^6.0.0
   test: ^1.26.3

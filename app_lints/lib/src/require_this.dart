@@ -1,3 +1,6 @@
+/// A dart lint rule that requires the use of `this.` to access class fields.
+library;
+
 import 'package:analyzer/dart/ast/ast.dart'
     show
         AstNode,
@@ -20,8 +23,16 @@ import 'package:analyzer/dart/element/element.dart'
         PropertyAccessorElement,
         PropertyInducingElement;
 import 'package:analyzer/error/listener.dart' show DiagnosticReporter;
+import 'package:analyzer/diagnostic/diagnostic.dart' show Diagnostic;
 import 'package:custom_lint_builder/custom_lint_builder.dart'
-    show DartLintRule, LintCode, CustomLintContext, CustomLintResolver;
+    show
+        ChangeReporter,
+        CustomLintContext,
+        CustomLintResolver,
+        DartFix,
+        DartLintRule,
+        Fix,
+        LintCode;
 
 class RequireThis extends DartLintRule {
   const RequireThis() : super(code: _code);
@@ -30,6 +41,9 @@ class RequireThis extends DartLintRule {
     name: 'require_this',
     problemMessage: 'Use `this.{0}`',
   );
+
+  @override
+  List<Fix> getFixes() => <Fix>[_RequireThisFix()];
 
   @override
   void run(
@@ -140,5 +154,35 @@ class RequireThis extends DartLintRule {
   static bool _isNodeWithin(AstNode? scope, AstNode node) {
     if (scope == null) return false;
     return node.offset >= scope.offset && node.end <= scope.end;
+  }
+}
+
+class _RequireThisFix extends DartFix {
+  _RequireThisFix();
+
+  @override
+  void run(
+    CustomLintResolver resolver,
+    ChangeReporter reporter,
+    CustomLintContext context,
+    Diagnostic diagnostic,
+    List<Diagnostic> others,
+  ) {
+    context.registry.addSimpleIdentifier((node) {
+      if (diagnostic.offset != node.offset ||
+          diagnostic.length != node.length) {
+        return;
+      }
+      if (!RequireThis._shouldReport(node)) return;
+
+      final changeBuilder = reporter.createChangeBuilder(
+        message: 'Prefix with `this.`',
+        priority: 50,
+      );
+
+      changeBuilder.addDartFileEdit((builder) {
+        builder.addSimpleInsertion(node.offset, 'this.');
+      });
+    });
   }
 }
