@@ -100,6 +100,8 @@ void main() {
             final int b;
 
             int sum() => a + b;
+
+            String sumStr() => "\$a + \$b";
           }
         ''',
         '''
@@ -110,6 +112,8 @@ void main() {
             final int b;
 
             int sum() => this.a + this.b;
+
+            String sumStr() => "\${this.a} + \${this.b}";
           }
         ''',
       );

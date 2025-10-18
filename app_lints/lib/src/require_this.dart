@@ -8,10 +8,12 @@ import 'package:analyzer/dart/ast/ast.dart'
         ConstructorInitializer,
         DefaultFormalParameter,
         FieldDeclaration,
+        InterpolationExpression,
         MethodDeclaration,
         SimpleIdentifier,
         VariableDeclaration,
         VariableDeclarationList;
+import 'package:analyzer/source/source_range.dart' show SourceRange;
 import 'package:analyzer/dart/element/element.dart'
     show
         ConstructorElement,
@@ -181,6 +183,21 @@ class _RequireThisFix extends DartFix {
       );
 
       changeBuilder.addDartFileEdit((builder) {
+        final parent = node.parent;
+        final needsInterpolationBraces =
+            parent is InterpolationExpression && parent.rightBracket == null;
+        if (needsInterpolationBraces) {
+          final replacement = StringBuffer()
+            ..write(r'${this.')
+            ..write(node.name)
+            ..write('}');
+          builder.addSimpleReplacement(
+            SourceRange(parent.offset, parent.length),
+            replacement.toString(),
+          );
+          return;
+        }
+
         builder.addSimpleInsertion(node.offset, 'this.');
       });
     });
