@@ -386,7 +386,7 @@ class TotalChannelsBalance {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is TotalChannelsBalance &&
-          runtimeType == other.runtimeType &&
+          this.runtimeType == other.runtimeType &&
           this.inboundCapacitySats == other.inboundCapacitySats &&
           this.balance == other.balance;
 }
@@ -606,7 +606,7 @@ class TotalChannelsBalanceRow extends StatelessWidget {
             children: <Widget>[
               // const SizedBox(width: dimCircle + padCirclePrimary),
               Expanded(child: secondaryText),
-              secondaryAmount ?? const SizedBox(),
+              this.secondaryAmount ?? const SizedBox(),
             ],
           ),
         ),
@@ -1037,7 +1037,7 @@ class ChannelButton extends StatelessWidget {
     return Column(
       children: [
         FilledButton(
-          onPressed: onPressed,
+          onPressed: this.onPressed,
           style: const ButtonStyle(
             side: WidgetStatePropertyAll(
               BorderSide(

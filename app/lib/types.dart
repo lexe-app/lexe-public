@@ -33,7 +33,7 @@ final class FiatAmount {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is FiatAmount &&
-          runtimeType == other.runtimeType &&
+          this.runtimeType == other.runtimeType &&
           this.fiat == other.fiat &&
           this.amount == other.amount;
 }

@@ -42,7 +42,7 @@ class _RawDataPageState extends State<RawDataPage> {
 
     switch (result) {
       case Ok(:final ok):
-        setState(() {
+        this.setState(() {
           this._resultData = Ok(ok);
         });
 
@@ -56,7 +56,7 @@ class _RawDataPageState extends State<RawDataPage> {
           default:
             errStr = err.toString();
         }
-        setState(() {
+        this.setState(() {
           this._resultData = Err(errStr);
         });
     }

@@ -81,7 +81,7 @@ final class Ok<T, E> extends Result<T, E> {
   bool get isErr => false;
 
   @override
-  T unwrap() => ok;
+  T unwrap() => this.ok;
 
   @override
   E unwrapErr() =>

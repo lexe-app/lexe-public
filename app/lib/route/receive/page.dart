@@ -221,11 +221,11 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       this.paymentOffers[this.selectedPageIndex.value];
 
   ValueNotifier<PaymentOffer> lnInvoicePaymentOffer() =>
-      this.paymentOffers[lnInvoicePageIdx];
+      this.paymentOffers[this.lnInvoicePageIdx];
   ValueNotifier<PaymentOffer> lnOfferPaymentOffer() =>
-      this.paymentOffers[lnOfferPageIdx];
+      this.paymentOffers[this.lnOfferPageIdx];
   ValueNotifier<PaymentOffer> btcPaymentOffer() =>
-      this.paymentOffers[btcPageIdx];
+      this.paymentOffers[this.btcPageIdx];
 
   /// Fetch a bitcoin address for the given [BtcAddrInputs] and return a
   /// full [PaymentOffer].
@@ -647,11 +647,11 @@ class PaymentOfferPage extends StatelessWidget {
   final VoidCallback? refreshPaymentOffer;
 
   void onTapSetAmount() {
-    openSetAmountPage();
+    this.openSetAmountPage();
   }
 
   void onTapEdit() {
-    openSetAmountPage();
+    this.openSetAmountPage();
   }
 
   /// Copy the current page's offer code to the user clipboard.
@@ -1128,7 +1128,7 @@ class CardBox extends StatelessWidget {
       Space.s200,
     ),
     clipBehavior: Clip.antiAlias,
-    child: child,
+    child: this.child,
   );
 }
 

@@ -279,7 +279,7 @@ class _CreateClientPageState extends State<CreateClientPage> {
       case Ok(:final ok):
         final CreateClientResponse response = ok;
         info("create-client: created: ${response.client.pubkey}");
-        Navigator.of(context).pop(ok);
+        Navigator.of(this.context).pop(ok);
       case Err(:final err):
         error("create-client: error: ${err.message}");
         this.errorMessage.value = ErrorMessage(
@@ -401,7 +401,7 @@ class _ShowCredentialsPageState extends State<ShowCredentialsPage> {
             padding: const EdgeInsets.only(top: Space.s500, bottom: Space.s300),
             child: LxFilledButton(
               label: const Text("Copy"),
-              onTap: onCopyPressed,
+              onTap: this.onCopyPressed,
             ),
           ),
           InfoCard(

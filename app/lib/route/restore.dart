@@ -606,12 +606,12 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
 
   @override
   void dispose() {
-    textController.dispose();
-    textFocusNode.dispose();
-    mnemonicWords.dispose();
-    suggestions.dispose();
-    isRestoring.dispose();
-    errorMessage.dispose();
+    this.textController.dispose();
+    this.textFocusNode.dispose();
+    this.mnemonicWords.dispose();
+    this.suggestions.dispose();
+    this.isRestoring.dispose();
+    this.errorMessage.dispose();
     super.dispose();
   }
 
@@ -863,7 +863,9 @@ class WordSuggestionsRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.start,
       children: suggestions.map((suggestion) {
-        final onTap = suggestion == null ? null : () => onWordTap(suggestion);
+        final onTap = suggestion == null
+            ? null
+            : () => this.onWordTap(suggestion);
         return SuggestionChip(word: suggestion, onTap: onTap);
       }).toList(),
     );

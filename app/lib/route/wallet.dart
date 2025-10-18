@@ -954,7 +954,7 @@ class BalanceWidget extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.only(right: 2.0),
                 child: IconButton(
-                  onPressed: onOpenChannelsPage,
+                  onPressed: this.onOpenChannelsPage,
                   // Rotate the icon so it's up/down and not left/right.
                   // Doesn't seem to be a vertical variant of this icon...
                   icon: Transform.rotate(
@@ -1076,7 +1076,7 @@ class WalletHints extends StatelessWidget {
   final VoidCallback onOpenChannelsPage;
 
   Widget? buildChild() {
-    final balance = balanceState.balanceSats;
+    final balance = this.balanceState.balanceSats;
     // Haven't finished loading yet, don't know whether to show hints.
     if (balance == null) return null;
 
@@ -1452,7 +1452,9 @@ class PaymentsListEntry extends StatelessWidget {
 
     // Wrap the "createdAt" text so that it updates every ~30 sec, not just
     // when we refresh.
-    final createdAt = DateTime.fromMillisecondsSinceEpoch(payment.createdAt);
+    final createdAt = DateTime.fromMillisecondsSinceEpoch(
+      this.payment.createdAt,
+    );
     final secondaryDateText = ValueListenableBuilder(
       valueListenable: this.paymentDateUpdates,
       builder: (_, now, child) {

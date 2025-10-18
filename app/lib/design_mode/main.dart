@@ -257,7 +257,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             Component(
               "LandingPage",
               (context) => LandingPage(
-                config: widget.config,
+                config: this.widget.config,
                 rootSeed: mockRootSeed,
                 gdriveAuth: GDriveAuth.mock,
                 signupApi: mockSignupApi,
@@ -336,7 +336,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             Component(
               "RestorePage entrypoint (mock gdrive)",
               (context) => RestorePage(
-                config: widget.config,
+                config: this.widget.config,
                 gdriveAuth: GDriveAuth.mock,
                 restoreApi: mockRestoreApi,
               ),
@@ -344,7 +344,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             Component(
               "RestoreGDrivePage (mock gdrive)",
               (context) => RestoreGDriveAuthPage(
-                config: widget.config,
+                config: this.widget.config,
                 gdriveAuth: GDriveAuth.mock,
                 restoreApi: mockRestoreApi,
               ),
@@ -352,7 +352,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             Component(
               "RestoreGDrivePage (real gdrive)",
               (context) => RestoreGDriveAuthPage(
-                config: widget.config,
+                config: this.widget.config,
                 gdriveAuth: GDriveAuth.prod,
                 restoreApi: mockRestoreApi,
               ),
@@ -373,7 +373,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 serverAuthCode: const GDriveServerAuthCode(
                   serverAuthCode: "fake",
                 ),
-                config: widget.config,
+                config: this.widget.config,
                 restoreApi: mockRestoreApi,
               ),
             ),
@@ -387,28 +387,28 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 serverAuthCode: const GDriveServerAuthCode(
                   serverAuthCode: "fake",
                 ),
-                config: widget.config,
+                config: this.widget.config,
                 restoreApi: mockRestoreApi,
               ),
             ),
             Component(
               "RestoreSeedPhrasePage",
               (context) => RestoreSeedPhrasePage(
-                config: widget.config,
+                config: this.widget.config,
                 restoreApi: mockRestoreApi,
               ),
             ),
             Component(
               "RestoreSeedPhrasePage (Error)",
               (context) => RestoreSeedPhrasePage(
-                config: widget.config,
+                config: this.widget.config,
                 restoreApi: mockRestoreApiErr,
               ),
             ),
             Component(
               "WalletPage",
               (_) => WalletPage(
-                config: widget.config,
+                config: this.widget.config,
                 app: mockApp,
                 settings: LxSettings(mockApp.settingsDb()),
                 featureFlags: const FeatureFlags.all(),
@@ -420,7 +420,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "WalletPage",
               subtitle: "fresh wallet with no payments",
               (_) => WalletPage(
-                config: widget.config,
+                config: this.widget.config,
                 app: mocks.MockAppHandle(
                   payments: [],
                   channels: [],
@@ -436,7 +436,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "WalletPage",
               subtitle: "on-chain-only wallet",
               (_) => WalletPage(
-                config: widget.config,
+                config: this.widget.config,
                 app: mocks.MockAppHandle(
                   payments: [mocks.dummyOnchainInboundCompleted01],
                   channels: [],
@@ -454,7 +454,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 startNewFlow: true,
                 sendCtx: SendState_NeedUri(
                   app: mockApp,
-                  configNetwork: widget.config.network,
+                  configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
                 ),
@@ -467,7 +467,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 startNewFlow: true,
                 sendCtx: SendState_NeedAmount(
                   app: mockApp,
-                  configNetwork: widget.config.network,
+                  configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
                   paymentMethod: const PaymentMethod.onchain(
@@ -488,7 +488,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 startNewFlow: true,
                 sendCtx: SendState_NeedAmount(
                   app: mockApp,
-                  configNetwork: widget.config.network,
+                  configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
                   paymentMethod: const PaymentMethod.invoice(
@@ -514,7 +514,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 startNewFlow: true,
                 sendCtx: SendState_NeedAmount(
                   app: mockAppErr,
-                  configNetwork: widget.config.network,
+                  configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
                   paymentMethod: const PaymentMethod.onchain(
@@ -535,7 +535,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 startNewFlow: true,
                 sendCtx: SendState_Preflighted(
                   app: mockApp,
-                  configNetwork: widget.config.network,
+                  configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
                   preflightedPayment: const PreflightedPayment_Onchain(
@@ -556,7 +556,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 startNewFlow: true,
                 sendCtx: SendState_Preflighted(
                   app: mockAppErr,
-                  configNetwork: widget.config.network,
+                  configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
                   preflightedPayment: (() {
@@ -808,7 +808,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 builder: (_) => ScanPage(
                   sendCtx: SendState_NeedUri(
                     app: mockApp,
-                    configNetwork: widget.config.network,
+                    configNetwork: this.widget.config.network,
                     balance: mockApp.balance,
                     cid: cid,
                   ),
@@ -845,7 +845,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             Component(
               "SecurityPage",
               subtitle: "seed phrase will fail",
-              (_) => SecurityPage(config: widget.config),
+              (_) => SecurityPage(config: this.widget.config),
             ),
             Component("SeedPhrasePage", (_) {
               return const SeedPhrasePage(seedPhrase: mocks.seedWords1);
@@ -860,7 +860,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "Screenshot 01",
               subtitle: "LandingPage",
               (context) => LandingPage(
-                config: widget.config,
+                config: this.widget.config,
                 rootSeed: mockRootSeed,
                 gdriveAuth: GDriveAuth.mock,
                 signupApi: mockSignupApi,
@@ -873,7 +873,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "Screenshot 02",
               subtitle: "WalletPage",
               (_) => WalletPage(
-                config: widget.config,
+                config: this.widget.config,
                 app: mocks.MockAppHandleScreenshots(),
                 settings: LxSettings(mockApp.settingsDb()),
                 featureFlags: const FeatureFlags.all(),
@@ -899,7 +899,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 startNewFlow: true,
                 sendCtx: SendState_Preflighted(
                   app: mocks.MockAppHandleScreenshots(),
-                  configNetwork: widget.config.network,
+                  configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
                   preflightedPayment: PreflightedPayment_Invoice(

@@ -239,7 +239,7 @@ final class UserAgent {
 
   /// Return a compact string for use as an HTTP request user agent.
   /// ex: "app-ios-0.6.2+5"
-  String toCompactApiString() => "app-$osName-$version";
+  String toCompactApiString() => "app-${this.osName}-${this.version}";
 
   @override
   String toString() =>

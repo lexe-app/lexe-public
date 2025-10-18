@@ -773,7 +773,7 @@ class PaymentDetailDirectionTime extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final directionLabel = switch ((status, direction)) {
+    final directionLabel = switch ((this.status, this.direction)) {
       ((PaymentStatus.pending, PaymentDirection.inbound)) => "Receiving",
       ((PaymentStatus.pending, PaymentDirection.outbound)) => "Sending",
       ((PaymentStatus.completed, PaymentDirection.inbound)) => "Received",
@@ -782,7 +782,10 @@ class PaymentDetailDirectionTime extends StatelessWidget {
       ((PaymentStatus.failed, PaymentDirection.outbound)) => "Failed to send",
     };
 
-    final createdAtStr = date_format.formatDate(then: createdAt, now: now);
+    final createdAtStr = date_format.formatDate(
+      then: this.createdAt,
+      now: this.now,
+    );
 
     return Text.rich(
       TextSpan(

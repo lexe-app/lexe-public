@@ -114,7 +114,7 @@ class IntInputFormatter extends TextInputFormatter {
     final newText = this.formatter.format(numValue);
 
     // Calculate the new cursor position
-    final int newCursorPosition = _calculateCursorPosition(
+    final int newCursorPosition = this._calculateCursorPosition(
       newValue.text,
       newText,
       newValue.selection.baseOffset,
@@ -161,7 +161,7 @@ class IntInputFormatter extends TextInputFormatter {
     // Count digits before cursor in the unformatted text
     int digitsBeforeCursor = 0;
     for (int i = 0; i < cursorPosition && i < newText.length; i++) {
-      if (_isDigit(newText.codeUnitAt(i))) {
+      if (this._isDigit(newText.codeUnitAt(i))) {
         digitsBeforeCursor++;
       }
     }
@@ -176,7 +176,7 @@ class IntInputFormatter extends TextInputFormatter {
     // Find position in formatted text with same number of digits
     int digitCount = 0;
     for (int i = 0; i < formattedText.length; i++) {
-      if (_isDigit(formattedText.codeUnitAt(i))) {
+      if (this._isDigit(formattedText.codeUnitAt(i))) {
         digitCount++;
         if (digitCount == digitsBeforeCursor) {
           return i + 1; // Position cursor after this digit

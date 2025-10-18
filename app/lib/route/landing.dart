@@ -60,8 +60,8 @@ class _LandingPageState extends State<LandingPage> {
 
   @override
   void dispose() {
-    carouselScrollController.dispose();
-    selectedPageIndex.dispose();
+    this.carouselScrollController.dispose();
+    this.selectedPageIndex.dispose();
     super.dispose();
   }
 
@@ -542,12 +542,12 @@ class AnimatedShaderState extends State<AnimatedShader>
       upperBound: 10000.0,
       duration: const Duration(seconds: 10000), // why no infinite animation??
     );
-    unawaited(animationController.forward(from: 0.0));
+    unawaited(this.animationController.forward(from: 0.0));
   }
 
   @override
   void dispose() {
-    animationController.dispose();
+    this.animationController.dispose();
     super.dispose();
   }
 
@@ -585,14 +585,14 @@ class AnimatedShaderState extends State<AnimatedShader>
         final time = fixedShaderTime ?? this.animationController.value;
 
         return CustomPaint(
-          painter: ShaderPainter(widget.shader, time, nextOffset),
+          painter: ShaderPainter(this.widget.shader, time, nextOffset),
           // raster cache probably shouldn't cache this since it changes every frame
           isComplex: false,
           willChange: true,
           child: child,
         );
       },
-      child: widget.child,
+      child: this.widget.child,
     );
   }
 }
@@ -611,14 +611,14 @@ class ShaderPainter extends CustomPainter {
   void paint(ui.Canvas canvas, ui.Size size) {
     // set shader uniforms
     // 0 : u_resolution.x
-    shader.setFloat(0, size.width);
+    this.shader.setFloat(0, size.width);
     // 1 : u_resolution.y
-    shader.setFloat(1, size.height);
+    this.shader.setFloat(1, size.height);
     // 2 : u_time
-    shader.setFloat(2, this.time);
+    this.shader.setFloat(2, this.time);
     // 3 : u_scroll_offset
     final double normalizedScrollOffset = this.scrollOffset / size.height;
-    shader.setFloat(3, normalizedScrollOffset);
+    this.shader.setFloat(3, normalizedScrollOffset);
 
     final screenRect = Rect.fromLTWH(0.0, 0.0, size.width, size.height);
     final paint = Paint()..shader = this.shader;
@@ -628,5 +628,5 @@ class ShaderPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant ShaderPainter oldDelegate) =>
-      this.time != oldDelegate.time || shader != oldDelegate.shader;
+      this.time != oldDelegate.time || this.shader != oldDelegate.shader;
 }

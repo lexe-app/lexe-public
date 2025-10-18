@@ -91,7 +91,7 @@ class AlwaysValueNotifier<T> extends ChangeNotifier
   T _value;
   set value(T newValue) {
     this._value = newValue;
-    notifyListeners();
+    this.notifyListeners();
   }
 
   @override

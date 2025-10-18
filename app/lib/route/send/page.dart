@@ -167,7 +167,9 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
       ),
     );
 
-    info("SendPaymentNeedUriPage: flowResult: $flowResult, mounted: $mounted");
+    info(
+      "SendPaymentNeedUriPage: flowResult: $flowResult, mounted: ${this.mounted}",
+    );
     if (!this.mounted || flowResult == null) return;
 
     // Successfully sent payment -- return result to parent page.
@@ -305,7 +307,7 @@ class StackedButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        button,
+        this.button,
         const SizedBox(height: Space.s400),
         Text(
           this.label,
@@ -403,7 +405,9 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
         );
 
     // Confirm page results:
-    info("SendPaymentAmountPage: flowResult: $flowResult, mounted: $mounted");
+    info(
+      "SendPaymentAmountPage: flowResult: $flowResult, mounted: ${this.mounted}",
+    );
 
     if (!this.mounted || flowResult == null) return;
 
@@ -990,7 +994,9 @@ class ChooseFeeDialogOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final feeSatsStr = currency_format.formatSatsAmount(feeEstimate.amountSats);
+    final feeSatsStr = currency_format.formatSatsAmount(
+      this.feeEstimate.amountSats,
+    );
 
     // TODO(phlip9): extract common rust definition from `lexe_ln::esplora`
     // The target block height (offset from the current chain tip) that we want
@@ -1037,7 +1043,7 @@ class ChooseFeeDialogOption extends StatelessWidget {
           // TODO(phlip9): fee estimate fiat value
         ],
       ),
-      onTap: () => Navigator.of(context).pop(priority),
+      onTap: () => Navigator.of(context).pop(this.priority),
     );
   }
 }

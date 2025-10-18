@@ -150,7 +150,7 @@ class MockTimer implements Timer {
   int _tick = 0;
 
   @override
-  int get tick => _tick;
+  int get tick => this._tick;
 
   bool get _isPeriodic => this._period != null;
 

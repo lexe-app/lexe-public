@@ -92,7 +92,9 @@ class _ScanPageState extends State<ScanPage> {
       ),
     );
 
-    info("SendPaymentNeedUriPage: flow result: $flowResult, mounted: $mounted");
+    info(
+      "SendPaymentNeedUriPage: flow result: $flowResult, mounted: ${this.mounted}",
+    );
     if (!this.mounted || flowResult == null) return;
 
     // Successfully sent payment -- return result to parent page.

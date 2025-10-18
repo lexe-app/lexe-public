@@ -29,8 +29,8 @@ class QrImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Image(
       image: QrImageProvider.utf8(this.value),
-      width: dimension,
-      height: dimension,
+      width: this.dimension,
+      height: this.dimension,
       filterQuality: FilterQuality.none,
       isAntiAlias: false,
       fit: BoxFit.none,

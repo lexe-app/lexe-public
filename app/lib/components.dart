@@ -93,7 +93,7 @@ class ScrollableSinglePageBody extends StatelessWidget {
 
     // Calculate left-right margin so page is centered with at most maxWidth
     final EdgeInsets innerPadding;
-    if (!useFullWidth) {
+    if (!this.useFullWidth) {
       final width = MediaQuery.sizeOf(context).width;
 
       innerPadding = (width <= maxWidth)
@@ -187,7 +187,7 @@ class MultistepFlow<T> extends StatelessWidget {
         return _PopToParentRoute<T>(
           parentNavigator: parentNavigator,
           settings: settings,
-          builder: builder,
+          builder: this.builder,
         );
       },
     );
@@ -208,7 +208,7 @@ class _PopToParentRoute<T> extends MaterialPageRoute<T> {
   @override
   bool didPop(T? result) {
     final superDidPop = super.didPop(result);
-    parentNavigator.pop(result);
+    this.parentNavigator.pop(result);
     return superDidPop;
   }
 
@@ -2324,11 +2324,11 @@ class _MultiTapDetectorState extends State<MultiTapDetector> {
     this._count++;
     this._timer?.cancel();
 
-    if (this._count == widget.tapCount) {
+    if (this._count == this.widget.tapCount) {
       this._count = 0;
-      widget.onMultiTapDetected();
+      this.widget.onMultiTapDetected();
     } else {
-      this._timer = Timer(widget.timeout, () => this._count = 0);
+      this._timer = Timer(this.widget.timeout, () => this._count = 0);
     }
   }
 
@@ -2340,7 +2340,7 @@ class _MultiTapDetectorState extends State<MultiTapDetector> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(onTap: this.onTap, child: widget.child);
+    return GestureDetector(onTap: this.onTap, child: this.widget.child);
   }
 }
 
@@ -2362,7 +2362,7 @@ class SeedWordsCard extends StatelessWidget {
   Widget _seedWord(int index) {
     final word = index < this.seedWords.length ? this.seedWords[index] : "";
     final isLast = index == this.seedWords.length - 1;
-    if (isLast && _onRemove != null) {
+    if (isLast && this._onRemove != null) {
       return SeedWord.removable(
         index: index,
         word: word,

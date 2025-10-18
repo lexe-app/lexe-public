@@ -35,10 +35,10 @@ class ValueListenableStream<T> extends Stream<T> implements ValueStream<T> {
     }
 
     this._controller = StreamController<T>(
-      onListen: _onListen,
-      onPause: _onPause,
-      onResume: _onResume,
-      onCancel: _onCancel,
+      onListen: this._onListen,
+      onPause: this._onPause,
+      onResume: this._onResume,
+      onCancel: this._onCancel,
     );
 
     return this._controller!.stream.listen(
