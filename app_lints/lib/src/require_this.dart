@@ -83,6 +83,7 @@ class RequireThis extends DartLintRule {
       if (ancestor is MethodDeclaration) {
         final body = ancestor.body;
         if (ancestor.isStatic) return false;
+        if (_shouldIgnoreMethod(ancestor)) return false;
         return _isNodeWithin(body, node);
       }
 
@@ -96,6 +97,13 @@ class RequireThis extends DartLintRule {
         return false;
       }
     }
+    return false;
+  }
+
+  static bool _shouldIgnoreMethod(MethodDeclaration method) {
+    final methodName = method.name.lexeme;
+    if (methodName == 'toString') return true;
+    if (methodName == 'hashCode') return true;
     return false;
   }
 

@@ -93,8 +93,8 @@ void main() {
     test('prefixes instance member reads with `this.`', () async {
       await assertFixes(
         '''
-          class Counter {
-            Counter(this.a, this.b);
+          class Summer {
+            Summer(this.a, this.b);
 
             final int a;
             final int b;
@@ -102,11 +102,20 @@ void main() {
             int sum() => a + b;
 
             String sumStr() => "\$a + \$b";
+
+            @override
+            String toString() => 'Counter(a: \$a, b: \$b)';
+
+            @override
+            int get hashCode => a.hashCode ^ b.hashCode;
+
+            @override
+            bool operator ==(Object other) => a == other.a && b == other.b;
           }
         ''',
         '''
-          class Counter {
-            Counter(this.a, this.b);
+          class Summer {
+            Summer(this.a, this.b);
 
             final int a;
             final int b;
@@ -114,6 +123,15 @@ void main() {
             int sum() => this.a + this.b;
 
             String sumStr() => "\${this.a} + \${this.b}";
+
+            @override
+            String toString() => 'Counter(a: \$a, b: \$b)';
+
+            @override
+            int get hashCode => a.hashCode ^ b.hashCode;
+
+            @override
+            bool operator ==(Object other) => this.a == other.a && this.b == other.b;
           }
         ''',
       );
