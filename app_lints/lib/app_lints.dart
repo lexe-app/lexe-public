@@ -1,10 +1,9 @@
 /// Custom flutter/dart lint rules for Lexe app.
 library;
 
+import 'package:app_lints/src/require_this.dart' show RequireThis;
 import 'package:custom_lint_builder/custom_lint_builder.dart'
     show CustomLintConfigs, LintRule, PluginBase;
-
-import 'src/require_this.dart' show RequireThis;
 
 PluginBase createPlugin() => _AppLintsPlugin();
 

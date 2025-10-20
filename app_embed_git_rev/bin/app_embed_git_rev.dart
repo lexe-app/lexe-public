@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'package:args/args.dart';
 import 'package:app_embed_git_rev/app_embed_git_rev.dart';
+import 'package:args/args.dart';
 
 /// This tiny CLI is run by our flutter `app` during build to embed the public
 /// repo git revision into the built app bundle so that we know whether it's

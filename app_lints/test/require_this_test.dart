@@ -3,8 +3,8 @@ import 'dart:io' show Directory, File;
 import 'package:analyzer/dart/analysis/results.dart' show ResolvedUnitResult;
 import 'package:analyzer/dart/analysis/utilities.dart' show resolveFile;
 import 'package:analyzer/diagnostic/diagnostic.dart' show Diagnostic;
-import 'package:app_lints/src/require_this.dart' show RequireThis;
 import 'package:analyzer_plugin/protocol/protocol_common.dart' show SourceEdit;
+import 'package:app_lints/src/require_this.dart' show RequireThis;
 import 'package:custom_lint_builder/custom_lint_builder.dart' show DartFix;
 import 'package:test/test.dart';
 

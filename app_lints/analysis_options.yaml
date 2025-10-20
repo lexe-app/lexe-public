@@ -1,9 +1,1 @@
-include: package:lints/recommended.yaml
-
-analyzer:
-  plugins:
-    - custom_lint
-
-linter:
-  rules:
-    sort_pub_dependencies: true
+include: ../app/analysis_options.yaml

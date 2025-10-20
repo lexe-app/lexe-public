@@ -13,7 +13,6 @@ import 'package:analyzer/dart/ast/ast.dart'
         SimpleIdentifier,
         VariableDeclaration,
         VariableDeclarationList;
-import 'package:analyzer/source/source_range.dart' show SourceRange;
 import 'package:analyzer/dart/element/element.dart'
     show
         ConstructorElement,
@@ -24,8 +23,9 @@ import 'package:analyzer/dart/element/element.dart'
         InterfaceElement,
         PropertyAccessorElement,
         PropertyInducingElement;
-import 'package:analyzer/error/listener.dart' show DiagnosticReporter;
 import 'package:analyzer/diagnostic/diagnostic.dart' show Diagnostic;
+import 'package:analyzer/error/listener.dart' show DiagnosticReporter;
+import 'package:analyzer/source/source_range.dart' show SourceRange;
 import 'package:custom_lint_builder/custom_lint_builder.dart'
     show
         ChangeReporter,
