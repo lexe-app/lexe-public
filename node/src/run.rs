@@ -1219,13 +1219,22 @@ async fn maybe_init_google_vfs(
     };
 
     let (google_vfs, maybe_new_gvfs_root, mut credentials_rx) =
-        GoogleVfs::init(
+        match GoogleVfs::init(
             gdrive_credentials,
             gvfs_root_name,
             persisted_gvfs_root,
         )
         .await
-        .context("Failed to init Google VFS")?;
+        {
+            Ok((google_vfs, maybe_new_gvfs_root, credentials_rx)) =>
+                (google_vfs, maybe_new_gvfs_root, credentials_rx),
+            Err(e) => {
+                // In case of Google VFS init failure, we should be able to tell
+                // the user to reconnect their GDrive.
+                warn!("Failed to init Google VFS: {e:#}");
+                return Ok(None);
+            }
+        };
 
     // If we were given a new GVFS root to persist, persist it.
     // This should only happen once so it won't impact startup time.
