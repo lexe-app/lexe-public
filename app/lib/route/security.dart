@@ -1,5 +1,6 @@
 import 'dart:async' show unawaited;
 
+import 'package:app_rs_dart/ffi/app.dart';
 import 'package:app_rs_dart/ffi/secret_store.dart' show SecretStore;
 import 'package:app_rs_dart/ffi/types.dart';
 import 'package:flutter/material.dart';
@@ -23,15 +24,37 @@ import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 /// Basic security page that leads to displa SeedPhrase, connect GDrive or
 /// test GDrive connection.
 class SecurityPage extends StatefulWidget {
-  const SecurityPage({super.key, required this.config});
+  const SecurityPage({super.key, required this.config, required this.app});
 
   final Config config;
+  final AppHandle app;
 
   @override
   State<SecurityPage> createState() => _SecurityPageState();
 }
 
 class _SecurityPageState extends State<SecurityPage> {
+  final ValueNotifier<BackupInfo?> backupInfo = ValueNotifier(null);
+
+  @override
+  void initState() {
+    loadBackupInfo();
+    super.initState();
+  }
+
+  Future<void> loadBackupInfo() async {
+    final result = await Result.tryFfiAsync(this.widget.app.backupInfo);
+    final BackupInfo? backupInfo;
+    switch (result) {
+      case Ok(:final ok):
+        backupInfo = ok;
+      case Err(:final err):
+        warn("$err");
+        return;
+    }
+    this.backupInfo.value = backupInfo;
+  }
+
   Result<List<String>, String> getSeedPhrase() {
     final secretStore = SecretStore(config: this.widget.config);
     final result = Result.tryFfi(secretStore.readRootSeed);
@@ -115,8 +138,45 @@ class _SecurityPageState extends State<SecurityPage> {
               ),
             ],
           ),
+          ValueListenableBuilder(
+            valueListenable: this.backupInfo,
+            builder: (_, backupInfo, _) {
+              return GDriveBackupStatusCard(
+                backupStatus: backupInfo?.gdriveBackupStatus,
+              );
+            },
+          ),
         ],
       ),
+    );
+  }
+}
+
+class GDriveBackupStatusCard extends StatelessWidget {
+  const GDriveBackupStatusCard({super.key, required this.backupStatus});
+
+  final GDriveBackupStatus? backupStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    return InfoCard(
+      header: const Text("Google drive backup status"),
+      description: const Text(
+        "Your node can automatically back up your encrypted wallet data to Google Drive. Neither Google nor Lexe can decrypt this data.",
+      ),
+
+      children: [
+        InfoRowButton(
+          onTap: null,
+          label: switch (backupStatus) {
+            null => "",
+            GDriveBackupStatus.notFound => "Not connected",
+            GDriveBackupStatus.invalid =>
+              "Connection failed - reconnect required",
+            GDriveBackupStatus.operative => "Connected and syncing",
+          },
+        ),
+      ],
     );
   }
 }

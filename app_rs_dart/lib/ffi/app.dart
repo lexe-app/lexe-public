@@ -30,6 +30,9 @@ class AppHandle {
 
   const AppHandle({required this.inner});
 
+  Future<BackupInfo> backupInfo() =>
+      AppRs.instance.api.crateFfiAppAppHandleBackupInfo(that: this);
+
   Future<void> closeChannel({required CloseChannelRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandleCloseChannel(that: this, req: req);
 

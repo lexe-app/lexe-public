@@ -15,7 +15,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 /// Some assorted user/node info. This is kinda hacked together currently just
 /// to support account deletion requests.
@@ -28,6 +28,22 @@ sealed class AppUserInfo with _$AppUserInfo {
     required String nodePk,
     required String nodePkProof,
   }) = _AppUserInfo;
+}
+
+class BackupInfo {
+  final GDriveBackupStatus gdriveBackupStatus;
+
+  const BackupInfo({required this.gdriveBackupStatus});
+
+  @override
+  int get hashCode => gdriveBackupStatus.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BackupInfo &&
+          runtimeType == other.runtimeType &&
+          gdriveBackupStatus == other.gdriveBackupStatus;
 }
 
 /// A unique, client-generated id for payment types (onchain send,
@@ -74,6 +90,8 @@ enum DeployEnv {
   static DeployEnv fromStr({required String s}) =>
       AppRs.instance.api.crateFfiTypesDeployEnvFromStr(s: s);
 }
+
+enum GDriveBackupStatus { notFound, invalid, operative }
 
 class GDriveSignupCredentials {
   /// The server auth code passed to the node enclave during provisioning.

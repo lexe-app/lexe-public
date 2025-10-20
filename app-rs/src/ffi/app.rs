@@ -49,7 +49,7 @@ use crate::{
         },
         settings::SettingsDb,
         types::{
-            AppUserInfo, Config, GDriveSignupCredentials, Payment,
+            AppUserInfo, BackupInfo, Config, GDriveSignupCredentials, Payment,
             PaymentIndex, RevocableClient, RootSeed, ShortPayment,
             ShortPaymentAndIndex,
         },
@@ -578,5 +578,12 @@ impl AppHandle {
             .map_err(anyhow::Error::new)?;
         serde_json::to_string_pretty(&resp)
             .context("Failed to serialize broadcasted txs")
+    }
+
+    #[instrument(skip_all, name = "(backup-info)")]
+    pub async fn backup_info(&self) -> anyhow::Result<BackupInfo> {
+        let resp = self.inner.node_client().backup_info().await?;
+        let backup_info = BackupInfo::from(resp);
+        Ok(backup_info)
     }
 }

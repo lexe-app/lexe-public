@@ -43,7 +43,9 @@ import 'package:app_rs_dart/ffi/settings.dart' show Settings, SettingsDb;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         AppUserInfo,
+        BackupInfo,
         Config,
+        GDriveBackupStatus,
         GDriveSignupCredentials,
         Invoice,
         LxChannelDetails,
@@ -335,6 +337,11 @@ class MockAppHandle extends AppHandle {
 ''',
   );
 
+  @override
+  Future<BackupInfo> backupInfo() => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => BackupInfo(gdriveBackupStatus: GDriveBackupStatus.operative),
+  );
   @override
   Future<bool> syncPayments() =>
       Future.delayed(const Duration(milliseconds: 1500), () => true);

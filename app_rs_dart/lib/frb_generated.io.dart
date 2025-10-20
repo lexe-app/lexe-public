@@ -110,6 +110,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   AppUserInfo dco_decode_app_user_info(dynamic raw);
 
   @protected
+  BackupInfo dco_decode_backup_info(dynamic raw);
+
+  @protected
   Balance dco_decode_balance(dynamic raw);
 
   @protected
@@ -282,6 +285,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   FiatRates dco_decode_fiat_rates(dynamic raw);
+
+  @protected
+  GDriveBackupStatus dco_decode_g_drive_backup_status(dynamic raw);
 
   @protected
   GDriveClient dco_decode_g_drive_client(dynamic raw);
@@ -600,6 +606,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   AppUserInfo sse_decode_app_user_info(SseDeserializer deserializer);
 
   @protected
+  BackupInfo sse_decode_backup_info(SseDeserializer deserializer);
+
+  @protected
   Balance sse_decode_balance(SseDeserializer deserializer);
 
   @protected
@@ -822,6 +831,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   FiatRates sse_decode_fiat_rates(SseDeserializer deserializer);
+
+  @protected
+  GDriveBackupStatus sse_decode_g_drive_backup_status(
+    SseDeserializer deserializer,
+  );
 
   @protected
   GDriveClient sse_decode_g_drive_client(SseDeserializer deserializer);
@@ -1198,6 +1212,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_app_user_info(AppUserInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_backup_info(BackupInfo self, SseSerializer serializer);
+
+  @protected
   void sse_encode_balance(Balance self, SseSerializer serializer);
 
   @protected
@@ -1466,6 +1483,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_fiat_rates(FiatRates self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_g_drive_backup_status(
+    GDriveBackupStatus self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_g_drive_client(GDriveClient self, SseSerializer serializer);

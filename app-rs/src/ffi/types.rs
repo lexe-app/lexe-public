@@ -21,13 +21,20 @@ use common::{
     time::TimestampMs,
 };
 use flutter_rust_bridge::RustOpaqueNom;
-use lexe_api::types::{
-    invoice::LxInvoice,
-    offer::LxOffer,
-    payments::{
-        BasicPayment as BasicPaymentRs, ClientPaymentId as ClientPaymentIdRs,
-        PaymentDirection as PaymentDirectionRs, PaymentIndex as PaymentIndexRs,
-        PaymentKind as PaymentKindRs, PaymentStatus as PaymentStatusRs,
+use lexe_api::{
+    models::command::{
+        BackupInfo as BackupInfoRs, GDriveBackupStatus as GDriveBackupStatusRs,
+    },
+    types::{
+        invoice::LxInvoice,
+        offer::LxOffer,
+        payments::{
+            BasicPayment as BasicPaymentRs,
+            ClientPaymentId as ClientPaymentIdRs,
+            PaymentDirection as PaymentDirectionRs,
+            PaymentIndex as PaymentIndexRs, PaymentKind as PaymentKindRs,
+            PaymentStatus as PaymentStatusRs,
+        },
     },
 };
 
@@ -709,6 +716,36 @@ impl From<RevocableClientRs> for RevocableClient {
             created_at: value.created_at.to_i64(),
             label: value.label,
             scope: Scope::from(value.scope),
+        }
+    }
+}
+
+pub enum GDriveBackupStatus {
+    NotFound,
+    Invalid,
+    Operative,
+}
+
+impl From<GDriveBackupStatusRs> for GDriveBackupStatus {
+    fn from(value: GDriveBackupStatusRs) -> Self {
+        match value {
+            GDriveBackupStatusRs::NotFound => Self::NotFound,
+            GDriveBackupStatusRs::Invalid => Self::Invalid,
+            GDriveBackupStatusRs::Operative => Self::Operative,
+        }
+    }
+}
+
+pub struct BackupInfo {
+    pub gdrive_backup_status: GDriveBackupStatus,
+}
+
+impl From<BackupInfoRs> for BackupInfo {
+    fn from(value: BackupInfoRs) -> Self {
+        Self {
+            gdrive_backup_status: GDriveBackupStatus::from(
+                value.gdrive_backup_status,
+            ),
         }
     }
 }

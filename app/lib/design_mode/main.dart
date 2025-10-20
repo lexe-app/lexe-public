@@ -845,7 +845,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             Component(
               "SecurityPage",
               subtitle: "seed phrase will fail",
-              (_) => SecurityPage(config: this.widget.config),
+              (_) => SecurityPage(config: widget.config, app: mockApp),
             ),
             Component("SeedPhrasePage", (_) {
               return const SeedPhrasePage(seedPhrase: mocks.seedWords1);
