@@ -29,7 +29,7 @@
 //! [`LxCertificateDer`]: crate::types::LxCertificateDer
 //! [`LxPrivatePkcs8KeyDer`]: crate::types::LxPrivatePkcs8KeyDer
 
-use anyhow::ensure;
+use anyhow::{Context, ensure};
 #[cfg(any(test, feature = "test-utils"))]
 use common::test_utils::arbitrary;
 use common::{ed25519, serde_helpers::hexstr_or_bytes};
@@ -60,28 +60,32 @@ pub struct DnsCertWithKey {
     pub dns: String,
 }
 
-/// A DER-encoded cert with its private key and possibly the issuing CA cert.
+/// A DER-encoded cert and its private key. Potentially includes signing
+/// intermediate or CA certs in its `cert_chain_der`.
 #[derive(Clone, Serialize, Deserialize)]
 #[cfg_attr(
     any(test, feature = "test-utils"),
     derive(Debug, Eq, PartialEq, Arbitrary)
 )]
 pub struct CertWithKey {
+    /// The end-entity cert.
     pub cert_der: LxCertificateDer,
-    pub key_der: LxPrivatePkcs8KeyDer,
-    /// The DER-encoded cert of the CA that signed this end-entity cert.
+    /// The rest of the cert chain, if any.
     ///
     /// # Root Lexe CA key rotation
     ///
-    /// 99% of the time, "Lexe CA" TLS does not require setting this field.
+    /// 99% of the time, "Lexe CA" TLS does not require an intermediate cert
+    /// chain.
     ///
-    /// Only if this [`CertWithKey`] corresponds to an end-entity cert used to
-    /// authenticate ourselves for "Lexe CA" TLS, and we're in the midst of a
-    /// Root Lexe CA key rotation, is this field required to be [`Some`], in
-    /// which case it should contain the cert of the NEW Lexe CA.
+    /// Only if this corresponds to an end-entity cert used to authenticate
+    /// ourselves for "Lexe CA" TLS, and we're in the midst of a Root Lexe CA
+    /// key rotation, is an intermediate cert chain required, in which case it
+    /// should contain the cert of the NEW Lexe CA (signed by the old Lexe CA).
     ///
     /// See the docs on `LexeRootCaCert` for more info.
-    pub ca_cert_der: Option<LxCertificateDer>,
+    pub cert_chain_der: Vec<LxCertificateDer>,
+    /// The private key for the end-entity cert.
+    pub key_der: LxPrivatePkcs8KeyDer,
 }
 
 /// A [`CertificateDer`] which can be serialized and deserialized.
@@ -116,14 +120,36 @@ pub struct EdRcgenKeypair(rcgen::KeyPair);
 impl CertWithKey {
     /// Converts self into the parameters required by [`rustls::ConfigBuilder`].
     pub fn into_chain_and_key(
-        self,
+        mut self,
     ) -> (Vec<CertificateDer<'static>>, PrivateKeyDer<'static>) {
-        // NOTE: The end-entity cert needs to go *first* in this Vec.
-        let mut cert_chain = vec![self.cert_der.into()];
-        if let Some(ca_cert_der) = self.ca_cert_der {
-            cert_chain.push(ca_cert_der.into());
-        }
-        (cert_chain, self.key_der.into())
+        // NOTE: The end-entity cert needs to go *first* in this Vec, followed
+        // by intermediate certs (if any).
+        self.cert_chain_der.insert(0, self.cert_der);
+        let rustls_cert_chain = self
+            .cert_chain_der
+            .into_iter()
+            .map(CertificateDer::from)
+            .collect();
+        (rustls_cert_chain, self.key_der.into())
+    }
+
+    /// Constructs a new [`CertWithKey`] from a cert chain and private key.
+    ///
+    /// `cert_chain_der` must contain at least one cert, and the first cert in
+    /// `cert_chain_der` must be the end-entity cert.
+    pub fn from_chain_and_key(
+        mut cert_chain_der: Vec<LxCertificateDer>,
+        key_der: LxPrivatePkcs8KeyDer,
+    ) -> anyhow::Result<Self> {
+        let cert_der = cert_chain_der
+            .drain(..1)
+            .next()
+            .context("Cert chain must contain at the end-entity cert")?;
+        Ok(Self {
+            cert_der,
+            cert_chain_der,
+            key_der,
+        })
     }
 }
 

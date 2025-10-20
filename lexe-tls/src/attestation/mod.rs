@@ -246,8 +246,8 @@ fn get_or_generate_node_attestation_cert(
             let key_der = cert.serialize_key_der();
             let cert_with_key = CertWithKey {
                 cert_der,
+                cert_chain_der: vec![],
                 key_der,
-                ca_cert_der: None,
             };
 
             Ok(cert_with_key)
