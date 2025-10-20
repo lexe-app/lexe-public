@@ -1,4 +1,7 @@
 /// Custom flutter/dart lint rules for Lexe app.
+///
+/// Lint rules:
+/// - require_this: all class instance fields must use `this.`.
 library;
 
 import 'package:app_lints/src/require_this.dart' show RequireThis;

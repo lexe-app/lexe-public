@@ -1,4 +1,8 @@
 /// A dart lint rule that requires the use of `this.` to access class fields.
+///
+/// For convenience, this linter also:
+/// 1. provides an automatic fix to add `this.` where necessary.
+/// 2. doesn't require using `this.` in `toString` and `hashCode`.
 library;
 
 import 'package:analyzer/dart/ast/ast.dart'
@@ -186,7 +190,7 @@ class _RequireThisFix extends DartFix {
       if (!RequireThis._shouldReport(node)) return;
 
       final changeBuilder = reporter.createChangeBuilder(
-        message: 'Prefix with `this.`',
+        message: 'Use `this.`',
         priority: 50,
       );
 

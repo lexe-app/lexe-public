@@ -160,7 +160,7 @@ Future<void> assertFixes(String source, String expected) async {
     expect(changes, hasLength(1));
     final change = changes.single.change;
 
-    expect(change.message, 'Prefix with `this.`');
+    expect(change.message, 'Use `this.`');
     expect(change.edits, hasLength(1));
     expect(change.edits.single.edits, hasLength(1));
 
