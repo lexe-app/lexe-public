@@ -290,10 +290,23 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         Ok(())
     }
 
-    /// Returns true if we already have a payment with the given [`LxPaymentId`]
-    /// registered.
-    pub async fn contains_payment_id(&self, id: &LxPaymentId) -> bool {
-        self.data.lock().await.contains_payment_id(id)
+    /// Get a [`Payment`] by its [`LxPaymentId`].
+    /// Returns the in-memory payment if cached, fetches from the DB otherwise.
+    pub async fn get_payment(
+        &self,
+        id: LxPaymentId,
+    ) -> anyhow::Result<Option<Payment>> {
+        {
+            let locked_data = self.data.lock().await;
+            if let Some(payment) = locked_data.pending.get(&id).cloned() {
+                return Ok(Some(payment));
+            }
+
+            // TODO(max): Maybe cache finalized payments that were fetched?
+            // Then we could early return here as well.
+        }
+
+        self.persister.get_payment_by_id(id).await
     }
 
     /// Attempt to update the personal note on a payment.
@@ -837,10 +850,6 @@ impl PaymentsData {
         for id in &self.finalized {
             assert!(!self.pending.contains_key(id));
         }
-    }
-
-    fn contains_payment_id(&self, id: &LxPaymentId) -> bool {
-        self.pending.contains_key(id) || self.finalized.contains(id)
     }
 
     fn check_new_payment(

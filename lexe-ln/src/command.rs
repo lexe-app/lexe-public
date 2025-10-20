@@ -46,7 +46,7 @@ use lexe_api::{
         Empty,
         invoice::LxInvoice,
         offer::{LxOffer, MaxQuantity},
-        payments::LxPaymentId,
+        payments::{LxPaymentId, PaymentDirection},
     },
     vfs::{REVOCABLE_CLIENTS_FILE_ID, Vfs},
 };
@@ -1287,13 +1287,23 @@ where
 {
     let invoice = req.invoice;
 
-    // Fail expired invoices early.
+    // Fail early if invoice is expired.
     ensure!(!invoice.is_expired(), "Invoice has expired");
 
-    // Fail invoice double-payment early.
+    // Fail early if we already tried paying this invoice,
+    // or we are trying to pay ourselves (yes, users actually do this).
     let payment_id = LxPaymentId::Lightning(invoice.payment_hash());
-    if payments_manager.contains_payment_id(&payment_id).await {
-        bail!("We've already tried paying this invoice");
+    let maybe_existing_payment = payments_manager
+        .get_payment(payment_id)
+        .await
+        .context("Couldn't check for existing payment")?;
+    if let Some(existing_payment) = maybe_existing_payment {
+        match existing_payment.direction() {
+            PaymentDirection::Outbound =>
+                return Err(anyhow!("We've already tried paying this invoice")),
+            // Yes, users actually hit this case...
+            PaymentDirection::Inbound => bail!("We cannot pay ourselves"),
+        }
     }
 
     // Compute the amount; handle amountless invoices.
@@ -1378,7 +1388,7 @@ where
 {
     let offer = req.offer;
 
-    // Fail expired offers early.
+    // Fail early if offer is expired.
     ensure!(!offer.is_expired(), "Offer has expired");
 
     // We only support paying BTC-denominated offers at the moment.
@@ -1387,11 +1397,17 @@ where
         "Fiat-denominated offers are not supported yet"
     );
 
-    // Fail offer double-payment early.
+    // Fail early if we already tried paying with this client ID.
     let payment_id = LxPaymentId::OfferSend(req.cid);
-    if payments_manager.contains_payment_id(&payment_id).await {
-        bail!("We've already tried paying this offer");
-    }
+    let maybe_existing_payment = payments_manager
+        .get_payment(payment_id)
+        .await
+        .context("Couldn't check for existing payment")?;
+    ensure!(
+        maybe_existing_payment.is_none(),
+        "Detected duplicate attempt trying to pay this offer. \
+         Please refresh and try again."
+    );
 
     // TODO(phlip9): support user choosing quantity. For now just assume
     // quantity=1, but in a way that works.
