@@ -29,6 +29,8 @@
 //! [`LxCertificateDer`]: crate::types::LxCertificateDer
 //! [`LxPrivatePkcs8KeyDer`]: crate::types::LxPrivatePkcs8KeyDer
 
+use std::path::Path;
+
 use anyhow::{Context, ensure};
 #[cfg(any(test, feature = "test-utils"))]
 use common::test_utils::arbitrary;
@@ -36,8 +38,8 @@ use common::{ed25519, serde_helpers::hexstr_or_bytes};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use rustls::pki_types::{
-    pem::{self, PemObject},
     CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer,
+    pem::{self, PemObject},
 };
 use serde::{Deserialize, Serialize};
 
@@ -151,6 +153,38 @@ impl CertWithKey {
             key_der,
         })
     }
+
+    /// Parses a PEM-encoded cert chain and private key.
+    pub fn from_pem_slices(
+        cert_chain_pem: &[u8],
+        key_pem: &[u8],
+    ) -> anyhow::Result<Self> {
+        let cert_chain_der = LxCertificateDer::pem_slice_iter(cert_chain_pem)
+            .collect::<Result<Vec<_>, _>>()
+            .context("Failed to parse PEM cert chain")?;
+        let key_der = LxPrivatePkcs8KeyDer::from_pem_slice(key_pem)
+            .context("Failed to parse PEM private key")?;
+        Self::from_chain_and_key(cert_chain_der, key_der)
+    }
+
+    /// Reads and parses a PEM-encoded cert chain and private key from files.
+    pub fn from_pem_files(
+        cert_chain_path: &Path,
+        key_path: &Path,
+    ) -> anyhow::Result<Self> {
+        let cert_chain_der_iter =
+            LxCertificateDer::pem_file_iter(cert_chain_path)
+                .with_context(|| cert_chain_path.display().to_string())
+                .context("Failed to read PEM cert chain file")?;
+        let cert_chain_der = cert_chain_der_iter
+            .collect::<Result<Vec<_>, _>>()
+            .with_context(|| cert_chain_path.display().to_string())
+            .context("Failed to parse PEM cert chain")?;
+        let key_der = LxPrivatePkcs8KeyDer::from_pem_file(key_path)
+            .with_context(|| key_path.display().to_string())
+            .context("Failed to read and parse PEM private key")?;
+        Self::from_chain_and_key(cert_chain_der, key_der)
+    }
 }
 
 // --- impl LxCertificateDer --- //
@@ -161,6 +195,7 @@ impl LxCertificateDer {
     }
 }
 
+// We can parse these out of `-----BEGIN CERTIFICATE-----` PEM sections.
 impl PemObject for LxCertificateDer {
     fn from_pem(kind: pem::SectionKind, der: Vec<u8>) -> Option<Self> {
         match kind {
@@ -190,6 +225,9 @@ impl LxPrivatePkcs8KeyDer {
     }
 }
 
+// We can parse these out of `-----BEGIN PRIVATE KEY-----` PEM sections. To keep
+// things simple, we'll only support PKCS#8 format and not SEC1 EC format or RSA
+// format.
 impl PemObject for LxPrivatePkcs8KeyDer {
     fn from_pem(kind: pem::SectionKind, der: Vec<u8>) -> Option<Self> {
         match kind {
@@ -266,5 +304,101 @@ impl TryFrom<rcgen::KeyPair> for EdRcgenKeypair {
     type Error = anyhow::Error;
     fn try_from(key_pair: rcgen::KeyPair) -> Result<Self, Self::Error> {
         Self::try_from_rcgen(key_pair)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_parse_cert_with_key_pem() {
+        let cert_chain_pem = r#"
+-----BEGIN CERTIFICATE-----
+MIID0zCCA1mgAwIBAgISLDggldDv8zKRlvUy0KsseoehMAoGCCqGSM49BAMDMFcx
+CzAJBgNVBAYTAlVTMSAwHgYDVQQKExcoU1RBR0lORykgTGV0J3MgRW5jcnlwdDEm
+MCQGA1UEAxMdKFNUQUdJTkcpIFB1enpsaW5nIFBhcnNuaXAgRTcwHhcNMjUwOTIy
+MTgwNjMyWhcNMjUxMjIxMTgwNjMxWjAnMSUwIwYDVQQDExxmb290ZXN0MS51c3dl
+c3QuZGV2LmxleGUuYXBwMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzjUM/iZ8
+gUrBqIJ1cagIWNZf9/tswhm0qQJxKaBoECcBXuxC2ogRhaVWvqzDyN46P+f8tgU5
+SNTWvGj/j6seLqOCAjMwggIvMA4GA1UdDwEB/wQEAwIHgDAdBgNVHSUEFjAUBggr
+BgEFBQcDAQYIKwYBBQUHAwIwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQUWke2DiQT
+2Tlk9IcLmNb+qdb3+8AwHwYDVR0jBBgwFoAUpA+UC0RjapmpoNmMZkOxT9ywLEYw
+NgYIKwYBBQUHAQEEKjAoMCYGCCsGAQUFBzAChhpodHRwOi8vc3RnLWU3LmkubGVu
+Y3Iub3JnLzAnBgNVHREEIDAeghxmb290ZXN0MS51c3dlc3QuZGV2LmxleGUuYXBw
+MBMGA1UdIAQMMAowCAYGZ4EMAQIBMDEGA1UdHwQqMCgwJqAkoCKGIGh0dHA6Ly9z
+dGctZTcuYy5sZW5jci5vcmcvMzQuY3JsMIIBBQYKKwYBBAHWeQIEAgSB9gSB8wDx
+AHYAFuhpwdGV6tfD+Jca4/B2AfeM4badMahSGLaDfzGoFQgAAAGZctCvWwAABAMA
+RzBFAiB3YrBYgytvBm4/SRvGLVLbiaptRpNpbBj1sSbjrAPPWwIhANsDr9JeMevw
+/FlQ1axMhomZwOY2zd7gNU9G01neUmDxAHcACJgkSwLHn2trJ8xOlTah7UA2VCGa
+x4rBeJVynD5OjIcAAAGZctCvOgAABAMASDBGAiEAw1LXYlkFYQ80155/Gaiy8ejZ
+qqT/ssKpc9zQjrCN8KUCIQCQy4dginzQklJS0/iJbgwbkwYMhKeBd6bwwd8l/snH
+5jAKBggqhkjOPQQDAwNoADBlAjBfkmLja1E25bbZMoi9Rtk3MFHqv6Xlpeeztuk7
+qUm1QRHHLwH8NyyjQmRPyV3jHHoCMQCXpbYJG2joeAcP/V2mwYmnaI2kS6EQ5GgM
+y5qpma4yhjmJnvcWda1jRDsgAiAJXm0=
+-----END CERTIFICATE-----
+
+-----BEGIN CERTIFICATE-----
+MIIEmzCCAoOgAwIBAgIQR1zhS092VJ8XK2pNm/t1gDANBgkqhkiG9w0BAQsFADBm
+MQswCQYDVQQGEwJVUzEzMDEGA1UEChMqKFNUQUdJTkcpIEludGVybmV0IFNlY3Vy
+aXR5IFJlc2VhcmNoIEdyb3VwMSIwIAYDVQQDExkoU1RBR0lORykgUHJldGVuZCBQ
+ZWFyIFgxMB4XDTI0MDMxMzAwMDAwMFoXDTI3MDMxMjIzNTk1OVowVzELMAkGA1UE
+BhMCVVMxIDAeBgNVBAoTFyhTVEFHSU5HKSBMZXQncyBFbmNyeXB0MSYwJAYDVQQD
+Ex0oU1RBR0lORykgUHV6emxpbmcgUGFyc25pcCBFNzB2MBAGByqGSM49AgEGBSuB
+BAAiA2IABHu5ddBGjP6Ky/vtPVXikXyYxd8+ua+vISFBc3hJ1Iz/zme8T3C7BQsc
+U3WslRgVeI6c2CpEn2pB+5xb2PRVY8u8RoyrtKV7Q0gcUbQ5bMHYJc1Zubn4tcWt
++tAkzx5JoqOCAQAwgf0wDgYDVR0PAQH/BAQDAgGGMB0GA1UdJQQWMBQGCCsGAQUF
+BwMCBggrBgEFBQcDATASBgNVHRMBAf8ECDAGAQH/AgEAMB0GA1UdDgQWBBSkD5QL
+RGNqmamg2YxmQ7FP3LAsRjAfBgNVHSMEGDAWgBS182Xy/rAKkh/7PH3zRKCsYyXD
+FDA2BggrBgEFBQcBAQQqMCgwJgYIKwYBBQUHMAKGGmh0dHA6Ly9zdGcteDEuaS5s
+ZW5jci5vcmcvMBMGA1UdIAQMMAowCAYGZ4EMAQIBMCsGA1UdHwQkMCIwIKAeoByG
+Gmh0dHA6Ly9zdGcteDEuYy5sZW5jci5vcmcvMA0GCSqGSIb3DQEBCwUAA4ICAQBk
+ws0hFFdRM6HYbbeSV+sAX3qiH0GSQCAS3le8ZdEDw0vdLQUqNA8dYd4t2P0tjFg5
+3ZVr8MFDQvP0zMyTAROT7SB4/8yG9QTWV9uQ4fMjwRh474EWvdXDMPVIw1W9FhiF
+NatXQD9o6Dg3Q91puWUxMOwiux+XkpMRHpFQ/6kHC9O4whjYqvZOYZaRwg0aiAg4
+SOnorJMeo2215nAsFWidfJF7WzfUQHRWsmSdJumUf6SSYl2hhB11nFTSHQG75uaG
+qz27J/XSP+QiF0BBBR5iK7x2W7vOFG1UTFAredh7SAkJehlHfnNcrFLHGPvkRLb1
+gW6BZH7tl2DB3auMuP5MdFytEq88HG83eerp4WRBZ8RL+R3nXDo6fCv1SMr6mzA5
+lsytrmDDuWSSRsn/rSkx78h+JtDfBrAz+QAVYa7I49nKRLyhc9RjOGTGpZh2LLbi
+Q09bTBIgSN14ZiCBbet8vH5c+PeDRZnBbSZrJn9Ju14m43Z1rmOOcd4VoG1wjD2X
+Q3DrM3K1TMn6DWq7Ks1sb+XkoMVKqi++M4bip3PUxdNNfj+ekovaaK1JJsjEDgCp
+f6V+ThZrDT72tmOYrus7oQXDglKZ2rJWON5LB/kK5Z9Nn7/uMShxuwxp5rwHf5zb
+AQlfAKgotEgPQfmzftRHvTab4vAx+D2u8+NHlzitJg==
+-----END CERTIFICATE-----
+"#;
+        // openssl genpkey -algorithm ed25519 -text
+        let key_pem1 = r#"
+-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEINQpSgZB1XJFtNP5XpqrCOhJIKGZspH21Kv+0qQTXVOU
+-----END PRIVATE KEY-----
+"#;
+
+        // openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -text
+        let key_pem2 = r#"
+-----BEGIN PRIVATE KEY-----
+MIIBeQIBADCCAQMGByqGSM49AgEwgfcCAQEwLAYHKoZIzj0BAQIhAP////8AAAAB
+AAAAAAAAAAAAAAAA////////////////MFsEIP////8AAAABAAAAAAAAAAAAAAAA
+///////////////8BCBaxjXYqjqT57PrvVV2mIa8ZR0GsMxTsPY7zjw+J9JgSwMV
+AMSdNgiG5wSTamZ44ROdJreBn36QBEEEaxfR8uEsQkf4vOblY6RA8ncDfYEt6zOg
+9KE5RdiYwpZP40Li/hp/m47n60p8D54WK84zV2sxXs7LtkBoN79R9QIhAP////8A
+AAAA//////////+85vqtpxeehPO5ysL8YyVRAgEBBG0wawIBAQQgmC92fEs29Yxt
+VV18aYUGrn3dek/cKw8+NZ9wxHuDWBuhRANCAARzPsNENY/yjsHq35Z3YTDQl/Du
+RxLC15EHd3tbFiVqsa7+QyLr9l0G/uvXRPSRZ6IQchnqg1QakmLV6OxuTWwg
+-----END PRIVATE KEY-----
+"#;
+
+        let cert_with_key = CertWithKey::from_pem_slices(
+            cert_chain_pem.as_bytes(),
+            key_pem1.as_bytes(),
+        )
+        .unwrap();
+        assert_eq!(cert_with_key.cert_chain_der.len(), 1);
+
+        let cert_with_key = CertWithKey::from_pem_slices(
+            cert_chain_pem.as_bytes(),
+            key_pem2.as_bytes(),
+        )
+        .unwrap();
+        assert_eq!(cert_with_key.cert_chain_der.len(), 1);
     }
 }
