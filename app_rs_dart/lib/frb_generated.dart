@@ -2835,9 +2835,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return BackupInfo(
-      gdriveBackupStatus: dco_decode_g_drive_backup_status(arr[0]),
-    );
+    return BackupInfo(gdriveBackupStatus: dco_decode_g_drive_status(arr[0]));
   }
 
   @protected
@@ -3253,12 +3251,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  GDriveBackupStatus dco_decode_g_drive_backup_status(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return GDriveBackupStatus.values[raw as int];
-  }
-
-  @protected
   GDriveClient dco_decode_g_drive_client(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -3314,6 +3306,21 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       serverAuthCode: dco_decode_String(arr[0]),
       password: dco_decode_String(arr[1]),
     );
+  }
+
+  @protected
+  GDriveStatus dco_decode_g_drive_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return GDriveStatus_Ok();
+      case 1:
+        return GDriveStatus_Error(dco_decode_String(raw[1]));
+      case 2:
+        return GDriveStatus_Disabled();
+      default:
+        throw Exception("unreachable");
+    }
   }
 
   @protected
@@ -4202,7 +4209,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @protected
   BackupInfo sse_decode_backup_info(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_gdriveBackupStatus = sse_decode_g_drive_backup_status(deserializer);
+    var var_gdriveBackupStatus = sse_decode_g_drive_status(deserializer);
     return BackupInfo(gdriveBackupStatus: var_gdriveBackupStatus);
   }
 
@@ -4654,15 +4661,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  GDriveBackupStatus sse_decode_g_drive_backup_status(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_i_32(deserializer);
-    return GDriveBackupStatus.values[inner];
-  }
-
-  @protected
   GDriveClient sse_decode_g_drive_client(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_inner = sse_decode_RustOpaque_GDriveClientInner(deserializer);
@@ -4719,6 +4717,24 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       serverAuthCode: var_serverAuthCode,
       password: var_password,
     );
+  }
+
+  @protected
+  GDriveStatus sse_decode_g_drive_status(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return GDriveStatus_Ok();
+      case 1:
+        var var_field0 = sse_decode_String(deserializer);
+        return GDriveStatus_Error(var_field0);
+      case 2:
+        return GDriveStatus_Disabled();
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -5766,7 +5782,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @protected
   void sse_encode_backup_info(BackupInfo self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_g_drive_backup_status(self.gdriveBackupStatus, serializer);
+    sse_encode_g_drive_status(self.gdriveBackupStatus, serializer);
   }
 
   @protected
@@ -6220,15 +6236,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  void sse_encode_g_drive_backup_status(
-    GDriveBackupStatus self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.index, serializer);
-  }
-
-  @protected
   void sse_encode_g_drive_client(GDriveClient self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_RustOpaque_GDriveClientInner(self.inner, serializer);
@@ -6273,6 +6280,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.serverAuthCode, serializer);
     sse_encode_String(self.password, serializer);
+  }
+
+  @protected
+  void sse_encode_g_drive_status(GDriveStatus self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case GDriveStatus_Ok():
+        sse_encode_i_32(0, serializer);
+      case GDriveStatus_Error(field0: final field0):
+        sse_encode_i_32(1, serializer);
+        sse_encode_String(field0, serializer);
+      case GDriveStatus_Disabled():
+        sse_encode_i_32(2, serializer);
+    }
   }
 
   @protected

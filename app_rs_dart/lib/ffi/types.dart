@@ -31,7 +31,7 @@ sealed class AppUserInfo with _$AppUserInfo {
 }
 
 class BackupInfo {
-  final GDriveBackupStatus gdriveBackupStatus;
+  final GDriveStatus gdriveBackupStatus;
 
   const BackupInfo({required this.gdriveBackupStatus});
 
@@ -91,8 +91,6 @@ enum DeployEnv {
       AppRs.instance.api.crateFfiTypesDeployEnvFromStr(s: s);
 }
 
-enum GDriveBackupStatus { notFound, invalid, operative }
-
 class GDriveSignupCredentials {
   /// The server auth code passed to the node enclave during provisioning.
   final String serverAuthCode;
@@ -116,6 +114,15 @@ class GDriveSignupCredentials {
           runtimeType == other.runtimeType &&
           serverAuthCode == other.serverAuthCode &&
           password == other.password;
+}
+
+@freezed
+sealed class GDriveStatus with _$GDriveStatus {
+  const GDriveStatus._();
+
+  const factory GDriveStatus.ok() = GDriveStatus_Ok;
+  const factory GDriveStatus.error(String field0) = GDriveStatus_Error;
+  const factory GDriveStatus.disabled() = GDriveStatus_Disabled;
 }
 
 /// A lightning invoice with useful fields parsed out for the flutter frontend.

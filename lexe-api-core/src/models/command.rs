@@ -19,6 +19,7 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
+    LxError,
     invoice::LxInvoice,
     offer::{LxOffer, MaxQuantity},
     payments::{ClientPaymentId, LxPaymentId, PaymentIndex},
@@ -63,16 +64,15 @@ pub struct NodeInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum GDriveBackupStatus {
-    NotFound,
-    Invalid,
-    Operative,
+pub enum GDriveStatus {
+    Ok,
+    Error(LxError),
+    Disabled,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BackupInfo {
-    pub gdrive_backup_status: GDriveBackupStatus,
+    pub gdrive_backup_status: GDriveStatus,
 }
 
 // --- Channel Management --- //

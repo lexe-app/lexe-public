@@ -287,9 +287,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   FiatRates dco_decode_fiat_rates(dynamic raw);
 
   @protected
-  GDriveBackupStatus dco_decode_g_drive_backup_status(dynamic raw);
-
-  @protected
   GDriveClient dco_decode_g_drive_client(dynamic raw);
 
   @protected
@@ -303,6 +300,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   GDriveSignupCredentials dco_decode_g_drive_signup_credentials(dynamic raw);
+
+  @protected
+  GDriveStatus dco_decode_g_drive_status(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
@@ -833,11 +833,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   FiatRates sse_decode_fiat_rates(SseDeserializer deserializer);
 
   @protected
-  GDriveBackupStatus sse_decode_g_drive_backup_status(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   GDriveClient sse_decode_g_drive_client(SseDeserializer deserializer);
 
   @protected
@@ -859,6 +854,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   GDriveSignupCredentials sse_decode_g_drive_signup_credentials(
     SseDeserializer deserializer,
   );
+
+  @protected
+  GDriveStatus sse_decode_g_drive_status(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -1485,12 +1483,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_fiat_rates(FiatRates self, SseSerializer serializer);
 
   @protected
-  void sse_encode_g_drive_backup_status(
-    GDriveBackupStatus self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_g_drive_client(GDriveClient self, SseSerializer serializer);
 
   @protected
@@ -1516,6 +1508,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
     GDriveSignupCredentials self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_g_drive_status(GDriveStatus self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);

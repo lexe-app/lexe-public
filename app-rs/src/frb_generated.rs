@@ -1257,7 +1257,7 @@ impl SseDecode for crate::ffi::types::BackupInfo {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_gdriveBackupStatus =
-            <crate::ffi::types::GDriveBackupStatus>::sse_decode(deserializer);
+            <crate::ffi::types::GDriveStatus>::sse_decode(deserializer);
         return crate::ffi::types::BackupInfo {
             gdrive_backup_status: var_gdriveBackupStatus,
         };
@@ -1510,24 +1510,6 @@ impl SseDecode for crate::ffi::api::FiatRates {
     }
 }
 
-impl SseDecode for crate::ffi::types::GDriveBackupStatus {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
-        return match inner {
-            0 => crate::ffi::types::GDriveBackupStatus::NotFound,
-            1 => crate::ffi::types::GDriveBackupStatus::Invalid,
-            2 => crate::ffi::types::GDriveBackupStatus::Operative,
-            _ => unreachable!(
-                "Invalid variant for GDriveBackupStatus: {}",
-                inner
-            ),
-        };
-    }
-}
-
 impl SseDecode for crate::ffi::gdrive::GDriveClient {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -1592,6 +1574,30 @@ impl SseDecode for crate::ffi::types::GDriveSignupCredentials {
             server_auth_code: var_serverAuthCode,
             password: var_password,
         };
+    }
+}
+
+impl SseDecode for crate::ffi::types::GDriveStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                return crate::ffi::types::GDriveStatus::Ok;
+            }
+            1 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::ffi::types::GDriveStatus::Error(var_field0);
+            }
+            2 => {
+                return crate::ffi::types::GDriveStatus::Disabled;
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -3217,28 +3223,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::FiatRates>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::types::GDriveBackupStatus {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::NotFound => 0.into_dart(),
-            Self::Invalid => 1.into_dart(),
-            Self::Operative => 2.into_dart(),
-            _ => unreachable!(),
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::types::GDriveBackupStatus
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::GDriveBackupStatus>
-    for crate::ffi::types::GDriveBackupStatus
-{
-    fn into_into_dart(self) -> crate::ffi::types::GDriveBackupStatus {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::gdrive::GDriveClient {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [self.inner.into_into_dart().into_dart()].into_dart()
@@ -3339,6 +3323,32 @@ impl
     > for crate::ffi::types::GDriveSignupCredentials
 {
     fn into_into_dart(self) -> crate::ffi::types::GDriveSignupCredentials {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::GDriveStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::ffi::types::GDriveStatus::Ok => [0.into_dart()].into_dart(),
+            crate::ffi::types::GDriveStatus::Error(field0) =>
+                [1.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            crate::ffi::types::GDriveStatus::Disabled =>
+                [2.into_dart()].into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::GDriveStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::GDriveStatus>
+    for crate::ffi::types::GDriveStatus
+{
+    fn into_into_dart(self) -> crate::ffi::types::GDriveStatus {
         self
     }
 }
@@ -4474,7 +4484,7 @@ impl SseEncode for crate::ffi::types::BackupInfo {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::types::GDriveBackupStatus>::sse_encode(
+        <crate::ffi::types::GDriveStatus>::sse_encode(
             self.gdrive_backup_status,
             serializer,
         );
@@ -4692,26 +4702,6 @@ impl SseEncode for crate::ffi::api::FiatRates {
     }
 }
 
-impl SseEncode for crate::ffi::types::GDriveBackupStatus {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <i32>::sse_encode(
-            match self {
-                crate::ffi::types::GDriveBackupStatus::NotFound => 0,
-                crate::ffi::types::GDriveBackupStatus::Invalid => 1,
-                crate::ffi::types::GDriveBackupStatus::Operative => 2,
-                _ => {
-                    unimplemented!("");
-                }
-            },
-            serializer,
-        );
-    }
-}
-
 impl SseEncode for crate::ffi::gdrive::GDriveClient {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -4768,6 +4758,30 @@ impl SseEncode for crate::ffi::types::GDriveSignupCredentials {
     ) {
         <String>::sse_encode(self.server_auth_code, serializer);
         <String>::sse_encode(self.password, serializer);
+    }
+}
+
+impl SseEncode for crate::ffi::types::GDriveStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        match self {
+            crate::ffi::types::GDriveStatus::Ok => {
+                <i32>::sse_encode(0, serializer);
+            }
+            crate::ffi::types::GDriveStatus::Error(field0) => {
+                <i32>::sse_encode(1, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::ffi::types::GDriveStatus::Disabled => {
+                <i32>::sse_encode(2, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 

@@ -38,7 +38,7 @@ class _SecurityPageState extends State<SecurityPage> {
 
   @override
   void initState() {
-    loadBackupInfo();
+    this.loadBackupInfo();
     super.initState();
   }
 
@@ -141,7 +141,7 @@ class _SecurityPageState extends State<SecurityPage> {
           ValueListenableBuilder(
             valueListenable: this.backupInfo,
             builder: (_, backupInfo, _) {
-              return GDriveBackupStatusCard(
+              return GDriveStatusCard(
                 backupStatus: backupInfo?.gdriveBackupStatus,
               );
             },
@@ -152,10 +152,10 @@ class _SecurityPageState extends State<SecurityPage> {
   }
 }
 
-class GDriveBackupStatusCard extends StatelessWidget {
-  const GDriveBackupStatusCard({super.key, required this.backupStatus});
+class GDriveStatusCard extends StatelessWidget {
+  const GDriveStatusCard({super.key, required this.backupStatus});
 
-  final GDriveBackupStatus? backupStatus;
+  final GDriveStatus? backupStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -168,12 +168,11 @@ class GDriveBackupStatusCard extends StatelessWidget {
       children: [
         InfoRowButton(
           onTap: null,
-          label: switch (backupStatus) {
+          label: switch (this.backupStatus) {
             null => "",
-            GDriveBackupStatus.notFound => "Not connected",
-            GDriveBackupStatus.invalid =>
-              "Connection failed - reconnect required",
-            GDriveBackupStatus.operative => "Connected and syncing",
+            GDriveStatus_Disabled() => "Not connected",
+            GDriveStatus_Error() => "Connection failed - reconnect required",
+            GDriveStatus_Ok() => "Connected and syncing",
           },
         ),
       ],

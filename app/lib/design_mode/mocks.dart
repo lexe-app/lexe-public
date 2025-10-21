@@ -45,8 +45,8 @@ import 'package:app_rs_dart/ffi/types.dart'
         AppUserInfo,
         BackupInfo,
         Config,
-        GDriveBackupStatus,
         GDriveSignupCredentials,
+        GDriveStatus,
         Invoice,
         LxChannelDetails,
         Offer,
@@ -340,7 +340,7 @@ class MockAppHandle extends AppHandle {
   @override
   Future<BackupInfo> backupInfo() => Future.delayed(
     const Duration(milliseconds: 1000),
-    () => BackupInfo(gdriveBackupStatus: GDriveBackupStatus.operative),
+    () => BackupInfo(gdriveBackupStatus: GDriveStatus.ok()),
   );
   @override
   Future<bool> syncPayments() =>

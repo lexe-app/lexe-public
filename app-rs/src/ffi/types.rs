@@ -23,7 +23,7 @@ use common::{
 use flutter_rust_bridge::RustOpaqueNom;
 use lexe_api::{
     models::command::{
-        BackupInfo as BackupInfoRs, GDriveBackupStatus as GDriveBackupStatusRs,
+        BackupInfo as BackupInfoRs, GDriveStatus as GDriveStatusRs,
     },
     types::{
         invoice::LxInvoice,
@@ -720,30 +720,30 @@ impl From<RevocableClientRs> for RevocableClient {
     }
 }
 
-pub enum GDriveBackupStatus {
-    NotFound,
-    Invalid,
-    Operative,
+pub enum GDriveStatus {
+    Ok,
+    Error(String),
+    Disabled,
 }
 
-impl From<GDriveBackupStatusRs> for GDriveBackupStatus {
-    fn from(value: GDriveBackupStatusRs) -> Self {
+impl From<GDriveStatusRs> for GDriveStatus {
+    fn from(value: GDriveStatusRs) -> Self {
         match value {
-            GDriveBackupStatusRs::NotFound => Self::NotFound,
-            GDriveBackupStatusRs::Invalid => Self::Invalid,
-            GDriveBackupStatusRs::Operative => Self::Operative,
+            GDriveStatusRs::Ok => Self::Ok,
+            GDriveStatusRs::Error(err) => Self::Error(err.0.to_string()),
+            GDriveStatusRs::Disabled => Self::Disabled,
         }
     }
 }
 
 pub struct BackupInfo {
-    pub gdrive_backup_status: GDriveBackupStatus,
+    pub gdrive_backup_status: GDriveStatus,
 }
 
 impl From<BackupInfoRs> for BackupInfo {
     fn from(value: BackupInfoRs) -> Self {
         Self {
-            gdrive_backup_status: GDriveBackupStatus::from(
+            gdrive_backup_status: GDriveStatus::from(
                 value.gdrive_backup_status,
             ),
         }

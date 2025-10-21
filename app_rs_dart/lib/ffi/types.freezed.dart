@@ -200,6 +200,130 @@ String toString() {
 
 
 /// @nodoc
+mixin _$GDriveStatus {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GDriveStatus);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'GDriveStatus()';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class GDriveStatus_Ok extends GDriveStatus {
+  const GDriveStatus_Ok(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GDriveStatus_Ok);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'GDriveStatus.ok()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class GDriveStatus_Error extends GDriveStatus {
+  const GDriveStatus_Error(this.field0): super._();
+  
+
+ final  String field0;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GDriveStatus_Error&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'GDriveStatus.error(field0: $field0)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class GDriveStatus_Disabled extends GDriveStatus {
+  const GDriveStatus_Disabled(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GDriveStatus_Disabled);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'GDriveStatus.disabled()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$Invoice {
 
  String get string; String? get description; int get createdAt; int get expiresAt; int? get amountSats; String get payeePubkey;

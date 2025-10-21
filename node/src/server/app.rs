@@ -22,8 +22,8 @@ use lexe_api::{
     error::NodeApiError,
     models::command::{
         BackupInfo, CloseChannelRequest, CreateOfferRequest,
-        CreateOfferResponse, GDriveBackupStatus, GetAddressResponse,
-        GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
+        CreateOfferResponse, GDriveStatus, GetAddressResponse, GetNewPayments,
+        ListChannelsResponse, NodeInfo, OpenChannelRequest,
         OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
         PayOfferRequest, PayOfferResponse, PayOnchainRequest,
         PayOnchainResponse, PaymentIndexes, PreflightCloseChannelRequest,
@@ -34,7 +34,7 @@ use lexe_api::{
         PreflightPayOnchainResponse, UpdatePaymentNote,
     },
     server::{LxJson, extract::LxQuery},
-    types::{Empty, payments::VecBasicPayment},
+    types::{Empty, LxError, payments::VecBasicPayment},
     vfs::{self, Vfs, VfsDirectory},
 };
 use lexe_ln::p2p;
@@ -486,11 +486,11 @@ pub(super) async fn backup_info(
     State(state): State<Arc<RouterState>>,
 ) -> Result<LxJson<BackupInfo>, NodeApiError> {
     let gdrive_status = if state.persister.google_vfs_is_available() {
-        GDriveBackupStatus::Operative
+        GDriveStatus::Ok
     } else if state.persister.is_gdrive_credential_known().await {
-        GDriveBackupStatus::Invalid
+        GDriveStatus::Error(LxError(anyhow::anyhow!("Invalid")))
     } else {
-        GDriveBackupStatus::NotFound
+        GDriveStatus::Disabled
     };
     let backup_info = BackupInfo {
         gdrive_backup_status: gdrive_status,
