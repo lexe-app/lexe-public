@@ -392,7 +392,6 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// Handles a [`PaymentClaimable`] event.
     ///
     /// [`PaymentClaimable`]: lightning::events::Event::PaymentClaimable
-    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     #[instrument(skip_all, name = "(payment-claimable)")]
@@ -426,8 +425,35 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         let handle_claimable = || async {
             let mut locked_data = self.data.lock().await;
 
+            // The PaymentClaimable docs have a note that LDK will not stop an
+            // inbound payment from being paid multiple times. We should fail
+            // the payment in this case because:
+            // - This messes up (or significantly complicates) our accounting
+            // - This likely reflects an error on the receiver's part (reusing
+            //   the same invoice for multiple payments, which would allow any
+            //   nodes along the first payment path to steal later payments)
+            // - We should not allow payments to go through, in order to teach
+            //   users that this is not an acceptable way to use lightning,
+            //   because it is not safe. It is not hard to imagine users
+            //   developing the misconception that it is safe to reuse invoices
+            //   if duplicate payments actually do succeed.
+            let is_finalized = self
+                .get_cow_payment(&locked_data, &claim_ctx.id())
+                .await
+                .context("Could not get payment")
+                // Couldn't check if finalized; have to retry handling later.
+                .map_err(ClaimableError::Replay)?
+                .is_some_and(|p| p.status().is_finalized());
+            if is_finalized {
+                warn!(%amount, %hash, "Already finalized");
+                // Clear these pending HTLCs (if they still exist) so they don't
+                // stick around until expiration
+                return Err(ClaimableError::FailBackHtlcsTheirFault);
+            }
+
             // Check
             let checked =
+                // `check_payment_claimable` precondition: must not be finalized
                 locked_data.check_payment_claimable(claim_ctx, amount)?;
 
             // Persist
@@ -908,6 +934,8 @@ impl PaymentsData {
         }
     }
 
+    /// Precondition: Payment must not be finalized (Completed | Failed).
+    ///               It's OK for the payment to not exist (new payment).
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     fn check_payment_claimable(
@@ -917,28 +945,8 @@ impl PaymentsData {
     ) -> Result<CheckedPayment, ClaimableError> {
         let id = claim_ctx.id();
 
-        // The PaymentClaimable docs have a note that LDK will not stop an
-        // inbound payment from being paid multiple times. We should fail the
-        // payment in this case because:
-        // - This messes up (or significantly complicates) our accounting
-        // - This likely reflects an error on the receiver's part (reusing the
-        //   same invoice for multiple payments, which would allow any nodes
-        //   along the first payment path to steal subsequent payments)
-        // - We should not allow payments to go through, in order to teach users
-        //   that this is not an acceptable way to use lightning, because it is
-        //   not safe. It is not hard to imagine users developing the
-        //   misconception that it is safe to reuse invoices if duplicate
-        //   payments actually do succeed.
-        if self.finalized.contains(&id) {
-            warn!("already finalized");
-            // Clear these pending HTLCs (if they still exist) so they don't
-            // stick around until expiration
-            return Err(ClaimableError::FailBackHtlcsTheirFault);
-        }
-
         let maybe_pending_payment = self.pending.get(&id);
 
-        // Precondition: payment is not finalized (Completed | Failed).
         match maybe_pending_payment {
             // Pending payment exists; update it
             Some(pending_payment) =>
@@ -1251,7 +1259,9 @@ mod test {
 
     use super::*;
     use crate::payments::{
-        inbound::{InboundInvoicePayment, OfferClaimCtx},
+        inbound::{
+            InboundInvoicePayment, InboundOfferReusablePayment, OfferClaimCtx,
+        },
         outbound::{
             OutboundInvoicePayment, OutboundInvoicePaymentStatus,
             OutboundOfferPayment, arb::OipParams,
@@ -1316,9 +1326,11 @@ mod test {
 
     #[test]
     fn prop_inbound_spontaneous_payment_idempotency() {
+        let pending_only = true;
         proptest!(|(
             mut data in any::<PaymentsData>(),
-            isp in any::<InboundSpontaneousPayment>(),
+            // check_payment_claimable precondition: Must not be finalized
+            isp in any_with::<InboundSpontaneousPayment>(pending_only),
             // currently does nothing for spontaneous payments, but could catch
             // an unintended change.
             claim_id in any::<Option<LnClaimId>>(),
@@ -1349,9 +1361,11 @@ mod test {
 
     #[test]
     fn prop_inbound_invoice_payment_idempotency() {
+        let pending_only = true;
         proptest!(|(
             mut data in any::<PaymentsData>(),
-            iip in any::<InboundInvoicePayment>(),
+            // check_payment_claimable precondition: Must not be finalized
+            iip in any_with::<InboundInvoicePayment>(pending_only),
             recvd_amount in any::<Amount>(),
             claim_id in any::<Option<Option<LnClaimId>>>(),
         )| {
@@ -1391,9 +1405,11 @@ mod test {
 
     #[test]
     fn prop_inbound_offer_reuse_payment_idempotency() {
+        let pending_only = true;
         proptest!(|(
             mut data in any::<PaymentsData>(),
-            iorp in any::<InboundOfferReusablePayment>(),
+            // check_payment_claimable precondition: Must not be finalized
+            iorp in any_with::<InboundOfferReusablePayment>(pending_only),
         )| {
             let payment = Payment::InboundOfferReusable(iorp.clone());
             data.force_insert_payment(payment.clone());

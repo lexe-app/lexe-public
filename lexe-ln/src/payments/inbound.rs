@@ -17,8 +17,6 @@ use lightning::{
     events::Event::{PaymentClaimable, PaymentClaimed},
     ln::channelmanager::ChannelManager,
 };
-#[cfg(test)]
-use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -324,7 +322,7 @@ pub struct InboundInvoicePayment {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(test, derive(Arbitrary, strum::VariantArray, Hash))]
+#[cfg_attr(test, derive(strum::VariantArray, Hash))]
 pub enum InboundInvoicePaymentStatus {
     /// We generated an invoice, but it hasn't been paid yet.
     InvoiceGenerated,
@@ -625,7 +623,7 @@ pub struct InboundOfferReusablePayment {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(test, derive(Arbitrary, strum::VariantArray, Hash))]
+#[cfg_attr(test, derive(strum::VariantArray, Hash))]
 pub enum InboundOfferReusablePaymentStatus {
     /// We received a [`PaymentClaimable`] event.
     Claiming,
@@ -795,7 +793,7 @@ pub struct InboundSpontaneousPayment {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
+#[cfg_attr(test, derive(strum::VariantArray))]
 pub enum InboundSpontaneousPaymentStatus {
     /// We received a [`PaymentClaimable`] event.
     Claiming,
@@ -928,16 +926,20 @@ mod arb {
     };
     use proptest::{
         arbitrary::{Arbitrary, any, any_with},
+        prelude::Just,
+        prop_oneof,
         strategy::{BoxedStrategy, Strategy},
     };
+    use strum::VariantArray;
 
     use super::*;
 
     impl Arbitrary for InboundInvoicePayment {
-        type Parameters = ();
+        // pending_only: whether to only generate pending payments.
+        type Parameters = bool;
         type Strategy = BoxedStrategy<Self>;
 
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
             let preimage = any::<LxPaymentPreimage>();
             let preimage_invoice = preimage.prop_ind_flat_map2(|preimage| {
                 any_with::<LxInvoice>(LxInvoiceParams {
@@ -947,12 +949,12 @@ mod arb {
 
             let claim_id = any::<LnClaimId>();
             let recvd_amount = any::<Amount>();
-            let status = any::<InboundInvoicePaymentStatus>();
+            let status = any_with::<InboundInvoicePaymentStatus>(pending_only);
             let note = any_option_simple_string();
             let created_at = any::<TimestampMs>();
             let finalized_after = any_duration();
 
-            let gen_iip = |(
+            let gen_iip = move |(
                 preimage_invoice,
                 claim_id,
                 recvd_amount,
@@ -962,6 +964,7 @@ mod arb {
                 finalized_after,
             )| {
                 use InboundInvoicePaymentStatus::*;
+
                 let (preimage, invoice): (LxPaymentPreimage, LxInvoice) =
                     preimage_invoice;
                 let hash = invoice.payment_hash();
@@ -975,6 +978,17 @@ mod arb {
                     InvoiceGenerated | Expired => None,
                     Claiming | Completed => Some(recvd_amount),
                 };
+                let created_at: TimestampMs = created_at; // provides type hint
+                let finalized_at = if pending_only {
+                    None
+                } else {
+                    let finalized_at =
+                        created_at.saturating_add(finalized_after);
+                    PaymentStatus::from(status)
+                        .is_finalized()
+                        .then_some(finalized_at)
+                };
+
                 InboundInvoicePayment {
                     invoice: Box::new(invoice),
                     hash,
@@ -988,9 +1002,7 @@ mod arb {
                     status,
                     note,
                     created_at,
-                    finalized_at: PaymentStatus::from(status)
-                        .is_finalized()
-                        .then_some(created_at.saturating_add(finalized_after)),
+                    finalized_at,
                 }
             };
 
@@ -1008,18 +1020,39 @@ mod arb {
         }
     }
 
-    impl Arbitrary for InboundOfferReusablePayment {
-        type Parameters = ();
+    impl Arbitrary for InboundInvoicePaymentStatus {
+        // pending_only: whether to only generate pending payments.
+        type Parameters = bool;
         type Strategy = BoxedStrategy<Self>;
 
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
+            if pending_only {
+                prop_oneof![
+                    Just(InboundInvoicePaymentStatus::InvoiceGenerated),
+                    Just(InboundInvoicePaymentStatus::Claiming),
+                ]
+                .boxed()
+            } else {
+                proptest::sample::select(InboundInvoicePaymentStatus::VARIANTS)
+                    .boxed()
+            }
+        }
+    }
+
+    impl Arbitrary for InboundOfferReusablePayment {
+        // pending_only: whether to only generate pending payments.
+        type Parameters = bool;
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
             let preimage = any::<LxPaymentPreimage>();
             let claim_id = any::<LnClaimId>();
             let offer_id = any::<LxOfferId>();
             let amount = any::<Amount>();
             let quantity = any::<Option<MaxQuantity>>()
                 .prop_map(|opt_q| opt_q.map(|q| q.0));
-            let status = any::<InboundOfferReusablePaymentStatus>();
+            let status =
+                any_with::<InboundOfferReusablePaymentStatus>(pending_only);
             let note = any_option_simple_string();
             let payer_note = any_option_simple_string();
             // TODO(phlip9): use newtype
@@ -1027,7 +1060,7 @@ mod arb {
             let created_at = any::<TimestampMs>();
             let finalized_after = any_duration();
 
-            let gen_iip = |(
+            let gen_iip = move |(
                 preimage,
                 claim_id,
                 offer_id,
@@ -1040,6 +1073,17 @@ mod arb {
                 created_at,
                 finalized_after,
             )| {
+                let created_at: TimestampMs = created_at; // provides type hint
+                let finalized_at = if pending_only {
+                    None
+                } else {
+                    let finalized_at =
+                        created_at.saturating_add(finalized_after);
+                    PaymentStatus::from(status)
+                        .is_finalized()
+                        .then_some(finalized_at)
+                };
+
                 InboundOfferReusablePayment {
                     preimage,
                     claim_id,
@@ -1051,9 +1095,7 @@ mod arb {
                     payer_note,
                     payer_name,
                     created_at,
-                    finalized_at: PaymentStatus::from(status)
-                        .is_finalized()
-                        .then_some(created_at.saturating_add(finalized_after)),
+                    finalized_at,
                 }
             };
 
@@ -1075,20 +1117,40 @@ mod arb {
         }
     }
 
-    impl Arbitrary for InboundSpontaneousPayment {
-        type Parameters = ();
+    impl Arbitrary for InboundOfferReusablePaymentStatus {
+        // pending_only: whether to only generate pending payments.
+        type Parameters = bool;
         type Strategy = BoxedStrategy<Self>;
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+
+        fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
+            if pending_only {
+                Just(InboundOfferReusablePaymentStatus::Claiming).boxed()
+            } else {
+                proptest::sample::select(
+                    InboundOfferReusablePaymentStatus::VARIANTS,
+                )
+                .boxed()
+            }
+        }
+    }
+
+    impl Arbitrary for InboundSpontaneousPayment {
+        // pending_only: whether to only generate pending payments.
+        type Parameters = bool;
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
             let preimage = any::<LxPaymentPreimage>();
             let amount = any::<Amount>();
-            let status = any::<InboundSpontaneousPaymentStatus>();
+            let status =
+                any_with::<InboundSpontaneousPaymentStatus>(pending_only);
             let note = any_option_simple_string();
             let created_at = any::<TimestampMs>();
             let finalized_after = any_duration();
 
             (preimage, amount, status, note, created_at, finalized_after)
                 .prop_map(
-                    |(
+                    move |(
                         preimage,
                         amount,
                         status,
@@ -1096,6 +1158,17 @@ mod arb {
                         created_at,
                         finalized_after,
                     )| {
+                        let created_at: TimestampMs = created_at; // provides type hint
+                        let finalized_at = if pending_only {
+                            None
+                        } else {
+                            let finalized_at =
+                                created_at.saturating_add(finalized_after);
+                            PaymentStatus::from(status)
+                                .is_finalized()
+                                .then_some(finalized_at)
+                        };
+
                         InboundSpontaneousPayment {
                             hash: preimage.compute_hash(),
                             preimage,
@@ -1106,15 +1179,28 @@ mod arb {
                             status,
                             note,
                             created_at,
-                            finalized_at: PaymentStatus::from(status)
-                                .is_finalized()
-                                .then_some(
-                                    created_at.saturating_add(finalized_after),
-                                ),
+                            finalized_at,
                         }
                     },
                 )
                 .boxed()
+        }
+    }
+
+    impl Arbitrary for InboundSpontaneousPaymentStatus {
+        // pending_only: whether to only generate pending payments.
+        type Parameters = bool;
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
+            if pending_only {
+                Just(InboundSpontaneousPaymentStatus::Claiming).boxed()
+            } else {
+                proptest::sample::select(
+                    InboundSpontaneousPaymentStatus::VARIANTS,
+                )
+                .boxed()
+            }
         }
     }
 }
