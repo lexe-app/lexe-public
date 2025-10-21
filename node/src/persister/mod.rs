@@ -54,7 +54,9 @@ use lexe_api::{
     auth::BearerAuthenticator,
     def::NodeBackendApi,
     error::{BackendApiError, BackendErrorKind},
-    models::command::{GetNewPayments, PaymentIndexStruct, PaymentIndexes},
+    models::command::{
+        GetNewPayments, PaymentIdStruct, PaymentIndexStruct, PaymentIndexes,
+    },
     types::{
         Empty,
         payments::{
@@ -771,6 +773,30 @@ impl LexeInnerPersister for NodePersister {
             .map(|CheckedPayment(p)| PersistedPayment(p))
             .collect::<Vec<PersistedPayment>>();
         Ok(persisted_batch)
+    }
+
+    async fn get_payment_by_id(
+        &self,
+        id: LxPaymentId,
+    ) -> anyhow::Result<Option<Payment>> {
+        let req = PaymentIdStruct { id };
+        let token = self.get_token().await?;
+        let maybe_payment = self
+            .backend_api
+            .get_payment_by_id(req, token)
+            .await
+            .context("Could not fetch `DbPayment`s")?
+            .maybe_payment
+            // Decrypt into `Payment`
+            .map(|p| payments::decrypt(&self.vfs_master_key, p))
+            .transpose()
+            .context("Could not decrypt payment")?;
+
+        if let Some(payment) = &maybe_payment {
+            ensure!(payment.id() == id, "ID of returned payment doesn't match");
+        }
+
+        Ok(maybe_payment)
     }
 
     async fn get_payment_by_index(
