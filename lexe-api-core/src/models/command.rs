@@ -19,7 +19,6 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    LxError,
     invoice::LxInvoice,
     offer::{LxOffer, MaxQuantity},
     payments::{ClientPaymentId, LxPaymentId, PaymentIndex},
@@ -66,8 +65,7 @@ pub struct NodeInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GDriveStatus {
     Ok,
-    // TODO(maurice): Just use `String` here
-    Error(LxError),
+    Error(String),
     Disabled,
 }
 

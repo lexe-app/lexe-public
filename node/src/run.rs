@@ -35,7 +35,7 @@ use lexe_api::{
     error::MegaApiError,
     models::{command::GDriveStatus, runner::UserLeaseRenewalRequest},
     server::LayerConfig,
-    types::{LxError, ports::RunPorts, sealed_seed::SealedSeedId},
+    types::{ports::RunPorts, sealed_seed::SealedSeedId},
     vfs::{self, REVOCABLE_CLIENTS_FILE_ID, Vfs, VfsFileId},
 };
 use lexe_ln::{
@@ -304,7 +304,7 @@ impl UserNode {
                         (Some(Arc::new(google_vfs)), GDriveStatus::Ok)
                     }
                     Err(GoogleVfsInitError::VfsInit(e)) =>
-                        (None, GDriveStatus::Error(LxError(e))),
+                        (None, GDriveStatus::Error(e.to_string())),
                     Err(GoogleVfsInitError::FetchCreds(e)) => bail!(e),
                     Err(GoogleVfsInitError::PersistRoot(e)) => bail!(e),
                 }

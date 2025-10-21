@@ -36,43 +36,6 @@ pub type LeaseId = u32;
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct Empty {}
 
-/// A serializable wrapper arround [`anyhow::Error`].
-///
-/// This type is enables serialization/deserialization of
-/// [`anyhow::Error`] in API responses, which can't be done directly due to
-/// orphan rules.
-///
-/// Serliazes only the error's display message. Deserialization produces a
-/// generic error with the message.
-#[derive(Debug)]
-pub struct LxError(pub anyhow::Error);
-
-impl Serialize for LxError {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(&self.0.to_string())
-    }
-}
-
-impl<'de> Deserialize<'de> for LxError {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        Ok(LxError(anyhow::anyhow!(s)))
-    }
-}
-
-impl Clone for LxError {
-    fn clone(&self) -> Self {
-        let msg = self.0.to_string();
-        LxError(anyhow::anyhow!(msg))
-    }
-}
-
 #[cfg(test)]
 mod test {
     use common::test_utils::roundtrip;

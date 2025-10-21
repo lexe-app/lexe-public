@@ -35,7 +35,7 @@ use lexe_api::{
         PreflightPayOnchainResponse, SetupGDriveRequest, UpdatePaymentNote,
     },
     server::{LxJson, extract::LxQuery},
-    types::{Empty, LxError, payments::VecBasicPayment},
+    types::{Empty, payments::VecBasicPayment},
     vfs::{self, Vfs, VfsDirectory},
 };
 use lexe_ln::p2p;
@@ -531,8 +531,7 @@ pub(super) async fn setup_gdrive(
     let credentials = match credentials_result {
         Ok(credentials) => credentials,
         Err(err) => {
-            *locked_gdrive_status =
-                GDriveStatus::Error(LxError(anyhow::anyhow!(err.clone())));
+            *locked_gdrive_status = GDriveStatus::Error(err.to_string());
             return Err(NodeApiError::command(err));
         }
     };
@@ -547,9 +546,7 @@ pub(super) async fn setup_gdrive(
     {
         Ok(maybe_gvfs_root) => maybe_gvfs_root,
         Err(err) => {
-            let err = err.to_string();
-            *locked_gdrive_status =
-                GDriveStatus::Error(LxError(anyhow::anyhow!(err.clone())));
+            *locked_gdrive_status = GDriveStatus::Error(err.to_string());
             return Err(NodeApiError::command(err));
         }
     };
@@ -570,8 +567,7 @@ pub(super) async fn setup_gdrive(
     match init_result {
         Ok(_) => *locked_gdrive_status = GDriveStatus::Ok,
         Err(err) => {
-            *locked_gdrive_status =
-                GDriveStatus::Error(LxError(anyhow::anyhow!(err.clone())));
+            *locked_gdrive_status = GDriveStatus::Error(err.to_string());
             return Err(NodeApiError::command(err));
         }
     }

@@ -730,7 +730,7 @@ impl From<GDriveStatusRs> for GDriveStatus {
     fn from(value: GDriveStatusRs) -> Self {
         match value {
             GDriveStatusRs::Ok => Self::Ok,
-            GDriveStatusRs::Error(err) => Self::Error(err.0.to_string()),
+            GDriveStatusRs::Error(err) => Self::Error(err),
             GDriveStatusRs::Disabled => Self::Disabled,
         }
     }
