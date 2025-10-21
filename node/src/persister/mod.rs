@@ -373,20 +373,6 @@ impl NodePersister {
             .await
     }
 
-    pub(crate) fn google_vfs_is_available(&self) -> bool {
-        self.google_vfs.is_some()
-    }
-
-    pub(crate) async fn is_gdrive_credential_known(&self) -> bool {
-        read_gdrive_credentials(
-            self.backend_api.as_ref(),
-            self.authenticator.as_ref(),
-            self.vfs_master_key.as_ref(),
-        )
-        .await
-        .is_ok()
-    }
-
     /// Upserts a file to GDrive with the given # of `retries` if this
     /// [`NodePersister`] contains a [`GoogleVfs`], otherwise does nothing.
     // TODO(max): This fn should be reused in more places.

@@ -66,6 +66,13 @@ impl<'de> Deserialize<'de> for LxError {
     }
 }
 
+impl Clone for LxError {
+    fn clone(&self) -> Self {
+        let msg = self.0.to_string();
+        LxError(anyhow::anyhow!(msg))
+    }
+}
+
 #[cfg(test)]
 mod test {
     use common::test_utils::roundtrip;

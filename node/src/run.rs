@@ -33,9 +33,9 @@ use lexe_api::{
     auth::BearerAuthenticator,
     def::{NodeBackendApi, NodeLspApi, NodeRunnerApi},
     error::MegaApiError,
-    models::runner::UserLeaseRenewalRequest,
+    models::{command::GDriveStatus, runner::UserLeaseRenewalRequest},
     server::LayerConfig,
-    types::{ports::RunPorts, sealed_seed::SealedSeedId},
+    types::{LxError, ports::RunPorts, sealed_seed::SealedSeedId},
     vfs::{self, REVOCABLE_CLIENTS_FILE_ID, Vfs, VfsFileId},
 };
 use lexe_ln::{
@@ -278,34 +278,39 @@ impl UserNode {
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
         let vfs_master_key = Arc::new(root_seed.derive_vfs_master_key());
 
-        let maybe_google_vfs = if deploy_env.is_staging_or_prod() {
-            let gvfs_root_name = GvfsRootName {
-                deploy_env,
-                network,
-                use_sgx: cfg!(target_env = "sgx"),
-                user_pk,
-            };
+        let (maybe_google_vfs, gdrive_status) =
+            if deploy_env.is_staging_or_prod() {
+                let gvfs_root_name = GvfsRootName {
+                    deploy_env,
+                    network,
+                    use_sgx: cfg!(target_env = "sgx"),
+                    user_pk,
+                };
 
-            let maybe_gvfs_and_task = maybe_init_google_vfs(
-                backend_api.clone(),
-                authenticator.clone(),
-                vfs_master_key.clone(),
-                gvfs_root_name,
-                shutdown.clone(),
-            )
-            .await
-            .context("maybe_init_google_vfs failed")?;
+                let maybe_gvfs_and_task = maybe_init_google_vfs(
+                    backend_api.clone(),
+                    authenticator.clone(),
+                    vfs_master_key.clone(),
+                    gvfs_root_name,
+                    shutdown.clone(),
+                )
+                .await;
 
-            match maybe_gvfs_and_task {
-                Some((google_vfs, credentials_persister_task)) => {
-                    static_tasks.push(credentials_persister_task);
-                    Some(Arc::new(google_vfs))
+                match maybe_gvfs_and_task {
+                    Ok(None) => (None, GDriveStatus::Disabled),
+                    Ok(Some((google_vfs, credentials_persister_task))) => {
+                        static_tasks.push(credentials_persister_task);
+                        (Some(Arc::new(google_vfs)), GDriveStatus::Ok)
+                    }
+                    Err(GoogleVfsInitError::VfsInit(e)) => {
+                        (None, GDriveStatus::Error(LxError(e)))
+                    }
+                    Err(GoogleVfsInitError::FetchCreds(e)) => bail!(e),
+                    Err(GoogleVfsInitError::PersistRoot(e)) => bail!(e),
                 }
-                None => None,
-            }
-        } else {
-            None
-        };
+            } else {
+                (None, GDriveStatus::Disabled)
+            };
 
         // Initialize Persister
         let persister = Arc::new(NodePersister::new(
@@ -700,33 +705,37 @@ impl UserNode {
         let rev_ca_cert =
             Arc::new(RevocableIssuingCaCert::from_root_seed(&root_seed));
         let router_state = Arc::new(RouterState {
+            // --- Info --- //
             user_pk,
             network,
             measurement,
             version: version.clone(),
             config: config.clone(),
-            persister: persister.clone(),
-            chain_monitor: chain_monitor.clone(),
             fee_estimates: fee_estimates.clone(),
-            tx_broadcaster: tx_broadcaster.clone(),
-            wallet: wallet.clone(),
-            router: router.clone(),
+            lsp_info: lsp_info.clone(),
+            eph_ca_cert_der: eph_ca_cert_der.clone(),
+            rev_ca_cert: rev_ca_cert.clone(),
+            revocable_clients: revocable_clients.clone(),
+            intercept_scids,
+            gdrive_status: Arc::new(tokio::sync::Mutex::new(gdrive_status)),
+            // --- Actors --- //
             channel_manager: channel_manager.clone(),
             peer_manager: peer_manager.clone(),
             keys_manager: keys_manager.clone(),
             payments_manager: payments_manager.clone(),
             network_graph: network_graph.clone(),
-            lsp_info: lsp_info.clone(),
-            intercept_scids,
-            eph_ca_cert_der: eph_ca_cert_der.clone(),
-            rev_ca_cert: rev_ca_cert.clone(),
-            revocable_clients: revocable_clients.clone(),
+            persister: persister.clone(),
+            chain_monitor: chain_monitor.clone(),
+            router: router.clone(),
+            wallet: wallet.clone(),
+            // --- Channels --- //
+            tx_broadcaster: tx_broadcaster.clone(),
             channel_events_bus,
             eph_tasks_tx: eph_tasks_tx.clone(),
             runner_tx: runner_tx.clone(),
-            test_event_rx,
             bdk_resync_tx,
             ldk_resync_tx,
+            test_event_rx,
             shutdown: shutdown.clone(),
         });
         let app_listener =
@@ -1182,6 +1191,12 @@ async fn fetch_provisioned_secrets(
     }
 }
 
+enum GoogleVfsInitError {
+    FetchCreds(anyhow::Error),
+    VfsInit(anyhow::Error),
+    PersistRoot(anyhow::Error),
+}
+
 /// Helper to efficiently initialize a [`GoogleVfs`] and handle related work.
 /// Also spawns a task which persists updated GDrive credentials.
 /// Returns None if GDrive credentials are not available.
@@ -1191,7 +1206,7 @@ async fn maybe_init_google_vfs(
     vfs_master_key: Arc<AesMasterKey>,
     gvfs_root_name: GvfsRootName,
     mut shutdown: NotifyOnce,
-) -> anyhow::Result<Option<(GoogleVfs, LxTask<()>)>> {
+) -> Result<Option<(GoogleVfs, LxTask<()>)>, GoogleVfsInitError> {
     // Fetch the encrypted GDriveCredentials and persisted GVFS root.
     let (try_gdrive_credentials, try_persisted_gvfs_root) = tokio::join!(
         persister::read_gdrive_credentials(
@@ -1205,10 +1220,12 @@ async fn maybe_init_google_vfs(
             &vfs_master_key
         ),
     );
-    let maybe_gdrive_credentials =
-        try_gdrive_credentials.context("Could not read GDrive credentials")?;
-    let persisted_gvfs_root =
-        try_persisted_gvfs_root.context("Could not read gvfs root")?;
+    let maybe_gdrive_credentials = try_gdrive_credentials
+        .context("Could not read GDrive credentials")
+        .map_err(GoogleVfsInitError::FetchCreds)?;
+    let persisted_gvfs_root = try_persisted_gvfs_root
+        .context("Could not read gvfs root")
+        .map_err(GoogleVfsInitError::FetchCreds)?;
 
     let gdrive_credentials = match maybe_gdrive_credentials {
         Some(creds) => creds,
@@ -1219,22 +1236,13 @@ async fn maybe_init_google_vfs(
     };
 
     let (google_vfs, maybe_new_gvfs_root, mut credentials_rx) =
-        match GoogleVfs::init(
+        GoogleVfs::init(
             gdrive_credentials,
             gvfs_root_name,
             persisted_gvfs_root,
         )
         .await
-        {
-            Ok((google_vfs, maybe_new_gvfs_root, credentials_rx)) =>
-                (google_vfs, maybe_new_gvfs_root, credentials_rx),
-            Err(e) => {
-                // In case of Google VFS init failure, we should be able to tell
-                // the user to reconnect their GDrive.
-                warn!("Failed to init Google VFS: {e:#}");
-                return Ok(None);
-            }
-        };
+        .map_err(GoogleVfsInitError::VfsInit)?;
 
     // If we were given a new GVFS root to persist, persist it.
     // This should only happen once so it won't impact startup time.
@@ -1248,7 +1256,8 @@ async fn maybe_init_google_vfs(
             &new_gvfs_root,
         )
         .await
-        .context("Failed to persist new GVFS root")?;
+        .context("Failed to persist new GVFS root")
+        .map_err(GoogleVfsInitError::PersistRoot)?;
     }
 
     // Spawn a task that repersists the GDriveCredentials every time

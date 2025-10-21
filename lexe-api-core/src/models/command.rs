@@ -63,7 +63,7 @@ pub struct NodeInfo {
     pub pending_monitor_updates: usize,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GDriveStatus {
     Ok,
     Error(LxError),

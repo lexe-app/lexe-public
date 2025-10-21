@@ -21,6 +21,7 @@ use common::{
     enclave::Measurement,
     ln::network::LxNetwork,
 };
+use lexe_api::models::command::GDriveStatus;
 use lexe_ln::{
     alias::{NetworkGraphType, RouterType},
     channel::ChannelEvent,
@@ -67,6 +68,7 @@ pub(crate) struct RouterState {
     pub rev_ca_cert: Arc<RevocableIssuingCaCert>,
     pub revocable_clients: Arc<RwLock<RevocableClients>>,
     pub intercept_scids: Vec<Scid>,
+    pub gdrive_status: Arc<tokio::sync::Mutex<GDriveStatus>>,
 
     // --- Actors --- //
     pub channel_manager: NodeChannelManager,
