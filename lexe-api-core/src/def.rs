@@ -620,6 +620,7 @@ pub trait NodeBackendApi {
     ) -> Result<VfsDirectoryList, BackendApiError>;
 
     /// GET /node/v1/payments [`PaymentIndexStruct`] -> [`MaybeDbPayment`]
+    #[deprecated(note = "since node-v0.8.8: Use get_payment_by_index instead")]
     async fn get_payment(
         &self,
         req: PaymentIndexStruct,
@@ -644,6 +645,13 @@ pub trait NodeBackendApi {
     async fn get_payment_by_id(
         &self,
         req: PaymentIdStruct,
+        auth: BearerAuthToken,
+    ) -> Result<MaybeDbPayment, BackendApiError>;
+
+    /// GET /node/v1/payments/index [`PaymentIndexStruct`] -> [`MaybeDbPayment`]
+    async fn get_payment_by_index(
+        &self,
+        req: PaymentIndexStruct,
         auth: BearerAuthToken,
     ) -> Result<MaybeDbPayment, BackendApiError>;
 

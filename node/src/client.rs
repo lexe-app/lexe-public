@@ -493,6 +493,19 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
+    async fn get_payment_by_index(
+        &self,
+        req: PaymentIndexStruct,
+        auth: BearerAuthToken,
+    ) -> Result<MaybeDbPayment, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .get(format!("{backend}/node/v1/payments/index"), &req)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
     async fn upsert_payment_batch(
         &self,
         payments: VecDbPayment,
