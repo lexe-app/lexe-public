@@ -270,18 +270,25 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
     /// Register a new, globally-unique payment.
     /// Errors if the payment already exists.
+    // TODO(phlip9): might be clearer semantics if we assign the
+    // new payment's `created_at` _inside_ the lock... this would make
+    // payments properly append-only with a strictly increasing `created_at`
     #[instrument(skip_all, name = "(new-payment)")]
     pub async fn new_payment(&self, payment: Payment) -> anyhow::Result<()> {
         let id = payment.id();
         info!(%id, "Registering new payment");
         let mut locked_data = self.data.lock().await;
 
-        // TODO(phlip9): might be clearer semantics if we assign the
-        // new payment's `created_at` _inside_ the lock... this would make
-        // payments properly append-only with a strictly increasing `created_at`
-        let checked = locked_data
-            .check_new_payment(payment)
-            .context("Error handling new payment")?;
+        let existing_payment = self
+            .get_cow_payment(&locked_data, &id)
+            .await
+            .context("Could not get existing payment")?;
+        if let Some(existing_payment) = existing_payment {
+            let status = existing_payment.status();
+            return Err(anyhow!("Payment already exists: {status}"));
+        }
+
+        let checked = CheckedPayment(payment);
 
         let persisted = self
             .persister
@@ -872,28 +879,6 @@ impl PaymentsData {
         }
     }
 
-    fn check_new_payment(
-        &self,
-        payment: Payment,
-    ) -> anyhow::Result<CheckedPayment> {
-        // Check that this payment is indeed unique.
-        let id = payment.id();
-        ensure!(
-            !self.pending.contains_key(&id),
-            "Payment already exists: pending"
-        );
-        ensure!(
-            !self.finalized.contains(&id),
-            "Payment already exists: finalized"
-        );
-
-        // Newly created payments should *always* be pending.
-        debug_assert!(matches!(payment.status(), PaymentStatus::Pending));
-
-        // Everything ok.
-        Ok(CheckedPayment(payment))
-    }
-
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     fn check_payment_claimable(
@@ -939,8 +924,7 @@ impl PaymentsData {
                     let iorp =
                         InboundOfferReusablePayment::new(ctx, amount, now);
                     let payment = Payment::from(iorp);
-                    self.check_new_payment(payment)
-                        .map_err(ClaimableError::Replay)
+                    Ok(CheckedPayment(payment))
                 }
                 LnClaimCtx::Spontaneous {
                     hash,
@@ -952,10 +936,7 @@ impl PaymentsData {
                     let isp =
                         InboundSpontaneousPayment::new(hash, preimage, amount);
                     let payment = Payment::from(isp);
-
-                    // Validate the new payment.
-                    self.check_new_payment(payment)
-                        .map_err(ClaimableError::Replay)
+                    Ok(CheckedPayment(payment))
                 }
             },
         }
@@ -1236,7 +1217,7 @@ mod test {
     use common::ByteArray;
     use proptest::{
         arbitrary::{any, any_with},
-        prop_assert, prop_assert_eq, proptest,
+        prop_assert_eq, proptest,
     };
 
     use super::*;
@@ -1323,7 +1304,7 @@ mod test {
                 claim_id,
             };
 
-            prop_assert!(data.check_new_payment(payment).is_err());
+            // NOTE: New payment duplicate check moved to manager/DB layer.
 
             let _ = data
                 .check_payment_claimable(
@@ -1363,7 +1344,7 @@ mod test {
                 claim_id,
             };
 
-            prop_assert!(data.check_new_payment(payment).is_err());
+            // NOTE: New payment duplicate check moved to manager/DB layer.
 
             let _ = data
                 .check_payment_claimable(
@@ -1397,7 +1378,7 @@ mod test {
                 payer_name: iorp.payer_name,
             });
 
-            prop_assert!(data.check_new_payment(payment).is_err());
+            // NOTE: New payment duplicate check moved to manager/DB layer.
 
             let _ = data
                 .check_payment_claimable(
@@ -1473,8 +1454,7 @@ mod test {
             let id = payment.id();
             let data = PaymentsData::from_vec(vec![payment.clone()]);
 
-            // duplicate payment -> Err
-            prop_assert!(data.check_new_payment(payment.clone()).is_err());
+            // NOTE: New payment duplicate check moved to manager/DB layer.
 
             // (_, PaymentSent event) -> _
             let maybe_checked = data
