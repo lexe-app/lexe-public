@@ -32,6 +32,7 @@
 use std::path::Path;
 
 use anyhow::{Context, ensure};
+use base64::Engine as _;
 #[cfg(any(test, feature = "test-utils"))]
 use common::test_utils::arbitrary;
 use common::{ed25519, serde_helpers::hexstr_or_bytes};
@@ -192,6 +193,18 @@ impl CertWithKey {
 impl LxCertificateDer {
     pub fn as_slice(&self) -> &[u8] {
         self.0.as_slice()
+    }
+
+    pub fn serialize_pem(&self) -> String {
+        let padding = true;
+        let b64_len = base64::encoded_len(self.0.len(), padding).unwrap();
+        let mut pem = String::with_capacity(b64_len + 56);
+
+        pem.push_str("-----BEGIN CERTIFICATE-----\n");
+        base64::engine::general_purpose::STANDARD
+            .encode_string(&self.0, &mut pem);
+        pem.push_str("\n-----END CERTIFICATE-----\n");
+        pem
     }
 }
 

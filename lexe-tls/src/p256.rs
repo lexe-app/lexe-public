@@ -72,17 +72,18 @@ impl KeyPair {
         self.pkcs8_bytes.expose_secret()
     }
 
-    pub fn serialize_pkcs8_pem(&self) -> Secret<String> {
-        // Intentionally over-allocate to avoid reallocs (and thus leave secrets
+    pub fn serialize_pkcs8_pem(&self) -> String {
+        // Reserve enough space to always avoid reallocs (and thus avoid secrets
         // smeared around the heap).
-        let mut pem = String::with_capacity(512);
+        let mut pem = String::with_capacity(239);
 
         pem.push_str("-----BEGIN PRIVATE KEY-----\n");
+        // TODO(phlip9): b64_ct
         base64::engine::general_purpose::STANDARD
             .encode_string(self.pkcs8_bytes.expose_secret(), &mut pem);
         pem.push_str("\n-----END PRIVATE KEY-----\n");
 
-        Secret::new(pem)
+        pem
     }
 
     pub fn deserialize_pkcs8_pem(pem: &[u8]) -> Result<Self, Error> {
@@ -120,9 +121,7 @@ mod test {
     fn test_keypair_pkcs8_pem_roundtrip() {
         let keypair_1 = KeyPair::from_sysrng().unwrap();
         let pem = keypair_1.serialize_pkcs8_pem();
-        let keypair_2 =
-            KeyPair::deserialize_pkcs8_pem(pem.expose_secret().as_bytes())
-                .unwrap();
+        let keypair_2 = KeyPair::deserialize_pkcs8_pem(pem.as_bytes()).unwrap();
 
         let pkcs8_1 = keypair_1.as_pkcs8_der();
         let pkcs8_2 = keypair_2.as_pkcs8_der();

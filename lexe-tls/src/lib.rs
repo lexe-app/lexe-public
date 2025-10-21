@@ -11,6 +11,8 @@ use x509_parser::{
 
 /// (m)TLS based on SGX remote attestation.
 pub mod attestation;
+/// ed25519 key pair extension trait (PEM ser/de).
+pub mod ed25519_ext;
 /// Certs and utilities related to Lexe's CA.
 pub mod lexe_ca;
 /// ECDSA P-256 key pairs for webpki TLS certs.
