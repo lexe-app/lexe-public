@@ -18,11 +18,12 @@ use common::{
     ln::{amount::Amount, channel::LxUserChannelId},
     rng::SysRng,
 };
+use gdrive::{GoogleVfs, gvfs::GvfsRootName};
 use lexe_api::{
     error::NodeApiError,
     models::command::{
         BackupInfo, CloseChannelRequest, CreateOfferRequest,
-        CreateOfferResponse, GetAddressResponse, GetNewPayments,
+        CreateOfferResponse, GDriveStatus, GetAddressResponse, GetNewPayments,
         ListChannelsResponse, NodeInfo, OpenChannelRequest,
         OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
         PayOfferRequest, PayOfferResponse, PayOnchainRequest,
@@ -31,10 +32,10 @@ use lexe_api::{
         PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse, PreflightPayOfferRequest,
         PreflightPayOfferResponse, PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse, UpdatePaymentNote,
+        PreflightPayOnchainResponse, SetupGDriveRequest, UpdatePaymentNote,
     },
     server::{LxJson, extract::LxQuery},
-    types::{Empty, payments::VecBasicPayment},
+    types::{Empty, LxError, payments::VecBasicPayment},
     vfs::{self, Vfs, VfsDirectory},
 };
 use lexe_ln::p2p;
@@ -42,6 +43,7 @@ use lexe_tokio::task::MaybeLxTask;
 use tracing::warn;
 
 use super::RouterState;
+use crate::{persister, provision::helpers};
 
 pub(super) async fn node_info(
     State(state): State<Arc<RouterState>>,
@@ -492,4 +494,87 @@ pub(super) async fn backup_info(
     };
 
     Ok(LxJson(backup_info))
+}
+
+pub(super) async fn setup_gdrive(
+    State(state): State<Arc<RouterState>>,
+    LxJson(req): LxJson<SetupGDriveRequest>,
+) -> Result<LxJson<Empty>, NodeApiError> {
+    // Hold the lock during setup to prevent concurrent GDrive setups, and avoid
+    // setting up GDrive if already set up.
+    let mut locked_gdrive_status = state.gdrive_status.lock().await;
+
+    if matches!(*locked_gdrive_status, GDriveStatus::Ok) {
+        return Ok(LxJson(Empty {}));
+    }
+
+    let oauth = state.oauth.as_ref().as_ref().ok_or_else(|| {
+        NodeApiError::command("OAuthConfig required in staging/prod")
+    })?;
+
+    let mut rng = SysRng::new();
+    let gdrive_client = gdrive::ReqwestClient::new();
+    let backend_api = state.persister.backend_api();
+    let authenticator = state.persister.authenticator();
+    let vfs_master_key = state.persister.vfs_master_key();
+    let credentials_result = helpers::exchange_code_and_persist_credentials(
+        &mut rng,
+        backend_api,
+        &gdrive_client,
+        oauth,
+        &req.google_auth_code,
+        authenticator,
+        vfs_master_key,
+    )
+    .await;
+
+    let credentials = match credentials_result {
+        Ok(credentials) => credentials,
+        Err(err) => {
+            *locked_gdrive_status =
+                GDriveStatus::Error(LxError(anyhow::anyhow!(err.clone())));
+            return Err(NodeApiError::command(err));
+        }
+    };
+
+    let maybe_persisted_gvfs_root = match persister::read_gvfs_root(
+        backend_api,
+        authenticator,
+        vfs_master_key,
+    )
+    .await
+    .context("Failed to fetch persisted gvfs root")
+    {
+        Ok(maybe_gvfs_root) => maybe_gvfs_root,
+        Err(err) => {
+            let err = err.to_string();
+            *locked_gdrive_status =
+                GDriveStatus::Error(LxError(anyhow::anyhow!(err.clone())));
+            return Err(NodeApiError::command(err));
+        }
+    };
+
+    let gvfs_root_name = GvfsRootName {
+        deploy_env: state.deploy_env,
+        network: state.network,
+        use_sgx: cfg!(target_env = "sgx"),
+        user_pk: state.user_pk,
+    };
+
+    let init_result =
+        GoogleVfs::init(credentials, gvfs_root_name, maybe_persisted_gvfs_root)
+            .await
+            .context("Failed to init Google VFS")
+            .map_err(NodeApiError::provision);
+
+    match init_result {
+        Ok(_) => *locked_gdrive_status = GDriveStatus::Ok,
+        Err(err) => {
+            *locked_gdrive_status =
+                GDriveStatus::Error(LxError(anyhow::anyhow!(err.clone())));
+            return Err(NodeApiError::command(err));
+        }
+    }
+
+    Ok(LxJson(Empty {}))
 }

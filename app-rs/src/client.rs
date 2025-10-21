@@ -61,7 +61,7 @@ use lexe_api::{
         PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
         PreflightPayOfferRequest, PreflightPayOfferResponse,
         PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-        UpdatePaymentNote,
+        SetupGDriveRequest, UpdatePaymentNote,
     },
     rest::{POST, RequestBuilderExt, RestClient},
     types::{Empty, payments::VecBasicPayment},
@@ -759,6 +759,17 @@ impl AppNodeRunApi for NodeClient {
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/backup_info");
         let req = self.run_rest.get(url, &Empty {});
+        self.run_rest.send(req).await
+    }
+
+    async fn setup_gdrive(
+        &self,
+        req: SetupGDriveRequest,
+    ) -> Result<Empty, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/backup/gdrive");
+        let req = self.run_rest.post(url, &req);
         self.run_rest.send(req).await
     }
 }

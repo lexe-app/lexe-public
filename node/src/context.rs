@@ -4,7 +4,10 @@ use std::{
 };
 
 use anyhow::{Context, anyhow, ensure};
-use common::{enclave, env::DeployEnv, ln::network::LxNetwork, rng::Crng};
+use common::{
+    cli::OAuthConfig, enclave, env::DeployEnv, ln::network::LxNetwork,
+    rng::Crng,
+};
 use lexe_api::{
     def::NodeLspApi,
     error::MegaApiError,
@@ -46,6 +49,9 @@ pub(crate) struct MegaContext {
     pub backend_api: Arc<NodeBackendClient>,
     /// The channel manager config for user nodes.
     pub config: Arc<UserConfig>,
+    /// The configuration info for Google OAuth2.
+    /// Required only if running in staging / prod.
+    pub oauth: Arc<Option<OAuthConfig>>,
     /// The Esplora client for blockchain data.
     /// NOTE: LexeEsplora can be shared but EsploraSyncClient can't because
     /// EsploraSyncClient holds state internally.
@@ -90,6 +96,7 @@ impl MegaContext {
         backend_url: String,
         lsp_url: String,
         runner_url: String,
+        oauth: Option<OAuthConfig>,
         untrusted_deploy_env: DeployEnv,
         untrusted_esplora_urls: Vec<String>,
         untrusted_network: LxNetwork,
@@ -193,10 +200,12 @@ impl MegaContext {
                 .map(Arc::new)
                 .map_err(|e| anyhow!("Couldn't deser prob scorer: {e:#}"))?
         };
+        let oauth = Arc::new(oauth);
 
         let context = Self {
             backend_api,
             config,
+            oauth,
             esplora,
             fee_estimates,
             logger,
@@ -286,6 +295,7 @@ impl MegaContext {
         let version = crate::version();
         let machine_id = enclave::machine_id();
         let measurement = enclave::measurement();
+        let oauth = Arc::new(None);
 
         // Create a dummy runner_tx channel
         let (runner_tx, _runner_rx) = mpsc::channel(16);
@@ -293,6 +303,7 @@ impl MegaContext {
         Self {
             backend_api,
             config,
+            oauth,
             esplora,
             fee_estimates,
             logger,

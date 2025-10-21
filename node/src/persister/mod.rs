@@ -373,6 +373,21 @@ impl NodePersister {
             .await
     }
 
+    /// Get a reference to the underlying [`NodeBackendClient`].
+    pub(crate) fn backend_api(&self) -> &NodeBackendClient {
+        self.backend_api.as_ref()
+    }
+
+    /// Get a reference to the underlying [`BearerAuthenticator`].
+    pub(crate) fn authenticator(&self) -> &BearerAuthenticator {
+        self.authenticator.as_ref()
+    }
+
+    /// Get a reference to the underlying [`AesMasterKey`].
+    pub(crate) fn vfs_master_key(&self) -> &AesMasterKey {
+        self.vfs_master_key.as_ref()
+    }
+
     /// Upserts a file to GDrive with the given # of `retries` if this
     /// [`NodePersister`] contains a [`GoogleVfs`], otherwise does nothing.
     // TODO(max): This fn should be reused in more places.

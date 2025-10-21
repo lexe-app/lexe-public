@@ -90,7 +90,8 @@ use crate::{
             PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
             PreflightPayInvoiceResponse, PreflightPayOfferRequest,
             PreflightPayOfferResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse, ResyncRequest, UpdatePaymentNote,
+            PreflightPayOnchainResponse, ResyncRequest, SetupGDriveRequest,
+            UpdatePaymentNote,
         },
         runner::{
             MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest,
@@ -385,8 +386,18 @@ pub trait AppNodeRunApi {
         &self,
     ) -> Result<serde_json::Value, NodeApiError>;
 
+    /// Get the current status of Node backup.
+    ///
     /// GET /app/backup_info [`Empty`] -> [`BackupInfo`]
     async fn backup_info(&self) -> Result<BackupInfo, NodeApiError>;
+
+    /// Setup GDrive backup.
+    ///
+    /// POST /app/backup/gdrive [`SetupGDriveRequest`] -> [`Empty`]
+    async fn setup_gdrive(
+        &self,
+        req: SetupGDriveRequest,
+    ) -> Result<Empty, NodeApiError>;
 }
 
 /// The bearer auth API exposed by the backend (sometimes via the gateway) to

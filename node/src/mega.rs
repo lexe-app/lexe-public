@@ -25,6 +25,7 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
         args.backend_url.clone(),
         args.lsp_url.clone(),
         args.runner_url.clone(),
+        args.oauth.clone(),
         args.untrusted_deploy_env,
         args.untrusted_esplora_urls.clone(),
         args.untrusted_network,

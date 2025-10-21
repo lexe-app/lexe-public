@@ -363,7 +363,7 @@ mod handlers {
     }
 }
 
-mod helpers {
+pub(crate) mod helpers {
     use common::{aes::AesMasterKey, api::user::UserPk, enclave::Measurement};
     use gdrive::{gvfs::GvfsRootName, oauth2::GDriveCredentials};
     use lexe_api::error::{BackendApiError, BackendErrorKind};
@@ -455,7 +455,7 @@ mod helpers {
     /// Completes the OAuth2 flow by exchanging the `auth_code` for an
     /// `access_token` and `refresh_token`, then persists the
     /// [`GDriveCredentials`] (which are encrypted) to Lexe's DB.
-    pub(super) async fn exchange_code_and_persist_credentials(
+    pub(crate) async fn exchange_code_and_persist_credentials(
         rng: &mut impl Crng,
         backend_api: &NodeBackendClient,
         gdrive_client: &gdrive::ReqwestClient,

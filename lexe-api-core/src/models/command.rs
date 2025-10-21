@@ -66,6 +66,7 @@ pub struct NodeInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GDriveStatus {
     Ok,
+    // TODO(maurice): Just use `String` here
     Error(LxError),
     Disabled,
 }
@@ -75,6 +76,16 @@ pub struct BackupInfo {
     pub gdrive_backup_status: GDriveStatus,
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(test, derive(Arbitrary))]
+pub struct SetupGDriveRequest {
+    /// The auth `code` which can used to obtain a set of GDrive credentials.
+    /// - Applicable only in staging/prod.
+    /// - If GDrive has not been setup, the node will acquire the full set of
+    ///   GDrive credentials and persist them (encrypted ofc) in Lexe's DB.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
+    pub google_auth_code: String,
+}
 // --- Channel Management --- //
 
 #[derive(Serialize, Deserialize)]
@@ -485,5 +496,10 @@ mod test {
     #[test]
     fn get_address_response_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<GetAddressResponse>();
+    }
+
+    #[test]
+    fn setup_gdrive_request_roundtrip() {
+        roundtrip::json_string_roundtrip_proptest::<SetupGDriveRequest>();
     }
 }

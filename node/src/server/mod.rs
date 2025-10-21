@@ -17,8 +17,9 @@ use common::{
         revocable_clients::RevocableClients,
         user::{Scid, UserPk},
     },
-    cli::LspInfo,
+    cli::{LspInfo, OAuthConfig},
     enclave::Measurement,
+    env::DeployEnv,
     ln::network::LxNetwork,
 };
 use lexe_api::models::command::GDriveStatus;
@@ -69,6 +70,8 @@ pub(crate) struct RouterState {
     pub revocable_clients: Arc<RwLock<RevocableClients>>,
     pub intercept_scids: Vec<Scid>,
     pub gdrive_status: Arc<tokio::sync::Mutex<GDriveStatus>>,
+    pub oauth: Arc<Option<OAuthConfig>>,
+    pub deploy_env: DeployEnv,
 
     // --- Actors --- //
     pub channel_manager: NodeChannelManager,
@@ -128,6 +131,7 @@ pub(crate) fn app_router(state: Arc<RouterState>) -> Router<()> {
         )
         .route("/app/list_broadcasted_txs", get(app::list_broadcasted_txs))
         .route("/app/backup_info", get(app::backup_info))
+        .route("/app/backup/gdrive", post(app::setup_gdrive))
         .with_state(state)
         // Send an activity notification anytime /app is hit.
         .layer(MapRequestLayer::new(move |request| {
