@@ -839,15 +839,31 @@ mod arbitrary_impls {
 // Note: The `PKCS_TEMPLATE_PREFIX` and `PKCS_TEMPLATE_MIDDLE` are pulled from
 // this pkcs8 "template" file in the `ring` repo.
 //
+// History: up to 2025-10-21, our ed25519 key pairs were not PKCS#8 v2
+// DER-encoded correctly. ring had the wrong "template" (which we vendored early
+// on), that was later fixed in 2023-10-01
+// <https://github.com/briansmith/ring/pull/1680>.
+//
+// # Correct PKCS#8 v2 template
+// $ hexdump -C ring/src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der
+// 00000000  30 51 02 01 01 30 05 06  03 2b 65 70 04 22 04 20
+// 00000010  81 21 00
+//
+// # Previously, ring used an incorrect template...
 // $ hexdump -C ring/src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der
 // 00000000  30 53 02 01 01 30 05 06  03 2b 65 70 04 22 04 20
 // 00000010  a1 23 03 21 00
 
 const PKCS_TEMPLATE_PREFIX: &[u8] = &[
+    0x30, 0x51, 0x02, 0x01, 0x01, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70,
+    0x04, 0x22, 0x04, 0x20,
+];
+const PKCS_TEMPLATE_PREFIX_BAD: &[u8] = &[
     0x30, 0x53, 0x02, 0x01, 0x01, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70,
     0x04, 0x22, 0x04, 0x20,
 ];
-const PKCS_TEMPLATE_MIDDLE: &[u8] = &[0xa1, 0x23, 0x03, 0x21, 0x00];
+const PKCS_TEMPLATE_MIDDLE_BAD: &[u8] = &[0xa1, 0x23, 0x03, 0x21, 0x00];
+const PKCS_TEMPLATE_MIDDLE: &[u8] = &[0x81, 0x21, 0x00];
 const PKCS_TEMPLATE_KEY_IDX: usize = 16;
 
 // The length of an ed25519 key pair serialized as PKCS#8 v2 with embedded
@@ -856,9 +872,14 @@ const PKCS_LEN: usize = PKCS_TEMPLATE_PREFIX.len()
     + SECRET_KEY_LEN
     + PKCS_TEMPLATE_MIDDLE.len()
     + PUBLIC_KEY_LEN;
+const PKCS_LEN_BAD: usize = PKCS_TEMPLATE_PREFIX_BAD.len()
+    + SECRET_KEY_LEN
+    + PKCS_TEMPLATE_MIDDLE_BAD.len()
+    + PUBLIC_KEY_LEN;
 
-// Ensure this doesn't accidentally change.
-lexe_std::const_assert_usize_eq!(PKCS_LEN, 85);
+// Ensure these don't accidentally change.
+lexe_std::const_assert_usize_eq!(PKCS_LEN, 83);
+lexe_std::const_assert_usize_eq!(PKCS_LEN_BAD, 85);
 
 /// Formats a key pair as `prefix || key || middle || pk`, where `prefix`
 /// and `middle` are two pre-computed blobs.
@@ -886,16 +907,26 @@ fn serialize_keypair_pkcs8_der(
 
 /// Deserialize the seed and pubkey for a key pair from its PKCS#8-encoded
 /// bytes.
+///
+/// Previously, `ring` used an incorrect PKCS#8 v2 format. For backwards
+/// compatibility, we'll support deserializing from the old, incorrect format.
 fn deserialize_keypair_pkcs8_der(
     bytes: &[u8],
 ) -> Option<(&[u8; 32], &[u8; 32])> {
-    if bytes.len() != PKCS_LEN {
+    let (seed, pubkey) = if bytes.len() == PKCS_LEN {
+        let seed_mid_pubkey = bytes.strip_prefix(PKCS_TEMPLATE_PREFIX)?;
+        let (seed, mid_pubkey) = seed_mid_pubkey.split_at(SECRET_KEY_LEN);
+        let pubkey = mid_pubkey.strip_prefix(PKCS_TEMPLATE_MIDDLE)?;
+        (seed, pubkey)
+    } else if bytes.len() == PKCS_LEN_BAD {
+        // Deserialize from old, incorrect PKCS#8 v2 format for compat
+        let seed_mid_pubkey = bytes.strip_prefix(PKCS_TEMPLATE_PREFIX_BAD)?;
+        let (seed, mid_pubkey) = seed_mid_pubkey.split_at(SECRET_KEY_LEN);
+        let pubkey = mid_pubkey.strip_prefix(PKCS_TEMPLATE_MIDDLE_BAD)?;
+        (seed, pubkey)
+    } else {
         return None;
-    }
-
-    let seed_mid_pubkey = bytes.strip_prefix(PKCS_TEMPLATE_PREFIX)?;
-    let (seed, mid_pubkey) = seed_mid_pubkey.split_at(SECRET_KEY_LEN);
-    let pubkey = mid_pubkey.strip_prefix(PKCS_TEMPLATE_MIDDLE)?;
+    };
 
     let seed = <&[u8; 32]>::try_from(seed).unwrap();
     let pubkey = <&[u8; 32]>::try_from(pubkey).unwrap();
@@ -913,6 +944,10 @@ mod test {
     use proptest_derive::Arbitrary;
 
     use super::*;
+    use crate::{
+        rng::FastRng,
+        test_utils::{arbitrary::gen_values, snapshot},
+    };
 
     #[derive(Arbitrary, Serialize, Deserialize)]
     struct SignableBytes(Vec<u8>);
@@ -942,6 +977,41 @@ mod test {
             assert_eq!(key_pair1.secret_key(), key_pair2.secret_key());
             assert_eq!(key_pair1.public_key(), key_pair2.public_key());
         });
+    }
+
+    #[test]
+    fn test_pkcs8_der_snapshot() {
+        let inputs = r#"
+--- old, incorrect PKCS#8 v2 format
+3053020101300506032b657004220420244ae26baa35db07ed4ea37908f111a8fa4cb81109f9897a133b8a8de6e800dca1230321007dc65033bee5975aab9bb06e1e514d29533173511446adc5a73a9540d2addbac
+3053020101300506032b657004220420170ddf655e4f125ab6b2aba1269396547de5ce55d05b44817d451bce9ed5c27da12303210050fe5d186563228e8ff7788b205daba94819015ae2e6d1b816103d44c4d904e7
+3053020101300506032b6570042204206af81a54ce849cf9fd7700e1727683b6827804ecfa01c2445a3a36965f0f2665a1230321000fe43d0ade1b82e2572c66b1f4a91deb287b8191cd625fb9f22ec2a3291837a9
+3053020101300506032b65700422042065fb1f762df47c461af399128d7723c657a96ca830a60d7c490a887e4d58fac9a123032100a8523e4de7594c1ed74e5c8e86cb84a0e8bd66f874e0d3de15e5a7f2017bb822
+3053020101300506032b65700422042013d80a53bb2a99ea48cfe3ab0990aa866c7de5e858787c0a80e2af33f7b345dda12303210081da71be7da3f2df6905550470c99d263447046d3e8bf6b2ea019c5587652c49
+--- new, correct PKCS#8 v2 format
+3051020101300506032b657004220420244ae26baa35db07ed4ea37908f111a8fa4cb81109f9897a133b8a8de6e800dc8121007dc65033bee5975aab9bb06e1e514d29533173511446adc5a73a9540d2addbac
+3051020101300506032b657004220420170ddf655e4f125ab6b2aba1269396547de5ce55d05b44817d451bce9ed5c27d81210050fe5d186563228e8ff7788b205daba94819015ae2e6d1b816103d44c4d904e7
+3051020101300506032b6570042204206af81a54ce849cf9fd7700e1727683b6827804ecfa01c2445a3a36965f0f26658121000fe43d0ade1b82e2572c66b1f4a91deb287b8191cd625fb9f22ec2a3291837a9
+3051020101300506032b65700422042065fb1f762df47c461af399128d7723c657a96ca830a60d7c490a887e4d58fac9812100a8523e4de7594c1ed74e5c8e86cb84a0e8bd66f874e0d3de15e5a7f2017bb822
+3051020101300506032b65700422042013d80a53bb2a99ea48cfe3ab0990aa866c7de5e858787c0a80e2af33f7b345dd81210081da71be7da3f2df6905550470c99d263447046d3e8bf6b2ea019c5587652c49
+"#;
+        for input in snapshot::parse_sample_data(inputs) {
+            let der = hex::decode(input).unwrap();
+            let _ = KeyPair::deserialize_pkcs8_der(&der).unwrap();
+        }
+    }
+
+    // ```bash
+    // $ cargo test -p common --lib -- pkcs8_der_snapshot_data --nocapture --ignored
+    // ```
+    #[ignore]
+    #[test]
+    fn pkcs8_der_snapshot_data() {
+        let mut rng = FastRng::from_u64(202510211432);
+        let keys = gen_values(&mut rng, any::<KeyPair>(), 5);
+        for key in keys {
+            println!("{}", hex::display(key.serialize_pkcs8_der().as_slice()));
+        }
     }
 
     /// [`KeyPair`] -> [`rcgen::KeyPair`] -> DER bytes -> [`KeyPair`]
