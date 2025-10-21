@@ -1294,7 +1294,7 @@ where
     // or we are trying to pay ourselves (yes, users actually do this).
     let payment_id = LxPaymentId::Lightning(invoice.payment_hash());
     let maybe_existing_payment = payments_manager
-        .get_payment(payment_id)
+        .get_payment(&payment_id)
         .await
         .context("Couldn't check for existing payment")?;
     if let Some(existing_payment) = maybe_existing_payment {
@@ -1400,7 +1400,7 @@ where
     // Fail early if we already tried paying with this client ID.
     let payment_id = LxPaymentId::OfferSend(req.cid);
     let maybe_existing_payment = payments_manager
-        .get_payment(payment_id)
+        .get_payment(&payment_id)
         .await
         .context("Couldn't check for existing payment")?;
     ensure!(

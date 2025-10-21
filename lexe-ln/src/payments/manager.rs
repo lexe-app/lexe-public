@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::{HashMap, HashSet},
     sync::Arc,
     time::Duration,
@@ -21,7 +22,10 @@ use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 #[cfg(doc)]
 use lightning::events::Event::PaymentFailed;
 use lightning::{events::PaymentPurpose, ln::channelmanager::FailureCode};
-use tokio::{sync::Mutex, time::Instant};
+use tokio::{
+    sync::{Mutex, MutexGuard},
+    time::Instant,
+};
 use tracing::{debug, error, info, info_span, instrument, warn};
 
 use super::{inbound::InboundOfferReusablePayment, outbound::ExpireError};
@@ -294,19 +298,32 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// Returns the in-memory payment if cached, fetches from the DB otherwise.
     pub async fn get_payment(
         &self,
-        id: LxPaymentId,
+        id: &LxPaymentId,
     ) -> anyhow::Result<Option<Payment>> {
-        {
-            let locked_data = self.data.lock().await;
-            if let Some(payment) = locked_data.pending.get(&id).cloned() {
-                return Ok(Some(payment));
-            }
+        let locked_data = self.data.lock().await;
+        self.get_cow_payment(&locked_data, id)
+            .await
+            .map(|maybe_payment| maybe_payment.map(|p| p.into_owned()))
+    }
 
-            // TODO(max): Maybe cache finalized payments that were fetched?
-            // Then we could early return here as well.
+    /// Given a locked [`PaymentsData`], get either a reference to an in-memory
+    /// payment or an owned payment fetched from the DB, if it exists.
+    async fn get_cow_payment<'param>(
+        &self,
+        locked_data: &'param MutexGuard<'_, PaymentsData>,
+        id: &LxPaymentId,
+    ) -> anyhow::Result<Option<Cow<'param, Payment>>> {
+        if let Some(payment) = locked_data.pending.get(id) {
+            return Ok(Some(Cow::Borrowed(payment)));
         }
 
-        self.persister.get_payment_by_id(id).await
+        // TODO(max): Maybe cache finalized payments that were fetched?
+        // Then we could early return here as well.
+
+        self.persister
+            .get_payment_by_id(*id)
+            .await
+            .map(|maybe_payment| maybe_payment.map(Cow::Owned))
     }
 
     /// Attempt to update the personal note on a payment.
@@ -323,20 +340,21 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // If the payment was finalized, we have to fetch a copy from the DB.
         let mut payment_clone = match locked_data.pending.get(&id) {
             Some(pending) => pending.clone(),
-            None => {
-                // Before fetching, quickly check that the payment exists.
-                ensure!(
-                    locked_data.finalized.contains(&id),
-                    "Payment to be updated does not exist",
-                );
-
-                self.persister
-                    .get_payment_by_index(update.index)
-                    .await
-                    .context("Could not fetch finalized payment")?
-                    .context("Finalized payment was not found in DB")?
-            }
+            None => self
+                .persister
+                .get_payment_by_index(update.index)
+                .await
+                .context("Could not fetch finalized payment")?
+                .context("Finalized payment was not found in DB")?,
         };
+        // TODO(max): Switch to get_cow_payment once the payment note is
+        // separated from the core `Payment` type, o/w we might read stale data.
+        // let mut payment_clone = self
+        //     .get_cow_payment(&locked_data, &id)
+        //     .await
+        //     .context("Could not get payment")?
+        //     .context("Payment does not exist")?
+        //     .into_owned();
 
         // Update
         payment_clone.set_note(update.note);
@@ -650,19 +668,21 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         debug!(%id, "Registering that an onchain send has been broadcasted");
         let mut locked_data = self.data.lock().await;
 
+        let payment = self
+            .get_cow_payment(&locked_data, id)
+            .await
+            .context("Could not get payment")?
+            .context("Payment does not exist")?;
+
         // TODO(phlip9): races with sync after broadcast
         ensure!(
-            !locked_data.finalized.contains(id),
+            !payment.status().is_finalized(),
             "Onchain send was already finalized",
         );
-
-        let pending = locked_data
-            .pending
-            .get(id)
-            .context("Payment doesn't exist")?;
+        // From here, we know the payment is pending.
 
         // Check
-        let checked = match pending {
+        let checked = match payment.as_ref() {
             Payment::OnchainSend(os) => os
                 .broadcasted(txid)
                 .map(Payment::from)
