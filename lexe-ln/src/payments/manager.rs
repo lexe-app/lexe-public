@@ -275,12 +275,21 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     // payments properly append-only with a strictly increasing `created_at`
     #[instrument(skip_all, name = "(new-payment)")]
     pub async fn new_payment(&self, payment: Payment) -> anyhow::Result<()> {
+        let mut locked_data = self.data.lock().await;
+        self.new_payment_inner(&mut locked_data, payment).await
+    }
+
+    /// [`Self::new_payment`] with a pre-acquired lock.
+    async fn new_payment_inner(
+        &self,
+        locked_data: &mut MutexGuard<'_, PaymentsData>,
+        payment: Payment,
+    ) -> anyhow::Result<()> {
         let id = payment.id();
         info!(%id, "Registering new payment");
-        let mut locked_data = self.data.lock().await;
 
         let existing_payment = self
-            .get_cow_payment(&locked_data, &id)
+            .get_cow_payment(locked_data, &id)
             .await
             .context("Could not get existing payment")?;
         if let Some(existing_payment) = existing_payment {
@@ -789,28 +798,49 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         wallet: &LexeWallet,
     ) -> anyhow::Result<()> {
         debug!("Checking for onchain receives");
+        let mut locked_data = self.data.lock().await;
 
-        let onchain_recvs = {
-            let locked_data = self.data.lock().await;
+        // List the txids of UTXOs owned by us (from BDK's perspective).
+        let unspent_txids = {
             let locked_wallet = wallet.read();
-
-            // List the txids of unspent outputs owned by the wallet.
-            let unspent_txids = locked_wallet
+            locked_wallet
                 .list_unspent()
                 // Only register payments to the external descriptor, so there
-                // aren't entries for e.g. channel closes / splices / etc.
+                // aren't entries for channel closes / splices / etc.
+                // TODO(max): We actually want to remove this in the future, so
+                // that we can track the sweeping of funds from closed channels;
+                // OnchainRecv would include channel sweeps and anything that
+                // spends to the BDK wallet. We should match the channel sweep
+                // credit with the channel close debit, but channel opens /
+                // closes need to be tracked separately.
                 .filter(|o| matches!(o.keychain, KeychainKind::External))
-                .map(|local_output| local_output.outpoint.txid);
+                .map(|local_output| local_output.outpoint.txid)
+                .collect::<Vec<_>>()
+        };
 
-            // Filter out txids we already know about.
-            let unseen_txids = unspent_txids.filter(|txid| {
+        // Filter out txids we've already seen (already registered).
+        let unseen_txids = {
+            let mut unseen = Vec::new();
+            for txid in &unspent_txids {
                 let id = LxPaymentId::OnchainRecv(LxTxid(*txid));
-                !locked_data.pending.contains_key(&id)
-                    && !locked_data.finalized.contains(&id)
-            });
+                let is_unseen_txid = self
+                    .get_cow_payment(&locked_data, &id)
+                    .await
+                    .with_context(|| *txid)
+                    .context("Could not check whether txid already exists")?
+                    .is_none();
+                if is_unseen_txid {
+                    unseen.push(*txid);
+                }
+            }
+            unseen
+        };
 
-            // Construct new `OnchainReceive`s for each unseen txid.
+        // Construct new `OnchainReceive`s for each unseen txid.
+        let onchain_recvs = {
+            let locked_wallet = wallet.read();
             unseen_txids
+                .into_iter()
                 .map(|txid| {
                     let canonical_tx = locked_wallet
                         .get_tx(txid)
@@ -824,17 +854,16 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                 })
                 .collect::<anyhow::Result<Vec<OnchainReceive>>>()?
         };
-        // Drop locks here to avoid deadlock when calling `self.new_payment`.
 
         // Register all of the new onchain receives.
-        let register_futs = onchain_recvs
-            .into_iter()
-            .map(|or| self.new_payment(or.into()));
-        for res in futures::future::join_all(register_futs).await {
-            res.context("Failed to register new onchain receive")?;
+        for or in onchain_recvs {
+            self.new_payment_inner(&mut locked_data, or.into())
+                .await
+                .context("Failed to register new onchain receive")?;
         }
-
         debug!("Successfully checked for and registered new onchain receives");
+
+        // The PaymentsData lock is finally dropped here.
         Ok(())
     }
 }
