@@ -13,10 +13,10 @@ use lexe_api::{
 };
 use lexe_ln::test_event;
 
-use crate::server::LexeRouterState;
+use crate::server::RouterState;
 
 pub(super) async fn status(
-    State(state): State<Arc<LexeRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxQuery(req): LxQuery<UserPkStruct>,
 ) -> Result<LxJson<Status>, NodeApiError> {
     if state.user_pk == req.user_pk {
@@ -28,7 +28,7 @@ pub(super) async fn status(
 }
 
 pub(super) async fn resync(
-    State(state): State<Arc<LexeRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<ResyncRequest>,
 ) -> Result<LxJson<Empty>, NodeApiError> {
     lexe_ln::command::resync(req, &state.bdk_resync_tx, &state.ldk_resync_tx)
@@ -38,7 +38,7 @@ pub(super) async fn resync(
 }
 
 pub(super) async fn test_event(
-    State(state): State<Arc<LexeRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(op): LxJson<TestEventOp>,
 ) -> Result<LxJson<Empty>, NodeApiError> {
     test_event::do_op(op, &state.test_event_rx)
@@ -48,7 +48,7 @@ pub(super) async fn test_event(
 }
 
 pub(super) async fn shutdown(
-    State(state): State<Arc<LexeRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxQuery(req): LxQuery<UserPkStruct>,
 ) -> Result<LxJson<Empty>, NodeApiError> {
     if state.user_pk == req.user_pk {

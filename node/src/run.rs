@@ -88,7 +88,7 @@ use crate::{
     gdrive_persister, p2p,
     peer_manager::NodePeerManager,
     persister::{self, NodePersister},
-    server::{self, AppRouterState, LexeRouterState},
+    server::{self, RouterState},
 };
 
 /// The minimum # of intercept scids we want (for inserting into invoices).
@@ -699,7 +699,7 @@ impl UserNode {
             .context("Failed to serialize ephemeral issuing CA cert")?;
         let rev_ca_cert =
             Arc::new(RevocableIssuingCaCert::from_root_seed(&root_seed));
-        let app_router_state = Arc::new(AppRouterState {
+        let router_state = Arc::new(RouterState {
             user_pk,
             network,
             measurement,
@@ -717,13 +717,17 @@ impl UserNode {
             payments_manager: payments_manager.clone(),
             network_graph: network_graph.clone(),
             lsp_info: lsp_info.clone(),
-            intercept_scids: intercept_scids.clone(),
+            intercept_scids,
             eph_ca_cert_der: eph_ca_cert_der.clone(),
             rev_ca_cert: rev_ca_cert.clone(),
             revocable_clients: revocable_clients.clone(),
             channel_events_bus,
             eph_tasks_tx: eph_tasks_tx.clone(),
             runner_tx: runner_tx.clone(),
+            test_event_rx,
+            bdk_resync_tx,
+            ldk_resync_tx,
+            shutdown: shutdown.clone(),
         });
         let app_listener =
             TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
@@ -750,7 +754,7 @@ impl UserNode {
         let (app_server_task, _app_url) =
             lexe_api::server::spawn_server_task_with_listener(
                 app_listener,
-                server::app_router(app_router_state),
+                server::app_router(router_state.clone()),
                 app_layer_config,
                 Some((app_tls_config, &app_dns)),
                 APP_SERVER_SPAN_NAME.into(),
@@ -760,20 +764,6 @@ impl UserNode {
             .context("Failed to spawn app node run server task")?;
         static_tasks.push(app_server_task);
 
-        // Start API server for Lexe operators
-        let lexe_router_state = Arc::new(LexeRouterState {
-            user_pk: args.user_pk,
-            network,
-            lsp_info: lsp_info.clone(),
-            intercept_scids,
-            channel_manager: channel_manager.clone(),
-            keys_manager: keys_manager.clone(),
-            payments_manager: payments_manager.clone(),
-            test_event_rx,
-            bdk_resync_tx,
-            ldk_resync_tx,
-            shutdown: shutdown.clone(),
-        });
         let lexe_listener =
             TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
                 .context("Failed to bind lexe listener")?;
@@ -783,7 +773,7 @@ impl UserNode {
         let (lexe_server_task, _lexe_url) =
             lexe_api::server::spawn_server_task_with_listener(
                 lexe_listener,
-                server::lexe_router(lexe_router_state),
+                server::lexe_router(router_state),
                 LayerConfig::default(),
                 lexe_tls_and_dns,
                 LEXE_SERVER_SPAN_NAME.into(),

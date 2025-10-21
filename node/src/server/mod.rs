@@ -54,37 +54,46 @@ mod app;
 /// Handlers for commands that can only be initiated by the Lexe operators.
 mod lexe;
 
-pub(crate) struct AppRouterState {
+pub(crate) struct RouterState {
+    // --- Info --- //
     pub user_pk: UserPk,
     pub network: LxNetwork,
     pub measurement: Measurement,
     pub version: semver::Version,
     pub config: Arc<UserConfig>,
-    pub persister: Arc<NodePersister>,
-    pub chain_monitor: Arc<ChainMonitorType>,
     pub fee_estimates: Arc<FeeEstimates>,
-    pub tx_broadcaster: Arc<TxBroadcaster>,
-    pub wallet: LexeWallet,
-    pub router: Arc<RouterType>,
+    pub lsp_info: LspInfo,
+    pub eph_ca_cert_der: Arc<LxCertificateDer>,
+    pub rev_ca_cert: Arc<RevocableIssuingCaCert>,
+    pub revocable_clients: Arc<RwLock<RevocableClients>>,
+    pub intercept_scids: Vec<Scid>,
+
+    // --- Actors --- //
     pub channel_manager: NodeChannelManager,
     pub peer_manager: NodePeerManager,
     pub keys_manager: Arc<LexeKeysManager>,
     pub payments_manager: PaymentsManagerType,
     pub network_graph: Arc<NetworkGraphType>,
-    pub lsp_info: LspInfo,
-    pub intercept_scids: Vec<Scid>,
-    pub eph_ca_cert_der: Arc<LxCertificateDer>,
-    pub rev_ca_cert: Arc<RevocableIssuingCaCert>,
-    pub revocable_clients: Arc<RwLock<RevocableClients>>,
+    pub persister: Arc<NodePersister>,
+    pub chain_monitor: Arc<ChainMonitorType>,
+    pub router: Arc<RouterType>,
+    pub wallet: LexeWallet,
+
+    // --- Channels --- //
+    pub tx_broadcaster: Arc<TxBroadcaster>,
     pub channel_events_bus: EventsBus<ChannelEvent>,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     pub runner_tx: mpsc::Sender<UserRunnerCommand>,
+    pub bdk_resync_tx: mpsc::Sender<BdkSyncRequest>,
+    pub ldk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
+    pub test_event_rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
+    pub shutdown: NotifyOnce,
 }
 
 /// Implements [`AppNodeRunApi`] - endpoints only callable by the app.
 ///
 /// [`AppNodeRunApi`]: lexe_api::def::AppNodeRunApi
-pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
+pub(crate) fn app_router(state: Arc<RouterState>) -> Router<()> {
     let user_pk = state.user_pk;
     let runner_tx = state.runner_tx.clone();
 
@@ -126,24 +135,10 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
     router
 }
 
-pub(crate) struct LexeRouterState {
-    pub user_pk: UserPk,
-    pub network: LxNetwork,
-    pub lsp_info: LspInfo,
-    pub intercept_scids: Vec<Scid>,
-    pub channel_manager: NodeChannelManager,
-    pub keys_manager: Arc<LexeKeysManager>,
-    pub payments_manager: PaymentsManagerType,
-    pub test_event_rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
-    pub bdk_resync_tx: mpsc::Sender<BdkSyncRequest>,
-    pub ldk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
-    pub shutdown: NotifyOnce,
-}
-
 /// Implements [`LexeNodeRunApi`] - only callable by the Lexe operators.
 ///
 /// [`LexeNodeRunApi`]: lexe_api::def::LexeNodeRunApi
-pub(crate) fn lexe_router(state: Arc<LexeRouterState>) -> Router<()> {
+pub(crate) fn lexe_router(state: Arc<RouterState>) -> Router<()> {
     Router::new()
         .route("/lexe/status", get(lexe::status))
         .route("/lexe/resync", post(lexe::resync))
@@ -154,9 +149,7 @@ pub(crate) fn lexe_router(state: Arc<LexeRouterState>) -> Router<()> {
 }
 
 mod shared {
-    use std::sync::Arc;
-
-    use axum::extract::{FromRef, State};
+    use axum::extract::State;
     use lexe_api::{
         error::NodeApiError,
         models::command::{CreateInvoiceRequest, CreateInvoiceResponse},
@@ -166,43 +159,8 @@ mod shared {
 
     use super::*;
 
-    pub(super) struct InvoicesState {
-        pub network: LxNetwork,
-        pub lsp_info: LspInfo,
-        pub intercept_scids: Vec<Scid>,
-        pub channel_manager: NodeChannelManager,
-        pub keys_manager: Arc<LexeKeysManager>,
-        pub payments_manager: PaymentsManagerType,
-    }
-
-    impl FromRef<Arc<LexeRouterState>> for InvoicesState {
-        fn from_ref(state: &Arc<LexeRouterState>) -> Self {
-            Self {
-                network: state.network,
-                lsp_info: state.lsp_info.clone(),
-                intercept_scids: state.intercept_scids.clone(),
-                channel_manager: state.channel_manager.clone(),
-                keys_manager: state.keys_manager.clone(),
-                payments_manager: state.payments_manager.clone(),
-            }
-        }
-    }
-
-    impl FromRef<Arc<AppRouterState>> for InvoicesState {
-        fn from_ref(state: &Arc<AppRouterState>) -> Self {
-            Self {
-                network: state.network,
-                lsp_info: state.lsp_info.clone(),
-                intercept_scids: state.intercept_scids.clone(),
-                channel_manager: state.channel_manager.clone(),
-                keys_manager: state.keys_manager.clone(),
-                payments_manager: state.payments_manager.clone(),
-            }
-        }
-    }
-
     pub(super) async fn create_invoice(
-        State(state): State<InvoicesState>,
+        State(state): State<Arc<RouterState>>,
         LxJson(req): LxJson<CreateInvoiceRequest>,
     ) -> Result<LxJson<CreateInvoiceResponse>, NodeApiError> {
         let caller = CreateInvoiceCaller::UserNode {

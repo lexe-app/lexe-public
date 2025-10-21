@@ -41,10 +41,10 @@ use lexe_ln::p2p;
 use lexe_tokio::task::MaybeLxTask;
 use tracing::warn;
 
-use super::AppRouterState;
+use super::RouterState;
 
 pub(super) async fn node_info(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
 ) -> LxJson<NodeInfo> {
     let channels = state.channel_manager.list_channels();
     LxJson(lexe_ln::command::node_info(
@@ -61,7 +61,7 @@ pub(super) async fn node_info(
 }
 
 pub(super) async fn list_channels(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
 ) -> Result<LxJson<ListChannelsResponse>, NodeApiError> {
     let channels = state.channel_manager.list_channels();
     lexe_ln::command::list_channels(
@@ -74,7 +74,7 @@ pub(super) async fn list_channels(
 }
 
 pub(super) async fn sign_message(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<SignMsgRequest>,
 ) -> LxJson<SignMsgResponse> {
     let sig = state.keys_manager.sign_message(&req.msg);
@@ -82,7 +82,7 @@ pub(super) async fn sign_message(
 }
 
 pub(super) async fn verify_message(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<VerifyMsgRequest>,
 ) -> LxJson<VerifyMsgResponse> {
     let VerifyMsgRequest { msg, sig, pk } = &req;
@@ -91,10 +91,10 @@ pub(super) async fn verify_message(
 }
 
 pub(super) async fn open_channel(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<OpenChannelRequest>,
 ) -> Result<LxJson<OpenChannelResponse>, NodeApiError> {
-    let AppRouterState {
+    let RouterState {
         lsp_info,
         peer_manager,
         channel_manager,
@@ -149,7 +149,7 @@ pub(super) async fn open_channel(
 }
 
 pub(super) async fn preflight_open_channel(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PreflightOpenChannelRequest>,
 ) -> Result<LxJson<PreflightOpenChannelResponse>, NodeApiError> {
     ensure_channel_value_in_range(&req.value)?;
@@ -183,10 +183,10 @@ fn ensure_channel_value_in_range(value: &Amount) -> Result<(), NodeApiError> {
 }
 
 pub(super) async fn close_channel(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<CloseChannelRequest>,
 ) -> Result<LxJson<Empty>, NodeApiError> {
-    let AppRouterState {
+    let RouterState {
         lsp_info,
         peer_manager,
         channel_manager,
@@ -232,7 +232,7 @@ pub(super) async fn close_channel(
 }
 
 pub(super) async fn preflight_close_channel(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PreflightCloseChannelRequest>,
 ) -> Result<LxJson<PreflightCloseChannelResponse>, NodeApiError> {
     lexe_ln::command::preflight_close_channel(
@@ -247,7 +247,7 @@ pub(super) async fn preflight_close_channel(
 }
 
 pub(super) async fn pay_invoice(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayInvoiceRequest>,
 ) -> Result<LxJson<PayInvoiceResponse>, NodeApiError> {
     lexe_ln::command::pay_invoice(
@@ -265,7 +265,7 @@ pub(super) async fn pay_invoice(
 }
 
 pub(super) async fn preflight_pay_invoice(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PreflightPayInvoiceRequest>,
 ) -> Result<LxJson<PreflightPayInvoiceResponse>, NodeApiError> {
     lexe_ln::command::preflight_pay_invoice(
@@ -283,7 +283,7 @@ pub(super) async fn preflight_pay_invoice(
 }
 
 pub(super) async fn create_offer(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<CreateOfferRequest>,
 ) -> Result<LxJson<CreateOfferResponse>, NodeApiError> {
     lexe_ln::command::create_offer(req, &state.channel_manager)
@@ -293,7 +293,7 @@ pub(super) async fn create_offer(
 }
 
 pub(super) async fn pay_offer(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayOfferRequest>,
 ) -> Result<LxJson<PayOfferResponse>, NodeApiError> {
     lexe_ln::command::pay_offer(
@@ -312,7 +312,7 @@ pub(super) async fn pay_offer(
 }
 
 pub(super) async fn preflight_pay_offer(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PreflightPayOfferRequest>,
 ) -> Result<LxJson<PreflightPayOfferResponse>, NodeApiError> {
     lexe_ln::command::preflight_pay_offer(
@@ -331,7 +331,7 @@ pub(super) async fn preflight_pay_offer(
 }
 
 pub(super) async fn pay_onchain(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayOnchainRequest>,
 ) -> Result<LxJson<PayOnchainResponse>, NodeApiError> {
     let response = lexe_ln::command::pay_onchain(
@@ -348,7 +348,7 @@ pub(super) async fn pay_onchain(
 }
 
 pub(super) async fn preflight_pay_onchain(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PreflightPayOnchainRequest>,
 ) -> Result<LxJson<PreflightPayOnchainResponse>, NodeApiError> {
     lexe_ln::command::preflight_pay_onchain(req, &state.wallet, state.network)
@@ -357,14 +357,14 @@ pub(super) async fn preflight_pay_onchain(
 }
 
 pub(super) async fn get_address(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
 ) -> LxJson<GetAddressResponse> {
     let addr = state.wallet.get_address().into_unchecked();
     LxJson(GetAddressResponse { addr })
 }
 
 pub(super) async fn get_payments_by_indexes(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PaymentIndexes>,
 ) -> Result<LxJson<VecBasicPayment>, NodeApiError> {
     let payments = state
@@ -376,7 +376,7 @@ pub(super) async fn get_payments_by_indexes(
 }
 
 pub(super) async fn get_new_payments(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxQuery(req): LxQuery<GetNewPayments>,
 ) -> Result<LxJson<VecBasicPayment>, NodeApiError> {
     let payments = state
@@ -388,7 +388,7 @@ pub(super) async fn get_new_payments(
 }
 
 pub(super) async fn update_payment_note(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<UpdatePaymentNote>,
 ) -> Result<LxJson<Empty>, NodeApiError> {
     state
@@ -400,7 +400,7 @@ pub(super) async fn update_payment_note(
 }
 
 pub(super) async fn get_revocable_clients(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxQuery(req): LxQuery<GetRevocableClients>,
 ) -> Result<LxJson<RevocableClients>, NodeApiError> {
     let locked_revocable_clients = state.revocable_clients.read().unwrap();
@@ -419,7 +419,7 @@ pub(super) async fn get_revocable_clients(
 }
 
 pub(super) async fn create_revocable_client(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<CreateRevocableClientRequest>,
 ) -> Result<LxJson<CreateRevocableClientResponse>, NodeApiError> {
     lexe_ln::command::create_revocable_client(
@@ -435,7 +435,7 @@ pub(super) async fn create_revocable_client(
 }
 
 pub(super) async fn update_revocable_client(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<UpdateClientRequest>,
 ) -> Result<LxJson<UpdateClientResponse>, NodeApiError> {
     lexe_ln::command::update_revocable_client(
@@ -449,7 +449,7 @@ pub(super) async fn update_revocable_client(
 }
 
 pub(super) async fn list_broadcasted_txs(
-    State(state): State<Arc<AppRouterState>>,
+    State(state): State<Arc<RouterState>>,
 ) -> Result<LxJson<Vec<BroadcastedTxInfo>>, NodeApiError> {
     let directory = VfsDirectory {
         dirname: vfs::BROADCASTED_TXS_DIR.into(),
