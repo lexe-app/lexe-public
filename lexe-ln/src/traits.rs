@@ -53,7 +53,7 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
         checked_batch: Vec<CheckedPayment>,
     ) -> anyhow::Result<Vec<PersistedPayment>>;
 
-    async fn get_payment(
+    async fn get_payment_by_index(
         &self,
         index: PaymentIndex,
     ) -> anyhow::Result<Option<Payment>>;

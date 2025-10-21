@@ -773,7 +773,7 @@ impl LexeInnerPersister for NodePersister {
         Ok(persisted_batch)
     }
 
-    async fn get_payment(
+    async fn get_payment_by_index(
         &self,
         index: PaymentIndex,
     ) -> anyhow::Result<Option<Payment>> {
