@@ -84,13 +84,13 @@ use crate::{
             GetNewPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
             OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
             PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-            PayOnchainResponse, PaymentIndexStruct, PaymentIndexes,
-            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOfferRequest, PreflightPayOfferResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            ResyncRequest, UpdatePaymentNote,
+            PayOnchainResponse, PaymentIdStruct, PaymentIndexStruct,
+            PaymentIndexes, PreflightCloseChannelRequest,
+            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
+            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOfferRequest,
+            PreflightPayOfferResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse, ResyncRequest, UpdatePaymentNote,
         },
         runner::{
             MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest,
@@ -639,6 +639,13 @@ pub trait NodeBackendApi {
         payment: DbPayment,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
+
+    /// GET /node/v1/payments/id [`PaymentIdStruct`] -> [`MaybeDbPayment`]
+    async fn get_payment_by_id(
+        &self,
+        req: PaymentIdStruct,
+        auth: BearerAuthToken,
+    ) -> Result<MaybeDbPayment, BackendApiError>;
 
     /// PUT /node/v1/payments/batch [`VecDbPayment`] -> [`Empty`]
     ///

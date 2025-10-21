@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use crate::types::{
     invoice::LxInvoice,
     offer::{LxOffer, MaxQuantity},
-    payments::{ClientPaymentId, PaymentIndex},
+    payments::{ClientPaymentId, LxPaymentId, PaymentIndex},
 };
 
 // --- General --- //
@@ -128,12 +128,19 @@ pub struct PreflightCloseChannelResponse {
 
 // --- Syncing and updating payments data --- //
 
+/// Upgradeable API struct for a [`LxPaymentId`].
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct PaymentIdStruct {
+    /// The id of the payment to be fetched.
+    pub id: LxPaymentId,
+}
+
 /// Upgradeable API struct for a payment index.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct PaymentIndexStruct {
     /// The index of the payment to be fetched.
-    // We use index instead of id so the backend can query by primary key.
     pub index: PaymentIndex,
 }
 
@@ -439,6 +446,11 @@ mod test {
     #[test]
     fn preflight_pay_onchain_roundtrip() {
         query_string_roundtrip_proptest::<PreflightPayOnchainRequest>();
+    }
+
+    #[test]
+    fn payment_id_struct_roundtrip() {
+        query_string_roundtrip_proptest::<PaymentIdStruct>();
     }
 
     #[test]
