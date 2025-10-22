@@ -26,6 +26,8 @@ mod context;
 mod event_handler;
 /// GDrive persister task.
 mod gdrive_persister;
+/// GDrive-specific provision logic.
+mod gdrive_provision;
 /// Meganode run body.
 mod mega;
 /// Node-specific p2p logic

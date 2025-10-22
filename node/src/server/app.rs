@@ -43,7 +43,7 @@ use lexe_tokio::task::MaybeLxTask;
 use tracing::warn;
 
 use super::RouterState;
-use crate::{persister, provision::helpers};
+use crate::{gdrive_provision, persister};
 
 pub(super) async fn node_info(
     State(state): State<Arc<RouterState>>,
@@ -515,16 +515,17 @@ pub(super) async fn setup_gdrive(
     let backend_api = state.persister.backend_api();
     let authenticator = state.persister.authenticator();
     let vfs_master_key = state.persister.vfs_master_key();
-    let credentials_result = helpers::exchange_code_and_persist_credentials(
-        &mut rng,
-        backend_api,
-        &gdrive_client,
-        oauth,
-        &req.google_auth_code,
-        authenticator,
-        vfs_master_key,
-    )
-    .await;
+    let credentials_result =
+        gdrive_provision::exchange_code_and_persist_credentials(
+            &mut rng,
+            backend_api,
+            &gdrive_client,
+            oauth,
+            &req.google_auth_code,
+            authenticator,
+            vfs_master_key,
+        )
+        .await;
 
     let credentials = match credentials_result {
         Ok(credentials) => credentials,

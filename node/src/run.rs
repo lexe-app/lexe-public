@@ -7,7 +7,6 @@ use std::{
 use anyhow::{Context, anyhow, bail, ensure};
 use bitcoin::{consensus::Encodable, secp256k1};
 use common::{
-    aes::AesMasterKey,
     api::{
         models::BroadcastedTx,
         revocable_clients::RevocableClients,
@@ -28,7 +27,7 @@ use common::{
     time::TimestampMs,
 };
 use futures::future::FutureExt;
-use gdrive::{GoogleVfs, gvfs::GvfsRootName};
+use gdrive::gvfs::GvfsRootName;
 use lexe_api::{
     auth::BearerAuthenticator,
     def::{NodeBackendApi, NodeLspApi, NodeRunnerApi},
@@ -85,7 +84,9 @@ use crate::{
     client::{NodeBackendClient, RunnerClient},
     context::{MegaContext, UserContext},
     event_handler::{self, NodeEventHandler},
-    gdrive_persister, p2p,
+    gdrive_persister,
+    gdrive_provision::{self, GoogleVfsInitError},
+    p2p,
     peer_manager::NodePeerManager,
     persister::{self, NodePersister},
     server::{self, RouterState},
@@ -279,38 +280,39 @@ impl UserNode {
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
         let vfs_master_key = Arc::new(root_seed.derive_vfs_master_key());
 
-        let (maybe_google_vfs, gdrive_status) =
-            if deploy_env.is_staging_or_prod() {
-                let gvfs_root_name = GvfsRootName {
-                    deploy_env,
-                    network,
-                    use_sgx: cfg!(target_env = "sgx"),
-                    user_pk,
-                };
-
-                let maybe_gvfs_and_task = maybe_init_google_vfs(
-                    backend_api.clone(),
-                    authenticator.clone(),
-                    vfs_master_key.clone(),
-                    gvfs_root_name,
-                    shutdown.clone(),
-                )
-                .await;
-
-                match maybe_gvfs_and_task {
-                    Ok(None) => (None, GDriveStatus::Disabled),
-                    Ok(Some((google_vfs, credentials_persister_task))) => {
-                        static_tasks.push(credentials_persister_task);
-                        (Some(Arc::new(google_vfs)), GDriveStatus::Ok)
-                    }
-                    Err(GoogleVfsInitError::VfsInit(e)) =>
-                        (None, GDriveStatus::Error(e.to_string())),
-                    Err(GoogleVfsInitError::FetchCreds(e)) => bail!(e),
-                    Err(GoogleVfsInitError::PersistRoot(e)) => bail!(e),
-                }
-            } else {
-                (None, GDriveStatus::Disabled)
+        let (maybe_google_vfs, gdrive_status) = if deploy_env
+            .is_staging_or_prod()
+        {
+            let gvfs_root_name = GvfsRootName {
+                deploy_env,
+                network,
+                use_sgx: cfg!(target_env = "sgx"),
+                user_pk,
             };
+
+            let maybe_gvfs_and_task = gdrive_provision::maybe_init_google_vfs(
+                backend_api.clone(),
+                authenticator.clone(),
+                vfs_master_key.clone(),
+                gvfs_root_name,
+                shutdown.clone(),
+            )
+            .await;
+
+            match maybe_gvfs_and_task {
+                Ok(None) => (None, GDriveStatus::Disabled),
+                Ok(Some((google_vfs, credentials_persister_task))) => {
+                    static_tasks.push(credentials_persister_task);
+                    (Some(Arc::new(google_vfs)), GDriveStatus::Ok)
+                }
+                Err(GoogleVfsInitError::VfsInit(e)) =>
+                    (None, GDriveStatus::Error(e.to_string())),
+                Err(GoogleVfsInitError::FetchCreds(e)) => bail!(e),
+                Err(GoogleVfsInitError::PersistRoot(e)) => bail!(e),
+            }
+        } else {
+            (None, GDriveStatus::Disabled)
+        };
 
         // Initialize Persister
         let persister = Arc::new(NodePersister::new(
@@ -1191,115 +1193,6 @@ async fn fetch_provisioned_secrets(
              provisioned!!!"
         ),
     }
-}
-
-enum GoogleVfsInitError {
-    FetchCreds(anyhow::Error),
-    VfsInit(anyhow::Error),
-    PersistRoot(anyhow::Error),
-}
-
-/// Helper to efficiently initialize a [`GoogleVfs`] and handle related work.
-/// Also spawns a task which persists updated GDrive credentials.
-/// Returns None if GDrive credentials are not available.
-async fn maybe_init_google_vfs(
-    backend_api: Arc<NodeBackendClient>,
-    authenticator: Arc<BearerAuthenticator>,
-    vfs_master_key: Arc<AesMasterKey>,
-    gvfs_root_name: GvfsRootName,
-    mut shutdown: NotifyOnce,
-) -> Result<Option<(GoogleVfs, LxTask<()>)>, GoogleVfsInitError> {
-    // Fetch the encrypted GDriveCredentials and persisted GVFS root.
-    let (try_gdrive_credentials, try_persisted_gvfs_root) = tokio::join!(
-        persister::read_gdrive_credentials(
-            &backend_api,
-            &authenticator,
-            &vfs_master_key,
-        ),
-        persister::read_gvfs_root(
-            &backend_api,
-            &authenticator,
-            &vfs_master_key
-        ),
-    );
-    let maybe_gdrive_credentials = try_gdrive_credentials
-        .context("Could not read GDrive credentials")
-        .map_err(GoogleVfsInitError::FetchCreds)?;
-    let persisted_gvfs_root = try_persisted_gvfs_root
-        .context("Could not read gvfs root")
-        .map_err(GoogleVfsInitError::FetchCreds)?;
-
-    let gdrive_credentials = match maybe_gdrive_credentials {
-        Some(creds) => creds,
-        None => {
-            info!("No GDrive credentials found; running without GoogleVfs");
-            return Ok(None);
-        }
-    };
-
-    let (google_vfs, maybe_new_gvfs_root, mut credentials_rx) =
-        GoogleVfs::init(
-            gdrive_credentials,
-            gvfs_root_name,
-            persisted_gvfs_root,
-        )
-        .await
-        .map_err(GoogleVfsInitError::VfsInit)?;
-
-    // If we were given a new GVFS root to persist, persist it.
-    // This should only happen once so it won't impact startup time.
-    let mut rng = SysRng::new();
-    if let Some(new_gvfs_root) = maybe_new_gvfs_root {
-        persister::persist_gvfs_root(
-            &mut rng,
-            &backend_api,
-            &authenticator,
-            &vfs_master_key,
-            &new_gvfs_root,
-        )
-        .await
-        .context("Failed to persist new GVFS root")
-        .map_err(GoogleVfsInitError::PersistRoot)?;
-    }
-
-    // Spawn a task that repersists the GDriveCredentials every time
-    // the contained access token is updated.
-    let credentials_persister_task = {
-        const SPAN_NAME: &str = "(gdrive-creds-persister)";
-        LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), async move {
-            loop {
-                tokio::select! {
-                    Ok(()) = credentials_rx.changed() => {
-                        let credentials_file =
-                            persister::encrypt_gdrive_credentials(
-                                &mut rng,
-                                &vfs_master_key,
-                                &credentials_rx.borrow_and_update(),
-                            );
-
-                        let try_persist = persister::persist_file(
-                            &backend_api,
-                            &authenticator,
-                            &credentials_file,
-                        )
-                        .await;
-
-                        match try_persist {
-                            Ok(()) => debug!(
-                                "Successfully persisted updated credentials"
-                            ),
-                            Err(e) => warn!(
-                                "Failed to persist updated credentials: {e:#}"
-                            ),
-                        }
-                    }
-                    () = shutdown.recv() => return,
-                }
-            }
-        })
-    };
-
-    Ok(Some((google_vfs, credentials_persister_task)))
 }
 
 /// Spawns the task which reconnects to Lexe's LSP, notifying our p2p
