@@ -504,7 +504,7 @@ pub(super) async fn setup_gdrive(
     // setting up GDrive if already set up.
     let mut locked_gdrive_status = state.gdrive_status.lock().await;
 
-    if matches!(*locked_gdrive_status, GDriveStatus::Ok) {
+    if *locked_gdrive_status == GDriveStatus::Ok {
         return Ok(LxJson(Empty {}));
     }
 

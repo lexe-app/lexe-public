@@ -62,7 +62,7 @@ pub struct NodeInfo {
     pub pending_monitor_updates: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum GDriveStatus {
     Ok,
     Error(String),
@@ -74,7 +74,7 @@ pub struct BackupInfo {
     pub gdrive_backup_status: GDriveStatus,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct SetupGDriveRequest {
     /// The auth `code` which can used to obtain a set of GDrive credentials.
