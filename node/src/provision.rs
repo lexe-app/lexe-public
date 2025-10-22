@@ -209,12 +209,6 @@ impl AppRouterState {
     pub(crate) fn backend_api(&self) -> &NodeBackendClient {
         self.backend_api.as_ref()
     }
-
-    pub(crate) fn rng_and_backend(
-        &mut self,
-    ) -> (&mut impl Crng, &NodeBackendClient) {
-        (&mut self.rng, self.backend_api.as_ref())
-    }
 }
 
 /// Implements [`AppNodeProvisionApi`] - only callable by the node owner.
@@ -230,6 +224,7 @@ fn app_router(state: AppRouterState) -> Router<()> {
 mod handlers {
     use axum::extract::State;
     use common::api::user::UserPk;
+    use gdrive::gvfs::GvfsRootName;
     use lexe_api::server::LxJson;
 
     use super::*;
@@ -362,16 +357,24 @@ mod handlers {
             return Ok(LxJson(Empty {}));
         }
 
+        let gvfs_root_name = GvfsRootName {
+            deploy_env: req.deploy_env,
+            network: req.network,
+            use_sgx: cfg!(target_env = "sgx"),
+            user_pk,
+        };
         // Init the GVFS structure if it's not already initialized.
         gdrive_provision::setup_gvfs_and_persist_seed(
-            &mut state,
-            req,
+            req.encrypted_seed,
+            gvfs_root_name,
+            &state.backend_api,
+            &mut state.rng,
             &authenticator,
             credentials,
             &vfs_master_key,
-            &user_pk,
         )
-        .await?;
+        .await
+        .map_err(NodeApiError::provision)?;
 
         Ok(LxJson(Empty {}))
     }

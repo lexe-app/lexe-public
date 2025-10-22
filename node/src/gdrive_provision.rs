@@ -3,7 +3,6 @@ use std::sync::Arc;
 use anyhow::Context;
 use common::{
     aes::AesMasterKey,
-    api::{provision::NodeProvisionRequest, user::UserPk},
     cli::OAuthConfig,
     rng::{Crng, SysRng},
 };
@@ -202,35 +201,25 @@ pub(crate) async fn exchange_code_and_persist_credentials(
 /// - Creates the GVFS file folder structure (if it didn't exist)
 /// - Persist the encrypted root seed to GDrive (if provided).
 pub(super) async fn setup_gvfs_and_persist_seed(
-    state: &mut provision::AppRouterState,
-    req: NodeProvisionRequest,
+    encrypted_seed: Option<Vec<u8>>,
+    gvfs_root_name: GvfsRootName,
+    backend_api: &NodeBackendClient,
+    rng: &mut impl Crng,
     authenticator: &BearerAuthenticator,
     credentials: GDriveCredentials,
     vfs_master_key: &AesMasterKey,
-    user_pk: &UserPk,
-) -> Result<(), NodeApiError> {
+) -> anyhow::Result<()> {
     // See if we have a persisted gvfs root.
-    let maybe_persisted_gvfs_root = persister::read_gvfs_root(
-        state.backend_api(),
-        authenticator,
-        vfs_master_key,
-    )
-    .await
-    .context("Failed to fetch persisted gvfs root")
-    .map_err(NodeApiError::provision)?;
+    let maybe_persisted_gvfs_root =
+        persister::read_gvfs_root(backend_api, authenticator, vfs_master_key)
+            .await
+            .context("Failed to fetch persisted gvfs root")?;
 
     // Init the GVFS. This makes ~one API call to populate the cache.
-    let gvfs_root_name = GvfsRootName {
-        deploy_env: req.deploy_env,
-        network: req.network,
-        use_sgx: cfg!(target_env = "sgx"),
-        user_pk: *user_pk,
-    };
     let (google_vfs, maybe_new_gvfs_root, mut credentials_rx) =
         GoogleVfs::init(credentials, gvfs_root_name, maybe_persisted_gvfs_root)
             .await
-            .context("Failed to init Google VFS")
-            .map_err(NodeApiError::provision)?;
+            .context("Failed to init Google VFS")?;
 
     // Do the GVFS operations in an async closure so we have a chance to
     // update the GDriveCredentials in Lexe's DB regardless of Ok/Err.
@@ -238,7 +227,6 @@ pub(super) async fn setup_gvfs_and_persist_seed(
         // If we were given a new GVFS root to persist, persist it.
         // This should only happen once.
         if let Some(new_gvfs_root) = maybe_new_gvfs_root {
-            let (rng, backend_api) = state.rng_and_backend();
             persister::persist_gvfs_root(
                 rng,
                 backend_api,
@@ -247,8 +235,7 @@ pub(super) async fn setup_gvfs_and_persist_seed(
                 &new_gvfs_root,
             )
             .await
-            .context("Failed to persist new gvfs root")
-            .map_err(NodeApiError::provision)?;
+            .context("Failed to persist new gvfs root")?;
         }
 
         // See if a root seed backup already exists. This does not check
@@ -256,7 +243,7 @@ pub(super) async fn setup_gvfs_and_persist_seed(
         let backup_exists =
             persister::password_encrypted_root_seed_exists(&google_vfs).await;
 
-        match req.encrypted_seed {
+        match encrypted_seed {
             Some(enc_seed) => {
                 // If we were given a seed, persist it unconditionally, as
                 // the user may have rotated their encryption password.
@@ -265,14 +252,13 @@ pub(super) async fn setup_gvfs_and_persist_seed(
                     enc_seed,
                 )
                 .await
-                .context("Failed to persist encrypted root seed")
-                .map_err(NodeApiError::provision)?;
+                .context("Failed to persist encrypted root seed")?;
             }
             None => {
                 // GDrive is enabled and the user doesn't have a seed
                 // backup, and didn't provide one. For safety, require it.
                 if !backup_exists {
-                    return Err(NodeApiError::provision(
+                    return Err(anyhow::anyhow!(
                         "Missing pw-encrypted root seed backup in GDrive; \
                              please provide one in another provision request",
                     ));
@@ -280,7 +266,7 @@ pub(super) async fn setup_gvfs_and_persist_seed(
             }
         }
 
-        Ok::<(), NodeApiError>(())
+        Ok(())
     };
     let try_gvfs_ops = do_gvfs_ops.await;
 
@@ -288,7 +274,6 @@ pub(super) async fn setup_gvfs_and_persist_seed(
     // the updated credentials so we can avoid a unnecessary refresh.
     let try_update_credentials =
         if matches!(credentials_rx.has_changed(), Ok(true)) {
-            let (rng, backend_api) = state.rng_and_backend();
             let credentials_file = persister::encrypt_gdrive_credentials(
                 rng,
                 vfs_master_key,
@@ -302,7 +287,6 @@ pub(super) async fn setup_gvfs_and_persist_seed(
             )
             .await
             .context("Could not persist updated GDrive credentials")
-            .map_err(NodeApiError::provision)
         } else {
             Ok(())
         };
