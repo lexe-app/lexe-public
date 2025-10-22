@@ -68,6 +68,9 @@ pub struct PersistedPayment(pub Payment);
 #[derive(Clone)]
 pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
     data: Arc<Mutex<PaymentsData>>,
+    /// A cache of finalized payments.
+    finalized_payments_cache:
+        Arc<quick_cache::sync::Cache<LxPaymentId, Payment>>,
     persister: PS,
     channel_manager: CM,
     test_event_tx: TestEventSender,
@@ -106,6 +109,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     pub fn new(
         persister: PS,
         channel_manager: CM,
+        finalized_cache_capacity: usize,
         esplora: Arc<LexeEsplora>,
         pending_payments: Vec<Payment>,
         wallet: LexeWallet,
@@ -133,8 +137,12 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         let data = Arc::new(Mutex::new(PaymentsData { pending }));
 
+        let finalized_payments_cache =
+            Arc::new(quick_cache::sync::Cache::new(finalized_cache_capacity));
+
         let myself = Self {
             data,
+            finalized_payments_cache,
             persister,
             channel_manager,
             test_event_tx,
@@ -325,13 +333,17 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             return Ok(Some(Cow::Borrowed(payment)));
         }
 
-        // TODO(max): Maybe cache finalized payments that were fetched?
-        // Then we could early return here as well.
+        if let Some(payment) = self.finalized_payments_cache.get(id) {
+            return Ok(Some(Cow::Owned(payment)));
+        }
 
-        self.persister
-            .get_payment_by_id(*id)
-            .await
-            .map(|maybe_payment| maybe_payment.map(Cow::Owned))
+        let maybe_payment = self.persister.get_payment_by_id(*id).await?;
+
+        if let Some(payment) = maybe_payment.clone() {
+            self.finalized_payments_cache.insert(*id, payment);
+        }
+
+        Ok(maybe_payment.map(Cow::Owned))
     }
 
     /// Attempt to update the personal note on a payment.

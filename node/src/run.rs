@@ -621,9 +621,11 @@ impl UserNode {
 
         // Init payments manager
         let (onchain_recv_tx, onchain_recv_rx) = notify::channel();
+        let finalized_cache_capacity = 64;
         let (payments_manager, payments_tasks) = PaymentsManager::new(
             persister.clone(),
             channel_manager.clone(),
+            finalized_cache_capacity,
             esplora.clone(),
             pending_payments,
             wallet.clone(),

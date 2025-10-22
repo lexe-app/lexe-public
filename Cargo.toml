@@ -133,6 +133,8 @@ percent-encoding = "2.3"
 proptest = { version = "1", default-features = false }
 # Arbitrary derive macro
 proptest-derive = "0.5"
+# High-performance concurrent cache
+quick_cache = "0.6"
 # Traits and utilities for generating randomness
 rand = { version = "0.8", default-features = false }
 rand_core = { version = "0.6", default-features = false, features = ["alloc"] }

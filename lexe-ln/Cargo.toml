@@ -41,6 +41,7 @@ lightning.workspace = true
 lightning-invoice.workspace = true
 lightning-transaction-sync.workspace = true
 miniscript.workspace = true
+quick_cache.workspace = true
 rand.workspace = true
 reqwest.workspace = true
 rust_decimal.workspace = true
