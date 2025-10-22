@@ -61,7 +61,6 @@ use lexe_api::{
         Empty,
         payments::{
             BasicPayment, DbPayment, LxPaymentId, PaymentIndex, VecDbPayment,
-            VecLxPaymentId,
         },
     },
     vfs::{
@@ -712,18 +711,6 @@ impl LexeInnerPersister for NodePersister {
             .map(|p| payments::decrypt(&self.vfs_master_key, p))
             // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
             .collect::<anyhow::Result<Vec<Payment>>>()
-    }
-
-    async fn read_finalized_payment_ids(
-        &self,
-    ) -> anyhow::Result<Vec<LxPaymentId>> {
-        let token = self.get_token().await?;
-        #[allow(deprecated)]
-        self.backend_api
-            .get_finalized_payment_ids(token)
-            .await
-            .map(|VecLxPaymentId { ids }| ids)
-            .context("Could not get ids of finalized payments")
     }
 
     async fn create_payment(
