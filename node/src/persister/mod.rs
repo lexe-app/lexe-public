@@ -718,6 +718,7 @@ impl LexeInnerPersister for NodePersister {
         &self,
     ) -> anyhow::Result<Vec<LxPaymentId>> {
         let token = self.get_token().await?;
+        #[allow(deprecated)]
         self.backend_api
             .get_finalized_payment_ids(token)
             .await

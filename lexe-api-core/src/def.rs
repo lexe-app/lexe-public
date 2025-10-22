@@ -716,6 +716,7 @@ pub trait NodeBackendApi {
     /// GET /node/v1/payments/final -> [`VecLxPaymentId`]
     ///
     /// Fetches the IDs of all finalized payments.
+    #[deprecated(note = "since node-v0.8.8")]
     async fn get_finalized_payment_ids(
         &self,
         auth: BearerAuthToken,
