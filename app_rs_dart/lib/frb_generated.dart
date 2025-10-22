@@ -2835,7 +2835,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return BackupInfo(gdriveBackupStatus: dco_decode_g_drive_status(arr[0]));
+    return BackupInfo(gdriveStatus: dco_decode_g_drive_status(arr[0]));
   }
 
   @protected
@@ -4209,8 +4209,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @protected
   BackupInfo sse_decode_backup_info(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_gdriveBackupStatus = sse_decode_g_drive_status(deserializer);
-    return BackupInfo(gdriveBackupStatus: var_gdriveBackupStatus);
+    var var_gdriveStatus = sse_decode_g_drive_status(deserializer);
+    return BackupInfo(gdriveStatus: var_gdriveStatus);
   }
 
   @protected
@@ -5782,7 +5782,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @protected
   void sse_encode_backup_info(BackupInfo self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_g_drive_status(self.gdriveBackupStatus, serializer);
+    sse_encode_g_drive_status(self.gdriveStatus, serializer);
   }
 
   @protected

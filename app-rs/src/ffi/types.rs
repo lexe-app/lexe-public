@@ -737,15 +737,13 @@ impl From<GDriveStatusRs> for GDriveStatus {
 }
 
 pub struct BackupInfo {
-    pub gdrive_backup_status: GDriveStatus,
+    pub gdrive_status: GDriveStatus,
 }
 
 impl From<BackupInfoRs> for BackupInfo {
     fn from(value: BackupInfoRs) -> Self {
         Self {
-            gdrive_backup_status: GDriveStatus::from(
-                value.gdrive_backup_status,
-            ),
+            gdrive_status: GDriveStatus::from(value.gdrive_status),
         }
     }
 }

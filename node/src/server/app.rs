@@ -489,9 +489,7 @@ pub(super) async fn backup_info(
 ) -> Result<LxJson<BackupInfo>, NodeApiError> {
     let gdrive_status = state.gdrive_status.lock().await.clone();
 
-    let backup_info = BackupInfo {
-        gdrive_backup_status: gdrive_status,
-    };
+    let backup_info = BackupInfo { gdrive_status };
 
     Ok(LxJson(backup_info))
 }

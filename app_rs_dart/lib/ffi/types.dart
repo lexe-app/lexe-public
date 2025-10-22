@@ -31,19 +31,19 @@ sealed class AppUserInfo with _$AppUserInfo {
 }
 
 class BackupInfo {
-  final GDriveStatus gdriveBackupStatus;
+  final GDriveStatus gdriveStatus;
 
-  const BackupInfo({required this.gdriveBackupStatus});
+  const BackupInfo({required this.gdriveStatus});
 
   @override
-  int get hashCode => gdriveBackupStatus.hashCode;
+  int get hashCode => gdriveStatus.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is BackupInfo &&
           runtimeType == other.runtimeType &&
-          gdriveBackupStatus == other.gdriveBackupStatus;
+          gdriveStatus == other.gdriveStatus;
 }
 
 /// A unique, client-generated id for payment types (onchain send,

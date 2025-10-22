@@ -71,7 +71,7 @@ pub enum GDriveStatus {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BackupInfo {
-    pub gdrive_backup_status: GDriveStatus,
+    pub gdrive_status: GDriveStatus,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]

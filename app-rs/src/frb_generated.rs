@@ -1256,10 +1256,10 @@ impl SseDecode for crate::ffi::types::BackupInfo {
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
-        let mut var_gdriveBackupStatus =
+        let mut var_gdriveStatus =
             <crate::ffi::types::GDriveStatus>::sse_decode(deserializer);
         return crate::ffi::types::BackupInfo {
-            gdrive_backup_status: var_gdriveBackupStatus,
+            gdrive_status: var_gdriveStatus,
         };
     }
 }
@@ -2899,7 +2899,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::AppUserInfo>
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::types::BackupInfo {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.gdrive_backup_status.into_into_dart().into_dart()].into_dart()
+        [self.gdrive_status.into_into_dart().into_dart()].into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
@@ -4485,7 +4485,7 @@ impl SseEncode for crate::ffi::types::BackupInfo {
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         <crate::ffi::types::GDriveStatus>::sse_encode(
-            self.gdrive_backup_status,
+            self.gdrive_status,
             serializer,
         );
     }
