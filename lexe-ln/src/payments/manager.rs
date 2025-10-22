@@ -529,7 +529,6 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// Handles a [`PaymentClaimed`] event.
     ///
     /// [`PaymentClaimed`]: lightning::events::Event::PaymentClaimed
-    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
     #[instrument(skip_all, name = "(payment-claimed)")]
@@ -544,26 +543,40 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         info!(%amount, %hash, "Handling PaymentClaimed");
         let claim_ctx = LnClaimCtx::new(purpose, hash, claim_id)?;
 
-        // Check
         let mut locked_data = self.data.lock().await;
-        if let Some(checked) = locked_data
-            .check_payment_claimed(claim_ctx, amount)
-            .context("Error validating PaymentClaimed")?
-        {
-            // Persist
-            let persisted = self
-                .persister
-                .persist_payment(checked)
-                .await
-                .context("Could not persist payment")?;
 
-            // Commit
-            locked_data.commit(persisted);
-
-            // TODO(phlip9): test event is not the right approach for observing
-            // a payment's status.
-            self.test_event_tx.send(TestEvent::PaymentClaimed);
+        // check_payment_claimed precondition: Must not be finalized
+        let is_finalized = self
+            .get_cow_payment(&locked_data, &claim_ctx.id())
+            .await
+            .context("Could not get payment")?
+            .is_some_and(|p| p.status().is_finalized());
+        if is_finalized {
+            warn!(%amount, %hash, "Already finalized");
+            // Idempotency: If the payment was already finalized,
+            //              we don't need to do anything.
+            return Ok(());
         }
+
+        // Check
+        let checked = locked_data
+            .check_payment_claimed(claim_ctx, amount)
+            .context("Error validating PaymentClaimed")?;
+
+        // Persist
+        let persisted = self
+            .persister
+            .persist_payment(checked)
+            .await
+            .context("Could not persist payment")?;
+
+        // Commit
+        locked_data.commit(persisted);
+
+        // TODO(phlip9): test event is not the right approach for observing
+        // a payment's status.
+        self.test_event_tx.send(TestEvent::PaymentClaimed);
+
         Ok(())
     }
 
@@ -979,31 +992,21 @@ impl PaymentsData {
         }
     }
 
-    /// For idempotency, returns `None` if the payment was already finalized and
-    /// therefore does not need to be re-persisted.
-    //
+    /// Precondition: Payment must not be finalized (Completed | Failed).
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
     fn check_payment_claimed(
         &self,
         claim_ctx: LnClaimCtx,
         amount: Amount,
-    ) -> anyhow::Result<Option<CheckedPayment>> {
+    ) -> anyhow::Result<CheckedPayment> {
         let id = claim_ctx.id();
-
-        // Idempotency: if the payment was already finalized, we don't need to
-        // do anything.
-        if self.finalized.contains(&id) {
-            warn!("already finalized");
-            return Ok(None);
-        }
 
         let pending_payment = self
             .pending
             .get(&id)
             .context("Pending payment does not exist")?;
 
-        // Precondition: payment is not finalized (Completed | Failed).
         let checked = match (pending_payment, claim_ctx) {
             (
                 Payment::InboundInvoice(iip),
@@ -1044,7 +1047,7 @@ impl PaymentsData {
             ),
         };
 
-        Ok(Some(checked))
+        Ok(checked)
     }
 
     /// For idempotency, returns `None` if the payment was already finalized and
@@ -1330,6 +1333,7 @@ mod test {
         proptest!(|(
             mut data in any::<PaymentsData>(),
             // check_payment_claimable precondition: Must not be finalized
+            //   check_payment_claimed precondition: Must not be finalized
             isp in any_with::<InboundSpontaneousPayment>(pending_only),
             // currently does nothing for spontaneous payments, but could catch
             // an unintended change.
@@ -1354,7 +1358,7 @@ mod test {
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
 
-            data.check_payment_claimed(claim_ctx, amount)
+            let _ = data.check_payment_claimed(claim_ctx, amount)
                 .unwrap();
         });
     }
@@ -1365,6 +1369,7 @@ mod test {
         proptest!(|(
             mut data in any::<PaymentsData>(),
             // check_payment_claimable precondition: Must not be finalized
+            //   check_payment_claimed precondition: Must not be finalized
             iip in any_with::<InboundInvoicePayment>(pending_only),
             recvd_amount in any::<Amount>(),
             claim_id in any::<Option<Option<LnClaimId>>>(),
@@ -1396,7 +1401,7 @@ mod test {
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
 
-            data.check_payment_claimed(claim_ctx, recvd_amount)
+            let _ = data.check_payment_claimed(claim_ctx, recvd_amount)
                 .unwrap();
 
             data.check_payment_expiries(TimestampMs::MAX).unwrap();
@@ -1409,6 +1414,7 @@ mod test {
         proptest!(|(
             mut data in any::<PaymentsData>(),
             // check_payment_claimable precondition: Must not be finalized
+            //   check_payment_claimed precondition: Must not be finalized
             iorp in any_with::<InboundOfferReusablePayment>(pending_only),
         )| {
             let payment = Payment::InboundOfferReusable(iorp.clone());
@@ -1432,7 +1438,7 @@ mod test {
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
 
-            data.check_payment_claimed(claim_ctx, iorp.amount)
+            let _ = data.check_payment_claimed(claim_ctx, iorp.amount)
                 .unwrap();
         });
     }
