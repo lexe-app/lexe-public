@@ -725,6 +725,13 @@ impl PaymentStatus {
         }
     }
 
+    pub fn is_pending(&self) -> bool {
+        match self {
+            Self::Pending => true,
+            Self::Completed | Self::Failed => false,
+        }
+    }
+
     pub fn is_finalized(&self) -> bool {
         match self {
             Self::Pending => false,

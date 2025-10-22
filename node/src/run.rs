@@ -338,7 +338,6 @@ impl UserNode {
             try_maybe_changeset,
             try_existing_scids,
             try_pending_payments,
-            try_finalized_payment_ids,
             try_maybe_revocable_clients,
             try_channel_monitor_bytes,
         ) = tokio::join!(
@@ -346,7 +345,6 @@ impl UserNode {
             persister.read_wallet_changeset(),
             persister.read_scids(),
             persister.read_pending_payments(),
-            persister.read_finalized_payment_ids(),
             persister.read_json::<RevocableClients>(&REVOCABLE_CLIENTS_FILE_ID),
             persister.fetch_channel_monitor_bytes(),
         );
@@ -400,8 +398,6 @@ impl UserNode {
         };
         let pending_payments =
             try_pending_payments.context("Could not read pending payments")?;
-        let finalized_payment_ids = try_finalized_payment_ids
-            .context("Could not read finalized payment ids")?;
         let revocable_clients = try_maybe_revocable_clients
             .context("Could not read revocable clients")?
             .unwrap_or_default()
@@ -630,7 +626,6 @@ impl UserNode {
             channel_manager.clone(),
             esplora.clone(),
             pending_payments,
-            finalized_payment_ids,
             wallet.clone(),
             onchain_recv_rx,
             test_event_tx.clone(),

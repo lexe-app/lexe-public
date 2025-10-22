@@ -34,6 +34,7 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
 
     async fn read_pending_payments(&self) -> anyhow::Result<Vec<Payment>>;
 
+    // TODO(max): Remove
     async fn read_finalized_payment_ids(
         &self,
     ) -> anyhow::Result<Vec<LxPaymentId>>;

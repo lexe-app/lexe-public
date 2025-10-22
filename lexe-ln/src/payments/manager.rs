@@ -1,9 +1,4 @@
-use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    sync::Arc,
-    time::Duration,
-};
+use std::{borrow::Cow, collections::HashMap, sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow, bail, ensure};
 use bdk_wallet::KeychainKind;
@@ -104,7 +99,6 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
 #[cfg_attr(test, derive(Clone, Debug))]
 struct PaymentsData {
     pending: HashMap<LxPaymentId, Payment>,
-    finalized: HashSet<LxPaymentId>,
 }
 
 impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
@@ -114,7 +108,6 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         channel_manager: CM,
         esplora: Arc<LexeEsplora>,
         pending_payments: Vec<Payment>,
-        finalized_payment_ids: Vec<LxPaymentId>,
         wallet: LexeWallet,
         onchain_recv_rx: notify::Receiver,
         test_event_tx: TestEventSender,
@@ -137,9 +130,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                 }
             })
             .collect::<HashMap<LxPaymentId, Payment>>();
-        let finalized = finalized_payment_ids.into_iter().collect();
 
-        let data = Arc::new(Mutex::new(PaymentsData { pending, finalized }));
+        let data = Arc::new(Mutex::new(PaymentsData { pending }));
 
         let myself = Self {
             data,
@@ -948,7 +940,6 @@ impl PaymentsData {
             }
             PaymentStatus::Completed | PaymentStatus::Failed => {
                 self.pending.remove(&id);
-                self.finalized.insert(id);
             }
         }
 
@@ -966,10 +957,6 @@ impl PaymentsData {
             assert_eq!(payment.id(), *id);
             assert_eq!(payment.status(), PaymentStatus::Pending);
             payment.debug_assert_invariants();
-        }
-
-        for id in &self.finalized {
-            assert!(!self.pending.contains_key(id));
         }
     }
 
@@ -1283,34 +1270,26 @@ mod test {
             payments.sort_unstable_by_key(Payment::id);
             payments.dedup_by_key(|p| p.id());
 
-            let num_payments = payments.len();
             let pending = HashMap::default();
-            let finalized = HashSet::default();
 
-            // Insert all payments into `pending` and `finalized`
-            let mut out = Self { pending, finalized };
+            // Insert all payments
+            let mut out = Self { pending };
             for payment in payments {
                 out.insert_payment(payment);
             }
 
             // Make sure we didn't lose any payments somehow
             out.debug_assert_invariants();
-            assert_eq!(num_payments, out.pending.len() + out.finalized.len());
 
             out
         }
 
-        /// Insert a payment into the `PaymentsData` without running
-        /// through the full state machine.
+        /// Insert a payment into `PaymentsData` without running through the
+        /// full state machine. Only pending payments are inserted.
         fn insert_payment(&mut self, payment: Payment) {
             let id = payment.id();
-            match payment.status() {
-                PaymentStatus::Pending => {
-                    self.pending.insert(id, payment);
-                }
-                PaymentStatus::Completed | PaymentStatus::Failed => {
-                    self.finalized.insert(id);
-                }
+            if payment.status().is_pending() {
+                self.pending.insert(id, payment);
             }
         }
 
@@ -1319,7 +1298,6 @@ mod test {
         fn force_insert_payment(&mut self, payment: Payment) {
             let id = payment.id();
             self.pending.remove(&id);
-            self.finalized.remove(&id);
             self.insert_payment(payment);
             self.debug_assert_invariants();
         }
