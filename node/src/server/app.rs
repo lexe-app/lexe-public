@@ -18,7 +18,7 @@ use common::{
     ln::{amount::Amount, channel::LxUserChannelId},
     rng::SysRng,
 };
-use gdrive::{GoogleVfs, gvfs::GvfsRootName};
+use gdrive::gvfs::GvfsRootName;
 use lexe_api::{
     error::NodeApiError,
     models::command::{
@@ -43,7 +43,7 @@ use lexe_tokio::task::MaybeLxTask;
 use tracing::warn;
 
 use super::RouterState;
-use crate::{gdrive_provision, persister};
+use crate::gdrive_provision;
 
 pub(super) async fn node_info(
     State(state): State<Arc<RouterState>>,
@@ -535,21 +535,6 @@ pub(super) async fn setup_gdrive(
         }
     };
 
-    let maybe_persisted_gvfs_root = match persister::read_gvfs_root(
-        backend_api,
-        authenticator,
-        vfs_master_key,
-    )
-    .await
-    .context("Failed to fetch persisted gvfs root")
-    {
-        Ok(maybe_gvfs_root) => maybe_gvfs_root,
-        Err(err) => {
-            *locked_gdrive_status = GDriveStatus::Error(err.to_string());
-            return Err(NodeApiError::command(err));
-        }
-    };
-
     let gvfs_root_name = GvfsRootName {
         deploy_env: state.deploy_env,
         network: state.network,
@@ -557,11 +542,16 @@ pub(super) async fn setup_gdrive(
         user_pk: state.user_pk,
     };
 
-    let init_result =
-        GoogleVfs::init(credentials, gvfs_root_name, maybe_persisted_gvfs_root)
-            .await
-            .context("Failed to init Google VFS")
-            .map_err(NodeApiError::provision);
+    let init_result = gdrive_provision::setup_gvfs_and_persist_seed(
+        req.encrypted_seed,
+        gvfs_root_name,
+        backend_api,
+        &mut rng,
+        authenticator,
+        credentials,
+        vfs_master_key,
+    )
+    .await;
 
     match init_result {
         Ok(_) => *locked_gdrive_status = GDriveStatus::Ok,

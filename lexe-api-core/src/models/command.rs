@@ -1,4 +1,6 @@
 use bitcoin::address::NetworkUnchecked;
+#[cfg(doc)]
+use common::root_seed::RootSeed;
 #[cfg(any(test, feature = "test-utils"))]
 use common::test_utils::arbitrary;
 use common::{
@@ -12,6 +14,7 @@ use common::{
         priority::ConfirmationPriority,
         route::LxRoute,
     },
+    serde_helpers::hexstr_or_bytes_opt,
     time::TimestampMs,
 };
 #[cfg(any(test, feature = "test-utils"))]
@@ -83,6 +86,20 @@ pub struct SetupGDrive {
     ///   GDrive credentials and persist them (encrypted ofc) in Lexe's DB.
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
     pub google_auth_code: String,
+
+    /// The password-encrypted [`RootSeed`] which can be backed up in
+    /// GDrive.
+    /// - Applicable only in staging/prod.
+    /// - If `Some` and GDrive backup is not setup, instance will back up this
+    ///   encrypted [`RootSeed`] in Google Drive. If a backup already exists,
+    ///   it is overwritten.
+    /// - If `None`, and we are missing a backup, instance will error.
+    /// - We require the client to password-encrypt prior to sending the
+    ///   provision request to prevent leaking the length of the password. It
+    ///   also shifts the burden of running the 600K HMAC iterations from the
+    ///   provision instance to the mobile app.
+    #[serde(with = "hexstr_or_bytes_opt")]
+    pub encrypted_seed: Option<Vec<u8>>,
 }
 // --- Channel Management --- //
 
