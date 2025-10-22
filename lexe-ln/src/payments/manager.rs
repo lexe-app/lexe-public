@@ -396,6 +396,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// Handles a [`PaymentClaimable`] event.
     ///
     /// [`PaymentClaimable`]: lightning::events::Event::PaymentClaimable
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     #[instrument(skip_all, name = "(payment-claimable)")]
@@ -533,6 +534,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// Handles a [`PaymentClaimed`] event.
     ///
     /// [`PaymentClaimed`]: lightning::events::Event::PaymentClaimed
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
     #[instrument(skip_all, name = "(payment-claimed)")]
@@ -587,6 +589,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// Handles an `EventHandler` -> [`PaymentSent`] event (replayable).
     ///
     /// [`PaymentSent`]: lightning::events::Event::PaymentSent
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentSent` (replayable)
     #[instrument(skip_all, name = "(payment-sent)", fields(%hash), err)]
@@ -646,6 +649,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// [`pay_invoice`]: crate::command::pay_invoice
     /// [`PaymentSent`]: lightning::events::Event::PaymentSent
     /// [`PaymentFailed`]: lightning::events::Event::PaymentFailed
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentFailed` (replayable)
     // - `pay_invoice` API
@@ -974,6 +978,7 @@ impl PaymentsData {
 
     /// Precondition: Payment must not be finalized (Completed | Failed).
     ///               It's OK for the payment to not exist (new payment).
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     fn check_payment_claimable(
@@ -1018,6 +1023,7 @@ impl PaymentsData {
     }
 
     /// Precondition: Payment must not be finalized (Completed | Failed).
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
     fn check_payment_claimed(
@@ -1076,6 +1082,7 @@ impl PaymentsData {
     }
 
     /// Precondition: Payment must not be finalized (Completed | Failed).
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentSent` (replayable)
     fn check_payment_sent(
@@ -1109,6 +1116,7 @@ impl PaymentsData {
     }
 
     /// Precondition: Payment must not be finalized (Completed | Failed).
+    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentFailed` (replayable)
     // - `pay_invoice` API
