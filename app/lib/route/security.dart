@@ -167,7 +167,13 @@ class GDriveStatusCard extends StatelessWidget {
         InfoRowButton(
           onTap: null,
           label: switch (this.backupStatus) {
-            null => Text(""),
+            null => SizedBox.square(
+              dimension: Fonts.size200,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.0,
+                color: LxColors.grey750,
+              ),
+            ),
             GDriveStatus_Disabled() => Text("Not connected"),
             GDriveStatus_Error() => Text(
               "Connection failed - reconnect required",
