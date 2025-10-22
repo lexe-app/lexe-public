@@ -583,7 +583,6 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// Handles an `EventHandler` -> [`PaymentSent`] event (replayable).
     ///
     /// [`PaymentSent`]: lightning::events::Event::PaymentSent
-    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentSent` (replayable)
     #[instrument(skip_all, name = "(payment-sent)", fields(%hash), err)]
@@ -595,28 +594,42 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         maybe_fees_paid_msat: Option<u64>,
     ) -> anyhow::Result<()> {
         let maybe_fees_paid = maybe_fees_paid_msat.map(Amount::from_msat);
-        info!(?maybe_fees_paid, "handling PaymentSent");
+        info!(?maybe_fees_paid, "Handling PaymentSent");
+
+        let mut locked_data = self.data.lock().await;
+
+        // check_payment_sent precondition: Must not be finalized
+        let is_finalized = self
+            .get_cow_payment(&locked_data, &id)
+            .await
+            .context("Could not get payment")?
+            .is_some_and(|p| p.status().is_finalized());
+        if is_finalized {
+            warn!(%hash, "Already finalized");
+            // Idempotency: If the payment was already finalized,
+            //              we don't need to do anything.
+            return Ok(());
+        }
 
         // Check
-        let mut locked_data = self.data.lock().await;
-        if let Some(checked) = locked_data
+        let checked = locked_data
             .check_payment_sent(id, hash, preimage, maybe_fees_paid)
-            .context("Error validating PaymentSent")?
-        {
-            // Persist
-            let persisted = self
-                .persister
-                .persist_payment(checked)
-                .await
-                .context("Could not persist payment")?;
+            .context("Error validating PaymentSent")?;
 
-            // Commit
-            locked_data.commit(persisted);
+        // Persist
+        let persisted = self
+            .persister
+            .persist_payment(checked)
+            .await
+            .context("Could not persist payment")?;
 
-            // TODO(phlip9): test event is not the right approach for observing
-            // a payment's status.
-            self.test_event_tx.send(TestEvent::PaymentSent);
-        }
+        // Commit
+        locked_data.commit(persisted);
+
+        // TODO(phlip9): test event is not the right approach for observing
+        // a payment's status.
+        self.test_event_tx.send(TestEvent::PaymentSent);
+
         Ok(())
     }
 
@@ -629,7 +642,6 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// [`pay_invoice`]: crate::command::pay_invoice
     /// [`PaymentSent`]: lightning::events::Event::PaymentSent
     /// [`PaymentFailed`]: lightning::events::Event::PaymentFailed
-    //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentFailed` (replayable)
     // - `pay_invoice` API
@@ -642,26 +654,40 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     ) -> anyhow::Result<()> {
         warn!("handling PaymentFailed");
 
-        // Check
         let mut locked_data = self.data.lock().await;
-        if let Some(checked) = locked_data
-            .check_payment_failed(id, failure)
-            .context("Error validating PaymentFailed")?
-        {
-            // Persist
-            let persisted = self
-                .persister
-                .persist_payment(checked)
-                .await
-                .context("Could not persist payment")?;
 
-            // Commit
-            locked_data.commit(persisted);
-
-            // TODO(phlip9): test event is not the right approach for observing
-            // a payment's status.
-            self.test_event_tx.send(TestEvent::PaymentFailed);
+        // check_payment_failed precondition: Must not be finalized
+        let is_finalized = self
+            .get_cow_payment(&locked_data, &id)
+            .await
+            .context("Could not get payment")?
+            .is_some_and(|p| p.status().is_finalized());
+        if is_finalized {
+            warn!(%id, "Already finalized");
+            // Idempotency: If the payment was already finalized,
+            //              we don't need to do anything.
+            return Ok(());
         }
+
+        // Check
+        let checked = locked_data
+            .check_payment_failed(id, failure)
+            .context("Error validating PaymentFailed")?;
+
+        // Persist
+        let persisted = self
+            .persister
+            .persist_payment(checked)
+            .await
+            .context("Could not persist payment")?;
+
+        // Commit
+        locked_data.commit(persisted);
+
+        // TODO(phlip9): test event is not the right approach for observing
+        // a payment's status.
+        self.test_event_tx.send(TestEvent::PaymentFailed);
+
         Ok(())
     }
 
@@ -1050,9 +1076,7 @@ impl PaymentsData {
         Ok(checked)
     }
 
-    /// For idempotency, returns `None` if the payment was already finalized and
-    /// therefore does not need to be re-persisted.
-    //
+    /// Precondition: Payment must not be finalized (Completed | Failed).
     // Event sources:
     // - `EventHandler` -> `Event::PaymentSent` (replayable)
     fn check_payment_sent(
@@ -1061,20 +1085,12 @@ impl PaymentsData {
         hash: LxPaymentHash,
         preimage: LxPaymentPreimage,
         maybe_fees_paid: Option<Amount>,
-    ) -> anyhow::Result<Option<CheckedPayment>> {
-        // Idempotency: if the payment was already finalized, we don't need to
-        // do anything.
-        if self.finalized.contains(&id) {
-            warn!("already finalized");
-            return Ok(None);
-        }
-
+    ) -> anyhow::Result<CheckedPayment> {
         let pending_payment = self
             .pending
             .get(&id)
             .context("Pending payment does not exist")?;
 
-        // Precondition: payment is not finalized (Completed | Failed).
         let checked = match pending_payment {
             Payment::OutboundInvoice(oip) => oip
                 .check_payment_sent(hash, preimage, maybe_fees_paid)
@@ -1090,12 +1106,10 @@ impl PaymentsData {
             _ => bail!("Not an outbound Lightning payment"),
         };
 
-        Ok(Some(checked))
+        Ok(checked)
     }
 
-    /// For idempotency, returns `None` if the payment was already finalized and
-    /// therefore does not need to be re-persisted.
-    //
+    /// Precondition: Payment must not be finalized (Completed | Failed).
     // Event sources:
     // - `EventHandler` -> `Event::PaymentFailed` (replayable)
     // - `pay_invoice` API
@@ -1103,20 +1117,12 @@ impl PaymentsData {
         &self,
         id: LxPaymentId,
         failure: LxOutboundPaymentFailure,
-    ) -> anyhow::Result<Option<CheckedPayment>> {
-        // Idempotency: if the payment was already finalized, we don't need to
-        // do anything.
-        if self.finalized.contains(&id) {
-            warn!("already finalized");
-            return Ok(None);
-        }
-
+    ) -> anyhow::Result<CheckedPayment> {
         let pending_payment = self
             .pending
             .get(&id)
             .context("Pending payment does not exist")?;
 
-        // Precondition: payment is not finalized (Completed | Failed).
         let checked = match pending_payment {
             Payment::OutboundInvoice(oip) => oip
                 .check_payment_failed(id, failure)
@@ -1132,7 +1138,7 @@ impl PaymentsData {
             _ => bail!("Not an outbound Lightning payment"),
         };
 
-        Ok(Some(checked))
+        Ok(checked)
     }
 
     /// Returns all _newly_ expired payments and the hashes of all outbound
@@ -1448,8 +1454,11 @@ mod test {
         let preimage = LxPaymentPreimage::from_array([0x42; 32]);
         proptest!(|(
             mut data in any::<PaymentsData>(),
+            //   check_payment_sent precondition: Must not be finalized
+            // check_payment_failed precondition: Must not be finalized
             oip in any_with::<OutboundInvoicePayment>(OipParams {
                 payment_preimage: Some(preimage),
+                pending_only: true,
             }),
             failure in any::<LxOutboundPaymentFailure>(),
         )| {
@@ -1457,18 +1466,21 @@ mod test {
             let id = payment.id();
             data.force_insert_payment(payment);
 
-            data.check_payment_sent(id, oip.hash, preimage, Some(oip.fees))
+            let _ = data.check_payment_sent(id, oip.hash, preimage, Some(oip.fees))
                 .unwrap();
-            data.check_payment_failed(id, failure).unwrap();
+            let _ = data.check_payment_failed(id, failure).unwrap();
             data.check_payment_expiries(TimestampMs::MAX).unwrap();
         });
     }
 
     #[test]
     fn prop_outbound_offer_payment_idempotency() {
+        let pending_only = true;
         proptest!(|(
             mut data in any::<PaymentsData>(),
-            oop in any::<OutboundOfferPayment>(),
+            //   check_payment_sent precondition: Must not be finalized
+            // check_payment_failed precondition: Must not be finalized
+            oop in any_with::<OutboundOfferPayment>(pending_only),
             preimage in any::<LxPaymentPreimage>(),
             fees in any::<Amount>(),
             failure in any::<LxOutboundPaymentFailure>(),
@@ -1478,9 +1490,9 @@ mod test {
             data.force_insert_payment(payment);
 
             let hash = preimage.compute_hash();
-            data.check_payment_sent(id, hash, preimage, Some(fees))
+            let _ = data.check_payment_sent(id, hash, preimage, Some(fees))
                 .unwrap();
-            data.check_payment_failed(id, failure).unwrap();
+            let _ = data.check_payment_failed(id, failure).unwrap();
             data.check_payment_expiries(TimestampMs::MAX).unwrap();
         });
     }
@@ -1493,6 +1505,9 @@ mod test {
         proptest!(|(
             oip in any_with::<OutboundInvoicePayment>(OipParams {
                 payment_preimage: Some(preimage),
+                //   check_payment_sent precondition: Must not be finalized
+                // check_payment_failed precondition: Must not be finalized
+                pending_only: true,
             }),
             failure in any::<LxOutboundPaymentFailure>(),
         )| {
@@ -1508,31 +1523,17 @@ mod test {
             // NOTE: New payment duplicate check moved to manager/DB layer.
 
             // (_, PaymentSent event) -> _
-            let maybe_checked = data
+            let checked = data
                 .check_payment_sent(id, hash, preimage, Some(fees))
                 .unwrap();
-            match status {
-                Pending | Abandoning => {
-                    let checked = maybe_checked.unwrap();
-                    prop_assert_eq!(PaymentStatus::Completed, checked.0.status());
-                    data.clone().commit(checked.persisted());
-                }
-                // [Idempotency]
-                Completed | Failed => prop_assert_eq!(maybe_checked, None),
-            }
+            prop_assert_eq!(PaymentStatus::Completed, checked.0.status());
+            data.clone().commit(checked.persisted());
 
             // (_, PaymentFailed event) -> _
-            let maybe_checked = data.check_payment_failed(id, failure)
+            let checked = data.check_payment_failed(id, failure)
                 .unwrap();
-            match status {
-                Pending | Abandoning => {
-                    let checked = maybe_checked.unwrap();
-                    prop_assert_eq!(PaymentStatus::Failed, checked.0.status());
-                    data.clone().commit(checked.persisted());
-                }
-                // [Idempotency]
-                Completed | Failed => prop_assert_eq!(maybe_checked, None),
-            }
+            prop_assert_eq!(PaymentStatus::Failed, checked.0.status());
+            data.clone().commit(checked.persisted());
 
             // (_, Invoice expires) -> _
             let (mut checked_payments, _ids) = data
@@ -1549,9 +1550,9 @@ mod test {
                     }
                     data.clone().commit(checked.persisted());
                 }
-                // [Idempotency]
-                Abandoning | Completed | Failed =>
+                Abandoning =>
                     prop_assert_eq!(0, checked_payments.len()),
+                _ => unreachable!("pending_only was set to true"),
             }
 
             // [Idempotency]

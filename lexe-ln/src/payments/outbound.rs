@@ -93,7 +93,7 @@ pub struct OutboundInvoicePayment {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
+#[cfg_attr(test, derive(strum::VariantArray))]
 #[serde(rename_all = "snake_case")]
 pub enum OutboundInvoicePaymentStatus {
     /// We initiated the payment with [`pay_invoice`].
@@ -523,7 +523,7 @@ impl OutboundOfferPayment {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(test, derive(Arbitrary, strum::VariantArray, Hash))]
+#[cfg_attr(test, derive(strum::VariantArray, Hash))]
 pub enum OutboundOfferPaymentStatus {
     /// We initiated this payment with [`pay_offer`].
     Pending,
@@ -686,7 +686,10 @@ pub(crate) mod arb {
 
     #[derive(Default)]
     pub struct OipParams {
+        /// Whether to override the payment preimage to this value.
         pub payment_preimage: Option<LxPaymentPreimage>,
+        /// Whether to only generate pending payments.
+        pub pending_only: bool,
     }
 
     impl Arbitrary for OutboundInvoicePayment {
@@ -694,7 +697,8 @@ pub(crate) mod arb {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
-            let status = any::<OutboundInvoicePaymentStatus>();
+            let pending_only = args.pending_only;
+            let status = any_with::<OutboundInvoicePaymentStatus>(pending_only);
             let preimage =
                 any::<LxPaymentPreimage>().prop_map(move |preimage| {
                     args.payment_preimage.unwrap_or(preimage)
@@ -712,7 +716,7 @@ pub(crate) mod arb {
             let created_at = any::<TimestampMs>();
             let finalized_after = any_duration();
 
-            let gen_oip = |(
+            let gen_oip = move |(
                 status,
                 preimage_invoice,
                 amount,
@@ -730,10 +734,11 @@ pub(crate) mod arb {
                 let secret = invoice.payment_secret();
                 let invoice = Box::new(invoice);
                 let failure = (status == Failed).then_some(failure);
-                let created_at: TimestampMs = created_at;
+                let created_at: TimestampMs = created_at; // provides type hint
                 let finalized_at = created_at.saturating_add(finalized_after);
                 let finalized_at = matches!(status, Completed | Failed)
                     .then_some(finalized_at);
+
                 OutboundInvoicePayment {
                     invoice,
                     hash,
@@ -764,12 +769,35 @@ pub(crate) mod arb {
         }
     }
 
-    impl Arbitrary for OutboundOfferPayment {
-        type Parameters = ();
+    impl Arbitrary for OutboundInvoicePaymentStatus {
+        // pending_only: whether to only generate pending payments.
+        type Parameters = bool;
         type Strategy = BoxedStrategy<Self>;
 
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            let status = any::<OutboundOfferPaymentStatus>();
+        fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
+            use proptest::{prelude::Just, prop_oneof};
+            use strum::VariantArray;
+
+            if pending_only {
+                prop_oneof![
+                    Just(OutboundInvoicePaymentStatus::Pending),
+                    Just(OutboundInvoicePaymentStatus::Abandoning),
+                ]
+                .boxed()
+            } else {
+                proptest::sample::select(OutboundInvoicePaymentStatus::VARIANTS)
+                    .boxed()
+            }
+        }
+    }
+
+    impl Arbitrary for OutboundOfferPayment {
+        // pending_only: whether to only generate pending payments.
+        type Parameters = bool;
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
+            let status = any_with::<OutboundOfferPaymentStatus>(pending_only);
             let cid = any::<ClientPaymentId>();
             let offer = any::<Box<LxOffer>>();
             let preimage = any::<LxPaymentPreimage>();
@@ -782,7 +810,7 @@ pub(crate) mod arb {
             let created_at = any::<TimestampMs>();
             let finalized_after = any_duration();
 
-            let gen_oop = |(
+            let gen_oop = move |(
                 status,
                 cid,
                 offer,
@@ -801,10 +829,11 @@ pub(crate) mod arb {
                     .then_some(preimage.compute_hash());
                 let preimage = (status == Completed).then_some(preimage);
                 let failure = (status == Failed).then_some(failure);
-                let created_at: TimestampMs = created_at;
+                let created_at: TimestampMs = created_at; // provides type hint
                 let finalized_at = created_at.saturating_add(finalized_after);
                 let finalized_at = matches!(status, Completed | Failed)
                     .then_some(finalized_at);
+
                 OutboundOfferPayment {
                     cid,
                     offer,
@@ -836,6 +865,28 @@ pub(crate) mod arb {
             )
                 .prop_map(gen_oop)
                 .boxed()
+        }
+    }
+
+    impl Arbitrary for OutboundOfferPaymentStatus {
+        // pending_only: whether to only generate pending payments.
+        type Parameters = bool;
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
+            use proptest::{prelude::Just, prop_oneof};
+            use strum::VariantArray;
+
+            if pending_only {
+                prop_oneof![
+                    Just(OutboundOfferPaymentStatus::Pending),
+                    Just(OutboundOfferPaymentStatus::Abandoning),
+                ]
+                .boxed()
+            } else {
+                proptest::sample::select(OutboundOfferPaymentStatus::VARIANTS)
+                    .boxed()
+            }
         }
     }
 
