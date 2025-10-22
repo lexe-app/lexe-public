@@ -388,7 +388,7 @@ pub trait AppNodeRunApi {
 
     /// Get the current status of Node backup.
     ///
-    /// GET /app/backup_info [`Empty`] -> [`BackupInfo`]
+    /// GET /app/backup [`Empty`] -> [`BackupInfo`]
     async fn backup_info(&self) -> Result<BackupInfo, NodeApiError>;
 
     /// Setup GDrive backup.

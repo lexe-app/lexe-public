@@ -757,7 +757,7 @@ impl AppNodeRunApi for NodeClient {
     async fn backup_info(&self) -> Result<BackupInfo, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let url = format!("{run_url}/app/backup_info");
+        let url = format!("{run_url}/app/backup");
         let req = self.run_rest.get(url, &Empty {});
         self.run_rest.send(req).await
     }
