@@ -133,7 +133,7 @@ class _SecurityPageState extends State<SecurityPage> {
             ),
             children: [
               InfoRowButton(
-                label: "View seed phrase",
+                label: Text("View seed phrase"),
                 onTap: this.onViewSeedPhraseTap,
               ),
             ],
@@ -167,10 +167,12 @@ class GDriveStatusCard extends StatelessWidget {
         InfoRowButton(
           onTap: null,
           label: switch (this.backupStatus) {
-            null => "",
-            GDriveStatus_Disabled() => "Not connected",
-            GDriveStatus_Error() => "Connection failed - reconnect required",
-            GDriveStatus_Ok() => "Connected and syncing",
+            null => Text(""),
+            GDriveStatus_Disabled() => Text("Not connected"),
+            GDriveStatus_Error() => Text(
+              "Connection failed - reconnect required",
+            ),
+            GDriveStatus_Ok() => Text("Connected and syncing"),
           },
         ),
       ],

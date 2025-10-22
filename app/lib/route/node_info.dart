@@ -145,7 +145,7 @@ class _NodeInfoPageState extends State<NodeInfoPage> {
             header: const Text("Node internals"),
             children: [
               InfoRowButton(
-                label: "View broadcasted transactions",
+                label: Text("View broadcasted transactions"),
                 onTap: this.onBroadcastedTxsTap,
               ),
             ],

@@ -2138,7 +2138,7 @@ class InfoRowButton extends StatelessWidget {
   const InfoRowButton({super.key, required this.onTap, required this.label});
 
   final VoidCallback? onTap;
-  final String label;
+  final Widget label;
 
   @override
   Widget build(BuildContext context) {
@@ -2158,13 +2158,13 @@ class InfoRowButton extends StatelessWidget {
               horizontal: Space.s450,
               vertical: Space.s200,
             ),
-            child: Text(
-              this.label,
+            child: DefaultTextStyle(
               style: Fonts.fontUI.copyWith(
                 fontSize: Fonts.size200,
                 color: color,
                 fontVariations: [Fonts.weightNormal],
               ),
+              child: this.label,
             ),
           ),
           Expanded(
