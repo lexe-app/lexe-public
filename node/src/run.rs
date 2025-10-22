@@ -720,7 +720,7 @@ impl UserNode {
             revocable_clients: revocable_clients.clone(),
             intercept_scids,
             gdrive_status: Arc::new(tokio::sync::Mutex::new(gdrive_status)),
-            oauth,
+            gdrive_oauth_config: oauth,
             deploy_env,
             // --- Actors --- //
             channel_manager: channel_manager.clone(),

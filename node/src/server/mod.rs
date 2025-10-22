@@ -70,7 +70,7 @@ pub(crate) struct RouterState {
     pub revocable_clients: Arc<RwLock<RevocableClients>>,
     pub intercept_scids: Vec<Scid>,
     pub gdrive_status: Arc<tokio::sync::Mutex<GDriveStatus>>,
-    pub oauth: Arc<Option<OAuthConfig>>,
+    pub gdrive_oauth_config: Arc<Option<OAuthConfig>>,
     pub deploy_env: DeployEnv,
 
     // --- Actors --- //
