@@ -14,7 +14,7 @@ use common::{
         priority::ConfirmationPriority,
         route::LxRoute,
     },
-    serde_helpers::hexstr_or_bytes_opt,
+    serde_helpers::hexstr_or_bytes,
     time::TimestampMs,
 };
 #[cfg(any(test, feature = "test-utils"))]
@@ -90,16 +90,15 @@ pub struct SetupGDrive {
     /// The password-encrypted [`RootSeed`] which can be backed up in
     /// GDrive.
     /// - Applicable only in staging/prod.
-    /// - If `Some` and GDrive backup is not setup, instance will back up this
-    ///   encrypted [`RootSeed`] in Google Drive. If a backup already exists,
-    ///   it is overwritten.
-    /// - If `None`, and we are missing a backup, instance will error.
+    /// - If Drive backup is not setup, instance will back up this encrypted
+    ///   [`RootSeed`] in Google Drive. If a backup already exists, it is
+    ///   overwritten.
     /// - We require the client to password-encrypt prior to sending the
     ///   provision request to prevent leaking the length of the password. It
     ///   also shifts the burden of running the 600K HMAC iterations from the
     ///   provision instance to the mobile app.
-    #[serde(with = "hexstr_or_bytes_opt")]
-    pub encrypted_seed: Option<Vec<u8>>,
+    #[serde(with = "hexstr_or_bytes")]
+    pub encrypted_seed: Vec<u8>,
 }
 // --- Channel Management --- //
 

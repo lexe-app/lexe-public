@@ -544,7 +544,7 @@ pub(super) async fn setup_gdrive(
     };
 
     let init_result = gdrive_provision::setup_gvfs_and_persist_seed(
-        req.encrypted_seed,
+        Some(req.encrypted_seed),
         gvfs_root_name,
         backend_api,
         &mut rng,
