@@ -90,7 +90,7 @@ use crate::{
             PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
             PreflightPayInvoiceResponse, PreflightPayOfferRequest,
             PreflightPayOfferResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse, ResyncRequest, SetupGDriveRequest,
+            PreflightPayOnchainResponse, ResyncRequest, SetupGDrive,
             UpdatePaymentNote,
         },
         runner::{
@@ -393,10 +393,10 @@ pub trait AppNodeRunApi {
 
     /// Setup GDrive backup.
     ///
-    /// POST /app/backup/gdrive [`SetupGDriveRequest`] -> [`Empty`]
+    /// POST /app/backup/gdrive [`SetupGDrive`] -> [`Empty`]
     async fn setup_gdrive(
         &self,
-        req: SetupGDriveRequest,
+        req: SetupGDrive,
     ) -> Result<Empty, NodeApiError>;
 }
 

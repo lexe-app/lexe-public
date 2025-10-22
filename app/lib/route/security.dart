@@ -141,9 +141,7 @@ class _SecurityPageState extends State<SecurityPage> {
           ValueListenableBuilder(
             valueListenable: this.backupInfo,
             builder: (_, backupInfo, _) {
-              return GDriveStatusCard(
-                backupStatus: backupInfo?.gdriveBackupStatus,
-              );
+              return GDriveStatusCard(backupStatus: backupInfo?.gdriveStatus);
             },
           ),
         ],

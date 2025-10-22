@@ -340,7 +340,7 @@ class MockAppHandle extends AppHandle {
   @override
   Future<BackupInfo> backupInfo() => Future.delayed(
     const Duration(milliseconds: 1000),
-    () => BackupInfo(gdriveBackupStatus: GDriveStatus.ok()),
+    () => BackupInfo(gdriveStatus: GDriveStatus.ok()),
   );
   @override
   Future<bool> syncPayments() =>

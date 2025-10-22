@@ -76,7 +76,7 @@ pub struct BackupInfo {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
-pub struct SetupGDriveRequest {
+pub struct SetupGDrive {
     /// The auth `code` which can used to obtain a set of GDrive credentials.
     /// - Applicable only in staging/prod.
     /// - If GDrive has not been setup, the node will acquire the full set of
@@ -498,6 +498,6 @@ mod test {
 
     #[test]
     fn setup_gdrive_request_roundtrip() {
-        roundtrip::json_string_roundtrip_proptest::<SetupGDriveRequest>();
+        roundtrip::json_string_roundtrip_proptest::<SetupGDrive>();
     }
 }

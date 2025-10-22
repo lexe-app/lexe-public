@@ -32,7 +32,7 @@ use lexe_api::{
         PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse, PreflightPayOfferRequest,
         PreflightPayOfferResponse, PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse, SetupGDriveRequest, UpdatePaymentNote,
+        PreflightPayOnchainResponse, SetupGDrive, UpdatePaymentNote,
     },
     server::{LxJson, extract::LxQuery},
     types::{Empty, payments::VecBasicPayment},
@@ -496,7 +496,7 @@ pub(super) async fn backup_info(
 
 pub(super) async fn setup_gdrive(
     State(state): State<Arc<RouterState>>,
-    LxJson(req): LxJson<SetupGDriveRequest>,
+    LxJson(req): LxJson<SetupGDrive>,
 ) -> Result<LxJson<Empty>, NodeApiError> {
     // Hold the lock during setup to prevent concurrent GDrive setups, and avoid
     // setting up GDrive if already set up.

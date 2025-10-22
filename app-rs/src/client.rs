@@ -60,8 +60,8 @@ use lexe_api::{
         PreflightOpenChannelRequest, PreflightOpenChannelResponse,
         PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
         PreflightPayOfferRequest, PreflightPayOfferResponse,
-        PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-        SetupGDriveRequest, UpdatePaymentNote,
+        PreflightPayOnchainRequest, PreflightPayOnchainResponse, SetupGDrive,
+        UpdatePaymentNote,
     },
     rest::{POST, RequestBuilderExt, RestClient},
     types::{Empty, payments::VecBasicPayment},
@@ -764,7 +764,7 @@ impl AppNodeRunApi for NodeClient {
 
     async fn setup_gdrive(
         &self,
-        req: SetupGDriveRequest,
+        req: SetupGDrive,
     ) -> Result<Empty, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
