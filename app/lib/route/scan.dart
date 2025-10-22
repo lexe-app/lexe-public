@@ -142,6 +142,9 @@ class _ScanPageState extends State<ScanPage> {
         actionButtonsAlignment: Alignment.bottomCenter,
         actionButtonsPadding: const EdgeInsets.all(Space.s600),
 
+        // Also try scanning with inverted colors (e.g. white QR on black bg).
+        tryInverted: true,
+
         // Show this while the camera is still loading.
         loading: const DecoratedBox(
           decoration: BoxDecoration(color: LxColors.foreground),
