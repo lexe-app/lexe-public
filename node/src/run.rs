@@ -305,9 +305,8 @@ impl UserNode {
                     static_tasks.push(credentials_persister_task);
                     (Some(Arc::new(google_vfs)), GDriveStatus::Ok)
                 }
-                Err(GoogleVfsInitError::VfsInit(e)) => {
-                    (None, GDriveStatus::Error(e.to_string()))
-                }
+                Err(GoogleVfsInitError::VfsInit(e)) =>
+                    (None, GDriveStatus::Error(e.to_string())),
                 Err(GoogleVfsInitError::FetchCreds(e)) => bail!(e),
                 Err(GoogleVfsInitError::PersistRoot(e)) => bail!(e),
             }
