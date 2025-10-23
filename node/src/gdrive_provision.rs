@@ -11,18 +11,18 @@ use lexe_api::{auth::BearerAuthenticator, error::NodeApiError};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use tracing::{debug, info, info_span, warn};
 
-use crate::{client::NodeBackendClient, persister, provision};
+use crate::{client::NodeBackendClient, persister};
 
 /// Reads the GDrive credentials from Lexe's DB and sanity checks them.
 pub(crate) async fn maybe_read_and_validate_credentials(
-    state: &provision::AppRouterState,
+    backend_api: &NodeBackendClient,
     oauth: &OAuthConfig,
     authenticator: &BearerAuthenticator,
     vfs_master_key: &AesMasterKey,
 ) -> Result<Option<GDriveCredentials>, NodeApiError> {
     // See if credentials already exist.
     let maybe_credentials = persister::read_gdrive_credentials(
-        state.backend_api(),
+        backend_api,
         authenticator,
         vfs_master_key,
     )

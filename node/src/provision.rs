@@ -193,7 +193,7 @@ impl ProvisionInstance {
 }
 
 #[derive(Clone)]
-pub(crate) struct AppRouterState {
+struct AppRouterState {
     args: Arc<ProvisionArgs>,
     backend_api: Arc<NodeBackendClient>,
     gdrive_client: gdrive::ReqwestClient,
@@ -203,12 +203,6 @@ pub(crate) struct AppRouterState {
     rng: SysRng,
     untrusted_deploy_env: DeployEnv,
     untrusted_network: LxNetwork,
-}
-
-impl AppRouterState {
-    pub(crate) fn backend_api(&self) -> &NodeBackendClient {
-        self.backend_api.as_ref()
-    }
 }
 
 /// Implements [`AppNodeProvisionApi`] - only callable by the node owner.
@@ -329,7 +323,7 @@ mod handlers {
                 // No auth code. Try to read GDrive credentials from Lexe's DB.
                 let maybe_credentials =
                     gdrive_provision::maybe_read_and_validate_credentials(
-                        &state,
+                        &state.backend_api,
                         oauth,
                         &authenticator,
                         &vfs_master_key,
