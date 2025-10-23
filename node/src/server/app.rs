@@ -531,7 +531,7 @@ pub(super) async fn setup_gdrive(
     let credentials = match credentials_result {
         Ok(credentials) => credentials,
         Err(err) => {
-            *locked_gdrive_status = GDriveStatus::Error(err.to_string());
+            *locked_gdrive_status = GDriveStatus::Error(format!("{err:#}"));
             return Err(NodeApiError::command(err));
         }
     };
@@ -557,7 +557,7 @@ pub(super) async fn setup_gdrive(
     match init_result {
         Ok(_) => *locked_gdrive_status = GDriveStatus::Ok,
         Err(err) => {
-            *locked_gdrive_status = GDriveStatus::Error(err.to_string());
+            *locked_gdrive_status = GDriveStatus::Error(format!("{err:#}"));
             return Err(NodeApiError::command(err));
         }
     }
