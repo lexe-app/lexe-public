@@ -307,8 +307,8 @@ impl UserNode {
                 }
                 Err(GoogleVfsInitError::VfsInit(e)) =>
                     (None, GDriveStatus::Error(e.to_string())),
-                Err(GoogleVfsInitError::FetchCreds(e)) => bail!(e),
-                Err(GoogleVfsInitError::PersistRoot(e)) => bail!(e),
+                Err(GoogleVfsInitError::FetchCreds(e)) => return Err(e),
+                Err(GoogleVfsInitError::PersistRoot(e)) => return Err(e),
             }
         } else {
             (None, GDriveStatus::Disabled)
