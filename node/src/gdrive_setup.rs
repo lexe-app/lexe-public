@@ -48,10 +48,11 @@ pub(crate) async fn maybe_read_and_validate_credentials(
     Ok(Some(credentials))
 }
 
+/// Differentiates between errors that occur entirely within Lexe infrastructure
+/// vs errors that occur while interacting with Google APIs.
 pub(crate) enum GoogleVfsInitError {
-    FetchCreds(anyhow::Error),
-    VfsInit(anyhow::Error),
-    PersistRoot(anyhow::Error),
+    Lexe(anyhow::Error),
+    Google(anyhow::Error),
 }
 
 /// Helper to efficiently initialize a [`GoogleVfs`] and handle related work.
@@ -79,10 +80,10 @@ pub(crate) async fn maybe_init_google_vfs(
     );
     let maybe_gdrive_credentials = try_gdrive_credentials
         .context("Could not read GDrive credentials")
-        .map_err(GoogleVfsInitError::FetchCreds)?;
+        .map_err(GoogleVfsInitError::Lexe)?;
     let persisted_gvfs_root = try_persisted_gvfs_root
         .context("Could not read gvfs root")
-        .map_err(GoogleVfsInitError::FetchCreds)?;
+        .map_err(GoogleVfsInitError::Lexe)?;
 
     let gdrive_credentials = match maybe_gdrive_credentials {
         Some(creds) => creds,
@@ -99,7 +100,7 @@ pub(crate) async fn maybe_init_google_vfs(
             persisted_gvfs_root,
         )
         .await
-        .map_err(GoogleVfsInitError::VfsInit)?;
+        .map_err(GoogleVfsInitError::Google)?;
 
     // If we were given a new GVFS root to persist, persist it.
     // This should only happen once so it won't impact startup time.
@@ -114,7 +115,7 @@ pub(crate) async fn maybe_init_google_vfs(
         )
         .await
         .context("Failed to persist new GVFS root")
-        .map_err(GoogleVfsInitError::PersistRoot)?;
+        .map_err(GoogleVfsInitError::Lexe)?;
     }
 
     // Spawn a task that repersists the GDriveCredentials every time
