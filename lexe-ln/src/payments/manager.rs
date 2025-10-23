@@ -17,10 +17,7 @@ use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 #[cfg(doc)]
 use lightning::events::Event::PaymentFailed;
 use lightning::{events::PaymentPurpose, ln::channelmanager::FailureCode};
-use tokio::{
-    sync::{Mutex, MutexGuard},
-    time::Instant,
-};
+use tokio::{sync::MutexGuard, time::Instant};
 use tracing::{debug, error, info, info_span, instrument, warn};
 
 use super::{inbound::InboundOfferReusablePayment, outbound::ExpireError};
@@ -67,10 +64,7 @@ pub struct PersistedPayment(pub Payment);
 /// there are no update / persist races.
 #[derive(Clone)]
 pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
-    data: Arc<Mutex<PaymentsData>>,
-    /// A cache of finalized payments.
-    finalized_payments_cache:
-        Arc<quick_cache::sync::Cache<LxPaymentId, Payment>>,
+    data: Arc<tokio::sync::Mutex<PaymentsData>>,
     persister: PS,
     channel_manager: CM,
     test_event_tx: TestEventSender,
@@ -102,6 +96,8 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
 #[cfg_attr(test, derive(Clone, Debug))]
 struct PaymentsData {
     pending: HashMap<LxPaymentId, Payment>,
+    /// A non-exhaustive cache of finalized payments.
+    finalized_payments_cache: quick_cache::unsync::Cache<LxPaymentId, Payment>,
 }
 
 impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
@@ -135,14 +131,16 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             })
             .collect::<HashMap<LxPaymentId, Payment>>();
 
-        let data = Arc::new(Mutex::new(PaymentsData { pending }));
-
         let finalized_payments_cache =
-            Arc::new(quick_cache::sync::Cache::new(finalized_cache_capacity));
+            quick_cache::unsync::Cache::new(finalized_cache_capacity);
+
+        let data = Arc::new(tokio::sync::Mutex::new(PaymentsData {
+            pending,
+            finalized_payments_cache,
+        }));
 
         let myself = Self {
             data,
-            finalized_payments_cache,
             persister,
             channel_manager,
             test_event_tx,
@@ -316,8 +314,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         &self,
         id: &LxPaymentId,
     ) -> anyhow::Result<Option<Payment>> {
-        let locked_data = self.data.lock().await;
-        self.get_cow_payment(&locked_data, id)
+        let mut locked_data = self.data.lock().await;
+        self.get_cow_payment(&mut locked_data, id)
             .await
             .map(|maybe_payment| maybe_payment.map(|p| p.into_owned()))
     }
@@ -326,21 +324,32 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// payment or an owned payment fetched from the DB, if it exists.
     async fn get_cow_payment<'param>(
         &self,
-        locked_data: &'param MutexGuard<'_, PaymentsData>,
+        locked_data: &'param mut MutexGuard<'_, PaymentsData>,
         id: &LxPaymentId,
     ) -> anyhow::Result<Option<Cow<'param, Payment>>> {
-        if let Some(payment) = locked_data.pending.get(id) {
-            return Ok(Some(Cow::Borrowed(payment)));
-        }
+        // Check if payment exists WITHOUT borrowing the data. This convinces
+        // the borrow checker that the code paths are mutually exclusive:
+        //
+        // - If in_memory=true: we only do an immutable borrow (get ref, return)
+        // - If in_memory=false: we only do mutable borrows (insert into cache)
+        //
+        // Without this, the compiler can't prove the borrows don't overlap.
+        let in_memory = locked_data.pending.contains_key(id)
+            || locked_data.finalized_payments_cache.contains_key(id);
 
-        if let Some(payment) = self.finalized_payments_cache.get(id) {
-            return Ok(Some(Cow::Owned(payment)));
+        if in_memory {
+            let payment = locked_data
+                .pending
+                .get(id)
+                .or_else(|| locked_data.finalized_payments_cache.get(id))
+                .expect("Just checked it exists above");
+            return Ok(Some(Cow::Borrowed(payment)));
         }
 
         let maybe_payment = self.persister.get_payment_by_id(*id).await?;
 
         if let Some(payment) = maybe_payment.clone() {
-            self.finalized_payments_cache.insert(*id, payment);
+            locked_data.finalized_payments_cache.insert(*id, payment);
         }
 
         Ok(maybe_payment.map(Cow::Owned))
@@ -443,7 +452,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             //   developing the misconception that it is safe to reuse invoices
             //   if duplicate payments actually do succeed.
             let is_finalized = self
-                .get_cow_payment(&locked_data, &claim_ctx.id())
+                .get_cow_payment(&mut locked_data, &claim_ctx.id())
                 .await
                 .context("Could not get payment")
                 // Couldn't check if finalized; have to retry handling later.
@@ -553,7 +562,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // check_payment_claimed precondition: Must not be finalized
         let is_finalized = self
-            .get_cow_payment(&locked_data, &claim_ctx.id())
+            .get_cow_payment(&mut locked_data, &claim_ctx.id())
             .await
             .context("Could not get payment")?
             .is_some_and(|p| p.status().is_finalized());
@@ -607,7 +616,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // check_payment_sent precondition: Must not be finalized
         let is_finalized = self
-            .get_cow_payment(&locked_data, &id)
+            .get_cow_payment(&mut locked_data, &id)
             .await
             .context("Could not get payment")?
             .is_some_and(|p| p.status().is_finalized());
@@ -666,7 +675,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // check_payment_failed precondition: Must not be finalized
         let is_finalized = self
-            .get_cow_payment(&locked_data, &id)
+            .get_cow_payment(&mut locked_data, &id)
             .await
             .context("Could not get payment")?
             .is_some_and(|p| p.status().is_finalized());
@@ -758,7 +767,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         let mut locked_data = self.data.lock().await;
 
         let payment = self
-            .get_cow_payment(&locked_data, id)
+            .get_cow_payment(&mut locked_data, id)
             .await
             .context("Could not get payment")?
             .context("Payment does not exist")?;
@@ -897,7 +906,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             for txid in &unspent_txids {
                 let id = LxPaymentId::OnchainRecv(LxTxid(*txid));
                 let is_unseen_txid = self
-                    .get_cow_payment(&locked_data, &id)
+                    .get_cow_payment(&mut locked_data, &id)
                     .await
                     .with_context(|| *txid)
                     .context("Could not check whether txid already exists")?
@@ -972,6 +981,13 @@ impl PaymentsData {
         for (id, payment) in &self.pending {
             assert_eq!(payment.id(), *id);
             assert_eq!(payment.status(), PaymentStatus::Pending);
+            payment.debug_assert_invariants();
+        }
+
+        for (id, payment) in self.finalized_payments_cache.iter() {
+            assert_eq!(payment.id(), *id);
+            assert!(payment.status().is_finalized());
+            assert!(!self.pending.contains_key(id));
             payment.debug_assert_invariants();
         }
     }
@@ -1291,25 +1307,33 @@ mod test {
             payments.dedup_by_key(|p| p.id());
 
             let pending = HashMap::default();
+            let cache_capacity = 256;
+            let finalized_payments_cache =
+                quick_cache::unsync::Cache::new(cache_capacity);
 
             // Insert all payments
-            let mut out = Self { pending };
+            let mut out = Self {
+                pending,
+                finalized_payments_cache,
+            };
             for payment in payments {
                 out.insert_payment(payment);
             }
 
-            // Make sure we didn't lose any payments somehow
+            // Check invariants
             out.debug_assert_invariants();
 
             out
         }
 
         /// Insert a payment into `PaymentsData` without running through the
-        /// full state machine. Only pending payments are inserted.
+        /// full state machine.
         fn insert_payment(&mut self, payment: Payment) {
             let id = payment.id();
             if payment.status().is_pending() {
                 self.pending.insert(id, payment);
+            } else {
+                self.finalized_payments_cache.insert(id, payment);
             }
         }
 
@@ -1318,6 +1342,7 @@ mod test {
         fn force_insert_payment(&mut self, payment: Payment) {
             let id = payment.id();
             self.pending.remove(&id);
+            self.finalized_payments_cache.remove(&id);
             self.insert_payment(payment);
             self.debug_assert_invariants();
         }
