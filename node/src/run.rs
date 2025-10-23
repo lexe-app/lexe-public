@@ -208,7 +208,7 @@ impl UserNode {
         let MegaContext {
             backend_api,
             config,
-            oauth,
+            gdrive_oauth_config,
             esplora,
             fee_estimates,
             logger,
@@ -305,8 +305,9 @@ impl UserNode {
                     static_tasks.push(credentials_persister_task);
                     (Some(Arc::new(google_vfs)), GDriveStatus::Ok)
                 }
-                Err(GoogleVfsInitError::VfsInit(e)) =>
-                    (None, GDriveStatus::Error(e.to_string())),
+                Err(GoogleVfsInitError::VfsInit(e)) => {
+                    (None, GDriveStatus::Error(e.to_string()))
+                }
                 Err(GoogleVfsInitError::FetchCreds(e)) => bail!(e),
                 Err(GoogleVfsInitError::PersistRoot(e)) => bail!(e),
             }
@@ -720,7 +721,7 @@ impl UserNode {
             revocable_clients: revocable_clients.clone(),
             intercept_scids,
             gdrive_status: Arc::new(tokio::sync::Mutex::new(gdrive_status)),
-            gdrive_oauth_config: oauth,
+            gdrive_oauth_config,
             deploy_env,
             // --- Actors --- //
             channel_manager: channel_manager.clone(),

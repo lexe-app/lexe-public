@@ -51,7 +51,7 @@ pub(crate) struct MegaContext {
     pub config: Arc<UserConfig>,
     /// The configuration info for Google OAuth2.
     /// Required only if running in staging / prod.
-    pub oauth: Arc<Option<OAuthConfig>>,
+    pub gdrive_oauth_config: Arc<Option<OAuthConfig>>,
     /// The Esplora client for blockchain data.
     /// NOTE: LexeEsplora can be shared but EsploraSyncClient can't because
     /// EsploraSyncClient holds state internally.
@@ -96,7 +96,7 @@ impl MegaContext {
         backend_url: String,
         lsp_url: String,
         runner_url: String,
-        oauth: Option<OAuthConfig>,
+        gdrive_oauth_config: Option<OAuthConfig>,
         untrusted_deploy_env: DeployEnv,
         untrusted_esplora_urls: Vec<String>,
         untrusted_network: LxNetwork,
@@ -200,12 +200,12 @@ impl MegaContext {
                 .map(Arc::new)
                 .map_err(|e| anyhow!("Couldn't deser prob scorer: {e:#}"))?
         };
-        let oauth = Arc::new(oauth);
+        let gdrive_oauth_config = Arc::new(gdrive_oauth_config);
 
         let context = Self {
             backend_api,
             config,
-            oauth,
+            gdrive_oauth_config,
             esplora,
             fee_estimates,
             logger,
@@ -295,7 +295,7 @@ impl MegaContext {
         let version = crate::version();
         let machine_id = enclave::machine_id();
         let measurement = enclave::measurement();
-        let oauth = Arc::new(None);
+        let gdrive_oauth_config = Arc::new(None);
 
         // Create a dummy runner_tx channel
         let (runner_tx, _runner_rx) = mpsc::channel(16);
@@ -303,7 +303,7 @@ impl MegaContext {
         Self {
             backend_api,
             config,
-            oauth,
+            gdrive_oauth_config,
             esplora,
             fee_estimates,
             logger,
