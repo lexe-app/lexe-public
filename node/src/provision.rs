@@ -44,8 +44,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, error, info, info_span};
 
 use crate::{
-    client::NodeBackendClient, context::MegaContext, gdrive_provision,
-    persister,
+    client::NodeBackendClient, context::MegaContext, gdrive_setup, persister,
 };
 
 /// Args needed by the [`ProvisionInstance`].
@@ -306,22 +305,21 @@ mod handlers {
         let credentials = match req.google_auth_code.as_deref() {
             // If we were given an auth_code, complete the OAuth2 flow and
             // persist the freshly minted gDrive credentials.
-            Some(code) =>
-                gdrive_provision::exchange_code_and_persist_credentials(
-                    &mut state.rng,
-                    &state.backend_api,
-                    &state.gdrive_client,
-                    oauth,
-                    code,
-                    &authenticator,
-                    &vfs_master_key,
-                )
-                .await
-                .map_err(NodeApiError::provision)?,
+            Some(code) => gdrive_setup::exchange_code_and_persist_credentials(
+                &mut state.rng,
+                &state.backend_api,
+                &state.gdrive_client,
+                oauth,
+                code,
+                &authenticator,
+                &vfs_master_key,
+            )
+            .await
+            .map_err(NodeApiError::provision)?,
             None => {
                 // No auth code. Try to read GDrive credentials from Lexe's DB.
                 let maybe_credentials =
-                    gdrive_provision::maybe_read_and_validate_credentials(
+                    gdrive_setup::maybe_read_and_validate_credentials(
                         &state.backend_api,
                         oauth,
                         &authenticator,
@@ -359,7 +357,7 @@ mod handlers {
             user_pk,
         };
         // Init the GVFS structure if it's not already initialized.
-        gdrive_provision::setup_gvfs_and_persist_seed(
+        gdrive_setup::setup_gvfs_and_persist_seed(
             req.encrypted_seed,
             gvfs_root_name,
             &state.backend_api,

@@ -85,7 +85,7 @@ use crate::{
     context::{MegaContext, UserContext},
     event_handler::{self, NodeEventHandler},
     gdrive_persister,
-    gdrive_provision::{self, GoogleVfsInitError},
+    gdrive_setup::{self, GoogleVfsInitError},
     p2p,
     peer_manager::NodePeerManager,
     persister::{self, NodePersister},
@@ -280,39 +280,38 @@ impl UserNode {
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
         let vfs_master_key = Arc::new(root_seed.derive_vfs_master_key());
 
-        let (maybe_google_vfs, gdrive_status) = if deploy_env
-            .is_staging_or_prod()
-        {
-            let gvfs_root_name = GvfsRootName {
-                deploy_env,
-                network,
-                use_sgx: cfg!(target_env = "sgx"),
-                user_pk,
-            };
+        let (maybe_google_vfs, gdrive_status) =
+            if deploy_env.is_staging_or_prod() {
+                let gvfs_root_name = GvfsRootName {
+                    deploy_env,
+                    network,
+                    use_sgx: cfg!(target_env = "sgx"),
+                    user_pk,
+                };
 
-            let maybe_gvfs_and_task = gdrive_provision::maybe_init_google_vfs(
-                backend_api.clone(),
-                authenticator.clone(),
-                vfs_master_key.clone(),
-                gvfs_root_name,
-                shutdown.clone(),
-            )
-            .await;
+                let maybe_gvfs_and_task = gdrive_setup::maybe_init_google_vfs(
+                    backend_api.clone(),
+                    authenticator.clone(),
+                    vfs_master_key.clone(),
+                    gvfs_root_name,
+                    shutdown.clone(),
+                )
+                .await;
 
-            match maybe_gvfs_and_task {
-                Ok(None) => (None, GDriveStatus::Disabled),
-                Ok(Some((google_vfs, credentials_persister_task))) => {
-                    static_tasks.push(credentials_persister_task);
-                    (Some(Arc::new(google_vfs)), GDriveStatus::Ok)
+                match maybe_gvfs_and_task {
+                    Ok(None) => (None, GDriveStatus::Disabled),
+                    Ok(Some((google_vfs, credentials_persister_task))) => {
+                        static_tasks.push(credentials_persister_task);
+                        (Some(Arc::new(google_vfs)), GDriveStatus::Ok)
+                    }
+                    Err(GoogleVfsInitError::VfsInit(e)) =>
+                        (None, GDriveStatus::Error(e.to_string())),
+                    Err(GoogleVfsInitError::FetchCreds(e)) => return Err(e),
+                    Err(GoogleVfsInitError::PersistRoot(e)) => return Err(e),
                 }
-                Err(GoogleVfsInitError::VfsInit(e)) =>
-                    (None, GDriveStatus::Error(e.to_string())),
-                Err(GoogleVfsInitError::FetchCreds(e)) => return Err(e),
-                Err(GoogleVfsInitError::PersistRoot(e)) => return Err(e),
-            }
-        } else {
-            (None, GDriveStatus::Disabled)
-        };
+            } else {
+                (None, GDriveStatus::Disabled)
+            };
 
         // Initialize Persister
         let persister = Arc::new(NodePersister::new(
