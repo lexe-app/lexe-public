@@ -168,7 +168,7 @@ pub(crate) async fn exchange_code_and_persist_credentials(
     google_auth_code: &str,
     authenticator: &BearerAuthenticator,
     vfs_master_key: &AesMasterKey,
-) -> Result<GDriveCredentials, NodeApiError> {
+) -> anyhow::Result<GDriveCredentials> {
     let code_verifier = None;
     let credentials = gdrive::oauth2::auth_code_for_token(
         gdrive_client,
@@ -179,8 +179,7 @@ pub(crate) async fn exchange_code_and_persist_credentials(
         code_verifier,
     )
     .await
-    .context("Couldn't get tokens using code")
-    .map_err(NodeApiError::provision)?;
+    .context("Couldn't get tokens using code")?;
 
     let credentials_file = persister::encrypt_gdrive_credentials(
         rng,
@@ -190,8 +189,7 @@ pub(crate) async fn exchange_code_and_persist_credentials(
 
     persister::persist_file(backend_api, authenticator, &credentials_file)
         .await
-        .context("Could not persist new GDrive credentials")
-        .map_err(NodeApiError::provision)?;
+        .context("Could not persist new GDrive credentials")?;
 
     Ok(credentials)
 }
@@ -200,7 +198,7 @@ pub(crate) async fn exchange_code_and_persist_credentials(
 ///
 /// - Creates the GVFS file folder structure (if it didn't exist)
 /// - Persist the encrypted root seed to GDrive (if provided).
-pub(super) async fn setup_gvfs_and_persist_seed(
+pub(crate) async fn setup_gvfs_and_persist_seed(
     encrypted_seed: Option<Vec<u8>>,
     gvfs_root_name: GvfsRootName,
     backend_api: &NodeBackendClient,

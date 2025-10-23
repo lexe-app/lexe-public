@@ -312,7 +312,7 @@ mod handlers {
         let credentials = match req.google_auth_code.as_deref() {
             // If we were given an auth_code, complete the OAuth2 flow and
             // persist the freshly minted gDrive credentials.
-            Some(code) =>
+            Some(code) => {
                 gdrive_provision::exchange_code_and_persist_credentials(
                     &mut state.rng,
                     &state.backend_api,
@@ -322,7 +322,9 @@ mod handlers {
                     &authenticator,
                     &vfs_master_key,
                 )
-                .await?,
+                .await
+                .map_err(NodeApiError::provision)?
+            }
             None => {
                 // No auth code. Try to read GDrive credentials from Lexe's DB.
                 let maybe_credentials =
