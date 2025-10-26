@@ -290,6 +290,13 @@ impl FromStr for LxOffer {
     }
 }
 
+impl TryFrom<Vec<u8>> for LxOffer {
+    type Error = ParseError;
+    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+        Offer::try_from(bytes).map(LxOffer).map_err(ParseError)
+    }
+}
+
 /// The max number of items that can be purchased in one payment with the offer.
 ///
 /// The expected amount paid for this offer is `offer.amount * quantity`,
