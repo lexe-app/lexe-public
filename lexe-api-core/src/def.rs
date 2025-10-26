@@ -735,7 +735,8 @@ pub trait NodeBackendApi {
 
     /// GET /node/v1/payment_address [`Empty`] -> [`PaymentAddress`]
     ///
-    /// Fetches the payment_address (Username and Offer) of the given node.
+    /// Fetches the node's primary payment_address (Username and Offer) of the
+    /// given node.
     async fn get_payment_address(
         &self,
         auth: BearerAuthToken,
