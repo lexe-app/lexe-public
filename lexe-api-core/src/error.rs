@@ -599,6 +599,8 @@ api_error_kind! {
         InvalidParsedRequest = 107,
         /// Request batch size is over the limit
         BatchSizeOverLimit = 108,
+        /// Resource is not updatable
+        NotUpdatable = 109,
     }
 }
 
@@ -626,6 +628,7 @@ impl ToHttpStatus for BackendErrorKind {
             AuthExpired => CLIENT_401_UNAUTHORIZED,
             InvalidParsedRequest => CLIENT_400_BAD_REQUEST,
             BatchSizeOverLimit => CLIENT_400_BAD_REQUEST,
+            NotUpdatable => CLIENT_400_BAD_REQUEST,
         }
     }
 }
@@ -1130,9 +1133,19 @@ impl BackendApiError {
         }
     }
 
-    pub fn invalid_parsed_req(msg: impl Into<String>) -> Self {
+    pub fn invalid_parsed_req(error: impl fmt::Display) -> Self {
         let kind = BackendErrorKind::InvalidParsedRequest;
-        let msg = msg.into();
+        let msg = format!("{error:#}");
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
+
+    pub fn not_updatable(error: impl fmt::Display) -> Self {
+        let kind = BackendErrorKind::NotUpdatable;
+        let msg = format!("{error:#})");
         Self {
             kind,
             msg,
