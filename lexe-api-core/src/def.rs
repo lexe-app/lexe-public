@@ -84,13 +84,14 @@ use crate::{
             GetAddressResponse, GetNewPayments, ListChannelsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
             PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentIdStruct,
-            PaymentIndexStruct, PaymentIndexes, PreflightCloseChannelRequest,
-            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOfferRequest,
-            PreflightPayOfferResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse, ResyncRequest, SetupGDrive,
+            PayOnchainRequest, PayOnchainResponse, PaymentAddress,
+            PaymentIdStruct, PaymentIndexStruct, PaymentIndexes,
+            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOfferRequest, PreflightPayOfferResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            ResyncRequest, SetupGDrive, UpdatePaymentAddress,
             UpdatePaymentNote,
         },
         runner::{
@@ -721,6 +722,24 @@ pub trait NodeBackendApi {
         &self,
         auth: BearerAuthToken,
     ) -> Result<VecLxPaymentId, BackendApiError>;
+
+    /// PUT /node/v1/payment_address [`UpdatePaymentAddress`] ->
+    /// [`PaymentAddress`]
+    ///
+    /// Updates the payment_address (Username and Offer) of the given node.
+    async fn update_payment_address(
+        &self,
+        req: UpdatePaymentAddress,
+        auth: BearerAuthToken,
+    ) -> Result<PaymentAddress, BackendApiError>;
+
+    /// GET /node/v1/payment_address [`Empty`] -> [`PaymentAddress`]
+    ///
+    /// Fetches the payment_address (Username and Offer) of the given node.
+    async fn get_payment_address(
+        &self,
+        auth: BearerAuthToken,
+    ) -> Result<PaymentAddress, BackendApiError>;
 }
 
 /// Defines the api that the LSP exposes to user nodes.

@@ -25,7 +25,8 @@ use lexe_api::{
     error::{BackendApiError, LspApiError, RunnerApiError},
     models::{
         command::{
-            GetNewPayments, PaymentIdStruct, PaymentIndexStruct, PaymentIndexes,
+            GetNewPayments, PaymentAddress, PaymentIdStruct,
+            PaymentIndexStruct, PaymentIndexes, UpdatePaymentAddress,
         },
         runner::{UserFinishedRequest, UserLeaseRenewalRequest},
     },
@@ -567,6 +568,32 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .get(format!("{backend}/node/v1/payments/final"), &data)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn update_payment_address(
+        &self,
+        req: UpdatePaymentAddress,
+        auth: BearerAuthToken,
+    ) -> Result<PaymentAddress, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .put(format!("{backend}/node/v1/payment_address"), &req)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn get_payment_address(
+        &self,
+        auth: BearerAuthToken,
+    ) -> Result<PaymentAddress, BackendApiError> {
+        let backend = &self.backend_url;
+        let data = Empty {};
+        let req = self
+            .rest
+            .get(format!("{backend}/node/v1/payment_address"), &data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }

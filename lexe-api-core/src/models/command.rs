@@ -25,6 +25,7 @@ use crate::types::{
     invoice::LxInvoice,
     offer::{LxOffer, MaxQuantity},
     payments::{ClientPaymentId, LxPaymentId, PaymentIndex},
+    username::Username,
 };
 
 // --- General --- //
@@ -452,6 +453,31 @@ pub struct ResyncRequest {
     pub full_sync: bool,
 }
 
+// --- Username --- //
+
+/// Creates or updates a payment address.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct UpdatePaymentAddress {
+    /// Payment address to be used on BIP-353 and LNURL.
+    pub username: Username,
+    /// Offer to be used to fetch invoices on BIP-353.
+    pub offer: LxOffer,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct PaymentAddress {
+    /// Current payment address to be used on BIP-353 and LNURL.
+    pub username: Option<Username>,
+    /// Current offer to be used to fetch invoices on BIP-353.
+    pub offer: Option<LxOffer>,
+    /// Last time the payment address was updated.
+    pub updated_at: Option<TimestampMs>,
+    /// Wheter the payment address can be updated.
+    pub updatable: bool,
+}
+
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
     use proptest::{
@@ -515,5 +541,15 @@ mod test {
     #[test]
     fn setup_gdrive_request_roundtrip() {
         roundtrip::json_string_roundtrip_proptest::<SetupGDrive>();
+    }
+
+    #[test]
+    fn payment_address_request_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<UpdatePaymentAddress>();
+    }
+
+    #[test]
+    fn payment_address_response_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<PaymentAddress>();
     }
 }
