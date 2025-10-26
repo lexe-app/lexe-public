@@ -12,7 +12,8 @@ pub mod payments;
 pub mod ports;
 /// `SealedSeed` and related types and logic.
 pub mod sealed_seed;
-
+/// `Username` newtype.
+pub mod username;
 /// A unique identifier for a user node lease.
 // TODO(max): Find a better home for this.
 pub type LeaseId = u32;
