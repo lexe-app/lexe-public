@@ -14,6 +14,8 @@ pub mod backoff;
 pub mod const_utils;
 /// Iterator extensions.
 pub mod iter;
+/// Path extensions.
+pub mod path;
 
 /// A trait which allows us to apply functions (including tuple enum variants)
 /// to non-[`Iterator`]/[`Result`]/[`Option`] values for cleaner iterator-like
