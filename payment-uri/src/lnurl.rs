@@ -79,6 +79,7 @@ use std::{str::FromStr, time::Duration};
 use anyhow::{Context, anyhow, ensure};
 use bitcoin::hashes::Hash;
 use common::ln::amount::Amount;
+use lexe_api_core::types::invoice::LxInvoice;
 use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescriptionRef};
 use payment_uri_core::{LnurlPayRequest, LnurlPayRequestMetadata};
 use serde::Deserialize;
@@ -197,7 +198,7 @@ impl LnurlClient {
         &self,
         pay_req: &LnurlPayRequest,
         amount: Amount,
-    ) -> anyhow::Result<Bolt11Invoice> {
+    ) -> anyhow::Result<LxInvoice> {
         let callback = &pay_req.callback;
         debug!(%amount, %callback, "Resolving LNURL-pay request");
 
@@ -274,7 +275,7 @@ impl LnurlClient {
 
         debug!("Resolved LNURL-pay invoice: {invoice}");
 
-        Ok(invoice)
+        Ok(LxInvoice(invoice))
     }
 }
 
