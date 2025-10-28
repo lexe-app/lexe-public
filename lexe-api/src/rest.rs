@@ -1,4 +1,7 @@
-use std::{borrow::Cow, time::Duration};
+use std::{
+    borrow::Cow,
+    time::{Duration, Instant},
+};
 
 use bytes::Bytes;
 use common::{ed25519, time::DisplayMs};
@@ -210,7 +213,29 @@ impl RestClient {
             .send_inner(request, &trace_id)
             .instrument(request_span)
             .await;
-        Self::map_response_errors(response)
+        let res = match response {
+            Ok(Ok(resp)) => resp.read_bytes().await.map(Ok),
+            Ok(Err(api_error)) => Ok(Err(api_error)),
+            Err(common_error) => Err(common_error),
+        };
+        Self::map_response_errors::<Bytes, E>(res)
+    }
+
+    /// Sends the HTTP request, but returns a [`StreamBody`] that yields
+    /// [`Bytes`] chunks as they arrive.
+    pub async fn send_and_stream_response<E: ApiError>(
+        &self,
+        request_builder: reqwest::RequestBuilder,
+    ) -> Result<StreamBody, E> {
+        let request = request_builder.build().map_err(CommonApiError::from)?;
+        let (request_span, trace_id) =
+            trace::client::request_span(&request, &self.from, self.to);
+        let response = self
+            .send_inner(request, &trace_id)
+            .instrument(request_span)
+            .await;
+        Self::map_response_errors::<SuccessResponse, E>(response)
+            .map(|resp| resp.into_stream_body())
     }
 
     /// Sends the built HTTP request, retrying up to `retries` times. Tries to
@@ -233,7 +258,7 @@ impl RestClient {
             .send_with_retries_inner(request, retries, stop_codes, &trace_id)
             .instrument(request_span)
             .await;
-        let bytes = Self::map_response_errors::<E>(response)?;
+        let bytes = Self::map_response_errors::<Bytes, E>(response)?;
         Self::json_deserialize(bytes)
     }
 
@@ -276,7 +301,16 @@ impl RestClient {
             // send the request and look for any error codes in the response
             // that we should bail on and stop retrying.
             match self.send_inner(request_clone, trace_id).await {
-                Ok(Ok(bytes)) => return Ok(Ok(bytes)),
+                Ok(Ok(resp)) => match resp.read_bytes().await {
+                    Ok(bytes) => {
+                        return Ok(Ok(bytes));
+                    }
+                    Err(common_error) => {
+                        if stop_codes.contains(&common_error.to_code()) {
+                            return Err(common_error);
+                        }
+                    }
+                },
                 Ok(Err(api_error)) =>
                     if stop_codes.contains(&api_error.code) {
                         return Ok(Err(api_error));
@@ -297,14 +331,18 @@ impl RestClient {
         assert_eq!(attempts_left, 1);
         tracing::Span::current().record("attempts_left", attempts_left);
 
-        self.send_inner(request.take().unwrap(), trace_id).await
+        let resp = self.send_inner(request.take().unwrap(), trace_id).await?;
+        match resp {
+            Ok(resp_succ) => resp_succ.read_bytes().await.map(Ok),
+            Err(api_error) => Ok(Err(api_error)),
+        }
     }
 
     async fn send_inner(
         &self,
         mut request: reqwest::Request,
         trace_id: &TraceId,
-    ) -> Result<Result<Bytes, ErrorResponse>, CommonApiError> {
+    ) -> Result<Result<SuccessResponse, ErrorResponse>, CommonApiError> {
         let start = tokio::time::Instant::now().into_std();
         // This message should mirror `LxOnRequest`.
         debug!(target: trace::TARGET, "New client request");
@@ -333,23 +371,7 @@ impl RestClient {
         let status = resp.status().as_u16();
 
         if resp.status().is_success() {
-            // success => await response body
-            let bytes = resp.bytes().await.inspect_err(|e| {
-                let req_time = DisplayMs(start.elapsed());
-                warn!(
-                    target: trace::TARGET,
-                    %req_time,
-                    %status,
-                    "Done (error)(receiving) \
-                     Couldn't receive success response body: {e:#}",
-                );
-            })?;
-
-            let req_time = DisplayMs(start.elapsed());
-            // NOTE: This client request log can be at INFO.
-            // It's cluttering our logs though, so we're suppressing.
-            debug!(target: trace::TARGET, %req_time, %status, "Done (success)");
-            Ok(Ok(bytes))
+            Ok(Ok(SuccessResponse { resp, start }))
         } else {
             // http error => await response json and convert to ErrorResponse
             let error =
@@ -377,13 +399,13 @@ impl RestClient {
         }
     }
 
-    /// Converts the [`Result<Result<Bytes, ErrorResponse>, CommonApiError>`]
-    /// returned by [`Self::send_inner`] to [`Result<Bytes, E>`].
-    fn map_response_errors<E: ApiError>(
-        response: Result<Result<Bytes, ErrorResponse>, CommonApiError>,
-    ) -> Result<Bytes, E> {
+    /// Converts the [`Result<Result<T, ErrorResponse>, CommonApiError>`]
+    /// returned by [`Self::send_inner`] to [`Result<T, E>`].
+    fn map_response_errors<T, E: ApiError>(
+        response: Result<Result<T, ErrorResponse>, CommonApiError>,
+    ) -> Result<T, E> {
         match response {
-            Ok(Ok(bytes)) => Ok(bytes),
+            Ok(Ok(resp)) => Ok(resp),
             Ok(Err(err_api)) => Err(E::from(err_api)),
             Err(err_client) => Err(E::from(err_client)),
         }
@@ -408,6 +430,86 @@ impl RestClient {
                 CommonApiError::new(kind, msg)
             })
             .map_err(E::from)
+    }
+}
+
+// -- impl SuccessResponse -- //
+
+/// A successful [`reqwest::Response`], though we haven't read the body yet.
+struct SuccessResponse {
+    resp: reqwest::Response,
+    start: Instant,
+}
+
+impl SuccessResponse {
+    /// Convert into a streaming response body.
+    fn into_stream_body(self) -> StreamBody {
+        StreamBody {
+            resp: self.resp,
+            start: self.start,
+        }
+    }
+
+    /// Read the successful response body into a single raw [`Bytes`].
+    async fn read_bytes(self) -> Result<Bytes, CommonApiError> {
+        let status = self.resp.status().as_u16();
+        let bytes = self.resp.bytes().await.inspect_err(|e| {
+            let req_time = DisplayMs(self.start.elapsed());
+            warn!(
+                target: trace::TARGET,
+                %req_time,
+                %status,
+                "Done (error)(receiving) \
+                 Couldn't receive response body: {e:#}",
+            );
+        })?;
+
+        let req_time = DisplayMs(self.start.elapsed());
+        // NOTE: This client request log can be at INFO.
+        // It's cluttering our logs though, so we're suppressing.
+        debug!(target: trace::TARGET, %req_time, %status, "Done (success)");
+        Ok(bytes)
+    }
+}
+
+// -- impl StreamResponse -- //
+
+/// A streaming response body which yields chunks of the body as raw [`Bytes`]
+/// as they arrive.
+pub struct StreamBody {
+    resp: reqwest::Response,
+    start: Instant,
+}
+
+impl StreamBody {
+    /// Stream a chunk of the response body. Returns `Ok(None)` when the stream
+    /// is complete.
+    pub async fn next_chunk(
+        &mut self,
+    ) -> Result<Option<Bytes>, CommonApiError> {
+        match self.resp.chunk().await {
+            Ok(Some(chunk)) => Ok(Some(chunk)),
+            Ok(None) => {
+                // Done, log how long it took.
+                let status = self.resp.status().as_u16();
+                let req_time = DisplayMs(self.start.elapsed());
+                debug!(target: trace::TARGET, %req_time, %status, "Done (success)");
+                Ok(None)
+            }
+            Err(e) => {
+                // Error receiving next chunk.
+                let status = self.resp.status().as_u16();
+                let req_time = DisplayMs(self.start.elapsed());
+                warn!(
+                    target: trace::TARGET,
+                    %req_time,
+                    %status,
+                    "Done (error)(receiving) \
+                     Couldn't receive streaming response chunk: {e:#}",
+                );
+                Err(CommonApiError::from(e))
+            }
+        }
     }
 }
 
