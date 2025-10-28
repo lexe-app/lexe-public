@@ -39,7 +39,7 @@ use crate::types::{invoice::LxInvoice, offer::LxOffer};
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct BasicPayment {
-    pub index: PaymentIndex,
+    pub index: PaymentCreatedIndex,
 
     pub kind: PaymentKind,
     pub direction: PaymentDirection,
@@ -202,10 +202,10 @@ pub enum PaymentStatus {
 // --- Lexe newtypes --- //
 
 /// A payment identifier which (1) retains uniqueness per payment and (2) is
-/// ordered first by timestamp and then by [`LxPaymentId`].
+/// ordered first by created_at timestamp and then by [`LxPaymentId`].
 ///
 /// It is essentially a [`(TimestampMs, LxPaymentId)`], suitable for use as a
-/// key in a `BTreeMap<PaymentIndex, BasicPayment>` or similar.
+/// key in a `BTreeMap<PaymentCreatedIndex, BasicPayment>` or similar.
 ///
 /// It can also be degenerated (serialized) into a string and the
 /// string-serialized ordering will be equivalent to the unserialized ordering.
@@ -225,7 +225,7 @@ pub enum PaymentStatus {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct PaymentIndex {
+pub struct PaymentCreatedIndex {
     pub created_at: TimestampMs,
     pub id: LxPaymentId,
 }
@@ -332,7 +332,7 @@ pub struct LnClaimId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 impl BasicPayment {
     #[inline]
-    pub fn index(&self) -> &PaymentIndex {
+    pub fn index(&self) -> &PaymentCreatedIndex {
         &self.index
     }
 
@@ -405,22 +405,22 @@ impl PartialOrd for BasicPayment {
     }
 }
 
-// --- impl PaymentIndex --- //
+// --- impl PaymentCreatedIndex --- //
 
-impl PaymentIndex {
-    /// The `PaymentIndex` that is lexicographically <= all other indexes.
+impl PaymentCreatedIndex {
+    /// The index that is lexicographically <= all other indexes.
     pub const MIN: Self = Self {
         created_at: TimestampMs::MIN,
         id: LxPaymentId::MIN,
     };
 
-    /// The `PaymentIndex` that is lexicographically >= all other indexes.
+    /// The index that is lexicographically >= all other indexes.
     pub const MAX: Self = Self {
         created_at: TimestampMs::MAX,
         id: LxPaymentId::MAX,
     };
 
-    /// Quickly create a dummy [`PaymentIndex`] which can be used in tests.
+    /// Quickly create a dummy index which can be used in tests.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn from_u8(i: u8) -> Self {
         let created_at = TimestampMs::from_secs_u32(u32::from(i));
@@ -764,11 +764,11 @@ impl Serialize for PaymentStatus {
     }
 }
 
-// --- PaymentIndex FromStr / Display impl --- //
+// --- PaymentCreatedIndex FromStr / Display impl --- //
 
 /// `<created_at>-<id>`
 // We use the - separator because LxPaymentId already uses _
-impl FromStr for PaymentIndex {
+impl FromStr for PaymentCreatedIndex {
     type Err = anyhow::Error;
     fn from_str(createdat_id: &str) -> anyhow::Result<Self> {
         let mut parts = createdat_id.split('-');
@@ -797,7 +797,7 @@ impl FromStr for PaymentIndex {
 /// maximum number of digits in an [`i64`]) so that the lexicographic ordering
 /// is equivalent to the non-serialized ordering.
 // We use the - separator because LxPaymentId already uses _
-impl Display for PaymentIndex {
+impl Display for PaymentCreatedIndex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let created_at = self.created_at.to_i64();
         let id = &self.id;
@@ -885,7 +885,7 @@ mod test {
 
     #[test]
     fn newtype_serde_roundtrip() {
-        roundtrip::json_string_roundtrip_proptest::<PaymentIndex>();
+        roundtrip::json_string_roundtrip_proptest::<PaymentCreatedIndex>();
         roundtrip::json_string_roundtrip_proptest::<LxPaymentId>();
         roundtrip::json_string_roundtrip_proptest::<LxPaymentHash>();
         roundtrip::json_string_roundtrip_proptest::<LxPaymentPreimage>();
@@ -896,7 +896,7 @@ mod test {
 
     #[test]
     fn newtype_fromstr_display_roundtrip() {
-        roundtrip::fromstr_display_roundtrip_proptest::<PaymentIndex>();
+        roundtrip::fromstr_display_roundtrip_proptest::<PaymentCreatedIndex>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentId>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentHash>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxOfferId>();
@@ -913,11 +913,11 @@ mod test {
         let id1 = LxPaymentId::Lightning(LxPaymentHash([1; 32]));
         let id2 = LxPaymentId::Lightning(LxPaymentHash([2; 32]));
 
-        let index12 = PaymentIndex {
+        let index12 = PaymentCreatedIndex {
             created_at: time1,
             id: id2,
         };
-        let index21 = PaymentIndex {
+        let index21 = PaymentCreatedIndex {
             created_at: time2,
             id: id1,
         };
@@ -928,8 +928,8 @@ mod test {
     #[test]
     fn payment_index_ordering_equivalence() {
         proptest!(|(
-            idx1 in any::<PaymentIndex>(),
-            idx2 in any::<PaymentIndex>()
+            idx1 in any::<PaymentCreatedIndex>(),
+            idx2 in any::<PaymentCreatedIndex>()
         )| {
             let idx1_str = idx1.to_string();
             let idx2_str = idx2.to_string();
@@ -940,20 +940,20 @@ mod test {
         });
     }
 
-    // ∀ idx ∈ PaymentIndex, MIN <= idx <= MAX
+    // ∀ idx ∈ PaymentCreatedIndex, MIN <= idx <= MAX
     // ∀  id ∈ LxPaymentId , MIN <= id <= MAX
     #[test]
     fn payment_index_bounds() {
         fn assert_bounds(
-            idx: PaymentIndex,
+            idx: PaymentCreatedIndex,
         ) -> Result<(), proptest::prelude::TestCaseError> {
-            // PaymentIndex bounds
+            // PaymentCreatedIndex bounds
             prop_assert!(matches!(
-                PaymentIndex::MIN.cmp(&idx),
+                PaymentCreatedIndex::MIN.cmp(&idx),
                 Ordering::Less | Ordering::Equal,
             ));
             prop_assert!(matches!(
-                idx.cmp(&PaymentIndex::MAX),
+                idx.cmp(&PaymentCreatedIndex::MAX),
                 Ordering::Less | Ordering::Equal,
             ));
 
@@ -970,22 +970,22 @@ mod test {
             Ok(())
         }
 
-        proptest!(|(idx in any::<PaymentIndex>())| {
+        proptest!(|(idx in any::<PaymentCreatedIndex>())| {
             assert_bounds(idx)?;
 
-            assert_bounds(PaymentIndex {
+            assert_bounds(PaymentCreatedIndex {
                 created_at: TimestampMs::MIN,
                 id: idx.id,
             })?;
-            assert_bounds(PaymentIndex {
+            assert_bounds(PaymentCreatedIndex {
                 created_at: TimestampMs::MAX,
                 id: idx.id,
             })?;
-            assert_bounds(PaymentIndex {
+            assert_bounds(PaymentCreatedIndex {
                 created_at: idx.created_at,
                 id: LxPaymentId::MIN,
             })?;
-            assert_bounds(PaymentIndex {
+            assert_bounds(PaymentCreatedIndex {
                 created_at: idx.created_at,
                 id: LxPaymentId::MAX,
             })?;

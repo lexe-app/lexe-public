@@ -338,7 +338,7 @@ fn wire__crate__ffi__app__app_handle_get_vec_idx_by_payment_index_impl(
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
-let api_payment_index = <crate::ffi::types::PaymentIndex>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
+let api_payment_index = <crate::ffi::types::PaymentCreatedIndex>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
                     transform_result_sse::<_, ()>((move ||  {
                          let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::get_vec_idx_by_payment_index(&api_that, api_payment_index))?;   Ok(output_ok)
                     })())
@@ -2181,7 +2181,7 @@ impl SseDecode for crate::ffi::api::PayInvoiceResponse {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_index =
-            <crate::ffi::types::PaymentIndex>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentCreatedIndex>::sse_decode(deserializer);
         return crate::ffi::api::PayInvoiceResponse { index: var_index };
     }
 }
@@ -2212,7 +2212,7 @@ impl SseDecode for crate::ffi::api::PayOfferResponse {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_index =
-            <crate::ffi::types::PaymentIndex>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentCreatedIndex>::sse_decode(deserializer);
         return crate::ffi::api::PayOfferResponse { index: var_index };
     }
 }
@@ -2245,7 +2245,7 @@ impl SseDecode for crate::ffi::api::PayOnchainResponse {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_index =
-            <crate::ffi::types::PaymentIndex>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentCreatedIndex>::sse_decode(deserializer);
         let mut var_txid = <String>::sse_decode(deserializer);
         return crate::ffi::api::PayOnchainResponse {
             index: var_index,
@@ -2260,7 +2260,7 @@ impl SseDecode for crate::ffi::types::Payment {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_index =
-            <crate::ffi::types::PaymentIndex>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentCreatedIndex>::sse_decode(deserializer);
         let mut var_kind =
             <crate::ffi::types::PaymentKind>::sse_decode(deserializer);
         let mut var_direction =
@@ -2300,6 +2300,16 @@ impl SseDecode for crate::ffi::types::Payment {
     }
 }
 
+impl SseDecode for crate::ffi::types::PaymentCreatedIndex {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_field0 = <String>::sse_decode(deserializer);
+        return crate::ffi::types::PaymentCreatedIndex(var_field0);
+    }
+}
+
 impl SseDecode for crate::ffi::types::PaymentDirection {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -2312,16 +2322,6 @@ impl SseDecode for crate::ffi::types::PaymentDirection {
             _ =>
                 unreachable!("Invalid variant for PaymentDirection: {}", inner),
         };
-    }
-}
-
-impl SseDecode for crate::ffi::types::PaymentIndex {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_field0 = <String>::sse_decode(deserializer);
-        return crate::ffi::types::PaymentIndex(var_field0);
     }
 }
 
@@ -2617,7 +2617,7 @@ impl SseDecode for crate::ffi::types::ShortPayment {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_index =
-            <crate::ffi::types::PaymentIndex>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentCreatedIndex>::sse_decode(deserializer);
         let mut var_kind =
             <crate::ffi::types::PaymentKind>::sse_decode(deserializer);
         let mut var_direction =
@@ -2729,7 +2729,7 @@ impl SseDecode for crate::ffi::api::UpdatePaymentNote {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_index =
-            <crate::ffi::types::PaymentIndex>::sse_decode(deserializer);
+            <crate::ffi::types::PaymentCreatedIndex>::sse_decode(deserializer);
         let mut var_note = <Option<String>>::sse_decode(deserializer);
         return crate::ffi::api::UpdatePaymentNote {
             index: var_index,
@@ -3790,6 +3790,23 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Payment>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentCreatedIndex {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.0.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::PaymentCreatedIndex
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::PaymentCreatedIndex>
+    for crate::ffi::types::PaymentCreatedIndex
+{
+    fn into_into_dart(self) -> crate::ffi::types::PaymentCreatedIndex {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentDirection {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -3807,23 +3824,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::PaymentDirection>
     for crate::ffi::types::PaymentDirection
 {
     fn into_into_dart(self) -> crate::ffi::types::PaymentDirection {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentIndex {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::types::PaymentIndex
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::PaymentIndex>
-    for crate::ffi::types::PaymentIndex
-{
-    fn into_into_dart(self) -> crate::ffi::types::PaymentIndex {
         self
     }
 }
@@ -5280,7 +5280,9 @@ impl SseEncode for crate::ffi::api::PayInvoiceResponse {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::types::PaymentIndex>::sse_encode(self.index, serializer);
+        <crate::ffi::types::PaymentCreatedIndex>::sse_encode(
+            self.index, serializer,
+        );
     }
 }
 
@@ -5303,7 +5305,9 @@ impl SseEncode for crate::ffi::api::PayOfferResponse {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::types::PaymentIndex>::sse_encode(self.index, serializer);
+        <crate::ffi::types::PaymentCreatedIndex>::sse_encode(
+            self.index, serializer,
+        );
     }
 }
 
@@ -5330,7 +5334,9 @@ impl SseEncode for crate::ffi::api::PayOnchainResponse {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::types::PaymentIndex>::sse_encode(self.index, serializer);
+        <crate::ffi::types::PaymentCreatedIndex>::sse_encode(
+            self.index, serializer,
+        );
         <String>::sse_encode(self.txid, serializer);
     }
 }
@@ -5341,7 +5347,9 @@ impl SseEncode for crate::ffi::types::Payment {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::types::PaymentIndex>::sse_encode(self.index, serializer);
+        <crate::ffi::types::PaymentCreatedIndex>::sse_encode(
+            self.index, serializer,
+        );
         <crate::ffi::types::PaymentKind>::sse_encode(self.kind, serializer);
         <crate::ffi::types::PaymentDirection>::sse_encode(
             self.direction,
@@ -5365,6 +5373,16 @@ impl SseEncode for crate::ffi::types::Payment {
     }
 }
 
+impl SseEncode for crate::ffi::types::PaymentCreatedIndex {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <String>::sse_encode(self.0, serializer);
+    }
+}
+
 impl SseEncode for crate::ffi::types::PaymentDirection {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -5381,16 +5399,6 @@ impl SseEncode for crate::ffi::types::PaymentDirection {
             },
             serializer,
         );
-    }
-}
-
-impl SseEncode for crate::ffi::types::PaymentIndex {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <String>::sse_encode(self.0, serializer);
     }
 }
 
@@ -5651,7 +5659,9 @@ impl SseEncode for crate::ffi::types::ShortPayment {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::types::PaymentIndex>::sse_encode(self.index, serializer);
+        <crate::ffi::types::PaymentCreatedIndex>::sse_encode(
+            self.index, serializer,
+        );
         <crate::ffi::types::PaymentKind>::sse_encode(self.kind, serializer);
         <crate::ffi::types::PaymentDirection>::sse_encode(
             self.direction,
@@ -5763,7 +5773,9 @@ impl SseEncode for crate::ffi::api::UpdatePaymentNote {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::types::PaymentIndex>::sse_encode(self.index, serializer);
+        <crate::ffi::types::PaymentCreatedIndex>::sse_encode(
+            self.index, serializer,
+        );
         <Option<String>>::sse_encode(self.note, serializer);
     }
 }

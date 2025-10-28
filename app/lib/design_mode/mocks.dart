@@ -51,8 +51,8 @@ import 'package:app_rs_dart/ffi/types.dart'
         LxChannelDetails,
         Offer,
         Payment,
+        PaymentCreatedIndex,
         PaymentDirection,
-        PaymentIndex,
         PaymentKind,
         PaymentStatus,
         RevocableClient,
@@ -177,7 +177,7 @@ class MockAppHandle extends AppHandle {
   }) => Future.delayed(
     const Duration(milliseconds: 1200),
     () => const PayOnchainResponse(
-      index: PaymentIndex(
+      index: PaymentCreatedIndex(
         field0:
             "0000001687385080000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
       ),
@@ -237,7 +237,7 @@ class MockAppHandle extends AppHandle {
   }) => Future.delayed(
     const Duration(milliseconds: 1200),
     () => const PayInvoiceResponse(
-      index: PaymentIndex(
+      index: PaymentCreatedIndex(
         field0:
             "0000001686744442000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
       ),
@@ -348,7 +348,7 @@ class MockAppHandle extends AppHandle {
 
   @override
   Future<int?> getVecIdxByPaymentIndex({
-    required PaymentIndex paymentIndex,
+    required PaymentCreatedIndex paymentIndex,
   }) async {
     final vecIdx = this.payments.indexWhere(
       (payment) => payment.index == paymentIndex,
@@ -781,7 +781,7 @@ const Balance balanceOnchainOnly = Balance(
 //
 
 const Payment dummyOnchainInboundPending01 = Payment(
-  index: PaymentIndex(
+  index: PaymentCreatedIndex(
     field0:
         "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
   ),
@@ -799,7 +799,7 @@ const Payment dummyOnchainInboundPending01 = Payment(
 );
 
 const Payment dummyOnchainInboundCompleted01 = Payment(
-  index: PaymentIndex(
+  index: PaymentCreatedIndex(
     field0:
         "0000001670090492000-bc_551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66",
   ),
@@ -817,7 +817,7 @@ const Payment dummyOnchainInboundCompleted01 = Payment(
 );
 
 const Payment dummyOnchainInboundCompleted02 = Payment(
-  index: PaymentIndex(
+  index: PaymentCreatedIndex(
     field0:
         "0000001739386001000-bc_70596383fb7dd5c578a5ef348ec77c5979a65ecb4b10bae0ce60e814c35f04f1",
   ),
@@ -835,7 +835,7 @@ const Payment dummyOnchainInboundCompleted02 = Payment(
 );
 
 const Payment dummyOnchainOutboundCompleted01 = Payment(
-  index: PaymentIndex(
+  index: PaymentCreatedIndex(
     field0:
         "0000001687385080000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
   ),
@@ -852,7 +852,7 @@ const Payment dummyOnchainOutboundCompleted01 = Payment(
 );
 
 const Payment dummyOnchainOutboundFailed01 = Payment(
-  index: PaymentIndex(
+  index: PaymentCreatedIndex(
     field0:
         "0000001671818392000-bc_46e52089b60b00de067c84ce58d34a75ffd71a106f720855bc099f20da11700c",
   ),
@@ -870,7 +870,7 @@ const Payment dummyOnchainOutboundFailed01 = Payment(
 );
 
 const Payment dummySpontaneousOutboundPending01 = Payment(
-  index: PaymentIndex(
+  index: PaymentCreatedIndex(
     field0:
         "0000001686938392000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
   ),
@@ -885,7 +885,7 @@ const Payment dummySpontaneousOutboundPending01 = Payment(
 );
 
 const Payment dummyInvoiceOutboundPending01 = Payment(
-  index: PaymentIndex(
+  index: PaymentCreatedIndex(
     field0:
         "0000001686744442000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
   ),
@@ -910,7 +910,7 @@ const Payment dummyInvoiceOutboundPending01 = Payment(
 );
 
 const Payment dummyInvoiceInboundPending01 = Payment(
-  index: PaymentIndex(
+  index: PaymentCreatedIndex(
     field0:
         "0000001687140003000-ln_bbe27583bf7ee269387bbad48c48fcae10e41537d35e49b14d81cc7306f486cb",
   ),
@@ -937,7 +937,7 @@ const Payment dummyInvoiceInboundPending01 = Payment(
 
 // Junk payment
 const Payment dummyInvoiceInboundPending02 = Payment(
-  index: PaymentIndex(
+  index: PaymentCreatedIndex(
     field0:
         "0000001714432815000-ln_c6e5e46c59267114f91d64df0e069b0dae176f9a134656820bba1e6164318980",
   ),
@@ -962,7 +962,7 @@ const Payment dummyInvoiceInboundPending02 = Payment(
 );
 
 const Payment dummyInvoiceInboundCompleted01 = Payment(
-  index: PaymentIndex(
+  index: PaymentCreatedIndex(
     field0:
         "0000001687100002000-ln_801ffce9fbe74fecc7ec6fa72716d7de6167cc5607635062b24797b54f9ba4be",
   ),
@@ -988,7 +988,7 @@ const Payment dummyInvoiceInboundCompleted01 = Payment(
 );
 
 const Payment dummyInvoiceInboundCompleted02 = Payment(
-  index: PaymentIndex(
+  index: PaymentCreatedIndex(
     field0:
         "0000001739490952000-ln_4ca99b7534df3a98afb69757b770faffead8b0794e5d618fbbf9b4cfd1f157cf",
   ),
@@ -1015,7 +1015,7 @@ const Payment dummyInvoiceInboundCompleted02 = Payment(
 
 // Junk payment (failed)
 const Payment dummyInvoiceInboundFailed01 = Payment(
-  index: PaymentIndex(
+  index: PaymentCreatedIndex(
     field0:
         "0000001700222815000-ln_034a21eee2bea4288ec9582b10a4abd6bfdca83855b25257279e67dd02f77d43",
   ),
@@ -1040,7 +1040,7 @@ const Payment dummyInvoiceInboundFailed01 = Payment(
 );
 
 const Payment dummyInvoiceOutboundCompleted01 = Payment(
-  index: PaymentIndex(
+  index: PaymentCreatedIndex(
     field0:
         "0000001739487454000-ln_432ec4be62f494b0498c76145fd31b302d0be4ac8cffe7c4102ad1f1c056bec9",
   ),
@@ -1066,7 +1066,7 @@ const Payment dummyInvoiceOutboundCompleted01 = Payment(
 );
 
 const Payment dummyOfferOutboundPayment01 = Payment(
-  index: PaymentIndex(
+  index: PaymentCreatedIndex(
     field0:
         "0000001748993362000-fs_1a0863b5785d35c34e008e8bd879e78a93b795640c2ad9e941a7d12f44356804",
   ),
@@ -1092,7 +1092,7 @@ const Payment dummyOfferOutboundPayment01 = Payment(
 );
 
 const Payment dummyOfferInboundPayment01 = Payment(
-  index: PaymentIndex(
+  index: PaymentCreatedIndex(
     field0:
         "0000001748999074000-fr_016041408597e243d2b7a8fddf2304288f4763809e340b94df32c12deb894927",
   ),

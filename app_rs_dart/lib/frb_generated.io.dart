@@ -196,7 +196,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Payment dco_decode_box_autoadd_payment(dynamic raw);
 
   @protected
-  PaymentIndex dco_decode_box_autoadd_payment_index(dynamic raw);
+  PaymentCreatedIndex dco_decode_box_autoadd_payment_created_index(dynamic raw);
 
   @protected
   PreflightOpenChannelRequest
@@ -439,10 +439,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Payment dco_decode_payment(dynamic raw);
 
   @protected
-  PaymentDirection dco_decode_payment_direction(dynamic raw);
+  PaymentCreatedIndex dco_decode_payment_created_index(dynamic raw);
 
   @protected
-  PaymentIndex dco_decode_payment_index(dynamic raw);
+  PaymentDirection dco_decode_payment_direction(dynamic raw);
 
   @protected
   PaymentKind dco_decode_payment_kind(dynamic raw);
@@ -714,7 +714,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Payment sse_decode_box_autoadd_payment(SseDeserializer deserializer);
 
   @protected
-  PaymentIndex sse_decode_box_autoadd_payment_index(
+  PaymentCreatedIndex sse_decode_box_autoadd_payment_created_index(
     SseDeserializer deserializer,
   );
 
@@ -1021,10 +1021,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Payment sse_decode_payment(SseDeserializer deserializer);
 
   @protected
-  PaymentDirection sse_decode_payment_direction(SseDeserializer deserializer);
+  PaymentCreatedIndex sse_decode_payment_created_index(
+    SseDeserializer deserializer,
+  );
 
   @protected
-  PaymentIndex sse_decode_payment_index(SseDeserializer deserializer);
+  PaymentDirection sse_decode_payment_direction(SseDeserializer deserializer);
 
   @protected
   PaymentKind sse_decode_payment_kind(SseDeserializer deserializer);
@@ -1339,8 +1341,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_box_autoadd_payment(Payment self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_payment_index(
-    PaymentIndex self,
+  void sse_encode_box_autoadd_payment_created_index(
+    PaymentCreatedIndex self,
     SseSerializer serializer,
   );
 
@@ -1720,13 +1722,16 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_payment(Payment self, SseSerializer serializer);
 
   @protected
-  void sse_encode_payment_direction(
-    PaymentDirection self,
+  void sse_encode_payment_created_index(
+    PaymentCreatedIndex self,
     SseSerializer serializer,
   );
 
   @protected
-  void sse_encode_payment_index(PaymentIndex self, SseSerializer serializer);
+  void sse_encode_payment_direction(
+    PaymentDirection self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_payment_kind(PaymentKind self, SseSerializer serializer);

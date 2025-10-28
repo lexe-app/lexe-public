@@ -1004,7 +1004,7 @@ String toString() {
 /// @nodoc
 mixin _$PayInvoiceResponse {
 
- PaymentIndex get index;
+ PaymentCreatedIndex get index;
 
 
 
@@ -1036,7 +1036,7 @@ class _PayInvoiceResponse implements PayInvoiceResponse {
   const _PayInvoiceResponse({required this.index});
   
 
-@override final  PaymentIndex index;
+@override final  PaymentCreatedIndex index;
 
 
 
@@ -1127,7 +1127,7 @@ String toString() {
 /// @nodoc
 mixin _$PayOfferResponse {
 
- PaymentIndex get index;
+ PaymentCreatedIndex get index;
 
 
 
@@ -1159,7 +1159,7 @@ class _PayOfferResponse implements PayOfferResponse {
   const _PayOfferResponse({required this.index});
   
 
-@override final  PaymentIndex index;
+@override final  PaymentCreatedIndex index;
 
 
 
@@ -1251,7 +1251,7 @@ String toString() {
 /// @nodoc
 mixin _$PayOnchainResponse {
 
- PaymentIndex get index; String get txid;
+ PaymentCreatedIndex get index; String get txid;
 
 
 
@@ -1283,7 +1283,7 @@ class _PayOnchainResponse implements PayOnchainResponse {
   const _PayOnchainResponse({required this.index, required this.txid});
   
 
-@override final  PaymentIndex index;
+@override final  PaymentCreatedIndex index;
 @override final  String txid;
 
 
@@ -1921,7 +1921,7 @@ String toString() {
 /// @nodoc
 mixin _$UpdatePaymentNote {
 
- PaymentIndex get index; String? get note;
+ PaymentCreatedIndex get index; String? get note;
 
 
 
@@ -1953,7 +1953,7 @@ class _UpdatePaymentNote implements UpdatePaymentNote {
   const _UpdatePaymentNote({required this.index, this.note});
   
 
-@override final  PaymentIndex index;
+@override final  PaymentCreatedIndex index;
 @override final  String? note;
 
 

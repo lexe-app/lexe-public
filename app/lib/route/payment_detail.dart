@@ -3,7 +3,12 @@ import 'dart:async' show unawaited;
 import 'package:app_rs_dart/ffi/api.dart' show FiatRate, UpdatePaymentNote;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
-    show Payment, PaymentDirection, PaymentIndex, PaymentKind, PaymentStatus;
+    show
+        Payment,
+        PaymentCreatedIndex,
+        PaymentDirection,
+        PaymentKind,
+        PaymentStatus;
 import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
@@ -57,7 +62,7 @@ class PaymentDetailPage extends StatefulWidget {
   const PaymentDetailPage({
     super.key,
     required this.app,
-    required this.paymentIndex,
+    required this.paymentCreatedIndex,
     required this.paymentSource,
     required this.paymentsUpdated,
     required this.fiatRate,
@@ -68,7 +73,7 @@ class PaymentDetailPage extends StatefulWidget {
   final AppHandle app;
 
   /// The id of the payment we want to display.
-  final PaymentIndex paymentIndex;
+  final PaymentCreatedIndex paymentCreatedIndex;
 
   /// Is the payment already synced in the local db (tap payment in list) vs
   /// display one immediately after a send (not yet synced to local db).
@@ -179,7 +184,7 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
     if (payment == null) {
       throw StateError(
         "PaymentDb is in an invalid state: missing payment @ vec_idx: "
-        "$vecIdx, payment_index: ${this.widget.paymentIndex}",
+        "$vecIdx, payment_index: ${this.widget.paymentCreatedIndex}",
       );
     }
     return payment;
@@ -349,7 +354,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                     ),
                     child: PaymentDetailNoteInput(
                       app: this.app,
-                      paymentIndex: payment.index,
+                      paymentCreatedIndex: payment.index,
                       initialNote: payment.note,
                     ),
                   ),
@@ -948,12 +953,12 @@ class PaymentDetailNoteInput extends StatefulWidget {
   const PaymentDetailNoteInput({
     super.key,
     required this.app,
-    required this.paymentIndex,
+    required this.paymentCreatedIndex,
     required this.initialNote,
   });
 
   final AppHandle app;
-  final PaymentIndex paymentIndex;
+  final PaymentCreatedIndex paymentCreatedIndex;
   final String? initialNote;
 
   @override
@@ -980,7 +985,7 @@ class _PaymentDetailNoteInputState extends State<PaymentDetailNoteInput> {
     this.submitError.value = null;
 
     final req = UpdatePaymentNote(
-      index: this.widget.paymentIndex,
+      index: this.widget.paymentCreatedIndex,
       note: this.fieldKey.currentState!.value,
     );
     final result = await Result.tryFfiAsync(

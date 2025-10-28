@@ -519,7 +519,7 @@ String toString() {
 /// @nodoc
 mixin _$Payment {
 
- PaymentIndex get index; PaymentKind get kind; PaymentDirection get direction; Invoice? get invoice; String? get offerId; Offer? get offer; String? get txid; String? get replacement; int? get amountSat; int get feesSat; PaymentStatus get status; String get statusStr; String? get note; int get createdAt; int? get finalizedAt;
+ PaymentCreatedIndex get index; PaymentKind get kind; PaymentDirection get direction; Invoice? get invoice; String? get offerId; Offer? get offer; String? get txid; String? get replacement; int? get amountSat; int get feesSat; PaymentStatus get status; String get statusStr; String? get note; int get createdAt; int? get finalizedAt;
 
 
 
@@ -551,7 +551,7 @@ class _Payment implements Payment {
   const _Payment({required this.index, required this.kind, required this.direction, this.invoice, this.offerId, this.offer, this.txid, this.replacement, this.amountSat, required this.feesSat, required this.status, required this.statusStr, this.note, required this.createdAt, this.finalizedAt});
   
 
-@override final  PaymentIndex index;
+@override final  PaymentCreatedIndex index;
 @override final  PaymentKind kind;
 @override final  PaymentDirection direction;
 @override final  Invoice? invoice;
@@ -591,7 +591,7 @@ String toString() {
 
 
 /// @nodoc
-mixin _$PaymentIndex {
+mixin _$PaymentCreatedIndex {
 
  String get field0;
 
@@ -599,7 +599,7 @@ mixin _$PaymentIndex {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentIndex&&(identical(other.field0, field0) || other.field0 == field0));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentCreatedIndex&&(identical(other.field0, field0) || other.field0 == field0));
 }
 
 
@@ -608,7 +608,7 @@ int get hashCode => Object.hash(runtimeType,field0);
 
 @override
 String toString() {
-  return 'PaymentIndex(field0: $field0)';
+  return 'PaymentCreatedIndex(field0: $field0)';
 }
 
 
@@ -621,8 +621,8 @@ String toString() {
 /// @nodoc
 
 
-class _PaymentIndex implements PaymentIndex {
-  const _PaymentIndex({required this.field0});
+class _PaymentCreatedIndex implements PaymentCreatedIndex {
+  const _PaymentCreatedIndex({required this.field0});
   
 
 @override final  String field0;
@@ -632,7 +632,7 @@ class _PaymentIndex implements PaymentIndex {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PaymentIndex&&(identical(other.field0, field0) || other.field0 == field0));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PaymentCreatedIndex&&(identical(other.field0, field0) || other.field0 == field0));
 }
 
 
@@ -641,7 +641,7 @@ int get hashCode => Object.hash(runtimeType,field0);
 
 @override
 String toString() {
-  return 'PaymentIndex(field0: $field0)';
+  return 'PaymentCreatedIndex(field0: $field0)';
 }
 
 
@@ -809,7 +809,7 @@ String toString() {
 /// @nodoc
 mixin _$ShortPayment {
 
- PaymentIndex get index; PaymentKind get kind; PaymentDirection get direction; int? get amountSat; PaymentStatus get status; String? get note; int get createdAt;
+ PaymentCreatedIndex get index; PaymentKind get kind; PaymentDirection get direction; int? get amountSat; PaymentStatus get status; String? get note; int get createdAt;
 
 
 
@@ -841,7 +841,7 @@ class _ShortPayment implements ShortPayment {
   const _ShortPayment({required this.index, required this.kind, required this.direction, this.amountSat, required this.status, this.note, required this.createdAt});
   
 
-@override final  PaymentIndex index;
+@override final  PaymentCreatedIndex index;
 @override final  PaymentKind kind;
 @override final  PaymentDirection direction;
 @override final  int? amountSat;

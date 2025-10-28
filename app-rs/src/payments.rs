@@ -31,8 +31,10 @@ use anyhow::{Context, format_err};
 use lexe_api::{
     def::AppNodeRunApi,
     error::NodeApiError,
-    models::command::{GetNewPayments, PaymentIndexes, UpdatePaymentNote},
-    types::payments::{BasicPayment, PaymentIndex, VecBasicPayment},
+    models::command::{
+        GetNewPayments, PaymentCreatedIndexes, UpdatePaymentNote,
+    },
+    types::payments::{BasicPayment, PaymentCreatedIndex, VecBasicPayment},
 };
 use lexe_std::iter::IteratorExt;
 use roaring::RoaringBitmap;
@@ -117,7 +119,7 @@ pub struct PaymentSyncSummary {
 pub(crate) trait AppNodeRunSyncApi {
     async fn get_payments_by_indexes(
         &self,
-        indexes: PaymentIndexes,
+        indexes: PaymentCreatedIndexes,
     ) -> Result<VecBasicPayment, NodeApiError>;
 
     async fn get_new_payments(
@@ -405,8 +407,8 @@ impl PaymentDbState {
 
     /// Check the integrity of the in-memory state.
     ///
-    /// (1.) The payments are currently sorted by `PaymentIndex` from oldest to
-    ///      newest.
+    /// (1.) The payments are currently sorted by `PaymentCreatedIndex` from
+    /// oldest to      newest.
     /// (2.) Re-computing the indexes should exactly match the current one.
     /// (3.) Sanity check the invariants of indexes.
     /// (4.) Some indexes are subsets of others.
@@ -505,7 +507,7 @@ impl PaymentDbState {
         let mut payments: Vec<BasicPayment> = Vec::new();
 
         ffs.read_dir_visitor(|filename| {
-            let payment_index = match PaymentIndex::from_str(filename) {
+            let payment_index = match PaymentCreatedIndex::from_str(filename) {
                 Ok(idx) => idx,
                 Err(err) => {
                     warn!(
@@ -591,11 +593,11 @@ impl PaymentDbState {
 
     /// The latest/newest payment that the `PaymentDb` has synced from the user
     /// node.
-    pub fn latest_payment_index(&self) -> Option<&PaymentIndex> {
+    pub fn latest_payment_index(&self) -> Option<&PaymentCreatedIndex> {
         self.payments.last().map(|payment| payment.index())
     }
 
-    fn pending_indexes(&self) -> Vec<PaymentIndex> {
+    fn pending_indexes(&self) -> Vec<PaymentCreatedIndex> {
         self.pending
             .iter()
             .map(|vec_idx| self.payments[vec_idx as usize].index)
@@ -604,7 +606,7 @@ impl PaymentDbState {
 
     pub fn get_vec_idx_by_payment_index(
         &self,
-        payment_index: &PaymentIndex,
+        payment_index: &PaymentCreatedIndex,
     ) -> Option<usize> {
         self.payments
             .binary_search_by_key(&payment_index, BasicPayment::index)
@@ -860,7 +862,7 @@ async fn sync_pending_payments<F: Ffs, N: AppNodeRunSyncApi>(
 
     for pending_idxs_batch in pending_idxs.chunks(usize::from(batch_size)) {
         // Request the current state of all payments we believe are pending.
-        let req = PaymentIndexes {
+        let req = PaymentCreatedIndexes {
             indexes: pending_idxs_batch.to_vec(),
         };
         let resp_payments = node
@@ -954,7 +956,7 @@ async fn sync_new_payments<F: Ffs, N: AppNodeRunSyncApi>(
 impl AppNodeRunSyncApi for NodeClient {
     async fn get_payments_by_indexes(
         &self,
-        req: PaymentIndexes,
+        req: PaymentCreatedIndexes,
     ) -> Result<VecBasicPayment, NodeApiError> {
         AppNodeRunApi::get_payments_by_indexes(self, req).await
     }
@@ -991,21 +993,21 @@ mod test {
     use crate::ffs::{FlatFileFs, test::MockFfs};
 
     struct MockNode {
-        payments: BTreeMap<PaymentIndex, BasicPayment>,
+        payments: BTreeMap<PaymentCreatedIndex, BasicPayment>,
     }
 
     impl MockNode {
-        fn new(payments: BTreeMap<PaymentIndex, BasicPayment>) -> Self {
+        fn new(payments: BTreeMap<PaymentCreatedIndex, BasicPayment>) -> Self {
             Self { payments }
         }
     }
 
     impl AppNodeRunSyncApi for MockNode {
-        /// POST /v1/payments/indexes [`PaymentIndexes`]
+        /// POST /v1/payments/indexes [`PaymentCreatedIndexes`]
         ///                        -> [`VecDbPayment`]
         async fn get_payments_by_indexes(
             &self,
-            req: PaymentIndexes,
+            req: PaymentCreatedIndexes,
         ) -> Result<VecBasicPayment, NodeApiError> {
             let payments = req
                 .indexes
@@ -1071,7 +1073,8 @@ mod test {
 
     fn arb_payments(
         approx_size: impl Into<SizeRange>,
-    ) -> impl Strategy<Value = BTreeMap<PaymentIndex, BasicPayment>> {
+    ) -> impl Strategy<Value = BTreeMap<PaymentCreatedIndex, BasicPayment>>
+    {
         vec(any::<BasicPayment>(), approx_size).prop_map(|payments| {
             payments
                 .into_iter()
@@ -1251,7 +1254,7 @@ mod test {
 
     fn assert_db_payments_eq(
         db_payments: &[BasicPayment],
-        node_payments: &BTreeMap<PaymentIndex, BasicPayment>,
+        node_payments: &BTreeMap<PaymentCreatedIndex, BasicPayment>,
     ) {
         assert_eq!(db_payments.len(), node_payments.len());
         assert!(db_payments.iter().eq(node_payments.values()));

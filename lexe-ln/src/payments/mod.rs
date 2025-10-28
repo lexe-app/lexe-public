@@ -14,8 +14,8 @@ use lexe_api::types::{
     invoice::LxInvoice,
     offer::LxOffer,
     payments::{
-        BasicPayment, DbPayment, LxOfferId, LxPaymentId, PaymentDirection,
-        PaymentIndex, PaymentKind, PaymentStatus,
+        BasicPayment, DbPayment, LxOfferId, LxPaymentId, PaymentCreatedIndex,
+        PaymentDirection, PaymentKind, PaymentStatus,
     },
 };
 #[cfg(test)]
@@ -213,8 +213,8 @@ impl From<Payment> for BasicPayment {
 // --- impl Payment --- //
 
 impl Payment {
-    pub fn index(&self) -> PaymentIndex {
-        PaymentIndex {
+    pub fn index(&self) -> PaymentCreatedIndex {
+        PaymentCreatedIndex {
             created_at: self.created_at(),
             id: self.id(),
         }

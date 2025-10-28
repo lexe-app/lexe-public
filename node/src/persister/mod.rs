@@ -55,12 +55,14 @@ use lexe_api::{
     def::NodeBackendApi,
     error::{BackendApiError, BackendErrorKind},
     models::command::{
-        GetNewPayments, PaymentIdStruct, PaymentIndexStruct, PaymentIndexes,
+        GetNewPayments, PaymentCreatedIndexStruct, PaymentCreatedIndexes,
+        PaymentIdStruct,
     },
     types::{
         Empty,
         payments::{
-            BasicPayment, DbPayment, LxPaymentId, PaymentIndex, VecDbPayment,
+            BasicPayment, DbPayment, LxPaymentId, PaymentCreatedIndex,
+            VecDbPayment,
         },
     },
     vfs::{
@@ -464,7 +466,7 @@ impl NodePersister {
 
     pub(crate) async fn read_payments_by_indexes(
         &self,
-        req: PaymentIndexes,
+        req: PaymentCreatedIndexes,
     ) -> anyhow::Result<Vec<BasicPayment>> {
         let token = self.get_token().await?;
         self.backend_api
@@ -804,9 +806,9 @@ impl LexeInnerPersister for NodePersister {
 
     async fn get_payment_by_index(
         &self,
-        index: PaymentIndex,
+        index: PaymentCreatedIndex,
     ) -> anyhow::Result<Option<Payment>> {
-        let req = PaymentIndexStruct { index };
+        let req = PaymentCreatedIndexStruct { index };
         let token = self.get_token().await?;
         let maybe_payment = self
             .backend_api

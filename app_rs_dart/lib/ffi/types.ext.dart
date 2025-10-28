@@ -6,8 +6,8 @@ import 'package:app_rs_dart/ffi/types.dart'
         Invoice,
         Offer,
         Payment,
+        PaymentCreatedIndex,
         PaymentDirection,
-        PaymentIndex,
         PaymentKind,
         PaymentMethod,
         PaymentMethod_Invoice,
@@ -18,18 +18,18 @@ import 'package:app_rs_dart/ffi/types.dart'
         ShortPayment;
 
 //
-// PaymentIndex
+// PaymentCreatedIndex
 //
 
-extension PaymentIndexExt on PaymentIndex {
+extension PaymentCreatedIndexExt on PaymentCreatedIndex {
   // HACK: parsing the serialized form like this is ugly af.
   String body() {
-    final paymentIndex = this.field0;
-    final splitIdx = paymentIndex.lastIndexOf('_');
+    final paymentCreatedIndex = this.field0;
+    final splitIdx = paymentCreatedIndex.lastIndexOf('_');
     if (splitIdx < 0) {
-      return paymentIndex;
+      return paymentCreatedIndex;
     } else {
-      return paymentIndex.substring(splitIdx + 1);
+      return paymentCreatedIndex.substring(splitIdx + 1);
     }
   }
 }
@@ -50,7 +50,7 @@ extension PaymentExt on Payment {
   );
 
   Payment copyWith({
-    PaymentIndex? index,
+    PaymentCreatedIndex? index,
     PaymentKind? kind,
     PaymentDirection? direction,
     Invoice? invoice,

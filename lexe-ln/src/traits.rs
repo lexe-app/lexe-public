@@ -4,7 +4,7 @@ use anyhow::Context;
 use async_trait::async_trait;
 use common::{api::user::NodePk, ln::channel::LxOutPoint};
 use lexe_api::{
-    types::payments::{LxPaymentId, PaymentIndex},
+    types::payments::{LxPaymentId, PaymentCreatedIndex},
     vfs::{self, Vfs, VfsDirectory, VfsFileId},
 };
 use lexe_tokio::notify_once::NotifyOnce;
@@ -56,7 +56,7 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
 
     async fn get_payment_by_index(
         &self,
-        index: PaymentIndex,
+        index: PaymentCreatedIndex,
     ) -> anyhow::Result<Option<Payment>>;
 
     async fn persist_manager<CM: Writeable + Send + Sync>(

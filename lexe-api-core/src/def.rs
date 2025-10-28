@@ -71,7 +71,7 @@ use common::{
 use lightning::events::Event;
 
 #[cfg(doc)]
-use crate::types::payments::PaymentIndex;
+use crate::types::payments::PaymentCreatedIndex;
 use crate::{
     error::{
         BackendApiError, GatewayApiError, LspApiError, MegaApiError,
@@ -85,7 +85,7 @@ use crate::{
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
             PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
             PayOnchainRequest, PayOnchainResponse, PaymentAddress,
-            PaymentIdStruct, PaymentIndexStruct, PaymentIndexes,
+            PaymentCreatedIndexStruct, PaymentCreatedIndexes, PaymentIdStruct,
             PreflightCloseChannelRequest, PreflightCloseChannelResponse,
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
@@ -326,18 +326,18 @@ pub trait AppNodeRunApi {
         req: PreflightPayOnchainRequest,
     ) -> Result<PreflightPayOnchainResponse, NodeApiError>;
 
-    /// POST /app/payments/indexes [`PaymentIndexes`] -> [`VecDbPayment`]
+    /// POST /app/payments/indexes [`PaymentCreatedIndexes`] -> [`VecDbPayment`]
     ///
-    /// Fetch a batch of payments by their [`PaymentIndex`]s. This is typically
-    /// used by a mobile client to poll for updates on payments which it
-    /// currently has stored locally as "pending"; the intention is to check
-    /// if any of these payments have been updated.
+    /// Fetch a batch of payments by their [`PaymentCreatedIndex`]s. This is
+    /// typically used by a mobile client to poll for updates on payments
+    /// which it currently has stored locally as "pending"; the intention is
+    /// to check if any of these payments have been updated.
     //
     // We use POST because there may be a lot of idxs, which might be too large
     // to fit inside query parameters.
     async fn get_payments_by_indexes(
         &self,
-        req: PaymentIndexes,
+        req: PaymentCreatedIndexes,
     ) -> Result<VecBasicPayment, NodeApiError>;
 
     /// GET /app/payments/new [`GetNewPayments`] -> [`VecBasicPayment`]
@@ -634,11 +634,12 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<VfsDirectoryList, BackendApiError>;
 
-    /// GET /node/v1/payments [`PaymentIndexStruct`] -> [`MaybeDbPayment`]
+    /// GET /node/v1/payments [`PaymentCreatedIndexStruct`]
+    ///                    -> [`MaybeDbPayment`]
     #[deprecated(note = "since node-v0.8.8: Use get_payment_by_index instead")]
     async fn get_payment(
         &self,
-        req: PaymentIndexStruct,
+        req: PaymentCreatedIndexStruct,
         auth: BearerAuthToken,
     ) -> Result<MaybeDbPayment, BackendApiError>;
 
@@ -663,10 +664,11 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<MaybeDbPayment, BackendApiError>;
 
-    /// GET /node/v1/payments/index [`PaymentIndexStruct`] -> [`MaybeDbPayment`]
+    /// GET /node/v1/payments/index [`PaymentCreatedIndexStruct`]
+    ///                          -> [`MaybeDbPayment`]
     async fn get_payment_by_index(
         &self,
-        req: PaymentIndexStruct,
+        req: PaymentCreatedIndexStruct,
         auth: BearerAuthToken,
     ) -> Result<MaybeDbPayment, BackendApiError>;
 
@@ -679,27 +681,28 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
-    /// POST /node/v1/payments/indexes [`PaymentIndexes`]
+    /// POST /node/v1/payments/indexes [`PaymentCreatedIndexes`]
     ///                             -> [`VecDbPayment`]
     ///
-    /// Fetch a batch of payments by their [`PaymentIndex`]s. This is typically
-    /// used by a mobile client to poll for updates on payments which it
-    /// currently has stored locally as "pending"; the intention is to check
-    /// if any of these payments have been updated.
+    /// Fetch a batch of payments by their [`PaymentCreatedIndex`]s. This is
+    /// typically used by a mobile client to poll for updates on payments
+    /// which it currently has stored locally as "pending"; the intention is
+    /// to check if any of these payments have been updated.
     //
     // We use POST because there may be a lot of idxs, which might be too large
     // to fit inside query parameters.
     async fn get_payments_by_indexes(
         &self,
-        req: PaymentIndexes,
+        req: PaymentCreatedIndexes,
         auth: BearerAuthToken,
     ) -> Result<VecDbPayment, BackendApiError>;
 
     /// GET /node/v1/payments/new [`GetNewPayments`] -> [`VecDbPayment`]
     ///
     /// Sync a batch of new payments to local storage, optionally starting from
-    /// a known [`PaymentIndex`] (exclusive). Results are in ascending order, by
-    /// `(created_at, payment_id)`. See [`GetNewPayments`] for more info.
+    /// a known [`PaymentCreatedIndex`] (exclusive).
+    /// Results are in ascending order, by `(created_at, payment_id)`.
+    /// See [`GetNewPayments`] for more info.
     async fn get_new_payments(
         &self,
         req: GetNewPayments,

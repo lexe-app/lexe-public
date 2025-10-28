@@ -11,8 +11,8 @@ import 'package:app_rs_dart/ffi/types.dart'
     show
         ClientPaymentId,
         Config,
+        PaymentCreatedIndex,
         PaymentDirection,
-        PaymentIndex,
         PaymentKind,
         PaymentStatus,
         ShortPayment,
@@ -218,7 +218,7 @@ class WalletPageState extends State<WalletPage> {
       if (!this.mounted || result == null || result.isErr) return;
 
       // If the user successfully sent a payment, we'll get the new payment's
-      // `PaymentIndex` from the flow. O/w canceling the flow will give us `null`.
+      // `PaymentCreatedIndex` from the flow. O/w canceling the flow will give us `null`.
       final SendFlowResult? flowResult = await Navigator.of(this.context).push(
         MaterialPageRoute(
           builder: (context) =>
@@ -326,7 +326,7 @@ class WalletPageState extends State<WalletPage> {
     if (sendCtx == null) return;
 
     // If the user successfully sent a payment, we'll get the new payment's
-    // `PaymentIndex` from the flow. O/w canceling the flow will give us `null`.
+    // `PaymentCreatedIndex` from the flow. O/w canceling the flow will give us `null`.
     final SendFlowResult? flowResult = await Navigator.of(this.context).push(
       MaterialPageRoute(
         builder: (context) =>
@@ -350,7 +350,7 @@ class WalletPageState extends State<WalletPage> {
     if (sendCtx == null) return;
 
     // If the user successfully sent a payment, we'll get the new payment's
-    // `PaymentIndex` from the flow. O/w canceling the flow will give us `null`.
+    // `PaymentCreatedIndex` from the flow. O/w canceling the flow will give us `null`.
     //
     // Note: this is inside a MultistepFlow so "back" goes back a step while
     // "close" exits the flow to this page again.
@@ -428,12 +428,15 @@ class WalletPageState extends State<WalletPage> {
   }
 
   /// Called when one of the payments in the [SliverPaymentsList] is tapped.
-  void onPaymentTap(PaymentIndex paymentIndex, PaymentSource paymentSource) {
+  void onPaymentTap(
+    PaymentCreatedIndex paymentCreatedIndex,
+    PaymentSource paymentSource,
+  ) {
     Navigator.of(this.context).push(
       MaterialPageRoute(
         builder: (context) => PaymentDetailPage(
           app: this.widget.app,
-          paymentIndex: paymentIndex,
+          paymentCreatedIndex: paymentCreatedIndex,
           paymentSource: paymentSource,
           paymentsUpdated: this.paymentSyncService.updated,
           fiatRate: this.fiatRateService.fiatRate,
@@ -1197,7 +1200,10 @@ enum PaymentsListFilter {
 }
 
 typedef PaymentTapCallback =
-    void Function(PaymentIndex paymentIndex, PaymentSource paymentSource);
+    void Function(
+      PaymentCreatedIndex paymentCreatedIndex,
+      PaymentSource paymentSource,
+    );
 
 class SliverPaymentsList extends StatefulWidget {
   const SliverPaymentsList({

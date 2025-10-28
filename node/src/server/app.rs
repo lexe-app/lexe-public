@@ -27,12 +27,13 @@ use lexe_api::{
         ListChannelsResponse, NodeInfo, OpenChannelRequest,
         OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
         PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-        PayOnchainResponse, PaymentIndexes, PreflightCloseChannelRequest,
-        PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-        PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-        PreflightPayInvoiceResponse, PreflightPayOfferRequest,
-        PreflightPayOfferResponse, PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse, SetupGDrive, UpdatePaymentNote,
+        PayOnchainResponse, PaymentCreatedIndexes,
+        PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+        PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+        PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+        PreflightPayOfferRequest, PreflightPayOfferResponse,
+        PreflightPayOnchainRequest, PreflightPayOnchainResponse, SetupGDrive,
+        UpdatePaymentNote,
     },
     server::{LxJson, extract::LxQuery},
     types::{Empty, payments::VecBasicPayment},
@@ -367,7 +368,7 @@ pub(super) async fn get_address(
 
 pub(super) async fn get_payments_by_indexes(
     State(state): State<Arc<RouterState>>,
-    LxJson(req): LxJson<PaymentIndexes>,
+    LxJson(req): LxJson<PaymentCreatedIndexes>,
 ) -> Result<LxJson<VecBasicPayment>, NodeApiError> {
     let payments = state
         .persister

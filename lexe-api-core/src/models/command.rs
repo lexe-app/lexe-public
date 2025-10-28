@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use crate::types::{
     invoice::LxInvoice,
     offer::{LxOffer, MaxQuantity},
-    payments::{ClientPaymentId, LxPaymentId, PaymentIndex},
+    payments::{ClientPaymentId, LxPaymentId, PaymentCreatedIndex},
     username::Username,
 };
 
@@ -178,9 +178,9 @@ pub struct PaymentIdStruct {
 /// Upgradeable API struct for a payment index.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct PaymentIndexStruct {
+pub struct PaymentCreatedIndexStruct {
     /// The index of the payment to be fetched.
-    pub index: PaymentIndex,
+    pub index: PaymentCreatedIndex,
 }
 
 /// Sync a batch of new payments to local storage.
@@ -188,29 +188,30 @@ pub struct PaymentIndexStruct {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct GetNewPayments {
-    /// Optional [`PaymentIndex`] at which the results should start, exclusive.
-    /// Payments with an index less than or equal to this will not be returned.
-    pub start_index: Option<PaymentIndex>,
+    /// Optional [`PaymentCreatedIndex`] at which the results should start,
+    /// exclusive. Payments with an index less than or equal to this will
+    /// not be returned.
+    pub start_index: Option<PaymentCreatedIndex>,
     /// (Optional) the maximum number of results that can be returned.
     pub limit: Option<u16>,
 }
 
-/// Upgradeable API struct for a list of [`PaymentIndex`]s.
+/// Upgradeable API struct for a list of [`PaymentCreatedIndex`]s.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct PaymentIndexes {
-    /// The string-serialized [`PaymentIndex`]s of the payments to be fetched.
-    /// Typically, the ids passed here correspond to payments that the mobile
-    /// client currently has stored locally as "pending"; the intention is to
-    /// check whether any of these payments have been updated.
-    pub indexes: Vec<PaymentIndex>,
+pub struct PaymentCreatedIndexes {
+    /// The string-serialized [`PaymentCreatedIndex`]s of the payments to be
+    /// fetched. Typically, the ids passed here correspond to payments that
+    /// the mobile client currently has stored locally as "pending"; the
+    /// goal is to check whether any of these payments have been updated.
+    pub indexes: Vec<PaymentCreatedIndex>,
 }
 
 /// Update the note on a payment.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct UpdatePaymentNote {
     /// The index of the payment whose note should be updated.
-    pub index: PaymentIndex,
+    pub index: PaymentCreatedIndex,
     /// The updated note.
     pub note: Option<String>,
 }
@@ -248,7 +249,8 @@ pub struct PayInvoiceRequest {
 
 #[derive(Serialize, Deserialize)]
 pub struct PayInvoiceResponse {
-    /// When the node registered this payment. Used in the [`PaymentIndex`].
+    /// When the node registered this payment.
+    /// Used in the [`PaymentCreatedIndex`].
     pub created_at: TimestampMs,
 }
 
@@ -368,7 +370,8 @@ pub struct PayOfferRequest {
 
 #[derive(Serialize, Deserialize)]
 pub struct PayOfferResponse {
-    /// When the node registered this payment. Used in the [`PaymentIndex`].
+    /// When the node registered this payment. Used in the
+    /// [`PaymentCreatedIndex`].
     pub created_at: TimestampMs,
 }
 
@@ -411,7 +414,8 @@ pub struct PayOnchainRequest {
 
 #[derive(Serialize, Deserialize)]
 pub struct PayOnchainResponse {
-    /// When the node registered this payment. Used in the [`PaymentIndex`].
+    /// When the node registered this payment. Used in the
+    /// [`PaymentCreatedIndex`].
     pub created_at: TimestampMs,
     /// The Bitcoin txid for the transaction we just submitted to the mempool.
     pub txid: LxTxid,
@@ -519,7 +523,7 @@ mod test {
 
     #[test]
     fn payment_index_struct_roundtrip() {
-        query_string_roundtrip_proptest::<PaymentIndexStruct>();
+        query_string_roundtrip_proptest::<PaymentCreatedIndexStruct>();
     }
 
     #[test]
@@ -530,7 +534,7 @@ mod test {
     #[test]
     fn payment_indexes_roundtrip() {
         // This is serialized as JSON, not query strings.
-        roundtrip::json_value_roundtrip_proptest::<PaymentIndexes>();
+        roundtrip::json_value_roundtrip_proptest::<PaymentCreatedIndexes>();
     }
 
     #[test]

@@ -43,7 +43,7 @@ use lexe_api_core::{
     models::command,
     types::{
         invoice::LxInvoice,
-        payments::{LxPaymentHash, LxPaymentSecret, PaymentIndex},
+        payments::{LxPaymentHash, LxPaymentSecret, PaymentCreatedIndex},
     },
 };
 use serde::{Deserialize, Serialize};
@@ -150,7 +150,7 @@ pub struct SdkCreateInvoiceRequest {
 #[derive(Serialize, Deserialize)]
 pub struct SdkCreateInvoiceResponse {
     /// Identifier for this inbound invoice payment.
-    pub index: PaymentIndex,
+    pub index: PaymentCreatedIndex,
     /// The string-encoded BOLT 11 invoice.
     pub invoice: LxInvoice,
     /// The description encoded in the invoice, if one was provided.
@@ -170,7 +170,7 @@ pub struct SdkCreateInvoiceResponse {
 
 impl SdkCreateInvoiceResponse {
     /// Quickly create a `SdkCreateInvoiceResponse`
-    pub fn new(index: PaymentIndex, invoice: LxInvoice) -> Self {
+    pub fn new(index: PaymentCreatedIndex, invoice: LxInvoice) -> Self {
         let description = invoice.description_str().map(|s| s.to_owned());
         let amount_sats = invoice.amount();
         let created_at = invoice.saturating_created_at();
@@ -228,7 +228,7 @@ impl From<SdkPayInvoiceRequest> for command::PayInvoiceRequest {
 #[derive(Serialize, Deserialize)]
 pub struct SdkPayInvoiceResponse {
     /// Identifier for this outbound invoice payment.
-    pub index: PaymentIndex,
+    pub index: PaymentCreatedIndex,
     /// When we tried to pay this invoice, in milliseconds since the UNIX
     /// epoch.
     pub created_at: TimestampMs,
@@ -238,7 +238,7 @@ pub struct SdkPayInvoiceResponse {
 #[derive(Serialize, Deserialize)]
 pub struct SdkGetPaymentRequest {
     /// Identifier for this payment.
-    pub index: PaymentIndex,
+    pub index: PaymentCreatedIndex,
 }
 
 /// A response to a request to get information about a payment by its index.

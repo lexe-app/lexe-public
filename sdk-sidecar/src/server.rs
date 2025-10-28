@@ -54,9 +54,9 @@ mod node {
     use axum::extract::State;
     use lexe_api::{
         def::AppNodeRunApi,
-        models::command::{GetNewPayments, PaymentIndexes},
+        models::command::{GetNewPayments, PaymentCreatedIndexes},
         server::{LxJson, extract::LxQuery},
-        types::payments::{LxPaymentId, PaymentIndex},
+        types::payments::{LxPaymentId, PaymentCreatedIndex},
     };
     use sdk_core::{
         SdkApiError,
@@ -90,8 +90,8 @@ mod node {
     ) -> Result<LxJson<SdkCreateInvoiceResponse>, SdkApiError> {
         let resp = state.node_client.create_invoice(req.into()).await?;
 
-        // HACK: temporary hack to lookup `PaymentIndex` for new invoice.
-        // TODO(phlip9): original response should include the PaymentIndex.
+        // HACK: temporary hack to lookup `PaymentCreatedIndex` for new invoice.
+        // TODO(phlip9): original response should include the index.
         let invoice = resp.invoice;
         let resp = state
             .node_client
@@ -100,7 +100,7 @@ mod node {
                 // (which is different from the payment `created_at` and
                 // currently guaranteed to be before the payment `created_at`)
                 // to get us close to the newly registered payment.
-                start_index: Some(PaymentIndex {
+                start_index: Some(PaymentCreatedIndex {
                     created_at: invoice.saturating_created_at(),
                     id: LxPaymentId::MIN,
                 }),
@@ -141,7 +141,7 @@ mod node {
         let created_at =
             state.node_client.pay_invoice(req.into()).await?.created_at;
         let resp = SdkPayInvoiceResponse {
-            index: PaymentIndex { id, created_at },
+            index: PaymentCreatedIndex { id, created_at },
             created_at,
         };
 
@@ -179,7 +179,7 @@ mod node {
         // TODO(max): Replace this with a call to a payment-specific API which
         // doesn't need to hit the DB
         let indexes = vec![req.index];
-        let req = PaymentIndexes { indexes };
+        let req = PaymentCreatedIndexes { indexes };
 
         let basic_payment = {
             let mut payments = state

@@ -24,7 +24,7 @@ use lexe_api::{
     },
     types::{
         Empty,
-        payments::{LxPaymentId, PaymentIndex as PaymentIndexRs},
+        payments::{LxPaymentId, PaymentCreatedIndex as PaymentCreatedIndexRs},
     },
 };
 use tracing::instrument;
@@ -50,7 +50,7 @@ use crate::{
         settings::SettingsDb,
         types::{
             AppUserInfo, BackupInfo, Config, GDriveSignupCredentials, Payment,
-            PaymentIndex, RevocableClient, RootSeed, ShortPayment,
+            PaymentCreatedIndex, RevocableClient, RootSeed, ShortPayment,
             ShortPaymentAndIndex,
         },
     },
@@ -289,7 +289,7 @@ impl AppHandle {
             .node_client()
             .create_invoice(req.try_into()?)
             .await
-            // TODO(phlip9): return new PaymentIndex
+            // TODO(phlip9): return new PaymentCreatedIndex
             .map(CreateInvoiceResponse::from)
             .map_err(anyhow::Error::new)
     }
@@ -382,9 +382,10 @@ impl AppHandle {
 
     pub fn get_vec_idx_by_payment_index(
         &self,
-        payment_index: PaymentIndex,
+        payment_index: PaymentCreatedIndex,
     ) -> Option<usize> {
-        let payment_index = PaymentIndexRs::try_from(payment_index).ok()?;
+        let payment_index =
+            PaymentCreatedIndexRs::try_from(payment_index).ok()?;
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock.state().get_vec_idx_by_payment_index(&payment_index)
     }

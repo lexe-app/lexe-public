@@ -15,7 +15,7 @@ use common::{
     time::TimestampMs,
 };
 use lexe_api_core::types::payments::{
-    PaymentDirection, PaymentIndex, PaymentKind, PaymentStatus,
+    PaymentCreatedIndex, PaymentDirection, PaymentKind, PaymentStatus,
 };
 use serde::{Deserialize, Serialize};
 
@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct SdkPayment {
     /// Identifier for this payment.
-    pub index: PaymentIndex,
+    pub index: PaymentCreatedIndex,
 
     /// The payment type: ["onchain", "invoice", "offer", "spontaneous"].
     pub kind: PaymentKind,

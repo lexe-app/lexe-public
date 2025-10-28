@@ -318,7 +318,7 @@ sealed class Onchain with _$Onchain {
 @freezed
 sealed class Payment with _$Payment {
   const factory Payment({
-    required PaymentIndex index,
+    required PaymentCreatedIndex index,
     required PaymentKind kind,
     required PaymentDirection direction,
     Invoice? invoice,
@@ -336,15 +336,16 @@ sealed class Payment with _$Payment {
   }) = _Payment;
 }
 
-enum PaymentDirection { inbound, outbound }
-
-/// See [`lexe_api::types::payments::PaymentIndex`].
+/// See [`lexe_api::types::payments::PaymentCreatedIndex`].
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
-sealed class PaymentIndex with _$PaymentIndex {
-  const factory PaymentIndex({required String field0}) = _PaymentIndex;
+sealed class PaymentCreatedIndex with _$PaymentCreatedIndex {
+  const factory PaymentCreatedIndex({required String field0}) =
+      _PaymentCreatedIndex;
 }
+
+enum PaymentDirection { inbound, outbound }
 
 enum PaymentKind { onchain, invoice, spontaneous, offer }
 
@@ -436,7 +437,7 @@ enum Scope { all, nodeConnect }
 @freezed
 sealed class ShortPayment with _$ShortPayment {
   const factory ShortPayment({
-    required PaymentIndex index,
+    required PaymentCreatedIndex index,
     required PaymentKind kind,
     required PaymentDirection direction,
     int? amountSat,

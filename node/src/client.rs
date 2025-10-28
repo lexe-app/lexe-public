@@ -25,8 +25,8 @@ use lexe_api::{
     error::{BackendApiError, LspApiError, RunnerApiError},
     models::{
         command::{
-            GetNewPayments, PaymentAddress, PaymentIdStruct,
-            PaymentIndexStruct, PaymentIndexes, UpdatePaymentAddress,
+            GetNewPayments, PaymentAddress, PaymentCreatedIndexStruct,
+            PaymentCreatedIndexes, PaymentIdStruct, UpdatePaymentAddress,
         },
         runner::{UserFinishedRequest, UserLeaseRenewalRequest},
     },
@@ -444,7 +444,7 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn get_payment(
         &self,
-        req: PaymentIndexStruct,
+        req: PaymentCreatedIndexStruct,
         auth: BearerAuthToken,
     ) -> Result<MaybeDbPayment, BackendApiError> {
         let backend = &self.backend_url;
@@ -496,7 +496,7 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn get_payment_by_index(
         &self,
-        req: PaymentIndexStruct,
+        req: PaymentCreatedIndexStruct,
         auth: BearerAuthToken,
     ) -> Result<MaybeDbPayment, BackendApiError> {
         let backend = &self.backend_url;
@@ -522,7 +522,7 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn get_payments_by_indexes(
         &self,
-        req: PaymentIndexes,
+        req: PaymentCreatedIndexes,
         auth: BearerAuthToken,
     ) -> Result<VecDbPayment, BackendApiError> {
         let backend = &self.backend_url;

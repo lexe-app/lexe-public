@@ -128,11 +128,12 @@ class AppHandle {
         scrollIdx: scrollIdx,
       );
 
-  Future<int?> getVecIdxByPaymentIndex({required PaymentIndex paymentIndex}) =>
-      AppRs.instance.api.crateFfiAppAppHandleGetVecIdxByPaymentIndex(
-        that: this,
-        paymentIndex: paymentIndex,
-      );
+  Future<int?> getVecIdxByPaymentIndex({
+    required PaymentCreatedIndex paymentIndex,
+  }) => AppRs.instance.api.crateFfiAppAppHandleGetVecIdxByPaymentIndex(
+    that: this,
+    paymentIndex: paymentIndex,
+  );
 
   Future<String> listBroadcastedTxs() =>
       AppRs.instance.api.crateFfiAppAppHandleListBroadcastedTxs(that: this);

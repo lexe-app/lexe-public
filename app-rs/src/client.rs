@@ -55,7 +55,7 @@ use lexe_api::{
         GetAddressResponse, GetNewPayments, ListChannelsResponse, NodeInfo,
         OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
         PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-        PayOnchainRequest, PayOnchainResponse, PaymentIndexes,
+        PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexes,
         PreflightCloseChannelRequest, PreflightCloseChannelResponse,
         PreflightOpenChannelRequest, PreflightOpenChannelResponse,
         PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
@@ -680,7 +680,7 @@ impl AppNodeRunApi for NodeClient {
 
     async fn get_payments_by_indexes(
         &self,
-        req: PaymentIndexes,
+        req: PaymentCreatedIndexes,
     ) -> Result<VecBasicPayment, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;

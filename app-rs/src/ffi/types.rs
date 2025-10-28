@@ -31,9 +31,9 @@ use lexe_api::{
         payments::{
             BasicPayment as BasicPaymentRs,
             ClientPaymentId as ClientPaymentIdRs,
+            PaymentCreatedIndex as PaymentCreatedIndexRs,
             PaymentDirection as PaymentDirectionRs,
-            PaymentIndex as PaymentIndexRs, PaymentKind as PaymentKindRs,
-            PaymentStatus as PaymentStatusRs,
+            PaymentKind as PaymentKindRs, PaymentStatus as PaymentStatusRs,
         },
     },
 };
@@ -280,21 +280,21 @@ impl From<PaymentKindRs> for PaymentKind {
     }
 }
 
-/// See [`lexe_api::types::payments::PaymentIndex`].
+/// See [`lexe_api::types::payments::PaymentCreatedIndex`].
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
-pub struct PaymentIndex(pub String);
+pub struct PaymentCreatedIndex(pub String);
 
-impl From<PaymentIndexRs> for PaymentIndex {
-    fn from(value: PaymentIndexRs) -> Self {
+impl From<PaymentCreatedIndexRs> for PaymentCreatedIndex {
+    fn from(value: PaymentCreatedIndexRs) -> Self {
         Self(value.to_string())
     }
 }
 
-impl TryFrom<PaymentIndex> for PaymentIndexRs {
+impl TryFrom<PaymentCreatedIndex> for PaymentCreatedIndexRs {
     type Error = anyhow::Error;
-    fn try_from(value: PaymentIndex) -> Result<Self, Self::Error> {
-        PaymentIndexRs::from_str(&value.0)
+    fn try_from(value: PaymentCreatedIndex) -> Result<Self, Self::Error> {
+        PaymentCreatedIndexRs::from_str(&value.0)
     }
 }
 
@@ -302,7 +302,7 @@ impl TryFrom<PaymentIndex> for PaymentIndexRs {
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct ShortPayment {
-    pub index: PaymentIndex,
+    pub index: PaymentCreatedIndex,
 
     pub kind: PaymentKind,
     pub direction: PaymentDirection,
@@ -319,7 +319,7 @@ pub struct ShortPayment {
 impl From<&BasicPaymentRs> for ShortPayment {
     fn from(payment: &BasicPaymentRs) -> Self {
         Self {
-            index: PaymentIndex::from(*payment.index()),
+            index: PaymentCreatedIndex::from(*payment.index()),
 
             kind: PaymentKind::from(payment.kind),
             direction: PaymentDirection::from(payment.direction),
@@ -348,7 +348,7 @@ pub struct ShortPaymentAndIndex {
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct Payment {
-    pub index: PaymentIndex,
+    pub index: PaymentCreatedIndex,
 
     pub kind: PaymentKind,
     pub direction: PaymentDirection,
@@ -376,7 +376,7 @@ pub struct Payment {
 impl From<&BasicPaymentRs> for Payment {
     fn from(payment: &BasicPaymentRs) -> Self {
         Self {
-            index: PaymentIndex::from(*payment.index()),
+            index: PaymentCreatedIndex::from(*payment.index()),
 
             kind: PaymentKind::from(payment.kind),
             direction: PaymentDirection::from(payment.direction),

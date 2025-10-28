@@ -51,14 +51,14 @@ use lexe_api::{
         offer::{LxOffer, MaxQuantity},
         payments::{
             ClientPaymentId as ClientPaymentIdRs, LxPaymentId as LxPaymentIdRs,
-            PaymentIndex as PaymentIndexRs,
+            PaymentCreatedIndex as PaymentCreatedIndexRs,
         },
     },
 };
 
 use crate::ffi::types::{
     ClientPaymentId, ConfirmationPriority, Invoice, LxChannelDetails, Offer,
-    PaymentIndex, RevocableClient, Scope, UserChannelId,
+    PaymentCreatedIndex, RevocableClient, Scope, UserChannelId,
 };
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -316,7 +316,7 @@ impl TryFrom<PayOnchainRequest> for PayOnchainRequestRs {
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PayOnchainResponse {
-    pub index: PaymentIndex,
+    pub index: PaymentCreatedIndex,
     pub txid: String,
 }
 
@@ -325,12 +325,12 @@ impl PayOnchainResponse {
         cid: ClientPaymentIdRs,
         resp: PayOnchainResponseRs,
     ) -> Self {
-        let index = PaymentIndexRs {
+        let index = PaymentCreatedIndexRs {
             created_at: resp.created_at,
             id: LxPaymentIdRs::OnchainSend(cid),
         };
         Self {
-            index: PaymentIndex::from(index),
+            index: PaymentCreatedIndex::from(index),
             txid: resp.txid.to_string(),
         }
     }
@@ -463,11 +463,11 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
 }
 
 /// Mirrors `lexe_api::command::PayInvoiceResponse` the type, but enriches
-/// the response so we get the full `PaymentIndex`.
+/// the response so we get the full `PaymentCreatedIndex`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PayInvoiceResponse {
-    pub index: PaymentIndex,
+    pub index: PaymentCreatedIndex,
 }
 
 impl PayInvoiceResponse {
@@ -475,12 +475,12 @@ impl PayInvoiceResponse {
         id: LxPaymentIdRs,
         resp: PayInvoiceResponseRs,
     ) -> Self {
-        let index = PaymentIndexRs {
+        let index = PaymentCreatedIndexRs {
             created_at: resp.created_at,
             id,
         };
         Self {
-            index: PaymentIndex::from(index),
+            index: PaymentCreatedIndex::from(index),
         }
     }
 }
@@ -650,8 +650,9 @@ impl TryFrom<PayOfferRequest> for PayOfferRequestRs {
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PayOfferResponse {
-    /// When the node registered this payment. Used in the [`PaymentIndex`].
-    pub index: PaymentIndex,
+    /// When the node registered this payment. Used in the
+    /// [`PaymentCreatedIndex`].
+    pub index: PaymentCreatedIndex,
 }
 
 impl PayOfferResponse {
@@ -659,12 +660,12 @@ impl PayOfferResponse {
         id: LxPaymentIdRs,
         resp: PayOfferResponseRs,
     ) -> Self {
-        let index = PaymentIndexRs {
+        let index = PaymentCreatedIndexRs {
             created_at: resp.created_at,
             id,
         };
         Self {
-            index: PaymentIndex::from(index),
+            index: PaymentCreatedIndex::from(index),
         }
     }
 }
@@ -673,7 +674,7 @@ impl PayOfferResponse {
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct UpdatePaymentNote {
-    pub index: PaymentIndex,
+    pub index: PaymentCreatedIndex,
     pub note: Option<String>,
 }
 
@@ -681,7 +682,7 @@ impl TryFrom<UpdatePaymentNote> for UpdatePaymentNoteRs {
     type Error = anyhow::Error;
     fn try_from(value: UpdatePaymentNote) -> Result<Self, Self::Error> {
         Ok(Self {
-            index: PaymentIndexRs::try_from(value.index)?,
+            index: PaymentCreatedIndexRs::try_from(value.index)?,
             note: value.note,
         })
     }

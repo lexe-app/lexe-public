@@ -170,12 +170,12 @@ sealed class PayInvoiceRequest with _$PayInvoiceRequest {
 }
 
 /// Mirrors `lexe_api::command::PayInvoiceResponse` the type, but enriches
-/// the response so we get the full `PaymentIndex`.
+/// the response so we get the full `PaymentCreatedIndex`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class PayInvoiceResponse with _$PayInvoiceResponse {
-  const factory PayInvoiceResponse({required PaymentIndex index}) =
+  const factory PayInvoiceResponse({required PaymentCreatedIndex index}) =
       _PayInvoiceResponse;
 }
 
@@ -197,7 +197,7 @@ sealed class PayOfferRequest with _$PayOfferRequest {
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class PayOfferResponse with _$PayOfferResponse {
-  const factory PayOfferResponse({required PaymentIndex index}) =
+  const factory PayOfferResponse({required PaymentCreatedIndex index}) =
       _PayOfferResponse;
 }
 
@@ -221,7 +221,7 @@ sealed class PayOnchainRequest with _$PayOnchainRequest {
 @freezed
 sealed class PayOnchainResponse with _$PayOnchainResponse {
   const factory PayOnchainResponse({
-    required PaymentIndex index,
+    required PaymentCreatedIndex index,
     required String txid,
   }) = _PayOnchainResponse;
 }
@@ -330,6 +330,8 @@ sealed class UpdateClientRequest with _$UpdateClientRequest {
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class UpdatePaymentNote with _$UpdatePaymentNote {
-  const factory UpdatePaymentNote({required PaymentIndex index, String? note}) =
-      _UpdatePaymentNote;
+  const factory UpdatePaymentNote({
+    required PaymentCreatedIndex index,
+    String? note,
+  }) = _UpdatePaymentNote;
 }
