@@ -201,8 +201,10 @@ pub enum PaymentStatus {
 
 // --- Lexe newtypes --- //
 
-/// A payment identifier which (1) retains uniqueness per payment and (2) is
-/// ordered first by created_at timestamp and then by [`LxPaymentId`].
+/// A payment identifier which:
+///
+/// 1) retains uniqueness per payment
+/// 2) is ordered first by `created_at` timestamp and then by [`LxPaymentId`].
 ///
 /// It is essentially a [`(TimestampMs, LxPaymentId)`], suitable for use as a
 /// key in a `BTreeMap<PaymentCreatedIndex, BasicPayment>` or similar.
@@ -227,6 +229,34 @@ pub enum PaymentStatus {
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct PaymentCreatedIndex {
     pub created_at: TimestampMs,
+    pub id: LxPaymentId,
+}
+
+/// A payment identifier, conceptually a [`(TimestampMs, LxPaymentId)`], which:
+///
+/// 1) retains uniqueness per payment
+/// 2) is ordered first by `updated_at` timestamp and then by [`LxPaymentId`].
+///
+/// It can also be degenerated (serialized) into a string and the
+/// string-serialized ordering will be equivalent to the unserialized ordering.
+///
+/// ### Examples
+///
+/// ```ignore
+/// u0002683862736062841-os_95cc800f4f3b5669c71c85f7096be45a172ca86aef460e0e584affff3ea80bee
+/// u0009557253037960566-ln_3ddcfd0e0b1eba77292c23a7de140c1e71327ac97486cc414b6826c434c560cc
+/// u4237937319278351047-or_3f6d2153bde1a0878717f46a1cbc63c48f7b4231224d78a50eb9e94b5d29f674
+/// u6206503357534413026-ln_063a5be0218332a84f9a4f7f4160a7dcf8e9362b9f5043ad47360c7440037fa8
+/// u6450440432938623603-or_0db1f1ebed6f99574c7a048e6bbf68c7db69c6da328f0b6d699d4dc1cd477017
+/// u7774176661032219027-or_215ef16c8192c8d674b519a34b7b65454e1e18d48bf060bdc333df433ada0137
+/// u8468903867373394879-ln_b8cbf827292c2b498e74763290012ed92a0f946d67e733e94a5fedf7f82710d5
+/// u8776421933930532767-os_ead3c01be0315dfd4e4c405aaca0f39076cff722a0f680c89c348e3bda9575f3
+/// ```
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(SerializeDisplay, DeserializeFromStr)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct PaymentUpdatedIndex {
+    pub updated_at: TimestampMs,
     pub id: LxPaymentId,
 }
 
@@ -426,6 +456,28 @@ impl PaymentCreatedIndex {
         let created_at = TimestampMs::from_secs_u32(u32::from(i));
         let id = LxPaymentId::Lightning(LxPaymentHash([i; 32]));
         Self { created_at, id }
+    }
+}
+
+impl PaymentUpdatedIndex {
+    /// The index that is lexicographically <= all other indexes.
+    pub const MIN: Self = Self {
+        updated_at: TimestampMs::MIN,
+        id: LxPaymentId::MIN,
+    };
+
+    /// The index that is lexicographically >= all other indexes.
+    pub const MAX: Self = Self {
+        updated_at: TimestampMs::MAX,
+        id: LxPaymentId::MAX,
+    };
+
+    /// Quickly create a dummy index which can be used in tests.
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn from_u8(i: u8) -> Self {
+        let updated_at = TimestampMs::from_secs_u32(u32::from(i));
+        let id = LxPaymentId::Lightning(LxPaymentHash([i; 32]));
+        Self { updated_at, id }
     }
 }
 
@@ -806,6 +858,58 @@ impl Display for PaymentCreatedIndex {
     }
 }
 
+// --- PaymentUpdatedIndex FromStr / Display impl --- //
+//
+// Format: `u<updated_at>-<id>`
+//
+// - We use the '-' separator because LxPaymentId already uses '_'.
+// - We require a 'u' prefix to so that no `PaymentCreatedIndex` can be
+//   interpreted as a `PaymentUpdatedIndex` and vice versa.
+
+/// `u<updated_at>-<id>`
+impl FromStr for PaymentUpdatedIndex {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        let updatedat_id = s.strip_prefix('u').context(
+            "PaymentUpdatedIndex must start with 'u'. \
+                 Did you accidentally supply a PaymentCreatedIndex? ",
+        )?;
+
+        let mut parts = updatedat_id.split('-');
+
+        let updatedat_str = parts
+            .next()
+            .context("Missing updated_at in u<updated_at>-<id>")?;
+        let id_str =
+            parts.next().context("Missing id in u<updated_at>-<id>")?;
+        ensure!(
+            parts.next().is_none(),
+            "Wrong format; should be u<updated_at>-<id>"
+        );
+
+        let updated_at = TimestampMs::from_str(updatedat_str)
+            .context("Invalid timestamp in u<updated_at>-<id>")?;
+        let id = LxPaymentId::from_str(id_str)
+            .context("Invalid payment id in u<updated_at>-<id>")?;
+
+        Ok(Self { updated_at, id })
+    }
+}
+
+/// `u<updated_at>-<id>`
+//
+// When serializing to string, pad the timestamp with leading zeroes (up to the
+// maximum number of digits in an [`i64`]) so that the lexicographic ordering
+// is equivalent to the non-serialized ordering.
+impl Display for PaymentUpdatedIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let updated_at = self.updated_at.to_i64();
+        let id = &self.id;
+        // i64 contains a maximum of 19 digits in base 10.
+        write!(f, "u{updated_at:019}-{id}")
+    }
+}
+
 // --- LxPaymentId FromStr / Display impl --- //
 
 /// `<kind>_<id>`
@@ -886,6 +990,7 @@ mod test {
     #[test]
     fn newtype_serde_roundtrip() {
         roundtrip::json_string_roundtrip_proptest::<PaymentCreatedIndex>();
+        roundtrip::json_string_roundtrip_proptest::<PaymentUpdatedIndex>();
         roundtrip::json_string_roundtrip_proptest::<LxPaymentId>();
         roundtrip::json_string_roundtrip_proptest::<LxPaymentHash>();
         roundtrip::json_string_roundtrip_proptest::<LxPaymentPreimage>();
@@ -897,6 +1002,7 @@ mod test {
     #[test]
     fn newtype_fromstr_display_roundtrip() {
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentCreatedIndex>();
+        roundtrip::fromstr_display_roundtrip_proptest::<PaymentUpdatedIndex>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentId>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentHash>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxOfferId>();
@@ -926,7 +1032,26 @@ mod test {
     }
 
     #[test]
-    fn payment_index_ordering_equivalence() {
+    fn payment_index_updatedat_precedence() {
+        let time1 = TimestampMs::from_secs_u32(1);
+        let time2 = TimestampMs::from_secs_u32(2);
+        let id1 = LxPaymentId::Lightning(LxPaymentHash([1; 32]));
+        let id2 = LxPaymentId::Lightning(LxPaymentHash([2; 32]));
+
+        let index12 = PaymentUpdatedIndex {
+            updated_at: time1,
+            id: id2,
+        };
+        let index21 = PaymentUpdatedIndex {
+            updated_at: time2,
+            id: id1,
+        };
+
+        assert!(index12 < index21, "updated_at should take precedence");
+    }
+
+    #[test]
+    fn payment_created_index_ordering_equivalence() {
         proptest!(|(
             idx1 in any::<PaymentCreatedIndex>(),
             idx2 in any::<PaymentCreatedIndex>()
@@ -940,10 +1065,25 @@ mod test {
         });
     }
 
+    #[test]
+    fn payment_updated_index_ordering_equivalence() {
+        proptest!(|(
+            idx1 in any::<PaymentUpdatedIndex>(),
+            idx2 in any::<PaymentUpdatedIndex>()
+        )| {
+            let idx1_str = idx1.to_string();
+            let idx2_str = idx2.to_string();
+
+            let unserialized_order = idx1.cmp(&idx2);
+            let string_serialized_order = idx1_str.cmp(&idx2_str);
+            prop_assert_eq!(unserialized_order, string_serialized_order);
+        });
+    }
+
     // ∀ idx ∈ PaymentCreatedIndex, MIN <= idx <= MAX
     // ∀  id ∈ LxPaymentId , MIN <= id <= MAX
     #[test]
-    fn payment_index_bounds() {
+    fn payment_created_index_bounds() {
         fn assert_bounds(
             idx: PaymentCreatedIndex,
         ) -> Result<(), proptest::prelude::TestCaseError> {
@@ -989,6 +1129,81 @@ mod test {
                 created_at: idx.created_at,
                 id: LxPaymentId::MAX,
             })?;
+        });
+    }
+
+    // ∀ idx ∈ PaymentUpdatedIndex, MIN <= idx <= MAX
+    // ∀  id ∈ LxPaymentId , MIN <= id <= MAX
+    #[test]
+    fn payment_updated_index_bounds() {
+        fn assert_bounds(
+            idx: PaymentUpdatedIndex,
+        ) -> Result<(), proptest::prelude::TestCaseError> {
+            // PaymentUpdatedIndex bounds
+            prop_assert!(matches!(
+                PaymentUpdatedIndex::MIN.cmp(&idx),
+                Ordering::Less | Ordering::Equal,
+            ));
+            prop_assert!(matches!(
+                idx.cmp(&PaymentUpdatedIndex::MAX),
+                Ordering::Less | Ordering::Equal,
+            ));
+
+            // LxPaymentId bounds
+            prop_assert!(matches!(
+                LxPaymentId::MIN.cmp(&idx.id),
+                Ordering::Less | Ordering::Equal,
+            ));
+            prop_assert!(matches!(
+                idx.id.cmp(&LxPaymentId::MAX),
+                Ordering::Less | Ordering::Equal,
+            ));
+
+            Ok(())
+        }
+
+        proptest!(|(idx in any::<PaymentUpdatedIndex>())| {
+            assert_bounds(idx)?;
+
+            assert_bounds(PaymentUpdatedIndex {
+                updated_at: TimestampMs::MIN,
+                id: idx.id,
+            })?;
+            assert_bounds(PaymentUpdatedIndex {
+                updated_at: TimestampMs::MAX,
+                id: idx.id,
+            })?;
+            assert_bounds(PaymentUpdatedIndex {
+                updated_at: idx.updated_at,
+                id: LxPaymentId::MIN,
+            })?;
+            assert_bounds(PaymentUpdatedIndex {
+                updated_at: idx.updated_at,
+                id: LxPaymentId::MAX,
+            })?;
+        });
+    }
+
+    #[test]
+    fn payment_index_incompatible() {
+        // Parsing `PaymentCreatedIndex` from `PaymentUpdatedIndex` string fails
+        proptest!(|(
+            created_idx in any::<PaymentCreatedIndex>(),
+        )| {
+            let created_str = created_idx.to_string();
+            let parsed_updated =
+                PaymentUpdatedIndex::from_str(&created_str);
+            prop_assert!(parsed_updated.is_err());
+        });
+
+        // Parsing `PaymentUpdatedIndex` from `PaymentCreatedIndex` string fails
+        proptest!(|(
+            updated_idx in any::<PaymentUpdatedIndex>(),
+        )| {
+            let updated_str = updated_idx.to_string();
+            let parsed_created =
+                PaymentCreatedIndex::from_str(&updated_str);
+            prop_assert!(parsed_created.is_err());
         });
     }
 
