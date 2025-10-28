@@ -10,6 +10,7 @@ import 'package:app_rs_dart/ffi/api.ext.dart';
 import 'package:app_rs_dart/ffi/types.dart'
     show
         ConfirmationPriority,
+        LnurlPayRequest,
         PaymentKind,
         PaymentMethod_Invoice,
         PaymentMethod_LnurlPayRequest,
@@ -437,6 +438,15 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     PaymentMethod_LnurlPayRequest(:final field0) => field0.metadata.description,
   };
 
+  Widget? extraDetails() => switch (this.widget.sendCtx.paymentMethod) {
+    PaymentMethod_Invoice() => null,
+    PaymentMethod_Onchain() => null,
+    PaymentMethod_Offer() => null,
+    PaymentMethod_LnurlPayRequest(:final field0) => LnurlPayRequestDetails(
+      request: field0,
+    ),
+  };
+
   @override
   Widget build(BuildContext context) {
     final kind = this.widget.sendCtx.paymentMethod.kind();
@@ -444,12 +454,6 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     final balanceMaxSendableStr = currency_format.formatSatsAmount(
       balance.maxSendableByKind(kind),
       bitcoinSymbol: true,
-    );
-
-    const textStyleSecondary = TextStyle(
-      fontSize: Fonts.size300,
-      color: LxColors.grey550,
-      fontVariations: [],
     );
 
     final description = this.description();
@@ -467,7 +471,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
         body: [
           const HeadingText(text: "How much?"),
           SubheadingText(text: "Send up to $balanceMaxSendableStr"),
-          const SizedBox(height: Space.s850),
+          const SizedBox(height: Space.s600),
 
           // "₿<amount>" (en_US)
           // "<amount> ₿" (fr_FR)
@@ -481,29 +485,11 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           ),
 
           // Description (if available)
+          const SizedBox(height: Space.s300),
           if (description != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: Space.s600),
-              child: Row(
-                mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                spacing: Space.s400,
-                children: [
-                  const Text("Description", style: textStyleSecondary),
-                  Flexible(
-                    child: Text(
-                      description,
-                      style: textStyleSecondary.copyWith(
-                        fontSize: Fonts.size200,
-                      ),
-                      textAlign: TextAlign.end,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            MetadataRow(title: "Description", value: description),
+          if (this.extraDetails() != null) this.extraDetails()!,
+          const SizedBox(height: Space.s300),
 
           // Error fetching fee estimate
           ValueListenableBuilder(
@@ -526,6 +512,78 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class LnurlPayRequestDetails extends StatelessWidget {
+  const LnurlPayRequestDetails({super.key, required this.request});
+
+  final LnurlPayRequest request;
+
+  String? emailOrIdentifier() {
+    final emailOrIdentifier =
+        this.request.metadata.email ?? this.request.metadata.identifier;
+    if (emailOrIdentifier == null) return null;
+    if (emailOrIdentifier.isEmpty) return null;
+    if (this.request.metadata.description.contains(emailOrIdentifier)) {
+      return null;
+    }
+    return emailOrIdentifier;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final metadata = this.request.metadata;
+    final longDescription = metadata.longDescription;
+    final emailOrIdentifier = this.emailOrIdentifier();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (longDescription != null)
+          MetadataRow(title: "Long description", value: longDescription),
+        if (emailOrIdentifier != null)
+          MetadataRow(title: "Send to", value: emailOrIdentifier),
+      ],
+    );
+  }
+}
+
+class MetadataRow extends StatelessWidget {
+  MetadataRow({super.key, required this.title, required this.value});
+
+  final TextStyle textStyleSecondary = TextStyle(
+    fontSize: Fonts.size300,
+    color: LxColors.grey550,
+    fontVariations: [],
+  );
+  final String title;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: Space.s200),
+      child: Row(
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        spacing: Space.s400,
+        children: [
+          Text(this.title, style: this.textStyleSecondary),
+          Flexible(
+            child: Text(
+              this.value,
+              style: this.textStyleSecondary.copyWith(fontSize: Fonts.size200),
+              textAlign: TextAlign.end,
+              maxLines: 5,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -644,8 +702,8 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
   int totalSats() => this.amountSats() + this.feeSats();
 
   String payee() => switch (this.widget.sendCtx.preflightedPayment) {
-    PreflightedPayment_Invoice(:final invoice) =>
-      invoice.payeePubkey.ellipsizeMid(),
+    PreflightedPayment_Invoice(:final invoice, :final sendTo) =>
+      sendTo ?? invoice.payeePubkey.ellipsizeMid(),
     PreflightedPayment_Onchain(:final onchain) =>
       onchain.address.ellipsizeMid(),
     PreflightedPayment_Offer(:final offer) =>

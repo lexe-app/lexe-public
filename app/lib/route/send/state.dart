@@ -159,7 +159,10 @@ class SendState_NeedAmount implements SendState {
     PaymentMethod_Onchain(:final field0) => field0.amountSats,
     PaymentMethod_Invoice(:final field0) => field0.amountSats,
     PaymentMethod_Offer(:final field0) => field0.amountSats,
-    PaymentMethod_LnurlPayRequest() => null,
+    PaymentMethod_LnurlPayRequest(:final field0) =>
+      field0.minSendableMsat == field0.maxSendableMsat
+          ? field0.minSendableMsat
+          : null,
   };
 
   /// Using the current [PaymentMethod], preflight the payment with the given
@@ -275,6 +278,9 @@ class SendState_NeedAmount implements SendState {
               invoice: invoice,
               amountSats: amountSats,
               preflight: ok,
+              sendTo:
+                  lnurlPayRequest.metadata.email ??
+                  lnurlPayRequest.metadata.identifier,
             );
           case Err(:final err):
             return Err(err);
@@ -476,11 +482,13 @@ class PreflightedPayment_Invoice implements PreflightedPayment {
     required this.invoice,
     required this.amountSats,
     required this.preflight,
+    this.sendTo,
   });
 
   final Invoice invoice;
   final int amountSats;
   final PreflightPayInvoiceResponse preflight;
+  final String? sendTo;
 
   @override
   PaymentKind kind() => PaymentKind.invoice;

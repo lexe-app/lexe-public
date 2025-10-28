@@ -22,6 +22,8 @@ import 'package:app_rs_dart/ffi/types.dart'
         ClientPaymentId,
         Config,
         Invoice,
+        LnurlPayRequest,
+        LnurlPayRequestMetadata,
         Onchain,
         Payment,
         PaymentMethod,
@@ -523,6 +525,35 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                       label:
                           "Sighs, leers, and crocodile tears; "
                           "rings, jings, and other fine things.",
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Component(
+              "SendPaymentAmountPage",
+              subtitle: "lnurl",
+              (context) => SendPaymentPage(
+                startNewFlow: true,
+                sendCtx: SendState_NeedAmount(
+                  app: mockApp,
+                  configNetwork: this.widget.config.network,
+                  balance: mockApp.balance,
+                  cid: cid,
+                  paymentMethod: PaymentMethod.lnurlPayRequest(
+                    LnurlPayRequest(
+                      callback: "https://example.com/pay",
+                      minSendableMsat: 1000,
+                      maxSendableMsat: 10000,
+                      metadata: LnurlPayRequestMetadata(
+                        description: "Donate to philip@lexe.app",
+                        longDescription:
+                            "here a really long description that should be displayed in the details page might be long enough to wrap around",
+                        email: "philip@lexe.app",
+                        raw:
+                            "lnurl1dp68gurn8ghj7mrww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn",
+                        descriptionHash: U8Array32.init(),
+                      ),
                     ),
                   ),
                 ),
