@@ -10,6 +10,7 @@ use common::{
     },
     env::DeployEnv as DeployEnvRs,
     ln::{
+        amount::Amount as AmountRs,
         channel::{
             LxChannelDetails as LxChannelDetailsRs,
             LxUserChannelId as LxUserChannelIdRs,
@@ -408,7 +409,6 @@ pub enum PaymentMethod {
     Onchain(Onchain),
     Invoice(Invoice),
     Offer(Offer),
-    #[allow(dead_code)] // TODO(max): Remove
     LnurlPayRequest(LnurlPayRequest),
 }
 
@@ -527,7 +527,6 @@ impl From<LxOffer> for Offer {
     }
 }
 
-#[allow(dead_code)] // TODO(max): Remove
 pub struct LnurlPayRequest {
     pub callback: String,
     pub min_sendable_msat: u64,
@@ -535,7 +534,6 @@ pub struct LnurlPayRequest {
     pub metadata: LnurlPayRequestMetadata,
 }
 
-#[allow(dead_code)] // TODO(max): Remove
 pub struct LnurlPayRequestMetadata {
     pub description: String,
     pub long_description: Option<String>,
@@ -561,6 +559,34 @@ impl From<payment_uri::LnurlPayRequest> for LnurlPayRequest {
 impl From<payment_uri::LnurlPayRequestMetadata> for LnurlPayRequestMetadata {
     fn from(value: payment_uri::LnurlPayRequestMetadata) -> Self {
         Self {
+            description: value.description,
+            long_description: value.long_description,
+            image_png_base64: value.image_png_base64,
+            image_jpeg_base64: value.image_jpeg_base64,
+            identifier: value.identifier,
+            email: value.email,
+            description_hash: value.description_hash,
+            raw: value.raw,
+        }
+    }
+}
+
+impl From<LnurlPayRequest> for payment_uri::LnurlPayRequest {
+    fn from(value: LnurlPayRequest) -> Self {
+        payment_uri::LnurlPayRequest {
+            callback: value.callback,
+            min_sendable: AmountRs::from_msat(value.min_sendable_msat),
+            max_sendable: AmountRs::from_msat(value.max_sendable_msat),
+            metadata: payment_uri::LnurlPayRequestMetadata::from(
+                value.metadata,
+            ),
+        }
+    }
+}
+
+impl From<LnurlPayRequestMetadata> for payment_uri::LnurlPayRequestMetadata {
+    fn from(value: LnurlPayRequestMetadata) -> Self {
+        payment_uri::LnurlPayRequestMetadata {
             description: value.description,
             long_description: value.long_description,
             image_png_base64: value.image_png_base64,

@@ -243,8 +243,42 @@ class SendState_NeedAmount implements SendState {
             return Err(err);
         }
 
-      case PaymentMethod_LnurlPayRequest():
-        throw UnimplementedError("LNURL-Pay not implemented yet");
+      case PaymentMethod_LnurlPayRequest(:final field0):
+        final lnurlPayRequest = field0;
+        final result = await Result.tryFfiAsync(
+          () async => payment_uri.resolveLnurlPayRequest(
+            req: lnurlPayRequest,
+            amountMsats: amountSats * 1000,
+          ),
+        );
+
+        final Invoice invoice;
+        switch (result) {
+          case Ok(:final ok):
+            invoice = ok;
+          case Err(:final err):
+            return Err(err);
+        }
+
+        final req = PreflightPayInvoiceRequest(
+          invoice: invoice.string,
+          fallbackAmountSats: (invoice.amountSats == null) ? amountSats : null,
+        );
+
+        final preflightResult = await Result.tryFfiAsync(
+          () async => this.app.preflightPayInvoice(req: req),
+        );
+
+        switch (preflightResult) {
+          case Ok(:final ok):
+            preflighted = PreflightedPayment_Invoice(
+              invoice: invoice,
+              amountSats: amountSats,
+              preflight: ok,
+            );
+          case Err(:final err):
+            return Err(err);
+        }
     }
 
     return Ok(

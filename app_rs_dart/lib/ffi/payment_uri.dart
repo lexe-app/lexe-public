@@ -24,3 +24,13 @@ Future<PaymentMethod> resolveBest({
   network: network,
   uriStr: uriStr,
 );
+
+/// Resolve a [`LnurlPayRequest`] that we just received + the amount in msats.
+/// After resolving, we can use the [`Invoice`] to pay the invoice.
+Future<Invoice> resolveLnurlPayRequest({
+  required LnurlPayRequest req,
+  required int amountMsats,
+}) => AppRs.instance.api.crateFfiPaymentUriResolveLnurlPayRequest(
+  req: req,
+  amountMsats: amountMsats,
+);

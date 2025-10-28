@@ -114,9 +114,7 @@ extension PaymentMethodExt on PaymentMethod {
     PaymentMethod_Onchain() => PaymentKind.onchain,
     PaymentMethod_Invoice() => PaymentKind.invoice,
     PaymentMethod_Offer() => PaymentKind.offer,
-    PaymentMethod_LnurlPayRequest() => throw UnimplementedError(
-      "LNURL-Pay not implemented yet",
-    ),
+    PaymentMethod_LnurlPayRequest() => PaymentKind.invoice,
   };
 }
 

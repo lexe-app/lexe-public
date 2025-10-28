@@ -1,9 +1,10 @@
 //! [`payment_uri`] interface
 
 use anyhow::Context;
+use common::ln::amount::Amount;
 use payment_uri::{bip353, lnurl};
 
-use crate::ffi::types::{Network, PaymentMethod};
+use crate::ffi::types::{Invoice, LnurlPayRequest, Network, PaymentMethod};
 
 /// Resolve a (possible) [`PaymentUri`] string that we just
 /// scanned/pasted into the best [`PaymentMethod`] for us to pay.
@@ -30,4 +31,21 @@ pub async fn resolve_best(
     )
     .await
     .map(PaymentMethod::from)
+}
+
+/// Resolve a [`LnurlPayRequest`] that we just received + the amount in msats.
+/// After resolving, we can use the [`Invoice`] to pay the invoice.
+pub async fn resolve_lnurl_pay_request(
+    req: LnurlPayRequest,
+    amount_msats: u64,
+) -> anyhow::Result<Invoice> {
+    // TODO(maurice): Store this LnurlClient somewhere so we can reuse it.
+    let lnurl_client =
+        lnurl::LnurlClient::new().context("Failed to build LNURL client")?;
+    let pay_req = payment_uri::LnurlPayRequest::from(req);
+
+    let lx_invoice = lnurl_client
+        .resolve_pay_request(&pay_req, Amount::from_msat(amount_msats))
+        .await?;
+    Ok(Invoice::from(lx_invoice))
 }
