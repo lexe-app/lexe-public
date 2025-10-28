@@ -31,6 +31,7 @@ use common::{
 use lexe_api::def::{AppBackendApi, AppGatewayApi, AppNodeProvisionApi};
 use lexe_std::Apply;
 use lexe_tokio::task::LxTask;
+use payment_uri::{bip353, lnurl};
 use secrecy::ExposeSecret;
 use tracing::{info, info_span, instrument, warn};
 
@@ -58,6 +59,12 @@ pub struct App {
 
     /// Some misc. info needed for user support / user account deletion.
     user_info: AppUserInfoRs,
+
+    /// Client for resolving email-like addresses.
+    bip353_client: Arc<bip353::Bip353Client>,
+
+    /// Client for resolving LNURL-pay requests
+    lnurl_client: Arc<lnurl::LnurlClient>,
 }
 
 impl App {
@@ -114,6 +121,15 @@ impl App {
             Credentials::from_root_seed(root_seed),
         )
         .context("Failed to build NodeClient")?;
+
+        let bip353_client = Arc::new(
+            bip353::Bip353Client::new(bip353::GOOGLE_DOH_ENDPOINT)
+                .context("Failed to build BIP353 client")?,
+        );
+        let lnurl_client = Arc::new(
+            lnurl::LnurlClient::new()
+                .context("Failed to build LNURL client")?,
+        );
 
         // Create new provision DB
         let provision_ffs =
@@ -192,6 +208,8 @@ impl App {
             payment_sync_lock: tokio::sync::Mutex::new(()),
             settings_db,
             user_info,
+            bip353_client,
+            lnurl_client,
         })
     }
 
@@ -236,6 +254,15 @@ impl App {
             Credentials::from_root_seed(&root_seed),
         )
         .context("Failed to build NodeClient")?;
+
+        let bip353_client = Arc::new(
+            bip353::Bip353Client::new(bip353::GOOGLE_DOH_ENDPOINT)
+                .context("Failed to build BIP353 client")?,
+        );
+        let lnurl_client = Arc::new(
+            lnurl::LnurlClient::new()
+                .context("Failed to build LNURL client")?,
+        );
 
         // Load provision DB
         let provision_ffs =
@@ -325,6 +352,8 @@ impl App {
             payment_sync_lock: tokio::sync::Mutex::new(()),
             settings_db,
             user_info,
+            bip353_client,
+            lnurl_client,
         }))
     }
 
@@ -361,6 +390,15 @@ impl App {
             Credentials::from_root_seed(root_seed),
         )
         .context("Failed to build NodeClient")?;
+
+        let bip353_client = Arc::new(
+            bip353::Bip353Client::new(bip353::GOOGLE_DOH_ENDPOINT)
+                .context("Failed to build BIP353 client")?,
+        );
+        let lnurl_client = Arc::new(
+            lnurl::LnurlClient::new()
+                .context("Failed to build LNURL client")?,
+        );
 
         // Create new provision DB
         let provision_ffs =
@@ -424,6 +462,8 @@ impl App {
             payment_sync_lock: tokio::sync::Mutex::new(()),
             settings_db,
             user_info,
+            bip353_client,
+            lnurl_client,
         })
     }
 
@@ -433,6 +473,14 @@ impl App {
 
     pub fn gateway_client(&self) -> &GatewayClient {
         &self.gateway_client
+    }
+
+    pub fn bip353_client(&self) -> &bip353::Bip353Client {
+        &self.bip353_client
+    }
+
+    pub fn lnurl_client(&self) -> &lnurl::LnurlClient {
+        &self.lnurl_client
     }
 
     #[cfg_attr(not(feature = "flutter"), allow(dead_code))]

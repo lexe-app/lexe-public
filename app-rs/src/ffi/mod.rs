@@ -66,8 +66,6 @@ pub mod form;
 pub mod gdrive;
 /// Rust logger integration.
 pub mod logger;
-/// [`payment_uri`] interface
-pub mod payment_uri;
 /// QR code generation.
 pub mod qr;
 /// Dart interface to app secret store

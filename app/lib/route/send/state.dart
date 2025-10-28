@@ -15,7 +15,6 @@ import 'package:app_rs_dart/ffi/api.dart'
         PreflightPayOnchainRequest,
         PreflightPayOnchainResponse;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
-import 'package:app_rs_dart/ffi/payment_uri.dart' as payment_uri;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         ClientPaymentId,
@@ -87,7 +86,7 @@ class SendState_NeedUri implements SendState {
     // convert that to a human-readable error message (for translations).
     final result = await Result.tryFfiAsync(
       () async =>
-          payment_uri.resolveBest(network: this.configNetwork, uriStr: uriStr),
+          this.app.resolveBest(network: this.configNetwork, uriStr: uriStr),
     );
 
     // Check if resolving was successful.
@@ -249,7 +248,7 @@ class SendState_NeedAmount implements SendState {
       case PaymentMethod_LnurlPayRequest(:final field0):
         final lnurlPayRequest = field0;
         final result = await Result.tryFfiAsync(
-          () async => payment_uri.resolveLnurlPayRequest(
+          () async => this.app.resolveLnurlPayRequest(
             req: lnurlPayRequest,
             amountMsats: amountSats * 1000,
           ),

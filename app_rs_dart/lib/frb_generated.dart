@@ -16,7 +16,6 @@ import 'ffi/debug.dart';
 import 'ffi/form.dart';
 import 'ffi/gdrive.dart';
 import 'ffi/logger.dart';
-import 'ffi/payment_uri.dart';
 import 'ffi/qr.dart';
 import 'ffi/secret_store.dart';
 import 'ffi/settings.dart';
@@ -80,7 +79,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1358546566;
+  int get rustContentHash => 1533245745;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -234,6 +233,18 @@ abstract class AppRsApi extends BaseApi {
     required PreflightPayOnchainRequest req,
   });
 
+  Future<PaymentMethod> crateFfiAppAppHandleResolveBest({
+    required AppHandle that,
+    required Network network,
+    required String uriStr,
+  });
+
+  Future<Invoice> crateFfiAppAppHandleResolveLnurlPayRequest({
+    required AppHandle that,
+    required LnurlPayRequest req,
+    required int amountMsats,
+  });
+
   Future<AppHandle> crateFfiAppAppHandleRestore({
     required Config config,
     String? googleAuthCode,
@@ -322,16 +333,6 @@ abstract class AppRsApi extends BaseApi {
   bool crateFfiFormIsMnemonicWord({required String word});
 
   Network crateFfiTypesNetworkFromStr({required String s});
-
-  Future<PaymentMethod> crateFfiPaymentUriResolveBest({
-    required Network network,
-    required String uriStr,
-  });
-
-  Future<Invoice> crateFfiPaymentUriResolveLnurlPayRequest({
-    required LnurlPayRequest req,
-    required int amountMsats,
-  });
 
   String crateFfiTypesRootSeedExposeSecretHex({required RootSeed that});
 
@@ -1546,6 +1547,80 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
+  Future<PaymentMethod> crateFfiAppAppHandleResolveBest({
+    required AppHandle that,
+    required Network network,
+    required String uriStr,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_network(network, serializer);
+          sse_encode_String(uriStr, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 35,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_payment_method,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleResolveBestConstMeta,
+        argValues: [that, network, uriStr],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateFfiAppAppHandleResolveBestConstMeta =>
+      const TaskConstMeta(
+        debugName: "app_handle_resolve_best",
+        argNames: ["that", "network", "uriStr"],
+      );
+
+  @override
+  Future<Invoice> crateFfiAppAppHandleResolveLnurlPayRequest({
+    required AppHandle that,
+    required LnurlPayRequest req,
+    required int amountMsats,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_lnurl_pay_request(req, serializer);
+          sse_encode_CastedPrimitive_u_64(amountMsats, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 36,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_invoice,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleResolveLnurlPayRequestConstMeta,
+        argValues: [that, req, amountMsats],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateFfiAppAppHandleResolveLnurlPayRequestConstMeta =>
+      const TaskConstMeta(
+        debugName: "app_handle_resolve_lnurl_pay_request",
+        argNames: ["that", "req", "amountMsats"],
+      );
+
+  @override
   Future<AppHandle> crateFfiAppAppHandleRestore({
     required Config config,
     String? googleAuthCode,
@@ -1561,7 +1636,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1589,7 +1664,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 38)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_settings_db,
@@ -1631,7 +1706,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 37,
+            funcId: 39,
             port: port_,
           );
         },
@@ -1667,7 +1742,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 38,
+            funcId: 40,
             port: port_,
           );
         },
@@ -1702,7 +1777,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 39,
+            funcId: 41,
             port: port_,
           );
         },
@@ -1737,7 +1812,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 40,
+            funcId: 42,
             port: port_,
           );
         },
@@ -1765,7 +1840,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 41)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 43)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_app_user_info,
@@ -1790,7 +1865,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 42)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 44)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_client_payment_id,
@@ -1813,7 +1888,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_config(config, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 43)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 45)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -1839,7 +1914,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_config(config, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 44)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 46)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -1865,7 +1940,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(s, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 45)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 47)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_deploy_env,
@@ -1891,7 +1966,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 46,
+            funcId: 48,
             port: port_,
           );
         },
@@ -1916,7 +1991,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_CastedPrimitive_usize(dataLenBytes, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 47)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 49)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_CastedPrimitive_usize,
@@ -1955,7 +2030,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 48,
+            funcId: 50,
             port: port_,
           );
         },
@@ -1985,7 +2060,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_g_drive_client(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 49)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 51)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_g_drive_restore_client,
@@ -2011,7 +2086,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_g_drive_client(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 50)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 52)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_String,
@@ -2044,7 +2119,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 51,
+            funcId: 53,
             port: port_,
           );
         },
@@ -2076,7 +2151,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(clientId, serializer);
           sse_encode_String(serverClientId, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 52)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 54)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_g_drive_o_auth_2_flow,
@@ -2106,7 +2181,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_g_drive_restore_candidate(that, serializer);
           sse_encode_String(password, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 53)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 55)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_root_seed,
@@ -2134,7 +2209,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_g_drive_restore_candidate(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 54)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 56)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -2172,7 +2247,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 55,
+            funcId: 57,
             port: port_,
           );
         },
@@ -2208,7 +2283,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 56,
+              funcId: 58,
               port: port_,
             );
           },
@@ -2238,7 +2313,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(word, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 57)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 59)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -2261,7 +2336,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(s, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 58)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 60)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_network,
@@ -2276,76 +2351,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   TaskConstMeta get kCrateFfiTypesNetworkFromStrConstMeta =>
       const TaskConstMeta(debugName: "network_from_str", argNames: ["s"]);
-
-  @override
-  Future<PaymentMethod> crateFfiPaymentUriResolveBest({
-    required Network network,
-    required String uriStr,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_network(network, serializer);
-          sse_encode_String(uriStr, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 59,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_payment_method,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateFfiPaymentUriResolveBestConstMeta,
-        argValues: [network, uriStr],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateFfiPaymentUriResolveBestConstMeta =>
-      const TaskConstMeta(
-        debugName: "resolve_best",
-        argNames: ["network", "uriStr"],
-      );
-
-  @override
-  Future<Invoice> crateFfiPaymentUriResolveLnurlPayRequest({
-    required LnurlPayRequest req,
-    required int amountMsats,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_box_autoadd_lnurl_pay_request(req, serializer);
-          sse_encode_CastedPrimitive_u_64(amountMsats, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 60,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_invoice,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateFfiPaymentUriResolveLnurlPayRequestConstMeta,
-        argValues: [req, amountMsats],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateFfiPaymentUriResolveLnurlPayRequestConstMeta =>
-      const TaskConstMeta(
-        debugName: "resolve_lnurl_pay_request",
-        argNames: ["req", "amountMsats"],
-      );
 
   @override
   String crateFfiTypesRootSeedExposeSecretHex({required RootSeed that}) {

@@ -197,6 +197,31 @@ class AppHandle {
     req: req,
   );
 
+  /// Resolve a (possible) [`PaymentUri`] string that we just
+  /// scanned/pasted into the best [`PaymentMethod`] for us to pay.
+  ///
+  /// [`PaymentUri`]: payment_uri::PaymentUri
+  Future<PaymentMethod> resolveBest({
+    required Network network,
+    required String uriStr,
+  }) => AppRs.instance.api.crateFfiAppAppHandleResolveBest(
+    that: this,
+    network: network,
+    uriStr: uriStr,
+  );
+
+  /// Resolve a [`LnurlPayRequest`] that we just received + the amount in
+  /// msats. After resolving, we can use the [`Invoice`] to pay the
+  /// invoice.
+  Future<Invoice> resolveLnurlPayRequest({
+    required LnurlPayRequest req,
+    required int amountMsats,
+  }) => AppRs.instance.api.crateFfiAppAppHandleResolveLnurlPayRequest(
+    that: this,
+    req: req,
+    amountMsats: amountMsats,
+  );
+
   static Future<AppHandle> restore({
     required Config config,
     String? googleAuthCode,

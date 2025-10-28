@@ -17,7 +17,6 @@ import 'ffi/debug.dart';
 import 'ffi/form.dart';
 import 'ffi/gdrive.dart';
 import 'ffi/logger.dart';
-import 'ffi/payment_uri.dart';
 import 'ffi/qr.dart';
 import 'ffi/secret_store.dart';
 import 'ffi/settings.dart';

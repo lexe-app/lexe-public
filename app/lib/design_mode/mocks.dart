@@ -48,18 +48,28 @@ import 'package:app_rs_dart/ffi/types.dart'
         GDriveSignupCredentials,
         GDriveStatus,
         Invoice,
+        LnurlPayRequest,
+        LnurlPayRequestMetadata,
         LxChannelDetails,
+        Network,
         Offer,
+        Onchain,
         Payment,
         PaymentCreatedIndex,
         PaymentDirection,
         PaymentKind,
+        PaymentMethod,
+        PaymentMethod_Invoice,
+        PaymentMethod_LnurlPayRequest,
+        PaymentMethod_Offer,
+        PaymentMethod_Onchain,
         PaymentStatus,
         RevocableClient,
         RootSeed,
         Scope,
         ShortPaymentAndIndex;
 import 'package:app_rs_dart/ffi/types.ext.dart' show PaymentExt;
+import 'package:app_rs_dart/lib.dart' show U8Array32;
 import 'package:collection/collection.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/restore.dart' show RestoreApi;
@@ -480,6 +490,70 @@ class MockAppHandle extends AppHandle {
   @override
   Future<void> updateClient({required UpdateClientRequest req}) =>
       Future.delayed(const Duration(milliseconds: 1000), () => {});
+
+  @override
+  Future<PaymentMethod> resolveBest({
+    required Network network,
+    required String uriStr,
+  }) => Future.delayed(const Duration(milliseconds: 1000), () {
+    if (uriStr == "bip353@lexe.app") {
+      return PaymentMethod_Offer(defaultOffer);
+    }
+
+    if (uriStr == "lnurl@lexe.app") {
+      return PaymentMethod_LnurlPayRequest(defaultLnurlPayRequest);
+    }
+
+    if (uriStr.startsWith("lnurl")) {
+      return PaymentMethod_LnurlPayRequest(defaultLnurlPayRequest);
+    }
+
+    if (uriStr.startsWith("lno")) {
+      return PaymentMethod_Offer(defaultOffer);
+    }
+
+    if (uriStr.startsWith("ln")) {
+      final now = DateTime.now();
+      final createdAt = now.millisecondsSinceEpoch;
+      final expiresAt = now.add(Duration(seconds: 3600)).millisecondsSinceEpoch;
+
+      final dummy = dummyInvoiceInboundPending01.invoice!;
+
+      return PaymentMethod_Invoice(
+        Invoice(
+          string: dummy.string,
+          createdAt: createdAt,
+          expiresAt: expiresAt,
+          amountSats: 4670,
+          description: "pour-over coffee",
+          payeePubkey: dummy.payeePubkey,
+        ),
+      );
+    }
+
+    return PaymentMethod_Onchain(defaultOnchainPayment);
+  });
+
+  @override
+  Future<Invoice> resolveLnurlPayRequest({
+    required LnurlPayRequest req,
+    required int amountMsats,
+  }) => Future.delayed(const Duration(milliseconds: 1000), () {
+    final now = DateTime.now();
+    final createdAt = now.millisecondsSinceEpoch;
+    final expiresAt = now.add(Duration(seconds: 3600)).millisecondsSinceEpoch;
+
+    final dummy = dummyInvoiceInboundPending01.invoice!;
+
+    return Invoice(
+      string: dummy.string,
+      createdAt: createdAt,
+      expiresAt: expiresAt,
+      amountSats: amountMsats,
+      description: "pour-over coffee",
+      payeePubkey: dummy.payeePubkey,
+    );
+  });
 }
 
 /// An [AppHandle] that usually errors first.
@@ -582,6 +656,28 @@ class MockAppHandleErr extends MockAppHandle {
           "[106=Command] Failed to update client",
         ).toFfi(),
       );
+
+  @override
+  Future<PaymentMethod> resolveBest({
+    required Network network,
+    required String uriStr,
+  }) => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => throw const FfiError(
+      "[106=Command] Failed to resolve payment URI",
+    ).toFfi(),
+  );
+
+  @override
+  Future<Invoice> resolveLnurlPayRequest({
+    required LnurlPayRequest req,
+    required int amountMsats,
+  }) => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => throw const FfiError(
+      "[106=Command] Failed to resolve LNURL-pay request",
+    ).toFfi(),
+  );
 }
 
 /// `AppHandle` used for screenshots.
@@ -1216,3 +1312,37 @@ const List<String> seedWords1 = [
   "cream",
   "dune",
 ];
+
+const Offer defaultOffer = Offer(
+  string:
+      "lno1qgsqvgnwgcg35z6ee2h3yczraddm72xrfua9uve2rlrm9deu7xyfzrc2p4zx7mnpw35k7m3q2pskwegwq35rl86qzr7sz0sztfk2ex9hfmq35agpv450kw90sx3ewxhzmcq5324qrl89gv02s54q862yje5mzjagzvvqs5ptwk9x5txt0rgecmsll7qyy2lurdjpcqerqvp0pvxu088jng3v560f94t4ajw6jltszfgh8flzm33w3gpqa6ajuwcqx0wqwsv40gp7rs2e2ywggmx5kjj4xdeq6ph62u7z7j2p8cvntcgyqxwywv86uyuu59033z6tzgsr8gme5g5q9gahnxul2fg44zen05t7w7mr23jqwr2t4hnvqmgpkzydskfzu66cqqec0uw2q0wmqknc2v6t53rpgkv5v9nu05k2w5k4a3kf942q9jgp0gqrrqwyc58k443qt9gfd3mzfmt452dksqc9d7cdls8v7dwlma2yq9275y6lrk4ctdeh0gwjkrtx9j9ncaxnryqzex9cvtpm8nvckhdhr889m4xhx04f5dqvl3d2mq0aex6ynnq4rlz7dsjqtqnrllw3vykzhtw3yrmsdp5kc6tsgpkx27r99eshquqkyypwq633sgq2xqayayzn3t76e49av3ecvdgtnvlst33ctpyg4mu5eps",
+  description: "Pour over Coffee",
+  expiresAt: null,
+  amountSats: null,
+  payee: "shrek@lexe.app",
+  payeePubkey: null,
+);
+
+final LnurlPayRequest defaultLnurlPayRequest = LnurlPayRequest(
+  callback: "https://example.com/callback",
+  minSendableMsat: 1000,
+  maxSendableMsat: 10000,
+  metadata: LnurlPayRequestMetadata(
+    description: "Pour over Coffee",
+    longDescription:
+        "This is a long description of the coffee that is being poured over. It can be pretty long. You wouldn't understand it. Can actually have emails@here.com!",
+    imagePngBase64: null,
+    imageJpegBase64: null,
+    identifier: null,
+    email: "shrek@lexe.app",
+    descriptionHash: U8Array32.init(),
+    raw: "lnurl1dp68gurn8ghj7um9wfux2r",
+  ),
+);
+
+final Onchain defaultOnchainPayment = Onchain(
+  address: "bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl",
+  amountSats: 1000,
+  label: "Lexe",
+  message: "Lexe",
+);

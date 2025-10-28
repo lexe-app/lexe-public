@@ -8,6 +8,7 @@ use common::{
         user::UserPk,
     },
     env::DeployEnv,
+    ln::amount::Amount,
     rng::SysRng,
 };
 use flutter_rust_bridge::RustOpaqueNom;
@@ -49,8 +50,9 @@ use crate::{
         },
         settings::SettingsDb,
         types::{
-            AppUserInfo, BackupInfo, Config, GDriveSignupCredentials, Payment,
-            PaymentCreatedIndex, RevocableClient, RootSeed, ShortPayment,
+            AppUserInfo, BackupInfo, Config, GDriveSignupCredentials, Invoice,
+            LnurlPayRequest, Network, Payment, PaymentCreatedIndex,
+            PaymentMethod, RevocableClient, RootSeed, ShortPayment,
             ShortPaymentAndIndex,
         },
     },
@@ -586,5 +588,46 @@ impl AppHandle {
         let resp = self.inner.node_client().backup_info().await?;
         let backup_info = BackupInfo::from(resp);
         Ok(backup_info)
+    }
+
+    /// Resolve a (possible) [`PaymentUri`] string that we just
+    /// scanned/pasted into the best [`PaymentMethod`] for us to pay.
+    ///
+    /// [`PaymentUri`]: payment_uri::PaymentUri
+    #[instrument(skip_all, name = "(resolve-best)")]
+    pub async fn resolve_best(
+        &self,
+        network: Network,
+        uri_str: String,
+    ) -> anyhow::Result<PaymentMethod> {
+        let payment_uri = payment_uri::PaymentUri::parse(&uri_str)
+            .context("Unrecognized payment code")?;
+
+        payment_uri::resolve_best(
+            self.inner.bip353_client(),
+            self.inner.lnurl_client(),
+            network.into(),
+            payment_uri,
+        )
+        .await
+        .map(PaymentMethod::from)
+    }
+
+    /// Resolve a [`LnurlPayRequest`] that we just received + the amount in
+    /// msats. After resolving, we can use the [`Invoice`] to pay the
+    /// invoice.
+    pub async fn resolve_lnurl_pay_request(
+        &self,
+        req: LnurlPayRequest,
+        amount_msats: u64,
+    ) -> anyhow::Result<Invoice> {
+        let pay_req = payment_uri::LnurlPayRequest::from(req);
+
+        let lx_invoice = self
+            .inner
+            .lnurl_client()
+            .resolve_pay_request(&pay_req, Amount::from_msat(amount_msats))
+            .await?;
+        Ok(Invoice::from(lx_invoice))
     }
 }
