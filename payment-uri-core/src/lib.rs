@@ -44,10 +44,7 @@ pub use crate::{
     bip321_uri::Bip321Uri,
     email_like::EmailLikeAddress,
     lightning_uri::LightningUri,
-    lnurl::{
-        Lnurl,
-        lud06::{LnurlPayRequest, LnurlPayRequestMetadata},
-    },
+    lnurl::Lnurl,
     payment_method::{Onchain, PaymentMethod},
     payment_uri::PaymentUri,
 };

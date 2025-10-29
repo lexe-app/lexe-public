@@ -25,6 +25,7 @@ use lexe_api::{
     },
     types::{
         Empty,
+        lnurl::LnurlPayRequest as LnurlPayRequestRs,
         payments::{LxPaymentId, PaymentCreatedIndex as PaymentCreatedIndexRs},
     },
 };
@@ -621,7 +622,7 @@ impl AppHandle {
         req: LnurlPayRequest,
         amount_msats: u64,
     ) -> anyhow::Result<Invoice> {
-        let pay_req = payment_uri::LnurlPayRequest::from(req);
+        let pay_req = LnurlPayRequestRs::from(req);
 
         let lx_invoice = self
             .inner

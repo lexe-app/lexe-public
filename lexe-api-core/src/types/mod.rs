@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 
 /// `LxInvoice`, a wrapper around LDK's BOLT11 invoice type.
 pub mod invoice;
+/// Lnurl types
+pub mod lnurl;
 /// `LxOffer`, a wrapper around LDK's BOLT12 offer type.
 pub mod offer;
 /// Payments types and newtypes.

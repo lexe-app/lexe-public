@@ -28,6 +28,10 @@ use lexe_api::{
     },
     types::{
         invoice::LxInvoice,
+        lnurl::{
+            LnurlPayRequest as LnurlPayRequestRs,
+            LnurlPayRequestMetadata as LnurlPayRequestMetadataRs,
+        },
         offer::LxOffer,
         payments::{
             BasicPayment as BasicPaymentRs,
@@ -545,8 +549,8 @@ pub struct LnurlPayRequestMetadata {
     pub raw: String,
 }
 
-impl From<payment_uri::LnurlPayRequest> for LnurlPayRequest {
-    fn from(value: payment_uri::LnurlPayRequest) -> Self {
+impl From<LnurlPayRequestRs> for LnurlPayRequest {
+    fn from(value: LnurlPayRequestRs) -> Self {
         Self {
             callback: value.callback,
             min_sendable_msat: value.min_sendable.msat(),
@@ -556,8 +560,8 @@ impl From<payment_uri::LnurlPayRequest> for LnurlPayRequest {
     }
 }
 
-impl From<payment_uri::LnurlPayRequestMetadata> for LnurlPayRequestMetadata {
-    fn from(value: payment_uri::LnurlPayRequestMetadata) -> Self {
+impl From<LnurlPayRequestMetadataRs> for LnurlPayRequestMetadata {
+    fn from(value: LnurlPayRequestMetadataRs) -> Self {
         Self {
             description: value.description,
             long_description: value.long_description,
@@ -571,22 +575,20 @@ impl From<payment_uri::LnurlPayRequestMetadata> for LnurlPayRequestMetadata {
     }
 }
 
-impl From<LnurlPayRequest> for payment_uri::LnurlPayRequest {
+impl From<LnurlPayRequest> for LnurlPayRequestRs {
     fn from(value: LnurlPayRequest) -> Self {
-        payment_uri::LnurlPayRequest {
+        LnurlPayRequestRs {
             callback: value.callback,
             min_sendable: AmountRs::from_msat(value.min_sendable_msat),
             max_sendable: AmountRs::from_msat(value.max_sendable_msat),
-            metadata: payment_uri::LnurlPayRequestMetadata::from(
-                value.metadata,
-            ),
+            metadata: LnurlPayRequestMetadataRs::from(value.metadata),
         }
     }
 }
 
-impl From<LnurlPayRequestMetadata> for payment_uri::LnurlPayRequestMetadata {
+impl From<LnurlPayRequestMetadata> for LnurlPayRequestMetadataRs {
     fn from(value: LnurlPayRequestMetadata) -> Self {
-        payment_uri::LnurlPayRequestMetadata {
+        LnurlPayRequestMetadataRs {
             description: value.description,
             long_description: value.long_description,
             image_png_base64: value.image_png_base64,

@@ -79,9 +79,11 @@ use std::{str::FromStr, time::Duration};
 use anyhow::{Context, anyhow, ensure};
 use bitcoin::hashes::Hash;
 use common::ln::amount::Amount;
-use lexe_api_core::types::invoice::LxInvoice;
+use lexe_api_core::types::{
+    invoice::LxInvoice,
+    lnurl::{LnurlPayRequest, LnurlPayRequestMetadata},
+};
 use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescriptionRef};
-use payment_uri_core::{LnurlPayRequest, LnurlPayRequestMetadata};
 use serde::Deserialize;
 use tracing::debug;
 

@@ -2,13 +2,13 @@ use bitcoin::address::{NetworkUnchecked, NetworkValidation};
 use common::ln::{amount::Amount, network::LxNetwork};
 #[cfg(test)]
 use common::{ln::amount, test_utils::arbitrary};
-use lexe_api_core::types::{invoice::LxInvoice, offer::LxOffer};
+use lexe_api_core::types::{
+    invoice::LxInvoice, lnurl::LnurlPayRequest, offer::LxOffer,
+};
 #[cfg(test)]
 use proptest::strategy::Strategy;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
-
-use crate::LnurlPayRequest;
 
 /// A single "payment method" -- each kind here should correspond with a single
 /// linear payment flow for a user, where there are no other alternate methods.
