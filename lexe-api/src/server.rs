@@ -56,7 +56,8 @@ use axum::{
     extract::{
         DefaultBodyLimit, FromRequest,
         rejection::{
-            BytesRejection, HostRejection, JsonRejection, QueryRejection,
+            BytesRejection, HostRejection, JsonRejection, PathRejection,
+            QueryRejection,
         },
     },
     response::IntoResponse,
@@ -640,6 +641,8 @@ enum LxRejectionKind {
     Host,
     /// [`JsonRejection`]
     Json,
+    /// [`PathRejection`]
+    Path,
     /// [`QueryRejection`]
     Query,
 
@@ -721,6 +724,15 @@ impl From<JsonRejection> for LxRejection {
     }
 }
 
+impl From<PathRejection> for LxRejection {
+    fn from(path_rejection: PathRejection) -> Self {
+        Self {
+            kind: LxRejectionKind::Path,
+            source_msg: path_rejection.body_text(),
+        }
+    }
+}
+
 impl From<QueryRejection> for LxRejection {
     fn from(query_rejection: QueryRejection) -> Self {
         Self {
@@ -753,6 +765,7 @@ impl LxRejectionKind {
             Self::Bytes => "Bad request bytes",
             Self::Host => "Missing or invalid host",
             Self::Json => "Client provided bad JSON",
+            Self::Path => "Client provided bad path parameter",
             Self::Query => "Client provided bad query string",
 
             Self::Unauthenticated => "Invalid bearer auth",
@@ -805,6 +818,46 @@ pub mod extract {
     impl<T: Eq + PartialEq> Eq for LxQuery<T> {}
 
     impl<T: PartialEq> PartialEq for LxQuery<T> {
+        fn eq(&self, other: &Self) -> bool {
+            self.0.eq(&other.0)
+        }
+    }
+
+    /// Lexe API-compliant version of [`axum::extract::Path`].
+    pub struct LxPath<T>(pub T);
+
+    #[async_trait]
+    impl<T: DeserializeOwned + Send, S: Send + Sync> FromRequestParts<S>
+        for LxPath<T>
+    {
+        type Rejection = LxRejection;
+
+        async fn from_request_parts(
+            parts: &mut http::request::Parts,
+            state: &S,
+        ) -> Result<Self, Self::Rejection> {
+            axum::extract::Path::from_request_parts(parts, state)
+                .await
+                .map(|axum::extract::Path(t)| Self(t))
+                .map_err(LxRejection::from)
+        }
+    }
+
+    impl<T: Clone> Clone for LxPath<T> {
+        fn clone(&self) -> Self {
+            Self(self.0.clone())
+        }
+    }
+
+    impl<T: fmt::Debug> fmt::Debug for LxPath<T> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            T::fmt(&self.0, f)
+        }
+    }
+
+    impl<T: Eq + PartialEq> Eq for LxPath<T> {}
+
+    impl<T: PartialEq> PartialEq for LxPath<T> {
         fn eq(&self, other: &Self) -> bool {
             self.0.eq(&other.0)
         }
