@@ -21,6 +21,21 @@ pub struct LnurlPayRequest {
     pub metadata: LnurlPayRequestMetadata,
 }
 
+#[derive(Serialize)]
+#[serde(untagged)]
+pub enum LnurlPayRequestResponse {
+    Success(LnurlPayRequestWire),
+    Error { status: String, reason: String },
+}
+
+impl LnurlPayRequestResponse {
+    pub fn error(reason: impl Into<String>) -> Self {
+        Self::Error {
+            status: "ERROR".to_owned(),
+            reason: reason.into(),
+        }
+    }
+}
 /// LUD-06 wire format for LNURL-pay request.
 ///
 /// This matches the exact JSON format specified in LUD-06:
@@ -94,6 +109,23 @@ pub struct LnurlPayRequestMetadata {
 }
 
 impl LnurlPayRequestMetadata {
+    pub fn new_from_email(email: &str) -> Self {
+        let description = format!("Pay to {email}");
+        let mut this = Self {
+            description,
+            email: Some(email.to_owned()),
+            long_description: None,
+            image_png_base64: None,
+            image_jpeg_base64: None,
+            identifier: None,
+            description_hash: [0; 32],
+            raw: "".to_owned(),
+        };
+        let as_str = this.to_raw_str();
+        this.description_hash = sha256::digest(as_str.as_bytes()).to_array();
+        this
+    }
+
     /// Parses LNURL-pay metadata string into structured metadata.
     ///
     /// LUD-06 `metadata` field is a JSON array encoded as a string:

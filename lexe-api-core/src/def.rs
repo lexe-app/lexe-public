@@ -103,6 +103,7 @@ use crate::{
     },
     types::{
         Empty,
+        lnurl::{LnurlPayRequestCallback, LnurlPayRequestResponse},
         payments::{
             DbPaymentV1, DbPaymentV2, MaybeDbPaymentV1, VecBasicPayment,
             VecDbPaymentMetadata, VecDbPaymentV1, VecDbPaymentV2,
@@ -837,4 +838,22 @@ pub trait NodeRunnerApi {
     /// Indicates the node successfully completed sync.
     async fn sync_succ(&self, user_pk: UserPk)
     -> Result<Empty, RunnerApiError>;
+}
+
+/// Defines the api that the gateway exposes to the internet.
+pub trait PublicGatewayApi {
+    /// Get the LNURL pay request message, if any username has been set.
+    /// Uses lnurl_callback endpoint as the callback.
+    ///
+    /// GET /.well-known/lnurlp/{username}
+    async fn get_lnurl_pay_request(
+        &self,
+    ) -> Result<LnurlPayRequestResponse, GatewayApiError>;
+
+    /// Resolves the invoice given a LNURL pay request previously generated.
+    ///
+    /// GET /public/v1/lnurl_callback/?username={username}&amount={amount}
+    async fn lnurl_callback(
+        &self,
+    ) -> Result<LnurlPayRequestCallback, GatewayApiError>;
 }
