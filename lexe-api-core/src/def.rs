@@ -81,12 +81,12 @@ use crate::{
         command::{
             BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-            GetAddressResponse, GetNewPayments, GetUpdatedPayments,
-            ListChannelsResponse, NodeInfo, OpenChannelRequest,
-            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-            PayOnchainResponse, PaymentAddress, PaymentCreatedIndexStruct,
-            PaymentCreatedIndexes, PaymentIdStruct,
+            GetAddressResponse, GetNewPayments, GetUpdatedPaymentMetadata,
+            GetUpdatedPayments, ListChannelsResponse, NodeInfo,
+            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentAddress,
+            PaymentCreatedIndexStruct, PaymentCreatedIndexes, PaymentIdStruct,
             PreflightCloseChannelRequest, PreflightCloseChannelResponse,
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
@@ -105,7 +105,7 @@ use crate::{
         Empty,
         payments::{
             DbPaymentV1, DbPaymentV2, MaybeDbPaymentV1, VecBasicPayment,
-            VecDbPaymentV1, VecDbPaymentV2,
+            VecDbPaymentMetadata, VecDbPaymentV1, VecDbPaymentV2,
         },
         ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
@@ -749,6 +749,16 @@ pub trait NodeBackendApi {
         &self,
         auth: BearerAuthToken,
     ) -> Result<VecLxPaymentId, BackendApiError>;
+
+    /// GET /node/v1/payments/metadata/updated [`GetUpdatedPaymentMetadata`]
+    ///                                     -> [`VecDbPaymentMetadata`]
+    ///
+    /// Get a batch of payment metadata in asc `(updated_at, payment_id)` order.
+    async fn get_updated_payment_metadata(
+        &self,
+        req: GetUpdatedPaymentMetadata,
+        auth: BearerAuthToken,
+    ) -> Result<VecDbPaymentMetadata, BackendApiError>;
 
     /// PUT /node/v1/payment_address [`UpdatePaymentAddress`]
     ///                           -> [`PaymentAddress`]

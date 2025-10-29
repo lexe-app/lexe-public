@@ -225,6 +225,27 @@ pub struct VecDbPaymentV2 {
     pub payments: Vec<DbPaymentV2>,
 }
 
+/// An encrypted payment metadata, as represented in the DB.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct DbPaymentMetadata {
+    pub id: String,
+    #[serde(with = "base64_or_bytes")]
+    pub data: Vec<u8>,
+    pub updated_at: i64,
+}
+
+/// An upgradeable version of [`Option<DbPaymentMetadata>`].
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MaybeDbPaymentMetadata {
+    pub maybe_metadata: Option<DbPaymentMetadata>,
+}
+
+/// An upgradeable version of [`Vec<DbPaymentMetadata>`].
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct VecDbPaymentMetadata {
+    pub metadatas: Vec<DbPaymentMetadata>,
+}
+
 /// Specifies whether this is an onchain payment, LN invoice payment, etc.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(DeserializeFromStr)]
