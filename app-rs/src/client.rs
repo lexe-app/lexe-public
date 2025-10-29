@@ -52,10 +52,11 @@ use lexe_api::{
     models::command::{
         BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
         CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-        GetAddressResponse, GetNewPayments, ListChannelsResponse, NodeInfo,
-        OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-        PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-        PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexes,
+        GetAddressResponse, GetNewPayments, GetUpdatedPayments,
+        ListChannelsResponse, NodeInfo, OpenChannelRequest,
+        OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+        PayOfferRequest, PayOfferResponse, PayOnchainRequest,
+        PayOnchainResponse, PaymentCreatedIndexes,
         PreflightCloseChannelRequest, PreflightCloseChannelResponse,
         PreflightOpenChannelRequest, PreflightOpenChannelResponse,
         PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
@@ -696,6 +697,17 @@ impl AppNodeRunApi for NodeClient {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/payments/new");
+        let req = self.run_rest.get(url, &req);
+        self.run_rest.send(req).await
+    }
+
+    async fn get_updated_payments(
+        &self,
+        req: GetUpdatedPayments,
+    ) -> Result<VecBasicPayment, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/payments/updated");
         let req = self.run_rest.get(url, &req);
         self.run_rest.send(req).await
     }

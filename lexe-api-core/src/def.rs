@@ -81,11 +81,12 @@ use crate::{
         command::{
             BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-            GetAddressResponse, GetNewPayments, ListChannelsResponse, NodeInfo,
-            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentAddress,
-            PaymentCreatedIndexStruct, PaymentCreatedIndexes, PaymentIdStruct,
+            GetAddressResponse, GetNewPayments, GetUpdatedPayments,
+            ListChannelsResponse, NodeInfo, OpenChannelRequest,
+            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOfferRequest, PayOfferResponse, PayOnchainRequest,
+            PayOnchainResponse, PaymentAddress, PaymentCreatedIndexStruct,
+            PaymentCreatedIndexes, PaymentIdStruct,
             PreflightCloseChannelRequest, PreflightCloseChannelResponse,
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
@@ -104,7 +105,7 @@ use crate::{
         Empty,
         payments::{
             DbPaymentV1, DbPaymentV2, MaybeDbPaymentV1, VecBasicPayment,
-            VecDbPaymentV1,
+            VecDbPaymentV1, VecDbPaymentV2,
         },
         ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
@@ -345,6 +346,12 @@ pub trait AppNodeRunApi {
     async fn get_new_payments(
         &self,
         req: GetNewPayments,
+    ) -> Result<VecBasicPayment, NodeApiError>;
+
+    /// GET /app/payments/updated [`GetUpdatedPayments`] -> [`VecBasicPayment`]
+    async fn get_updated_payments(
+        &self,
+        req: GetUpdatedPayments,
     ) -> Result<VecBasicPayment, NodeApiError>;
 
     /// PUT /app/payments/note [`UpdatePaymentNote`] -> [`Empty`]
@@ -718,6 +725,14 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentV1, BackendApiError>;
 
+    /// GET /node/v1/payments/updated [`GetUpdatedPayments`]
+    ///                            -> [`VecDbPaymentV2`]
+    async fn get_updated_payments(
+        &self,
+        req: GetUpdatedPayments,
+        auth: BearerAuthToken,
+    ) -> Result<VecDbPaymentV2, BackendApiError>;
+
     /// GET /node/v1/payments/pending -> [`VecDbPaymentV1`]
     ///
     /// Fetches all pending payments.
@@ -735,8 +750,8 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<VecLxPaymentId, BackendApiError>;
 
-    /// PUT /node/v1/payment_address [`UpdatePaymentAddress`] ->
-    /// [`PaymentAddress`]
+    /// PUT /node/v1/payment_address [`UpdatePaymentAddress`]
+    ///                           -> [`PaymentAddress`]
     ///
     /// Updates the payment_address (Username and Offer) of the given node.
     async fn update_payment_address(

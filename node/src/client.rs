@@ -25,9 +25,9 @@ use lexe_api::{
     error::{BackendApiError, LspApiError, RunnerApiError},
     models::{
         command::{
-            GetNewPayments, PaymentAddress, PaymentCreatedIndexStruct,
-            PaymentCreatedIndexes, PaymentIdStruct, UpdatePaymentAddress,
-            VecLxPaymentId,
+            GetNewPayments, GetUpdatedPayments, PaymentAddress,
+            PaymentCreatedIndexStruct, PaymentCreatedIndexes, PaymentIdStruct,
+            UpdatePaymentAddress, VecLxPaymentId,
         },
         runner::{UserFinishedRequest, UserLeaseRenewalRequest},
     },
@@ -36,6 +36,7 @@ use lexe_api::{
         Empty,
         payments::{
             DbPaymentV1, DbPaymentV2, MaybeDbPaymentV1, VecDbPaymentV1,
+            VecDbPaymentV2,
         },
         ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
@@ -558,6 +559,19 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .get(format!("{backend}/node/v1/payments/new"), &req)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn get_updated_payments(
+        &self,
+        req: GetUpdatedPayments,
+        auth: BearerAuthToken,
+    ) -> Result<VecDbPaymentV2, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .get(format!("{backend}/node/v1/payments/updated"), &req)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }

@@ -24,7 +24,9 @@ use serde::{Deserialize, Serialize};
 use crate::types::{
     invoice::LxInvoice,
     offer::{LxOffer, MaxQuantity},
-    payments::{ClientPaymentId, LxPaymentId, PaymentCreatedIndex},
+    payments::{
+        ClientPaymentId, LxPaymentId, PaymentCreatedIndex, PaymentUpdatedIndex,
+    },
     username::Username,
 };
 
@@ -199,6 +201,17 @@ pub struct GetNewPayments {
     /// exclusive. Payments with an index less than or equal to this will
     /// not be returned.
     pub start_index: Option<PaymentCreatedIndex>,
+    /// (Optional) the maximum number of results that can be returned.
+    pub limit: Option<u16>,
+}
+
+/// Get a batch of payments in ascending `(updated_at, payment_id)` order.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct GetUpdatedPayments {
+    /// `(updated_at, id)` index at which the results should start, exclusive.
+    /// Payments with an index less than or equal to this will not be returned.
+    pub start_index: Option<PaymentUpdatedIndex>,
     /// (Optional) the maximum number of results that can be returned.
     pub limit: Option<u16>,
 }
