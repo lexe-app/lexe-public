@@ -258,7 +258,19 @@ pub struct CreateInvoiceRequest {
     /// If `None`, the `description` field inside the invoice will be an empty
     /// string (""), as lightning _requires_ a description (or description
     /// hash) to be set.
+    /// NOTE: If both `description` and `description_hash` are set, node will
+    /// return an error.
     pub description: Option<String>,
+    /// A 256-bit hash. Commonly a hash of a long description.
+    ///
+    /// This field is used to associate description longer than 639 bytes to
+    /// the invoice. Also known as '`h` tag in BOLT11'.
+    ///
+    /// This field is required to build invoices for the LNURL (LUD06)
+    /// receiving flow. Not used in other flows.
+    /// NOTE: If both `description` and `description_hash` are set, node will
+    /// return an error.
+    pub description_hash: Option<[u8; 32]>,
 }
 
 #[derive(Serialize, Deserialize)]

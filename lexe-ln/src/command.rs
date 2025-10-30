@@ -745,6 +745,14 @@ where
             crate::constants::LSP_MIN_FINAL_CLTV_EXPIRY_DELTA,
     };
 
+    // Ensure that description and description_hash are mutually
+    // exclusive. rust-lightning crate enforces this constraint.
+    if req.description.is_some() && req.description_hash.is_some() {
+        return Err(anyhow!(
+            "Cannot specify both description and description_hash"
+        ));
+    }
+
     // TODO(max): We should set some sane maximum for the invoice expiry time,
     // e.g. 180 days. This will not cause LDK state to blow up since
     // create_inbound_payment derives its payment preimages and hashes, but it
@@ -777,14 +785,23 @@ where
     // Add most parts of the invoice, except for the route hints.
     // This is modeled after lightning_invoice's internal utility function
     // _create_invoice_from_channelmanager_and_duration_since_epoch_with_payment_hash
+    let builder = InvoiceBuilder::new(currency); // <D, H, T, C, S>
+    #[rustfmt::skip]
+    let builder = if let Some(description_hash) = req.description_hash {
+        let description_hash = sha256::Hash::from_slice(&description_hash)
+            .expect("Should never fail with [u8;32]");
+        builder.description_hash(description_hash)               // D: False -> True
+    } else {
+        builder.description(req.description.unwrap_or_default()) // D: False -> True
+    };
+
     #[rustfmt::skip] // Nicer for the generic annotations to be aligned
-    let mut builder = InvoiceBuilder::new(currency)          // <D, H, T, C, S>
-        .description(req.description.unwrap_or_default())    // D: False -> True
-        .payment_hash(sha256_hash)                           // H: False -> True
-        .current_timestamp()                                 // T: False -> True
-        .min_final_cltv_expiry_delta(u64::from(cltv_expiry)) // C: False -> True
-        .payment_secret(secret)                              // S: False -> True
-        .basic_mpp()                                         // S: _ -> True
+    let mut builder = builder
+        .payment_hash(sha256_hash)                               // H: False -> True
+        .current_timestamp()                                     // T: False -> True
+        .min_final_cltv_expiry_delta(u64::from(cltv_expiry))     // C: False -> True
+        .payment_secret(secret)                                  // S: False -> True
+        .basic_mpp()                                             // S: _ -> True
         .expiry_time(expiry_time)
         .payee_pub_key(our_node_pk);
 

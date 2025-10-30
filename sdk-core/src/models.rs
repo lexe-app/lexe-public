@@ -197,6 +197,8 @@ impl From<SdkCreateInvoiceRequest> for command::CreateInvoiceRequest {
             expiry_secs: sdk.expiration_secs,
             amount: sdk.amount,
             description: sdk.description,
+            // TODO(maurice): Add description_hash if we really need it.
+            description_hash: None,
         }
     }
 }

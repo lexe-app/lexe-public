@@ -409,6 +409,7 @@ impl TryFrom<CreateInvoiceRequest> for CreateInvoiceRequestRs {
                 .map(Amount::try_from_sats_u64)
                 .transpose()?,
             description: value.description,
+            description_hash: None,
         })
     }
 }
