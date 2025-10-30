@@ -60,7 +60,7 @@ dependencies = [
  "protoc-rust",
  "sgx-isa",
  "sgxs",
- "thiserror",
+ "thiserror 1.0.69",
  "unix_socket2",
  "winapi",
 ]
@@ -266,7 +266,7 @@ dependencies = [
  "nom",
  "num-traits",
  "rusticata-macros",
- "thiserror",
+ "thiserror 1.0.69",
  "time",
 ]
 
@@ -622,7 +622,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85b6598a2f5d564fb7855dc6b06fd1c38cff5a72bd8b863a4d021938497b440a"
 dependencies = [
  "serde",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -1084,7 +1084,7 @@ dependencies = [
  "sgx-isa",
  "sha256",
  "strum",
- "thiserror",
+ "thiserror 2.0.17",
  "tracing",
  "x509-parser",
  "yasna",
@@ -1427,7 +1427,7 @@ dependencies = [
  "num_cpus",
  "sgx-isa",
  "sgxs",
- "thiserror",
+ "thiserror 1.0.69",
  "tokio",
 ]
 
@@ -1503,7 +1503,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1863,7 +1863,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "sha256",
- "thiserror",
+ "thiserror 2.0.17",
  "tokio",
  "tracing",
 ]
@@ -2468,7 +2468,7 @@ dependencies = [
  "serde_with",
  "sha256",
  "strum",
- "thiserror",
+ "thiserror 2.0.17",
  "tracing",
 ]
 
@@ -2513,7 +2513,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "strum",
- "thiserror",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-test",
  "tracing",
@@ -2558,7 +2558,7 @@ dependencies = [
  "serde",
  "sgx-isa",
  "sha256",
- "thiserror",
+ "thiserror 2.0.17",
  "time",
  "tokio",
  "tokio-rustls",
@@ -2582,7 +2582,7 @@ name = "lexe-tokio"
 version = "0.0.0"
 dependencies = [
  "futures",
- "thiserror",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-test",
  "tracing",
@@ -2893,7 +2893,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.17",
  "tokio",
  "tower",
  "tracing",
@@ -3781,7 +3781,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.11.0",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4158,7 +4158,7 @@ dependencies = [
  "anyhow",
  "byteorder",
  "sgx-isa",
- "thiserror",
+ "thiserror 1.0.69",
  "time",
 ]
 
@@ -4173,7 +4173,7 @@ dependencies = [
  "nix 0.15.0",
  "sgx-isa",
  "sgxs",
- "thiserror",
+ "thiserror 1.0.69",
  "winapi",
 ]
 
@@ -4413,7 +4413,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.2",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4422,7 +4422,16 @@ version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52"
 dependencies = [
- "thiserror-impl",
+ "thiserror-impl 1.0.69",
+]
+
+[[package]]
+name = "thiserror"
+version = "2.0.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f63587ca0f12b72a0600bcba1d40081f830876000bb46dd2337a3051618f4fc8"
+dependencies = [
+ "thiserror-impl 2.0.17",
 ]
 
 [[package]]
@@ -4430,6 +4439,17 @@ name = "thiserror-impl"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
+dependencies = [
+ "proc-macro2 1.0.103",
+ "quote 1.0.41",
+ "syn 2.0.108",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "2.0.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3ff15c8ecd7de3849db632e14d18d2571fa09dfc5ed93479bc4485c7a517c913"
 dependencies = [
  "proc-macro2 1.0.103",
  "quote 1.0.41",
@@ -4549,7 +4569,7 @@ checksum = "51165dfa029d2a65969413a6cc96f354b86b464498702f174a4efa13608fd8c0"
 dependencies = [
  "either",
  "futures-util",
- "thiserror",
+ "thiserror 1.0.69",
  "tokio",
 ]
 
@@ -5408,7 +5428,7 @@ dependencies = [
  "nom",
  "oid-registry",
  "rusticata-macros",
- "thiserror",
+ "thiserror 1.0.69",
  "time",
 ]
 

@@ -174,7 +174,7 @@ strum = { version = "0.26", features = ["derive"] }
 # Temporary files and directories
 tempfile = "3"
 # Easy error definition
-thiserror = "1"
+thiserror = "2"
 # Datetime library used by rcgen. Should match rcgen's `time` version
 time = "0.3"
 # Lower-level async TLS interface
