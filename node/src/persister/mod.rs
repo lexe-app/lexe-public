@@ -726,7 +726,7 @@ impl LexeInnerPersister for NodePersister {
         let token = self.get_token().await?;
 
         self.backend_api
-            .create_payment(db_payment, token)
+            .create_payment(db_payment.into(), token)
             .await
             .context("create_payment API call failed")?;
 
@@ -744,7 +744,7 @@ impl LexeInnerPersister for NodePersister {
         let token = self.get_token().await?;
 
         self.backend_api
-            .upsert_payment(db_payment, token)
+            .upsert_payment(db_payment.into(), token)
             .await
             .context("upsert_payment API call failed")?;
 
@@ -765,6 +765,7 @@ impl LexeInnerPersister for NodePersister {
             .map(|CheckedPayment(payment)| {
                 payments::encrypt(&mut rng, &self.vfs_master_key, payment)
             })
+            .map(DbPaymentV1::from)
             .collect::<Vec<DbPaymentV1>>();
 
         let token = self.get_token().await?;

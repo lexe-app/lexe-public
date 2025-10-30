@@ -13,7 +13,7 @@ use common::{
     debug_panic_release_log,
     ln::{amount::Amount, hashes::LxTxid},
     rng::{RngCore, RngExt},
-    serde_helpers::hexstr_or_bytes,
+    serde_helpers::{base64_or_bytes, hexstr_or_bytes},
     time::TimestampMs,
 };
 use lexe_std::const_assert_mem_size;
@@ -145,10 +145,10 @@ pub struct VecBasicPayment {
 /// V1 has an extremely inefficient JSON encoding, so we're migrating from it.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DbPaymentV1 {
-    pub created_at: i64,
     pub id: String,
     pub status: String,
     pub data: Vec<u8>,
+    pub created_at: i64,
 }
 
 /// An upgradeable version of [`Option<DbPaymentV1>`].
@@ -161,6 +161,68 @@ pub struct MaybeDbPaymentV1 {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct VecDbPaymentV1 {
     pub payments: Vec<DbPaymentV1>,
+}
+
+/// An encrypted payment, as represented in the DB.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct DbPaymentV2 {
+    pub id: String,
+    pub status: String,
+    #[serde(with = "base64_or_bytes")]
+    pub data: Vec<u8>,
+    pub created_at: i64,
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+impl PartialEq<DbPaymentV2> for DbPaymentV1 {
+    fn eq(&self, other: &DbPaymentV2) -> bool {
+        self.id == other.id
+            && self.status == other.status
+            && self.data == other.data
+            && self.created_at == other.created_at
+    }
+}
+#[cfg(any(test, feature = "test-utils"))]
+impl PartialEq<DbPaymentV1> for DbPaymentV2 {
+    fn eq(&self, other: &DbPaymentV1) -> bool {
+        self.id == other.id
+            && self.status == other.status
+            && self.data == other.data
+            && self.created_at == other.created_at
+    }
+}
+
+impl From<DbPaymentV1> for DbPaymentV2 {
+    fn from(v1: DbPaymentV1) -> Self {
+        Self {
+            id: v1.id,
+            status: v1.status,
+            data: v1.data,
+            created_at: v1.created_at,
+        }
+    }
+}
+impl From<DbPaymentV2> for DbPaymentV1 {
+    fn from(v2: DbPaymentV2) -> Self {
+        Self {
+            id: v2.id,
+            status: v2.status,
+            data: v2.data,
+            created_at: v2.created_at,
+        }
+    }
+}
+
+/// An upgradeable version of [`Option<DbPaymentV2>`].
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MaybeDbPaymentV2 {
+    pub maybe_payment: Option<DbPaymentV2>,
+}
+
+/// An upgradeable version of [`Vec<DbPaymentV2>`].
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct VecDbPaymentV2 {
+    pub payments: Vec<DbPaymentV2>,
 }
 
 /// Specifies whether this is an onchain payment, LN invoice payment, etc.
