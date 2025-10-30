@@ -21,6 +21,20 @@ pub struct LnurlPayRequest {
     pub metadata: LnurlPayRequestMetadata,
 }
 
+/// The callback response from a LNURL-pay request (LUD-06).
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct LnurlPayRequestCallback {
+    /// The BOLT11 invoice to pay.
+    pub pr: LxInvoice,
+    /// Deprecated field, always empty.
+    #[serde(default)]
+    pub routes: Vec<()>,
+}
+
+/// Dynamic response to a lnurl pay request.
+///
+/// LUD06 expects error responses to be returned as a success response with
+/// json containing the error message.
 #[derive(Serialize)]
 #[serde(untagged)]
 pub enum LnurlPayRequestResponse {
@@ -36,6 +50,27 @@ impl LnurlPayRequestResponse {
         }
     }
 }
+
+/// Dynamic response to a lnurl callback request.
+///
+/// LUD06 expects error responses to be returned as a success response with
+/// json containing the error message.
+#[derive(Serialize)]
+#[serde(untagged)]
+pub enum LnurlPayRequestCallbackResponse {
+    Success(LnurlPayRequestCallback),
+    Error { status: String, reason: String },
+}
+
+impl LnurlPayRequestCallbackResponse {
+    pub fn error(reason: impl Into<String>) -> Self {
+        Self::Error {
+            status: "ERROR".to_owned(),
+            reason: reason.into(),
+        }
+    }
+}
+
 /// LUD-06 wire format for LNURL-pay request.
 ///
 /// This matches the exact JSON format specified in LUD-06:
@@ -211,16 +246,6 @@ impl LnurlPayRequestMetadata {
         serde_json::to_string(&metadata_array)
             .expect("metadata serialization should never fail")
     }
-}
-
-/// The callback response from a LNURL-pay request (LUD-06).
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct LnurlPayRequestCallback {
-    /// The BOLT11 invoice to pay.
-    pub pr: LxInvoice,
-    /// Deprecated field, always empty.
-    #[serde(default)]
-    pub routes: Vec<()>,
 }
 
 #[cfg(any(test, feature = "test-utils"))]
