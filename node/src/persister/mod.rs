@@ -368,7 +368,9 @@ impl NodePersister {
         }
     }
 
-    async fn get_token(&self) -> Result<BearerAuthToken, BackendApiError> {
+    pub(crate) async fn get_token(
+        &self,
+    ) -> Result<BearerAuthToken, BackendApiError> {
         self.authenticator
             .get_token(&*self.backend_api, SystemTime::now())
             .await

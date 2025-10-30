@@ -20,6 +20,7 @@ use common::{
 };
 use gdrive::gvfs::GvfsRootName;
 use lexe_api::{
+    def::NodeBackendApi,
     error::NodeApiError,
     models::command::{
         BackupInfo, CloseChannelRequest, CreateOfferRequest,
@@ -27,13 +28,13 @@ use lexe_api::{
         GetUpdatedPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
         OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
         PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-        PayOnchainResponse, PaymentCreatedIndexes,
+        PayOnchainResponse, PaymentAddress, PaymentCreatedIndexes,
         PreflightCloseChannelRequest, PreflightCloseChannelResponse,
         PreflightOpenChannelRequest, PreflightOpenChannelResponse,
         PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
         PreflightPayOfferRequest, PreflightPayOfferResponse,
         PreflightPayOnchainRequest, PreflightPayOnchainResponse, SetupGDrive,
-        UpdatePaymentNote,
+        UpdatePaymentAddress, UpdatePaymentNote,
     },
     server::{LxJson, extract::LxQuery},
     types::{Empty, payments::VecBasicPayment},
@@ -576,4 +577,40 @@ pub(super) async fn setup_gdrive(
     }
 
     Ok(LxJson(Empty {}))
+}
+
+pub(super) async fn get_user_payment_address(
+    State(state): State<Arc<RouterState>>,
+) -> Result<LxJson<PaymentAddress>, NodeApiError> {
+    let token = state
+        .persister
+        .get_token()
+        .await
+        .map_err(NodeApiError::command)?;
+
+    let payment_address = state
+        .persister
+        .backend_api()
+        .get_payment_address(token)
+        .await
+        .map_err(NodeApiError::command)?;
+    Ok(LxJson(payment_address))
+}
+
+pub(super) async fn update_payment_address(
+    State(state): State<Arc<RouterState>>,
+    LxJson(req): LxJson<UpdatePaymentAddress>,
+) -> Result<LxJson<PaymentAddress>, NodeApiError> {
+    let token = state
+        .persister
+        .get_token()
+        .await
+        .map_err(NodeApiError::command)?;
+    let payment_address = state
+        .persister
+        .backend_api()
+        .update_payment_address(req, token)
+        .await
+        .map_err(NodeApiError::command)?;
+    Ok(LxJson(payment_address))
 }

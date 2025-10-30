@@ -408,6 +408,21 @@ pub trait AppNodeRunApi {
         &self,
         req: SetupGDrive,
     ) -> Result<Empty, NodeApiError>;
+
+    /// Get current user's payment address.
+    ///
+    /// GET /app/v1/payment_address [`Empty`] -> [`PaymentAddress`]
+    async fn get_payment_address(&self)
+    -> Result<PaymentAddress, NodeApiError>;
+
+    /// Update current user's payment address.
+    ///
+    /// PUT /app/v1/payment_address [`UpdatePaymentAddress`] ->
+    /// [`PaymentAddress`]
+    async fn update_payment_address(
+        &self,
+        req: UpdatePaymentAddress,
+    ) -> Result<PaymentAddress, NodeApiError>;
 }
 
 /// The bearer auth API exposed by the backend (sometimes via the gateway) to

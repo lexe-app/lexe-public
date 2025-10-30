@@ -56,13 +56,13 @@ use lexe_api::{
         ListChannelsResponse, NodeInfo, OpenChannelRequest,
         OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
         PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-        PayOnchainResponse, PaymentCreatedIndexes,
+        PayOnchainResponse, PaymentAddress, PaymentCreatedIndexes,
         PreflightCloseChannelRequest, PreflightCloseChannelResponse,
         PreflightOpenChannelRequest, PreflightOpenChannelResponse,
         PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
         PreflightPayOfferRequest, PreflightPayOfferResponse,
         PreflightPayOnchainRequest, PreflightPayOnchainResponse, SetupGDrive,
-        UpdatePaymentNote,
+        UpdatePaymentAddress, UpdatePaymentNote,
     },
     rest::{POST, RequestBuilderExt, RestClient},
     types::{Empty, payments::VecBasicPayment},
@@ -782,6 +782,27 @@ impl AppNodeRunApi for NodeClient {
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/backup/gdrive");
         let req = self.run_rest.post(url, &req);
+        self.run_rest.send(req).await
+    }
+
+    async fn get_payment_address(
+        &self,
+    ) -> Result<PaymentAddress, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/v1/payment_address");
+        let req = self.run_rest.get(url, &Empty {});
+        self.run_rest.send(req).await
+    }
+
+    async fn update_payment_address(
+        &self,
+        req: UpdatePaymentAddress,
+    ) -> Result<PaymentAddress, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/v1/payment_address");
+        let req = self.run_rest.put(url, &req);
         self.run_rest.send(req).await
     }
 }
