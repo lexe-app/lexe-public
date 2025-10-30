@@ -28,7 +28,6 @@ env:
   CARGO_TERM_COLOR: always
   # less wasteful caching w/ non-incremental builds
   CARGO_INCREMENTAL: 0
-  LEXE_RUST_VERSION: 1.90.0
   LEXE_RUST_FMT_VERSION: nightly-2025-10-16
   LEXE_CI: 1
 
@@ -42,10 +41,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.LEXE_RUST_VERSION }}
-          targets: x86_64-fortanix-unknown-sgx
       - uses: Swatinem/rust-cache@v2
       - uses: arduino/setup-protoc@v3
       # Native
@@ -56,12 +51,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.LEXE_RUST_VERSION }}
-          targets: x86_64-fortanix-unknown-sgx
       - uses: Swatinem/rust-cache@v2
       - uses: arduino/setup-protoc@v3
+      - run: rustup target add x86_64-fortanix-unknown-sgx
       # SGX
       - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" RUSTC_BOOTSTRAP=1 cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx
       # SGX + tests
@@ -72,12 +64,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.LEXE_RUST_VERSION }}
-          targets: x86_64-fortanix-unknown-sgx
       - uses: Swatinem/rust-cache@v2
       - uses: arduino/setup-protoc@v3
+      - run: rustup target add x86_64-fortanix-unknown-sgx
       # Utils
       - run: cargo check --release --locked -p run-sgx
       # Node
@@ -87,9 +76,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.LEXE_RUST_VERSION }}
       - uses: Swatinem/rust-cache@v2
       - uses: arduino/setup-protoc@v3
       - run: cargo test --locked
@@ -126,19 +112,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.LEXE_RUST_FMT_VERSION }}
-          components: rustfmt
-      - run: cargo +${{ env.LEXE_RUST_FMT_VERSION }} fmt --all -- --check
+      - run: rustup install --component=rustfmt ${{ env.LEXE_RUST_FMT_VERSION }}
+      - run: rustup run ${{ env.LEXE_RUST_FMT_VERSION }} cargo fmt --all -- --check
 
   doc:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.LEXE_RUST_VERSION }}
       - uses: Swatinem/rust-cache@v2
       - uses: arduino/setup-protoc@v3
       - run: cargo doc --locked --no-deps --document-private-items
