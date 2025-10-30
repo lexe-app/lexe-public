@@ -142,24 +142,25 @@ pub struct VecBasicPayment {
 }
 
 /// An encrypted payment, as represented in the DB.
+/// V1 has an extremely inefficient JSON encoding, so we're migrating from it.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct DbPayment {
+pub struct DbPaymentV1 {
     pub created_at: i64,
     pub id: String,
     pub status: String,
     pub data: Vec<u8>,
 }
 
-/// An upgradeable version of [`Option<DbPayment>`].
+/// An upgradeable version of [`Option<DbPaymentV1>`].
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct MaybeDbPayment {
-    pub maybe_payment: Option<DbPayment>,
+pub struct MaybeDbPaymentV1 {
+    pub maybe_payment: Option<DbPaymentV1>,
 }
 
-/// An upgradeable version of [`Vec<DbPayment>`].
+/// An upgradeable version of [`Vec<DbPaymentV1>`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct VecDbPayment {
-    pub payments: Vec<DbPayment>,
+pub struct VecDbPaymentV1 {
+    pub payments: Vec<DbPaymentV1>,
 }
 
 /// Specifies whether this is an onchain payment, LN invoice payment, etc.

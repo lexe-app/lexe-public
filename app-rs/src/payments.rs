@@ -1004,7 +1004,7 @@ mod test {
 
     impl AppNodeRunSyncApi for MockNode {
         /// POST /v1/payments/indexes [`PaymentCreatedIndexes`]
-        ///                        -> [`VecDbPayment`]
+        ///                        -> [`VecDbPaymentV1`]
         async fn get_payments_by_indexes(
             &self,
             req: PaymentCreatedIndexes,

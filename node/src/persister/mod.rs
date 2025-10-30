@@ -61,8 +61,8 @@ use lexe_api::{
     types::{
         Empty,
         payments::{
-            BasicPayment, DbPayment, LxPaymentId, PaymentCreatedIndex,
-            VecDbPayment,
+            BasicPayment, DbPaymentV1, LxPaymentId, PaymentCreatedIndex,
+            VecDbPaymentV1,
         },
     },
     vfs::{
@@ -470,10 +470,10 @@ impl NodePersister {
     ) -> anyhow::Result<Vec<BasicPayment>> {
         let token = self.get_token().await?;
         self.backend_api
-            // Fetch `DbPayment`s
+            // Fetch `DbPaymentV1`s
             .get_payments_by_indexes(req, token)
             .await
-            .context("Could not fetch `DbPayment`s")?
+            .context("Could not fetch `DbPaymentV1`s")?
             .payments
             .into_iter()
             // Decrypt into `Payment`s
@@ -490,10 +490,10 @@ impl NodePersister {
     ) -> anyhow::Result<Vec<BasicPayment>> {
         let token = self.get_token().await?;
         self.backend_api
-            // Fetch `DbPayment`s
+            // Fetch `DbPaymentV1`s
             .get_new_payments(req, token)
             .await
-            .context("Could not fetch `DbPayment`s")?
+            .context("Could not fetch `DbPaymentV1`s")?
             .payments
             .into_iter()
             // Decrypt into `Payment`s
@@ -703,10 +703,10 @@ impl LexeInnerPersister for NodePersister {
     async fn read_pending_payments(&self) -> anyhow::Result<Vec<Payment>> {
         let token = self.get_token().await?;
         self.backend_api
-            // Fetch pending `DbPayment`s
+            // Fetch pending `DbPaymentV1`s
             .get_pending_payments(token)
             .await
-            .context("Could not fetch pending `DbPayment`s")?
+            .context("Could not fetch pending `DbPaymentV1`s")?
             .payments
             .into_iter()
             // Decrypt into `Payment`s
@@ -765,11 +765,11 @@ impl LexeInnerPersister for NodePersister {
             .map(|CheckedPayment(payment)| {
                 payments::encrypt(&mut rng, &self.vfs_master_key, payment)
             })
-            .collect::<Vec<DbPayment>>();
+            .collect::<Vec<DbPaymentV1>>();
 
         let token = self.get_token().await?;
         self.backend_api
-            .upsert_payment_batch(VecDbPayment { payments: batch }, token)
+            .upsert_payment_batch(VecDbPaymentV1 { payments: batch }, token)
             .await
             .context("upsert_payment API call failed")?;
 
@@ -790,7 +790,7 @@ impl LexeInnerPersister for NodePersister {
             .backend_api
             .get_payment_by_id(req, token)
             .await
-            .context("Could not fetch `DbPayment`s")?
+            .context("Could not fetch `DbPaymentV1`s")?
             .maybe_payment
             // Decrypt into `Payment`
             .map(|p| payments::decrypt(&self.vfs_master_key, p))
@@ -814,7 +814,7 @@ impl LexeInnerPersister for NodePersister {
             .backend_api
             .get_payment_by_index(req, token)
             .await
-            .context("Could not fetch `DbPayment`s")?
+            .context("Could not fetch `DbPaymentV1`s")?
             .maybe_payment
             // Decrypt into `Payment`
             .map(|p| payments::decrypt(&self.vfs_master_key, p))

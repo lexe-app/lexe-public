@@ -34,7 +34,7 @@ use lexe_api::{
     rest::{POST, PUT, RequestBuilderExt, RestClient},
     types::{
         Empty,
-        payments::{DbPayment, MaybeDbPayment, VecDbPayment},
+        payments::{DbPaymentV1, MaybeDbPaymentV1, VecDbPaymentV1},
         ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
     },
@@ -447,7 +447,7 @@ impl NodeBackendApi for NodeBackendClient {
         &self,
         req: PaymentCreatedIndexStruct,
         auth: BearerAuthToken,
-    ) -> Result<MaybeDbPayment, BackendApiError> {
+    ) -> Result<MaybeDbPaymentV1, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -458,7 +458,7 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn create_payment(
         &self,
-        payment: DbPayment,
+        payment: DbPaymentV1,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
@@ -471,7 +471,7 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn upsert_payment(
         &self,
-        payment: DbPayment,
+        payment: DbPaymentV1,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
@@ -486,7 +486,7 @@ impl NodeBackendApi for NodeBackendClient {
         &self,
         req: PaymentIdStruct,
         auth: BearerAuthToken,
-    ) -> Result<MaybeDbPayment, BackendApiError> {
+    ) -> Result<MaybeDbPaymentV1, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -499,7 +499,7 @@ impl NodeBackendApi for NodeBackendClient {
         &self,
         req: PaymentCreatedIndexStruct,
         auth: BearerAuthToken,
-    ) -> Result<MaybeDbPayment, BackendApiError> {
+    ) -> Result<MaybeDbPaymentV1, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -510,7 +510,7 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn upsert_payment_batch(
         &self,
-        payments: VecDbPayment,
+        payments: VecDbPaymentV1,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
@@ -525,7 +525,7 @@ impl NodeBackendApi for NodeBackendClient {
         &self,
         req: PaymentCreatedIndexes,
         auth: BearerAuthToken,
-    ) -> Result<VecDbPayment, BackendApiError> {
+    ) -> Result<VecDbPaymentV1, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -538,7 +538,7 @@ impl NodeBackendApi for NodeBackendClient {
         &self,
         req: GetNewPayments,
         auth: BearerAuthToken,
-    ) -> Result<VecDbPayment, BackendApiError> {
+    ) -> Result<VecDbPaymentV1, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -550,7 +550,7 @@ impl NodeBackendApi for NodeBackendClient {
     async fn get_pending_payments(
         &self,
         auth: BearerAuthToken,
-    ) -> Result<VecDbPayment, BackendApiError> {
+    ) -> Result<VecDbPaymentV1, BackendApiError> {
         let backend = &self.backend_url;
         let data = Empty {};
         let req = self

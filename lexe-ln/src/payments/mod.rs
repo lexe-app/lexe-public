@@ -14,7 +14,7 @@ use lexe_api::types::{
     invoice::LxInvoice,
     offer::LxOffer,
     payments::{
-        BasicPayment, DbPayment, LxOfferId, LxPaymentId, PaymentCreatedIndex,
+        BasicPayment, DbPaymentV1, LxOfferId, LxPaymentId, PaymentCreatedIndex,
         PaymentDirection, PaymentKind, PaymentStatus,
     },
 };
@@ -104,12 +104,12 @@ pub enum Payment {
 }
 
 /// Serializes a given payment to JSON and encrypts the payment under the given
-/// [`AesMasterKey`], returning the [`DbPayment`] which can be persisted.
+/// [`AesMasterKey`], returning the [`DbPaymentV1`] which can be persisted.
 pub fn encrypt(
     rng: &mut impl Crng,
     vfs_master_key: &AesMasterKey,
     payment: &Payment,
-) -> DbPayment {
+) -> DbPaymentV1 {
     // Serialize the payment as JSON bytes.
     let aad = &[];
     let data_size_hint = None;
@@ -121,7 +121,7 @@ pub fn encrypt(
     // Encrypt.
     let data = vfs_master_key.encrypt(rng, aad, data_size_hint, write_data_cb);
 
-    DbPayment {
+    DbPaymentV1 {
         created_at: payment.created_at().to_i64(),
         id: payment.id().to_string(),
         status: payment.status().to_string(),
@@ -129,11 +129,11 @@ pub fn encrypt(
     }
 }
 
-/// Given a [`DbPayment`], attempts to decrypt the associated ciphertext using
+/// Given a [`DbPaymentV1`], attempts to decrypt the associated ciphertext using
 /// the given [`AesMasterKey`], returning the deserialized [`Payment`].
 pub fn decrypt(
     vfs_master_key: &AesMasterKey,
-    db_payment: DbPayment,
+    db_payment: DbPaymentV1,
 ) -> anyhow::Result<Payment> {
     let aad = &[];
     let plaintext_bytes = vfs_master_key
