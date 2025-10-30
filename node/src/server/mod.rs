@@ -123,6 +123,7 @@ pub(crate) fn app_router(state: Arc<RouterState>) -> Router<()> {
         .route("/app/get_address", post(app::get_address))
         .route("/app/payments/indexes", post(app::get_payments_by_indexes))
         .route("/app/payments/new", get(app::get_new_payments))
+        .route("/app/payments/updated", get(app::get_updated_payments))
         .route("/app/payments/note", put(app::update_payment_note))
         .route("/app/clients",
             get(app::get_revocable_clients)

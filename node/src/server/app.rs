@@ -24,7 +24,7 @@ use lexe_api::{
     models::command::{
         BackupInfo, CloseChannelRequest, CreateOfferRequest,
         CreateOfferResponse, GDriveStatus, GetAddressResponse, GetNewPayments,
-        ListChannelsResponse, NodeInfo, OpenChannelRequest,
+        GetUpdatedPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
         OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
         PayOfferRequest, PayOfferResponse, PayOnchainRequest,
         PayOnchainResponse, PaymentCreatedIndexes,
@@ -385,6 +385,18 @@ pub(super) async fn get_new_payments(
     let payments = state
         .persister
         .read_new_payments(req)
+        .await
+        .map_err(NodeApiError::command)?;
+    Ok(LxJson(VecBasicPayment { payments }))
+}
+
+pub(super) async fn get_updated_payments(
+    State(state): State<Arc<RouterState>>,
+    LxQuery(req): LxQuery<GetUpdatedPayments>,
+) -> Result<LxJson<VecBasicPayment>, NodeApiError> {
+    let payments = state
+        .persister
+        .read_updated_payments(req)
         .await
         .map_err(NodeApiError::command)?;
     Ok(LxJson(VecBasicPayment { payments }))

@@ -55,8 +55,8 @@ use lexe_api::{
     def::NodeBackendApi,
     error::{BackendApiError, BackendErrorKind},
     models::command::{
-        GetNewPayments, PaymentCreatedIndexStruct, PaymentCreatedIndexes,
-        PaymentIdStruct,
+        GetNewPayments, GetUpdatedPayments, PaymentCreatedIndexStruct,
+        PaymentCreatedIndexes, PaymentIdStruct,
     },
     types::{
         Empty,
@@ -494,6 +494,27 @@ impl NodePersister {
             .get_new_payments(req, token)
             .await
             .context("Could not fetch `DbPaymentV1`s")?
+            .payments
+            .into_iter()
+            // Decrypt into `Payment`s
+            .map(|p| payments::decrypt(&self.vfs_master_key, p))
+            // Convert to `BasicPayment`s
+            .map(|res| res.map(BasicPayment::from))
+            // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
+            .collect::<anyhow::Result<Vec<BasicPayment>>>()
+    }
+
+    pub(crate) async fn read_updated_payments(
+        &self,
+        req: GetUpdatedPayments,
+    ) -> anyhow::Result<Vec<BasicPayment>> {
+        // TODO(max): We will have to do some zipping with payment metadata.
+        let token = self.get_token().await?;
+        self.backend_api
+            // Fetch `DbPaymentV2`s
+            .get_updated_payments(req, token)
+            .await
+            .context("Could not fetch `DbPaymentV2`s")?
             .payments
             .into_iter()
             // Decrypt into `Payment`s
