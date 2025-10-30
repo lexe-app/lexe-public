@@ -63,6 +63,9 @@ pub trait RngExt: RngCore + Rng {
     /// Generate `N` (nearly uniformly random) alphanumeric (0-9, A-Z, a-z)
     /// bytes.
     fn gen_alphanum_bytes<const N: usize>(&mut self) -> [u8; N];
+
+    #[cfg(any(test, feature = "test-utils"))]
+    fn gen_alphanum_vec(&mut self, n: usize) -> Vec<u8>;
 }
 
 impl<R: RngCore + Rng> RngExt for R {
@@ -75,6 +78,14 @@ impl<R: RngCore + Rng> RngExt for R {
     fn gen_alphanum_bytes<const N: usize>(&mut self) -> [u8; N] {
         let mut out = self.gen_bytes();
         encode_alphanum_bytes(&mut out);
+        out
+    }
+
+    #[cfg(any(test, feature = "test-utils"))]
+    fn gen_alphanum_vec(&mut self, n: usize) -> Vec<u8> {
+        let mut out = vec![0u8; n];
+        self.fill_bytes(&mut out);
+        encode_alphanum_slice(&mut out);
         out
     }
 
@@ -124,6 +135,14 @@ impl<R: RngCore + Rng> RngExt for R {
 
 #[inline(never)]
 fn encode_alphanum_bytes<const N: usize>(inout: &mut [u8; N]) {
+    for x in inout.iter_mut() {
+        *x = encode_alphanum_byte(*x);
+    }
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+#[inline(never)]
+fn encode_alphanum_slice(inout: &mut [u8]) {
     for x in inout.iter_mut() {
         *x = encode_alphanum_byte(*x);
     }
