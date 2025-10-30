@@ -121,8 +121,9 @@ impl LnurlPayRequestMetadata {
             description_hash: [0; 32],
             raw: "".to_owned(),
         };
-        let as_str = this.to_raw_str();
-        this.description_hash = sha256::digest(as_str.as_bytes()).to_array();
+        let raw = this.to_raw_str();
+        this.description_hash = sha256::digest(raw.as_bytes()).to_array();
+        this.raw = raw;
         this
     }
 
