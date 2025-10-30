@@ -71,7 +71,7 @@ use common::{
 use lightning::events::Event;
 
 #[cfg(doc)]
-use crate::types::payments::PaymentCreatedIndex;
+use crate::types::payments::{LxPaymentId, PaymentCreatedIndex};
 use crate::{
     error::{
         BackendApiError, GatewayApiError, LspApiError, MegaApiError,
@@ -712,6 +712,19 @@ pub trait NodeBackendApi {
         req: PaymentCreatedIndexes,
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentV1, BackendApiError>;
+
+    /// POST /node/v1/payments/ids [`VecLxPaymentId`]
+    ///                         -> [`VecDbPaymentV2`]
+    ///
+    /// Fetch a batch of payments by their [`LxPaymentId`]s.
+    //
+    // We use POST because there may be a lot of ids,
+    // which might be too large to fit inside query params.
+    async fn get_payments_by_ids(
+        &self,
+        req: VecLxPaymentId,
+        auth: BearerAuthToken,
+    ) -> Result<VecDbPaymentV2, BackendApiError>;
 
     /// GET /node/v1/payments/new [`GetNewPayments`] -> [`VecDbPaymentV1`]
     ///
