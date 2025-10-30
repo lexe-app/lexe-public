@@ -100,6 +100,12 @@ impl TimestampMs {
         Self::try_from(duration)
     }
 
+    /// Quickly create a dummy timestamp which can be used in tests.
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn from_u8(i: u8) -> Self {
+        Self(i64::from(i))
+    }
+
     /// Get this unix timestamp as a [`u64`] in milliseconds from unix epoch.
     #[inline]
     pub fn to_millis(self) -> u64 {

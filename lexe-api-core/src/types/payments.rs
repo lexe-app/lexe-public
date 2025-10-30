@@ -453,7 +453,7 @@ impl PaymentCreatedIndex {
     /// Quickly create a dummy index which can be used in tests.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn from_u8(i: u8) -> Self {
-        let created_at = TimestampMs::from_secs_u32(u32::from(i));
+        let created_at = TimestampMs::from_u8(i);
         let id = LxPaymentId::Lightning(LxPaymentHash([i; 32]));
         Self { created_at, id }
     }
@@ -475,8 +475,8 @@ impl PaymentUpdatedIndex {
     /// Quickly create a dummy index which can be used in tests.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn from_u8(i: u8) -> Self {
-        let updated_at = TimestampMs::from_secs_u32(u32::from(i));
-        let id = LxPaymentId::Lightning(LxPaymentHash([i; 32]));
+        let updated_at = TimestampMs::from_u8(i);
+        let id = LxPaymentId::from_u8(i);
         Self { updated_at, id }
     }
 }
@@ -548,6 +548,12 @@ impl LxPaymentId {
                 LxPaymentId::OfferSend(ClientPaymentId(ldk_payment_id.0))
             }
         }
+    }
+
+    /// Quickly create a dummy id which can be used in tests.
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn from_u8(i: u8) -> Self {
+        Self::Lightning(LxPaymentHash([i; 32]))
     }
 }
 
