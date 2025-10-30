@@ -63,6 +63,13 @@ impl TimestampMs {
         self.0
     }
 
+    /// Get this unix timestamp as a [`u64`] in milliseconds from unix epoch.
+    #[inline]
+    pub fn to_u64(self) -> u64 {
+        debug_assert!(self.0 >= 0);
+        self.0 as u64
+    }
+
     /// Construct [`TimestampMs`] from seconds since Unix epoch.
     pub fn from_secs(secs: u64) -> Result<Self, Error> {
         Self::try_from(Duration::from_secs(secs))
@@ -94,12 +101,13 @@ impl TimestampMs {
     }
 
     /// Get this unix timestamp as a [`u64`] in milliseconds from unix epoch.
+    #[inline]
     pub fn to_millis(self) -> u64 {
-        u64::try_from(self.0)
-            .expect("The inner value is guaranteed to be non-negative")
+        self.to_u64()
     }
 
     /// Get this unix timestamp as a [`u64`] in seconds from unix epoch.
+    #[inline]
     pub fn to_secs(self) -> u64 {
         Duration::from_millis(self.to_millis()).as_secs()
     }
