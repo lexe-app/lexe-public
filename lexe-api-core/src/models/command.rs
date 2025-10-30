@@ -175,6 +175,13 @@ pub struct PaymentIdStruct {
     pub id: LxPaymentId,
 }
 
+/// An upgradeable version of [`Vec<LxPaymentId>`].
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct VecLxPaymentId {
+    pub ids: Vec<LxPaymentId>,
+}
+
 /// Upgradeable API struct for a payment index.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]

@@ -92,7 +92,7 @@ use crate::{
             PreflightPayOfferRequest, PreflightPayOfferResponse,
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
             ResyncRequest, SetupGDrive, UpdatePaymentAddress,
-            UpdatePaymentNote,
+            UpdatePaymentNote, VecLxPaymentId,
         },
         runner::{
             MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest,
@@ -102,10 +102,7 @@ use crate::{
     },
     types::{
         Empty,
-        payments::{
-            DbPayment, MaybeDbPayment, VecBasicPayment, VecDbPayment,
-            VecLxPaymentId,
-        },
+        payments::{DbPayment, MaybeDbPayment, VecBasicPayment, VecDbPayment},
         ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
     },

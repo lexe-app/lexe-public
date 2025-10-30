@@ -295,12 +295,6 @@ pub enum LxPaymentId {
     OnchainSend(ClientPaymentId), // "os"
 }
 
-/// An upgradeable version of [`Vec<LxPaymentId>`].
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct VecLxPaymentId {
-    pub ids: Vec<LxPaymentId>,
-}
-
 /// A unique, client-generated id for payment types (onchain send,
 /// ln spontaneous send) that need an extra id for idempotency.
 ///
