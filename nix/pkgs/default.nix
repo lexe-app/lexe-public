@@ -93,10 +93,22 @@
 
   # workspace source directory, cleaned of anything not needed to build rust
   # code
-  srcRust = lib.cleanSourceWith {
-    src = workspaceRoot;
-    filter = path: type:
-      (craneLib.filterCargoSources path type) || (lib.hasSuffix ".der" path);
+  fileset = lib.fileset;
+  srcRust = fileset.toSource {
+    root = workspaceRoot;
+    fileset = fileset.unions [
+      # sort by frequency
+      (fileset.fileFilter
+        (
+          file:
+            file.hasExt "rs"
+            || file.name == "Cargo.toml"
+            || file.hasExt "der"
+        )
+        workspaceRoot)
+      ../../.cargo/config.toml
+      ../../Cargo.lock
+    ];
   };
 
   # To better guarantee reproducibility, each git dependency needs to pin the
