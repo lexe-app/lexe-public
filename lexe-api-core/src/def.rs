@@ -652,6 +652,7 @@ pub trait NodeBackendApi {
     ) -> Result<Empty, BackendApiError>;
 
     /// PUT /node/v1/payments [`DbPaymentV1`] -> [`Empty`]
+    #[deprecated(note = "since node-v0.8.8: Use upsert_payment instead")]
     async fn upsert_payment_v1(
         &self,
         payment: DbPaymentV1,
