@@ -20,11 +20,13 @@ pub struct UsernameStruct {
 impl Username {
     /// Validate a username string.
     fn validate(s: &str) -> Result<(), ParseError> {
-        let valid_length =
-            s.len() >= USERNAME_MIN_LENGTH && s.len() <= USERNAME_MAX_LENGTH;
-
-        if !valid_length {
-            return Err(ParseError::InvalidLength);
+        let valid_min_length = s.len() >= USERNAME_MIN_LENGTH;
+        let valid_max_length = s.len() <= USERNAME_MAX_LENGTH;
+        if !valid_min_length {
+            return Err(ParseError::InvalidMinLength);
+        }
+        if !valid_max_length {
+            return Err(ParseError::InvalidMaxLength);
         }
 
         let valid_characters = s
@@ -109,8 +111,10 @@ impl TryFrom<String> for Username {
 /// Username validation error.
 #[derive(Debug, Eq, PartialEq)]
 pub enum ParseError {
-    /// Username must be 1-24 characters.
-    InvalidLength,
+    /// Username must be at least 1 character.
+    InvalidMinLength,
+    /// Username must be at most 24 characters.
+    InvalidMaxLength,
     /// Username contains invalid characters (only lowercase alphanumeric and
     /// hyphens allowed).
     InvalidCharacters,
@@ -127,8 +131,10 @@ impl std::error::Error for ParseError {}
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidLength =>
-                write!(f, "Username must be 1-24 characters"),
+            Self::InvalidMinLength =>
+                write!(f, "Username must be at least 1 character"),
+            Self::InvalidMaxLength =>
+                write!(f, "Username must be at most 24 characters"),
             Self::InvalidCharacters => write!(
                 f,
                 "Username contains invalid characters (only lowercase \
@@ -226,10 +232,13 @@ mod test {
 
     #[test]
     fn test_parse_invalid_length() {
-        assert_eq!(Username::parse("").unwrap_err(), ParseError::InvalidLength);
+        assert_eq!(
+            Username::parse("").unwrap_err(),
+            ParseError::InvalidMinLength
+        );
         assert_eq!(
             Username::parse("1234567890123456789012345").unwrap_err(),
-            ParseError::InvalidLength
+            ParseError::InvalidMaxLength
         );
     }
 
