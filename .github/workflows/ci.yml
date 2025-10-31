@@ -140,4 +140,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
-      - run: nix build -L .#node-release-sgx
+      - run: nix build -L .#node-debug-sgx
