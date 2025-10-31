@@ -168,6 +168,33 @@ impl Default for LayerConfig {
 
 // --- Server helpers --- //
 
+/// Construct a server URL given the [`TcpListener::local_addr`] from by a
+/// server's [`TcpListener`], and its DNS name.
+///
+/// ex: `https://lexe.app` (port=443)
+/// ex: `https://relay.lexe.app:4396`
+/// ex: `http://[::1]:8080`
+//
+// We have a fn to build the url because it's easy to mess up.
+pub fn build_server_url(
+    // The output of `TcpListener::local_addr`
+    listener_addr: SocketAddr,
+    // Primary DNS name
+    maybe_dns: Option<&str>,
+) -> String {
+    match maybe_dns {
+        Some(dns_name) => {
+            let port = listener_addr.port();
+            if port == 443 {
+                format!("https://{dns_name}")
+            } else {
+                format!("https://{dns_name}:{port}")
+            }
+        }
+        None => format!("http://{listener_addr}"),
+    }
+}
+
 /// Constructs an API server future which can be spawned into a task.
 /// Additionally returns the server url.
 ///
@@ -219,25 +246,11 @@ pub fn build_server_fut_with_listener(
     // Send on this channel to begin a graceful shutdown of the server.
     mut shutdown: NotifyOnce,
 ) -> anyhow::Result<(impl Future<Output = ()> + use<>, String)> {
-    // Build the url here bc it's easy to mess up.
-    // ex: `https://lexe.app` (port=443)
-    // ex: `https://relay.lexe.app:4396`
-    // ex: `http://[::1]:8080`
-    let (maybe_tls_config, maybe_dns_name) = maybe_tls_and_dns.unzip();
-    let server_addr = listener
+    let (maybe_tls_config, maybe_dns) = maybe_tls_and_dns.unzip();
+    let listener_addr = listener
         .local_addr()
-        .context("Could not get local address of TcpListener")?;
-
-    let primary_server_url = if let Some(dns_name) = &maybe_dns_name {
-        let port = server_addr.port();
-        if port == 443 {
-            format!("https://{dns_name}")
-        } else {
-            format!("https://{dns_name}:{port}")
-        }
-    } else {
-        format!("http://{server_addr}")
-    };
+        .context("Could not get listener local address")?;
+    let primary_server_url = build_server_url(listener_addr, maybe_dns);
     info!("Url for {server_span_name}: {primary_server_url}");
 
     // Add Lexe's default fallback if it is enabled in the LayerConfig.
