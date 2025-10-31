@@ -1,9 +1,13 @@
 //! Types related to LUD-06 (LNURL-pay).
+
 use anyhow::Context;
+use axum::extract::FromRequestParts;
 use common::{ByteArray, ln::amount::Amount};
+use http::StatusCode;
 use serde::{Deserialize, Serialize};
 
 use super::invoice::LxInvoice;
+use crate::axum_helpers;
 
 /// The validated and parsed LNURL-pay request ("payRequest").
 ///
@@ -31,43 +35,88 @@ pub struct LnurlPayRequestCallback {
     pub routes: Vec<()>,
 }
 
-/// Dynamic response to a lnurl pay request.
-///
-/// LUD06 expects error responses to be returned as a success response with
-/// json containing the error message.
-#[derive(Serialize)]
-#[serde(untagged)]
-pub enum LnurlPayRequestResponse {
-    Success(LnurlPayRequestWire),
-    Error { status: String, reason: String },
+#[derive(Serialize, Deserialize)]
+/// The QueryString parameters internally required in lnurl-pay callbacks.
+pub struct LnurlCallbackRequest {
+    pub username: String,
+    pub amount: Amount,
 }
 
-impl LnurlPayRequestResponse {
-    pub fn error(reason: impl Into<String>) -> Self {
-        Self::Error {
-            status: "ERROR".to_owned(),
+/// Error response for lnurl payment requests and callbacks.
+pub struct LnurlError {
+    /// The error message to be diplayed to the payer.
+    pub reason: String,
+    // TODO(maurice): We are assuming that clients will understand
+    // the error codes and also parse the Json error response.
+    // We should revisit this on production as other services are
+    // returning code 200 with the error message.
+    status_code: StatusCode,
+}
+
+impl LnurlError {
+    /// Constructs a [`LnurlError`] with a [`StatusCode::BAD_REQUEST`].
+    pub fn bad_request(reason: impl Into<String>) -> Self {
+        Self {
             reason: reason.into(),
+            status_code: StatusCode::BAD_REQUEST,
+        }
+    }
+
+    /// Constructs a [`LnurlError`] with a
+    /// [`StatusCode::INTERNAL_SERVER_ERROR`].
+    /// NOTE: This is used as the default error code for all errors that occur
+    /// in the `lnurl` module in order to avoid leaking internal information
+    /// to external clients.
+    pub fn server_error() -> Self {
+        Self {
+            reason: "Could not get user information".to_owned(),
+            status_code: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
 
-/// Dynamic response to a lnurl callback request.
-///
-/// LUD06 expects error responses to be returned as a success response with
-/// json containing the error message.
+/// Serialized error response for lnurl payment requests and callbacks.
 #[derive(Serialize)]
-#[serde(untagged)]
-pub enum LnurlPayRequestCallbackResponse {
-    Success(LnurlPayRequestCallback),
-    Error { status: String, reason: String },
+pub struct LnurlErrorResponse {
+    pub status: String,
+    pub reason: String,
 }
 
-impl LnurlPayRequestCallbackResponse {
-    pub fn error(reason: impl Into<String>) -> Self {
-        Self::Error {
+impl From<LnurlError> for LnurlErrorResponse {
+    fn from(e: LnurlError) -> Self {
+        Self {
             status: "ERROR".to_owned(),
-            reason: reason.into(),
+            reason: e.reason,
         }
+    }
+}
+
+impl axum::response::IntoResponse for LnurlError {
+    fn into_response(self) -> axum::response::Response {
+        let status = self.status_code;
+        let error_response = LnurlErrorResponse::from(self);
+        axum_helpers::build_json_response(status, &error_response)
+    }
+}
+
+#[axum::async_trait]
+impl<S: Send + Sync> FromRequestParts<S> for LnurlCallbackRequest {
+    type Rejection = LnurlError;
+
+    // We only allow `Query` because we only use `FromRequestParts` for
+    // extracting query strings. Similarly to LxQuery definition.
+    #[allow(clippy::disallowed_types)]
+    async fn from_request_parts(
+        parts: &mut http::request::Parts,
+        state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        axum::extract::Query::from_request_parts(parts, state)
+            .await
+            .map(|axum::extract::Query(req)| req)
+            .map_err(|e| LnurlError {
+                reason: format!("{}", e),
+                status_code: StatusCode::BAD_REQUEST,
+            })
     }
 }
 

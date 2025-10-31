@@ -103,7 +103,10 @@ use crate::{
     },
     types::{
         Empty,
-        lnurl::{LnurlPayRequestCallbackResponse, LnurlPayRequestResponse},
+        lnurl::{
+            LnurlCallbackRequest, LnurlError, LnurlPayRequestCallback,
+            LnurlPayRequestWire,
+        },
         payments::{
             DbPaymentV1, DbPaymentV2, MaybeDbPaymentV1, VecBasicPayment,
             VecDbPaymentMetadata, VecDbPaymentV1, VecDbPaymentV2,
@@ -863,12 +866,13 @@ pub trait PublicGatewayApi {
     /// GET /.well-known/lnurlp/{username}
     async fn get_lnurl_pay_request(
         &self,
-    ) -> Result<LnurlPayRequestResponse, GatewayApiError>;
+    ) -> Result<LnurlPayRequestWire, LnurlError>;
 
     /// Resolves the invoice given a LNURL pay request previously generated.
     ///
-    /// GET /public/v1/lnurl_callback/?username={username}&amount={amount}
+    /// GET /public/v1/lnurl_callback
     async fn lnurl_callback(
         &self,
-    ) -> Result<LnurlPayRequestCallbackResponse, GatewayApiError>;
+        req: LnurlCallbackRequest,
+    ) -> Result<LnurlPayRequestCallback, GatewayApiError>;
 }
