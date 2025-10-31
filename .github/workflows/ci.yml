@@ -21,12 +21,22 @@ permissions:
   contents: read
 
 env:
-  # Fail CI even on rustc "warning" lints
+  # Don't emit giant backtraces in CI.
+  RUST_BACKTRACE: short
+  # Fail CI even on rustc "warning" lints.
   RUSTFLAGS: -D warnings
   RUSTDOCFLAGS: -D warnings
-  RUST_BACKTRACE: 1
+  # Set log level in CI to warn. If you need more information to debug a CI
+  # failure, change this temporarily and rerun your tests.
+  RUST_LOG: warn
+  # Allow more retries for network requests in cargo (downloading crates) and
+  # rustup (installing toolchains). This should help to reduce flaky CI failures
+  # from transient network timeouts or other issues.
+  RUSTUP_MAX_RETRIES: 10
+  CARGO_NET_RETRY: 10
+  # Colorize cargo output in CI.
   CARGO_TERM_COLOR: always
-  # less wasteful caching w/ non-incremental builds
+  # Less wasteful caching w/ non-incremental builds.
   CARGO_INCREMENTAL: 0
   LEXE_RUST_FMT_VERSION: nightly-2025-10-16
   LEXE_CI: 1
