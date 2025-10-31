@@ -651,7 +651,7 @@ pub trait NodeBackendApi {
     ) -> Result<Empty, BackendApiError>;
 
     /// PUT /node/v1/payments [`DbPaymentV1`] -> [`Empty`]
-    async fn upsert_payment(
+    async fn upsert_payment_v1(
         &self,
         payment: DbPaymentV1,
         auth: BearerAuthToken,

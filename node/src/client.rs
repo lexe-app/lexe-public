@@ -469,7 +469,7 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn upsert_payment(
+    async fn upsert_payment_v1(
         &self,
         payment: DbPaymentV1,
         auth: BearerAuthToken,

@@ -744,7 +744,7 @@ impl LexeInnerPersister for NodePersister {
         let token = self.get_token().await?;
 
         self.backend_api
-            .upsert_payment(db_payment.into(), token)
+            .upsert_payment_v1(db_payment.into(), token)
             .await
             .context("upsert_payment API call failed")?;
 
