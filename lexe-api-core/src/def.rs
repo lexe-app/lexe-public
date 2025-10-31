@@ -103,7 +103,8 @@ use crate::{
     types::{
         Empty,
         payments::{
-            DbPaymentV1, MaybeDbPaymentV1, VecBasicPayment, VecDbPaymentV1,
+            DbPaymentV1, DbPaymentV2, MaybeDbPaymentV1, VecBasicPayment,
+            VecDbPaymentV1,
         },
         ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
@@ -654,6 +655,13 @@ pub trait NodeBackendApi {
     async fn upsert_payment_v1(
         &self,
         payment: DbPaymentV1,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError>;
+
+    /// PUT /node/v2/payments [`DbPaymentV2`] -> [`Empty`]
+    async fn upsert_payment(
+        &self,
+        payment: DbPaymentV2,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
