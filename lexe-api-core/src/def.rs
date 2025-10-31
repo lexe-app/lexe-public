@@ -414,13 +414,13 @@ pub trait AppNodeRunApi {
 
     /// Get current user's payment address.
     ///
-    /// GET /app/v1/payment_address [`Empty`] -> [`PaymentAddress`]
+    /// GET /app/payment_address [`Empty`] -> [`PaymentAddress`]
     async fn get_payment_address(&self)
     -> Result<PaymentAddress, NodeApiError>;
 
     /// Update current user's payment address.
     ///
-    /// PUT /app/v1/payment_address [`UpdatePaymentAddress`] ->
+    /// PUT /app/payment_address [`UpdatePaymentAddress`] ->
     /// [`PaymentAddress`]
     async fn update_payment_address(
         &self,

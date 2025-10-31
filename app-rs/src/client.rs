@@ -790,7 +790,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<PaymentAddress, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let url = format!("{run_url}/app/v1/payment_address");
+        let url = format!("{run_url}/app/payment_address");
         let req = self.run_rest.get(url, &Empty {});
         self.run_rest.send(req).await
     }
@@ -801,7 +801,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<PaymentAddress, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let url = format!("{run_url}/app/v1/payment_address");
+        let url = format!("{run_url}/app/payment_address");
         let req = self.run_rest.put(url, &req);
         self.run_rest.send(req).await
     }
