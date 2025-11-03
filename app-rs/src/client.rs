@@ -62,12 +62,13 @@ use lexe_api::{
         PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
         PreflightPayOfferRequest, PreflightPayOfferResponse,
         PreflightPayOnchainRequest, PreflightPayOnchainResponse, SetupGDrive,
-        UpdatePaymentAddress, UpdatePaymentNote,
+        UpdatePaymentNote,
     },
     rest::{POST, RequestBuilderExt, RestClient},
     types::{
         Empty,
         payments::{VecBasicPaymentV1, VecBasicPaymentV2},
+        username::UsernameStruct,
     },
 };
 use lexe_tls::{
@@ -800,7 +801,7 @@ impl AppNodeRunApi for NodeClient {
 
     async fn update_payment_address(
         &self,
-        req: UpdatePaymentAddress,
+        req: UsernameStruct,
     ) -> Result<PaymentAddress, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;

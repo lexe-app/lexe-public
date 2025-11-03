@@ -40,6 +40,7 @@ use lexe_api::{
     types::{
         Empty,
         payments::{VecBasicPaymentV1, VecBasicPaymentV2},
+        username::UsernameStruct,
     },
     vfs::{self, Vfs, VfsDirectory},
 };
@@ -602,13 +603,32 @@ pub(super) async fn get_payment_address(
 
 pub(super) async fn update_payment_address(
     State(state): State<Arc<RouterState>>,
-    LxJson(req): LxJson<UpdatePaymentAddress>,
+    LxJson(req): LxJson<UsernameStruct>,
 ) -> Result<LxJson<PaymentAddress>, NodeApiError> {
     let token = state
         .persister
         .get_token()
         .await
         .map_err(NodeApiError::command)?;
+
+    let description = format!("Pay to {}@lexe.app", req.username.inner());
+
+    let offer_req = CreateOfferRequest {
+        expiry_secs: None,
+        amount: None,
+        description: Some(description),
+        max_quantity: None,
+    };
+
+    let offer =
+        lexe_ln::command::create_offer(offer_req, &state.channel_manager)
+            .await
+            .map_err(NodeApiError::command)?;
+
+    let req = UpdatePaymentAddress {
+        username: req.username,
+        offer: offer.offer,
+    };
     let payment_address = state
         .persister
         .backend_api()

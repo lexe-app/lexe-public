@@ -115,6 +115,7 @@ use crate::{
         },
         ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
+        username::UsernameStruct,
     },
     vfs::{
         MaybeVfsFile, VecVfsFile, VfsDirectory, VfsDirectoryList, VfsFile,
@@ -423,11 +424,10 @@ pub trait AppNodeRunApi {
 
     /// Update current user's payment address.
     ///
-    /// PUT /app/payment_address [`UpdatePaymentAddress`]
-    ///                       -> [`PaymentAddress`]
+    /// PUT /app/payment_address [`UsernameStruct`] -> [`PaymentAddress`]
     async fn update_payment_address(
         &self,
-        req: UpdatePaymentAddress,
+        req: UsernameStruct,
     ) -> Result<PaymentAddress, NodeApiError>;
 }
 
