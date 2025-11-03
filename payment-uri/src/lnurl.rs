@@ -177,7 +177,7 @@ impl LnurlClient {
              min {min_sendable} > max {max_sendable}"
         );
 
-        let metadata = LnurlPayRequestMetadata::from_raw_str(metadata)?;
+        let metadata = LnurlPayRequestMetadata::from_raw_string(metadata)?;
 
         debug!(
             %callback, %min_sendable, %max_sendable,

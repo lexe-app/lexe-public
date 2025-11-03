@@ -104,7 +104,7 @@ use crate::{
     types::{
         Empty,
         lnurl::{
-            LnurlCallbackRequest, LnurlError, LnurlPayRequestCallback,
+            LnurlCallbackRequest, LnurlCallbackResponse, LnurlError,
             LnurlPayRequestWire,
         },
         payments::{
@@ -874,5 +874,5 @@ pub trait PublicGatewayApi {
     async fn lnurl_callback(
         &self,
         req: LnurlCallbackRequest,
-    ) -> Result<LnurlPayRequestCallback, GatewayApiError>;
+    ) -> Result<LnurlCallbackResponse, LnurlError>;
 }

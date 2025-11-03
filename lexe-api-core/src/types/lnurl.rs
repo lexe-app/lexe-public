@@ -1,7 +1,9 @@
 //! Types related to LUD-06 (LNURL-pay).
 
+use std::fmt;
+
 use anyhow::Context;
-use axum::extract::FromRequestParts;
+use axum::{extract::FromRequestParts, response::IntoResponse};
 use common::{ByteArray, ln::amount::Amount};
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -25,21 +27,48 @@ pub struct LnurlPayRequest {
     pub metadata: LnurlPayRequestMetadata,
 }
 
-/// The callback response from a LNURL-pay request (LUD-06).
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct LnurlPayRequestCallback {
-    /// The BOLT11 invoice to pay.
-    pub pr: LxInvoice,
-    /// Deprecated field, always empty.
-    #[serde(default)]
-    pub routes: Vec<()>,
-}
-
 #[derive(Serialize, Deserialize)]
 /// The QueryString parameters internally required in lnurl-pay callbacks.
 pub struct LnurlCallbackRequest {
     pub username: String,
     pub amount: Amount,
+}
+
+#[axum::async_trait]
+impl<S: Send + Sync> FromRequestParts<S> for LnurlCallbackRequest {
+    type Rejection = LnurlError;
+
+    // LUD-06 defines an error message differently than Lexe-style
+    // rejection errors. Then, we build a custom rejection `[LnurlError]`
+    // which is then converted to a JSON response.
+    //
+    // We disable the clippy lint as we want to use `[axum::extract::Query]`
+    #[allow(clippy::disallowed_types)]
+    async fn from_request_parts(
+        parts: &mut http::request::Parts,
+        state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        axum::extract::Query::from_request_parts(parts, state)
+            .await
+            .map(|axum::extract::Query(req)| req)
+            .map_err(|e| LnurlError {
+                reason: format!("{e}"),
+                status_code: StatusCode::BAD_REQUEST,
+            })
+    }
+}
+
+/// The callback response from a LNURL-pay request (LUD-06).
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct LnurlCallbackResponse {
+    /// The BOLT11 invoice to pay.
+    pub pr: LxInvoice,
+    // The LUD-06 spec mandates a `routes` field (always empty array).
+    // Modern implementations (Breez SDK, Phoenix) ignore it entirely.
+    // It was likely intended for source routing hints but became
+    // redundant since BOLT11 invoices already contain route hints.
+    #[serde(default)]
+    pub routes: Vec<()>,
 }
 
 /// Error response for lnurl payment requests and callbacks.
@@ -50,14 +79,14 @@ pub struct LnurlError {
     // the error codes and also parse the Json error response.
     // We should revisit this on production as other services are
     // returning code 200 with the error message.
-    status_code: StatusCode,
+    pub status_code: StatusCode,
 }
 
 impl LnurlError {
     /// Constructs a [`LnurlError`] with a [`StatusCode::BAD_REQUEST`].
-    pub fn bad_request(reason: impl Into<String>) -> Self {
+    pub fn bad_request(reason: impl fmt::Display) -> Self {
         Self {
-            reason: reason.into(),
+            reason: format!("{reason:#}"),
             status_code: StatusCode::BAD_REQUEST,
         }
     }
@@ -72,6 +101,14 @@ impl LnurlError {
             reason: "Could not get user information".to_owned(),
             status_code: StatusCode::INTERNAL_SERVER_ERROR,
         }
+    }
+}
+
+impl IntoResponse for LnurlError {
+    fn into_response(self) -> axum::response::Response {
+        let status = self.status_code;
+        let error_response = LnurlErrorResponse::from(self);
+        axum_helpers::build_json_response(status, &error_response)
     }
 }
 
@@ -90,36 +127,6 @@ impl From<LnurlError> for LnurlErrorResponse {
         }
     }
 }
-
-impl axum::response::IntoResponse for LnurlError {
-    fn into_response(self) -> axum::response::Response {
-        let status = self.status_code;
-        let error_response = LnurlErrorResponse::from(self);
-        axum_helpers::build_json_response(status, &error_response)
-    }
-}
-
-#[axum::async_trait]
-impl<S: Send + Sync> FromRequestParts<S> for LnurlCallbackRequest {
-    type Rejection = LnurlError;
-
-    // We only allow `Query` because we only use `FromRequestParts` for
-    // extracting query strings. Similarly to LxQuery definition.
-    #[allow(clippy::disallowed_types)]
-    async fn from_request_parts(
-        parts: &mut http::request::Parts,
-        state: &S,
-    ) -> Result<Self, Self::Rejection> {
-        axum::extract::Query::from_request_parts(parts, state)
-            .await
-            .map(|axum::extract::Query(req)| req)
-            .map_err(|e| LnurlError {
-                reason: format!("{}", e),
-                status_code: StatusCode::BAD_REQUEST,
-            })
-    }
-}
-
 /// LUD-06 wire format for LNURL-pay request.
 ///
 /// This matches the exact JSON format specified in LUD-06:
@@ -160,7 +167,7 @@ impl From<LnurlPayRequestWire> for LnurlPayRequest {
             callback: value.callback,
             max_sendable: Amount::from_msat(value.max_sendable),
             min_sendable: Amount::from_msat(value.min_sendable),
-            metadata: LnurlPayRequestMetadata::from_raw_str(value.metadata)
+            metadata: LnurlPayRequestMetadata::from_raw_string(value.metadata)
                 .expect("LnurlPayRequestWire should contain valid metadata"),
         }
     }
@@ -193,7 +200,7 @@ pub struct LnurlPayRequestMetadata {
 }
 
 impl LnurlPayRequestMetadata {
-    pub fn new_from_email(email: &str) -> Self {
+    pub fn from_email(email: &str) -> Self {
         let description = format!("Pay to {email}");
         let mut this = Self {
             description,
@@ -203,9 +210,9 @@ impl LnurlPayRequestMetadata {
             image_jpeg_base64: None,
             identifier: None,
             description_hash: [0; 32],
-            raw: "".to_owned(),
+            raw: String::new(),
         };
-        let raw = this.to_raw_str();
+        let raw = this.to_raw_string();
         this.description_hash = sha256::digest(raw.as_bytes()).to_array();
         this.raw = raw;
         this
@@ -215,7 +222,7 @@ impl LnurlPayRequestMetadata {
     ///
     /// LUD-06 `metadata` field is a JSON array encoded as a string:
     /// `"[[\"text/plain\", \"lorem ipsum blah blah\"]]"`.
-    pub fn from_raw_str(raw: String) -> anyhow::Result<Self> {
+    pub fn from_raw_string(raw: String) -> anyhow::Result<Self> {
         let description_hash = sha256::digest(raw.as_bytes()).to_array();
 
         // LUD-06: "The `metadata` json array is only allowed to contain
@@ -235,18 +242,18 @@ impl LnurlPayRequestMetadata {
         let mut email = None;
 
         for (ty, value) in metadata_array {
+            let value = match value {
+                serde_json::Value::String(value) => Some(value),
+                _ => continue, // Ignore non-string values
+            };
+
             match ty {
-                "text/plain" =>
-                    description = value.as_str().map(|s| s.to_owned()),
-                "text/long-desc" =>
-                    long_description = value.as_str().map(|s| s.to_owned()),
-                "image/png;base64" =>
-                    image_png_base64 = value.as_str().map(|s| s.to_owned()),
-                "image/jpeg;base64" =>
-                    image_jpeg_base64 = value.as_str().map(|s| s.to_owned()),
-                "text/identifier" =>
-                    identifier = value.as_str().map(|s| s.to_owned()),
-                "text/email" => email = value.as_str().map(|s| s.to_owned()),
+                "text/plain" => description = value,
+                "text/long-desc" => long_description = value,
+                "image/png;base64" => image_png_base64 = value,
+                "image/jpeg;base64" => image_jpeg_base64 = value,
+                "text/identifier" => identifier = value,
+                "text/email" => email = value,
                 _ => {} // Ignore unknown types
             }
         }
@@ -271,7 +278,7 @@ impl LnurlPayRequestMetadata {
     ///
     /// Generates a JSON array encoded as a string, suitable for use in
     /// LNURL-pay requests. The order of entries is deterministic.
-    pub fn to_raw_str(&self) -> String {
+    pub fn to_raw_string(&self) -> String {
         let mut metadata_array: Vec<(&str, &str)> = Vec::new();
 
         metadata_array.push(("text/plain", &self.description));
@@ -299,48 +306,14 @@ impl LnurlPayRequestMetadata {
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod arbitrary_impl {
-    use common::test_utils::arbitrary;
+    use common::test_utils::arbitrary::{self, any_string};
     use proptest::{
         arbitrary::{Arbitrary, any},
-        option, prop_oneof,
-        strategy::{BoxedStrategy, Just, Strategy},
+        option,
+        strategy::{BoxedStrategy, Strategy},
     };
 
     use super::*;
-
-    /// Generate a simple and valid HTTPS URLs for testing.
-    fn any_https_url() -> impl Strategy<Value = String> {
-        (
-            arbitrary::any_string(),
-            prop_oneof![Just("com"), Just("org"), Just("app"), Just("io")],
-            proptest::collection::vec(arbitrary::any_string(), 0..=3),
-            proptest::collection::vec(
-                (arbitrary::any_string(), arbitrary::any_string()),
-                0..=2,
-            ),
-        )
-            .prop_map(|(domain, tld, paths, params)| {
-                let path = paths.join("/");
-                let query = if params.is_empty() {
-                    String::new()
-                } else {
-                    format!(
-                        "?{}",
-                        params
-                            .iter()
-                            .map(|(k, v)| format!("{k}={v}"))
-                            .collect::<Vec<_>>()
-                            .join("&")
-                    )
-                };
-
-                if path.is_empty() {
-                    format!("https://{}.{}", domain, tld)
-                } else {
-                    format!("https://{}.{}/{}{}", domain, tld, path, query)
-                }
-            })
-    }
 
     impl Arbitrary for LnurlPayRequestMetadata {
         type Parameters = ();
@@ -364,47 +337,21 @@ pub mod arbitrary_impl {
                         identifier,
                         email,
                     )| {
-                        let raw = {
-                            let mut metadata_array: Vec<(&str, &str)> =
-                                Vec::new();
-                            metadata_array.push(("text/plain", &description));
-
-                            if let Some(ref long_desc) = long_description {
-                                metadata_array
-                                    .push(("text/long-desc", long_desc));
-                            }
-                            if let Some(ref png) = image_png_base64 {
-                                metadata_array.push(("image/png;base64", png));
-                            }
-                            if let Some(ref jpeg) = image_jpeg_base64 {
-                                metadata_array
-                                    .push(("image/jpeg;base64", jpeg));
-                            }
-                            if let Some(ref id) = identifier {
-                                metadata_array.push(("text/identifier", id));
-                            }
-                            if let Some(ref email_val) = email {
-                                metadata_array.push(("text/email", email_val));
-                            }
-
-                            serde_json::to_string(&metadata_array).expect(
-                                "metadata serialization should never fail",
-                            )
-                        };
-
-                        let description_hash =
-                            sha256::digest(raw.as_bytes()).to_array();
-
-                        LnurlPayRequestMetadata {
+                        let mut this = LnurlPayRequestMetadata {
                             description,
-                            description_hash,
+                            description_hash: [0; 32],
                             email,
                             identifier,
                             image_jpeg_base64,
                             image_png_base64,
                             long_description,
-                            raw,
-                        }
+                            raw: "".to_owned(),
+                        };
+                        let raw = this.to_raw_string();
+                        this.description_hash =
+                            sha256::digest(raw.as_bytes()).to_array();
+                        this.raw = raw;
+                        this
                     },
                 )
                 .boxed()
@@ -417,7 +364,7 @@ pub mod arbitrary_impl {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (
-                any_https_url(),
+                any_string(),
                 any::<Amount>(),
                 any::<Amount>(),
                 any::<LnurlPayRequestMetadata>(),
@@ -458,13 +405,13 @@ pub mod arbitrary_impl {
         }
     }
 
-    impl proptest::arbitrary::Arbitrary for LnurlPayRequestCallback {
+    impl proptest::arbitrary::Arbitrary for LnurlCallbackResponse {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             any::<LxInvoice>()
-                .prop_map(|pr| LnurlPayRequestCallback { pr, routes: vec![] })
+                .prop_map(|pr| LnurlCallbackResponse { pr, routes: vec![] })
                 .boxed()
         }
     }
@@ -483,6 +430,6 @@ mod test {
 
     #[test]
     fn lnurl_pay_request_callback_roundtrip() {
-        roundtrip::json_string_roundtrip_proptest::<LnurlPayRequestCallback>();
+        roundtrip::json_string_roundtrip_proptest::<LnurlCallbackResponse>();
     }
 }
