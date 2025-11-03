@@ -12,6 +12,11 @@ const USERNAME_MIN_LENGTH: usize = 1;
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct Username(String);
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct UsernameStruct {
+    pub username: Username,
+}
+
 impl Username {
     /// Validate a username string.
     fn validate(s: &str) -> Result<(), ParseError> {
