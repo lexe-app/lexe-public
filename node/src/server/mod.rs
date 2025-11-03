@@ -134,7 +134,7 @@ pub(crate) fn app_router(state: Arc<RouterState>) -> Router<()> {
         .route("/app/backup", get(app::backup_info))
         .route("/app/backup/gdrive", post(app::setup_gdrive))
         .route("/app/payment_address", 
-            get(app::get_user_payment_address)
+            get(app::get_payment_address)
             .put(app::update_payment_address)
         )
         .with_state(state)
