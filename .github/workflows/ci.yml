@@ -135,7 +135,9 @@ jobs:
       # don't cache built docs, they take up a lot of space and rebuild quickly
       - run: rm -rf target/doc/
 
-  nix-reproducible-sgx-build:
+  # Build user node SGX enclave. Builds in debug mode to save CI time. Not the
+  # same as the reproducible build; that would be `nix build .#node-release-sgx`.
+  nix-sgx-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
