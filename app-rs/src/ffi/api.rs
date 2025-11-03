@@ -35,6 +35,7 @@ use lexe_api::{
         PayOfferResponse as PayOfferResponseRs,
         PayOnchainRequest as PayOnchainRequestRs,
         PayOnchainResponse as PayOnchainResponseRs,
+        PaymentAddress as PaymentAddressRs,
         PreflightCloseChannelResponse as PreflightCloseChannelResponseRs,
         PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
         PreflightOpenChannelResponse as PreflightOpenChannelResponseRs,
@@ -58,7 +59,7 @@ use lexe_api::{
 
 use crate::ffi::types::{
     ClientPaymentId, ConfirmationPriority, Invoice, LxChannelDetails, Offer,
-    PaymentCreatedIndex, RevocableClient, Scope, UserChannelId,
+    PaymentCreatedIndex, RevocableClient, Scope, UserChannelId, Username,
 };
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -733,6 +734,34 @@ impl TryFrom<UpdateClientRequest> for UpdateClientRequestRs {
             expires_at: None,
             label: None,
             scope: None,
+        })
+    }
+}
+
+/// Whether the user has a payment address associated with their username and if
+/// it is updatable.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+pub struct PaymentAddress {
+    pub username: Option<Username>,
+    pub offer: Option<Offer>,
+    pub updated_at: Option<i64>,
+    pub updatable: bool,
+}
+
+impl TryFrom<PaymentAddressRs> for PaymentAddress {
+    type Error = anyhow::Error;
+
+    fn try_from(value: PaymentAddressRs) -> Result<Self, Self::Error> {
+        let username = value.username.map(Username::try_from).transpose()?;
+        let offer = value.offer.map(Offer::try_from).transpose()?;
+        let updated_at = value.updated_at.map(|u| u.to_i64());
+
+        Ok(Self {
+            username,
+            offer,
+            updated_at,
+            updatable: value.updatable,
         })
     }
 }

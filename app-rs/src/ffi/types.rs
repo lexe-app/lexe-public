@@ -41,6 +41,7 @@ use lexe_api::{
             PaymentDirection as PaymentDirectionRs,
             PaymentKind as PaymentKindRs, PaymentStatus as PaymentStatusRs,
         },
+        username::Username as UsernameRs,
     },
 };
 
@@ -821,5 +822,35 @@ impl From<BackupInfoRs> for BackupInfo {
         Self {
             gdrive_status: GDriveStatus::from(value.gdrive_status),
         }
+    }
+}
+
+pub struct Username(pub String);
+
+impl Username {
+    /// flutter_rust_bridge:sync
+    pub fn parse(s: &str) -> anyhow::Result<Self> {
+        UsernameRs::parse(s)
+            .map(Username::from)
+            .map_err(anyhow::Error::from)
+    }
+
+    /// flutter_rust_bridge:ignore
+    pub(crate) fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl From<UsernameRs> for Username {
+    fn from(value: UsernameRs) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl TryFrom<Username> for UsernameRs {
+    type Error = anyhow::Error;
+
+    fn try_from(value: Username) -> Result<Self, Self::Error> {
+        UsernameRs::try_from(value.into_inner()).map_err(Into::into)
     }
 }

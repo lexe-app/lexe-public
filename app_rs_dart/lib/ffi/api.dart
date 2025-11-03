@@ -17,7 +17,7 @@ import 'types.dart';
 part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_cid_and_response`, `from_id_and_response`, `from_id_and_response`, `validate_note`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
@@ -224,6 +224,20 @@ sealed class PayOnchainResponse with _$PayOnchainResponse {
     required PaymentCreatedIndex index,
     required String txid,
   }) = _PayOnchainResponse;
+}
+
+/// Whether the user has a payment address associated with their username and if
+/// it is updatable.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class PaymentAddress with _$PaymentAddress {
+  const factory PaymentAddress({
+    Username? username,
+    Offer? offer,
+    int? updatedAt,
+    required bool updatable,
+  }) = _PaymentAddress;
 }
 
 /// flutter_rust_bridge:dart_metadata=("freezed")

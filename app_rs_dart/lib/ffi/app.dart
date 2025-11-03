@@ -99,6 +99,10 @@ class AppHandle {
   int getNumPendingPayments() =>
       AppRs.instance.api.crateFfiAppAppHandleGetNumPendingPayments(that: this);
 
+  /// Get the [`PaymentAddress`] for the user and if it is updatable.
+  Future<PaymentAddress> getPaymentAddress() =>
+      AppRs.instance.api.crateFfiAppAppHandleGetPaymentAddress(that: this);
+
   /// flutter_rust_bridge:sync
   Payment? getPaymentByVecIdx({required int vecIdx}) => AppRs.instance.api
       .crateFfiAppAppHandleGetPaymentByVecIdx(that: this, vecIdx: vecIdx);
@@ -259,6 +263,12 @@ class AppHandle {
 
   Future<void> updateClient({required UpdateClientRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandleUpdateClient(that: this, req: req);
+
+  Future<PaymentAddress> updatePaymentAddress({required Username username}) =>
+      AppRs.instance.api.crateFfiAppAppHandleUpdatePaymentAddress(
+        that: this,
+        username: username,
+      );
 
   Future<void> updatePaymentNote({required UpdatePaymentNote req}) => AppRs
       .instance

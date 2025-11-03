@@ -243,6 +243,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   UpdatePaymentNote dco_decode_box_autoadd_update_payment_note(dynamic raw);
 
   @protected
+  Username dco_decode_box_autoadd_username(dynamic raw);
+
+  @protected
   ClientPaymentId dco_decode_client_payment_id(dynamic raw);
 
   @protected
@@ -419,6 +422,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
+  Username? dco_decode_opt_box_autoadd_username(dynamic raw);
+
+  @protected
   PayInvoiceRequest dco_decode_pay_invoice_request(dynamic raw);
 
   @protected
@@ -438,6 +444,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Payment dco_decode_payment(dynamic raw);
+
+  @protected
+  PaymentAddress dco_decode_payment_address(dynamic raw);
 
   @protected
   PaymentCreatedIndex dco_decode_payment_created_index(dynamic raw);
@@ -547,6 +556,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   UserChannelId dco_decode_user_channel_id(dynamic raw);
+
+  @protected
+  Username dco_decode_username(dynamic raw);
 
   @protected
   BigInt dco_decode_usize(dynamic raw);
@@ -775,6 +787,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  Username sse_decode_box_autoadd_username(SseDeserializer deserializer);
+
+  @protected
   ClientPaymentId sse_decode_client_payment_id(SseDeserializer deserializer);
 
   @protected
@@ -995,6 +1010,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
+  Username? sse_decode_opt_box_autoadd_username(SseDeserializer deserializer);
+
+  @protected
   PayInvoiceRequest sse_decode_pay_invoice_request(
     SseDeserializer deserializer,
   );
@@ -1022,6 +1040,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Payment sse_decode_payment(SseDeserializer deserializer);
+
+  @protected
+  PaymentAddress sse_decode_payment_address(SseDeserializer deserializer);
 
   @protected
   PaymentCreatedIndex sse_decode_payment_created_index(
@@ -1141,6 +1162,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   UserChannelId sse_decode_user_channel_id(SseDeserializer deserializer);
+
+  @protected
+  Username sse_decode_username(SseDeserializer deserializer);
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
@@ -1416,6 +1440,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_username(Username self, SseSerializer serializer);
+
+  @protected
   void sse_encode_client_payment_id(
     ClientPaymentId self,
     SseSerializer serializer,
@@ -1686,6 +1713,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_username(
+    Username? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_pay_invoice_request(
     PayInvoiceRequest self,
     SseSerializer serializer,
@@ -1723,6 +1756,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_payment(Payment self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_payment_address(
+    PaymentAddress self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_payment_created_index(
@@ -1861,6 +1900,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_user_channel_id(UserChannelId self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_username(Username self, SseSerializer serializer);
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);

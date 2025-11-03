@@ -27,6 +27,9 @@ use lexe_api::{
         Empty,
         lnurl::LnurlPayRequest as LnurlPayRequestRs,
         payments::{LxPaymentId, PaymentCreatedIndex as PaymentCreatedIndexRs},
+        username::{
+            Username as UsernameRs, UsernameStruct as UsernameStructRs,
+        },
     },
 };
 use tracing::instrument;
@@ -44,7 +47,7 @@ use crate::{
             CreateOfferResponse, FiatRates, ListChannelsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
             PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-            PayOnchainRequest, PayOnchainResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentAddress,
             PreflightCloseChannelRequest, PreflightCloseChannelResponse,
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
@@ -57,7 +60,7 @@ use crate::{
             AppUserInfo, BackupInfo, Config, GDriveSignupCredentials, Invoice,
             LnurlPayRequest, Network, Payment, PaymentCreatedIndex,
             PaymentMethod, RevocableClient, RootSeed, ShortPayment,
-            ShortPaymentAndIndex,
+            ShortPaymentAndIndex, Username,
         },
     },
     types::GDriveSignupCredentials as GDriveSignupCredentialsRs,
@@ -633,5 +636,22 @@ impl AppHandle {
             .resolve_pay_request(&pay_req, Amount::from_msat(amount_msats))
             .await?;
         Ok(Invoice::from(lx_invoice))
+    }
+
+    /// Get the [`PaymentAddress`] for the user and if it is updatable.
+    pub async fn get_payment_address(&self) -> anyhow::Result<PaymentAddress> {
+        let resp = self.inner.node_client().get_payment_address().await?;
+        PaymentAddress::try_from(resp)
+    }
+
+    pub async fn update_payment_address(
+        &self,
+        username: Username,
+    ) -> anyhow::Result<PaymentAddress> {
+        let req = UsernameStructRs {
+            username: UsernameRs::try_from(username)?,
+        };
+        let resp = self.inner.node_client().update_payment_address(req).await?;
+        PaymentAddress::try_from(resp)
     }
 }
