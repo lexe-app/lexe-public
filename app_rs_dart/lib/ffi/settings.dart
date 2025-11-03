@@ -66,7 +66,7 @@ class Settings {
 }
 
 class SettingsDb {
-  final SettingsDbRs inner;
+  final WritebackDbRsSettingsRs inner;
 
   const SettingsDb({required this.inner});
 

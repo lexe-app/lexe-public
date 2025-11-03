@@ -1,3 +1,4 @@
+//!
 //! The native Rust code for the Lexe mobile app.
 
 // Allow e.g. `CHANNEL_MANAGER` in generics to clearly distinguish between
@@ -15,6 +16,8 @@
 pub mod app;
 /// The app's clients to the node and gateway.
 pub mod client;
+/// Persistence logic for data stored.
+pub mod db;
 /// The flutter/rust FFI bindings.
 #[cfg(feature = "flutter")]
 pub(crate) mod ffi;

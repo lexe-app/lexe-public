@@ -21,8 +21,8 @@ import 'types.dart';
 // Rust type: RustOpaqueNom<App>
 abstract class App implements RustOpaqueInterface {}
 
-// Rust type: RustOpaqueNom<SettingsDbRs>
-abstract class SettingsDbRs implements RustOpaqueInterface {}
+// Rust type: RustOpaqueNom<WritebackDbRs < SettingsRs >>
+abstract class WritebackDbRsSettingsRs implements RustOpaqueInterface {}
 
 /// The `AppHandle` is a Dart representation of an [`App`] instance.
 class AppHandle {

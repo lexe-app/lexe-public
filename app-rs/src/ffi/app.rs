@@ -31,7 +31,10 @@ use lexe_api::{
 };
 use tracing::instrument;
 
-pub(crate) use crate::{app::App, settings::SettingsDb as SettingsDbRs};
+pub(crate) use crate::{
+    app::App, db::WritebackDb as WritebackDbRs,
+    settings::Settings as SettingsRs,
+};
 use crate::{
     app::AppConfig,
     ffi::{

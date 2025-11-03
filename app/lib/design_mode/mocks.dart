@@ -38,7 +38,8 @@ import 'package:app_rs_dart/ffi/api.dart'
         PreflightPayOnchainResponse,
         UpdateClientRequest,
         UpdatePaymentNote;
-import 'package:app_rs_dart/ffi/app.dart' show App, AppHandle, SettingsDbRs;
+import 'package:app_rs_dart/ffi/app.dart'
+    show App, AppHandle, WritebackDbRsSettingsRs;
 import 'package:app_rs_dart/ffi/settings.dart' show Settings, SettingsDb;
 import 'package:app_rs_dart/ffi/types.dart'
     show
@@ -776,7 +777,7 @@ class MockSettingsDb extends SettingsDb {
 }
 
 // A fake `RustOpaque<SettingsDbRs>`
-class MockSettingsDbRs extends SettingsDbRs {
+class MockSettingsDbRs extends WritebackDbRsSettingsRs {
   MockSettingsDbRs();
 
   @override

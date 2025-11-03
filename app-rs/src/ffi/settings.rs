@@ -6,14 +6,15 @@ use anyhow::Context;
 use common::api::fiat_rates::IsoCurrencyCode;
 use flutter_rust_bridge::RustOpaqueNom;
 
-pub(crate) use crate::settings::SettingsDb as SettingsDbRs;
-use crate::settings::{
-    OnboardingStatus as OnboardingStatusRs, SchemaVersion,
-    Settings as SettingsRs,
+use crate::{
+    db::WritebackDb as WritebackDbRs,
+    settings::{
+        OnboardingStatus as OnboardingStatusRs, Settings as SettingsRs,
+    },
 };
 
 pub struct SettingsDb {
-    pub inner: RustOpaqueNom<SettingsDbRs>,
+    pub inner: RustOpaqueNom<WritebackDbRs<SettingsRs>>,
 }
 
 pub struct OnboardingStatus {
@@ -31,7 +32,7 @@ pub struct Settings {
 // --- impl SettingsDb --- //
 
 impl SettingsDb {
-    pub(crate) fn new(db: Arc<SettingsDbRs>) -> Self {
+    pub(crate) fn new(db: Arc<WritebackDbRs<SettingsRs>>) -> Self {
         Self {
             inner: RustOpaqueNom::from(db),
         }
@@ -101,7 +102,7 @@ impl TryFrom<Settings> for SettingsRs {
     type Error = anyhow::Error;
     fn try_from(s: Settings) -> Result<Self, Self::Error> {
         Ok(Self {
-            schema: SchemaVersion::CURRENT,
+            schema: SettingsRs::CURRENT_SCHEMA,
             locale: s.locale,
             fiat_currency: s
                 .fiat_currency

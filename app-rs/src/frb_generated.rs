@@ -1211,7 +1211,7 @@ impl SseDecode for RustOpaqueNom<SecretStoreRs> {
     }
 }
 
-impl SseDecode for RustOpaqueNom<SettingsDbRs> {
+impl SseDecode for RustOpaqueNom<WritebackDbRs<SettingsRs>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -2624,7 +2624,9 @@ impl SseDecode for crate::ffi::settings::SettingsDb {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_inner =
-            <RustOpaqueNom<SettingsDbRs>>::sse_decode(deserializer);
+            <RustOpaqueNom<WritebackDbRs<SettingsRs>>>::sse_decode(
+                deserializer,
+            );
         return crate::ffi::settings::SettingsDb { inner: var_inner };
     }
 }
@@ -4441,7 +4443,7 @@ impl SseEncode for RustOpaqueNom<SecretStoreRs> {
     }
 }
 
-impl SseEncode for RustOpaqueNom<SettingsDbRs> {
+impl SseEncode for RustOpaqueNom<WritebackDbRs<SettingsRs>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -5668,7 +5670,9 @@ impl SseEncode for crate::ffi::settings::SettingsDb {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <RustOpaqueNom<SettingsDbRs>>::sse_encode(self.inner, serializer);
+        <RustOpaqueNom<WritebackDbRs<SettingsRs>>>::sse_encode(
+            self.inner, serializer,
+        );
     }
 }
 
@@ -5961,20 +5965,24 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_SettingsDbRs(
+    pub extern "C" fn frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_WritebackDbRsSettingsRs(
         ptr: *const std::ffi::c_void,
     ) {
         unsafe {
-            StdArc::<SettingsDbRs>::increment_strong_count(ptr as _);
+            StdArc::<WritebackDbRs<SettingsRs>>::increment_strong_count(
+                ptr as _,
+            );
         }
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs(
+    pub extern "C" fn frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsSettingsRs(
         ptr: *const std::ffi::c_void,
     ) {
         unsafe {
-            StdArc::<SettingsDbRs>::decrement_strong_count(ptr as _);
+            StdArc::<WritebackDbRs<SettingsRs>>::decrement_strong_count(
+                ptr as _,
+            );
         }
     }
 }

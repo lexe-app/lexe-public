@@ -1,16 +1,15 @@
 //! App settings db, serialization, and persistence.
 
-use std::{io, sync::Arc, time::Duration};
-
-use anyhow::{Context, ensure};
-use common::{api::fiat_rates::IsoCurrencyCode, debug_panic_release_log};
-use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
+use anyhow::ensure;
+use common::api::fiat_rates::IsoCurrencyCode;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 
-use crate::ffs::Ffs;
+use crate::{
+    db::{SchemaVersion, Update, WritebackDb},
+    ffs::Ffs,
+};
 
 const SETTINGS_JSON: &str = "settings.json";
 
@@ -28,6 +27,15 @@ pub(crate) struct Settings {
     pub show_split_balances: Option<bool>,
     /// Onboarding state.
     pub onboarding_status: Option<OnboardingStatus>,
+}
+
+impl Settings {
+    pub fn load<F: Ffs + Send + 'static>(ffs: F) -> WritebackDb<Settings> {
+        WritebackDb::<Settings>::load(ffs, SETTINGS_JSON, "settings")
+    }
+
+    /// The current settings schema version.
+    pub(crate) const CURRENT_SCHEMA: SchemaVersion = SchemaVersion(1);
 }
 
 impl Update for Settings {
@@ -54,7 +62,7 @@ impl Update for Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            schema: SchemaVersion::CURRENT,
+            schema: Settings::CURRENT_SCHEMA,
             locale: None,
             fiat_currency: None,
             show_split_balances: None,
@@ -62,41 +70,6 @@ impl Default for Settings {
         }
     }
 }
-
-/// The app settings DB. Responsible for managing access to the settings.
-///
-/// Persistence is currently done asynchronously out-of-band, so calling
-/// [`SettingsDb::update`] only modifies the in-memory state. The
-/// [`SettingsPersister`] will finish writing the settings to durable storage
-/// later (by at most 500ms).
-pub(crate) struct SettingsDb {
-    /// The current in-memory settings.
-    settings: Arc<std::sync::Mutex<Settings>>,
-    /// Notify the [`SettingsPersister`] to persist the settings.
-    persist_tx: notify::Sender,
-    /// Handle to spawned [`SettingsPersister`].
-    persist_task: Option<LxTask<()>>,
-    /// Trigger shutdown of [`SettingsPersister`].
-    shutdown: NotifyOnce,
-}
-
-/// Persists settings asynchronously when notified by the [`SettingsDb`].
-struct SettingsPersister<F> {
-    /// Settings flat file store.
-    ffs: F,
-    /// The current in-memory settings.
-    settings: Arc<std::sync::Mutex<Settings>>,
-    /// Receives notifications when the settings have updated.
-    persist_rx: notify::Receiver,
-    /// Receives shutdown signal.
-    shutdown: NotifyOnce,
-}
-
-/// Settings schema version. Used to determine whether to run migrations.
-#[derive(Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
-#[serde(transparent)]
-pub(crate) struct SchemaVersion(pub u32);
 
 /// In-Memory onboarding user state. Used to determine if we should ask
 /// the user to finish their onboarding.
@@ -118,250 +91,21 @@ impl Update for OnboardingStatus {
         Ok(())
     }
 }
-// --- impl SettingsDb --- //
-
-impl SettingsDb {
-    pub(crate) fn load<F: Ffs + Send + 'static>(ffs: F) -> Self {
-        let settings = Arc::new(std::sync::Mutex::new(Settings::load(&ffs)));
-        let (persist_tx, persist_rx) = notify::channel();
-        let shutdown = NotifyOnce::new();
-
-        // spawn a task that we can notify to write settings updates to durable
-        // storage.
-        let persister = SettingsPersister::new(
-            ffs,
-            settings.clone(),
-            persist_rx,
-            shutdown.clone(),
-        );
-        let persist_task =
-            Some(LxTask::spawn("settings_persist", persister.run()));
-
-        Self {
-            settings,
-            persist_tx,
-            persist_task,
-            shutdown,
-        }
-    }
-
-    /// Shutdown the [`SettingsDb`]. Flushes any pending writes to disk.
-    // TODO(phlip9): remove `dead_code` when we can actually hook the applicaton
-    // lifecycle properly.
-    #[allow(dead_code)]
-    pub(crate) async fn shutdown(&mut self) -> anyhow::Result<()> {
-        // Trigger task to shutdown.
-        self.shutdown.send();
-
-        // Wait for task to finish (with timeout).
-        let persist_task =
-            self.persist_task.take().context("Called shutdown twice")?;
-        tokio::time::timeout(Duration::from_secs(1), persist_task)
-            .await
-            .context("settings persister failed to shutdown in time")?
-            .context("settings persister panicked")
-    }
-
-    /// Return a clone of the current in-memory [`Settings`].
-    #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
-    pub(crate) fn read(&self) -> Settings {
-        self.settings.lock().unwrap().clone()
-    }
-
-    /// Reset the in-memory [`Settings`] to its default value and notify the
-    /// [`SettingsPersister`].
-    #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
-    pub(crate) fn reset(&self) {
-        *self.settings.lock().unwrap() = Settings::default();
-        self.persist_tx.send();
-    }
-
-    /// Update the in-memory [`Settings`] by merging in any `Some` fields in
-    /// `update`. Then notify the [`SettingsPersister`] that we need to save,
-    /// but don't wait for it to actually persist.
-    #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
-    pub(crate) fn update(&self, update: Settings) -> anyhow::Result<()> {
-        self.settings.lock().unwrap().update(update)?;
-        self.persist_tx.send();
-        Ok(())
-    }
-}
-
-// --- impl SettingsPersister --- //
-
-impl<F> SettingsPersister<F>
-where
-    F: Ffs,
-{
-    fn new(
-        ffs: F,
-        settings: Arc<std::sync::Mutex<Settings>>,
-        persist_rx: notify::Receiver,
-        shutdown: NotifyOnce,
-    ) -> Self {
-        Self {
-            ffs,
-            settings,
-            persist_rx,
-            shutdown,
-        }
-    }
-
-    async fn run(mut self) {
-        loop {
-            // Wait for persist notification (or shutdown).
-            tokio::select! {
-                () = self.persist_rx.recv() => (),
-                () = self.shutdown.recv() => break,
-            }
-
-            // Read and serialize the current settings, then write to ffs.
-            self.do_persist().await;
-
-            // Rate-limit persists to at-most once per 500ms
-            if let Ok(()) = tokio::time::timeout(
-                Duration::from_millis(500),
-                self.shutdown.recv(),
-            )
-            .await
-            {
-                // Ok => "shutdown.recv()" before timeout
-                break;
-            }
-        }
-
-        // Do a final flush on shutdown if there's any work to be done.
-        if self.persist_rx.try_recv() {
-            self.do_persist().await;
-        }
-
-        info!("settings persister: complete");
-    }
-
-    async fn do_persist(&mut self) {
-        if let Err(err) = self.do_persist_inner().await {
-            debug_panic_release_log!("Error persisting settings: {err:#}");
-        }
-    }
-
-    async fn do_persist_inner(&mut self) -> anyhow::Result<()> {
-        // Only hold the lock long enough to serialize
-        let settings_json_bytes =
-            self.settings.lock().unwrap().serialize_json()?;
-
-        self.ffs
-            .write(SETTINGS_JSON, &settings_json_bytes)
-            .context("Failed to write settings.json file")?;
-
-        Ok(())
-    }
-}
-
-// --- impl Settings --- //
-
-impl Settings {
-    /// Load settings from settings.json file. Resets to default settings if
-    /// something goes wrong.
-    fn load<F: Ffs>(ffs: &F) -> Self {
-        match Self::load_from_file(ffs) {
-            Ok(Some(settings)) => settings,
-            Ok(None) => Settings::default(),
-            Err(err) => {
-                debug_panic_release_log!("settings: failed to load: {err:#}");
-                Settings::default()
-            }
-        }
-        // TODO(phlip9): run migrations if settings.version != Version::current
-    }
-
-    /// Try to load settings from settings.json file.
-    fn load_from_file<F: Ffs>(ffs: &F) -> anyhow::Result<Option<Self>> {
-        let buf = match ffs.read(SETTINGS_JSON) {
-            Ok(buf) => buf,
-            Err(err) if err.kind() == io::ErrorKind::NotFound =>
-                return Ok(None),
-            Err(err) =>
-                return Err(err).context("Failed to read settings.json"),
-        };
-        let settings = Self::deserialize_json(&buf)?;
-        Ok(Some(settings))
-    }
-
-    fn serialize_json(&self) -> anyhow::Result<Vec<u8>> {
-        serde_json::to_vec_pretty(self)
-            .context("Failed to serialize settings.json")
-    }
-
-    fn deserialize_json(s: &[u8]) -> anyhow::Result<Self> {
-        serde_json::from_slice(s).context("Failed to deserialize settings.json")
-    }
-}
-
-// --- impl Version --- //
-
-impl SchemaVersion {
-    /// The current settings schema version.
-    pub(crate) const CURRENT: Self = Self(1);
-}
 
 // --- impl Update --- //
-trait Update: Sized {
-    /// Merge updated settings from `update` into `self`.
-    fn update(&mut self, update: Self) -> anyhow::Result<()> {
-        // Default impl for "Atom" types, where updates jus replace `self` and
-        // don't traverse.
-        *self = update;
-        Ok(())
-    }
-}
-
 impl Update for IsoCurrencyCode {}
-impl Update for String {}
-impl Update for bool {}
-
-impl<T: Update> Update for Option<T> {
-    fn update(&mut self, update: Self) -> anyhow::Result<()> {
-        match update {
-            None => {}
-            Some(u) => match self {
-                None => *self = Some(u),
-                Some(s) => s.update(u)?,
-            },
-        }
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod arb {
-    use proptest::{
-        arbitrary::Arbitrary,
-        strategy::{BoxedStrategy, Just, Strategy},
-    };
-
-    use super::*;
-
-    impl Arbitrary for SchemaVersion {
-        type Strategy = BoxedStrategy<Self>;
-        type Parameters = ();
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            proptest::prop_oneof![
-                10 => Just(Self::CURRENT),
-                1 => (0_u32..10).prop_map(Self),
-            ]
-            .boxed()
-        }
-    }
-}
 
 #[cfg(test)]
 mod test {
-    use std::{ops::Deref, rc::Rc};
+    use std::{ops::Deref, rc::Rc, time::Duration};
 
     use proptest::{proptest, strategy::Strategy};
 
     use super::*;
-    use crate::ffs::{FlatFileFs, test::MockFfs};
+    use crate::{
+        db::{DbPersister, WritebackDb},
+        ffs::{FlatFileFs, test::MockFfs},
+    };
 
     #[test]
     fn test_load_hardcoded() {
@@ -378,7 +122,7 @@ mod test {
         "#;
         let ffs = MockFfs::new();
         ffs.write(SETTINGS_JSON, settings_str.as_bytes()).unwrap();
-        let settings = Settings::load(&ffs);
+        let settings: Settings = DbPersister::load(&ffs, SETTINGS_JSON);
         assert_eq!(settings.schema, SchemaVersion(1));
         assert_eq!(settings.locale, None);
         assert_eq!(settings.fiat_currency, Some(IsoCurrencyCode::USD));
@@ -396,7 +140,10 @@ mod test {
 
     impl ModelDb {
         fn load(ffs: Rc<MockFfs>) -> Self {
-            let settings = Settings::load(ffs.as_ref());
+            let settings = DbPersister::<MockFfs, Settings>::load(
+                ffs.as_ref(),
+                SETTINGS_JSON,
+            );
             Self { ffs, settings }
         }
         fn read(&self) -> Settings {
@@ -404,14 +151,18 @@ mod test {
         }
         fn reset(&mut self) {
             self.settings = Settings::default();
-            self.ffs
-                .write(SETTINGS_JSON, &self.settings.serialize_json().unwrap())
-                .unwrap();
+            let data = DbPersister::<MockFfs, Settings>::serialize_json(
+                &self.settings,
+            )
+            .unwrap();
+            self.ffs.write(SETTINGS_JSON, &data).unwrap();
         }
         fn update(&mut self, update: Settings) -> anyhow::Result<()> {
             self.settings.update(update)?;
-            self.ffs
-                .write(SETTINGS_JSON, &self.settings.serialize_json()?)?;
+            let data = DbPersister::<MockFfs, Settings>::serialize_json(
+                &self.settings,
+            )?;
+            self.ffs.write(SETTINGS_JSON, &data)?;
             Ok(())
         }
     }
@@ -453,13 +204,17 @@ mod test {
         });
     }
 
+    fn load_db(ffs: FlatFileFs) -> WritebackDb<Settings> {
+        WritebackDb::<Settings>::load(ffs, SETTINGS_JSON, "test")
+    }
+
     async fn test_prop_model_inner(ops: Vec<Op>) {
         let model_ffs = Rc::new(MockFfs::new());
         let mut model = ModelDb::load(model_ffs.clone());
 
         let tmpdir = tempfile::tempdir().unwrap();
         let ffs = FlatFileFs::create_dir_all(tmpdir.path().to_owned()).unwrap();
-        let mut real = SettingsDb::load(ffs.clone());
+        let mut real = load_db(ffs.clone());
 
         for op in ops {
             match op {
@@ -481,7 +236,7 @@ mod test {
                     model = ModelDb::load(model_ffs.clone());
 
                     real.shutdown().await.unwrap();
-                    real = SettingsDb::load(ffs.clone());
+                    real = load_db(ffs.clone());
                 }
                 Op::Sleep(duration) => {
                     tokio::time::sleep(duration).await;
@@ -499,11 +254,8 @@ mod test {
         let tmpdir = tempfile::tempdir().unwrap();
         let ffs = FlatFileFs::create_dir_all(tmpdir.path().to_owned()).unwrap();
         {
-            let mut db = SettingsDb::load(ffs.clone());
-            assert_eq!(
-                db.settings.lock().unwrap().deref(),
-                &Settings::default()
-            );
+            let mut db = load_db(ffs.clone());
+            assert_eq!(db.db().lock().unwrap().deref(), &Settings::default());
 
             // update: locale=USD
             db.update(Settings {
@@ -512,7 +264,7 @@ mod test {
             })
             .unwrap();
             assert_eq!(
-                db.settings.lock().unwrap().deref(),
+                db.db().lock().unwrap().deref(),
                 &Settings {
                     locale: Some("USD".to_owned()),
                     ..Default::default()
@@ -526,7 +278,7 @@ mod test {
             })
             .unwrap();
             assert_eq!(
-                db.settings.lock().unwrap().deref(),
+                db.db().lock().unwrap().deref(),
                 &Settings {
                     locale: Some("USD".to_owned()),
                     fiat_currency: Some(IsoCurrencyCode::USD),
@@ -545,7 +297,7 @@ mod test {
             .unwrap();
 
             assert_eq!(
-                db.settings.lock().unwrap().deref(),
+                db.db().lock().unwrap().deref(),
                 &Settings {
                     locale: Some("USD".to_owned()),
                     fiat_currency: Some(IsoCurrencyCode::USD),
@@ -568,7 +320,7 @@ mod test {
             .unwrap();
 
             assert_eq!(
-                db.settings.lock().unwrap().deref(),
+                db.db().lock().unwrap().deref(),
                 &Settings {
                     locale: Some("USD".to_owned()),
                     fiat_currency: Some(IsoCurrencyCode::USD),
@@ -584,9 +336,9 @@ mod test {
         }
 
         {
-            let mut db = SettingsDb::load(ffs.clone());
+            let mut db = load_db(ffs.clone());
             assert_eq!(
-                db.settings.lock().unwrap().deref(),
+                db.db().lock().unwrap().deref(),
                 &Settings {
                     locale: Some("USD".to_owned()),
                     fiat_currency: Some(IsoCurrencyCode::USD),

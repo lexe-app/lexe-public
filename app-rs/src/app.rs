@@ -37,11 +37,12 @@ use tracing::{info, info_span, instrument, warn};
 
 use crate::{
     client::{Credentials, GatewayClient, NodeClient},
+    db::WritebackDb,
     ffs::{Ffs, FlatFileFs},
     payments::{self, PaymentDb, PaymentSyncSummary},
     provision_history::ProvisionHistory,
     secret_store::SecretStore,
-    settings::SettingsDb,
+    settings::Settings,
     types::GDriveSignupCredentials,
 };
 
@@ -55,7 +56,7 @@ pub struct App {
     payment_sync_lock: tokio::sync::Mutex<()>,
 
     /// App settings
-    settings_db: Arc<SettingsDb>,
+    settings_db: Arc<WritebackDb<Settings>>,
 
     /// Some misc. info needed for user support / user account deletion.
     user_info: AppUserInfoRs,
@@ -140,7 +141,7 @@ impl App {
         let settings_ffs =
             FlatFileFs::create_clean_dir_all(user_config.settings_db_dir())
                 .context("Could not create settings ffs")?;
-        let settings_db = Arc::new(SettingsDb::load(settings_ffs));
+        let settings_db = Arc::new(Settings::load(settings_ffs));
 
         // Create new payments DB
         let payments_ffs =
@@ -273,7 +274,7 @@ impl App {
         let settings_ffs =
             FlatFileFs::create_dir_all(user_config.settings_db_dir())
                 .context("Could not create settings ffs")?;
-        let settings_db = Arc::new(SettingsDb::load(settings_ffs));
+        let settings_db = Arc::new(Settings::load(settings_ffs));
 
         // Load payments DB
         let payments_ffs =
@@ -409,7 +410,7 @@ impl App {
         let settings_ffs =
             FlatFileFs::create_dir_all(user_config.settings_db_dir())
                 .context("Could not create settings ffs")?;
-        let settings_db = Arc::new(SettingsDb::load(settings_ffs));
+        let settings_db = Arc::new(Settings::load(settings_ffs));
 
         // Create new payments DB
         let payments_ffs =
@@ -484,7 +485,7 @@ impl App {
     }
 
     #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
-    pub(crate) fn settings_db(&self) -> Arc<SettingsDb> {
+    pub(crate) fn settings_db(&self) -> Arc<WritebackDb<Settings>> {
         self.settings_db.clone()
     }
 

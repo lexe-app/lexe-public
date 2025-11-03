@@ -56,8 +56,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       wire._rust_arc_decrement_strong_count_RustOpaque_SecretStoreRsPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_SettingsDbRsPtr =>
-      wire._rust_arc_decrement_strong_count_RustOpaque_SettingsDbRsPtr;
+  get rust_arc_decrement_strong_count_WritebackDbRsSettingsRsPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsSettingsRsPtr;
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
@@ -94,7 +94,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   SecretStoreRs dco_decode_RustOpaque_SecretStoreRs(dynamic raw);
 
   @protected
-  SettingsDbRs dco_decode_RustOpaque_SettingsDbRs(dynamic raw);
+  WritebackDbRsSettingsRs dco_decode_RustOpaque_WritebackDbRsSettingsRs(
+    dynamic raw,
+  );
 
   @protected
   RustStreamSink<String> dco_decode_StreamSink_String_Sse(dynamic raw);
@@ -588,7 +590,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  SettingsDbRs sse_decode_RustOpaque_SettingsDbRs(SseDeserializer deserializer);
+  WritebackDbRsSettingsRs sse_decode_RustOpaque_WritebackDbRsSettingsRs(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RustStreamSink<String> sse_decode_StreamSink_String_Sse(
@@ -1190,8 +1194,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  void sse_encode_RustOpaque_SettingsDbRs(
-    SettingsDbRs self,
+  void sse_encode_RustOpaque_WritebackDbRsSettingsRs(
+    WritebackDbRsSettingsRs self,
     SseSerializer serializer,
   );
 
@@ -2052,31 +2056,35 @@ class AppRsWire implements BaseWire {
       _rust_arc_decrement_strong_count_RustOpaque_SecretStoreRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
-  void rust_arc_increment_strong_count_RustOpaque_SettingsDbRs(
+  void rust_arc_increment_strong_count_RustOpaque_WritebackDbRsSettingsRs(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_increment_strong_count_RustOpaque_SettingsDbRs(ptr);
+    return _rust_arc_increment_strong_count_RustOpaque_WritebackDbRsSettingsRs(
+      ptr,
+    );
   }
 
-  late final _rust_arc_increment_strong_count_RustOpaque_SettingsDbRsPtr =
+  late final _rust_arc_increment_strong_count_RustOpaque_WritebackDbRsSettingsRsPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-        'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_SettingsDbRs',
+        'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_WritebackDbRsSettingsRs',
       );
-  late final _rust_arc_increment_strong_count_RustOpaque_SettingsDbRs =
-      _rust_arc_increment_strong_count_RustOpaque_SettingsDbRsPtr
+  late final _rust_arc_increment_strong_count_RustOpaque_WritebackDbRsSettingsRs =
+      _rust_arc_increment_strong_count_RustOpaque_WritebackDbRsSettingsRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
-  void rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs(
+  void rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsSettingsRs(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs(ptr);
+    return _rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsSettingsRs(
+      ptr,
+    );
   }
 
-  late final _rust_arc_decrement_strong_count_RustOpaque_SettingsDbRsPtr =
+  late final _rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsSettingsRsPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-        'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs',
+        'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsSettingsRs',
       );
-  late final _rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs =
-      _rust_arc_decrement_strong_count_RustOpaque_SettingsDbRsPtr
+  late final _rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsSettingsRs =
+      _rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsSettingsRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 }

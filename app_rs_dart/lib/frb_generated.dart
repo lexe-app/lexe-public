@@ -421,12 +421,13 @@ abstract class AppRsApi extends BaseApi {
   get rust_arc_decrement_strong_count_SecretStoreRsPtr;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_SettingsDbRs;
+  get rust_arc_increment_strong_count_WritebackDbRsSettingsRs;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_SettingsDbRs;
+  get rust_arc_decrement_strong_count_WritebackDbRsSettingsRs;
 
-  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SettingsDbRsPtr;
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_WritebackDbRsSettingsRsPtr;
 }
 
 class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
@@ -2758,12 +2759,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       wire.rust_arc_decrement_strong_count_RustOpaque_SecretStoreRs;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_SettingsDbRs =>
-      wire.rust_arc_increment_strong_count_RustOpaque_SettingsDbRs;
+  get rust_arc_increment_strong_count_WritebackDbRsSettingsRs =>
+      wire.rust_arc_increment_strong_count_RustOpaque_WritebackDbRsSettingsRs;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_SettingsDbRs =>
-      wire.rust_arc_decrement_strong_count_RustOpaque_SettingsDbRs;
+  get rust_arc_decrement_strong_count_WritebackDbRsSettingsRs =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsSettingsRs;
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
@@ -2838,9 +2839,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  SettingsDbRs dco_decode_RustOpaque_SettingsDbRs(dynamic raw) {
+  WritebackDbRsSettingsRs dco_decode_RustOpaque_WritebackDbRsSettingsRs(
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return SettingsDbRsImpl.frbInternalDcoDecode(raw as List<dynamic>);
+    return WritebackDbRsSettingsRsImpl.frbInternalDcoDecode(
+      raw as List<dynamic>,
+    );
   }
 
   @protected
@@ -4013,7 +4018,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SettingsDb(inner: dco_decode_RustOpaque_SettingsDbRs(arr[0]));
+    return SettingsDb(
+      inner: dco_decode_RustOpaque_WritebackDbRsSettingsRs(arr[0]),
+    );
   }
 
   @protected
@@ -4211,11 +4218,11 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  SettingsDbRs sse_decode_RustOpaque_SettingsDbRs(
+  WritebackDbRsSettingsRs sse_decode_RustOpaque_WritebackDbRsSettingsRs(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return SettingsDbRsImpl.frbInternalSseDecode(
+    return WritebackDbRsSettingsRsImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -5581,7 +5588,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @protected
   SettingsDb sse_decode_settings_db(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_inner = sse_decode_RustOpaque_SettingsDbRs(deserializer);
+    var var_inner = sse_decode_RustOpaque_WritebackDbRsSettingsRs(deserializer);
     return SettingsDb(inner: var_inner);
   }
 
@@ -5783,13 +5790,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  void sse_encode_RustOpaque_SettingsDbRs(
-    SettingsDbRs self,
+  void sse_encode_RustOpaque_WritebackDbRsSettingsRs(
+    WritebackDbRsSettingsRs self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-      (self as SettingsDbRsImpl).frbInternalSseEncode(move: null),
+      (self as WritebackDbRsSettingsRsImpl).frbInternalSseEncode(move: null),
       serializer,
     );
   }
@@ -7018,7 +7025,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @protected
   void sse_encode_settings_db(SettingsDb self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_RustOpaque_SettingsDbRs(self.inner, serializer);
+    sse_encode_RustOpaque_WritebackDbRsSettingsRs(self.inner, serializer);
   }
 
   @protected
@@ -7255,21 +7262,30 @@ class SecretStoreRsImpl extends RustOpaque implements SecretStoreRs {
 }
 
 @sealed
-class SettingsDbRsImpl extends RustOpaque implements SettingsDbRs {
+class WritebackDbRsSettingsRsImpl extends RustOpaque
+    implements WritebackDbRsSettingsRs {
   // Not to be used by end users
-  SettingsDbRsImpl.frbInternalDcoDecode(List<dynamic> wire)
+  WritebackDbRsSettingsRsImpl.frbInternalDcoDecode(List<dynamic> wire)
     : super.frbInternalDcoDecode(wire, _kStaticData);
 
   // Not to be used by end users
-  SettingsDbRsImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
-    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+  WritebackDbRsSettingsRsImpl.frbInternalSseDecode(
+    BigInt ptr,
+    int externalSizeOnNative,
+  ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount:
-        AppRs.instance.api.rust_arc_increment_strong_count_SettingsDbRs,
-    rustArcDecrementStrongCount:
-        AppRs.instance.api.rust_arc_decrement_strong_count_SettingsDbRs,
-    rustArcDecrementStrongCountPtr:
-        AppRs.instance.api.rust_arc_decrement_strong_count_SettingsDbRsPtr,
+    rustArcIncrementStrongCount: AppRs
+        .instance
+        .api
+        .rust_arc_increment_strong_count_WritebackDbRsSettingsRs,
+    rustArcDecrementStrongCount: AppRs
+        .instance
+        .api
+        .rust_arc_decrement_strong_count_WritebackDbRsSettingsRs,
+    rustArcDecrementStrongCountPtr: AppRs
+        .instance
+        .api
+        .rust_arc_decrement_strong_count_WritebackDbRsSettingsRsPtr,
   );
 }
