@@ -420,8 +420,8 @@ pub trait AppNodeRunApi {
 
     /// Update current user's payment address.
     ///
-    /// PUT /app/payment_address [`UpdatePaymentAddress`] ->
-    /// [`PaymentAddress`]
+    /// PUT /app/payment_address [`UpdatePaymentAddress`]
+    ///                       -> [`PaymentAddress`]
     async fn update_payment_address(
         &self,
         req: UpdatePaymentAddress,
