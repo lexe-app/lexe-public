@@ -108,9 +108,9 @@ use crate::{
             LnurlPayRequestWire,
         },
         payments::{
-            DbPaymentMetadata, DbPaymentV1, DbPaymentV2, MaybeDbPaymentV1,
-            VecBasicPayment, VecDbPaymentMetadata, VecDbPaymentV1,
-            VecDbPaymentV2,
+            DbPaymentMetadata, DbPaymentV1, DbPaymentV2,
+            MaybeDbPaymentMetadata, MaybeDbPaymentV1, VecBasicPayment,
+            VecDbPaymentMetadata, VecDbPaymentV1, VecDbPaymentV2,
         },
         ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
@@ -809,6 +809,16 @@ pub trait NodeBackendApi {
         payments: VecDbPaymentMetadata,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
+
+    /// GET /node/v1/payments/metadata/id [`LxPaymentIdStruct`]
+    ///                                -> [`MaybeDbPaymentMetadata`]
+    ///
+    /// Fetch a payment metadata by its [`LxPaymentId`].
+    async fn get_payment_metadata_by_id(
+        &self,
+        req: LxPaymentIdStruct,
+        token: BearerAuthToken,
+    ) -> Result<MaybeDbPaymentMetadata, BackendApiError>;
 
     /// POST /node/v1/payments/metadata/ids [`VecLxPaymentId`]
     ///                                  -> [`VecDbPaymentMetadata`]
