@@ -35,8 +35,8 @@ use lexe_api::{
     types::{
         Empty,
         payments::{
-            DbPaymentV1, DbPaymentV2, MaybeDbPaymentV1, VecDbPaymentMetadata,
-            VecDbPaymentV1, VecDbPaymentV2,
+            DbPaymentMetadata, DbPaymentV1, DbPaymentV2, MaybeDbPaymentV1,
+            VecDbPaymentMetadata, VecDbPaymentV1, VecDbPaymentV2,
         },
         ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
@@ -624,6 +624,19 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .get(format!("{backend}/node/v1/payments/final"), &data)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn upsert_payment_metadata(
+        &self,
+        metadata: DbPaymentMetadata,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .put(format!("{backend}/node/v1/payments/metadata"), &metadata)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
