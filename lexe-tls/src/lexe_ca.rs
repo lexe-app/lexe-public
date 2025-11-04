@@ -36,7 +36,8 @@ pub fn app_gateway_client_config(
 /// Get the appropriate DER-encoded Lexe CA cert for this deploy environment.
 pub fn lexe_ca_cert(deploy_env: DeployEnv) -> LxCertificateDer {
     match deploy_env {
-        DeployEnv::Dev => dummy_lexe_ca_cert().cert_der,
+        DeployEnv::Dev =>
+            LxCertificateDer(constants::LEXE_DUMMY_CA_CERT_DER.to_vec()),
         DeployEnv::Staging =>
             LxCertificateDer(constants::LEXE_STAGING_CA_CERT_DER.to_vec()),
         DeployEnv::Prod =>
@@ -83,25 +84,17 @@ pub fn lexe_client_verifier(
     .expect("Checked in tests")
 }
 
+fn dummy_lexe_ca_key_pair() -> ed25519::KeyPair {
+    ed25519::KeyPair::from_seed_owned([69; 32])
+}
+
 /// Get a dummy Lexe CA cert along with its corresponding private key.
 pub fn dummy_lexe_ca_cert() -> CertWithKey {
-    let dummy_cert = super::build_rcgen_cert(
-        "Lexe CA cert",
-        rcgen::date_time_ymd(1975, 1, 1),
-        rcgen::date_time_ymd(4096, 1, 1),
-        super::DEFAULT_SUBJECT_ALT_NAMES.clone(),
-        &ed25519::KeyPair::from_seed_owned([69; 32]),
-        |params: &mut rcgen::CertificateParams| {
-            params.is_ca =
-                rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
-            params.name_constraints = None;
-        },
-    );
-    let dummy_cert_der =
-        dummy_cert.serialize_der().map(LxCertificateDer).unwrap();
+    let dummy_key_pair = dummy_lexe_ca_key_pair();
     let dummy_cert_key_der =
-        LxPrivatePkcs8KeyDer(dummy_cert.serialize_private_key_der());
-
+        LxPrivatePkcs8KeyDer(dummy_key_pair.serialize_pkcs8_der().to_vec());
+    let dummy_cert_der =
+        LxCertificateDer(constants::LEXE_DUMMY_CA_CERT_DER.to_vec());
     CertWithKey {
         cert_der: dummy_cert_der,
         cert_chain_der: vec![],
@@ -115,6 +108,33 @@ mod test {
 
     use super::*;
 
+    /// Generate a dummy Lexe CA cert along with its corresponding private key.
+    fn gen_dummy_lexe_ca_cert() -> CertWithKey {
+        let dummy_key_pair = dummy_lexe_ca_key_pair();
+        let dummy_cert = crate::build_rcgen_cert(
+            "Lexe CA cert",
+            rcgen::date_time_ymd(1975, 1, 1),
+            rcgen::date_time_ymd(4096, 1, 1),
+            crate::DEFAULT_SUBJECT_ALT_NAMES.clone(),
+            &dummy_key_pair,
+            |params: &mut rcgen::CertificateParams| {
+                params.is_ca =
+                    rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+                params.name_constraints = None;
+            },
+        );
+        let dummy_cert_der =
+            dummy_cert.serialize_der().map(LxCertificateDer).unwrap();
+        let dummy_cert_key_der =
+            LxPrivatePkcs8KeyDer(dummy_cert.serialize_private_key_der());
+
+        CertWithKey {
+            cert_der: dummy_cert_der,
+            cert_chain_der: vec![],
+            key_der: dummy_cert_key_der,
+        }
+    }
+
     #[test]
     fn verifier_helpers_dont_panic() {
         let config = Config::with_cases(4);
@@ -122,5 +142,31 @@ mod test {
             lexe_server_verifier(deploy_env);
             lexe_client_verifier(deploy_env);
         })
+    }
+
+    #[test]
+    fn test_dummy_lexe_ca_cert_eq() {
+        let cert1 = gen_dummy_lexe_ca_cert().cert_der.0;
+        let cert2 = std::fs::read("../common/data/lexe-dummy-root-ca-cert.der")
+            .unwrap();
+        assert_eq!(
+            cert1, cert2,
+            "The generated dummy Lexe CA cert doesn't match the checked in \
+             version. Regenerate it:\n\
+             \n\
+             $ cargo test -p lexe-tls -- --ignored dump_dummy_lexe_ca\n\
+             \n"
+        );
+    }
+
+    /// ```bash
+    /// $ cargo test -p lexe-tls -- --ignored dump_dummy_lexe_ca_cert
+    /// ```
+    #[ignore]
+    #[test]
+    fn dump_dummy_lexe_ca_cert() {
+        let cert = gen_dummy_lexe_ca_cert().cert_der;
+        std::fs::write("../common/data/lexe-dummy-root-ca-cert.der", &cert.0)
+            .unwrap();
     }
 }

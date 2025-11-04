@@ -193,6 +193,13 @@ pub const LEXE_PROD_CA_CERT_DER: &[u8] =
 pub const LEXE_STAGING_CA_CERT_DER: &[u8] =
     include_bytes!("../data/lexe-staging-root-ca-cert.der");
 
+/// The Lexe dummy CA used in local testing and development.
+// Serial Number : 37:80:43:1e:b3:5c:74:e0:c4:1a:3d:45:2a:be:d0:bb:83:14:f3:6a
+//    Not Before : Jan  1 00:00:00 1975 GMT
+//     Not After : Jan  1 00:00:00 4096 GMT
+pub const LEXE_DUMMY_CA_CERT_DER: &[u8] =
+    include_bytes!("../data/lexe-dummy-root-ca-cert.der");
+
 /// Google Trust Services Root R1 (RSA), used by `googleapis.com` and
 /// `dns.google`.
 // `curl https://i.pki.goog/r1.crt -o common/data/google-trust-services-root-r1-ca-cert.der`
