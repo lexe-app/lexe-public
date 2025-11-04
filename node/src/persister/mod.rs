@@ -62,8 +62,8 @@ use lexe_api::{
     types::{
         Empty,
         payments::{
-            BasicPayment, DbPaymentV1, LxPaymentId, PaymentCreatedIndex,
-            VecDbPaymentV1,
+            BasicPayment, DbPaymentV1, DbPaymentV2, LxPaymentId,
+            PaymentCreatedIndex, VecDbPaymentV2,
         },
     },
     vfs::{
@@ -793,7 +793,8 @@ impl LexeInnerPersister for NodePersister {
 
         let mut rng = SysRng::new();
         let updated_at = TimestampMs::now();
-        let batch = checked_batch
+        let updated_at_i64 = updated_at.to_i64();
+        let payments = checked_batch
             .iter()
             .map(|CheckedPayment(payment)| {
                 payments::encrypt(
@@ -804,11 +805,13 @@ impl LexeInnerPersister for NodePersister {
                 )
             })
             .map(DbPaymentV1::from)
-            .collect::<Vec<DbPaymentV1>>();
+            .map(|p| DbPaymentV2::from_v1(p, updated_at_i64))
+            .collect();
+        let batch = VecDbPaymentV2 { payments };
 
         let token = self.get_token().await?;
         self.backend_api
-            .upsert_payment_batch_v1(VecDbPaymentV1 { payments: batch }, token)
+            .upsert_payment_batch(batch, token)
             .await
             .context("upsert_payment API call failed")?;
 

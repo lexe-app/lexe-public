@@ -710,6 +710,7 @@ pub trait NodeBackendApi {
     /// PUT /node/v1/payments/batch [`VecDbPaymentV1`] -> [`Empty`]
     ///
     /// ACID endpoint for upserting a batch of payments.
+    #[deprecated(note = "since node-v0.8.8: Use upsert_payment_batch instead")]
     async fn upsert_payment_batch_v1(
         &self,
         payments: VecDbPaymentV1,
