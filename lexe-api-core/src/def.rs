@@ -792,6 +792,19 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<VecLxPaymentId, BackendApiError>;
 
+    /// POST /node/v1/payments/metadata/ids [`VecLxPaymentId`]
+    ///                                  -> [`VecDbPaymentMetadata`]
+    ///
+    /// Fetch a batch of payment metadata by their [`LxPaymentId`]s.
+    //
+    // We use POST because there may be a lot of ids,
+    // which might be too large to fit inside query params.
+    async fn get_payment_metadata_by_ids(
+        &self,
+        req: VecLxPaymentId,
+        token: BearerAuthToken,
+    ) -> Result<VecDbPaymentMetadata, BackendApiError>;
+
     /// GET /node/v1/payments/metadata/updated [`GetUpdatedPaymentMetadata`]
     ///                                     -> [`VecDbPaymentMetadata`]
     ///

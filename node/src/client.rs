@@ -628,6 +628,19 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
+    async fn get_payment_metadata_by_ids(
+        &self,
+        req: VecLxPaymentId,
+        auth: BearerAuthToken,
+    ) -> Result<VecDbPaymentMetadata, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .post(format!("{backend}/node/v1/payments/metadata/ids"), &req)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
     async fn get_updated_payment_metadata(
         &self,
         req: GetUpdatedPaymentMetadata,
