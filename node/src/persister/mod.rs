@@ -808,7 +808,7 @@ impl LexeInnerPersister for NodePersister {
 
         let token = self.get_token().await?;
         self.backend_api
-            .upsert_payment_batch(VecDbPaymentV1 { payments: batch }, token)
+            .upsert_payment_batch_v1(VecDbPaymentV1 { payments: batch }, token)
             .await
             .context("upsert_payment API call failed")?;
 

@@ -524,7 +524,7 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn upsert_payment_batch(
+    async fn upsert_payment_batch_v1(
         &self,
         payments: VecDbPaymentV1,
         auth: BearerAuthToken,
