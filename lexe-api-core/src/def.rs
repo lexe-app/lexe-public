@@ -716,6 +716,15 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
+    /// PUT /node/v2/payments/batch [`VecDbPaymentV2`] -> [`Empty`]
+    ///
+    /// ACID endpoint for upserting a batch of payments.
+    async fn upsert_payment_batch(
+        &self,
+        payments: VecDbPaymentV2,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError>;
+
     /// POST /node/v1/payments/indexes [`PaymentCreatedIndexes`]
     ///                             -> [`VecDbPaymentV1`]
     ///
