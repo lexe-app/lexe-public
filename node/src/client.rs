@@ -641,6 +641,17 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
+    async fn upsert_payment_metadata_batch(
+        &self,
+        payments: VecDbPaymentMetadata,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError> {
+        let backend = &self.backend_url;
+        let url = format!("{backend}/node/v1/payments/metadata/batch");
+        let req = self.rest.put(url, &payments).bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
     async fn get_payment_metadata_by_ids(
         &self,
         req: VecLxPaymentId,

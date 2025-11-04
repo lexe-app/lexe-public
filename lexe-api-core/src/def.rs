@@ -800,6 +800,16 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
+    /// PUT /node/v1/payments/metadata/batch [`VecDbPaymentMetadata`]
+    ///                                   -> [`Empty`]
+    ///
+    /// ACID endpoint for upserting a batch of payments metadata.
+    async fn upsert_payment_metadata_batch(
+        &self,
+        payments: VecDbPaymentMetadata,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError>;
+
     /// POST /node/v1/payments/metadata/ids [`VecLxPaymentId`]
     ///                                  -> [`VecDbPaymentMetadata`]
     ///
