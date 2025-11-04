@@ -56,8 +56,8 @@ use lexe_api::{
     def::NodeBackendApi,
     error::{BackendApiError, BackendErrorKind},
     models::command::{
-        GetNewPayments, GetUpdatedPayments, PaymentCreatedIndexStruct,
-        PaymentCreatedIndexes, PaymentIdStruct,
+        GetNewPayments, GetUpdatedPayments, LxPaymentIdStruct,
+        PaymentCreatedIndexStruct, PaymentCreatedIndexes,
     },
     types::{
         Empty,
@@ -826,7 +826,7 @@ impl LexeInnerPersister for NodePersister {
         &self,
         id: LxPaymentId,
     ) -> anyhow::Result<Option<Payment>> {
-        let req = PaymentIdStruct { id };
+        let req = LxPaymentIdStruct { id };
         let token = self.get_token().await?;
         let maybe_payment = self
             .backend_api

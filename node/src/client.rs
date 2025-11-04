@@ -26,8 +26,8 @@ use lexe_api::{
     models::{
         command::{
             GetNewPayments, GetUpdatedPaymentMetadata, GetUpdatedPayments,
-            PaymentAddress, PaymentCreatedIndexStruct, PaymentCreatedIndexes,
-            PaymentIdStruct, UpdatePaymentAddress, VecLxPaymentId,
+            LxPaymentIdStruct, PaymentAddress, PaymentCreatedIndexStruct,
+            PaymentCreatedIndexes, UpdatePaymentAddress, VecLxPaymentId,
         },
         runner::{UserFinishedRequest, UserLeaseRenewalRequest},
     },
@@ -500,7 +500,7 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn get_payment_by_id(
         &self,
-        req: PaymentIdStruct,
+        req: LxPaymentIdStruct,
         auth: BearerAuthToken,
     ) -> Result<MaybeDbPaymentV1, BackendApiError> {
         let backend = &self.backend_url;

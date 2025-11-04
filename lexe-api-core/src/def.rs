@@ -82,11 +82,11 @@ use crate::{
             BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
             GetAddressResponse, GetNewPayments, GetUpdatedPaymentMetadata,
-            GetUpdatedPayments, ListChannelsResponse, NodeInfo,
-            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentAddress,
-            PaymentCreatedIndexStruct, PaymentCreatedIndexes, PaymentIdStruct,
+            GetUpdatedPayments, ListChannelsResponse, LxPaymentIdStruct,
+            NodeInfo, OpenChannelRequest, OpenChannelResponse,
+            PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
+            PayOfferResponse, PayOnchainRequest, PayOnchainResponse,
+            PaymentAddress, PaymentCreatedIndexStruct, PaymentCreatedIndexes,
             PreflightCloseChannelRequest, PreflightCloseChannelResponse,
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
@@ -693,10 +693,10 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
-    /// GET /node/v1/payments/id [`PaymentIdStruct`] -> [`MaybeDbPaymentV1`]
+    /// GET /node/v1/payments/id [`LxPaymentIdStruct`] -> [`MaybeDbPaymentV1`]
     async fn get_payment_by_id(
         &self,
-        req: PaymentIdStruct,
+        req: LxPaymentIdStruct,
         auth: BearerAuthToken,
     ) -> Result<MaybeDbPaymentV1, BackendApiError>;
 

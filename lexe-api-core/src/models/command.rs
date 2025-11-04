@@ -172,7 +172,7 @@ pub struct PreflightCloseChannelResponse {
 /// Upgradeable API struct for a [`LxPaymentId`].
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct PaymentIdStruct {
+pub struct LxPaymentIdStruct {
     /// The id of the payment to be fetched.
     pub id: LxPaymentId,
 }
@@ -561,7 +561,7 @@ mod test {
 
     #[test]
     fn payment_id_struct_roundtrip() {
-        query_string_roundtrip_proptest::<PaymentIdStruct>();
+        query_string_roundtrip_proptest::<LxPaymentIdStruct>();
     }
 
     #[test]
