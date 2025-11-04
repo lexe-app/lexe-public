@@ -74,13 +74,16 @@
 //! Example with tag: `alice+tips@example.com`
 //!   => `https://example.com/.well-known/lnurlp/alice+tips`
 
-use std::{str::FromStr, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow, ensure};
 use common::{constants, env::DeployEnv, ln::amount::Amount};
 use lexe_api_core::types::{
     invoice::LxInvoice,
-    lnurl::{LnurlPayRequest, LnurlPayRequestMetadata},
+    lnurl::{
+        LnurlCallbackResponse, LnurlErrorWire, LnurlPayRequest,
+        LnurlPayRequestMetadata, LnurlPayRequestWire,
+    },
 };
 use lexe_tls_core::rustls::{self, RootCertStore, pki_types::CertificateDer};
 use serde::Deserialize;
@@ -94,21 +97,6 @@ pub(crate) const LNURL_HTTP_TIMEOUT: Duration = Duration::from_secs(10);
 /// A client for LNURL-pay and Lightning Address requests.
 /// Trusts Mozilla's webpki roots.
 pub struct LnurlClient(reqwest::Client);
-
-/// An LNURL error response.
-#[derive(Deserialize)]
-struct RawErrorResponse {
-    #[allow(dead_code)]
-    status: Status,
-    reason: String,
-}
-
-/// An LNURL `status` field.
-#[derive(Deserialize)]
-enum Status {
-    #[serde(rename = "ERROR")]
-    Error,
-}
 
 impl LnurlClient {
     pub fn new(deploy_env: DeployEnv) -> anyhow::Result<Self> {
@@ -157,24 +145,8 @@ impl LnurlClient {
         #[derive(Deserialize)]
         #[serde(untagged)]
         enum RawResponse {
-            PayRequest(RawPayRequest),
-            ErrorResponse(RawErrorResponse),
-        }
-
-        #[derive(Deserialize)]
-        struct RawPayRequest {
-            callback: String,
-            #[serde(rename = "minSendable")]
-            min_sendable_msat: u64,
-            #[serde(rename = "maxSendable")]
-            max_sendable_msat: u64,
-            /// Raw metadata string (JSON-encoded array).
-            ///
-            /// Example: `"[[\\"text/plain\\",\\"description\\"]]"`.
-            /// Preserved for SHA256 hashing into the `description_hash`.
-            metadata: String,
-            /// Tag (should be "payRequest").
-            tag: String,
+            PayRequest(LnurlPayRequestWire),
+            Error(LnurlErrorWire),
         }
 
         let raw_response = self
@@ -187,19 +159,18 @@ impl LnurlClient {
             .await
             .context("Failed to parse LNURL-pay response")?;
 
-        let raw_pay_req = match raw_response {
+        let pay_req_wire = match raw_response {
             RawResponse::PayRequest(x) => x,
-            RawResponse::ErrorResponse(RawErrorResponse { reason, .. }) => {
-                return Err(anyhow!("LNURL-pay endpoint: {reason}"));
-            }
+            RawResponse::Error(LnurlErrorWire { reason, .. }) =>
+                return Err(anyhow!("LNURL-pay endpoint: {reason}")),
         };
-        let RawPayRequest {
+        let LnurlPayRequestWire {
             callback,
             min_sendable_msat,
             max_sendable_msat,
             metadata,
             tag,
-        } = raw_pay_req;
+        } = pay_req_wire;
 
         ensure!(
             tag == "payRequest",
@@ -220,7 +191,6 @@ impl LnurlClient {
         );
 
         let metadata = LnurlPayRequestMetadata::from_raw_string(metadata)?;
-
         debug!(
             %callback, %min_sendable, %max_sendable,
             description = %metadata.description,
@@ -276,19 +246,8 @@ impl LnurlClient {
         #[derive(Deserialize)]
         #[serde(untagged)]
         enum RawResponse {
-            InvoiceResponse(RawInvoiceResponse),
-            ErrorResponse(RawErrorResponse),
-        }
-
-        #[derive(Deserialize)]
-        struct RawInvoiceResponse {
-            pr: String,
-            // The LUD-06 spec mandates a `routes` field (always empty array).
-            // Modern implementations (Breez SDK, Phoenix) ignore it entirely.
-            // It was likely intended for source routing hints but became
-            // redundant since BOLT11 invoices already contain route hints.
-            // We ignore it by not defining it - serde skips unknown fields.
-            // routes: Vec<RouteHint>,
+            Invoice(LnurlCallbackResponse),
+            Error(LnurlErrorWire),
         }
 
         let raw_response = self
@@ -302,15 +261,14 @@ impl LnurlClient {
             .context("Failed to parse LNURL-pay callback response")?;
 
         let raw_invoice_resp = match raw_response {
-            RawResponse::InvoiceResponse(x) => x,
-            RawResponse::ErrorResponse(RawErrorResponse { reason, .. }) => {
-                return Err(anyhow!("LNURL-pay callback: {reason}"));
-            }
+            RawResponse::Invoice(x) => x,
+            RawResponse::Error(LnurlErrorWire { reason, .. }) =>
+                return Err(anyhow!("LNURL-pay callback: {reason}")),
         };
-        let RawInvoiceResponse { pr } = raw_invoice_resp;
-
-        let invoice = LxInvoice::from_str(&pr)
-            .context("Failed to parse invoice from LNURL-pay response")?;
+        let LnurlCallbackResponse {
+            pr: invoice,
+            routes: _,
+        } = raw_invoice_resp;
 
         // Validate amount
         let invoice_amount = invoice

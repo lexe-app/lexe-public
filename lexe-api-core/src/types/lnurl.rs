@@ -27,13 +27,14 @@ pub struct LnurlPayRequest {
     pub metadata: LnurlPayRequestMetadata,
 }
 
-#[derive(Serialize, Deserialize)]
 /// The QueryString parameters internally required in lnurl-pay callbacks.
+#[derive(Serialize, Deserialize)]
 pub struct LnurlCallbackRequest {
     pub username: String,
     /// The amount in millisats. We can't use [`Amount`] here as we don't
     /// control this API definition.
-    pub amount: u64,
+    #[serde(rename = "amount")]
+    pub amount_msat: u64,
 }
 
 #[axum::async_trait]
@@ -109,22 +110,29 @@ impl LnurlError {
 impl IntoResponse for LnurlError {
     fn into_response(self) -> axum::response::Response {
         let status = self.status_code;
-        let error_response = LnurlErrorResponse::from(self);
+        let error_response = LnurlErrorWire::from(self);
         axum_helpers::build_json_response(status, &error_response)
     }
 }
 
 /// Serialized error response for lnurl payment requests and callbacks.
-#[derive(Serialize)]
-pub struct LnurlErrorResponse {
-    pub status: String,
+#[derive(Serialize, Deserialize)]
+pub struct LnurlErrorWire {
+    status: Status,
     pub reason: String,
 }
 
-impl From<LnurlError> for LnurlErrorResponse {
+/// An LNURL `status` field.
+#[derive(Serialize, Deserialize)]
+pub enum Status {
+    #[serde(rename = "ERROR")]
+    Error,
+}
+
+impl From<LnurlError> for LnurlErrorWire {
     fn from(e: LnurlError) -> Self {
         Self {
-            status: "ERROR".to_owned(),
+            status: Status::Error,
             reason: e.reason,
         }
     }
@@ -142,9 +150,11 @@ pub struct LnurlPayRequestWire {
     /// The URL which will accept the pay request parameters.
     pub callback: String,
     /// Max millisatoshi amount willing to receive.
-    pub max_sendable: u64,
+    #[serde(rename = "maxSendable")]
+    pub max_sendable_msat: u64,
     /// Min millisatoshi amount willing to receive.
-    pub min_sendable: u64,
+    #[serde(rename = "minSendable")]
+    pub min_sendable_msat: u64,
     /// Metadata json as raw string (required for signature verification).
     pub metadata: String,
     /// Type of LNURL (always "payRequest").
@@ -155,8 +165,8 @@ impl From<LnurlPayRequest> for LnurlPayRequestWire {
     fn from(value: LnurlPayRequest) -> Self {
         Self {
             callback: value.callback,
-            max_sendable: value.max_sendable.msat(),
-            min_sendable: value.min_sendable.msat(),
+            max_sendable_msat: value.max_sendable.msat(),
+            min_sendable_msat: value.min_sendable.msat(),
             metadata: value.metadata.raw,
             tag: "payRequest".to_owned(),
         }
@@ -167,8 +177,8 @@ impl From<LnurlPayRequestWire> for LnurlPayRequest {
     fn from(value: LnurlPayRequestWire) -> Self {
         Self {
             callback: value.callback,
-            max_sendable: Amount::from_msat(value.max_sendable),
-            min_sendable: Amount::from_msat(value.min_sendable),
+            max_sendable: Amount::from_msat(value.max_sendable_msat),
+            min_sendable: Amount::from_msat(value.min_sendable_msat),
             metadata: LnurlPayRequestMetadata::from_raw_string(value.metadata)
                 .expect("LnurlPayRequestWire should contain valid metadata"),
         }
