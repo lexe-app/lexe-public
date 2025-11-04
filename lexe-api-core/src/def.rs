@@ -664,7 +664,7 @@ pub trait NodeBackendApi {
     /// GET /node/v1/payments [`PaymentCreatedIndexStruct`]
     ///                    -> [`MaybeDbPaymentV1`]
     #[deprecated(note = "since node-v0.8.8: Use get_payment_by_index instead")]
-    async fn get_payment(
+    async fn get_payment_by_index_v1(
         &self,
         req: PaymentCreatedIndexStruct,
         auth: BearerAuthToken,

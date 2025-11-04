@@ -446,7 +446,7 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn get_payment(
+    async fn get_payment_by_index_v1(
         &self,
         req: PaymentCreatedIndexStruct,
         auth: BearerAuthToken,
