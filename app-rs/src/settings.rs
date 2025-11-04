@@ -1,6 +1,6 @@
 //! App settings db, serialization, and persistence.
 
-use anyhow::ensure;
+use anyhow::Context;
 use common::api::fiat_rates::IsoCurrencyCode;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -41,13 +41,9 @@ impl Settings {
 impl Update for Settings {
     /// Merge updated settings from `update` into `self`.
     fn update(&mut self, update: Self) -> anyhow::Result<()> {
-        ensure!(
-            self.schema == update.schema,
-            "Trying to update settings of a different schema version (persisted={}, update={}). \
-             Somehow migrations didn't run?",
-            self.schema.0,
-            update.schema.0,
-        );
+        self.schema
+            .ensure_matches(update.schema)
+            .context("Settings schema version mismatch")?;
 
         self.locale.update(update.locale)?;
         self.fiat_currency.update(update.fiat_currency)?;

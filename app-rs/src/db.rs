@@ -1,6 +1,6 @@
 use std::{io, sync::Arc, time::Duration};
 
-use anyhow::Context;
+use anyhow::{Context, ensure};
 use common::debug_panic_release_log;
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use serde::{Deserialize, Serialize, de};
@@ -266,6 +266,20 @@ impl<T: Update> Update for Option<T> {
 #[cfg_attr(test, derive(Debug))]
 #[serde(transparent)]
 pub(crate) struct SchemaVersion(pub u32);
+
+impl SchemaVersion {
+    pub(crate) fn ensure_matches(self, update: Self) -> anyhow::Result<()> {
+        ensure!(
+            self == update,
+            "Trying to update a db of a different schema version \
+            (persisted={}, update={}). \
+            Somehow migrations didn't run?",
+            self.0,
+            update.0,
+        );
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 mod arb {
