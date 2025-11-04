@@ -47,6 +47,7 @@ use dnssec_prover::{
     query::{ProofBuilder, QueryBuf},
     rr::{Name, RR, TXT_TYPE},
 };
+use lexe_tls_core::rustls::{self, RootCertStore, pki_types::CertificateDer};
 pub use payment_uri_core::*;
 use tracing::debug;
 
@@ -74,7 +75,7 @@ impl Bip353Client {
         // If using the Google DOH endpoint, trust only Google's root CAs.
         // Otherwise, trust all webpki roots, as Cloudflare's CAs are unstable.
         let root_certs = if doh_endpoint == GOOGLE_DOH_ENDPOINT {
-            let mut certs = rustls::RootCertStore::empty();
+            let mut certs = RootCertStore::empty();
             for cert_der in [
                 // Google roots
                 common::constants::GTS_ROOT_R1_CA_CERT_DER,
@@ -83,7 +84,7 @@ impl Bip353Client {
                 common::constants::GTS_ROOT_R4_CA_CERT_DER,
                 common::constants::GS_ROOT_R4_CA_CERT_DER,
             ] {
-                let cert = rustls::pki_types::CertificateDer::from(cert_der);
+                let cert = CertificateDer::from_slice(cert_der);
                 certs
                     .add(cert)
                     .context("Failed to add Google root certificate")?;

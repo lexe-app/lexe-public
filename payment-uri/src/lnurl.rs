@@ -74,15 +74,16 @@
 //! Example with tag: `alice+tips@example.com`
 //!   => `https://example.com/.well-known/lnurlp/alice+tips`
 
-use std::{str::FromStr, time::Duration};
+use std::{str::FromStr, sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow, ensure};
 use bitcoin::hashes::Hash;
-use common::ln::amount::Amount;
+use common::{constants, env::DeployEnv, ln::amount::Amount};
 use lexe_api_core::types::{
     invoice::LxInvoice,
     lnurl::{LnurlPayRequest, LnurlPayRequestMetadata},
 };
+use lexe_tls_core::rustls::{self, RootCertStore, pki_types::CertificateDer};
 use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescriptionRef};
 use serde::Deserialize;
 use tracing::debug;
@@ -97,14 +98,26 @@ pub(crate) const LNURL_HTTP_TIMEOUT: Duration = Duration::from_secs(10);
 pub struct LnurlClient(reqwest::Client);
 
 impl LnurlClient {
-    pub fn new() -> anyhow::Result<Self> {
+    pub fn new(deploy_env: DeployEnv) -> anyhow::Result<Self> {
+        let ca_certs = if deploy_env.is_staging_or_prod() {
+            lexe_tls_core::WEBPKI_ROOT_CERTS.clone()
+        } else {
+            let mut root_store = RootCertStore::empty();
+            root_store
+                .add(CertificateDer::from_slice(
+                    constants::LEXE_DUMMY_CA_CERT_DER,
+                ))
+                .context("Failed to add dummy Lexe CA cert")?;
+            Arc::new(root_store)
+        };
+
         // Use the default ring CryptoProvider with webpki roots for broad
         // compatibility with Lightning Address servers
         #[allow(clippy::disallowed_methods)]
         let tls_config = rustls::ClientConfig::builder_with_protocol_versions(
             lexe_tls_core::LEXE_TLS_PROTOCOL_VERSIONS,
         )
-        .with_root_certificates(lexe_tls_core::WEBPKI_ROOT_CERTS.clone())
+        .with_root_certificates(ca_certs)
         .with_no_client_auth();
 
         let client = reqwest::Client::builder()
@@ -286,6 +299,7 @@ mod test {
     use std::time::Duration;
 
     use common::{
+        env::DeployEnv,
         ln::amount::Amount,
         rng::{Rng, ThreadFastRng},
     };
@@ -318,7 +332,7 @@ mod test {
         let ln_address_url = email_like.lightning_address_url;
         info!("Lightning Address URL: {ln_address_url}");
 
-        let lnurl_client = LnurlClient::new().unwrap();
+        let lnurl_client = LnurlClient::new(DeployEnv::Prod).unwrap();
 
         let pay_request = tokio::time::timeout(
             Duration::from_secs(10),

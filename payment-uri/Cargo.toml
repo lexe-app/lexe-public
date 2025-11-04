@@ -23,7 +23,6 @@ bitcoin.workspace = true
 dnssec-prover = { workspace = true, features = ["std", "tokio", "validation"] }
 lightning-invoice.workspace = true
 reqwest.workspace = true
-rustls.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true

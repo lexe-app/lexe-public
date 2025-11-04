@@ -138,7 +138,7 @@ async fn resolve_payment_methods(
 mod test {
     use std::time::Duration;
 
-    use common::ln::network::LxNetwork;
+    use common::{env::DeployEnv, ln::network::LxNetwork};
     use lexe_std::Apply;
     use tracing::info;
 
@@ -173,7 +173,7 @@ mod test {
 
         let bip353_client =
             bip353::Bip353Client::new(bip353::GOOGLE_DOH_ENDPOINT).unwrap();
-        let lnurl_client = lnurl::LnurlClient::new().unwrap();
+        let lnurl_client = lnurl::LnurlClient::new(DeployEnv::Prod).unwrap();
 
         let payment_method = resolve_best(
             &bip353_client,

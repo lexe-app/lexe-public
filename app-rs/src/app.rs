@@ -88,6 +88,7 @@ impl App {
         let node_key_pair = root_seed.derive_node_key_pair(rng);
         let node_pk = NodePk(node_key_pair.public_key());
         let user_config = UserAppConfig::new(config, user_pk);
+        let deploy_env = user_config.config.deploy_env;
 
         // gen + sign the UserSignupRequestWireV1
         let node_pk_proof = NodePkProof::sign(rng, &node_key_pair);
@@ -128,7 +129,7 @@ impl App {
                 .context("Failed to build BIP353 client")?,
         );
         let lnurl_client = Arc::new(
-            lnurl::LnurlClient::new()
+            lnurl::LnurlClient::new(deploy_env)
                 .context("Failed to build LNURL client")?,
         );
 
@@ -237,6 +238,7 @@ impl App {
         let user_key_pair = root_seed.derive_user_key_pair();
         let user_pk = UserPk::from(*user_key_pair.public_key());
         let user_config = UserAppConfig::new(config, user_pk);
+        let deploy_env = user_config.config.deploy_env;
         let node_key_pair = root_seed.derive_node_key_pair(rng);
         let user_info = AppUserInfoRs::new(rng, user_pk, &node_key_pair);
 
@@ -261,7 +263,7 @@ impl App {
                 .context("Failed to build BIP353 client")?,
         );
         let lnurl_client = Arc::new(
-            lnurl::LnurlClient::new()
+            lnurl::LnurlClient::new(deploy_env)
                 .context("Failed to build LNURL client")?,
         );
 
@@ -374,6 +376,7 @@ impl App {
         let node_key_pair = root_seed.derive_node_key_pair(rng);
         let node_pk = NodePk(node_key_pair.public_key());
         let user_config = UserAppConfig::new(config, user_pk);
+        let deploy_env = user_config.config.deploy_env;
         let user_info = AppUserInfoRs::new(rng, user_pk, &node_key_pair);
 
         // build NodeClient, GatewayClient
@@ -397,7 +400,7 @@ impl App {
                 .context("Failed to build BIP353 client")?,
         );
         let lnurl_client = Arc::new(
-            lnurl::LnurlClient::new()
+            lnurl::LnurlClient::new(deploy_env)
                 .context("Failed to build LNURL client")?,
         );
 

@@ -3190,7 +3190,6 @@ dependencies = [
  "logger",
  "payment-uri-core",
  "reqwest",
- "rustls",
  "serde",
  "serde_json",
  "tokio",
