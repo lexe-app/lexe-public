@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::Context;
+use bitcoin::hashes::Hash;
 use common::{
     api::user::NodePk,
     ln::{amount::Amount, network::LxNetwork},
@@ -60,6 +61,16 @@ impl LxInvoice {
                 if !description.as_inner().0.is_empty() =>
                 Some(description.as_inner().0.as_str()),
             // Hash description is not useful to us yet
+            _ => None,
+        }
+    }
+
+    /// If the invoice uses a description hash, return that. Otherwise
+    /// return None.
+    pub fn description_hash(&self) -> Option<&[u8; 32]> {
+        match self.0.description() {
+            Bolt11InvoiceDescriptionRef::Hash(hash) =>
+                Some(hash.0.as_byte_array()),
             _ => None,
         }
     }

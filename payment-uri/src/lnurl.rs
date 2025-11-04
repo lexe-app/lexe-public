@@ -77,14 +77,12 @@
 use std::{str::FromStr, sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow, ensure};
-use bitcoin::hashes::Hash;
 use common::{constants, env::DeployEnv, ln::amount::Amount};
 use lexe_api_core::types::{
     invoice::LxInvoice,
     lnurl::{LnurlPayRequest, LnurlPayRequestMetadata},
 };
 use lexe_tls_core::rustls::{self, RootCertStore, pki_types::CertificateDer};
-use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescriptionRef};
 use serde::Deserialize;
 use tracing::debug;
 
@@ -311,36 +309,30 @@ impl LnurlClient {
         };
         let RawInvoiceResponse { pr } = raw_invoice_resp;
 
-        let invoice = Bolt11Invoice::from_str(&pr)
+        let invoice = LxInvoice::from_str(&pr)
             .context("Failed to parse invoice from LNURL-pay response")?;
 
         // Validate amount
         let invoice_amount = invoice
-            .amount_milli_satoshis()
-            .map(Amount::from_msat)
-            .context("LNURL-pay: returned invoice must have amount")?;
+            .amount()
+            .context("LNURL-pay invoice must have an amount")?;
         ensure!(
             invoice_amount == amount,
             "Invoice amount {invoice_amount} doesn't match requested {amount}"
         );
 
         // Validate description hash
-        let description_hash = match invoice.description() {
-            Bolt11InvoiceDescriptionRef::Hash(hash) => hash,
-            Bolt11InvoiceDescriptionRef::Direct(_) =>
-                return Err(anyhow!(
-                    "LNURL-pay: returned invoice must use description hash"
-                )),
-        };
+        let description_hash = invoice
+            .description_hash()
+            .context("LNURL-pay: returned invoice must use description hash")?;
         ensure!(
-            description_hash.0.to_byte_array()
-                == pay_req.metadata.description_hash,
+            description_hash == &pay_req.metadata.description_hash,
             "Invoice description hash mismatch"
         );
 
         debug!("Resolved LNURL-pay invoice: {invoice}");
 
-        Ok(LxInvoice(invoice))
+        Ok(invoice)
     }
 }
 

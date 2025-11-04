@@ -3186,7 +3186,6 @@ dependencies = [
  "lexe-api-core",
  "lexe-std",
  "lexe-tls-core",
- "lightning-invoice",
  "logger",
  "payment-uri-core",
  "reqwest",
