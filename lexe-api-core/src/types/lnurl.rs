@@ -31,7 +31,9 @@ pub struct LnurlPayRequest {
 /// The QueryString parameters internally required in lnurl-pay callbacks.
 pub struct LnurlCallbackRequest {
     pub username: String,
-    pub amount: Amount,
+    /// The amount in millisats. We can't use [`Amount`] here as we don't
+    /// control this API definition.
+    pub amount: u64,
 }
 
 #[axum::async_trait]
