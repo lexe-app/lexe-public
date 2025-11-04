@@ -97,6 +97,21 @@ pub(crate) const LNURL_HTTP_TIMEOUT: Duration = Duration::from_secs(10);
 /// Trusts Mozilla's webpki roots.
 pub struct LnurlClient(reqwest::Client);
 
+/// An LNURL error response.
+#[derive(Deserialize)]
+struct RawErrorResponse {
+    #[allow(dead_code)]
+    status: Status,
+    reason: String,
+}
+
+/// An LNURL `status` field.
+#[derive(Deserialize)]
+enum Status {
+    #[serde(rename = "ERROR")]
+    Error,
+}
+
 impl LnurlClient {
     pub fn new(deploy_env: DeployEnv) -> anyhow::Result<Self> {
         let ca_certs = if deploy_env.is_staging_or_prod() {
@@ -138,6 +153,16 @@ impl LnurlClient {
         debug!("Fetching LNURL-pay response from: {http_url}");
 
         /// The raw LNURL-pay response prior to parsing and validation.
+        ///
+        /// LNURL doesn't use a consistent tagging scheme, so we need to use
+        /// a serde untagged enum, which will just try each variant in order.
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum RawResponse {
+            PayRequest(RawPayRequest),
+            ErrorResponse(RawErrorResponse),
+        }
+
         #[derive(Deserialize)]
         struct RawPayRequest {
             callback: String,
@@ -154,21 +179,27 @@ impl LnurlClient {
             tag: String,
         }
 
-        let raw_pay_req = self
+        let raw_response = self
             .0
             .get(http_url)
             .send()
             .await
             .context("Failed to fetch LNURL-pay endpoint")?
-            .json::<RawPayRequest>()
+            .json::<RawResponse>()
             .await
             .context("Failed to parse LNURL-pay response")?;
 
+        let raw_pay_req = match raw_response {
+            RawResponse::PayRequest(x) => x,
+            RawResponse::ErrorResponse(RawErrorResponse { reason, .. }) => {
+                return Err(anyhow!("LNURL-pay endpoint: {reason}"));
+            }
+        };
         let RawPayRequest {
             callback,
+            min_sendable_msat,
             max_sendable_msat,
             metadata,
-            min_sendable_msat,
             tag,
         } = raw_pay_req;
 
@@ -240,8 +271,19 @@ impl LnurlClient {
             }
         };
 
+        /// The raw LNURL-pay callback response prior to parsing and validation.
+        ///
+        /// LNURL doesn't use a consistent tagging scheme, so we need to use
+        /// a serde untagged enum, which will just try each variant in order.
         #[derive(Deserialize)]
-        struct InvoiceResponse {
+        #[serde(untagged)]
+        enum RawResponse {
+            InvoiceResponse(RawInvoiceResponse),
+            ErrorResponse(RawErrorResponse),
+        }
+
+        #[derive(Deserialize)]
+        struct RawInvoiceResponse {
             pr: String,
             // The LUD-06 spec mandates a `routes` field (always empty array).
             // Modern implementations (Breez SDK, Phoenix) ignore it entirely.
@@ -251,17 +293,25 @@ impl LnurlClient {
             // routes: Vec<RouteHint>,
         }
 
-        let response = self
+        let raw_response = self
             .0
             .get(&callback_url)
             .send()
             .await
             .context("Failed to request invoice from LNURL-pay callback")?
-            .json::<InvoiceResponse>()
+            .json::<RawResponse>()
             .await
             .context("Failed to parse LNURL-pay callback response")?;
 
-        let invoice = Bolt11Invoice::from_str(&response.pr)
+        let raw_invoice_resp = match raw_response {
+            RawResponse::InvoiceResponse(x) => x,
+            RawResponse::ErrorResponse(RawErrorResponse { reason, .. }) => {
+                return Err(anyhow!("LNURL-pay callback: {reason}"));
+            }
+        };
+        let RawInvoiceResponse { pr } = raw_invoice_resp;
+
+        let invoice = Bolt11Invoice::from_str(&pr)
             .context("Failed to parse invoice from LNURL-pay response")?;
 
         // Validate amount
