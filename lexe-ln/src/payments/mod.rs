@@ -109,6 +109,7 @@ pub fn encrypt(
     rng: &mut impl Crng,
     vfs_master_key: &AesMasterKey,
     payment: &Payment,
+    updated_at: TimestampMs,
 ) -> DbPaymentV2 {
     // Serialize the payment as JSON bytes.
     let aad = &[];
@@ -122,23 +123,24 @@ pub fn encrypt(
     let data = vfs_master_key.encrypt(rng, aad, data_size_hint, write_data_cb);
 
     DbPaymentV2 {
-        created_at: payment.created_at().to_i64(),
         id: payment.id().to_string(),
         status: payment.status().to_string(),
         data,
+        // TODO(max): Remove `created_at` from core `Payment` type
+        created_at: payment.created_at().to_i64(),
+        updated_at: updated_at.to_i64(),
     }
 }
 
-/// Given a [`DbPaymentV2`], attempts to decrypt the associated ciphertext using
-/// the given [`AesMasterKey`], returning the deserialized [`Payment`].
+/// Given a [`DbPaymentV2::data`] (ciphertext), attempts to decrypt using the
+/// given [`AesMasterKey`], returning the deserialized [`Payment`].
 pub fn decrypt(
     vfs_master_key: &AesMasterKey,
-    // TODO(max): Remove generic once all payments are V2.
-    db_payment: impl Into<DbPaymentV2>,
+    data: Vec<u8>,
 ) -> anyhow::Result<Payment> {
     let aad = &[];
     let plaintext_bytes = vfs_master_key
-        .decrypt(aad, db_payment.into().data)
+        .decrypt(aad, data)
         .context("Could not decrypt Payment")?;
 
     serde_json::from_slice::<Payment>(plaintext_bytes.as_slice())
@@ -904,9 +906,12 @@ mod test {
             mut rng in any::<FastRng>(),
             vfs_master_key in any::<AesMasterKey>(),
             p1 in any::<Payment>(),
+            updated_at in any::<TimestampMs>(),
         )| {
-            let encrypted = super::encrypt(&mut rng, &vfs_master_key, &p1);
-            let p2 = super::decrypt(&vfs_master_key, encrypted).unwrap();
+            let encrypted = super::encrypt(
+                &mut rng, &vfs_master_key, &p1, updated_at
+            );
+            let p2 = super::decrypt(&vfs_master_key, encrypted.data).unwrap();
             prop_assert_eq!(p1, p2);
         })
     }

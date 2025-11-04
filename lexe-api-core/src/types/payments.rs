@@ -171,6 +171,19 @@ pub struct DbPaymentV2 {
     #[serde(with = "base64_or_bytes")]
     pub data: Vec<u8>,
     pub created_at: i64,
+    pub updated_at: i64,
+}
+
+impl DbPaymentV2 {
+    pub fn from_v1(v1: DbPaymentV1, updated_at: i64) -> Self {
+        Self {
+            id: v1.id,
+            status: v1.status,
+            data: v1.data,
+            created_at: v1.created_at,
+            updated_at,
+        }
+    }
 }
 
 #[cfg(any(test, feature = "test-utils"))]
@@ -192,16 +205,6 @@ impl PartialEq<DbPaymentV1> for DbPaymentV2 {
     }
 }
 
-impl From<DbPaymentV1> for DbPaymentV2 {
-    fn from(v1: DbPaymentV1) -> Self {
-        Self {
-            id: v1.id,
-            status: v1.status,
-            data: v1.data,
-            created_at: v1.created_at,
-        }
-    }
-}
 impl From<DbPaymentV2> for DbPaymentV1 {
     fn from(v2: DbPaymentV2) -> Self {
         Self {

@@ -48,6 +48,7 @@ use common::{
     constants,
     ln::channel::LxOutPoint,
     rng::{Crng, SysRng},
+    time::TimestampMs,
 };
 use gdrive::{GoogleVfs, GvfsRoot, oauth2::GDriveCredentials};
 use lexe_api::{
@@ -479,7 +480,7 @@ impl NodePersister {
             .payments
             .into_iter()
             // Decrypt into `Payment`s
-            .map(|p| payments::decrypt(&self.vfs_master_key, p))
+            .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
             // Convert to `BasicPayment`s
             .map(|res| res.map(BasicPayment::from))
             // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
@@ -499,7 +500,7 @@ impl NodePersister {
             .payments
             .into_iter()
             // Decrypt into `Payment`s
-            .map(|p| payments::decrypt(&self.vfs_master_key, p))
+            .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
             // Convert to `BasicPayment`s
             .map(|res| res.map(BasicPayment::from))
             // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
@@ -520,7 +521,7 @@ impl NodePersister {
             .payments
             .into_iter()
             // Decrypt into `Payment`s
-            .map(|p| payments::decrypt(&self.vfs_master_key, p))
+            .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
             // Convert to `BasicPayment`s
             .map(|res| res.map(BasicPayment::from))
             // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
@@ -732,9 +733,7 @@ impl LexeInnerPersister for NodePersister {
             .context("Could not fetch pending `DbPaymentV1`s")?
             .payments
             .into_iter()
-            // Decrypt into `Payment`s
-            .map(|p| payments::decrypt(&self.vfs_master_key, p))
-            // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
+            .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
             .collect::<anyhow::Result<Vec<Payment>>>()
     }
 
@@ -742,10 +741,15 @@ impl LexeInnerPersister for NodePersister {
         &self,
         checked: CheckedPayment,
     ) -> anyhow::Result<PersistedPayment> {
-        let mut rng = common::rng::SysRng::new();
+        let mut rng = SysRng::new();
 
-        let db_payment =
-            payments::encrypt(&mut rng, &self.vfs_master_key, &checked.0);
+        let updated_at = TimestampMs::now();
+        let db_payment = payments::encrypt(
+            &mut rng,
+            &self.vfs_master_key,
+            &checked.0,
+            updated_at,
+        );
         let token = self.get_token().await?;
 
         self.backend_api
@@ -760,10 +764,15 @@ impl LexeInnerPersister for NodePersister {
         &self,
         checked: CheckedPayment,
     ) -> anyhow::Result<PersistedPayment> {
-        let mut rng = common::rng::SysRng::new();
+        let mut rng = SysRng::new();
 
-        let db_payment =
-            payments::encrypt(&mut rng, &self.vfs_master_key, &checked.0);
+        let updated_at = TimestampMs::now();
+        let db_payment = payments::encrypt(
+            &mut rng,
+            &self.vfs_master_key,
+            &checked.0,
+            updated_at,
+        );
         let token = self.get_token().await?;
 
         self.backend_api
@@ -782,11 +791,17 @@ impl LexeInnerPersister for NodePersister {
             return Ok(Vec::new());
         }
 
-        let mut rng = common::rng::SysRng::new();
+        let mut rng = SysRng::new();
+        let updated_at = TimestampMs::now();
         let batch = checked_batch
             .iter()
             .map(|CheckedPayment(payment)| {
-                payments::encrypt(&mut rng, &self.vfs_master_key, payment)
+                payments::encrypt(
+                    &mut rng,
+                    &self.vfs_master_key,
+                    payment,
+                    updated_at,
+                )
             })
             .map(DbPaymentV1::from)
             .collect::<Vec<DbPaymentV1>>();
@@ -817,7 +832,7 @@ impl LexeInnerPersister for NodePersister {
             .context("Could not fetch `DbPaymentV1`s")?
             .maybe_payment
             // Decrypt into `Payment`
-            .map(|p| payments::decrypt(&self.vfs_master_key, p))
+            .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
             .transpose()
             .context("Could not decrypt payment")?;
 
@@ -841,7 +856,7 @@ impl LexeInnerPersister for NodePersister {
             .context("Could not fetch `DbPaymentV1`s")?
             .maybe_payment
             // Decrypt into `Payment`
-            .map(|p| payments::decrypt(&self.vfs_master_key, p))
+            .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
             .transpose()
             .context("Could not decrypt payment")?;
 
