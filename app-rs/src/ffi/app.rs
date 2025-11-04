@@ -35,8 +35,8 @@ use lexe_api::{
 use tracing::instrument;
 
 pub(crate) use crate::{
-    app::App, db::WritebackDb as WritebackDbRs,
-    settings::Settings as SettingsRs,
+    app::App, app_data::AppDataRs, db::WritebackDb as WritebackDbRs,
+    settings::SettingsRs,
 };
 use crate::{
     app::AppConfig,
@@ -55,6 +55,7 @@ use crate::{
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
             UpdateClientRequest, UpdatePaymentNote,
         },
+        app_data::AppDataDb,
         settings::SettingsDb,
         types::{
             AppUserInfo, BackupInfo, Config, GDriveSignupCredentials, Invoice,
@@ -154,6 +155,11 @@ impl AppHandle {
     /// flutter_rust_bridge:sync
     pub fn settings_db(&self) -> SettingsDb {
         SettingsDb::new(self.inner.settings_db())
+    }
+
+    /// flutter_rust_bridge:sync
+    pub fn app_db(&self) -> AppDataDb {
+        AppDataDb::new(self.inner.app_db())
     }
 
     /// flutter_rust_bridge:sync

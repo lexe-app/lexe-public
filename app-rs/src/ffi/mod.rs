@@ -58,6 +58,8 @@
 pub mod api;
 /// The [`crate::app::App`] interface for top-level app state.
 pub mod app;
+/// Dart interface for app data.
+pub mod app_data;
 /// Debug methods for use during development.
 pub mod debug;
 /// Form field validators.

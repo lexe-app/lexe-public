@@ -15,7 +15,7 @@
 /// The top-level App state
 pub mod app;
 /// The app's general database.
-pub mod app_db;
+mod app_data;
 /// The app's clients to the node and gateway.
 pub mod client;
 /// Persistence logic for data stored.

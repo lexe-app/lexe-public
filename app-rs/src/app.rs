@@ -36,13 +36,14 @@ use secrecy::ExposeSecret;
 use tracing::{info, info_span, instrument, warn};
 
 use crate::{
+    app_data::AppDataRs,
     client::{Credentials, GatewayClient, NodeClient},
     db::WritebackDb,
     ffs::{Ffs, FlatFileFs},
     payments::{self, PaymentDb, PaymentSyncSummary},
     provision_history::ProvisionHistory,
     secret_store::SecretStore,
-    settings::Settings,
+    settings::SettingsRs,
     types::GDriveSignupCredentials,
 };
 
@@ -56,7 +57,10 @@ pub struct App {
     payment_sync_lock: tokio::sync::Mutex<()>,
 
     /// App settings
-    settings_db: Arc<WritebackDb<Settings>>,
+    settings_db: Arc<WritebackDb<SettingsRs>>,
+
+    /// App state
+    app_db: Arc<WritebackDb<AppDataRs>>,
 
     /// Some misc. info needed for user support / user account deletion.
     user_info: AppUserInfoRs,
@@ -142,13 +146,19 @@ impl App {
         let settings_ffs =
             FlatFileFs::create_clean_dir_all(user_config.settings_db_dir())
                 .context("Could not create settings ffs")?;
-        let settings_db = Arc::new(Settings::load(settings_ffs));
+        let settings_db = Arc::new(SettingsRs::load(settings_ffs));
 
         // Create new payments DB
         let payments_ffs =
             FlatFileFs::create_clean_dir_all(user_config.payment_db_dir())
                 .context("Could not create payments ffs")?;
         let payment_db = Mutex::new(PaymentDb::empty(payments_ffs));
+
+        // Create new app DB
+        let app_db_ffs =
+            FlatFileFs::create_clean_dir_all(user_config.app_db_dir())
+                .context("Could not create app db ffs")?;
+        let app_db = Arc::new(AppDataRs::load(app_db_ffs));
 
         // Create new provision history
         let provision_history = ProvisionHistory::new();
@@ -209,6 +219,7 @@ impl App {
             payment_db,
             payment_sync_lock: tokio::sync::Mutex::new(()),
             settings_db,
+            app_db,
             user_info,
             bip353_client,
             lnurl_client,
@@ -276,7 +287,7 @@ impl App {
         let settings_ffs =
             FlatFileFs::create_dir_all(user_config.settings_db_dir())
                 .context("Could not create settings ffs")?;
-        let settings_db = Arc::new(Settings::load(settings_ffs));
+        let settings_db = Arc::new(SettingsRs::load(settings_ffs));
 
         // Load payments DB
         let payments_ffs =
@@ -285,6 +296,10 @@ impl App {
         let payment_db = PaymentDb::read(payments_ffs)
             .context("Failed to load payment db")?
             .apply(Mutex::new);
+
+        let app_db_ffs = FlatFileFs::create_dir_all(user_config.app_db_dir())
+            .context("Could not create app db ffs")?;
+        let app_db = Arc::new(AppDataRs::load(app_db_ffs));
 
         // Load provision history
         let provision_history = ProvisionHistory::read_from_ffs(&provision_ffs)
@@ -354,6 +369,7 @@ impl App {
             payment_db,
             payment_sync_lock: tokio::sync::Mutex::new(()),
             settings_db,
+            app_db,
             user_info,
             bip353_client,
             lnurl_client,
@@ -413,13 +429,18 @@ impl App {
         let settings_ffs =
             FlatFileFs::create_dir_all(user_config.settings_db_dir())
                 .context("Could not create settings ffs")?;
-        let settings_db = Arc::new(Settings::load(settings_ffs));
+        let settings_db = Arc::new(SettingsRs::load(settings_ffs));
 
         // Create new payments DB
         let payments_ffs =
             FlatFileFs::create_clean_dir_all(user_config.payment_db_dir())
                 .context("Could not create payments ffs")?;
         let payment_db = Mutex::new(PaymentDb::empty(payments_ffs));
+
+        // Potentially restore app DB
+        let app_db_ffs = FlatFileFs::create_dir_all(user_config.app_db_dir())
+            .context("Could not create app db ffs")?;
+        let app_db = Arc::new(AppDataRs::load(app_db_ffs));
 
         // Ask gateway for current enclaves
         let current_enclaves = gateway_client
@@ -465,6 +486,7 @@ impl App {
             payment_db,
             payment_sync_lock: tokio::sync::Mutex::new(()),
             settings_db,
+            app_db,
             user_info,
             bip353_client,
             lnurl_client,
@@ -488,8 +510,13 @@ impl App {
     }
 
     #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
-    pub(crate) fn settings_db(&self) -> Arc<WritebackDb<Settings>> {
+    pub(crate) fn settings_db(&self) -> Arc<WritebackDb<SettingsRs>> {
         self.settings_db.clone()
+    }
+
+    #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
+    pub(crate) fn app_db(&self) -> Arc<WritebackDb<AppDataRs>> {
+        self.app_db.clone()
     }
 
     // TODO(phlip9): unhack this API when I figure out how to make frb stop auto
@@ -808,6 +835,10 @@ impl UserAppConfig {
 
     fn settings_db_dir(&self) -> PathBuf {
         self.user_data_dir.join("settings_db")
+    }
+
+    fn app_db_dir(&self) -> PathBuf {
+        self.user_data_dir.join("app_db")
     }
 }
 

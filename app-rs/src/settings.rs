@@ -16,7 +16,7 @@ const SETTINGS_JSON: &str = "settings.json";
 /// In-memory app settings state.
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Debug, Arbitrary))]
-pub(crate) struct Settings {
+pub(crate) struct SettingsRs {
     /// Settings schema version.
     pub schema: SchemaVersion,
     /// Preferred locale.
@@ -29,16 +29,16 @@ pub(crate) struct Settings {
     pub onboarding_status: Option<OnboardingStatus>,
 }
 
-impl Settings {
-    pub fn load<F: Ffs + Send + 'static>(ffs: F) -> WritebackDb<Settings> {
-        WritebackDb::<Settings>::load(ffs, SETTINGS_JSON, "settings")
+impl SettingsRs {
+    pub fn load<F: Ffs + Send + 'static>(ffs: F) -> WritebackDb<SettingsRs> {
+        WritebackDb::<SettingsRs>::load(ffs, SETTINGS_JSON, "settings")
     }
 
     /// The current settings schema version.
     pub(crate) const CURRENT_SCHEMA: SchemaVersion = SchemaVersion(1);
 }
 
-impl Update for Settings {
+impl Update for SettingsRs {
     /// Merge updated settings from `update` into `self`.
     fn update(&mut self, update: Self) -> anyhow::Result<()> {
         self.schema
@@ -55,10 +55,10 @@ impl Update for Settings {
     }
 }
 
-impl Default for Settings {
+impl Default for SettingsRs {
     fn default() -> Self {
         Self {
-            schema: Settings::CURRENT_SCHEMA,
+            schema: SettingsRs::CURRENT_SCHEMA,
             locale: None,
             fiat_currency: None,
             show_split_balances: None,
@@ -69,6 +69,7 @@ impl Default for Settings {
 
 /// In-Memory onboarding user state. Used to determine if we should ask
 /// the user to finish their onboarding.
+// TODO(maurice): Move this to the app_data module
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Debug, Arbitrary))]
 pub(crate) struct OnboardingStatus {
@@ -118,7 +119,7 @@ mod test {
         "#;
         let ffs = MockFfs::new();
         ffs.write(SETTINGS_JSON, settings_str.as_bytes()).unwrap();
-        let settings: Settings = DbPersister::load(&ffs, SETTINGS_JSON);
+        let settings: SettingsRs = DbPersister::load(&ffs, SETTINGS_JSON);
         assert_eq!(settings.schema, SchemaVersion(1));
         assert_eq!(settings.locale, None);
         assert_eq!(settings.fiat_currency, Some(IsoCurrencyCode::USD));
@@ -131,31 +132,31 @@ mod test {
     /// A tiny model implementation of [`SettingsDb`].
     struct ModelDb {
         ffs: Rc<MockFfs>,
-        settings: Settings,
+        settings: SettingsRs,
     }
 
     impl ModelDb {
         fn load(ffs: Rc<MockFfs>) -> Self {
-            let settings = DbPersister::<MockFfs, Settings>::load(
+            let settings = DbPersister::<MockFfs, SettingsRs>::load(
                 ffs.as_ref(),
                 SETTINGS_JSON,
             );
             Self { ffs, settings }
         }
-        fn read(&self) -> Settings {
+        fn read(&self) -> SettingsRs {
             self.settings.clone()
         }
         fn reset(&mut self) {
-            self.settings = Settings::default();
-            let data = DbPersister::<MockFfs, Settings>::serialize_json(
+            self.settings = SettingsRs::default();
+            let data = DbPersister::<MockFfs, SettingsRs>::serialize_json(
                 &self.settings,
             )
             .unwrap();
             self.ffs.write(SETTINGS_JSON, &data).unwrap();
         }
-        fn update(&mut self, update: Settings) -> anyhow::Result<()> {
+        fn update(&mut self, update: SettingsRs) -> anyhow::Result<()> {
             self.settings.update(update)?;
-            let data = DbPersister::<MockFfs, Settings>::serialize_json(
+            let data = DbPersister::<MockFfs, SettingsRs>::serialize_json(
                 &self.settings,
             )?;
             self.ffs.write(SETTINGS_JSON, &data)?;
@@ -166,7 +167,7 @@ mod test {
     /// Operations we can perform against a [`SettingsDb`].
     #[derive(Debug, Arbitrary)]
     enum Op {
-        Update(Settings),
+        Update(SettingsRs),
         Read,
         Reset,
         Reload,
@@ -200,8 +201,8 @@ mod test {
         });
     }
 
-    fn load_db(ffs: FlatFileFs) -> WritebackDb<Settings> {
-        WritebackDb::<Settings>::load(ffs, SETTINGS_JSON, "test")
+    fn load_db(ffs: FlatFileFs) -> WritebackDb<SettingsRs> {
+        WritebackDb::<SettingsRs>::load(ffs, SETTINGS_JSON, "test")
     }
 
     async fn test_prop_model_inner(ops: Vec<Op>) {
@@ -251,31 +252,31 @@ mod test {
         let ffs = FlatFileFs::create_dir_all(tmpdir.path().to_owned()).unwrap();
         {
             let mut db = load_db(ffs.clone());
-            assert_eq!(db.db().lock().unwrap().deref(), &Settings::default());
+            assert_eq!(db.db().lock().unwrap().deref(), &SettingsRs::default());
 
             // update: locale=USD
-            db.update(Settings {
+            db.update(SettingsRs {
                 locale: Some("USD".to_owned()),
                 ..Default::default()
             })
             .unwrap();
             assert_eq!(
                 db.db().lock().unwrap().deref(),
-                &Settings {
+                &SettingsRs {
                     locale: Some("USD".to_owned()),
                     ..Default::default()
                 }
             );
 
             // update: fiat_currency=USD
-            db.update(Settings {
+            db.update(SettingsRs {
                 fiat_currency: Some(IsoCurrencyCode::USD),
                 ..Default::default()
             })
             .unwrap();
             assert_eq!(
                 db.db().lock().unwrap().deref(),
-                &Settings {
+                &SettingsRs {
                     locale: Some("USD".to_owned()),
                     fiat_currency: Some(IsoCurrencyCode::USD),
                     ..Default::default()
@@ -283,7 +284,7 @@ mod test {
             );
 
             // update: onbarding_status={ has_connected_gdrive: true }
-            db.update(Settings {
+            db.update(SettingsRs {
                 onboarding_status: Some(OnboardingStatus {
                     has_connected_gdrive: Some(true),
                     has_backed_up_seed_phrase: None,
@@ -294,7 +295,7 @@ mod test {
 
             assert_eq!(
                 db.db().lock().unwrap().deref(),
-                &Settings {
+                &SettingsRs {
                     locale: Some("USD".to_owned()),
                     fiat_currency: Some(IsoCurrencyCode::USD),
                     onboarding_status: Some(OnboardingStatus {
@@ -306,7 +307,7 @@ mod test {
             );
 
             // update: onbarding_status={ has_connected_gdrive: true }
-            db.update(Settings {
+            db.update(SettingsRs {
                 onboarding_status: Some(OnboardingStatus {
                     has_connected_gdrive: None,
                     has_backed_up_seed_phrase: Some(true),
@@ -317,7 +318,7 @@ mod test {
 
             assert_eq!(
                 db.db().lock().unwrap().deref(),
-                &Settings {
+                &SettingsRs {
                     locale: Some("USD".to_owned()),
                     fiat_currency: Some(IsoCurrencyCode::USD),
                     onboarding_status: Some(OnboardingStatus {
@@ -335,7 +336,7 @@ mod test {
             let mut db = load_db(ffs.clone());
             assert_eq!(
                 db.db().lock().unwrap().deref(),
-                &Settings {
+                &SettingsRs {
                     locale: Some("USD".to_owned()),
                     fiat_currency: Some(IsoCurrencyCode::USD),
                     onboarding_status: Some(OnboardingStatus {

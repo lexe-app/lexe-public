@@ -11,6 +11,7 @@
 import '../frb_generated.dart';
 import '../lib.dart';
 import 'api.dart';
+import 'app_data.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'settings.dart';
@@ -29,6 +30,9 @@ class AppHandle {
   final App inner;
 
   const AppHandle({required this.inner});
+
+  /// flutter_rust_bridge:sync
+  AppDataDb appDb() => AppRs.instance.api.crateFfiAppAppHandleAppDb(that: this);
 
   Future<BackupInfo> backupInfo() =>
       AppRs.instance.api.crateFfiAppAppHandleBackupInfo(that: this);

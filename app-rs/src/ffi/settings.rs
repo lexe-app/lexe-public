@@ -8,9 +8,7 @@ use flutter_rust_bridge::RustOpaqueNom;
 
 use crate::{
     db::WritebackDb as WritebackDbRs,
-    settings::{
-        OnboardingStatus as OnboardingStatusRs, Settings as SettingsRs,
-    },
+    settings::{OnboardingStatus as OnboardingStatusRs, SettingsRs},
 };
 
 pub struct SettingsDb {

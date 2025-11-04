@@ -94,10 +94,10 @@ impl Update for Username {}
 impl Update for i64 {}
 impl Update for PaymentAddressRs {
     fn update(&mut self, update: Self) -> anyhow::Result<()> {
-        self.username.update(update.username)?;
-        self.offer.update(update.offer)?;
-        self.updated_at.update(update.updated_at)?;
-        self.updatable.update(update.updatable)?;
+        self.username = update.username;
+        self.offer = update.offer;
+        self.updated_at = update.updated_at;
+        self.updatable = update.updatable;
         Ok(())
     }
 }
@@ -171,7 +171,6 @@ mod test {
                 db.db().lock().unwrap().deref(),
                 &AppDataRs {
                     payment_address: Some(PaymentAddressRs {
-                        offer: Some(dummy_offer.clone()),
                         username: Some(dummy_username.clone()),
                         ..Default::default()
                     }),
@@ -192,8 +191,6 @@ mod test {
                 db.db().lock().unwrap().deref(),
                 &AppDataRs {
                     payment_address: Some(PaymentAddressRs {
-                        offer: Some(dummy_offer.clone()),
-                        username: Some(dummy_username.clone()),
                         updated_at: Some(dummy_updated_at),
                         ..Default::default()
                     }),
@@ -214,8 +211,30 @@ mod test {
                 db.db().lock().unwrap().deref(),
                 &AppDataRs {
                     payment_address: Some(PaymentAddressRs {
-                        offer: Some(dummy_offer.clone()),
+                        updatable: true,
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }
+            );
+
+            // update: all fields
+            db.update(AppDataRs {
+                payment_address: Some(PaymentAddressRs {
+                    username: Some(dummy_username.clone()),
+                    offer: Some(dummy_offer.clone()),
+                    updated_at: Some(dummy_updated_at),
+                    updatable: true,
+                }),
+                ..Default::default()
+            })
+            .unwrap();
+            assert_eq!(
+                db.db().lock().unwrap().deref(),
+                &AppDataRs {
+                    payment_address: Some(PaymentAddressRs {
                         username: Some(dummy_username.clone()),
+                        offer: Some(dummy_offer.clone()),
                         updated_at: Some(dummy_updated_at),
                         updatable: true,
                     }),

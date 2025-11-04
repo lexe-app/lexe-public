@@ -13,6 +13,7 @@ import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'ffi/api.dart';
 import 'ffi/app.dart';
+import 'ffi/app_data.dart';
 import 'ffi/debug.dart';
 import 'ffi/form.dart';
 import 'ffi/gdrive.dart';
@@ -56,6 +57,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
       wire._rust_arc_decrement_strong_count_RustOpaque_SecretStoreRsPtr;
 
   CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_WritebackDbRsAppDataRsPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsAppDataRsPtr;
+
+  CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_WritebackDbRsSettingsRsPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsSettingsRsPtr;
 
@@ -94,6 +99,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   SecretStoreRs dco_decode_RustOpaque_SecretStoreRs(dynamic raw);
 
   @protected
+  WritebackDbRsAppDataRs dco_decode_RustOpaque_WritebackDbRsAppDataRs(
+    dynamic raw,
+  );
+
+  @protected
   WritebackDbRsSettingsRs dco_decode_RustOpaque_WritebackDbRsSettingsRs(
     dynamic raw,
   );
@@ -103,6 +113,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   String dco_decode_String(dynamic raw);
+
+  @protected
+  AppData dco_decode_app_data(dynamic raw);
+
+  @protected
+  AppDataDb dco_decode_app_data_db(dynamic raw);
 
   @protected
   AppHandle dco_decode_app_handle(dynamic raw);
@@ -118,6 +134,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  AppData dco_decode_box_autoadd_app_data(dynamic raw);
+
+  @protected
+  AppDataDb dco_decode_box_autoadd_app_data_db(dynamic raw);
 
   @protected
   AppHandle dco_decode_box_autoadd_app_handle(dynamic raw);
@@ -195,6 +217,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Payment dco_decode_box_autoadd_payment(dynamic raw);
+
+  @protected
+  PaymentAddress dco_decode_box_autoadd_payment_address(dynamic raw);
 
   @protected
   PaymentCreatedIndex dco_decode_box_autoadd_payment_created_index(dynamic raw);
@@ -411,6 +436,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Payment? dco_decode_opt_box_autoadd_payment(dynamic raw);
 
   @protected
+  PaymentAddress? dco_decode_opt_box_autoadd_payment_address(dynamic raw);
+
+  @protected
   RootSeed? dco_decode_opt_box_autoadd_root_seed(dynamic raw);
 
   @protected
@@ -602,6 +630,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  WritebackDbRsAppDataRs sse_decode_RustOpaque_WritebackDbRsAppDataRs(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   WritebackDbRsSettingsRs sse_decode_RustOpaque_WritebackDbRsSettingsRs(
     SseDeserializer deserializer,
   );
@@ -613,6 +646,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
+
+  @protected
+  AppData sse_decode_app_data(SseDeserializer deserializer);
+
+  @protected
+  AppDataDb sse_decode_app_data_db(SseDeserializer deserializer);
 
   @protected
   AppHandle sse_decode_app_handle(SseDeserializer deserializer);
@@ -628,6 +667,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  AppData sse_decode_box_autoadd_app_data(SseDeserializer deserializer);
+
+  @protected
+  AppDataDb sse_decode_box_autoadd_app_data_db(SseDeserializer deserializer);
 
   @protected
   AppHandle sse_decode_box_autoadd_app_handle(SseDeserializer deserializer);
@@ -727,6 +772,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Payment sse_decode_box_autoadd_payment(SseDeserializer deserializer);
+
+  @protected
+  PaymentAddress sse_decode_box_autoadd_payment_address(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PaymentCreatedIndex sse_decode_box_autoadd_payment_created_index(
@@ -999,6 +1049,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Payment? sse_decode_opt_box_autoadd_payment(SseDeserializer deserializer);
 
   @protected
+  PaymentAddress? sse_decode_opt_box_autoadd_payment_address(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RootSeed? sse_decode_opt_box_autoadd_root_seed(SseDeserializer deserializer);
 
   @protected
@@ -1218,6 +1273,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_RustOpaque_WritebackDbRsAppDataRs(
+    WritebackDbRsAppDataRs self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_RustOpaque_WritebackDbRsSettingsRs(
     WritebackDbRsSettingsRs self,
     SseSerializer serializer,
@@ -1233,6 +1294,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_app_data(AppData self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_app_data_db(AppDataDb self, SseSerializer serializer);
+
+  @protected
   void sse_encode_app_handle(AppHandle self, SseSerializer serializer);
 
   @protected
@@ -1246,6 +1313,15 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_app_data(AppData self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_app_data_db(
+    AppDataDb self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_app_handle(
@@ -1366,6 +1442,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_box_autoadd_payment(Payment self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_payment_address(
+    PaymentAddress self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_payment_created_index(
@@ -1694,6 +1776,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_opt_box_autoadd_payment(
     Payment? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_payment_address(
+    PaymentAddress? self,
     SseSerializer serializer,
   );
 
@@ -2096,6 +2184,38 @@ class AppRsWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_SecretStoreRs =
       _rust_arc_decrement_strong_count_RustOpaque_SecretStoreRsPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void rust_arc_increment_strong_count_RustOpaque_WritebackDbRsAppDataRs(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_WritebackDbRsAppDataRs(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_WritebackDbRsAppDataRsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_WritebackDbRsAppDataRs',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_WritebackDbRsAppDataRs =
+      _rust_arc_increment_strong_count_RustOpaque_WritebackDbRsAppDataRsPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsAppDataRs(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsAppDataRs(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsAppDataRsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsAppDataRs',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsAppDataRs =
+      _rust_arc_decrement_strong_count_RustOpaque_WritebackDbRsAppDataRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void rust_arc_increment_strong_count_RustOpaque_WritebackDbRsSettingsRs(
