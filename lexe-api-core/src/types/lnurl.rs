@@ -3,13 +3,11 @@
 use std::fmt;
 
 use anyhow::Context;
-use axum::{extract::FromRequestParts, response::IntoResponse};
 use common::{ByteArray, ln::amount::Amount};
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 
 use super::invoice::LxInvoice;
-use crate::axum_helpers;
 
 /// The validated and parsed LNURL-pay request ("payRequest").
 ///
@@ -37,8 +35,11 @@ pub struct LnurlCallbackRequest {
     pub amount_msat: u64,
 }
 
+#[cfg(feature = "axum")]
 #[axum::async_trait]
-impl<S: Send + Sync> FromRequestParts<S> for LnurlCallbackRequest {
+impl<S: Send + Sync> axum::extract::FromRequestParts<S>
+    for LnurlCallbackRequest
+{
     type Rejection = LnurlError;
 
     // LUD-06 defines an error message differently than Lexe-style
@@ -107,11 +108,12 @@ impl LnurlError {
     }
 }
 
-impl IntoResponse for LnurlError {
+#[cfg(feature = "axum")]
+impl axum::response::IntoResponse for LnurlError {
     fn into_response(self) -> axum::response::Response {
         let status = self.status_code;
         let error_response = LnurlErrorWire::from(self);
-        axum_helpers::build_json_response(status, &error_response)
+        crate::axum_helpers::build_json_response(status, &error_response)
     }
 }
 
