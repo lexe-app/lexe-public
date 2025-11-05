@@ -3528,12 +3528,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   CreateOfferRequest dco_decode_create_offer_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return CreateOfferRequest(
       expirySecs: dco_decode_opt_box_autoadd_u_32(arr[0]),
       amountSats: dco_decode_opt_CastedPrimitive_u_64(arr[1]),
       description: dco_decode_opt_String(arr[2]),
+      issuer: dco_decode_opt_String(arr[3]),
     );
   }
 
@@ -5039,10 +5040,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_expirySecs = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_amountSats = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     var var_description = sse_decode_opt_String(deserializer);
+    var var_issuer = sse_decode_opt_String(deserializer);
     return CreateOfferRequest(
       expirySecs: var_expirySecs,
       amountSats: var_amountSats,
       description: var_description,
+      issuer: var_issuer,
     );
   }
 
@@ -6728,6 +6731,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_opt_box_autoadd_u_32(self.expirySecs, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.amountSats, serializer);
     sse_encode_opt_String(self.description, serializer);
+    sse_encode_opt_String(self.issuer, serializer);
   }
 
   @protected

@@ -86,6 +86,7 @@ sealed class CreateOfferRequest with _$CreateOfferRequest {
     int? expirySecs,
     int? amountSats,
     String? description,
+    String? issuer,
   }) = _CreateOfferRequest;
 }
 

@@ -546,6 +546,7 @@ pub struct CreateOfferRequest {
     pub expiry_secs: Option<u32>,
     pub amount_sats: Option<u64>,
     pub description: Option<String>,
+    pub issuer: Option<String>,
 }
 
 impl TryFrom<CreateOfferRequest> for CreateOfferRequestRs {
@@ -561,6 +562,7 @@ impl TryFrom<CreateOfferRequest> for CreateOfferRequestRs {
             // TODO(phlip9): user settable max_quantity probably doesn't provide
             // much value in a p2p payments app.
             max_quantity: Some(MaxQuantity::ONE),
+            issuer: value.issuer,
         })
     }
 }

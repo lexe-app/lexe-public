@@ -353,6 +353,12 @@ pub struct CreateOfferRequest {
     /// If `None`, defaults to `MaxQuantity::ONE`, i.e., the expected paid
     /// `amount` is just `offer.amount`.
     pub max_quantity: Option<MaxQuantity>,
+    /// The issuer of the offer.
+    ///
+    /// If `Some`, offer will encode the string. Bolt12 spec expects this tring
+    /// to be a domain or a `user@domain` address.
+    /// If `None`, offer issuer will encode "lexe.app" as the issuer.
+    pub issuer: Option<String>,
     //
     // TODO(phlip9): add a `single_use` field to the offer request? right now
     // all offers are reusable.

@@ -1057,9 +1057,8 @@ where
     let mut builder = channel_manager
         .create_offer_builder(absolute_expiry)
         .map_err(|err| anyhow!("Failed to create offer builder: {err:?}"))?
-        .supported_quantity(
-            req.max_quantity.unwrap_or(MaxQuantity::ONE).into(),
-        );
+        .supported_quantity(req.max_quantity.unwrap_or(MaxQuantity::ONE).into())
+        .issuer(req.issuer.unwrap_or("lexe.app".to_owned()));
 
     // TODO(phlip9): don't add `chains` param when mainnet to save space
 

@@ -382,22 +382,22 @@ String toString() {
 /// @nodoc
 mixin _$CreateOfferRequest {
 
- int? get expirySecs; int? get amountSats; String? get description;
+ int? get expirySecs; int? get amountSats; String? get description; String? get issuer;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateOfferRequest&&(identical(other.expirySecs, expirySecs) || other.expirySecs == expirySecs)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.description, description) || other.description == description));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateOfferRequest&&(identical(other.expirySecs, expirySecs) || other.expirySecs == expirySecs)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.description, description) || other.description == description)&&(identical(other.issuer, issuer) || other.issuer == issuer));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,expirySecs,amountSats,description);
+int get hashCode => Object.hash(runtimeType,expirySecs,amountSats,description,issuer);
 
 @override
 String toString() {
-  return 'CreateOfferRequest(expirySecs: $expirySecs, amountSats: $amountSats, description: $description)';
+  return 'CreateOfferRequest(expirySecs: $expirySecs, amountSats: $amountSats, description: $description, issuer: $issuer)';
 }
 
 
@@ -411,28 +411,29 @@ String toString() {
 
 
 class _CreateOfferRequest implements CreateOfferRequest {
-  const _CreateOfferRequest({this.expirySecs, this.amountSats, this.description});
+  const _CreateOfferRequest({this.expirySecs, this.amountSats, this.description, this.issuer});
   
 
 @override final  int? expirySecs;
 @override final  int? amountSats;
 @override final  String? description;
+@override final  String? issuer;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateOfferRequest&&(identical(other.expirySecs, expirySecs) || other.expirySecs == expirySecs)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.description, description) || other.description == description));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateOfferRequest&&(identical(other.expirySecs, expirySecs) || other.expirySecs == expirySecs)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.description, description) || other.description == description)&&(identical(other.issuer, issuer) || other.issuer == issuer));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,expirySecs,amountSats,description);
+int get hashCode => Object.hash(runtimeType,expirySecs,amountSats,description,issuer);
 
 @override
 String toString() {
-  return 'CreateOfferRequest(expirySecs: $expirySecs, amountSats: $amountSats, description: $description)';
+  return 'CreateOfferRequest(expirySecs: $expirySecs, amountSats: $amountSats, description: $description, issuer: $issuer)';
 }
 
 

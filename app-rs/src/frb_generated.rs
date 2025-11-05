@@ -1575,10 +1575,12 @@ impl SseDecode for crate::ffi::api::CreateOfferRequest {
         let mut var_expirySecs = <Option<u32>>::sse_decode(deserializer);
         let mut var_amountSats = <Option<u64>>::sse_decode(deserializer);
         let mut var_description = <Option<String>>::sse_decode(deserializer);
+        let mut var_issuer = <Option<String>>::sse_decode(deserializer);
         return crate::ffi::api::CreateOfferRequest {
             expiry_secs: var_expirySecs,
             amount_sats: var_amountSats,
             description: var_description,
+            issuer: var_issuer,
         };
     }
 }
@@ -3362,6 +3364,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::CreateOfferRequest {
             self.expiry_secs.into_into_dart().into_dart(),
             self.amount_sats.into_into_dart().into_dart(),
             self.description.into_into_dart().into_dart(),
+            self.issuer.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4957,6 +4960,7 @@ impl SseEncode for crate::ffi::api::CreateOfferRequest {
         <Option<u32>>::sse_encode(self.expiry_secs, serializer);
         <Option<u64>>::sse_encode(self.amount_sats, serializer);
         <Option<String>>::sse_encode(self.description, serializer);
+        <Option<String>>::sse_encode(self.issuer, serializer);
     }
 }
 
