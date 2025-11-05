@@ -38,8 +38,8 @@ use crate::types::{invoice::LxInvoice, offer::LxOffer};
 /// the result of the corresponding `Payment` getter.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct BasicPaymentV1 {
-    pub index: PaymentCreatedIndex,
+pub struct BasicPaymentV2 {
+    pub id: LxPaymentId,
 
     pub kind: PaymentKind,
 
@@ -129,6 +129,57 @@ pub struct BasicPaymentV1 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub finalized_at: Option<TimestampMs>,
+
+    /// When this payment was created.
+    pub created_at: TimestampMs,
+
+    /// When this payment was last updated.
+    pub updated_at: TimestampMs,
+}
+
+// Debug the size_of `BasicPaymentV2`
+const_assert_mem_size!(BasicPaymentV2, 272);
+
+/// An upgradeable version of [`Vec<BasicPaymentV2>`].
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct VecBasicPaymentV2 {
+    pub payments: Vec<BasicPaymentV2>,
+}
+
+/// The old version of [`BasicPaymentV2`]; see [`BasicPaymentV2`] for docs.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct BasicPaymentV1 {
+    pub index: PaymentCreatedIndex,
+    pub kind: PaymentKind,
+    pub direction: PaymentDirection,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub invoice: Option<Box<LxInvoice>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offer_id: Option<LxOfferId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offer: Option<Box<LxOffer>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub txid: Option<LxTxid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub replacement: Option<LxTxid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<Amount>,
+    pub fees: Amount,
+    pub status: PaymentStatus,
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_string()")
+    )]
+    pub status_str: String,
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_option_string()")
+    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub finalized_at: Option<TimestampMs>,
 }
@@ -440,22 +491,33 @@ pub struct LxOfferId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 #[repr(transparent)]
 pub struct LnClaimId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
-// --- impl BasicPaymentV1 --- //
+// --- impl BasicPaymentV2 --- //
 
-impl BasicPaymentV1 {
-    #[inline]
-    pub fn index(&self) -> &PaymentCreatedIndex {
-        &self.index
-    }
-
-    #[inline]
-    pub fn created_at(&self) -> TimestampMs {
-        self.index.created_at
+impl BasicPaymentV2 {
+    pub fn from_v1(v1: BasicPaymentV1, updated_at: TimestampMs) -> Self {
+        Self {
+            id: v1.index.id,
+            kind: v1.kind,
+            direction: v1.direction,
+            invoice: v1.invoice,
+            offer_id: v1.offer_id,
+            offer: v1.offer,
+            txid: v1.txid,
+            replacement: v1.replacement,
+            amount: v1.amount,
+            fees: v1.fees,
+            status: v1.status,
+            status_str: v1.status_str,
+            note: v1.note,
+            finalized_at: v1.finalized_at,
+            created_at: v1.index.created_at,
+            updated_at,
+        }
     }
 
     #[inline]
     pub fn payment_id(&self) -> LxPaymentId {
-        self.index.id
+        self.id
     }
 
     #[inline]
@@ -508,6 +570,100 @@ impl BasicPaymentV1 {
                 self.invoice.as_deref().and_then(LxInvoice::description_str)
             })
             .or_else(|| self.offer.as_deref().and_then(LxOffer::description))
+    }
+
+    #[inline]
+    pub fn created_at(&self) -> TimestampMs {
+        self.created_at
+    }
+
+    #[inline]
+    pub fn updated_at(&self) -> TimestampMs {
+        self.updated_at
+    }
+
+    #[inline]
+    pub fn created_index(&self) -> PaymentCreatedIndex {
+        PaymentCreatedIndex {
+            created_at: self.created_at,
+            id: self.id,
+        }
+    }
+
+    #[inline]
+    pub fn updated_index(&self) -> PaymentUpdatedIndex {
+        PaymentUpdatedIndex {
+            updated_at: self.updated_at,
+            id: self.id,
+        }
+    }
+}
+
+// --- impl BasicPaymentV1 --- //
+
+impl BasicPaymentV1 {
+    pub fn index(&self) -> &PaymentCreatedIndex {
+        &self.index
+    }
+    pub fn created_at(&self) -> TimestampMs {
+        self.index.created_at
+    }
+    pub fn payment_id(&self) -> LxPaymentId {
+        self.index.id
+    }
+    pub fn is_pending(&self) -> bool {
+        use PaymentStatus::*;
+        match self.status {
+            Pending => true,
+            Completed | Failed => false,
+        }
+    }
+    pub fn is_finalized(&self) -> bool {
+        !self.is_pending()
+    }
+    pub fn is_pending_not_junk(&self) -> bool {
+        self.is_pending() && !self.is_junk()
+    }
+    pub fn is_finalized_not_junk(&self) -> bool {
+        self.is_finalized() && !self.is_junk()
+    }
+    pub fn is_junk(&self) -> bool {
+        self.status != PaymentStatus::Completed
+            && self.kind == PaymentKind::Invoice
+            && self.direction == PaymentDirection::Inbound
+            && (self.amount.is_none() || self.note_or_description().is_none())
+    }
+    pub fn note_or_description(&self) -> Option<&str> {
+        let maybe_note = self.note.as_deref().filter(|s| !s.is_empty());
+        maybe_note
+            .or_else(|| {
+                self.invoice.as_deref().and_then(LxInvoice::description_str)
+            })
+            .or_else(|| self.offer.as_deref().and_then(LxOffer::description))
+    }
+}
+
+impl From<BasicPaymentV2> for BasicPaymentV1 {
+    fn from(v2: BasicPaymentV2) -> Self {
+        Self {
+            index: PaymentCreatedIndex {
+                created_at: v2.created_at,
+                id: v2.id,
+            },
+            kind: v2.kind,
+            direction: v2.direction,
+            invoice: v2.invoice,
+            offer_id: v2.offer_id,
+            offer: v2.offer,
+            txid: v2.txid,
+            replacement: v2.replacement,
+            amount: v2.amount,
+            fees: v2.fees,
+            status: v2.status,
+            status_str: v2.status_str,
+            note: v2.note,
+            finalized_at: v2.finalized_at,
+        }
     }
 }
 

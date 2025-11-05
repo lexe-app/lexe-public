@@ -14,7 +14,7 @@ use lexe_api::types::{
     invoice::LxInvoice,
     offer::LxOffer,
     payments::{
-        BasicPaymentV1, DbPaymentV2, LxOfferId, LxPaymentId,
+        BasicPaymentV1, BasicPaymentV2, DbPaymentV2, LxOfferId, LxPaymentId,
         PaymentCreatedIndex, PaymentDirection, PaymentKind, PaymentStatus,
     },
 };
@@ -216,6 +216,34 @@ impl From<Payment> for BasicPaymentV1 {
 // --- impl Payment --- //
 
 impl Payment {
+    // Can't impl BasicPaymentV2::from_payment bc we don't want to move
+    // `Payment` into `lexe-api-core`.
+    pub fn into_basic_payment(
+        self,
+        created_at: TimestampMs,
+        updated_at: TimestampMs,
+        // TODO(max): We will add a PaymentMetadata param here later.
+    ) -> BasicPaymentV2 {
+        BasicPaymentV2 {
+            id: self.id(),
+            kind: self.kind(),
+            direction: self.direction(),
+            invoice: self.invoice(),
+            offer_id: self.offer_id(),
+            offer: self.offer(),
+            txid: self.txid(),
+            replacement: self.replacement(),
+            amount: self.amount(),
+            fees: self.fees(),
+            status: self.status(),
+            status_str: self.status_str().to_owned(),
+            note: self.note().map(|s| s.to_owned()),
+            finalized_at: self.finalized_at(),
+            created_at,
+            updated_at,
+        }
+    }
+
     pub fn index(&self) -> PaymentCreatedIndex {
         PaymentCreatedIndex {
             created_at: self.created_at(),
