@@ -32,9 +32,13 @@ use lexe_api::{
     def::AppNodeRunApi,
     error::NodeApiError,
     models::command::{
-        GetNewPayments, PaymentCreatedIndexes, UpdatePaymentNote,
+        GetNewPayments, GetUpdatedPayments, PaymentCreatedIndexes,
+        UpdatePaymentNote,
     },
-    types::payments::{BasicPaymentV1, PaymentCreatedIndex, VecBasicPaymentV1},
+    types::payments::{
+        BasicPaymentV1, PaymentCreatedIndex, VecBasicPaymentV1,
+        VecBasicPaymentV2,
+    },
 };
 use lexe_std::iter::IteratorExt;
 use roaring::RoaringBitmap;
@@ -126,6 +130,12 @@ pub(crate) trait AppNodeRunSyncApi {
         &self,
         req: GetNewPayments,
     ) -> Result<VecBasicPaymentV1, NodeApiError>;
+
+    #[allow(dead_code)] // TODO(max): Remove
+    async fn get_updated_payments(
+        &self,
+        req: GetUpdatedPayments,
+    ) -> Result<VecBasicPaymentV2, NodeApiError>;
 }
 
 // -- impl PaymentDb -- //
@@ -967,6 +977,13 @@ impl AppNodeRunSyncApi for NodeClient {
     ) -> Result<VecBasicPaymentV1, NodeApiError> {
         AppNodeRunApi::get_new_payments(self, req).await
     }
+
+    async fn get_updated_payments(
+        &self,
+        req: GetUpdatedPayments,
+    ) -> Result<VecBasicPaymentV2, NodeApiError> {
+        AppNodeRunApi::get_updated_payments(self, req).await
+    }
 }
 
 // -- Tests -- //
@@ -992,11 +1009,11 @@ mod test {
     use super::*;
     use crate::ffs::{FlatFileFs, test::MockFfs};
 
-    struct MockNode {
+    struct MockNodeV1 {
         payments: BTreeMap<PaymentCreatedIndex, BasicPaymentV1>,
     }
 
-    impl MockNode {
+    impl MockNodeV1 {
         fn new(
             payments: BTreeMap<PaymentCreatedIndex, BasicPaymentV1>,
         ) -> Self {
@@ -1004,7 +1021,7 @@ mod test {
         }
     }
 
-    impl AppNodeRunSyncApi for MockNode {
+    impl AppNodeRunSyncApi for MockNodeV1 {
         /// POST /v1/payments/indexes [`PaymentCreatedIndexes`]
         ///                        -> [`VecDbPaymentV1`]
         async fn get_payments_by_indexes(
@@ -1055,6 +1072,13 @@ mod test {
                 .map(|(_key, value)| value.clone())
                 .collect::<Vec<_>>();
             Ok(VecBasicPaymentV1 { payments })
+        }
+
+        async fn get_updated_payments(
+            &self,
+            _: GetUpdatedPayments,
+        ) -> Result<VecBasicPaymentV2, NodeApiError> {
+            unimplemented!()
         }
     }
 
@@ -1245,7 +1269,7 @@ mod test {
 
     #[tokio::test]
     async fn test_sync_empty() {
-        let mock_node = MockNode::new(BTreeMap::new());
+        let mock_node = MockNodeV1::new(BTreeMap::new());
         let mock_ffs = MockFfs::new();
         let db = Mutex::new(PaymentDb::empty(mock_ffs));
 
@@ -1275,7 +1299,7 @@ mod test {
             req_batch_size in 1_u16..5,
             finalize_idxs in vec(any::<Index>(), 1..5),
         )| {
-            let mut mock_node = MockNode::new(payments);
+            let mut mock_node = MockNodeV1::new(payments);
 
             let mut rng2 = FastRng::from_u64(rng.gen_u64());
             let mock_ffs = MockFfs::from_rng(rng);
