@@ -4,6 +4,7 @@ import 'package:app_rs_dart/ffi/types.dart' show Config, DeployEnv, RootSeed;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show Intl;
 import 'package:intl/intl_standalone.dart' as intl_standalone;
+import 'package:lexeapp/app_data.dart' show LxAppData;
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/feature_flags.dart';
@@ -54,6 +55,7 @@ Future<void> main() async {
   if (maybeApp != null) {
     final app = maybeApp;
     final settings = LxSettings(app.settingsDb());
+    final appData = LxAppData(app.appDb());
     final featureFlags = FeatureFlags(
       deployEnv: config.deployEnv,
       userPk: app.userInfo().userPk,
@@ -70,6 +72,7 @@ Future<void> main() async {
       config: config,
       app: app,
       settings: settings,
+      appData: appData,
       featureFlags: featureFlags,
       uriEvents: uriEvents,
       gdriveAuth: gdriveAuth,

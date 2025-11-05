@@ -971,6 +971,9 @@ final class LxIcons {
 
   /// X/Twitter icon (X logo)
   static const IconData x = LxCustomIconData(0xe802);
+
+  /// User icon (person icon)
+  static const IconData user = Symbols.person_rounded;
 }
 
 class LxCustomIconData extends IconData {

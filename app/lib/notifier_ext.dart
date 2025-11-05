@@ -212,3 +212,12 @@ class LxListener {
   /// handle goes out-of-scope.
   void dispose() => this.pause();
 }
+
+/// Update a [ValueNotifier] only if the new value is not null.
+extension ValueNotifierExt<T> on ValueNotifier<T?> {
+  void update(final T? update) {
+    if (update != null) {
+      this.value = update;
+    }
+  }
+}

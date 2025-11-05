@@ -1,6 +1,7 @@
 import 'package:app_rs_dart/ffi/settings.dart'
     show OnboardingStatus, Settings, SettingsDb;
 import 'package:flutter/foundation.dart';
+import 'package:lexeapp/notifier_ext.dart' show ValueNotifierExt;
 import 'package:lexeapp/result.dart';
 
 /// Lexe App settings
@@ -70,14 +71,5 @@ class LxSettings {
     // Can't create an Ok(void), so just return this `result` that conveniently
     // has the right type.
     return result;
-  }
-}
-
-extension ValueNotifierExt<T> on ValueNotifier<T?> {
-  /// Only update if new value is not null.
-  void update(final T? update) {
-    if (update != null) {
-      this.value = update;
-    }
   }
 }

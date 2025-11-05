@@ -27,6 +27,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         PayOfferResponse,
         PayOnchainRequest,
         PayOnchainResponse,
+        PaymentAddress,
         PreflightCloseChannelResponse,
         PreflightOpenChannelRequest,
         PreflightOpenChannelResponse,
@@ -40,6 +41,8 @@ import 'package:app_rs_dart/ffi/api.dart'
         UpdatePaymentNote;
 import 'package:app_rs_dart/ffi/app.dart'
     show App, AppHandle, WritebackDbRsSettingsRs;
+import 'package:app_rs_dart/ffi/app_data.dart'
+    show AppData, AppDataDb, WritebackDbRsAppDataRs;
 import 'package:app_rs_dart/ffi/settings.dart' show Settings, SettingsDb;
 import 'package:app_rs_dart/ffi/types.dart'
     show
@@ -68,7 +71,8 @@ import 'package:app_rs_dart/ffi/types.dart'
         RevocableClient,
         RootSeed,
         Scope,
-        ShortPaymentAndIndex;
+        ShortPaymentAndIndex,
+        Username;
 import 'package:app_rs_dart/ffi/types.ext.dart' show PaymentExt;
 import 'package:app_rs_dart/lib.dart' show U8Array32;
 import 'package:collection/collection.dart';
@@ -111,6 +115,9 @@ class MockAppHandle extends AppHandle {
 
   @override
   SettingsDb settingsDb() => MockSettingsDb();
+
+  @override
+  AppDataDb appDb() => MockAppDataDb();
 
   @override
   AppUserInfo userInfo() => const AppUserInfo(
@@ -555,6 +562,29 @@ class MockAppHandle extends AppHandle {
       payeePubkey: dummy.payeePubkey,
     );
   });
+
+  @override
+  Future<PaymentAddress> getPaymentAddress() => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => PaymentAddress(
+      username: const Username(field0: "user"),
+      offer: defaultOffer,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+      updatable: true,
+    ),
+  );
+
+  @override
+  Future<PaymentAddress> updatePaymentAddress({required Username username}) =>
+      Future.delayed(
+        const Duration(milliseconds: 1500),
+        () => PaymentAddress(
+          username: username,
+          offer: defaultOffer,
+          updatedAt: DateTime.now().millisecondsSinceEpoch,
+          updatable: true,
+        ),
+      );
 }
 
 /// An [AppHandle] that usually errors first.
@@ -679,6 +709,23 @@ class MockAppHandleErr extends MockAppHandle {
       "[106=Command] Failed to resolve LNURL-pay request",
     ).toFfi(),
   );
+
+  @override
+  Future<PaymentAddress> getPaymentAddress() => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => throw const FfiError(
+      "[106=Command] Failed to get payment address",
+    ).toFfi(),
+  );
+
+  @override
+  Future<PaymentAddress> updatePaymentAddress({required Username username}) =>
+      Future.delayed(
+        const Duration(milliseconds: 1500),
+        () => throw const FfiError(
+          "[106=Command] Failed to update payment address",
+        ).toFfi(),
+      );
 }
 
 /// `AppHandle` used for screenshots.
@@ -779,6 +826,31 @@ class MockSettingsDb extends SettingsDb {
 // A fake `RustOpaque<SettingsDbRs>`
 class MockSettingsDbRs extends WritebackDbRsSettingsRs {
   MockSettingsDbRs();
+
+  @override
+  void dispose() {}
+
+  @override
+  bool get isDisposed => false;
+}
+
+class MockAppDataDb extends AppDataDb {
+  MockAppDataDb() : super(inner: MockAppDataDbRs());
+
+  @override
+  AppData read() =>
+      const AppData(paymentAddress: PaymentAddress(updatable: true));
+
+  @override
+  void reset() {}
+
+  @override
+  void update({required AppData update}) {}
+}
+
+// A fake `RustOpaque<WritebackDb<AppDataRs>>`
+class MockAppDataDbRs extends WritebackDbRsAppDataRs {
+  MockAppDataDbRs();
 
   @override
   void dispose() {}

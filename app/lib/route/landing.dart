@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:flutter_markdown/flutter_markdown.dart'
     show MarkdownBody, MarkdownStyleSheet;
+import 'package:lexeapp/app_data.dart' show LxAppData;
 import 'package:lexeapp/components.dart'
     show CarouselIndicatorsAndButtons, LxFilledButton, LxOutlinedButton;
 import 'package:lexeapp/feature_flags.dart' show FeatureFlags;
@@ -95,6 +96,7 @@ class _LandingPageState extends State<LandingPage> {
 
     final app = flowResult;
     final settings = LxSettings(app.settingsDb());
+    final appData = LxAppData(app.appDb());
     final featureFlags = FeatureFlags(
       deployEnv: this.widget.config.deployEnv,
       userPk: app.userInfo().userPk,
@@ -107,6 +109,7 @@ class _LandingPageState extends State<LandingPage> {
             config: this.widget.config,
             app: app,
             settings: settings,
+            appData: appData,
             featureFlags: featureFlags,
             uriEvents: this.widget.uriEvents,
             gdriveAuth: this.widget.gdriveAuth,
@@ -138,6 +141,7 @@ class _LandingPageState extends State<LandingPage> {
 
     final app = flowResult;
     final settings = LxSettings(app.settingsDb());
+    final appData = LxAppData(app.appDb());
     final featureFlags = FeatureFlags(
       deployEnv: this.widget.config.deployEnv,
       userPk: app.userInfo().userPk,
@@ -150,6 +154,7 @@ class _LandingPageState extends State<LandingPage> {
             config: this.widget.config,
             app: app,
             settings: settings,
+            appData: appData,
             featureFlags: featureFlags,
             uriEvents: this.widget.uriEvents,
             gdriveAuth: this.widget.gdriveAuth,

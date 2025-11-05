@@ -36,6 +36,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
 import 'package:intl/intl.dart' show Intl;
+import 'package:lexeapp/app_data.dart' show LxAppData;
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/components.dart'
     show
@@ -74,6 +75,7 @@ import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
 import 'package:lexeapp/route/open_channel.dart'
     show OpenChannelConfirmPage, OpenChannelPage;
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
+import 'package:lexeapp/route/profile.dart' show ProfilePage;
 import 'package:lexeapp/route/receive/page.dart'
     show ReceivePaymentEditPage, ReceivePaymentPage;
 import 'package:lexeapp/route/receive/state.dart' show AmountDescription;
@@ -106,6 +108,8 @@ import 'package:lexeapp/route/signup.dart'
 import 'package:lexeapp/route/wallet.dart' show WalletActionButton, WalletPage;
 import 'package:lexeapp/save_file.dart' as save_file;
 import 'package:lexeapp/service/node_info.dart';
+import 'package:lexeapp/service/payment_address.dart'
+    show PaymentAddressService;
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/stream_ext.dart';
 import 'package:lexeapp/style.dart'
@@ -277,6 +281,15 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (context) => SignupPage(ctx: mockSignupCtxErr),
             ),
             Component(
+              "ProfilePage",
+              (context) => ProfilePage(
+                paymentAddressService: PaymentAddressService(
+                  app: mockApp,
+                  appData: LxAppData(mockApp.appDb()),
+                ),
+              ),
+            ),
+            Component(
               "SignupPage (real gdrive)",
               (context) => SignupPage(
                 ctx: SignupCtx(
@@ -413,6 +426,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 config: this.widget.config,
                 app: mockApp,
                 settings: LxSettings(mockApp.settingsDb()),
+                appData: LxAppData(mockApp.appDb()),
                 featureFlags: const FeatureFlags.all(),
                 uriEvents: this.widget.uriEvents,
                 gdriveAuth: GDriveAuth.mock,
@@ -429,6 +443,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   balance: mocks.balanceZero,
                 ),
                 settings: LxSettings(mockApp.settingsDb()),
+                appData: LxAppData(mockApp.appDb()),
                 featureFlags: const FeatureFlags.all(),
                 uriEvents: this.widget.uriEvents,
                 gdriveAuth: GDriveAuth.mock,
@@ -445,6 +460,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   balance: mocks.balanceOnchainOnly,
                 ),
                 settings: LxSettings(mockApp.settingsDb()),
+                appData: LxAppData(mockApp.appDb()),
                 featureFlags: const FeatureFlags.all(),
                 uriEvents: this.widget.uriEvents,
                 gdriveAuth: GDriveAuth.mock,
@@ -907,6 +923,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 config: this.widget.config,
                 app: mocks.MockAppHandleScreenshots(),
                 settings: LxSettings(mockApp.settingsDb()),
+                appData: LxAppData(mockApp.appDb()),
                 featureFlags: const FeatureFlags.all(),
                 uriEvents: this.widget.uriEvents,
                 gdriveAuth: GDriveAuth.mock,

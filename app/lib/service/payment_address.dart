@@ -1,0 +1,107 @@
+import 'package:app_rs_dart/ffi/api.dart' show PaymentAddress;
+import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/app_data.dart' show AppData;
+import 'package:app_rs_dart/ffi/types.dart' show Username;
+import 'package:flutter/foundation.dart'
+    show Listenable, ValueListenable, ValueNotifier;
+import 'package:lexeapp/app_data.dart' show LxAppData;
+import 'package:lexeapp/logger.dart' show error;
+import 'package:lexeapp/notifier_ext.dart' show LxChangeNotifier;
+import 'package:lexeapp/result.dart' show Err, Ok, Result;
+
+/// Merge states from [AppHandle.getPaymentAddress] and [AppData.paymentAddress] but instrumented
+/// with various signals for UI consumption.
+class PaymentAddressService {
+  PaymentAddressService({required AppHandle app, required LxAppData appData})
+    : _app = app,
+      _appData = appData;
+
+  final AppHandle _app;
+  final LxAppData _appData;
+  bool isDisposed = false;
+  DateTime? _lastFetchedAt;
+
+  /// The most recent [PaymentAddress]. `null` if we haven't stored any payment address yet.
+  ValueListenable<PaymentAddress?> get paymentAddress =>
+      this._appData.paymentAddress;
+
+  /// Notifies after each completed fetch, successful or otherwise.
+  Listenable get completed => this._completed;
+  final LxChangeNotifier _completed = LxChangeNotifier();
+
+  /// Notifies after each completed fetch, successful or otherwise.
+  ValueListenable<bool> get isFetching => this._isFetching;
+  final ValueNotifier<bool> _isFetching = ValueNotifier(false);
+
+  ValueListenable<bool> get isUpdating => this._isUpdating;
+  final ValueNotifier<bool> _isUpdating = ValueNotifier(false);
+
+  bool get canFetch =>
+      this._lastFetchedAt == null ||
+      DateTime.now().difference(this._lastFetchedAt!) >
+          const Duration(seconds: 10);
+
+  void init() {
+    this._isFetching.value = false;
+    this.fetch();
+  }
+
+  Future<void> fetch() async {
+    assert(!this.isDisposed);
+
+    // Skip if we're currently syncing
+    if (this._isFetching.value) return;
+
+    // Skip if we tried to fetch recently
+    if (!this.canFetch) return;
+
+    // Do sync
+    this._isFetching.value = true;
+    final res = await Result.tryFfiAsync(this._app.getPaymentAddress);
+    this._isFetching.value = false;
+    if (this.isDisposed) return;
+
+    switch (res) {
+      case Ok(:final ok):
+        this._appData.update(AppData(paymentAddress: ok));
+        this._lastFetchedAt = DateTime.now();
+      case Err(:final err):
+        error("payment-address: err: ${err.message}");
+    }
+
+    this._completed.notify();
+  }
+
+  Future<Result<void, String>> update({required Username username}) async {
+    assert(!this.isDisposed);
+
+    if (this._isUpdating.value) return Err("Already updating");
+
+    this._isUpdating.value = true;
+    final res = await Result.tryFfiAsync(
+      () => this._app.updatePaymentAddress(username: username),
+    );
+    this._isUpdating.value = false;
+    if (this.isDisposed) return Err("Already disposed");
+
+    switch (res) {
+      case Ok(:final ok):
+        this._appData.update(AppData(paymentAddress: ok));
+        this._lastFetchedAt = DateTime.now();
+        return Ok(null);
+      case Err(:final err):
+        error("payment-address: err: ${err.message}");
+        return Err(err.message);
+    }
+  }
+
+  void dispose() {
+    assert(!this.isDisposed);
+
+    this._completed.dispose();
+    this._isFetching.dispose();
+    this._isUpdating.dispose();
+
+    this.isDisposed = true;
+  }
+}

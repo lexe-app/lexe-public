@@ -4,7 +4,8 @@ import 'dart:async'
     show StreamSubscription, TimeoutException, scheduleMicrotask;
 import 'dart:math' as math;
 
-import 'package:app_rs_dart/ffi/api.dart' show FiatRate, NodeInfo;
+import 'package:app_rs_dart/ffi/api.dart'
+    show FiatRate, NodeInfo, PaymentAddress;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/settings.dart' show Settings;
 import 'package:app_rs_dart/ffi/types.dart'
@@ -20,7 +21,9 @@ import 'package:app_rs_dart/ffi/types.dart'
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show TapGestureRecognizer;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:intl/intl.dart' show NumberFormat;
+import 'package:lexeapp/app_data.dart' show LxAppData;
 import 'package:lexeapp/cfg.dart' show UserAgent;
 import 'package:lexeapp/components.dart'
     show
@@ -47,6 +50,7 @@ import 'package:lexeapp/route/debug.dart' show DebugPage;
 import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
 import 'package:lexeapp/route/payment_detail.dart'
     show PaymentDetailPage, PaymentSource;
+import 'package:lexeapp/route/profile.dart' show ProfilePage;
 import 'package:lexeapp/route/receive/page.dart' show ReceivePaymentPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/security.dart';
@@ -55,6 +59,8 @@ import 'package:lexeapp/route/send/state.dart'
     show SendFlowResult, SendState, SendState_NeedUri;
 import 'package:lexeapp/service/fiat_rates.dart' show FiatRateService;
 import 'package:lexeapp/service/node_info.dart' show NodeInfoService;
+import 'package:lexeapp/service/payment_address.dart'
+    show PaymentAddressService;
 import 'package:lexeapp/service/payment_sync.dart' show PaymentSyncService;
 import 'package:lexeapp/service/refresh.dart' show RefreshService;
 import 'package:lexeapp/settings.dart' show LxSettings;
@@ -70,6 +76,7 @@ class WalletPage extends StatefulWidget {
     required this.config,
     required this.app,
     required this.settings,
+    required this.appData,
     required this.featureFlags,
     required this.uriEvents,
     required this.gdriveAuth,
@@ -78,6 +85,7 @@ class WalletPage extends StatefulWidget {
   final Config config;
   final AppHandle app;
   final LxSettings settings;
+  final LxAppData appData;
   final FeatureFlags featureFlags;
   final UriEvents uriEvents;
   final GDriveAuth gdriveAuth;
@@ -108,6 +116,10 @@ class WalletPageState extends State<WalletPage> {
   );
   late final LxListener nodeInfoFetchOnRefresh;
 
+  /// Fetch [PaymentAddress].
+  late final PaymentAddressService paymentAddressService =
+      PaymentAddressService(app: this.widget.app, appData: this.widget.appData);
+
   /// Compute [BalanceState] from [FiatRate] and [NodeInfo] signals.
   late final ComputedValueListenable<BalanceState> balanceState;
 
@@ -124,6 +136,7 @@ class WalletPageState extends State<WalletPage> {
     this.uriEventsListener.cancel();
     this.isRefreshing.dispose();
     this.balanceState.dispose();
+    this.paymentAddressService.dispose();
     this.nodeInfoFetchOnRefresh.dispose();
     this.nodeInfoService.dispose();
     this.paymentSyncOnRefresh.dispose();
@@ -146,6 +159,10 @@ class WalletPageState extends State<WalletPage> {
       app: this.widget.app,
       settings: this.widget.settings,
     );
+
+    // Read [PaymentAddress] cached value and tries to fetch and update the cached
+    // from the node.
+    this.paymentAddressService.init();
 
     // Sync payments on refresh.
     this.paymentSyncOnRefresh = this.refreshService.refresh.listen(
@@ -493,6 +510,20 @@ class WalletPageState extends State<WalletPage> {
     );
   }
 
+  /// Called when "Profile" (edit username) is pressed in the menu drawer.
+  Future<void> onProfileMenuPressed() async {
+    // Close the drawer first
+    this.scaffoldKey.currentState?.closeDrawer();
+
+    // Navigate to profile page
+    await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) =>
+            ProfilePage(paymentAddressService: this.paymentAddressService),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -516,11 +547,13 @@ class WalletPageState extends State<WalletPage> {
       ),
       drawer: WalletDrawer(
         config: this.widget.config,
+        paymentAddressService: this.paymentAddressService,
         onChannelsMenuPressed: this.onOpenChannelsPage,
         onNodeInfoMenuPressed: this.onNodeInfoMenuPressed,
         onClientsMenuPressed: this.onClientsMenuPressed,
         onDebugMenuPressed: this.onDebugMenuPressed,
         onSecurityMenuPressed: this.onSecurityMenuPressed,
+        onProfileMenuPressed: this.onProfileMenuPressed,
       ),
       body: ScrollableSinglePageBody(
         padding: EdgeInsets.zero,
@@ -602,6 +635,7 @@ class WalletDrawer extends StatelessWidget {
   const WalletDrawer({
     super.key,
     required this.config,
+    required this.paymentAddressService,
     // this.onSettingsPressed,
     // this.onBackupPressed,
     // this.onSecurityPressed,
@@ -611,10 +645,12 @@ class WalletDrawer extends StatelessWidget {
     this.onDebugMenuPressed,
     this.onClientsMenuPressed,
     this.onSecurityMenuPressed,
+    this.onProfileMenuPressed,
     // this.onInvitePressed,
   });
 
   final Config config;
+  final PaymentAddressService paymentAddressService;
 
   // final VoidCallback? onSettingsPressed;
   // final VoidCallback? onBackupPressed;
@@ -625,129 +661,235 @@ class WalletDrawer extends StatelessWidget {
   final VoidCallback? onDebugMenuPressed;
   final VoidCallback? onClientsMenuPressed;
   final VoidCallback? onSecurityMenuPressed;
+  final VoidCallback? onProfileMenuPressed;
   // final VoidCallback? onInvitePressed;
+
+  Future<void> onRefresh() async {
+    await this.paymentAddressService.fetch();
+  }
 
   @override
   Widget build(BuildContext context) {
     final systemBarHeight = MediaQuery.of(context).padding.top;
 
     return Drawer(
-      child: Padding(
-        padding: EdgeInsets.only(top: systemBarHeight),
-        child: ListView(
-          padding: EdgeInsets.zero,
+      child: RefreshIndicator(
+        backgroundColor: LxColors.grey850,
+        elevation: 0.0,
+        onRefresh: this.onRefresh,
+        child: Padding(
+          padding: EdgeInsets.only(top: systemBarHeight),
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              // X - close
+              DrawerListItem(
+                icon: LxIcons.close,
+                onTap: () => Scaffold.of(context).closeDrawer(),
+              ),
+              ValueListenableBuilder(
+                valueListenable: this.paymentAddressService.paymentAddress,
+                builder: (context, paymentAddress, child) {
+                  return DrawerProfileHeader(
+                    paymentAddress: paymentAddress,
+                    onTap: this.onProfileMenuPressed,
+                  );
+                },
+              ),
+              DrawerListItem(
+                title: "Channels",
+                icon: LxIcons.openCloseChannel,
+                onTap: this.onChannelsMenuPressed,
+              ),
+              DrawerListItem(
+                title: "Node info",
+                icon: LxIcons.nodeInfo,
+                onTap: this.onNodeInfoMenuPressed,
+              ),
+              DrawerListItem(
+                title: "SDK clients",
+                icon: LxIcons.sdk,
+                onTap: this.onClientsMenuPressed,
+              ),
+
+              // TODO(phlip9): impl
+              // // * Settings
+              // // * Backup
+              // // * Security
+              // // * Support
+              // DrawerListItem(
+              //   title: "Settings",
+              //   icon: LxIcons.settings,
+              //   onTap: this.onSettingsPressed,
+              // ),
+              // DrawerListItem(
+              //   title: "Backup",
+              //   icon: LxIcons.backup,
+              //   onTap: this.onBackupPressed,
+              // ),
+              DrawerListItem(
+                title: "Security",
+                icon: LxIcons.security,
+                onTap: this.onSecurityMenuPressed,
+              ),
+              // DrawerListItem(
+              //   title: "Support",
+              //   icon: LxIcons.support,
+              //   onTap: this.onSupportPressed,
+              // ),
+              const SizedBox(height: Space.s600),
+
+              // TODO(phlip9): impl
+              // // < Invite Friends >
+              // Padding(
+              //   padding: const EdgeInsets.symmetric(horizontal: Space.s500),
+              //   child: LxOutlinedButton(
+              //     // TODO(phlip9): we use a closure to see button w/o disabled
+              //     // styling. remove extra closure when real functionality exists.
+              //     onTap: () => this.onInvitePressed?.call(),
+              //     label: const Text("Invite Friends"),
+              //   ),
+              // ),
+              // const SizedBox(height: Space.s600),
+
+              // Social media links row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                spacing: Space.s100,
+                children: [
+                  IconButton(
+                    onPressed: () => url.open("https://lexe.app"),
+                    icon: const Icon(LxIcons.website, size: Fonts.size600),
+                    color: LxColors.foreground,
+                  ),
+                  IconButton(
+                    onPressed: () => url.open("https://x.com/lexeapp"),
+                    icon: const Icon(LxIcons.x, size: Fonts.size600),
+                    color: LxColors.foreground,
+                  ),
+                  IconButton(
+                    onPressed: () => url.open("https://discord.gg/zybuBYgdbr"),
+                    icon: const Icon(LxIcons.discord, size: Fonts.size600),
+                    color: LxColors.foreground,
+                  ),
+                  IconButton(
+                    onPressed: () =>
+                        url.open("https://github.com/lexe-app/lexe-public"),
+                    icon: const Icon(LxIcons.github, size: Fonts.size600),
+                    color: LxColors.foreground,
+                  ),
+                ],
+              ),
+              const SizedBox(height: Space.s400),
+
+              // Show currently installed app version.
+              // ex: "Lexe · v0.6.2+5"
+              FutureBuilder(
+                future: UserAgent.fromPlatform(),
+                builder: (context, out) {
+                  final userAgent = out.data ?? UserAgent.dummy();
+                  return MultiTapDetector(
+                    onMultiTapDetected: () => this.onDebugMenuPressed!(),
+                    child: Text(
+                      "${userAgent.appName} · v${userAgent.version}",
+                      textAlign: TextAlign.center,
+                      style: Fonts.fontUI.copyWith(
+                        color: LxColors.grey600,
+                        fontSize: Fonts.size200,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class DrawerProfileHeader extends StatelessWidget {
+  const DrawerProfileHeader({super.key, this.onTap, this.paymentAddress});
+
+  final PaymentAddress? paymentAddress;
+  final VoidCallback? onTap;
+
+  /// if PaymentAddress is null, means that we haven't checked in the backend yet.
+  /// Or some other error reading db happened. So we can't update the username.
+  bool get isUpdatable =>
+      this.paymentAddress != null && this.paymentAddress?.updatable == true;
+
+  String? get parsedUsername => this.paymentAddress?.username != null
+      ? "${this.paymentAddress?.username?.field0}@lexe.app"
+      : null;
+
+  String get usernameOrDefault =>
+      this.parsedUsername ?? "Claim your ₿itcoin address ";
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: this.onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: Space.s400),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // X - close
-            DrawerListItem(
-              icon: LxIcons.close,
-              onTap: () => Scaffold.of(context).closeDrawer(),
+            Container(
+              width: 64.0,
+              height: 64.0,
+              decoration: BoxDecoration(
+                color: LxColors.grey850,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.person_outline,
+                size: 32.0,
+                color: LxColors.foreground,
+              ),
             ),
-            const SizedBox(height: Space.s600),
-
-            DrawerListItem(
-              title: "Channels",
-              icon: LxIcons.openCloseChannel,
-              onTap: this.onChannelsMenuPressed,
-            ),
-            DrawerListItem(
-              title: "Node info",
-              icon: LxIcons.nodeInfo,
-              onTap: this.onNodeInfoMenuPressed,
-            ),
-            DrawerListItem(
-              title: "SDK clients",
-              icon: LxIcons.sdk,
-              onTap: this.onClientsMenuPressed,
-            ),
-
-            // TODO(phlip9): impl
-            // // * Settings
-            // // * Backup
-            // // * Security
-            // // * Support
-            // DrawerListItem(
-            //   title: "Settings",
-            //   icon: LxIcons.settings,
-            //   onTap: this.onSettingsPressed,
-            // ),
-            // DrawerListItem(
-            //   title: "Backup",
-            //   icon: LxIcons.backup,
-            //   onTap: this.onBackupPressed,
-            // ),
-            DrawerListItem(
-              title: "Security",
-              icon: LxIcons.security,
-              onTap: this.onSecurityMenuPressed,
-            ),
-            // DrawerListItem(
-            //   title: "Support",
-            //   icon: LxIcons.support,
-            //   onTap: this.onSupportPressed,
-            // ),
-            const SizedBox(height: Space.s600),
-
-            // TODO(phlip9): impl
-            // // < Invite Friends >
-            // Padding(
-            //   padding: const EdgeInsets.symmetric(horizontal: Space.s500),
-            //   child: LxOutlinedButton(
-            //     // TODO(phlip9): we use a closure to see button w/o disabled
-            //     // styling. remove extra closure when real functionality exists.
-            //     onTap: () => this.onInvitePressed?.call(),
-            //     label: const Text("Invite Friends"),
-            //   ),
-            // ),
-            // const SizedBox(height: Space.s600),
-
-            // Social media links row
+            const SizedBox(height: Space.s300),
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              spacing: Space.s100,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(
-                  onPressed: () => url.open("https://lexe.app"),
-                  icon: const Icon(LxIcons.website, size: Fonts.size600),
-                  color: LxColors.foreground,
+                Text(
+                  this.usernameOrDefault,
+                  style: Fonts.fontUI.copyWith(
+                    color: LxColors.grey600,
+                    fontSize: Fonts.size200,
+                  ),
                 ),
-                IconButton(
-                  onPressed: () => url.open("https://x.com/lexeapp"),
-                  icon: const Icon(LxIcons.x, size: Fonts.size600),
-                  color: LxColors.foreground,
-                ),
-                IconButton(
-                  onPressed: () => url.open("https://discord.gg/zybuBYgdbr"),
-                  icon: const Icon(LxIcons.discord, size: Fonts.size600),
-                  color: LxColors.foreground,
-                ),
-                IconButton(
-                  onPressed: () =>
-                      url.open("https://github.com/lexe-app/lexe-public"),
-                  icon: const Icon(LxIcons.github, size: Fonts.size600),
-                  color: LxColors.foreground,
-                ),
-              ],
-            ),
-            const SizedBox(height: Space.s400),
-
-            // Show currently installed app version.
-            // ex: "Lexe · v0.6.2+5"
-            FutureBuilder(
-              future: UserAgent.fromPlatform(),
-              builder: (context, out) {
-                final userAgent = out.data ?? UserAgent.dummy();
-                return MultiTapDetector(
-                  onMultiTapDetected: () => this.onDebugMenuPressed!(),
-                  child: Text(
-                    "${userAgent.appName} · v${userAgent.version}",
-                    textAlign: TextAlign.center,
-                    style: Fonts.fontUI.copyWith(
+                if (this.parsedUsername != null)
+                  const SizedBox(width: Space.s100),
+                if (this.parsedUsername != null)
+                  GestureDetector(
+                    onTap: () {
+                      Clipboard.setData(
+                        ClipboardData(text: this.parsedUsername!),
+                      );
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Bitcoin address copied'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    child: Icon(
+                      LxIcons.copy,
+                      size: Fonts.size300,
                       color: LxColors.grey600,
-                      fontSize: Fonts.size200,
                     ),
                   ),
-                );
-              },
+                if (this.onTap != null) const SizedBox(width: Space.s100),
+                if (this.onTap != null)
+                  Icon(
+                    LxIcons.edit,
+                    size: Fonts.size300,
+                    color: LxColors.grey600,
+                  ),
+              ],
             ),
           ],
         ),
@@ -1543,3 +1685,4 @@ class PaymentListIcon extends StatelessWidget {
     BalanceKind.onchain => const ListIcon.bitcoin(),
   };
 }
+
