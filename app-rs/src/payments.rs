@@ -2,14 +2,14 @@
 //!
 //! ### [`PaymentDb`]
 //!
-//! The app's [`PaymentDb`] maintains a local copy of all [`BasicPaymentV1`]s,
+//! The app's [`PaymentDb`] maintains a local copy of all [`BasicPaymentV2`]s,
 //! synced from the user node. The user nodes are the source-of-truth for
 //! payment state; consequently, this payment db is effectively a projection of
 //! the user node's payment state.
 //!
-//! Currently the [`BasicPaymentV1`]s in the [`PaymentDb`] are just dumped into
+//! Currently the [`BasicPaymentV2`]s in the [`PaymentDb`] are just dumped into
 //! a subdirectory of the app's data directory as unencrypted json blobs. On
-//! startup, we just load all on-disk [`BasicPaymentV1`]s into memory.
+//! startup, we just load all on-disk [`BasicPaymentV2`]s into memory.
 //!
 //! In the future, this could be a SQLite DB or something.
 //!
@@ -22,12 +22,13 @@
 //!    unsuccessfully).
 //! 2. We then request, in order, any new payments made since our last sync.
 //!
-//! [`BasicPaymentV1`]: lexe_api::types::payments::BasicPaymentV1
+//! [`BasicPaymentV2`]: lexe_api::types::payments::BasicPaymentV2
 //! [`PaymentDb`]: crate::payments::PaymentDb
 
 use std::{io, str::FromStr, sync::Mutex};
 
 use anyhow::{Context, format_err};
+use common::time::TimestampMs;
 use lexe_api::{
     def::AppNodeRunApi,
     error::NodeApiError,
@@ -36,7 +37,7 @@ use lexe_api::{
         UpdatePaymentNote,
     },
     types::payments::{
-        BasicPaymentV1, PaymentCreatedIndex, VecBasicPaymentV1,
+        BasicPaymentV2, PaymentCreatedIndex, VecBasicPaymentV1,
         VecBasicPaymentV2,
     },
 };
@@ -46,7 +47,7 @@ use tracing::{instrument, warn};
 
 use crate::{client::NodeClient, ffs::Ffs};
 
-/// The app's local [`BasicPaymentV1`] database, synced from the user node.
+/// The app's local [`BasicPaymentV2`] database, synced from the user node.
 pub struct PaymentDb<F> {
     ffs: F,
     state: PaymentDbState,
@@ -61,7 +62,7 @@ pub struct PaymentDb<F> {
 // asynchronously and off the main UI thread, which is highly latency
 // sensitive.
 //
-// All `BasicPaymentV1`s are stored in an append-only, ordered `Vec`.
+// All `BasicPaymentV2`s are stored in an append-only, ordered `Vec`.
 // (Although we can modify non-primary-key fields, like status or note).
 //
 // In the future, we could be even more clever and serialize+store the bitmap
@@ -74,7 +75,7 @@ pub struct PaymentDbState {
     // All locally synced payments.
     //
     // Sorted from oldest to newest (reverse of the UI scroll order).
-    payments: Vec<BasicPaymentV1>,
+    payments: Vec<BasicPaymentV2>,
 
     // An index of currently pending payments. Used during sync, when we ask
     // the node for any updates to these pending payments.
@@ -87,7 +88,7 @@ pub struct PaymentDbState {
     pending: RoaringBitmap,
 
     // An index of currently pending and not junk payments (see
-    // [`BasicPaymentV1::is_junk`]). The wallet page displays these payments
+    // [`BasicPaymentV2::is_junk`]). The wallet page displays these payments
     // under the "Pending" section by default.
     //
     // Invariant:
@@ -98,7 +99,7 @@ pub struct PaymentDbState {
     pending_not_junk: RoaringBitmap,
 
     // An index of currently finalized and not junk payments (see
-    // [`BasicPaymentV1::is_junk`]). The wallet page displays these payments
+    // [`BasicPaymentV2::is_junk`]). The wallet page displays these payments
     // under the "Completed" section by default.
     //
     // Invariant:
@@ -196,8 +197,8 @@ impl<F: Ffs> PaymentDb<F> {
     /// Write a payment to on-disk storage. Does not update `PaymentDb` indexes
     /// or in-memory state though.
     // Making this an associated fn avoids some borrow checker issues.
-    fn write_payment(ffs: &F, payment: &BasicPaymentV1) -> io::Result<()> {
-        let idx = payment.index();
+    fn write_payment(ffs: &F, payment: &BasicPaymentV2) -> io::Result<()> {
+        let idx = payment.created_index();
         let filename = idx.to_string();
         let data =
             serde_json::to_vec(&payment).expect("Failed to serialize payment");
@@ -212,18 +213,19 @@ impl<F: Ffs> PaymentDb<F> {
     /// (2) all payments are newer than any current payment in the DB.
     fn insert_new_payments(
         &mut self,
-        mut new_payments: Vec<BasicPaymentV1>,
+        mut new_payments: Vec<BasicPaymentV2>,
     ) -> io::Result<()> {
         let oldest_new_payment = match new_payments.first() {
             Some(p) => p,
             // No new payments; nothing to do.
             None => return Ok(()),
         };
+        let oldest_new_payment_index = oldest_new_payment.created_index();
 
         // (1)
         let not_sorted_or_unique = new_payments
             .iter()
-            .is_strict_total_order_by_key(BasicPaymentV1::index);
+            .is_strict_total_order_by_key(BasicPaymentV2::created_index);
         if !not_sorted_or_unique {
             return Err(io_err_invalid_data(
                 "new payments batch is not sorted or contains duplicates",
@@ -231,8 +233,8 @@ impl<F: Ffs> PaymentDb<F> {
         }
 
         // (2)
-        let all_new_payments_are_newer = self.state.latest_payment_index()
-            < Some(oldest_new_payment.index());
+        let all_new_payments_are_newer =
+            self.state.latest_payment_index() < Some(oldest_new_payment_index);
         if !all_new_payments_are_newer {
             return Err(io_err_invalid_data(
                 "new payments contains older payments than db",
@@ -295,7 +297,7 @@ impl<F: Ffs> PaymentDb<F> {
     /// node.
     fn update_pending_payments(
         &mut self,
-        pending_payments_updates: Vec<BasicPaymentV1>,
+        pending_payments_updates: Vec<BasicPaymentV2>,
     ) -> io::Result<usize> {
         let mut num_updated = 0;
 
@@ -314,9 +316,9 @@ impl<F: Ffs> PaymentDb<F> {
 
     fn update_pending_payment(
         &mut self,
-        updated_payment: BasicPaymentV1,
+        updated_payment: BasicPaymentV2,
     ) -> io::Result<usize> {
-        let updated_payment_index = updated_payment.index();
+        let updated_payment_index = updated_payment.created_index();
 
         //
         // Get the current, pending payment.
@@ -324,7 +326,7 @@ impl<F: Ffs> PaymentDb<F> {
 
         let vec_idx = self
             .state
-            .get_vec_idx_by_payment_index(updated_payment_index)
+            .get_vec_idx_by_payment_index(&updated_payment_index)
             .expect(
                 "PaymentDb is corrupted! We are missing a pending payment \
                  that should exist!",
@@ -431,7 +433,7 @@ impl PaymentDbState {
         assert!(
             self.payments
                 .iter()
-                .is_strict_total_order_by_key(BasicPaymentV1::index)
+                .is_strict_total_order_by_key(BasicPaymentV2::created_index)
         );
 
         // (2.)
@@ -477,11 +479,11 @@ impl PaymentDbState {
     }
 
     /// Build a `RoaringBitmap` index that matches the given binary `filter`.
-    /// The filter returns `Some(vec_idx)` for a given [`BasicPaymentV1`] if
+    /// The filter returns `Some(vec_idx)` for a given [`BasicPaymentV2`] if
     /// that payment should be in the index.
-    fn build_index<F>(payments: &[BasicPaymentV1], filter: F) -> RoaringBitmap
+    fn build_index<F>(payments: &[BasicPaymentV2], filter: F) -> RoaringBitmap
     where
-        F: Fn((usize, &BasicPaymentV1)) -> Option<u32>,
+        F: Fn((usize, &BasicPaymentV2)) -> Option<u32>,
     {
         let iter = payments.iter().enumerate().filter_map(filter);
         RoaringBitmap::from_sorted_iter(iter).expect(
@@ -489,14 +491,14 @@ impl PaymentDbState {
         )
     }
 
-    fn build_pending_index(payments: &[BasicPaymentV1]) -> RoaringBitmap {
+    fn build_pending_index(payments: &[BasicPaymentV2]) -> RoaringBitmap {
         Self::build_index(payments, |(vec_idx, payment)| {
             payment.is_pending().then_some(vec_idx as u32)
         })
     }
 
     fn build_pending_not_junk_index(
-        payments: &[BasicPaymentV1],
+        payments: &[BasicPaymentV2],
     ) -> RoaringBitmap {
         Self::build_index(payments, |(vec_idx, payment)| {
             payment.is_pending_not_junk().then_some(vec_idx as u32)
@@ -504,7 +506,7 @@ impl PaymentDbState {
     }
 
     fn build_finalized_not_junk_index(
-        payments: &[BasicPaymentV1],
+        payments: &[BasicPaymentV2],
     ) -> RoaringBitmap {
         Self::build_index(payments, |(vec_idx, payment)| {
             payment.is_finalized_not_junk().then_some(vec_idx as u32)
@@ -514,7 +516,7 @@ impl PaymentDbState {
     /// Read the DB state from disk.
     fn read<F: Ffs>(ffs: &F) -> anyhow::Result<Self> {
         let mut buf: Vec<u8> = Vec::new();
-        let mut payments: Vec<BasicPaymentV1> = Vec::new();
+        let mut payments: Vec<BasicPaymentV2> = Vec::new();
 
         ffs.read_dir_visitor(|filename| {
             let payment_index = match PaymentCreatedIndex::from_str(filename) {
@@ -532,7 +534,7 @@ impl PaymentDbState {
             buf.clear();
             ffs.read_into(filename, &mut buf)?;
 
-            let payment: BasicPaymentV1 = serde_json::from_slice(&buf)
+            let payment: BasicPaymentV2 = serde_json::from_slice(&buf)
                 .with_context(|| {
                     format!(
                         "Failed to deserialize payment file ('{filename}')"
@@ -541,7 +543,7 @@ impl PaymentDbState {
                 .map_err(io_err_invalid_data)?;
 
             // Sanity check.
-            if &payment_index != payment.index() {
+            if payment_index != payment.created_index() {
                 return Err(io_err_invalid_data(
                     format!("Payment DB corruption: payment file ('{filename}') contents don't match filename??")
                 ));
@@ -555,10 +557,10 @@ impl PaymentDbState {
         Ok(Self::from_unsorted_vec(payments))
     }
 
-    fn from_unsorted_vec(mut payments: Vec<BasicPaymentV1>) -> Self {
-        payments.sort_unstable_by(|x, y| x.index.cmp(&y.index));
+    fn from_unsorted_vec(mut payments: Vec<BasicPaymentV2>) -> Self {
+        payments.sort_unstable_by_key(|x| x.created_index());
         // dedup just to be safe : )
-        payments.dedup_by(|x, y| x.index == y.index);
+        payments.dedup_by(|x, y| x.created_index() == y.created_index());
 
         let pending = Self::build_pending_index(&payments);
         let pending_not_junk = Self::build_pending_not_junk_index(&payments);
@@ -603,14 +605,14 @@ impl PaymentDbState {
 
     /// The latest/newest payment that the `PaymentDb` has synced from the user
     /// node.
-    pub fn latest_payment_index(&self) -> Option<&PaymentCreatedIndex> {
-        self.payments.last().map(|payment| payment.index())
+    pub fn latest_payment_index(&self) -> Option<PaymentCreatedIndex> {
+        self.payments.last().map(|payment| payment.created_index())
     }
 
     fn pending_indexes(&self) -> Vec<PaymentCreatedIndex> {
         self.pending
             .iter()
-            .map(|vec_idx| self.payments[vec_idx as usize].index)
+            .map(|vec_idx| self.payments[vec_idx as usize].created_index())
             .collect()
     }
 
@@ -619,7 +621,7 @@ impl PaymentDbState {
         payment_index: &PaymentCreatedIndex,
     ) -> Option<usize> {
         self.payments
-            .binary_search_by_key(&payment_index, BasicPaymentV1::index)
+            .binary_search_by_key(payment_index, BasicPaymentV2::created_index)
             .ok()
     }
 
@@ -627,14 +629,14 @@ impl PaymentDbState {
     pub fn get_payment_by_vec_idx(
         &self,
         vec_idx: usize,
-    ) -> Option<&BasicPaymentV1> {
+    ) -> Option<&BasicPaymentV2> {
         self.payments.get(vec_idx)
     }
 
     pub fn get_mut_payment_by_vec_idx(
         &mut self,
         vec_idx: usize,
-    ) -> Option<&mut BasicPaymentV1> {
+    ) -> Option<&mut BasicPaymentV2> {
         self.payments.get_mut(vec_idx)
     }
 
@@ -643,7 +645,7 @@ impl PaymentDbState {
     pub fn get_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> Option<(usize, &BasicPaymentV1)> {
+    ) -> Option<(usize, &BasicPaymentV2)> {
         // vec_idx | scroll_idx | payment timestamp
         // 0       | 2          | 23
         // 1       | 1          | 50
@@ -665,7 +667,7 @@ impl PaymentDbState {
     pub fn get_pending_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> Option<(usize, &BasicPaymentV1)> {
+    ) -> Option<(usize, &BasicPaymentV2)> {
         // early exit
         let num_pending = self.num_pending();
         if scroll_idx >= num_pending {
@@ -697,7 +699,7 @@ impl PaymentDbState {
     pub fn get_finalized_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> Option<(usize, &BasicPaymentV1)> {
+    ) -> Option<(usize, &BasicPaymentV2)> {
         // early exit
         let num_finalized = self.num_finalized();
         if scroll_idx >= num_finalized {
@@ -747,7 +749,7 @@ impl PaymentDbState {
     pub fn get_pending_not_junk_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> Option<(usize, &BasicPaymentV1)> {
+    ) -> Option<(usize, &BasicPaymentV2)> {
         // early exit
         let n = self.num_pending_not_junk();
         if scroll_idx >= n {
@@ -779,7 +781,7 @@ impl PaymentDbState {
     pub fn get_finalized_not_junk_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> Option<(usize, &BasicPaymentV1)> {
+    ) -> Option<(usize, &BasicPaymentV2)> {
         // early exit
         let n = self.num_finalized_not_junk();
         if scroll_idx >= n {
@@ -875,14 +877,25 @@ async fn sync_pending_payments<F: Ffs, N: AppNodeRunSyncApi>(
         let req = PaymentCreatedIndexes {
             indexes: pending_idxs_batch.to_vec(),
         };
-        let resp_payments = node
+
+        let resp_payments_v1 = node
             .get_payments_by_indexes(req)
             .await
             .context("Failed to request updated pending payments from node")?
             .payments;
+        let resp_payments_v2 = resp_payments_v1
+            .into_iter()
+            .map(|v1| {
+                // Set updated_at to a dummy value, since the new + pending
+                // based sync doesn't rely on it in any way, since v1 didn't
+                // have an updated_at field.
+                let updated_at = TimestampMs::MIN;
+                BasicPaymentV2::from_v1(v1, updated_at)
+            })
+            .collect::<Vec<BasicPaymentV2>>();
 
         // Sanity check response.
-        if resp_payments.len() > pending_idxs_batch.len() {
+        if resp_payments_v2.len() > pending_idxs_batch.len() {
             return Err(format_err!(
                 "Node returned more payments than we expected!"
             ));
@@ -903,7 +916,7 @@ async fn sync_pending_payments<F: Ffs, N: AppNodeRunSyncApi>(
         num_updated += db
             .lock()
             .unwrap()
-            .update_pending_payments(resp_payments)
+            .update_pending_payments(resp_payments_v2)
             .context(
                 "PaymentDb: Failed to persist updated pending payments batch",
             )?;
@@ -923,7 +936,7 @@ async fn sync_new_payments<F: Ffs, N: AppNodeRunSyncApi>(
 ) -> anyhow::Result<usize> {
     let mut num_new = 0;
     let mut latest_payment_index =
-        db.lock().unwrap().state.latest_payment_index().copied();
+        db.lock().unwrap().state.latest_payment_index();
 
     loop {
         // Fetch the next batch of new payments.
@@ -933,22 +946,33 @@ async fn sync_new_payments<F: Ffs, N: AppNodeRunSyncApi>(
             start_index: latest_payment_index,
             limit: Some(batch_size),
         };
-        let resp_payments = node
+
+        let resp_payments_v1 = node
             .get_new_payments(req)
             .await
             .context("Failed to fetch new payments")?
             .payments;
+        let resp_payments_v2 = resp_payments_v1
+            .into_iter()
+            .map(|v1| {
+                // Set updated_at to a dummy value, since the new + pending
+                // based sync doesn't rely on it in any way, since v1 didn't
+                // have an updated_at field.
+                let updated_at = TimestampMs::MIN;
+                BasicPaymentV2::from_v1(v1, updated_at)
+            })
+            .collect::<Vec<BasicPaymentV2>>();
 
-        let resp_payments_len = resp_payments.len();
+        let resp_payments_len = resp_payments_v2.len();
         num_new += resp_payments_len;
 
         // Update the db. Persist new payments on-disk. Add pending payments to
         // index.
         {
             let mut lock = db.lock().unwrap();
-            lock.insert_new_payments(resp_payments)
+            lock.insert_new_payments(resp_payments_v2)
                 .context("Failed to insert new payments")?;
-            latest_payment_index = lock.state.latest_payment_index().copied();
+            latest_payment_index = lock.state.latest_payment_index();
         }
 
         // If the node returns fewer payments than our requested batch size,
@@ -995,7 +1019,7 @@ mod test {
     use common::rng::{FastRng, RngExt};
     use lexe_api::{
         error::NodeApiError,
-        types::payments::{PaymentStatus, VecBasicPaymentV1},
+        types::payments::{BasicPaymentV1, PaymentStatus, VecBasicPaymentV1},
     };
     use proptest::{
         arbitrary::any,
@@ -1010,12 +1034,12 @@ mod test {
     use crate::ffs::{FlatFileFs, test::MockFfs};
 
     struct MockNodeV1 {
-        payments: BTreeMap<PaymentCreatedIndex, BasicPaymentV1>,
+        payments: BTreeMap<PaymentCreatedIndex, BasicPaymentV2>,
     }
 
     impl MockNodeV1 {
         fn new(
-            payments: BTreeMap<PaymentCreatedIndex, BasicPaymentV1>,
+            payments: BTreeMap<PaymentCreatedIndex, BasicPaymentV2>,
         ) -> Self {
             Self { payments }
         }
@@ -1037,6 +1061,7 @@ mod test {
                         .find(|(idx_j, _p)| &idx_i == *idx_j)
                         .map(|(_idx, p)| p)
                         .cloned()
+                        .map(BasicPaymentV1::from)
                 })
                 .collect();
             Ok(VecBasicPaymentV1 { payments })
@@ -1070,6 +1095,7 @@ mod test {
             let payments = iter
                 .take(limit as usize)
                 .map(|(_key, value)| value.clone())
+                .map(BasicPaymentV1::from)
                 .collect::<Vec<_>>();
             Ok(VecBasicPaymentV1 { payments })
         }
@@ -1099,12 +1125,12 @@ mod test {
 
     fn arb_payments(
         approx_size: impl Into<SizeRange>,
-    ) -> impl Strategy<Value = BTreeMap<PaymentCreatedIndex, BasicPaymentV1>>
+    ) -> impl Strategy<Value = BTreeMap<PaymentCreatedIndex, BasicPaymentV2>>
     {
-        vec(any::<BasicPaymentV1>(), approx_size).prop_map(|payments| {
+        vec(any::<BasicPaymentV2>(), approx_size).prop_map(|payments| {
             payments
                 .into_iter()
-                .map(|payment| (*payment.index(), payment))
+                .map(|payment| (payment.created_index(), payment))
                 .collect::<BTreeMap<_, _>>()
         })
     }
@@ -1112,7 +1138,7 @@ mod test {
     fn arb_payment_db_state(
         approx_size: impl Into<SizeRange>,
     ) -> impl Strategy<Value = PaymentDbState> {
-        vec(any::<BasicPaymentV1>(), approx_size)
+        vec(any::<BasicPaymentV2>(), approx_size)
             .prop_map(PaymentDbState::from_unsorted_vec)
     }
 
@@ -1182,11 +1208,11 @@ mod test {
 
             assert_eq!(
                 mock_ffs_db.state().latest_payment_index(),
-                payments.last_key_value().map(|(k, _v)| k),
+                payments.last_key_value().map(|(k, _v)| *k),
             );
             assert_eq!(
                 temp_fs_db.state().latest_payment_index(),
-                payments.last_key_value().map(|(k, _v)| k),
+                payments.last_key_value().map(|(k, _v)| *k),
             );
 
             assert_eq!(mock_ffs_db.state, temp_fs_db.state);
@@ -1199,8 +1225,8 @@ mod test {
         naive_filter_fn: F2,
         scroll_idx: usize,
     ) where
-        F1: Fn(&PaymentDbState, usize) -> Option<(usize, &BasicPaymentV1)>,
-        F2: Fn(&BasicPaymentV1) -> bool,
+        F1: Fn(&PaymentDbState, usize) -> Option<(usize, &BasicPaymentV2)>,
+        F2: Fn(&BasicPaymentV2) -> bool,
     {
         let actual = actual_fn(db_state, scroll_idx);
         let naive = db_state
@@ -1239,28 +1265,28 @@ mod test {
                 assert_get_by_scroll_idx(
                     &db_state,
                     PaymentDbState::get_pending_payment_by_scroll_idx,
-                    BasicPaymentV1::is_pending,
+                    BasicPaymentV2::is_pending,
                     scroll_idx,
                 );
 
                 assert_get_by_scroll_idx(
                     &db_state,
                     PaymentDbState::get_pending_not_junk_payment_by_scroll_idx,
-                    BasicPaymentV1::is_pending_not_junk,
+                    BasicPaymentV2::is_pending_not_junk,
                     scroll_idx,
                 );
 
                 assert_get_by_scroll_idx(
                     &db_state,
                     PaymentDbState::get_finalized_payment_by_scroll_idx,
-                    BasicPaymentV1::is_finalized,
+                    BasicPaymentV2::is_finalized,
                     scroll_idx,
                 );
 
                 assert_get_by_scroll_idx(
                     &db_state,
                     PaymentDbState::get_finalized_not_junk_payment_by_scroll_idx,
-                    BasicPaymentV1::is_finalized_not_junk,
+                    BasicPaymentV2::is_finalized_not_junk,
                     scroll_idx,
                 );
             }
@@ -1279,8 +1305,8 @@ mod test {
     }
 
     fn assert_db_payments_eq(
-        db_payments: &[BasicPaymentV1],
-        node_payments: &BTreeMap<PaymentCreatedIndex, BasicPaymentV1>,
+        db_payments: &[BasicPaymentV2],
+        node_payments: &BTreeMap<PaymentCreatedIndex, BasicPaymentV2>,
     ) {
         assert_eq!(db_payments.len(), node_payments.len());
         assert!(db_payments.iter().eq(node_payments.values()));
@@ -1334,7 +1360,7 @@ mod test {
                 for finalize_idx in finalize_idxs {
                     let finalize_idx = finalize_idx.index(pending_payments.len());
                     let payment = &pending_payments[finalize_idx];
-                    finalized_payments.push(payment.index());
+                    finalized_payments.push(payment.created_index());
                     let new_status = if rng2.gen_boolean() {
                         PaymentStatus::Completed
                     } else {
@@ -1342,7 +1368,7 @@ mod test {
                     };
                     mock_node
                         .payments
-                        .get_mut(payment.index())
+                        .get_mut(&payment.created_index())
                         .unwrap()
                         .status = new_status;
                 }

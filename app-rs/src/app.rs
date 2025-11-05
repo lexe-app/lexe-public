@@ -313,7 +313,7 @@ impl App {
             (
                 locked_payment_db.state().num_payments(),
                 locked_payment_db.state().num_pending(),
-                locked_payment_db.state().latest_payment_index().cloned(),
+                locked_payment_db.state().latest_payment_index(),
             )
         };
         info!(
