@@ -62,8 +62,8 @@ use lexe_api::{
     types::{
         Empty,
         payments::{
-            BasicPaymentV1, DbPaymentV1, DbPaymentV2, LxPaymentId,
-            PaymentCreatedIndex, VecDbPaymentV2,
+            BasicPaymentV1, BasicPaymentV2, DbPaymentV1, DbPaymentV2,
+            LxPaymentId, PaymentCreatedIndex, VecDbPaymentV2,
         },
     },
     vfs::{
@@ -473,17 +473,13 @@ impl NodePersister {
     ) -> anyhow::Result<Vec<BasicPaymentV1>> {
         let token = self.get_token().await?;
         self.backend_api
-            // Fetch `DbPaymentV1`s
             .get_payments_by_indexes(req, token)
             .await
             .context("Could not fetch `DbPaymentV1`s")?
             .payments
             .into_iter()
-            // Decrypt into `Payment`s
             .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
-            // Convert to `BasicPaymentV1`s
             .map(|res| res.map(BasicPaymentV1::from))
-            // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
             .collect::<anyhow::Result<Vec<BasicPaymentV1>>>()
     }
 
@@ -493,39 +489,40 @@ impl NodePersister {
     ) -> anyhow::Result<Vec<BasicPaymentV1>> {
         let token = self.get_token().await?;
         self.backend_api
-            // Fetch `DbPaymentV1`s
             .get_new_payments(req, token)
             .await
             .context("Could not fetch `DbPaymentV1`s")?
             .payments
             .into_iter()
-            // Decrypt into `Payment`s
             .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
-            // Convert to `BasicPaymentV1`s
             .map(|res| res.map(BasicPaymentV1::from))
-            // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
             .collect::<anyhow::Result<Vec<BasicPaymentV1>>>()
     }
 
     pub(crate) async fn read_updated_payments(
         &self,
         req: GetUpdatedPayments,
-    ) -> anyhow::Result<Vec<BasicPaymentV1>> {
+    ) -> anyhow::Result<Vec<BasicPaymentV2>> {
         // TODO(max): We will have to do some zipping with payment metadata.
         let token = self.get_token().await?;
         self.backend_api
-            // Fetch `DbPaymentV2`s
             .get_updated_payments(req, token)
             .await
             .context("Could not fetch `DbPaymentV2`s")?
             .payments
             .into_iter()
-            // Decrypt into `Payment`s
-            .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
-            // Convert to `BasicPaymentV1`s
-            .map(|res| res.map(BasicPaymentV1::from))
-            // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
-            .collect::<anyhow::Result<Vec<BasicPaymentV1>>>()
+            .map(|db_payment| {
+                let created_at = TimestampMs::try_from(db_payment.created_at)
+                    .context("Invalid created_at timestamp")?;
+                let updated_at = TimestampMs::try_from(db_payment.updated_at)
+                    .context("Invalid updated_at timestamp")?;
+                let payment =
+                    payments::decrypt(&self.vfs_master_key, db_payment.data)?;
+                let basic_payment =
+                    payment.into_basic_payment(created_at, updated_at);
+                Ok(basic_payment)
+            })
+            .collect::<anyhow::Result<Vec<BasicPaymentV2>>>()
     }
 
     /// NOTE: See module docs for info on how manager/monitor persist works.

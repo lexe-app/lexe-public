@@ -65,7 +65,10 @@ use lexe_api::{
         UpdatePaymentAddress, UpdatePaymentNote,
     },
     rest::{POST, RequestBuilderExt, RestClient},
-    types::{Empty, payments::VecBasicPaymentV1},
+    types::{
+        Empty,
+        payments::{VecBasicPaymentV1, VecBasicPaymentV2},
+    },
 };
 use lexe_tls::{
     attestation, lexe_ca, rustls, shared_seed,
@@ -704,7 +707,7 @@ impl AppNodeRunApi for NodeClient {
     async fn get_updated_payments(
         &self,
         req: GetUpdatedPayments,
-    ) -> Result<VecBasicPaymentV1, NodeApiError> {
+    ) -> Result<VecBasicPaymentV2, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/payments/updated");

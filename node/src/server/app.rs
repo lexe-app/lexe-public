@@ -37,7 +37,10 @@ use lexe_api::{
         UpdatePaymentAddress, UpdatePaymentNote,
     },
     server::{LxJson, extract::LxQuery},
-    types::{Empty, payments::VecBasicPaymentV1},
+    types::{
+        Empty,
+        payments::{VecBasicPaymentV1, VecBasicPaymentV2},
+    },
     vfs::{self, Vfs, VfsDirectory},
 };
 use lexe_ln::p2p;
@@ -394,13 +397,13 @@ pub(super) async fn get_new_payments(
 pub(super) async fn get_updated_payments(
     State(state): State<Arc<RouterState>>,
     LxQuery(req): LxQuery<GetUpdatedPayments>,
-) -> Result<LxJson<VecBasicPaymentV1>, NodeApiError> {
+) -> Result<LxJson<VecBasicPaymentV2>, NodeApiError> {
     let payments = state
         .persister
         .read_updated_payments(req)
         .await
         .map_err(NodeApiError::command)?;
-    Ok(LxJson(VecBasicPaymentV1 { payments }))
+    Ok(LxJson(VecBasicPaymentV2 { payments }))
 }
 
 pub(super) async fn update_payment_note(
