@@ -71,7 +71,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         RevocableClient,
         RootSeed,
         Scope,
-        ShortPaymentAndIndex,
+        ShortPayment,
         Username;
 import 'package:app_rs_dart/ffi/types.ext.dart' show PaymentExt;
 import 'package:app_rs_dart/lib.dart' show U8Array32;
@@ -369,71 +369,56 @@ class MockAppHandle extends AppHandle {
       Future.delayed(const Duration(milliseconds: 1500), () => true);
 
   @override
-  Future<int?> getVecIdxByPaymentIndex({
-    required PaymentCreatedIndex paymentIndex,
-  }) async {
-    final vecIdx = this.payments.indexWhere(
-      (payment) => payment.index == paymentIndex,
+  Payment? getPaymentByCreatedIndex({required PaymentCreatedIndex createdIdx}) {
+    return this.payments.firstWhereOrNull(
+      (payment) => payment.index == createdIdx,
     );
-    if (vecIdx >= 0) {
-      return vecIdx;
-    } else {
-      return null;
-    }
   }
 
-  @override
-  Payment? getPaymentByVecIdx({required int vecIdx}) => this.payments[vecIdx];
-
-  ShortPaymentAndIndex? _getByScrollIdx({
+  ShortPayment? _getByScrollIndex({
     required bool Function(Payment) filter,
     required int scrollIdx,
   }) {
     final result = this
         .payments
         .reversed // can't `reversed` after .indexed...
-        .indexed
-        .where((x) => filter(x.$2))
+        .where(filter)
         .elementAtOrNull(scrollIdx);
     if (result == null) return null;
-    return ShortPaymentAndIndex(
-      vecIdx: this.payments.length - result.$1 - 1,
-      payment: result.$2.intoShort(),
-    );
+    return result.intoShort();
   }
 
   @override
-  ShortPaymentAndIndex? getShortPaymentByScrollIdx({required int scrollIdx}) =>
-      this._getByScrollIdx(filter: (_) => true, scrollIdx: scrollIdx);
+  ShortPayment? getShortPaymentByScrollIndex({required int scrollIdx}) =>
+      this._getByScrollIndex(filter: (_) => true, scrollIdx: scrollIdx);
 
   @override
-  ShortPaymentAndIndex? getPendingShortPaymentByScrollIdx({
-    required int scrollIdx,
-  }) => this._getByScrollIdx(
-    filter: (payment) => payment.isPending(),
-    scrollIdx: scrollIdx,
-  );
+  ShortPayment? getPendingShortPaymentByScrollIndex({required int scrollIdx}) =>
+      this._getByScrollIndex(
+        filter: (payment) => payment.isPending(),
+        scrollIdx: scrollIdx,
+      );
 
   @override
-  ShortPaymentAndIndex? getPendingNotJunkShortPaymentByScrollIdx({
+  ShortPayment? getPendingNotJunkShortPaymentByScrollIndex({
     required int scrollIdx,
-  }) => this._getByScrollIdx(
+  }) => this._getByScrollIndex(
     filter: (payment) => payment.isPendingNotJunk(),
     scrollIdx: scrollIdx,
   );
 
   @override
-  ShortPaymentAndIndex? getFinalizedShortPaymentByScrollIdx({
+  ShortPayment? getFinalizedShortPaymentByScrollIndex({
     required int scrollIdx,
-  }) => this._getByScrollIdx(
+  }) => this._getByScrollIndex(
     filter: (payment) => payment.isFinalized(),
     scrollIdx: scrollIdx,
   );
 
   @override
-  ShortPaymentAndIndex? getFinalizedNotJunkShortPaymentByScrollIdx({
+  ShortPayment? getFinalizedNotJunkShortPaymentByScrollIndex({
     required int scrollIdx,
-  }) => this._getByScrollIdx(
+  }) => this._getByScrollIndex(
     filter: (payment) => payment.isFinalizedNotJunk(),
     scrollIdx: scrollIdx,
   );

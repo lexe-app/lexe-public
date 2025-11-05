@@ -43,7 +43,7 @@ use crate::{
     client::{Credentials, GatewayClient, NodeClient},
     db::WritebackDb,
     ffs::{Ffs, FlatFileFs},
-    payments::{self, PaymentDb, PaymentSyncSummary},
+    payments_db::{self, PaymentSyncSummary, PaymentsDb},
     provision_history::ProvisionHistory,
     secret_store::SecretStore,
     settings::SettingsRs,
@@ -53,7 +53,7 @@ use crate::{
 pub struct App {
     gateway_client: GatewayClient,
     node_client: NodeClient,
-    payment_db: Mutex<PaymentDb<FlatFileFs>>,
+    payments_db: Mutex<PaymentsDb<FlatFileFs>>,
 
     /// We only want one task syncing payments at a time. Ideally the dart side
     /// shouldn't let this happen, but just to be safe let's add this in.
@@ -159,9 +159,9 @@ impl App {
 
         // Create new payments DB
         let payments_ffs =
-            FlatFileFs::create_clean_dir_all(user_config.payment_db_dir())
+            FlatFileFs::create_clean_dir_all(user_config.payments_db_dir())
                 .context("Could not create payments ffs")?;
-        let payment_db = Mutex::new(PaymentDb::empty(payments_ffs));
+        let payments_db = Mutex::new(PaymentsDb::empty(payments_ffs));
 
         // Create new app DB
         let app_db_ffs =
@@ -225,7 +225,7 @@ impl App {
         Ok(Self {
             node_client,
             gateway_client,
-            payment_db,
+            payments_db,
             payment_sync_lock: tokio::sync::Mutex::new(()),
             settings_db,
             app_db,
@@ -295,12 +295,12 @@ impl App {
                 .context("Could not create settings ffs")?;
         let settings_db = Arc::new(SettingsRs::load(settings_ffs));
 
-        // Load payments DB
+        // Load payment DB
         let payments_ffs =
-            FlatFileFs::create_dir_all(user_config.payment_db_dir())
-                .context("Could not create payments ffs")?;
-        let payment_db = PaymentDb::read(payments_ffs)
-            .context("Failed to load payment db")?
+            FlatFileFs::create_dir_all(user_config.payments_db_dir())
+                .context("Could not create paymentss ffs")?;
+        let payments_db = PaymentsDb::read(payments_ffs)
+            .context("Failed to load payments db")?
             .apply(Mutex::new);
 
         let app_db_ffs = FlatFileFs::create_dir_all(user_config.app_db_dir())
@@ -308,26 +308,36 @@ impl App {
         let app_db = Arc::new(AppDataRs::load(app_db_ffs));
 
         let node_pk = root_seed.derive_node_pk(rng);
-        let (num_payments, num_pending, latest_payment_index) = {
-            let locked_payment_db = payment_db.lock().unwrap();
+        let (num_payments, num_pending, latest_updated_index) = {
+            let locked_payments_db = payments_db.lock().unwrap();
             (
-                locked_payment_db.state().num_payments(),
-                locked_payment_db.state().num_pending(),
-                locked_payment_db.state().latest_payment_index(),
+                locked_payments_db.state().num_payments(),
+                locked_payments_db.state().num_pending(),
+                locked_payments_db.state().latest_updated_index(),
             )
         };
+
+        // If the new payments_db contains 0 payments, the user may have just
+        // upgraded to the payments v2 format. Delete the old dir just in case.
+        if num_payments == 0 {
+            let old_payment_db_dir = user_config.old_payment_db_dir();
+            match std::fs::remove_dir_all(&old_payment_db_dir) {
+                Ok(()) => info!("Deleted old payment_db directory"),
+                Err(ref e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => warn!("Failed to delete old payment_db dir: {e:#}"),
+            }
+        }
+
         info!(
-            %user_pk,
-            %node_pk,
-            num_payments = num_payments,
-            num_pending = num_pending,
-            latest_payment_index = ?latest_payment_index,
-            "loaded existing app state"
+            %user_pk, %node_pk, %num_payments, %num_pending,
+            ?latest_updated_index,
+            "Loaded existing app state"
         );
+
         Ok(Some(Self {
             gateway_client,
             node_client,
-            payment_db,
+            payments_db,
             payment_sync_lock: tokio::sync::Mutex::new(()),
             settings_db,
             app_db,
@@ -465,9 +475,9 @@ impl App {
 
         // Create new payments DB
         let payments_ffs =
-            FlatFileFs::create_clean_dir_all(user_config.payment_db_dir())
+            FlatFileFs::create_clean_dir_all(user_config.payments_db_dir())
                 .context("Could not create payments ffs")?;
-        let payment_db = Mutex::new(PaymentDb::empty(payments_ffs));
+        let payments_db = Mutex::new(PaymentsDb::empty(payments_ffs));
 
         // Potentially restore app DB
         let app_db_ffs = FlatFileFs::create_dir_all(user_config.app_db_dir())
@@ -512,10 +522,11 @@ impl App {
             .context("Failed to persist root seed")?;
 
         info!(%user_pk, %node_pk, "restored user");
+
         Ok(Self {
             node_client,
             gateway_client,
-            payment_db,
+            payments_db,
             payment_sync_lock: tokio::sync::Mutex::new(()),
             settings_db,
             app_db,
@@ -581,8 +592,8 @@ impl App {
                     )),
             };
 
-            payments::sync_payments(
-                &self.payment_db,
+            payments_db::sync_payments(
+                &self.payments_db,
                 &self.node_client,
                 constants::DEFAULT_PAYMENTS_BATCH_SIZE,
             )
@@ -598,8 +609,8 @@ impl App {
         res
     }
 
-    pub fn payment_db(&self) -> &Mutex<PaymentDb<FlatFileFs>> {
-        &self.payment_db
+    pub fn payments_db(&self) -> &Mutex<PaymentsDb<FlatFileFs>> {
+        &self.payments_db
     }
 }
 
@@ -867,8 +878,12 @@ impl UserAppConfig {
         self.user_data_dir.join("provision_db")
     }
 
-    fn payment_db_dir(&self) -> PathBuf {
+    fn old_payment_db_dir(&self) -> PathBuf {
         self.user_data_dir.join("payment_db")
+    }
+
+    fn payments_db_dir(&self) -> PathBuf {
+        self.user_data_dir.join("payments_db")
     }
 
     fn settings_db_dir(&self) -> PathBuf {

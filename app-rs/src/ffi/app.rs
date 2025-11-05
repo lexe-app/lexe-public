@@ -384,7 +384,7 @@ impl AppHandle {
 
     /// Delete both the local payment state and the on-disk payment db.
     pub fn delete_payment_db(&self) -> anyhow::Result<()> {
-        let mut db_lock = self.inner.payment_db().lock().unwrap();
+        let mut db_lock = self.inner.payments_db().lock().unwrap();
         db_lock.delete().context("Failed to delete PaymentDb")
     }
 
@@ -402,12 +402,10 @@ impl AppHandle {
     // TODO(max): Remove
     pub fn get_vec_idx_by_payment_index(
         &self,
-        payment_index: PaymentCreatedIndex,
+        _payment_index: PaymentCreatedIndex,
     ) -> Option<usize> {
-        let payment_index =
-            PaymentCreatedIndexRs::try_from(payment_index).ok()?;
-        let db_lock = self.inner.payment_db().lock().unwrap();
-        db_lock.state().get_vec_idx_by_payment_index(&payment_index)
+        // This method is deprecated and will be removed
+        None
     }
 
     /// flutter_rust_bridge:sync
@@ -416,7 +414,7 @@ impl AppHandle {
         created_idx: PaymentCreatedIndex,
     ) -> Option<Payment> {
         let created_idx = PaymentCreatedIndexRs::try_from(created_idx).ok()?;
-        let db_lock = self.inner.payment_db().lock().unwrap();
+        let db_lock = self.inner.payments_db().lock().unwrap();
         db_lock
             .state()
             .get_payment_by_created_index(&created_idx)
@@ -425,91 +423,59 @@ impl AppHandle {
 
     // TODO(max): Remove
     /// flutter_rust_bridge:sync
-    pub fn get_payment_by_vec_idx(&self, vec_idx: usize) -> Option<Payment> {
-        let db_lock = self.inner.payment_db().lock().unwrap();
-        db_lock
-            .state()
-            .get_payment_by_vec_idx(vec_idx)
-            .map(Payment::from)
+    pub fn get_payment_by_vec_idx(&self, _vec_idx: usize) -> Option<Payment> {
+        // This method is deprecated and will be removed
+        None
     }
 
     // TODO(max): Remove
     /// flutter_rust_bridge:sync
     pub fn get_short_payment_by_scroll_idx(
         &self,
-        scroll_idx: usize,
+        _scroll_idx: usize,
     ) -> Option<ShortPaymentAndIndex> {
-        let db_lock = self.inner.payment_db().lock().unwrap();
-        db_lock.state().get_payment_by_scroll_idx(scroll_idx).map(
-            |(vec_idx, payment)| ShortPaymentAndIndex {
-                vec_idx,
-                payment: ShortPayment::from(payment),
-            },
-        )
+        // This method is deprecated and will be removed
+        None
     }
 
     // TODO(max): Remove
     /// flutter_rust_bridge:sync
     pub fn get_pending_short_payment_by_scroll_idx(
         &self,
-        scroll_idx: usize,
+        _scroll_idx: usize,
     ) -> Option<ShortPaymentAndIndex> {
-        let db_lock = self.inner.payment_db().lock().unwrap();
-        db_lock
-            .state()
-            .get_pending_payment_by_scroll_idx(scroll_idx)
-            .map(|(vec_idx, payment)| ShortPaymentAndIndex {
-                vec_idx,
-                payment: ShortPayment::from(payment),
-            })
+        // This method is deprecated and will be removed
+        None
     }
 
     // TODO(max): Remove
     /// flutter_rust_bridge:sync
     pub fn get_finalized_short_payment_by_scroll_idx(
         &self,
-        scroll_idx: usize,
+        _scroll_idx: usize,
     ) -> Option<ShortPaymentAndIndex> {
-        let db_lock = self.inner.payment_db().lock().unwrap();
-        db_lock
-            .state()
-            .get_finalized_payment_by_scroll_idx(scroll_idx)
-            .map(|(vec_idx, payment)| ShortPaymentAndIndex {
-                vec_idx,
-                payment: ShortPayment::from(payment),
-            })
+        // This method is deprecated and will be removed
+        None
     }
 
     // TODO(max): Remove
     /// flutter_rust_bridge:sync
     pub fn get_pending_not_junk_short_payment_by_scroll_idx(
         &self,
-        scroll_idx: usize,
+        _scroll_idx: usize,
     ) -> Option<ShortPaymentAndIndex> {
-        let db_lock = self.inner.payment_db().lock().unwrap();
-        db_lock
-            .state()
-            .get_pending_not_junk_payment_by_scroll_idx(scroll_idx)
-            .map(|(vec_idx, payment)| ShortPaymentAndIndex {
-                vec_idx,
-                payment: ShortPayment::from(payment),
-            })
+        // This method is deprecated and will be removed
+        None
     }
 
     // TODO(max): Remove
     /// flutter_rust_bridge:sync
     pub fn get_finalized_not_junk_short_payment_by_scroll_idx(
         &self,
-        scroll_idx: usize,
+        _scroll_idx: usize,
     ) -> Option<ShortPaymentAndIndex> {
-        let db_lock = self.inner.payment_db().lock().unwrap();
-        db_lock
-            .state()
-            .get_finalized_not_junk_payment_by_scroll_idx(scroll_idx)
-            .map(|(vec_idx, payment)| ShortPaymentAndIndex {
-                vec_idx,
-                payment: ShortPayment::from(payment),
-            })
+        // This method is deprecated and will be removed
+        None
     }
 
     /// flutter_rust_bridge:sync
@@ -517,11 +483,11 @@ impl AppHandle {
         &self,
         scroll_idx: usize,
     ) -> Option<ShortPayment> {
-        let db_lock = self.inner.payment_db().lock().unwrap();
+        let db_lock = self.inner.payments_db().lock().unwrap();
         db_lock
             .state()
             .get_payment_by_scroll_idx(scroll_idx)
-            .map(|(_, payment)| ShortPayment::from(payment))
+            .map(ShortPayment::from)
     }
 
     /// flutter_rust_bridge:sync
@@ -529,11 +495,11 @@ impl AppHandle {
         &self,
         scroll_idx: usize,
     ) -> Option<ShortPayment> {
-        let db_lock = self.inner.payment_db().lock().unwrap();
+        let db_lock = self.inner.payments_db().lock().unwrap();
         db_lock
             .state()
             .get_pending_payment_by_scroll_idx(scroll_idx)
-            .map(|(_, payment)| ShortPayment::from(payment))
+            .map(ShortPayment::from)
     }
 
     /// flutter_rust_bridge:sync
@@ -541,11 +507,11 @@ impl AppHandle {
         &self,
         scroll_idx: usize,
     ) -> Option<ShortPayment> {
-        let db_lock = self.inner.payment_db().lock().unwrap();
+        let db_lock = self.inner.payments_db().lock().unwrap();
         db_lock
             .state()
             .get_finalized_payment_by_scroll_idx(scroll_idx)
-            .map(|(_, payment)| ShortPayment::from(payment))
+            .map(ShortPayment::from)
     }
 
     /// flutter_rust_bridge:sync
@@ -553,11 +519,11 @@ impl AppHandle {
         &self,
         scroll_idx: usize,
     ) -> Option<ShortPayment> {
-        let db_lock = self.inner.payment_db().lock().unwrap();
+        let db_lock = self.inner.payments_db().lock().unwrap();
         db_lock
             .state()
             .get_pending_not_junk_payment_by_scroll_idx(scroll_idx)
-            .map(|(_, payment)| ShortPayment::from(payment))
+            .map(ShortPayment::from)
     }
 
     /// flutter_rust_bridge:sync
@@ -565,40 +531,40 @@ impl AppHandle {
         &self,
         scroll_idx: usize,
     ) -> Option<ShortPayment> {
-        let db_lock = self.inner.payment_db().lock().unwrap();
+        let db_lock = self.inner.payments_db().lock().unwrap();
         db_lock
             .state()
             .get_finalized_not_junk_payment_by_scroll_idx(scroll_idx)
-            .map(|(_, payment)| ShortPayment::from(payment))
+            .map(ShortPayment::from)
     }
 
     /// flutter_rust_bridge:sync
     pub fn get_num_payments(&self) -> usize {
-        let db_lock = self.inner.payment_db().lock().unwrap();
+        let db_lock = self.inner.payments_db().lock().unwrap();
         db_lock.state().num_payments()
     }
 
     /// flutter_rust_bridge:sync
     pub fn get_num_pending_payments(&self) -> usize {
-        let db_lock = self.inner.payment_db().lock().unwrap();
+        let db_lock = self.inner.payments_db().lock().unwrap();
         db_lock.state().num_pending()
     }
 
     /// flutter_rust_bridge:sync
     pub fn get_num_finalized_payments(&self) -> usize {
-        let db_lock = self.inner.payment_db().lock().unwrap();
+        let db_lock = self.inner.payments_db().lock().unwrap();
         db_lock.state().num_finalized()
     }
 
     /// flutter_rust_bridge:sync
     pub fn get_num_pending_not_junk_payments(&self) -> usize {
-        let db_lock = self.inner.payment_db().lock().unwrap();
+        let db_lock = self.inner.payments_db().lock().unwrap();
         db_lock.state().num_pending_not_junk()
     }
 
     /// flutter_rust_bridge:sync
     pub fn get_num_finalized_not_junk_payments(&self) -> usize {
-        let db_lock = self.inner.payment_db().lock().unwrap();
+        let db_lock = self.inner.payments_db().lock().unwrap();
         db_lock.state().num_finalized_not_junk()
     }
 
@@ -617,7 +583,7 @@ impl AppHandle {
             .map_err(anyhow::Error::new)?;
         // Update local store after
         self.inner
-            .payment_db()
+            .payments_db()
             .lock()
             .unwrap()
             .update_payment_note(req)

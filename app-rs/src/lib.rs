@@ -31,6 +31,7 @@ pub(crate) mod frb_generated;
 /// Pipe `tracing` log messages from native Rust to Dart.
 mod logger;
 /// App-local payment db and payment sync from node (v1).
+#[allow(dead_code)] // TODO(max): Remove
 pub(crate) mod payments;
 /// App-local payment db and payment sync from node (v1).
 pub(crate) mod payments_db;
