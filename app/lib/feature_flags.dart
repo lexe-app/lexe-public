@@ -47,7 +47,7 @@ final class FeatureFlags {
         if (prodLexeDevUserPks.contains(userPk)) {
           return const FeatureFlags.all();
         } else if (prodAlphaUserPks.contains(userPk)) {
-          return const FeatureFlags.all();
+          return const FeatureFlags.some();
         } else {
           return const FeatureFlags.none();
         }
@@ -55,12 +55,27 @@ final class FeatureFlags {
   }
 
   /// Disable all features.
-  const FeatureFlags.none({this.showBolt12OffersRecvPage = false});
+  const FeatureFlags.none({
+    this.showBolt12OffersRecvPage = false,
+    this.showProfilePage = false,
+  });
 
   /// Enable all features.
-  const FeatureFlags.all({this.showBolt12OffersRecvPage = true});
+  const FeatureFlags.all({
+    this.showBolt12OffersRecvPage = true,
+    this.showProfilePage = true,
+  });
+
+  const FeatureFlags.some({
+    this.showBolt12OffersRecvPage = true,
+    this.showProfilePage = false,
+  });
 
   /// On the Wallet > Receive page, show the experimental BOLT12 offer receive
   /// QR code.
   final bool showBolt12OffersRecvPage;
+
+  /// On the Wallet > Wallet Drawer, show the profile header that let's the user
+  /// see and edit their payment address.
+  final bool showProfilePage;
 }

@@ -548,6 +548,7 @@ class WalletPageState extends State<WalletPage> {
       drawer: WalletDrawer(
         config: this.widget.config,
         paymentAddressService: this.paymentAddressService,
+        featureFlags: this.widget.featureFlags,
         onChannelsMenuPressed: this.onOpenChannelsPage,
         onNodeInfoMenuPressed: this.onNodeInfoMenuPressed,
         onClientsMenuPressed: this.onClientsMenuPressed,
@@ -636,6 +637,7 @@ class WalletDrawer extends StatelessWidget {
     super.key,
     required this.config,
     required this.paymentAddressService,
+    required this.featureFlags,
     // this.onSettingsPressed,
     // this.onBackupPressed,
     // this.onSecurityPressed,
@@ -651,6 +653,7 @@ class WalletDrawer extends StatelessWidget {
 
   final Config config;
   final PaymentAddressService paymentAddressService;
+  final FeatureFlags featureFlags;
 
   // final VoidCallback? onSettingsPressed;
   // final VoidCallback? onBackupPressed;
@@ -667,6 +670,8 @@ class WalletDrawer extends StatelessWidget {
   Future<void> onRefresh() async {
     await this.paymentAddressService.fetch();
   }
+
+  bool get showProfilePage => this.featureFlags.showProfilePage;
 
   @override
   Widget build(BuildContext context) {
@@ -687,15 +692,16 @@ class WalletDrawer extends StatelessWidget {
                 icon: LxIcons.close,
                 onTap: () => Scaffold.of(context).closeDrawer(),
               ),
-              ValueListenableBuilder(
-                valueListenable: this.paymentAddressService.paymentAddress,
-                builder: (context, paymentAddress, child) {
-                  return DrawerProfileHeader(
-                    paymentAddress: paymentAddress,
-                    onTap: this.onProfileMenuPressed,
-                  );
-                },
-              ),
+              if (this.showProfilePage)
+                ValueListenableBuilder(
+                  valueListenable: this.paymentAddressService.paymentAddress,
+                  builder: (context, paymentAddress, child) {
+                    return DrawerProfileHeader(
+                      paymentAddress: paymentAddress,
+                      onTap: this.onProfileMenuPressed,
+                    );
+                  },
+                ),
               DrawerListItem(
                 title: "Channels",
                 icon: LxIcons.openCloseChannel,
@@ -1685,4 +1691,3 @@ class PaymentListIcon extends StatelessWidget {
     BalanceKind.onchain => const ListIcon.bitcoin(),
   };
 }
-
