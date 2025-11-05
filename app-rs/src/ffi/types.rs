@@ -35,6 +35,7 @@ use lexe_api::{
         offer::LxOffer,
         payments::{
             BasicPaymentV1 as BasicPaymentV1Rs,
+            BasicPaymentV2 as BasicPaymentV2Rs,
             ClientPaymentId as ClientPaymentIdRs,
             PaymentCreatedIndex as PaymentCreatedIndexRs,
             PaymentDirection as PaymentDirectionRs,
@@ -339,6 +340,24 @@ impl From<&BasicPaymentV1Rs> for ShortPayment {
         }
     }
 }
+impl From<&BasicPaymentV2Rs> for ShortPayment {
+    fn from(payment: &BasicPaymentV2Rs) -> Self {
+        Self {
+            index: PaymentCreatedIndex::from(payment.created_index()),
+
+            kind: PaymentKind::from(payment.kind),
+            direction: PaymentDirection::from(payment.direction),
+
+            amount_sat: payment.amount.map(|amt| amt.sats_u64()),
+
+            status: PaymentStatus::from(payment.status),
+
+            note: payment.note_or_description().map(String::from),
+
+            created_at: payment.created_at().to_i64(),
+        }
+    }
+}
 
 /// Just a `(usize, ShortPayment)`, but packaged in a struct until
 /// `flutter_rust_bridge` stops breaking on tuples.
@@ -403,6 +422,35 @@ impl From<&BasicPaymentV1Rs> for Payment {
             note: payment.note_or_description().map(String::from),
 
             created_at: payment.created_at().to_i64(),
+            finalized_at: payment.finalized_at.map(|t| t.to_i64()),
+        }
+    }
+}
+impl From<&BasicPaymentV2Rs> for Payment {
+    fn from(payment: &BasicPaymentV2Rs) -> Self {
+        Self {
+            index: PaymentCreatedIndex::from(payment.created_index()),
+
+            kind: PaymentKind::from(payment.kind),
+            direction: PaymentDirection::from(payment.direction),
+
+            invoice: payment.invoice.as_deref().map(Invoice::from),
+
+            offer_id: payment.offer_id.map(|id| id.to_string()),
+            offer: payment.offer.as_deref().map(Offer::from),
+
+            txid: payment.txid.map(|txid| txid.to_string()),
+            replacement: payment.replacement.map(|txid| txid.to_string()),
+
+            amount_sat: payment.amount.map(|amt| amt.sats_u64()),
+            fees_sat: payment.fees.sats_u64(),
+
+            status: PaymentStatus::from(payment.status),
+            status_str: payment.status_str.clone(),
+
+            note: payment.note_or_description().map(String::from),
+
+            created_at: payment.created_at.to_i64(),
             finalized_at: payment.finalized_at.map(|t| t.to_i64()),
         }
     }
