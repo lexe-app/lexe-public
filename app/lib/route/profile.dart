@@ -64,7 +64,7 @@ class _EditPaymentAddressPageState extends State<EditPaymentAddressPage> {
 
   @override
   void initState() {
-    this.widget.paymentAddressService.init();
+    this.widget.paymentAddressService.fetch();
     super.initState();
   }
 
@@ -122,16 +122,15 @@ class _EditPaymentAddressPageState extends State<EditPaymentAddressPage> {
     // Clear error message
     this.errorMessage.value = null;
 
-    info("EditPaymentAddressPage: updating username to $username");
+    info("EditPaymentAddressPage: updating username to ${username.field0}");
     final res = await this.widget.paymentAddressService.update(
       username: username,
     );
+    if (!this.mounted) return;
     if (res.isErr) {
       this.errorMessage.value = ErrorMessage(title: "Error", message: res.err);
       return;
     }
-
-    if (!this.mounted) return;
 
     await Navigator.of(this.context).pushReplacement(
       MaterialPageRoute(
@@ -147,17 +146,13 @@ class _EditPaymentAddressPageState extends State<EditPaymentAddressPage> {
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
         leading: const LxBackButton(isLeading: true),
-        actions: const [
-          LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
-          SizedBox(width: Space.s400),
-        ],
       ),
       body: ScrollableSinglePageBody(
         body: [
           const HeadingText(text: "Update your ₿itcoin address"),
           const SubheadingText(
             text:
-                "Your ₿itcoin payment address let's you receive money into your wallet instantly by only giving your email-like username.",
+                "Receive money into your wallet instantly by only giving your email-like username.",
           ),
           const SizedBox(height: Space.s600),
 
@@ -242,7 +237,9 @@ class PaymentAddressSuccessPage extends StatelessWidget {
         body: [
           const HeadingText(text: "You are all setup!"),
           const SizedBox(height: Space.s200),
-          const SubheadingText(text: "Your ₿itcoin address has been updated."),
+          const SubheadingText(
+            text: "Your ₿itcoin payment address has been updated.",
+          ),
           const SizedBox(height: Space.s700),
 
           Container(

@@ -21,10 +21,10 @@ import 'package:app_rs_dart/ffi/types.dart'
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show TapGestureRecognizer;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:intl/intl.dart' show NumberFormat;
 import 'package:lexeapp/app_data.dart' show LxAppData;
 import 'package:lexeapp/cfg.dart' show UserAgent;
+import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
         FilledTextPlaceholder,
@@ -512,9 +512,6 @@ class WalletPageState extends State<WalletPage> {
 
   /// Called when "Profile" (edit username) is pressed in the menu drawer.
   Future<void> onProfileMenuPressed() async {
-    // Close the drawer first
-    this.scaffoldKey.currentState?.closeDrawer();
-
     // Navigate to profile page
     await Navigator.of(this.context).push(
       MaterialPageRoute(
@@ -667,10 +664,6 @@ class WalletDrawer extends StatelessWidget {
   final VoidCallback? onProfileMenuPressed;
   // final VoidCallback? onInvitePressed;
 
-  Future<void> onRefresh() async {
-    await this.paymentAddressService.fetch();
-  }
-
   bool get showProfilePage => this.featureFlags.showProfilePage;
 
   @override
@@ -678,137 +671,132 @@ class WalletDrawer extends StatelessWidget {
     final systemBarHeight = MediaQuery.of(context).padding.top;
 
     return Drawer(
-      child: RefreshIndicator(
-        backgroundColor: LxColors.grey850,
-        elevation: 0.0,
-        onRefresh: this.onRefresh,
-        child: Padding(
-          padding: EdgeInsets.only(top: systemBarHeight),
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              // X - close
-              DrawerListItem(
-                icon: LxIcons.close,
-                onTap: () => Scaffold.of(context).closeDrawer(),
-              ),
-              if (this.showProfilePage)
-                ValueListenableBuilder(
-                  valueListenable: this.paymentAddressService.paymentAddress,
-                  builder: (context, paymentAddress, child) {
-                    return DrawerProfileHeader(
-                      paymentAddress: paymentAddress,
-                      onTap: this.onProfileMenuPressed,
-                    );
-                  },
-                ),
-              DrawerListItem(
-                title: "Channels",
-                icon: LxIcons.openCloseChannel,
-                onTap: this.onChannelsMenuPressed,
-              ),
-              DrawerListItem(
-                title: "Node info",
-                icon: LxIcons.nodeInfo,
-                onTap: this.onNodeInfoMenuPressed,
-              ),
-              DrawerListItem(
-                title: "SDK clients",
-                icon: LxIcons.sdk,
-                onTap: this.onClientsMenuPressed,
-              ),
-
-              // TODO(phlip9): impl
-              // // * Settings
-              // // * Backup
-              // // * Security
-              // // * Support
-              // DrawerListItem(
-              //   title: "Settings",
-              //   icon: LxIcons.settings,
-              //   onTap: this.onSettingsPressed,
-              // ),
-              // DrawerListItem(
-              //   title: "Backup",
-              //   icon: LxIcons.backup,
-              //   onTap: this.onBackupPressed,
-              // ),
-              DrawerListItem(
-                title: "Security",
-                icon: LxIcons.security,
-                onTap: this.onSecurityMenuPressed,
-              ),
-              // DrawerListItem(
-              //   title: "Support",
-              //   icon: LxIcons.support,
-              //   onTap: this.onSupportPressed,
-              // ),
-              const SizedBox(height: Space.s600),
-
-              // TODO(phlip9): impl
-              // // < Invite Friends >
-              // Padding(
-              //   padding: const EdgeInsets.symmetric(horizontal: Space.s500),
-              //   child: LxOutlinedButton(
-              //     // TODO(phlip9): we use a closure to see button w/o disabled
-              //     // styling. remove extra closure when real functionality exists.
-              //     onTap: () => this.onInvitePressed?.call(),
-              //     label: const Text("Invite Friends"),
-              //   ),
-              // ),
-              // const SizedBox(height: Space.s600),
-
-              // Social media links row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                spacing: Space.s100,
-                children: [
-                  IconButton(
-                    onPressed: () => url.open("https://lexe.app"),
-                    icon: const Icon(LxIcons.website, size: Fonts.size600),
-                    color: LxColors.foreground,
-                  ),
-                  IconButton(
-                    onPressed: () => url.open("https://x.com/lexeapp"),
-                    icon: const Icon(LxIcons.x, size: Fonts.size600),
-                    color: LxColors.foreground,
-                  ),
-                  IconButton(
-                    onPressed: () => url.open("https://discord.gg/zybuBYgdbr"),
-                    icon: const Icon(LxIcons.discord, size: Fonts.size600),
-                    color: LxColors.foreground,
-                  ),
-                  IconButton(
-                    onPressed: () =>
-                        url.open("https://github.com/lexe-app/lexe-public"),
-                    icon: const Icon(LxIcons.github, size: Fonts.size600),
-                    color: LxColors.foreground,
-                  ),
-                ],
-              ),
-              const SizedBox(height: Space.s400),
-
-              // Show currently installed app version.
-              // ex: "Lexe · v0.6.2+5"
-              FutureBuilder(
-                future: UserAgent.fromPlatform(),
-                builder: (context, out) {
-                  final userAgent = out.data ?? UserAgent.dummy();
-                  return MultiTapDetector(
-                    onMultiTapDetected: () => this.onDebugMenuPressed!(),
-                    child: Text(
-                      "${userAgent.appName} · v${userAgent.version}",
-                      textAlign: TextAlign.center,
-                      style: Fonts.fontUI.copyWith(
-                        color: LxColors.grey600,
-                        fontSize: Fonts.size200,
-                      ),
-                    ),
+      child: Padding(
+        padding: EdgeInsets.only(top: systemBarHeight),
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            // X - close
+            DrawerListItem(
+              icon: LxIcons.close,
+              onTap: () => Scaffold.of(context).closeDrawer(),
+            ),
+            if (this.showProfilePage)
+              ValueListenableBuilder(
+                valueListenable: this.paymentAddressService.paymentAddress,
+                builder: (context, paymentAddress, child) {
+                  return DrawerProfileHeader(
+                    paymentAddress: paymentAddress,
+                    onEditProfilePressed: this.onProfileMenuPressed,
                   );
                 },
               ),
-            ],
-          ),
+            DrawerListItem(
+              title: "Channels",
+              icon: LxIcons.openCloseChannel,
+              onTap: this.onChannelsMenuPressed,
+            ),
+            DrawerListItem(
+              title: "Node info",
+              icon: LxIcons.nodeInfo,
+              onTap: this.onNodeInfoMenuPressed,
+            ),
+            DrawerListItem(
+              title: "SDK clients",
+              icon: LxIcons.sdk,
+              onTap: this.onClientsMenuPressed,
+            ),
+
+            // TODO(phlip9): impl
+            // // * Settings
+            // // * Backup
+            // // * Security
+            // // * Support
+            // DrawerListItem(
+            //   title: "Settings",
+            //   icon: LxIcons.settings,
+            //   onTap: this.onSettingsPressed,
+            // ),
+            // DrawerListItem(
+            //   title: "Backup",
+            //   icon: LxIcons.backup,
+            //   onTap: this.onBackupPressed,
+            // ),
+            DrawerListItem(
+              title: "Security",
+              icon: LxIcons.security,
+              onTap: this.onSecurityMenuPressed,
+            ),
+            // DrawerListItem(
+            //   title: "Support",
+            //   icon: LxIcons.support,
+            //   onTap: this.onSupportPressed,
+            // ),
+            const SizedBox(height: Space.s600),
+
+            // TODO(phlip9): impl
+            // // < Invite Friends >
+            // Padding(
+            //   padding: const EdgeInsets.symmetric(horizontal: Space.s500),
+            //   child: LxOutlinedButton(
+            //     // TODO(phlip9): we use a closure to see button w/o disabled
+            //     // styling. remove extra closure when real functionality exists.
+            //     onTap: () => this.onInvitePressed?.call(),
+            //     label: const Text("Invite Friends"),
+            //   ),
+            // ),
+            // const SizedBox(height: Space.s600),
+
+            // Social media links row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              spacing: Space.s100,
+              children: [
+                IconButton(
+                  onPressed: () => url.open("https://lexe.app"),
+                  icon: const Icon(LxIcons.website, size: Fonts.size600),
+                  color: LxColors.foreground,
+                ),
+                IconButton(
+                  onPressed: () => url.open("https://x.com/lexeapp"),
+                  icon: const Icon(LxIcons.x, size: Fonts.size600),
+                  color: LxColors.foreground,
+                ),
+                IconButton(
+                  onPressed: () => url.open("https://discord.gg/zybuBYgdbr"),
+                  icon: const Icon(LxIcons.discord, size: Fonts.size600),
+                  color: LxColors.foreground,
+                ),
+                IconButton(
+                  onPressed: () =>
+                      url.open("https://github.com/lexe-app/lexe-public"),
+                  icon: const Icon(LxIcons.github, size: Fonts.size600),
+                  color: LxColors.foreground,
+                ),
+              ],
+            ),
+            const SizedBox(height: Space.s400),
+
+            // Show currently installed app version.
+            // ex: "Lexe · v0.6.2+5"
+            FutureBuilder(
+              future: UserAgent.fromPlatform(),
+              builder: (context, out) {
+                final userAgent = out.data ?? UserAgent.dummy();
+                return MultiTapDetector(
+                  onMultiTapDetected: () => this.onDebugMenuPressed!(),
+                  child: Text(
+                    "${userAgent.appName} · v${userAgent.version}",
+                    textAlign: TextAlign.center,
+                    style: Fonts.fontUI.copyWith(
+                      color: LxColors.grey600,
+                      fontSize: Fonts.size200,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -816,27 +804,60 @@ class WalletDrawer extends StatelessWidget {
 }
 
 class DrawerProfileHeader extends StatelessWidget {
-  const DrawerProfileHeader({super.key, this.onTap, this.paymentAddress});
+  const DrawerProfileHeader({
+    super.key,
+    this.onEditProfilePressed,
+    this.paymentAddress,
+  });
 
+  final VoidCallback? onEditProfilePressed;
   final PaymentAddress? paymentAddress;
-  final VoidCallback? onTap;
 
   /// if PaymentAddress is null, means that we haven't checked in the backend yet.
   /// Or some other error reading db happened. So we can't update the username.
   bool get isUpdatable =>
       this.paymentAddress != null && this.paymentAddress?.updatable == true;
 
-  String? get parsedUsername => this.paymentAddress?.username != null
-      ? "${this.paymentAddress?.username?.field0}@lexe.app"
+  String? get fullUsername => this.paymentAddress?.username != null
+      ? "₿${this.paymentAddress?.username?.field0}@lexe.app"
       : null;
+
+  String? get parsedUsername {
+    if (this.paymentAddress?.username == null) return null;
+
+    final username = this.paymentAddress!.username!.field0;
+    final truncated = username.length > 15
+        ? "${username.substring(0, 12)}..."
+        : username;
+
+    return "₿$truncated@lexe.app";
+  }
 
   String get usernameOrDefault =>
       this.parsedUsername ?? "Claim your ₿itcoin address ";
 
+  void onTapCopy(BuildContext context) {
+    if (this.fullUsername == null) return;
+
+    Navigator.of(context).pop();
+    LxClipboard.copyTextWithFeedback(context, this.fullUsername!);
+  }
+
+  void onTap(BuildContext context) {
+    if (this.isUpdatable &&
+        this.onEditProfilePressed != null &&
+        this.parsedUsername == null) {
+      this.onEditProfilePressed!();
+      return;
+    }
+
+    this.onTapCopy(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: this.onTap,
+      onTap: () => this.onTap(context),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: Space.s400),
         child: Column(
@@ -859,41 +880,33 @@ class DrawerProfileHeader extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  this.usernameOrDefault,
-                  style: Fonts.fontUI.copyWith(
-                    color: LxColors.grey600,
-                    fontSize: Fonts.size200,
+                Flexible(
+                  child: Text(
+                    this.usernameOrDefault,
+                    overflow: TextOverflow.ellipsis,
+                    style: Fonts.fontUI.copyWith(
+                      color: LxColors.grey600,
+                      fontSize: Fonts.size200,
+                    ),
                   ),
                 ),
                 if (this.parsedUsername != null)
                   const SizedBox(width: Space.s100),
                 if (this.parsedUsername != null)
+                  Icon(
+                    LxIcons.copy,
+                    size: Fonts.size300,
+                    color: LxColors.grey600,
+                  ),
+                if (this.isUpdatable) const SizedBox(width: Space.s100),
+                if (this.isUpdatable)
                   GestureDetector(
-                    onTap: () {
-                      Clipboard.setData(
-                        ClipboardData(text: this.parsedUsername!),
-                      );
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Bitcoin address copied'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
+                    onTap: this.onEditProfilePressed,
                     child: Icon(
-                      LxIcons.copy,
+                      LxIcons.edit,
                       size: Fonts.size300,
                       color: LxColors.grey600,
                     ),
-                  ),
-                if (this.onTap != null) const SizedBox(width: Space.s100),
-                if (this.onTap != null)
-                  Icon(
-                    LxIcons.edit,
-                    size: Fonts.size300,
-                    color: LxColors.grey600,
                   ),
               ],
             ),
