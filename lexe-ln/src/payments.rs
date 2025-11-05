@@ -14,8 +14,8 @@ use lexe_api::types::{
     invoice::LxInvoice,
     offer::LxOffer,
     payments::{
-        BasicPayment, DbPaymentV2, LxOfferId, LxPaymentId, PaymentCreatedIndex,
-        PaymentDirection, PaymentKind, PaymentStatus,
+        BasicPaymentV1, DbPaymentV2, LxOfferId, LxPaymentId,
+        PaymentCreatedIndex, PaymentDirection, PaymentKind, PaymentStatus,
     },
 };
 #[cfg(test)]
@@ -190,9 +190,9 @@ impl From<OutboundSpontaneousPayment> for Payment {
     }
 }
 
-// --- Payment -> BasicPayment --- //
+// --- Payment -> BasicPaymentV1 --- //
 
-impl From<Payment> for BasicPayment {
+impl From<Payment> for BasicPaymentV1 {
     fn from(p: Payment) -> Self {
         Self {
             index: p.index(),
@@ -302,8 +302,7 @@ impl Payment {
         }
     }
 
-    /// Returns the id of the BOLT12 offer associated with this payemnt, if
-    /// there is one.
+    /// Returns the BOLT12 offer associated with this payment, if there is one.
     pub fn offer(&self) -> Option<Box<LxOffer>> {
         match self {
             Self::OnchainSend(_) => None,
@@ -801,7 +800,7 @@ mod test {
 
     use super::*;
 
-    // Generate serialized `BasicPayment` sample json data:
+    // Generate serialized `BasicPaymentV1` sample json data:
     // ```bash
     // $ cargo test -p lexe-ln -- gen_basic_payment_sample_data --ignored --nocapture
     // ```
@@ -871,8 +870,8 @@ mod test {
                     value.set_note(Some("foo bar".to_owned()));
                 }
 
-                // serialize app BasicPayment
-                let value = BasicPayment::from(value);
+                // serialize app BasicPaymentV1
+                let value = BasicPaymentV1::from(value);
                 let json = serde_json::to_string(&value).unwrap();
                 println!("{json}");
             }

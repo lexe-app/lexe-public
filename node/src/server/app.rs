@@ -37,7 +37,7 @@ use lexe_api::{
         UpdatePaymentAddress, UpdatePaymentNote,
     },
     server::{LxJson, extract::LxQuery},
-    types::{Empty, payments::VecBasicPayment},
+    types::{Empty, payments::VecBasicPaymentV1},
     vfs::{self, Vfs, VfsDirectory},
 };
 use lexe_ln::p2p;
@@ -370,37 +370,37 @@ pub(super) async fn get_address(
 pub(super) async fn get_payments_by_indexes(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PaymentCreatedIndexes>,
-) -> Result<LxJson<VecBasicPayment>, NodeApiError> {
+) -> Result<LxJson<VecBasicPaymentV1>, NodeApiError> {
     let payments = state
         .persister
         .read_payments_by_indexes(req)
         .await
         .map_err(NodeApiError::command)?;
-    Ok(LxJson(VecBasicPayment { payments }))
+    Ok(LxJson(VecBasicPaymentV1 { payments }))
 }
 
 pub(super) async fn get_new_payments(
     State(state): State<Arc<RouterState>>,
     LxQuery(req): LxQuery<GetNewPayments>,
-) -> Result<LxJson<VecBasicPayment>, NodeApiError> {
+) -> Result<LxJson<VecBasicPaymentV1>, NodeApiError> {
     let payments = state
         .persister
         .read_new_payments(req)
         .await
         .map_err(NodeApiError::command)?;
-    Ok(LxJson(VecBasicPayment { payments }))
+    Ok(LxJson(VecBasicPaymentV1 { payments }))
 }
 
 pub(super) async fn get_updated_payments(
     State(state): State<Arc<RouterState>>,
     LxQuery(req): LxQuery<GetUpdatedPayments>,
-) -> Result<LxJson<VecBasicPayment>, NodeApiError> {
+) -> Result<LxJson<VecBasicPaymentV1>, NodeApiError> {
     let payments = state
         .persister
         .read_updated_payments(req)
         .await
         .map_err(NodeApiError::command)?;
-    Ok(LxJson(VecBasicPayment { payments }))
+    Ok(LxJson(VecBasicPaymentV1 { payments }))
 }
 
 pub(super) async fn update_payment_note(

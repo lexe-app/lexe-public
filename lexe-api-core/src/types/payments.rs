@@ -38,10 +38,11 @@ use crate::types::{invoice::LxInvoice, offer::LxOffer};
 /// the result of the corresponding `Payment` getter.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct BasicPayment {
+pub struct BasicPaymentV1 {
     pub index: PaymentCreatedIndex,
 
     pub kind: PaymentKind,
+
     pub direction: PaymentDirection,
 
     /// (Invoice payments only) The BOLT11 invoice used in this payment.
@@ -132,13 +133,13 @@ pub struct BasicPayment {
     pub finalized_at: Option<TimestampMs>,
 }
 
-// Debug the size_of `BasicPayment`
-const_assert_mem_size!(BasicPayment, 272);
+// Debug the size_of `BasicPaymentV1`
+const_assert_mem_size!(BasicPaymentV1, 272);
 
-/// An upgradeable version of [`Vec<BasicPayment>`].
+/// An upgradeable version of [`Vec<BasicPaymentV1>`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct VecBasicPayment {
-    pub payments: Vec<BasicPayment>,
+pub struct VecBasicPaymentV1 {
+    pub payments: Vec<BasicPaymentV1>,
 }
 
 /// An encrypted payment, as represented in the DB.
@@ -294,7 +295,7 @@ pub enum PaymentStatus {
 /// 2) is ordered first by `created_at` timestamp and then by [`LxPaymentId`].
 ///
 /// It is essentially a [`(TimestampMs, LxPaymentId)`], suitable for use as a
-/// key in a `BTreeMap<PaymentCreatedIndex, BasicPayment>` or similar.
+/// key in a `BTreeMap<PaymentCreatedIndex, BasicPaymentV1>` or similar.
 ///
 /// It can also be degenerated (serialized) into a string and the
 /// string-serialized ordering will be equivalent to the unserialized ordering.
@@ -439,9 +440,9 @@ pub struct LxOfferId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 #[repr(transparent)]
 pub struct LnClaimId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
-// --- impl BasicPayment --- //
+// --- impl BasicPaymentV1 --- //
 
-impl BasicPayment {
+impl BasicPaymentV1 {
     #[inline]
     pub fn index(&self) -> &PaymentCreatedIndex {
         &self.index
@@ -510,7 +511,7 @@ impl BasicPayment {
     }
 }
 
-impl PartialOrd for BasicPayment {
+impl PartialOrd for BasicPaymentV1 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.index.partial_cmp(&other.index)
     }
@@ -1352,9 +1353,9 @@ fs_00996e6b999900e8e7273934a7f272eb367fd2ac394f10b3ea1c7164d212c5c5
             fs::read_to_string("data/basic_payment_snapshot.txt").unwrap();
 
         for input in snapshot::parse_sample_data(&snapshot) {
-            let value1: BasicPayment = serde_json::from_str(input).unwrap();
+            let value1: BasicPaymentV1 = serde_json::from_str(input).unwrap();
             let output = serde_json::to_string(&value1).unwrap();
-            let value2: BasicPayment = serde_json::from_str(&output).unwrap();
+            let value2: BasicPaymentV1 = serde_json::from_str(&output).unwrap();
             assert_eq!(value1, value2);
         }
     }

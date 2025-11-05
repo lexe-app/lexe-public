@@ -88,7 +88,7 @@ extension PaymentExt on Payment {
   bool isFinalized() => this.status != PaymentStatus.pending;
   bool isFinalizedNotJunk() => this.isFinalized() && !this.isJunk();
 
-  // Keep in sync with [`BasicPayment::is_junk()`] in `common/src/ln/payments.rs`.
+  // Keep in sync with [`BasicPaymentV1::is_junk()`] in `common/src/ln/payments.rs`.
   bool isJunk() =>
       // junk amountless invoice
       this.status != PaymentStatus.completed &&

@@ -109,7 +109,7 @@ use crate::{
         },
         payments::{
             DbPaymentMetadata, DbPaymentV1, DbPaymentV2,
-            MaybeDbPaymentMetadata, MaybeDbPaymentV1, VecBasicPayment,
+            MaybeDbPaymentMetadata, MaybeDbPaymentV1, VecBasicPaymentV1,
             VecDbPaymentMetadata, VecDbPaymentV1, VecDbPaymentV2,
         },
         ports::MegaPorts,
@@ -345,19 +345,20 @@ pub trait AppNodeRunApi {
     async fn get_payments_by_indexes(
         &self,
         req: PaymentCreatedIndexes,
-    ) -> Result<VecBasicPayment, NodeApiError>;
+    ) -> Result<VecBasicPaymentV1, NodeApiError>;
 
-    /// GET /app/payments/new [`GetNewPayments`] -> [`VecBasicPayment`]
+    /// GET /app/payments/new [`GetNewPayments`] -> [`VecBasicPaymentV1`]
     async fn get_new_payments(
         &self,
         req: GetNewPayments,
-    ) -> Result<VecBasicPayment, NodeApiError>;
+    ) -> Result<VecBasicPaymentV1, NodeApiError>;
 
-    /// GET /app/payments/updated [`GetUpdatedPayments`] -> [`VecBasicPayment`]
+    /// GET /app/payments/updated [`GetUpdatedPayments`]
+    ///                        -> [`VecBasicPaymentV1`]
     async fn get_updated_payments(
         &self,
         req: GetUpdatedPayments,
-    ) -> Result<VecBasicPayment, NodeApiError>;
+    ) -> Result<VecBasicPaymentV1, NodeApiError>;
 
     /// PUT /app/payments/note [`UpdatePaymentNote`] -> [`Empty`]
     async fn update_payment_note(

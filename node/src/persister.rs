@@ -62,7 +62,7 @@ use lexe_api::{
     types::{
         Empty,
         payments::{
-            BasicPayment, DbPaymentV1, DbPaymentV2, LxPaymentId,
+            BasicPaymentV1, DbPaymentV1, DbPaymentV2, LxPaymentId,
             PaymentCreatedIndex, VecDbPaymentV2,
         },
     },
@@ -470,7 +470,7 @@ impl NodePersister {
     pub(crate) async fn read_payments_by_indexes(
         &self,
         req: PaymentCreatedIndexes,
-    ) -> anyhow::Result<Vec<BasicPayment>> {
+    ) -> anyhow::Result<Vec<BasicPaymentV1>> {
         let token = self.get_token().await?;
         self.backend_api
             // Fetch `DbPaymentV1`s
@@ -481,16 +481,16 @@ impl NodePersister {
             .into_iter()
             // Decrypt into `Payment`s
             .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
-            // Convert to `BasicPayment`s
-            .map(|res| res.map(BasicPayment::from))
+            // Convert to `BasicPaymentV1`s
+            .map(|res| res.map(BasicPaymentV1::from))
             // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
-            .collect::<anyhow::Result<Vec<BasicPayment>>>()
+            .collect::<anyhow::Result<Vec<BasicPaymentV1>>>()
     }
 
     pub(crate) async fn read_new_payments(
         &self,
         req: GetNewPayments,
-    ) -> anyhow::Result<Vec<BasicPayment>> {
+    ) -> anyhow::Result<Vec<BasicPaymentV1>> {
         let token = self.get_token().await?;
         self.backend_api
             // Fetch `DbPaymentV1`s
@@ -501,16 +501,16 @@ impl NodePersister {
             .into_iter()
             // Decrypt into `Payment`s
             .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
-            // Convert to `BasicPayment`s
-            .map(|res| res.map(BasicPayment::from))
+            // Convert to `BasicPaymentV1`s
+            .map(|res| res.map(BasicPaymentV1::from))
             // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
-            .collect::<anyhow::Result<Vec<BasicPayment>>>()
+            .collect::<anyhow::Result<Vec<BasicPaymentV1>>>()
     }
 
     pub(crate) async fn read_updated_payments(
         &self,
         req: GetUpdatedPayments,
-    ) -> anyhow::Result<Vec<BasicPayment>> {
+    ) -> anyhow::Result<Vec<BasicPaymentV1>> {
         // TODO(max): We will have to do some zipping with payment metadata.
         let token = self.get_token().await?;
         self.backend_api
@@ -522,10 +522,10 @@ impl NodePersister {
             .into_iter()
             // Decrypt into `Payment`s
             .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
-            // Convert to `BasicPayment`s
-            .map(|res| res.map(BasicPayment::from))
+            // Convert to `BasicPaymentV1`s
+            .map(|res| res.map(BasicPaymentV1::from))
             // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
-            .collect::<anyhow::Result<Vec<BasicPayment>>>()
+            .collect::<anyhow::Result<Vec<BasicPaymentV1>>>()
     }
 
     /// NOTE: See module docs for info on how manager/monitor persist works.

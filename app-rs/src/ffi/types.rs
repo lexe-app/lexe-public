@@ -34,7 +34,7 @@ use lexe_api::{
         },
         offer::LxOffer,
         payments::{
-            BasicPayment as BasicPaymentRs,
+            BasicPaymentV1 as BasicPaymentV1Rs,
             ClientPaymentId as ClientPaymentIdRs,
             PaymentCreatedIndex as PaymentCreatedIndexRs,
             PaymentDirection as PaymentDirectionRs,
@@ -321,8 +321,8 @@ pub struct ShortPayment {
     pub created_at: i64,
 }
 
-impl From<&BasicPaymentRs> for ShortPayment {
-    fn from(payment: &BasicPaymentRs) -> Self {
+impl From<&BasicPaymentV1Rs> for ShortPayment {
+    fn from(payment: &BasicPaymentV1Rs) -> Self {
         Self {
             index: PaymentCreatedIndex::from(*payment.index()),
 
@@ -349,7 +349,7 @@ pub struct ShortPaymentAndIndex {
 }
 
 /// The complete payment info, used in the payment detail page. Mirrors the
-/// [`BasicPaymentRs`] type.
+/// [`BasicPaymentV1Rs`] type.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct Payment {
@@ -378,8 +378,8 @@ pub struct Payment {
     pub finalized_at: Option<i64>,
 }
 
-impl From<&BasicPaymentRs> for Payment {
-    fn from(payment: &BasicPaymentRs) -> Self {
+impl From<&BasicPaymentV1Rs> for Payment {
+    fn from(payment: &BasicPaymentV1Rs) -> Self {
         Self {
             index: PaymentCreatedIndex::from(*payment.index()),
 
