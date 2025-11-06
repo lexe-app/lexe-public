@@ -70,6 +70,9 @@ pub struct App {
 
     /// Client for resolving LNURL-pay requests
     lnurl_client: Arc<lnurl::LnurlClient>,
+
+    /// The config used to build this app.
+    config: AppConfig,
 }
 
 impl App {
@@ -91,7 +94,7 @@ impl App {
         let user_pk = UserPk::from(*user_key_pair.public_key());
         let node_key_pair = root_seed.derive_node_key_pair(rng);
         let node_pk = NodePk(node_key_pair.public_key());
-        let user_config = UserAppConfig::new(config, user_pk);
+        let user_config = UserAppConfig::new(config.clone(), user_pk);
         let deploy_env = user_config.config.deploy_env;
 
         // gen + sign the UserSignupRequestWireV1
@@ -223,6 +226,7 @@ impl App {
             user_info,
             bip353_client,
             lnurl_client,
+            config,
         })
     }
 
@@ -248,7 +252,7 @@ impl App {
         // Derive and add user_pk to config
         let user_key_pair = root_seed.derive_user_key_pair();
         let user_pk = UserPk::from(*user_key_pair.public_key());
-        let user_config = UserAppConfig::new(config, user_pk);
+        let user_config = UserAppConfig::new(config.clone(), user_pk);
         let deploy_env = user_config.config.deploy_env;
         let node_key_pair = root_seed.derive_node_key_pair(rng);
         let user_info = AppUserInfoRs::new(rng, user_pk, &node_key_pair);
@@ -278,11 +282,6 @@ impl App {
                 .context("Failed to build LNURL client")?,
         );
 
-        // Load provision DB
-        let provision_ffs =
-            FlatFileFs::create_dir_all(user_config.provision_db_dir())
-                .context("Could not create provision ffs")?;
-
         // Load settings DB
         let settings_ffs =
             FlatFileFs::create_dir_all(user_config.settings_db_dir())
@@ -301,6 +300,56 @@ impl App {
             .context("Could not create app db ffs")?;
         let app_db = Arc::new(AppDataRs::load(app_db_ffs));
 
+        let node_pk = root_seed.derive_node_pk(rng);
+        let (num_payments, num_pending, latest_payment_index) = {
+            let locked_payment_db = payment_db.lock().unwrap();
+            (
+                locked_payment_db.state().num_payments(),
+                locked_payment_db.state().num_pending(),
+                locked_payment_db.state().latest_payment_index().cloned(),
+            )
+        };
+        info!(
+            %user_pk,
+            %node_pk,
+            num_payments = num_payments,
+            num_pending = num_pending,
+            latest_payment_index = ?latest_payment_index,
+            "loaded existing app state"
+        );
+        Ok(Some(Self {
+            gateway_client,
+            node_client,
+            payment_db,
+            payment_sync_lock: tokio::sync::Mutex::new(()),
+            settings_db,
+            app_db,
+            user_info,
+            bip353_client,
+            lnurl_client,
+            config,
+        }))
+    }
+
+    pub async fn provision(&self) -> anyhow::Result<()> {
+        let secret_store = SecretStore::new(&self.config);
+        let maybe_root_seed = secret_store
+            .read_root_seed()
+            .context("Failed to read root seed from SecretStore")?;
+
+        // If there's nothing in the secret store, this must be a fresh install;
+        // we can just return here.
+        let root_seed = match maybe_root_seed {
+            None => return Err(anyhow!("No root seed found")),
+            Some(s) => s,
+        };
+        let user_pk = self.user_info.user_pk;
+        let user_config = UserAppConfig::new(self.config.clone(), user_pk);
+        // Load provision DB
+        let provision_ffs =
+            FlatFileFs::create_dir_all(user_config.provision_db_dir())
+                .context("Could not create provision ffs")?;
+
         // Load provision history
         let provision_history = ProvisionHistory::read_from_ffs(&provision_ffs)
             .context("Could not read provision history")?;
@@ -314,7 +363,8 @@ impl App {
         }
 
         // Fetch the current enclaves.
-        let current_enclaves = gateway_client
+        let current_enclaves = self
+            .gateway_client
             .current_enclaves()
             .await
             .context("Could not fetch current enclaves")?;
@@ -334,7 +384,7 @@ impl App {
             let maybe_encrypted_seed = None;
             helpers::provision(
                 provision_ffs,
-                node_client.clone(),
+                self.node_client.clone(),
                 user_config,
                 helpers::clone_root_seed(&root_seed),
                 provision_history,
@@ -348,32 +398,7 @@ impl App {
         } else {
             info!("Already provisioned to all recent releases")
         }
-
-        {
-            let node_pk = root_seed.derive_node_pk(rng);
-            let locked_payment_db = payment_db.lock().unwrap();
-            let db_state = locked_payment_db.state();
-            info!(
-                %user_pk,
-                %node_pk,
-                num_payments = db_state.num_payments(),
-                num_pending = db_state.num_pending(),
-                latest_payment_index = ?db_state.latest_payment_index(),
-                "loaded existing app state"
-            );
-        }
-
-        Ok(Some(Self {
-            gateway_client,
-            node_client,
-            payment_db,
-            payment_sync_lock: tokio::sync::Mutex::new(()),
-            settings_db,
-            app_db,
-            user_info,
-            bip353_client,
-            lnurl_client,
-        }))
+        Ok(())
     }
 
     /// Restore wallet from backup.
@@ -391,7 +416,7 @@ impl App {
         let user_pk = UserPk::from(*user_key_pair.public_key());
         let node_key_pair = root_seed.derive_node_key_pair(rng);
         let node_pk = NodePk(node_key_pair.public_key());
-        let user_config = UserAppConfig::new(config, user_pk);
+        let user_config = UserAppConfig::new(config.clone(), user_pk);
         let deploy_env = user_config.config.deploy_env;
         let user_info = AppUserInfoRs::new(rng, user_pk, &node_key_pair);
 
@@ -490,6 +515,7 @@ impl App {
             user_info,
             bip353_client,
             lnurl_client,
+            config,
         })
     }
 

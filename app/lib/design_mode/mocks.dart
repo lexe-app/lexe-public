@@ -120,6 +120,10 @@ class MockAppHandle extends AppHandle {
   AppDataDb appDb() => MockAppDataDb();
 
   @override
+  Future<void> provision() =>
+      Future.delayed(const Duration(milliseconds: 1000), () {});
+
+  @override
   AppUserInfo userInfo() => const AppUserInfo(
     userPk: "52b999003525a3d905f9916eff26cee6625a3976fc25270ce5b3e79aa3c16f45",
     nodePk:

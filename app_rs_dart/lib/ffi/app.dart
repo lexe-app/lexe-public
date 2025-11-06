@@ -205,6 +205,9 @@ class AppHandle {
     req: req,
   );
 
+  Future<void> provision() =>
+      AppRs.instance.api.crateFfiAppAppHandleProvision(that: this);
+
   /// Resolve a (possible) [`PaymentUri`] string that we just
   /// scanned/pasted into the best [`PaymentMethod`] for us to pay.
   ///

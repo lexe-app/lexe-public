@@ -86,6 +86,10 @@ impl AppHandle {
             .map(AppHandle::new))
     }
 
+    pub async fn provision(&self) -> anyhow::Result<()> {
+        self.inner.provision().await
+    }
+
     pub async fn restore(
         config: Config,
         google_auth_code: Option<String>,

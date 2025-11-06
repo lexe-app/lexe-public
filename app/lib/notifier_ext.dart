@@ -126,6 +126,43 @@ ComputedValueListenable<T> combine2<T, A, B>(
   return combined;
 }
 
+/// Create a [ValueListenable] that combines the [value]s of two parent
+/// [ValueListenable]s.
+///
+/// Must call [dispose].
+ComputedValueListenable<T> combine3<T, A, B, C>(
+  ValueListenable<A> listenableA,
+  ValueListenable<B> listenableB,
+  ValueListenable<C> listenableC,
+  T Function(A a, B b, C c) combiner,
+) {
+  final value = combiner(
+    listenableA.value,
+    listenableB.value,
+    listenableC.value,
+  );
+  final combined = ComputedValueListenable(value);
+
+  void onParentUpdated() {
+    combined._setValue(
+      combiner(listenableA.value, listenableB.value, listenableC.value),
+    );
+  }
+
+  listenableA.addListener(onParentUpdated);
+  listenableB.addListener(onParentUpdated);
+  listenableC.addListener(onParentUpdated);
+
+  void onDispose() {
+    listenableA.removeListener(onParentUpdated);
+    listenableB.removeListener(onParentUpdated);
+    listenableC.removeListener(onParentUpdated);
+  }
+
+  combined._onDispose = onDispose;
+  return combined;
+}
+
 /// A [ValueListenable] that combines the [value]s of some number of parent
 /// [ValueListenable]s.
 ///

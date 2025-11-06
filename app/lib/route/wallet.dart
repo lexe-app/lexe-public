@@ -1,7 +1,6 @@
 // The primary wallet page.
 
-import 'dart:async'
-    show StreamSubscription, TimeoutException, scheduleMicrotask;
+import 'dart:async' show StreamSubscription, TimeoutException;
 import 'dart:math' as math;
 
 import 'package:app_rs_dart/ffi/api.dart'
@@ -62,6 +61,7 @@ import 'package:lexeapp/service/node_info.dart' show NodeInfoService;
 import 'package:lexeapp/service/payment_address.dart'
     show PaymentAddressService;
 import 'package:lexeapp/service/payment_sync.dart' show PaymentSyncService;
+import 'package:lexeapp/service/provision.dart' show ProvisionService;
 import 'package:lexeapp/service/refresh.dart' show RefreshService;
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/share.dart' show LxShare;
@@ -117,6 +117,12 @@ class WalletPageState extends State<WalletPage> {
   );
   late final LxListener nodeInfoFetchOnRefresh;
 
+  /// Provision node.
+  late final ProvisionService provisionService = ProvisionService(
+    app: this.widget.app,
+  );
+  late final LxListener provisionOnRefresh;
+
   /// Fetch [PaymentAddress].
   late final PaymentAddressService paymentAddressService =
       PaymentAddressService(app: this.widget.app, appData: this.widget.appData);
@@ -137,6 +143,8 @@ class WalletPageState extends State<WalletPage> {
     this.uriEventsListener.cancel();
     this.isRefreshing.dispose();
     this.balanceState.dispose();
+    this.provisionOnRefresh.dispose();
+    this.provisionService.dispose();
     this.paymentAddressService.dispose();
     this.nodeInfoFetchOnRefresh.dispose();
     this.nodeInfoService.dispose();
@@ -165,14 +173,19 @@ class WalletPageState extends State<WalletPage> {
     // from the node.
     this.paymentAddressService.init();
 
+    // Provision node on refresh.
+    this.provisionOnRefresh = this.refreshService.refresh.listen(
+      () => this.provisionService.provision(),
+    );
+
     // Sync payments on refresh.
     this.paymentSyncOnRefresh = this.refreshService.refresh.listen(
-      this.paymentSyncService.sync,
+      () => this.provisionService.wrapListener(this.paymentSyncService.sync),
     );
 
     // Fetch [NodeInfo] on refresh.
     this.nodeInfoFetchOnRefresh = this.refreshService.refresh.listen(
-      this.nodeInfoService.fetch,
+      () => this.provisionService.wrapListener(this.nodeInfoService.fetch),
     );
 
     // A stream of `BalanceState`s that gets updated when `nodeInfos` or
@@ -191,10 +204,12 @@ class WalletPageState extends State<WalletPage> {
     );
 
     // When the refresh button should show a loading spinner.
-    this.isRefreshing = combine2(
+    this.isRefreshing = combine3(
+      this.provisionService.isProvisioning,
       this.paymentSyncService.isSyncing,
       this.nodeInfoService.isFetching,
-      (isSyncing, isFetching) => isSyncing || isFetching,
+      (isProvisioning, isSyncing, isFetching) =>
+          isProvisioning || isSyncing || isFetching,
     );
 
     // Listen to platform URI events (e.g., user taps a "lightning:" URI in
@@ -203,8 +218,15 @@ class WalletPageState extends State<WalletPage> {
       this.onUriEvent,
     );
 
-    // Start us off with an initial refresh.
-    scheduleMicrotask(this.refreshService.triggerRefreshUnthrottled);
+    // On provision we trigger a refresh.
+    this.provisionService.isProvisioned.addListener(() {
+      if (this.provisionService.isProvisioned.value) {
+        this.refreshService.triggerRefreshUnthrottled();
+      }
+    });
+
+    // Try to provision the node.
+    this.provisionService.provision();
   }
 
   /// User triggers a refresh (fetch balance, fiat rates, payment sync).
@@ -522,26 +544,22 @@ class WalletPageState extends State<WalletPage> {
     );
   }
 
+  bool get showNotificationTab =>
+      this.provisionService.shouldDisplayWarning.value;
+
+  Color? get appBarBackgroundColor =>
+      this.showNotificationTab ? LxColors.warningBackground : null;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: this.scaffoldKey,
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        // ≡ - Open navigation drawer on the left
-        leading: IconButton(
-          icon: const Icon(LxIcons.menu),
-          onPressed: this.openScaffoldDrawer,
-        ),
-
-        // ⟳ - Trigger refresh of current balance, payments, etc...
-        actions: [
-          LxRefreshButton(
-            isRefreshing: this.isRefreshing,
-            triggerRefresh: this.triggerRefresh,
-          ),
-          const SizedBox(width: Space.s100),
-        ],
+      appBar: _WalletAppBar(
+        provisionService: this.provisionService,
+        onOpenDrawer: this.openScaffoldDrawer,
+        isRefreshing: this.isRefreshing,
+        triggerRefresh: this.triggerRefresh,
       ),
       drawer: WalletDrawer(
         config: this.widget.config,
@@ -568,7 +586,6 @@ class WalletPageState extends State<WalletPage> {
             child: Column(
               children: [
                 const SizedBox(height: Space.s1000),
-
                 // Primary wallet balance and sub-balances
                 ValueListenableBuilder(
                   valueListenable: this.balanceState,
@@ -620,6 +637,121 @@ class WalletPageState extends State<WalletPage> {
               app: this.widget.app,
               filter: PaymentsListFilter.finalizedNotJunk,
               onPaymentTap: this.onPaymentTap,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WalletAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _WalletAppBar({
+    required this.provisionService,
+    required this.onOpenDrawer,
+    required this.isRefreshing,
+    required this.triggerRefresh,
+  });
+
+  final ProvisionService provisionService;
+  final VoidCallback onOpenDrawer;
+  final ValueListenable<bool> isRefreshing;
+  final VoidCallback triggerRefresh;
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: this.provisionService.shouldDisplayWarning,
+      builder: (context, shouldDisplayWarning, child) => Stack(
+        children: [
+          AnimatedContainer(
+            curve: Curves.easeInOut,
+            duration: const Duration(milliseconds: 500),
+            color: shouldDisplayWarning
+                ? LxColors.warningBackground
+                : LxColors.background,
+          ),
+          AppBar(
+            elevation: 0.0,
+            shadowColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            backgroundColor: Colors.transparent,
+            leading: IconButton(
+              icon: const Icon(LxIcons.menu),
+              onPressed: this.onOpenDrawer,
+            ),
+            actions: [
+              LxRefreshButton(
+                isRefreshing: this.isRefreshing,
+                triggerRefresh: this.triggerRefresh,
+              ),
+              const SizedBox(width: Space.s100),
+            ],
+            flexibleSpace: Align(
+              alignment: Alignment.bottomCenter,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 500),
+                curve: Curves.easeInOut,
+                opacity: shouldDisplayWarning ? 1.0 : 0.0,
+                child: NotificationTab(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Notification message used a flexibleSpace in [Scaffold.appBar].
+class NotificationTab extends StatelessWidget {
+  const NotificationTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: Space.s700,
+      color: Colors.transparent,
+      padding: const EdgeInsets.only(top: Space.s100),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text.rich(
+                TextSpan(
+                  style: Fonts.fontUI.copyWith(
+                    fontSize: Fonts.size200,
+                    color: LxColors.grey300,
+                    fontVariations: [Fonts.weightMedium],
+                  ),
+                  children: [
+                    WidgetSpan(
+                      child: Icon(
+                        LxIcons.nodeInfo,
+                        size: Fonts.size400,
+                        color: LxColors.grey300,
+                      ),
+                    ),
+                    TextSpan(text: " Could not connect to node."),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Space.s100),
+          const Text(
+            "Currently in offline mode. Try again later.",
+            style: TextStyle(
+              fontSize: Fonts.size100,
+              color: LxColors.grey300,
+              fontVariations: [Fonts.weightMedium],
             ),
           ),
         ],
