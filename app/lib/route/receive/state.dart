@@ -1,6 +1,7 @@
 /// Receive payment page models and state machines.
 library;
 
+import 'package:app_rs_dart/ffi/types.dart' show Offer;
 import 'package:flutter/foundation.dart' show immutable;
 
 /// The kind of payment to receive, across both BTC and LN.
@@ -174,6 +175,15 @@ class PaymentOffer {
     description: this.description,
     expiresAt: null,
   );
+
+  PaymentOffer.fromOffer({required Offer offer})
+    : kind = PaymentOfferKind.lightningOffer,
+      code = offer.string,
+      amountSats = offer.amountSats,
+      description = offer.description,
+      expiresAt = offer.expiresAt != null
+          ? DateTime.fromMillisecondsSinceEpoch(offer.expiresAt!)
+          : null;
 
   String titleStr() => switch (this.kind) {
     PaymentOfferKind.lightningInvoice => "Lightning invoice",

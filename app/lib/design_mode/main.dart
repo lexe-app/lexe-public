@@ -626,6 +626,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "ReceivePaymentPage",
               (context) => ReceivePaymentPage(
                 app: mockApp,
+                appData: LxAppData(mockApp.appDb()),
                 featureFlags: const FeatureFlags.all(),
                 fiatRate: this.makeFiatRateStream(),
               ),
@@ -639,6 +640,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   showBolt12OffersRecvPage: false,
                 ),
                 fiatRate: this.makeFiatRateStream(),
+                appData: LxAppData(mockApp.appDb()),
               ),
             ),
             Component(
@@ -648,6 +650,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 app: mockAppErr,
                 featureFlags: const FeatureFlags.all(),
                 fiatRate: this.makeFiatRateStream(),
+                appData: LxAppData(mockApp.appDb()),
               ),
             ),
             Component(
@@ -938,6 +941,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 fiatRate: ValueNotifier(
                   const FiatRate(fiat: "USD", rate: 96626.76),
                 ),
+                appData: LxAppData(mockApp.appDb()),
               ),
             ),
             Component(

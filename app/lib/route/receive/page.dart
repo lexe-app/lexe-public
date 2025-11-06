@@ -12,6 +12,7 @@ import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lexeapp/address_format.dart' as address_format;
+import 'package:lexeapp/app_data.dart' show LxAppData;
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
@@ -69,9 +70,11 @@ class ReceivePaymentPage extends StatelessWidget {
     required this.app,
     required this.featureFlags,
     required this.fiatRate,
+    required this.appData,
   });
 
   final AppHandle app;
+  final LxAppData appData;
   final FeatureFlags featureFlags;
 
   /// Updating stream of fiat rates.
@@ -83,6 +86,7 @@ class ReceivePaymentPage extends StatelessWidget {
     featureFlags: this.featureFlags,
     fiatRate: this.fiatRate,
     viewportWidth: MediaQuery.sizeOf(context).width,
+    appData: this.appData,
   );
 }
 
@@ -95,12 +99,14 @@ class ReceivePaymentPageInner extends StatefulWidget {
     required this.featureFlags,
     required this.fiatRate,
     required this.viewportWidth,
+    required this.appData,
   });
 
   final AppHandle app;
   final FeatureFlags featureFlags;
   final ValueListenable<FiatRate?> fiatRate;
 
+  final LxAppData appData;
   final double viewportWidth;
 
   @override
@@ -173,7 +179,14 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
     unawaited(this.doFetchLnInvoice());
     if (this.showOffer) {
-      unawaited(this.doFetchLnOffer());
+      final cachedOffer = this.widget.appData.paymentAddress.value?.offer;
+      if (cachedOffer != null) {
+        this.lnOfferPaymentOffer().value = PaymentOffer.fromOffer(
+          offer: cachedOffer,
+        );
+      } else {
+        unawaited(this.doFetchLnOffer());
+      }
     }
     unawaited(this.doFetchBtc());
   }

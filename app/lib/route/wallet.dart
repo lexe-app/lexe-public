@@ -349,6 +349,7 @@ class WalletPageState extends State<WalletPage> {
           app: this.widget.app,
           featureFlags: this.widget.featureFlags,
           fiatRate: this.fiatRateService.fiatRate,
+          appData: this.widget.appData,
         ),
       ),
     );
