@@ -72,6 +72,36 @@ abstract final class LxShare {
     return;
   }
 
+  /// Share a payment address as a plain text message.
+  /// Supported on all platforms.
+  static Future<void> sharePaymentAddress(
+    BuildContext context,
+    String address,
+  ) async {
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box!.localToGlobal(Offset.zero) & box.size;
+
+    final result = await LxShare._trySharePaymentAddressAsPlaintext(
+      address,
+      origin,
+    );
+    if (!context.mounted) return;
+
+    switch (result) {
+      case ShareResultStatus.success || ShareResultStatus.dismissed:
+        return;
+      case ShareResultStatus.unavailable:
+    }
+
+    // Tell the user we can't get anything to work
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Lexe doesn't support sharing on this platform yet!"),
+      ),
+    );
+    return;
+  }
+
   // TODO(phlip9): right now, this will show Lexe as an option to handle a
   // payment URI, which is super confusing. We'll need to somehow filter
   // ourselves out of the list of handlers.
@@ -126,6 +156,33 @@ abstract final class LxShare {
         return ok.status;
       case Err(:final err):
         warn("LxShare: share payment uri: err: $err");
+        return ShareResultStatus.unavailable;
+    }
+  }
+
+  static Future<ShareResultStatus> _trySharePaymentAddressAsPlaintext(
+    String address,
+    Rect origin,
+  ) async {
+    final result = await Result.tryAsync<ShareResult, Exception>(() async {
+      final shareMessage = "Pay me at $address";
+      if (Platform.isIOS ||
+          Platform.isAndroid ||
+          Platform.isMacOS ||
+          Platform.isWindows ||
+          Platform.isLinux) {
+        return Share.share(shareMessage, sharePositionOrigin: origin);
+      } else {
+        return const ShareResult("", ShareResultStatus.unavailable);
+      }
+    });
+
+    switch (result) {
+      case Ok(:final ok):
+        info("LxShare: share payment address: ok: $ok");
+        return ok.status;
+      case Err(:final err):
+        warn("LxShare: share payment address: err: $err");
         return ShareResultStatus.unavailable;
     }
   }

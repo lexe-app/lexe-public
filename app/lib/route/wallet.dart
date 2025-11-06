@@ -64,6 +64,7 @@ import 'package:lexeapp/service/payment_address.dart'
 import 'package:lexeapp/service/payment_sync.dart' show PaymentSyncService;
 import 'package:lexeapp/service/refresh.dart' show RefreshService;
 import 'package:lexeapp/settings.dart' show LxSettings;
+import 'package:lexeapp/share.dart' show LxShare;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxRadius, Space;
 import 'package:lexeapp/types.dart' show BalanceKind, BalanceState;
@@ -664,7 +665,7 @@ class WalletDrawer extends StatelessWidget {
   final VoidCallback? onProfileMenuPressed;
   // final VoidCallback? onInvitePressed;
 
-  bool get showProfilePage => this.featureFlags.showProfilePage;
+  bool get showUserPayAddress => this.featureFlags.showProfilePage;
 
   @override
   Widget build(BuildContext context) {
@@ -673,128 +674,151 @@ class WalletDrawer extends StatelessWidget {
     return Drawer(
       child: Padding(
         padding: EdgeInsets.only(top: systemBarHeight),
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            // X - close
-            DrawerListItem(
-              icon: LxIcons.close,
-              onTap: () => Scaffold.of(context).closeDrawer(),
-            ),
-            if (this.showProfilePage)
-              ValueListenableBuilder(
-                valueListenable: this.paymentAddressService.paymentAddress,
-                builder: (context, paymentAddress, child) {
-                  return DrawerProfileHeader(
-                    paymentAddress: paymentAddress,
-                    onEditProfilePressed: this.onProfileMenuPressed,
-                  );
-                },
-              ),
-            DrawerListItem(
-              title: "Channels",
-              icon: LxIcons.openCloseChannel,
-              onTap: this.onChannelsMenuPressed,
-            ),
-            DrawerListItem(
-              title: "Node info",
-              icon: LxIcons.nodeInfo,
-              onTap: this.onNodeInfoMenuPressed,
-            ),
-            DrawerListItem(
-              title: "SDK clients",
-              icon: LxIcons.sdk,
-              onTap: this.onClientsMenuPressed,
-            ),
-
-            // TODO(phlip9): impl
-            // // * Settings
-            // // * Backup
-            // // * Security
-            // // * Support
-            // DrawerListItem(
-            //   title: "Settings",
-            //   icon: LxIcons.settings,
-            //   onTap: this.onSettingsPressed,
-            // ),
-            // DrawerListItem(
-            //   title: "Backup",
-            //   icon: LxIcons.backup,
-            //   onTap: this.onBackupPressed,
-            // ),
-            DrawerListItem(
-              title: "Security",
-              icon: LxIcons.security,
-              onTap: this.onSecurityMenuPressed,
-            ),
-            // DrawerListItem(
-            //   title: "Support",
-            //   icon: LxIcons.support,
-            //   onTap: this.onSupportPressed,
-            // ),
-            const SizedBox(height: Space.s600),
-
-            // TODO(phlip9): impl
-            // // < Invite Friends >
-            // Padding(
-            //   padding: const EdgeInsets.symmetric(horizontal: Space.s500),
-            //   child: LxOutlinedButton(
-            //     // TODO(phlip9): we use a closure to see button w/o disabled
-            //     // styling. remove extra closure when real functionality exists.
-            //     onTap: () => this.onInvitePressed?.call(),
-            //     label: const Text("Invite Friends"),
-            //   ),
-            // ),
-            // const SizedBox(height: Space.s600),
-
-            // Social media links row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              spacing: Space.s100,
-              children: [
-                IconButton(
-                  onPressed: () => url.open("https://lexe.app"),
-                  icon: const Icon(LxIcons.website, size: Fonts.size600),
-                  color: LxColors.foreground,
+        child: CustomScrollView(
+          slivers: [
+            SliverList(
+              delegate: SliverChildListDelegate([
+                // X - close
+                DrawerListItem(
+                  icon: LxIcons.close,
+                  onTap: () => Scaffold.of(context).closeDrawer(),
                 ),
-                IconButton(
-                  onPressed: () => url.open("https://x.com/lexeapp"),
-                  icon: const Icon(LxIcons.x, size: Fonts.size600),
-                  color: LxColors.foreground,
-                ),
-                IconButton(
-                  onPressed: () => url.open("https://discord.gg/zybuBYgdbr"),
-                  icon: const Icon(LxIcons.discord, size: Fonts.size600),
-                  color: LxColors.foreground,
-                ),
-                IconButton(
-                  onPressed: () =>
-                      url.open("https://github.com/lexe-app/lexe-public"),
-                  icon: const Icon(LxIcons.github, size: Fonts.size600),
-                  color: LxColors.foreground,
-                ),
-              ],
-            ),
-            const SizedBox(height: Space.s400),
 
-            // Show currently installed app version.
-            // ex: "Lexe · v0.6.2+5"
-            FutureBuilder(
-              future: UserAgent.fromPlatform(),
-              builder: (context, out) {
-                final userAgent = out.data ?? UserAgent.dummy();
-                return MultiTapDetector(
-                  onMultiTapDetected: () => this.onDebugMenuPressed!(),
-                  child: Text(
-                    "${userAgent.appName} · v${userAgent.version}",
-                    textAlign: TextAlign.center,
-                    style: Fonts.fontUI.copyWith(
-                      color: LxColors.grey600,
-                      fontSize: Fonts.size200,
+                DrawerListItem(
+                  title: "Channels",
+                  icon: LxIcons.openCloseChannel,
+                  onTap: this.onChannelsMenuPressed,
+                ),
+                DrawerListItem(
+                  title: "Node info",
+                  icon: LxIcons.nodeInfo,
+                  onTap: this.onNodeInfoMenuPressed,
+                ),
+                DrawerListItem(
+                  title: "SDK clients",
+                  icon: LxIcons.sdk,
+                  onTap: this.onClientsMenuPressed,
+                ),
+                DrawerListItem(
+                  title: "Security",
+                  icon: LxIcons.security,
+                  onTap: this.onSecurityMenuPressed,
+                ),
+
+                // TODO(phlip9): impl
+                // // * Settings
+                // // * Backup
+                // // * Support
+                // DrawerListItem(
+                //   title: "Settings",
+                //   icon: LxIcons.settings,
+                //   onTap: this.onSettingsPressed,
+                // ),
+                // DrawerListItem(
+                //   title: "Backup",
+                //   icon: LxIcons.backup,
+                //   onTap: this.onBackupPressed,
+                // ),
+                // DrawerListItem(
+                //   title: "Support",
+                //   icon: LxIcons.support,
+                //   onTap: this.onSupportPressed,
+                // ),
+
+                // TODO(phlip9): impl
+                // // < Invite Friends >
+                // Padding(
+                //   padding: const EdgeInsets.symmetric(horizontal: Space.s500),
+                //   child: LxOutlinedButton(
+                //     // TODO(phlip9): we use a closure to see button w/o disabled
+                //     // styling. remove extra closure when real functionality exists.
+                //     onTap: () => this.onInvitePressed?.call(),
+                //     label: const Text("Invite Friends"),
+                //   ),
+                // ),
+                // const SizedBox(height: Space.s600),
+              ]),
+            ),
+            // Bottom section (you@lexe.app + social buttons + version)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (this.showUserPayAddress)
+                    ValueListenableBuilder(
+                      valueListenable:
+                          this.paymentAddressService.paymentAddress,
+                      builder: (context, paymentAddress, child) {
+                        return DrawerProfile(
+                          paymentAddress: paymentAddress,
+                          onEditProfilePressed: this.onProfileMenuPressed,
+                        );
+                      },
                     ),
+
+                  const SizedBox(height: Space.s500),
+                  const Divider(
+                    height: 1.0,
+                    color: LxColors.grey700,
+                    indent: 100,
+                    endIndent: 100,
                   ),
-                );
-              },
+
+                  const SizedBox(height: Space.s500),
+                  // Social media links row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    spacing: Space.s100,
+                    children: [
+                      IconButton(
+                        onPressed: () => url.open("https://lexe.app"),
+                        icon: const Icon(LxIcons.website, size: Fonts.size600),
+                        color: LxColors.foreground,
+                      ),
+                      IconButton(
+                        onPressed: () => url.open("https://x.com/lexeapp"),
+                        icon: const Icon(LxIcons.x, size: Fonts.size600),
+                        color: LxColors.foreground,
+                      ),
+                      IconButton(
+                        onPressed: () =>
+                            url.open("https://discord.gg/zybuBYgdbr"),
+                        icon: const Icon(LxIcons.discord, size: Fonts.size600),
+                        color: LxColors.foreground,
+                      ),
+                      IconButton(
+                        onPressed: () =>
+                            url.open("https://github.com/lexe-app/lexe-public"),
+                        icon: const Icon(LxIcons.github, size: Fonts.size600),
+                        color: LxColors.foreground,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Space.s300),
+
+                  // Show currently installed app version.
+                  // ex: "Lexe · v0.6.2+5"
+                  FutureBuilder(
+                    future: UserAgent.fromPlatform(),
+                    builder: (context, out) {
+                      final userAgent = out.data ?? UserAgent.dummy();
+                      return MultiTapDetector(
+                        onMultiTapDetected: () => this.onDebugMenuPressed!(),
+                        child: Text(
+                          "${userAgent.appName} · v${userAgent.version}",
+                          textAlign: TextAlign.center,
+                          style: Fonts.fontUI.copyWith(
+                            color: LxColors.grey600,
+                            fontSize: Fonts.size200,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: Space.s500),
+                ],
+              ),
             ),
           ],
         ),
@@ -803,116 +827,215 @@ class WalletDrawer extends StatelessWidget {
   }
 }
 
-class DrawerProfileHeader extends StatelessWidget {
-  const DrawerProfileHeader({
+enum DrawerPaymentAddressStatus { error, notClaimed, claimed, updatable }
+
+class DrawerProfile extends StatelessWidget {
+  const DrawerProfile({
     super.key,
     this.onEditProfilePressed,
     this.paymentAddress,
   });
-
   final VoidCallback? onEditProfilePressed;
   final PaymentAddress? paymentAddress;
+
+  DrawerPaymentAddressStatus get status {
+    if (this.paymentAddress == null) {
+      return DrawerPaymentAddressStatus.error;
+    }
+
+    if (this.paymentAddress?.username == null) {
+      return DrawerPaymentAddressStatus.notClaimed;
+    }
+
+    if (this.paymentAddress?.updatable == true) {
+      return DrawerPaymentAddressStatus.updatable;
+    }
+
+    return DrawerPaymentAddressStatus.claimed;
+  }
 
   /// if PaymentAddress is null, means that we haven't checked in the backend yet.
   /// Or some other error reading db happened. So we can't update the username.
   bool get isUpdatable =>
       this.paymentAddress != null && this.paymentAddress?.updatable == true;
 
-  String? get fullUsername => this.paymentAddress?.username != null
-      ? "₿${this.paymentAddress?.username?.field0}@lexe.app"
-      : null;
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            "₿itcoin payment address",
+            style: Fonts.fontUI.copyWith(
+              fontSize: Fonts.size300,
+              color: LxColors.grey600,
+            ),
+          ),
+          const SizedBox(height: Space.s200),
+          switch (this.status) {
+            DrawerPaymentAddressStatus.error => const SizedBox(),
+            DrawerPaymentAddressStatus.notClaimed => ClaimPaymentAddress(
+              onTap: this.onEditProfilePressed,
+            ),
+            DrawerPaymentAddressStatus.claimed => ClaimedPaymentAddress(
+              paymentAddress: this.paymentAddress!,
+              showEditButton: false,
+            ),
+            DrawerPaymentAddressStatus.updatable => ClaimedPaymentAddress(
+              paymentAddress: this.paymentAddress!,
+              showEditButton: true,
+              onTapEdit: this.onEditProfilePressed,
+            ),
+          },
+        ],
+      ),
+    );
+  }
+}
 
-  String? get parsedUsername {
-    if (this.paymentAddress?.username == null) return null;
+class ClaimedPaymentAddress extends StatelessWidget {
+  const ClaimedPaymentAddress({
+    super.key,
+    required this.paymentAddress,
+    required this.showEditButton,
+    this.onTapEdit,
+  });
+  final PaymentAddress paymentAddress;
+  final bool showEditButton;
+  final VoidCallback? onTapEdit;
 
-    final username = this.paymentAddress!.username!.field0;
-    final truncated = username.length > 15
-        ? "${username.substring(0, 12)}..."
-        : username;
+  String get username => this.paymentAddress.username!.field0;
+  String get displayUsername => "₿${this.username}@lexe.app";
 
-    return "₿$truncated@lexe.app";
+  double get fontSize {
+    return switch (this.username.length) {
+      <= 8 => Fonts.size600,
+      <= 12 => Fonts.size500,
+      <= 16 => Fonts.size400,
+      <= 20 => Fonts.size300,
+      <= 24 => Fonts.size200,
+      _ => Fonts.size200,
+    };
   }
 
-  String get usernameOrDefault =>
-      this.parsedUsername ?? "Claim your ₿itcoin address ";
+  ButtonStyle get actionButtonStyle => ButtonStyle(
+    padding: WidgetStateProperty.all(const EdgeInsets.all(Space.s200)),
+    minimumSize: WidgetStateProperty.all(const Size(40, 40)),
+    textStyle: WidgetStateProperty.all(
+      const TextStyle(fontSize: Fonts.size100, color: LxColors.fgSecondary),
+    ),
+  );
+
+  double get actionButtonIconSize => Fonts.size300;
+
+  Future<void> onTapShare(BuildContext context) async {
+    await LxShare.sharePaymentAddress(context, this.displayUsername);
+  }
 
   void onTapCopy(BuildContext context) {
-    if (this.fullUsername == null) return;
-
-    Navigator.of(context).pop();
-    LxClipboard.copyTextWithFeedback(context, this.fullUsername!);
-  }
-
-  void onTap(BuildContext context) {
-    if (this.isUpdatable &&
-        this.onEditProfilePressed != null &&
-        this.parsedUsername == null) {
-      this.onEditProfilePressed!();
-      return;
-    }
-
-    this.onTapCopy(context);
+    Navigator.of(context, rootNavigator: true).pop();
+    LxClipboard.copyTextWithFeedback(context, this.displayUsername);
   }
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => this.onTap(context),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: Space.s400),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          this.displayUsername,
+          style: Fonts.fontUI.copyWith(
+            fontSize: this.fontSize,
+            fontVariations: [Fonts.weightMedium],
+            color: LxColors.foreground,
+          ),
+        ),
+        const SizedBox(height: Space.s300),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 64.0,
-              height: 64.0,
-              decoration: BoxDecoration(
-                color: LxColors.grey850,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.person_outline,
-                size: 32.0,
-                color: LxColors.foreground,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Space.s100),
+              child: FilledButton(
+                onPressed: () => this.onTapCopy(context),
+                style: this.actionButtonStyle,
+                child: Icon(LxIcons.copy, size: this.actionButtonIconSize),
               ),
             ),
-            const SizedBox(height: Space.s300),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    this.usernameOrDefault,
-                    overflow: TextOverflow.ellipsis,
-                    style: Fonts.fontUI.copyWith(
-                      color: LxColors.grey600,
-                      fontSize: Fonts.size200,
-                    ),
-                  ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Space.s100),
+              child: FilledButton(
+                onPressed: () => this.onTapShare(context),
+                style: this.actionButtonStyle,
+                child: Icon(LxIcons.share, size: this.actionButtonIconSize),
+              ),
+            ),
+            if (this.showEditButton)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Space.s100),
+                child: FilledButton(
+                  onPressed: this.onTapEdit,
+                  style: this.actionButtonStyle,
+                  child: Icon(LxIcons.edit, size: this.actionButtonIconSize),
                 ),
-                if (this.parsedUsername != null)
-                  const SizedBox(width: Space.s100),
-                if (this.parsedUsername != null)
-                  Icon(
-                    LxIcons.copy,
-                    size: Fonts.size300,
-                    color: LxColors.grey600,
-                  ),
-                if (this.isUpdatable) const SizedBox(width: Space.s100),
-                if (this.isUpdatable)
-                  GestureDetector(
-                    onTap: this.onEditProfilePressed,
-                    child: Icon(
-                      LxIcons.edit,
-                      size: Fonts.size300,
-                      color: LxColors.grey600,
-                    ),
-                  ),
-              ],
-            ),
+              ),
           ],
         ),
-      ),
+      ],
+    );
+  }
+}
+
+class ClaimPaymentAddress extends StatelessWidget {
+  const ClaimPaymentAddress({super.key, required this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text.rich(
+          TextSpan(
+            style: Fonts.fontUI.copyWith(
+              fontSize: Fonts.size600,
+              fontVariations: [Fonts.weightMedium],
+              color: LxColors.foreground,
+            ),
+            children: [
+              TextSpan(text: "₿"),
+              TextSpan(
+                text: "you",
+                style: TextStyle(color: LxColors.grey600),
+              ),
+              TextSpan(text: "@lexe.app"),
+            ],
+          ),
+        ),
+        const SizedBox(width: Space.s300),
+        InkWell(
+          splashColor: LxColors.clearB50,
+          onTap: this.onTap,
+          child: Chip(
+            labelPadding: EdgeInsets.zero,
+            backgroundColor: LxColors.moneyGoUp,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const EdgeInsets.symmetric(horizontal: Space.s200),
+            label: Text(
+              "Claim",
+              style: TextStyle(
+                fontSize: Fonts.size300,
+                color: Colors.white,
+                fontVariations: [Fonts.weightMedium],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

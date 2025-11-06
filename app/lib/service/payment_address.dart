@@ -58,8 +58,9 @@ class PaymentAddressService {
     // Do sync
     this._isFetching.value = true;
     final res = await Result.tryFfiAsync(this._app.getPaymentAddress);
-    this._isFetching.value = false;
     if (this.isDisposed) return;
+
+    this._isFetching.value = false;
 
     switch (res) {
       case Ok(:final ok):
@@ -81,8 +82,9 @@ class PaymentAddressService {
     final res = await Result.tryFfiAsync(
       () => this._app.updatePaymentAddress(username: username),
     );
-    this._isUpdating.value = false;
     if (this.isDisposed) return Err("Already disposed");
+
+    this._isUpdating.value = false;
 
     switch (res) {
       case Ok(:final ok):

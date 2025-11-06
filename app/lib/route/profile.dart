@@ -149,10 +149,10 @@ class _EditPaymentAddressPageState extends State<EditPaymentAddressPage> {
       ),
       body: ScrollableSinglePageBody(
         body: [
-          const HeadingText(text: "Update your ₿itcoin address"),
+          const HeadingText(text: "Update your username"),
           const SubheadingText(
             text:
-                "Receive money into your wallet instantly by only giving your email-like username.",
+                "Receive money into your wallet instantly with only your ₿itcoin payment address.",
           ),
           const SizedBox(height: Space.s600),
 
@@ -235,12 +235,9 @@ class PaymentAddressSuccessPage extends StatelessWidget {
       ),
       body: ScrollableSinglePageBody(
         body: [
-          const HeadingText(text: "You are all setup!"),
-          const SizedBox(height: Space.s200),
-          const SubheadingText(
-            text: "Your ₿itcoin payment address has been updated.",
-          ),
-          const SizedBox(height: Space.s700),
+          const HeadingText(text: "Your new ₿itcoin address"),
+          const SubheadingText(text: "Your username has been updated."),
+          const SizedBox(height: Space.s500),
 
           Container(
             padding: const EdgeInsets.all(Space.s500),
@@ -252,7 +249,7 @@ class PaymentAddressSuccessPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Your ₿itcoin payment address",
+                  "₿itcoin payment address",
                   style: Fonts.fontUI.copyWith(
                     fontSize: Fonts.size200,
                     color: LxColors.grey600,
