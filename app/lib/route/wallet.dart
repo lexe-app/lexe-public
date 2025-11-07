@@ -15,8 +15,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentDirection,
         PaymentKind,
         PaymentStatus,
-        ShortPayment,
-        ShortPaymentAndIndex;
+        ShortPayment;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show TapGestureRecognizer;
 import 'package:flutter/material.dart';
@@ -1997,35 +1996,36 @@ class _SliverPaymentsListState extends State<SliverPaymentsList> {
 
           final scrollIdx = paymentPlusHeaderIdx - numHeaders;
 
-          final ShortPaymentAndIndex? result = switch (this.widget.filter) {
+          final ShortPayment? result = switch (this.widget.filter) {
             PaymentsListFilter.all =>
-              this.widget.app.getShortPaymentByScrollIdx(scrollIdx: scrollIdx),
+              this.widget.app.getShortPaymentByScrollIndex(
+                scrollIdx: scrollIdx,
+              ),
             PaymentsListFilter.pending =>
-              this.widget.app.getPendingShortPaymentByScrollIdx(
+              this.widget.app.getPendingShortPaymentByScrollIndex(
                 scrollIdx: scrollIdx,
               ),
             PaymentsListFilter.pendingNotJunk =>
-              this.widget.app.getPendingNotJunkShortPaymentByScrollIdx(
+              this.widget.app.getPendingNotJunkShortPaymentByScrollIndex(
                 scrollIdx: scrollIdx,
               ),
             PaymentsListFilter.finalized =>
-              this.widget.app.getFinalizedShortPaymentByScrollIdx(
+              this.widget.app.getFinalizedShortPaymentByScrollIndex(
                 scrollIdx: scrollIdx,
               ),
             PaymentsListFilter.finalizedNotJunk =>
-              this.widget.app.getFinalizedNotJunkShortPaymentByScrollIdx(
+              this.widget.app.getFinalizedNotJunkShortPaymentByScrollIndex(
                 scrollIdx: scrollIdx,
               ),
           };
           if (result == null) return null;
 
           return PaymentsListEntry(
-            vecIdx: result.vecIdx,
-            payment: result.payment,
+            payment: result,
             paymentDateUpdates: this.paymentDateUpdates,
             onTap: () => this.widget.onPaymentTap(
-              result.payment.index,
-              PaymentSource.localDb(result.vecIdx),
+              result.index,
+              PaymentSource.localDb(result.index),
             ),
           );
         },
@@ -2055,11 +2055,10 @@ String formatFiatValue({
 
 class PaymentsListEntry extends StatelessWidget {
   PaymentsListEntry({
-    required int vecIdx,
     required this.payment,
     required this.paymentDateUpdates,
     required this.onTap,
-  }) : super(key: ValueKey<int>(vecIdx));
+  }) : super(key: ValueKey<PaymentCreatedIndex>(payment.index));
 
   final VoidCallback onTap;
   final ValueListenable<DateTime> paymentDateUpdates;

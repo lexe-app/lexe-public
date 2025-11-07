@@ -37,14 +37,15 @@ import 'package:lexeapp/url.dart' as url;
 /// A bit of a hack so we can display "reasonable" Payment info immediately
 /// after sending a payment, but before we've synced our local payment DB.
 sealed class PaymentSource {
-  static PaymentSource localDb(int vecIdx) => PaymentSourceLocalDb(vecIdx);
+  static PaymentSource localDb(PaymentCreatedIndex createdIdx) =>
+      PaymentSourceLocalDb(createdIdx);
   static PaymentSource unsynced(Payment payment) =>
       PaymentSourceUnsynced(payment);
 }
 
 final class PaymentSourceLocalDb implements PaymentSource {
-  const PaymentSourceLocalDb(this.vecIdx);
-  final int vecIdx;
+  const PaymentSourceLocalDb(this.createdIdx);
+  final PaymentCreatedIndex createdIdx;
 }
 
 final class PaymentSourceUnsynced implements PaymentSource {
@@ -145,8 +146,8 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
     switch (this.paymentSource) {
       case PaymentSourceUnsynced(:final payment):
         return payment;
-      case PaymentSourceLocalDb(:final vecIdx):
-        return this.getPaymentByVecIdx(vecIdx);
+      case PaymentSourceLocalDb(:final createdIdx):
+        return this.getPaymentByCreatedIndex(createdIdx);
     }
   }
 
@@ -154,37 +155,40 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
   /// it. Otherwise, _check_ if it's in our DB and use that from now on,
   /// else fallback to `unsynced`.
   Future<Payment> getPaymentAfterUpdate() async {
-    final int paymentVecIdx;
+    final PaymentCreatedIndex paymentCreatedIdx;
+
     switch (this.paymentSource) {
-      case PaymentSourceLocalDb(:final vecIdx):
-        paymentVecIdx = vecIdx;
+      case PaymentSourceLocalDb(:final createdIdx):
+        paymentCreatedIdx = createdIdx;
       case PaymentSourceUnsynced(:final payment):
-        final maybeVecIdx = await this.widget.app.getVecIdxByPaymentIndex(
-          paymentIndex: payment.index,
+        final maybePayment = this.widget.app.getPaymentByCreatedIndex(
+          createdIdx: payment.index,
         );
 
         // Still not synced yet, keep displaying the unsynced payment
-        if (maybeVecIdx == null) {
+        if (maybePayment == null) {
           return payment;
         }
 
         // Payment is synced, can get by local db idx now
-        this.paymentSource = PaymentSourceLocalDb(maybeVecIdx);
-        paymentVecIdx = maybeVecIdx;
+        this.paymentSource = PaymentSourceLocalDb(payment.index);
+        paymentCreatedIdx = payment.index;
     }
 
-    return this.getPaymentByVecIdx(paymentVecIdx);
+    return this.getPaymentByCreatedIndex(paymentCreatedIdx);
   }
 
-  /// [AppHandle.getPaymentByVecIdx] but we expect the payment to be in the
+  /// [AppHandle.getPaymentByCreatedIndex] but we expect the payment to be in the
   /// local db. Throws otherwise.
-  Payment getPaymentByVecIdx(final int vecIdx) {
+  Payment getPaymentByCreatedIndex(final PaymentCreatedIndex createdIdx) {
     // O/w get the payment from the local DB.
-    final payment = this.widget.app.getPaymentByVecIdx(vecIdx: vecIdx);
+    final payment = this.widget.app.getPaymentByCreatedIndex(
+      createdIdx: createdIdx,
+    );
     if (payment == null) {
       throw StateError(
-        "PaymentDb is in an invalid state: missing payment @ vec_idx: "
-        "$vecIdx, payment_index: ${this.widget.paymentCreatedIndex}",
+        "PaymentDb is in an invalid state: missing payment @ created_idx: "
+        "$createdIdx, payment_index: ${this.widget.paymentCreatedIndex}",
       );
     }
     return payment;
