@@ -169,10 +169,6 @@ class WalletPageState extends State<WalletPage> {
       settings: this.widget.settings,
     );
 
-    // Read [PaymentAddress] cached value and tries to fetch and update the cached
-    // from the node.
-    this.paymentAddressService.init();
-
     // Provision node on refresh.
     this.provisionOnRefresh = this.refreshService.refresh.listen(
       () => this.provisionService.provision(),
@@ -222,6 +218,8 @@ class WalletPageState extends State<WalletPage> {
     this.provisionService.isProvisioned.addListener(() {
       if (this.provisionService.isProvisioned.value) {
         this.refreshService.triggerRefreshUnthrottled();
+        // Tries to fetch and update the cached [PaymentAddress] from the node.
+        this.paymentAddressService.fetch();
       }
     });
 

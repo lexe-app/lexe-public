@@ -41,11 +41,6 @@ class PaymentAddressService {
       DateTime.now().difference(this._lastFetchedAt!) >
           const Duration(seconds: 10);
 
-  void init() {
-    this._isFetching.value = false;
-    this.fetch();
-  }
-
   Future<void> fetch() async {
     assert(!this.isDisposed);
 
