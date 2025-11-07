@@ -10,14 +10,19 @@ use common::rng::{RngExt, ThreadFastRng};
 
 /// Abstraction over a flat file system (no subdirs), suitable for mocking.
 pub trait Ffs {
+    /// Reads the entire contents of `filename`.
+    ///
     /// NOTE: Use [`io::ErrorKind::NotFound`] to detect if a file is missing.
     fn read(&self, filename: &str) -> io::Result<Vec<u8>> {
         let mut buf = Vec::new();
         self.read_into(filename, &mut buf)?;
         Ok(buf)
     }
+
+    /// Reads the contents of `filename` into `buf`.
     fn read_into(&self, filename: &str, buf: &mut Vec<u8>) -> io::Result<()>;
 
+    /// Reads all filenames in the `Ffs`.
     fn read_dir(&self) -> io::Result<Vec<String>> {
         let mut filenames = Vec::new();
         self.read_dir_visitor(|filename| {
@@ -26,11 +31,14 @@ pub trait Ffs {
         })?;
         Ok(filenames)
     }
+
+    /// Visit all filenames in the `Ffs`.
     fn read_dir_visitor(
         &self,
         dir_visitor: impl FnMut(&str) -> io::Result<()>,
     ) -> io::Result<()>;
 
+    /// Write `data` to `filename`, overwriting any existing file.
     fn write(&self, filename: &str, data: &[u8]) -> io::Result<()>;
 
     /// Delete all files and directories in the `Ffs`.
