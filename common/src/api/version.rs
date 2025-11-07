@@ -26,13 +26,13 @@ pub struct CurrentEnclaves {
 }
 
 impl CurrentEnclaves {
-    /// Returns the latest (most recent) node release, if any.
+    /// Returns the latest (most recent) node enclave, if any.
     pub fn latest(&self) -> Option<&NodeEnclave> {
         self.enclaves.last()
     }
 }
 
-/// The machine_id, semver version and measurement of a node release.
+/// The machine_id, semver version and measurement of a node enclave.
 ///
 /// [`Ord`]ered by [`semver::Version`] precedence.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
