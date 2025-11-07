@@ -640,6 +640,24 @@ impl PaymentDbState {
         self.payments.get_mut(vec_idx)
     }
 
+    /// Get a payment by its `PaymentCreatedIndex`.
+    pub fn get_payment_by_created_index(
+        &self,
+        created_index: &PaymentCreatedIndex,
+    ) -> Option<&BasicPaymentV2> {
+        let vec_idx = self.get_vec_idx_by_payment_index(created_index)?;
+        self.payments.get(vec_idx)
+    }
+
+    /// Get a mutable payment by its `PaymentCreatedIndex`.
+    pub fn get_mut_payment_by_created_index(
+        &mut self,
+        created_index: &PaymentCreatedIndex,
+    ) -> Option<&mut BasicPaymentV2> {
+        let vec_idx = self.get_vec_idx_by_payment_index(created_index)?;
+        self.payments.get_mut(vec_idx)
+    }
+
     /// Get a payment by scroll index in UI order (newest to oldest).
     /// Also return the stable `vec_idx` to lookup this payment again.
     pub fn get_payment_by_scroll_idx(
