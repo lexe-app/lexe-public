@@ -508,6 +508,26 @@ class LxRefreshButton extends StatelessWidget {
   );
 }
 
+class BackgroundErrorButton extends StatelessWidget {
+  const BackgroundErrorButton({super.key, required this.hasErrors, this.onTap});
+
+  final ValueListenable<bool> hasErrors;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder(
+    valueListenable: this.hasErrors,
+    builder: (_context, hasErrors, _child) => IconButton(
+      onPressed: this.onTap,
+      icon: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
+        opacity: (hasErrors) ? 1.0 : 0.0,
+        child: (hasErrors) ? const Icon(LxIcons.warning) : const SizedBox(),
+      ),
+    ),
+  );
+}
+
 /// An outlined button with an icon. Used as a secondary action button.
 ///
 /// It's like the standard `OutlinedButton.icon`, but the text is properly

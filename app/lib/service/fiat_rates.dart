@@ -13,13 +13,14 @@ import 'package:lexeapp/settings.dart' show LxSettings;
 /// Maintains the user's current preferred [FiatRate] stream and periodically
 /// refreshes the full [FiatRates] feed in the background.
 class FiatRateService {
-  FiatRateService._(this._app, this._settings);
+  FiatRateService._(this._app, this._settings, this._onError);
 
   factory FiatRateService.start({
     required AppHandle app,
     required LxSettings settings,
+    void Function(String)? onError,
   }) {
-    final svc = FiatRateService._(app, settings);
+    final svc = FiatRateService._(app, settings, onError);
 
     svc.fiatRates.addListener(svc.updateFiatRate);
     settings.fiatCurrency.addListener(svc.updateFiatRate);
@@ -32,6 +33,7 @@ class FiatRateService {
 
   final AppHandle _app;
   final LxSettings _settings;
+  void Function(String)? _onError;
 
   bool isDisposed = false;
 
@@ -50,6 +52,7 @@ class FiatRateService {
       app: this._app,
       // Stop retries early
       isCanceled: () => this.isDisposed,
+      onError: this._onError,
     );
     if (this.isDisposed) return;
 
@@ -82,6 +85,7 @@ class FiatRateService {
 Future<Result<FiatRates, void>?> _fetchWithRetries({
   required AppHandle app,
   required bool Function() isCanceled,
+  void Function(String)? onError,
 }) async => retryWithBackoff(
   () => _fetch(app),
   backoff: const ClampedExpBackoff(
@@ -90,12 +94,11 @@ Future<Result<FiatRates, void>?> _fetchWithRetries({
     max: Duration(minutes: 1),
   ),
   isCanceled: isCanceled,
+  onError: onError,
 );
 
-Future<Result<FiatRates, void>> _fetch(AppHandle app) async =>
-    (await Result.tryFfiAsync(
-      app.fiatRates,
-    )).mapErr((err) => error("fiatRates: Failed to fetch: $err"));
+Future<Result<FiatRates, FfiError>> _fetch(AppHandle app) async =>
+    Result.tryFfiAsync(app.fiatRates);
 
 bool _alwaysFalse() => false;
 
@@ -103,6 +106,7 @@ Future<Result<T, E>?> retryWithBackoff<T, E>(
   final Future<Result<T, E>> Function() fn, {
   required final BackoffPolicy backoff,
   final bool Function() isCanceled = _alwaysFalse,
+  void Function(String)? onError,
 }) async {
   int iter = 0;
   while (true) {
@@ -112,6 +116,8 @@ Future<Result<T, E>?> retryWithBackoff<T, E>(
     // Success -> return Ok
     if (res.isOk) return res;
 
+    error("fiatRates: Failed to fetch: ${res.err.toString()}");
+    onError?.call(res.err.toString());
     // Error -> compute next backoff and wait
     final nextBackoff = backoff.nextBackoff(iter);
     // Ran out of attempts -> return Err

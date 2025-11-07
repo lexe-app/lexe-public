@@ -26,8 +26,11 @@ import 'package:lexeapp/cfg.dart' show UserAgent;
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
+        BackgroundErrorButton,
         FilledTextPlaceholder,
+        HeadingText,
         ListIcon,
+        LxFilledButton,
         LxRefreshButton,
         MultiTapDetector,
         MultistepFlow,
@@ -56,6 +59,8 @@ import 'package:lexeapp/route/security.dart';
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
     show SendFlowResult, SendState, SendState_NeedUri;
+import 'package:lexeapp/service/background_error.dart'
+    show BackgroundError, BackgroundErrorKind, BackgroundErrorService;
 import 'package:lexeapp/service/fiat_rates.dart' show FiatRateService;
 import 'package:lexeapp/service/node_info.dart' show NodeInfoService;
 import 'package:lexeapp/service/payment_address.dart'
@@ -101,6 +106,8 @@ class WalletPageState extends State<WalletPage> {
   /// Manages page refresh state.
   final RefreshService refreshService = RefreshService();
 
+  late final BackgroundErrorService errorService = BackgroundErrorService();
+
   /// Maintains the fiat exchange rate feed, combined with the user's preferred
   /// fiat as a [Stream<FiatRate>].
   late final FiatRateService fiatRateService;
@@ -108,6 +115,8 @@ class WalletPageState extends State<WalletPage> {
   /// Sync payments on refresh.
   late final PaymentSyncService paymentSyncService = PaymentSyncService(
     app: this.widget.app,
+    onError: (err) =>
+        this.errorService.enqueue(BackgroundError.paymentSync(err)),
   );
   late final LxListener paymentSyncOnRefresh;
 
@@ -151,6 +160,7 @@ class WalletPageState extends State<WalletPage> {
     this.paymentSyncOnRefresh.dispose();
     this.paymentSyncService.dispose();
     this.fiatRateService.dispose();
+    this.errorService.dispose();
     this.refreshService.dispose();
 
     super.dispose();
@@ -160,6 +170,9 @@ class WalletPageState extends State<WalletPage> {
   void initState() {
     super.initState();
 
+    /// We start listening for errors in the background.
+    this.errorService.init();
+
     // Start fetching fiat rates in the background. We fetch the fiat rates on a
     // separate timer from the syncPayments and nodeInfo fetchers, since they
     // update on a different cadence (exactly 15 min vs unknowable) and from a
@@ -167,6 +180,8 @@ class WalletPageState extends State<WalletPage> {
     this.fiatRateService = FiatRateService.start(
       app: this.widget.app,
       settings: this.widget.settings,
+      onError: (err) =>
+          this.errorService.enqueue(BackgroundError.fiatRates(err)),
     );
 
     // Provision node on refresh.
@@ -559,6 +574,7 @@ class WalletPageState extends State<WalletPage> {
         onOpenDrawer: this.openScaffoldDrawer,
         isRefreshing: this.isRefreshing,
         triggerRefresh: this.triggerRefresh,
+        backgroundErrorService: this.errorService,
       ),
       drawer: WalletDrawer(
         config: this.widget.config,
@@ -650,12 +666,14 @@ class _WalletAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onOpenDrawer,
     required this.isRefreshing,
     required this.triggerRefresh,
+    required this.backgroundErrorService,
   });
 
   final ProvisionService provisionService;
   final VoidCallback onOpenDrawer;
   final ValueListenable<bool> isRefreshing;
   final VoidCallback triggerRefresh;
+  final BackgroundErrorService backgroundErrorService;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -683,6 +701,12 @@ class _WalletAppBar extends StatelessWidget implements PreferredSizeWidget {
               onPressed: this.onOpenDrawer,
             ),
             actions: [
+              if (!shouldDisplayWarning)
+                BackgroundErrorButton(
+                  hasErrors: this.backgroundErrorService.shouldDisplayErrors,
+                  onTap: () =>
+                      _errorDialogBuilder(context, this.backgroundErrorService),
+                ),
               LxRefreshButton(
                 isRefreshing: this.isRefreshing,
                 triggerRefresh: this.triggerRefresh,
@@ -701,6 +725,166 @@ class _WalletAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class BackgroundErrorListEntry extends StatefulWidget {
+  const BackgroundErrorListEntry({
+    super.key,
+    required this.error,
+    required this.onIgnore,
+    required this.errorDateUpdates,
+  });
+
+  final BackgroundError error;
+  final VoidCallback onIgnore;
+  final DateTimeNotifier errorDateUpdates;
+
+  @override
+  State<BackgroundErrorListEntry> createState() =>
+      _BackgroundErrorListEntryState();
+}
+
+class _BackgroundErrorListEntryState extends State<BackgroundErrorListEntry> {
+  bool _isExpanded = false;
+
+  String get _errorKindName {
+    return switch (this.widget.error.kind) {
+      BackgroundErrorKind.nodeInfo => "Node info",
+      BackgroundErrorKind.fiatRates => "Fiat rates",
+      BackgroundErrorKind.paymentSync => "Payment sync",
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ListTile(
+          onTap: () =>
+              this.setState(() => this._isExpanded = !this._isExpanded),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: Space.s0,
+            vertical: Space.s0,
+          ),
+          horizontalTitleGap: Space.s200,
+          visualDensity: VisualDensity.standard,
+          dense: true,
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(
+                child: Text(
+                  this._errorKindName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Fonts.fontUI.copyWith(
+                    fontSize: Fonts.size300,
+                    color: LxColors.fgSecondary,
+                    fontVariations: [Fonts.weightMedium],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: Space.s200),
+                child: ValueListenableBuilder(
+                  valueListenable: this.widget.errorDateUpdates,
+                  builder: (context, now, child) {
+                    return Text(
+                      date_format.formatDateCompact(
+                            then: this.widget.error.timestamp,
+                            now: now,
+                          ) ??
+                          "",
+                      maxLines: 1,
+                      textAlign: TextAlign.end,
+                      style: Fonts.fontUI.copyWith(
+                        fontSize: Fonts.size200,
+                        color: LxColors.fgTertiary,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          subtitle: this._isExpanded
+              ? Padding(
+                  padding: const EdgeInsets.only(top: Space.s200),
+                  child: Text(
+                    this.widget.error.message,
+                    style: Fonts.fontUI.copyWith(
+                      fontSize: Fonts.size200,
+                      color: LxColors.grey500,
+                    ),
+                  ),
+                )
+              : null,
+          trailing: Icon(
+            this._isExpanded ? LxIcons.expandUpSmall : LxIcons.expandDownSmall,
+            size: Fonts.size400,
+            color: LxColors.fgTertiary,
+          ),
+        ),
+        if (this._isExpanded)
+          Padding(
+            padding: const EdgeInsets.only(
+              left: Space.s850,
+              right: Space.s0,
+              top: Space.s200,
+              bottom: Space.s300,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                LxFilledButton(
+                  onTap: () {
+                    this.widget.onIgnore();
+                    this.setState(() => _isExpanded = false);
+                  },
+                  label: const Text(
+                    "Dismiss",
+                    style: TextStyle(fontSize: Fonts.size200),
+                  ),
+                  style: ButtonStyle(
+                    padding: WidgetStateProperty.all(
+                      const EdgeInsets.symmetric(
+                        horizontal: Space.s300,
+                        vertical: Space.s200,
+                      ),
+                    ),
+                    minimumSize: WidgetStateProperty.all(Size.zero),
+                  ),
+                ),
+                const SizedBox(width: Space.s200),
+                LxFilledButton.strong(
+                  onTap: () {
+                    LxClipboard.copyTextWithFeedback(
+                      context,
+                      this.widget.error.message,
+                    );
+                  },
+                  label: const Text(
+                    "Copy",
+                    style: TextStyle(fontSize: Fonts.size200),
+                  ),
+                  style: ButtonStyle(
+                    padding: WidgetStateProperty.all(
+                      const EdgeInsets.symmetric(
+                        horizontal: Space.s300,
+                        vertical: Space.s200,
+                      ),
+                    ),
+                    minimumSize: WidgetStateProperty.all(Size.zero),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
@@ -757,6 +941,121 @@ class NotificationTab extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _errorDialogBuilder(
+  BuildContext context,
+  BackgroundErrorService service,
+) {
+  final nowTicker = DateTimeNotifier(period: const Duration(seconds: 30));
+  return showDialog<void>(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        backgroundColor: LxColors.background,
+        elevation: 0.0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(LxRadius.r300),
+        ),
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Space.s400,
+            vertical: Space.s400,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const HeadingText(text: "Background errors"),
+              const SizedBox(height: Space.s200),
+              const Text(
+                "A background task errored. This is usually temporary.",
+                style: TextStyle(
+                  fontSize: Fonts.size300,
+                  color: LxColors.grey600,
+                ),
+              ),
+              const SizedBox(height: Space.s400),
+              Flexible(
+                child: ValueListenableBuilder<List<BackgroundError>>(
+                  valueListenable: service.errors,
+                  builder: (context, errors, _) {
+                    final sortedErrors = errors.toList()
+                      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: sortedErrors.length,
+                      itemBuilder: (context, index) {
+                        return BackgroundErrorListEntry(
+                          errorDateUpdates: nowTicker,
+                          error: sortedErrors[index],
+                          onIgnore: () {
+                            service.ignore(sortedErrors[index]);
+                            if (service.errors.value.isEmpty) {
+                              Navigator.of(context).pop();
+                            }
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: Space.s400),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  LxFilledButton(
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      service.ignoreAll();
+                    },
+                    label: const Text(
+                      "Dismiss all",
+                      style: TextStyle(fontSize: Fonts.size200),
+                    ),
+                    style: ButtonStyle(
+                      padding: WidgetStateProperty.all(
+                        const EdgeInsets.symmetric(
+                          horizontal: Space.s300,
+                          vertical: Space.s200,
+                        ),
+                      ),
+                      minimumSize: WidgetStateProperty.all(Size.zero),
+                    ),
+                  ),
+                  const SizedBox(width: Space.s200),
+                  LxFilledButton.strong(
+                    onTap: () {
+                      Navigator.of(context).pop();
+                    },
+                    label: const Text(
+                      "Ok",
+                      style: TextStyle(fontSize: Fonts.size200),
+                    ),
+                    style: ButtonStyle(
+                      padding: WidgetStateProperty.all(
+                        const EdgeInsets.symmetric(
+                          horizontal: Space.s300,
+                          vertical: Space.s200,
+                        ),
+                      ),
+                      minimumSize: WidgetStateProperty.all(Size.zero),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+    // Dispose the ticker when the widget is disposed.
+  ).then((_) => nowTicker.dispose());
 }
 
 /// The expandable side drawer on the [WalletPage]. Opens with the burger menu

@@ -7,9 +7,12 @@ import 'package:lexeapp/result.dart';
 /// [AppHandle.syncPayments] but instrumented with various signals for UI
 /// consumption.
 class PaymentSyncService {
-  PaymentSyncService({required AppHandle app}) : _app = app;
+  PaymentSyncService({required AppHandle app, void Function(String)? onError})
+    : _app = app,
+      _onError = onError;
 
   final AppHandle _app;
+  final void Function(String)? _onError;
 
   bool isDisposed = false;
 
@@ -45,6 +48,7 @@ class PaymentSyncService {
         info("payment-sync: anyChanged = $anyChanged");
       case Err(:final err):
         error("payment-sync: err: ${err.message}");
+        this._onError?.call(err.message);
     }
 
     this._completed.notify();

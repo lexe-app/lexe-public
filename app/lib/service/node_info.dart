@@ -9,9 +9,12 @@ import 'package:lexeapp/result.dart';
 /// [AppHandle.nodeInfo] but instrumented with various signals for UI
 /// consumption.
 class NodeInfoService {
-  NodeInfoService({required AppHandle app}) : _app = app;
+  NodeInfoService({required AppHandle app, void Function(String)? onError})
+    : _app = app,
+      _onError = onError;
 
   final AppHandle _app;
+  final void Function(String)? _onError;
 
   bool isDisposed = false;
 
@@ -46,6 +49,7 @@ class NodeInfoService {
         this._nodeInfo.value = ok;
       case Err(:final err):
         error("node-info: err: ${err.message}");
+        this._onError?.call(err.message);
     }
 
     this._completed.notify();

@@ -964,6 +964,8 @@ final class LxIcons {
   /// Code symbol (SDK client)
   static const IconData sdk = Symbols.code_rounded;
 
+  static const IconData warning = Symbols.warning_rounded;
+
   // Custom brand icons (Material Icons/Symbols don't have any brand logos)
   // See: <app/fonts/README.md> for how these were sourced and generated.
 
