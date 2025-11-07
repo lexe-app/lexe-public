@@ -5,11 +5,14 @@ use std::{
     collections::BTreeSet,
     fmt,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Instant,
 };
 
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, bail};
 use bitcoin::secp256k1;
 use common::{
     Secret,
@@ -71,8 +74,11 @@ pub struct App {
     /// Client for resolving LNURL-pay requests
     lnurl_client: Arc<lnurl::LnurlClient>,
 
-    /// The config used to build this app.
-    config: AppConfig,
+    /// The user config used to build this app.
+    user_config: UserAppConfig,
+
+    /// The node has been provisioned.
+    is_provisioned: AtomicBool,
 }
 
 impl App {
@@ -226,7 +232,8 @@ impl App {
             user_info,
             bip353_client,
             lnurl_client,
-            config,
+            user_config,
+            is_provisioned: AtomicBool::new(true),
         })
     }
 
@@ -327,12 +334,13 @@ impl App {
             user_info,
             bip353_client,
             lnurl_client,
-            config,
+            user_config,
+            is_provisioned: AtomicBool::new(false),
         }))
     }
 
     pub async fn provision(&self) -> anyhow::Result<()> {
-        let secret_store = SecretStore::new(&self.config);
+        let secret_store = SecretStore::new(self.user_config.config());
         let maybe_root_seed = secret_store
             .read_root_seed()
             .context("Failed to read root seed from SecretStore")?;
@@ -343,11 +351,9 @@ impl App {
             None => return Err(anyhow!("No root seed found")),
             Some(s) => s,
         };
-        let user_pk = self.user_info.user_pk;
-        let user_config = UserAppConfig::new(self.config.clone(), user_pk);
         // Load provision DB
         let provision_ffs =
-            FlatFileFs::create_dir_all(user_config.provision_db_dir())
+            FlatFileFs::create_dir_all(self.user_config.provision_db_dir())
                 .context("Could not create provision ffs")?;
 
         // Load provision history
@@ -371,7 +377,7 @@ impl App {
 
         // Provision all recent enclaves we haven't already provisioned
         let releases_to_provision = provision_history.releases_to_provision(
-            user_config.config.deploy_env,
+            self.user_config.config.deploy_env,
             current_enclaves,
         );
 
@@ -385,7 +391,7 @@ impl App {
             helpers::provision(
                 provision_ffs,
                 self.node_client.clone(),
-                user_config,
+                self.user_config.clone(),
                 helpers::clone_root_seed(&root_seed),
                 provision_history,
                 releases_to_provision,
@@ -398,6 +404,7 @@ impl App {
         } else {
             info!("Already provisioned to all recent releases")
         }
+        self.is_provisioned.store(true, Ordering::Relaxed);
         Ok(())
     }
 
@@ -515,12 +522,17 @@ impl App {
             user_info,
             bip353_client,
             lnurl_client,
-            config,
+            user_config,
+            is_provisioned: AtomicBool::new(true),
         })
     }
 
-    pub fn node_client(&self) -> &NodeClient {
-        &self.node_client
+    /// Returns the [`NodeClient`] if the app is provisioned.
+    pub fn node_client(&self) -> anyhow::Result<&NodeClient> {
+        if !self.is_provisioned.load(Ordering::Relaxed) {
+            bail!("App is not provisioned");
+        }
+        Ok(&self.node_client)
     }
 
     pub fn gateway_client(&self) -> &GatewayClient {
@@ -865,6 +877,10 @@ impl UserAppConfig {
 
     fn app_db_dir(&self) -> PathBuf {
         self.user_data_dir.join("app_db")
+    }
+
+    fn config(&self) -> &AppConfig {
+        &self.config
     }
 }
 

@@ -179,7 +179,7 @@ impl AppHandle {
     #[instrument(skip_all, name = "(node-info)")]
     pub async fn node_info(&self) -> anyhow::Result<NodeInfo> {
         self.inner
-            .node_client()
+            .node_client()?
             .node_info()
             .await
             .map(NodeInfo::from)
@@ -189,7 +189,7 @@ impl AppHandle {
     #[instrument(skip_all, name = "(list-channels)")]
     pub async fn list_channels(&self) -> anyhow::Result<ListChannelsResponse> {
         self.inner
-            .node_client()
+            .node_client()?
             .list_channels()
             .await
             .map(ListChannelsResponse::from)
@@ -203,7 +203,7 @@ impl AppHandle {
     ) -> anyhow::Result<OpenChannelResponse> {
         let req = OpenChannelRequestRs::try_from(req)?;
         self.inner
-            .node_client()
+            .node_client()?
             .open_channel(req)
             .await
             .map(OpenChannelResponse::from)
@@ -217,7 +217,7 @@ impl AppHandle {
     ) -> anyhow::Result<PreflightOpenChannelResponse> {
         let req = PreflightOpenChannelRequestRs::try_from(req)?;
         self.inner
-            .node_client()
+            .node_client()?
             .preflight_open_channel(req)
             .await
             .map(PreflightOpenChannelResponse::from)
@@ -230,7 +230,7 @@ impl AppHandle {
         req: CloseChannelRequest,
     ) -> anyhow::Result<()> {
         self.inner
-            .node_client()
+            .node_client()?
             .close_channel(req.try_into()?)
             .await
             .map(|Empty {}| ())
@@ -243,7 +243,7 @@ impl AppHandle {
         req: PreflightCloseChannelRequest,
     ) -> anyhow::Result<PreflightCloseChannelResponse> {
         self.inner
-            .node_client()
+            .node_client()?
             .preflight_close_channel(req.try_into()?)
             .await
             .map(PreflightCloseChannelResponse::from)
@@ -268,7 +268,7 @@ impl AppHandle {
         let req = PayOnchainRequestRs::try_from(req)?;
         let cid = req.cid;
         self.inner
-            .node_client()
+            .node_client()?
             .pay_onchain(req)
             .await
             .map(|resp| PayOnchainResponse::from_cid_and_response(cid, resp))
@@ -281,7 +281,7 @@ impl AppHandle {
         req: PreflightPayOnchainRequest,
     ) -> anyhow::Result<PreflightPayOnchainResponse> {
         self.inner
-            .node_client()
+            .node_client()?
             .preflight_pay_onchain(req.try_into()?)
             .await
             .map(PreflightPayOnchainResponse::from)
@@ -291,7 +291,7 @@ impl AppHandle {
     #[instrument(skip_all, name = "(get-address)")]
     pub async fn get_address(&self) -> anyhow::Result<String> {
         self.inner
-            .node_client()
+            .node_client()?
             .get_address()
             .await
             .map(|GetAddressResponse { addr }| addr)
@@ -305,7 +305,7 @@ impl AppHandle {
         req: CreateInvoiceRequest,
     ) -> anyhow::Result<CreateInvoiceResponse> {
         self.inner
-            .node_client()
+            .node_client()?
             .create_invoice(req.try_into()?)
             .await
             // TODO(phlip9): return new PaymentCreatedIndex
@@ -319,7 +319,7 @@ impl AppHandle {
         req: PreflightPayInvoiceRequest,
     ) -> anyhow::Result<PreflightPayInvoiceResponse> {
         self.inner
-            .node_client()
+            .node_client()?
             .preflight_pay_invoice(req.try_into()?)
             .await
             .map(PreflightPayInvoiceResponse::from)
@@ -334,7 +334,7 @@ impl AppHandle {
         let req = PayInvoiceRequestRs::try_from(req)?;
         let id = req.invoice.payment_id();
         self.inner
-            .node_client()
+            .node_client()?
             .pay_invoice(req)
             .await
             .map(|resp| PayInvoiceResponse::from_id_and_response(id, resp))
@@ -347,7 +347,7 @@ impl AppHandle {
         req: CreateOfferRequest,
     ) -> anyhow::Result<CreateOfferResponse> {
         self.inner
-            .node_client()
+            .node_client()?
             .create_offer(req.try_into()?)
             .await
             .map(CreateOfferResponse::from)
@@ -360,7 +360,7 @@ impl AppHandle {
         req: PreflightPayOfferRequest,
     ) -> anyhow::Result<PreflightPayOfferResponse> {
         self.inner
-            .node_client()
+            .node_client()?
             .preflight_pay_offer(req.try_into()?)
             .await
             .map(PreflightPayOfferResponse::from)
@@ -375,7 +375,7 @@ impl AppHandle {
         let req = PayOfferRequestRs::try_from(req)?;
         let id = LxPaymentId::OfferSend(req.cid);
         self.inner
-            .node_client()
+            .node_client()?
             .pay_offer(req)
             .await
             .map(|resp| PayOfferResponse::from_id_and_response(id, resp))
@@ -530,7 +530,7 @@ impl AppHandle {
         let req = UpdatePaymentNoteRs::try_from(req)?;
         // Update remote store first
         self.inner
-            .node_client()
+            .node_client()?
             .update_payment_note(req.clone())
             .await
             .map(|Empty {}| ())
@@ -551,7 +551,7 @@ impl AppHandle {
         let req = CreateRevocableClientRequestRs::from(req);
         let (client, client_credentials) = self
             .inner
-            .node_client()
+            .node_client()?
             .create_client_credentials(req)
             .await?;
 
@@ -565,7 +565,7 @@ impl AppHandle {
     pub async fn list_clients(&self) -> anyhow::Result<Vec<RevocableClient>> {
         // Only care about unrevoked and unexpired clients
         let req = GetRevocableClients { valid_only: true };
-        let resp = self.inner.node_client().get_revocable_clients(req).await?;
+        let resp = self.inner.node_client()?.get_revocable_clients(req).await?;
         let clients = resp
             .clients
             .into_values()
@@ -582,7 +582,7 @@ impl AppHandle {
         let req = UpdateClientRequestRs::try_from(req)?;
         let _resp = self
             .inner
-            .node_client()
+            .node_client()?
             .update_revocable_client(req)
             .await?;
         Ok(())
@@ -592,7 +592,7 @@ impl AppHandle {
     pub async fn list_broadcasted_txs(&self) -> anyhow::Result<String> {
         let resp = self
             .inner
-            .node_client()
+            .node_client()?
             .list_broadcasted_txs()
             .await
             .map_err(anyhow::Error::new)?;
@@ -602,7 +602,7 @@ impl AppHandle {
 
     #[instrument(skip_all, name = "(backup-info)")]
     pub async fn backup_info(&self) -> anyhow::Result<BackupInfo> {
-        let resp = self.inner.node_client().backup_info().await?;
+        let resp = self.inner.node_client()?.backup_info().await?;
         let backup_info = BackupInfo::from(resp);
         Ok(backup_info)
     }
@@ -650,7 +650,7 @@ impl AppHandle {
 
     /// Get the [`PaymentAddress`] for the user and if it is updatable.
     pub async fn get_payment_address(&self) -> anyhow::Result<PaymentAddress> {
-        let resp = self.inner.node_client().get_payment_address().await?;
+        let resp = self.inner.node_client()?.get_payment_address().await?;
         PaymentAddress::try_from(resp)
     }
 
@@ -661,7 +661,11 @@ impl AppHandle {
         let req = UsernameStructRs {
             username: UsernameRs::try_from(username)?,
         };
-        let resp = self.inner.node_client().update_payment_address(req).await?;
+        let resp = self
+            .inner
+            .node_client()?
+            .update_payment_address(req)
+            .await?;
         PaymentAddress::try_from(resp)
     }
 }
