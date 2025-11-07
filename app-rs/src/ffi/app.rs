@@ -399,6 +399,7 @@ impl AppHandle {
             .map(|summary| summary.any_changes())
     }
 
+    // TODO(max): Remove
     pub fn get_vec_idx_by_payment_index(
         &self,
         payment_index: PaymentCreatedIndex,
@@ -410,6 +411,20 @@ impl AppHandle {
     }
 
     /// flutter_rust_bridge:sync
+    pub fn get_payment_by_created_index(
+        &self,
+        created_idx: PaymentCreatedIndex,
+    ) -> Option<Payment> {
+        let created_idx = PaymentCreatedIndexRs::try_from(created_idx).ok()?;
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        db_lock
+            .state()
+            .get_payment_by_created_index(&created_idx)
+            .map(Payment::from)
+    }
+
+    // TODO(max): Remove
+    /// flutter_rust_bridge:sync
     pub fn get_payment_by_vec_idx(&self, vec_idx: usize) -> Option<Payment> {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock
@@ -418,6 +433,7 @@ impl AppHandle {
             .map(Payment::from)
     }
 
+    // TODO(max): Remove
     /// flutter_rust_bridge:sync
     pub fn get_short_payment_by_scroll_idx(
         &self,
@@ -432,6 +448,7 @@ impl AppHandle {
         )
     }
 
+    // TODO(max): Remove
     /// flutter_rust_bridge:sync
     pub fn get_pending_short_payment_by_scroll_idx(
         &self,
@@ -447,6 +464,7 @@ impl AppHandle {
             })
     }
 
+    // TODO(max): Remove
     /// flutter_rust_bridge:sync
     pub fn get_finalized_short_payment_by_scroll_idx(
         &self,
@@ -462,6 +480,7 @@ impl AppHandle {
             })
     }
 
+    // TODO(max): Remove
     /// flutter_rust_bridge:sync
     pub fn get_pending_not_junk_short_payment_by_scroll_idx(
         &self,
@@ -477,6 +496,7 @@ impl AppHandle {
             })
     }
 
+    // TODO(max): Remove
     /// flutter_rust_bridge:sync
     pub fn get_finalized_not_junk_short_payment_by_scroll_idx(
         &self,
@@ -490,6 +510,66 @@ impl AppHandle {
                 vec_idx,
                 payment: ShortPayment::from(payment),
             })
+    }
+
+    /// flutter_rust_bridge:sync
+    pub fn get_short_payment_by_scroll_index(
+        &self,
+        scroll_idx: usize,
+    ) -> Option<ShortPayment> {
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        db_lock
+            .state()
+            .get_payment_by_scroll_idx(scroll_idx)
+            .map(|(_, payment)| ShortPayment::from(payment))
+    }
+
+    /// flutter_rust_bridge:sync
+    pub fn get_pending_short_payment_by_scroll_index(
+        &self,
+        scroll_idx: usize,
+    ) -> Option<ShortPayment> {
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        db_lock
+            .state()
+            .get_pending_payment_by_scroll_idx(scroll_idx)
+            .map(|(_, payment)| ShortPayment::from(payment))
+    }
+
+    /// flutter_rust_bridge:sync
+    pub fn get_finalized_short_payment_by_scroll_index(
+        &self,
+        scroll_idx: usize,
+    ) -> Option<ShortPayment> {
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        db_lock
+            .state()
+            .get_finalized_payment_by_scroll_idx(scroll_idx)
+            .map(|(_, payment)| ShortPayment::from(payment))
+    }
+
+    /// flutter_rust_bridge:sync
+    pub fn get_pending_not_junk_short_payment_by_scroll_index(
+        &self,
+        scroll_idx: usize,
+    ) -> Option<ShortPayment> {
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        db_lock
+            .state()
+            .get_pending_not_junk_payment_by_scroll_idx(scroll_idx)
+            .map(|(_, payment)| ShortPayment::from(payment))
+    }
+
+    /// flutter_rust_bridge:sync
+    pub fn get_finalized_not_junk_short_payment_by_scroll_index(
+        &self,
+        scroll_idx: usize,
+    ) -> Option<ShortPayment> {
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        db_lock
+            .state()
+            .get_finalized_not_junk_payment_by_scroll_idx(scroll_idx)
+            .map(|(_, payment)| ShortPayment::from(payment))
     }
 
     /// flutter_rust_bridge:sync
