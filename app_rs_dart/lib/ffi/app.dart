@@ -75,10 +75,28 @@ class AppHandle {
       );
 
   /// flutter_rust_bridge:sync
+  ShortPayment? getFinalizedNotJunkShortPaymentByScrollIndex({
+    required int scrollIdx,
+  }) => AppRs.instance.api
+      .crateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIndex(
+        that: this,
+        scrollIdx: scrollIdx,
+      );
+
+  /// flutter_rust_bridge:sync
   ShortPaymentAndIndex? getFinalizedShortPaymentByScrollIdx({
     required int scrollIdx,
   }) => AppRs.instance.api
       .crateFfiAppAppHandleGetFinalizedShortPaymentByScrollIdx(
+        that: this,
+        scrollIdx: scrollIdx,
+      );
+
+  /// flutter_rust_bridge:sync
+  ShortPayment? getFinalizedShortPaymentByScrollIndex({
+    required int scrollIdx,
+  }) => AppRs.instance.api
+      .crateFfiAppAppHandleGetFinalizedShortPaymentByScrollIndex(
         that: this,
         scrollIdx: scrollIdx,
       );
@@ -108,6 +126,14 @@ class AppHandle {
       AppRs.instance.api.crateFfiAppAppHandleGetPaymentAddress(that: this);
 
   /// flutter_rust_bridge:sync
+  Payment? getPaymentByCreatedIndex({
+    required PaymentCreatedIndex createdIdx,
+  }) => AppRs.instance.api.crateFfiAppAppHandleGetPaymentByCreatedIndex(
+    that: this,
+    createdIdx: createdIdx,
+  );
+
+  /// flutter_rust_bridge:sync
   Payment? getPaymentByVecIdx({required int vecIdx}) => AppRs.instance.api
       .crateFfiAppAppHandleGetPaymentByVecIdx(that: this, vecIdx: vecIdx);
 
@@ -116,6 +142,15 @@ class AppHandle {
     required int scrollIdx,
   }) => AppRs.instance.api
       .crateFfiAppAppHandleGetPendingNotJunkShortPaymentByScrollIdx(
+        that: this,
+        scrollIdx: scrollIdx,
+      );
+
+  /// flutter_rust_bridge:sync
+  ShortPayment? getPendingNotJunkShortPaymentByScrollIndex({
+    required int scrollIdx,
+  }) => AppRs.instance.api
+      .crateFfiAppAppHandleGetPendingNotJunkShortPaymentByScrollIndex(
         that: this,
         scrollIdx: scrollIdx,
       );
@@ -130,8 +165,23 @@ class AppHandle {
       );
 
   /// flutter_rust_bridge:sync
+  ShortPayment? getPendingShortPaymentByScrollIndex({required int scrollIdx}) =>
+      AppRs.instance.api
+          .crateFfiAppAppHandleGetPendingShortPaymentByScrollIndex(
+            that: this,
+            scrollIdx: scrollIdx,
+          );
+
+  /// flutter_rust_bridge:sync
   ShortPaymentAndIndex? getShortPaymentByScrollIdx({required int scrollIdx}) =>
       AppRs.instance.api.crateFfiAppAppHandleGetShortPaymentByScrollIdx(
+        that: this,
+        scrollIdx: scrollIdx,
+      );
+
+  /// flutter_rust_bridge:sync
+  ShortPayment? getShortPaymentByScrollIndex({required int scrollIdx}) =>
+      AppRs.instance.api.crateFfiAppAppHandleGetShortPaymentByScrollIndex(
         that: this,
         scrollIdx: scrollIdx,
       );

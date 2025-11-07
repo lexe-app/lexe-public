@@ -254,6 +254,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   SettingsDb dco_decode_box_autoadd_settings_db(dynamic raw);
 
   @protected
+  ShortPayment dco_decode_box_autoadd_short_payment(dynamic raw);
+
+  @protected
   ShortPaymentAndIndex dco_decode_box_autoadd_short_payment_and_index(
     dynamic raw,
   );
@@ -440,6 +443,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   RootSeed? dco_decode_opt_box_autoadd_root_seed(dynamic raw);
+
+  @protected
+  ShortPayment? dco_decode_opt_box_autoadd_short_payment(dynamic raw);
 
   @protected
   ShortPaymentAndIndex? dco_decode_opt_box_autoadd_short_payment_and_index(
@@ -819,6 +825,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   SettingsDb sse_decode_box_autoadd_settings_db(SseDeserializer deserializer);
 
   @protected
+  ShortPayment sse_decode_box_autoadd_short_payment(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ShortPaymentAndIndex sse_decode_box_autoadd_short_payment_and_index(
     SseDeserializer deserializer,
   );
@@ -1055,6 +1066,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   RootSeed? sse_decode_opt_box_autoadd_root_seed(SseDeserializer deserializer);
+
+  @protected
+  ShortPayment? sse_decode_opt_box_autoadd_short_payment(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ShortPaymentAndIndex? sse_decode_opt_box_autoadd_short_payment_and_index(
@@ -1501,6 +1517,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_short_payment(
+    ShortPayment self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_short_payment_and_index(
     ShortPaymentAndIndex self,
     SseSerializer serializer,
@@ -1788,6 +1810,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_opt_box_autoadd_root_seed(
     RootSeed? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_short_payment(
+    ShortPayment? self,
     SseSerializer serializer,
   );
 
