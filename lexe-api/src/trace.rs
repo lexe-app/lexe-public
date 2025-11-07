@@ -145,7 +145,8 @@ impl TraceId {
         };
 
         try_insert_trace_id()
-            .inspect_err(|e| warn!("Failed to insert trace id: {e:#}"))
+            // TODO(phlip9): fix `TraceId` when RUST_LOG is `warn` or `error`
+            // .inspect_err(|e| warn!("Failed to insert trace id: {e:#}"))
             .unwrap_or_default()
             .inspect(|replaced| warn!("Replaced existing TraceId: {replaced}"));
     }
