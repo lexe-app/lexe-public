@@ -448,26 +448,6 @@ sealed class ShortPayment with _$ShortPayment {
   }) = _ShortPayment;
 }
 
-/// Just a `(usize, ShortPayment)`, but packaged in a struct until
-/// `flutter_rust_bridge` stops breaking on tuples.
-class ShortPaymentAndIndex {
-  final int vecIdx;
-  final ShortPayment payment;
-
-  const ShortPaymentAndIndex({required this.vecIdx, required this.payment});
-
-  @override
-  int get hashCode => vecIdx.hashCode ^ payment.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ShortPaymentAndIndex &&
-          runtimeType == other.runtimeType &&
-          vecIdx == other.vecIdx &&
-          payment == other.payment;
-}
-
 /// A unique, client-generated id for `open_channel`.
 ///
 /// - Provides idempotency, to avoid opening duplicate channels on

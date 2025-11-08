@@ -360,15 +360,6 @@ impl From<&BasicPaymentV2Rs> for ShortPayment {
     }
 }
 
-/// Just a `(usize, ShortPayment)`, but packaged in a struct until
-/// `flutter_rust_bridge` stops breaking on tuples.
-// TODO(phlip9): remove this after updating frb
-// TODO(max): Remove this after upgrade to payments v2
-pub struct ShortPaymentAndIndex {
-    pub vec_idx: usize,
-    pub payment: ShortPayment,
-}
-
 /// The complete payment info, used in the payment detail page. Mirrors the
 /// [`BasicPaymentV1Rs`] type.
 ///

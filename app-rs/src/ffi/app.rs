@@ -60,8 +60,7 @@ use crate::{
         types::{
             AppUserInfo, BackupInfo, Config, GDriveSignupCredentials, Invoice,
             LnurlPayRequest, Network, Payment, PaymentCreatedIndex,
-            PaymentMethod, RevocableClient, RootSeed, ShortPayment,
-            ShortPaymentAndIndex, Username,
+            PaymentMethod, RevocableClient, RootSeed, ShortPayment, Username,
         },
     },
     types::GDriveSignupCredentials as GDriveSignupCredentialsRs,
@@ -399,15 +398,6 @@ impl AppHandle {
             .map(|summary| summary.any_changes())
     }
 
-    // TODO(max): Remove
-    pub fn get_vec_idx_by_payment_index(
-        &self,
-        _payment_index: PaymentCreatedIndex,
-    ) -> Option<usize> {
-        // This method is deprecated and will be removed
-        None
-    }
-
     /// flutter_rust_bridge:sync
     pub fn get_payment_by_created_index(
         &self,
@@ -419,63 +409,6 @@ impl AppHandle {
             .state()
             .get_payment_by_created_index(&created_idx)
             .map(Payment::from)
-    }
-
-    // TODO(max): Remove
-    /// flutter_rust_bridge:sync
-    pub fn get_payment_by_vec_idx(&self, _vec_idx: usize) -> Option<Payment> {
-        // This method is deprecated and will be removed
-        None
-    }
-
-    // TODO(max): Remove
-    /// flutter_rust_bridge:sync
-    pub fn get_short_payment_by_scroll_idx(
-        &self,
-        _scroll_idx: usize,
-    ) -> Option<ShortPaymentAndIndex> {
-        // This method is deprecated and will be removed
-        None
-    }
-
-    // TODO(max): Remove
-    /// flutter_rust_bridge:sync
-    pub fn get_pending_short_payment_by_scroll_idx(
-        &self,
-        _scroll_idx: usize,
-    ) -> Option<ShortPaymentAndIndex> {
-        // This method is deprecated and will be removed
-        None
-    }
-
-    // TODO(max): Remove
-    /// flutter_rust_bridge:sync
-    pub fn get_finalized_short_payment_by_scroll_idx(
-        &self,
-        _scroll_idx: usize,
-    ) -> Option<ShortPaymentAndIndex> {
-        // This method is deprecated and will be removed
-        None
-    }
-
-    // TODO(max): Remove
-    /// flutter_rust_bridge:sync
-    pub fn get_pending_not_junk_short_payment_by_scroll_idx(
-        &self,
-        _scroll_idx: usize,
-    ) -> Option<ShortPaymentAndIndex> {
-        // This method is deprecated and will be removed
-        None
-    }
-
-    // TODO(max): Remove
-    /// flutter_rust_bridge:sync
-    pub fn get_finalized_not_junk_short_payment_by_scroll_idx(
-        &self,
-        _scroll_idx: usize,
-    ) -> Option<ShortPaymentAndIndex> {
-        // This method is deprecated and will be removed
-        None
     }
 
     /// flutter_rust_bridge:sync

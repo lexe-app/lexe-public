@@ -257,11 +257,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   ShortPayment dco_decode_box_autoadd_short_payment(dynamic raw);
 
   @protected
-  ShortPaymentAndIndex dco_decode_box_autoadd_short_payment_and_index(
-    dynamic raw,
-  );
-
-  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
@@ -408,9 +403,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   int? dco_decode_opt_CastedPrimitive_u_64(dynamic raw);
 
   @protected
-  int? dco_decode_opt_CastedPrimitive_usize(dynamic raw);
-
-  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
@@ -446,11 +438,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ShortPayment? dco_decode_opt_box_autoadd_short_payment(dynamic raw);
-
-  @protected
-  ShortPaymentAndIndex? dco_decode_opt_box_autoadd_short_payment_and_index(
-    dynamic raw,
-  );
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
@@ -560,9 +547,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ShortPayment dco_decode_short_payment(dynamic raw);
-
-  @protected
-  ShortPaymentAndIndex dco_decode_short_payment_and_index(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -830,11 +814,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  ShortPaymentAndIndex sse_decode_box_autoadd_short_payment_and_index(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -1021,9 +1000,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   int? sse_decode_opt_CastedPrimitive_u_64(SseDeserializer deserializer);
 
   @protected
-  int? sse_decode_opt_CastedPrimitive_usize(SseDeserializer deserializer);
-
-  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
@@ -1069,11 +1045,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ShortPayment? sse_decode_opt_box_autoadd_short_payment(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  ShortPaymentAndIndex? sse_decode_opt_box_autoadd_short_payment_and_index(
     SseDeserializer deserializer,
   );
 
@@ -1197,11 +1168,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ShortPayment sse_decode_short_payment(SseDeserializer deserializer);
-
-  @protected
-  ShortPaymentAndIndex sse_decode_short_payment_and_index(
-    SseDeserializer deserializer,
-  );
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -1523,12 +1489,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  void sse_encode_box_autoadd_short_payment_and_index(
-    ShortPaymentAndIndex self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
@@ -1751,12 +1711,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_opt_CastedPrimitive_u_64(int? self, SseSerializer serializer);
 
   @protected
-  void sse_encode_opt_CastedPrimitive_usize(
-    int? self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
@@ -1816,12 +1770,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_opt_box_autoadd_short_payment(
     ShortPayment? self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_opt_box_autoadd_short_payment_and_index(
-    ShortPaymentAndIndex? self,
     SseSerializer serializer,
   );
 
@@ -1977,12 +1925,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_short_payment(ShortPayment self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_short_payment_and_index(
-    ShortPaymentAndIndex self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);
