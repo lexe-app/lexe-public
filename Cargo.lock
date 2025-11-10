@@ -2866,7 +2866,7 @@ dependencies = [
 
 [[package]]
 name = "node"
-version = "0.8.8"
+version = "0.8.9"
 dependencies = [
  "anyhow",
  "arc-swap",
