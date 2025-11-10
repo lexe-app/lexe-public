@@ -78,7 +78,7 @@ use lexe_ln::{
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
     payments::{
-        self, Payment,
+        self, PaymentV1,
         manager::{CheckedPayment, PersistedPayment},
     },
     persister,
@@ -763,7 +763,7 @@ impl Vfs for NodePersister {
 
 #[async_trait]
 impl LexeInnerPersister for NodePersister {
-    async fn get_pending_payments(&self) -> anyhow::Result<Vec<Payment>> {
+    async fn get_pending_payments(&self) -> anyhow::Result<Vec<PaymentV1>> {
         let token = self.get_token().await?;
         self.backend_api
             .get_pending_payments(token)
@@ -772,7 +772,7 @@ impl LexeInnerPersister for NodePersister {
             .payments
             .into_iter()
             .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
-            .collect::<anyhow::Result<Vec<Payment>>>()
+            .collect::<anyhow::Result<Vec<PaymentV1>>>()
     }
 
     async fn upsert_payment(
@@ -851,7 +851,7 @@ impl LexeInnerPersister for NodePersister {
     async fn get_payment_by_id(
         &self,
         id: LxPaymentId,
-    ) -> anyhow::Result<Option<Payment>> {
+    ) -> anyhow::Result<Option<PaymentV1>> {
         let req = LxPaymentIdStruct { id };
         let token = self.get_token().await?;
         let maybe_payment = self

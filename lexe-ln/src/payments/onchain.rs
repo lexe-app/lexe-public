@@ -23,7 +23,7 @@ const ONCHAIN_CONFIRMATION_THRESHOLD: u32 = 6;
 // --- Onchain send --- //
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct OnchainSend {
+pub struct OnchainSendV1 {
     pub cid: ClientPaymentId,
     pub txid: LxTxid,
     pub tx: Transaction,
@@ -85,7 +85,7 @@ pub enum OnchainSendStatus {
     Dropped,
 }
 
-impl OnchainSend {
+impl OnchainSendV1 {
     // Event sources:
     // - `pay_onchain` API
     pub fn new(tx: Transaction, req: PayOnchainRequest, fees: Amount) -> Self {
@@ -224,7 +224,7 @@ impl OnchainSend {
 // --- Onchain receive --- //
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct OnchainReceive {
+pub struct OnchainReceiveV1 {
     pub txid: LxTxid,
     pub tx: Arc<Transaction>,
     /// The txid of the replacement tx, if one exists.
@@ -273,7 +273,7 @@ pub enum OnchainReceiveStatus {
     Dropped,
 }
 
-impl OnchainReceive {
+impl OnchainReceiveV1 {
     // Event sources:
     // - `PaymentsManager::spawn_onchain_recv_checker` task
     pub(crate) fn new(tx: Arc<Transaction>, amount: Amount) -> Self {
@@ -374,7 +374,7 @@ mod arb {
 
     use super::*;
 
-    impl Arbitrary for OnchainSend {
+    impl Arbitrary for OnchainSendV1 {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
@@ -389,7 +389,7 @@ mod arb {
             // through the state machine.
             (tx, req, fees, is_broadcasted, conf_status)
                 .prop_map(|(tx, req, fees, is_broadcasted, conf_status)| {
-                    let os = OnchainSend::new(tx, req, fees);
+                    let os = OnchainSendV1::new(tx, req, fees);
                     if !is_broadcasted {
                         return os;
                     }
@@ -406,7 +406,7 @@ mod arb {
         }
     }
 
-    impl Arbitrary for OnchainReceive {
+    impl Arbitrary for OnchainReceiveV1 {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
@@ -419,7 +419,7 @@ mod arb {
             // through the state machine.
             (tx, amount, conf_status)
                 .prop_map(|(tx, amount, conf_status)| {
-                    let orp = OnchainReceive::new(Arc::new(tx), amount);
+                    let orp = OnchainReceiveV1::new(Arc::new(tx), amount);
                     if let Some(conf_status) = conf_status {
                         orp.check_onchain_conf(conf_status)
                             .unwrap()

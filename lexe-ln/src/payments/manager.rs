@@ -21,13 +21,13 @@ use lightning::{events::PaymentPurpose, ln::channelmanager::FailureCode};
 use tokio::{sync::MutexGuard, time::Instant};
 use tracing::{debug, error, info, info_span, instrument, warn};
 
-use super::{inbound::InboundOfferReusablePayment, outbound::ExpireError};
+use super::{inbound::InboundOfferReusablePaymentV1, outbound::ExpireError};
 use crate::{
     esplora::{LexeEsplora, TxConfStatus},
     payments::{
-        Payment,
-        inbound::{ClaimableError, InboundSpontaneousPayment, LnClaimCtx},
-        onchain::OnchainReceive,
+        PaymentV1,
+        inbound::{ClaimableError, InboundSpontaneousPaymentV1, LnClaimCtx},
+        onchain::OnchainReceiveV1,
         outbound::LxOutboundPaymentFailure,
     },
     test_event::TestEventSender,
@@ -43,19 +43,20 @@ const ONCHAIN_PAYMENT_CHECK_INTERVAL: Duration = Duration::from_secs(120);
 const PAYMENT_EXPIRY_CHECK_DELAY: Duration = Duration::from_secs(1);
 const ONCHAIN_PAYMENT_CHECK_DELAY: Duration = Duration::from_secs(2);
 
-/// Annotates that a given [`Payment`] was returned by a `check_*` method which
-/// successfully validated a proposed state transition. [`CheckedPayment`]s
-/// should be persisted in order to transform into [`PersistedPayment`]s.
+/// Annotates that a given [`PaymentV1`] was returned by a `check_*` method
+/// which successfully validated a proposed state transition.
+/// [`CheckedPayment`]s should be persisted in order to transform into
+/// [`PersistedPayment`]s.
 #[must_use]
 #[cfg_attr(test, derive(Debug, Eq, PartialEq))]
-pub struct CheckedPayment(pub Payment);
+pub struct CheckedPayment(pub PaymentV1);
 
-/// Annotates that a given [`Payment`] was successfully persisted.
+/// Annotates that a given [`PaymentV1`] was successfully persisted.
 /// `created_at` and `updated_at` are assigned at the time of persistence.
 /// [`PersistedPayment`]s should be committed to the local payments state.
 #[must_use]
 pub struct PersistedPayment {
-    pub payment: Payment,
+    pub payment: PaymentV1,
     pub created_at: TimestampMs,
     pub updated_at: TimestampMs,
 }
@@ -101,9 +102,10 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
 /// [`upsert_payment_batch`]: crate::traits::LexeInnerPersister::upsert_payment_batch
 #[cfg_attr(test, derive(Clone, Debug))]
 struct PaymentsData {
-    pending: HashMap<LxPaymentId, Payment>,
+    pending: HashMap<LxPaymentId, PaymentV1>,
     /// A non-exhaustive cache of finalized payments.
-    finalized_payments_cache: quick_cache::unsync::Cache<LxPaymentId, Payment>,
+    finalized_payments_cache:
+        quick_cache::unsync::Cache<LxPaymentId, PaymentV1>,
 }
 
 impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
@@ -113,7 +115,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         channel_manager: CM,
         finalized_cache_capacity: usize,
         esplora: Arc<LexeEsplora>,
-        pending_payments: Vec<Payment>,
+        pending_payments: Vec<PaymentV1>,
         wallet: LexeWallet,
         onchain_recv_rx: notify::Receiver,
         test_event_tx: TestEventSender,
@@ -135,7 +137,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                     None
                 }
             })
-            .collect::<HashMap<LxPaymentId, Payment>>();
+            .collect::<HashMap<LxPaymentId, PaymentV1>>();
 
         let finalized_payments_cache =
             quick_cache::unsync::Cache::new(finalized_cache_capacity);
@@ -284,7 +286,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     #[instrument(skip_all, name = "(new-payment)")]
     pub async fn new_payment(
         &self,
-        payment: Payment,
+        payment: PaymentV1,
     ) -> anyhow::Result<PaymentCreatedIndex> {
         let mut locked_data = self.data.lock().await;
         self.new_payment_inner(&mut locked_data, payment).await
@@ -294,7 +296,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     async fn new_payment_inner(
         &self,
         locked_data: &mut MutexGuard<'_, PaymentsData>,
-        payment: Payment,
+        payment: PaymentV1,
     ) -> anyhow::Result<PaymentCreatedIndex> {
         let id = payment.id();
         info!(%id, "Registering new payment");
@@ -322,12 +324,12 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         Ok(PaymentCreatedIndex { id, created_at })
     }
 
-    /// Get a [`Payment`] by its [`LxPaymentId`].
+    /// Get a [`PaymentV1`] by its [`LxPaymentId`].
     /// Returns the in-memory payment if cached, fetches from the DB otherwise.
     pub async fn get_payment(
         &self,
         id: &LxPaymentId,
-    ) -> anyhow::Result<Option<Payment>> {
+    ) -> anyhow::Result<Option<PaymentV1>> {
         let mut locked_data = self.data.lock().await;
         self.get_cow_payment(&mut locked_data, id)
             .await
@@ -340,7 +342,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         &self,
         locked_data: &'param mut MutexGuard<'_, PaymentsData>,
         id: &LxPaymentId,
-    ) -> anyhow::Result<Option<Cow<'param, Payment>>> {
+    ) -> anyhow::Result<Option<Cow<'param, PaymentV1>>> {
         // Check if payment exists WITHOUT borrowing the data. This convinces
         // the borrow checker that the code paths are mutually exclusive:
         //
@@ -795,9 +797,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // Check
         let checked = match payment.as_ref() {
-            Payment::OnchainSend(os) => os
+            PaymentV1::OnchainSend(os) => os
                 .broadcasted(txid)
-                .map(Payment::from)
+                .map(PaymentV1::from)
                 .map(CheckedPayment)
                 .context("Invalid state transition")?,
             _ => bail!("Payment was not an onchain send"),
@@ -842,9 +844,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                 .pending
                 .values()
                 .filter_map(|p| match p {
-                    Payment::OnchainSend(os) =>
+                    PaymentV1::OnchainSend(os) =>
                         Some((os.id(), os.to_tx_conf_query())),
-                    Payment::OnchainReceive(or) =>
+                    PaymentV1::OnchainReceive(or) =>
                         Some((or.id(), or.to_tx_conf_query())),
                     _ => None,
                 })
@@ -884,7 +886,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
     /// Queries the [`bdk_wallet::Wallet`] to see if there are any onchain
     /// receives that the [`PaymentsManager`] doesn't yet know about. If so,
-    /// the [`OnchainReceive`] is constructed and registered with the
+    /// the [`OnchainReceiveV1`] is constructed and registered with the
     /// [`PaymentsManager`].
     ///
     /// This function should be called regularly.
@@ -946,9 +948,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                         locked_wallet.sent_and_received(&raw_tx);
                     let amount =
                         Amount::try_from(received).context("Overflowed")?;
-                    Ok(OnchainReceive::new(raw_tx, amount))
+                    Ok(OnchainReceiveV1::new(raw_tx, amount))
                 })
-                .collect::<anyhow::Result<Vec<OnchainReceive>>>()?
+                .collect::<anyhow::Result<Vec<OnchainReceiveV1>>>()?
         };
 
         // Register all of the new onchain receives.
@@ -1032,8 +1034,8 @@ impl PaymentsData {
                 LnClaimCtx::Bolt12Offer(ctx) => {
                     let now = TimestampMs::now();
                     let iorp =
-                        InboundOfferReusablePayment::new(ctx, amount, now);
-                    let payment = Payment::from(iorp);
+                        InboundOfferReusablePaymentV1::new(ctx, amount, now);
+                    let payment = PaymentV1::from(iorp);
                     Ok(CheckedPayment(payment))
                 }
                 LnClaimCtx::Spontaneous {
@@ -1043,9 +1045,10 @@ impl PaymentsData {
                 } => {
                     // We just got a new spontaneous payment!
                     // Create the new payment.
-                    let isp =
-                        InboundSpontaneousPayment::new(hash, preimage, amount);
-                    let payment = Payment::from(isp);
+                    let isp = InboundSpontaneousPaymentV1::new(
+                        hash, preimage, amount,
+                    );
+                    let payment = PaymentV1::from(isp);
                     Ok(CheckedPayment(payment))
                 }
             },
@@ -1070,7 +1073,7 @@ impl PaymentsData {
 
         let checked = match (pending_payment, claim_ctx) {
             (
-                Payment::InboundInvoice(iip),
+                PaymentV1::InboundInvoice(iip),
                 LnClaimCtx::Bolt11Invoice {
                     preimage,
                     hash,
@@ -1079,19 +1082,19 @@ impl PaymentsData {
                 },
             ) => iip
                 .check_payment_claimed(hash, secret, preimage, amount)
-                .map(Payment::from)
+                .map(PaymentV1::from)
                 .map(CheckedPayment)
                 .context("Error finalizing inbound invoice payment")?,
             (
-                Payment::InboundOfferReusable(iorp),
+                PaymentV1::InboundOfferReusable(iorp),
                 LnClaimCtx::Bolt12Offer(ctx),
             ) => iorp
                 .check_payment_claimed(ctx, amount)
-                .map(Payment::from)
+                .map(PaymentV1::from)
                 .map(CheckedPayment)
                 .context("Error finalizing reusable inbound offer payment")?,
             (
-                Payment::InboundSpontaneous(isp),
+                PaymentV1::InboundSpontaneous(isp),
                 LnClaimCtx::Spontaneous {
                     preimage,
                     hash,
@@ -1099,7 +1102,7 @@ impl PaymentsData {
                 },
             ) => isp
                 .check_payment_claimed(hash, preimage, amount)
-                .map(Payment::from)
+                .map(PaymentV1::from)
                 .map(CheckedPayment)
                 .context("Error finalizing inbound spontaneous payment")?,
             // TODO(phlip9): impl BOLT 12 refunds
@@ -1128,17 +1131,17 @@ impl PaymentsData {
             .context("Pending payment does not exist")?;
 
         let checked = match pending_payment {
-            Payment::OutboundInvoice(oip) => oip
+            PaymentV1::OutboundInvoice(oip) => oip
                 .check_payment_sent(hash, preimage, maybe_fees_paid)
-                .map(Payment::from)
+                .map(PaymentV1::from)
                 .map(CheckedPayment)
                 .context("Error checking outbound invoice payment")?,
-            Payment::OutboundOffer(oop) => oop
+            PaymentV1::OutboundOffer(oop) => oop
                 .check_payment_sent(hash, preimage, maybe_fees_paid)
-                .map(Payment::from)
+                .map(PaymentV1::from)
                 .map(CheckedPayment)
                 .context("Error checking outbound offer payment")?,
-            Payment::OutboundSpontaneous(_) => todo!(),
+            PaymentV1::OutboundSpontaneous(_) => todo!(),
             _ => bail!("Not an outbound Lightning payment"),
         };
 
@@ -1161,17 +1164,17 @@ impl PaymentsData {
             .context("Pending payment does not exist")?;
 
         let checked = match pending_payment {
-            Payment::OutboundInvoice(oip) => oip
+            PaymentV1::OutboundInvoice(oip) => oip
                 .check_payment_failed(id, failure)
-                .map(Payment::from)
+                .map(PaymentV1::from)
                 .map(CheckedPayment)
                 .context("Error checking outbound invoice payment")?,
-            Payment::OutboundOffer(oop) => oop
+            PaymentV1::OutboundOffer(oop) => oop
                 .check_payment_failed(failure)
-                .map(Payment::from)
+                .map(PaymentV1::from)
                 .map(CheckedPayment)
                 .context("Error checking outbound offer payment")?,
-            Payment::OutboundSpontaneous(_) => todo!(),
+            PaymentV1::OutboundSpontaneous(_) => todo!(),
             _ => bail!("Not an outbound Lightning payment"),
         };
 
@@ -1198,15 +1201,15 @@ impl PaymentsData {
             .values()
             .filter_map(|payment| match payment {
                 // Precondition: payment is not finalized (Completed | Failed).
-                Payment::InboundInvoice(iip) => iip
+                PaymentV1::InboundInvoice(iip) => iip
                     .check_invoice_expiry(now)
-                    .map(Payment::from)
+                    .map(PaymentV1::from)
                     .map(CheckedPayment),
-                Payment::OutboundInvoice(oip) => {
+                PaymentV1::OutboundInvoice(oip) => {
                     match oip.check_invoice_expiry(now) {
                         Ok(oip) => {
                             ops_to_abandon.push(oip.ldk_id());
-                            Some(CheckedPayment(Payment::from(oip)))
+                            Some(CheckedPayment(PaymentV1::from(oip)))
                         }
                         Err(ExpireError::Ignore) => None,
                         Err(ExpireError::IgnoreAndAbandon) => {
@@ -1215,11 +1218,11 @@ impl PaymentsData {
                         }
                     }
                 }
-                Payment::OutboundOffer(oop) => {
+                PaymentV1::OutboundOffer(oop) => {
                     match oop.check_offer_expiry(now) {
                         Ok(oop) => {
                             ops_to_abandon.push(oop.ldk_id());
-                            Some(CheckedPayment(Payment::from(oop)))
+                            Some(CheckedPayment(PaymentV1::from(oop)))
                         }
                         Err(ExpireError::Ignore) => None,
                         Err(ExpireError::IgnoreAndAbandon) => {
@@ -1251,13 +1254,13 @@ impl PaymentsData {
                     .get(id)
                     .context("Received conf status but payment was missing")?;
                 let maybe_checked = match payment {
-                    Payment::OnchainSend(os) => os
+                    PaymentV1::OnchainSend(os) => os
                         .check_onchain_conf(conf_status)
-                        .map(|opt| opt.map(Payment::from).map(CheckedPayment))
+                        .map(|opt| opt.map(PaymentV1::from).map(CheckedPayment))
                         .context("Error checking onchain send conf")?,
-                    Payment::OnchainReceive(or) => or
+                    PaymentV1::OnchainReceive(or) => or
                         .check_onchain_conf(conf_status)
-                        .map(|opt| opt.map(Payment::from).map(CheckedPayment))
+                        .map(|opt| opt.map(PaymentV1::from).map(CheckedPayment))
                         .context("Error checking onchain receive conf")?,
                     _ => bail!("Wasn't an onchain payment"),
                 };
@@ -1288,7 +1291,7 @@ mod arb {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            proptest::collection::vec(any::<Payment>(), 0..10)
+            proptest::collection::vec(any::<PaymentV1>(), 0..10)
                 .prop_map(PaymentsData::from_vec)
                 .boxed()
         }
@@ -1306,18 +1309,19 @@ mod test {
     use super::*;
     use crate::payments::{
         inbound::{
-            InboundInvoicePayment, InboundOfferReusablePayment, OfferClaimCtx,
+            InboundInvoicePaymentV1, InboundOfferReusablePaymentV1,
+            OfferClaimCtx,
         },
         outbound::{
-            OutboundInvoicePayment, OutboundInvoicePaymentStatus,
-            OutboundOfferPayment, arb::OipParams,
+            OutboundInvoicePaymentStatus, OutboundInvoicePaymentV1,
+            OutboundOfferPaymentV1, arb::OipParams,
         },
     };
 
     impl PaymentsData {
-        pub(super) fn from_vec(mut payments: Vec<Payment>) -> Self {
+        pub(super) fn from_vec(mut payments: Vec<PaymentV1>) -> Self {
             // Remove duplicates
-            payments.sort_unstable_by_key(Payment::id);
+            payments.sort_unstable_by_key(PaymentV1::id);
             payments.dedup_by_key(|p| p.id());
 
             let pending = HashMap::default();
@@ -1342,7 +1346,7 @@ mod test {
 
         /// Insert a payment into `PaymentsData` without running through the
         /// full state machine.
-        fn insert_payment(&mut self, payment: Payment) {
+        fn insert_payment(&mut self, payment: PaymentV1) {
             let id = payment.id();
             if payment.status().is_pending() {
                 self.pending.insert(id, payment);
@@ -1353,7 +1357,7 @@ mod test {
 
         /// Forcibly insert a payment into the `PaymentsData`, removing any
         /// existing payment with the same ID.
-        fn force_insert_payment(&mut self, payment: Payment) {
+        fn force_insert_payment(&mut self, payment: PaymentV1) {
             let id = payment.id();
             self.pending.remove(&id);
             self.finalized_payments_cache.remove(&id);
@@ -1382,12 +1386,12 @@ mod test {
             mut data in any::<PaymentsData>(),
             // check_payment_claimable precondition: Must not be finalized
             //   check_payment_claimed precondition: Must not be finalized
-            isp in any_with::<InboundSpontaneousPayment>(pending_only),
+            isp in any_with::<InboundSpontaneousPaymentV1>(pending_only),
             // currently does nothing for spontaneous payments, but could catch
             // an unintended change.
             claim_id in any::<Option<LnClaimId>>(),
         )| {
-            let payment = Payment::InboundSpontaneous(isp.clone());
+            let payment = PaymentV1::InboundSpontaneous(isp.clone());
             data.force_insert_payment(payment.clone());
 
             let amount = isp.amount;
@@ -1418,11 +1422,11 @@ mod test {
             mut data in any::<PaymentsData>(),
             // check_payment_claimable precondition: Must not be finalized
             //   check_payment_claimed precondition: Must not be finalized
-            iip in any_with::<InboundInvoicePayment>(pending_only),
+            iip in any_with::<InboundInvoicePaymentV1>(pending_only),
             recvd_amount in any::<Amount>(),
             claim_id in any::<Option<Option<LnClaimId>>>(),
         )| {
-            let payment = Payment::InboundInvoice(iip.clone());
+            let payment = PaymentV1::InboundInvoice(iip.clone());
             data.force_insert_payment(payment.clone());
 
             let recvd_amount = iip.recvd_amount.unwrap_or(recvd_amount);
@@ -1463,9 +1467,9 @@ mod test {
             mut data in any::<PaymentsData>(),
             // check_payment_claimable precondition: Must not be finalized
             //   check_payment_claimed precondition: Must not be finalized
-            iorp in any_with::<InboundOfferReusablePayment>(pending_only),
+            iorp in any_with::<InboundOfferReusablePaymentV1>(pending_only),
         )| {
-            let payment = Payment::InboundOfferReusable(iorp.clone());
+            let payment = PaymentV1::InboundOfferReusable(iorp.clone());
             data.force_insert_payment(payment.clone());
 
             let claim_ctx = LnClaimCtx::Bolt12Offer(OfferClaimCtx {
@@ -1498,13 +1502,13 @@ mod test {
             mut data in any::<PaymentsData>(),
             //   check_payment_sent precondition: Must not be finalized
             // check_payment_failed precondition: Must not be finalized
-            oip in any_with::<OutboundInvoicePayment>(OipParams {
+            oip in any_with::<OutboundInvoicePaymentV1>(OipParams {
                 payment_preimage: Some(preimage),
                 pending_only: true,
             }),
             failure in any::<LxOutboundPaymentFailure>(),
         )| {
-            let payment = Payment::OutboundInvoice(oip.clone());
+            let payment = PaymentV1::OutboundInvoice(oip.clone());
             let id = payment.id();
             data.force_insert_payment(payment);
 
@@ -1522,12 +1526,12 @@ mod test {
             mut data in any::<PaymentsData>(),
             //   check_payment_sent precondition: Must not be finalized
             // check_payment_failed precondition: Must not be finalized
-            oop in any_with::<OutboundOfferPayment>(pending_only),
+            oop in any_with::<OutboundOfferPaymentV1>(pending_only),
             preimage in any::<LxPaymentPreimage>(),
             fees in any::<Amount>(),
             failure in any::<LxOutboundPaymentFailure>(),
         )| {
-            let payment = Payment::OutboundOffer(oop.clone());
+            let payment = PaymentV1::OutboundOffer(oop.clone());
             let id = payment.id();
             data.force_insert_payment(payment);
 
@@ -1545,7 +1549,7 @@ mod test {
 
         let preimage = LxPaymentPreimage::from_array([0x42; 32]);
         proptest!(|(
-            oip in any_with::<OutboundInvoicePayment>(OipParams {
+            oip in any_with::<OutboundInvoicePaymentV1>(OipParams {
                 payment_preimage: Some(preimage),
                 //   check_payment_sent precondition: Must not be finalized
                 // check_payment_failed precondition: Must not be finalized
@@ -1558,7 +1562,7 @@ mod test {
             let fees = oip.fees;
             let status = oip.status;
 
-            let payment = Payment::OutboundInvoice(oip.clone());
+            let payment = PaymentV1::OutboundInvoice(oip.clone());
             let id = payment.id();
             let data = PaymentsData::from_vec(vec![payment.clone()]);
 
@@ -1586,7 +1590,7 @@ mod test {
                     assert_eq!(1, checked_payments.len());
                     let checked = checked_payments.pop().unwrap();
                     match &checked.0 {
-                        Payment::OutboundInvoice(oip) =>
+                        PaymentV1::OutboundInvoice(oip) =>
                             prop_assert_eq!(Abandoning, oip.status),
                         _ => unreachable!(),
                     }

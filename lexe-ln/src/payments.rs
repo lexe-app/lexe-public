@@ -24,17 +24,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::payments::{
     inbound::{
-        InboundInvoicePayment, InboundInvoicePaymentStatus,
-        InboundOfferReusablePayment, InboundOfferReusablePaymentStatus,
-        InboundSpontaneousPayment, InboundSpontaneousPaymentStatus,
+        InboundInvoicePaymentStatus, InboundInvoicePaymentV1,
+        InboundOfferReusablePaymentStatus, InboundOfferReusablePaymentV1,
+        InboundSpontaneousPaymentStatus, InboundSpontaneousPaymentV1,
     },
     onchain::{
-        OnchainReceive, OnchainReceiveStatus, OnchainSend, OnchainSendStatus,
+        OnchainReceiveStatus, OnchainReceiveV1, OnchainSendStatus,
+        OnchainSendV1,
     },
     outbound::{
-        OutboundInvoicePayment, OutboundInvoicePaymentStatus,
-        OutboundOfferPayment, OutboundOfferPaymentStatus,
-        OutboundSpontaneousPayment, OutboundSpontaneousPaymentStatus,
+        OutboundInvoicePaymentStatus, OutboundInvoicePaymentV1,
+        OutboundOfferPaymentStatus, OutboundOfferPaymentV1,
+        OutboundSpontaneousPaymentStatus, OutboundSpontaneousPaymentV1,
     },
 };
 
@@ -56,7 +57,7 @@ pub mod outbound;
 /// ingests events from [`PaymentsManager`] to transition between states in
 /// that payment type's lifecycle.
 ///
-/// For example, we create an [`OnchainSend`] payment in its initial state,
+/// For example, we create an [`OnchainSendV1`] payment in its initial state,
 /// `Created`. After we successfully broadcast the tx, the payment transitions
 /// to `Broadcasted`. Once the tx confirms, the payment transitions to
 /// `PartiallyConfirmed`, then `FullyConfirmed` with 6+ confs.
@@ -87,20 +88,20 @@ pub mod outbound;
 /// [`Discard`]: crate::event::EventHandleError::Discard
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
-pub enum Payment {
-    OnchainSend(OnchainSend),
-    OnchainReceive(OnchainReceive),
+pub enum PaymentV1 {
+    OnchainSend(OnchainSendV1),
+    OnchainReceive(OnchainReceiveV1),
     // TODO(max): Implement SpliceIn
     // TODO(max): Implement SpliceOut
-    InboundInvoice(InboundInvoicePayment),
+    InboundInvoice(InboundInvoicePaymentV1),
     // TODO(phlip9): InboundOffer (single-use)
     // Added in `node-v0.7.8`
-    InboundOfferReusable(InboundOfferReusablePayment),
-    InboundSpontaneous(InboundSpontaneousPayment),
-    OutboundInvoice(OutboundInvoicePayment),
+    InboundOfferReusable(InboundOfferReusablePaymentV1),
+    InboundSpontaneous(InboundSpontaneousPaymentV1),
+    OutboundInvoice(OutboundInvoicePaymentV1),
     // Added in `node-v0.7.8`
-    OutboundOffer(OutboundOfferPayment),
-    OutboundSpontaneous(OutboundSpontaneousPayment),
+    OutboundOffer(OutboundOfferPaymentV1),
+    OutboundSpontaneous(OutboundSpontaneousPaymentV1),
 }
 
 /// Serializes a given payment to JSON and encrypts the payment under the given
@@ -108,7 +109,7 @@ pub enum Payment {
 pub fn encrypt(
     rng: &mut impl Crng,
     vfs_master_key: &AesMasterKey,
-    payment: &Payment,
+    payment: &PaymentV1,
     updated_at: TimestampMs,
 ) -> DbPaymentV2 {
     // Serialize the payment as JSON bytes.
@@ -133,67 +134,67 @@ pub fn encrypt(
 }
 
 /// Given a [`DbPaymentV2::data`] (ciphertext), attempts to decrypt using the
-/// given [`AesMasterKey`], returning the deserialized [`Payment`].
+/// given [`AesMasterKey`], returning the deserialized [`PaymentV1`].
 pub fn decrypt(
     vfs_master_key: &AesMasterKey,
     data: Vec<u8>,
-) -> anyhow::Result<Payment> {
+) -> anyhow::Result<PaymentV1> {
     let aad = &[];
     let plaintext_bytes = vfs_master_key
         .decrypt(aad, data)
         .context("Could not decrypt Payment")?;
 
-    serde_json::from_slice::<Payment>(plaintext_bytes.as_slice())
+    serde_json::from_slice::<PaymentV1>(plaintext_bytes.as_slice())
         .context("Could not deserialize Payment")
 }
 
 // --- Specific payment type -> top-level Payment types --- //
 
-impl From<OnchainSend> for Payment {
-    fn from(p: OnchainSend) -> Self {
+impl From<OnchainSendV1> for PaymentV1 {
+    fn from(p: OnchainSendV1) -> Self {
         Self::OnchainSend(p)
     }
 }
-impl From<OnchainReceive> for Payment {
-    fn from(p: OnchainReceive) -> Self {
+impl From<OnchainReceiveV1> for PaymentV1 {
+    fn from(p: OnchainReceiveV1) -> Self {
         Self::OnchainReceive(p)
     }
 }
-impl From<InboundInvoicePayment> for Payment {
-    fn from(p: InboundInvoicePayment) -> Self {
+impl From<InboundInvoicePaymentV1> for PaymentV1 {
+    fn from(p: InboundInvoicePaymentV1) -> Self {
         Self::InboundInvoice(p)
     }
 }
-impl From<InboundOfferReusablePayment> for Payment {
-    fn from(p: InboundOfferReusablePayment) -> Self {
+impl From<InboundOfferReusablePaymentV1> for PaymentV1 {
+    fn from(p: InboundOfferReusablePaymentV1) -> Self {
         Self::InboundOfferReusable(p)
     }
 }
-impl From<InboundSpontaneousPayment> for Payment {
-    fn from(p: InboundSpontaneousPayment) -> Self {
+impl From<InboundSpontaneousPaymentV1> for PaymentV1 {
+    fn from(p: InboundSpontaneousPaymentV1) -> Self {
         Self::InboundSpontaneous(p)
     }
 }
-impl From<OutboundInvoicePayment> for Payment {
-    fn from(p: OutboundInvoicePayment) -> Self {
+impl From<OutboundInvoicePaymentV1> for PaymentV1 {
+    fn from(p: OutboundInvoicePaymentV1) -> Self {
         Self::OutboundInvoice(p)
     }
 }
-impl From<OutboundOfferPayment> for Payment {
-    fn from(p: OutboundOfferPayment) -> Self {
+impl From<OutboundOfferPaymentV1> for PaymentV1 {
+    fn from(p: OutboundOfferPaymentV1) -> Self {
         Self::OutboundOffer(p)
     }
 }
-impl From<OutboundSpontaneousPayment> for Payment {
-    fn from(p: OutboundSpontaneousPayment) -> Self {
+impl From<OutboundSpontaneousPaymentV1> for PaymentV1 {
+    fn from(p: OutboundSpontaneousPaymentV1) -> Self {
         Self::OutboundSpontaneous(p)
     }
 }
 
 // --- Payment -> BasicPaymentV1 --- //
 
-impl From<Payment> for BasicPaymentV1 {
-    fn from(p: Payment) -> Self {
+impl From<PaymentV1> for BasicPaymentV1 {
+    fn from(p: PaymentV1) -> Self {
         Self {
             index: p.index(),
             kind: p.kind(),
@@ -215,7 +216,7 @@ impl From<Payment> for BasicPaymentV1 {
 
 // --- impl Payment --- //
 
-impl Payment {
+impl PaymentV1 {
     // Can't impl BasicPaymentV2::from_payment bc we don't want to move
     // `Payment` into `lexe-api-core`.
     pub fn into_basic_payment(
@@ -299,11 +300,12 @@ impl Payment {
         match self {
             Self::OnchainSend(_) => None,
             Self::OnchainReceive(_) => None,
-            Self::InboundInvoice(InboundInvoicePayment { invoice, .. }) =>
-                Some(invoice.clone()),
+            Self::InboundInvoice(InboundInvoicePaymentV1 {
+                invoice, ..
+            }) => Some(invoice.clone()),
             Self::InboundOfferReusable(_) => None,
             Self::InboundSpontaneous(_) => None,
-            Self::OutboundInvoice(OutboundInvoicePayment {
+            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
                 invoice, ..
             }) => Some(invoice.clone()),
             Self::OutboundOffer(_) => None,
@@ -318,13 +320,13 @@ impl Payment {
             Self::OnchainSend(_) => None,
             Self::OnchainReceive(_) => None,
             Self::InboundInvoice(_) => None,
-            Self::InboundOfferReusable(InboundOfferReusablePayment {
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
                 offer_id,
                 ..
             }) => Some(*offer_id),
             Self::InboundSpontaneous(_) => None,
             Self::OutboundInvoice(_) => None,
-            Self::OutboundOffer(OutboundOfferPayment { offer, .. }) =>
+            Self::OutboundOffer(OutboundOfferPaymentV1 { offer, .. }) =>
                 Some(offer.id()),
             Self::OutboundSpontaneous(_) => None,
         }
@@ -340,7 +342,7 @@ impl Payment {
             Self::InboundOfferReusable(_) => None,
             Self::InboundSpontaneous(_) => None,
             Self::OutboundInvoice(_) => None,
-            Self::OutboundOffer(OutboundOfferPayment { offer, .. }) =>
+            Self::OutboundOffer(OutboundOfferPaymentV1 { offer, .. }) =>
                 Some(offer.clone()),
             Self::OutboundSpontaneous(_) => None,
         }
@@ -349,8 +351,8 @@ impl Payment {
     /// Returns the original txid, if there is one.
     pub fn txid(&self) -> Option<LxTxid> {
         match self {
-            Self::OnchainSend(OnchainSend { txid, .. }) => Some(*txid),
-            Self::OnchainReceive(OnchainReceive { txid, .. }) => Some(*txid),
+            Self::OnchainSend(OnchainSendV1 { txid, .. }) => Some(*txid),
+            Self::OnchainReceive(OnchainReceiveV1 { txid, .. }) => Some(*txid),
             Self::InboundInvoice(_) => None,
             Self::InboundOfferReusable(_) => None,
             Self::InboundSpontaneous(_) => None,
@@ -363,8 +365,9 @@ impl Payment {
     /// Returns the txid of the replacement tx, if there is one.
     pub fn replacement(&self) -> Option<LxTxid> {
         match self {
-            Self::OnchainSend(OnchainSend { replacement, .. }) => *replacement,
-            Self::OnchainReceive(OnchainReceive { replacement, .. }) =>
+            Self::OnchainSend(OnchainSendV1 { replacement, .. }) =>
+                *replacement,
+            Self::OnchainReceive(OnchainReceiveV1 { replacement, .. }) =>
                 *replacement,
             Self::InboundInvoice(_) => None,
             Self::InboundOfferReusable(_) => None,
@@ -384,28 +387,28 @@ impl Payment {
     /// - For all other payment types, an amount is always returned.
     pub fn amount(&self) -> Option<Amount> {
         match self {
-            Self::OnchainSend(OnchainSend { amount, .. }) => Some(*amount),
-            Self::OnchainReceive(OnchainReceive { amount, .. }) =>
+            Self::OnchainSend(OnchainSendV1 { amount, .. }) => Some(*amount),
+            Self::OnchainReceive(OnchainReceiveV1 { amount, .. }) =>
                 Some(*amount),
-            Self::InboundInvoice(InboundInvoicePayment {
+            Self::InboundInvoice(InboundInvoicePaymentV1 {
                 invoice_amount,
                 recvd_amount,
                 ..
             }) => recvd_amount.or(*invoice_amount),
-            Self::InboundOfferReusable(InboundOfferReusablePayment {
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
                 amount,
                 ..
             }) => Some(*amount),
-            Self::InboundSpontaneous(InboundSpontaneousPayment {
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
                 amount,
                 ..
             }) => Some(*amount),
-            Self::OutboundInvoice(OutboundInvoicePayment {
+            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
                 amount, ..
             }) => Some(*amount),
-            Self::OutboundOffer(OutboundOfferPayment { amount, .. }) =>
+            Self::OutboundOffer(OutboundOfferPaymentV1 { amount, .. }) =>
                 Some(*amount),
-            Self::OutboundSpontaneous(OutboundSpontaneousPayment {
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
                 amount,
                 ..
             }) => Some(*amount),
@@ -415,21 +418,23 @@ impl Payment {
     /// The fees paid or expected to be paid for this payment.
     pub fn fees(&self) -> Amount {
         match self {
-            Self::OnchainSend(OnchainSend { fees, .. }) => *fees,
+            Self::OnchainSend(OnchainSendV1 { fees, .. }) => *fees,
             // We don't pay anything to receive money onchain
-            Self::OnchainReceive(OnchainReceive { .. }) => Amount::ZERO,
-            Self::InboundInvoice(InboundInvoicePayment {
+            Self::OnchainReceive(OnchainReceiveV1 { .. }) => Amount::ZERO,
+            Self::InboundInvoice(InboundInvoicePaymentV1 {
                 onchain_fees,
                 ..
             }) => onchain_fees.unwrap_or(Amount::from_msat(0)),
             Self::InboundOfferReusable(iorp) => iorp.fees(),
-            Self::InboundSpontaneous(InboundSpontaneousPayment {
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
                 onchain_fees,
                 ..
             }) => onchain_fees.unwrap_or(Amount::from_msat(0)),
-            Self::OutboundInvoice(OutboundInvoicePayment { fees, .. }) => *fees,
-            Self::OutboundOffer(OutboundOfferPayment { fees, .. }) => *fees,
-            Self::OutboundSpontaneous(OutboundSpontaneousPayment {
+            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
+                fees, ..
+            }) => *fees,
+            Self::OutboundOffer(OutboundOfferPaymentV1 { fees, .. }) => *fees,
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
                 fees,
                 ..
             }) => *fees,
@@ -439,26 +444,27 @@ impl Payment {
     /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
     pub fn status(&self) -> PaymentStatus {
         match self {
-            Self::OnchainSend(OnchainSend { status, .. }) =>
+            Self::OnchainSend(OnchainSendV1 { status, .. }) =>
                 PaymentStatus::from(*status),
-            Self::OnchainReceive(OnchainReceive { status, .. }) =>
+            Self::OnchainReceive(OnchainReceiveV1 { status, .. }) =>
                 PaymentStatus::from(*status),
-            Self::InboundInvoice(InboundInvoicePayment { status, .. }) =>
-                PaymentStatus::from(*status),
-            Self::InboundOfferReusable(InboundOfferReusablePayment {
-                status,
-                ..
-            }) => PaymentStatus::from(*status),
-            Self::InboundSpontaneous(InboundSpontaneousPayment {
-                status,
-                ..
-            }) => PaymentStatus::from(*status),
-            Self::OutboundInvoice(OutboundInvoicePayment {
+            Self::InboundInvoice(InboundInvoicePaymentV1 {
                 status, ..
             }) => PaymentStatus::from(*status),
-            Self::OutboundOffer(OutboundOfferPayment { status, .. }) =>
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
+                status,
+                ..
+            }) => PaymentStatus::from(*status),
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
+                status,
+                ..
+            }) => PaymentStatus::from(*status),
+            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
+                status, ..
+            }) => PaymentStatus::from(*status),
+            Self::OutboundOffer(OutboundOfferPaymentV1 { status, .. }) =>
                 PaymentStatus::from(*status),
-            Self::OutboundSpontaneous(OutboundSpontaneousPayment {
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
                 status,
                 ..
             }) => PaymentStatus::from(*status),
@@ -468,29 +474,30 @@ impl Payment {
     /// Get the payment status as a human-readable `&'static str`
     pub fn status_str(&self) -> &str {
         match self {
-            Self::OnchainSend(OnchainSend { status, .. }) => status.as_str(),
-            Self::OnchainReceive(OnchainReceive { status, .. }) =>
+            Self::OnchainSend(OnchainSendV1 { status, .. }) => status.as_str(),
+            Self::OnchainReceive(OnchainReceiveV1 { status, .. }) =>
                 status.as_str(),
-            Self::InboundInvoice(InboundInvoicePayment { status, .. }) =>
-                status.as_str(),
-            Self::InboundOfferReusable(InboundOfferReusablePayment {
+            Self::InboundInvoice(InboundInvoicePaymentV1 {
+                status, ..
+            }) => status.as_str(),
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
                 status,
                 ..
             }) => status.as_str(),
-            Self::InboundSpontaneous(InboundSpontaneousPayment {
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
                 status,
                 ..
             }) => status.as_str(),
-            Self::OutboundInvoice(OutboundInvoicePayment {
+            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
                 status,
                 failure,
                 ..
             }) => failure
                 .map(|f| f.as_str())
                 .unwrap_or_else(|| status.as_str()),
-            Self::OutboundOffer(OutboundOfferPayment { status, .. }) =>
+            Self::OutboundOffer(OutboundOfferPaymentV1 { status, .. }) =>
                 status.as_str(),
-            Self::OutboundSpontaneous(OutboundSpontaneousPayment {
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
                 status,
                 ..
             }) => status.as_str(),
@@ -500,20 +507,22 @@ impl Payment {
     /// Get the payment note.
     pub fn note(&self) -> Option<&str> {
         match self {
-            Self::OnchainSend(OnchainSend { note, .. }) => note,
-            Self::OnchainReceive(OnchainReceive { note, .. }) => note,
-            Self::InboundInvoice(InboundInvoicePayment { note, .. }) => note,
-            Self::InboundOfferReusable(InboundOfferReusablePayment {
+            Self::OnchainSend(OnchainSendV1 { note, .. }) => note,
+            Self::OnchainReceive(OnchainReceiveV1 { note, .. }) => note,
+            Self::InboundInvoice(InboundInvoicePaymentV1 { note, .. }) => note,
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
                 note,
                 ..
             }) => note,
-            Self::InboundSpontaneous(InboundSpontaneousPayment {
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
                 note,
                 ..
             }) => note,
-            Self::OutboundInvoice(OutboundInvoicePayment { note, .. }) => note,
-            Self::OutboundOffer(OutboundOfferPayment { note, .. }) => note,
-            Self::OutboundSpontaneous(OutboundSpontaneousPayment {
+            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
+                note, ..
+            }) => note,
+            Self::OutboundOffer(OutboundOfferPaymentV1 { note, .. }) => note,
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
                 note,
                 ..
             }) => note,
@@ -525,20 +534,22 @@ impl Payment {
     /// Set the payment note to a new value.
     pub fn set_note(&mut self, note: Option<String>) {
         let mut_ref_note: &mut Option<String> = match self {
-            Self::OnchainSend(OnchainSend { note, .. }) => note,
-            Self::OnchainReceive(OnchainReceive { note, .. }) => note,
-            Self::InboundInvoice(InboundInvoicePayment { note, .. }) => note,
-            Self::InboundOfferReusable(InboundOfferReusablePayment {
+            Self::OnchainSend(OnchainSendV1 { note, .. }) => note,
+            Self::OnchainReceive(OnchainReceiveV1 { note, .. }) => note,
+            Self::InboundInvoice(InboundInvoicePaymentV1 { note, .. }) => note,
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
                 note,
                 ..
             }) => note,
-            Self::InboundSpontaneous(InboundSpontaneousPayment {
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
                 note,
                 ..
             }) => note,
-            Self::OutboundInvoice(OutboundInvoicePayment { note, .. }) => note,
-            Self::OutboundOffer(OutboundOfferPayment { note, .. }) => note,
-            Self::OutboundSpontaneous(OutboundSpontaneousPayment {
+            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
+                note, ..
+            }) => note,
+            Self::OutboundOffer(OutboundOfferPaymentV1 { note, .. }) => note,
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
                 note,
                 ..
             }) => note,
@@ -550,28 +561,29 @@ impl Payment {
     /// When this payment was created.
     pub fn created_at(&self) -> TimestampMs {
         match self {
-            Self::OnchainSend(OnchainSend { created_at, .. }) => *created_at,
-            Self::OnchainReceive(OnchainReceive { created_at, .. }) =>
+            Self::OnchainSend(OnchainSendV1 { created_at, .. }) => *created_at,
+            Self::OnchainReceive(OnchainReceiveV1 { created_at, .. }) =>
                 *created_at,
-            Self::InboundInvoice(InboundInvoicePayment {
+            Self::InboundInvoice(InboundInvoicePaymentV1 {
+                created_at,
+                ..
+            }) => *created_at,
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
+                created_at,
+                ..
+            }) => *created_at,
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
+                created_at,
+                ..
+            }) => *created_at,
+            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
+                created_at,
+                ..
+            }) => *created_at,
+            Self::OutboundOffer(OutboundOfferPaymentV1 {
                 created_at, ..
             }) => *created_at,
-            Self::InboundOfferReusable(InboundOfferReusablePayment {
-                created_at,
-                ..
-            }) => *created_at,
-            Self::InboundSpontaneous(InboundSpontaneousPayment {
-                created_at,
-                ..
-            }) => *created_at,
-            Self::OutboundInvoice(OutboundInvoicePayment {
-                created_at,
-                ..
-            }) => *created_at,
-            Self::OutboundOffer(OutboundOfferPayment {
-                created_at, ..
-            }) => *created_at,
-            Self::OutboundSpontaneous(OutboundSpontaneousPayment {
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
                 created_at,
                 ..
             }) => *created_at,
@@ -581,30 +593,31 @@ impl Payment {
     /// When this payment was completed or failed.
     pub fn finalized_at(&self) -> Option<TimestampMs> {
         match self {
-            Self::OnchainSend(OnchainSend { finalized_at, .. }) =>
+            Self::OnchainSend(OnchainSendV1 { finalized_at, .. }) =>
                 *finalized_at,
-            Self::OnchainReceive(OnchainReceive { finalized_at, .. }) =>
+            Self::OnchainReceive(OnchainReceiveV1 { finalized_at, .. }) =>
                 *finalized_at,
-            Self::InboundInvoice(InboundInvoicePayment {
+            Self::InboundInvoice(InboundInvoicePaymentV1 {
                 finalized_at,
                 ..
             }) => *finalized_at,
-            Self::InboundOfferReusable(InboundOfferReusablePayment {
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
                 finalized_at,
                 ..
             }) => *finalized_at,
-            Self::InboundSpontaneous(InboundSpontaneousPayment {
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
                 finalized_at,
                 ..
             }) => *finalized_at,
-            Self::OutboundInvoice(OutboundInvoicePayment {
+            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
                 finalized_at,
                 ..
             }) => *finalized_at,
-            Self::OutboundOffer(OutboundOfferPayment {
-                finalized_at, ..
+            Self::OutboundOffer(OutboundOfferPaymentV1 {
+                finalized_at,
+                ..
             }) => *finalized_at,
-            Self::OutboundSpontaneous(OutboundSpontaneousPayment {
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
                 finalized_at,
                 ..
             }) => *finalized_at,
@@ -845,48 +858,50 @@ mod test {
         let strategies = vec![
             (
                 "OnchainSend",
-                any::<OnchainSend>().prop_map(Payment::OnchainSend).boxed(),
+                any::<OnchainSendV1>()
+                    .prop_map(PaymentV1::OnchainSend)
+                    .boxed(),
             ),
             (
                 "OnchainReceive",
-                any::<OnchainReceive>()
-                    .prop_map(Payment::OnchainReceive)
+                any::<OnchainReceiveV1>()
+                    .prop_map(PaymentV1::OnchainReceive)
                     .boxed(),
             ),
             (
                 "InboundInvoice",
-                any::<InboundInvoicePayment>()
-                    .prop_map(Payment::InboundInvoice)
+                any::<InboundInvoicePaymentV1>()
+                    .prop_map(PaymentV1::InboundInvoice)
                     .boxed(),
             ),
             (
                 "InboundOfferReusable",
-                any::<InboundOfferReusablePayment>()
-                    .prop_map(Payment::InboundOfferReusable)
+                any::<InboundOfferReusablePaymentV1>()
+                    .prop_map(PaymentV1::InboundOfferReusable)
                     .boxed(),
             ),
             (
                 "InboundSpontaneous",
-                any::<InboundSpontaneousPayment>()
-                    .prop_map(Payment::InboundSpontaneous)
+                any::<InboundSpontaneousPaymentV1>()
+                    .prop_map(PaymentV1::InboundSpontaneous)
                     .boxed(),
             ),
             (
                 "OutboundInvoice",
-                any::<OutboundInvoicePayment>()
-                    .prop_map(Payment::OutboundInvoice)
+                any::<OutboundInvoicePaymentV1>()
+                    .prop_map(PaymentV1::OutboundInvoice)
                     .boxed(),
             ),
             (
                 "OutboundOfferPayment",
-                any::<OutboundOfferPayment>()
-                    .prop_map(Payment::OutboundOffer)
+                any::<OutboundOfferPaymentV1>()
+                    .prop_map(PaymentV1::OutboundOffer)
                     .boxed(),
             ),
             (
                 "OutboundSpontaneous",
-                any::<OutboundSpontaneousPayment>()
-                    .prop_map(Payment::OutboundSpontaneous)
+                any::<OutboundSpontaneousPaymentV1>()
+                    .prop_map(PaymentV1::OutboundSpontaneous)
                     .boxed(),
             ),
         ];
@@ -910,23 +925,26 @@ mod test {
 
     #[test]
     fn top_level_payment_serde_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<Payment>();
+        roundtrip::json_value_roundtrip_proptest::<PaymentV1>();
     }
 
     #[test]
     fn low_level_payments_serde_roundtrips() {
         use roundtrip::json_value_custom;
         let config = Config::with_cases(16);
-        json_value_custom(any::<OnchainSend>(), config.clone());
-        json_value_custom(any::<OnchainReceive>(), config.clone());
+        json_value_custom(any::<OnchainSendV1>(), config.clone());
+        json_value_custom(any::<OnchainReceiveV1>(), config.clone());
         // TODO(max): Add SpliceIn
         // TODO(max): Add SpliceOut
-        json_value_custom(any::<InboundInvoicePayment>(), config.clone());
-        json_value_custom(any::<InboundOfferReusablePayment>(), config.clone());
-        json_value_custom(any::<InboundSpontaneousPayment>(), config.clone());
-        json_value_custom(any::<OutboundInvoicePayment>(), config.clone());
-        json_value_custom(any::<OutboundOfferPayment>(), config.clone());
-        json_value_custom(any::<OutboundSpontaneousPayment>(), config);
+        json_value_custom(any::<InboundInvoicePaymentV1>(), config.clone());
+        json_value_custom(
+            any::<InboundOfferReusablePaymentV1>(),
+            config.clone(),
+        );
+        json_value_custom(any::<InboundSpontaneousPaymentV1>(), config.clone());
+        json_value_custom(any::<OutboundInvoicePaymentV1>(), config.clone());
+        json_value_custom(any::<OutboundOfferPaymentV1>(), config.clone());
+        json_value_custom(any::<OutboundSpontaneousPaymentV1>(), config);
     }
 
     #[test]
@@ -934,7 +952,7 @@ mod test {
         proptest!(|(
             mut rng in any::<FastRng>(),
             vfs_master_key in any::<AesMasterKey>(),
-            p1 in any::<Payment>(),
+            p1 in any::<PaymentV1>(),
             updated_at in any::<TimestampMs>(),
         )| {
             let encrypted = super::encrypt(
@@ -949,16 +967,16 @@ mod test {
     fn payment_id_equivalence() {
         let cfg = Config::with_cases(100);
 
-        proptest!(cfg, |(payment: Payment)| {
+        proptest!(cfg, |(payment: PaymentV1)| {
             let id = match &payment {
-                Payment::OnchainSend(x) => x.id(),
-                Payment::OnchainReceive(x) => x.id(),
-                Payment::InboundInvoice(x) => x.id(),
-                Payment::InboundOfferReusable(x) => x.id(),
-                Payment::InboundSpontaneous(x) => x.id(),
-                Payment::OutboundInvoice(x) => x.id(),
-                Payment::OutboundOffer(x) => x.id(),
-                Payment::OutboundSpontaneous(x) => x.id(),
+                PaymentV1::OnchainSend(x) => x.id(),
+                PaymentV1::OnchainReceive(x) => x.id(),
+                PaymentV1::InboundInvoice(x) => x.id(),
+                PaymentV1::InboundOfferReusable(x) => x.id(),
+                PaymentV1::InboundSpontaneous(x) => x.id(),
+                PaymentV1::OutboundInvoice(x) => x.id(),
+                PaymentV1::OutboundOffer(x) => x.id(),
+                PaymentV1::OutboundSpontaneous(x) => x.id(),
             };
             prop_assert_eq!(id, payment.id());
         });
@@ -980,56 +998,62 @@ mod test {
 
         // Generate COUNT of each payment type for even coverage
         payments.extend(
-            arbitrary::gen_value_iter(&mut rng, any::<OnchainSend>())
+            arbitrary::gen_value_iter(&mut rng, any::<OnchainSendV1>())
                 .take(COUNT)
-                .map(Payment::OnchainSend),
+                .map(PaymentV1::OnchainSend),
         );
         payments.extend(
-            arbitrary::gen_value_iter(&mut rng, any::<OnchainReceive>())
+            arbitrary::gen_value_iter(&mut rng, any::<OnchainReceiveV1>())
                 .take(COUNT)
-                .map(Payment::OnchainReceive),
-        );
-        payments.extend(
-            arbitrary::gen_value_iter(&mut rng, any::<InboundInvoicePayment>())
-                .take(COUNT)
-                .map(Payment::InboundInvoice),
+                .map(PaymentV1::OnchainReceive),
         );
         payments.extend(
             arbitrary::gen_value_iter(
                 &mut rng,
-                any::<InboundOfferReusablePayment>(),
+                any::<InboundInvoicePaymentV1>(),
             )
             .take(COUNT)
-            .map(Payment::InboundOfferReusable),
+            .map(PaymentV1::InboundInvoice),
         );
         payments.extend(
             arbitrary::gen_value_iter(
                 &mut rng,
-                any::<InboundSpontaneousPayment>(),
+                any::<InboundOfferReusablePaymentV1>(),
             )
             .take(COUNT)
-            .map(Payment::InboundSpontaneous),
+            .map(PaymentV1::InboundOfferReusable),
         );
         payments.extend(
             arbitrary::gen_value_iter(
                 &mut rng,
-                any::<OutboundInvoicePayment>(),
+                any::<InboundSpontaneousPaymentV1>(),
             )
             .take(COUNT)
-            .map(Payment::OutboundInvoice),
-        );
-        payments.extend(
-            arbitrary::gen_value_iter(&mut rng, any::<OutboundOfferPayment>())
-                .take(COUNT)
-                .map(Payment::OutboundOffer),
+            .map(PaymentV1::InboundSpontaneous),
         );
         payments.extend(
             arbitrary::gen_value_iter(
                 &mut rng,
-                any::<OutboundSpontaneousPayment>(),
+                any::<OutboundInvoicePaymentV1>(),
             )
             .take(COUNT)
-            .map(Payment::OutboundSpontaneous),
+            .map(PaymentV1::OutboundInvoice),
+        );
+        payments.extend(
+            arbitrary::gen_value_iter(
+                &mut rng,
+                any::<OutboundOfferPaymentV1>(),
+            )
+            .take(COUNT)
+            .map(PaymentV1::OutboundOffer),
+        );
+        payments.extend(
+            arbitrary::gen_value_iter(
+                &mut rng,
+                any::<OutboundSpontaneousPaymentV1>(),
+            )
+            .take(COUNT)
+            .map(PaymentV1::OutboundSpontaneous),
         );
 
         println!("---");
@@ -1042,7 +1066,7 @@ mod test {
         let snapshot_path = Path::new("data/payment-snapshot.v1.json");
         let snapshot = fs::read_to_string(snapshot_path)
             .expect("Failed to read payment snapshot");
-        serde_json::from_str::<Vec<Payment>>(&snapshot)
+        serde_json::from_str::<Vec<PaymentV1>>(&snapshot)
             .expect("Failed to deserialize payment snapshot");
     }
 }

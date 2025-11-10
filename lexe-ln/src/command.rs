@@ -85,12 +85,12 @@ use crate::{
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     payments::{
-        Payment,
-        inbound::InboundInvoicePayment,
+        PaymentV1,
+        inbound::InboundInvoicePaymentV1,
         manager::PaymentsManager,
         outbound::{
             LxOutboundPaymentFailure, OUTBOUND_PAYMENT_RETRY_STRATEGY,
-            OutboundInvoicePayment, OutboundOfferPayment,
+            OutboundInvoicePaymentV1, OutboundOfferPaymentV1,
         },
     },
     route::{self, LastHopHint, RoutingContext},
@@ -867,7 +867,7 @@ where
         .map(LxInvoice)
         .context("Invoice was semantically incorrect")?;
 
-    let payment = InboundInvoicePayment::new(
+    let payment = InboundInvoicePaymentV1::new(
         invoice.clone(),
         hash.into(),
         secret.into(),
@@ -918,7 +918,7 @@ where
     .await?;
     let hash = payment.hash;
 
-    let payment = Payment::from(payment);
+    let payment = PaymentV1::from(payment);
     let id = payment.id();
     let created_at = payment.created_at();
 
@@ -1128,7 +1128,7 @@ where
     // Pre-flight looks good, now we can register this payment in the Lexe
     // payments manager.
     payments_manager
-        .new_payment(Payment::OutboundOffer(payment.clone()))
+        .new_payment(PaymentV1::OutboundOffer(payment.clone()))
         .await
         .context("Already tried to pay this offer")?;
 
@@ -1239,7 +1239,7 @@ where
     let id = onchain_send.id();
     let txid = onchain_send.txid;
 
-    let payment = Payment::from(onchain_send);
+    let payment = PaymentV1::from(onchain_send);
     let created_at = payment.created_at();
 
     // Register the transaction.
@@ -1283,7 +1283,7 @@ pub fn preflight_pay_onchain(
 // A preflighted BOLT11 invoice payment. That is, this is the outcome of
 // validating and routing a BOLT11 invoice, without actually paying yet.
 struct PreflightedPayInvoice {
-    payment: OutboundInvoicePayment,
+    payment: OutboundInvoicePaymentV1,
     route: LxRoute,
     route_params: RouteParameters,
     recipient_fields: RecipientOnionFields,
@@ -1375,7 +1375,8 @@ where
 
     let amount = route.amount();
     let fees = route.fees();
-    let payment = OutboundInvoicePayment::new(invoice, amount, fees, req.note);
+    let payment =
+        OutboundInvoicePaymentV1::new(invoice, amount, fees, req.note);
     Ok(PreflightedPayInvoice {
         payment,
         route,
@@ -1387,7 +1388,7 @@ where
 /// An outbound offer payment that we preflighted (validated and routed) but
 /// haven't paid yet.
 struct PreflightedPayOffer {
-    payment: OutboundOfferPayment,
+    payment: OutboundOfferPaymentV1,
     route: LxRoute,
 }
 
@@ -1491,7 +1492,7 @@ where
 
     let amount = route.amount();
     let fees = route.fees();
-    let payment = OutboundOfferPayment::new(
+    let payment = OutboundOfferPaymentV1::new(
         req.cid, offer, amount, quantity, fees, req.note,
     );
     Ok(PreflightedPayOffer { payment, route })

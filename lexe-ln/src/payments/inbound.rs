@@ -22,7 +22,7 @@ use tracing::warn;
 
 #[cfg(doc)]
 use crate::command::create_invoice;
-use crate::payments::{Payment, manager::CheckedPayment};
+use crate::payments::{PaymentV1, manager::CheckedPayment};
 
 // --- ClaimableError --- //
 
@@ -79,7 +79,7 @@ pub enum LnClaimCtx {
 }
 
 /// Data used to handle a [`PaymentClaimable`]/[`PaymentClaimed`] event for an
-/// [`InboundOfferReusablePayment`].
+/// [`InboundOfferReusablePaymentV1`].
 #[derive(Clone)]
 pub struct OfferClaimCtx {
     pub preimage: LxPaymentPreimage,
@@ -191,11 +191,11 @@ impl LnClaimCtx {
 
 // --- Helpers to delegate to the inner type --- //
 
-/// Helper to handle the [`Payment`] and [`LnClaimCtx`] matching.
+/// Helper to handle the [`PaymentV1`] and [`LnClaimCtx`] matching.
 // Normally we don't want this much indirection, but the calling code is already
 // doing lots of ugly matching (at a higher abstraction level), so in this case
 // the separation makes both functions cleaner and easier to read.
-impl Payment {
+impl PaymentV1 {
     /// ## Precondition
     /// - The payment must not be finalized (`Completed` or `Expired`).
     //
@@ -229,7 +229,7 @@ impl Payment {
                 .check_payment_claimable(
                     hash, secret, preimage, claim_id, amount,
                 )
-                .map(Payment::from)
+                .map(PaymentV1::from)
                 .map(CheckedPayment),
             (
                 Self::InboundOfferReusable(iorp),
@@ -269,7 +269,7 @@ impl Payment {
 /// A 'conventional' inbound payment which is facilitated by an invoice.
 /// This struct is created when we call [`create_invoice`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct InboundInvoicePayment {
+pub struct InboundInvoicePaymentV1 {
     /// Created in [`create_invoice`].
     // LxInvoice is ~300 bytes, Box to avoid the enum variant lint
     pub invoice: Box<LxInvoice>,
@@ -337,7 +337,7 @@ pub enum InboundInvoicePaymentStatus {
     Expired,
 }
 
-impl InboundInvoicePayment {
+impl InboundInvoicePaymentV1 {
     // Event sources:
     // - `create_invoice` API
     pub fn new(
@@ -586,7 +586,7 @@ impl InboundInvoicePayment {
 //
 // Added in `node-v0.7.8`
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct InboundOfferReusablePayment {
+pub struct InboundOfferReusablePaymentV1 {
     /// The claim id uniquely identifies a single payment for this offer.
     /// It is the hash of the HTLC(s) paying a payment hash.
     pub claim_id: LnClaimId,
@@ -637,7 +637,7 @@ pub enum InboundOfferReusablePaymentStatus {
     // here. https://discord.com/channels/915026692102316113/978829624635195422/1085427776070365214
 }
 
-impl InboundOfferReusablePayment {
+impl InboundOfferReusablePaymentV1 {
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     pub(crate) fn new(
@@ -768,7 +768,7 @@ impl InboundOfferReusablePayment {
 /// get a [`PaymentClaimable`] event, with
 /// [`PaymentPurpose::SpontaneousPayment`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct InboundSpontaneousPayment {
+pub struct InboundSpontaneousPaymentV1 {
     /// Given by [`PaymentClaimable`] and [`PaymentClaimed`].
     pub hash: LxPaymentHash,
     /// Given by [`PaymentPurpose`].
@@ -807,7 +807,7 @@ pub enum InboundSpontaneousPaymentStatus {
     // here. https://discord.com/channels/915026692102316113/978829624635195422/1085427776070365214
 }
 
-impl InboundSpontaneousPayment {
+impl InboundSpontaneousPaymentV1 {
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     pub(crate) fn new(
@@ -934,7 +934,7 @@ mod arb {
 
     use super::*;
 
-    impl Arbitrary for InboundInvoicePayment {
+    impl Arbitrary for InboundInvoicePaymentV1 {
         // pending_only: whether to only generate pending payments.
         type Parameters = bool;
         type Strategy = BoxedStrategy<Self>;
@@ -989,7 +989,7 @@ mod arb {
                         .then_some(finalized_at)
                 };
 
-                InboundInvoicePayment {
+                InboundInvoicePaymentV1 {
                     invoice: Box::new(invoice),
                     hash,
                     secret,
@@ -1039,7 +1039,7 @@ mod arb {
         }
     }
 
-    impl Arbitrary for InboundOfferReusablePayment {
+    impl Arbitrary for InboundOfferReusablePaymentV1 {
         // pending_only: whether to only generate pending payments.
         type Parameters = bool;
         type Strategy = BoxedStrategy<Self>;
@@ -1084,7 +1084,7 @@ mod arb {
                         .then_some(finalized_at)
                 };
 
-                InboundOfferReusablePayment {
+                InboundOfferReusablePaymentV1 {
                     preimage,
                     claim_id,
                     offer_id,
@@ -1134,7 +1134,7 @@ mod arb {
         }
     }
 
-    impl Arbitrary for InboundSpontaneousPayment {
+    impl Arbitrary for InboundSpontaneousPaymentV1 {
         // pending_only: whether to only generate pending payments.
         type Parameters = bool;
         type Strategy = BoxedStrategy<Self>;
@@ -1169,7 +1169,7 @@ mod arb {
                                 .then_some(finalized_at)
                         };
 
-                        InboundSpontaneousPayment {
+                        InboundSpontaneousPaymentV1 {
                             hash: preimage.compute_hash(),
                             preimage,
                             amount,
@@ -1261,7 +1261,7 @@ mod test {
 {"InboundInvoice":{"invoice":"lntb107pekvhdzzv93nxn6w09zrq3zw24t9qdr9x9pnsetytp6nqepeffnx6dn6vah8vnpjfueycmm3wcpp5qcu9tkc4x6usl7jkftumlfcfvqsxyan3q9xqrg3gd8k6kfxkyr3qsp5s05y9zkmkf8xmuh3rwtc5fek8h232420qtqy8u2za8ng7apuffdq9q2sqqqqqysgqcqrap2xq8lllllllmpvkk3knlldp0fagwrnazjt6v6zlt028jcdnml44sh3srlskm7gq72w30wzexjqs4fpael458uav02x9lramk36rjduu20zmp858wwcztv6ulmkgq2t6rg7ptwfyly9m9s33whfq7e3ffjvg8ha7tsqad9c5w","hash":"063855db1536b90ffa564af9bfa7096020627671014c01a22869edab24d620e2","secret":"83e8428adbb24e6df2f11b978a27363dd515554f02c043f142e9e68f743c4a5a","preimage":"26071074a14d199cb7a59b2453376d8f428d226d6bc9649778ec5173a8b65c27","claim_id":"5853c5f40d1836b90f41b491442218df896737303a3bd9c7ef02b41b50b7b764","invoice_amount":null,"recvd_amount":"1184154582399605.725","onchain_fees":null,"status":"completed","note":null,"created_at":1789018149910939233,"finalized_at":9223372036854775807}}
 "#;
         for input in snapshot::parse_sample_data(inputs) {
-            let iip: Payment = serde_json::from_str(input).unwrap();
+            let iip: PaymentV1 = serde_json::from_str(input).unwrap();
             let _ = serde_json::to_string(&iip).unwrap();
         }
     }
@@ -1270,12 +1270,13 @@ mod test {
     #[test]
     fn inbound_invoice_sample_data() {
         let mut rng = FastRng::from_u64(202503311959);
-        let values = gen_values(&mut rng, any::<InboundInvoicePayment>(), 100);
+        let values =
+            gen_values(&mut rng, any::<InboundInvoicePaymentV1>(), 100);
 
         // Just give me one per status
         let values = values
             .into_iter()
-            .map(|iip| (iip.status, Payment::from(iip)))
+            .map(|iip| (iip.status, PaymentV1::from(iip)))
             .collect::<HashMap<_, _>>();
 
         for iip in values.values() {
@@ -1295,7 +1296,7 @@ mod test {
 {"InboundOfferReusable":{"claim_id":"eb96fda6879dc37b5ac94cd4fb51fcd46207a5419ba8421e28b6e76eef65432b","offer_id":"7b75825b79f00475d020cf434fdc959f0c0e0cdd9f615c721a06f7a4583dbf58","preimage":"001818bfb88429270827996589fdfa0ab71eea380a3cae294ff8071133b57917","amount":"587897171687152.022","quantity":null,"status":"completed","note":"jIsDb3GkqmGSD0XabFkhbNCIo53jaH92A63t8sNR48bh39797pygoJNLd2oINmIyCS6WP3sp5farGwvt44R4YCNgOYRGH3S3RjKYWLBs2nJPv4TsR8H6qg8xinjxD5eFT0amtJw1VDRC3Y83rOgf0b","payer_note":null,"payer_name":null,"created_at":2100409163582470665,"finalized_at":9223372036854775807}}
 "#;
         for input in snapshot::parse_sample_data(inputs) {
-            let iorp: Payment = serde_json::from_str(input).unwrap();
+            let iorp: PaymentV1 = serde_json::from_str(input).unwrap();
             let _ = serde_json::to_string(&iorp).unwrap();
         }
     }
@@ -1305,9 +1306,9 @@ mod test {
     fn inbound_offer_reusable_sample_data() {
         let mut rng = FastRng::from_u64(202504231920);
         let values =
-            gen_values(&mut rng, any::<InboundOfferReusablePayment>(), 100);
+            gen_values(&mut rng, any::<InboundOfferReusablePaymentV1>(), 100);
         for iorp in values {
-            let payment = Payment::from(iorp);
+            let payment = PaymentV1::from(iorp);
             println!("{}", serde_json::to_string(&payment).unwrap());
         }
     }

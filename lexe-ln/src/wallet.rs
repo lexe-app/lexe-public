@@ -76,7 +76,7 @@ use tracing::{debug, info, instrument, warn};
 
 use crate::{
     esplora::{FeeEstimates, LexeEsplora},
-    payments::onchain::OnchainSend,
+    payments::onchain::OnchainSendV1,
     traits::LexePersister,
 };
 
@@ -966,12 +966,12 @@ impl LexeWallet {
     }
 
     /// Create and sign a transaction which sends the given amount to the given
-    /// address, packaging up all of this info in a new [`OnchainSend`].
+    /// address, packaging up all of this info in a new [`OnchainSendV1`].
     pub(crate) fn create_onchain_send(
         &self,
         req: PayOnchainRequest,
         network: LxNetwork,
-    ) -> anyhow::Result<OnchainSend> {
+    ) -> anyhow::Result<OnchainSendV1> {
         let (tx, fees) = {
             let mut locked_wallet = self.inner.write().unwrap();
 
@@ -1008,7 +1008,7 @@ impl LexeWallet {
         };
         self.trigger_persist();
 
-        Ok(OnchainSend::new(tx, req, fees))
+        Ok(OnchainSendV1::new(tx, req, fees))
     }
 
     /// Estimate the network fee for a potential onchain send payment. We return
@@ -1656,7 +1656,7 @@ mod test {
             &self,
             address: bitcoin::Address<bitcoin::address::NetworkUnchecked>,
             amount: Amount,
-        ) -> OnchainSend {
+        ) -> OnchainSendV1 {
             let send_req = PayOnchainRequest {
                 cid: ClientPaymentId([42; 32]),
                 address,

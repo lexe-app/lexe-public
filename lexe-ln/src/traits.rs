@@ -22,7 +22,7 @@ use crate::{
     },
     event::{EventHandleError, EventId},
     payments::{
-        Payment,
+        PaymentV1,
         manager::{CheckedPayment, PersistedPayment},
     },
 };
@@ -32,7 +32,7 @@ use crate::{
 pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
     // --- Required methods --- //
 
-    async fn get_pending_payments(&self) -> anyhow::Result<Vec<Payment>>;
+    async fn get_pending_payments(&self) -> anyhow::Result<Vec<PaymentV1>>;
 
     async fn upsert_payment(
         &self,
@@ -47,7 +47,7 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
     async fn get_payment_by_id(
         &self,
         id: LxPaymentId,
-    ) -> anyhow::Result<Option<Payment>>;
+    ) -> anyhow::Result<Option<PaymentV1>>;
 
     async fn persist_manager<CM: Writeable + Send + Sync>(
         &self,
