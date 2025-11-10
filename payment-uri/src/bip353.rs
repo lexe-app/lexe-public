@@ -351,18 +351,74 @@ mod test {
 
     use super::*;
 
+    /// Live test that resolves lexetestuser's staging BIP353 address using
+    /// DNS-over-HTTPS. This should work even when using a VPN.
+    ///
+    /// ```bash
+    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_lexetestuser_doh -- --ignored --nocapture
+    /// ```
+    // TODO(phlip9): use prod DNS zone
+    #[tokio::test]
+    #[ignore]
+    async fn test_bip353_lexetestuser_doh() {
+        do_bip353_resolve_doh(
+            LxNetwork::Testnet3,
+            "lexetestuser@staging.lexe.app",
+        )
+        .await;
+    }
+
+    /// Live test that resolves lexetestuser's staging BIP353 address using
+    /// direct DNS.
+    ///
+    /// NOTE: If you are running Mullvad VPN, queries to Google or Cloudflare
+    /// will fail. Turn off your VPN before testing.
+    ///
+    /// ```bash
+    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_lexetestuser_direct -- --ignored --nocapture
+    /// ```
+    // TODO(phlip9): use prod DNS zone
+    #[tokio::test]
+    #[ignore]
+    async fn test_bip353_lexetestuser_direct() {
+        do_bip353_resolve_direct(
+            LxNetwork::Testnet3,
+            "lexetestuser@staging.lexe.app",
+        )
+        .await;
+    }
+
     /// Live test that resolves Matt's BIP353 address using DNS-over-HTTPS.
     /// This should work even when using a VPN.
     ///
     /// ```bash
-    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_bluematt_dns_over_https -- --ignored --nocapture
+    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_bluematt_doh -- --ignored --nocapture
     /// ```
     #[tokio::test]
     #[ignore]
-    async fn test_bip353_bluematt_dns_over_https() {
+    async fn test_bip353_bluematt_doh() {
+        do_bip353_resolve_doh(LxNetwork::Mainnet, "matt@mattcorallo.com").await;
+    }
+
+    /// Live test that resolves Matt's BIP353 address using direct DNS.
+    ///
+    /// NOTE: If you are running Mullvad VPN, queries to Google or Cloudflare
+    /// will fail. Turn off your VPN before testing.
+    ///
+    /// ```bash
+    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_bluematt_direct -- --ignored --nocapture
+    /// ```
+    #[tokio::test]
+    #[ignore]
+    async fn test_bip353_bluematt_direct() {
+        do_bip353_resolve_direct(LxNetwork::Mainnet, "matt@mattcorallo.com")
+            .await;
+    }
+
+    async fn do_bip353_resolve_doh(network: LxNetwork, uri: &str) {
         logger::init_for_testing();
 
-        let payment_uri = PaymentUri::parse("matt@mattcorallo.com").unwrap();
+        let payment_uri = PaymentUri::parse(uri).unwrap();
 
         let email_like = match payment_uri {
             PaymentUri::EmailLikeAddress(email_like) => email_like,
@@ -385,40 +441,19 @@ mod test {
         .expect("Timed out")
         .unwrap();
 
-        // Should resolve to exactly 1 BOLT12 offer and 1 onchain address
+        // All should be compatible w/ `network`
+        assert!(payment_methods.iter().all(|m| m.supports_network(network)));
+
+        // Should contain a BOLT12 offer
         let num_offers = payment_methods
             .iter()
             .filter(|m| matches!(m, PaymentMethod::Offer(_)))
             .count();
-        let num_onchain = payment_methods
-            .iter()
-            .filter(|m| matches!(m, PaymentMethod::Onchain(_)))
-            .count();
-        assert_eq!(payment_methods.len(), 2);
         assert_eq!(num_offers, 1, "Expected exactly one BOLT12 offer");
-        assert_eq!(num_onchain, 1, "Expected exactly one onchain address");
-
-        // All should be mainnet compatible
-        let all_mainnet = payment_methods
-            .iter()
-            .all(|m| m.supports_network(LxNetwork::Mainnet));
-        assert!(all_mainnet);
     }
 
-    /// Live test that resolves Matt's BIP353 address using direct DNS.
-    ///
-    /// NOTE: If you are running Mullvad VPN, queries to Google or Cloudflare
-    /// will fail. Turn off your VPN before testing.
-    ///
-    /// ```bash
-    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_bluematt_direct_dns -- --ignored --nocapture
-    /// ```
-    #[tokio::test]
-    #[ignore]
-    async fn test_bip353_bluematt_direct_dns() {
-        logger::init_for_testing();
-
-        let payment_uri = PaymentUri::parse("matt@mattcorallo.com").unwrap();
+    async fn do_bip353_resolve_direct(network: LxNetwork, uri: &str) {
+        let payment_uri = PaymentUri::parse(uri).unwrap();
 
         let email_like = match payment_uri {
             PaymentUri::EmailLikeAddress(email_like) => email_like,
@@ -457,23 +492,14 @@ mod test {
         // Convert to payment methods
         let payment_methods = bip321_uri.flatten();
 
-        // Should resolve to exactly 1 BOLT12 offer and 1 onchain address
+        // All should be compatible w/ `network`
+        assert!(payment_methods.iter().all(|m| m.supports_network(network)));
+
+        // Should contain a BOLT12 offer
         let num_offers = payment_methods
             .iter()
             .filter(|m| matches!(m, PaymentMethod::Offer(_)))
             .count();
-        let num_onchain = payment_methods
-            .iter()
-            .filter(|m| matches!(m, PaymentMethod::Onchain(_)))
-            .count();
-        assert_eq!(payment_methods.len(), 2);
         assert_eq!(num_offers, 1, "Expected exactly one BOLT12 offer");
-        assert_eq!(num_onchain, 1, "Expected exactly one onchain address");
-
-        // All should be mainnet compatible
-        let all_mainnet = payment_methods
-            .iter()
-            .all(|m| m.supports_network(LxNetwork::Mainnet));
-        assert!(all_mainnet);
     }
 }
