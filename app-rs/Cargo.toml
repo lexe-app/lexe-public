@@ -41,7 +41,6 @@ cfg-if.workspace = true
 http.workspace = true
 keyring = { workspace = true, default-features = false }
 reqwest = { workspace = true, features = ["json"] }
-roaring.workspace = true
 secrecy.workspace = true
 semver = { workspace = true, features = ["serde"] }
 serde.workspace = true

@@ -142,8 +142,6 @@ rand_core = { version = "0.6", default-features = false, features = ["alloc"] }
 rcgen = { version = "0.12", default-features = false, features = ["ring", "zeroize"] }
 # Safely cast &T to &U when T is a single field new-type
 ref-cast = "1"
-# Efficient sparse bitmap data structure
-roaring = "0.10"
 # Pure Rust RSA implementation by RustCrypto. Used for SGX .sigstruct signing.
 rsa = { version = "0.9.6", default-features = false, features = ["u64_digit"] }
 # Decimal number representation suitable for financial calculations
