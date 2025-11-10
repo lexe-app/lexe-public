@@ -817,6 +817,8 @@ impl OutboundSpontaneousPaymentStatus {
 
 #[cfg(test)]
 mod test {
+    use std::{fs, path::Path};
+
     use common::{
         rng::FastRng,
         test_utils::{arbitrary, roundtrip},
@@ -960,5 +962,87 @@ mod test {
             };
             prop_assert_eq!(id, payment.id());
         });
+    }
+
+    /// Dumps a JSON array of `Payment`s using the proptest strategy.
+    /// Generates N of each payment sub-type to ensure even coverage.
+    ///
+    /// ```bash
+    /// $ cargo test -p lexe-ln --lib -- --ignored take_payments_snapshot --show-output
+    /// ```
+    #[ignore]
+    #[test]
+    fn take_payments_snapshot() {
+        const COUNT: usize = 5;
+        let seed = 20250316; // Base seed for all variants
+        let mut rng = FastRng::from_u64(seed);
+        let mut payments = Vec::new();
+
+        // Generate COUNT of each payment type for even coverage
+        payments.extend(
+            arbitrary::gen_value_iter(&mut rng, any::<OnchainSend>())
+                .take(COUNT)
+                .map(Payment::OnchainSend),
+        );
+        payments.extend(
+            arbitrary::gen_value_iter(&mut rng, any::<OnchainReceive>())
+                .take(COUNT)
+                .map(Payment::OnchainReceive),
+        );
+        payments.extend(
+            arbitrary::gen_value_iter(&mut rng, any::<InboundInvoicePayment>())
+                .take(COUNT)
+                .map(Payment::InboundInvoice),
+        );
+        payments.extend(
+            arbitrary::gen_value_iter(
+                &mut rng,
+                any::<InboundOfferReusablePayment>(),
+            )
+            .take(COUNT)
+            .map(Payment::InboundOfferReusable),
+        );
+        payments.extend(
+            arbitrary::gen_value_iter(
+                &mut rng,
+                any::<InboundSpontaneousPayment>(),
+            )
+            .take(COUNT)
+            .map(Payment::InboundSpontaneous),
+        );
+        payments.extend(
+            arbitrary::gen_value_iter(
+                &mut rng,
+                any::<OutboundInvoicePayment>(),
+            )
+            .take(COUNT)
+            .map(Payment::OutboundInvoice),
+        );
+        payments.extend(
+            arbitrary::gen_value_iter(&mut rng, any::<OutboundOfferPayment>())
+                .take(COUNT)
+                .map(Payment::OutboundOffer),
+        );
+        payments.extend(
+            arbitrary::gen_value_iter(
+                &mut rng,
+                any::<OutboundSpontaneousPayment>(),
+            )
+            .take(COUNT)
+            .map(Payment::OutboundSpontaneous),
+        );
+
+        println!("---");
+        println!("{}", serde_json::to_string_pretty(&payments).unwrap());
+        println!("---");
+    }
+
+    #[test]
+    fn test_payment_snapshots() {
+        let snapshot_path = Path::new("data/payment-snapshot.v1.json");
+        let snapshot = fs::read_to_string(snapshot_path)
+            .expect("Failed to read payment snapshot");
+        serde_json::from_str::<Vec<Payment>>(&snapshot)
+            .expect("Failed to deserialize payment snapshot");
     }
 }
