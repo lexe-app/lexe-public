@@ -81,7 +81,7 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
 ///    `check_*` methods available on each specific payment type.
 /// 2) Persist: We persist the validated state transition, returning a
 ///    [`PersistedPayment`] if persistence succeeded. This is handled by the
-///    [`create_payment`] and [`persist_payment`] methods.
+///    [`upsert_payment`] and [`upsert_payment_batch`] methods.
 /// 3) Commit: We commit the validated + persisted state transition to the local
 ///    state. This is done by [`PaymentsData::commit`].
 ///
@@ -91,8 +91,8 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
 /// persist, and commit stages. TODO(max): If this turns out to be a performance
 /// bottleneck, we should switch to per-payment or per-payment-type locks.
 ///
-/// [`create_payment`]: crate::traits::LexeInnerPersister::create_payment
-/// [`persist_payment`]: crate::traits::LexeInnerPersister::persist_payment
+/// [`upsert_payment`]: crate::traits::LexeInnerPersister::upsert_payment
+/// [`upsert_payment_batch`]: crate::traits::LexeInnerPersister::upsert_payment_batch
 #[cfg_attr(test, derive(Clone, Debug))]
 struct PaymentsData {
     pending: HashMap<LxPaymentId, Payment>,
@@ -391,7 +391,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Persist
         let persisted = self
             .persister
-            .persist_payment(CheckedPayment(payment_clone))
+            .upsert_payment(CheckedPayment(payment_clone))
             .await
             .context("Could not persist updated payment")?;
 
@@ -473,7 +473,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             // Persist
             let persisted = self
                 .persister
-                .persist_payment(checked)
+                .upsert_payment(checked)
                 .await
                 .map_err(ClaimableError::Persist)?;
 
@@ -581,7 +581,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Persist
         let persisted = self
             .persister
-            .persist_payment(checked)
+            .upsert_payment(checked)
             .await
             .context("Could not persist payment")?;
 
@@ -635,7 +635,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Persist
         let persisted = self
             .persister
-            .persist_payment(checked)
+            .upsert_payment(checked)
             .await
             .context("Could not persist payment")?;
 
@@ -694,7 +694,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Persist
         let persisted = self
             .persister
-            .persist_payment(checked)
+            .upsert_payment(checked)
             .await
             .context("Could not persist payment")?;
 
@@ -732,7 +732,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             // Persist
             let all_persisted = self
                 .persister
-                .persist_payment_batch(all_checked)
+                .upsert_payment_batch(all_checked)
                 .await
                 .context("Couldn't persist payment batch")?;
 
@@ -792,7 +792,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Persist
         let persisted = self
             .persister
-            .persist_payment(checked)
+            .upsert_payment(checked)
             .await
             .context("Persist failed")?;
 
@@ -855,7 +855,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Persist
         let all_persisted = self
             .persister
-            .persist_payment_batch(all_checked)
+            .upsert_payment_batch(all_checked)
             .await
             .context("Couldn't persist payment batch")?;
 

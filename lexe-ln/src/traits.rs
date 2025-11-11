@@ -39,12 +39,12 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
         checked: CheckedPayment,
     ) -> anyhow::Result<PersistedPayment>;
 
-    async fn persist_payment(
+    async fn upsert_payment(
         &self,
         checked: CheckedPayment,
     ) -> anyhow::Result<PersistedPayment>;
 
-    async fn persist_payment_batch(
+    async fn upsert_payment_batch(
         &self,
         checked_batch: Vec<CheckedPayment>,
     ) -> anyhow::Result<Vec<PersistedPayment>>;
