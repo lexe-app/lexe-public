@@ -499,7 +499,7 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn get_payment_by_id(
+    async fn get_payment_by_id_v1(
         &self,
         req: LxPaymentIdStruct,
         auth: BearerAuthToken,

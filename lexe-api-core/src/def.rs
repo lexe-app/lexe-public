@@ -697,7 +697,7 @@ pub trait NodeBackendApi {
     ) -> Result<Empty, BackendApiError>;
 
     /// GET /node/v1/payments/id [`LxPaymentIdStruct`] -> [`MaybeDbPaymentV1`]
-    async fn get_payment_by_id(
+    async fn get_payment_by_id_v1(
         &self,
         req: LxPaymentIdStruct,
         auth: BearerAuthToken,

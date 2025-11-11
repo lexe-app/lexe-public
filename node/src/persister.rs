@@ -804,7 +804,7 @@ impl LexeInnerPersister for NodePersister {
         let token = self.get_token().await?;
         let maybe_payment = self
             .backend_api
-            .get_payment_by_id(req, token)
+            .get_payment_by_id_v1(req, token)
             .await
             .context("Could not fetch `DbPaymentV1`s")?
             .maybe_payment
