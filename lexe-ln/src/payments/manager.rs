@@ -50,9 +50,14 @@ const ONCHAIN_PAYMENT_CHECK_DELAY: Duration = Duration::from_secs(2);
 pub struct CheckedPayment(pub Payment);
 
 /// Annotates that a given [`Payment`] was successfully persisted.
+/// `created_at` and `updated_at` are assigned at the time of persistence.
 /// [`PersistedPayment`]s should be committed to the local payments state.
 #[must_use]
-pub struct PersistedPayment(pub Payment);
+pub struct PersistedPayment {
+    pub payment: Payment,
+    pub created_at: TimestampMs,
+    pub updated_at: TimestampMs,
+}
 
 /// The top-level, cloneable actor which exposes the main entrypoints for
 /// various payment actions, including creating, updating, and finalizing
@@ -953,7 +958,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 impl PaymentsData {
     /// Commits a [`PersistedPayment`] to the local state.
     fn commit(&mut self, persisted: PersistedPayment) {
-        let payment = persisted.0;
+        let payment = persisted.payment;
         let id = payment.id();
 
         payment.debug_assert_invariants();
@@ -1352,7 +1357,12 @@ mod test {
         /// Assert that a `CheckedPayment` was persisted without actually
         /// persisting.
         fn persisted(self) -> PersistedPayment {
-            PersistedPayment(self.0)
+            PersistedPayment {
+                payment: self.0,
+                // Set some dummy values for these
+                created_at: TimestampMs::MIN,
+                updated_at: TimestampMs::MAX,
+            }
         }
     }
 

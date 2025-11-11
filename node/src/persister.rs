@@ -777,11 +777,13 @@ impl LexeInnerPersister for NodePersister {
     ) -> anyhow::Result<PersistedPayment> {
         let mut rng = SysRng::new();
 
+        let payment = checked.0;
+        let created_at = payment.created_at();
         let updated_at = TimestampMs::now();
         let db_payment = payments::encrypt(
             &mut rng,
             &self.vfs_master_key,
-            &checked.0,
+            &payment,
             updated_at,
         );
         let token = self.get_token().await?;
@@ -791,7 +793,11 @@ impl LexeInnerPersister for NodePersister {
             .await
             .context("upsert_payment API call failed")?;
 
-        Ok(PersistedPayment(checked.0))
+        Ok(PersistedPayment {
+            payment,
+            created_at,
+            updated_at,
+        })
     }
 
     async fn upsert_payment_batch(
@@ -825,8 +831,16 @@ impl LexeInnerPersister for NodePersister {
 
         let persisted_batch = checked_batch
             .into_iter()
-            .map(|CheckedPayment(p)| PersistedPayment(p))
+            .map(|CheckedPayment(payment)| {
+                let created_at = payment.created_at();
+                PersistedPayment {
+                    payment,
+                    created_at,
+                    updated_at,
+                }
+            })
             .collect::<Vec<PersistedPayment>>();
+
         Ok(persisted_batch)
     }
 
