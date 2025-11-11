@@ -36,8 +36,8 @@ use lexe_api::{
         Empty,
         payments::{
             DbPaymentMetadata, DbPaymentV1, DbPaymentV2,
-            MaybeDbPaymentMetadata, MaybeDbPaymentV1, VecDbPaymentMetadata,
-            VecDbPaymentV1, VecDbPaymentV2,
+            MaybeDbPaymentMetadata, MaybeDbPaymentV1, MaybeDbPaymentV2,
+            VecDbPaymentMetadata, VecDbPaymentV1, VecDbPaymentV2,
         },
         ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
@@ -508,6 +508,19 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .get(format!("{backend}/node/v1/payments/id"), &req)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn get_payment_by_id(
+        &self,
+        req: LxPaymentIdStruct,
+        auth: BearerAuthToken,
+    ) -> Result<MaybeDbPaymentV2, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .get(format!("{backend}/node/v2/payments/id"), &req)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }

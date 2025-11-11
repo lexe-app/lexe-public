@@ -109,9 +109,9 @@ use crate::{
         },
         payments::{
             DbPaymentMetadata, DbPaymentV1, DbPaymentV2,
-            MaybeDbPaymentMetadata, MaybeDbPaymentV1, VecBasicPaymentV1,
-            VecBasicPaymentV2, VecDbPaymentMetadata, VecDbPaymentV1,
-            VecDbPaymentV2,
+            MaybeDbPaymentMetadata, MaybeDbPaymentV1, MaybeDbPaymentV2,
+            VecBasicPaymentV1, VecBasicPaymentV2, VecDbPaymentMetadata,
+            VecDbPaymentV1, VecDbPaymentV2,
         },
         ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
@@ -702,6 +702,13 @@ pub trait NodeBackendApi {
         req: LxPaymentIdStruct,
         auth: BearerAuthToken,
     ) -> Result<MaybeDbPaymentV1, BackendApiError>;
+
+    /// GET /node/v2/payments/id [`LxPaymentIdStruct`] -> [`MaybeDbPaymentV2`]
+    async fn get_payment_by_id(
+        &self,
+        req: LxPaymentIdStruct,
+        auth: BearerAuthToken,
+    ) -> Result<MaybeDbPaymentV2, BackendApiError>;
 
     /// GET /node/v1/payments/index [`PaymentCreatedIndexStruct`]
     ///                          -> [`MaybeDbPaymentV1`]
