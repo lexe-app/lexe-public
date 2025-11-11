@@ -351,16 +351,41 @@ mod test {
 
     use super::*;
 
+    /// Live test that resolves philip's prod BIP353 address using
+    /// DNS-over-HTTPS. This should work even when using a VPN.
+    ///
+    /// ```bash
+    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_philip_prod_doh -- --ignored --nocapture
+    /// ```
+    #[tokio::test]
+    #[ignore]
+    async fn test_bip353_philip_prod_doh() {
+        do_bip353_resolve_doh(LxNetwork::Mainnet, "philip@lexe.app").await;
+    }
+
+    /// Live test that resolves philip's prod BIP353 address using direct DNS.
+    ///
+    /// NOTE: If you are running Mullvad VPN, queries to Google or Cloudflare
+    /// will fail. Turn off your VPN before testing.
+    ///
+    /// ```bash
+    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_philip_prod_direct -- --ignored --nocapture
+    /// ```
+    #[tokio::test]
+    #[ignore]
+    async fn test_bip353_philip_prod_direct() {
+        do_bip353_resolve_direct(LxNetwork::Mainnet, "philip@lexe.app").await;
+    }
+
     /// Live test that resolves lexetestuser's staging BIP353 address using
     /// DNS-over-HTTPS. This should work even when using a VPN.
     ///
     /// ```bash
-    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_lexetestuser_doh -- --ignored --nocapture
+    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_lexetestuser_staging_doh -- --ignored --nocapture
     /// ```
-    // TODO(phlip9): use prod DNS zone
     #[tokio::test]
     #[ignore]
-    async fn test_bip353_lexetestuser_doh() {
+    async fn test_bip353_lexetestuser_staging_doh() {
         do_bip353_resolve_doh(
             LxNetwork::Testnet3,
             "lexetestuser@staging.lexe.app",
@@ -375,12 +400,11 @@ mod test {
     /// will fail. Turn off your VPN before testing.
     ///
     /// ```bash
-    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_lexetestuser_direct -- --ignored --nocapture
+    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_lexetestuser_staging_direct -- --ignored --nocapture
     /// ```
-    // TODO(phlip9): use prod DNS zone
     #[tokio::test]
     #[ignore]
-    async fn test_bip353_lexetestuser_direct() {
+    async fn test_bip353_lexetestuser_staging_direct() {
         do_bip353_resolve_direct(
             LxNetwork::Testnet3,
             "lexetestuser@staging.lexe.app",
