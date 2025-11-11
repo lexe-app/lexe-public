@@ -674,6 +674,7 @@ pub trait NodeBackendApi {
     ) -> Result<MaybeDbPaymentV1, BackendApiError>;
 
     /// POST /node/v1/payments [`DbPaymentV1`] -> [`Empty`]
+    #[deprecated(note = "since node-v0.8.10: Use upsert_payment instead")]
     async fn create_payment(
         &self,
         payment: DbPaymentV1,

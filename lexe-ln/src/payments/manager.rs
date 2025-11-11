@@ -299,7 +299,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         let persisted = self
             .persister
-            .create_payment(checked)
+            .upsert_payment(checked)
             .await
             .context("Could not persist new payment")?;
 
