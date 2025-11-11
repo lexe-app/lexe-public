@@ -5,7 +5,8 @@ import 'package:app_rs_dart/ffi/types.dart' show Username;
 import 'package:flutter/foundation.dart'
     show Listenable, ValueListenable, ValueNotifier;
 import 'package:lexeapp/app_data.dart' show LxAppData;
-import 'package:lexeapp/logger.dart' show error;
+import 'package:lexeapp/backoff.dart' show ClampedExpBackoff, retryWithBackoff;
+import 'package:lexeapp/logger.dart' show debug, error;
 import 'package:lexeapp/notifier_ext.dart' show LxChangeNotifier;
 import 'package:lexeapp/result.dart' show Err, Ok, Result;
 
@@ -52,17 +53,26 @@ class PaymentAddressService {
 
     // Do sync
     this._isFetching.value = true;
-    final res = await Result.tryFfiAsync(this._app.getPaymentAddress);
+    final res = await this._fetchWithRetries(
+      // Stop retries early
+      isCanceled: () => this.isDisposed,
+      onError: (String err) {
+        error("paymentAddress: Failed to fetch: $err");
+      },
+    );
     if (this.isDisposed) return;
 
     this._isFetching.value = false;
 
     switch (res) {
+      case null:
+        debug("paymentAddress: Cancelled");
+        return;
       case Ok(:final ok):
         this._appData.update(AppData(paymentAddress: ok));
         this._lastFetchedAt = DateTime.now();
-      case Err(:final err):
-        error("payment-address: err: ${err.message}");
+      case Err():
+        error("paymentAddress: Exhausted retries");
     }
 
     this._completed.notify();
@@ -101,4 +111,21 @@ class PaymentAddressService {
 
     this.isDisposed = true;
   }
+
+  Future<Result<PaymentAddress, void>> _fetch() async =>
+      Result.tryFfiAsync(this._app.getPaymentAddress);
+
+  Future<Result<PaymentAddress, void>?> _fetchWithRetries({
+    required bool Function() isCanceled,
+    void Function(String)? onError,
+  }) async => retryWithBackoff(
+    () => this._fetch(),
+    backoff: const ClampedExpBackoff(
+      base: Duration(milliseconds: 2500),
+      exp: 2.0,
+      max: Duration(minutes: 1),
+    ),
+    isCanceled: isCanceled,
+    onError: onError,
+  );
 }
