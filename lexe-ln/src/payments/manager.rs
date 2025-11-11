@@ -10,7 +10,8 @@ use common::{
 use lexe_api::{
     models::command::UpdatePaymentNote,
     types::payments::{
-        LnClaimId, LxPaymentHash, LxPaymentId, LxPaymentPreimage, PaymentStatus,
+        LnClaimId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
+        PaymentCreatedIndex, PaymentStatus,
     },
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
@@ -272,12 +273,19 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     }
 
     /// Register a new, globally-unique payment.
+    ///
     /// Errors if the payment already exists.
+    ///
+    /// Returns the newly-assigned [`PaymentCreatedIndex`] for convenience.
+    //
     // TODO(phlip9): might be clearer semantics if we assign the
     // new payment's `created_at` _inside_ the lock... this would make
     // payments properly append-only with a strictly increasing `created_at`
     #[instrument(skip_all, name = "(new-payment)")]
-    pub async fn new_payment(&self, payment: Payment) -> anyhow::Result<()> {
+    pub async fn new_payment(
+        &self,
+        payment: Payment,
+    ) -> anyhow::Result<PaymentCreatedIndex> {
         let mut locked_data = self.data.lock().await;
         self.new_payment_inner(&mut locked_data, payment).await
     }
@@ -287,7 +295,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         &self,
         locked_data: &mut MutexGuard<'_, PaymentsData>,
         payment: Payment,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<PaymentCreatedIndex> {
         let id = payment.id();
         info!(%id, "Registering new payment");
 
@@ -307,10 +315,11 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             .upsert_payment(checked)
             .await
             .context("Could not persist new payment")?;
+        let created_at = persisted.created_at;
 
         locked_data.commit(persisted);
 
-        Ok(())
+        Ok(PaymentCreatedIndex { id, created_at })
     }
 
     /// Get a [`Payment`] by its [`LxPaymentId`].
