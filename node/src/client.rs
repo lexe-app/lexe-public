@@ -609,6 +609,19 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
+    async fn get_pending_payments(
+        &self,
+        auth: BearerAuthToken,
+    ) -> Result<VecDbPaymentV2, BackendApiError> {
+        let backend = &self.backend_url;
+        let data = Empty {};
+        let req = self
+            .rest
+            .get(format!("{backend}/node/v2/payments/pending"), &data)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
     async fn get_finalized_payment_ids(
         &self,
         auth: BearerAuthToken,

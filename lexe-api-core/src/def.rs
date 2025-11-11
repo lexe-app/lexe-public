@@ -807,6 +807,14 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentV1, BackendApiError>;
 
+    /// GET /node/v2/payments/pending -> [`VecDbPaymentV2`]
+    ///
+    /// Fetches all pending payments.
+    async fn get_pending_payments(
+        &self,
+        auth: BearerAuthToken,
+    ) -> Result<VecDbPaymentV2, BackendApiError>;
+
     /// GET /node/v1/payments/final -> [`VecLxPaymentId`]
     ///
     /// Fetches the IDs of all finalized payments.
