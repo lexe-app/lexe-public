@@ -412,10 +412,20 @@ mod arbitrary_impl {
                         scheme = LnurlScheme::Https;
                     }
 
+                    // url can chance into a valid `tag` query parameter, so
+                    // try to parse that out.
+                    let uri =
+                        Uri::parse(&url).expect("Generated URL should parse");
+                    let tag = uri
+                        .params
+                        .into_iter()
+                        .find(|param| param.key_parsed().is("tag"))
+                        .map(|param| Cow::Owned(param.value.into_owned()));
+
                     Lnurl {
                         http_url: Cow::Owned(url),
                         scheme,
-                        tag: None,
+                        tag,
                     }
                 })
                 .boxed()
@@ -470,7 +480,7 @@ mod test {
 
             let bech32 = lnurl1.to_bech32().unwrap();
             let lnurl2 = Lnurl::parse_bech32(&bech32).unwrap();
-            prop_assert_eq!(lnurl1, lnurl2);
+            prop_assert_eq!(lnurl1, lnurl2, " lnurl: '{}'", bech32);
         });
     }
 
