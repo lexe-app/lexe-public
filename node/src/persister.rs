@@ -759,7 +759,7 @@ impl Vfs for NodePersister {
 
 #[async_trait]
 impl LexeInnerPersister for NodePersister {
-    async fn read_pending_payments(&self) -> anyhow::Result<Vec<Payment>> {
+    async fn get_pending_payments(&self) -> anyhow::Result<Vec<Payment>> {
         let token = self.get_token().await?;
         self.backend_api
             .get_pending_payments(token)

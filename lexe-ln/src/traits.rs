@@ -32,7 +32,7 @@ use crate::{
 pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
     // --- Required methods --- //
 
-    async fn read_pending_payments(&self) -> anyhow::Result<Vec<Payment>>;
+    async fn get_pending_payments(&self) -> anyhow::Result<Vec<Payment>>;
 
     async fn upsert_payment(
         &self,
