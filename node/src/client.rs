@@ -561,15 +561,10 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn get_payments_by_indexes(
         &self,
-        req: PaymentCreatedIndexes,
-        auth: BearerAuthToken,
+        _: PaymentCreatedIndexes,
+        _: BearerAuthToken,
     ) -> Result<VecDbPaymentV1, BackendApiError> {
-        let backend = &self.backend_url;
-        let req = self
-            .rest
-            .post(format!("{backend}/node/v1/payments/indexes"), &req)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
+        unimplemented!("Deprecated")
     }
 
     async fn get_payments_by_ids(

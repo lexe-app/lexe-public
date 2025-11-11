@@ -40,7 +40,10 @@ use lexe_api::{
     server::{LxJson, extract::LxQuery},
     types::{
         Empty,
-        payments::{MaybeBasicPaymentV2, VecBasicPaymentV1, VecBasicPaymentV2},
+        payments::{
+            BasicPaymentV1, MaybeBasicPaymentV2, VecBasicPaymentV1,
+            VecBasicPaymentV2,
+        },
         username::UsernameStruct,
     },
     vfs::{self, Vfs, VfsDirectory},
@@ -376,10 +379,12 @@ pub(super) async fn get_payments_by_indexes(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PaymentCreatedIndexes>,
 ) -> Result<LxJson<VecBasicPaymentV1>, NodeApiError> {
+    let ids = req.indexes.into_iter().map(|index| index.id).collect();
     let payments = state
         .persister
-        .read_payments_by_indexes(req)
+        .read_payments_by_ids(ids)
         .await
+        .map(|p| p.into_iter().map(BasicPaymentV1::from).collect())
         .map_err(NodeApiError::command)?;
     Ok(LxJson(VecBasicPaymentV1 { payments }))
 }

@@ -685,13 +685,9 @@ impl AppNodeRunApi for NodeClient {
 
     async fn get_payments_by_indexes(
         &self,
-        req: PaymentCreatedIndexes,
+        _: PaymentCreatedIndexes,
     ) -> Result<VecBasicPaymentV1, NodeApiError> {
-        self.ensure_authed().await?;
-        let run_url = &self.run_url;
-        let url = format!("{run_url}/app/payments/indexes");
-        let req = self.run_rest.post(url, &req);
-        self.run_rest.send(req).await
+        unimplemented!("Deprecated")
     }
 
     async fn get_new_payments(

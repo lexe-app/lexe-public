@@ -56,8 +56,7 @@ use lexe_api::{
     def::NodeBackendApi,
     error::{BackendApiError, BackendErrorKind},
     models::command::{
-        GetNewPayments, GetUpdatedPayments, LxPaymentIdStruct,
-        PaymentCreatedIndexes,
+        GetNewPayments, GetUpdatedPayments, LxPaymentIdStruct, VecLxPaymentId,
     },
     types::{
         Empty,
@@ -467,22 +466,6 @@ impl NodePersister {
         Ok(maybe_changeset)
     }
 
-    pub(crate) async fn read_payments_by_indexes(
-        &self,
-        req: PaymentCreatedIndexes,
-    ) -> anyhow::Result<Vec<BasicPaymentV1>> {
-        let token = self.get_token().await?;
-        self.backend_api
-            .get_payments_by_indexes(req, token)
-            .await
-            .context("Could not fetch `DbPaymentV1`s")?
-            .payments
-            .into_iter()
-            .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
-            .map(|res| res.map(BasicPaymentV1::from))
-            .collect::<anyhow::Result<Vec<BasicPaymentV1>>>()
-    }
-
     pub(crate) async fn read_new_payments(
         &self,
         req: GetNewPayments,
@@ -550,6 +533,35 @@ impl NodePersister {
             .transpose()?;
 
         Ok(maybe_payment)
+    }
+
+    pub(crate) async fn read_payments_by_ids(
+        &self,
+        ids: Vec<LxPaymentId>,
+    ) -> anyhow::Result<Vec<BasicPaymentV2>> {
+        let token = self.get_token().await?;
+
+        let payments = self
+            .backend_api
+            .get_payments_by_ids(VecLxPaymentId { ids }, token)
+            .await
+            .context("Could not fetch payments")?
+            .payments
+            .into_iter()
+            .map(|payment| {
+                let created_at = TimestampMs::try_from(payment.created_at)
+                    .context("Invalid created_at timestamp")?;
+                let updated_at = TimestampMs::try_from(payment.updated_at)
+                    .context("Invalid updated_at timestamp")?;
+                let payment =
+                    payments::decrypt(&self.vfs_master_key, payment.data)?;
+                let basic_payment =
+                    payment.into_basic_payment(created_at, updated_at);
+                Ok::<_, anyhow::Error>(basic_payment)
+            })
+            .collect::<anyhow::Result<Vec<BasicPaymentV2>>>()?;
+
+        Ok(payments)
     }
 
     /// NOTE: See module docs for info on how manager/monitor persist works.

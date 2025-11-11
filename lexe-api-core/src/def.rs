@@ -352,6 +352,8 @@ pub trait AppNodeRunApi {
     //
     // We use POST because there may be a lot of idxs, which might be too large
     // to fit inside query parameters.
+    #[deprecated(note = "since app-v0.8.9+29 and sdk-sidecar-v0.3.1: \
+                         Use get_payments_by_ids instead")]
     async fn get_payments_by_indexes(
         &self,
         req: PaymentCreatedIndexes,
@@ -757,6 +759,7 @@ pub trait NodeBackendApi {
     //
     // We use POST because there may be a lot of idxs, which might be too large
     // to fit inside query parameters.
+    #[deprecated(note = "since node-v0.8.10: Use get_payments_by_ids instead")]
     async fn get_payments_by_indexes(
         &self,
         req: PaymentCreatedIndexes,
