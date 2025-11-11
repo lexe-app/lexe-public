@@ -697,6 +697,7 @@ pub trait NodeBackendApi {
     ) -> Result<Empty, BackendApiError>;
 
     /// GET /node/v1/payments/id [`LxPaymentIdStruct`] -> [`MaybeDbPaymentV1`]
+    #[deprecated(note = "since node-v0.8.10: Use get_payment_by_id instead")]
     async fn get_payment_by_id_v1(
         &self,
         req: LxPaymentIdStruct,

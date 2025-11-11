@@ -804,9 +804,9 @@ impl LexeInnerPersister for NodePersister {
         let token = self.get_token().await?;
         let maybe_payment = self
             .backend_api
-            .get_payment_by_id_v1(req, token)
+            .get_payment_by_id(req, token)
             .await
-            .context("Could not fetch `DbPaymentV1`s")?
+            .context("Could not fetch payment")?
             .maybe_payment
             // Decrypt into `Payment`
             .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
