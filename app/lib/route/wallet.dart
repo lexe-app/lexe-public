@@ -1295,13 +1295,16 @@ class DrawerProfile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            "₿itcoin payment address",
-            style: Fonts.fontUI.copyWith(
-              fontSize: Fonts.size300,
-              color: LxColors.grey600,
+          switch (this.status) {
+            DrawerPaymentAddressStatus.error => const SizedBox(),
+            _ => Text(
+              "₿itcoin payment address",
+              style: Fonts.fontUI.copyWith(
+                fontSize: Fonts.size300,
+                color: LxColors.grey600,
+              ),
             ),
-          ),
+          },
           const SizedBox(height: Space.s200),
           switch (this.status) {
             DrawerPaymentAddressStatus.error => const SizedBox(),
