@@ -78,8 +78,9 @@ use lexe_ln::{
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
     payments::{
-        self, PaymentV1,
+        self,
         manager::{CheckedPayment, PersistedPayment},
+        v1::PaymentV1,
     },
     persister,
     traits::{LexeInnerPersister, LexePersister},

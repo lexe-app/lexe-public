@@ -21,14 +21,18 @@ use lightning::{events::PaymentPurpose, ln::channelmanager::FailureCode};
 use tokio::{sync::MutexGuard, time::Instant};
 use tracing::{debug, error, info, info_span, instrument, warn};
 
-use super::{inbound::InboundOfferReusablePaymentV1, outbound::ExpireError};
 use crate::{
     esplora::{LexeEsplora, TxConfStatus},
     payments::{
-        PaymentV1,
-        inbound::{ClaimableError, InboundSpontaneousPaymentV1, LnClaimCtx},
-        onchain::OnchainReceiveV1,
-        outbound::LxOutboundPaymentFailure,
+        inbound::{ClaimableError, LnClaimCtx},
+        outbound::{ExpireError, LxOutboundPaymentFailure},
+        v1::{
+            PaymentV1,
+            inbound::{
+                InboundOfferReusablePaymentV1, InboundSpontaneousPaymentV1,
+            },
+            onchain::OnchainReceiveV1,
+        },
     },
     test_event::TestEventSender,
     traits::{LexeChannelManager, LexeInnerPersister, LexePersister},
@@ -1308,13 +1312,14 @@ mod test {
 
     use super::*;
     use crate::payments::{
-        inbound::{
-            InboundInvoicePaymentV1, InboundOfferReusablePaymentV1,
-            OfferClaimCtx,
-        },
-        outbound::{
-            OutboundInvoicePaymentStatus, OutboundInvoicePaymentV1,
-            OutboundOfferPaymentV1, arb::OipParams,
+        inbound::OfferClaimCtx,
+        outbound::OutboundInvoicePaymentStatus,
+        v1::{
+            inbound::{InboundInvoicePaymentV1, InboundOfferReusablePaymentV1},
+            outbound::{
+                OutboundInvoicePaymentV1, OutboundOfferPaymentV1,
+                arb::OipParamsV1,
+            },
         },
     };
 
@@ -1502,7 +1507,7 @@ mod test {
             mut data in any::<PaymentsData>(),
             //   check_payment_sent precondition: Must not be finalized
             // check_payment_failed precondition: Must not be finalized
-            oip in any_with::<OutboundInvoicePaymentV1>(OipParams {
+            oip in any_with::<OutboundInvoicePaymentV1>(OipParamsV1 {
                 payment_preimage: Some(preimage),
                 pending_only: true,
             }),
@@ -1549,7 +1554,7 @@ mod test {
 
         let preimage = LxPaymentPreimage::from_array([0x42; 32]);
         proptest!(|(
-            oip in any_with::<OutboundInvoicePaymentV1>(OipParams {
+            oip in any_with::<OutboundInvoicePaymentV1>(OipParamsV1 {
                 payment_preimage: Some(preimage),
                 //   check_payment_sent precondition: Must not be finalized
                 // check_payment_failed precondition: Must not be finalized

@@ -85,12 +85,12 @@ use crate::{
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     payments::{
-        PaymentV1,
-        inbound::InboundInvoicePaymentV1,
         manager::PaymentsManager,
-        outbound::{
-            LxOutboundPaymentFailure, OUTBOUND_PAYMENT_RETRY_STRATEGY,
-            OutboundInvoicePaymentV1, OutboundOfferPaymentV1,
+        outbound::{LxOutboundPaymentFailure, OUTBOUND_PAYMENT_RETRY_STRATEGY},
+        v1::{
+            PaymentV1,
+            inbound::InboundInvoicePaymentV1,
+            outbound::{OutboundInvoicePaymentV1, OutboundOfferPaymentV1},
         },
     },
     route::{self, LastHopHint, RoutingContext},
@@ -1149,6 +1149,7 @@ where
         use lightning::offers::parse::Bolt12SemanticError as LdkErr;
 
         use crate::payments::outbound::LxOutboundPaymentFailure as LxErr;
+
         let reason = match err {
             // This should never happen, since we already checked for this
             // payment id in the payments manager.

@@ -22,8 +22,8 @@ use crate::{
     },
     event::{EventHandleError, EventId},
     payments::{
-        PaymentV1,
         manager::{CheckedPayment, PersistedPayment},
+        v1::PaymentV1,
     },
 };
 

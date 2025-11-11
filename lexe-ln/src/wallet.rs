@@ -76,7 +76,7 @@ use tracing::{debug, info, instrument, warn};
 
 use crate::{
     esplora::{FeeEstimates, LexeEsplora},
-    payments::onchain::OnchainSendV1,
+    payments::v1::onchain::OnchainSendV1,
     traits::LexePersister,
 };
 
