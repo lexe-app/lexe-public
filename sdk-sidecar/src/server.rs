@@ -54,7 +54,8 @@ mod node {
     use axum::extract::State;
     use lexe_api::{
         def::AppNodeRunApi,
-        models::command::{GetNewPayments, PaymentCreatedIndexes},
+        error::NodeErrorKind,
+        models::command::{GetNewPayments, LxPaymentIdStruct},
         server::{LxJson, extract::LxQuery},
         types::payments::{LxPaymentId, PaymentCreatedIndex},
     };
@@ -148,6 +149,23 @@ mod node {
         Ok(LxJson(resp))
     }
 
+    /// Legacy: Returns `{ "payment": null }` if not found.
+    #[instrument(skip_all, name = "(get-payment-v1)")]
+    pub(crate) async fn get_payment_v1(
+        state: State<Arc<RouterState>>,
+        req: LxQuery<SdkGetPaymentRequest>,
+    ) -> Result<LxJson<SdkGetPaymentResponse>, SdkApiError> {
+        // Wraps the v2 logic to return `{ "payment": null }` if not found.
+        match get_payment(state, req).await {
+            Ok(LxJson(payment)) => Ok(LxJson(SdkGetPaymentResponse {
+                payment: Some(payment),
+            })),
+            Err(e) if e.kind == NodeErrorKind::NotFound =>
+                Ok(LxJson(SdkGetPaymentResponse { payment: None })),
+            Err(e) => Err(e),
+        }
+    }
+
     /// NOTE: For the v2 endpoint and above, we return the response as a
     /// [`SdkPayment`] rather than a [`SdkGetPaymentResponse`], because the
     /// `{ "payment": { ... } }` nesting trips up dumb AIs when vibe-coding on
@@ -161,44 +179,23 @@ mod node {
     #[instrument(skip_all, name = "(get-payment)")]
     pub(crate) async fn get_payment(
         state: State<Arc<RouterState>>,
-        req: LxQuery<SdkGetPaymentRequest>,
-    ) -> Result<LxJson<SdkPayment>, SdkApiError> {
-        // Wraps the v1 logic to return HTTP 404 if the payment was not found.
-        match get_payment_v1(state, req).await?.0.payment {
-            Some(payment) => Ok(LxJson(payment)),
-            None => Err(SdkApiError::not_found("Payment not found")),
-        }
-    }
-
-    /// Legacy: Returns `{ "payment": null }` if not found.
-    #[instrument(skip_all, name = "(get-payment-v1)")]
-    pub(crate) async fn get_payment_v1(
-        state: State<Arc<RouterState>>,
         LxQuery(req): LxQuery<SdkGetPaymentRequest>,
-    ) -> Result<LxJson<SdkGetPaymentResponse>, SdkApiError> {
-        // TODO(max): Replace this with a call to a payment-specific API which
-        // doesn't need to hit the DB
-        let indexes = vec![req.index];
-        let req = PaymentCreatedIndexes { indexes };
+    ) -> Result<LxJson<SdkPayment>, SdkApiError> {
+        let id = req.index.id;
 
-        let basic_payment = {
-            let mut payments = state
-                .node_client
-                .get_payments_by_indexes(req)
-                .await?
-                .payments;
+        let maybe_basic_payment = state
+            .node_client
+            .get_payment_by_id(LxPaymentIdStruct { id })
+            .await?
+            .maybe_payment;
 
-            payments.truncate(1);
-
-            match payments.pop() {
-                Some(p) => p,
-                None =>
-                    return Ok(LxJson(SdkGetPaymentResponse { payment: None })),
-            }
+        let basic_payment = match maybe_basic_payment {
+            Some(p) => p,
+            None => return Err(SdkApiError::not_found("Payment not found")),
         };
 
-        let payment = Some(SdkPayment {
-            index: basic_payment.index,
+        let payment = SdkPayment {
+            index: basic_payment.created_index(),
             kind: basic_payment.kind,
             direction: basic_payment.direction,
             txid: basic_payment.txid,
@@ -209,8 +206,8 @@ mod node {
             status_msg: basic_payment.status_str,
             note: basic_payment.note,
             finalized_at: basic_payment.finalized_at,
-        });
+        };
 
-        Ok(LxJson(SdkGetPaymentResponse { payment }))
+        Ok(LxJson(payment))
     }
 }
