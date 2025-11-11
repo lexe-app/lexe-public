@@ -42,13 +42,13 @@ impl<'a> Uri<'a> {
     // syntax: "{scheme}:[//]{body}?{key1}={value1}&{key2}={value2}&..."
     pub fn parse(s: &'a str) -> Result<Self, Error> {
         /// Maximum length of a URI in bytes.
-        const MAX_URI_LEN: usize = 4096;
+        const MAX_URI_LEN: usize = 8192;
 
         // Check URI length limit
         let uri_len = s.len();
         if uri_len > MAX_URI_LEN {
             return Err(Error::InvalidUri(Cow::from(
-                "URI too long (>4096 bytes)",
+                "URI too long (>8192 bytes)",
             )));
         }
 

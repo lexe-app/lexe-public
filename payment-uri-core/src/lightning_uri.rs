@@ -221,8 +221,9 @@ mod test {
     #[test]
     fn test_lightning_uri_roundtrip() {
         proptest!(|(uri: LightningUri)| {
-            let actual = LightningUri::parse(&uri.to_string());
-            prop_assert_eq!(Ok(uri), actual);
+            let uri_str = uri.to_string();
+            let actual = LightningUri::parse(&uri_str);
+            prop_assert_eq!(Ok(uri), actual, " uri: '{}'", uri_str);
         });
     }
 }

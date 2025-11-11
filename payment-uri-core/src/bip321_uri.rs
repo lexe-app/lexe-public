@@ -504,8 +504,9 @@ mod test {
     #[test]
     fn test_bip321_uri_prop_roundtrip() {
         proptest!(|(uri: Bip321Uri)| {
-            let actual = Bip321Uri::parse(&uri.to_string());
-            prop_assert_eq!(Ok(uri), actual);
+            let uri_str = uri.to_string();
+            let actual = Bip321Uri::parse(&uri_str);
+            prop_assert_eq!(Ok(uri), actual, " uri_str: {}", uri_str);
         });
     }
 

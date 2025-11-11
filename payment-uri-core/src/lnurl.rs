@@ -573,9 +573,10 @@ mod test {
         assert!(Lnurl::validate_http_uri(&uri).is_err()); // Wrong scheme
         assert!(Uri::parse("example.com").is_err()); // No scheme
 
-        // URI too long (>4096 bytes)
-        let long_url = format!("https://example.com/{}", "x".repeat(4100));
-        assert!(Uri::parse(&long_url).is_err());
+        // URI too long (>8192 bytes)
+        let long_url = format!("https://example.com/{}", "x".repeat(8200));
+        assert!(Uri::parse(&long_url[..8192]).is_ok());
+        assert!(Uri::parse(&long_url[..8193]).is_err());
     }
 
     #[test]
