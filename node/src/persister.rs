@@ -762,10 +762,9 @@ impl LexeInnerPersister for NodePersister {
     async fn read_pending_payments(&self) -> anyhow::Result<Vec<Payment>> {
         let token = self.get_token().await?;
         self.backend_api
-            // Fetch pending `DbPaymentV1`s
-            .get_pending_payments_v1(token)
+            .get_pending_payments(token)
             .await
-            .context("Could not fetch pending `DbPaymentV1`s")?
+            .context("Could not fetch pending `DbPaymentV2`s")?
             .payments
             .into_iter()
             .map(|p| payments::decrypt(&self.vfs_master_key, p.data))

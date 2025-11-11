@@ -802,6 +802,7 @@ pub trait NodeBackendApi {
     /// GET /node/v1/payments/pending -> [`VecDbPaymentV1`]
     ///
     /// Fetches all pending payments.
+    #[deprecated(note = "since node-v0.8.10: Use get_pending_payments instead")]
     async fn get_pending_payments_v1(
         &self,
         auth: BearerAuthToken,
