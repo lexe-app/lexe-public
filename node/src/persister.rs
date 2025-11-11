@@ -763,7 +763,7 @@ impl LexeInnerPersister for NodePersister {
         let token = self.get_token().await?;
         self.backend_api
             // Fetch pending `DbPaymentV1`s
-            .get_pending_payments(token)
+            .get_pending_payments_v1(token)
             .await
             .context("Could not fetch pending `DbPaymentV1`s")?
             .payments
