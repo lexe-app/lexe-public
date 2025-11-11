@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[repr(transparent)]
-pub struct NostrPk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
+pub struct NostrPk(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
 byte_array::impl_byte_array!(NostrPk, 32);
 
