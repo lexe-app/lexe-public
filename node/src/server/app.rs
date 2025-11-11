@@ -25,21 +25,22 @@ use lexe_api::{
     models::command::{
         BackupInfo, CloseChannelRequest, CreateOfferRequest,
         CreateOfferResponse, GDriveStatus, GetAddressResponse, GetNewPayments,
-        GetUpdatedPayments, ListChannelsResponse, NodeInfo, OpenChannelRequest,
-        OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-        PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-        PayOnchainResponse, PaymentAddress, PaymentCreatedIndexes,
-        PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-        PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-        PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-        PreflightPayOfferRequest, PreflightPayOfferResponse,
-        PreflightPayOnchainRequest, PreflightPayOnchainResponse, SetupGDrive,
-        UpdatePaymentAddress, UpdatePaymentNote,
+        GetUpdatedPayments, ListChannelsResponse, LxPaymentIdStruct, NodeInfo,
+        OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+        PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+        PayOnchainRequest, PayOnchainResponse, PaymentAddress,
+        PaymentCreatedIndexes, PreflightCloseChannelRequest,
+        PreflightCloseChannelResponse, PreflightOpenChannelRequest,
+        PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
+        PreflightPayInvoiceResponse, PreflightPayOfferRequest,
+        PreflightPayOfferResponse, PreflightPayOnchainRequest,
+        PreflightPayOnchainResponse, SetupGDrive, UpdatePaymentAddress,
+        UpdatePaymentNote,
     },
     server::{LxJson, extract::LxQuery},
     types::{
         Empty,
-        payments::{VecBasicPaymentV1, VecBasicPaymentV2},
+        payments::{MaybeBasicPaymentV2, VecBasicPaymentV1, VecBasicPaymentV2},
         username::UsernameStruct,
     },
     vfs::{self, Vfs, VfsDirectory},
@@ -405,6 +406,19 @@ pub(super) async fn get_updated_payments(
         .await
         .map_err(NodeApiError::command)?;
     Ok(LxJson(VecBasicPaymentV2 { payments }))
+}
+
+pub(super) async fn get_payment_by_id(
+    State(state): State<Arc<RouterState>>,
+    LxQuery(req): LxQuery<LxPaymentIdStruct>,
+) -> Result<LxJson<MaybeBasicPaymentV2>, NodeApiError> {
+    let maybe_payment = state
+        .persister
+        .read_payment_by_id(req.id)
+        .await
+        .map_err(NodeApiError::command)?;
+
+    Ok(LxJson(MaybeBasicPaymentV2 { maybe_payment }))
 }
 
 pub(super) async fn update_payment_note(

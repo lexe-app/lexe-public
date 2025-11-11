@@ -525,6 +525,33 @@ impl NodePersister {
             .collect::<anyhow::Result<Vec<BasicPaymentV2>>>()
     }
 
+    pub(crate) async fn read_payment_by_id(
+        &self,
+        id: LxPaymentId,
+    ) -> anyhow::Result<Option<BasicPaymentV2>> {
+        let token = self.get_token().await?;
+        let maybe_payment = self
+            .backend_api
+            .get_payment_by_id(LxPaymentIdStruct { id }, token)
+            .await
+            .context("Could not fetch payment")?
+            .maybe_payment
+            .map(|db_payment| {
+                let created_at = TimestampMs::try_from(db_payment.created_at)
+                    .context("Invalid created_at timestamp")?;
+                let updated_at = TimestampMs::try_from(db_payment.updated_at)
+                    .context("Invalid updated_at timestamp")?;
+                let payment =
+                    payments::decrypt(&self.vfs_master_key, db_payment.data)?;
+                let basic_payment =
+                    payment.into_basic_payment(created_at, updated_at);
+                Ok::<_, anyhow::Error>(basic_payment)
+            })
+            .transpose()?;
+
+        Ok(maybe_payment)
+    }
+
     /// NOTE: See module docs for info on how manager/monitor persist works.
     pub(crate) async fn read_channel_manager(
         &self,

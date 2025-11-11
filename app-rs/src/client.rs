@@ -53,7 +53,7 @@ use lexe_api::{
         BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
         CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
         GetAddressResponse, GetNewPayments, GetUpdatedPayments,
-        ListChannelsResponse, NodeInfo, OpenChannelRequest,
+        ListChannelsResponse, LxPaymentIdStruct, NodeInfo, OpenChannelRequest,
         OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
         PayOfferRequest, PayOfferResponse, PayOnchainRequest,
         PayOnchainResponse, PaymentAddress, PaymentCreatedIndexes,
@@ -67,7 +67,7 @@ use lexe_api::{
     rest::{POST, RequestBuilderExt, RestClient},
     types::{
         Empty,
-        payments::{VecBasicPaymentV1, VecBasicPaymentV2},
+        payments::{MaybeBasicPaymentV2, VecBasicPaymentV1, VecBasicPaymentV2},
         username::UsernameStruct,
     },
 };
@@ -712,6 +712,17 @@ impl AppNodeRunApi for NodeClient {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/payments/updated");
+        let req = self.run_rest.get(url, &req);
+        self.run_rest.send(req).await
+    }
+
+    async fn get_payment_by_id(
+        &self,
+        req: LxPaymentIdStruct,
+    ) -> Result<MaybeBasicPaymentV2, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/v1/payments/id");
         let req = self.run_rest.get(url, &req);
         self.run_rest.send(req).await
     }

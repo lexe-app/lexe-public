@@ -142,6 +142,12 @@ pub struct BasicPaymentV2 {
 // Debug the size_of `BasicPaymentV2`
 const_assert_mem_size!(BasicPaymentV2, 272);
 
+/// An upgradeable version of [`Option<BasicPaymentV2>`].
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MaybeBasicPaymentV2 {
+    pub maybe_payment: Option<BasicPaymentV2>,
+}
+
 /// An upgradeable version of [`Vec<BasicPaymentV2>`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct VecBasicPaymentV2 {

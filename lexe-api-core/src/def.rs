@@ -108,7 +108,7 @@ use crate::{
             LnurlPayRequestWire,
         },
         payments::{
-            DbPaymentMetadata, DbPaymentV1, DbPaymentV2,
+            DbPaymentMetadata, DbPaymentV1, DbPaymentV2, MaybeBasicPaymentV2,
             MaybeDbPaymentMetadata, MaybeDbPaymentV1, MaybeDbPaymentV2,
             VecBasicPaymentV1, VecBasicPaymentV2, VecDbPaymentMetadata,
             VecDbPaymentV1, VecDbPaymentV2,
@@ -333,6 +333,14 @@ pub trait AppNodeRunApi {
         &self,
         req: PreflightPayOnchainRequest,
     ) -> Result<PreflightPayOnchainResponse, NodeApiError>;
+
+    /// GET /app/v1/payments/id [`LxPaymentIdStruct`] -> [`MaybeBasicPaymentV2`]
+    //
+    // Added in `node-v0.8.10`.
+    async fn get_payment_by_id(
+        &self,
+        req: LxPaymentIdStruct,
+    ) -> Result<MaybeBasicPaymentV2, NodeApiError>;
 
     /// POST /app/payments/indexes [`PaymentCreatedIndexes`]
     ///                         -> [`VecDbPaymentV1`]

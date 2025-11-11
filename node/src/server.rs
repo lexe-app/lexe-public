@@ -121,6 +121,7 @@ pub(crate) fn app_router(state: Arc<RouterState>) -> Router<()> {
         .route("/app/pay_onchain", post(app::pay_onchain))
         .route("/app/preflight_pay_onchain", post(app::preflight_pay_onchain))
         .route("/app/get_address", post(app::get_address))
+        .route("/app/v1/payments/id", get(app::get_payment_by_id))
         .route("/app/payments/indexes", post(app::get_payments_by_indexes))
         .route("/app/payments/new", get(app::get_new_payments))
         .route("/app/payments/updated", get(app::get_updated_payments))
