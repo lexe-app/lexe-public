@@ -360,6 +360,8 @@ pub trait AppNodeRunApi {
     ) -> Result<VecBasicPaymentV1, NodeApiError>;
 
     /// GET /app/payments/new [`GetNewPayments`] -> [`VecBasicPaymentV1`]
+    #[deprecated(note = "since app-v0.8.9+29 and sdk-sidecar-v0.3.1: \
+                         Use get_updated_payments instead")]
     async fn get_new_payments(
         &self,
         req: GetNewPayments,
@@ -785,6 +787,11 @@ pub trait NodeBackendApi {
     /// a known [`PaymentCreatedIndex`] (exclusive).
     /// Results are in ascending order, by `(created_at, payment_id)`.
     /// See [`GetNewPayments`] for more info.
+    #[deprecated(note = "since app-v0.8.9+29 and sdk-sidecar-v0.3.1: \
+                         Use get_updated_payments instead")]
+    // NOTE: This fn is used in the app->node handler for /app/payments/new, so
+    // the node->backend client code must remain until all app and sdk-sidecar
+    // clients have been updated.
     async fn get_new_payments(
         &self,
         req: GetNewPayments,

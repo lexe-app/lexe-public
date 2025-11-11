@@ -575,6 +575,9 @@ impl NodeBackendApi for NodeBackendClient {
         req: GetNewPayments,
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentV1, BackendApiError> {
+        // NOTE: This fn is used in the app->node handler for /app/payments/new,
+        // so the node->backend client code must remain until all app and
+        // sdk-sidecar clients have been updated.
         let backend = &self.backend_url;
         let req = self
             .rest

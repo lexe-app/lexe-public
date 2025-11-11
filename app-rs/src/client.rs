@@ -692,13 +692,9 @@ impl AppNodeRunApi for NodeClient {
 
     async fn get_new_payments(
         &self,
-        req: GetNewPayments,
+        _: GetNewPayments,
     ) -> Result<VecBasicPaymentV1, NodeApiError> {
-        self.ensure_authed().await?;
-        let run_url = &self.run_url;
-        let url = format!("{run_url}/app/payments/new");
-        let req = self.run_rest.get(url, &req);
-        self.run_rest.send(req).await
+        unimplemented!("Deprecated")
     }
 
     async fn get_updated_payments(

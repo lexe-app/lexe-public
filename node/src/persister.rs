@@ -470,6 +470,10 @@ impl NodePersister {
         req: GetNewPayments,
     ) -> anyhow::Result<Vec<BasicPaymentV1>> {
         let token = self.get_token().await?;
+        // NOTE: This fn is used in the app->node handler for /app/payments/new,
+        // so the node->backend client code must remain until all app and
+        // sdk-sidecar clients have been updated.
+        #[allow(deprecated)]
         self.backend_api
             .get_new_payments(req, token)
             .await
