@@ -55,9 +55,9 @@ mod node {
     use lexe_api::{
         def::AppNodeRunApi,
         error::NodeErrorKind,
-        models::command::{GetNewPayments, LxPaymentIdStruct},
+        models::command::{CreateInvoiceResponse, LxPaymentIdStruct},
         server::{LxJson, extract::LxQuery},
-        types::payments::{LxPaymentId, PaymentCreatedIndex},
+        types::payments::PaymentCreatedIndex,
     };
     use sdk_core::{
         SdkApiError,
@@ -89,46 +89,14 @@ mod node {
         state: State<Arc<RouterState>>,
         LxJson(req): LxJson<SdkCreateInvoiceRequest>,
     ) -> Result<LxJson<SdkCreateInvoiceResponse>, SdkApiError> {
-        let resp = state.node_client.create_invoice(req.into()).await?;
+        let CreateInvoiceResponse {
+            invoice,
+            created_index: maybe_index,
+        } = state.node_client.create_invoice(req.into()).await?;
 
-        // HACK: temporary hack to lookup `PaymentCreatedIndex` for new invoice.
-        // TODO(phlip9): original response should include the index.
-        let invoice = resp.invoice;
-        let resp = state
-            .node_client
-            .get_new_payments(GetNewPayments {
-                // `start_index` is exclusive. use the invoice `created_at`
-                // (which is different from the payment `created_at` and
-                // currently guaranteed to be before the payment `created_at`)
-                // to get us close to the newly registered payment.
-                start_index: Some(PaymentCreatedIndex {
-                    created_at: invoice.saturating_created_at(),
-                    id: LxPaymentId::MIN,
-                }),
-                // Lookup a few payments just in case we raced with other new
-                // payments.
-                limit: Some(3),
-            })
-            .await?;
-
-        // Look for the newly registered invoice payment in the response by
-        // it's payment id.
-        let id = invoice.payment_id();
-        let index = resp
-            .payments
-            .into_iter()
-            .find_map(|p| {
-                if p.index.id == id {
-                    Some(p.index)
-                } else {
-                    None
-                }
-            })
-            .ok_or_else(|| {
-                SdkApiError::command(
-                    "Failed to lookup payment index for invoice",
-                )
-            })?;
+        let index = maybe_index
+            .ok_or("Node out-of-date. Upgrade to node-v0.8.10 or later.")
+            .map_err(SdkApiError::command)?;
 
         Ok(LxJson(SdkCreateInvoiceResponse::new(index, invoice)))
     }
