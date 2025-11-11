@@ -278,6 +278,12 @@ pub struct CreateInvoiceRequest {
 #[derive(Serialize, Deserialize)]
 pub struct CreateInvoiceResponse {
     pub invoice: LxInvoice,
+    /// The [`PaymentCreatedIndex`] of the newly created invoice payment.
+    ///
+    /// Is always `Some` starting at `node-v0.8.10` and `lsp-v0.8.11`.
+    //
+    // TODO(max): Make non-Option once all servers are sufficiently upgraded.
+    pub created_index: Option<PaymentCreatedIndex>,
 }
 
 #[derive(Serialize, Deserialize)]

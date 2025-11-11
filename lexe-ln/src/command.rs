@@ -873,14 +873,17 @@ where
         secret.into(),
         preimage.into(),
     );
-    payments_manager
+    let created_index = payments_manager
         .new_payment(payment.into())
         .await
         .context("Could not register new payment")?;
 
     info!("Success: Generated invoice {invoice}");
 
-    Ok(CreateInvoiceResponse { invoice })
+    Ok(CreateInvoiceResponse {
+        invoice,
+        created_index: Some(created_index),
+    })
 }
 
 #[instrument(skip_all, name = "(pay-invoice)")]
