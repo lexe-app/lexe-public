@@ -527,15 +527,10 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn get_payment_by_index(
         &self,
-        req: PaymentCreatedIndexStruct,
-        auth: BearerAuthToken,
+        _: PaymentCreatedIndexStruct,
+        _: BearerAuthToken,
     ) -> Result<MaybeDbPaymentV1, BackendApiError> {
-        let backend = &self.backend_url;
-        let req = self
-            .rest
-            .get(format!("{backend}/node/v1/payments/index"), &req)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
+        unimplemented!("Deprecated")
     }
 
     async fn upsert_payment_batch_v1(

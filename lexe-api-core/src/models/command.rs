@@ -242,6 +242,8 @@ pub struct PaymentCreatedIndexes {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct UpdatePaymentNote {
     /// The index of the payment whose note should be updated.
+    // TODO(max): The server side only needs the `LxPaymentId`.
+    // This API should be changed to pass that instead.
     pub index: PaymentCreatedIndex,
     /// The updated note.
     pub note: Option<String>,

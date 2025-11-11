@@ -57,13 +57,13 @@ use lexe_api::{
     error::{BackendApiError, BackendErrorKind},
     models::command::{
         GetNewPayments, GetUpdatedPayments, LxPaymentIdStruct,
-        PaymentCreatedIndexStruct, PaymentCreatedIndexes,
+        PaymentCreatedIndexes,
     },
     types::{
         Empty,
         payments::{
             BasicPaymentV1, BasicPaymentV2, DbPaymentV1, DbPaymentV2,
-            LxPaymentId, PaymentCreatedIndex, VecDbPaymentV2,
+            LxPaymentId, VecDbPaymentV2,
         },
     },
     vfs::{
@@ -842,33 +842,6 @@ impl LexeInnerPersister for NodePersister {
 
         if let Some(payment) = &maybe_payment {
             ensure!(payment.id() == id, "ID of returned payment doesn't match");
-        }
-
-        Ok(maybe_payment)
-    }
-
-    async fn get_payment_by_index(
-        &self,
-        index: PaymentCreatedIndex,
-    ) -> anyhow::Result<Option<Payment>> {
-        let req = PaymentCreatedIndexStruct { index };
-        let token = self.get_token().await?;
-        let maybe_payment = self
-            .backend_api
-            .get_payment_by_index(req, token)
-            .await
-            .context("Could not fetch `DbPaymentV1`s")?
-            .maybe_payment
-            // Decrypt into `Payment`
-            .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
-            .transpose()
-            .context("Could not decrypt payment")?;
-
-        if let Some(payment) = &maybe_payment {
-            ensure!(
-                payment.id() == index.id,
-                "ID of returned payment doesn't match"
-            );
         }
 
         Ok(maybe_payment)

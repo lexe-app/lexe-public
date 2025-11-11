@@ -371,7 +371,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             Some(pending) => pending.clone(),
             None => self
                 .persister
-                .get_payment_by_index(update.index)
+                .get_payment_by_id(update.index.id)
                 .await
                 .context("Could not fetch finalized payment")?
                 .context("Finalized payment was not found in DB")?,
