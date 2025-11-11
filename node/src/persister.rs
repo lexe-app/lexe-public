@@ -61,8 +61,7 @@ use lexe_api::{
     types::{
         Empty,
         payments::{
-            BasicPaymentV1, BasicPaymentV2, DbPaymentV1, DbPaymentV2,
-            LxPaymentId, VecDbPaymentV2,
+            BasicPaymentV1, BasicPaymentV2, LxPaymentId, VecDbPaymentV2,
         },
     },
     vfs::{
@@ -806,7 +805,6 @@ impl LexeInnerPersister for NodePersister {
 
         let mut rng = SysRng::new();
         let updated_at = TimestampMs::now();
-        let updated_at_i64 = updated_at.to_i64();
         let payments = checked_batch
             .iter()
             .map(|CheckedPayment(payment)| {
@@ -817,8 +815,6 @@ impl LexeInnerPersister for NodePersister {
                     updated_at,
                 )
             })
-            .map(DbPaymentV1::from)
-            .map(|p| DbPaymentV2::from_v1(p, updated_at_i64))
             .collect();
         let batch = VecDbPaymentV2 { payments };
 

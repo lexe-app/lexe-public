@@ -462,28 +462,18 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn create_payment(
         &self,
-        payment: DbPaymentV1,
-        auth: BearerAuthToken,
+        _: DbPaymentV1,
+        _: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
-        let backend = &self.backend_url;
-        let req = self
-            .rest
-            .post(format!("{backend}/node/v1/payments"), &payment)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
+        unimplemented!("Deprecated")
     }
 
     async fn upsert_payment_v1(
         &self,
-        payment: DbPaymentV1,
-        auth: BearerAuthToken,
+        _: DbPaymentV1,
+        _: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
-        let backend = &self.backend_url;
-        let req = self
-            .rest
-            .put(format!("{backend}/node/v1/payments"), &payment)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
+        unimplemented!("Deprecated")
     }
 
     async fn upsert_payment(
