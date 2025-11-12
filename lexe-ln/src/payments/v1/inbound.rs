@@ -25,6 +25,7 @@ use tracing::warn;
 #[cfg(doc)]
 use crate::command::create_invoice;
 use crate::payments::{
+    PaymentWithMetadata,
     inbound::{
         ClaimableError, InboundInvoicePaymentStatus,
         InboundOfferReusablePaymentStatus, InboundSpontaneousPaymentStatus,
@@ -75,6 +76,7 @@ impl PaymentV1 {
                     hash, secret, preimage, claim_id, amount,
                 )
                 .map(PaymentV1::from)
+                .map(PaymentWithMetadata::from)
                 .map(CheckedPayment),
             (
                 Self::InboundOfferReusable(iorp),

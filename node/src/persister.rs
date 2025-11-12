@@ -78,7 +78,7 @@ use lexe_ln::{
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
     payments::{
-        self, PaymentWithMetadata,
+        self,
         manager::{CheckedPayment, PersistedPayment},
         v1::PaymentV1,
     },
@@ -783,10 +783,9 @@ impl LexeInnerPersister for NodePersister {
     ) -> anyhow::Result<PersistedPayment> {
         let mut rng = SysRng::new();
 
-        let payment = checked.0;
-        let created_at = payment.created_at();
+        let pwm = checked.0;
+        let created_at = pwm.created_at;
         let updated_at = TimestampMs::now();
-        let pwm = PaymentWithMetadata::from(payment.clone());
         let db_payment =
             payments::encrypt(&mut rng, &self.vfs_master_key, &pwm, updated_at);
         let token = self.get_token().await?;
@@ -795,6 +794,8 @@ impl LexeInnerPersister for NodePersister {
             .upsert_payment(db_payment, token)
             .await
             .context("upsert_payment API call failed")?;
+
+        let payment = PaymentV1::from(pwm);
 
         Ok(PersistedPayment {
             payment,
@@ -815,12 +816,11 @@ impl LexeInnerPersister for NodePersister {
         let updated_at = TimestampMs::now();
         let payments = checked_batch
             .iter()
-            .map(|CheckedPayment(payment)| {
-                let pwm = PaymentWithMetadata::from(payment.clone());
+            .map(|CheckedPayment(pwm)| {
                 payments::encrypt(
                     &mut rng,
                     &self.vfs_master_key,
-                    &pwm,
+                    pwm,
                     updated_at,
                 )
             })
@@ -835,8 +835,9 @@ impl LexeInnerPersister for NodePersister {
 
         let persisted_batch = checked_batch
             .into_iter()
-            .map(|CheckedPayment(payment)| {
-                let created_at = payment.created_at();
+            .map(|CheckedPayment(pwm)| {
+                let created_at = pwm.created_at;
+                let payment = PaymentV1::from(pwm);
                 PersistedPayment {
                     payment,
                     created_at,
