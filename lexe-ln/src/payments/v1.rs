@@ -241,6 +241,7 @@ impl PaymentV1 {
         }
     }
 
+    // TODO(max): Delete
     pub fn id(&self) -> LxPaymentId {
         match self {
             Self::OnchainSend(os) => LxPaymentId::OnchainSend(os.cid),
@@ -431,6 +432,7 @@ impl PaymentV1 {
     }
 
     /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
+    // TODO(max): Delete
     pub fn status(&self) -> PaymentStatus {
         match self {
             Self::OnchainSend(OnchainSendV1 { status, .. }) =>
@@ -634,7 +636,6 @@ mod test {
     use std::{fs, path::Path};
 
     use common::{
-        aes::AesMasterKey,
         rng::FastRng,
         test_utils::{arbitrary, roundtrip},
     };
@@ -644,7 +645,6 @@ mod test {
     };
 
     use super::*;
-    use crate::payments;
 
     // Generate serialized `BasicPaymentV1` sample json data:
     // ```bash
@@ -761,22 +761,6 @@ mod test {
         json_value_custom(any::<OutboundInvoicePaymentV1>(), config.clone());
         json_value_custom(any::<OutboundOfferPaymentV1>(), config.clone());
         json_value_custom(any::<OutboundSpontaneousPaymentV1>(), config);
-    }
-
-    #[test]
-    fn payment_encryption_roundtrip() {
-        proptest!(|(
-            mut rng in any::<FastRng>(),
-            vfs_master_key in any::<AesMasterKey>(),
-            p1 in any::<PaymentV1>(),
-            updated_at in any::<TimestampMs>(),
-        )| {
-            let encrypted = payments::encrypt(
-                &mut rng, &vfs_master_key, &p1, updated_at
-            );
-            let p2 = payments::decrypt(&vfs_master_key, encrypted.data).unwrap();
-            prop_assert_eq!(p1, p2);
-        })
     }
 
     #[test]

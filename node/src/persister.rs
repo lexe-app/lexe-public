@@ -78,7 +78,7 @@ use lexe_ln::{
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
     payments::{
-        self,
+        self, PaymentWithMetadata,
         manager::{CheckedPayment, PersistedPayment},
         v1::PaymentV1,
     },
@@ -482,7 +482,7 @@ impl NodePersister {
             .payments
             .into_iter()
             .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
-            .map(|res| res.map(BasicPaymentV1::from))
+            .map(|res| res.map(PaymentV1::from).map(BasicPaymentV1::from))
             .collect::<anyhow::Result<Vec<BasicPaymentV1>>>()
     }
 
@@ -503,8 +503,9 @@ impl NodePersister {
                     .context("Invalid created_at timestamp")?;
                 let updated_at = TimestampMs::try_from(db_payment.updated_at)
                     .context("Invalid updated_at timestamp")?;
-                let payment =
+                let pwm =
                     payments::decrypt(&self.vfs_master_key, db_payment.data)?;
+                let payment = PaymentV1::from(pwm);
                 let basic_payment =
                     payment.into_basic_payment(created_at, updated_at);
                 Ok(basic_payment)
@@ -528,8 +529,9 @@ impl NodePersister {
                     .context("Invalid created_at timestamp")?;
                 let updated_at = TimestampMs::try_from(db_payment.updated_at)
                     .context("Invalid updated_at timestamp")?;
-                let payment =
+                let pwm =
                     payments::decrypt(&self.vfs_master_key, db_payment.data)?;
+                let payment = PaymentV1::from(pwm);
                 let basic_payment =
                     payment.into_basic_payment(created_at, updated_at);
                 Ok::<_, anyhow::Error>(basic_payment)
@@ -557,8 +559,9 @@ impl NodePersister {
                     .context("Invalid created_at timestamp")?;
                 let updated_at = TimestampMs::try_from(payment.updated_at)
                     .context("Invalid updated_at timestamp")?;
-                let payment =
+                let pwm =
                     payments::decrypt(&self.vfs_master_key, payment.data)?;
+                let payment = PaymentV1::from(pwm);
                 let basic_payment =
                     payment.into_basic_payment(created_at, updated_at);
                 Ok::<_, anyhow::Error>(basic_payment)
@@ -773,6 +776,7 @@ impl LexeInnerPersister for NodePersister {
             .payments
             .into_iter()
             .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
+            .map(|res| res.map(PaymentV1::from))
             .collect::<anyhow::Result<Vec<PaymentV1>>>()
     }
 
@@ -785,12 +789,9 @@ impl LexeInnerPersister for NodePersister {
         let payment = checked.0;
         let created_at = payment.created_at();
         let updated_at = TimestampMs::now();
-        let db_payment = payments::encrypt(
-            &mut rng,
-            &self.vfs_master_key,
-            &payment,
-            updated_at,
-        );
+        let pwm = PaymentWithMetadata::from(payment.clone());
+        let db_payment =
+            payments::encrypt(&mut rng, &self.vfs_master_key, &pwm, updated_at);
         let token = self.get_token().await?;
 
         self.backend_api
@@ -818,10 +819,11 @@ impl LexeInnerPersister for NodePersister {
         let payments = checked_batch
             .iter()
             .map(|CheckedPayment(payment)| {
+                let pwm = PaymentWithMetadata::from(payment.clone());
                 payments::encrypt(
                     &mut rng,
                     &self.vfs_master_key,
-                    payment,
+                    &pwm,
                     updated_at,
                 )
             })
@@ -864,6 +866,7 @@ impl LexeInnerPersister for NodePersister {
             // Decrypt into `Payment`
             .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
             .transpose()
+            .map(|opt| opt.map(PaymentV1::from))
             .context("Could not decrypt payment")?;
 
         if let Some(payment) = &maybe_payment {

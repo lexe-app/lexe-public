@@ -51,6 +51,7 @@ pub mod v1;
 
 // --- Top-level payment types --- //
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PaymentWithMetadata {
     pub payment: PaymentV2,
     pub metadata: Option<PaymentMetadata>,
@@ -135,19 +136,26 @@ pub enum PaymentV2 {
     OutboundSpontaneous(OutboundSpontaneousPaymentV1),
 }
 
+// --- Encryption --- //
+
 /// Serializes a given payment to JSON and encrypts the payment under the given
 /// [`AesMasterKey`], returning the [`DbPaymentV2`] which can be persisted.
 pub fn encrypt(
     rng: &mut impl Crng,
     vfs_master_key: &AesMasterKey,
-    payment: &PaymentV1,
+    // TODO(max): This should take only `&PaymentV2` once logic is migrated.
+    // There will also be a separate function `encrypt_metadata` which takes
+    // `&PaymentMetadata`.
+    pwm: &PaymentWithMetadata,
     updated_at: TimestampMs,
 ) -> DbPaymentV2 {
     // Serialize the payment as JSON bytes.
     let aad = &[];
     let data_size_hint = None;
+    // TODO(max): Update serialization to v2 once all logic is migrated.
     let write_data_cb: &dyn Fn(&mut Vec<u8>) = &|mut_vec_u8| {
-        serde_json::to_writer(mut_vec_u8, payment)
+        let payment_v1 = PaymentV1::from(pwm.clone());
+        serde_json::to_writer(mut_vec_u8, &payment_v1)
             .expect("Payment serialization always succeeds")
     };
 
@@ -155,27 +163,33 @@ pub fn encrypt(
     let data = vfs_master_key.encrypt(rng, aad, data_size_hint, write_data_cb);
 
     DbPaymentV2 {
-        id: payment.id().to_string(),
-        status: payment.status().to_string(),
+        id: pwm.payment.id().to_string(),
+        status: pwm.payment.status().to_string(),
         data,
-        // TODO(max): Remove `created_at` from core `Payment` type
-        created_at: payment.created_at().to_i64(),
+        // TODO(max): created_at should come from the persister
+        // created_at: created_at.to_i64(),
+        created_at: pwm.created_at.to_i64(),
         updated_at: updated_at.to_i64(),
     }
 }
 
 /// Given a [`DbPaymentV2::data`] (ciphertext), attempts to decrypt using the
 /// given [`AesMasterKey`], returning the deserialized [`PaymentV1`].
+// TODO(max): This should return only `PaymentV2` once logic is migrated.
+// There will also be a separate function `decrypt_metadata` which returns
+// `PaymentMetadata`.
 pub fn decrypt(
     vfs_master_key: &AesMasterKey,
     data: Vec<u8>,
-) -> anyhow::Result<PaymentV1> {
+) -> anyhow::Result<PaymentWithMetadata> {
     let aad = &[];
     let plaintext_bytes = vfs_master_key
         .decrypt(aad, data)
         .context("Could not decrypt Payment")?;
 
+    // TODO(max): Update deserialization to v2 once all logic is migrated.
     serde_json::from_slice::<PaymentV1>(plaintext_bytes.as_slice())
+        .map(PaymentWithMetadata::from)
         .context("Could not deserialize Payment")
 }
 
@@ -223,6 +237,52 @@ impl From<OutboundSpontaneousPaymentV1> for PaymentV2 {
 }
 
 // --- impl Payment --- //
+
+impl PaymentV2 {
+    pub fn id(&self) -> LxPaymentId {
+        match self {
+            Self::OnchainSend(os) => LxPaymentId::OnchainSend(os.cid),
+            Self::OnchainReceive(or) => LxPaymentId::OnchainRecv(or.txid),
+            Self::InboundInvoice(iip) => LxPaymentId::Lightning(iip.hash),
+            Self::InboundOfferReusable(iorp) =>
+                LxPaymentId::OfferRecvReusable(iorp.claim_id),
+            Self::InboundSpontaneous(isp) => LxPaymentId::Lightning(isp.hash),
+            Self::OutboundInvoice(oip) => LxPaymentId::Lightning(oip.hash),
+            Self::OutboundOffer(oop) => LxPaymentId::OfferSend(oop.cid),
+            Self::OutboundSpontaneous(osp) => LxPaymentId::Lightning(osp.hash),
+        }
+    }
+
+    /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
+    pub fn status(&self) -> PaymentStatus {
+        match self {
+            Self::OnchainSend(OnchainSendV1 { status, .. }) =>
+                PaymentStatus::from(*status),
+            Self::OnchainReceive(OnchainReceiveV1 { status, .. }) =>
+                PaymentStatus::from(*status),
+            Self::InboundInvoice(InboundInvoicePaymentV1 {
+                status, ..
+            }) => PaymentStatus::from(*status),
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
+                status,
+                ..
+            }) => PaymentStatus::from(*status),
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
+                status,
+                ..
+            }) => PaymentStatus::from(*status),
+            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
+                status, ..
+            }) => PaymentStatus::from(*status),
+            Self::OutboundOffer(OutboundOfferPaymentV1 { status, .. }) =>
+                PaymentStatus::from(*status),
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
+                status,
+                ..
+            }) => PaymentStatus::from(*status),
+        }
+    }
+}
 
 // --- Payment-specific status -> General PaymentStatus  --- //
 
@@ -409,5 +469,41 @@ impl OutboundSpontaneousPaymentStatus {
             Self::Completed => "completed",
             Self::Failed => "failed",
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use common::{aes::AesMasterKey, rng::FastRng};
+    use proptest::{arbitrary::any, prop_assert_eq, proptest};
+
+    use super::*;
+    use crate::payments;
+
+    #[test]
+    fn payment_encryption_roundtrip() {
+        proptest!(|(
+            mut rng in any::<FastRng>(),
+            vfs_master_key in any::<AesMasterKey>(),
+            p1 in any::<PaymentV2>(),
+            updated_at in any::<TimestampMs>(),
+        )| {
+            let metadata = None;
+            // TODO(max): Remove PaymentWithMetadata later. Dummy value for now.
+            let pwm = PaymentWithMetadata {
+                payment: p1.clone(),
+                metadata,
+                // TODO(max): Remove this field later. Dummy value for now.
+                created_at: TimestampMs::MIN,
+            };
+
+            let encrypted = payments::encrypt(
+                &mut rng, &vfs_master_key, &pwm, updated_at
+            );
+            let p2 = payments::decrypt(&vfs_master_key, encrypted.data)
+                .map(|pwm| pwm.payment)
+                .unwrap();
+            prop_assert_eq!(p1, p2);
+        })
     }
 }
