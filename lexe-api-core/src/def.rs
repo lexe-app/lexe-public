@@ -959,8 +959,10 @@ pub trait PublicGatewayApi {
     ) -> Result<LnurlPayRequestWire, LnurlError>;
 
     /// Resolves the invoice given a LNURL pay request previously generated.
+    /// Ciphertext is a base64 encoded string of the username and
+    /// other metadata information.
     ///
-    /// GET /public/v1/lnurl_callback
+    /// GET /public/v1/lnurl_callback/{encoded_params}
     async fn lnurl_callback(
         &self,
         req: LnurlCallbackRequest,

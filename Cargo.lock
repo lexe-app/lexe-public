@@ -2443,6 +2443,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "base64",
  "bcs",
  "bitcoin",
  "byte-array",
