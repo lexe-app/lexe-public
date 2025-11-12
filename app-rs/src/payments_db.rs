@@ -97,7 +97,7 @@ pub async fn sync_payments<F: Ffs>(
         let updated_payments = node_client
             .get_updated_payments(req)
             .await
-            .context("Failed to fetch new payments")?
+            .context("Failed to fetch updated payments")?
             .payments;
         let updated_payments_len = updated_payments.len();
 
