@@ -795,10 +795,8 @@ impl LexeInnerPersister for NodePersister {
             .await
             .context("upsert_payment API call failed")?;
 
-        let payment = PaymentV1::from(pwm);
-
         Ok(PersistedPayment {
-            payment,
+            pwm,
             created_at,
             updated_at,
         })
@@ -837,9 +835,8 @@ impl LexeInnerPersister for NodePersister {
             .into_iter()
             .map(|CheckedPayment(pwm)| {
                 let created_at = pwm.created_at;
-                let payment = PaymentV1::from(pwm);
                 PersistedPayment {
-                    payment,
+                    pwm,
                     created_at,
                     updated_at,
                 }

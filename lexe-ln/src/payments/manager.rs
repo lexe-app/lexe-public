@@ -63,7 +63,9 @@ pub struct CheckedPayment(pub PaymentWithMetadata);
 /// [`PersistedPayment`]s should be committed to the local payments state.
 #[must_use]
 pub struct PersistedPayment {
-    pub payment: PaymentV1,
+    // TODO(max): This should be PaymentV2
+    // pub payment: PaymentV2,
+    pub pwm: PaymentWithMetadata,
     pub created_at: TimestampMs,
     pub updated_at: TimestampMs,
 }
@@ -979,7 +981,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 impl PaymentsData {
     /// Commits a [`PersistedPayment`] to the local state.
     fn commit(&mut self, persisted: PersistedPayment) {
-        let payment = persisted.payment;
+        let payment = PaymentV1::from(persisted.pwm);
         let id = payment.id();
 
         payment.debug_assert_invariants();
@@ -1403,7 +1405,7 @@ mod test {
         /// persisting.
         fn persisted(self) -> PersistedPayment {
             PersistedPayment {
-                payment: PaymentV1::from(self.0),
+                pwm: self.0,
                 // Set some dummy values for these
                 created_at: TimestampMs::MIN,
                 updated_at: TimestampMs::MAX,
