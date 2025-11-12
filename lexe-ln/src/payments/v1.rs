@@ -6,8 +6,8 @@ use lexe_api::types::{
     invoice::LxInvoice,
     offer::LxOffer,
     payments::{
-        BasicPaymentV1, BasicPaymentV2, LxOfferId, LxPaymentId,
-        PaymentCreatedIndex, PaymentDirection, PaymentKind, PaymentStatus,
+        BasicPaymentV1, LxOfferId, LxPaymentId, PaymentCreatedIndex,
+        PaymentDirection, PaymentKind, PaymentStatus,
     },
 };
 #[cfg(test)]
@@ -206,15 +206,18 @@ impl From<PaymentV1> for BasicPaymentV1 {
 // --- impl Payment --- //
 
 impl PaymentV1 {
-    // Can't impl BasicPaymentV2::from_payment bc we don't want to move
-    // `Payment` into `lexe-api-core`.
+    /// NOTE: Keep this around to ensure the new `into_basic_payment` impl
+    /// remains consistent with the older, known-correct version (see proptest
+    /// below), until all logic has been migrated to the v2 types with proptests
+    /// passing.
+    // TODO(max): Delete
+    #[cfg(test)]
     pub fn into_basic_payment(
         self,
         created_at: TimestampMs,
         updated_at: TimestampMs,
-        // TODO(max): We will add a PaymentMetadata param here later.
-    ) -> BasicPaymentV2 {
-        BasicPaymentV2 {
+    ) -> lexe_api::types::payments::BasicPaymentV2 {
+        lexe_api::types::payments::BasicPaymentV2 {
             id: self.id(),
             kind: self.kind(),
             direction: self.direction(),
@@ -234,6 +237,7 @@ impl PaymentV1 {
         }
     }
 
+    // TODO(max): Delete
     pub fn index(&self) -> PaymentCreatedIndex {
         PaymentCreatedIndex {
             created_at: self.created_at(),
@@ -257,6 +261,7 @@ impl PaymentV1 {
     }
 
     /// Whether this is an onchain payment, LN invoice payment, etc.
+    // TODO(max): Delete
     pub fn kind(&self) -> PaymentKind {
         match self {
             Self::OnchainSend(_) => PaymentKind::Onchain,
@@ -271,6 +276,7 @@ impl PaymentV1 {
     }
 
     /// Whether this payment is inbound or outbound. Useful for filtering.
+    // TODO(max): Delete
     pub fn direction(&self) -> PaymentDirection {
         match self {
             Self::OnchainSend(_) => PaymentDirection::Outbound,
@@ -284,8 +290,7 @@ impl PaymentV1 {
         }
     }
 
-    /// Returns the BOLT11 invoice corresponding to this payment, if there is
-    /// one.
+    /// Returns the BOLT11 invoice corresponding to this payment, if any.
     pub fn invoice(&self) -> Option<Box<LxInvoice>> {
         match self {
             Self::OnchainSend(_) => None,
@@ -305,6 +310,7 @@ impl PaymentV1 {
 
     /// Returns the id of the BOLT12 offer associated with this payment, if
     /// there is one.
+    // TODO(max): Delete
     pub fn offer_id(&self) -> Option<LxOfferId> {
         match self {
             Self::OnchainSend(_) => None,
@@ -323,6 +329,7 @@ impl PaymentV1 {
     }
 
     /// Returns the BOLT12 offer associated with this payment, if there is one.
+    // TODO(max): Delete
     pub fn offer(&self) -> Option<Box<LxOffer>> {
         match self {
             Self::OnchainSend(_) => None,
@@ -339,6 +346,7 @@ impl PaymentV1 {
     }
 
     /// Returns the original txid, if there is one.
+    // TODO(max): Delete
     pub fn txid(&self) -> Option<LxTxid> {
         match self {
             Self::OnchainSend(OnchainSendV1 { txid, .. }) => Some(*txid),
@@ -353,6 +361,7 @@ impl PaymentV1 {
     }
 
     /// Returns the txid of the replacement tx, if there is one.
+    // TODO(max): Delete
     pub fn replacement(&self) -> Option<LxTxid> {
         match self {
             Self::OnchainSend(OnchainSendV1 { replacement, .. }) =>
@@ -375,6 +384,7 @@ impl PaymentV1 {
     /// - If this is a pending or failed inbound inbound invoice payment, we
     ///   return the amount encoded in our invoice, which may be null.
     /// - For all other payment types, an amount is always returned.
+    // TODO(max): Delete
     pub fn amount(&self) -> Option<Amount> {
         match self {
             Self::OnchainSend(OnchainSendV1 { amount, .. }) => Some(*amount),
@@ -406,6 +416,7 @@ impl PaymentV1 {
     }
 
     /// The fees paid or expected to be paid for this payment.
+    // TODO(max): Delete
     pub fn fees(&self) -> Amount {
         match self {
             Self::OnchainSend(OnchainSendV1 { fees, .. }) => *fees,
@@ -463,6 +474,7 @@ impl PaymentV1 {
     }
 
     /// Get the payment status as a human-readable `&'static str`
+    // TODO(max): Delete
     pub fn status_str(&self) -> &str {
         match self {
             Self::OnchainSend(OnchainSendV1 { status, .. }) => status.as_str(),
@@ -496,6 +508,7 @@ impl PaymentV1 {
     }
 
     /// Get the payment note.
+    // TODO(max): Delete
     pub fn note(&self) -> Option<&str> {
         match self {
             Self::OnchainSend(OnchainSendV1 { note, .. }) => note,
@@ -523,6 +536,7 @@ impl PaymentV1 {
     }
 
     /// Set the payment note to a new value.
+    // TODO(max): Delete
     pub fn set_note(&mut self, note: Option<String>) {
         let mut_ref_note: &mut Option<String> = match self {
             Self::OnchainSend(OnchainSendV1 { note, .. }) => note,
@@ -550,6 +564,7 @@ impl PaymentV1 {
     }
 
     /// When this payment was created.
+    // TODO(max): Delete
     pub fn created_at(&self) -> TimestampMs {
         match self {
             Self::OnchainSend(OnchainSendV1 { created_at, .. }) => *created_at,
@@ -582,6 +597,7 @@ impl PaymentV1 {
     }
 
     /// When this payment was completed or failed.
+    // TODO(max): Delete
     pub fn finalized_at(&self) -> Option<TimestampMs> {
         match self {
             Self::OnchainSend(OnchainSendV1 { finalized_at, .. }) =>
@@ -741,6 +757,27 @@ mod test {
             let pwm = PaymentWithMetadata::from(p1.clone());
             let p2 = PaymentV1::from(pwm);
             prop_assert_eq!(p1, p2);
+        })
+    }
+
+    /// Tests that
+    ///
+    /// - `PaymentV1` -> `BasicPaymentV2`
+    /// - `PaymentV1` -> `PaymentWithMetadata` -> `BasicPaymentV2`
+    ///
+    /// are equivalent.
+    #[test]
+    fn v1_v2_into_basic_payment_proptest() {
+        proptest!(|(
+            payment in any::<PaymentV1>(),
+            created_at in any::<TimestampMs>(),
+            updated_at in any::<TimestampMs>(),
+        )| {
+            let pwm = PaymentWithMetadata::from(payment.clone());
+            let basic_direct =
+                payment.into_basic_payment(created_at, updated_at);
+            let basic_via_pwm = pwm.into_basic_payment(created_at, updated_at);
+            prop_assert_eq!(basic_direct, basic_via_pwm);
         })
     }
 

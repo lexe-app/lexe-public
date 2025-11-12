@@ -505,9 +505,8 @@ impl NodePersister {
                     .context("Invalid updated_at timestamp")?;
                 let pwm =
                     payments::decrypt(&self.vfs_master_key, db_payment.data)?;
-                let payment = PaymentV1::from(pwm);
                 let basic_payment =
-                    payment.into_basic_payment(created_at, updated_at);
+                    pwm.into_basic_payment(created_at, updated_at);
                 Ok(basic_payment)
             })
             .collect::<anyhow::Result<Vec<BasicPaymentV2>>>()
@@ -531,9 +530,8 @@ impl NodePersister {
                     .context("Invalid updated_at timestamp")?;
                 let pwm =
                     payments::decrypt(&self.vfs_master_key, db_payment.data)?;
-                let payment = PaymentV1::from(pwm);
                 let basic_payment =
-                    payment.into_basic_payment(created_at, updated_at);
+                    pwm.into_basic_payment(created_at, updated_at);
                 Ok::<_, anyhow::Error>(basic_payment)
             })
             .transpose()?;
@@ -561,9 +559,8 @@ impl NodePersister {
                     .context("Invalid updated_at timestamp")?;
                 let pwm =
                     payments::decrypt(&self.vfs_master_key, payment.data)?;
-                let payment = PaymentV1::from(pwm);
                 let basic_payment =
-                    payment.into_basic_payment(created_at, updated_at);
+                    pwm.into_basic_payment(created_at, updated_at);
                 Ok::<_, anyhow::Error>(basic_payment)
             })
             .collect::<anyhow::Result<Vec<BasicPaymentV2>>>()?;
