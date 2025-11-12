@@ -630,21 +630,6 @@ impl PaymentV1 {
             }) => *finalized_at,
         }
     }
-
-    /// Assert invariants on the current `Payment` state when
-    /// `cfg!(debug_assertions)` is enabled. This is a no-op in production.
-    pub(crate) fn debug_assert_invariants(&self) {
-        if cfg!(not(debug_assertions)) {
-            return;
-        }
-
-        // Payments should have a finalized_at() iff it has finalized.
-        use PaymentStatus::*;
-        match self.status() {
-            Pending => assert!(self.finalized_at().is_none()),
-            Completed | Failed => assert!(self.finalized_at().is_some()),
-        }
-    }
 }
 
 #[cfg(test)]

@@ -48,7 +48,7 @@ use lexe_api::{
     },
     vfs::{self, Vfs, VfsDirectory},
 };
-use lexe_ln::{p2p, payments::manager::CheckedPayment};
+use lexe_ln::p2p;
 use lexe_tokio::task::MaybeLxTask;
 use tracing::warn;
 

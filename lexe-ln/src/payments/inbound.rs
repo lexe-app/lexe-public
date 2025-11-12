@@ -1,6 +1,7 @@
 use std::num::NonZeroU64;
 
 use anyhow::{Context, anyhow};
+use common::ln::amount::Amount;
 use lexe_api::types::payments::{
     LnClaimId, LxOfferId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
     LxPaymentSecret, PaymentKind,
@@ -13,11 +14,90 @@ use lightning::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::payments::{
+    PaymentV2, PaymentWithMetadata, manager::CheckedPayment, v1::PaymentV1,
+};
 #[cfg(doc)]
 use crate::{
     command::create_invoice,
     payments::v1::inbound::InboundOfferReusablePaymentV1,
 };
+
+// --- Helpers to delegate to the inner type --- //
+
+/// Helper to handle the [`PaymentV2`] and [`LnClaimCtx`] matching.
+// Normally we don't want this much indirection, but the calling code is already
+// doing lots of ugly matching (at a higher abstraction level), so in this case
+// the separation makes both functions cleaner and easier to read.
+impl PaymentV2 {
+    /// ## Precondition
+    /// - The payment must not be finalized (`Completed` or `Expired`).
+    //
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
+    pub(crate) fn check_payment_claimable(
+        &self,
+        claim_ctx: LnClaimCtx,
+        amount: Amount,
+    ) -> Result<CheckedPayment, ClaimableError> {
+        // TODO(max): Update this
+
+        if claim_ctx.kind() != self.kind() {
+            return Err(ClaimableError::Replay(anyhow!(
+                "Claim kind doesn't match stored payment kind: {claimkind} != {paykind}",
+                claimkind = claim_ctx.kind(),
+                paykind = self.kind(),
+            )));
+        }
+
+        match (self, claim_ctx) {
+            (
+                Self::InboundInvoice(iip),
+                LnClaimCtx::Bolt11Invoice {
+                    preimage,
+                    hash,
+                    secret,
+                    claim_id,
+                },
+            ) => iip
+                .check_payment_claimable(
+                    hash, secret, preimage, claim_id, amount,
+                )
+                .map(PaymentV1::from)
+                .map(PaymentWithMetadata::from)
+                .map(CheckedPayment),
+            (
+                Self::InboundOfferReusable(iorp),
+                LnClaimCtx::Bolt12Offer(ctx),
+            ) => Err(iorp.check_payment_claimable(ctx, amount)),
+            // TODO(max): Implement for BOLT 12 refunds
+            // (
+            //     Self::Bolt12Refund(b12r),
+            //     LnClaimCtx::Bolt12Refund {
+            //         preimage,
+            //         secret,
+            //         context,
+            //     },
+            // ) => {
+            //     let _ = preimage;
+            //     let _ = secret;
+            //     let _ = context;
+            //     todo!();
+            // }
+            (
+                Self::InboundSpontaneous(isp),
+                LnClaimCtx::Spontaneous {
+                    preimage,
+                    hash,
+                    claim_id: _claim_id,
+                },
+            ) => Err(isp.check_payment_claimable(hash, preimage, amount)),
+            _ => Err(ClaimableError::Replay(anyhow!(
+                "Not an inbound LN payment, or purpose didn't match"
+            ))),
+        }
+    }
+}
 
 // --- ClaimableError --- //
 

@@ -645,6 +645,55 @@ impl PaymentV2 {
             }) => status.as_str(),
         }
     }
+
+    /// When this payment was completed or failed.
+    pub fn finalized_at(&self) -> Option<TimestampMs> {
+        match self {
+            Self::OnchainSend(OnchainSendV1 { finalized_at, .. }) =>
+                *finalized_at,
+            Self::OnchainReceive(OnchainReceiveV1 { finalized_at, .. }) =>
+                *finalized_at,
+            Self::InboundInvoice(InboundInvoicePaymentV1 {
+                finalized_at,
+                ..
+            }) => *finalized_at,
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
+                finalized_at,
+                ..
+            }) => *finalized_at,
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
+                finalized_at,
+                ..
+            }) => *finalized_at,
+            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
+                finalized_at,
+                ..
+            }) => *finalized_at,
+            Self::OutboundOffer(OutboundOfferPaymentV1 {
+                finalized_at,
+                ..
+            }) => *finalized_at,
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
+                finalized_at,
+                ..
+            }) => *finalized_at,
+        }
+    }
+
+    /// Assert invariants on the current `Payment` state when
+    /// `cfg!(debug_assertions)` is enabled. This is a no-op in production.
+    pub(crate) fn debug_assert_invariants(&self) {
+        if cfg!(not(debug_assertions)) {
+            return;
+        }
+
+        // Payments should have a finalized_at() iff it has finalized.
+        use PaymentStatus::*;
+        match self.status() {
+            Pending => assert!(self.finalized_at().is_none()),
+            Completed | Failed => assert!(self.finalized_at().is_some()),
+        }
+    }
 }
 
 // --- Payment-specific status -> General PaymentStatus  --- //

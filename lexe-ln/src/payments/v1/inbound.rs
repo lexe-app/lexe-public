@@ -1,6 +1,6 @@
 use std::num::NonZeroU64;
 
-use anyhow::{anyhow, ensure};
+use anyhow::ensure;
 #[cfg(test)]
 use common::test_utils::arbitrary;
 use common::{ln::amount::Amount, time::TimestampMs};
@@ -24,92 +24,11 @@ use tracing::warn;
 
 #[cfg(doc)]
 use crate::command::create_invoice;
-use crate::payments::{
-    PaymentWithMetadata,
-    inbound::{
-        ClaimableError, InboundInvoicePaymentStatus,
-        InboundOfferReusablePaymentStatus, InboundSpontaneousPaymentStatus,
-        LnClaimCtx, OfferClaimCtx,
-    },
-    manager::CheckedPayment,
-    v1::PaymentV1,
+use crate::payments::inbound::{
+    ClaimableError, InboundInvoicePaymentStatus,
+    InboundOfferReusablePaymentStatus, InboundSpontaneousPaymentStatus,
+    OfferClaimCtx,
 };
-
-// --- Helpers to delegate to the inner type --- //
-
-/// Helper to handle the [`PaymentV1`] and [`LnClaimCtx`] matching.
-// Normally we don't want this much indirection, but the calling code is already
-// doing lots of ugly matching (at a higher abstraction level), so in this case
-// the separation makes both functions cleaner and easier to read.
-impl PaymentV1 {
-    /// ## Precondition
-    /// - The payment must not be finalized (`Completed` or `Expired`).
-    //
-    // Event sources:
-    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
-    pub(crate) fn check_payment_claimable(
-        &self,
-        claim_ctx: LnClaimCtx,
-        amount: Amount,
-    ) -> Result<CheckedPayment, ClaimableError> {
-        // TODO(max): Update this
-
-        if claim_ctx.kind() != self.kind() {
-            return Err(ClaimableError::Replay(anyhow!(
-                "Claim kind doesn't match stored payment kind: {claimkind} != {paykind}",
-                claimkind = claim_ctx.kind(),
-                paykind = self.kind(),
-            )));
-        }
-
-        match (self, claim_ctx) {
-            (
-                Self::InboundInvoice(iip),
-                LnClaimCtx::Bolt11Invoice {
-                    preimage,
-                    hash,
-                    secret,
-                    claim_id,
-                },
-            ) => iip
-                .check_payment_claimable(
-                    hash, secret, preimage, claim_id, amount,
-                )
-                .map(PaymentV1::from)
-                .map(PaymentWithMetadata::from)
-                .map(CheckedPayment),
-            (
-                Self::InboundOfferReusable(iorp),
-                LnClaimCtx::Bolt12Offer(ctx),
-            ) => Err(iorp.check_payment_claimable(ctx, amount)),
-            // TODO(max): Implement for BOLT 12 refunds
-            // (
-            //     Self::Bolt12Refund(b12r),
-            //     LnClaimCtx::Bolt12Refund {
-            //         preimage,
-            //         secret,
-            //         context,
-            //     },
-            // ) => {
-            //     let _ = preimage;
-            //     let _ = secret;
-            //     let _ = context;
-            //     todo!();
-            // }
-            (
-                Self::InboundSpontaneous(isp),
-                LnClaimCtx::Spontaneous {
-                    preimage,
-                    hash,
-                    claim_id: _claim_id,
-                },
-            ) => Err(isp.check_payment_claimable(hash, preimage, amount)),
-            _ => Err(ClaimableError::Replay(anyhow!(
-                "Not an inbound LN payment, or purpose didn't match"
-            ))),
-        }
-    }
-}
 
 // --- Inbound invoice payments --- //
 
@@ -204,7 +123,7 @@ impl InboundInvoicePaymentV1 {
     //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
-    fn check_payment_claimable(
+    pub(crate) fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
         secret: LxPaymentSecret,
@@ -634,7 +553,7 @@ impl InboundSpontaneousPaymentV1 {
     //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
-    fn check_payment_claimable(
+    pub(crate) fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
         preimage: LxPaymentPreimage,
@@ -954,6 +873,7 @@ mod test {
     use proptest::arbitrary::any;
 
     use super::*;
+    use crate::payments::v1::PaymentV1;
 
     #[test]
     fn inbound_invoice_deser_compat() {
