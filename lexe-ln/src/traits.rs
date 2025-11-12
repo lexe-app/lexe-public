@@ -22,8 +22,8 @@ use crate::{
     },
     event::{EventHandleError, EventId},
     payments::{
+        PaymentWithMetadata,
         manager::{CheckedPayment, PersistedPayment},
-        v1::PaymentV1,
     },
 };
 
@@ -32,7 +32,10 @@ use crate::{
 pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
     // --- Required methods --- //
 
-    async fn get_pending_payments(&self) -> anyhow::Result<Vec<PaymentV1>>;
+    // TODO(max): This should return Paymentv2.
+    async fn get_pending_payments(
+        &self,
+    ) -> anyhow::Result<Vec<PaymentWithMetadata>>;
 
     async fn upsert_payment(
         &self,
@@ -44,10 +47,11 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
         checked_batch: Vec<CheckedPayment>,
     ) -> anyhow::Result<Vec<PersistedPayment>>;
 
+    // TODO(max): This should return Paymentv2.
     async fn get_payment_by_id(
         &self,
         id: LxPaymentId,
-    ) -> anyhow::Result<Option<PaymentV1>>;
+    ) -> anyhow::Result<Option<PaymentWithMetadata>>;
 
     async fn persist_manager<CM: Writeable + Send + Sync>(
         &self,

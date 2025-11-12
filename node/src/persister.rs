@@ -78,7 +78,7 @@ use lexe_ln::{
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
     payments::{
-        self,
+        self, PaymentWithMetadata,
         manager::{CheckedPayment, PersistedPayment},
         v1::PaymentV1,
     },
@@ -764,7 +764,9 @@ impl Vfs for NodePersister {
 
 #[async_trait]
 impl LexeInnerPersister for NodePersister {
-    async fn get_pending_payments(&self) -> anyhow::Result<Vec<PaymentV1>> {
+    async fn get_pending_payments(
+        &self,
+    ) -> anyhow::Result<Vec<PaymentWithMetadata>> {
         let token = self.get_token().await?;
         self.backend_api
             .get_pending_payments(token)
@@ -773,8 +775,7 @@ impl LexeInnerPersister for NodePersister {
             .payments
             .into_iter()
             .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
-            .map(|res| res.map(PaymentV1::from))
-            .collect::<anyhow::Result<Vec<PaymentV1>>>()
+            .collect::<anyhow::Result<Vec<PaymentWithMetadata>>>()
     }
 
     async fn upsert_payment(
@@ -849,10 +850,10 @@ impl LexeInnerPersister for NodePersister {
     async fn get_payment_by_id(
         &self,
         id: LxPaymentId,
-    ) -> anyhow::Result<Option<PaymentV1>> {
+    ) -> anyhow::Result<Option<PaymentWithMetadata>> {
         let req = LxPaymentIdStruct { id };
         let token = self.get_token().await?;
-        let maybe_payment = self
+        let maybe_pwm = self
             .backend_api
             .get_payment_by_id(req, token)
             .await
@@ -861,14 +862,16 @@ impl LexeInnerPersister for NodePersister {
             // Decrypt into `Payment`
             .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
             .transpose()
-            .map(|opt| opt.map(PaymentV1::from))
             .context("Could not decrypt payment")?;
 
-        if let Some(payment) = &maybe_payment {
-            ensure!(payment.id() == id, "ID of returned payment doesn't match");
+        if let Some(ref pwm) = maybe_pwm {
+            ensure!(
+                pwm.payment.id() == id,
+                "ID of returned payment doesn't match"
+            );
         }
 
-        Ok(maybe_payment)
+        Ok(maybe_pwm)
     }
 
     /// NOTE: See module docs for info on how manager/monitor persist works.

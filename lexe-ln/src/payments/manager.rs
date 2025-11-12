@@ -124,7 +124,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         channel_manager: CM,
         finalized_cache_capacity: usize,
         esplora: Arc<LexeEsplora>,
-        pending_payments: Vec<PaymentV1>,
+        pending_payments: Vec<PaymentWithMetadata>,
         wallet: LexeWallet,
         onchain_recv_rx: notify::Receiver,
         test_event_tx: TestEventSender,
@@ -132,6 +132,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     ) -> (Self, [LxTask<()>; 3]) {
         let pending = pending_payments
             .into_iter()
+            .map(PaymentV1::from)
             // Check that payments are indeed pending before adding to hashmap
             .filter_map(|payment| {
                 let id = payment.id();
@@ -372,13 +373,14 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             return Ok(Some(Cow::Borrowed(payment)));
         }
 
-        let maybe_payment = self.persister.get_payment_by_id(*id).await?;
+        let maybe_pwm = self.persister.get_payment_by_id(*id).await?;
 
-        if let Some(payment) = maybe_payment.clone() {
+        if let Some(ref pwm) = maybe_pwm {
+            let payment = PaymentV1::from(pwm.clone());
             locked_data.finalized_payments_cache.insert(*id, payment);
         }
 
-        Ok(maybe_payment.map(Cow::Owned))
+        Ok(maybe_pwm.map(PaymentV1::from).map(Cow::Owned))
     }
 
     /// Attempt to update the personal note on a payment.
@@ -395,12 +397,15 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // If the payment was finalized, we have to fetch a copy from the DB.
         let mut payment_clone = match locked_data.pending.get(&id) {
             Some(pending) => pending.clone(),
-            None => self
-                .persister
-                .get_payment_by_id(update.index.id)
-                .await
-                .context("Could not fetch finalized payment")?
-                .context("Finalized payment was not found in DB")?,
+            None => {
+                let pwm = self
+                    .persister
+                    .get_payment_by_id(update.index.id)
+                    .await
+                    .context("Could not fetch finalized payment")?
+                    .context("Finalized payment was not found in DB")?;
+                PaymentV1::from(pwm)
+            }
         };
         // TODO(max): Switch to get_cow_payment once the payment note is
         // separated from the core `Payment` type, o/w we might read stale data.
