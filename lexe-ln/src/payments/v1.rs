@@ -14,15 +14,18 @@ use lexe_api::types::{
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-use crate::payments::v1::{
-    inbound::{
-        InboundInvoicePaymentV1, InboundOfferReusablePaymentV1,
-        InboundSpontaneousPaymentV1,
-    },
-    onchain::{OnchainReceiveV1, OnchainSendV1},
-    outbound::{
-        OutboundInvoicePaymentV1, OutboundOfferPaymentV1,
-        OutboundSpontaneousPaymentV1,
+use crate::payments::{
+    PaymentV2, PaymentWithMetadata,
+    v1::{
+        inbound::{
+            InboundInvoicePaymentV1, InboundOfferReusablePaymentV1,
+            InboundSpontaneousPaymentV1,
+        },
+        onchain::{OnchainReceiveV1, OnchainSendV1},
+        outbound::{
+            OutboundInvoicePaymentV1, OutboundOfferPaymentV1,
+            OutboundSpontaneousPaymentV1,
+        },
     },
 };
 
@@ -89,7 +92,7 @@ pub enum PaymentV1 {
     OutboundSpontaneous(OutboundSpontaneousPaymentV1),
 }
 
-// --- Specific payment type -> top-level Payment types --- //
+// --- Payment subtype -> top-level Payment type --- //
 
 impl From<OnchainSendV1> for PaymentV1 {
     fn from(p: OnchainSendV1) -> Self {
@@ -129,6 +132,51 @@ impl From<OutboundOfferPaymentV1> for PaymentV1 {
 impl From<OutboundSpontaneousPaymentV1> for PaymentV1 {
     fn from(p: OutboundSpontaneousPaymentV1) -> Self {
         Self::OutboundSpontaneous(p)
+    }
+}
+
+// --- Conversion to/from PaymentWithMetadata --- //
+
+impl From<PaymentV1> for PaymentWithMetadata {
+    fn from(payment_v1: PaymentV1) -> Self {
+        let created_at = payment_v1.created_at();
+        let payment = match payment_v1 {
+            PaymentV1::OnchainSend(p) => p.into(),
+            PaymentV1::OnchainReceive(p) => p.into(),
+            PaymentV1::InboundInvoice(p) => p.into(),
+            PaymentV1::InboundOfferReusable(p) => p.into(),
+            PaymentV1::InboundSpontaneous(p) => p.into(),
+            PaymentV1::OutboundInvoice(p) => p.into(),
+            PaymentV1::OutboundOffer(p) => p.into(),
+            PaymentV1::OutboundSpontaneous(p) => p.into(),
+        };
+        let metadata = None;
+
+        Self {
+            payment,
+            metadata,
+            created_at,
+        }
+    }
+}
+
+// TODO(max): Eventually we will remove this impl, as the created_at field
+// required in PaymentV1 will be dropped from PaymentWithMetadata.
+impl From<PaymentWithMetadata> for PaymentV1 {
+    fn from(pwm: PaymentWithMetadata) -> Self {
+        match pwm.payment {
+            PaymentV2::OnchainSend(p) => PaymentV1::OnchainSend(p),
+            PaymentV2::OnchainReceive(p) => PaymentV1::OnchainReceive(p),
+            PaymentV2::InboundInvoice(p) => PaymentV1::InboundInvoice(p),
+            PaymentV2::InboundOfferReusable(p) =>
+                PaymentV1::InboundOfferReusable(p),
+            PaymentV2::InboundSpontaneous(p) =>
+                PaymentV1::InboundSpontaneous(p),
+            PaymentV2::OutboundInvoice(p) => PaymentV1::OutboundInvoice(p),
+            PaymentV2::OutboundOffer(p) => PaymentV1::OutboundOffer(p),
+            PaymentV2::OutboundSpontaneous(p) =>
+                PaymentV1::OutboundSpontaneous(p),
+        }
     }
 }
 
@@ -681,6 +729,19 @@ mod test {
     #[test]
     fn top_level_payment_serde_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<PaymentV1>();
+    }
+
+    /// During migration, we need to maintain the invariant that
+    /// `PaymentV1 -> PaymentWithMetadata -> PaymentV1` is lossless, as we are
+    /// moving all *logic* from `PaymentV1` to `PaymentV2`, but will still use
+    /// `PaymentV1` for serialization until all logic has been migrated.
+    #[test]
+    fn payment_v1_v2_roundtrip_proptest() {
+        proptest!(|(p1 in any::<PaymentV1>())| {
+            let pwm = PaymentWithMetadata::from(p1.clone());
+            let p2 = PaymentV1::from(pwm);
+            prop_assert_eq!(p1, p2);
+        })
     }
 
     #[test]

@@ -5,7 +5,14 @@
 
 use anyhow::Context;
 use common::{aes::AesMasterKey, rng::Crng, time::TimestampMs};
-use lexe_api::types::payments::{DbPaymentV2, PaymentStatus};
+use lexe_api::types::{
+    invoice::LxInvoice,
+    offer::LxOffer,
+    payments::{DbPaymentV2, LxPaymentId, PaymentStatus},
+};
+#[cfg(test)]
+use proptest_derive::Arbitrary;
+use serde::{Deserialize, Serialize};
 
 use crate::payments::{
     inbound::{
@@ -17,7 +24,18 @@ use crate::payments::{
         OutboundInvoicePaymentStatus, OutboundOfferPaymentStatus,
         OutboundSpontaneousPaymentStatus,
     },
-    v1::PaymentV1,
+    v1::{
+        PaymentV1,
+        inbound::{
+            InboundInvoicePaymentV1, InboundOfferReusablePaymentV1,
+            InboundSpontaneousPaymentV1,
+        },
+        onchain::{OnchainReceiveV1, OnchainSendV1},
+        outbound::{
+            OutboundInvoicePaymentV1, OutboundOfferPaymentV1,
+            OutboundSpontaneousPaymentV1,
+        },
+    },
 };
 
 /// Inbound Lightning payments.
@@ -31,7 +49,91 @@ pub mod outbound;
 /// `PaymentV1` and sub-types.
 pub mod v1;
 
-// --- The top-level payment type --- //
+// --- Top-level payment types --- //
+
+pub struct PaymentWithMetadata {
+    pub payment: PaymentV2,
+    pub metadata: Option<PaymentMetadata>,
+
+    // TODO(max): We temporarily have to store the `created_at` field here so
+    // that we can convert `PaymentV1` -> `PaymentWithMetadata` and back
+    // without data loss, since `PaymentV2` drops the `created_at` field.
+    pub created_at: TimestampMs,
+}
+
+/// Optional payment metadata associated with a [`PaymentV2`].
+#[derive(Clone, Debug, Eq, PartialEq)]
+// TODO(max): This should derive Serialize, Deserialize. We hold off for now as
+// we don't want to accidentally serialize using this type while we're still
+// migrating all logic.
+pub struct PaymentMetadata {
+    pub id: LxPaymentId,
+
+    /// The BOLT11 invoice corresponding to this payment, if any.
+    pub invoice: Option<Box<LxInvoice>>,
+
+    /// The BOLT12 offer associated with this payment, if any.
+    pub offer: Option<Box<LxOffer>>,
+
+    /// Private the payment note.
+    pub note: Option<String>,
+    //
+    // TODO(max): Add remaining fields once we implement the migration
+}
+
+/// The top level `Payment` type which abstracts over all types of payments,
+/// including both onchain and off-chain (Lightning) payments.
+///
+/// Each variant in `Payment` typically implements a state machine that
+/// ingests events from [`PaymentsManager`] to transition between states in
+/// that payment type's lifecycle.
+///
+/// For example, we create an [`OnchainSendV1`] payment in its initial state,
+/// `Created`. After we successfully broadcast the tx, the payment transitions
+/// to `Broadcasted`. Once the tx confirms, the payment transitions to
+/// `PartiallyConfirmed`, then `FullyConfirmed` with 6+ confs.
+///
+/// ### State machine idempotency
+///
+/// In certain situations, payment state machines updates have to be idempotent
+/// to handle replays of (1) the latest `EventHandler` event, or, for certain
+/// types of events, (2) any previous (relevant) event.
+///
+/// We experience (1) if the node crashes while the `EventHandler` is
+/// processing a payment event, specifically after the payment update is saved
+/// but before the event log persists. In this case, the event will be replayed
+/// on next startup.
+///
+/// For (2), the `EventHandler` may replay certain events that return a
+/// [`Replay`] error. These will keep getting replayed until the event returns
+/// `Ok` or [`Discard`]. These may even be replayed long after the payment
+/// has finalized.
+///
+/// ### Backwards compatibility
+///
+/// NOTE: Everything in this enum impls [`Serialize`] and [`Deserialize`], so be
+/// mindful of backwards compatibility.
+///
+/// [`PaymentsManager`]: crate::payments::manager::PaymentsManager
+/// [`Replay`]: crate::event::EventHandleError::Replay
+/// [`Discard`]: crate::event::EventHandleError::Discard
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
+pub enum PaymentV2 {
+    OnchainSend(OnchainSendV1),
+    OnchainReceive(OnchainReceiveV1),
+    // TODO(max): Implement SpliceIn
+    // TODO(max): Implement SpliceOut
+    InboundInvoice(InboundInvoicePaymentV1),
+    // TODO(phlip9): InboundOffer (single-use)
+    // Added in `node-v0.7.8`
+    InboundOfferReusable(InboundOfferReusablePaymentV1),
+    InboundSpontaneous(InboundSpontaneousPaymentV1),
+    OutboundInvoice(OutboundInvoicePaymentV1),
+    // Added in `node-v0.7.8`
+    OutboundOffer(OutboundOfferPaymentV1),
+    OutboundSpontaneous(OutboundSpontaneousPaymentV1),
+}
 
 /// Serializes a given payment to JSON and encrypts the payment under the given
 /// [`AesMasterKey`], returning the [`DbPaymentV2`] which can be persisted.
@@ -77,7 +179,48 @@ pub fn decrypt(
         .context("Could not deserialize Payment")
 }
 
-// --- Specific payment type -> top-level Payment types --- //
+// --- Payment subtype -> top-level Payment type --- //
+
+impl From<OnchainSendV1> for PaymentV2 {
+    fn from(p: OnchainSendV1) -> Self {
+        Self::OnchainSend(p)
+    }
+}
+impl From<OnchainReceiveV1> for PaymentV2 {
+    fn from(p: OnchainReceiveV1) -> Self {
+        Self::OnchainReceive(p)
+    }
+}
+impl From<InboundInvoicePaymentV1> for PaymentV2 {
+    fn from(p: InboundInvoicePaymentV1) -> Self {
+        Self::InboundInvoice(p)
+    }
+}
+impl From<InboundOfferReusablePaymentV1> for PaymentV2 {
+    fn from(p: InboundOfferReusablePaymentV1) -> Self {
+        Self::InboundOfferReusable(p)
+    }
+}
+impl From<InboundSpontaneousPaymentV1> for PaymentV2 {
+    fn from(p: InboundSpontaneousPaymentV1) -> Self {
+        Self::InboundSpontaneous(p)
+    }
+}
+impl From<OutboundInvoicePaymentV1> for PaymentV2 {
+    fn from(p: OutboundInvoicePaymentV1) -> Self {
+        Self::OutboundInvoice(p)
+    }
+}
+impl From<OutboundOfferPaymentV1> for PaymentV2 {
+    fn from(p: OutboundOfferPaymentV1) -> Self {
+        Self::OutboundOffer(p)
+    }
+}
+impl From<OutboundSpontaneousPaymentV1> for PaymentV2 {
+    fn from(p: OutboundSpontaneousPaymentV1) -> Self {
+        Self::OutboundSpontaneous(p)
+    }
+}
 
 // --- impl Payment --- //
 
