@@ -105,7 +105,9 @@ use std::{
 };
 
 use anyhow::{Context, anyhow, ensure};
-use common::{api::user::NodePk, ln::addr::LxSocketAddress};
+use common::{
+    api::user::NodePk, ln::addr::LxSocketAddress, rng::ThreadFastRng,
+};
 use lexe_std::{Apply, backoff};
 use lexe_tokio::{
     notify,
@@ -115,6 +117,7 @@ use lexe_tokio::{
 use lightning::ln::peer_handler::PeerHandleError;
 #[cfg(doc)]
 use lightning::ln::peer_handler::PeerManager;
+use rand::Rng;
 use tokio::{
     io::Interest,
     net::TcpStream,
@@ -135,6 +138,9 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 /// The maximum amount of time we'll allow LDK to complete the P2P handshake.
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// The default number of retries per `connect_peer_if_necessary`.
+const RETRIES_PER_CONNECT_PEER: usize = 4;
+
 /// The size of each [`Connection::read_buf`]. LDK suggests 4 KiB.
 const READ_BUF_LEN: usize = 4 << 10; // 4 KiB
 
@@ -144,10 +150,29 @@ const READ_BUF_LEN: usize = 4 << 10; // 4 KiB
 
 /// Connects to a LN peer, returning early if we were already connected.
 /// Cycles through the given addresses until we run out of connect attempts.
-pub async fn connect_peer_if_necessary<PM>(
+/// Retries up to `RETRIES_PER_CONNECT_PEER=4` times on failure.
+pub fn connect_peer_if_necessary<PM>(
     peer_manager: &PM,
     node_pk: &NodePk,
     addrs: &[LxSocketAddress],
+) -> impl Future<Output = anyhow::Result<MaybeLxTask<()>>>
+where
+    PM: PeerManagerTrait,
+{
+    connect_peer_if_necessary_with_retries(
+        peer_manager,
+        node_pk,
+        addrs,
+        RETRIES_PER_CONNECT_PEER,
+    )
+}
+
+/// [`connect_peer_if_necessary`], retrying up to `retries` times on failure.
+pub async fn connect_peer_if_necessary_with_retries<PM>(
+    peer_manager: &PM,
+    node_pk: &NodePk,
+    addrs: &[LxSocketAddress],
+    retries: usize,
 ) -> anyhow::Result<MaybeLxTask<()>>
 where
     PM: PeerManagerTrait,
@@ -160,12 +185,12 @@ where
         return Ok(MaybeLxTask(None));
     }
 
-    // Cycle the given addresses in order
-    let mut addrs = addrs.iter().cycle();
+    // Cycle the given addresses in order, starting at a random offset.
+    let start_idx = ThreadFastRng::new().gen_range(0..addrs.len());
+    let mut addrs = addrs.iter().cycle().skip(start_idx);
 
     // Retry at least a couple times to mitigate an outbound connect race
     // between the reconnector and open_channel which has been observed.
-    let retries = 5;
     for _ in 0..retries {
         let addr = addrs.next().expect("Cycling through a non-empty slice");
 
