@@ -29,6 +29,10 @@ use lexe_api::{
             LxPaymentIdStruct, PaymentAddress, PaymentCreatedIndexStruct,
             PaymentCreatedIndexes, UpdatePaymentAddress, VecLxPaymentId,
         },
+        nwc::{
+            ClientNostrPkStruct, GetNwcClientsParams, NwcClient,
+            UpdateNwcClientRequest, VecNwcClient,
+        },
         runner::{UserFinishedRequest, UserLeaseRenewalRequest},
     },
     rest::{POST, PUT, RequestBuilderExt, RestClient},
@@ -723,6 +727,45 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .get(format!("{backend}/node/v1/payment_address"), &data)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn get_nwc_clients(
+        &self,
+        req: GetNwcClientsParams,
+        auth: BearerAuthToken,
+    ) -> Result<VecNwcClient, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .get(format!("{backend}/node/v1/nwc_clients"), &req)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn upsert_nwc_client(
+        &self,
+        req: UpdateNwcClientRequest,
+        auth: BearerAuthToken,
+    ) -> Result<NwcClient, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .put(format!("{backend}/node/v1/nwc_clients"), &req)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn delete_nwc_client(
+        &self,
+        req: ClientNostrPkStruct,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .delete(format!("{backend}/node/v1/nwc_clients"), &req)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }

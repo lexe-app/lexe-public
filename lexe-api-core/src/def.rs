@@ -95,6 +95,10 @@ use crate::{
             ResyncRequest, SetupGDrive, UpdatePaymentAddress,
             UpdatePaymentNote, VecLxPaymentId,
         },
+        nwc::{
+            ClientNostrPkStruct, GetNwcClientsParams, NwcClient,
+            UpdateNwcClientRequest, VecNwcClient,
+        },
         runner::{
             MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest,
             MegaNodeApiUserRunResponse, UserFinishedRequest,
@@ -900,6 +904,33 @@ pub trait NodeBackendApi {
         &self,
         auth: BearerAuthToken,
     ) -> Result<PaymentAddress, BackendApiError>;
+
+    /// GET /node/v1/nwc_clients [`Empty`] -> [`Vec<NwcClient>`]
+    ///
+    /// Fetches the node's NWC clients.
+    async fn get_nwc_clients(
+        &self,
+        req: GetNwcClientsParams,
+        auth: BearerAuthToken,
+    ) -> Result<VecNwcClient, BackendApiError>;
+
+    /// PUT /node/v1/nwc_clients [`UpdateNwcClientRequest`] -> [`NwcClient`]
+    ///
+    /// Upserts a NWC client.
+    async fn upsert_nwc_client(
+        &self,
+        req: UpdateNwcClientRequest,
+        auth: BearerAuthToken,
+    ) -> Result<NwcClient, BackendApiError>;
+
+    /// DELETE /node/v1/nwc_clients [`ClientNostrPkStruct`] -> [`Empty`]
+    ///
+    /// Deletes a NWC client.
+    async fn delete_nwc_client(
+        &self,
+        req: ClientNostrPkStruct,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError>;
 }
 
 /// Defines the api that the LSP exposes to user nodes.
