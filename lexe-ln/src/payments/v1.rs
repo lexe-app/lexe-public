@@ -641,94 +641,14 @@ mod test {
         test_utils::{arbitrary, roundtrip},
     };
     use proptest::{
-        arbitrary::any, prelude::Strategy, prop_assert_eq, proptest,
-        test_runner::Config,
+        arbitrary::any, prop_assert_eq, proptest, test_runner::Config,
     };
 
     use super::*;
 
-    // Generate serialized `BasicPaymentV1` sample json data:
-    // ```bash
-    // $ cargo test -p lexe-ln -- gen_basic_payment_sample_data --ignored --nocapture
-    // ```
-    // NOTE: this lives here b/c `common` can't depend on `lexe-ln`.
+    // TODO(max): Delete
     #[test]
-    #[ignore]
-    fn gen_basic_payment_sample_data() {
-        let mut rng = FastRng::from_u64(202503031636);
-        const N: usize = 3;
-
-        // generate `N` samples for each variant to ensure we get full coverage
-        let strategies = vec![
-            (
-                "OnchainSend",
-                any::<OnchainSendV1>()
-                    .prop_map(PaymentV1::OnchainSend)
-                    .boxed(),
-            ),
-            (
-                "OnchainReceive",
-                any::<OnchainReceiveV1>()
-                    .prop_map(PaymentV1::OnchainReceive)
-                    .boxed(),
-            ),
-            (
-                "InboundInvoice",
-                any::<InboundInvoicePaymentV1>()
-                    .prop_map(PaymentV1::InboundInvoice)
-                    .boxed(),
-            ),
-            (
-                "InboundOfferReusable",
-                any::<InboundOfferReusablePaymentV1>()
-                    .prop_map(PaymentV1::InboundOfferReusable)
-                    .boxed(),
-            ),
-            (
-                "InboundSpontaneous",
-                any::<InboundSpontaneousPaymentV1>()
-                    .prop_map(PaymentV1::InboundSpontaneous)
-                    .boxed(),
-            ),
-            (
-                "OutboundInvoice",
-                any::<OutboundInvoicePaymentV1>()
-                    .prop_map(PaymentV1::OutboundInvoice)
-                    .boxed(),
-            ),
-            (
-                "OutboundOfferPayment",
-                any::<OutboundOfferPaymentV1>()
-                    .prop_map(PaymentV1::OutboundOffer)
-                    .boxed(),
-            ),
-            (
-                "OutboundSpontaneous",
-                any::<OutboundSpontaneousPaymentV1>()
-                    .prop_map(PaymentV1::OutboundSpontaneous)
-                    .boxed(),
-            ),
-        ];
-
-        for (name, strat) in strategies {
-            println!("--- {name}");
-            for mut value in arbitrary::gen_value_iter(&mut rng, strat).take(N)
-            {
-                // clean long annoying unicode notes
-                if value.note().is_some() {
-                    value.set_note(Some("foo bar".to_owned()));
-                }
-
-                // serialize app BasicPaymentV1
-                let value = BasicPaymentV1::from(value);
-                let json = serde_json::to_string(&value).unwrap();
-                println!("{json}");
-            }
-        }
-    }
-
-    #[test]
-    fn top_level_payment_serde_roundtrip() {
+    fn payment_serde_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<PaymentV1>();
     }
 
@@ -812,7 +732,7 @@ mod test {
     /// ```
     #[ignore]
     #[test]
-    fn take_payments_snapshot() {
+    fn take_payments_v1_snapshot() {
         const COUNT: usize = 5;
         let seed = 20250316; // Base seed for all variants
         let mut rng = FastRng::from_u64(seed);

@@ -19,7 +19,12 @@ use lexe_api::types::{
     },
 };
 #[cfg(test)]
+use proptest::{option, prelude::Just};
+#[cfg(test)]
 use proptest_derive::Arbitrary;
+#[cfg(doc)]
+use serde::{Deserialize, Serialize};
+#[cfg(test)]
 use serde::{Deserialize, Serialize};
 
 use crate::payments::{
@@ -72,9 +77,11 @@ pub struct PaymentWithMetadata {
 
 /// Optional payment metadata associated with a [`PaymentV2`].
 #[derive(Clone, Debug, Eq, PartialEq)]
-// TODO(max): This should derive Serialize, Deserialize. We hold off for now as
-// we don't want to accidentally serialize using this type while we're still
-// migrating all logic.
+#[cfg_attr(test, derive(Arbitrary))]
+// TODO(max): This should derive Serialize and Deserialize, but we hold off for
+// now as we don't want to accidentally serialize using this type while we're
+// still migrating all logic.
+#[cfg_attr(test, derive(Serialize, Deserialize))]
 pub struct PaymentMetadata {
     pub id: LxPaymentId,
 
@@ -84,7 +91,12 @@ pub struct PaymentMetadata {
     /// The BOLT12 offer associated with this payment, if any.
     pub offer: Option<Box<LxOffer>>,
 
-    /// Private the payment note.
+    /// The payment note, private to the user.
+    // Suppress useless unicode gibberish in tests.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "option::of(Just(String::from(\"note\")))")
+    )]
     pub note: Option<String>,
     //
     // TODO(max): Add remaining fields once we implement the migration
@@ -126,8 +138,12 @@ pub struct PaymentMetadata {
 /// [`PaymentsManager`]: crate::payments::manager::PaymentsManager
 /// [`Replay`]: crate::event::EventHandleError::Replay
 /// [`Discard`]: crate::event::EventHandleError::Discard
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(test, derive(Arbitrary))]
+// TODO(max): This should derive Serialize and Deserialize, but we hold off for
+// now as we don't want to accidentally serialize using this type while we're
+// still migrating all logic.
+#[cfg_attr(test, derive(Serialize, Deserialize))]
 pub enum PaymentV2 {
     OnchainSend(OnchainSendV1),
     OnchainReceive(OnchainReceiveV1),
@@ -182,7 +198,7 @@ pub fn encrypt(
 }
 
 /// Given a [`DbPaymentV2::data`] (ciphertext), attempts to decrypt using the
-/// given [`AesMasterKey`], returning the deserialized [`PaymentV1`].
+/// given [`AesMasterKey`], returning the deserialized [`PaymentV2`].
 // TODO(max): This should return only `PaymentV2` once logic is migrated.
 // There will also be a separate function `decrypt_metadata` which returns
 // `PaymentMetadata`.
@@ -886,11 +902,25 @@ impl OutboundSpontaneousPaymentStatus {
 
 #[cfg(test)]
 mod test {
-    use common::{aes::AesMasterKey, rng::FastRng};
-    use proptest::{arbitrary::any, prop_assert_eq, proptest};
+    use std::cmp;
+
+    use common::{
+        aes::AesMasterKey,
+        rng::FastRng,
+        test_utils::{arbitrary, roundtrip},
+    };
+    use proptest::{
+        arbitrary::any, prop_assert_eq, proptest, strategy::Strategy,
+        test_runner::Config,
+    };
 
     use super::*;
-    use crate::payments;
+    use crate::payments::{self, v1::PaymentV1};
+
+    #[test]
+    fn payment_serde_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<PaymentV2>();
+    }
 
     #[test]
     fn payment_encryption_roundtrip() {
@@ -917,5 +947,197 @@ mod test {
                 .unwrap();
             prop_assert_eq!(p1, p2);
         })
+    }
+
+    #[test]
+    fn payment_id_equivalence() {
+        let cfg = Config::with_cases(100);
+
+        proptest!(cfg, |(payment: PaymentV1)| {
+            let id = match &payment {
+                PaymentV1::OnchainSend(x) => x.id(),
+                PaymentV1::OnchainReceive(x) => x.id(),
+                PaymentV1::InboundInvoice(x) => x.id(),
+                PaymentV1::InboundOfferReusable(x) => x.id(),
+                PaymentV1::InboundSpontaneous(x) => x.id(),
+                PaymentV1::OutboundInvoice(x) => x.id(),
+                PaymentV1::OutboundOffer(x) => x.id(),
+                PaymentV1::OutboundSpontaneous(x) => x.id(),
+            };
+            prop_assert_eq!(id, payment.id());
+        });
+    }
+
+    /// Dumps a JSON array of `Payment`s using the proptest strategy.
+    /// Generates N of each payment sub-type to ensure even coverage.
+    ///
+    /// ```bash
+    /// $ cargo test -p lexe-ln --lib -- --ignored take_payments_snapshot --show-output
+    /// ```
+    #[ignore]
+    #[test]
+    fn take_payments_v2_snapshot() {
+        const COUNT: usize = 5;
+        let seed = 20250316; // Base seed for all variants
+        let mut rng = FastRng::from_u64(seed);
+        let mut payments = Vec::new();
+
+        // Generate COUNT of each payment type for even coverage
+        payments.extend(
+            arbitrary::gen_value_iter(&mut rng, any::<OnchainSendV1>())
+                .take(COUNT)
+                .map(PaymentV2::OnchainSend),
+        );
+        payments.extend(
+            arbitrary::gen_value_iter(&mut rng, any::<OnchainReceiveV1>())
+                .take(COUNT)
+                .map(PaymentV2::OnchainReceive),
+        );
+        payments.extend(
+            arbitrary::gen_value_iter(
+                &mut rng,
+                any::<InboundInvoicePaymentV1>(),
+            )
+            .take(COUNT)
+            .map(PaymentV2::InboundInvoice),
+        );
+        payments.extend(
+            arbitrary::gen_value_iter(
+                &mut rng,
+                any::<InboundOfferReusablePaymentV1>(),
+            )
+            .take(COUNT)
+            .map(PaymentV2::InboundOfferReusable),
+        );
+        payments.extend(
+            arbitrary::gen_value_iter(
+                &mut rng,
+                any::<InboundSpontaneousPaymentV1>(),
+            )
+            .take(COUNT)
+            .map(PaymentV2::InboundSpontaneous),
+        );
+        payments.extend(
+            arbitrary::gen_value_iter(
+                &mut rng,
+                any::<OutboundInvoicePaymentV1>(),
+            )
+            .take(COUNT)
+            .map(PaymentV2::OutboundInvoice),
+        );
+        payments.extend(
+            arbitrary::gen_value_iter(
+                &mut rng,
+                any::<OutboundOfferPaymentV1>(),
+            )
+            .take(COUNT)
+            .map(PaymentV2::OutboundOffer),
+        );
+        payments.extend(
+            arbitrary::gen_value_iter(
+                &mut rng,
+                any::<OutboundSpontaneousPaymentV1>(),
+            )
+            .take(COUNT)
+            .map(PaymentV2::OutboundSpontaneous),
+        );
+
+        println!("---");
+        println!("{}", serde_json::to_string_pretty(&payments).unwrap());
+        println!("---");
+    }
+
+    /// Generate serialized `BasicPaymentV2` sample json data:
+    ///
+    /// ```bash
+    /// $ cargo test -p lexe-ln -- gen_basic_payment_sample_data --ignored --nocapture
+    /// ```
+    /// NOTE: this lives here b/c `common` can't depend on `lexe-ln`.
+    // TODO(max): This test won't be useful until all logic is migrated to
+    // PaymentV2, and we've finalized the PaymentV2 + PaymentMetadata
+    // serialization format.
+    #[test]
+    #[ignore]
+    fn gen_basic_payment_sample_data() {
+        let mut rng = FastRng::from_u64(202503031636);
+        const N: usize = 3;
+
+        // generate `N` samples for each variant to ensure we get full coverage
+        let strategies = vec![
+            (
+                "OnchainSend",
+                any::<OnchainSendV1>()
+                    .prop_map(PaymentV2::OnchainSend)
+                    .boxed(),
+            ),
+            (
+                "OnchainReceive",
+                any::<OnchainReceiveV1>()
+                    .prop_map(PaymentV2::OnchainReceive)
+                    .boxed(),
+            ),
+            (
+                "InboundInvoice",
+                any::<InboundInvoicePaymentV1>()
+                    .prop_map(PaymentV2::InboundInvoice)
+                    .boxed(),
+            ),
+            (
+                "InboundOfferReusable",
+                any::<InboundOfferReusablePaymentV1>()
+                    .prop_map(PaymentV2::InboundOfferReusable)
+                    .boxed(),
+            ),
+            (
+                "InboundSpontaneous",
+                any::<InboundSpontaneousPaymentV1>()
+                    .prop_map(PaymentV2::InboundSpontaneous)
+                    .boxed(),
+            ),
+            (
+                "OutboundInvoice",
+                any::<OutboundInvoicePaymentV1>()
+                    .prop_map(PaymentV2::OutboundInvoice)
+                    .boxed(),
+            ),
+            (
+                "OutboundOfferPayment",
+                any::<OutboundOfferPaymentV1>()
+                    .prop_map(PaymentV2::OutboundOffer)
+                    .boxed(),
+            ),
+            (
+                "OutboundSpontaneous",
+                any::<OutboundSpontaneousPaymentV1>()
+                    .prop_map(PaymentV2::OutboundSpontaneous)
+                    .boxed(),
+            ),
+        ];
+
+        for (name, strat) in strategies {
+            println!("--- {name}");
+            let any_metadata = any::<Option<PaymentMetadata>>();
+            let any_created_at = any::<TimestampMs>();
+            let any_updated_at = any::<TimestampMs>();
+            let combined_strat =
+                (strat, any_metadata, any_created_at, any_updated_at);
+
+            for (value, metadata, created_at, updated_at_raw) in
+                arbitrary::gen_value_iter(&mut rng, combined_strat).take(N)
+            {
+                // Ensure updated_at >= created_at
+                let updated_at = cmp::max(created_at, updated_at_raw);
+
+                // serialize app BasicPaymentV2
+                let pwm = PaymentWithMetadata {
+                    payment: value,
+                    metadata,
+                    created_at,
+                };
+                let basic = pwm.into_basic_payment(created_at, updated_at);
+                let json = serde_json::to_string(&basic).unwrap();
+                println!("{json}");
+            }
+        }
     }
 }
