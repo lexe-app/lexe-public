@@ -75,7 +75,7 @@ use lightning::{
 };
 use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, error, info, info_span, warn};
+use tracing::{debug, error, info, info_span, trace, warn};
 
 use crate::{
     SEMVER_VERSION,
@@ -869,7 +869,7 @@ impl UserNode {
                     loop {
                         tokio::select! {
                             _ = renewal_timer.tick() => {
-                                debug!("Renewing lease");
+                                trace!("Renewing lease");
 
                                 let req = UserLeaseRenewalRequest {
                                     lease_id,
@@ -878,7 +878,7 @@ impl UserNode {
                                 };
 
                                 match runner_api.renew_lease(&req).await {
-                                    Ok(_) => debug!("Success: renewed lease"),
+                                    Ok(_) => trace!("Success: renewed lease"),
                                     Err(e) => {
                                         error!("Failed to renew lease: {e:#}");
                                         // If we fail to renew the lease for any
