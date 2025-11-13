@@ -788,7 +788,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         debug!(%id, "Registering that an onchain send has been broadcasted");
         let mut locked_data = self.data.lock().await;
 
-        let payment = self
+        let pwm = self
             .get_cow_payment(&mut locked_data, id)
             .await
             .context("Could not get payment")?
@@ -796,18 +796,23 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // TODO(phlip9): races with sync after broadcast
         ensure!(
-            !payment.payment.status().is_finalized(),
+            !pwm.payment.status().is_finalized(),
             "Onchain send was already finalized",
         );
         // From here, we know the payment is pending.
 
         // Check
-        let checked = match &payment.payment {
+        let checked = match &pwm.payment {
             PaymentV2::OnchainSend(os) => os
                 .broadcasted(txid)
-                .map(PaymentV1::from)
-                .map(PaymentWithMetadata::from)
-                .map(CheckedPayment)
+                .map(|os_checked| {
+                    let oswm = PaymentWithMetadata {
+                        payment: os_checked,
+                        metadata: pwm.metadata.clone(),
+                        created_at: pwm.created_at,
+                    };
+                    CheckedPayment(oswm.into_enum())
+                })
                 .context("Invalid state transition")?,
             _ => bail!("Payment was not an onchain send"),
         };
@@ -1277,10 +1282,15 @@ impl PaymentsData {
                 let maybe_checked = match &pwm.payment {
                     PaymentV2::OnchainSend(os) => os
                         .check_onchain_conf(conf_status)
-                        .map(|opt| {
-                            opt.map(PaymentV1::from)
-                                .map(PaymentWithMetadata::from)
-                                .map(CheckedPayment)
+                        .map(|maybe_os| {
+                            maybe_os.map(|checked_os| {
+                                let oswm = PaymentWithMetadata {
+                                    payment: checked_os,
+                                    metadata: pwm.metadata.clone(),
+                                    created_at: pwm.created_at,
+                                };
+                                CheckedPayment(oswm.into_enum())
+                            })
                         })
                         .context("Error checking onchain send conf")?,
                     PaymentV2::OnchainReceive(or) => or
@@ -1337,6 +1347,7 @@ mod test {
 
     use super::*;
     use crate::payments::{
+        PaymentMetadata,
         inbound::OfferClaimCtx,
         outbound::OutboundInvoicePaymentStatus,
         v1::{
@@ -1365,7 +1376,14 @@ mod test {
                 finalized_payments_cache,
             };
             for payment in payments {
-                out.insert_payment(payment);
+                let id = payment.id();
+                // TODO(max): Eventually this will just use PaymentV2
+                let pwm = PaymentWithMetadata {
+                    payment,
+                    metadata: PaymentMetadata::empty(id),
+                    created_at: TimestampMs::MIN,
+                };
+                out.insert_payment(pwm);
             }
 
             // Check invariants
@@ -1376,16 +1394,9 @@ mod test {
 
         /// Insert a payment into `PaymentsData` without running through the
         /// full state machine.
-        fn insert_payment(&mut self, payment: PaymentV2) {
-            // TODO(max): Change this back to PaymentV2 once we migrate
-            // persistence to use PaymentV2 instead of PaymentWithMetadata.
-            let pwm = PaymentWithMetadata {
-                payment: payment.clone(),
-                metadata: None,
-                created_at: TimestampMs::now(),
-            };
-            let id = payment.id();
-            if payment.status().is_pending() {
+        fn insert_payment(&mut self, pwm: PaymentWithMetadata) {
+            let id = pwm.payment.id();
+            if pwm.payment.status().is_pending() {
                 self.pending.insert(id, pwm);
             } else {
                 self.finalized_payments_cache.insert(id, pwm);
@@ -1398,7 +1409,12 @@ mod test {
             let id = payment.id();
             self.pending.remove(&id);
             self.finalized_payments_cache.remove(&id);
-            self.insert_payment(payment);
+            let pwm = PaymentWithMetadata {
+                payment,
+                metadata: PaymentMetadata::empty(id),
+                created_at: TimestampMs::now(),
+            };
+            self.insert_payment(pwm);
             self.debug_assert_invariants();
         }
     }

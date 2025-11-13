@@ -15,7 +15,8 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use crate::payments::{
-    PaymentV2, PaymentWithMetadata,
+    PaymentMetadata, PaymentV2, PaymentWithMetadata,
+    onchain::OnchainSendV2,
     v1::{
         inbound::{
             InboundInvoicePaymentV1, InboundOfferReusablePaymentV1,
@@ -139,23 +140,46 @@ impl From<OutboundSpontaneousPaymentV1> for PaymentV1 {
 
 impl From<PaymentV1> for PaymentWithMetadata {
     fn from(payment_v1: PaymentV1) -> Self {
+        let id = payment_v1.id();
         let created_at = payment_v1.created_at();
-        let payment = match payment_v1 {
-            PaymentV1::OnchainSend(p) => p.into(),
-            PaymentV1::OnchainReceive(p) => p.into(),
-            PaymentV1::InboundInvoice(p) => p.into(),
-            PaymentV1::InboundOfferReusable(p) => p.into(),
-            PaymentV1::InboundSpontaneous(p) => p.into(),
-            PaymentV1::OutboundInvoice(p) => p.into(),
-            PaymentV1::OutboundOffer(p) => p.into(),
-            PaymentV1::OutboundSpontaneous(p) => p.into(),
-        };
-        let metadata = None;
-
-        Self {
-            payment,
-            metadata,
-            created_at,
+        match payment_v1 {
+            PaymentV1::OnchainSend(p) =>
+                PaymentWithMetadata::<OnchainSendV2>::from(p).into_enum(),
+            PaymentV1::OnchainReceive(p) => Self {
+                payment: p.into(),
+                metadata: PaymentMetadata::empty(id),
+                created_at,
+            },
+            PaymentV1::InboundInvoice(p) => Self {
+                payment: p.into(),
+                metadata: PaymentMetadata::empty(id),
+                created_at,
+            },
+            PaymentV1::InboundOfferReusable(p) => Self {
+                payment: p.into(),
+                metadata: PaymentMetadata::empty(id),
+                created_at,
+            },
+            PaymentV1::InboundSpontaneous(p) => Self {
+                payment: p.into(),
+                metadata: PaymentMetadata::empty(id),
+                created_at,
+            },
+            PaymentV1::OutboundInvoice(p) => Self {
+                payment: p.into(),
+                metadata: PaymentMetadata::empty(id),
+                created_at,
+            },
+            PaymentV1::OutboundOffer(p) => Self {
+                payment: p.into(),
+                metadata: PaymentMetadata::empty(id),
+                created_at,
+            },
+            PaymentV1::OutboundSpontaneous(p) => Self {
+                payment: p.into(),
+                metadata: PaymentMetadata::empty(id),
+                created_at,
+            },
         }
     }
 }
@@ -165,7 +189,14 @@ impl From<PaymentV1> for PaymentWithMetadata {
 impl From<PaymentWithMetadata> for PaymentV1 {
     fn from(pwm: PaymentWithMetadata) -> Self {
         match pwm.payment {
-            PaymentV2::OnchainSend(p) => PaymentV1::OnchainSend(p),
+            PaymentV2::OnchainSend(p) => {
+                let oswm = PaymentWithMetadata::<OnchainSendV2> {
+                    payment: p,
+                    metadata: pwm.metadata,
+                    created_at: pwm.created_at,
+                };
+                PaymentV1::OnchainSend(OnchainSendV1::from(oswm))
+            }
             PaymentV2::OnchainReceive(p) => PaymentV1::OnchainReceive(p),
             PaymentV2::InboundInvoice(p) => PaymentV1::InboundInvoice(p),
             PaymentV2::InboundOfferReusable(p) =>

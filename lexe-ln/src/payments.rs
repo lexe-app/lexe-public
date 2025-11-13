@@ -32,7 +32,7 @@ use crate::payments::{
         InboundInvoicePaymentStatus, InboundOfferReusablePaymentStatus,
         InboundSpontaneousPaymentStatus,
     },
-    onchain::{OnchainReceiveStatus, OnchainSendStatus},
+    onchain::{OnchainReceiveStatus, OnchainSendStatus, OnchainSendV2},
     outbound::{
         OutboundInvoicePaymentStatus, OutboundOfferPaymentStatus,
         OutboundSpontaneousPaymentStatus,
@@ -43,7 +43,7 @@ use crate::payments::{
             InboundInvoicePaymentV1, InboundOfferReusablePaymentV1,
             InboundSpontaneousPaymentV1,
         },
-        onchain::{OnchainReceiveV1, OnchainSendV1},
+        onchain::OnchainReceiveV1,
         outbound::{
             OutboundInvoicePaymentV1, OutboundOfferPaymentV1,
             OutboundSpontaneousPaymentV1,
@@ -64,10 +64,13 @@ pub mod v1;
 
 // --- Top-level payment types --- //
 
+/// Associates a payment along with its payment metadata.
+/// Defaults to the top-level payment type [`PaymentV2`], but can be used for
+/// any payment subtype, e.g. [`OnchainSendV2`].
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PaymentWithMetadata {
-    pub payment: PaymentV2,
-    pub metadata: Option<PaymentMetadata>,
+pub struct PaymentWithMetadata<P = PaymentV2> {
+    pub payment: P,
+    pub metadata: PaymentMetadata,
 
     // TODO(max): We temporarily have to store the `created_at` field here so
     // that we can convert `PaymentV1` -> `PaymentWithMetadata` and back
@@ -102,14 +105,14 @@ pub struct PaymentMetadata {
     // TODO(max): Add remaining fields once we implement the migration
 }
 
-/// The top level `Payment` type which abstracts over all types of payments,
+/// The primary `Payment` enum which abstracts over all types of payments,
 /// including both onchain and off-chain (Lightning) payments.
 ///
 /// Each variant in `Payment` typically implements a state machine that
 /// ingests events from [`PaymentsManager`] to transition between states in
 /// that payment type's lifecycle.
 ///
-/// For example, we create an [`OnchainSendV1`] payment in its initial state,
+/// For example, we create an [`OnchainSendV2`] payment in its initial state,
 /// `Created`. After we successfully broadcast the tx, the payment transitions
 /// to `Broadcasted`. Once the tx confirms, the payment transitions to
 /// `PartiallyConfirmed`, then `FullyConfirmed` with 6+ confs.
@@ -145,7 +148,7 @@ pub struct PaymentMetadata {
 // still migrating all logic.
 #[cfg_attr(test, derive(Serialize, Deserialize))]
 pub enum PaymentV2 {
-    OnchainSend(OnchainSendV1),
+    OnchainSend(OnchainSendV2),
     OnchainReceive(OnchainReceiveV1),
     // TODO(max): Implement SpliceIn
     // TODO(max): Implement SpliceOut
@@ -219,8 +222,8 @@ pub fn decrypt(
 
 // --- Payment subtype -> top-level Payment type --- //
 
-impl From<OnchainSendV1> for PaymentV2 {
-    fn from(p: OnchainSendV1) -> Self {
+impl From<OnchainSendV2> for PaymentV2 {
+    fn from(p: OnchainSendV2) -> Self {
         Self::OnchainSend(p)
     }
 }
@@ -262,7 +265,19 @@ impl From<OutboundSpontaneousPaymentV1> for PaymentV2 {
 
 // --- impl PaymentWithMetadata --- //
 
-impl PaymentWithMetadata {
+impl<P: Into<PaymentV2>> PaymentWithMetadata<P> {
+    /// Maps the payment sub-type to the `PaymentV2` enum, e.g.
+    /// `PaymentWithMetadata<OnchainSendV2>` -> `PaymentWithMetadata<PaymentV2>`
+    pub fn into_enum(self) -> PaymentWithMetadata {
+        PaymentWithMetadata {
+            payment: self.payment.into(),
+            metadata: self.metadata,
+            created_at: self.created_at,
+        }
+    }
+}
+
+impl PaymentWithMetadata<PaymentV2> {
     // Can't impl BasicPaymentV2::from_payment bc we don't want to move
     // `Payment` into `lexe-api-core`.
     pub fn into_basic_payment(
@@ -353,7 +368,7 @@ impl PaymentWithMetadata {
     // TODO(max): Remove fn once all matching is removed
     pub fn txid(&self) -> Option<LxTxid> {
         match &self.payment {
-            PaymentV2::OnchainSend(OnchainSendV1 { txid, .. }) => Some(*txid),
+            PaymentV2::OnchainSend(OnchainSendV2 { txid, .. }) => Some(*txid),
             PaymentV2::OnchainReceive(OnchainReceiveV1 { txid, .. }) =>
                 Some(*txid),
             PaymentV2::InboundInvoice(_) => None,
@@ -369,7 +384,7 @@ impl PaymentWithMetadata {
     // TODO(max): Remove fn once all matching is removed
     pub fn replacement(&self) -> Option<LxTxid> {
         match &self.payment {
-            PaymentV2::OnchainSend(OnchainSendV1 { replacement, .. }) =>
+            PaymentV2::OnchainSend(OnchainSendV2 { replacement, .. }) =>
                 *replacement,
             PaymentV2::OnchainReceive(OnchainReceiveV1 {
                 replacement, ..
@@ -393,7 +408,7 @@ impl PaymentWithMetadata {
     // TODO(max): Remove fn once all matching is removed
     pub fn amount(&self) -> Option<Amount> {
         match &self.payment {
-            PaymentV2::OnchainSend(OnchainSendV1 { amount, .. }) =>
+            PaymentV2::OnchainSend(OnchainSendV2 { amount, .. }) =>
                 Some(*amount),
             PaymentV2::OnchainReceive(OnchainReceiveV1 { amount, .. }) =>
                 Some(*amount),
@@ -427,7 +442,7 @@ impl PaymentWithMetadata {
     // TODO(max): Remove fn once all matching is removed
     pub fn fees(&self) -> Amount {
         match &self.payment {
-            PaymentV2::OnchainSend(OnchainSendV1 { fees, .. }) => *fees,
+            PaymentV2::OnchainSend(OnchainSendV2 { fees, .. }) => *fees,
             // We don't pay anything to receive money onchain
             PaymentV2::OnchainReceive(OnchainReceiveV1 { .. }) => Amount::ZERO,
             PaymentV2::InboundInvoice(InboundInvoicePaymentV1 {
@@ -457,7 +472,7 @@ impl PaymentWithMetadata {
     // TODO(max): Remove fn once all matching is removed
     pub fn note(&self) -> Option<&str> {
         match &self.payment {
-            PaymentV2::OnchainSend(OnchainSendV1 { note, .. }) => note,
+            PaymentV2::OnchainSend(OnchainSendV2 { note, .. }) => note,
             PaymentV2::OnchainReceive(OnchainReceiveV1 { note, .. }) => note,
             PaymentV2::InboundInvoice(InboundInvoicePaymentV1 {
                 note, ..
@@ -489,7 +504,7 @@ impl PaymentWithMetadata {
     // TODO(max): Remove fn once all matching is removed
     pub fn set_note(&mut self, note: Option<String>) {
         let mut_ref_note: &mut Option<String> = match &mut self.payment {
-            PaymentV2::OnchainSend(OnchainSendV1 { note, .. }) => note,
+            PaymentV2::OnchainSend(OnchainSendV2 { note, .. }) => note,
             PaymentV2::OnchainReceive(OnchainReceiveV1 { note, .. }) => note,
             PaymentV2::InboundInvoice(InboundInvoicePaymentV1 {
                 note, ..
@@ -521,7 +536,7 @@ impl PaymentWithMetadata {
     // TODO(max): Remove fn once all matching is removed
     pub fn finalized_at(&self) -> Option<TimestampMs> {
         match &self.payment {
-            PaymentV2::OnchainSend(OnchainSendV1 { finalized_at, .. }) =>
+            PaymentV2::OnchainSend(OnchainSendV2 { finalized_at, .. }) =>
                 *finalized_at,
             PaymentV2::OnchainReceive(OnchainReceiveV1 {
                 finalized_at,
@@ -551,6 +566,35 @@ impl PaymentWithMetadata {
                 ..
             }) => *finalized_at,
         }
+    }
+}
+
+// --- impl PaymentMetadata --- //
+
+impl PaymentMetadata {
+    /// Construct an empty `PaymentMetadata`.
+    pub fn empty(id: LxPaymentId) -> Self {
+        Self {
+            id,
+            invoice: None,
+            offer: None,
+            note: None,
+        }
+    }
+
+    /// Whether all fields other than the required `id` are empty, meaning
+    /// this does not need to be persisted; it can be safely discarded.
+    pub fn is_empty(&self) -> bool {
+        // We intentionally destructure here to ensure we get a compilation
+        // error whenever we add another field
+        let Self {
+            id: _,
+            invoice,
+            offer,
+            note,
+        } = self;
+
+        invoice.is_none() && offer.is_none() && note.is_none()
     }
 }
 
@@ -602,7 +646,7 @@ impl PaymentV2 {
     /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
     pub fn status(&self) -> PaymentStatus {
         match self {
-            Self::OnchainSend(OnchainSendV1 { status, .. }) =>
+            Self::OnchainSend(OnchainSendV2 { status, .. }) =>
                 PaymentStatus::from(*status),
             Self::OnchainReceive(OnchainReceiveV1 { status, .. }) =>
                 PaymentStatus::from(*status),
@@ -632,7 +676,7 @@ impl PaymentV2 {
     /// Get the payment status as a human-readable `&'static str`
     pub fn status_str(&self) -> &str {
         match self {
-            Self::OnchainSend(OnchainSendV1 { status, .. }) => status.as_str(),
+            Self::OnchainSend(OnchainSendV2 { status, .. }) => status.as_str(),
             Self::OnchainReceive(OnchainReceiveV1 { status, .. }) =>
                 status.as_str(),
             Self::InboundInvoice(InboundInvoicePaymentV1 {
@@ -665,7 +709,7 @@ impl PaymentV2 {
     /// When this payment was completed or failed.
     pub fn finalized_at(&self) -> Option<TimestampMs> {
         match self {
-            Self::OnchainSend(OnchainSendV1 { finalized_at, .. }) =>
+            Self::OnchainSend(OnchainSendV2 { finalized_at, .. }) =>
                 *finalized_at,
             Self::OnchainReceive(OnchainReceiveV1 { finalized_at, .. }) =>
                 *finalized_at,
@@ -930,8 +974,8 @@ mod test {
             p1 in any::<PaymentV2>(),
             updated_at in any::<TimestampMs>(),
         )| {
-            let metadata = None;
             // TODO(max): Remove PaymentWithMetadata later. Dummy value for now.
+            let metadata = PaymentMetadata::empty(p1.id());
             let pwm = PaymentWithMetadata {
                 payment: p1.clone(),
                 metadata,
@@ -984,7 +1028,7 @@ mod test {
 
         // Generate COUNT of each payment type for even coverage
         payments.extend(
-            arbitrary::gen_value_iter(&mut rng, any::<OnchainSendV1>())
+            arbitrary::gen_value_iter(&mut rng, any::<OnchainSendV2>())
                 .take(COUNT)
                 .map(PaymentV2::OnchainSend),
         );
@@ -1066,7 +1110,7 @@ mod test {
         let strategies = vec![
             (
                 "OnchainSend",
-                any::<OnchainSendV1>()
+                any::<OnchainSendV2>()
                     .prop_map(PaymentV2::OnchainSend)
                     .boxed(),
             ),
@@ -1116,7 +1160,7 @@ mod test {
 
         for (name, strat) in strategies {
             println!("--- {name}");
-            let any_metadata = any::<Option<PaymentMetadata>>();
+            let any_metadata = any::<PaymentMetadata>();
             let any_created_at = any::<TimestampMs>();
             let any_updated_at = any::<TimestampMs>();
             let combined_strat =

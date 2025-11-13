@@ -1,22 +1,22 @@
 use std::sync::Arc;
 
-use anyhow::{bail, ensure};
+use anyhow::bail;
 use bitcoin::Transaction;
 use common::{
     ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
     time::TimestampMs,
 };
-use lexe_api::{
-    models::command::PayOnchainRequest,
-    types::payments::{ClientPaymentId, LxPaymentId},
-};
+use lexe_api::types::payments::{ClientPaymentId, LxPaymentId};
 use serde::{Deserialize, Serialize};
-use tracing::warn;
 
 use crate::{
     esplora::{TxConfQuery, TxConfStatus},
-    payments::onchain::{
-        ONCHAIN_CONFIRMATION_THRESHOLD, OnchainReceiveStatus, OnchainSendStatus,
+    payments::{
+        PaymentMetadata, PaymentWithMetadata,
+        onchain::{
+            ONCHAIN_CONFIRMATION_THRESHOLD, OnchainReceiveStatus,
+            OnchainSendStatus, OnchainSendV2,
+        },
     },
 };
 
@@ -40,137 +40,86 @@ pub struct OnchainSendV1 {
 }
 
 impl OnchainSendV1 {
-    // Event sources:
-    // - `pay_onchain` API
-    pub fn new(tx: Transaction, req: PayOnchainRequest, fees: Amount) -> Self {
-        Self {
-            cid: req.cid,
-            txid: LxTxid(tx.compute_txid()),
-            tx,
-            replacement: None,
-            priority: req.priority,
-            amount: req.amount,
-            fees,
-            status: OnchainSendStatus::Created,
-            created_at: TimestampMs::now(),
-            note: req.note,
-            finalized_at: None,
-        }
-    }
-
     #[inline]
     pub fn id(&self) -> LxPaymentId {
         LxPaymentId::OnchainSend(self.cid)
     }
+}
 
-    // Event sources:
-    // - `pay_onchain` API
-    pub fn broadcasted(
-        &self,
-        broadcasted_txid: &LxTxid,
-    ) -> anyhow::Result<Self> {
-        use OnchainSendStatus::*;
+impl From<OnchainSendV1> for PaymentWithMetadata<OnchainSendV2> {
+    fn from(v1: OnchainSendV1) -> Self {
+        let id = v1.id();
+        let note = v1.note.clone();
+        let created_at = v1.created_at;
 
-        ensure!(broadcasted_txid == &self.txid, "Txids don't match");
-
-        match self.status {
-            Created => (),
-            Broadcasted => warn!("We broadcasted this transaction twice"),
-            PartiallyConfirmed => bail!("Tx already has confirmations"),
-            ReplacementBroadcasted => bail!("Tx was being replaced"),
-            PartiallyReplaced => bail!("Tx already partially replaced"),
-            FullyConfirmed | FullyReplaced | Dropped => bail!("Tx was final"),
-        }
-
-        // Everything ok; return a clone with the updated state
-        let mut clone = self.clone();
-        clone.status = Broadcasted;
-
-        Ok(clone)
-    }
-
-    // Event sources:
-    // - `PaymentsManager::spawn_onchain_confs_checker` task
-    pub(crate) fn check_onchain_conf(
-        &self,
-        conf_status: TxConfStatus,
-    ) -> anyhow::Result<Option<Self>> {
-        use OnchainSendStatus::*;
-
-        // We'll update our state if and only if (1) the payment is still in a
-        // pending state and (2) the tx has been broadcasted.
-        match self.status {
-            Created => {
-                warn!("Skipping conf status update; waiting for broadcast");
-                return Ok(None);
-            }
-            Broadcasted
-            | PartiallyConfirmed
-            | ReplacementBroadcasted
-            | PartiallyReplaced => (),
-            FullyConfirmed | FullyReplaced | Dropped => bail!(
-                "Tx already finalized; shouldn't have checked for conf status"
-            ),
-        }
-
-        let new_status = match &conf_status {
-            // If zeroconf, retain the current (Pending, zeroconf) state;
-            // otherwise, revert to the broadcasted state. It is possible that
-            // the `ReplacementBroadcasted` state gets lost due to getting a
-            // confirmation from a block that is later reorged, but this should
-            // be rare and it doesn't matter; all it affects is UI code.
-            TxConfStatus::ZeroConf => match self.status {
-                Broadcasted => Broadcasted,
-                ReplacementBroadcasted => ReplacementBroadcasted,
-                _ => Broadcasted,
-            },
-            TxConfStatus::InBestChain { confs } =>
-                if confs < &ONCHAIN_CONFIRMATION_THRESHOLD {
-                    PartiallyConfirmed
-                } else {
-                    FullyConfirmed
-                },
-            TxConfStatus::HasReplacement { confs, .. } =>
-                if confs < &ONCHAIN_CONFIRMATION_THRESHOLD {
-                    PartiallyReplaced
-                } else {
-                    FullyReplaced
-                },
-            TxConfStatus::Dropped => Dropped,
+        let payment = OnchainSendV2 {
+            cid: v1.cid,
+            txid: v1.txid,
+            tx: v1.tx,
+            replacement: v1.replacement,
+            priority: v1.priority,
+            amount: v1.amount,
+            fees: v1.fees,
+            status: v1.status,
+            created_at: v1.created_at,
+            note: v1.note,
+            finalized_at: v1.finalized_at,
         };
-        let new_replacement = match conf_status {
-            TxConfStatus::HasReplacement { rp_txid, .. } => Some(rp_txid),
-            _ => None,
+        let metadata = PaymentMetadata {
+            id,
+            invoice: None,
+            offer: None,
+            note,
         };
 
-        // To prevent redundantly repersisting the same data, return Some(..)
-        // only if the state has actually changed.
-        if (self.status == new_status) && (self.replacement == new_replacement)
-        {
-            Ok(None)
-        } else {
-            let mut clone = self.clone();
-            clone.status = new_status;
-            clone.replacement = new_replacement;
-
-            if matches!(new_status, FullyConfirmed | FullyReplaced | Dropped) {
-                clone.finalized_at = Some(TimestampMs::now());
-            }
-
-            Ok(Some(clone))
+        Self {
+            payment,
+            metadata,
+            created_at,
         }
     }
+}
 
-    pub fn to_tx_conf_query(&self) -> TxConfQuery {
-        TxConfQuery {
-            txid: self.txid,
-            inputs: self
-                .tx
-                .input
-                .iter()
-                .map(|txin| txin.previous_output)
-                .collect(),
-            created_at: self.created_at.into(),
+impl From<PaymentWithMetadata<OnchainSendV2>> for OnchainSendV1 {
+    fn from(pwm: PaymentWithMetadata<OnchainSendV2>) -> Self {
+        // Intentionally destructure to ensure all fields are considered.
+        let OnchainSendV2 {
+            cid,
+            txid,
+            tx,
+            replacement,
+            priority,
+            amount,
+            fees,
+            status,
+            created_at,
+            note,
+            finalized_at,
+        } = pwm.payment;
+        let PaymentMetadata {
+            id: _,
+            invoice: _,
+            offer: _,
+            // Both the v2 payment type and metadata contain the same field,
+            // meaning the v2 payment type hasn't been migrated yet, meaning the
+            // note field will always be in the v2 payment type. Once the field
+            // is deleted from the v2 payment type, then the data will be stored
+            // only in the metadata.
+            note: _,
+        } = pwm.metadata;
+
+        Self {
+            cid,
+            txid,
+            tx,
+            replacement,
+            priority,
+            amount,
+            fees,
+            status,
+            created_at,
+            note,
+            finalized_at,
         }
     }
 }
@@ -286,12 +235,14 @@ impl OnchainReceiveV1 {
 #[cfg(test)]
 mod arb {
     use common::test_utils::arbitrary;
+    use lexe_api::models::command::PayOnchainRequest;
     use proptest::{
         arbitrary::{Arbitrary, any},
         strategy::{BoxedStrategy, Strategy},
     };
 
     use super::*;
+    use crate::payments::onchain::OnchainSendV2;
 
     impl Arbitrary for OnchainSendV1 {
         type Parameters = ();
@@ -308,17 +259,28 @@ mod arb {
             // through the state machine.
             (tx, req, fees, is_broadcasted, conf_status)
                 .prop_map(|(tx, req, fees, is_broadcasted, conf_status)| {
-                    let os = OnchainSendV1::new(tx, req, fees);
+                    let oswm = OnchainSendV2::new(tx, req, fees);
                     if !is_broadcasted {
-                        return os;
+                        return OnchainSendV1::from(oswm);
                     }
-                    let os = os.broadcasted(&os.txid).unwrap();
+                    let os =
+                        oswm.payment.broadcasted(&oswm.payment.txid).unwrap();
+                    let mut oswm = PaymentWithMetadata {
+                        payment: os,
+                        metadata: oswm.metadata,
+                        created_at: oswm.created_at,
+                    };
                     if let Some(conf_status) = conf_status {
-                        os.check_onchain_conf(conf_status)
+                        if let Some(os2) = oswm
+                            .payment
+                            .check_onchain_conf(conf_status)
                             .unwrap()
-                            .unwrap_or(os)
+                        {
+                            oswm.payment = os2;
+                        }
+                        OnchainSendV1::from(oswm)
                     } else {
-                        os
+                        OnchainSendV1::from(oswm)
                     }
                 })
                 .boxed()

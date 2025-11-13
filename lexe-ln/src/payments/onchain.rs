@@ -1,11 +1,52 @@
+use anyhow::{bail, ensure};
+use bitcoin::Transaction;
+use common::{
+    ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
+    time::TimestampMs,
+};
+use lexe_api::{
+    models::command::PayOnchainRequest,
+    types::payments::{ClientPaymentId, LxPaymentId},
+};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
+
+use crate::{
+    esplora::{TxConfQuery, TxConfStatus},
+    payments::{PaymentMetadata, PaymentWithMetadata},
+};
 
 /// The number of confirmations a tx needs to before we consider it final.
 pub(crate) const ONCHAIN_CONFIRMATION_THRESHOLD: u32 = 6;
 
 // --- Onchain send --- //
+
+// TODO(max): Separate out metadata fields
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
+pub struct OnchainSendV2 {
+    pub cid: ClientPaymentId,
+    pub txid: LxTxid,
+    // TODO(max): Add a serde helper to consensus encode the transaction before
+    // serialization
+    #[cfg_attr(
+        test,
+        proptest(strategy = "common::test_utils::arbitrary::any_raw_tx()")
+    )]
+    pub tx: Transaction,
+    /// The txid of the replacement tx, if one exists.
+    pub replacement: Option<LxTxid>,
+    pub priority: ConfirmationPriority,
+    pub amount: Amount,
+    pub fees: Amount,
+    pub status: OnchainSendStatus,
+    pub created_at: TimestampMs,
+    /// An optional personal note for this payment.
+    pub note: Option<String>,
+    pub finalized_at: Option<TimestampMs>,
+}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -51,6 +92,157 @@ pub enum OnchainSendStatus {
     /// and move on, since this isn't security-critical; the user will still
     /// see the successful send reflected in their wallet balance.
     Dropped,
+}
+
+impl OnchainSendV2 {
+    // Event sources:
+    // - `pay_onchain` API
+    pub fn new(
+        tx: Transaction,
+        req: PayOnchainRequest,
+        fees: Amount,
+    ) -> PaymentWithMetadata<Self> {
+        let os = Self {
+            cid: req.cid,
+            txid: LxTxid(tx.compute_txid()),
+            tx,
+            replacement: None,
+            priority: req.priority,
+            amount: req.amount,
+            fees,
+            status: OnchainSendStatus::Created,
+            created_at: TimestampMs::now(),
+            note: req.note,
+            finalized_at: None,
+        };
+
+        // TODO(max): Populate metadata fields
+        let id = LxPaymentId::OnchainSend(os.cid);
+        let metadata = PaymentMetadata::empty(id);
+        let created_at = os.created_at;
+
+        PaymentWithMetadata {
+            payment: os,
+            metadata,
+            created_at,
+        }
+    }
+
+    #[inline]
+    pub fn id(&self) -> LxPaymentId {
+        LxPaymentId::OnchainSend(self.cid)
+    }
+
+    // Event sources:
+    // - `pay_onchain` API
+    pub fn broadcasted(
+        &self,
+        broadcasted_txid: &LxTxid,
+    ) -> anyhow::Result<Self> {
+        use OnchainSendStatus::*;
+
+        ensure!(broadcasted_txid == &self.txid, "Txids don't match");
+
+        match self.status {
+            Created => (),
+            Broadcasted => warn!("We broadcasted this transaction twice"),
+            PartiallyConfirmed => bail!("Tx already has confirmations"),
+            ReplacementBroadcasted => bail!("Tx was being replaced"),
+            PartiallyReplaced => bail!("Tx already partially replaced"),
+            FullyConfirmed | FullyReplaced | Dropped => bail!("Tx was final"),
+        }
+
+        // Everything ok; return a clone with the updated state
+        let mut clone = self.clone();
+        clone.status = Broadcasted;
+
+        Ok(clone)
+    }
+
+    // Event sources:
+    // - `PaymentsManager::spawn_onchain_confs_checker` task
+    pub(crate) fn check_onchain_conf(
+        &self,
+        conf_status: TxConfStatus,
+    ) -> anyhow::Result<Option<Self>> {
+        use OnchainSendStatus::*;
+
+        // We'll update our state if and only if (1) the payment is still in a
+        // pending state and (2) the tx has been broadcasted.
+        match self.status {
+            Created => {
+                warn!("Skipping conf status update; waiting for broadcast");
+                return Ok(None);
+            }
+            Broadcasted
+            | PartiallyConfirmed
+            | ReplacementBroadcasted
+            | PartiallyReplaced => (),
+            FullyConfirmed | FullyReplaced | Dropped => bail!(
+                "Tx already finalized; shouldn't have checked for conf status"
+            ),
+        }
+
+        let new_status = match &conf_status {
+            // If zeroconf, retain the current (Pending, zeroconf) state;
+            // otherwise, revert to the broadcasted state. It is possible that
+            // the `ReplacementBroadcasted` state gets lost due to getting a
+            // confirmation from a block that is later reorged, but this should
+            // be rare and it doesn't matter; all it affects is UI code.
+            TxConfStatus::ZeroConf => match self.status {
+                Broadcasted => Broadcasted,
+                ReplacementBroadcasted => ReplacementBroadcasted,
+                _ => Broadcasted,
+            },
+            TxConfStatus::InBestChain { confs } =>
+                if confs < &ONCHAIN_CONFIRMATION_THRESHOLD {
+                    PartiallyConfirmed
+                } else {
+                    FullyConfirmed
+                },
+            TxConfStatus::HasReplacement { confs, .. } =>
+                if confs < &ONCHAIN_CONFIRMATION_THRESHOLD {
+                    PartiallyReplaced
+                } else {
+                    FullyReplaced
+                },
+            TxConfStatus::Dropped => Dropped,
+        };
+        let new_replacement = match conf_status {
+            TxConfStatus::HasReplacement { rp_txid, .. } => Some(rp_txid),
+            _ => None,
+        };
+
+        // To prevent redundantly repersisting the same data, return Some(..)
+        // only if the state has actually changed.
+        if (self.status == new_status) && (self.replacement == new_replacement)
+        {
+            Ok(None)
+        } else {
+            let mut clone = self.clone();
+            clone.status = new_status;
+            clone.replacement = new_replacement;
+
+            if matches!(new_status, FullyConfirmed | FullyReplaced | Dropped) {
+                clone.finalized_at = Some(TimestampMs::now());
+            }
+
+            Ok(Some(clone))
+        }
+    }
+
+    pub fn to_tx_conf_query(&self) -> TxConfQuery {
+        TxConfQuery {
+            txid: self.txid,
+            inputs: self
+                .tx
+                .input
+                .iter()
+                .map(|txin| txin.previous_output)
+                .collect(),
+            created_at: self.created_at.into(),
+        }
+    }
 }
 
 // --- Onchain receive --- //

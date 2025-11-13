@@ -1238,18 +1238,16 @@ where
     PS: LexePersister,
 {
     // Create and sign the onchain send tx.
-    let onchain_send = wallet
+    let oswm = wallet
         .create_onchain_send(req, network)
         .context("Error while creating outbound tx")?;
-    let tx = onchain_send.tx.clone();
-    let id = onchain_send.id();
-    let txid = onchain_send.txid;
-
-    let payment = PaymentV1::from(onchain_send);
-    let created_at = payment.created_at();
+    let tx = oswm.payment.tx.clone();
+    let id = oswm.payment.id();
+    let txid = oswm.payment.txid;
+    let created_at = oswm.created_at;
+    let pwm = oswm.into_enum();
 
     // Register the transaction.
-    let pwm = PaymentWithMetadata::from(payment);
     payments_manager
         .new_payment(pwm)
         .await

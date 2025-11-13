@@ -76,7 +76,7 @@ use tracing::{debug, info, instrument, warn};
 
 use crate::{
     esplora::{FeeEstimates, LexeEsplora},
-    payments::v1::onchain::OnchainSendV1,
+    payments::{PaymentWithMetadata, onchain::OnchainSendV2},
     traits::LexePersister,
 };
 
@@ -966,12 +966,12 @@ impl LexeWallet {
     }
 
     /// Create and sign a transaction which sends the given amount to the given
-    /// address, packaging up all of this info in a new [`OnchainSendV1`].
+    /// address, returning a new [`PaymentWithMetadata<OnchainSendV2>`].
     pub(crate) fn create_onchain_send(
         &self,
         req: PayOnchainRequest,
         network: LxNetwork,
-    ) -> anyhow::Result<OnchainSendV1> {
+    ) -> anyhow::Result<PaymentWithMetadata<OnchainSendV2>> {
         let (tx, fees) = {
             let mut locked_wallet = self.inner.write().unwrap();
 
@@ -1008,7 +1008,7 @@ impl LexeWallet {
         };
         self.trigger_persist();
 
-        Ok(OnchainSendV1::new(tx, req, fees))
+        Ok(OnchainSendV2::new(tx, req, fees))
     }
 
     /// Estimate the network fee for a potential onchain send payment. We return
@@ -1656,7 +1656,7 @@ mod test {
             &self,
             address: bitcoin::Address<bitcoin::address::NetworkUnchecked>,
             amount: Amount,
-        ) -> OnchainSendV1 {
+        ) -> PaymentWithMetadata<OnchainSendV2> {
             let send_req = PayOnchainRequest {
                 cid: ClientPaymentId([42; 32]),
                 address,
@@ -1670,7 +1670,7 @@ mod test {
                 .expect("Failed to create onchain send");
             self.wallet.transaction_broadcasted_at(
                 self.now(),
-                onchain_send.tx.clone(),
+                onchain_send.payment.tx.clone(),
             );
             onchain_send
         }
@@ -2041,9 +2041,12 @@ mod test {
             priority: ConfirmationPriority::Normal,
             note: None,
         };
-        let send = h.wallet.create_onchain_send(req, h.network).unwrap();
-        assert_eq!(send.tx.input.len(), 1);
-        assert_eq!(send.tx.input[0].previous_output.txid, tx_c.compute_txid());
+        let oswm = h.wallet.create_onchain_send(req, h.network).unwrap();
+        assert_eq!(oswm.payment.tx.input.len(), 1);
+        assert_eq!(
+            oswm.payment.tx.input[0].previous_output.txid,
+            tx_c.compute_txid()
+        );
     }
 
     #[test]
@@ -2114,8 +2117,8 @@ mod test {
             "bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk",
         )
         .unwrap();
-        let send = h.spend_unconfirmed(address, sat!(1_000));
-        let txidi1_1 = send.txid.0;
+        let oswm = h.spend_unconfirmed(address, sat!(1_000));
+        let txidi1_1 = oswm.payment.txid.0;
         // Change output spk
         let spki1 = h.wr().spk_index().spk_at_index(Internal, 1).unwrap();
 
@@ -2130,7 +2133,7 @@ mod test {
 
         // Evict the unconfirmed UTXO.
         h.wallet
-            .unconfirmed_transaction_evicted_at(h.now(), send.txid);
+            .unconfirmed_transaction_evicted_at(h.now(), oswm.payment.txid);
         h.assert_spend_ok(5_300);
 
         // Our sync should still include the internal spk used by the evicted tx
@@ -2140,7 +2143,8 @@ mod test {
             spki1 => set! { },
         });
 
-        h.wallet.transaction_broadcasted_at(h.now(), send.tx);
+        h.wallet
+            .transaction_broadcasted_at(h.now(), oswm.payment.tx);
     }
 
     // Test that we build the expected incremental sync request in various
@@ -2170,19 +2174,19 @@ mod test {
             "bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk",
         )
         .unwrap();
-        let send = h.spend_unconfirmed(address3p.clone(), sat!(775));
+        let oswm = h.spend_unconfirmed(address3p.clone(), sat!(775));
 
         trace!("=== unconfirmed spend ===");
 
         // Still sync spk i0 since the spend is unconfirmed
-        let txidi0_2 = send.txid.0;
+        let txidi0_2 = oswm.payment.txid.0;
         h.assert_sync(map! { spki0 => set! { txidi0_1, txidi0_2 } });
 
         trace!("=== confirm spend ===");
 
         // Confirm the send tx but not enough to finalize. Should still sync
         // spk i0.
-        h.ww().confirm_txids(5, &[send.txid.0]);
+        h.ww().confirm_txids(5, &[oswm.payment.txid.0]);
         h.assert_sync(map! { spki0 => set! { txidi0_1, txidi0_2 } });
 
         trace!("=== finalize spend ===");
@@ -2213,8 +2217,8 @@ mod test {
         let ae0 = h.ww().next_unused_address(External);
         let addresse0 = ae0.address.clone().into_unchecked();
         let spke0 = ae0.script_pubkey();
-        let send = h.spend_unconfirmed(addresse0, sat!(1_000));
-        let txide0_1 = send.txid.0;
+        let oswm = h.spend_unconfirmed(addresse0, sat!(1_000));
+        let txide0_1 = oswm.payment.txid.0;
         h.assert_sync(map! {
             spki0 => set! { txidi0_1, txidi0_2, txidi0_3, txide0_1 },
             spke0 => set! { txide0_1 },
@@ -2224,7 +2228,7 @@ mod test {
 
         // Confirm the send tx but not enough to finalize. Should still sync
         // spk i0.
-        h.ww().confirm_txids(5, &[send.txid.0]);
+        h.ww().confirm_txids(5, &[oswm.payment.txid.0]);
         h.assert_sync(map! {
             spki0 => set! { txidi0_1, txidi0_2, txidi0_3, txide0_1 },
             spke0 => set! { txide0_1 },
@@ -2241,11 +2245,11 @@ mod test {
 
         // Spend the external address to some third party address. Syncs
         // should always include the external spk.
-        let send = h.spend_unconfirmed(address3p, sat!(775));
-        let txide0_2 = send.txid.0;
+        let oswm = h.spend_unconfirmed(address3p, sat!(775));
+        let txide0_2 = oswm.payment.txid.0;
         h.assert_sync(map! { spke0 => set! { txide0_1, txide0_2 } });
 
-        h.ww().confirm_txids(5, &[send.txid.0]);
+        h.ww().confirm_txids(5, &[oswm.payment.txid.0]);
         h.assert_sync(map! { spke0 => set! { txide0_1, txide0_2 } });
 
         h.ww().add_checkpoint(5);
