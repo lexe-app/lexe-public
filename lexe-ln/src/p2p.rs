@@ -194,9 +194,10 @@ where
     for _ in 0..retries {
         let addr = addrs.next().expect("Cycling through a non-empty slice");
 
-        match do_connect_peer(peer_manager, node_pk, addr).await {
-            Ok(conn_task) => return Ok(MaybeLxTask(Some(conn_task))),
-            Err(e) => warn!("Failed to connect to peer: {e:#}"),
+        // Attempt connection
+        let result = do_connect_peer(peer_manager, node_pk, addr).await;
+        if let Ok(conn_task) = result {
+            return Ok(MaybeLxTask(Some(conn_task)));
         }
 
         // Connect failed; sleep 500ms before the next attempt to give LDK some
@@ -257,10 +258,7 @@ where
         let mut backoff_durations = backoff::iter_with_initial_wait_ms(10);
         loop {
             tokio::time::sleep(backoff_durations.next().unwrap()).await;
-
-            debug!("Checking peer_manager.is_connected()");
             if peer_manager.is_connected(node_pk) {
-                debug!(%node_pk, %addr, "Successfully connected to peer");
                 return;
             }
         }
@@ -274,8 +272,7 @@ where
         }
         res = &mut conn_task => {
             let msg = format!(
-                "New outbound p2p conn d/c'd before handshake complete: \
-                 {res:?}"
+                "New outbound p2p conn d/c'd before handshake complete: {res:?}"
             );
             warn!("{msg}"); // Also log; this code is historically finicky
             Err(anyhow!("{msg}"))
