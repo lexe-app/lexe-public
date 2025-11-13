@@ -48,7 +48,7 @@ use lexe_api::{
     },
     vfs::{self, Vfs, VfsDirectory},
 };
-use lexe_ln::p2p;
+use lexe_ln::{p2p, payments::manager::CheckedPayment};
 use lexe_tokio::task::MaybeLxTask;
 use tracing::warn;
 
@@ -434,8 +434,9 @@ pub(super) async fn update_payment_note(
         .payments_manager
         .update_payment_note(req)
         .await
-        .map(|()| LxJson(Empty {}))
-        .map_err(NodeApiError::command)
+        .map_err(NodeApiError::command)?;
+
+    Ok(LxJson(Empty {}))
 }
 
 pub(super) async fn get_revocable_clients(

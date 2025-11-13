@@ -393,39 +393,30 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         info!(%id, "Updating payment note");
         let mut locked_data = self.data.lock().await;
 
-        // If the payment was pending, get a clone of our local copy.
-        // If the payment was finalized, we have to fetch a copy from the DB.
-        let mut payment_clone = match locked_data.pending.get(&id) {
-            Some(pending) => pending.clone(),
-            None => {
-                let pwm = self
-                    .persister
-                    .get_payment_by_id(update.index.id)
-                    .await
-                    .context("Could not fetch finalized payment")?
-                    .context("Finalized payment was not found in DB")?;
-                PaymentV1::from(pwm)
-            }
-        };
-        // TODO(max): Switch to get_cow_payment once the payment note is
-        // separated from the core `Payment` type, o/w we might read stale data.
-        // let mut payment_clone = self
-        //     .get_cow_payment(&locked_data, &id)
-        //     .await
-        //     .context("Could not get payment")?
-        //     .context("Payment does not exist")?
-        //     .into_owned();
+        // TODO(max): During the payments v2 logic migration, we have to hold
+        // the lock for consistency. Once we move to payments v2 persistence,
+        // this method should not exist; the `update_payment_note` API handler
+        // should call into the `PaymentMetadataManager` which manages all
+        // payment metadata reads/writes.
+        //
+        // For now, we intentionally *don't* read from our PaymentsData cache,
+        // since the note won't be in the PaymentV2 type in the future.
 
         // Update
-        payment_clone.set_note(update.note);
+        let mut pwm = self
+            .persister
+            .get_payment_by_id(update.index.id)
+            .await
+            .context("Could not get payment to update note")?
+            .context("Payment not found")?;
+        pwm.set_note(update.note);
 
         // Persist
-        let pwm = PaymentWithMetadata::from(payment_clone);
         let persisted = self
             .persister
             .upsert_payment(CheckedPayment(pwm))
             .await
-            .context("Could not persist updated payment")?;
+            .context("Could not persist updated payment note")?;
 
         // Commit
         locked_data.commit(persisted);
