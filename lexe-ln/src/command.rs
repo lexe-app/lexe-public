@@ -85,6 +85,7 @@ use crate::{
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     payments::{
+        PaymentWithMetadata,
         manager::PaymentsManager,
         outbound::{LxOutboundPaymentFailure, OUTBOUND_PAYMENT_RETRY_STRATEGY},
         v1::{
@@ -873,8 +874,9 @@ where
         secret.into(),
         preimage.into(),
     );
+    let pwm = PaymentWithMetadata::from(PaymentV1::from(payment));
     let created_index = payments_manager
-        .new_payment(payment.into())
+        .new_payment(pwm)
         .await
         .context("Could not register new payment")?;
 
@@ -924,8 +926,9 @@ where
 
     // Pre-flight looks good, now we can register this payment in the Lexe
     // payments manager.
+    let pwm = PaymentWithMetadata::from(payment);
     payments_manager
-        .new_payment(payment)
+        .new_payment(pwm)
         .await
         .context("Already tried to pay this invoice")?;
 
@@ -1127,8 +1130,10 @@ where
 
     // Pre-flight looks good, now we can register this payment in the Lexe
     // payments manager.
+    let pwm =
+        PaymentWithMetadata::from(PaymentV1::OutboundOffer(payment.clone()));
     payments_manager
-        .new_payment(PaymentV1::OutboundOffer(payment.clone()))
+        .new_payment(pwm)
         .await
         .context("Already tried to pay this offer")?;
 
@@ -1244,8 +1249,9 @@ where
     let created_at = payment.created_at();
 
     // Register the transaction.
+    let pwm = PaymentWithMetadata::from(payment);
     payments_manager
-        .new_payment(payment)
+        .new_payment(pwm)
         .await
         .context("Could not register new onchain send")?;
 
@@ -1318,7 +1324,7 @@ where
         .await
         .context("Couldn't check for existing payment")?;
     if let Some(existing_payment) = maybe_existing_payment {
-        match existing_payment.direction() {
+        match existing_payment.payment.direction() {
             PaymentDirection::Outbound =>
                 return Err(anyhow!("We've already tried paying this invoice")),
             // Yes, users actually hit this case...

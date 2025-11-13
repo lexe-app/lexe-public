@@ -111,10 +111,10 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
 /// [`upsert_payment_batch`]: crate::traits::LexeInnerPersister::upsert_payment_batch
 #[cfg_attr(test, derive(Clone, Debug))]
 struct PaymentsData {
-    pending: HashMap<LxPaymentId, PaymentV2>,
+    pending: HashMap<LxPaymentId, PaymentWithMetadata>,
     /// A non-exhaustive cache of finalized payments.
     finalized_payments_cache:
-        quick_cache::unsync::Cache<LxPaymentId, PaymentV2>,
+        quick_cache::unsync::Cache<LxPaymentId, PaymentWithMetadata>,
 }
 
 impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
@@ -138,7 +138,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                 let status = pwm.payment.status();
 
                 if matches!(status, PaymentStatus::Pending) {
-                    Some((id, pwm.payment))
+                    Some((id, pwm))
                 } else if cfg!(debug_assertions) {
                     panic!("Payment {id} should've been pending, was {status}");
                 } else {
@@ -146,7 +146,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                     None
                 }
             })
-            .collect::<HashMap<LxPaymentId, PaymentV2>>();
+            .collect::<HashMap<LxPaymentId, PaymentWithMetadata>>();
 
         let finalized_payments_cache =
             quick_cache::unsync::Cache::new(finalized_cache_capacity);
@@ -295,7 +295,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     #[instrument(skip_all, name = "(new-payment)")]
     pub async fn new_payment(
         &self,
-        payment: PaymentV1,
+        payment: PaymentWithMetadata,
     ) -> anyhow::Result<PaymentCreatedIndex> {
         let mut locked_data = self.data.lock().await;
         self.new_payment_inner(&mut locked_data, payment).await
@@ -305,9 +305,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     async fn new_payment_inner(
         &self,
         locked_data: &mut MutexGuard<'_, PaymentsData>,
-        payment: PaymentV1,
+        payment: PaymentWithMetadata,
     ) -> anyhow::Result<PaymentCreatedIndex> {
-        let id = payment.id();
+        let id = payment.payment.id();
         info!(%id, "Registering new payment");
 
         let existing_payment = self
@@ -315,12 +315,11 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             .await
             .context("Could not get existing payment")?;
         if let Some(existing_payment) = existing_payment {
-            let status = existing_payment.status();
+            let status = existing_payment.payment.status();
             return Err(anyhow!("Payment already exists: {status}"));
         }
 
-        let pwm = PaymentWithMetadata::from(payment);
-        let checked = CheckedPayment(pwm);
+        let checked = CheckedPayment(payment);
 
         let persisted = self
             .persister
@@ -334,12 +333,12 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         Ok(PaymentCreatedIndex { id, created_at })
     }
 
-    /// Get a [`PaymentV2`] by its [`LxPaymentId`].
+    /// Get a [`PaymentWithMetadata`] by its [`LxPaymentId`].
     /// Returns the in-memory payment if cached, fetches from the DB otherwise.
     pub async fn get_payment(
         &self,
         id: &LxPaymentId,
-    ) -> anyhow::Result<Option<PaymentV2>> {
+    ) -> anyhow::Result<Option<PaymentWithMetadata>> {
         let mut locked_data = self.data.lock().await;
         self.get_cow_payment(&mut locked_data, id)
             .await
@@ -352,7 +351,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         &self,
         locked_data: &'param mut MutexGuard<'_, PaymentsData>,
         id: &LxPaymentId,
-    ) -> anyhow::Result<Option<Cow<'param, PaymentV2>>> {
+    ) -> anyhow::Result<Option<Cow<'param, PaymentWithMetadata>>> {
         // Check if payment exists WITHOUT borrowing the data. This convinces
         // the borrow checker that the code paths are mutually exclusive:
         //
@@ -377,10 +376,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         if let Some(ref pwm) = maybe_pwm {
             locked_data
                 .finalized_payments_cache
-                .insert(*id, pwm.payment.clone());
+                .insert(*id, pwm.clone());
         }
 
-        Ok(maybe_pwm.map(|pwm| pwm.payment).map(Cow::Owned))
+        Ok(maybe_pwm.map(Cow::Owned))
     }
 
     /// Attempt to update the personal note on a payment.
@@ -480,7 +479,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                 .context("Could not get payment")
                 // Couldn't check if finalized; have to retry handling later.
                 .map_err(ClaimableError::Replay)?
-                .is_some_and(|p| p.status().is_finalized());
+                .is_some_and(|p| p.payment.status().is_finalized());
             if is_finalized {
                 warn!(%amount, %hash, "Already finalized");
                 // Clear these pending HTLCs (if they still exist) so they don't
@@ -588,7 +587,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             .get_cow_payment(&mut locked_data, &claim_ctx.id())
             .await
             .context("Could not get payment")?
-            .is_some_and(|p| p.status().is_finalized());
+            .is_some_and(|p| p.payment.status().is_finalized());
         if is_finalized {
             warn!(%amount, %hash, "Already finalized");
             // Idempotency: If the payment was already finalized,
@@ -642,7 +641,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             .get_cow_payment(&mut locked_data, &id)
             .await
             .context("Could not get payment")?
-            .is_some_and(|p| p.status().is_finalized());
+            .is_some_and(|p| p.payment.status().is_finalized());
         if is_finalized {
             warn!(%hash, "Already finalized");
             // Idempotency: If the payment was already finalized,
@@ -701,7 +700,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             .get_cow_payment(&mut locked_data, &id)
             .await
             .context("Could not get payment")?
-            .is_some_and(|p| p.status().is_finalized());
+            .is_some_and(|p| p.payment.status().is_finalized());
         if is_finalized {
             warn!(%id, "Already finalized");
             // Idempotency: If the payment was already finalized,
@@ -797,13 +796,13 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // TODO(phlip9): races with sync after broadcast
         ensure!(
-            !payment.status().is_finalized(),
+            !payment.payment.status().is_finalized(),
             "Onchain send was already finalized",
         );
         // From here, we know the payment is pending.
 
         // Check
-        let checked = match payment.as_ref() {
+        let checked = match &payment.payment {
             PaymentV2::OnchainSend(os) => os
                 .broadcasted(txid)
                 .map(PaymentV1::from)
@@ -851,7 +850,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             locked_data
                 .pending
                 .values()
-                .filter_map(|p| match p {
+                .filter_map(|pwm| match &pwm.payment {
                     PaymentV2::OnchainSend(os) =>
                         Some((os.id(), os.to_tx_conf_query())),
                     PaymentV2::OnchainReceive(or) =>
@@ -963,7 +962,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // Register all of the new onchain receives.
         for or in onchain_recvs {
-            self.new_payment_inner(&mut locked_data, or.into())
+            let pwm = PaymentWithMetadata::from(PaymentV1::from(or));
+            self.new_payment_inner(&mut locked_data, pwm)
                 .await
                 .context("Failed to register new onchain receive")?;
         }
@@ -977,15 +977,15 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 impl PaymentsData {
     /// Commits a [`PersistedPayment`] to the local state.
     fn commit(&mut self, persisted: PersistedPayment) {
-        let payment = persisted.pwm.payment;
-        let id = payment.id();
+        let pwm = persisted.pwm;
+        let id = pwm.payment.id();
 
-        payment.debug_assert_invariants();
+        pwm.payment.debug_assert_invariants();
         self.debug_assert_invariants();
 
-        match payment.status() {
+        match pwm.payment.status() {
             PaymentStatus::Pending => {
-                self.pending.insert(id, payment);
+                self.pending.insert(id, pwm);
             }
             PaymentStatus::Completed | PaymentStatus::Failed => {
                 self.pending.remove(&id);
@@ -1002,17 +1002,17 @@ impl PaymentsData {
             return;
         }
 
-        for (id, payment) in &self.pending {
-            assert_eq!(payment.id(), *id);
-            assert_eq!(payment.status(), PaymentStatus::Pending);
-            payment.debug_assert_invariants();
+        for (id, pwm) in &self.pending {
+            assert_eq!(pwm.payment.id(), *id);
+            assert_eq!(pwm.payment.status(), PaymentStatus::Pending);
+            pwm.payment.debug_assert_invariants();
         }
 
-        for (id, payment) in self.finalized_payments_cache.iter() {
-            assert_eq!(payment.id(), *id);
-            assert!(payment.status().is_finalized());
+        for (id, pwm) in self.finalized_payments_cache.iter() {
+            assert_eq!(pwm.payment.id(), *id);
+            assert!(pwm.payment.status().is_finalized());
             assert!(!self.pending.contains_key(id));
-            payment.debug_assert_invariants();
+            pwm.payment.debug_assert_invariants();
         }
     }
 
@@ -1032,8 +1032,9 @@ impl PaymentsData {
 
         match maybe_pending_payment {
             // Pending payment exists; update it
-            Some(pending_payment) =>
-                pending_payment.check_payment_claimable(claim_ctx, amount),
+            Some(pending_pwm) => pending_pwm
+                .payment
+                .check_payment_claimable(claim_ctx, amount),
             None => match claim_ctx {
                 LnClaimCtx::Bolt11Invoice { .. } =>
                     Err(ClaimableError::Replay(anyhow!(
@@ -1074,12 +1075,12 @@ impl PaymentsData {
     ) -> anyhow::Result<CheckedPayment> {
         let id = claim_ctx.id();
 
-        let pending_payment = self
+        let pending_pwm = self
             .pending
             .get(&id)
             .context("Pending payment does not exist")?;
 
-        let checked = match (pending_payment, claim_ctx) {
+        let checked = match (&pending_pwm.payment, claim_ctx) {
             (
                 PaymentV2::InboundInvoice(iip),
                 LnClaimCtx::Bolt11Invoice {
@@ -1136,12 +1137,12 @@ impl PaymentsData {
         preimage: LxPaymentPreimage,
         maybe_fees_paid: Option<Amount>,
     ) -> anyhow::Result<CheckedPayment> {
-        let pending_payment = self
+        let pending_pwm = self
             .pending
             .get(&id)
             .context("Pending payment does not exist")?;
 
-        let checked = match pending_payment {
+        let checked = match &pending_pwm.payment {
             PaymentV2::OutboundInvoice(oip) => oip
                 .check_payment_sent(hash, preimage, maybe_fees_paid)
                 .map(PaymentV1::from)
@@ -1171,12 +1172,12 @@ impl PaymentsData {
         id: LxPaymentId,
         failure: LxOutboundPaymentFailure,
     ) -> anyhow::Result<CheckedPayment> {
-        let pending_payment = self
+        let pending_pwm = self
             .pending
             .get(&id)
             .context("Pending payment does not exist")?;
 
-        let checked = match pending_payment {
+        let checked = match &pending_pwm.payment {
             PaymentV2::OutboundInvoice(oip) => oip
                 .check_payment_failed(id, failure)
                 .map(PaymentV1::from)
@@ -1214,7 +1215,7 @@ impl PaymentsData {
         let all_expired = self
             .pending
             .values()
-            .filter_map(|payment| match payment {
+            .filter_map(|pwm| match &pwm.payment {
                 // Precondition: payment is not finalized (Completed | Failed).
                 PaymentV2::InboundInvoice(iip) => iip
                     .check_invoice_expiry(now)
@@ -1269,11 +1270,11 @@ impl PaymentsData {
             // Fetch the pending onchain payment by its id and call
             // `check_onchain_conf()` on it to validate the state transition.
             .map(|(id, conf_status)| {
-                let payment = self
+                let pwm = self
                     .pending
                     .get(id)
                     .context("Received conf status but payment was missing")?;
-                let maybe_checked = match payment {
+                let maybe_checked = match &pwm.payment {
                     PaymentV2::OnchainSend(os) => os
                         .check_onchain_conf(conf_status)
                         .map(|opt| {
@@ -1336,7 +1337,6 @@ mod test {
 
     use super::*;
     use crate::payments::{
-        PaymentV2,
         inbound::OfferClaimCtx,
         outbound::OutboundInvoicePaymentStatus,
         v1::{
@@ -1377,11 +1377,18 @@ mod test {
         /// Insert a payment into `PaymentsData` without running through the
         /// full state machine.
         fn insert_payment(&mut self, payment: PaymentV2) {
+            // TODO(max): Change this back to PaymentV2 once we migrate
+            // persistence to use PaymentV2 instead of PaymentWithMetadata.
+            let pwm = PaymentWithMetadata {
+                payment: payment.clone(),
+                metadata: None,
+                created_at: TimestampMs::now(),
+            };
             let id = payment.id();
             if payment.status().is_pending() {
-                self.pending.insert(id, payment);
+                self.pending.insert(id, pwm);
             } else {
-                self.finalized_payments_cache.insert(id, payment);
+                self.finalized_payments_cache.insert(id, pwm);
             }
         }
 
