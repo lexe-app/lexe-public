@@ -1244,7 +1244,7 @@ where
     let tx = oswm.payment.tx.clone();
     let id = oswm.payment.id();
     let txid = oswm.payment.txid;
-    let created_at = oswm.created_at;
+    let created_at = oswm.payment.created_at;
     let pwm = oswm.into_enum();
 
     // Register the transaction.

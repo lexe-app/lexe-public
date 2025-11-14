@@ -71,11 +71,6 @@ pub mod v1;
 pub struct PaymentWithMetadata<P = PaymentV2> {
     pub payment: P,
     pub metadata: PaymentMetadata,
-
-    // TODO(max): We temporarily have to store the `created_at` field here so
-    // that we can convert `PaymentV1` -> `PaymentWithMetadata` and back
-    // without data loss, since `PaymentV2` drops the `created_at` field.
-    pub created_at: TimestampMs,
 }
 
 /// Optional payment metadata associated with a [`PaymentV2`].
@@ -174,6 +169,7 @@ pub fn encrypt(
     // There will also be a separate function `encrypt_metadata` which takes
     // `&PaymentMetadata`.
     pwm: &PaymentWithMetadata,
+    created_at: TimestampMs,
     updated_at: TimestampMs,
 ) -> DbPaymentV2 {
     // Serialize the payment as JSON bytes.
@@ -193,9 +189,7 @@ pub fn encrypt(
         id: pwm.payment.id().to_string(),
         status: pwm.payment.status().to_string(),
         data,
-        // TODO(max): created_at should come from the persister
-        // created_at: created_at.to_i64(),
-        created_at: pwm.created_at.to_i64(),
+        created_at: created_at.to_i64(),
         updated_at: updated_at.to_i64(),
     }
 }
@@ -272,7 +266,6 @@ impl<P: Into<PaymentV2>> PaymentWithMetadata<P> {
         PaymentWithMetadata {
             payment: self.payment.into(),
             metadata: self.metadata,
-            created_at: self.created_at,
         }
     }
 }
@@ -1052,19 +1045,24 @@ mod test {
             mut rng in any::<FastRng>(),
             vfs_master_key in any::<AesMasterKey>(),
             p1 in any::<PaymentV2>(),
-            updated_at in any::<TimestampMs>(),
+            now in any::<TimestampMs>(),
         )| {
             // TODO(max): Remove PaymentWithMetadata later. Dummy value for now.
             let metadata = PaymentMetadata::empty(p1.id());
             let pwm = PaymentWithMetadata {
                 payment: p1.clone(),
                 metadata,
-                // TODO(max): Remove this field later. Dummy value for now.
-                created_at: TimestampMs::MIN,
             };
 
+            let created_at = p1.created_at().unwrap_or(now);
+            let updated_at = now;
+
             let encrypted = payments::encrypt(
-                &mut rng, &vfs_master_key, &pwm, updated_at
+                &mut rng,
+                &vfs_master_key,
+                &pwm,
+                created_at,
+                updated_at,
             );
             let p2 = payments::decrypt(&vfs_master_key, encrypted.data)
                 .map(|pwm| pwm.payment)
@@ -1256,7 +1254,6 @@ mod test {
                 let pwm = PaymentWithMetadata {
                     payment: value,
                     metadata,
-                    created_at,
                 };
                 let basic = pwm.into_basic_payment(created_at, updated_at);
                 let json = serde_json::to_string(&basic).unwrap();

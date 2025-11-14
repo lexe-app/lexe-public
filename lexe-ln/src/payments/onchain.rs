@@ -119,12 +119,10 @@ impl OnchainSendV2 {
         // TODO(max): Populate metadata fields
         let id = LxPaymentId::OnchainSend(os.cid);
         let metadata = PaymentMetadata::empty(id);
-        let created_at = os.created_at;
 
         PaymentWithMetadata {
             payment: os,
             metadata,
-            created_at,
         }
     }
 

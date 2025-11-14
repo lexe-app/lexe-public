@@ -812,7 +812,6 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                     let oswm = PaymentWithMetadata {
                         payment: os_checked,
                         metadata: pwm.metadata.clone(),
-                        created_at: pwm.created_at,
                     };
                     CheckedPayment(oswm.into_enum())
                 })
@@ -1290,7 +1289,6 @@ impl PaymentsData {
                                 let oswm = PaymentWithMetadata {
                                     payment: checked_os,
                                     metadata: pwm.metadata.clone(),
-                                    created_at: pwm.created_at,
                                 };
                                 CheckedPayment(oswm.into_enum())
                             })
@@ -1384,7 +1382,6 @@ mod test {
                 let pwm = PaymentWithMetadata {
                     payment,
                     metadata: PaymentMetadata::empty(id),
-                    created_at: TimestampMs::MIN,
                 };
                 out.insert_payment(pwm);
             }
@@ -1415,7 +1412,6 @@ mod test {
             let pwm = PaymentWithMetadata {
                 payment,
                 metadata: PaymentMetadata::empty(id),
-                created_at: TimestampMs::now(),
             };
             self.insert_payment(pwm);
             self.debug_assert_invariants();

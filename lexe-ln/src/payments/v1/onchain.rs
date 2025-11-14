@@ -50,7 +50,6 @@ impl From<OnchainSendV1> for PaymentWithMetadata<OnchainSendV2> {
     fn from(v1: OnchainSendV1) -> Self {
         let id = v1.id();
         let note = v1.note.clone();
-        let created_at = v1.created_at;
 
         let payment = OnchainSendV2 {
             cid: v1.cid,
@@ -72,11 +71,7 @@ impl From<OnchainSendV1> for PaymentWithMetadata<OnchainSendV2> {
             note,
         };
 
-        Self {
-            payment,
-            metadata,
-            created_at,
-        }
+        Self { payment, metadata }
     }
 }
 
@@ -268,7 +263,6 @@ mod arb {
                     let mut oswm = PaymentWithMetadata {
                         payment: os,
                         metadata: oswm.metadata,
-                        created_at: oswm.created_at,
                     };
                     if let Some(conf_status) = conf_status {
                         if let Some(os2) = oswm

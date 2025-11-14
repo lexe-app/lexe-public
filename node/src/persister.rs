@@ -788,8 +788,13 @@ impl LexeInnerPersister for NodePersister {
         let now = TimestampMs::now();
         let created_at = pwm.payment.created_at().unwrap_or(now);
         let updated_at = now;
-        let db_payment =
-            payments::encrypt(&mut rng, &self.vfs_master_key, &pwm, updated_at);
+        let db_payment = payments::encrypt(
+            &mut rng,
+            &self.vfs_master_key,
+            &pwm,
+            created_at,
+            updated_at,
+        );
         let token = self.get_token().await?;
 
         self.backend_api
@@ -818,10 +823,12 @@ impl LexeInnerPersister for NodePersister {
         let payments = checked_batch
             .iter()
             .map(|CheckedPayment(pwm)| {
+                let created_at = pwm.payment.created_at().unwrap_or(now);
                 payments::encrypt(
                     &mut rng,
                     &self.vfs_master_key,
                     pwm,
+                    created_at,
                     updated_at,
                 )
             })

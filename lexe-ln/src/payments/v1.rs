@@ -141,44 +141,36 @@ impl From<OutboundSpontaneousPaymentV1> for PaymentV1 {
 impl From<PaymentV1> for PaymentWithMetadata {
     fn from(payment_v1: PaymentV1) -> Self {
         let id = payment_v1.id();
-        let created_at = payment_v1.created_at();
         match payment_v1 {
             PaymentV1::OnchainSend(p) =>
                 PaymentWithMetadata::<OnchainSendV2>::from(p).into_enum(),
             PaymentV1::OnchainReceive(p) => Self {
                 payment: p.into(),
                 metadata: PaymentMetadata::empty(id),
-                created_at,
             },
             PaymentV1::InboundInvoice(p) => Self {
                 payment: p.into(),
                 metadata: PaymentMetadata::empty(id),
-                created_at,
             },
             PaymentV1::InboundOfferReusable(p) => Self {
                 payment: p.into(),
                 metadata: PaymentMetadata::empty(id),
-                created_at,
             },
             PaymentV1::InboundSpontaneous(p) => Self {
                 payment: p.into(),
                 metadata: PaymentMetadata::empty(id),
-                created_at,
             },
             PaymentV1::OutboundInvoice(p) => Self {
                 payment: p.into(),
                 metadata: PaymentMetadata::empty(id),
-                created_at,
             },
             PaymentV1::OutboundOffer(p) => Self {
                 payment: p.into(),
                 metadata: PaymentMetadata::empty(id),
-                created_at,
             },
             PaymentV1::OutboundSpontaneous(p) => Self {
                 payment: p.into(),
                 metadata: PaymentMetadata::empty(id),
-                created_at,
             },
         }
     }
@@ -193,7 +185,6 @@ impl From<PaymentWithMetadata> for PaymentV1 {
                 let oswm = PaymentWithMetadata::<OnchainSendV2> {
                     payment: p,
                     metadata: pwm.metadata,
-                    created_at: pwm.created_at,
                 };
                 PaymentV1::OnchainSend(OnchainSendV1::from(oswm))
             }
