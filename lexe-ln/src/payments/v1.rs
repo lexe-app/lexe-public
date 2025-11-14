@@ -1,3 +1,4 @@
+use anyhow::Context;
 use common::{
     ln::{amount::Amount, hashes::LxTxid},
     time::TimestampMs,
@@ -16,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::payments::{
     PaymentMetadata, PaymentV2, PaymentWithMetadata,
-    onchain::OnchainSendV2,
+    onchain::{OnchainReceiveV2, OnchainSendV2},
     v1::{
         inbound::{
             InboundInvoicePaymentV1, InboundOfferReusablePaymentV1,
@@ -144,10 +145,8 @@ impl From<PaymentV1> for PaymentWithMetadata {
         match payment_v1 {
             PaymentV1::OnchainSend(p) =>
                 PaymentWithMetadata::<OnchainSendV2>::from(p).into_enum(),
-            PaymentV1::OnchainReceive(p) => Self {
-                payment: p.into(),
-                metadata: PaymentMetadata::empty(id),
-            },
+            PaymentV1::OnchainReceive(p) =>
+                PaymentWithMetadata::<OnchainReceiveV2>::from(p).into_enum(),
             PaymentV1::InboundInvoice(p) => Self {
                 payment: p.into(),
                 metadata: PaymentMetadata::empty(id),
@@ -183,14 +182,24 @@ impl TryFrom<PaymentWithMetadata> for PaymentV1 {
 
     fn try_from(pwm: PaymentWithMetadata) -> Result<Self, Self::Error> {
         let v1 = match pwm.payment {
-            PaymentV2::OnchainSend(p) => {
+            PaymentV2::OnchainSend(osv2) => {
                 let oswm = PaymentWithMetadata::<OnchainSendV2> {
-                    payment: p,
+                    payment: osv2,
                     metadata: pwm.metadata,
                 };
-                PaymentV1::OnchainSend(OnchainSendV1::try_from(oswm)?)
+                let osv1 = OnchainSendV1::try_from(oswm)
+                    .context("OnchainSend conversion")?;
+                PaymentV1::OnchainSend(osv1)
             }
-            PaymentV2::OnchainReceive(p) => PaymentV1::OnchainReceive(p),
+            PaymentV2::OnchainReceive(osv2) => {
+                let orwm = PaymentWithMetadata::<OnchainReceiveV2> {
+                    payment: osv2,
+                    metadata: pwm.metadata,
+                };
+                let orv1 = OnchainReceiveV1::try_from(orwm)
+                    .context("OnchainReceive conversion")?;
+                PaymentV1::OnchainReceive(orv1)
+            }
             PaymentV2::InboundInvoice(p) => PaymentV1::InboundInvoice(p),
             PaymentV2::InboundOfferReusable(p) =>
                 PaymentV1::InboundOfferReusable(p),

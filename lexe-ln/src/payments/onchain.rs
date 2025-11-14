@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{Context, bail, ensure};
 use bitcoin::Transaction;
 use common::{
@@ -264,6 +266,126 @@ impl OnchainSendV2 {
 
 // --- Onchain receive --- //
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct OnchainReceiveV2 {
+    pub txid: LxTxid,
+    pub tx: Arc<Transaction>,
+    /// The txid of the replacement tx, if one exists.
+    pub replacement: Option<LxTxid>,
+    pub amount: Amount,
+    pub status: OnchainReceiveStatus,
+    pub created_at: TimestampMs,
+    /// An optional personal note for this payment. Is set to [`None`] when the
+    /// payment is first detected, but the user can add or modify it later.
+    pub note: Option<String>,
+    pub finalized_at: Option<TimestampMs>,
+}
+
+impl OnchainReceiveV2 {
+    // Event sources:
+    // - `PaymentsManager::spawn_onchain_recv_checker` task
+    pub(crate) fn new(
+        tx: Arc<Transaction>,
+        amount: Amount,
+    ) -> PaymentWithMetadata<Self> {
+        let txid = LxTxid(tx.compute_txid());
+        let or = Self {
+            txid,
+            tx,
+            replacement: None,
+            amount,
+            // Start at zeroconf and let the checker update it later.
+            status: OnchainReceiveStatus::Zeroconf,
+            created_at: TimestampMs::now(),
+            note: None,
+            finalized_at: None,
+        };
+
+        // TODO(max): Populate with fields
+        let metadata = PaymentMetadata::empty(or.id());
+
+        PaymentWithMetadata {
+            payment: or,
+            metadata,
+        }
+    }
+
+    #[inline]
+    pub fn id(&self) -> LxPaymentId {
+        LxPaymentId::OnchainRecv(self.txid)
+    }
+
+    /// Event sources:
+    /// - `PaymentsManager::spawn_onchain_confs_checker` task
+    ///
+    /// Returns `Ok(None)` if nothing changed.
+    pub(crate) fn check_onchain_conf(
+        &self,
+        conf_status: TxConfStatus,
+    ) -> anyhow::Result<Option<Self>> {
+        use OnchainReceiveStatus::*;
+
+        // We'll update our state if and only if the payment is still pending.
+        match self.status {
+            Zeroconf | PartiallyConfirmed | PartiallyReplaced => (),
+            FullyConfirmed | FullyReplaced | Dropped => bail!(
+                "Tx already finalized; shouldn't have checked for conf status"
+            ),
+        }
+
+        let new_status = match &conf_status {
+            TxConfStatus::ZeroConf => Zeroconf,
+            TxConfStatus::InBestChain { confs } =>
+                if confs < &ONCHAIN_CONFIRMATION_THRESHOLD {
+                    PartiallyConfirmed
+                } else {
+                    FullyConfirmed
+                },
+            TxConfStatus::HasReplacement { confs, .. } =>
+                if confs < &ONCHAIN_CONFIRMATION_THRESHOLD {
+                    PartiallyReplaced
+                } else {
+                    FullyReplaced
+                },
+            TxConfStatus::Dropped => Dropped,
+        };
+        let new_replacement = match conf_status {
+            TxConfStatus::HasReplacement { rp_txid, .. } => Some(rp_txid),
+            _ => None,
+        };
+
+        // To prevent redundantly repersisting the same data, return Some(..)
+        // only if the state has actually changed.
+        if (self.status == new_status) && (self.replacement == new_replacement)
+        {
+            Ok(None)
+        } else {
+            let mut clone = self.clone();
+            clone.status = new_status;
+            clone.replacement = new_replacement;
+
+            if matches!(new_status, FullyConfirmed | FullyReplaced | Dropped) {
+                clone.finalized_at = Some(TimestampMs::now());
+            }
+
+            Ok(Some(clone))
+        }
+    }
+
+    pub fn to_tx_conf_query(&self) -> TxConfQuery {
+        TxConfQuery {
+            txid: self.txid,
+            inputs: self
+                .tx
+                .input
+                .iter()
+                .map(|txin| txin.previous_output)
+                .collect(),
+            created_at: self.created_at.into(),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
@@ -300,10 +422,8 @@ pub enum OnchainReceiveStatus {
 }
 
 #[cfg(test)]
-mod test {
-    use common::test_utils::{
-        arbitrary, roundtrip::json_unit_enum_backwards_compat,
-    };
+mod arbitrary_impl {
+    use common::test_utils::arbitrary;
     use lexe_api::models::command::PayOnchainRequest;
     use proptest::{
         arbitrary::{Arbitrary, any},
@@ -312,15 +432,6 @@ mod test {
     };
 
     use super::*;
-
-    #[test]
-    fn status_json_backwards_compat() {
-        let expected_ser = r#"["created","broadcasted","replacement_broadcasted","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped"]"#;
-        json_unit_enum_backwards_compat::<OnchainSendStatus>(expected_ser);
-
-        let expected_ser = r#"["zeroconf","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped"]"#;
-        json_unit_enum_backwards_compat::<OnchainReceiveStatus>(expected_ser);
-    }
 
     impl Arbitrary for OnchainSendV2 {
         type Parameters = ();
@@ -384,5 +495,52 @@ mod test {
                 )
                 .boxed()
         }
+    }
+
+    impl Arbitrary for OnchainReceiveV2 {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let tx = arbitrary::any_raw_tx();
+            let amount = any::<Amount>();
+            let conf_status = option::weighted(0.8, any::<TxConfStatus>());
+
+            // Generate valid `OnchainReceive` instances by actually running
+            // through the state machine.
+            (tx, amount, conf_status)
+                .prop_map(|(tx, amount, conf_status)| {
+                    let orwm = OnchainReceiveV2::new(Arc::new(tx), amount);
+                    if let Some(conf_status) = conf_status {
+                        orwm.payment
+                            .check_onchain_conf(conf_status)
+                            .unwrap()
+                            .map(|or| PaymentWithMetadata {
+                                payment: or,
+                                metadata: orwm.metadata.clone(),
+                            })
+                            .unwrap_or(orwm)
+                            .payment
+                    } else {
+                        orwm.payment
+                    }
+                })
+                .boxed()
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use common::test_utils::roundtrip::json_unit_enum_backwards_compat;
+
+    use super::*;
+
+    #[test]
+    fn status_json_backwards_compat() {
+        let expected_ser = r#"["created","broadcasted","replacement_broadcasted","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped"]"#;
+        json_unit_enum_backwards_compat::<OnchainSendStatus>(expected_ser);
+
+        let expected_ser = r#"["zeroconf","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped"]"#;
+        json_unit_enum_backwards_compat::<OnchainReceiveStatus>(expected_ser);
     }
 }

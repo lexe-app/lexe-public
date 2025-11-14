@@ -1,36 +1,36 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, bail};
+use anyhow::anyhow;
 use bitcoin::Transaction;
+#[cfg(test)]
+use common::test_utils::arbitrary;
 use common::{
     ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
     time::TimestampMs,
 };
 use lexe_api::types::payments::{ClientPaymentId, LxPaymentId};
+#[cfg(test)]
+use proptest::strategy::Strategy;
+#[cfg(test)]
+use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    esplora::{TxConfQuery, TxConfStatus},
-    payments::{
-        PaymentMetadata, PaymentWithMetadata,
-        onchain::{
-            ONCHAIN_CONFIRMATION_THRESHOLD, OnchainReceiveStatus,
-            OnchainSendStatus, OnchainSendV2,
-        },
+use crate::payments::{
+    PaymentMetadata, PaymentWithMetadata,
+    onchain::{
+        OnchainReceiveStatus, OnchainReceiveV2, OnchainSendStatus,
+        OnchainSendV2,
     },
 };
 
 // --- Onchain send --- //
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct OnchainSendV1 {
     pub cid: ClientPaymentId,
     pub txid: LxTxid,
-    #[cfg_attr(
-        test,
-        proptest(strategy = "common::test_utils::arbitrary::any_raw_tx()")
-    )]
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_raw_tx()"))]
     pub tx: Transaction,
     /// The txid of the replacement tx, if one exists.
     pub replacement: Option<LxTxid>,
@@ -126,8 +126,13 @@ impl TryFrom<PaymentWithMetadata<OnchainSendV2>> for OnchainSendV1 {
 // --- Onchain receive --- //
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct OnchainReceiveV1 {
     pub txid: LxTxid,
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_raw_tx().prop_map(Arc::new)")
+    )]
     pub tx: Arc<Transaction>,
     /// The txid of the replacement tx, if one exists.
     pub replacement: Option<LxTxid>,
@@ -141,129 +146,57 @@ pub struct OnchainReceiveV1 {
 }
 
 impl OnchainReceiveV1 {
-    // Event sources:
-    // - `PaymentsManager::spawn_onchain_recv_checker` task
-    pub(crate) fn new(tx: Arc<Transaction>, amount: Amount) -> Self {
-        Self {
-            txid: LxTxid(tx.compute_txid()),
-            tx,
-            replacement: None,
-            amount,
-            // Start at zeroconf and let the checker update it later.
-            status: OnchainReceiveStatus::Zeroconf,
-            created_at: TimestampMs::now(),
-            note: None,
-            finalized_at: None,
-        }
-    }
-
     #[inline]
     pub fn id(&self) -> LxPaymentId {
         LxPaymentId::OnchainRecv(self.txid)
     }
+}
 
-    // Event sources:
-    // - `PaymentsManager::spawn_onchain_confs_checker` task
-    pub(crate) fn check_onchain_conf(
-        &self,
-        conf_status: TxConfStatus,
-    ) -> anyhow::Result<Option<Self>> {
-        use OnchainReceiveStatus::*;
-
-        // We'll update our state if and only if the payment is still pending.
-        match self.status {
-            Zeroconf | PartiallyConfirmed | PartiallyReplaced => (),
-            FullyConfirmed | FullyReplaced | Dropped => bail!(
-                "Tx already finalized; shouldn't have checked for conf status"
-            ),
-        }
-
-        let new_status = match &conf_status {
-            TxConfStatus::ZeroConf => Zeroconf,
-            TxConfStatus::InBestChain { confs } =>
-                if confs < &ONCHAIN_CONFIRMATION_THRESHOLD {
-                    PartiallyConfirmed
-                } else {
-                    FullyConfirmed
-                },
-            TxConfStatus::HasReplacement { confs, .. } =>
-                if confs < &ONCHAIN_CONFIRMATION_THRESHOLD {
-                    PartiallyReplaced
-                } else {
-                    FullyReplaced
-                },
-            TxConfStatus::Dropped => Dropped,
+impl From<OnchainReceiveV1> for PaymentWithMetadata<OnchainReceiveV2> {
+    fn from(v1: OnchainReceiveV1) -> Self {
+        let payment = OnchainReceiveV2 {
+            txid: v1.txid,
+            tx: v1.tx,
+            replacement: v1.replacement,
+            amount: v1.amount,
+            status: v1.status,
+            created_at: v1.created_at,
+            note: v1.note,
+            finalized_at: v1.finalized_at,
         };
-        let new_replacement = match conf_status {
-            TxConfStatus::HasReplacement { rp_txid, .. } => Some(rp_txid),
-            _ => None,
-        };
+        let metadata = PaymentMetadata::empty(payment.id());
 
-        // To prevent redundantly repersisting the same data, return Some(..)
-        // only if the state has actually changed.
-        if (self.status == new_status) && (self.replacement == new_replacement)
-        {
-            Ok(None)
-        } else {
-            let mut clone = self.clone();
-            clone.status = new_status;
-            clone.replacement = new_replacement;
-
-            if matches!(new_status, FullyConfirmed | FullyReplaced | Dropped) {
-                clone.finalized_at = Some(TimestampMs::now());
-            }
-
-            Ok(Some(clone))
-        }
-    }
-
-    pub fn to_tx_conf_query(&self) -> TxConfQuery {
-        TxConfQuery {
-            txid: self.txid,
-            inputs: self
-                .tx
-                .input
-                .iter()
-                .map(|txin| txin.previous_output)
-                .collect(),
-            created_at: self.created_at.into(),
-        }
+        Self { payment, metadata }
     }
 }
 
-#[cfg(test)]
-mod arb {
-    use common::test_utils::arbitrary;
-    use proptest::{
-        arbitrary::{Arbitrary, any},
-        option,
-        strategy::{BoxedStrategy, Strategy},
-    };
+impl TryFrom<PaymentWithMetadata<OnchainReceiveV2>> for OnchainReceiveV1 {
+    type Error = anyhow::Error;
 
-    use super::*;
+    fn try_from(
+        pwm: PaymentWithMetadata<OnchainReceiveV2>,
+    ) -> Result<Self, Self::Error> {
+        // Intentionally destructure to ensure all fields are considered.
+        let OnchainReceiveV2 {
+            txid,
+            tx,
+            replacement,
+            amount,
+            status,
+            created_at,
+            note,
+            finalized_at,
+        } = pwm.payment;
 
-    impl Arbitrary for OnchainReceiveV1 {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            let tx = arbitrary::any_raw_tx();
-            let amount = any::<Amount>();
-            let conf_status = option::weighted(0.8, any::<TxConfStatus>());
-
-            // Generate valid `OnchainReceive` instances by actually running
-            // through the state machine.
-            (tx, amount, conf_status)
-                .prop_map(|(tx, amount, conf_status)| {
-                    let orp = OnchainReceiveV1::new(Arc::new(tx), amount);
-                    if let Some(conf_status) = conf_status {
-                        orp.check_onchain_conf(conf_status)
-                            .unwrap()
-                            .unwrap_or(orp)
-                    } else {
-                        orp
-                    }
-                })
-                .boxed()
-        }
+        Ok(Self {
+            txid,
+            tx,
+            replacement,
+            amount,
+            status,
+            created_at,
+            note,
+            finalized_at,
+        })
     }
 }

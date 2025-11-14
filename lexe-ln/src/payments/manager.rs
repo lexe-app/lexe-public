@@ -26,13 +26,13 @@ use crate::{
     payments::{
         PaymentV2, PaymentWithMetadata,
         inbound::{ClaimableError, LnClaimCtx},
+        onchain::OnchainReceiveV2,
         outbound::{ExpireError, LxOutboundPaymentFailure},
         v1::{
             PaymentV1,
             inbound::{
                 InboundOfferReusablePaymentV1, InboundSpontaneousPaymentV1,
             },
-            onchain::OnchainReceiveV1,
         },
     },
     test_event::TestEventSender,
@@ -908,7 +908,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
     /// Queries the [`bdk_wallet::Wallet`] to see if there are any onchain
     /// receives that the [`PaymentsManager`] doesn't yet know about. If so,
-    /// the [`OnchainReceiveV1`] is constructed and registered with the
+    /// the [`OnchainReceiveV2`] is constructed and registered with the
     /// [`PaymentsManager`].
     ///
     /// This function should be called regularly.
@@ -970,15 +970,14 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                         locked_wallet.sent_and_received(&raw_tx);
                     let amount =
                         Amount::try_from(received).context("Overflowed")?;
-                    Ok(OnchainReceiveV1::new(raw_tx, amount))
+                    Ok(OnchainReceiveV2::new(raw_tx, amount))
                 })
-                .collect::<anyhow::Result<Vec<OnchainReceiveV1>>>()?
+                .collect::<anyhow::Result<Vec<_>>>()?
         };
 
         // Register all of the new onchain receives.
-        for or in onchain_recvs {
-            let pwm = PaymentWithMetadata::from(PaymentV1::from(or));
-            self.new_payment_inner(&mut locked_data, pwm)
+        for orwm in onchain_recvs {
+            self.new_payment_inner(&mut locked_data, orwm.into_enum())
                 .await
                 .context("Failed to register new onchain receive")?;
         }
@@ -1308,10 +1307,14 @@ impl PaymentsData {
                         .context("Error checking onchain send conf")?,
                     PaymentV2::OnchainReceive(or) => or
                         .check_onchain_conf(conf_status)
-                        .map(|opt| {
-                            opt.map(PaymentV1::from)
-                                .map(PaymentWithMetadata::from)
-                                .map(CheckedPayment)
+                        .map(|maybe_or| {
+                            maybe_or.map(|checked_or| {
+                                let orwm = PaymentWithMetadata {
+                                    payment: checked_or,
+                                    metadata: pwm.metadata.clone(),
+                                };
+                                CheckedPayment(orwm.into_enum())
+                            })
                         })
                         .context("Error checking onchain receive conf")?,
                     _ => bail!("Wasn't an onchain payment"),
