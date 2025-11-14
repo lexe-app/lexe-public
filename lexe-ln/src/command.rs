@@ -1244,14 +1244,14 @@ where
     let tx = oswm.payment.tx.clone();
     let id = oswm.payment.id();
     let txid = oswm.payment.txid;
-    let created_at = oswm.payment.created_at;
     let pwm = oswm.into_enum();
 
     // Register the transaction.
-    payments_manager
+    let created_index = payments_manager
         .new_payment(pwm)
         .await
         .context("Could not register new onchain send")?;
+    let created_at = created_index.created_at;
 
     // Broadcast.
     tx_broadcaster

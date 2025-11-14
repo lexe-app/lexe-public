@@ -705,8 +705,7 @@ impl PaymentV2 {
     /// first time; it is guaranteed to be `Some` thereafter.
     pub fn created_at(&self) -> Option<TimestampMs> {
         match self {
-            Self::OnchainSend(OnchainSendV2 { created_at, .. }) =>
-                Some(*created_at),
+            Self::OnchainSend(OnchainSendV2 { created_at, .. }) => *created_at,
             Self::OnchainReceive(OnchainReceiveV1 { created_at, .. }) =>
                 Some(*created_at),
             Self::InboundInvoice(InboundInvoicePaymentV1 {
@@ -738,16 +737,15 @@ impl PaymentV2 {
     /// Set the `created_at` timestamp when the payment is first persisted.
     ///
     /// Idempotent; only works once; subsequent calls have no effect.
-    pub fn set_created_at_once(&mut self, _created_at: TimestampMs) {
+    pub fn set_created_at_once(&mut self, created_at: TimestampMs) {
+        // TODO(max): Audit that we actually set all fields
+        // TODO(max): Remove braces once all fields are Option
         match self {
-            // TODO(max): Use Option::get_or_insert once we have option fields,
-            // like so:
-            // Self::OnchainSend(OnchainSendV2 {
-            //     created_at: field, ..
-            // }) => { field.get_or_insert(created_at); }
             Self::OnchainSend(OnchainSendV2 {
-                created_at: _field, ..
-            }) => (),
+                created_at: field, ..
+            }) => {
+                field.get_or_insert(created_at);
+            }
             Self::OnchainReceive(OnchainReceiveV1 {
                 created_at: _field,
                 ..

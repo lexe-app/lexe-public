@@ -857,13 +857,18 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             locked_data
                 .pending
                 .values()
-                .filter_map(|pwm| match &pwm.payment {
-                    PaymentV2::OnchainSend(os) =>
-                        Some((os.id(), os.to_tx_conf_query())),
-                    PaymentV2::OnchainReceive(or) =>
-                        Some((or.id(), or.to_tx_conf_query())),
-                    _ => None,
+                .map(|pwm: &PaymentWithMetadata| -> anyhow::Result<_> {
+                    match &pwm.payment {
+                        PaymentV2::OnchainSend(os) =>
+                            Ok(Some((os.id(), os.to_tx_conf_query()?))),
+                        PaymentV2::OnchainReceive(or) =>
+                            Ok(Some((or.id(), or.to_tx_conf_query()))),
+                        _ => Ok(None),
+                    }
                 })
+                .collect::<anyhow::Result<Vec<Option<_>>>>()?
+                .into_iter()
+                .flatten()
                 .collect::<Vec<_>>()
         };
 

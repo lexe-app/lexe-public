@@ -60,7 +60,7 @@ impl From<OnchainSendV1> for PaymentWithMetadata<OnchainSendV2> {
             amount: v1.amount,
             fees: v1.fees,
             status: v1.status,
-            created_at: v1.created_at,
+            created_at: Some(v1.created_at),
             note: v1.note,
             finalized_at: v1.finalized_at,
         };
@@ -112,7 +112,10 @@ impl From<PaymentWithMetadata<OnchainSendV2>> for OnchainSendV1 {
             amount,
             fees,
             status,
-            created_at,
+            created_at: created_at.expect(
+                "All payments data serialized as PaymentV1 has created_at, \
+                 therefore this field is always Some(_)",
+            ),
             note,
             finalized_at,
         }
@@ -233,6 +236,7 @@ mod arb {
     use lexe_api::models::command::PayOnchainRequest;
     use proptest::{
         arbitrary::{Arbitrary, any},
+        option,
         strategy::{BoxedStrategy, Strategy},
     };
 
@@ -243,40 +247,62 @@ mod arb {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            let tx = arbitrary::any_raw_tx();
-            let req = any::<PayOnchainRequest>();
-            let fees = any::<Amount>();
-            let is_broadcasted = proptest::bool::weighted(0.8);
-            let conf_status =
-                proptest::option::weighted(0.8, any::<TxConfStatus>());
+            let any_tx = arbitrary::any_raw_tx();
+            let any_req = any::<PayOnchainRequest>();
+            let any_fees = any::<Amount>();
+            let any_is_broadcasted = proptest::bool::weighted(0.8);
+            // Generate a non-optional timestamp since all PaymentV1 data has
+            // created_at. We wrap it in Some() when setting the v2 field.
+            let any_created_at = any::<TimestampMs>();
+            let any_conf_status = option::weighted(0.8, any::<TxConfStatus>());
 
             // Generate valid `OnchainSend` instances by actually running
             // through the state machine.
-            (tx, req, fees, is_broadcasted, conf_status)
-                .prop_map(|(tx, req, fees, is_broadcasted, conf_status)| {
-                    let oswm = OnchainSendV2::new(tx, req, fees);
-                    if !is_broadcasted {
-                        return OnchainSendV1::from(oswm);
-                    }
-                    let os =
-                        oswm.payment.broadcasted(&oswm.payment.txid).unwrap();
-                    let mut oswm = PaymentWithMetadata {
-                        payment: os,
-                        metadata: oswm.metadata,
-                    };
-                    if let Some(conf_status) = conf_status {
-                        if let Some(os2) = oswm
-                            .payment
-                            .check_onchain_conf(conf_status)
-                            .unwrap()
-                        {
-                            oswm.payment = os2;
+            (
+                any_tx,
+                any_req,
+                any_fees,
+                any_created_at,
+                any_is_broadcasted,
+                any_conf_status,
+            )
+                .prop_map(
+                    |(
+                        tx,
+                        req,
+                        fees,
+                        created_at,
+                        is_broadcasted,
+                        conf_status,
+                    )| {
+                        let mut oswm = OnchainSendV2::new(tx, req, fees);
+                        // Set created_at for test purposes
+                        oswm.payment.created_at = Some(created_at);
+                        if !is_broadcasted {
+                            return OnchainSendV1::from(oswm);
                         }
-                        OnchainSendV1::from(oswm)
-                    } else {
-                        OnchainSendV1::from(oswm)
-                    }
-                })
+                        let os = oswm
+                            .payment
+                            .broadcasted(&oswm.payment.txid)
+                            .unwrap();
+                        let mut oswm = PaymentWithMetadata {
+                            payment: os,
+                            metadata: oswm.metadata,
+                        };
+                        if let Some(conf_status) = conf_status {
+                            if let Some(os2) = oswm
+                                .payment
+                                .check_onchain_conf(conf_status)
+                                .unwrap()
+                            {
+                                oswm.payment = os2;
+                            }
+                            OnchainSendV1::from(oswm)
+                        } else {
+                            OnchainSendV1::from(oswm)
+                        }
+                    },
+                )
                 .boxed()
         }
     }
@@ -287,8 +313,7 @@ mod arb {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             let tx = arbitrary::any_raw_tx();
             let amount = any::<Amount>();
-            let conf_status =
-                proptest::option::weighted(0.8, any::<TxConfStatus>());
+            let conf_status = option::weighted(0.8, any::<TxConfStatus>());
 
             // Generate valid `OnchainReceive` instances by actually running
             // through the state machine.

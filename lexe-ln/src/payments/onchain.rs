@@ -1,4 +1,4 @@
-use anyhow::{bail, ensure};
+use anyhow::{Context, bail, ensure};
 use bitcoin::Transaction;
 use common::{
     ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
@@ -42,7 +42,8 @@ pub struct OnchainSendV2 {
     pub amount: Amount,
     pub fees: Amount,
     pub status: OnchainSendStatus,
-    pub created_at: TimestampMs,
+    /// Set to `Some` when the payment is first persisted.
+    pub created_at: Option<TimestampMs>,
     /// An optional personal note for this payment.
     pub note: Option<String>,
     pub finalized_at: Option<TimestampMs>,
@@ -111,7 +112,7 @@ impl OnchainSendV2 {
             amount: req.amount,
             fees,
             status: OnchainSendStatus::Created,
-            created_at: TimestampMs::now(),
+            created_at: None,
             note: req.note,
             finalized_at: None,
         };
@@ -229,8 +230,8 @@ impl OnchainSendV2 {
         }
     }
 
-    pub fn to_tx_conf_query(&self) -> TxConfQuery {
-        TxConfQuery {
+    pub fn to_tx_conf_query(&self) -> anyhow::Result<TxConfQuery> {
+        Ok(TxConfQuery {
             txid: self.txid,
             inputs: self
                 .tx
@@ -238,8 +239,14 @@ impl OnchainSendV2 {
                 .iter()
                 .map(|txin| txin.previous_output)
                 .collect(),
-            created_at: self.created_at.into(),
-        }
+            created_at: self
+                .created_at
+                .context(
+                    "Payment should have been persisted (which sets created_at)
+                     prior to appearing in `pending` map",
+                )?
+                .into(),
+        })
     }
 }
 
