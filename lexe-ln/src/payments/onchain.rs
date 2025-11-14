@@ -269,15 +269,14 @@ impl OnchainSendV2 {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OnchainReceiveV2 {
     pub txid: LxTxid,
-    pub tx: Arc<Transaction>,
-    /// The txid of the replacement tx, if one exists.
-    pub replacement: Option<LxTxid>,
+
+    pub tx: Arc<bitcoin::Transaction>,
+
     pub amount: Amount,
+
     pub status: OnchainReceiveStatus,
-    pub created_at: TimestampMs,
-    /// An optional personal note for this payment. Is set to [`None`] when the
-    /// payment is first detected, but the user can add or modify it later.
-    pub note: Option<String>,
+
+    pub created_at: Option<TimestampMs>,
     pub finalized_at: Option<TimestampMs>,
 }
 
@@ -285,23 +284,20 @@ impl OnchainReceiveV2 {
     // Event sources:
     // - `PaymentsManager::spawn_onchain_recv_checker` task
     pub(crate) fn new(
-        tx: Arc<Transaction>,
+        tx: Arc<bitcoin::Transaction>,
         amount: Amount,
     ) -> PaymentWithMetadata<Self> {
         let txid = LxTxid(tx.compute_txid());
         let or = Self {
             txid,
             tx,
-            replacement: None,
             amount,
             // Start at zeroconf and let the checker update it later.
             status: OnchainReceiveStatus::Zeroconf,
-            created_at: TimestampMs::now(),
-            note: None,
+            created_at: None,
             finalized_at: None,
         };
 
-        // TODO(max): Populate with fields
         let metadata = PaymentMetadata::empty(or.id());
 
         PaymentWithMetadata {
@@ -318,11 +314,11 @@ impl OnchainReceiveV2 {
     /// Event sources:
     /// - `PaymentsManager::spawn_onchain_confs_checker` task
     ///
-    /// Returns `Ok(None)` if nothing changed.
+    /// Returns `Ok((None, None))` if nothing changed.
     pub(crate) fn check_onchain_conf(
         &self,
         conf_status: TxConfStatus,
-    ) -> anyhow::Result<Option<Self>> {
+    ) -> anyhow::Result<(Option<Self>, Option<PaymentMetadataUpdate>)> {
         use OnchainReceiveStatus::*;
 
         // We'll update our state if and only if the payment is still pending.
@@ -349,31 +345,36 @@ impl OnchainReceiveV2 {
                 },
             TxConfStatus::Dropped => Dropped,
         };
-        let new_replacement = match conf_status {
+        let maybe_replacement_txid = match conf_status {
             TxConfStatus::HasReplacement { rp_txid, .. } => Some(rp_txid),
             _ => None,
         };
 
         // To prevent redundantly repersisting the same data, return Some(..)
         // only if the state has actually changed.
-        if (self.status == new_status) && (self.replacement == new_replacement)
-        {
-            Ok(None)
+        if self.status == new_status {
+            Ok((None, None))
         } else {
             let mut clone = self.clone();
             clone.status = new_status;
-            clone.replacement = new_replacement;
 
             if matches!(new_status, FullyConfirmed | FullyReplaced | Dropped) {
                 clone.finalized_at = Some(TimestampMs::now());
             }
 
-            Ok(Some(clone))
+            // Create metadata update if there's a replacement txid
+            let maybe_meta_update =
+                maybe_replacement_txid.map(|txid| PaymentMetadataUpdate {
+                    replacement_txid: Some(Some(txid)),
+                    ..Default::default()
+                });
+
+            Ok((Some(clone), maybe_meta_update))
         }
     }
 
-    pub fn to_tx_conf_query(&self) -> TxConfQuery {
-        TxConfQuery {
+    pub fn to_tx_conf_query(&self) -> anyhow::Result<TxConfQuery> {
+        Ok(TxConfQuery {
             txid: self.txid,
             inputs: self
                 .tx
@@ -381,8 +382,14 @@ impl OnchainReceiveV2 {
                 .iter()
                 .map(|txin| txin.previous_output)
                 .collect(),
-            created_at: self.created_at.into(),
-        }
+            created_at: self
+                .created_at
+                .context(
+                    "Payment should have been persisted (which sets created_at) \
+                     prior to appearing in `pending` map",
+                )?
+                .into(),
+        })
     }
 }
 
@@ -501,28 +508,33 @@ mod arbitrary_impl {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            let tx = arbitrary::any_raw_tx();
-            let amount = any::<Amount>();
-            let conf_status = option::weighted(0.8, any::<TxConfStatus>());
+            let any_tx = arbitrary::any_raw_tx();
+            let any_amount = any::<Amount>();
+            // TODO(max): Make optional once payment_encryption_roundtrip tests
+            // with PaymentV2 only. Currently must be non-optional because the
+            // test exercises v2 → v1 conversion which requires created_at.
+            let any_created_at = any::<TimestampMs>();
+            let any_conf_status = option::weighted(0.8, any::<TxConfStatus>());
 
             // Generate valid `OnchainReceive` instances by actually running
             // through the state machine.
-            (tx, amount, conf_status)
-                .prop_map(|(tx, amount, conf_status)| {
-                    let orwm = OnchainReceiveV2::new(Arc::new(tx), amount);
-                    if let Some(conf_status) = conf_status {
-                        orwm.payment
+            (any_tx, any_amount, any_created_at, any_conf_status)
+                .prop_map(|(tx, amount, created_at, conf_status)| {
+                    let mut orwm = OnchainReceiveV2::new(Arc::new(tx), amount);
+                    // Set created_at for test purposes
+                    orwm.payment.created_at = Some(created_at);
+                    if let Some(conf_status) = conf_status
+                        && let (Some(or_checked), maybe_meta_update) = orwm
+                            .payment
                             .check_onchain_conf(conf_status)
                             .unwrap()
-                            .map(|or| PaymentWithMetadata {
-                                payment: or,
-                                metadata: orwm.metadata.clone(),
-                            })
-                            .unwrap_or(orwm)
-                            .payment
-                    } else {
-                        orwm.payment
+                    {
+                        orwm.payment = or_checked;
+                        if let Some(update) = maybe_meta_update {
+                            orwm.metadata = orwm.metadata.apply_update(update);
+                        }
                     }
+                    orwm.payment
                 })
                 .boxed()
         }

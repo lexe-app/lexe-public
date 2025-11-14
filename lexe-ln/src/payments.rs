@@ -463,9 +463,7 @@ impl PaymentWithMetadata<PaymentV2> {
     pub fn replacement_txid(&self) -> Option<LxTxid> {
         match &self.payment {
             PaymentV2::OnchainSend(_) => self.metadata.replacement_txid,
-            PaymentV2::OnchainReceive(OnchainReceiveV2 {
-                replacement, ..
-            }) => *replacement,
+            PaymentV2::OnchainReceive(_) => self.metadata.replacement_txid,
             PaymentV2::InboundInvoice(_) => None,
             PaymentV2::InboundOfferReusable(_) => None,
             PaymentV2::InboundSpontaneous(_) => None,
@@ -550,7 +548,7 @@ impl PaymentWithMetadata<PaymentV2> {
     pub fn note(&self) -> Option<&str> {
         let maybe_note = match &self.payment {
             PaymentV2::OnchainSend(_) => &self.metadata.note,
-            PaymentV2::OnchainReceive(OnchainReceiveV2 { note, .. }) => note,
+            PaymentV2::OnchainReceive(_) => &self.metadata.note,
             PaymentV2::InboundInvoice(InboundInvoicePaymentV1 {
                 note, ..
             }) => note,
@@ -581,7 +579,7 @@ impl PaymentWithMetadata<PaymentV2> {
     pub fn set_note(&mut self, note: Option<String>) {
         let mut_ref_note: &mut Option<String> = match &mut self.payment {
             PaymentV2::OnchainSend(_) => &mut self.metadata.note,
-            PaymentV2::OnchainReceive(OnchainReceiveV2 { note, .. }) => note,
+            PaymentV2::OnchainReceive(_) => &mut self.metadata.note,
             PaymentV2::InboundInvoice(InboundInvoicePaymentV1 {
                 note, ..
             }) => note,
@@ -844,7 +842,7 @@ impl PaymentV2 {
         match self {
             Self::OnchainSend(OnchainSendV2 { created_at, .. }) => *created_at,
             Self::OnchainReceive(OnchainReceiveV2 { created_at, .. }) =>
-                Some(*created_at),
+                *created_at,
             Self::InboundInvoice(InboundInvoicePaymentV1 {
                 created_at,
                 ..
@@ -884,9 +882,11 @@ impl PaymentV2 {
                 field.get_or_insert(created_at);
             }
             Self::OnchainReceive(OnchainReceiveV2 {
-                created_at: _field,
+                created_at: field,
                 ..
-            }) => (),
+            }) => {
+                field.get_or_insert(created_at);
+            }
             Self::InboundInvoice(InboundInvoicePaymentV1 {
                 created_at: _field,
                 ..

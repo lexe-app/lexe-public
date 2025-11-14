@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::anyhow;
+use anyhow::Context;
 use bitcoin::Transaction;
 #[cfg(test)]
 use common::test_utils::arbitrary;
@@ -111,12 +111,11 @@ impl TryFrom<PaymentWithMetadata<OnchainSendV2>> for OnchainSendV1 {
             txid,
             tx,
             replacement,
-            priority: priority.ok_or_else(|| anyhow!("Missing priority"))?,
+            priority: priority.context("Missing priority")?,
             amount,
             fees,
             status,
-            created_at: created_at
-                .ok_or_else(|| anyhow!("Missing created_at"))?,
+            created_at: created_at.context("Missing created_at")?,
             note,
             finalized_at,
         })
@@ -157,14 +156,20 @@ impl From<OnchainReceiveV1> for PaymentWithMetadata<OnchainReceiveV2> {
         let payment = OnchainReceiveV2 {
             txid: v1.txid,
             tx: v1.tx,
-            replacement: v1.replacement,
             amount: v1.amount,
             status: v1.status,
-            created_at: v1.created_at,
-            note: v1.note,
+            created_at: Some(v1.created_at),
             finalized_at: v1.finalized_at,
         };
-        let metadata = PaymentMetadata::empty(payment.id());
+        let metadata = PaymentMetadata {
+            id: payment.id(),
+            address: None,
+            invoice: None,
+            offer: None,
+            priority: None,
+            replacement_txid: v1.replacement,
+            note: v1.note,
+        };
 
         Self { payment, metadata }
     }
@@ -180,22 +185,20 @@ impl TryFrom<PaymentWithMetadata<OnchainReceiveV2>> for OnchainReceiveV1 {
         let OnchainReceiveV2 {
             txid,
             tx,
-            replacement,
             amount,
             status,
             created_at,
-            note,
             finalized_at,
         } = pwm.payment;
 
         Ok(Self {
             txid,
             tx,
-            replacement,
+            replacement: pwm.metadata.replacement_txid,
             amount,
             status,
-            created_at,
-            note,
+            created_at: created_at.context("Missing created_at")?,
+            note: pwm.metadata.note,
             finalized_at,
         })
     }

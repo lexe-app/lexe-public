@@ -859,13 +859,18 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                 .values()
                 .map(|pwm: &PaymentWithMetadata| -> anyhow::Result<_> {
                     match &pwm.payment {
-                        PaymentV2::OnchainSend(os) => Ok(Some((
-                            os.id(),
-                            os.to_tx_conf_query()
-                                .context("OnchainSend::to_tx_conf_query")?,
-                        ))),
-                        PaymentV2::OnchainReceive(or) =>
-                            Ok(Some((or.id(), or.to_tx_conf_query()))),
+                        PaymentV2::OnchainSend(os) => {
+                            let tx_query = os
+                                .to_tx_conf_query()
+                                .context("OnchainSend::to_tx_conf_query")?;
+                            Ok(Some((os.id(), tx_query)))
+                        }
+                        PaymentV2::OnchainReceive(or) => {
+                            let tx_query = or
+                                .to_tx_conf_query()
+                                .context("OnchainReceive::to_tx_conf_query")?;
+                            Ok(Some((or.id(), tx_query)))
+                        }
                         _ => Ok(None),
                     }
                 })
@@ -1307,11 +1312,15 @@ impl PaymentsData {
                         .context("Error checking onchain send conf")?,
                     PaymentV2::OnchainReceive(or) => or
                         .check_onchain_conf(conf_status)
-                        .map(|maybe_or| {
+                        .map(|(maybe_or, maybe_update)| {
                             maybe_or.map(|checked_or| {
+                                let mut metadata = pwm.metadata.clone();
+                                if let Some(update) = maybe_update {
+                                    metadata = metadata.apply_update(update);
+                                }
                                 let orwm = PaymentWithMetadata {
                                     payment: checked_or,
-                                    metadata: pwm.metadata.clone(),
+                                    metadata,
                                 };
                                 CheckedPayment(orwm.into_enum())
                             })
