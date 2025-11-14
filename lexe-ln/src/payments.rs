@@ -4,9 +4,12 @@
 //! [`lexe_api::types::payments`].
 
 use anyhow::Context;
+use bitcoin::address::NetworkUnchecked;
+#[cfg(test)]
+use common::test_utils::arbitrary;
 use common::{
     aes::AesMasterKey,
-    ln::{amount::Amount, hashes::LxTxid},
+    ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
     rng::Crng,
     time::TimestampMs,
 };
@@ -73,44 +76,47 @@ pub struct PaymentWithMetadata<P = PaymentV2> {
     pub metadata: PaymentMetadata,
 }
 
-/// Optional payment metadata associated with a [`PaymentV2`].
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(test, derive(Arbitrary))]
-// TODO(max): This should derive Serialize and Deserialize, but we hold off for
-// now as we don't want to accidentally serialize using this type while we're
-// still migrating all logic.
-#[cfg_attr(test, derive(Serialize, Deserialize))]
-pub struct PaymentMetadata {
-    pub id: LxPaymentId,
-
-    /// The BOLT11 invoice corresponding to this payment, if any.
-    pub invoice: Option<Box<LxInvoice>>,
-
-    /// The BOLT12 offer associated with this payment, if any.
-    pub offer: Option<Box<LxOffer>>,
-
-    /// The payment note, private to the user.
-    // Suppress useless unicode gibberish in tests.
-    #[cfg_attr(
-        test,
-        proptest(strategy = "option::of(Just(String::from(\"note\")))")
-    )]
-    pub note: Option<String>,
-    //
-    // TODO(max): Add remaining fields once we implement the migration
-}
-
 /// The primary `Payment` enum which abstracts over all types of payments,
 /// including both onchain and off-chain (Lightning) payments.
 ///
-/// Each variant in `Payment` typically implements a state machine that
-/// ingests events from [`PaymentsManager`] to transition between states in
-/// that payment type's lifecycle.
+/// Each variant in `Payment` implements a state machine that ingests events
+/// from [`PaymentsManager`] to transition between states in that payment type's
+/// lifecycle. For example, we create an [`OnchainSendV2`] payment in its
+/// initial state, `Created`. After we successfully broadcast the tx, the
+/// payment transitions to `Broadcasted`. Once the tx confirms, the payment
+/// transitions to `PartiallyConfirmed`, then `FullyConfirmed` with 6+ confs.
 ///
-/// For example, we create an [`OnchainSendV2`] payment in its initial state,
-/// `Created`. After we successfully broadcast the tx, the payment transitions
-/// to `Broadcasted`. Once the tx confirms, the payment transitions to
-/// `PartiallyConfirmed`, then `FullyConfirmed` with 6+ confs.
+/// ### Should data go in a [`PaymentV2`] subtype or in `PaymentMetadata`?
+///
+/// NOTE: The core state machines in the [`PaymentV2`] subtypes are extremely
+/// 'sharp' and have strict requirements with regards to idempotency,
+/// consistency, timestamp monotonicity, serialization compatibility, and more.
+/// Making any changes to these state machines requires careful reasoning which
+/// considers the entire tower of logic:
+///
+/// - `background_processor`
+/// - `EventHandler` and event persistence
+/// - `PaymentsManager` with locking and persistence
+/// - `PaymentsData`, with finalized payment cache
+/// - `PaymentV2`
+/// - `PaymentV2` subtypes: `OnchainSendV2`, `OutboundInvoicePaymentV1`, etc.
+///
+/// THEREFORE, it is in your interest to minimize the amount of data stored in
+/// the [`PaymentV2`] subtypes. The general rule of thumb is that [`PaymentV2`]
+/// subtypes should only contain information necessary to validate correctness
+/// and make progress in its state machine (e.g. payment hashes/secrets, txids),
+/// or which needs to be well-structured for financial accounting,
+/// categorization, and reconciliation (e.g. amounts, fees, class). Everything
+/// else, especially large blobs of data, should go in [`PaymentMetadata`].
+///
+/// Another way to think of it:
+///
+/// - [`PaymentV2`] subtypes can be thought of as the payment 'rails' -
+///   responsible for moving value from one place to another.
+/// - [`PaymentMetadata`] contains 'metadata' - enriches the core payment types
+///   with semantic data that is of interest to users and applications, such as
+///   descriptions/notes, invoices/offers, referer IDs, initiating clients, fee
+///   rates, interest rate APYs, etc.
 ///
 /// ### State machine idempotency
 ///
@@ -141,6 +147,9 @@ pub struct PaymentMetadata {
 // TODO(max): This should derive Serialize and Deserialize, but we hold off for
 // now as we don't want to accidentally serialize using this type while we're
 // still migrating all logic.
+// TODO(max): Figure out how `class` should be represented before committing to
+// the PaymentV2 serialization scheme. Perhaps the payment should be a tagged
+// enum, like `struct PaymentV2 { payment: PaymentEnum, class: PaymentClass }`?
 #[cfg_attr(test, derive(Serialize, Deserialize))]
 pub enum PaymentV2 {
     OnchainSend(OnchainSendV2),
@@ -158,10 +167,68 @@ pub enum PaymentV2 {
     OutboundSpontaneous(OutboundSpontaneousPaymentV1),
 }
 
+/// Optional payment metadata associated with a [`PaymentV2`].
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(test, derive(Arbitrary))]
+// TODO(max): This should derive Serialize and Deserialize, but we hold off for
+// now as we don't want to accidentally serialize using this type while we're
+// still migrating all logic.
+#[cfg_attr(test, derive(Serialize, Deserialize))]
+pub struct PaymentMetadata {
+    pub id: LxPaymentId,
+
+    /// (On-chain send only) The address that we're sending to.
+    #[cfg_attr(
+        test,
+        proptest(
+            strategy = "option::of(arbitrary::any_mainnet_addr_unchecked())"
+        )
+    )]
+    pub address: Option<bitcoin::Address<NetworkUnchecked>>,
+
+    /// The BOLT11 invoice corresponding to this payment, if any.
+    pub invoice: Option<Box<LxInvoice>>,
+
+    /// The BOLT12 offer associated with this payment, if any.
+    pub offer: Option<Box<LxOffer>>,
+
+    /// (On-chain send only) The confirmation priority used for this payment.
+    pub priority: Option<ConfirmationPriority>,
+
+    /// (Onchain payments only) The txid of the replacement tx, if one exists.
+    pub replacement_txid: Option<LxTxid>,
+
+    /// The payment note, private to the user.
+    // Suppress useless unicode gibberish in tests.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "option::of(Just(String::from(\"note\")))")
+    )]
+    pub note: Option<String>,
+}
+
+/// An update to a [`PaymentMetadata`].
+#[must_use]
+#[derive(Debug, Default, PartialEq)]
+pub(crate) struct PaymentMetadataUpdate {
+    pub address: Option<Option<bitcoin::Address<NetworkUnchecked>>>,
+
+    pub invoice: Option<Option<Box<LxInvoice>>>,
+
+    pub offer: Option<Option<Box<LxOffer>>>,
+
+    pub priority: Option<Option<ConfirmationPriority>>,
+
+    pub replacement_txid: Option<Option<LxTxid>>,
+
+    pub note: Option<Option<String>>,
+}
+
 // --- Encryption --- //
 
 /// Serializes a given payment to JSON and encrypts the payment under the given
 /// [`AesMasterKey`], returning the [`DbPaymentV2`] which can be persisted.
+// TODO(max): Make infallible again once we use PaymentV2
 pub fn encrypt(
     rng: &mut impl Crng,
     vfs_master_key: &AesMasterKey,
@@ -171,13 +238,14 @@ pub fn encrypt(
     pwm: &PaymentWithMetadata,
     created_at: TimestampMs,
     updated_at: TimestampMs,
-) -> DbPaymentV2 {
+) -> anyhow::Result<DbPaymentV2> {
     // Serialize the payment as JSON bytes.
     let aad = &[];
     let data_size_hint = None;
     // TODO(max): Update serialization to v2 once all logic is migrated.
+    let payment_v1 = PaymentV1::try_from(pwm.clone())
+        .context("Failed to convert payment to v1")?;
     let write_data_cb: &dyn Fn(&mut Vec<u8>) = &|mut_vec_u8| {
-        let payment_v1 = PaymentV1::from(pwm.clone());
         serde_json::to_writer(mut_vec_u8, &payment_v1)
             .expect("Payment serialization always succeeds")
     };
@@ -185,13 +253,13 @@ pub fn encrypt(
     // Encrypt.
     let data = vfs_master_key.encrypt(rng, aad, data_size_hint, write_data_cb);
 
-    DbPaymentV2 {
+    Ok(DbPaymentV2 {
         id: pwm.payment.id().to_string(),
         status: pwm.payment.status().to_string(),
         data,
         created_at: created_at.to_i64(),
         updated_at: updated_at.to_i64(),
-    }
+    })
 }
 
 /// Given a [`DbPaymentV2::data`] (ciphertext), attempts to decrypt using the
@@ -286,7 +354,7 @@ impl PaymentWithMetadata<PaymentV2> {
             offer_id: self.offer_id(),
             offer: self.offer(),
             txid: self.txid(),
-            replacement: self.replacement(),
+            replacement: self.replacement_txid(),
             amount: self.amount(),
             fees: self.fees(),
             status: self.payment.status(),
@@ -373,12 +441,26 @@ impl PaymentWithMetadata<PaymentV2> {
         }
     }
 
-    /// Returns the txid of the replacement tx, if there is one.
-    // TODO(max): Remove fn once all matching is removed
-    pub fn replacement(&self) -> Option<LxTxid> {
+    /// Returns the transaction, if there is one.
+    /// Always [`Some`] for on-chain sends and receives.
+    pub fn tx(&self) -> Option<&bitcoin::Transaction> {
         match &self.payment {
-            PaymentV2::OnchainSend(OnchainSendV2 { replacement, .. }) =>
-                *replacement,
+            PaymentV2::OnchainSend(OnchainSendV2 { tx, .. }) => Some(tx),
+            PaymentV2::OnchainReceive(OnchainReceiveV1 { tx, .. }) =>
+                Some(tx.as_ref()),
+            PaymentV2::InboundInvoice(_) => None,
+            PaymentV2::InboundOfferReusable(_) => None,
+            PaymentV2::InboundSpontaneous(_) => None,
+            PaymentV2::OutboundInvoice(_) => None,
+            PaymentV2::OutboundOffer(_) => None,
+            PaymentV2::OutboundSpontaneous(_) => None,
+        }
+    }
+
+    /// Returns the txid of the replacement tx, if there is one.
+    pub fn replacement_txid(&self) -> Option<LxTxid> {
+        match &self.payment {
+            PaymentV2::OnchainSend(_) => self.metadata.replacement_txid,
             PaymentV2::OnchainReceive(OnchainReceiveV1 {
                 replacement, ..
             }) => *replacement,
@@ -464,8 +546,8 @@ impl PaymentWithMetadata<PaymentV2> {
     /// Get the payment note.
     // TODO(max): Remove fn once all matching is removed
     pub fn note(&self) -> Option<&str> {
-        match &self.payment {
-            PaymentV2::OnchainSend(OnchainSendV2 { note, .. }) => note,
+        let maybe_note = match &self.payment {
+            PaymentV2::OnchainSend(_) => &self.metadata.note,
             PaymentV2::OnchainReceive(OnchainReceiveV1 { note, .. }) => note,
             PaymentV2::InboundInvoice(InboundInvoicePaymentV1 {
                 note, ..
@@ -488,16 +570,15 @@ impl PaymentWithMetadata<PaymentV2> {
                 note,
                 ..
             }) => note,
-        }
-        .as_ref()
-        .map(|s| s.as_str())
+        };
+        maybe_note.as_ref().map(|s| s.as_str())
     }
 
     /// Set the payment note to a new value.
     // TODO(max): Remove fn once all matching is removed
     pub fn set_note(&mut self, note: Option<String>) {
         let mut_ref_note: &mut Option<String> = match &mut self.payment {
-            PaymentV2::OnchainSend(OnchainSendV2 { note, .. }) => note,
+            PaymentV2::OnchainSend(_) => &mut self.metadata.note,
             PaymentV2::OnchainReceive(OnchainReceiveV1 { note, .. }) => note,
             PaymentV2::InboundInvoice(InboundInvoicePaymentV1 {
                 note, ..
@@ -562,15 +643,18 @@ impl PaymentWithMetadata<PaymentV2> {
     }
 }
 
-// --- impl PaymentMetadata --- //
+// --- impl PaymentMetadata / PaymentMetadataUpdate --- //
 
 impl PaymentMetadata {
     /// Construct an empty `PaymentMetadata`.
     pub fn empty(id: LxPaymentId) -> Self {
         Self {
             id,
+            address: None,
             invoice: None,
             offer: None,
+            priority: None,
+            replacement_txid: None,
             note: None,
         }
     }
@@ -582,12 +666,63 @@ impl PaymentMetadata {
         // error whenever we add another field
         let Self {
             id: _,
+            address,
             invoice,
             offer,
+            priority,
+            replacement_txid,
             note,
         } = self;
 
-        invoice.is_none() && offer.is_none() && note.is_none()
+        address.is_none()
+            && invoice.is_none()
+            && offer.is_none()
+            && priority.is_none()
+            && replacement_txid.is_none()
+            && note.is_none()
+    }
+
+    /// Applies a metadata update to this [`PaymentMetadata`].
+    pub(crate) fn apply_update(
+        mut self,
+        update: PaymentMetadataUpdate,
+    ) -> Self {
+        // We intentionally destructure here to ensure we get a compilation
+        // error whenever we add another field
+        let PaymentMetadataUpdate {
+            address,
+            invoice,
+            offer,
+            priority,
+            replacement_txid,
+            note,
+        } = update;
+
+        self.address = address.unwrap_or(self.address);
+        self.invoice = invoice.unwrap_or(self.invoice);
+        self.offer = offer.unwrap_or(self.offer);
+        self.priority = priority.unwrap_or(self.priority);
+        self.replacement_txid =
+            replacement_txid.unwrap_or(self.replacement_txid);
+        self.note = note.unwrap_or(self.note);
+
+        self
+    }
+}
+
+impl PaymentMetadataUpdate {
+    const EMPTY: PaymentMetadataUpdate = PaymentMetadataUpdate {
+        address: None,
+        invoice: None,
+        offer: None,
+        priority: None,
+        replacement_txid: None,
+        note: None,
+    };
+
+    #[allow(dead_code)] // TODO(max): Remove
+    pub fn is_empty(&self) -> bool {
+        self == &Self::EMPTY
     }
 }
 
@@ -1061,7 +1196,8 @@ mod test {
                 &pwm,
                 created_at,
                 updated_at,
-            );
+            )
+            .unwrap();
             let p2 = payments::decrypt(&vfs_master_key, encrypted.data)
                 .map(|pwm| pwm.payment)
                 .unwrap();

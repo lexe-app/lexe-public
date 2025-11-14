@@ -1,7 +1,7 @@
 use anyhow::{Context, bail, ensure};
 use bitcoin::Transaction;
 use common::{
-    ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
+    ln::{amount::Amount, hashes::LxTxid},
     time::TimestampMs,
 };
 use lexe_api::{
@@ -15,7 +15,7 @@ use tracing::warn;
 
 use crate::{
     esplora::{TxConfQuery, TxConfStatus},
-    payments::{PaymentMetadata, PaymentWithMetadata},
+    payments::{PaymentMetadata, PaymentMetadataUpdate, PaymentWithMetadata},
 };
 
 /// The number of confirmations a tx needs to before we consider it final.
@@ -23,24 +23,23 @@ pub(crate) const ONCHAIN_CONFIRMATION_THRESHOLD: u32 = 6;
 
 // --- Onchain send --- //
 
-// TODO(max): Separate out metadata fields
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OnchainSendV2 {
     pub cid: ClientPaymentId,
     pub txid: LxTxid,
+
+    /// The tx must stay in the payment state machine because its inputs are
+    /// used to detect replacement transactions.
     // TODO(max): Add a serde helper to consensus encode the transaction before
     // serialization
-    pub tx: Transaction,
-    /// The txid of the replacement tx, if one exists.
-    pub replacement: Option<LxTxid>,
-    pub priority: ConfirmationPriority,
+    pub tx: bitcoin::Transaction,
+
     pub amount: Amount,
     pub fees: Amount,
+
     pub status: OnchainSendStatus,
-    /// Set to `Some` when the payment is first persisted.
+
     pub created_at: Option<TimestampMs>,
-    /// An optional personal note for this payment.
-    pub note: Option<String>,
     pub finalized_at: Option<TimestampMs>,
 }
 
@@ -98,23 +97,36 @@ impl OnchainSendV2 {
         req: PayOnchainRequest,
         fees: Amount,
     ) -> PaymentWithMetadata<Self> {
+        // Destructure to ensure we don't miss any fields.
+        let PayOnchainRequest {
+            cid,
+            address,
+            amount,
+            priority,
+            note,
+        } = req;
+
+        let txid = LxTxid(tx.compute_txid());
         let os = Self {
-            cid: req.cid,
-            txid: LxTxid(tx.compute_txid()),
+            cid,
+            txid,
             tx,
-            replacement: None,
-            priority: req.priority,
-            amount: req.amount,
+            amount,
             fees,
             status: OnchainSendStatus::Created,
             created_at: None,
-            note: req.note,
             finalized_at: None,
         };
 
-        // TODO(max): Populate metadata fields
-        let id = LxPaymentId::OnchainSend(os.cid);
-        let metadata = PaymentMetadata::empty(id);
+        let metadata = PaymentMetadata {
+            id: os.id(),
+            address: Some(address),
+            invoice: None,
+            offer: None,
+            priority: Some(priority),
+            replacement_txid: None,
+            note,
+        };
 
         PaymentWithMetadata {
             payment: os,
@@ -158,7 +170,7 @@ impl OnchainSendV2 {
     pub(crate) fn check_onchain_conf(
         &self,
         conf_status: TxConfStatus,
-    ) -> anyhow::Result<Option<Self>> {
+    ) -> anyhow::Result<(Option<Self>, Option<PaymentMetadataUpdate>)> {
         use OnchainSendStatus::*;
 
         // We'll update our state if and only if (1) the payment is still in a
@@ -166,7 +178,7 @@ impl OnchainSendV2 {
         match self.status {
             Created => {
                 warn!("Skipping conf status update; waiting for broadcast");
-                return Ok(None);
+                return Ok((None, None));
             }
             Broadcasted
             | PartiallyConfirmed
@@ -202,26 +214,31 @@ impl OnchainSendV2 {
                 },
             TxConfStatus::Dropped => Dropped,
         };
-        let new_replacement = match conf_status {
+        let maybe_replacement_txid = match conf_status {
             TxConfStatus::HasReplacement { rp_txid, .. } => Some(rp_txid),
             _ => None,
         };
 
         // To prevent redundantly repersisting the same data, return Some(..)
         // only if the state has actually changed.
-        if (self.status == new_status) && (self.replacement == new_replacement)
-        {
-            Ok(None)
+        if self.status == new_status {
+            Ok((None, None))
         } else {
             let mut clone = self.clone();
             clone.status = new_status;
-            clone.replacement = new_replacement;
 
             if matches!(new_status, FullyConfirmed | FullyReplaced | Dropped) {
                 clone.finalized_at = Some(TimestampMs::now());
             }
 
-            Ok(Some(clone))
+            // Create metadata update if there's a replacement txid
+            let maybe_meta_update =
+                maybe_replacement_txid.map(|txid| PaymentMetadataUpdate {
+                    replacement_txid: Some(Some(txid)),
+                    ..Default::default()
+                });
+
+            Ok((Some(clone), maybe_meta_update))
         }
     }
 
@@ -351,12 +368,16 @@ mod test {
                             metadata: pwm.metadata,
                         };
                         if let Some(conf_status) = conf_status
-                            && let Some(os2) = pwm
+                            && let (Some(os2), maybe_meta_update) = pwm
                                 .payment
                                 .check_onchain_conf(conf_status)
                                 .unwrap()
                         {
                             pwm.payment = os2;
+                            if let Some(update) = maybe_meta_update {
+                                pwm.metadata =
+                                    pwm.metadata.apply_update(update);
+                            }
                         }
                         pwm.payment
                     },

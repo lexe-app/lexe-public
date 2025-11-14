@@ -1664,15 +1664,15 @@ mod test {
                 priority: ConfirmationPriority::Normal,
                 note: None,
             };
-            let onchain_send = self
+            let oswm = self
                 .wallet
                 .create_onchain_send(send_req, self.network)
                 .expect("Failed to create onchain send");
             self.wallet.transaction_broadcasted_at(
                 self.now(),
-                onchain_send.payment.tx.clone(),
+                oswm.payment.tx.clone(),
             );
-            onchain_send
+            oswm
         }
 
         /// Assert that building an incremental sync request on the current
@@ -2042,11 +2042,9 @@ mod test {
             note: None,
         };
         let oswm = h.wallet.create_onchain_send(req, h.network).unwrap();
-        assert_eq!(oswm.payment.tx.input.len(), 1);
-        assert_eq!(
-            oswm.payment.tx.input[0].previous_output.txid,
-            tx_c.compute_txid()
-        );
+        let tx = &oswm.payment.tx;
+        assert_eq!(tx.input.len(), 1);
+        assert_eq!(tx.input[0].previous_output.txid, tx_c.compute_txid());
     }
 
     #[test]

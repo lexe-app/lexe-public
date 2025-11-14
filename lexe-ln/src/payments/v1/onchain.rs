@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 use bitcoin::Transaction;
 use common::{
     ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
@@ -54,76 +54,72 @@ impl OnchainSendV1 {
 impl From<OnchainSendV1> for PaymentWithMetadata<OnchainSendV2> {
     fn from(v1: OnchainSendV1) -> Self {
         let id = v1.id();
-        let note = v1.note.clone();
 
         let payment = OnchainSendV2 {
             cid: v1.cid,
             txid: v1.txid,
             tx: v1.tx,
-            replacement: v1.replacement,
-            priority: v1.priority,
             amount: v1.amount,
             fees: v1.fees,
             status: v1.status,
             created_at: Some(v1.created_at),
-            note: v1.note,
             finalized_at: v1.finalized_at,
         };
         let metadata = PaymentMetadata {
             id,
+            address: None, // v1 doesn't store address separately
             invoice: None,
             offer: None,
-            note,
+            priority: Some(v1.priority),
+            replacement_txid: v1.replacement,
+            note: v1.note,
         };
 
         Self { payment, metadata }
     }
 }
 
-impl From<PaymentWithMetadata<OnchainSendV2>> for OnchainSendV1 {
-    fn from(pwm: PaymentWithMetadata<OnchainSendV2>) -> Self {
+impl TryFrom<PaymentWithMetadata<OnchainSendV2>> for OnchainSendV1 {
+    type Error = anyhow::Error;
+
+    fn try_from(
+        pwm: PaymentWithMetadata<OnchainSendV2>,
+    ) -> Result<Self, Self::Error> {
         // Intentionally destructure to ensure all fields are considered.
         let OnchainSendV2 {
             cid,
             txid,
             tx,
-            replacement,
-            priority,
             amount,
             fees,
             status,
             created_at,
-            note,
             finalized_at,
         } = pwm.payment;
         let PaymentMetadata {
             id: _,
+            address: _,
             invoice: _,
             offer: _,
-            // Both the v2 payment type and metadata contain the same field,
-            // meaning the v2 payment type hasn't been migrated yet, meaning the
-            // note field will always be in the v2 payment type. Once the field
-            // is deleted from the v2 payment type, then the data will be stored
-            // only in the metadata.
-            note: _,
+            priority,
+            replacement_txid: replacement,
+            note,
         } = pwm.metadata;
 
-        Self {
+        Ok(Self {
             cid,
             txid,
             tx,
             replacement,
-            priority,
+            priority: priority.ok_or_else(|| anyhow!("Missing priority"))?,
             amount,
             fees,
             status,
-            created_at: created_at.expect(
-                "All payments data serialized as PaymentV1 has created_at, \
-                 therefore this field is always Some(_)",
-            ),
+            created_at: created_at
+                .ok_or_else(|| anyhow!("Missing created_at"))?,
             note,
             finalized_at,
-        }
+        })
     }
 }
 

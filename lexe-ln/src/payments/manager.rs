@@ -859,8 +859,11 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                 .values()
                 .map(|pwm: &PaymentWithMetadata| -> anyhow::Result<_> {
                     match &pwm.payment {
-                        PaymentV2::OnchainSend(os) =>
-                            Ok(Some((os.id(), os.to_tx_conf_query()?))),
+                        PaymentV2::OnchainSend(os) => Ok(Some((
+                            os.id(),
+                            os.to_tx_conf_query()
+                                .context("OnchainSend::to_tx_conf_query")?,
+                        ))),
                         PaymentV2::OnchainReceive(or) =>
                             Ok(Some((or.id(), or.to_tx_conf_query()))),
                         _ => Ok(None),
@@ -1289,11 +1292,15 @@ impl PaymentsData {
                 let maybe_checked = match &pwm.payment {
                     PaymentV2::OnchainSend(os) => os
                         .check_onchain_conf(conf_status)
-                        .map(|maybe_os| {
+                        .map(|(maybe_os, maybe_update)| {
                             maybe_os.map(|checked_os| {
+                                let mut metadata = pwm.metadata.clone();
+                                if let Some(update) = maybe_update {
+                                    metadata = metadata.apply_update(update);
+                                }
                                 let oswm = PaymentWithMetadata {
                                     payment: checked_os,
-                                    metadata: pwm.metadata.clone(),
+                                    metadata,
                                 };
                                 CheckedPayment(oswm.into_enum())
                             })

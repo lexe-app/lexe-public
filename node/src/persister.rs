@@ -482,7 +482,13 @@ impl NodePersister {
             .payments
             .into_iter()
             .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
-            .map(|res| res.map(PaymentV1::from).map(BasicPaymentV1::from))
+            .map(|res| {
+                res.and_then(|pwm| {
+                    PaymentV1::try_from(pwm)
+                        .context("Failed to convert payment to v1")
+                        .map(BasicPaymentV1::from)
+                })
+            })
             .collect::<anyhow::Result<Vec<BasicPaymentV1>>>()
     }
 
@@ -794,7 +800,8 @@ impl LexeInnerPersister for NodePersister {
             &pwm,
             created_at,
             updated_at,
-        );
+        )
+        .context("Failed to encrypt payment")?;
         let token = self.get_token().await?;
 
         self.backend_api
@@ -831,8 +838,9 @@ impl LexeInnerPersister for NodePersister {
                     created_at,
                     updated_at,
                 )
+                .context("Failed to encrypt payment")
             })
-            .collect();
+            .collect::<anyhow::Result<Vec<_>>>()?;
         let batch = VecDbPaymentV2 { payments };
 
         let token = self.get_token().await?;

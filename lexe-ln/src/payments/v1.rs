@@ -178,15 +178,17 @@ impl From<PaymentV1> for PaymentWithMetadata {
 
 // TODO(max): Eventually we will remove this impl, as the created_at field
 // required in PaymentV1 will be dropped from PaymentWithMetadata.
-impl From<PaymentWithMetadata> for PaymentV1 {
-    fn from(pwm: PaymentWithMetadata) -> Self {
-        match pwm.payment {
+impl TryFrom<PaymentWithMetadata> for PaymentV1 {
+    type Error = anyhow::Error;
+
+    fn try_from(pwm: PaymentWithMetadata) -> Result<Self, Self::Error> {
+        let v1 = match pwm.payment {
             PaymentV2::OnchainSend(p) => {
                 let oswm = PaymentWithMetadata::<OnchainSendV2> {
                     payment: p,
                     metadata: pwm.metadata,
                 };
-                PaymentV1::OnchainSend(OnchainSendV1::from(oswm))
+                PaymentV1::OnchainSend(OnchainSendV1::try_from(oswm)?)
             }
             PaymentV2::OnchainReceive(p) => PaymentV1::OnchainReceive(p),
             PaymentV2::InboundInvoice(p) => PaymentV1::InboundInvoice(p),
@@ -198,7 +200,9 @@ impl From<PaymentWithMetadata> for PaymentV1 {
             PaymentV2::OutboundOffer(p) => PaymentV1::OutboundOffer(p),
             PaymentV2::OutboundSpontaneous(p) =>
                 PaymentV1::OutboundSpontaneous(p),
-        }
+        };
+
+        Ok(v1)
     }
 }
 
@@ -682,7 +686,7 @@ mod test {
     fn payment_v1_v2_roundtrip_proptest() {
         proptest!(|(p1 in any::<PaymentV1>())| {
             let pwm = PaymentWithMetadata::from(p1.clone());
-            let p2 = PaymentV1::from(pwm);
+            let p2 = PaymentV1::try_from(pwm).unwrap();
             prop_assert_eq!(p1, p2);
         })
     }
