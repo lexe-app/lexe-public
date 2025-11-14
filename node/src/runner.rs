@@ -879,7 +879,8 @@ mod helpers {
         user_pks: HashSet<UserPk>,
     ) {
         const SPAN_NAME: &str = "(megarunner-activity)";
-        let task = LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), {
+        let span = info_span!(SPAN_NAME);
+        let task = LxTask::spawn_unlogged_with_span(SPAN_NAME, span, {
             async move {
                 if let Err(e) = runner_api.activity(user_pks).await {
                     warn!("Couldn't notify megarunner of activity: {e:#}");

@@ -39,7 +39,7 @@ where
     pub(crate) fn load<F: Ffs + Send + 'static>(
         ffs: F,
         filename: &str,
-        task_name: &str,
+        task_name: &'static str,
     ) -> Self {
         let db =
             Arc::new(std::sync::Mutex::new(DbPersister::load(&ffs, filename)));
@@ -55,8 +55,7 @@ where
             persist_rx,
             shutdown.clone(),
         );
-        let persist_task =
-            Some(LxTask::spawn(task_name.to_owned(), persister.run()));
+        let persist_task = Some(LxTask::spawn(task_name, persister.run()));
 
         Self {
             db,

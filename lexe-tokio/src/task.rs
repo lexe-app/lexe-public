@@ -245,17 +245,51 @@ impl<T> LxTask<T> {
         Self::spawn_with_span(name, span, future)
     }
 
+    /// Spawn a named task which inherits from the current span, but don't log
+    /// its start. Useful for non-static, ephemeral tasks.
+    #[inline]
+    pub fn spawn_unlogged<F>(
+        name: impl Into<Cow<'static, str>>,
+        future: F,
+    ) -> LxTask<F::Output>
+    where
+        F: Future<Output = T> + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        let name = name.into();
+        let span = tracing::Span::current();
+        Self::spawn_unlogged_with_span(name, span, future)
+    }
+
+    /// Spawn a named task with a custom spawn, but don't log its start. Useful
+    /// for non-static, ephemeral tasks.
+    #[inline]
+    #[allow(clippy::disallowed_methods)]
+    pub fn spawn_unlogged_with_span<F>(
+        name: impl Into<Cow<'static, str>>,
+        span: tracing::Span,
+        future: F,
+    ) -> LxTask<F::Output>
+    where
+        F: Future<Output = T> + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        let name = name.into();
+        Self {
+            task: tokio::spawn(future.instrument(span)),
+            name,
+        }
+    }
+
     /// Spawns a task without a name. Use this primarily for trivial tasks where
-    /// you don't care about joining later (e.g. a task that makes an API call)
+    /// you don't care about joining later (e.g. a task that makes an API call).
     #[inline]
     pub fn spawn_unnamed<F>(future: F) -> LxTask<F::Output>
     where
         F: Future<Output = T> + Send + 'static,
         F::Output: Send + 'static,
     {
-        let name = String::new();
-        let span = tracing::Span::current();
-        Self::spawn_with_span(name, span, future)
+        Self::spawn_unlogged("<unnamed>", future)
     }
 
     /// Spawns a named task with a custom span. This is the most versatile API.

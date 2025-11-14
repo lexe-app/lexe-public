@@ -671,7 +671,7 @@ pub fn handle_pending_htlcs_forwardable<CM, PS>(
     info_span!(SPAN_NAME, %delay_ms).in_scope(|| {
         info!("Sleeping {delay_ms} before forwarding");
 
-        let task = LxTask::spawn(SPAN_NAME, async move {
+        let task = LxTask::spawn_unlogged(SPAN_NAME, async move {
             tokio::time::sleep(delay).await;
             channel_manager.process_pending_htlc_forwards();
             info!("Forwarded pending HTLCs");

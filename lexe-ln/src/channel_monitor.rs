@@ -293,7 +293,7 @@ where
     /// Spawn a task to persist a single channel monitor and notify the chain
     /// monitor.
     fn spawn_persist(&mut self, batch: UpdateBatch) {
-        let task = LxTask::spawn_with_span(
+        let task = LxTask::spawn_unlogged_with_span(
             "chanmon-persist",
             batch.span.clone(),
             Self::persist_monitor_batch(

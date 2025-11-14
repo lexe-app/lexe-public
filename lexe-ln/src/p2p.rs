@@ -247,7 +247,7 @@ where
         hex::display(&node_pk.to_array().as_slice()[..4]),
         conn.ctl.id
     );
-    let mut conn_task = LxTask::spawn(task_name, conn.run());
+    let mut conn_task = LxTask::spawn_unlogged(task_name, conn.run());
 
     // A future which completes once the connection is usable.
     //
