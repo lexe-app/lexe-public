@@ -23,9 +23,14 @@ use crate::{
 // --- Onchain send --- //
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub struct OnchainSendV1 {
     pub cid: ClientPaymentId,
     pub txid: LxTxid,
+    #[cfg_attr(
+        test,
+        proptest(strategy = "common::test_utils::arbitrary::any_raw_tx()")
+    )]
     pub tx: Transaction,
     /// The txid of the replacement tx, if one exists.
     pub replacement: Option<LxTxid>,
@@ -233,7 +238,6 @@ impl OnchainReceiveV1 {
 #[cfg(test)]
 mod arb {
     use common::test_utils::arbitrary;
-    use lexe_api::models::command::PayOnchainRequest;
     use proptest::{
         arbitrary::{Arbitrary, any},
         option,
@@ -241,71 +245,6 @@ mod arb {
     };
 
     use super::*;
-    use crate::payments::onchain::OnchainSendV2;
-
-    impl Arbitrary for OnchainSendV1 {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            let any_tx = arbitrary::any_raw_tx();
-            let any_req = any::<PayOnchainRequest>();
-            let any_fees = any::<Amount>();
-            let any_is_broadcasted = proptest::bool::weighted(0.8);
-            // Generate a non-optional timestamp since all PaymentV1 data has
-            // created_at. We wrap it in Some() when setting the v2 field.
-            let any_created_at = any::<TimestampMs>();
-            let any_conf_status = option::weighted(0.8, any::<TxConfStatus>());
-
-            // Generate valid `OnchainSend` instances by actually running
-            // through the state machine.
-            (
-                any_tx,
-                any_req,
-                any_fees,
-                any_created_at,
-                any_is_broadcasted,
-                any_conf_status,
-            )
-                .prop_map(
-                    |(
-                        tx,
-                        req,
-                        fees,
-                        created_at,
-                        is_broadcasted,
-                        conf_status,
-                    )| {
-                        let mut oswm = OnchainSendV2::new(tx, req, fees);
-                        // Set created_at for test purposes
-                        oswm.payment.created_at = Some(created_at);
-                        if !is_broadcasted {
-                            return OnchainSendV1::from(oswm);
-                        }
-                        let os = oswm
-                            .payment
-                            .broadcasted(&oswm.payment.txid)
-                            .unwrap();
-                        let mut oswm = PaymentWithMetadata {
-                            payment: os,
-                            metadata: oswm.metadata,
-                        };
-                        if let Some(conf_status) = conf_status {
-                            if let Some(os2) = oswm
-                                .payment
-                                .check_onchain_conf(conf_status)
-                                .unwrap()
-                            {
-                                oswm.payment = os2;
-                            }
-                            OnchainSendV1::from(oswm)
-                        } else {
-                            OnchainSendV1::from(oswm)
-                        }
-                    },
-                )
-                .boxed()
-        }
-    }
 
     impl Arbitrary for OnchainReceiveV1 {
         type Parameters = ();

@@ -25,16 +25,11 @@ pub(crate) const ONCHAIN_CONFIRMATION_THRESHOLD: u32 = 6;
 
 // TODO(max): Separate out metadata fields
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
 pub struct OnchainSendV2 {
     pub cid: ClientPaymentId,
     pub txid: LxTxid,
     // TODO(max): Add a serde helper to consensus encode the transaction before
     // serialization
-    #[cfg_attr(
-        test,
-        proptest(strategy = "common::test_utils::arbitrary::any_raw_tx()")
-    )]
     pub tx: Transaction,
     /// The txid of the replacement tx, if one exists.
     pub replacement: Option<LxTxid>,
@@ -289,7 +284,15 @@ pub enum OnchainReceiveStatus {
 
 #[cfg(test)]
 mod test {
-    use common::test_utils::roundtrip::json_unit_enum_backwards_compat;
+    use common::test_utils::{
+        arbitrary, roundtrip::json_unit_enum_backwards_compat,
+    };
+    use lexe_api::models::command::PayOnchainRequest;
+    use proptest::{
+        arbitrary::{Arbitrary, any},
+        option,
+        strategy::{BoxedStrategy, Strategy},
+    };
 
     use super::*;
 
@@ -300,5 +303,65 @@ mod test {
 
         let expected_ser = r#"["zeroconf","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped"]"#;
         json_unit_enum_backwards_compat::<OnchainReceiveStatus>(expected_ser);
+    }
+
+    impl Arbitrary for OnchainSendV2 {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let any_tx = arbitrary::any_raw_tx();
+            let any_req = any::<PayOnchainRequest>();
+            let any_fees = any::<Amount>();
+            let any_is_broadcasted = proptest::bool::weighted(0.8);
+            // TODO(max): Make optional once payment_encryption_roundtrip tests
+            // with PaymentV2 only. Currently must be non-optional because the
+            // test exercises v2 → v1 conversion which requires created_at.
+            let any_created_at = any::<TimestampMs>();
+            let any_conf_status = option::weighted(0.8, any::<TxConfStatus>());
+
+            // Generate valid `OnchainSend` instances by actually running
+            // through the state machine.
+            (
+                any_tx,
+                any_req,
+                any_fees,
+                any_created_at,
+                any_is_broadcasted,
+                any_conf_status,
+            )
+                .prop_map(
+                    |(
+                        tx,
+                        req,
+                        fees,
+                        created_at,
+                        is_broadcasted,
+                        conf_status,
+                    )| {
+                        let mut pwm = OnchainSendV2::new(tx, req, fees);
+                        // Set created_at for test purposes
+                        pwm.payment.created_at = Some(created_at);
+                        if !is_broadcasted {
+                            return pwm.payment;
+                        }
+                        let os =
+                            pwm.payment.broadcasted(&pwm.payment.txid).unwrap();
+                        let mut pwm = PaymentWithMetadata {
+                            payment: os,
+                            metadata: pwm.metadata,
+                        };
+                        if let Some(conf_status) = conf_status
+                            && let Some(os2) = pwm
+                                .payment
+                                .check_onchain_conf(conf_status)
+                                .unwrap()
+                        {
+                            pwm.payment = os2;
+                        }
+                        pwm.payment
+                    },
+                )
+                .boxed()
+        }
     }
 }
