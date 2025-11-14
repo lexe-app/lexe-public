@@ -706,6 +706,86 @@ impl PaymentV2 {
         }
     }
 
+    /// When this payment was created.
+    ///
+    /// The `created_at` timestamp is set when the payment is persisted for the
+    /// first time; it is guaranteed to be `Some` thereafter.
+    pub fn created_at(&self) -> Option<TimestampMs> {
+        match self {
+            Self::OnchainSend(OnchainSendV2 { created_at, .. }) =>
+                Some(*created_at),
+            Self::OnchainReceive(OnchainReceiveV1 { created_at, .. }) =>
+                Some(*created_at),
+            Self::InboundInvoice(InboundInvoicePaymentV1 {
+                created_at,
+                ..
+            }) => Some(*created_at),
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
+                created_at,
+                ..
+            }) => Some(*created_at),
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
+                created_at,
+                ..
+            }) => Some(*created_at),
+            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
+                created_at,
+                ..
+            }) => Some(*created_at),
+            Self::OutboundOffer(OutboundOfferPaymentV1 {
+                created_at, ..
+            }) => Some(*created_at),
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
+                created_at,
+                ..
+            }) => Some(*created_at),
+        }
+    }
+
+    /// Set the `created_at` timestamp when the payment is first persisted.
+    ///
+    /// Idempotent; only works once; subsequent calls have no effect.
+    pub fn set_created_at_once(&mut self, _created_at: TimestampMs) {
+        match self {
+            // TODO(max): Use Option::get_or_insert once we have option fields,
+            // like so:
+            // Self::OnchainSend(OnchainSendV2 {
+            //     created_at: field, ..
+            // }) => { field.get_or_insert(created_at); }
+            Self::OnchainSend(OnchainSendV2 {
+                created_at: _field, ..
+            }) => (),
+            Self::OnchainReceive(OnchainReceiveV1 {
+                created_at: _field,
+                ..
+            }) => (),
+            Self::InboundInvoice(InboundInvoicePaymentV1 {
+                created_at: _field,
+                ..
+            }) => (),
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
+                created_at: _field,
+                ..
+            }) => (),
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
+                created_at: _field,
+                ..
+            }) => (),
+            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
+                created_at: _field,
+                ..
+            }) => (),
+            Self::OutboundOffer(OutboundOfferPaymentV1 {
+                created_at: _field,
+                ..
+            }) => (),
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
+                created_at: _field,
+                ..
+            }) => (),
+        }
+    }
+
     /// When this payment was completed or failed.
     pub fn finalized_at(&self) -> Option<TimestampMs> {
         match self {

@@ -321,12 +321,15 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         let checked = CheckedPayment(payment);
 
-        let persisted = self
+        let mut persisted = self
             .persister
             .upsert_payment(checked)
             .await
             .context("Could not persist new payment")?;
+
+        // Set created_at based on what the persister used, but only once.
         let created_at = persisted.created_at;
+        persisted.pwm.payment.set_created_at_once(created_at);
 
         locked_data.commit(persisted);
 

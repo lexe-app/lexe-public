@@ -785,8 +785,9 @@ impl LexeInnerPersister for NodePersister {
         let mut rng = SysRng::new();
 
         let pwm = checked.0;
-        let created_at = pwm.created_at;
-        let updated_at = TimestampMs::now();
+        let now = TimestampMs::now();
+        let created_at = pwm.payment.created_at().unwrap_or(now);
+        let updated_at = now;
         let db_payment =
             payments::encrypt(&mut rng, &self.vfs_master_key, &pwm, updated_at);
         let token = self.get_token().await?;
@@ -812,7 +813,8 @@ impl LexeInnerPersister for NodePersister {
         }
 
         let mut rng = SysRng::new();
-        let updated_at = TimestampMs::now();
+        let now = TimestampMs::now();
+        let updated_at = now;
         let payments = checked_batch
             .iter()
             .map(|CheckedPayment(pwm)| {
@@ -835,7 +837,7 @@ impl LexeInnerPersister for NodePersister {
         let persisted_batch = checked_batch
             .into_iter()
             .map(|CheckedPayment(pwm)| {
-                let created_at = pwm.created_at;
+                let created_at = pwm.payment.created_at().unwrap_or(now);
                 PersistedPayment {
                     pwm,
                     created_at,
