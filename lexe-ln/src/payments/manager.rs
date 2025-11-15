@@ -446,6 +446,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // - `channel_manager.claim_funds*`
         // - `channel_manager.fail_htlc_backwards*`
 
+        let now = TimestampMs::now();
         let amount = Amount::from_msat(amt_msat);
         info!(%amount, %hash, "Handling PaymentClaimable");
 
@@ -493,7 +494,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             // Check
             let checked =
                 // `check_payment_claimable` precondition: must not be finalized
-                locked_data.check_payment_claimable(claim_ctx, amount)?;
+                locked_data.check_payment_claimable(claim_ctx, amount, now)?;
 
             // Persist
             let persisted = self
@@ -1044,6 +1045,7 @@ impl PaymentsData {
         &self,
         claim_ctx: LnClaimCtx,
         amount: Amount,
+        now: TimestampMs,
     ) -> Result<CheckedPayment, ClaimableError> {
         let id = claim_ctx.id();
 
@@ -1052,14 +1054,13 @@ impl PaymentsData {
         match maybe_pending_payment {
             // Pending payment exists; update it
             Some(pending_pwm) =>
-                pending_pwm.check_payment_claimable(claim_ctx, amount),
+                pending_pwm.check_payment_claimable(claim_ctx, amount, now),
             None => match claim_ctx {
                 LnClaimCtx::Bolt11Invoice { .. } =>
                     Err(ClaimableError::Replay(anyhow!(
                         "Tried to claim non-existent inbound invoice payment"
                     ))),
                 LnClaimCtx::Bolt12Offer(ctx) => {
-                    let now = TimestampMs::now();
                     let iorp =
                         InboundOfferReusablePaymentV1::new(ctx, amount, now);
                     let pwm = PaymentWithMetadata::from(PaymentV1::from(iorp));
@@ -1472,6 +1473,7 @@ mod test {
             // currently does nothing for spontaneous payments, but could catch
             // an unintended change.
             claim_id in any::<Option<LnClaimId>>(),
+            now in any::<TimestampMs>(),
         )| {
             let payment = PaymentV2::InboundSpontaneous(isp.clone());
             data.force_insert_payment(payment.clone());
@@ -1484,11 +1486,11 @@ mod test {
             };
 
             // NOTE: New payment duplicate check moved to manager/DB layer.
-
             let _ = data
                 .check_payment_claimable(
                     claim_ctx.clone(),
                     amount,
+                    now,
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
 
@@ -1507,6 +1509,7 @@ mod test {
             iip in any_with::<InboundInvoicePaymentV2>(pending_only),
             recvd_amount in any::<Amount>(),
             claim_id in any::<Option<Option<LnClaimId>>>(),
+            now in any::<TimestampMs>(),
         )| {
             let payment = PaymentV2::InboundInvoice(iip.clone());
             data.force_insert_payment(payment.clone());
@@ -1527,11 +1530,11 @@ mod test {
             };
 
             // NOTE: New payment duplicate check moved to manager/DB layer.
-
             let _ = data
                 .check_payment_claimable(
                     claim_ctx.clone(),
                     recvd_amount,
+                    now,
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
 
@@ -1550,6 +1553,7 @@ mod test {
             // check_payment_claimable precondition: Must not be finalized
             //   check_payment_claimed precondition: Must not be finalized
             iorp in any_with::<InboundOfferReusablePaymentV1>(pending_only),
+            now in any::<TimestampMs>(),
         )| {
             let payment = PaymentV2::InboundOfferReusable(iorp.clone());
             data.force_insert_payment(payment.clone());
@@ -1564,11 +1568,11 @@ mod test {
             });
 
             // NOTE: New payment duplicate check moved to manager/DB layer.
-
             let _ = data
                 .check_payment_claimable(
                     claim_ctx.clone(),
                     iorp.amount,
+                    now,
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
 

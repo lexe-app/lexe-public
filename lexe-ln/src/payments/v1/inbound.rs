@@ -1,6 +1,6 @@
 use std::num::NonZeroU64;
 
-use anyhow::ensure;
+use anyhow::{Context, ensure};
 #[cfg(test)]
 use common::test_utils::arbitrary;
 use common::{ln::amount::Amount, time::TimestampMs};
@@ -100,7 +100,6 @@ impl From<InboundInvoicePaymentV1>
 {
     fn from(v1: InboundInvoicePaymentV1) -> Self {
         let payment = InboundInvoicePaymentV2 {
-            invoice: v1.invoice,
             hash: v1.hash,
             secret: v1.secret,
             preimage: v1.preimage,
@@ -109,11 +108,19 @@ impl From<InboundInvoicePaymentV1>
             recvd_amount: v1.recvd_amount,
             onchain_fees: v1.onchain_fees,
             status: v1.status,
-            note: v1.note,
-            created_at: v1.created_at,
+            created_at: Some(v1.created_at),
+            expires_at: v1.invoice.expires_at().ok(),
             finalized_at: v1.finalized_at,
         };
-        let metadata = PaymentMetadata::empty(payment.id());
+        let metadata = PaymentMetadata {
+            id: v1.id(),
+            address: None,
+            invoice: Some(*v1.invoice),
+            offer: None,
+            priority: None,
+            replacement_txid: None,
+            note: v1.note,
+        };
 
         Self { payment, metadata }
     }
@@ -129,7 +136,6 @@ impl TryFrom<PaymentWithMetadata<InboundInvoicePaymentV2>>
     ) -> Result<Self, Self::Error> {
         // Intentionally destructure to ensure all fields are considered.
         let InboundInvoicePaymentV2 {
-            invoice,
             hash,
             secret,
             preimage,
@@ -138,13 +144,22 @@ impl TryFrom<PaymentWithMetadata<InboundInvoicePaymentV2>>
             recvd_amount,
             onchain_fees,
             status,
-            note,
             created_at,
+            expires_at: _expires_at,
             finalized_at,
         } = pwm.payment;
+        let PaymentMetadata {
+            id: _,
+            address: _,
+            invoice,
+            offer: _,
+            priority: _,
+            replacement_txid: _,
+            note,
+        } = pwm.metadata;
 
         Ok(Self {
-            invoice,
+            invoice: Box::new(invoice.context("Missing invoice")?),
             hash,
             secret,
             preimage,
@@ -154,7 +169,7 @@ impl TryFrom<PaymentWithMetadata<InboundInvoicePaymentV2>>
             onchain_fees,
             status,
             note,
-            created_at,
+            created_at: created_at.context("Missing created_at")?,
             finalized_at,
         })
     }

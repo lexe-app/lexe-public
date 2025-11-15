@@ -186,10 +186,10 @@ pub struct PaymentMetadata {
     pub address: Option<bitcoin::Address<NetworkUnchecked>>,
 
     /// The BOLT11 invoice corresponding to this payment, if any.
-    pub invoice: Option<Box<LxInvoice>>,
+    pub invoice: Option<LxInvoice>,
 
     /// The BOLT12 offer associated with this payment, if any.
-    pub offer: Option<Box<LxOffer>>,
+    pub offer: Option<LxOffer>,
 
     /// (On-chain send only) The confirmation priority used for this payment.
     pub priority: Option<ConfirmationPriority>,
@@ -212,9 +212,9 @@ pub struct PaymentMetadata {
 pub(crate) struct PaymentMetadataUpdate {
     pub address: Option<Option<bitcoin::Address<NetworkUnchecked>>>,
 
-    pub invoice: Option<Option<Box<LxInvoice>>>,
+    pub invoice: Option<Option<LxInvoice>>,
 
-    pub offer: Option<Option<Box<LxOffer>>>,
+    pub offer: Option<Option<LxOffer>>,
 
     pub priority: Option<Option<ConfirmationPriority>>,
 
@@ -371,10 +371,11 @@ impl PaymentWithMetadata<PaymentV2> {
         match &self.payment {
             PaymentV2::OnchainSend(_) => None,
             PaymentV2::OnchainReceive(_) => None,
-            PaymentV2::InboundInvoice(InboundInvoicePaymentV2 {
-                invoice,
-                ..
-            }) => Some(invoice.clone()),
+            PaymentV2::InboundInvoice(_) => self
+                .metadata
+                .invoice
+                .as_ref()
+                .map(|invoice| Box::new(invoice.clone())),
             PaymentV2::InboundOfferReusable(_) => None,
             PaymentV2::InboundSpontaneous(_) => None,
             PaymentV2::OutboundInvoice(OutboundInvoicePaymentV1 {
@@ -546,9 +547,7 @@ impl PaymentWithMetadata<PaymentV2> {
         let maybe_note = match &self.payment {
             PaymentV2::OnchainSend(_) => &self.metadata.note,
             PaymentV2::OnchainReceive(_) => &self.metadata.note,
-            PaymentV2::InboundInvoice(InboundInvoicePaymentV2 {
-                note, ..
-            }) => note,
+            PaymentV2::InboundInvoice(_) => &self.metadata.note,
             PaymentV2::InboundOfferReusable(
                 InboundOfferReusablePaymentV1 { note, .. },
             ) => note,
@@ -577,9 +576,7 @@ impl PaymentWithMetadata<PaymentV2> {
         let mut_ref_note: &mut Option<String> = match &mut self.payment {
             PaymentV2::OnchainSend(_) => &mut self.metadata.note,
             PaymentV2::OnchainReceive(_) => &mut self.metadata.note,
-            PaymentV2::InboundInvoice(InboundInvoicePaymentV2 {
-                note, ..
-            }) => note,
+            PaymentV2::InboundInvoice(_) => &mut self.metadata.note,
             PaymentV2::InboundOfferReusable(
                 InboundOfferReusablePaymentV1 { note, .. },
             ) => note,
@@ -843,7 +840,7 @@ impl PaymentV2 {
             Self::InboundInvoice(InboundInvoicePaymentV2 {
                 created_at,
                 ..
-            }) => Some(*created_at),
+            }) => *created_at,
             Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
                 created_at,
                 ..
@@ -885,9 +882,11 @@ impl PaymentV2 {
                 field.get_or_insert(created_at);
             }
             Self::InboundInvoice(InboundInvoicePaymentV2 {
-                created_at: _field,
+                created_at: field,
                 ..
-            }) => (),
+            }) => {
+                field.get_or_insert(created_at);
+            }
             Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
                 created_at: _field,
                 ..
@@ -1176,15 +1175,11 @@ mod test {
         proptest!(|(
             mut rng in any::<FastRng>(),
             vfs_master_key in any::<AesMasterKey>(),
-            p1 in any::<PaymentV2>(),
+            p1_v1 in any::<PaymentV1>(),
             now in any::<TimestampMs>(),
         )| {
-            // TODO(max): Remove PaymentWithMetadata later. Dummy value for now.
-            let metadata = PaymentMetadata::empty(p1.id());
-            let pwm = PaymentWithMetadata {
-                payment: p1.clone(),
-                metadata,
-            };
+            let pwm = PaymentWithMetadata::from(p1_v1.clone());
+            let p1 = pwm.payment.clone();
 
             let created_at = p1.created_at().unwrap_or(now);
             let updated_at = now;

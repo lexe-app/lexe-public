@@ -44,6 +44,7 @@ impl PaymentWithMetadata {
         &self,
         claim_ctx: LnClaimCtx,
         amount: Amount,
+        now: TimestampMs,
     ) -> Result<CheckedPayment, ClaimableError> {
         if claim_ctx.kind() != self.payment.kind() {
             let claimkind = claim_ctx.kind();
@@ -65,7 +66,7 @@ impl PaymentWithMetadata {
                 },
             ) => {
                 let checked_iip = iip.check_payment_claimable(
-                    hash, secret, preimage, claim_id, amount,
+                    hash, secret, preimage, claim_id, amount, now,
                 )?;
                 let iipwm = PaymentWithMetadata {
                     payment: checked_iip,
@@ -273,13 +274,14 @@ impl LnClaimCtx {
 
 // --- Inbound invoice payments --- //
 
+// TODO(max): Later:
+// - Remove on-chain fees field, or rewrite the docs
+// - Add skim fee field
+
 /// A 'conventional' inbound payment which is facilitated by an invoice.
 /// This struct is created when we call [`create_invoice`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct InboundInvoicePaymentV2 {
-    /// Created in [`create_invoice`].
-    // LxInvoice is ~300 bytes, Box to avoid the enum variant lint
-    pub invoice: Box<LxInvoice>,
     /// Returned by [`ChannelManager::create_inbound_payment`] inside
     /// [`create_invoice`].
     pub hash: LxPaymentHash,
@@ -306,8 +308,8 @@ pub struct InboundInvoicePaymentV2 {
     pub claim_id: Option<LnClaimId>,
     /// The amount encoded in our invoice, if there was one.
     pub invoice_amount: Option<Amount>,
-    /// The amount that we actually received.
-    /// Populated iff we received a [`PaymentClaimable`] event.
+    /// The amount that we actually received. May be greater than the invoice
+    /// amount. Populated iff we received a [`PaymentClaimable`] event.
     pub recvd_amount: Option<Amount>,
     /// The amount we paid in on-chain fees (possibly arising from receiving
     /// our payment over a JIT channel) to receive this transaction.
@@ -315,14 +317,12 @@ pub struct InboundInvoicePaymentV2 {
     pub onchain_fees: Option<Amount>,
     /// The current status of the payment.
     pub status: InboundInvoicePaymentStatus,
-    /// An optional personal note for this payment. Since a user-provided
-    /// description is already required when creating an invoice, at invoice
-    /// creation time this field is not exposed to the user and is simply
-    /// initialized to [`None`]. Useful primarily if a user wants to update
-    /// their note later.
-    pub note: Option<String>,
     /// When we created the invoice for this payment.
-    pub created_at: TimestampMs,
+    /// Set to `Some(...)` on first persist.
+    pub created_at: Option<TimestampMs>,
+    /// When the invoice expires. Computed from the invoice's timestamp +
+    /// expiry duration. `None` if the expiry timestamp overflows.
+    pub expires_at: Option<TimestampMs>,
     /// When this payment either `Completed` or `Expired`.
     pub finalized_at: Option<TimestampMs>,
 }
@@ -355,8 +355,8 @@ impl InboundInvoicePaymentV2 {
     ) -> PaymentWithMetadata<Self> {
         let invoice_amount =
             invoice.0.amount_milli_satoshis().map(Amount::from_msat);
+        let expires_at = invoice.expires_at().ok();
         let iip = Self {
-            invoice: Box::new(invoice),
             hash,
             secret,
             preimage,
@@ -365,12 +365,20 @@ impl InboundInvoicePaymentV2 {
             recvd_amount: None,
             onchain_fees: None,
             status: InboundInvoicePaymentStatus::InvoiceGenerated,
-            note: None,
-            created_at: TimestampMs::now(),
+            created_at: None,
+            expires_at,
             finalized_at: None,
         };
 
-        let metadata = PaymentMetadata::empty(iip.id());
+        let metadata = PaymentMetadata {
+            id: iip.id(),
+            address: None,
+            invoice: Some(invoice),
+            offer: None,
+            priority: None,
+            replacement_txid: None,
+            note: None,
+        };
 
         PaymentWithMetadata {
             payment: iip,
@@ -397,6 +405,7 @@ impl InboundInvoicePaymentV2 {
         // drain in prod.
         claim_id: Option<LnClaimId>,
         amount: Amount,
+        now: TimestampMs,
     ) -> Result<Self, ClaimableError> {
         use InboundInvoicePaymentStatus::*;
 
@@ -460,8 +469,11 @@ impl InboundInvoicePaymentV2 {
 
         // BOLT11: "A payee: after the timestamp plus expiry has passed: SHOULD
         // NOT accept a payment."
-        // TODO(phlip9): take `now` param for test determinism
-        if self.invoice.is_expired() {
+        let is_expired = self
+            .expires_at
+            .map(|expires_at| expires_at <= now)
+            .unwrap_or(false);
+        if is_expired {
             // Ignore and let the invoice expiry checker handle this.
             warn!("claimable on invoice payment after it expired");
             return Err(ClaimableError::FailBackHtlcsTheirFault);
@@ -557,8 +569,12 @@ impl InboundInvoicePaymentV2 {
     ) -> Option<Self> {
         use InboundInvoicePaymentStatus::*;
 
-        // Not expired yet, do nothing.
-        if !self.invoice.is_expired_at(now) {
+        // If not expired yet, do nothing.
+        let is_expired = self
+            .expires_at
+            .map(|expires_at| now > expires_at)
+            .unwrap_or(false);
+        if !is_expired {
             return None;
         }
 
@@ -655,7 +671,8 @@ mod arbitrary_impl {
             let claim_id = any::<LnClaimId>();
             let recvd_amount = any::<Amount>();
             let status = any_with::<InboundInvoicePaymentStatus>(pending_only);
-            let note = arbitrary::any_option_simple_string();
+            // TODO(max): Use option::of once created_at is always set on first
+            // persist. For now, we generate payments as if already persisted.
             let created_at = any::<TimestampMs>();
             let finalized_after = arbitrary::any_duration();
 
@@ -664,7 +681,6 @@ mod arbitrary_impl {
                 claim_id,
                 recvd_amount,
                 status,
-                note,
                 created_at,
                 finalized_after,
             )| {
@@ -675,6 +691,7 @@ mod arbitrary_impl {
                 let hash = invoice.payment_hash();
                 let secret = invoice.payment_secret();
                 let invoice_amount = invoice.amount();
+                let expires_at = invoice.expires_at().ok();
                 let claim_id = match status {
                     InvoiceGenerated | Expired => None,
                     Claiming | Completed => Some(claim_id),
@@ -695,7 +712,6 @@ mod arbitrary_impl {
                 };
 
                 InboundInvoicePaymentV2 {
-                    invoice: Box::new(invoice),
                     hash,
                     secret,
                     preimage,
@@ -705,8 +721,8 @@ mod arbitrary_impl {
                     // TODO(phlip9): it looks like we don't implement this yet
                     onchain_fees: None,
                     status,
-                    note,
-                    created_at,
+                    created_at: Some(created_at),
+                    expires_at,
                     finalized_at,
                 }
             };
@@ -716,7 +732,6 @@ mod arbitrary_impl {
                 claim_id,
                 recvd_amount,
                 status,
-                note,
                 created_at,
                 finalized_after,
             )
