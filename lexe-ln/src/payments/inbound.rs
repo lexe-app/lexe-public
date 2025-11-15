@@ -44,6 +44,7 @@ impl PaymentWithMetadata {
         &self,
         claim_ctx: LnClaimCtx,
         amount: Amount,
+        skimmed_fee: Option<Amount>,
         now: TimestampMs,
     ) -> Result<CheckedPayment, ClaimableError> {
         if claim_ctx.kind() != self.payment.kind() {
@@ -66,7 +67,13 @@ impl PaymentWithMetadata {
                 },
             ) => {
                 let checked_iip = iip.check_payment_claimable(
-                    hash, secret, preimage, claim_id, amount, now,
+                    hash,
+                    secret,
+                    preimage,
+                    claim_id,
+                    amount,
+                    skimmed_fee,
+                    now,
                 )?;
                 let iipwm = PaymentWithMetadata {
                     payment: checked_iip,
@@ -274,10 +281,6 @@ impl LnClaimCtx {
 
 // --- Inbound invoice payments --- //
 
-// TODO(max): Later:
-// - Remove on-chain fees field, or rewrite the docs
-// - Add skim fee field
-
 /// A 'conventional' inbound payment which is facilitated by an invoice.
 /// This struct is created when we call [`create_invoice`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -306,17 +309,27 @@ pub struct InboundInvoicePaymentV2 {
     // Added in node-v0.7.4
     // - Older finalized payments will not have this field.
     pub claim_id: Option<LnClaimId>,
+
     /// The amount encoded in our invoice, if there was one.
     pub invoice_amount: Option<Amount>,
     /// The amount that we actually received. May be greater than the invoice
     /// amount. Populated iff we received a [`PaymentClaimable`] event.
     pub recvd_amount: Option<Amount>,
-    /// The amount we paid in on-chain fees (possibly arising from receiving
-    /// our payment over a JIT channel) to receive this transaction.
-    // TODO(max): Implement
-    pub onchain_fees: Option<Amount>,
+    /// The sender intended sum-total of all MPP parts.
+    /// Populated during [`PaymentClaimed`].
+    pub sender_intended_amount: Option<Amount>,
+    /// The amount that was skimmed off of this payment as an extra fee taken
+    /// by our channel counterparty. Populated during [`PaymentClaimable`].
+    pub skimmed_fee: Option<Amount>,
+    /// The portion of the skimmed amount that was used to cover the on-chain
+    /// fees incurred by a JIT channel opened to receive this payment.
+    /// None if no on-chain fees were incurred.
+    // TODO(max): Currently not used; implement
+    pub onchain_fee: Option<Amount>,
+
     /// The current status of the payment.
     pub status: InboundInvoicePaymentStatus,
+
     /// When we created the invoice for this payment.
     /// Set to `Some(...)` on first persist.
     pub created_at: Option<TimestampMs>,
@@ -363,7 +376,9 @@ impl InboundInvoicePaymentV2 {
             claim_id: None,
             invoice_amount,
             recvd_amount: None,
-            onchain_fees: None,
+            sender_intended_amount: None,
+            skimmed_fee: None,
+            onchain_fee: None,
             status: InboundInvoicePaymentStatus::InvoiceGenerated,
             created_at: None,
             expires_at,
@@ -405,6 +420,7 @@ impl InboundInvoicePaymentV2 {
         // drain in prod.
         claim_id: Option<LnClaimId>,
         amount: Amount,
+        skimmed_fee: Option<Amount>,
         now: TimestampMs,
     ) -> Result<Self, ClaimableError> {
         use InboundInvoicePaymentStatus::*;
@@ -494,6 +510,7 @@ impl InboundInvoicePaymentV2 {
         clone.status = InboundInvoicePaymentStatus::Claiming;
         clone.claim_id = claim_id;
         clone.recvd_amount = Some(amount);
+        clone.skimmed_fee = skimmed_fee;
 
         Ok(clone)
     }
@@ -509,6 +526,7 @@ impl InboundInvoicePaymentV2 {
         secret: LxPaymentSecret,
         preimage: LxPaymentPreimage,
         amount: Amount,
+        sender_intended_amount: Option<Amount>,
     ) -> anyhow::Result<Self> {
         use InboundInvoicePaymentStatus::*;
 
@@ -548,6 +566,7 @@ impl InboundInvoicePaymentV2 {
         // Everything ok; return a clone with the updated state
         let mut clone = self.clone();
         clone.recvd_amount = Some(amount);
+        clone.sender_intended_amount = sender_intended_amount;
         clone.status = Completed;
         clone.finalized_at = Some(TimestampMs::now());
 
@@ -670,6 +689,8 @@ mod arbitrary_impl {
 
             let claim_id = any::<LnClaimId>();
             let recvd_amount = any::<Amount>();
+            let skimmed_fee = any::<Amount>();
+            let sender_intended_amount = any::<Amount>();
             let status = any_with::<InboundInvoicePaymentStatus>(pending_only);
             // TODO(max): Use option::of once created_at is always set on first
             // persist. For now, we generate payments as if already persisted.
@@ -680,6 +701,8 @@ mod arbitrary_impl {
                 preimage_invoice,
                 claim_id,
                 recvd_amount,
+                skimmed_fee,
+                sender_intended_amount,
                 status,
                 created_at,
                 finalized_after,
@@ -700,6 +723,14 @@ mod arbitrary_impl {
                     InvoiceGenerated | Expired => None,
                     Claiming | Completed => Some(recvd_amount),
                 };
+                let skimmed_fee = match status {
+                    InvoiceGenerated | Expired => None,
+                    Claiming | Completed => Some(skimmed_fee),
+                };
+                let sender_intended_amount = match status {
+                    InvoiceGenerated | Expired | Claiming => None,
+                    Completed => Some(sender_intended_amount),
+                };
                 let created_at: TimestampMs = created_at; // provides type hint
                 let finalized_at = if pending_only {
                     None
@@ -718,8 +749,10 @@ mod arbitrary_impl {
                     claim_id,
                     invoice_amount,
                     recvd_amount,
+                    sender_intended_amount,
+                    skimmed_fee,
                     // TODO(phlip9): it looks like we don't implement this yet
-                    onchain_fees: None,
+                    onchain_fee: None,
                     status,
                     created_at: Some(created_at),
                     expires_at,
@@ -731,6 +764,8 @@ mod arbitrary_impl {
                 preimage_invoice,
                 claim_id,
                 recvd_amount,
+                sender_intended_amount,
+                skimmed_fee,
                 status,
                 created_at,
                 finalized_after,

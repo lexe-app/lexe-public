@@ -441,6 +441,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // TODO(phlip9): make non-Option once replaying events drain in prod
         claim_id: Option<LnClaimId>,
         amt_msat: u64,
+        skimmed_fee: Option<Amount>,
     ) -> anyhow::Result<()> {
         // MUST call one of these before this function returns:
         // - `channel_manager.claim_funds*`
@@ -494,7 +495,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             // Check
             let checked =
                 // `check_payment_claimable` precondition: must not be finalized
-                locked_data.check_payment_claimable(claim_ctx, amount, now)?;
+                locked_data.check_payment_claimable(claim_ctx, amount, skimmed_fee, now)?;
 
             // Persist
             let persisted = self
@@ -579,6 +580,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         hash: LxPaymentHash,
         claim_id: Option<LnClaimId>,
         amt_msat: u64,
+        sender_intended_amount: Option<Amount>,
     ) -> anyhow::Result<()> {
         let amount = Amount::from_msat(amt_msat);
         info!(%amount, %hash, "Handling PaymentClaimed");
@@ -601,7 +603,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // Check
         let checked = locked_data
-            .check_payment_claimed(claim_ctx, amount)
+            .check_payment_claimed(claim_ctx, amount, sender_intended_amount)
             .context("Error validating PaymentClaimed")?;
 
         // Persist
@@ -1045,6 +1047,7 @@ impl PaymentsData {
         &self,
         claim_ctx: LnClaimCtx,
         amount: Amount,
+        skimmed_fee: Option<Amount>,
         now: TimestampMs,
     ) -> Result<CheckedPayment, ClaimableError> {
         let id = claim_ctx.id();
@@ -1053,8 +1056,12 @@ impl PaymentsData {
 
         match maybe_pending_payment {
             // Pending payment exists; update it
-            Some(pending_pwm) =>
-                pending_pwm.check_payment_claimable(claim_ctx, amount, now),
+            Some(pending_pwm) => pending_pwm.check_payment_claimable(
+                claim_ctx,
+                amount,
+                skimmed_fee,
+                now,
+            ),
             None => match claim_ctx {
                 LnClaimCtx::Bolt11Invoice { .. } =>
                     Err(ClaimableError::Replay(anyhow!(
@@ -1091,6 +1098,7 @@ impl PaymentsData {
         &self,
         claim_ctx: LnClaimCtx,
         amount: Amount,
+        sender_intended_amount: Option<Amount>,
     ) -> anyhow::Result<CheckedPayment> {
         let id = claim_ctx.id();
 
@@ -1110,7 +1118,13 @@ impl PaymentsData {
                 },
             ) => {
                 let checked_iip = iip
-                    .check_payment_claimed(hash, secret, preimage, amount)
+                    .check_payment_claimed(
+                        hash,
+                        secret,
+                        preimage,
+                        amount,
+                        sender_intended_amount,
+                    )
                     .context("Error finalizing inbound invoice payment")?;
                 let iipwm = PaymentWithMetadata {
                     payment: checked_iip,
@@ -1486,15 +1500,19 @@ mod test {
             };
 
             // NOTE: New payment duplicate check moved to manager/DB layer.
+            let skimmed_fee = None;
             let _ = data
                 .check_payment_claimable(
                     claim_ctx.clone(),
                     amount,
+                    skimmed_fee,
                     now,
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
 
-            let _ = data.check_payment_claimed(claim_ctx, amount)
+            let sender_intended_amount = None;
+            let _ = data
+                .check_payment_claimed(claim_ctx, amount, sender_intended_amount)
                 .unwrap();
         });
     }
@@ -1530,15 +1548,19 @@ mod test {
             };
 
             // NOTE: New payment duplicate check moved to manager/DB layer.
+            let skimmed_fee = None;
             let _ = data
                 .check_payment_claimable(
                     claim_ctx.clone(),
                     recvd_amount,
+                    skimmed_fee,
                     now,
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
 
-            let _ = data.check_payment_claimed(claim_ctx, recvd_amount)
+            let sender_intended_amount = None;
+            let _ = data
+                .check_payment_claimed(claim_ctx, recvd_amount, sender_intended_amount)
                 .unwrap();
 
             data.check_payment_expiries(TimestampMs::MAX).unwrap();
@@ -1568,15 +1590,19 @@ mod test {
             });
 
             // NOTE: New payment duplicate check moved to manager/DB layer.
+            let skimmed_fee = None;
             let _ = data
                 .check_payment_claimable(
                     claim_ctx.clone(),
                     iorp.amount,
+                    skimmed_fee,
                     now,
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
 
-            let _ = data.check_payment_claimed(claim_ctx, iorp.amount)
+            let sender_intended_amount = None;
+            let _ = data
+                .check_payment_claimed(claim_ctx, iorp.amount, sender_intended_amount)
                 .unwrap();
         });
     }

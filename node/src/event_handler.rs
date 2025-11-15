@@ -47,7 +47,7 @@ use common::{
     },
     cli::LspInfo,
     debug_panic_release_log,
-    ln::channel::LxChannelId,
+    ln::{amount::Amount, channel::LxChannelId},
     rng::{RngExt, ThreadFastRng},
 };
 use lexe_api::{
@@ -342,8 +342,7 @@ async fn do_handle_event(
             payment_hash,
             amount_msat,
             purpose,
-            // TODO(max): Use this
-            counterparty_skimmed_fee_msat: _,
+            counterparty_skimmed_fee_msat,
             onion_fields: _,
             receiver_node_id: _,
             via_channel_id: _,
@@ -359,6 +358,11 @@ async fn do_handle_event(
             // TODO(phlip9): unwrap once all replaying PaymentClaimable events
             // drain in prod.
             let claim_id = payment_id.map(LnClaimId::from);
+            let skimmed_fee = if counterparty_skimmed_fee_msat > 0 {
+                Some(Amount::from_msat(counterparty_skimmed_fee_msat))
+            } else {
+                None
+            };
             // NOTE: must be handled idempotently
             ctx.payments_manager
                 .payment_claimable(
@@ -366,6 +370,7 @@ async fn do_handle_event(
                     payment_hash.into(),
                     claim_id,
                     amount_msat,
+                    skimmed_fee,
                 )
                 .await
                 .context("Error handling PaymentClaimable")
@@ -379,14 +384,15 @@ async fn do_handle_event(
             amount_msat,
             purpose,
             htlcs: _,
-            // TODO(max): We probably want to use this to get JIT on-chain fees?
-            sender_intended_total_msat: _,
+            sender_intended_total_msat,
             onion_fields: _,
             payment_id,
         } => {
             // TODO(phlip9): unwrap once all replaying PaymentClaimable events
             // drain in prod.
             let claim_id = payment_id.map(LnClaimId::from);
+            let sender_intended_amount =
+                sender_intended_total_msat.map(Amount::from_msat);
             // NOTE: must be handled idempotently
             ctx.payments_manager
                 .payment_claimed(
@@ -394,6 +400,7 @@ async fn do_handle_event(
                     payment_hash.into(),
                     claim_id,
                     amount_msat,
+                    sender_intended_amount,
                 )
                 .await
                 .context("Error handling PaymentClaimed")

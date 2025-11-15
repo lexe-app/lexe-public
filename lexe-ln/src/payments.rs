@@ -513,15 +513,16 @@ impl PaymentWithMetadata<PaymentV2> {
 
     /// The fees paid or expected to be paid for this payment.
     // TODO(max): Remove fn once all matching is removed
+    // TODO(max): Ensure consistent name for `onchain_fee` (no trailing 's')
     pub fn fees(&self) -> Amount {
         match &self.payment {
             PaymentV2::OnchainSend(OnchainSendV2 { fees, .. }) => *fees,
             // We don't pay anything to receive money onchain
             PaymentV2::OnchainReceive(OnchainReceiveV2 { .. }) => Amount::ZERO,
             PaymentV2::InboundInvoice(InboundInvoicePaymentV2 {
-                onchain_fees,
+                onchain_fee,
                 ..
-            }) => onchain_fees.unwrap_or(Amount::from_msat(0)),
+            }) => onchain_fee.unwrap_or(Amount::from_msat(0)),
             PaymentV2::InboundOfferReusable(iorp) => iorp.fees(),
             PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV1 {
                 onchain_fees,
