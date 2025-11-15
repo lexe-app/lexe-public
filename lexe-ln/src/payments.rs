@@ -32,8 +32,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::payments::{
     inbound::{
-        InboundInvoicePaymentStatus, InboundOfferReusablePaymentStatus,
-        InboundSpontaneousPaymentStatus,
+        InboundInvoicePaymentStatus, InboundInvoicePaymentV2,
+        InboundOfferReusablePaymentStatus, InboundSpontaneousPaymentStatus,
     },
     onchain::{
         OnchainReceiveStatus, OnchainReceiveV2, OnchainSendStatus,
@@ -45,10 +45,7 @@ use crate::payments::{
     },
     v1::{
         PaymentV1,
-        inbound::{
-            InboundInvoicePaymentV1, InboundOfferReusablePaymentV1,
-            InboundSpontaneousPaymentV1,
-        },
+        inbound::{InboundOfferReusablePaymentV1, InboundSpontaneousPaymentV1},
         outbound::{
             OutboundInvoicePaymentV1, OutboundOfferPaymentV1,
             OutboundSpontaneousPaymentV1,
@@ -158,7 +155,7 @@ pub enum PaymentV2 {
     OnchainReceive(OnchainReceiveV2),
     // TODO(max): Implement SpliceIn
     // TODO(max): Implement SpliceOut
-    InboundInvoice(InboundInvoicePaymentV1),
+    InboundInvoice(InboundInvoicePaymentV2),
     // TODO(phlip9): InboundOffer (single-use)
     // Added in `node-v0.7.8`
     InboundOfferReusable(InboundOfferReusablePaymentV1),
@@ -296,8 +293,8 @@ impl From<OnchainReceiveV2> for PaymentV2 {
         Self::OnchainReceive(p)
     }
 }
-impl From<InboundInvoicePaymentV1> for PaymentV2 {
-    fn from(p: InboundInvoicePaymentV1) -> Self {
+impl From<InboundInvoicePaymentV2> for PaymentV2 {
+    fn from(p: InboundInvoicePaymentV2) -> Self {
         Self::InboundInvoice(p)
     }
 }
@@ -374,7 +371,7 @@ impl PaymentWithMetadata<PaymentV2> {
         match &self.payment {
             PaymentV2::OnchainSend(_) => None,
             PaymentV2::OnchainReceive(_) => None,
-            PaymentV2::InboundInvoice(InboundInvoicePaymentV1 {
+            PaymentV2::InboundInvoice(InboundInvoicePaymentV2 {
                 invoice,
                 ..
             }) => Some(invoice.clone()),
@@ -487,7 +484,7 @@ impl PaymentWithMetadata<PaymentV2> {
                 Some(*amount),
             PaymentV2::OnchainReceive(OnchainReceiveV2 { amount, .. }) =>
                 Some(*amount),
-            PaymentV2::InboundInvoice(InboundInvoicePaymentV1 {
+            PaymentV2::InboundInvoice(InboundInvoicePaymentV2 {
                 invoice_amount,
                 recvd_amount,
                 ..
@@ -520,7 +517,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::OnchainSend(OnchainSendV2 { fees, .. }) => *fees,
             // We don't pay anything to receive money onchain
             PaymentV2::OnchainReceive(OnchainReceiveV2 { .. }) => Amount::ZERO,
-            PaymentV2::InboundInvoice(InboundInvoicePaymentV1 {
+            PaymentV2::InboundInvoice(InboundInvoicePaymentV2 {
                 onchain_fees,
                 ..
             }) => onchain_fees.unwrap_or(Amount::from_msat(0)),
@@ -549,7 +546,7 @@ impl PaymentWithMetadata<PaymentV2> {
         let maybe_note = match &self.payment {
             PaymentV2::OnchainSend(_) => &self.metadata.note,
             PaymentV2::OnchainReceive(_) => &self.metadata.note,
-            PaymentV2::InboundInvoice(InboundInvoicePaymentV1 {
+            PaymentV2::InboundInvoice(InboundInvoicePaymentV2 {
                 note, ..
             }) => note,
             PaymentV2::InboundOfferReusable(
@@ -580,7 +577,7 @@ impl PaymentWithMetadata<PaymentV2> {
         let mut_ref_note: &mut Option<String> = match &mut self.payment {
             PaymentV2::OnchainSend(_) => &mut self.metadata.note,
             PaymentV2::OnchainReceive(_) => &mut self.metadata.note,
-            PaymentV2::InboundInvoice(InboundInvoicePaymentV1 {
+            PaymentV2::InboundInvoice(InboundInvoicePaymentV2 {
                 note, ..
             }) => note,
             PaymentV2::InboundOfferReusable(
@@ -616,7 +613,7 @@ impl PaymentWithMetadata<PaymentV2> {
                 finalized_at,
                 ..
             }) => *finalized_at,
-            PaymentV2::InboundInvoice(InboundInvoicePaymentV1 {
+            PaymentV2::InboundInvoice(InboundInvoicePaymentV2 {
                 finalized_at,
                 ..
             }) => *finalized_at,
@@ -778,7 +775,7 @@ impl PaymentV2 {
                 PaymentStatus::from(*status),
             Self::OnchainReceive(OnchainReceiveV2 { status, .. }) =>
                 PaymentStatus::from(*status),
-            Self::InboundInvoice(InboundInvoicePaymentV1 {
+            Self::InboundInvoice(InboundInvoicePaymentV2 {
                 status, ..
             }) => PaymentStatus::from(*status),
             Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
@@ -807,7 +804,7 @@ impl PaymentV2 {
             Self::OnchainSend(OnchainSendV2 { status, .. }) => status.as_str(),
             Self::OnchainReceive(OnchainReceiveV2 { status, .. }) =>
                 status.as_str(),
-            Self::InboundInvoice(InboundInvoicePaymentV1 {
+            Self::InboundInvoice(InboundInvoicePaymentV2 {
                 status, ..
             }) => status.as_str(),
             Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
@@ -843,7 +840,7 @@ impl PaymentV2 {
             Self::OnchainSend(OnchainSendV2 { created_at, .. }) => *created_at,
             Self::OnchainReceive(OnchainReceiveV2 { created_at, .. }) =>
                 *created_at,
-            Self::InboundInvoice(InboundInvoicePaymentV1 {
+            Self::InboundInvoice(InboundInvoicePaymentV2 {
                 created_at,
                 ..
             }) => Some(*created_at),
@@ -887,7 +884,7 @@ impl PaymentV2 {
             }) => {
                 field.get_or_insert(created_at);
             }
-            Self::InboundInvoice(InboundInvoicePaymentV1 {
+            Self::InboundInvoice(InboundInvoicePaymentV2 {
                 created_at: _field,
                 ..
             }) => (),
@@ -921,7 +918,7 @@ impl PaymentV2 {
                 *finalized_at,
             Self::OnchainReceive(OnchainReceiveV2 { finalized_at, .. }) =>
                 *finalized_at,
-            Self::InboundInvoice(InboundInvoicePaymentV1 {
+            Self::InboundInvoice(InboundInvoicePaymentV2 {
                 finalized_at,
                 ..
             }) => *finalized_at,
@@ -1254,7 +1251,7 @@ mod test {
         payments.extend(
             arbitrary::gen_value_iter(
                 &mut rng,
-                any::<InboundInvoicePaymentV1>(),
+                any::<InboundInvoicePaymentV2>(),
             )
             .take(COUNT)
             .map(PaymentV2::InboundInvoice),
@@ -1336,7 +1333,7 @@ mod test {
             ),
             (
                 "InboundInvoice",
-                any::<InboundInvoicePaymentV1>()
+                any::<InboundInvoicePaymentV2>()
                     .prop_map(PaymentV2::InboundInvoice)
                     .boxed(),
             ),

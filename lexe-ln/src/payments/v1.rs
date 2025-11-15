@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::payments::{
     PaymentMetadata, PaymentV2, PaymentWithMetadata,
+    inbound::InboundInvoicePaymentV2,
     onchain::{OnchainReceiveV2, OnchainSendV2},
     v1::{
         inbound::{
@@ -147,10 +148,9 @@ impl From<PaymentV1> for PaymentWithMetadata {
                 PaymentWithMetadata::<OnchainSendV2>::from(p).into_enum(),
             PaymentV1::OnchainReceive(p) =>
                 PaymentWithMetadata::<OnchainReceiveV2>::from(p).into_enum(),
-            PaymentV1::InboundInvoice(p) => Self {
-                payment: p.into(),
-                metadata: PaymentMetadata::empty(id),
-            },
+            PaymentV1::InboundInvoice(p) =>
+                PaymentWithMetadata::<InboundInvoicePaymentV2>::from(p)
+                    .into_enum(),
             PaymentV1::InboundOfferReusable(p) => Self {
                 payment: p.into(),
                 metadata: PaymentMetadata::empty(id),
@@ -175,8 +175,6 @@ impl From<PaymentV1> for PaymentWithMetadata {
     }
 }
 
-// TODO(max): Eventually we will remove this impl, as the created_at field
-// required in PaymentV1 will be dropped from PaymentWithMetadata.
 impl TryFrom<PaymentWithMetadata> for PaymentV1 {
     type Error = anyhow::Error;
 
@@ -200,7 +198,15 @@ impl TryFrom<PaymentWithMetadata> for PaymentV1 {
                     .context("OnchainReceive conversion")?;
                 PaymentV1::OnchainReceive(orv1)
             }
-            PaymentV2::InboundInvoice(p) => PaymentV1::InboundInvoice(p),
+            PaymentV2::InboundInvoice(iipv2) => {
+                let iipwm = PaymentWithMetadata::<InboundInvoicePaymentV2> {
+                    payment: iipv2,
+                    metadata: pwm.metadata,
+                };
+                let iipv1 = InboundInvoicePaymentV1::try_from(iipwm)
+                    .context("InboundInvoice conversion")?;
+                PaymentV1::InboundInvoice(iipv1)
+            }
             PaymentV2::InboundOfferReusable(p) =>
                 PaymentV1::InboundOfferReusable(p),
             PaymentV2::InboundSpontaneous(p) =>

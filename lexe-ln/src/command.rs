@@ -86,11 +86,11 @@ use crate::{
     keys_manager::LexeKeysManager,
     payments::{
         PaymentWithMetadata,
+        inbound::InboundInvoicePaymentV2,
         manager::PaymentsManager,
         outbound::{LxOutboundPaymentFailure, OUTBOUND_PAYMENT_RETRY_STRATEGY},
         v1::{
             PaymentV1,
-            inbound::InboundInvoicePaymentV1,
             outbound::{OutboundInvoicePaymentV1, OutboundOfferPaymentV1},
         },
     },
@@ -868,13 +868,13 @@ where
         .map(LxInvoice)
         .context("Invoice was semantically incorrect")?;
 
-    let payment = InboundInvoicePaymentV1::new(
+    let iipwm = InboundInvoicePaymentV2::new(
         invoice.clone(),
         hash.into(),
         secret.into(),
         preimage.into(),
     );
-    let pwm = PaymentWithMetadata::from(PaymentV1::from(payment));
+    let pwm = iipwm.into_enum();
     let created_index = payments_manager
         .new_payment(pwm)
         .await

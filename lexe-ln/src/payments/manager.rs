@@ -1051,9 +1051,8 @@ impl PaymentsData {
 
         match maybe_pending_payment {
             // Pending payment exists; update it
-            Some(pending_pwm) => pending_pwm
-                .payment
-                .check_payment_claimable(claim_ctx, amount),
+            Some(pending_pwm) =>
+                pending_pwm.check_payment_claimable(claim_ctx, amount),
             None => match claim_ctx {
                 LnClaimCtx::Bolt11Invoice { .. } =>
                     Err(ClaimableError::Replay(anyhow!(
@@ -1108,12 +1107,16 @@ impl PaymentsData {
                     secret,
                     claim_id: _,
                 },
-            ) => iip
-                .check_payment_claimed(hash, secret, preimage, amount)
-                .map(PaymentV1::from)
-                .map(PaymentWithMetadata::from)
-                .map(CheckedPayment)
-                .context("Error finalizing inbound invoice payment")?,
+            ) => {
+                let checked_iip = iip
+                    .check_payment_claimed(hash, secret, preimage, amount)
+                    .context("Error finalizing inbound invoice payment")?;
+                let iipwm = PaymentWithMetadata {
+                    payment: checked_iip,
+                    metadata: pending_pwm.metadata.clone(),
+                };
+                CheckedPayment(iipwm.into_enum())
+            }
             (
                 PaymentV2::InboundOfferReusable(iorp),
                 LnClaimCtx::Bolt12Offer(ctx),
@@ -1236,11 +1239,14 @@ impl PaymentsData {
             .values()
             .filter_map(|pwm| match &pwm.payment {
                 // Precondition: payment is not finalized (Completed | Failed).
-                PaymentV2::InboundInvoice(iip) => iip
-                    .check_invoice_expiry(now)
-                    .map(PaymentV1::from)
-                    .map(PaymentWithMetadata::from)
-                    .map(CheckedPayment),
+                PaymentV2::InboundInvoice(iip) =>
+                    iip.check_invoice_expiry(now).map(|checked_iip| {
+                        let iipwm = PaymentWithMetadata {
+                            payment: checked_iip,
+                            metadata: pwm.metadata.clone(),
+                        };
+                        CheckedPayment(iipwm.into_enum())
+                    }),
                 PaymentV2::OutboundInvoice(oip) => {
                     match oip.check_invoice_expiry(now) {
                         Ok(oip) => {
@@ -1373,10 +1379,10 @@ mod test {
     use super::*;
     use crate::payments::{
         PaymentMetadata,
-        inbound::OfferClaimCtx,
+        inbound::{InboundInvoicePaymentV2, OfferClaimCtx},
         outbound::OutboundInvoicePaymentStatus,
         v1::{
-            inbound::{InboundInvoicePaymentV1, InboundOfferReusablePaymentV1},
+            inbound::InboundOfferReusablePaymentV1,
             outbound::{
                 OutboundInvoicePaymentV1, OutboundOfferPaymentV1,
                 arb::OipParamsV1,
@@ -1498,7 +1504,7 @@ mod test {
             mut data in any::<PaymentsData>(),
             // check_payment_claimable precondition: Must not be finalized
             //   check_payment_claimed precondition: Must not be finalized
-            iip in any_with::<InboundInvoicePaymentV1>(pending_only),
+            iip in any_with::<InboundInvoicePaymentV2>(pending_only),
             recvd_amount in any::<Amount>(),
             claim_id in any::<Option<Option<LnClaimId>>>(),
         )| {
