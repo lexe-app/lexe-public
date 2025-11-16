@@ -31,7 +31,6 @@ use crate::{
         },
         onchain::OnchainReceiveV2,
         outbound::{ExpireError, LxOutboundPaymentFailure},
-        v1::PaymentV1,
     },
     test_event::TestEventSender,
     traits::{LexeChannelManager, LexeInnerPersister, LexePersister},
@@ -1207,12 +1206,16 @@ impl PaymentsData {
                 };
                 CheckedPayment(oipwm.into_enum())
             }
-            PaymentV2::OutboundOffer(oop) => oop
-                .check_payment_sent(hash, preimage, maybe_fees_paid)
-                .map(PaymentV1::from)
-                .map(PaymentWithMetadata::from)
-                .map(CheckedPayment)
-                .context("Error checking outbound offer payment")?,
+            PaymentV2::OutboundOffer(oop) => {
+                let checked_oop = oop
+                    .check_payment_sent(hash, preimage, maybe_fees_paid)
+                    .context("Error checking outbound offer payment")?;
+                let oopwm = PaymentWithMetadata {
+                    payment: checked_oop,
+                    metadata: pending_pwm.metadata.clone(),
+                };
+                CheckedPayment(oopwm.into_enum())
+            }
             PaymentV2::OutboundSpontaneous(_) => todo!(),
             _ => bail!("Not an outbound Lightning payment"),
         };
@@ -1246,12 +1249,16 @@ impl PaymentsData {
                 };
                 CheckedPayment(oipwm.into_enum())
             }
-            PaymentV2::OutboundOffer(oop) => oop
-                .check_payment_failed(failure)
-                .map(PaymentV1::from)
-                .map(PaymentWithMetadata::from)
-                .map(CheckedPayment)
-                .context("Error checking outbound offer payment")?,
+            PaymentV2::OutboundOffer(oop) => {
+                let checked_oop = oop
+                    .check_payment_failed(failure)
+                    .context("Error checking outbound offer payment")?;
+                let oopwm = PaymentWithMetadata {
+                    payment: checked_oop,
+                    metadata: pending_pwm.metadata.clone(),
+                };
+                CheckedPayment(oopwm.into_enum())
+            }
             PaymentV2::OutboundSpontaneous(_) => todo!(),
             _ => bail!("Not an outbound Lightning payment"),
         };
@@ -1306,11 +1313,13 @@ impl PaymentsData {
                 }
                 PaymentV2::OutboundOffer(oop) => {
                     match oop.check_offer_expiry(now) {
-                        Ok(oop) => {
-                            ops_to_abandon.push(oop.ldk_id());
-                            let pwm =
-                                PaymentWithMetadata::from(PaymentV1::from(oop));
-                            Some(CheckedPayment(pwm))
+                        Ok(checked_oop) => {
+                            ops_to_abandon.push(checked_oop.ldk_id());
+                            let oopwm = PaymentWithMetadata {
+                                payment: checked_oop,
+                                metadata: pwm.metadata.clone(),
+                            };
+                            Some(CheckedPayment(oopwm.into_enum()))
                         }
                         Err(ExpireError::Ignore) => None,
                         Err(ExpireError::IgnoreAndAbandon) => {
@@ -1427,9 +1436,8 @@ mod test {
         },
         outbound::{
             OutboundInvoicePaymentStatus, OutboundInvoicePaymentV2,
-            arbitrary_impl::OipParamsV2,
+            OutboundOfferPaymentV2, arbitrary_impl::OipParamsV2,
         },
-        v1::outbound::OutboundOfferPaymentV1,
     };
 
     impl PaymentsData {
@@ -1665,7 +1673,7 @@ mod test {
             mut data in any::<PaymentsData>(),
             //   check_payment_sent precondition: Must not be finalized
             // check_payment_failed precondition: Must not be finalized
-            oop in any_with::<OutboundOfferPaymentV1>(pending_only),
+            oop in any_with::<OutboundOfferPaymentV2>(pending_only),
             preimage in any::<LxPaymentPreimage>(),
             fees in any::<Amount>(),
             failure in any::<LxOutboundPaymentFailure>(),

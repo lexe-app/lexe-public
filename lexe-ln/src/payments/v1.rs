@@ -22,7 +22,7 @@ use crate::payments::{
         InboundSpontaneousPaymentV2,
     },
     onchain::{OnchainReceiveV2, OnchainSendV2},
-    outbound::OutboundInvoicePaymentV2,
+    outbound::{OutboundInvoicePaymentV2, OutboundOfferPaymentV2},
     v1::{
         inbound::{
             InboundInvoicePaymentV1, InboundOfferReusablePaymentV1,
@@ -164,10 +164,9 @@ impl From<PaymentV1> for PaymentWithMetadata {
             PaymentV1::OutboundInvoice(p) =>
                 PaymentWithMetadata::<OutboundInvoicePaymentV2>::from(p)
                     .into_enum(),
-            PaymentV1::OutboundOffer(p) => Self {
-                payment: p.into(),
-                metadata: PaymentMetadata::empty(id),
-            },
+            PaymentV1::OutboundOffer(p) =>
+                PaymentWithMetadata::<OutboundOfferPaymentV2>::from(p)
+                    .into_enum(),
             PaymentV1::OutboundSpontaneous(p) => Self {
                 payment: p.into(),
                 metadata: PaymentMetadata::empty(id),
@@ -236,7 +235,15 @@ impl TryFrom<PaymentWithMetadata> for PaymentV1 {
                     .context("OutboundInvoice conversion")?;
                 PaymentV1::OutboundInvoice(oipv1)
             }
-            PaymentV2::OutboundOffer(p) => PaymentV1::OutboundOffer(p),
+            PaymentV2::OutboundOffer(oopv2) => {
+                let oopwm = PaymentWithMetadata::<OutboundOfferPaymentV2> {
+                    payment: oopv2,
+                    metadata: pwm.metadata,
+                };
+                let oopv1 = OutboundOfferPaymentV1::try_from(oopwm)
+                    .context("OutboundOffer conversion")?;
+                PaymentV1::OutboundOffer(oopv1)
+            }
             PaymentV2::OutboundSpontaneous(p) =>
                 PaymentV1::OutboundSpontaneous(p),
         };

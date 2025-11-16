@@ -44,12 +44,10 @@ use crate::payments::{
     },
     outbound::{
         OutboundInvoicePaymentStatus, OutboundInvoicePaymentV2,
-        OutboundOfferPaymentStatus, OutboundSpontaneousPaymentStatus,
+        OutboundOfferPaymentStatus, OutboundOfferPaymentV2,
+        OutboundSpontaneousPaymentStatus,
     },
-    v1::{
-        PaymentV1,
-        outbound::{OutboundOfferPaymentV1, OutboundSpontaneousPaymentV1},
-    },
+    v1::{PaymentV1, outbound::OutboundSpontaneousPaymentV1},
 };
 
 /// Inbound Lightning payments.
@@ -161,7 +159,7 @@ pub enum PaymentV2 {
     InboundSpontaneous(InboundSpontaneousPaymentV2),
     OutboundInvoice(OutboundInvoicePaymentV2),
     // Added in `node-v0.7.8`
-    OutboundOffer(OutboundOfferPaymentV1),
+    OutboundOffer(OutboundOfferPaymentV2),
     OutboundSpontaneous(OutboundSpontaneousPaymentV1),
 }
 
@@ -337,8 +335,8 @@ impl From<OutboundInvoicePaymentV2> for PaymentV2 {
         Self::OutboundInvoice(p)
     }
 }
-impl From<OutboundOfferPaymentV1> for PaymentV2 {
-    fn from(p: OutboundOfferPaymentV1) -> Self {
+impl From<OutboundOfferPaymentV2> for PaymentV2 {
+    fn from(p: OutboundOfferPaymentV2) -> Self {
         Self::OutboundOffer(p)
     }
 }
@@ -417,7 +415,7 @@ impl PaymentWithMetadata<PaymentV2> {
             ) => Some(*offer_id),
             PaymentV2::InboundSpontaneous(_) => None,
             PaymentV2::OutboundInvoice(_) => None,
-            PaymentV2::OutboundOffer(OutboundOfferPaymentV1 {
+            PaymentV2::OutboundOffer(OutboundOfferPaymentV2 {
                 offer, ..
             }) => Some(offer.id()),
             PaymentV2::OutboundSpontaneous(_) => None,
@@ -435,7 +433,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::InboundOfferReusable(_) => None,
             PaymentV2::InboundSpontaneous(_) => None,
             PaymentV2::OutboundInvoice(_) => None,
-            PaymentV2::OutboundOffer(OutboundOfferPaymentV1 {
+            PaymentV2::OutboundOffer(OutboundOfferPaymentV2 {
                 offer, ..
             }) => Some(offer.clone()),
             PaymentV2::OutboundSpontaneous(_) => None,
@@ -518,7 +516,7 @@ impl PaymentWithMetadata<PaymentV2> {
                 amount,
                 ..
             }) => Some(*amount),
-            PaymentV2::OutboundOffer(OutboundOfferPaymentV1 {
+            PaymentV2::OutboundOffer(OutboundOfferPaymentV2 {
                 amount, ..
             }) => Some(*amount),
             PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
@@ -550,7 +548,7 @@ impl PaymentWithMetadata<PaymentV2> {
                 routing_fee,
                 ..
             }) => *routing_fee,
-            PaymentV2::OutboundOffer(OutboundOfferPaymentV1 {
+            PaymentV2::OutboundOffer(OutboundOfferPaymentV2 {
                 fees, ..
             }) => *fees,
             PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
@@ -570,7 +568,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::InboundOfferReusable(_) => &self.metadata.note,
             PaymentV2::InboundSpontaneous(_) => &self.metadata.note,
             PaymentV2::OutboundInvoice(_) => &self.metadata.note,
-            PaymentV2::OutboundOffer(OutboundOfferPaymentV1 {
+            PaymentV2::OutboundOffer(OutboundOfferPaymentV2 {
                 note, ..
             }) => note,
             PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
@@ -591,7 +589,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::InboundOfferReusable(_) => &mut self.metadata.note,
             PaymentV2::InboundSpontaneous(_) => &mut self.metadata.note,
             PaymentV2::OutboundInvoice(_) => &mut self.metadata.note,
-            PaymentV2::OutboundOffer(OutboundOfferPaymentV1 {
+            PaymentV2::OutboundOffer(OutboundOfferPaymentV2 {
                 note, ..
             }) => note,
             PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
@@ -628,7 +626,7 @@ impl PaymentWithMetadata<PaymentV2> {
                 finalized_at,
                 ..
             }) => *finalized_at,
-            PaymentV2::OutboundOffer(OutboundOfferPaymentV1 {
+            PaymentV2::OutboundOffer(OutboundOfferPaymentV2 {
                 finalized_at,
                 ..
             }) => *finalized_at,
@@ -807,7 +805,7 @@ impl PaymentV2 {
             Self::OutboundInvoice(OutboundInvoicePaymentV2 {
                 status, ..
             }) => PaymentStatus::from(*status),
-            Self::OutboundOffer(OutboundOfferPaymentV1 { status, .. }) =>
+            Self::OutboundOffer(OutboundOfferPaymentV2 { status, .. }) =>
                 PaymentStatus::from(*status),
             Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
                 status,
@@ -840,7 +838,7 @@ impl PaymentV2 {
             }) => failure
                 .map(|f| f.as_str())
                 .unwrap_or_else(|| status.as_str()),
-            Self::OutboundOffer(OutboundOfferPaymentV1 { status, .. }) =>
+            Self::OutboundOffer(OutboundOfferPaymentV2 { status, .. }) =>
                 status.as_str(),
             Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
                 status,
@@ -874,7 +872,7 @@ impl PaymentV2 {
                 created_at,
                 ..
             }) => *created_at,
-            Self::OutboundOffer(OutboundOfferPaymentV1 {
+            Self::OutboundOffer(OutboundOfferPaymentV2 {
                 created_at, ..
             }) => Some(*created_at),
             Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
@@ -924,7 +922,7 @@ impl PaymentV2 {
             }) => {
                 field.get_or_insert(created_at);
             }
-            Self::OutboundOffer(OutboundOfferPaymentV1 {
+            Self::OutboundOffer(OutboundOfferPaymentV2 {
                 created_at: _field,
                 ..
             }) => (),
@@ -958,7 +956,7 @@ impl PaymentV2 {
                 finalized_at,
                 ..
             }) => *finalized_at,
-            Self::OutboundOffer(OutboundOfferPaymentV1 {
+            Self::OutboundOffer(OutboundOfferPaymentV2 {
                 finalized_at,
                 ..
             }) => *finalized_at,
@@ -1303,7 +1301,7 @@ mod test {
         payments.extend(
             arbitrary::gen_value_iter(
                 &mut rng,
-                any::<OutboundOfferPaymentV1>(),
+                any::<OutboundOfferPaymentV2>(),
             )
             .take(COUNT)
             .map(PaymentV2::OutboundOffer),
@@ -1377,7 +1375,7 @@ mod test {
             ),
             (
                 "OutboundOfferPayment",
-                any::<OutboundOfferPaymentV1>()
+                any::<OutboundOfferPaymentV2>()
                     .prop_map(PaymentV2::OutboundOffer)
                     .boxed(),
             ),

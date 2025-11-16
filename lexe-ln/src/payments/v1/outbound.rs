@@ -1,6 +1,6 @@
 use std::num::NonZeroU64;
 
-use anyhow::{Context, ensure};
+use anyhow::Context;
 use common::{ByteArray, ln::amount::Amount, time::TimestampMs};
 use lexe_api::types::{
     invoice::LxInvoice,
@@ -18,14 +18,13 @@ use lightning::{
     routing::router::Route,
 };
 use serde::{Deserialize, Serialize};
-use tracing::warn;
 
 use crate::payments::{
     PaymentMetadata, PaymentWithMetadata,
     outbound::{
-        ExpireError, LxOutboundPaymentFailure, OutboundInvoicePaymentStatus,
+        LxOutboundPaymentFailure, OutboundInvoicePaymentStatus,
         OutboundInvoicePaymentV2, OutboundOfferPaymentStatus,
-        OutboundSpontaneousPaymentStatus,
+        OutboundOfferPaymentV2, OutboundSpontaneousPaymentStatus,
     },
 };
 #[cfg(doc)]
@@ -226,42 +225,6 @@ pub struct OutboundOfferPaymentV1 {
 }
 
 impl OutboundOfferPaymentV1 {
-    /// Create a new outbound invoice payment.
-    ///
-    /// - `amount` is the total amount paid, excluding fees. May be greater than
-    ///   the invoiced amount if the payer had to reach `htlc_minimum_msat`
-    ///   limits.
-    /// - `fees` is (currently) an underestimate of the total Lightning routing
-    ///   fees paid, since we can't completely route the payment before actually
-    ///   fetching the BOLT12 Invoice. Instead these are only the fees required
-    ///   to reach last public node on the route, before the blinded hops.
-    //
-    // Event sources:
-    // - `pay_offer` API
-    pub fn new(
-        cid: ClientPaymentId,
-        offer: LxOffer,
-        amount: Amount,
-        quantity: Option<NonZeroU64>,
-        fees: Amount,
-        note: Option<String>,
-    ) -> Self {
-        Self {
-            cid,
-            offer: Box::new(offer),
-            hash: None,
-            preimage: None,
-            amount,
-            quantity,
-            fees,
-            note,
-            status: OutboundOfferPaymentStatus::Pending,
-            failure: None,
-            created_at: TimestampMs::now(),
-            finalized_at: None,
-        }
-    }
-
     #[inline]
     pub fn id(&self) -> LxPaymentId {
         LxPaymentId::OfferSend(self.cid)
@@ -271,133 +234,83 @@ impl OutboundOfferPaymentV1 {
     pub fn ldk_id(&self) -> lightning::ln::channelmanager::PaymentId {
         lightning::ln::channelmanager::PaymentId(self.cid.0)
     }
+}
 
-    /// Handle a [`PaymentSent`] event for this payment.
-    ///
-    /// ## Precondition
-    ///
-    /// - The payment must not be finalized (Completed | Failed).
-    //
-    // Event sources:
-    // - `EventHandler` -> `Event::PaymentSent` (replayable)
-    pub fn check_payment_sent(
-        &self,
-        hash: LxPaymentHash,
-        preimage: LxPaymentPreimage,
-        maybe_fees_paid: Option<Amount>,
-    ) -> anyhow::Result<Self> {
-        use OutboundOfferPaymentStatus::*;
+impl From<OutboundOfferPaymentV1>
+    for PaymentWithMetadata<OutboundOfferPaymentV2>
+{
+    fn from(v1: OutboundOfferPaymentV1) -> Self {
+        let id = v1.id();
+        let payment = OutboundOfferPaymentV2 {
+            cid: v1.cid,
+            offer: v1.offer,
+            hash: v1.hash,
+            preimage: v1.preimage,
+            amount: v1.amount,
+            quantity: v1.quantity,
+            fees: v1.fees,
+            status: v1.status,
+            failure: v1.failure,
+            note: v1.note,
+            created_at: v1.created_at,
+            finalized_at: v1.finalized_at,
+        };
+        let metadata = PaymentMetadata::empty(id);
 
-        let computed_hash = preimage.compute_hash();
-        ensure!(hash == computed_hash, "Preimage doesn't correspond to hash");
-
-        // TODO(phlip9): LDK-v0.2 adds `amount_msat` to `PaymentSent` event,
-        // which we should use to get the _actual_ amount sent for this offer.
-
-        let estimated_fees = &self.fees;
-        let final_fees = maybe_fees_paid.unwrap_or_else(|| {
-            warn!(
-                "Did not hear back on final fees paid for OOP; the \
-                    estimated fee will be included with the finalized payment."
-            );
-            *estimated_fees
-        });
-
-        let status = self.status;
-        match self.status {
-            Pending => (),
-            Abandoning =>
-                warn!("Attempted to abandon this OOP but it succeeded anyway"),
-            Completed | Failed => unreachable!(
-                "caller ensures payment is not already finalized. \
-                 {} is already {status:?}",
-                self.id(),
-            ),
-        }
-
-        let mut clone = self.clone();
-        clone.hash = Some(hash);
-        clone.preimage = Some(preimage);
-        clone.fees = final_fees;
-        clone.status = Completed;
-        clone.finalized_at = Some(TimestampMs::now());
-
-        Ok(clone)
+        Self { payment, metadata }
     }
+}
 
-    /// Handle a [`PaymentFailed`] event for this payment.
-    ///
-    /// ## Precondition
-    ///
-    /// - The payment must not be finalized (Completed | Failed).
-    //
-    // Event sources:
-    // - `EventHandler` -> `Event::PaymentFailed` (replayable)
-    // - `pay_offer` API
-    pub(crate) fn check_payment_failed(
-        &self,
-        failure: LxOutboundPaymentFailure,
-    ) -> anyhow::Result<Self> {
-        use OutboundOfferPaymentStatus::*;
+impl TryFrom<PaymentWithMetadata<OutboundOfferPaymentV2>>
+    for OutboundOfferPaymentV1
+{
+    type Error = anyhow::Error;
 
-        let status = self.status;
-        match status {
-            Pending | Abandoning => (),
-            Completed | Failed => unreachable!(
-                "caller ensures payment is not already finalized. \
-                 {} is already {status:?}",
-                self.id(),
-            ),
-        }
+    fn try_from(
+        pwm: PaymentWithMetadata<OutboundOfferPaymentV2>,
+    ) -> Result<Self, Self::Error> {
+        // Intentionally destructure to ensure all fields are considered.
+        let OutboundOfferPaymentV2 {
+            cid,
+            offer,
+            hash,
+            preimage,
+            amount,
+            quantity,
+            fees,
+            status,
+            failure,
+            note,
+            created_at,
+            finalized_at,
+        } = pwm.payment;
+        let PaymentMetadata {
+            id: _,
+            address: _,
+            invoice: _,
+            offer: _,
+            priority: _,
+            quantity: _,
+            replacement_txid: _,
+            note: _,
+            payer_note: _,
+            payer_name: _,
+        } = pwm.metadata;
 
-        let mut clone = self.clone();
-        clone.status = Failed;
-        clone.failure = Some(failure);
-        clone.finalized_at = Some(TimestampMs::now());
-
-        Ok(clone)
-    }
-
-    /// Checks whether this payment's offer has expired. If so, and if the
-    /// state transition to `Abandoning` is valid, returns a clone with the
-    /// state transition applied.
-    ///
-    /// ## Precondition
-    /// - The payment must not be finalized (Completed | Failed).
-    //
-    // Event sources:
-    // - `PaymentsManager::spawn_payment_expiry_checker` task
-    pub(crate) fn check_offer_expiry(
-        &self,
-        now: TimestampMs,
-    ) -> Result<Self, ExpireError> {
-        use OutboundOfferPaymentStatus::*;
-
-        // Not expired yet, do nothing.
-        if !self.offer.is_expired_at(now) {
-            return Err(ExpireError::Ignore);
-        }
-
-        match self.status {
-            Pending => (),
-            // We may crash after persisting the payment but before the channel
-            // manager persists. Don't persist anything new, but re-abandon the
-            // payment.
-            Abandoning => return Err(ExpireError::IgnoreAndAbandon),
-            Completed | Failed => unreachable!(
-                "caller ensures payment is not already finalized. \
-                 {id} is already {status:?}",
-                id = self.id(),
-                status = self.status,
-            ),
-        }
-
-        // Validation complete; invoice newly expired
-
-        let mut clone = self.clone();
-        clone.status = Abandoning;
-
-        Ok(clone)
+        Ok(Self {
+            cid,
+            offer,
+            hash,
+            preimage,
+            amount,
+            quantity,
+            fees,
+            status,
+            failure,
+            note,
+            created_at,
+            finalized_at,
+        })
     }
 }
 

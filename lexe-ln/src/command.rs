@@ -90,9 +90,8 @@ use crate::{
         manager::PaymentsManager,
         outbound::{
             LxOutboundPaymentFailure, OUTBOUND_PAYMENT_RETRY_STRATEGY,
-            OutboundInvoicePaymentV2,
+            OutboundInvoicePaymentV2, OutboundOfferPaymentV2,
         },
-        v1::{PaymentV1, outbound::OutboundOfferPaymentV1},
     },
     route::{self, LastHopHint, RoutingContext},
     sync::BdkSyncRequest,
@@ -1105,7 +1104,7 @@ where
     PS: LexePersister,
 {
     // Pre-flight the offer payment (verify and partially route).
-    let PreflightedPayOffer { payment, route: _ } = preflight_pay_offer_inner(
+    let PreflightedPayOffer { oopwm, route: _ } = preflight_pay_offer_inner(
         req,
         router,
         channel_manager,
@@ -1122,27 +1121,24 @@ where
     // Use default
     let max_total_routing_fee_msat = None;
 
-    // TODO(phlip9): payments manager should return this
-    let created_at = payment.created_at;
-    let id = payment.id();
+    let id = oopwm.payment.id();
 
     // Pre-flight looks good, now we can register this payment in the Lexe
     // payments manager.
-    let pwm =
-        PaymentWithMetadata::from(PaymentV1::OutboundOffer(payment.clone()));
-    payments_manager
-        .new_payment(pwm)
+    let created_index = payments_manager
+        .new_payment(oopwm.clone().into_enum())
         .await
         .context("Already tried to pay this offer")?;
+    let created_at = created_index.created_at;
 
     // Instruct the LDK channel manager to pay this offer, letting LDK handle
     // fetching the BOLT12 Invoice, routing, and retrying.
     let result = channel_manager.pay_for_offer(
-        &payment.offer.0,
-        payment.quantity.map(NonZeroU64::get),
-        Some(payment.amount.msat()),
+        &oopwm.payment.offer.0,
+        oopwm.payment.quantity.map(NonZeroU64::get),
+        Some(oopwm.payment.amount.msat()),
         payer_note,
-        payment.ldk_id(),
+        oopwm.payment.ldk_id(),
         OUTBOUND_PAYMENT_RETRY_STRATEGY,
         max_total_routing_fee_msat,
     );
@@ -1205,7 +1201,7 @@ where
         // User note not relevant for pre-flight.
         note: None,
     };
-    let PreflightedPayOffer { payment, route } = preflight_pay_offer_inner(
+    let PreflightedPayOffer { oopwm, route } = preflight_pay_offer_inner(
         req,
         router,
         channel_manager,
@@ -1217,8 +1213,8 @@ where
     )
     .await?;
     Ok(PreflightPayOfferResponse {
-        amount: payment.amount,
-        fees: payment.fees,
+        amount: oopwm.payment.amount,
+        fees: oopwm.payment.fees,
         route,
     })
 }
@@ -1390,7 +1386,7 @@ where
 /// An outbound offer payment that we preflighted (validated and routed) but
 /// haven't paid yet.
 struct PreflightedPayOffer {
-    payment: OutboundOfferPaymentV1,
+    oopwm: PaymentWithMetadata<OutboundOfferPaymentV2>,
     route: LxRoute,
 }
 
@@ -1494,10 +1490,10 @@ where
 
     let amount = route.amount();
     let fees = route.fees();
-    let payment = OutboundOfferPaymentV1::new(
+    let oopwm = OutboundOfferPaymentV2::new(
         req.cid, offer, amount, quantity, fees, req.note,
     );
-    Ok(PreflightedPayOffer { payment, route })
+    Ok(PreflightedPayOffer { oopwm, route })
 }
 
 /// Payments preflight validation helpers.
