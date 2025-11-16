@@ -373,7 +373,7 @@ impl PaymentWithMetadata<PaymentV2> {
             direction: self.payment.direction(),
             invoice: self.invoice().map(Box::new),
             offer_id: self.offer_id(),
-            offer: self.offer(),
+            offer: self.offer().map(Box::new),
             txid: self.txid(),
             replacement: self.replacement_txid(),
             amount: self.amount(),
@@ -404,7 +404,6 @@ impl PaymentWithMetadata<PaymentV2> {
 
     /// Returns the id of the BOLT12 offer associated with this payment, if
     /// there is one.
-    // TODO(max): Remove fn once all matching is removed
     pub fn offer_id(&self) -> Option<LxOfferId> {
         match &self.payment {
             PaymentV2::OnchainSend(_) => None,
@@ -415,16 +414,15 @@ impl PaymentWithMetadata<PaymentV2> {
             ) => Some(*offer_id),
             PaymentV2::InboundSpontaneous(_) => None,
             PaymentV2::OutboundInvoice(_) => None,
-            PaymentV2::OutboundOffer(OutboundOfferPaymentV2 {
-                offer, ..
-            }) => Some(offer.id()),
+            PaymentV2::OutboundOffer(_) =>
+                self.metadata.offer.as_ref().map(|offer| offer.id()),
             PaymentV2::OutboundSpontaneous(_) => None,
         }
     }
 
     /// Returns the BOLT12 offer associated with this payment, if there is one.
     // TODO(max): Remove fn once all matching is removed
-    pub fn offer(&self) -> Option<Box<LxOffer>> {
+    pub fn offer(&self) -> Option<LxOffer> {
         match &self.payment {
             PaymentV2::OnchainSend(_) => None,
             PaymentV2::OnchainReceive(_) => None,
@@ -433,9 +431,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::InboundOfferReusable(_) => None,
             PaymentV2::InboundSpontaneous(_) => None,
             PaymentV2::OutboundInvoice(_) => None,
-            PaymentV2::OutboundOffer(OutboundOfferPaymentV2 {
-                offer, ..
-            }) => Some(offer.clone()),
+            PaymentV2::OutboundOffer(_) => self.metadata.offer.clone(),
             PaymentV2::OutboundSpontaneous(_) => None,
         }
     }
@@ -549,8 +545,9 @@ impl PaymentWithMetadata<PaymentV2> {
                 ..
             }) => *routing_fee,
             PaymentV2::OutboundOffer(OutboundOfferPaymentV2 {
-                fees, ..
-            }) => *fees,
+                routing_fee,
+                ..
+            }) => *routing_fee,
             PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
                 fees,
                 ..
@@ -568,9 +565,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::InboundOfferReusable(_) => &self.metadata.note,
             PaymentV2::InboundSpontaneous(_) => &self.metadata.note,
             PaymentV2::OutboundInvoice(_) => &self.metadata.note,
-            PaymentV2::OutboundOffer(OutboundOfferPaymentV2 {
-                note, ..
-            }) => note,
+            PaymentV2::OutboundOffer(_) => &self.metadata.note,
             PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
                 note,
                 ..
@@ -589,9 +584,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::InboundOfferReusable(_) => &mut self.metadata.note,
             PaymentV2::InboundSpontaneous(_) => &mut self.metadata.note,
             PaymentV2::OutboundInvoice(_) => &mut self.metadata.note,
-            PaymentV2::OutboundOffer(OutboundOfferPaymentV2 {
-                note, ..
-            }) => note,
+            PaymentV2::OutboundOffer(_) => &mut self.metadata.note,
             PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
                 note,
                 ..
@@ -751,7 +744,7 @@ impl PaymentV2 {
                 LxPaymentId::OfferRecvReusable(iorp.claim_id),
             Self::InboundSpontaneous(isp) => LxPaymentId::Lightning(isp.hash),
             Self::OutboundInvoice(oip) => LxPaymentId::Lightning(oip.hash),
-            Self::OutboundOffer(oop) => LxPaymentId::OfferSend(oop.cid),
+            Self::OutboundOffer(oop) => LxPaymentId::OfferSend(oop.client_id),
             Self::OutboundSpontaneous(osp) => LxPaymentId::Lightning(osp.hash),
         }
     }
@@ -874,7 +867,7 @@ impl PaymentV2 {
             }) => *created_at,
             Self::OutboundOffer(OutboundOfferPaymentV2 {
                 created_at, ..
-            }) => Some(*created_at),
+            }) => *created_at,
             Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
                 created_at,
                 ..
@@ -923,9 +916,11 @@ impl PaymentV2 {
                 field.get_or_insert(created_at);
             }
             Self::OutboundOffer(OutboundOfferPaymentV2 {
-                created_at: _field,
+                created_at: field,
                 ..
-            }) => (),
+            }) => {
+                field.get_or_insert(created_at);
+            }
             Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
                 created_at: _field,
                 ..

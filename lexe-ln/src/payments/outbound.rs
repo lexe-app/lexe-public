@@ -362,10 +362,7 @@ pub enum OutboundOfferPaymentStatus {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OutboundOfferPaymentV2 {
     /// The unique idempotency id for this payment.
-    pub cid: ClientPaymentId,
-    /// The offer we're paying.
-    // LxOffer is ~568 bytes, Box to avoid the enum variant lint
-    pub offer: Box<LxOffer>,
+    pub client_id: ClientPaymentId,
     /// The payment hash encoded in the BOLT12 invoice. Since we don't fetch
     /// the BOLT12 invoice before registering the offer payment, this field
     /// is populated iff. the status is `Completed`.
@@ -373,22 +370,28 @@ pub struct OutboundOfferPaymentV2 {
     /// The payment preimage, which serves as proof-of-payment.
     /// This field is populated iff. the status is `Completed`.
     pub preimage: Option<LxPaymentPreimage>,
+
     /// The amount sent in this payment excluding fees. May be greater than the
     /// intended value to meet htlc min. limits along the route.
     pub amount: Amount,
-    /// The number of "units" purchased.
-    pub quantity: Option<NonZeroU64>,
+
     /// The routing fees paid for this payment. If the payment hasn't completed
     /// yet, then this is just an estimate based on the preflight route.
-    pub fees: Amount,
+    pub routing_fee: Amount,
+
     /// The current status of the payment.
     pub status: OutboundOfferPaymentStatus,
+
     /// For a failed payment, the reason why it failed.
+    // Is part of the core type because (1) it's small and
+    // (2) it contains information possibly of interest for later analysis.
     pub failure: Option<LxOutboundPaymentFailure>,
-    /// An optional personal note for this payment.
-    pub note: Option<String>,
+
     /// When we initiated this payment.
-    pub created_at: TimestampMs,
+    /// Set to `Some(...)` on first persist.
+    pub created_at: Option<TimestampMs>,
+    /// When the offer expires. `None` if the offer has no absolute_expiry.
+    pub expires_at: Option<TimestampMs>,
     /// When this payment either `Completed` or `Failed`.
     pub finalized_at: Option<TimestampMs>,
 }
@@ -399,37 +402,48 @@ impl OutboundOfferPaymentV2 {
     /// - `amount` is the total amount paid, excluding fees. May be greater than
     ///   the invoiced amount if the payer had to reach `htlc_minimum_msat`
     ///   limits.
-    /// - `fees` is (currently) an underestimate of the total Lightning routing
-    ///   fees paid, since we can't completely route the payment before actually
-    ///   fetching the BOLT12 Invoice. Instead these are only the fees required
-    ///   to reach last public node on the route, before the blinded hops.
+    /// - `routing_fee` is (currently) an underestimate of the total Lightning
+    ///   routing fees paid, since we can't completely route the payment before
+    ///   actually fetching the BOLT12 Invoice. Instead these are only the fees
+    ///   required to reach last public node on the route, before the blinded
+    ///   hops.
     //
     // Event sources:
     // - `pay_offer` API
     pub fn new(
-        cid: ClientPaymentId,
+        client_id: ClientPaymentId,
         offer: LxOffer,
         amount: Amount,
         quantity: Option<NonZeroU64>,
-        fees: Amount,
+        routing_fee: Amount,
         note: Option<String>,
     ) -> PaymentWithMetadata<Self> {
+        let expires_at = offer.expires_at();
         let oop = Self {
-            cid,
-            offer: Box::new(offer),
+            client_id,
             hash: None,
             preimage: None,
             amount,
-            quantity,
-            fees,
-            note,
+            routing_fee,
             status: OutboundOfferPaymentStatus::Pending,
             failure: None,
-            created_at: TimestampMs::now(),
+            created_at: None,
+            expires_at,
             finalized_at: None,
         };
 
-        let metadata = PaymentMetadata::empty(oop.id());
+        let metadata = PaymentMetadata {
+            id: oop.id(),
+            address: None,
+            invoice: None,
+            offer: Some(offer),
+            priority: None,
+            quantity,
+            replacement_txid: None,
+            note,
+            payer_note: None,
+            payer_name: None,
+        };
 
         PaymentWithMetadata {
             payment: oop,
@@ -439,12 +453,12 @@ impl OutboundOfferPaymentV2 {
 
     #[inline]
     pub fn id(&self) -> LxPaymentId {
-        LxPaymentId::OfferSend(self.cid)
+        LxPaymentId::OfferSend(self.client_id)
     }
 
     #[inline]
     pub fn ldk_id(&self) -> lightning::ln::channelmanager::PaymentId {
-        lightning::ln::channelmanager::PaymentId(self.cid.0)
+        lightning::ln::channelmanager::PaymentId(self.client_id.0)
     }
 
     /// Handle a [`PaymentSent`] event for this payment.
@@ -469,14 +483,24 @@ impl OutboundOfferPaymentV2 {
         // TODO(phlip9): LDK-v0.2 adds `amount_msat` to `PaymentSent` event,
         // which we should use to get the _actual_ amount sent for this offer.
 
-        let estimated_fees = &self.fees;
-        let final_fees = maybe_fees_paid.unwrap_or_else(|| {
-            warn!(
-                "Did not hear back on final fees paid for OOP; the \
-                    estimated fee will be included with the finalized payment."
-            );
-            *estimated_fees
-        });
+        let estimated_fee = &self.routing_fee;
+        let final_routing_fee = maybe_fees_paid
+            .inspect(|actual_fee| {
+                if actual_fee != estimated_fee {
+                    info!(
+                        %hash,
+                        "Estimated routing fee from Route was {estimated_fee} \
+                         msat; actually paid {actual_fee} msat."
+                    );
+                }
+            })
+            .unwrap_or_else(|| {
+                warn!(
+                    "Did not hear back on final routing fee paid for OOP; the \
+                     estimated fee will be included with the finalized payment."
+                );
+                *estimated_fee
+            });
 
         let status = self.status;
         match self.status {
@@ -493,7 +517,7 @@ impl OutboundOfferPaymentV2 {
         let mut clone = self.clone();
         clone.hash = Some(hash);
         clone.preimage = Some(preimage);
-        clone.fees = final_fees;
+        clone.routing_fee = final_routing_fee;
         clone.status = Completed;
         clone.finalized_at = Some(TimestampMs::now());
 
@@ -548,8 +572,10 @@ impl OutboundOfferPaymentV2 {
     ) -> Result<Self, ExpireError> {
         use OutboundOfferPaymentStatus::*;
 
-        // Not expired yet, do nothing.
-        if !self.offer.is_expired_at(now) {
+        // If not expired yet, do nothing.
+        let is_expired =
+            self.expires_at.is_some_and(|expires_at| now >= expires_at);
+        if !is_expired {
             return Err(ExpireError::Ignore);
         }
 
@@ -567,7 +593,7 @@ impl OutboundOfferPaymentV2 {
             ),
         }
 
-        // Validation complete; invoice newly expired
+        // Validation complete; offer newly expired
 
         let mut clone = self.clone();
         clone.status = Abandoning;
@@ -800,32 +826,28 @@ pub(crate) mod arbitrary_impl {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
-            use common::test_utils::arbitrary::any_option_string;
-
             let status = any_with::<OutboundOfferPaymentStatus>(pending_only);
-            let cid = any::<ClientPaymentId>();
-            let offer = any::<Box<LxOffer>>();
+            let client_id = any::<ClientPaymentId>();
             let preimage = any::<LxPaymentPreimage>();
 
             let amount = any::<Amount>();
-            let quantity = any::<Option<NonZeroU64>>();
-            let fees = any::<Amount>();
+            let routing_fee = any::<Amount>();
             let failure = any::<LxOutboundPaymentFailure>();
-            let note = any_option_string();
+            // TODO(max): Use option::of once created_at is always set on first
+            // persist. For now, we generate payments as if already persisted.
             let created_at = any::<TimestampMs>();
+            let expires_at = any::<Option<TimestampMs>>();
             let finalized_after = arbitrary::any_duration();
 
             let gen_oop = move |(
                 status,
-                cid,
-                offer,
+                client_id,
                 preimage,
                 amount,
-                quantity,
-                fees,
+                routing_fee,
                 failure,
-                note,
                 created_at,
+                expires_at,
                 finalized_after,
             )| {
                 use OutboundOfferPaymentStatus::*;
@@ -840,32 +862,28 @@ pub(crate) mod arbitrary_impl {
                     .then_some(finalized_at);
 
                 OutboundOfferPaymentV2 {
-                    cid,
-                    offer,
+                    client_id,
                     hash,
                     preimage,
                     amount,
-                    quantity,
-                    fees,
+                    routing_fee,
                     status,
                     failure,
-                    note,
-                    created_at,
+                    created_at: Some(created_at),
+                    expires_at,
                     finalized_at,
                 }
             };
 
             (
                 status,
-                cid,
-                offer,
+                client_id,
                 preimage,
                 amount,
-                quantity,
-                fees,
+                routing_fee,
                 failure,
-                note,
                 created_at,
+                expires_at,
                 finalized_after,
             )
                 .prop_map(gen_oop)

@@ -240,22 +240,31 @@ impl From<OutboundOfferPaymentV1>
     for PaymentWithMetadata<OutboundOfferPaymentV2>
 {
     fn from(v1: OutboundOfferPaymentV1) -> Self {
-        let id = v1.id();
+        let expires_at = v1.offer.expires_at();
         let payment = OutboundOfferPaymentV2 {
-            cid: v1.cid,
-            offer: v1.offer,
+            client_id: v1.cid,
             hash: v1.hash,
             preimage: v1.preimage,
             amount: v1.amount,
-            quantity: v1.quantity,
-            fees: v1.fees,
+            routing_fee: v1.fees,
             status: v1.status,
             failure: v1.failure,
-            note: v1.note,
-            created_at: v1.created_at,
+            created_at: Some(v1.created_at),
+            expires_at,
             finalized_at: v1.finalized_at,
         };
-        let metadata = PaymentMetadata::empty(id);
+        let metadata = PaymentMetadata {
+            id: v1.id(),
+            address: None,
+            invoice: None,
+            offer: Some(*v1.offer),
+            priority: None,
+            quantity: v1.quantity,
+            replacement_txid: None,
+            note: v1.note,
+            payer_note: None,
+            payer_name: None,
+        };
 
         Self { payment, metadata }
     }
@@ -271,31 +280,33 @@ impl TryFrom<PaymentWithMetadata<OutboundOfferPaymentV2>>
     ) -> Result<Self, Self::Error> {
         // Intentionally destructure to ensure all fields are considered.
         let OutboundOfferPaymentV2 {
-            cid,
-            offer,
+            client_id: cid,
             hash,
             preimage,
             amount,
-            quantity,
-            fees,
+            routing_fee: fees,
             status,
             failure,
-            note,
             created_at,
+            expires_at: _,
             finalized_at,
         } = pwm.payment;
         let PaymentMetadata {
             id: _,
             address: _,
             invoice: _,
-            offer: _,
+            offer,
             priority: _,
-            quantity: _,
+            quantity,
             replacement_txid: _,
-            note: _,
+            note,
             payer_note: _,
             payer_name: _,
         } = pwm.metadata;
+
+        let offer = offer.context("Missing offer")?;
+        let created_at = created_at.context("Missing created_at")?;
+        let offer = Box::new(offer);
 
         Ok(Self {
             cid,

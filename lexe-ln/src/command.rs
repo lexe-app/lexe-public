@@ -1103,6 +1103,8 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
+    let offer = req.offer.clone();
+
     // Pre-flight the offer payment (verify and partially route).
     let PreflightedPayOffer { oopwm, route: _ } = preflight_pay_offer_inner(
         req,
@@ -1134,8 +1136,8 @@ where
     // Instruct the LDK channel manager to pay this offer, letting LDK handle
     // fetching the BOLT12 Invoice, routing, and retrying.
     let result = channel_manager.pay_for_offer(
-        &oopwm.payment.offer.0,
-        oopwm.payment.quantity.map(NonZeroU64::get),
+        &offer.0,
+        oopwm.metadata.quantity.map(NonZeroU64::get),
         Some(oopwm.payment.amount.msat()),
         payer_note,
         oopwm.payment.ldk_id(),
@@ -1214,7 +1216,7 @@ where
     .await?;
     Ok(PreflightPayOfferResponse {
         amount: oopwm.payment.amount,
-        fees: oopwm.payment.fees,
+        fees: oopwm.payment.routing_fee,
         route,
     })
 }
@@ -1489,9 +1491,14 @@ where
     .await?;
 
     let amount = route.amount();
-    let fees = route.fees();
+    let routing_fee = route.fees();
     let oopwm = OutboundOfferPaymentV2::new(
-        req.cid, offer, amount, quantity, fees, req.note,
+        req.cid,
+        offer,
+        amount,
+        quantity,
+        routing_fee,
+        req.note,
     );
     Ok(PreflightedPayOffer { oopwm, route })
 }
