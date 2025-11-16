@@ -823,6 +823,158 @@ impl InboundOfferReusablePaymentV2 {
 
 // --- Inbound spontaneous payments --- //
 
+/// An inbound spontaneous (keysend) payment. This struct is created when we
+/// get a [`PaymentClaimable`] event, with
+/// [`PaymentPurpose::SpontaneousPayment`].
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct InboundSpontaneousPaymentV2 {
+    /// Given by [`PaymentClaimable`] and [`PaymentClaimed`].
+    pub hash: LxPaymentHash,
+    /// Given by [`PaymentPurpose`].
+    pub preimage: LxPaymentPreimage,
+
+    /// The amount received in this payment.
+    pub amount: Amount,
+    /// The sender intended sum-total of all MPP parts.
+    /// Populated during [`PaymentClaimed`].
+    pub sender_intended_amount: Option<Amount>,
+
+    /// The amount that was skimmed off of this payment as an extra fee taken
+    /// by our channel counterparty. Populated during [`PaymentClaimable`].
+    pub skimmed_fee: Option<Amount>,
+    /// The portion of the skimmed amount that was used to cover the on-chain
+    /// fees incurred by a JIT channel opened to receive this payment.
+    /// None if no on-chain fees were incurred.
+    // TODO(max): Currently not used; implement
+    pub onchain_fee: Option<Amount>,
+
+    /// The current status of the payment.
+    pub status: InboundSpontaneousPaymentStatus,
+
+    /// When we first learned of this payment via [`PaymentClaimable`].
+    /// Set to `Some(...)` on first persist.
+    pub created_at: Option<TimestampMs>,
+    /// When this payment reached the `Completed` state.
+    pub finalized_at: Option<TimestampMs>,
+}
+
+impl InboundSpontaneousPaymentV2 {
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
+    pub(crate) fn new(
+        hash: LxPaymentHash,
+        preimage: LxPaymentPreimage,
+        amount: Amount,
+        skimmed_fee: Option<Amount>,
+    ) -> PaymentWithMetadata<Self> {
+        let isp = Self {
+            hash,
+            preimage,
+            amount,
+            sender_intended_amount: None,
+            skimmed_fee,
+            onchain_fee: None,
+            status: InboundSpontaneousPaymentStatus::Claiming,
+            created_at: None,
+            finalized_at: None,
+        };
+
+        let metadata = PaymentMetadata::empty(isp.id());
+
+        PaymentWithMetadata {
+            payment: isp,
+            metadata,
+        }
+    }
+
+    #[inline]
+    pub fn id(&self) -> LxPaymentId {
+        LxPaymentId::Lightning(self.hash)
+    }
+
+    /// ## Precondition
+    /// - The payment must not be finalized (`Completed`).
+    //
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
+    pub(crate) fn check_payment_claimable(
+        &self,
+        hash: LxPaymentHash,
+        preimage: LxPaymentPreimage,
+        amount: Amount,
+    ) -> ClaimableError {
+        use InboundSpontaneousPaymentStatus::*;
+
+        // Payment state machine errors
+        if hash != self.hash {
+            return ClaimableError::Replay(anyhow::anyhow!(
+                "Hashes don't match"
+            ));
+        }
+        if preimage != self.preimage {
+            return ClaimableError::Replay(anyhow::anyhow!(
+                "Preimages don't match"
+            ));
+        }
+        if amount != self.amount {
+            return ClaimableError::Replay(anyhow::anyhow!(
+                "Amounts don't match"
+            ));
+        }
+
+        match self.status {
+            Claiming => (),
+            Completed => unreachable!(
+                "caller ensures payment is not already finalized. \
+                 {id} is already {status:?}",
+                id = self.id(),
+                status = self.status
+            ),
+        }
+
+        // There is no state to update, but this may be a replay after crash,
+        // so try to reclaim
+        ClaimableError::IgnoreAndReclaim
+    }
+
+    /// ## Precondition
+    /// - The payment must not be finalized (`Completed`).
+    //
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
+    pub(crate) fn check_payment_claimed(
+        &self,
+        hash: LxPaymentHash,
+        preimage: LxPaymentPreimage,
+        amount: Amount,
+        sender_intended_amount: Option<Amount>,
+    ) -> anyhow::Result<Self> {
+        use InboundSpontaneousPaymentStatus::*;
+
+        ensure!(hash == self.hash, "Hashes don't match");
+        ensure!(preimage == self.preimage, "Preimages don't match");
+        ensure!(amount == self.amount, "Amounts don't match");
+
+        match self.status {
+            Claiming => (),
+            Completed => unreachable!(
+                "caller ensures payment is not already finalized. \
+                 {id} is already {status:?}",
+                id = self.id(),
+                status = self.status
+            ),
+        }
+
+        // Everything ok; return a clone with the updated state
+        let mut clone = self.clone();
+        clone.sender_intended_amount = sender_intended_amount;
+        clone.status = Completed;
+        clone.finalized_at = Some(TimestampMs::now());
+
+        Ok(clone)
+    }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(test, derive(strum::VariantArray, Hash))]
@@ -1069,6 +1221,81 @@ mod arbitrary_impl {
                 )
                 .boxed()
             }
+        }
+    }
+
+    impl Arbitrary for InboundSpontaneousPaymentV2 {
+        // pending_only: whether to only generate pending payments.
+        type Parameters = bool;
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
+            let hash = any::<LxPaymentHash>();
+            let preimage = any::<LxPaymentPreimage>();
+            let amount = any::<Amount>();
+            let sender_intended_amount = any::<Amount>();
+            let skimmed_fee = any::<Amount>();
+            let status =
+                any_with::<InboundSpontaneousPaymentStatus>(pending_only);
+            // TODO(max): Use option::of once created_at is always set on first
+            // persist. For now, we generate payments as if already persisted.
+            let created_at = any::<TimestampMs>();
+            let finalized_after = arbitrary::any_duration();
+
+            let gen_isp = move |(
+                hash,
+                preimage,
+                amount,
+                sender_intended_amount,
+                skimmed_fee,
+                status,
+                created_at,
+                finalized_after,
+            )| {
+                use InboundSpontaneousPaymentStatus::*;
+
+                let sender_intended_amount = match status {
+                    Claiming => None,
+                    Completed => Some(sender_intended_amount),
+                };
+                let skimmed_fee = Some(skimmed_fee);
+
+                let created_at: TimestampMs = created_at; // provides type hint
+                let finalized_at = if pending_only {
+                    None
+                } else {
+                    let finalized_at =
+                        created_at.saturating_add(finalized_after);
+                    PaymentStatus::from(status)
+                        .is_finalized()
+                        .then_some(finalized_at)
+                };
+
+                InboundSpontaneousPaymentV2 {
+                    hash,
+                    preimage,
+                    amount,
+                    sender_intended_amount,
+                    skimmed_fee,
+                    onchain_fee: None,
+                    status,
+                    created_at: Some(created_at),
+                    finalized_at,
+                }
+            };
+
+            (
+                hash,
+                preimage,
+                amount,
+                sender_intended_amount,
+                skimmed_fee,
+                status,
+                created_at,
+                finalized_after,
+            )
+                .prop_map(gen_isp)
+                .boxed()
         }
     }
 

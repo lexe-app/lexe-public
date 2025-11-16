@@ -17,7 +17,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::payments::{
     PaymentMetadata, PaymentV2, PaymentWithMetadata,
-    inbound::{InboundInvoicePaymentV2, InboundOfferReusablePaymentV2},
+    inbound::{
+        InboundInvoicePaymentV2, InboundOfferReusablePaymentV2,
+        InboundSpontaneousPaymentV2,
+    },
     onchain::{OnchainReceiveV2, OnchainSendV2},
     v1::{
         inbound::{
@@ -154,10 +157,9 @@ impl From<PaymentV1> for PaymentWithMetadata {
             PaymentV1::InboundOfferReusable(p) =>
                 PaymentWithMetadata::<InboundOfferReusablePaymentV2>::from(p)
                     .into_enum(),
-            PaymentV1::InboundSpontaneous(p) => Self {
-                payment: p.into(),
-                metadata: PaymentMetadata::empty(id),
-            },
+            PaymentV1::InboundSpontaneous(p) =>
+                PaymentWithMetadata::<InboundSpontaneousPaymentV2>::from(p)
+                    .into_enum(),
             PaymentV1::OutboundInvoice(p) => Self {
                 payment: p.into(),
                 metadata: PaymentMetadata::empty(id),
@@ -216,8 +218,15 @@ impl TryFrom<PaymentWithMetadata> for PaymentV1 {
                     .context("InboundOfferReusable conversion")?;
                 PaymentV1::InboundOfferReusable(iorpv1)
             }
-            PaymentV2::InboundSpontaneous(p) =>
-                PaymentV1::InboundSpontaneous(p),
+            PaymentV2::InboundSpontaneous(ispv2) => {
+                let ispwm = PaymentWithMetadata::<InboundSpontaneousPaymentV2> {
+                    payment: ispv2,
+                    metadata: pwm.metadata,
+                };
+                let ispv1 = InboundSpontaneousPaymentV1::try_from(ispwm)
+                    .context("InboundSpontaneous conversion")?;
+                PaymentV1::InboundSpontaneous(ispv1)
+            }
             PaymentV2::OutboundInvoice(p) => PaymentV1::OutboundInvoice(p),
             PaymentV2::OutboundOffer(p) => PaymentV1::OutboundOffer(p),
             PaymentV2::OutboundSpontaneous(p) =>

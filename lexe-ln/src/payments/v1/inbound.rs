@@ -1,6 +1,6 @@
 use std::num::NonZeroU64;
 
-use anyhow::{Context, ensure};
+use anyhow::Context;
 #[cfg(test)]
 use common::test_utils::arbitrary;
 use common::{ln::amount::Amount, time::TimestampMs};
@@ -26,9 +26,9 @@ use crate::command::create_invoice;
 use crate::payments::{
     PaymentMetadata, PaymentWithMetadata,
     inbound::{
-        ClaimableError, InboundInvoicePaymentStatus, InboundInvoicePaymentV2,
+        InboundInvoicePaymentStatus, InboundInvoicePaymentV2,
         InboundOfferReusablePaymentStatus, InboundOfferReusablePaymentV2,
-        InboundSpontaneousPaymentStatus,
+        InboundSpontaneousPaymentStatus, InboundSpontaneousPaymentV2,
     },
 };
 
@@ -354,111 +354,87 @@ pub struct InboundSpontaneousPaymentV1 {
 }
 
 impl InboundSpontaneousPaymentV1 {
-    // Event sources:
-    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
-    pub(crate) fn new(
-        hash: LxPaymentHash,
-        preimage: LxPaymentPreimage,
-        amount: Amount,
-    ) -> Self {
-        Self {
-            hash,
-            preimage,
-            amount,
-            // TODO(max): Implement
-            onchain_fees: None,
-            status: InboundSpontaneousPaymentStatus::Claiming,
-            note: None,
-            created_at: TimestampMs::now(),
-            finalized_at: None,
-        }
-    }
-
     #[inline]
     pub fn id(&self) -> LxPaymentId {
         LxPaymentId::Lightning(self.hash)
     }
+}
 
-    /// ## Precondition
-    /// - The payment must not be finalized (`Completed` or `Expired`).
-    //
-    // Event sources:
-    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
-    pub(crate) fn check_payment_claimable(
-        &self,
-        hash: LxPaymentHash,
-        preimage: LxPaymentPreimage,
-        amount: Amount,
-    ) -> ClaimableError {
-        use InboundSpontaneousPaymentStatus::*;
+impl From<InboundSpontaneousPaymentV1>
+    for PaymentWithMetadata<InboundSpontaneousPaymentV2>
+{
+    fn from(v1: InboundSpontaneousPaymentV1) -> Self {
+        let payment = InboundSpontaneousPaymentV2 {
+            hash: v1.hash,
+            preimage: v1.preimage,
+            amount: v1.amount,
+            sender_intended_amount: None,
+            skimmed_fee: None,
+            onchain_fee: v1.onchain_fees,
+            status: v1.status,
+            created_at: Some(v1.created_at),
+            finalized_at: v1.finalized_at,
+        };
+        let metadata = PaymentMetadata {
+            id: v1.id(),
+            address: None,
+            invoice: None,
+            offer: None,
+            priority: None,
+            quantity: None,
+            replacement_txid: None,
+            note: v1.note,
+            payer_note: None,
+            payer_name: None,
+        };
 
-        // Payment state machine errors
-        if hash != self.hash {
-            return ClaimableError::Replay(anyhow::anyhow!(
-                "Hashes don't match"
-            ));
-        }
-        if preimage != self.preimage {
-            return ClaimableError::Replay(anyhow::anyhow!(
-                "Preimages don't match"
-            ));
-        }
-        if amount != self.amount {
-            return ClaimableError::Replay(anyhow::anyhow!(
-                "Amounts don't match"
-            ));
-        }
-
-        match self.status {
-            Claiming => (),
-            Completed => unreachable!(
-                "caller ensures payment is not already finalized. \
-                 {id} is already {status:?}",
-                id = self.id(),
-                status = self.status
-            ),
-        }
-
-        // There is no state to update, but this may be a replay after crash,
-        // so try to reclaim
-        ClaimableError::IgnoreAndReclaim
+        Self { payment, metadata }
     }
+}
 
-    /// ## Precondition
-    /// - The payment must not be finalized (`Completed` or `Expired`).
-    //
-    // Event sources:
-    // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
-    pub(crate) fn check_payment_claimed(
-        &self,
-        hash: LxPaymentHash,
-        preimage: LxPaymentPreimage,
-        amount: Amount,
-    ) -> anyhow::Result<Self> {
-        use InboundSpontaneousPaymentStatus::*;
+impl TryFrom<PaymentWithMetadata<InboundSpontaneousPaymentV2>>
+    for InboundSpontaneousPaymentV1
+{
+    type Error = anyhow::Error;
 
-        ensure!(hash == self.hash, "Hashes don't match");
-        ensure!(preimage == self.preimage, "Preimages don't match");
-        ensure!(amount == self.amount, "Amounts don't match");
+    fn try_from(
+        pwm: PaymentWithMetadata<InboundSpontaneousPaymentV2>,
+    ) -> Result<Self, Self::Error> {
+        // Intentionally destructure to ensure all fields are considered.
+        let InboundSpontaneousPaymentV2 {
+            hash,
+            preimage,
+            amount,
+            sender_intended_amount: _,
+            skimmed_fee: _,
+            onchain_fee: onchain_fees,
+            status,
+            created_at,
+            finalized_at,
+        } = pwm.payment;
+        let PaymentMetadata {
+            id: _,
+            address: _,
+            invoice: _,
+            offer: _,
+            priority: _,
+            quantity: _,
+            replacement_txid: _,
+            note,
+            payer_note: _,
+            payer_name: _,
+        } = pwm.metadata;
 
-        match self.status {
-            Claiming => (),
-            Completed => unreachable!(
-                "caller ensures payment is not already finalized. \
-                 {id} is already {status:?}",
-                id = self.id(),
-                status = self.status
-            ),
-        }
-
-        // TODO(max): In the future, check for on-chain fees here
-
-        // Everything ok; return a clone with the updated state
-        let mut clone = self.clone();
-        clone.status = Completed;
-        clone.finalized_at = Some(TimestampMs::now());
-
-        Ok(clone)
+        Ok(Self {
+            hash,
+            preimage,
+            amount,
+            onchain_fees,
+            status,
+            note,
+            created_at: created_at.context("Missing created_at")?,
+            finalized_at,
+        })
     }
 }
 

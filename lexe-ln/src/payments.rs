@@ -36,7 +36,7 @@ use crate::payments::{
     inbound::{
         InboundInvoicePaymentStatus, InboundInvoicePaymentV2,
         InboundOfferReusablePaymentStatus, InboundOfferReusablePaymentV2,
-        InboundSpontaneousPaymentStatus,
+        InboundSpontaneousPaymentStatus, InboundSpontaneousPaymentV2,
     },
     onchain::{
         OnchainReceiveStatus, OnchainReceiveV2, OnchainSendStatus,
@@ -48,7 +48,6 @@ use crate::payments::{
     },
     v1::{
         PaymentV1,
-        inbound::InboundSpontaneousPaymentV1,
         outbound::{
             OutboundInvoicePaymentV1, OutboundOfferPaymentV1,
             OutboundSpontaneousPaymentV1,
@@ -162,7 +161,7 @@ pub enum PaymentV2 {
     // TODO(phlip9): InboundOffer (single-use)
     // Added in `node-v0.7.8`
     InboundOfferReusable(InboundOfferReusablePaymentV2),
-    InboundSpontaneous(InboundSpontaneousPaymentV1),
+    InboundSpontaneous(InboundSpontaneousPaymentV2),
     OutboundInvoice(OutboundInvoicePaymentV1),
     // Added in `node-v0.7.8`
     OutboundOffer(OutboundOfferPaymentV1),
@@ -331,8 +330,8 @@ impl From<InboundOfferReusablePaymentV2> for PaymentV2 {
         Self::InboundOfferReusable(p)
     }
 }
-impl From<InboundSpontaneousPaymentV1> for PaymentV2 {
-    fn from(p: InboundSpontaneousPaymentV1) -> Self {
+impl From<InboundSpontaneousPaymentV2> for PaymentV2 {
+    fn from(p: InboundSpontaneousPaymentV2) -> Self {
         Self::InboundSpontaneous(p)
     }
 }
@@ -521,7 +520,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::InboundOfferReusable(
                 InboundOfferReusablePaymentV2 { amount, .. },
             ) => Some(*amount),
-            PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV1 {
+            PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV2 {
                 amount,
                 ..
             }) => Some(*amount),
@@ -553,11 +552,10 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::InboundOfferReusable(
                 InboundOfferReusablePaymentV2 { skimmed_fee, .. },
             ) => skimmed_fee.unwrap_or(Amount::ZERO),
-            // TODO(max): This should used the skimmed fee
-            PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV1 {
-                onchain_fees,
+            PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV2 {
+                skimmed_fee,
                 ..
-            }) => onchain_fees.unwrap_or(Amount::ZERO),
+            }) => skimmed_fee.unwrap_or(Amount::ZERO),
             PaymentV2::OutboundInvoice(OutboundInvoicePaymentV1 {
                 fees,
                 ..
@@ -580,10 +578,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::OnchainReceive(_) => &self.metadata.note,
             PaymentV2::InboundInvoice(_) => &self.metadata.note,
             PaymentV2::InboundOfferReusable(_) => &self.metadata.note,
-            PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV1 {
-                note,
-                ..
-            }) => note,
+            PaymentV2::InboundSpontaneous(_) => &self.metadata.note,
             PaymentV2::OutboundInvoice(OutboundInvoicePaymentV1 {
                 note,
                 ..
@@ -607,10 +602,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::OnchainReceive(_) => &mut self.metadata.note,
             PaymentV2::InboundInvoice(_) => &mut self.metadata.note,
             PaymentV2::InboundOfferReusable(_) => &mut self.metadata.note,
-            PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV1 {
-                note,
-                ..
-            }) => note,
+            PaymentV2::InboundSpontaneous(_) => &mut self.metadata.note,
             PaymentV2::OutboundInvoice(OutboundInvoicePaymentV1 {
                 note,
                 ..
@@ -644,7 +636,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::InboundOfferReusable(
                 InboundOfferReusablePaymentV2 { finalized_at, .. },
             ) => *finalized_at,
-            PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV1 {
+            PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV2 {
                 finalized_at,
                 ..
             }) => *finalized_at,
@@ -824,7 +816,7 @@ impl PaymentV2 {
                 status,
                 ..
             }) => PaymentStatus::from(*status),
-            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV2 {
                 status,
                 ..
             }) => PaymentStatus::from(*status),
@@ -853,7 +845,7 @@ impl PaymentV2 {
                 status,
                 ..
             }) => status.as_str(),
-            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV2 {
                 status,
                 ..
             }) => status.as_str(),
@@ -890,10 +882,10 @@ impl PaymentV2 {
                 created_at,
                 ..
             }) => *created_at,
-            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV2 {
                 created_at,
                 ..
-            }) => Some(*created_at),
+            }) => *created_at,
             Self::OutboundInvoice(OutboundInvoicePaymentV1 {
                 created_at,
                 ..
@@ -936,10 +928,12 @@ impl PaymentV2 {
                 created_at: _field,
                 ..
             }) => (),
-            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
-                created_at: _field,
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV2 {
+                created_at: field,
                 ..
-            }) => (),
+            }) => {
+                field.get_or_insert(created_at);
+            }
             Self::OutboundInvoice(OutboundInvoicePaymentV1 {
                 created_at: _field,
                 ..
@@ -970,7 +964,7 @@ impl PaymentV2 {
                 finalized_at,
                 ..
             }) => *finalized_at,
-            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV2 {
                 finalized_at,
                 ..
             }) => *finalized_at,
@@ -1307,7 +1301,7 @@ mod test {
         payments.extend(
             arbitrary::gen_value_iter(
                 &mut rng,
-                any::<InboundSpontaneousPaymentV1>(),
+                any::<InboundSpontaneousPaymentV2>(),
             )
             .take(COUNT)
             .map(PaymentV2::InboundSpontaneous),
@@ -1385,7 +1379,7 @@ mod test {
             ),
             (
                 "InboundSpontaneous",
-                any::<InboundSpontaneousPaymentV1>()
+                any::<InboundSpontaneousPaymentV2>()
                     .prop_map(PaymentV2::InboundSpontaneous)
                     .boxed(),
             ),

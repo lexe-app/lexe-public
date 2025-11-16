@@ -25,10 +25,13 @@ use crate::{
     esplora::{LexeEsplora, TxConfStatus},
     payments::{
         PaymentV2, PaymentWithMetadata,
-        inbound::{ClaimableError, InboundOfferReusablePaymentV2, LnClaimCtx},
+        inbound::{
+            ClaimableError, InboundOfferReusablePaymentV2,
+            InboundSpontaneousPaymentV2, LnClaimCtx,
+        },
         onchain::OnchainReceiveV2,
         outbound::{ExpireError, LxOutboundPaymentFailure},
-        v1::{PaymentV1, inbound::InboundSpontaneousPaymentV1},
+        v1::PaymentV1,
     },
     test_event::TestEventSender,
     traits::{LexeChannelManager, LexeInnerPersister, LexePersister},
@@ -1077,11 +1080,13 @@ impl PaymentsData {
                 } => {
                     // We just got a new spontaneous payment!
                     // Create the new payment.
-                    let isp = InboundSpontaneousPaymentV1::new(
-                        hash, preimage, amount,
+                    let ispwm = InboundSpontaneousPaymentV2::new(
+                        hash,
+                        preimage,
+                        amount,
+                        skimmed_fee,
                     );
-                    let pwm = PaymentWithMetadata::from(PaymentV1::from(isp));
-                    Ok(CheckedPayment(pwm))
+                    Ok(CheckedPayment(ispwm.into_enum()))
                 }
             },
         }
@@ -1151,12 +1156,21 @@ impl PaymentsData {
                     hash,
                     claim_id: _,
                 },
-            ) => isp
-                .check_payment_claimed(hash, preimage, amount)
-                .map(PaymentV1::from)
-                .map(PaymentWithMetadata::from)
-                .map(CheckedPayment)
-                .context("Error finalizing inbound spontaneous payment")?,
+            ) => {
+                let checked_isp = isp
+                    .check_payment_claimed(
+                        hash,
+                        preimage,
+                        amount,
+                        sender_intended_amount,
+                    )
+                    .context("Error finalizing inbound spontaneous payment")?;
+                let ispwm = PaymentWithMetadata {
+                    payment: checked_isp,
+                    metadata: pending_pwm.metadata.clone(),
+                };
+                CheckedPayment(ispwm.into_enum())
+            }
             // TODO(phlip9): impl BOLT 12 refunds
             _ => bail!(
                 "Not an inbound LN payment, or claim context didn't match"
@@ -1485,7 +1499,7 @@ mod test {
             mut data in any::<PaymentsData>(),
             // check_payment_claimable precondition: Must not be finalized
             //   check_payment_claimed precondition: Must not be finalized
-            isp in any_with::<InboundSpontaneousPaymentV1>(pending_only),
+            isp in any_with::<InboundSpontaneousPaymentV2>(pending_only),
             // currently does nothing for spontaneous payments, but could catch
             // an unintended change.
             claim_id in any::<Option<LnClaimId>>(),
