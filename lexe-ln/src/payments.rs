@@ -43,15 +43,12 @@ use crate::payments::{
         OnchainSendV2,
     },
     outbound::{
-        OutboundInvoicePaymentStatus, OutboundOfferPaymentStatus,
-        OutboundSpontaneousPaymentStatus,
+        OutboundInvoicePaymentStatus, OutboundInvoicePaymentV2,
+        OutboundOfferPaymentStatus, OutboundSpontaneousPaymentStatus,
     },
     v1::{
         PaymentV1,
-        outbound::{
-            OutboundInvoicePaymentV1, OutboundOfferPaymentV1,
-            OutboundSpontaneousPaymentV1,
-        },
+        outbound::{OutboundOfferPaymentV1, OutboundSpontaneousPaymentV1},
     },
 };
 
@@ -162,7 +159,7 @@ pub enum PaymentV2 {
     // Added in `node-v0.7.8`
     InboundOfferReusable(InboundOfferReusablePaymentV2),
     InboundSpontaneous(InboundSpontaneousPaymentV2),
-    OutboundInvoice(OutboundInvoicePaymentV1),
+    OutboundInvoice(OutboundInvoicePaymentV2),
     // Added in `node-v0.7.8`
     OutboundOffer(OutboundOfferPaymentV1),
     OutboundSpontaneous(OutboundSpontaneousPaymentV1),
@@ -335,8 +332,8 @@ impl From<InboundSpontaneousPaymentV2> for PaymentV2 {
         Self::InboundSpontaneous(p)
     }
 }
-impl From<OutboundInvoicePaymentV1> for PaymentV2 {
-    fn from(p: OutboundInvoicePaymentV1) -> Self {
+impl From<OutboundInvoicePaymentV2> for PaymentV2 {
+    fn from(p: OutboundInvoicePaymentV2) -> Self {
         Self::OutboundInvoice(p)
     }
 }
@@ -405,7 +402,7 @@ impl PaymentWithMetadata<PaymentV2> {
                 .map(|invoice| Box::new(invoice.clone())),
             PaymentV2::InboundOfferReusable(_) => None,
             PaymentV2::InboundSpontaneous(_) => None,
-            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV1 {
+            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV2 {
                 invoice,
                 ..
             }) => Some(invoice.clone()),
@@ -524,7 +521,7 @@ impl PaymentWithMetadata<PaymentV2> {
                 amount,
                 ..
             }) => Some(*amount),
-            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV1 {
+            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV2 {
                 amount,
                 ..
             }) => Some(*amount),
@@ -556,7 +553,7 @@ impl PaymentWithMetadata<PaymentV2> {
                 skimmed_fee,
                 ..
             }) => skimmed_fee.unwrap_or(Amount::ZERO),
-            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV1 {
+            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV2 {
                 fees,
                 ..
             }) => *fees,
@@ -579,7 +576,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::InboundInvoice(_) => &self.metadata.note,
             PaymentV2::InboundOfferReusable(_) => &self.metadata.note,
             PaymentV2::InboundSpontaneous(_) => &self.metadata.note,
-            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV1 {
+            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV2 {
                 note,
                 ..
             }) => note,
@@ -603,7 +600,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::InboundInvoice(_) => &mut self.metadata.note,
             PaymentV2::InboundOfferReusable(_) => &mut self.metadata.note,
             PaymentV2::InboundSpontaneous(_) => &mut self.metadata.note,
-            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV1 {
+            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV2 {
                 note,
                 ..
             }) => note,
@@ -640,7 +637,7 @@ impl PaymentWithMetadata<PaymentV2> {
                 finalized_at,
                 ..
             }) => *finalized_at,
-            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV1 {
+            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV2 {
                 finalized_at,
                 ..
             }) => *finalized_at,
@@ -820,7 +817,7 @@ impl PaymentV2 {
                 status,
                 ..
             }) => PaymentStatus::from(*status),
-            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
+            Self::OutboundInvoice(OutboundInvoicePaymentV2 {
                 status, ..
             }) => PaymentStatus::from(*status),
             Self::OutboundOffer(OutboundOfferPaymentV1 { status, .. }) =>
@@ -849,7 +846,7 @@ impl PaymentV2 {
                 status,
                 ..
             }) => status.as_str(),
-            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
+            Self::OutboundInvoice(OutboundInvoicePaymentV2 {
                 status,
                 failure,
                 ..
@@ -886,7 +883,7 @@ impl PaymentV2 {
                 created_at,
                 ..
             }) => *created_at,
-            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
+            Self::OutboundInvoice(OutboundInvoicePaymentV2 {
                 created_at,
                 ..
             }) => Some(*created_at),
@@ -934,7 +931,7 @@ impl PaymentV2 {
             }) => {
                 field.get_or_insert(created_at);
             }
-            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
+            Self::OutboundInvoice(OutboundInvoicePaymentV2 {
                 created_at: _field,
                 ..
             }) => (),
@@ -968,7 +965,7 @@ impl PaymentV2 {
                 finalized_at,
                 ..
             }) => *finalized_at,
-            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
+            Self::OutboundInvoice(OutboundInvoicePaymentV2 {
                 finalized_at,
                 ..
             }) => *finalized_at,
@@ -1309,7 +1306,7 @@ mod test {
         payments.extend(
             arbitrary::gen_value_iter(
                 &mut rng,
-                any::<OutboundInvoicePaymentV1>(),
+                any::<OutboundInvoicePaymentV2>(),
             )
             .take(COUNT)
             .map(PaymentV2::OutboundInvoice),
@@ -1385,7 +1382,7 @@ mod test {
             ),
             (
                 "OutboundInvoice",
-                any::<OutboundInvoicePaymentV1>()
+                any::<OutboundInvoicePaymentV2>()
                     .prop_map(PaymentV2::OutboundInvoice)
                     .boxed(),
             ),

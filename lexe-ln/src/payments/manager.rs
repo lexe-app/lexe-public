@@ -1197,12 +1197,16 @@ impl PaymentsData {
             .context("Pending payment does not exist")?;
 
         let checked = match &pending_pwm.payment {
-            PaymentV2::OutboundInvoice(oip) => oip
-                .check_payment_sent(hash, preimage, maybe_fees_paid)
-                .map(PaymentV1::from)
-                .map(PaymentWithMetadata::from)
-                .map(CheckedPayment)
-                .context("Error checking outbound invoice payment")?,
+            PaymentV2::OutboundInvoice(oip) => {
+                let checked_oip = oip
+                    .check_payment_sent(hash, preimage, maybe_fees_paid)
+                    .context("Error checking outbound invoice payment")?;
+                let oipwm = PaymentWithMetadata {
+                    payment: checked_oip,
+                    metadata: pending_pwm.metadata.clone(),
+                };
+                CheckedPayment(oipwm.into_enum())
+            }
             PaymentV2::OutboundOffer(oop) => oop
                 .check_payment_sent(hash, preimage, maybe_fees_paid)
                 .map(PaymentV1::from)
@@ -1232,12 +1236,16 @@ impl PaymentsData {
             .context("Pending payment does not exist")?;
 
         let checked = match &pending_pwm.payment {
-            PaymentV2::OutboundInvoice(oip) => oip
-                .check_payment_failed(id, failure)
-                .map(PaymentV1::from)
-                .map(PaymentWithMetadata::from)
-                .map(CheckedPayment)
-                .context("Error checking outbound invoice payment")?,
+            PaymentV2::OutboundInvoice(oip) => {
+                let checked_oip = oip
+                    .check_payment_failed(id, failure)
+                    .context("Error checking outbound invoice payment")?;
+                let oipwm = PaymentWithMetadata {
+                    payment: checked_oip,
+                    metadata: pending_pwm.metadata.clone(),
+                };
+                CheckedPayment(oipwm.into_enum())
+            }
             PaymentV2::OutboundOffer(oop) => oop
                 .check_payment_failed(failure)
                 .map(PaymentV1::from)
@@ -1281,11 +1289,13 @@ impl PaymentsData {
                     }),
                 PaymentV2::OutboundInvoice(oip) => {
                     match oip.check_invoice_expiry(now) {
-                        Ok(oip) => {
-                            ops_to_abandon.push(oip.ldk_id());
-                            let pwm =
-                                PaymentWithMetadata::from(PaymentV1::from(oip));
-                            Some(CheckedPayment(pwm))
+                        Ok(checked_oip) => {
+                            ops_to_abandon.push(checked_oip.ldk_id());
+                            let oipwm = PaymentWithMetadata {
+                                payment: checked_oip,
+                                metadata: pwm.metadata.clone(),
+                            };
+                            Some(CheckedPayment(oipwm.into_enum()))
                         }
                         Err(ExpireError::Ignore) => None,
                         Err(ExpireError::IgnoreAndAbandon) => {
@@ -1415,10 +1425,11 @@ mod test {
             InboundInvoicePaymentV2, InboundOfferReusablePaymentV2,
             OfferClaimCtx,
         },
-        outbound::OutboundInvoicePaymentStatus,
-        v1::outbound::{
-            OutboundInvoicePaymentV1, OutboundOfferPaymentV1, arb::OipParamsV1,
+        outbound::{
+            OutboundInvoicePaymentStatus, OutboundInvoicePaymentV2,
+            arbitrary_impl::OipParamsV2,
         },
+        v1::outbound::OutboundOfferPaymentV1,
     };
 
     impl PaymentsData {
@@ -1630,7 +1641,7 @@ mod test {
             mut data in any::<PaymentsData>(),
             //   check_payment_sent precondition: Must not be finalized
             // check_payment_failed precondition: Must not be finalized
-            oip in any_with::<OutboundInvoicePaymentV1>(OipParamsV1 {
+            oip in any_with::<OutboundInvoicePaymentV2>(OipParamsV2 {
                 payment_preimage: Some(preimage),
                 pending_only: true,
             }),
@@ -1677,7 +1688,7 @@ mod test {
 
         let preimage = LxPaymentPreimage::from_array([0x42; 32]);
         proptest!(|(
-            oip in any_with::<OutboundInvoicePaymentV1>(OipParamsV1 {
+            oip in any_with::<OutboundInvoicePaymentV2>(OipParamsV2 {
                 payment_preimage: Some(preimage),
                 //   check_payment_sent precondition: Must not be finalized
                 // check_payment_failed precondition: Must not be finalized

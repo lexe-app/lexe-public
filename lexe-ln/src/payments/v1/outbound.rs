@@ -20,11 +20,15 @@ use lightning::{
     routing::router::Route,
 };
 use serde::{Deserialize, Serialize};
-use tracing::{info, warn};
+use tracing::warn;
 
-use crate::payments::outbound::{
-    ExpireError, LxOutboundPaymentFailure, OutboundInvoicePaymentStatus,
-    OutboundOfferPaymentStatus, OutboundSpontaneousPaymentStatus,
+use crate::payments::{
+    PaymentMetadata, PaymentWithMetadata,
+    outbound::{
+        ExpireError, LxOutboundPaymentFailure, OutboundInvoicePaymentStatus,
+        OutboundInvoicePaymentV2, OutboundOfferPaymentStatus,
+        OutboundSpontaneousPaymentStatus,
+    },
 };
 #[cfg(doc)]
 use crate::{
@@ -80,38 +84,6 @@ pub struct OutboundInvoicePaymentV1 {
 }
 
 impl OutboundInvoicePaymentV1 {
-    /// Create a new outbound invoice payment.
-    ///
-    /// - `amount` is the total amount paid, excluding fees. May be greater than
-    ///   the invoiced amount if the payer had to reach `htlc_minimum_msat`
-    ///   limits.
-    /// - `fees` is the total Lightning routing fees paid.
-    //
-    // Event sources:
-    // - `pay_invoice` API
-    pub fn new(
-        invoice: LxInvoice,
-        amount: Amount,
-        fees: Amount,
-        note: Option<String>,
-    ) -> Self {
-        let hash = invoice.payment_hash();
-        let secret = invoice.payment_secret();
-        Self {
-            invoice: Box::new(invoice),
-            hash,
-            secret,
-            preimage: None,
-            amount,
-            fees,
-            status: OutboundInvoicePaymentStatus::Pending,
-            failure: None,
-            note,
-            created_at: TimestampMs::now(),
-            finalized_at: None,
-        }
-    }
-
     #[inline]
     pub fn id(&self) -> LxPaymentId {
         LxPaymentId::Lightning(self.hash)
@@ -121,148 +93,80 @@ impl OutboundInvoicePaymentV1 {
     pub fn ldk_id(&self) -> lightning::ln::channelmanager::PaymentId {
         lightning::ln::channelmanager::PaymentId(self.hash.to_array())
     }
+}
 
-    /// Handle a [`PaymentSent`] event for this payment.
-    ///
-    /// ## Precondition
-    ///
-    /// - The payment must not be finalized (Completed | Failed).
-    //
-    // Event sources:
-    // - `EventHandler` -> `Event::PaymentSent` (replayable)
-    pub(crate) fn check_payment_sent(
-        &self,
-        hash: LxPaymentHash,
-        preimage: LxPaymentPreimage,
-        maybe_fees_paid: Option<Amount>,
-    ) -> anyhow::Result<Self> {
-        use OutboundInvoicePaymentStatus::*;
+impl From<OutboundInvoicePaymentV1>
+    for PaymentWithMetadata<OutboundInvoicePaymentV2>
+{
+    fn from(v1: OutboundInvoicePaymentV1) -> Self {
+        let id = v1.id();
+        let payment = OutboundInvoicePaymentV2 {
+            invoice: v1.invoice,
+            hash: v1.hash,
+            secret: v1.secret,
+            preimage: v1.preimage,
+            amount: v1.amount,
+            fees: v1.fees,
+            status: v1.status,
+            failure: v1.failure,
+            note: v1.note,
+            created_at: v1.created_at,
+            finalized_at: v1.finalized_at,
+        };
+        let metadata = PaymentMetadata::empty(id);
 
-        ensure!(hash == self.hash, "Hashes don't match");
-
-        let computed_hash = preimage.compute_hash();
-        ensure!(hash == computed_hash, "Preimage doesn't correspond to hash");
-
-        let estimated_fees = &self.fees;
-        let final_fees = maybe_fees_paid
-            .inspect(|fees_paid| {
-                if fees_paid != estimated_fees {
-                    info!(
-                        %hash,
-                        "Estimated fees from Route was {estimated_fees} msat; \
-                        actually paid {fees_paid} msat."
-                    );
-                }
-            })
-            .unwrap_or_else(|| {
-                warn!(
-                    "Did not hear back on final fees paid for OIP; the \
-                    estimated fee will be included with the finalized payment."
-                );
-                *estimated_fees
-            });
-
-        let status = self.status;
-        match self.status {
-            Pending => (),
-            Abandoning =>
-                warn!("Attempted to abandon this OIP but it succeeded anyway"),
-            Completed | Failed => {
-                let id = LxPaymentId::Lightning(hash);
-                unreachable!(
-                    "caller ensures payment is not already finalized. \
-                     {id} is already {status:?}"
-                );
-            }
-        }
-
-        let mut clone = self.clone();
-        clone.preimage = Some(preimage);
-        clone.fees = final_fees;
-        clone.status = Completed;
-        clone.finalized_at = Some(TimestampMs::now());
-
-        Ok(clone)
+        Self { payment, metadata }
     }
+}
 
-    /// Handle a [`PaymentFailed`] event for this payment.
-    ///
-    /// ## Precondition
-    ///
-    /// - The payment must not be finalized (Completed | Failed).
-    //
-    // Event sources:
-    // - `EventHandler` -> `Event::PaymentFailed` (replayable)
-    // - `pay_invoice` API
-    pub(crate) fn check_payment_failed(
-        &self,
-        id: LxPaymentId,
-        failure: LxOutboundPaymentFailure,
-    ) -> anyhow::Result<Self> {
-        use OutboundInvoicePaymentStatus::*;
+impl TryFrom<PaymentWithMetadata<OutboundInvoicePaymentV2>>
+    for OutboundInvoicePaymentV1
+{
+    type Error = anyhow::Error;
 
-        ensure!(
-            matches!(id, LxPaymentId::Lightning(hash) if hash == self.hash),
-            "Id doesn't match hash",
-        );
+    fn try_from(
+        pwm: PaymentWithMetadata<OutboundInvoicePaymentV2>,
+    ) -> Result<Self, Self::Error> {
+        // Intentionally destructure to ensure all fields are considered.
+        let OutboundInvoicePaymentV2 {
+            invoice,
+            hash,
+            secret,
+            preimage,
+            amount,
+            fees,
+            status,
+            failure,
+            note,
+            created_at,
+            finalized_at,
+        } = pwm.payment;
+        let PaymentMetadata {
+            id: _,
+            address: _,
+            invoice: _,
+            offer: _,
+            priority: _,
+            quantity: _,
+            replacement_txid: _,
+            note: _,
+            payer_note: _,
+            payer_name: _,
+        } = pwm.metadata;
 
-        let status = self.status;
-        match status {
-            Pending | Abandoning => (),
-            Completed | Failed => unreachable!(
-                "caller ensures payment is not already finalized. \
-                 {id} is already {status:?}"
-            ),
-        }
-
-        let mut clone = self.clone();
-        clone.status = Failed;
-        clone.failure = Some(failure);
-        clone.finalized_at = Some(TimestampMs::now());
-
-        Ok(clone)
-    }
-
-    /// Checks whether this payment's invoice has expired. If so, and if the
-    /// state transition to `Abandoning` is valid, returns a clone with the
-    /// state transition applied.
-    ///
-    /// ## Precondition
-    /// - The payment must not be finalized (Completed | Failed).
-    //
-    // Event sources:
-    // - `PaymentsManager::spawn_payment_expiry_checker` task
-    pub(crate) fn check_invoice_expiry(
-        &self,
-        now: TimestampMs,
-    ) -> Result<Self, ExpireError> {
-        use OutboundInvoicePaymentStatus::*;
-
-        // Not expired yet, do nothing.
-        if !self.invoice.is_expired_at(now) {
-            return Err(ExpireError::Ignore);
-        }
-
-        match self.status {
-            Pending => (),
-            // We may crash after persisting the payment but before the channel
-            // manager persists. Don't persist anything new, but re-abandon the
-            // payment.
-            Abandoning => return Err(ExpireError::IgnoreAndAbandon),
-            Completed | Failed => unreachable!(
-                "caller ensures payment is not already finalized. \
-                 {id} is already {status:?}",
-                id = self.id(),
-                status = self.status,
-            ),
-        }
-
-        // Validation complete; invoice newly expired
-
-        let mut clone = self.clone();
-        clone.status = Abandoning;
-
-        Ok(clone)
+        Ok(Self {
+            invoice,
+            hash,
+            secret,
+            preimage,
+            amount,
+            fees,
+            status,
+            failure,
+            note,
+            created_at,
+            finalized_at,
+        })
     }
 }
 

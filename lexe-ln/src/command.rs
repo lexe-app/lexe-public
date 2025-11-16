@@ -85,14 +85,14 @@ use crate::{
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     payments::{
-        PaymentWithMetadata,
+        PaymentMetadata, PaymentV2, PaymentWithMetadata,
         inbound::InboundInvoicePaymentV2,
         manager::PaymentsManager,
-        outbound::{LxOutboundPaymentFailure, OUTBOUND_PAYMENT_RETRY_STRATEGY},
-        v1::{
-            PaymentV1,
-            outbound::{OutboundInvoicePaymentV1, OutboundOfferPaymentV1},
+        outbound::{
+            LxOutboundPaymentFailure, OUTBOUND_PAYMENT_RETRY_STRATEGY,
+            OutboundInvoicePaymentV2,
         },
+        v1::{PaymentV1, outbound::OutboundOfferPaymentV1},
     },
     route::{self, LastHopHint, RoutingContext},
     sync::BdkSyncRequest,
@@ -919,14 +919,15 @@ where
     )
     .await?;
     let hash = payment.hash;
-
-    let payment = PaymentV1::from(payment);
     let id = payment.id();
-    let created_at = payment.created_at();
+    let created_at = payment.created_at;
 
     // Pre-flight looks good, now we can register this payment in the Lexe
     // payments manager.
-    let pwm = PaymentWithMetadata::from(payment);
+    let pwm = PaymentWithMetadata {
+        payment: PaymentV2::OutboundInvoice(payment),
+        metadata: PaymentMetadata::empty(id),
+    };
     payments_manager
         .new_payment(pwm)
         .await
@@ -1288,7 +1289,7 @@ pub fn preflight_pay_onchain(
 // A preflighted BOLT11 invoice payment. That is, this is the outcome of
 // validating and routing a BOLT11 invoice, without actually paying yet.
 struct PreflightedPayInvoice {
-    payment: OutboundInvoicePaymentV1,
+    payment: OutboundInvoicePaymentV2,
     route: LxRoute,
     route_params: RouteParameters,
     recipient_fields: RecipientOnionFields,
@@ -1380,10 +1381,9 @@ where
 
     let amount = route.amount();
     let fees = route.fees();
-    let payment =
-        OutboundInvoicePaymentV1::new(invoice, amount, fees, req.note);
+    let oipwm = OutboundInvoicePaymentV2::new(invoice, amount, fees, req.note);
     Ok(PreflightedPayInvoice {
-        payment,
+        payment: oipwm.payment,
         route,
         route_params,
         recipient_fields,
