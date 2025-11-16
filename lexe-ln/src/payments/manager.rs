@@ -25,15 +25,10 @@ use crate::{
     esplora::{LexeEsplora, TxConfStatus},
     payments::{
         PaymentV2, PaymentWithMetadata,
-        inbound::{ClaimableError, LnClaimCtx},
+        inbound::{ClaimableError, InboundOfferReusablePaymentV2, LnClaimCtx},
         onchain::OnchainReceiveV2,
         outbound::{ExpireError, LxOutboundPaymentFailure},
-        v1::{
-            PaymentV1,
-            inbound::{
-                InboundOfferReusablePaymentV1, InboundSpontaneousPaymentV1,
-            },
-        },
+        v1::{PaymentV1, inbound::InboundSpontaneousPaymentV1},
     },
     test_event::TestEventSender,
     traits::{LexeChannelManager, LexeInnerPersister, LexePersister},
@@ -1068,10 +1063,12 @@ impl PaymentsData {
                         "Tried to claim non-existent inbound invoice payment"
                     ))),
                 LnClaimCtx::Bolt12Offer(ctx) => {
-                    let iorp =
-                        InboundOfferReusablePaymentV1::new(ctx, amount, now);
-                    let pwm = PaymentWithMetadata::from(PaymentV1::from(iorp));
-                    Ok(CheckedPayment(pwm))
+                    let iorpwm = InboundOfferReusablePaymentV2::new(
+                        ctx,
+                        amount,
+                        skimmed_fee,
+                    );
+                    Ok(CheckedPayment(iorpwm.into_enum()))
                 }
                 LnClaimCtx::Spontaneous {
                     hash,
@@ -1135,12 +1132,18 @@ impl PaymentsData {
             (
                 PaymentV2::InboundOfferReusable(iorp),
                 LnClaimCtx::Bolt12Offer(ctx),
-            ) => iorp
-                .check_payment_claimed(ctx, amount)
-                .map(PaymentV1::from)
-                .map(PaymentWithMetadata::from)
-                .map(CheckedPayment)
-                .context("Error finalizing reusable inbound offer payment")?,
+            ) => {
+                let checked_iorp = iorp
+                    .check_payment_claimed(ctx, amount, sender_intended_amount)
+                    .context(
+                        "Error finalizing reusable inbound offer payment",
+                    )?;
+                let iorpwm = PaymentWithMetadata {
+                    payment: checked_iorp,
+                    metadata: pending_pwm.metadata.clone(),
+                };
+                CheckedPayment(iorpwm.into_enum())
+            }
             (
                 PaymentV2::InboundSpontaneous(isp),
                 LnClaimCtx::Spontaneous {
@@ -1394,14 +1397,13 @@ mod test {
     use super::*;
     use crate::payments::{
         PaymentMetadata,
-        inbound::{InboundInvoicePaymentV2, OfferClaimCtx},
+        inbound::{
+            InboundInvoicePaymentV2, InboundOfferReusablePaymentV2,
+            OfferClaimCtx,
+        },
         outbound::OutboundInvoicePaymentStatus,
-        v1::{
-            inbound::InboundOfferReusablePaymentV1,
-            outbound::{
-                OutboundInvoicePaymentV1, OutboundOfferPaymentV1,
-                arb::OipParamsV1,
-            },
+        v1::outbound::{
+            OutboundInvoicePaymentV1, OutboundOfferPaymentV1, arb::OipParamsV1,
         },
     };
 
@@ -1574,7 +1576,7 @@ mod test {
             mut data in any::<PaymentsData>(),
             // check_payment_claimable precondition: Must not be finalized
             //   check_payment_claimed precondition: Must not be finalized
-            iorp in any_with::<InboundOfferReusablePaymentV1>(pending_only),
+            iorp in any_with::<InboundOfferReusablePaymentV2>(pending_only),
             now in any::<TimestampMs>(),
         )| {
             let payment = PaymentV2::InboundOfferReusable(iorp.clone());
@@ -1584,9 +1586,9 @@ mod test {
                 preimage: iorp.preimage,
                 claim_id: iorp.claim_id,
                 offer_id: iorp.offer_id,
-                quantity: iorp.quantity,
-                payer_note: iorp.payer_note,
-                payer_name: iorp.payer_name,
+                quantity: None,
+                payer_note: None,
+                payer_name: None,
             });
 
             // NOTE: New payment duplicate check moved to manager/DB layer.

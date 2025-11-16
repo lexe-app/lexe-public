@@ -126,8 +126,11 @@ impl OnchainSendV2 {
             invoice: None,
             offer: None,
             priority: Some(priority),
+            quantity: None,
             replacement_txid: None,
             note,
+            payer_note: None,
+            payer_name: None,
         };
 
         PaymentWithMetadata {

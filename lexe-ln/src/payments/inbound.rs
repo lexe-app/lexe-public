@@ -18,13 +18,10 @@ use lightning::{
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
+#[cfg(doc)]
+use crate::command::create_invoice;
 use crate::payments::{
     PaymentMetadata, PaymentV2, PaymentWithMetadata, manager::CheckedPayment,
-};
-#[cfg(doc)]
-use crate::{
-    command::create_invoice,
-    payments::v1::inbound::InboundOfferReusablePaymentV1,
 };
 
 // --- Helpers to delegate to the inner type --- //
@@ -169,7 +166,7 @@ pub enum LnClaimCtx {
 }
 
 /// Data used to handle a [`PaymentClaimable`]/[`PaymentClaimed`] event for an
-/// [`InboundOfferReusablePaymentV1`].
+/// [`InboundOfferReusablePaymentV2`].
 #[derive(Clone)]
 pub struct OfferClaimCtx {
     pub preimage: LxPaymentPreimage,
@@ -391,8 +388,11 @@ impl InboundInvoicePaymentV2 {
             invoice: Some(invoice),
             offer: None,
             priority: None,
+            quantity: None,
             replacement_txid: None,
             note: None,
+            payer_note: None,
+            payer_name: None,
         };
 
         PaymentWithMetadata {
@@ -623,6 +623,52 @@ impl InboundInvoicePaymentV2 {
 
 // TODO(phlip9): single-use BOLT12 offer payments
 
+/// An inbound, _reusable_ BOLT12 offer payment. This struct is created when we
+/// get a [`PaymentClaimable`] event, with
+/// [`PaymentPurpose::Bolt12OfferPayment`].
+//
+// TODO(phlip9): we'll need to maintain a separate `Offer` metadata store to
+// correlate `offer_id` with the actual offer. This is mostly useful to get our
+// original offer `description`. This would need to be optional though to
+// support externally generated offers (e.g. dumb shopify plugin generates an
+// offer without letting the node know).
+//
+// Added in `node-v0.7.8`
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct InboundOfferReusablePaymentV2 {
+    /// The claim id uniquely identifies a single payment for this offer.
+    /// It is the hash of the HTLC(s) paying a payment hash.
+    pub claim_id: LnClaimId,
+    /// Unique identifier for the original offer, which may be paid multiple
+    /// times.
+    pub offer_id: LxOfferId,
+    /// The payment preimage for this offer payment.
+    pub preimage: LxPaymentPreimage,
+
+    /// The amount we received for this payment.
+    pub amount: Amount,
+    /// The sender intended sum-total of all MPP parts.
+    /// Populated during [`PaymentClaimed`].
+    pub sender_intended_amount: Option<Amount>,
+
+    /// The amount that was skimmed off of this payment as an extra fee taken
+    /// by our channel counterparty. Populated during [`PaymentClaimable`].
+    pub skimmed_fee: Option<Amount>,
+    /// The portion of the skimmed amount that was used to cover the on-chain
+    /// fees incurred by a JIT channel opened to receive this payment.
+    /// None if no on-chain fees were incurred.
+    // TODO(max): Currently not used; implement
+    pub onchain_fee: Option<Amount>,
+
+    /// The current payment status.
+    pub status: InboundOfferReusablePaymentStatus,
+    /// When we first learned of this payment via [`PaymentClaimable`].
+    /// Set to `Some(...)` on first persist.
+    pub created_at: Option<TimestampMs>,
+    /// When this payment reached the `Completed` state.
+    pub finalized_at: Option<TimestampMs>,
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(test, derive(strum::VariantArray, Hash))]
@@ -637,6 +683,142 @@ pub enum InboundOfferReusablePaymentStatus {
     // be true (i.e. we observe a number of inbound reusable offer payments
     // stuck in the "claiming" state), then we can add a "Failed" state
     // here. https://discord.com/channels/915026692102316113/978829624635195422/1085427776070365214
+}
+
+impl InboundOfferReusablePaymentV2 {
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
+    pub(crate) fn new(
+        ctx: OfferClaimCtx,
+        amount: Amount,
+        skimmed_fee: Option<Amount>,
+    ) -> PaymentWithMetadata<Self> {
+        let iorp = Self {
+            claim_id: ctx.claim_id,
+            offer_id: ctx.offer_id,
+            preimage: ctx.preimage,
+            amount,
+            sender_intended_amount: None,
+            skimmed_fee,
+            onchain_fee: None,
+            status: InboundOfferReusablePaymentStatus::Claiming,
+            created_at: None,
+            finalized_at: None,
+        };
+
+        let metadata = PaymentMetadata {
+            id: iorp.id(),
+            address: None,
+            invoice: None,
+            offer: None,
+            priority: None,
+            quantity: ctx.quantity,
+            replacement_txid: None,
+            note: None,
+            payer_note: ctx.payer_note,
+            payer_name: ctx.payer_name,
+        };
+        PaymentWithMetadata {
+            payment: iorp,
+            metadata,
+        }
+    }
+
+    /// ## Precondition
+    /// - The payment must not be finalized (`Completed`).
+    //
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
+    //
+    // We're likely replaying a `PaymentClaimable` event that we partially
+    // handled before crashing.
+    pub(crate) fn check_payment_claimable(
+        &self,
+        ctx: OfferClaimCtx,
+        amount: Amount,
+    ) -> ClaimableError {
+        use InboundOfferReusablePaymentStatus::*;
+
+        // Catch payment state machine errors
+        if ctx.preimage != self.preimage {
+            return ClaimableError::Replay(anyhow::anyhow!(
+                "Preimages don't match"
+            ));
+        }
+        if ctx.offer_id != self.offer_id {
+            return ClaimableError::Replay(anyhow::anyhow!(
+                "Offer ids don't match"
+            ));
+        }
+        if ctx.claim_id != self.claim_id {
+            return ClaimableError::Replay(anyhow::anyhow!(
+                "Claim ids don't match"
+            ));
+        }
+        if amount != self.amount {
+            return ClaimableError::Replay(anyhow::anyhow!(
+                "Amounts don't match"
+            ));
+        }
+
+        match self.status {
+            Claiming => (),
+            Completed => {
+                unreachable!(
+                    "caller ensures payment is not already finalized. \
+                     {id} is already {status:?}",
+                    id = self.id(),
+                    status = self.status
+                );
+            }
+        }
+
+        // There is no state to update, but this may be a replay after crash,
+        // so try to reclaim
+        ClaimableError::IgnoreAndReclaim
+    }
+
+    /// ## Precondition
+    /// - The payment must not be finalized (`Completed` or `Expired`).
+    //
+    // Event sources:
+    // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
+    pub(crate) fn check_payment_claimed(
+        &self,
+        ctx: OfferClaimCtx,
+        amount: Amount,
+        sender_intended_amount: Option<Amount>,
+    ) -> anyhow::Result<Self> {
+        use InboundOfferReusablePaymentStatus::*;
+
+        ensure!(ctx.preimage == self.preimage, "Preimages don't match");
+        ensure!(ctx.claim_id == self.claim_id, "Claim ids don't match");
+        ensure!(ctx.offer_id == self.offer_id, "Offer ids don't match");
+        ensure!(amount == self.amount, "Amounts don't match");
+
+        match self.status {
+            Claiming => (),
+            Completed => unreachable!(
+                "caller ensures payment is not already finalized. \
+                 {id} is already {status:?}",
+                id = self.id(),
+                status = self.status
+            ),
+        }
+
+        // Everything ok; return a clone with the updated state
+        let mut clone = self.clone();
+        clone.sender_intended_amount = sender_intended_amount;
+        clone.status = Completed;
+        clone.finalized_at = Some(TimestampMs::now());
+
+        Ok(clone)
+    }
+
+    #[inline]
+    pub fn id(&self) -> LxPaymentId {
+        LxPaymentId::OfferRecvReusable(self.claim_id)
+    }
 }
 
 // --- Inbound spontaneous payments --- //
@@ -791,6 +973,85 @@ mod arbitrary_impl {
                 proptest::sample::select(InboundInvoicePaymentStatus::VARIANTS)
                     .boxed()
             }
+        }
+    }
+
+    impl Arbitrary for InboundOfferReusablePaymentV2 {
+        // pending_only: whether to only generate pending payments.
+        type Parameters = bool;
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
+            let preimage = any::<LxPaymentPreimage>();
+            let claim_id = any::<LnClaimId>();
+            let offer_id = any::<LxOfferId>();
+            let amount = any::<Amount>();
+            let sender_intended_amount = any::<Amount>();
+            let skimmed_fee = any::<Amount>();
+            let status =
+                any_with::<InboundOfferReusablePaymentStatus>(pending_only);
+            // TODO(max): Use option::of once created_at is always set on first
+            // persist. For now, we generate payments as if already persisted.
+            let created_at = any::<TimestampMs>();
+            let finalized_after = arbitrary::any_duration();
+
+            let gen_iorp = move |(
+                preimage,
+                claim_id,
+                offer_id,
+                amount,
+                sender_intended_amount,
+                skimmed_fee,
+                status,
+                created_at,
+                finalized_after,
+            )| {
+                use InboundOfferReusablePaymentStatus::*;
+
+                let sender_intended_amount = match status {
+                    Claiming => None,
+                    Completed => Some(sender_intended_amount),
+                };
+                let skimmed_fee = Some(skimmed_fee);
+
+                let created_at: TimestampMs = created_at; // provides type hint
+                let finalized_at = if pending_only {
+                    None
+                } else {
+                    let finalized_at =
+                        created_at.saturating_add(finalized_after);
+                    PaymentStatus::from(status)
+                        .is_finalized()
+                        .then_some(finalized_at)
+                };
+
+                InboundOfferReusablePaymentV2 {
+                    claim_id,
+                    offer_id,
+                    preimage,
+                    amount,
+                    sender_intended_amount,
+                    skimmed_fee,
+                    onchain_fee: None,
+                    status,
+                    created_at: Some(created_at),
+                    finalized_at,
+                }
+            };
+
+            (
+                preimage,
+                claim_id,
+                offer_id,
+                amount,
+                sender_intended_amount,
+                skimmed_fee,
+                status,
+                created_at,
+                finalized_after,
+            )
+                .prop_map(gen_iorp)
+                .boxed()
         }
     }
 

@@ -71,8 +71,11 @@ impl From<OnchainSendV1> for PaymentWithMetadata<OnchainSendV2> {
             invoice: None,
             offer: None,
             priority: Some(v1.priority),
+            quantity: None,
             replacement_txid: v1.replacement,
             note: v1.note,
+            payer_note: None,
+            payer_name: None,
         };
 
         Self { payment, metadata }
@@ -102,8 +105,11 @@ impl TryFrom<PaymentWithMetadata<OnchainSendV2>> for OnchainSendV1 {
             invoice: _,
             offer: _,
             priority,
+            quantity: _,
             replacement_txid: replacement,
             note,
+            payer_note: _,
+            payer_name: _,
         } = pwm.metadata;
 
         Ok(Self {
@@ -167,8 +173,11 @@ impl From<OnchainReceiveV1> for PaymentWithMetadata<OnchainReceiveV2> {
             invoice: None,
             offer: None,
             priority: None,
+            quantity: None,
             replacement_txid: v1.replacement,
             note: v1.note,
+            payer_note: None,
+            payer_name: None,
         };
 
         Self { payment, metadata }

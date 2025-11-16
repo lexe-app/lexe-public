@@ -27,8 +27,8 @@ use crate::payments::{
     PaymentMetadata, PaymentWithMetadata,
     inbound::{
         ClaimableError, InboundInvoicePaymentStatus, InboundInvoicePaymentV2,
-        InboundOfferReusablePaymentStatus, InboundSpontaneousPaymentStatus,
-        OfferClaimCtx,
+        InboundOfferReusablePaymentStatus, InboundOfferReusablePaymentV2,
+        InboundSpontaneousPaymentStatus,
     },
 };
 
@@ -120,8 +120,11 @@ impl From<InboundInvoicePaymentV1>
             invoice: Some(*v1.invoice),
             offer: None,
             priority: None,
+            quantity: None,
             replacement_txid: None,
             note: v1.note,
+            payer_note: None,
+            payer_name: None,
         };
 
         Self { payment, metadata }
@@ -158,8 +161,11 @@ impl TryFrom<PaymentWithMetadata<InboundInvoicePaymentV2>>
             invoice,
             offer: _,
             priority: _,
+            quantity: _,
             replacement_txid: _,
             note,
+            payer_note: _,
+            payer_name: _,
         } = pwm.metadata;
 
         Ok(Self {
@@ -229,127 +235,92 @@ pub struct InboundOfferReusablePaymentV1 {
 }
 
 impl InboundOfferReusablePaymentV1 {
-    // Event sources:
-    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
-    pub(crate) fn new(
-        ctx: OfferClaimCtx,
-        amount: Amount,
-        now: TimestampMs,
-    ) -> Self {
-        Self {
-            claim_id: ctx.claim_id,
-            offer_id: ctx.offer_id,
-            preimage: ctx.preimage,
-            amount,
-            quantity: ctx.quantity,
-            status: InboundOfferReusablePaymentStatus::Claiming,
-            note: None,
-            payer_note: ctx.payer_note,
-            payer_name: ctx.payer_name,
-            created_at: now,
-            finalized_at: None,
-        }
-    }
-
-    /// ## Precondition
-    /// - The payment must not be finalized (`Completed`).
-    //
-    // Event sources:
-    // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
-    //
-    // We're likely replaying a `PaymentClaimable` event that we partially
-    // handled before crashing.
-    pub(crate) fn check_payment_claimable(
-        &self,
-        ctx: OfferClaimCtx,
-        amount: Amount,
-    ) -> ClaimableError {
-        use InboundOfferReusablePaymentStatus::*;
-
-        // Catch payment state machine errors
-        if ctx.preimage != self.preimage {
-            return ClaimableError::Replay(anyhow::anyhow!(
-                "Preimages don't match"
-            ));
-        }
-        if ctx.offer_id != self.offer_id {
-            return ClaimableError::Replay(anyhow::anyhow!(
-                "Offer ids don't match"
-            ));
-        }
-        if ctx.claim_id != self.claim_id {
-            return ClaimableError::Replay(anyhow::anyhow!(
-                "Claim ids don't match"
-            ));
-        }
-        if amount != self.amount {
-            return ClaimableError::Replay(anyhow::anyhow!(
-                "Amounts don't match"
-            ));
-        }
-
-        match self.status {
-            Claiming => (),
-            Completed => {
-                unreachable!(
-                    "caller ensures payment is not already finalized. \
-                     {id} is already {status:?}",
-                    id = self.id(),
-                    status = self.status
-                );
-            }
-        }
-
-        // There is no state to update, but this may be a replay after crash,
-        // so try to reclaim
-        ClaimableError::IgnoreAndReclaim
-    }
-
-    /// ## Precondition
-    /// - The payment must not be finalized (`Completed` or `Expired`).
-    //
-    // Event sources:
-    // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
-    pub(crate) fn check_payment_claimed(
-        &self,
-        ctx: OfferClaimCtx,
-        amount: Amount,
-    ) -> anyhow::Result<Self> {
-        use InboundOfferReusablePaymentStatus::*;
-
-        ensure!(ctx.preimage == self.preimage, "Preimages don't match");
-        ensure!(ctx.claim_id == self.claim_id, "Claim ids don't match");
-        ensure!(ctx.offer_id == self.offer_id, "Offer ids don't match");
-        ensure!(amount == self.amount, "Amounts don't match");
-
-        match self.status {
-            Claiming => (),
-            Completed => unreachable!(
-                "caller ensures payment is not already finalized. \
-                 {id} is already {status:?}",
-                id = self.id(),
-                status = self.status
-            ),
-        }
-
-        // Everything ok; return a clone with the updated state
-        let mut clone = self.clone();
-        clone.status = Completed;
-        clone.finalized_at = Some(TimestampMs::now());
-
-        Ok(clone)
-    }
-
     #[inline]
     pub fn id(&self) -> LxPaymentId {
         LxPaymentId::OfferRecvReusable(self.claim_id)
     }
+}
 
-    /// The total fees we paid to receive this payment
-    #[inline]
-    pub(crate) const fn fees(&self) -> Amount {
-        // TODO(phlip9): impl LSP skimming to charge receiver for fees
-        Amount::ZERO
+impl From<InboundOfferReusablePaymentV1>
+    for PaymentWithMetadata<InboundOfferReusablePaymentV2>
+{
+    fn from(v1: InboundOfferReusablePaymentV1) -> Self {
+        let payment = InboundOfferReusablePaymentV2 {
+            claim_id: v1.claim_id,
+            offer_id: v1.offer_id,
+            preimage: v1.preimage,
+            amount: v1.amount,
+            sender_intended_amount: None,
+            skimmed_fee: None,
+            onchain_fee: None,
+            status: v1.status,
+            created_at: Some(v1.created_at),
+            finalized_at: v1.finalized_at,
+        };
+        let metadata = PaymentMetadata {
+            id: v1.id(),
+            address: None,
+            invoice: None,
+            offer: None,
+            priority: None,
+            quantity: v1.quantity,
+            replacement_txid: None,
+            note: v1.note,
+            payer_note: v1.payer_note,
+            payer_name: v1.payer_name,
+        };
+
+        Self { payment, metadata }
+    }
+}
+
+impl TryFrom<PaymentWithMetadata<InboundOfferReusablePaymentV2>>
+    for InboundOfferReusablePaymentV1
+{
+    type Error = anyhow::Error;
+
+    fn try_from(
+        pwm: PaymentWithMetadata<InboundOfferReusablePaymentV2>,
+    ) -> Result<Self, Self::Error> {
+        // Intentionally destructure to ensure all fields are considered.
+        let InboundOfferReusablePaymentV2 {
+            claim_id,
+            offer_id,
+            preimage,
+            amount,
+            sender_intended_amount: _,
+            skimmed_fee: _,
+            onchain_fee: _,
+            status,
+            created_at,
+            finalized_at,
+        } = pwm.payment;
+        let PaymentMetadata {
+            id: _,
+            address: _,
+            invoice: _,
+            offer: _,
+            priority: _,
+            quantity,
+            replacement_txid: _,
+            note,
+            payer_note,
+            payer_name,
+        } = pwm.metadata;
+
+        Ok(Self {
+            claim_id,
+            offer_id,
+            preimage,
+            amount,
+            quantity,
+            status,
+            note,
+            payer_note,
+            payer_name,
+            created_at: created_at.context("Missing created_at")?,
+            finalized_at,
+        })
     }
 }
 
@@ -495,7 +466,6 @@ impl InboundSpontaneousPaymentV1 {
 mod arb {
     use arbitrary::{any_duration, any_option_simple_string};
     use lexe_api::types::{
-        invoice::arbitrary_impl::LxInvoiceParams,
         offer::MaxQuantity,
         payments::{LxPaymentPreimage, PaymentStatus},
     };
@@ -507,88 +477,50 @@ mod arb {
     use super::*;
 
     impl Arbitrary for InboundInvoicePaymentV1 {
-        // pending_only: whether to only generate pending payments.
-        type Parameters = bool;
+        type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
-        fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
-            let preimage = any::<LxPaymentPreimage>();
-            let preimage_invoice = preimage.prop_ind_flat_map2(|preimage| {
-                any_with::<LxInvoice>(LxInvoiceParams {
-                    payment_preimage: Some(preimage),
-                })
-            });
-
-            let claim_id = any::<LnClaimId>();
-            let recvd_amount = any::<Amount>();
-            let status = any_with::<InboundInvoicePaymentStatus>(pending_only);
-            let note = any_option_simple_string();
-            let created_at = any::<TimestampMs>();
-            let finalized_after = any_duration();
-
-            let gen_iip = move |(
-                preimage_invoice,
-                claim_id,
-                recvd_amount,
-                status,
-                note,
-                created_at,
-                finalized_after,
-            )| {
-                use InboundInvoicePaymentStatus::*;
-
-                let (preimage, invoice): (LxPaymentPreimage, LxInvoice) =
-                    preimage_invoice;
-                let hash = invoice.payment_hash();
-                let secret = invoice.payment_secret();
-                let invoice_amount = invoice.amount();
-                let claim_id = match status {
-                    InvoiceGenerated | Expired => None,
-                    Claiming | Completed => Some(claim_id),
-                };
-                let recvd_amount = match status {
-                    InvoiceGenerated | Expired => None,
-                    Claiming | Completed => Some(recvd_amount),
-                };
-                let created_at: TimestampMs = created_at; // provides type hint
-                let finalized_at = if pending_only {
-                    None
-                } else {
-                    let finalized_at =
-                        created_at.saturating_add(finalized_after);
-                    PaymentStatus::from(status)
-                        .is_finalized()
-                        .then_some(finalized_at)
-                };
-
-                InboundInvoicePaymentV1 {
-                    invoice: Box::new(invoice),
-                    hash,
-                    secret,
+        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+            any::<(
+                LxInvoice,
+                LxPaymentPreimage,
+                Option<LnClaimId>,
+                Option<Amount>,
+                Option<Amount>,
+                InboundInvoicePaymentStatus,
+                Option<String>,
+                TimestampMs,
+                Option<TimestampMs>,
+            )>()
+            .prop_map(
+                |(
+                    invoice,
                     preimage,
                     claim_id,
                     invoice_amount,
                     recvd_amount,
-                    // TODO(phlip9): it looks like we don't implement this yet
-                    onchain_fees: None,
                     status,
                     note,
                     created_at,
                     finalized_at,
-                }
-            };
-
-            (
-                preimage_invoice,
-                claim_id,
-                recvd_amount,
-                status,
-                note,
-                created_at,
-                finalized_after,
+                )| {
+                    Self {
+                        invoice: Box::new(invoice.clone()),
+                        hash: invoice.payment_hash(),
+                        secret: invoice.payment_secret(),
+                        preimage,
+                        claim_id,
+                        invoice_amount,
+                        recvd_amount,
+                        onchain_fees: None,
+                        status,
+                        note,
+                        created_at,
+                        finalized_at,
+                    }
+                },
             )
-                .prop_map(gen_iip)
-                .boxed()
+            .boxed()
         }
     }
 

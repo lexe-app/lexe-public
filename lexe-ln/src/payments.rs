@@ -3,6 +3,8 @@
 //! This module is the 'complex' counterpart to the simpler types exposed in
 //! [`lexe_api::types::payments`].
 
+use std::num::NonZeroU64;
+
 use anyhow::Context;
 use bitcoin::address::NetworkUnchecked;
 #[cfg(test)]
@@ -33,7 +35,8 @@ use serde::{Deserialize, Serialize};
 use crate::payments::{
     inbound::{
         InboundInvoicePaymentStatus, InboundInvoicePaymentV2,
-        InboundOfferReusablePaymentStatus, InboundSpontaneousPaymentStatus,
+        InboundOfferReusablePaymentStatus, InboundOfferReusablePaymentV2,
+        InboundSpontaneousPaymentStatus,
     },
     onchain::{
         OnchainReceiveStatus, OnchainReceiveV2, OnchainSendStatus,
@@ -45,7 +48,7 @@ use crate::payments::{
     },
     v1::{
         PaymentV1,
-        inbound::{InboundOfferReusablePaymentV1, InboundSpontaneousPaymentV1},
+        inbound::InboundSpontaneousPaymentV1,
         outbound::{
             OutboundInvoicePaymentV1, OutboundOfferPaymentV1,
             OutboundSpontaneousPaymentV1,
@@ -158,7 +161,7 @@ pub enum PaymentV2 {
     InboundInvoice(InboundInvoicePaymentV2),
     // TODO(phlip9): InboundOffer (single-use)
     // Added in `node-v0.7.8`
-    InboundOfferReusable(InboundOfferReusablePaymentV1),
+    InboundOfferReusable(InboundOfferReusablePaymentV2),
     InboundSpontaneous(InboundSpontaneousPaymentV1),
     OutboundInvoice(OutboundInvoicePaymentV1),
     // Added in `node-v0.7.8`
@@ -194,6 +197,9 @@ pub struct PaymentMetadata {
     /// (On-chain send only) The confirmation priority used for this payment.
     pub priority: Option<ConfirmationPriority>,
 
+    /// (Inbound offer reusable only) The number of items the payer bought.
+    pub quantity: Option<NonZeroU64>,
+
     /// (Onchain payments only) The txid of the replacement tx, if one exists.
     pub replacement_txid: Option<LxTxid>,
 
@@ -204,6 +210,22 @@ pub struct PaymentMetadata {
         proptest(strategy = "option::of(Just(String::from(\"note\")))")
     )]
     pub note: Option<String>,
+
+    /// (Inbound offer reusable only) A payer-provided note for this payment.
+    /// LDK truncates this to PAYER_NOTE_LIMIT bytes (512 B as of 2025-04-22).
+    #[cfg_attr(
+        test,
+        proptest(strategy = "option::of(Just(String::from(\"payer note\")))")
+    )]
+    pub payer_note: Option<String>,
+
+    /// (Inbound offer reusable only)
+    /// The payer's self-reported human-readable name.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "option::of(Just(String::from(\"payer name\")))")
+    )]
+    pub payer_name: Option<String>,
 }
 
 /// An update to a [`PaymentMetadata`].
@@ -218,9 +240,15 @@ pub(crate) struct PaymentMetadataUpdate {
 
     pub priority: Option<Option<ConfirmationPriority>>,
 
+    pub quantity: Option<Option<NonZeroU64>>,
+
     pub replacement_txid: Option<Option<LxTxid>>,
 
     pub note: Option<Option<String>>,
+
+    pub payer_note: Option<Option<String>>,
+
+    pub payer_name: Option<Option<String>>,
 }
 
 // --- Encryption --- //
@@ -298,8 +326,8 @@ impl From<InboundInvoicePaymentV2> for PaymentV2 {
         Self::InboundInvoice(p)
     }
 }
-impl From<InboundOfferReusablePaymentV1> for PaymentV2 {
-    fn from(p: InboundOfferReusablePaymentV1) -> Self {
+impl From<InboundOfferReusablePaymentV2> for PaymentV2 {
+    fn from(p: InboundOfferReusablePaymentV2) -> Self {
         Self::InboundOfferReusable(p)
     }
 }
@@ -396,7 +424,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::OnchainReceive(_) => None,
             PaymentV2::InboundInvoice(_) => None,
             PaymentV2::InboundOfferReusable(
-                InboundOfferReusablePaymentV1 { offer_id, .. },
+                InboundOfferReusablePaymentV2 { offer_id, .. },
             ) => Some(*offer_id),
             PaymentV2::InboundSpontaneous(_) => None,
             PaymentV2::OutboundInvoice(_) => None,
@@ -491,7 +519,7 @@ impl PaymentWithMetadata<PaymentV2> {
                 ..
             }) => recvd_amount.or(*invoice_amount),
             PaymentV2::InboundOfferReusable(
-                InboundOfferReusablePaymentV1 { amount, .. },
+                InboundOfferReusablePaymentV2 { amount, .. },
             ) => Some(*amount),
             PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV1 {
                 amount,
@@ -512,7 +540,6 @@ impl PaymentWithMetadata<PaymentV2> {
     }
 
     /// The fees paid or expected to be paid for this payment.
-    // TODO(max): Remove fn once all matching is removed
     // TODO(max): Ensure consistent name for `onchain_fee` (no trailing 's')
     pub fn fees(&self) -> Amount {
         match &self.payment {
@@ -520,14 +547,17 @@ impl PaymentWithMetadata<PaymentV2> {
             // We don't pay anything to receive money onchain
             PaymentV2::OnchainReceive(OnchainReceiveV2 { .. }) => Amount::ZERO,
             PaymentV2::InboundInvoice(InboundInvoicePaymentV2 {
-                onchain_fee,
+                skimmed_fee,
                 ..
-            }) => onchain_fee.unwrap_or(Amount::from_msat(0)),
-            PaymentV2::InboundOfferReusable(iorp) => iorp.fees(),
+            }) => skimmed_fee.unwrap_or(Amount::ZERO),
+            PaymentV2::InboundOfferReusable(
+                InboundOfferReusablePaymentV2 { skimmed_fee, .. },
+            ) => skimmed_fee.unwrap_or(Amount::ZERO),
+            // TODO(max): This should used the skimmed fee
             PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV1 {
                 onchain_fees,
                 ..
-            }) => onchain_fees.unwrap_or(Amount::from_msat(0)),
+            }) => onchain_fees.unwrap_or(Amount::ZERO),
             PaymentV2::OutboundInvoice(OutboundInvoicePaymentV1 {
                 fees,
                 ..
@@ -549,9 +579,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::OnchainSend(_) => &self.metadata.note,
             PaymentV2::OnchainReceive(_) => &self.metadata.note,
             PaymentV2::InboundInvoice(_) => &self.metadata.note,
-            PaymentV2::InboundOfferReusable(
-                InboundOfferReusablePaymentV1 { note, .. },
-            ) => note,
+            PaymentV2::InboundOfferReusable(_) => &self.metadata.note,
             PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV1 {
                 note,
                 ..
@@ -578,9 +606,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::OnchainSend(_) => &mut self.metadata.note,
             PaymentV2::OnchainReceive(_) => &mut self.metadata.note,
             PaymentV2::InboundInvoice(_) => &mut self.metadata.note,
-            PaymentV2::InboundOfferReusable(
-                InboundOfferReusablePaymentV1 { note, .. },
-            ) => note,
+            PaymentV2::InboundOfferReusable(_) => &mut self.metadata.note,
             PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV1 {
                 note,
                 ..
@@ -616,7 +642,7 @@ impl PaymentWithMetadata<PaymentV2> {
                 ..
             }) => *finalized_at,
             PaymentV2::InboundOfferReusable(
-                InboundOfferReusablePaymentV1 { finalized_at, .. },
+                InboundOfferReusablePaymentV2 { finalized_at, .. },
             ) => *finalized_at,
             PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV1 {
                 finalized_at,
@@ -649,8 +675,11 @@ impl PaymentMetadata {
             invoice: None,
             offer: None,
             priority: None,
+            quantity: None,
             replacement_txid: None,
             note: None,
+            payer_note: None,
+            payer_name: None,
         }
     }
 
@@ -665,16 +694,22 @@ impl PaymentMetadata {
             invoice,
             offer,
             priority,
+            quantity,
             replacement_txid,
             note,
+            payer_note,
+            payer_name,
         } = self;
 
         address.is_none()
             && invoice.is_none()
             && offer.is_none()
             && priority.is_none()
+            && quantity.is_none()
             && replacement_txid.is_none()
             && note.is_none()
+            && payer_note.is_none()
+            && payer_name.is_none()
     }
 
     /// Applies a metadata update to this [`PaymentMetadata`].
@@ -689,17 +724,23 @@ impl PaymentMetadata {
             invoice,
             offer,
             priority,
+            quantity,
             replacement_txid,
             note,
+            payer_note,
+            payer_name,
         } = update;
 
         self.address = address.unwrap_or(self.address);
         self.invoice = invoice.unwrap_or(self.invoice);
         self.offer = offer.unwrap_or(self.offer);
         self.priority = priority.unwrap_or(self.priority);
+        self.quantity = quantity.unwrap_or(self.quantity);
         self.replacement_txid =
             replacement_txid.unwrap_or(self.replacement_txid);
         self.note = note.unwrap_or(self.note);
+        self.payer_note = payer_note.unwrap_or(self.payer_note);
+        self.payer_name = payer_name.unwrap_or(self.payer_name);
 
         self
     }
@@ -711,8 +752,11 @@ impl PaymentMetadataUpdate {
         invoice: None,
         offer: None,
         priority: None,
+        quantity: None,
         replacement_txid: None,
         note: None,
+        payer_note: None,
+        payer_name: None,
     };
 
     #[allow(dead_code)] // TODO(max): Remove
@@ -776,7 +820,7 @@ impl PaymentV2 {
             Self::InboundInvoice(InboundInvoicePaymentV2 {
                 status, ..
             }) => PaymentStatus::from(*status),
-            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV2 {
                 status,
                 ..
             }) => PaymentStatus::from(*status),
@@ -805,7 +849,7 @@ impl PaymentV2 {
             Self::InboundInvoice(InboundInvoicePaymentV2 {
                 status, ..
             }) => status.as_str(),
-            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV2 {
                 status,
                 ..
             }) => status.as_str(),
@@ -842,10 +886,10 @@ impl PaymentV2 {
                 created_at,
                 ..
             }) => *created_at,
-            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV2 {
                 created_at,
                 ..
-            }) => Some(*created_at),
+            }) => *created_at,
             Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
                 created_at,
                 ..
@@ -888,7 +932,7 @@ impl PaymentV2 {
             }) => {
                 field.get_or_insert(created_at);
             }
-            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV2 {
                 created_at: _field,
                 ..
             }) => (),
@@ -922,7 +966,7 @@ impl PaymentV2 {
                 finalized_at,
                 ..
             }) => *finalized_at,
-            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV2 {
                 finalized_at,
                 ..
             }) => *finalized_at,
@@ -1204,16 +1248,16 @@ mod test {
     fn payment_id_equivalence() {
         let cfg = Config::with_cases(100);
 
-        proptest!(cfg, |(payment: PaymentV1)| {
+        proptest!(cfg, |(payment: PaymentV2)| {
             let id = match &payment {
-                PaymentV1::OnchainSend(x) => x.id(),
-                PaymentV1::OnchainReceive(x) => x.id(),
-                PaymentV1::InboundInvoice(x) => x.id(),
-                PaymentV1::InboundOfferReusable(x) => x.id(),
-                PaymentV1::InboundSpontaneous(x) => x.id(),
-                PaymentV1::OutboundInvoice(x) => x.id(),
-                PaymentV1::OutboundOffer(x) => x.id(),
-                PaymentV1::OutboundSpontaneous(x) => x.id(),
+                PaymentV2::OnchainSend(x) => x.id(),
+                PaymentV2::OnchainReceive(x) => x.id(),
+                PaymentV2::InboundInvoice(x) => x.id(),
+                PaymentV2::InboundOfferReusable(x) => x.id(),
+                PaymentV2::InboundSpontaneous(x) => x.id(),
+                PaymentV2::OutboundInvoice(x) => x.id(),
+                PaymentV2::OutboundOffer(x) => x.id(),
+                PaymentV2::OutboundSpontaneous(x) => x.id(),
             };
             prop_assert_eq!(id, payment.id());
         });
@@ -1255,7 +1299,7 @@ mod test {
         payments.extend(
             arbitrary::gen_value_iter(
                 &mut rng,
-                any::<InboundOfferReusablePaymentV1>(),
+                any::<InboundOfferReusablePaymentV2>(),
             )
             .take(COUNT)
             .map(PaymentV2::InboundOfferReusable),
@@ -1335,7 +1379,7 @@ mod test {
             ),
             (
                 "InboundOfferReusable",
-                any::<InboundOfferReusablePaymentV1>()
+                any::<InboundOfferReusablePaymentV2>()
                     .prop_map(PaymentV2::InboundOfferReusable)
                     .boxed(),
             ),

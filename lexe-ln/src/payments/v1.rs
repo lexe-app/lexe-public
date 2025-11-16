@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::payments::{
     PaymentMetadata, PaymentV2, PaymentWithMetadata,
-    inbound::InboundInvoicePaymentV2,
+    inbound::{InboundInvoicePaymentV2, InboundOfferReusablePaymentV2},
     onchain::{OnchainReceiveV2, OnchainSendV2},
     v1::{
         inbound::{
@@ -151,10 +151,9 @@ impl From<PaymentV1> for PaymentWithMetadata {
             PaymentV1::InboundInvoice(p) =>
                 PaymentWithMetadata::<InboundInvoicePaymentV2>::from(p)
                     .into_enum(),
-            PaymentV1::InboundOfferReusable(p) => Self {
-                payment: p.into(),
-                metadata: PaymentMetadata::empty(id),
-            },
+            PaymentV1::InboundOfferReusable(p) =>
+                PaymentWithMetadata::<InboundOfferReusablePaymentV2>::from(p)
+                    .into_enum(),
             PaymentV1::InboundSpontaneous(p) => Self {
                 payment: p.into(),
                 metadata: PaymentMetadata::empty(id),
@@ -207,8 +206,16 @@ impl TryFrom<PaymentWithMetadata> for PaymentV1 {
                     .context("InboundInvoice conversion")?;
                 PaymentV1::InboundInvoice(iipv1)
             }
-            PaymentV2::InboundOfferReusable(p) =>
-                PaymentV1::InboundOfferReusable(p),
+            PaymentV2::InboundOfferReusable(iorpv2) => {
+                let iorpwm =
+                    PaymentWithMetadata::<InboundOfferReusablePaymentV2> {
+                        payment: iorpv2,
+                        metadata: pwm.metadata,
+                    };
+                let iorpv1 = InboundOfferReusablePaymentV1::try_from(iorpwm)
+                    .context("InboundOfferReusable conversion")?;
+                PaymentV1::InboundOfferReusable(iorpv1)
+            }
             PaymentV2::InboundSpontaneous(p) =>
                 PaymentV1::InboundSpontaneous(p),
             PaymentV2::OutboundInvoice(p) => PaymentV1::OutboundInvoice(p),
@@ -466,12 +473,13 @@ impl PaymentV1 {
             Self::InboundInvoice(InboundInvoicePaymentV1 {
                 onchain_fees,
                 ..
-            }) => onchain_fees.unwrap_or(Amount::from_msat(0)),
-            Self::InboundOfferReusable(iorp) => iorp.fees(),
+            }) => onchain_fees.unwrap_or(Amount::ZERO),
+            // TODO(phlip9): impl LSP skimming to charge receiver for fees
+            Self::InboundOfferReusable(_) => Amount::ZERO,
             Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
                 onchain_fees,
                 ..
-            }) => onchain_fees.unwrap_or(Amount::from_msat(0)),
+            }) => onchain_fees.unwrap_or(Amount::ZERO),
             Self::OutboundInvoice(OutboundInvoicePaymentV1 {
                 fees, ..
             }) => *fees,
@@ -744,25 +752,6 @@ mod test {
         json_value_custom(any::<OutboundInvoicePaymentV1>(), config.clone());
         json_value_custom(any::<OutboundOfferPaymentV1>(), config.clone());
         json_value_custom(any::<OutboundSpontaneousPaymentV1>(), config);
-    }
-
-    #[test]
-    fn payment_id_equivalence() {
-        let cfg = Config::with_cases(100);
-
-        proptest!(cfg, |(payment: PaymentV1)| {
-            let id = match &payment {
-                PaymentV1::OnchainSend(x) => x.id(),
-                PaymentV1::OnchainReceive(x) => x.id(),
-                PaymentV1::InboundInvoice(x) => x.id(),
-                PaymentV1::InboundOfferReusable(x) => x.id(),
-                PaymentV1::InboundSpontaneous(x) => x.id(),
-                PaymentV1::OutboundInvoice(x) => x.id(),
-                PaymentV1::OutboundOffer(x) => x.id(),
-                PaymentV1::OutboundSpontaneous(x) => x.id(),
-            };
-            prop_assert_eq!(id, payment.id());
-        });
     }
 
     /// Dumps a JSON array of `Payment`s using the proptest strategy.
