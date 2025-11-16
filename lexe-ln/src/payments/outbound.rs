@@ -56,9 +56,6 @@ pub enum ExpireError {
 /// [`PaymentsManager::check_payment_expiries`]: crate::payments::manager::PaymentsManager::check_payment_expiries
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OutboundInvoicePaymentV2 {
-    /// The invoice given by our recipient which we want to pay.
-    // LxInvoice is ~300 bytes, Box to avoid the enum variant lint
-    pub invoice: Box<LxInvoice>,
     /// The payment hash encoded in the invoice.
     pub hash: LxPaymentHash,
     /// The payment secret encoded in the invoice.
@@ -67,6 +64,7 @@ pub struct OutboundInvoicePaymentV2 {
     /// The preimage, which serves as a proof-of-payment.
     /// This field is populated if and only if the status is `Completed`.
     pub preimage: Option<LxPaymentPreimage>,
+
     /// The amount sent in this payment, given by [`Route::get_total_amount`].
     ///
     /// [`Route::get_total_amount`]: lightning::routing::router::Route::get_total_amount
@@ -78,18 +76,22 @@ pub struct OutboundInvoicePaymentV2 {
     /// completed, then this field should reflect the actual fees paid.
     ///
     /// [`Route`]: lightning::routing::router::Route
-    pub fees: Amount,
+    pub routing_fee: Amount,
+
     /// The current status of the payment.
     pub status: OutboundInvoicePaymentStatus,
+
     /// For a failed payment, the reason why it failed.
+    // Is part of the core type because (1) it's small and
+    // (2) it contains information possibly of interest for later analysis.
     pub failure: Option<LxOutboundPaymentFailure>,
-    /// An optional personal note for this payment. Since the receiver sets the
-    /// invoice description, which might just be an unhelpful 🍆 emoji, the
-    /// user has the option to add this note at the time of invoice
-    /// payment.
-    pub note: Option<String>,
+
     /// When we initiated this payment.
-    pub created_at: TimestampMs,
+    /// Set to `Some(...)` on first persist.
+    pub created_at: Option<TimestampMs>,
+    /// When the invoice expires. Computed from the invoice's timestamp +
+    /// expiry duration. `None` if the expiry timestamp overflows.
+    pub expires_at: Option<TimestampMs>,
     /// When this payment either `Completed` or `Failed`.
     pub finalized_at: Option<TimestampMs>,
 }
@@ -122,33 +124,44 @@ impl OutboundInvoicePaymentV2 {
     /// - `amount` is the total amount paid, excluding fees. May be greater than
     ///   the invoiced amount if the payer had to reach `htlc_minimum_msat`
     ///   limits.
-    /// - `fees` is the total Lightning routing fees paid.
+    /// - `routing_fee` is the total Lightning routing fees paid.
     //
     // Event sources:
     // - `pay_invoice` API
     pub fn new(
         invoice: LxInvoice,
         amount: Amount,
-        fees: Amount,
+        routing_fee: Amount,
         note: Option<String>,
     ) -> PaymentWithMetadata<Self> {
         let hash = invoice.payment_hash();
         let secret = invoice.payment_secret();
+        let expires_at = invoice.saturating_expires_at();
         let oip = Self {
-            invoice: Box::new(invoice),
             hash,
             secret,
             preimage: None,
             amount,
-            fees,
+            routing_fee,
             status: OutboundInvoicePaymentStatus::Pending,
             failure: None,
-            note,
-            created_at: TimestampMs::now(),
+            created_at: None,
+            expires_at: Some(expires_at),
             finalized_at: None,
         };
 
-        let metadata = PaymentMetadata::empty(oip.id());
+        let metadata = PaymentMetadata {
+            id: oip.id(),
+            address: None,
+            invoice: Some(invoice),
+            offer: None,
+            priority: None,
+            quantity: None,
+            replacement_txid: None,
+            note,
+            payer_note: None,
+            payer_name: None,
+        };
 
         PaymentWithMetadata {
             payment: oip,
@@ -187,23 +200,23 @@ impl OutboundInvoicePaymentV2 {
         let computed_hash = preimage.compute_hash();
         ensure!(hash == computed_hash, "Preimage doesn't correspond to hash");
 
-        let estimated_fees = &self.fees;
-        let final_fees = maybe_fees_paid
-            .inspect(|fees_paid| {
-                if fees_paid != estimated_fees {
+        let estimated_fee = &self.routing_fee;
+        let final_routing_fee = maybe_fees_paid
+            .inspect(|actual_fee| {
+                if actual_fee != estimated_fee {
                     info!(
                         %hash,
-                        "Estimated fees from Route was {estimated_fees} msat; \
-                        actually paid {fees_paid} msat."
+                        "Estimated routing fee from Route was {estimated_fee} \
+                         msat; actually paid {actual_fee} msat."
                     );
                 }
             })
             .unwrap_or_else(|| {
                 warn!(
-                    "Did not hear back on final fees paid for OIP; the \
+                    "Did not hear back on final routing fee paid for OIP; the \
                     estimated fee will be included with the finalized payment."
                 );
-                *estimated_fees
+                *estimated_fee
             });
 
         let status = self.status;
@@ -222,7 +235,7 @@ impl OutboundInvoicePaymentV2 {
 
         let mut clone = self.clone();
         clone.preimage = Some(preimage);
-        clone.fees = final_fees;
+        clone.routing_fee = final_routing_fee;
         clone.status = Completed;
         clone.finalized_at = Some(TimestampMs::now());
 
@@ -282,8 +295,10 @@ impl OutboundInvoicePaymentV2 {
     ) -> Result<Self, ExpireError> {
         use OutboundInvoicePaymentStatus::*;
 
-        // Not expired yet, do nothing.
-        if !self.invoice.is_expired_at(now) {
+        // If not expired yet, do nothing.
+        let is_expired =
+            self.expires_at.is_some_and(|expires_at| now >= expires_at);
+        if !is_expired {
             return Err(ExpireError::Ignore);
         }
 
@@ -431,7 +446,7 @@ impl From<PaymentFailureReason> for LxOutboundPaymentFailure {
 
 #[cfg(test)]
 pub(crate) mod arbitrary_impl {
-    use common::test_utils::arbitrary::{any_duration, any_option_string};
+    use common::test_utils::arbitrary;
     use lexe_api::types::{
         invoice::arbitrary_impl::LxInvoiceParams, payments::LxPaymentPreimage,
     };
@@ -468,19 +483,19 @@ pub(crate) mod arbitrary_impl {
             });
 
             let amount = any::<Amount>();
-            let fees = any::<Amount>();
+            let routing_fee = any::<Amount>();
             let failure = any::<LxOutboundPaymentFailure>();
-            let note = any_option_string();
+            // TODO(max): Use option::of once created_at is always set on first
+            // persist. For now, we generate payments as if already persisted.
             let created_at = any::<TimestampMs>();
-            let finalized_after = any_duration();
+            let finalized_after = arbitrary::any_duration();
 
             let gen_oip = move |(
                 status,
                 preimage_invoice,
                 amount,
-                fees,
-                failure,
-                note,
+                routing_fee,
+                failure_val,
                 created_at,
                 finalized_after,
             )| {
@@ -490,24 +505,23 @@ pub(crate) mod arbitrary_impl {
                 let preimage = (status == Completed).then_some(preimage);
                 let hash = invoice.payment_hash();
                 let secret = invoice.payment_secret();
-                let invoice = Box::new(invoice);
-                let failure = (status == Failed).then_some(failure);
+                let expires_at = invoice.saturating_expires_at();
+                let failure = (status == Failed).then_some(failure_val);
                 let created_at: TimestampMs = created_at; // provides type hint
                 let finalized_at = created_at.saturating_add(finalized_after);
                 let finalized_at = matches!(status, Completed | Failed)
                     .then_some(finalized_at);
 
                 OutboundInvoicePaymentV2 {
-                    invoice,
                     hash,
                     secret,
                     preimage,
                     amount,
-                    fees,
+                    routing_fee,
                     status,
                     failure,
-                    note,
-                    created_at,
+                    created_at: Some(created_at),
+                    expires_at: Some(expires_at),
                     finalized_at,
                 }
             };
@@ -516,9 +530,8 @@ pub(crate) mod arbitrary_impl {
                 status,
                 preimage_invoice,
                 amount,
-                fees,
+                routing_fee,
                 failure,
-                note,
                 created_at,
                 finalized_after,
             )

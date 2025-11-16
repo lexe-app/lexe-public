@@ -1651,7 +1651,7 @@ mod test {
             let id = payment.id();
             data.force_insert_payment(payment);
 
-            let _ = data.check_payment_sent(id, oip.hash, preimage, Some(oip.fees))
+            let _ = data.check_payment_sent(id, oip.hash, preimage, Some(oip.routing_fee))
                 .unwrap();
             let _ = data.check_payment_failed(id, failure).unwrap();
             data.check_payment_expiries(TimestampMs::MAX).unwrap();
@@ -1698,7 +1698,7 @@ mod test {
         )| {
 
             let hash = oip.hash;
-            let fees = oip.fees;
+            let fees = oip.routing_fee;
             let status = oip.status;
 
             let payment = PaymentV2::OutboundInvoice(oip.clone());
@@ -1742,7 +1742,7 @@ mod test {
 
             // [Idempotency]
             // (_, Invoice not expired) -> do nothing
-            let expires_at = oip.invoice.saturating_expires_at();
+            let expires_at = oip.expires_at.unwrap_or(TimestampMs::MAX);
             let (checked_payments, _ids) = data
                 .check_payment_expiries(expires_at)
                 .unwrap();

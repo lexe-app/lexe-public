@@ -85,7 +85,7 @@ use crate::{
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     payments::{
-        PaymentMetadata, PaymentV2, PaymentWithMetadata,
+        PaymentWithMetadata,
         inbound::InboundInvoicePaymentV2,
         manager::PaymentsManager,
         outbound::{
@@ -904,7 +904,7 @@ where
 {
     // Pre-flight the invoice payment (verify and route).
     let PreflightedPayInvoice {
-        payment,
+        oipwm,
         route_params,
         recipient_fields,
         ..
@@ -918,20 +918,17 @@ where
         lsp_fees,
     )
     .await?;
-    let hash = payment.hash;
-    let id = payment.id();
-    let created_at = payment.created_at;
+    let hash = oipwm.payment.hash;
+    let id = oipwm.payment.id();
 
     // Pre-flight looks good, now we can register this payment in the Lexe
     // payments manager.
-    let pwm = PaymentWithMetadata {
-        payment: PaymentV2::OutboundInvoice(payment),
-        metadata: PaymentMetadata::empty(id),
-    };
-    payments_manager
+    let pwm = oipwm.into_enum();
+    let created_index = payments_manager
         .new_payment(pwm)
         .await
         .context("Already tried to pay this invoice")?;
+    let created_at = created_index.created_at;
 
     // TODO(phlip9): handle the case where we crash here before the channel
     // manager persists. We'll be left with a payment that gets stuck `Pending`
@@ -1033,8 +1030,8 @@ where
     )
     .await?;
     Ok(PreflightPayInvoiceResponse {
-        amount: preflight.payment.amount,
-        fees: preflight.payment.fees,
+        amount: preflight.oipwm.payment.amount,
+        fees: preflight.oipwm.payment.routing_fee,
         route: preflight.route,
     })
 }
@@ -1289,7 +1286,7 @@ pub fn preflight_pay_onchain(
 // A preflighted BOLT11 invoice payment. That is, this is the outcome of
 // validating and routing a BOLT11 invoice, without actually paying yet.
 struct PreflightedPayInvoice {
-    payment: OutboundInvoicePaymentV2,
+    oipwm: PaymentWithMetadata<OutboundInvoicePaymentV2>,
     route: LxRoute,
     route_params: RouteParameters,
     recipient_fields: RecipientOnionFields,
@@ -1383,7 +1380,7 @@ where
     let fees = route.fees();
     let oipwm = OutboundInvoicePaymentV2::new(invoice, amount, fees, req.note);
     Ok(PreflightedPayInvoice {
-        payment: oipwm.payment,
+        oipwm,
         route,
         route_params,
         recipient_fields,

@@ -1,8 +1,6 @@
 use std::num::NonZeroU64;
 
-use anyhow::ensure;
-#[cfg(test)]
-use common::test_utils::arbitrary;
+use anyhow::{Context, ensure};
 use common::{ByteArray, ln::amount::Amount, time::TimestampMs};
 use lexe_api::types::{
     invoice::LxInvoice,
@@ -99,21 +97,31 @@ impl From<OutboundInvoicePaymentV1>
     for PaymentWithMetadata<OutboundInvoicePaymentV2>
 {
     fn from(v1: OutboundInvoicePaymentV1) -> Self {
-        let id = v1.id();
+        let expires_at = v1.invoice.saturating_expires_at();
         let payment = OutboundInvoicePaymentV2 {
-            invoice: v1.invoice,
             hash: v1.hash,
             secret: v1.secret,
             preimage: v1.preimage,
             amount: v1.amount,
-            fees: v1.fees,
+            routing_fee: v1.fees,
             status: v1.status,
             failure: v1.failure,
-            note: v1.note,
-            created_at: v1.created_at,
+            created_at: Some(v1.created_at),
+            expires_at: Some(expires_at),
             finalized_at: v1.finalized_at,
         };
-        let metadata = PaymentMetadata::empty(id);
+        let metadata = PaymentMetadata {
+            id: v1.id(),
+            address: None,
+            invoice: Some(*v1.invoice),
+            offer: None,
+            priority: None,
+            quantity: None,
+            replacement_txid: None,
+            note: v1.note,
+            payer_note: None,
+            payer_name: None,
+        };
 
         Self { payment, metadata }
     }
@@ -129,30 +137,33 @@ impl TryFrom<PaymentWithMetadata<OutboundInvoicePaymentV2>>
     ) -> Result<Self, Self::Error> {
         // Intentionally destructure to ensure all fields are considered.
         let OutboundInvoicePaymentV2 {
-            invoice,
             hash,
             secret,
             preimage,
             amount,
-            fees,
+            routing_fee: fees,
             status,
             failure,
-            note,
             created_at,
+            expires_at: _,
             finalized_at,
         } = pwm.payment;
         let PaymentMetadata {
             id: _,
             address: _,
-            invoice: _,
+            invoice,
             offer: _,
             priority: _,
             quantity: _,
             replacement_txid: _,
-            note: _,
+            note,
             payer_note: _,
             payer_name: _,
         } = pwm.metadata;
+
+        let invoice = invoice.context("Missing invoice")?;
+        let created_at = created_at.context("Missing created_at")?;
+        let invoice = Box::new(invoice);
 
         Ok(Self {
             invoice,
@@ -426,8 +437,10 @@ impl OutboundSpontaneousPaymentV1 {
 
 #[cfg(test)]
 pub(crate) mod arb {
-    use arbitrary::any_duration;
-    use common::{self, test_utils::arbitrary::any_option_string};
+    use common::{
+        self,
+        test_utils::{arbitrary, arbitrary::any_option_string},
+    };
     use lexe_api::types::{
         invoice::arbitrary_impl::LxInvoiceParams, payments::LxPaymentPreimage,
     };
@@ -468,7 +481,7 @@ pub(crate) mod arb {
             let failure = any::<LxOutboundPaymentFailure>();
             let note = any_option_string();
             let created_at = any::<TimestampMs>();
-            let finalized_after = any_duration();
+            let finalized_after = arbitrary::any_duration();
 
             let gen_oip = move |(
                 status,
@@ -540,7 +553,7 @@ pub(crate) mod arb {
             let failure = any::<LxOutboundPaymentFailure>();
             let note = any_option_string();
             let created_at = any::<TimestampMs>();
-            let finalized_after = any_duration();
+            let finalized_after = arbitrary::any_duration();
 
             let gen_oop = move |(
                 status,
@@ -612,7 +625,7 @@ pub(crate) mod arb {
             let status = any::<OutboundSpontaneousPaymentStatus>();
             let note = any_option_string();
             let created_at = any::<TimestampMs>();
-            let finalized_after = any_duration();
+            let finalized_after = arbitrary::any_duration();
 
             let gen_osp = |(
                 preimage,

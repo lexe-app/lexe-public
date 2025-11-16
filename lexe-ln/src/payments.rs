@@ -373,7 +373,7 @@ impl PaymentWithMetadata<PaymentV2> {
             id: self.payment.id(),
             kind: self.payment.kind(),
             direction: self.payment.direction(),
-            invoice: self.invoice(),
+            invoice: self.invoice().map(Box::new),
             offer_id: self.offer_id(),
             offer: self.offer(),
             txid: self.txid(),
@@ -391,21 +391,14 @@ impl PaymentWithMetadata<PaymentV2> {
 
     /// Returns the BOLT11 invoice corresponding to this payment, if any.
     // TODO(max): Remove fn once all matching is removed
-    pub fn invoice(&self) -> Option<Box<LxInvoice>> {
+    pub fn invoice(&self) -> Option<LxInvoice> {
         match &self.payment {
             PaymentV2::OnchainSend(_) => None,
             PaymentV2::OnchainReceive(_) => None,
-            PaymentV2::InboundInvoice(_) => self
-                .metadata
-                .invoice
-                .as_ref()
-                .map(|invoice| Box::new(invoice.clone())),
+            PaymentV2::InboundInvoice(_) => self.metadata.invoice.clone(),
             PaymentV2::InboundOfferReusable(_) => None,
             PaymentV2::InboundSpontaneous(_) => None,
-            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV2 {
-                invoice,
-                ..
-            }) => Some(invoice.clone()),
+            PaymentV2::OutboundInvoice(_) => self.metadata.invoice.clone(),
             PaymentV2::OutboundOffer(_) => None,
             PaymentV2::OutboundSpontaneous(_) => None,
         }
@@ -554,9 +547,9 @@ impl PaymentWithMetadata<PaymentV2> {
                 ..
             }) => skimmed_fee.unwrap_or(Amount::ZERO),
             PaymentV2::OutboundInvoice(OutboundInvoicePaymentV2 {
-                fees,
+                routing_fee,
                 ..
-            }) => *fees,
+            }) => *routing_fee,
             PaymentV2::OutboundOffer(OutboundOfferPaymentV1 {
                 fees, ..
             }) => *fees,
@@ -576,10 +569,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::InboundInvoice(_) => &self.metadata.note,
             PaymentV2::InboundOfferReusable(_) => &self.metadata.note,
             PaymentV2::InboundSpontaneous(_) => &self.metadata.note,
-            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV2 {
-                note,
-                ..
-            }) => note,
+            PaymentV2::OutboundInvoice(_) => &self.metadata.note,
             PaymentV2::OutboundOffer(OutboundOfferPaymentV1 {
                 note, ..
             }) => note,
@@ -600,10 +590,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::InboundInvoice(_) => &mut self.metadata.note,
             PaymentV2::InboundOfferReusable(_) => &mut self.metadata.note,
             PaymentV2::InboundSpontaneous(_) => &mut self.metadata.note,
-            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV2 {
-                note,
-                ..
-            }) => note,
+            PaymentV2::OutboundInvoice(_) => &mut self.metadata.note,
             PaymentV2::OutboundOffer(OutboundOfferPaymentV1 {
                 note, ..
             }) => note,
@@ -886,7 +873,7 @@ impl PaymentV2 {
             Self::OutboundInvoice(OutboundInvoicePaymentV2 {
                 created_at,
                 ..
-            }) => Some(*created_at),
+            }) => *created_at,
             Self::OutboundOffer(OutboundOfferPaymentV1 {
                 created_at, ..
             }) => Some(*created_at),
@@ -932,9 +919,11 @@ impl PaymentV2 {
                 field.get_or_insert(created_at);
             }
             Self::OutboundInvoice(OutboundInvoicePaymentV2 {
-                created_at: _field,
+                created_at: field,
                 ..
-            }) => (),
+            }) => {
+                field.get_or_insert(created_at);
+            }
             Self::OutboundOffer(OutboundOfferPaymentV1 {
                 created_at: _field,
                 ..
