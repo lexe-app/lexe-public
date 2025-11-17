@@ -16,13 +16,16 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use crate::payments::{
-    PaymentMetadata, PaymentV2, PaymentWithMetadata,
+    PaymentV2, PaymentWithMetadata,
     inbound::{
         InboundInvoicePaymentV2, InboundOfferReusablePaymentV2,
         InboundSpontaneousPaymentV2,
     },
     onchain::{OnchainReceiveV2, OnchainSendV2},
-    outbound::{OutboundInvoicePaymentV2, OutboundOfferPaymentV2},
+    outbound::{
+        OutboundInvoicePaymentV2, OutboundOfferPaymentV2,
+        OutboundSpontaneousPaymentV2,
+    },
     v1::{
         inbound::{
             InboundInvoicePaymentV1, InboundOfferReusablePaymentV1,
@@ -146,7 +149,6 @@ impl From<OutboundSpontaneousPaymentV1> for PaymentV1 {
 
 impl From<PaymentV1> for PaymentWithMetadata {
     fn from(payment_v1: PaymentV1) -> Self {
-        let id = payment_v1.id();
         match payment_v1 {
             PaymentV1::OnchainSend(p) =>
                 PaymentWithMetadata::<OnchainSendV2>::from(p).into_enum(),
@@ -167,10 +169,9 @@ impl From<PaymentV1> for PaymentWithMetadata {
             PaymentV1::OutboundOffer(p) =>
                 PaymentWithMetadata::<OutboundOfferPaymentV2>::from(p)
                     .into_enum(),
-            PaymentV1::OutboundSpontaneous(p) => Self {
-                payment: p.into(),
-                metadata: PaymentMetadata::empty(id),
-            },
+            PaymentV1::OutboundSpontaneous(p) =>
+                PaymentWithMetadata::<OutboundSpontaneousPaymentV2>::from(p)
+                    .into_enum(),
         }
     }
 }
@@ -244,8 +245,15 @@ impl TryFrom<PaymentWithMetadata> for PaymentV1 {
                     .context("OutboundOffer conversion")?;
                 PaymentV1::OutboundOffer(oopv1)
             }
-            PaymentV2::OutboundSpontaneous(p) =>
-                PaymentV1::OutboundSpontaneous(p),
+            PaymentV2::OutboundSpontaneous(p) => {
+                let ospwm = PaymentWithMetadata {
+                    payment: p,
+                    metadata: pwm.metadata,
+                };
+                let ospv1 = OutboundSpontaneousPaymentV1::try_from(ospwm)
+                    .context("OutboundSpontaneous conversion")?;
+                PaymentV1::OutboundSpontaneous(ospv1)
+            }
         };
 
         Ok(v1)

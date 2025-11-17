@@ -858,6 +858,22 @@ pub struct InboundSpontaneousPaymentV2 {
     pub finalized_at: Option<TimestampMs>,
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(strum::VariantArray, Hash))]
+pub enum InboundSpontaneousPaymentStatus {
+    /// We received a [`PaymentClaimable`] event.
+    Claiming,
+    /// We received a [`PaymentClaimed`] event.
+    Completed,
+    // NOTE: We don't have a "Failed" case here because (as Matt says) if you
+    // call ChannelManager::claim_funds we should always get the
+    // PaymentClaimed event back. If for some reason this turns out not to
+    // be true (i.e. we observe a number of inbound spontaneous payments
+    // stuck in the "claiming" state), then we can add a "Failed" state
+    // here. https://discord.com/channels/915026692102316113/978829624635195422/1085427776070365214
+}
+
 impl InboundSpontaneousPaymentV2 {
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
@@ -973,22 +989,6 @@ impl InboundSpontaneousPaymentV2 {
 
         Ok(clone)
     }
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-#[cfg_attr(test, derive(strum::VariantArray, Hash))]
-pub enum InboundSpontaneousPaymentStatus {
-    /// We received a [`PaymentClaimable`] event.
-    Claiming,
-    /// We received a [`PaymentClaimed`] event.
-    Completed,
-    // NOTE: We don't have a "Failed" case here because (as Matt says) if you
-    // call ChannelManager::claim_funds we should always get the
-    // PaymentClaimed event back. If for some reason this turns out not to
-    // be true (i.e. we observe a number of inbound spontaneous payments
-    // stuck in the "claiming" state), then we can add a "Failed" state
-    // here. https://discord.com/channels/915026692102316113/978829624635195422/1085427776070365214
 }
 
 #[cfg(test)]

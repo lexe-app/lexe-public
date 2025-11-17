@@ -283,6 +283,41 @@ pub struct OnchainReceiveV2 {
     pub finalized_at: Option<TimestampMs>,
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
+pub enum OnchainReceiveStatus {
+    /// (Pending, zeroconf) We detected the inbound tx, but it is still
+    /// awaiting its first confirmation.
+    Zeroconf,
+
+    /// (Pending, 1-5 confs) The tx has at least 1 conf, but no greater than 5.
+    PartiallyConfirmed,
+    /// (Pending, 1-5 confs) At least one of this tx's inputs has been included
+    /// in a different tx which has at least 1 conf, but no greater than 5.
+    PartiallyReplaced,
+
+    /// (Finalized-Completed, 6+ confs) The tx has 6 or more confirmations.
+    FullyConfirmed,
+    /// (Finalized-Failed, 6+ confs) At least one of this tx's inputs has been
+    /// spent by a different tx which has between 6 or greater confirmations.
+    FullyReplaced,
+    /// (Finalized-Failed, zeroconf) All of the following are true:
+    ///
+    /// - This tx has not received a single confirmation.
+    /// - We have not detected a replacement tx spending at least one of this
+    ///   tx's inputs with 1 or more confirmations.
+    /// - It has been at least 14 days since we first detected this transaction.
+    ///
+    /// 14 days is the default `-mempoolexpiry` value in Bitcoin Core. It is
+    /// likely that most nodes will have evicted our transaction from their
+    /// mempool by now. There is a small chance that this transaction ends up
+    /// getting confirmed, but we'll mark it as failed in our payments manager
+    /// and move on, since this isn't security-critical; the user will still
+    /// see the successful receive reflected in their wallet balance.
+    Dropped,
+}
+
 impl OnchainReceiveV2 {
     // Event sources:
     // - `PaymentsManager::spawn_onchain_recv_checker` task
@@ -394,41 +429,6 @@ impl OnchainReceiveV2 {
                 .into(),
         })
     }
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-#[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
-pub enum OnchainReceiveStatus {
-    /// (Pending, zeroconf) We detected the inbound tx, but it is still
-    /// awaiting its first confirmation.
-    Zeroconf,
-
-    /// (Pending, 1-5 confs) The tx has at least 1 conf, but no greater than 5.
-    PartiallyConfirmed,
-    /// (Pending, 1-5 confs) At least one of this tx's inputs has been included
-    /// in a different tx which has at least 1 conf, but no greater than 5.
-    PartiallyReplaced,
-
-    /// (Finalized-Completed, 6+ confs) The tx has 6 or more confirmations.
-    FullyConfirmed,
-    /// (Finalized-Failed, 6+ confs) At least one of this tx's inputs has been
-    /// spent by a different tx which has between 6 or greater confirmations.
-    FullyReplaced,
-    /// (Finalized-Failed, zeroconf) All of the following are true:
-    ///
-    /// - This tx has not received a single confirmation.
-    /// - We have not detected a replacement tx spending at least one of this
-    ///   tx's inputs with 1 or more confirmations.
-    /// - It has been at least 14 days since we first detected this transaction.
-    ///
-    /// 14 days is the default `-mempoolexpiry` value in Bitcoin Core. It is
-    /// likely that most nodes will have evicted our transaction from their
-    /// mempool by now. There is a small chance that this transaction ends up
-    /// getting confirmed, but we'll mark it as failed in our payments manager
-    /// and move on, since this isn't security-critical; the user will still
-    /// see the successful receive reflected in their wallet balance.
-    Dropped,
 }
 
 #[cfg(test)]

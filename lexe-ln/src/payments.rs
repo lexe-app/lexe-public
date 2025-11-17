@@ -45,9 +45,9 @@ use crate::payments::{
     outbound::{
         OutboundInvoicePaymentStatus, OutboundInvoicePaymentV2,
         OutboundOfferPaymentStatus, OutboundOfferPaymentV2,
-        OutboundSpontaneousPaymentStatus,
+        OutboundSpontaneousPaymentStatus, OutboundSpontaneousPaymentV2,
     },
-    v1::{PaymentV1, outbound::OutboundSpontaneousPaymentV1},
+    v1::PaymentV1,
 };
 
 /// Inbound Lightning payments.
@@ -160,7 +160,7 @@ pub enum PaymentV2 {
     OutboundInvoice(OutboundInvoicePaymentV2),
     // Added in `node-v0.7.8`
     OutboundOffer(OutboundOfferPaymentV2),
-    OutboundSpontaneous(OutboundSpontaneousPaymentV1),
+    OutboundSpontaneous(OutboundSpontaneousPaymentV2),
 }
 
 /// Optional payment metadata associated with a [`PaymentV2`].
@@ -340,8 +340,8 @@ impl From<OutboundOfferPaymentV2> for PaymentV2 {
         Self::OutboundOffer(p)
     }
 }
-impl From<OutboundSpontaneousPaymentV1> for PaymentV2 {
-    fn from(p: OutboundSpontaneousPaymentV1) -> Self {
+impl From<OutboundSpontaneousPaymentV2> for PaymentV2 {
+    fn from(p: OutboundSpontaneousPaymentV2) -> Self {
         Self::OutboundSpontaneous(p)
     }
 }
@@ -367,21 +367,37 @@ impl PaymentWithMetadata<PaymentV2> {
         created_at: TimestampMs,
         updated_at: TimestampMs,
     ) -> BasicPaymentV2 {
+        let id = self.payment.id();
+        let kind = self.payment.kind();
+        let direction = self.payment.direction();
+        let status = self.payment.status();
+        let status_str = self.payment.status_str().to_owned();
+        let offer_id = self.offer_id();
+        let txid = self.txid();
+        let replacement = self.replacement_txid();
+        let amount = self.amount();
+        let fees = self.fees();
+        let finalized_at = self.finalized_at();
+
+        let invoice = self.metadata.invoice.map(Box::new);
+        let offer = self.metadata.offer.map(Box::new);
+        let note = self.metadata.note;
+
         BasicPaymentV2 {
-            id: self.payment.id(),
-            kind: self.payment.kind(),
-            direction: self.payment.direction(),
-            invoice: self.invoice().map(Box::new),
-            offer_id: self.offer_id(),
-            offer: self.offer().map(Box::new),
-            txid: self.txid(),
-            replacement: self.replacement_txid(),
-            amount: self.amount(),
-            fees: self.fees(),
-            status: self.payment.status(),
-            status_str: self.payment.status_str().to_owned(),
-            note: self.note().map(|s| s.to_owned()),
-            finalized_at: self.finalized_at(),
+            id,
+            kind,
+            direction,
+            invoice,
+            offer_id,
+            offer,
+            txid,
+            replacement,
+            amount,
+            fees,
+            status,
+            status_str,
+            note,
+            finalized_at,
             created_at,
             updated_at,
         }
@@ -389,14 +405,14 @@ impl PaymentWithMetadata<PaymentV2> {
 
     /// Returns the BOLT11 invoice corresponding to this payment, if any.
     // TODO(max): Remove fn once all matching is removed
-    pub fn invoice(&self) -> Option<LxInvoice> {
+    pub fn invoice(&self) -> Option<&LxInvoice> {
         match &self.payment {
             PaymentV2::OnchainSend(_) => None,
             PaymentV2::OnchainReceive(_) => None,
-            PaymentV2::InboundInvoice(_) => self.metadata.invoice.clone(),
+            PaymentV2::InboundInvoice(_) => self.metadata.invoice.as_ref(),
             PaymentV2::InboundOfferReusable(_) => None,
             PaymentV2::InboundSpontaneous(_) => None,
-            PaymentV2::OutboundInvoice(_) => self.metadata.invoice.clone(),
+            PaymentV2::OutboundInvoice(_) => self.metadata.invoice.as_ref(),
             PaymentV2::OutboundOffer(_) => None,
             PaymentV2::OutboundSpontaneous(_) => None,
         }
@@ -422,7 +438,7 @@ impl PaymentWithMetadata<PaymentV2> {
 
     /// Returns the BOLT12 offer associated with this payment, if there is one.
     // TODO(max): Remove fn once all matching is removed
-    pub fn offer(&self) -> Option<LxOffer> {
+    pub fn offer(&self) -> Option<&LxOffer> {
         match &self.payment {
             PaymentV2::OnchainSend(_) => None,
             PaymentV2::OnchainReceive(_) => None,
@@ -431,7 +447,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::InboundOfferReusable(_) => None,
             PaymentV2::InboundSpontaneous(_) => None,
             PaymentV2::OutboundInvoice(_) => None,
-            PaymentV2::OutboundOffer(_) => self.metadata.offer.clone(),
+            PaymentV2::OutboundOffer(_) => self.metadata.offer.as_ref(),
             PaymentV2::OutboundSpontaneous(_) => None,
         }
     }
@@ -515,7 +531,7 @@ impl PaymentWithMetadata<PaymentV2> {
             PaymentV2::OutboundOffer(OutboundOfferPaymentV2 {
                 amount, ..
             }) => Some(*amount),
-            PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
+            PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV2 {
                 amount,
                 ..
             }) => Some(*amount),
@@ -523,7 +539,6 @@ impl PaymentWithMetadata<PaymentV2> {
     }
 
     /// The fees paid or expected to be paid for this payment.
-    // TODO(max): Ensure consistent name for `onchain_fee` (no trailing 's')
     pub fn fees(&self) -> Amount {
         match &self.payment {
             PaymentV2::OnchainSend(OnchainSendV2 { fees, .. }) => *fees,
@@ -548,54 +563,19 @@ impl PaymentWithMetadata<PaymentV2> {
                 routing_fee,
                 ..
             }) => *routing_fee,
-            PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
-                fees,
+            PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV2 {
+                routing_fee,
                 ..
-            }) => *fees,
+            }) => *routing_fee,
         }
     }
 
-    /// Get the payment note.
-    // TODO(max): Remove fn once all matching is removed
-    pub fn note(&self) -> Option<&str> {
-        let maybe_note = match &self.payment {
-            PaymentV2::OnchainSend(_) => &self.metadata.note,
-            PaymentV2::OnchainReceive(_) => &self.metadata.note,
-            PaymentV2::InboundInvoice(_) => &self.metadata.note,
-            PaymentV2::InboundOfferReusable(_) => &self.metadata.note,
-            PaymentV2::InboundSpontaneous(_) => &self.metadata.note,
-            PaymentV2::OutboundInvoice(_) => &self.metadata.note,
-            PaymentV2::OutboundOffer(_) => &self.metadata.note,
-            PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
-                note,
-                ..
-            }) => note,
-        };
-        maybe_note.as_ref().map(|s| s.as_str())
-    }
-
     /// Set the payment note to a new value.
-    // TODO(max): Remove fn once all matching is removed
     pub fn set_note(&mut self, note: Option<String>) {
-        let mut_ref_note: &mut Option<String> = match &mut self.payment {
-            PaymentV2::OnchainSend(_) => &mut self.metadata.note,
-            PaymentV2::OnchainReceive(_) => &mut self.metadata.note,
-            PaymentV2::InboundInvoice(_) => &mut self.metadata.note,
-            PaymentV2::InboundOfferReusable(_) => &mut self.metadata.note,
-            PaymentV2::InboundSpontaneous(_) => &mut self.metadata.note,
-            PaymentV2::OutboundInvoice(_) => &mut self.metadata.note,
-            PaymentV2::OutboundOffer(_) => &mut self.metadata.note,
-            PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
-                note,
-                ..
-            }) => note,
-        };
-
-        *mut_ref_note = note;
+        self.metadata.note = note;
     }
 
     /// When this payment was completed or failed.
-    // TODO(max): Remove fn once all matching is removed
     pub fn finalized_at(&self) -> Option<TimestampMs> {
         match &self.payment {
             PaymentV2::OnchainSend(OnchainSendV2 { finalized_at, .. }) =>
@@ -623,7 +603,7 @@ impl PaymentWithMetadata<PaymentV2> {
                 finalized_at,
                 ..
             }) => *finalized_at,
-            PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
+            PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV2 {
                 finalized_at,
                 ..
             }) => *finalized_at,
@@ -800,7 +780,7 @@ impl PaymentV2 {
             }) => PaymentStatus::from(*status),
             Self::OutboundOffer(OutboundOfferPaymentV2 { status, .. }) =>
                 PaymentStatus::from(*status),
-            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV2 {
                 status,
                 ..
             }) => PaymentStatus::from(*status),
@@ -833,7 +813,7 @@ impl PaymentV2 {
                 .unwrap_or_else(|| status.as_str()),
             Self::OutboundOffer(OutboundOfferPaymentV2 { status, .. }) =>
                 status.as_str(),
-            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV2 {
                 status,
                 ..
             }) => status.as_str(),
@@ -868,10 +848,10 @@ impl PaymentV2 {
             Self::OutboundOffer(OutboundOfferPaymentV2 {
                 created_at, ..
             }) => *created_at,
-            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV2 {
                 created_at,
                 ..
-            }) => Some(*created_at),
+            }) => *created_at,
         }
     }
 
@@ -879,53 +859,39 @@ impl PaymentV2 {
     ///
     /// Idempotent; only works once; subsequent calls have no effect.
     pub fn set_created_at_once(&mut self, created_at: TimestampMs) {
-        // TODO(max): Audit that we actually set all fields
-        // TODO(max): Remove braces once all fields are Option
         match self {
             Self::OnchainSend(OnchainSendV2 {
                 created_at: field, ..
-            }) => {
-                field.get_or_insert(created_at);
-            }
+            }) => field.get_or_insert(created_at),
             Self::OnchainReceive(OnchainReceiveV2 {
                 created_at: field,
                 ..
-            }) => {
-                field.get_or_insert(created_at);
-            }
+            }) => field.get_or_insert(created_at),
             Self::InboundInvoice(InboundInvoicePaymentV2 {
                 created_at: field,
                 ..
-            }) => {
-                field.get_or_insert(created_at);
-            }
+            }) => field.get_or_insert(created_at),
             Self::InboundOfferReusable(InboundOfferReusablePaymentV2 {
-                created_at: _field,
+                created_at: field,
                 ..
-            }) => (),
+            }) => field.get_or_insert(created_at),
             Self::InboundSpontaneous(InboundSpontaneousPaymentV2 {
                 created_at: field,
                 ..
-            }) => {
-                field.get_or_insert(created_at);
-            }
+            }) => field.get_or_insert(created_at),
             Self::OutboundInvoice(OutboundInvoicePaymentV2 {
                 created_at: field,
                 ..
-            }) => {
-                field.get_or_insert(created_at);
-            }
+            }) => field.get_or_insert(created_at),
             Self::OutboundOffer(OutboundOfferPaymentV2 {
                 created_at: field,
                 ..
-            }) => {
-                field.get_or_insert(created_at);
-            }
-            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
-                created_at: _field,
+            }) => field.get_or_insert(created_at),
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV2 {
+                created_at: field,
                 ..
-            }) => (),
-        }
+            }) => field.get_or_insert(created_at),
+        };
     }
 
     /// When this payment was completed or failed.
@@ -955,7 +921,7 @@ impl PaymentV2 {
                 finalized_at,
                 ..
             }) => *finalized_at,
-            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV2 {
                 finalized_at,
                 ..
             }) => *finalized_at,
@@ -1304,7 +1270,7 @@ mod test {
         payments.extend(
             arbitrary::gen_value_iter(
                 &mut rng,
-                any::<OutboundSpontaneousPaymentV1>(),
+                any::<OutboundSpontaneousPaymentV2>(),
             )
             .take(COUNT)
             .map(PaymentV2::OutboundSpontaneous),
@@ -1376,7 +1342,7 @@ mod test {
             ),
             (
                 "OutboundSpontaneous",
-                any::<OutboundSpontaneousPaymentV1>()
+                any::<OutboundSpontaneousPaymentV2>()
                     .prop_map(PaymentV2::OutboundSpontaneous)
                     .boxed(),
             ),

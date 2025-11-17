@@ -25,6 +25,7 @@ use crate::payments::{
         LxOutboundPaymentFailure, OutboundInvoicePaymentStatus,
         OutboundInvoicePaymentV2, OutboundOfferPaymentStatus,
         OutboundOfferPaymentV2, OutboundSpontaneousPaymentStatus,
+        OutboundSpontaneousPaymentV2,
     },
 };
 #[cfg(doc)]
@@ -356,6 +357,81 @@ impl OutboundSpontaneousPaymentV1 {
     #[inline]
     pub fn id(&self) -> LxPaymentId {
         LxPaymentId::Lightning(self.hash)
+    }
+}
+
+impl From<OutboundSpontaneousPaymentV1>
+    for PaymentWithMetadata<OutboundSpontaneousPaymentV2>
+{
+    fn from(v1: OutboundSpontaneousPaymentV1) -> Self {
+        let payment = OutboundSpontaneousPaymentV2 {
+            hash: v1.hash,
+            preimage: v1.preimage,
+            amount: v1.amount,
+            routing_fee: v1.fees,
+            status: v1.status,
+            created_at: Some(v1.created_at),
+            finalized_at: v1.finalized_at,
+        };
+        let metadata = PaymentMetadata {
+            id: v1.id(),
+            address: None,
+            invoice: None,
+            offer: None,
+            priority: None,
+            quantity: None,
+            replacement_txid: None,
+            note: v1.note,
+            payer_note: None,
+            payer_name: None,
+        };
+
+        Self { payment, metadata }
+    }
+}
+
+impl TryFrom<PaymentWithMetadata<OutboundSpontaneousPaymentV2>>
+    for OutboundSpontaneousPaymentV1
+{
+    type Error = anyhow::Error;
+
+    fn try_from(
+        pwm: PaymentWithMetadata<OutboundSpontaneousPaymentV2>,
+    ) -> Result<Self, Self::Error> {
+        let OutboundSpontaneousPaymentV2 {
+            hash,
+            preimage,
+            amount,
+            routing_fee: fees,
+            status,
+            created_at,
+            finalized_at,
+        } = pwm.payment;
+        let PaymentMetadata {
+            id: _,
+            address: _,
+            invoice: _,
+            offer: _,
+            priority: _,
+            quantity: _,
+            replacement_txid: _,
+            note,
+            payer_note: _,
+            payer_name: _,
+        } = pwm.metadata;
+
+        let created_at = created_at.context("Missing created_at")?;
+
+        Ok(Self {
+            hash,
+            preimage,
+            amount,
+            fees,
+            status,
+            note,
+            created_at,
+            finalized_at,
+        })
     }
 }
 
